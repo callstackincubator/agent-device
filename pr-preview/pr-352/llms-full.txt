@@ -9,28 +9,32 @@ url: /agent-device/pr-preview/pr-352/docs/introduction.md
 - Accessibility snapshots for UI understanding
 - Deterministic interactions (tap, type, scroll)
 - Session-aware workflows and replay
+- Session logs and network inspection for debugging broken flows
+- Performance snapshots with `perf`/`metrics`, including CPU and memory data where supported
 
-If you know `agent-browser`, this is the mobile-native counterpart for iOS/Android UI automation.
-For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in this repository.
+If you know `agent-browser`, this is the mobile-native counterpart for iOS/Android UI automation and app-level observability.
+For agent-oriented operating guidance, start with `agent-device help workflow`. For exploratory QA, use `agent-device help dogfood`. For React Native component trees, props/state/hooks, and render profiling, use `agent-device help react-devtools` and the `agent-device react-devtools` passthrough.
 
 ## What it’s good at
 
-- Capturing structured UI state for LLMs
-- Driving common UI actions with refs or semantic selectors
-- Replaying flows for regression checks
+- Exploring and driving app flows on real devices and simulators
+- Collecting debugging evidence through logs, network traffic, screenshots, recordings, and performance snapshots
+- Replaying successful flows as lightweight regression checks
 
 ## Platform support highlights
 
-- iOS core runner commands: `snapshot`, `snapshot --diff`, `diff snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `scrollintoview`, `back`, `home`, `rotate`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`, `install`, `install-from-source`, `reinstall`, `trigger-app-event`.
+- iOS core runner commands: `snapshot`, `snapshot --diff`, `diff snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `back`, `home`, `rotate`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`, `install`, `install-from-source`, `reinstall`, `trigger-app-event`.
 - iOS `appstate` is session-scoped on the selected target device.
 - iOS/tvOS simulator-only: `settings`, `push`, `clipboard`.
 - Apple simulators and macOS desktop app sessions: `alert`, `pinch`.
-- Session performance metrics: `perf`/`metrics` is available on iOS, macOS, and Android. Startup timing comes from `open` command round-trip duration. Android app sessions and Apple app sessions on macOS or iOS simulators also expose CPU and memory snapshots when an app identifier is available in the session.
+- Session diagnostics: `logs` and `network dump` are available for debugging active app sessions, with network inspection based on recent HTTP(s) entries captured in the session app log.
+- Session performance metrics: `perf`/`metrics` is available on iOS, macOS, and Android. Startup timing comes from `open` command round-trip duration. Android app sessions and Apple app sessions on macOS, iOS simulators, or connected iOS devices also expose CPU and memory snapshots when an app identifier is available in the session.
 - iOS `record` supports simulators and physical devices.
   - Simulators use native `simctl io ... recordVideo`.
   - Physical devices use runner screenshot capture (`XCUIScreen.main.screenshot()` frames) stitched into MP4, so FPS is best-effort (not guaranteed 60 even with `--fps 60`).
   - Physical-device recording requires an active app session context (`open <app>` first).
   - Physical-device recording defaults to 15 FPS and supports `--fps` caps.
+  - `record start --quality <5-10>` scales recording resolution from 50% through native resolution; omitting it keeps native/current resolution.
 - Android supports the same core interaction set, plus `rotate`, `push` notification simulation, `clipboard read/write`, and `keyboard status|get|dismiss`.
 - iOS supports `keyboard dismiss` through the XCTest runner when the on-screen keyboard is visible.
 - App-event triggers are available on iOS and Android through app-defined deep-link hooks (`trigger-app-event`), using active session context or explicit device selectors.
@@ -41,6 +45,20 @@ For exploratory QA and bug-hunting workflows, see `skills/dogfood/SKILL.md` in t
 2. The daemon manages sessions and dispatches to platform drivers.
 3. iOS uses XCTest runner for snapshots and input on simulators and physical devices.
 4. Android uses ADB-based tooling.
+
+## Complementary React tooling
+
+`agent-device` is intentionally centered on the device/app layer: UI automation, screenshots/recordings, app logs, network inspection, and performance sampling.
+
+When a React Native debugging workflow needs React internals such as the component tree, props, state, hooks, or render profiling, use `agent-device react-devtools` alongside normal device commands:
+
+```bash
+agent-device react-devtools status
+agent-device react-devtools get tree --depth 3
+agent-device react-devtools profile start
+agent-device react-devtools profile stop
+agent-device react-devtools profile slow --limit 5
+```
 
 ## Example
 
@@ -239,6 +257,55 @@ url: /agent-device/pr-preview/pr-352/docs/client-api.md
 
 Use `createAgentDeviceClient()` when you want to drive the daemon from application code instead of shelling out to the CLI.
 
+For remote Metro-backed flows, import the reusable Node APIs instead of spawning the `agent-device` binary. The CLI uses the same helpers internally.
+
+Public subpath API exposed for Node consumers:
+
+- `agent-device/io`
+  - artifact adapter types, file input refs, and file output refs
+- `agent-device/metro`
+  - `prepareRemoteMetro(options)`
+  - `ensureMetroTunnel(options)`
+  - `reloadRemoteMetro(options)`
+  - `stopMetroTunnel(options)`
+  - `buildIosRuntimeHints(baseUrl)`
+  - `buildAndroidRuntimeHints(baseUrl)`
+  - types: `PrepareRemoteMetroOptions`, `PrepareRemoteMetroResult`, `EnsureMetroTunnelOptions`, `EnsureMetroTunnelResult`, `ReloadRemoteMetroOptions`, `ReloadRemoteMetroResult`, `StopMetroTunnelOptions`, `MetroRuntimeHints`, `MetroBridgeResult`
+- `agent-device/remote-config`
+  - `resolveRemoteConfigPath(options)`
+  - `resolveRemoteConfigProfile(options)`
+  - types: `RemoteConfigProfile`, `RemoteConfigProfileOptions`, `ResolvedRemoteConfigProfile`
+- `agent-device/contracts`
+  - types: `SessionRuntimeHints`, `DaemonInstallSource`, `DaemonLockPolicy`, `DaemonRequestMeta`, `DaemonRequest`, `DaemonArtifact`, `DaemonResponseData`, `DaemonError`, `DaemonResponse`
+- `agent-device/selectors`
+  - `parseSelectorChain(expression)`
+  - `tryParseSelectorChain(expression)`
+  - `resolveSelectorChain(nodes, chain, options)`
+  - `findSelectorChainMatch(nodes, chain, options)`
+  - `formatSelectorFailure(chain, diagnostics, options)`
+  - `isNodeVisible(node)`
+  - `isSelectorToken(token)`
+  - `isNodeEditable(node, platform)`
+  - types: `Selector`, `SelectorChain`, `SelectorDiagnostics`, `SelectorResolution`, `SnapshotNode`
+- `agent-device/finders`
+  - `findBestMatchesByLocator(nodes, locator, query, requireRectOrOptions)`
+  - `normalizeRole(value)`
+  - `normalizeText(value)`
+  - `parseFindArgs(args)`
+  - types: `FindLocator`, `FindMatchOptions`, `SnapshotNode`
+- `agent-device/install-source`
+  - `ARCHIVE_EXTENSIONS`
+  - `isBlockedIpAddress(address)`
+  - `isBlockedSourceHostname(hostname)`
+  - `isTrustedInstallSourceUrl(sourceUrl)`
+  - `materializeInstallablePath(options)`
+  - `validateDownloadSourceUrl(url)`
+  - types: `MaterializeInstallSource`, `MaterializedInstallable`
+- `agent-device/artifacts`
+  - `resolveAndroidArchivePackageName(archivePath)`
+
+The `contracts`, `selectors`, `finders`, `install-source`, `android-apps`, `artifacts`, `metro`, `remote-config`, and `io` subpaths remain available for compatibility. The former hosted-runtime subpaths `agent-device/commands`, `agent-device/backend`, `agent-device/testing/conformance`, and `agent-device/observability` are no longer published.
+
 ## Basic usage
 
 ```ts
@@ -251,6 +318,7 @@ const client = createAgentDeviceClient({
 });
 
 const devices = await client.devices.list({ platform: 'ios' });
+const apps = await client.apps.list({ platform: 'ios', appsFilter: 'user-installed' });
 const ensured = await client.simulators.ensure({
   device: 'iPhone 16',
   boot: true,
@@ -270,6 +338,61 @@ const snapshot = await client.capture.snapshot({ interactiveOnly: true });
 
 await client.sessions.close();
 ```
+
+## Command methods
+
+Use `client.command.<method>()` for command-level device actions. It uses the same daemon transport path as the higher-level client methods, including session metadata, tenant/run/lease fields, normalized daemon errors, and remote artifact handling.
+
+Results are daemon-shaped objects with typed known fields, so command semantics stay aligned with the CLI.
+
+```ts
+await client.command.wait({
+  text: 'Continue',
+  timeoutMs: 5_000,
+});
+
+await client.command.keyboard({
+  action: 'dismiss',
+});
+
+await client.command.clipboard({
+  action: 'write',
+  text: 'hello from Node',
+});
+
+await client.command.back({
+  mode: 'system',
+});
+
+await client.command.appSwitcher();
+```
+
+Supported command methods:
+
+- `wait`
+- `appState`
+- `back`
+- `home`
+- `rotate`
+- `appSwitcher`
+- `keyboard`
+- `clipboard`
+- `alert`
+
+Additional CLI-backed methods are exposed on their domain groups with typed option objects so Node consumers do not need to build raw daemon requests:
+
+- `client.devices.boot()`
+- `client.apps.push()`
+- `client.apps.triggerEvent()`
+- `client.capture.diff()`
+- `client.interactions.click()`, `press()`, `longPress()`, `swipe()`, `focus()`, `type()`, `fill()`, `scroll()`, `pinch()`, `get()`, `is()`, `find()`
+- `client.replay.run()` and `client.replay.test()`
+- `client.batch.run()`
+- `client.observability.perf()`, `logs()`, and `network()`
+- `client.recording.record()` and `client.recording.trace()`
+- `client.settings.update()`
+
+`client.recording.record({ action: 'start', path, quality: 5 })` starts a smaller 50% resolution video; omit `quality` to keep native/current resolution.
 
 ## Android `installFromSource()`
 
@@ -312,9 +435,86 @@ If the daemon cannot determine installed app identity, the request fails instead
 
 - Private and loopback hosts are blocked by default.
 - Archive-backed URL installs are only supported for trusted artifact services, currently GitHub Actions and EAS.
-- For other hosts, prefer `source: { kind: 'path', path: ... }` so the client downloads/uploads the artifact explicitly.
+- For existing reachable artifact URLs, use `source: { kind: 'url', url: ... }`.
+- For local artifacts, use `source: { kind: 'path', path: ... }` or the CLI `install`/`reinstall` commands.
+- For compatible remote daemons that resolve CI artifacts server-side, pass a GitHub Actions artifact source:
 
-Direct Android `.apk` and `.aab` URL sources can still resolve package identity from the downloaded install artifact.
+```ts
+await client.apps.installFromSource({
+  platform: 'android',
+  source: {
+    kind: 'github-actions-artifact',
+    owner: 'acme',
+    repo: 'mobile',
+    artifactId: 1234567890,
+  },
+});
+```
+
+Remote daemons may also support `{ kind: 'github-actions-artifact', owner, repo, artifactName }` or `{ kind: 'github-actions-artifact', owner, repo, runId, artifactName }`. The local client preserves these payloads and does not perform GitHub authentication or artifact download.
+
+Direct Android `.apk` and `.aab` URL sources can still resolve package identity from the downloaded install artifact. Trusted GitHub Actions and EAS archive URLs may contain one installable `.apk`, `.aab`, `.ipa`, or iOS `.app` tar archive.
+
+## Remote Metro helpers
+
+```ts
+import {
+  prepareRemoteMetro,
+  reloadRemoteMetro,
+  stopMetroTunnel,
+} from 'agent-device/metro';
+import { resolveRemoteConfigProfile } from 'agent-device/remote-config';
+
+const remoteConfig = resolveRemoteConfigProfile({
+  configPath: './agent-device.remote.json',
+  cwd: process.cwd(),
+});
+
+const prepared = await prepareRemoteMetro({
+  projectRoot: remoteConfig.profile.metroProjectRoot!,
+  kind: remoteConfig.profile.metroKind ?? 'auto',
+  proxyBaseUrl: remoteConfig.profile.metroProxyBaseUrl,
+  proxyBearerToken: remoteConfig.profile.metroBearerToken,
+  bridgeScope: {
+    tenantId: remoteConfig.profile.tenant!,
+    runId: remoteConfig.profile.runId!,
+    leaseId: remoteConfig.profile.leaseId!,
+  },
+  profileKey: remoteConfig.resolvedPath,
+});
+
+console.log(prepared.iosRuntime, prepared.androidRuntime);
+
+await reloadRemoteMetro({
+  runtime: prepared.iosRuntime,
+});
+
+await stopMetroTunnel({
+  projectRoot: remoteConfig.profile.metroProjectRoot!,
+  profileKey: remoteConfig.resolvedPath,
+});
+```
+
+Use `agent-device/remote-config` for profile loading and path resolution, `agent-device/metro` for Metro preparation, reload, and tunnel lifecycle, and `agent-device/contracts` when a server consumer needs daemon request or runtime contract types. For bridged remote Metro, `proxyBaseUrl` is the bridge origin and `publicBaseUrl` is optional; the bridge descriptor supplies cloud iOS wildcard HTTPS hints and Android runtime-route hints. `reloadRemoteMetro()` calls Metro's `/reload` endpoint, matching the terminal `r` reload path for connected React Native apps.
+
+## Selector helpers
+
+Use `agent-device/selectors` when a remote daemon or bridge needs to parse and match selector expressions without deep-importing daemon internals. Matching is platform-aware because role normalization and editability checks differ by backend.
+
+```ts
+import { findSelectorChainMatch, parseSelectorChain } from 'agent-device/selectors';
+
+const chain = parseSelectorChain('role=button label="Continue" visible=true');
+
+const match = findSelectorChainMatch(snapshot.nodes, chain, {
+  platform: 'android',
+  requireRect: true,
+});
+
+if (!match) {
+  // Build a daemon-shaped error with formatSelectorFailure(...) if needed.
+}
+```
 
 
 
@@ -327,6 +527,17 @@ url: /agent-device/pr-preview/pr-352/docs/commands.md
 This page summarizes the primary command groups.
 
 For persistent defaults and project-scoped CLI settings, see [Configuration](/agent-device/pr-preview/pr-352/docs/configuration.md).
+
+For agent workflow guidance that is matched to the installed CLI, run:
+
+```bash
+agent-device help workflow
+agent-device help debugging
+agent-device help react-devtools
+agent-device help remote
+agent-device help macos
+agent-device help dogfood
+```
 
 ## Navigation
 
@@ -373,10 +584,11 @@ agent-device app-switcher
 - In `batch`, steps that omit `platform` still inherit the parent batch `--platform`; lock-mode defaults do not override that parent setting.
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
 - Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.
-- Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) when the remote daemon expects the shared daemon token over HTTP; the client sends it in both the JSON-RPC request token and HTTP auth headers.
-- `open <app> --remote-config <path> --relaunch` is the canonical remote Metro-backed launch flow for sandbox agents. The remote profile supplies the remote host + Metro settings, `open` prepares Metro locally when needed, derives platform runtime hints, and forwards them inline to the remote daemon before launch.
-- `metro prepare --remote-config <path>` remains available for inspection and debugging. It prints JSON runtime hints to stdout, `--json` wraps them in the standard `{ success, data }` envelope, and `--runtime-file <path>` persists the same payload when callers need an artifact.
+- Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) for explicit service/API-token automation against non-loopback remote daemon URLs; the client sends it in both the JSON-RPC request token and HTTP auth headers.
+- For human cloud access, `connect --remote-config ...` refreshes a stored CLI session into a short-lived `adc_agent_...` token. If no CLI session exists, interactive shells start login automatically; CI and non-interactive shells fail with API-token setup instructions. Use `--no-login` to disable implicit login. `AGENT_DEVICE_CLOUD_BASE_URL` is the bridge/control-plane API origin; its `/api-keys` route may redirect to the dashboard for token creation.
+- For remote `connect --remote-config` flows, see [Remote Metro workflow](#remote-metro-workflow).
 - Android React Native relaunch flows require an installed package name for `open --relaunch`; install/reinstall the APK first, then relaunch by package. `open <apk|aab> --relaunch` is rejected because runtime hints are written through the installed app sandbox.
+- For Metro-backed React Native JS changes, use `metro reload` before `open <app> --relaunch`; it mirrors pressing `r` in the Metro terminal and keeps the native process alive.
 - Remote daemon screenshots and recordings are downloaded back to the caller path, so `screenshot page.png` and `record start session.mp4` remain usable when the daemon runs on another host.
 
 ```bash
@@ -384,9 +596,9 @@ agent-device open "https://example.com" --platform ios           # open link in 
 agent-device open MyApp "myapp://screen/to" --platform ios       # open deep link to MyApp
 agent-device back --platform ios                                 # tap visible app back UI only
 agent-device back --system --platform ios                        # use edge-swipe or remote back action
-agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
 agent-device reinstall MyApp /path/to/app-debug.apk --platform android --serial emulator-5554
 agent-device open com.example.myapp --platform android --serial emulator-5554 --session my-session --relaunch
+agent-device metro reload
 ```
 
 ## Device isolation scopes
@@ -561,9 +773,6 @@ agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-p
 agent-device longpress 300 500 800
 agent-device scroll down 0.5
 agent-device scroll down --pixels 320
-agent-device scrollintoview "Sign in"
-agent-device scrollintoview "Sign in" --max-scrolls 6
-agent-device scrollintoview @e42
 agent-device pinch 2.0          # zoom in 2x (Apple simulator or macOS app session)
 agent-device pinch 0.5 200 400 # zoom out at coordinates (Apple simulator or macOS app session)
 ```
@@ -579,12 +788,21 @@ Some Android images cannot enter non-ASCII text over shell input; in that case u
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
 On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpress side effects.
 `scroll` accepts either a relative amount (`0.5` means roughly half of the viewport on that axis) or `--pixels <n>` for a fixed-distance gesture. Large distances are clamped to the usable drag band so the gesture stays reliable across Android, iOS, and macOS.
-`scrollintoview` accepts plain text or a snapshot ref (`@eN`).
-Use `--max-scrolls <n>` to cap the number of scroll gestures explicitly.
-When omitted, Apple text/ref paths default to `48` scrolls; Android text mode defaults to `8` because each attempt re-dumps the full UI hierarchy.
-Ref mode re-snapshots after each swipe, returns a refreshed `currentRef` when it can track the target, and stops early when the target enters the safe viewport band or scrolling stops making progress.
 Default snapshot text output is visible-first, so off-screen interactive content is summarized instead of shown as tappable refs.
-`press @ref` and `fill @ref` fail fast when the target is off-screen; use `scrollintoview @ref` first, then retry with the returned `currentRef` or a fresh snapshot.
+When a target only appears in an off-screen summary, use `scroll <direction>` and then take a fresh `snapshot -i`. For repeated checks, a small shell loop is enough:
+
+```bash
+previous=''
+for _ in 1 2 3 4 5 6; do
+  current="$(agent-device snapshot -i)"
+  printf '%s\n' "$current"
+  printf '%s\n' "$current" | grep -q 'Sign in' && break
+  [ "$current" = "$previous" ] && break
+  previous="$current"
+  agent-device scroll down 0.5 >/dev/null
+done
+```
+
 `longpress` is supported on iOS and Android.
 `pinch` is supported on Apple simulators and macOS app sessions.
 
@@ -666,7 +884,7 @@ agent-device install com.example.app ./build/MyApp.app --platform ios
 - Useful for upgrade flows where you want to keep existing app data when supported by the platform.
 - Remote daemons automatically upload local app artifacts for `install`; prefix the path with `remote:` to use a daemon-side path verbatim.
 - Supported binary formats: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
-- `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` with `java` in `PATH`.
+- `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<absolute-path-to-bundletool-all.jar>` with `java` in `PATH`.
 - Optional: `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` overrides bundletool `build-apks --mode` (default: `universal`).
 - `.ipa` installs by extracting `Payload/*.app`; if multiple app bundles exist, `<app>` is used as a bundle id/name hint to select one.
 
@@ -689,12 +907,17 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 
 ```bash
 agent-device install-from-source https://example.com/builds/app.apk --platform android
-agent-device install-from-source https://example.com/builds/MyApp.ipa --platform ios --header "authorization: Bearer TOKEN"
+agent-device install-from-source https://example.com/builds/app.aab --platform android
+agent-device install-from-source --github-actions-artifact thymikee/RNCLI83:6635342232 --platform android
 ```
 
 - `install-from-source <url>` installs from a URL source through the normal daemon artifact flow.
+- `install-from-source --github-actions-artifact <owner/repo:artifact>` passes a typed GitHub Actions artifact source through to a compatible remote daemon. Numeric artifacts are sent as `artifactId`; non-numeric artifacts are sent as `artifactName`.
 - Repeat `--header <name:value>` for authenticated or signed artifact requests.
 - Supports the same device coverage as `install`: Android devices/emulators, iOS simulators, and iOS physical devices.
+- Use `install` or `reinstall` for local `.apk`, `.aab`, `.app`, and `.ipa` paths; use `install-from-source` when the artifact already exists at a URL reachable by the daemon.
+- Direct Android URL sources may be `.apk` or `.aab`.
+- Trusted artifact service URLs may resolve to archives containing one installable `.apk`, `.aab`, `.ipa`, or iOS `.app` tar archive. Prefer `--github-actions-artifact` for GitHub Actions artifacts that a compatible remote daemon can resolve with its own credentials.
 - `--retain-paths` keeps retained materialized artifact paths after install, and `--retention-ms <ms>` sets their TTL.
 - URL downloads follow the same `installFromSource()` safety checks and host restrictions as the JS client API.
 
@@ -742,6 +965,8 @@ agent-device settings airplane on
 agent-device settings airplane off
 agent-device settings location on
 agent-device settings location off
+agent-device settings animations off
+agent-device settings animations on
 agent-device settings appearance light
 agent-device settings appearance dark
 agent-device settings appearance toggle
@@ -765,7 +990,8 @@ agent-device settings permission reset screen-recording --platform macos
 
 - iOS `settings` support is simulator-only except for `settings appearance` and the macOS permission subset on macOS.
 - macOS supports only `settings appearance <light|dark|toggle>` and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`.
-- `settings wifi|airplane|location` remain intentionally unsupported on macOS.
+- `settings wifi|airplane|location|animations` remain intentionally unsupported on macOS.
+- Android `settings animations off|on` toggles the global `window_animation_scale`, `transition_animation_scale`, and `animator_duration_scale` values. Use it as an opt-in stabilizer for automation runs with heavy system or app animations, then restore with `settings animations on` when needed.
 - `settings appearance` maps to macOS appearance, iOS simulator appearance, and Android night mode.
 - Face ID and Touch ID controls are iOS simulator-only.
 - Fingerprint simulation is supported on Android targets where `cmd fingerprint` or `adb emu finger` is available.
@@ -803,6 +1029,7 @@ agent-device clipboard write ""   # clear clipboard
 ```
 
 - `clipboard read` returns clipboard text for the selected target.
+- Treat `clipboard read` output as sensitive data; it can include secrets copied by the user or app.
 - `clipboard write <text>` updates clipboard text on the selected target.
 - Works with an active session device or explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
 - Supported on macOS, Android emulator/device, and iOS simulator.
@@ -840,31 +1067,80 @@ agent-device metrics --json
   - `cpu` from process CPU usage snapshots reported as a recent percentage
 - Platform support:
   - `startup`: iOS simulator, iOS physical device, Android emulator/device
-  - `memory` and `cpu`: Android emulator/device, macOS app sessions, and iOS simulators with an active app session (`open <app>` first)
-  - physical iOS devices still report `memory` and `cpu` as unavailable in this release
+  - `memory` and `cpu`: Android emulator/device, macOS app sessions, iOS simulators with an active app session (`open <app>` first), and iOS physical devices with an active app session
 - `fps` is still unavailable on all platforms in this release.
 - If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf`.
 - If the session has no app package/bundle ID yet, `memory` and `cpu` remain unavailable until you `open <app>`.
+- On physical iOS devices, `perf` records a short `xcrun xctrace` Activity Monitor sample. Keep the device unlocked, connected, and the app active in the foreground while sampling.
 - Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.
 - CPU data is a lightweight process snapshot, so an idle app may legitimately read as `0`.
+
+## React Native component internals
+
+```bash
+agent-device react-devtools status
+agent-device react-devtools wait --connected
+agent-device react-devtools get tree --depth 3
+agent-device react-devtools get component @c5
+agent-device react-devtools find Button
+agent-device react-devtools profile start
+agent-device react-devtools profile stop
+agent-device react-devtools profile slow --limit 5
+agent-device react-devtools profile rerenders --limit 5
+```
+
+- `react-devtools` dynamically runs pinned `agent-react-devtools@0.4.0` through npm and passes arguments through 1:1.
+- The first run may download the pinned package from npm; later runs can reuse the npm cache.
+- `agent-device` global flags work before or after `react-devtools`. Use `--` before downstream flags only when they intentionally share an `agent-device` global flag name.
+- Use it when a React Native workflow needs component hierarchy, props, state, hooks, render causes, slow components, or re-render counts.
+- Keep using `snapshot`, `press`, `fill`, `logs`, `network`, and `perf` for device/app runtime evidence. Use `react-devtools` for React internals.
+- React Native development builds can connect to the DevTools daemon on port 8097. For Android emulators or physical devices, run `adb reverse tcp:8097 tcp:8097` if the app cannot reach the host. If Metro is local, also run `adb reverse tcp:8081 tcp:8081`.
+- For Android sessions connected through a remote bridge profile, `react-devtools` registers a lease-scoped companion tunnel to the sandbox-local DevTools daemon at `127.0.0.1:8097`. The bridge owns the remote `adb reverse` mapping and the CLI unregisters the companion when the command exits.
+- Remote Android React DevTools assumes the React Native-bundled DevTools behavior in React Native 0.83+. Older browser/Chromium DevTools workflows are not assumed to exist inside remote sandboxes. Expo projects should be verified against the SDK's bundled React Native version before relying on this path; this release does not claim a separately verified Expo SDK version.
+- For cross-platform validation with explicit target selectors, prefer an isolated `--state-dir` over separate named sessions. Named sessions enable bound-session locks during setup. Restart `react-devtools` between iOS and Android runs.
+
+## Metro reload
+
+```bash
+agent-device metro reload
+agent-device metro reload --metro-host localhost --metro-port 8081
+agent-device metro reload --bundle-url "http://localhost:8081/index.bundle?platform=ios"
+```
+
+- `metro reload` calls Metro's `/reload` endpoint, the same mechanism used by pressing `r` in the Metro terminal.
+- Use it for React Native dev builds that are already connected to Metro when JS changes should be loaded without restarting the native app process.
+- If an active remote connection has Metro runtime hints, `metro reload` uses those saved hints. Otherwise it defaults to `http://localhost:8081/reload`.
+- Pass `--metro-host`, `--metro-port`, or `--bundle-url` when you need to target a specific Metro instance.
+- Fall back to `open <app> --relaunch` when the app is not connected to Metro, reload fails, or the native process itself must restart.
 
 ## Media and logs
 
 ```bash
 agent-device screenshot                 # Auto filename
 agent-device screenshot page.png        # Explicit screenshot path
+agent-device screenshot page.png --max-size 1024  # Downscale longest edge for agent-friendly artifacts
 agent-device screenshot page.png --overlay-refs  # Draw current @eN refs and target rectangles onto the PNG
 agent-device screenshot textedit.png    # App-session window capture on macOS
 agent-device screenshot --fullscreen    # Force full-screen capture on macOS app sessions
 agent-device open --platform macos --surface desktop && agent-device screenshot desktop.png
+agent-device diff screenshot --baseline baseline.png --out diff.png
+agent-device diff screenshot --baseline baseline.png current.png --out diff.png
+agent-device diff screenshot --baseline baseline.png --out diff.png --overlay-refs
 agent-device record start               # Start screen recording to auto filename
 agent-device record start session.mp4   # Start recording to explicit path
 agent-device record start session.mp4 --fps 30  # Override iOS device runner FPS
+agent-device record start session.mp4 --quality 7 # Scale recording resolution to 70%
 agent-device record stop                # Stop active recording
 ```
 
 - Recordings always produce a video artifact. When touch visualization is enabled, they also produce a gesture telemetry sidecar that can be used for post-processing or inspection.
+- `screenshot --max-size <px>` preserves aspect ratio and only downscales when the saved PNG's longest edge is larger than the requested size.
 - `screenshot --overlay-refs` captures a fresh full snapshot and burns visible `@eN` refs plus their target rectangles into the saved PNG.
+- `screenshot --max-size <px> --overlay-refs` writes a smaller image and draws refs for that final image size; avoid very small max sizes when text, icons, or labels need to remain readable.
+- `diff screenshot` compares the current live screenshot to `--baseline`, or compares `--baseline` to an optional saved `current.png` path without requiring an active session, then prints ranked changed regions with screen-space rectangles, shape, size, density, average color, and luminance, and writes a diff PNG with a light grayscale current-screen context, red-tinted changed pixels, and outlined changed regions when `--out` is provided. JSON also includes normalized bounds.
+- If `tesseract` is installed, `diff screenshot` also adds best-effort OCR text deltas, movement clusters, and bbox size-change hints to the text and JSON output. OCR improves descriptions only; it does not change the pixel comparison or the diff PNG.
+- When OCR is available, `diff screenshot` also reports best-effort non-text visual deltas by masking OCR text boxes out of the diff and clustering remaining residuals. These are hints for icons, controls, and separators, not semantic icon recognition.
+- `diff screenshot --overlay-refs` additionally writes a separate current-screen overlay guide for live captures without using that annotated image for the pixel comparison. If current-screen refs intersect changed regions, the output lists the best ref matches under those regions. Saved-image comparisons do not have live accessibility refs, so `--overlay-refs` is unavailable when a `current.png` path is provided.
 - In `--json` mode, each overlay ref also includes a screenshot-space `center` point for coordinate fallback like `press <x> <y>`.
 - Burned-in touch overlays are exported only on macOS hosts, because the overlay pipeline depends on Swift + AVFoundation helpers.
 - On Linux or other non-macOS hosts, `record stop` still succeeds and returns the raw video plus telemetry sidecar, and includes `overlayWarning` when burn-in overlays were skipped.
@@ -933,6 +1209,8 @@ tail -50 ~/.agent-device/sessions/default/app.log
 
 - `--fps <n>` (1-120) applies to physical iOS device recording as an explicit FPS cap.
 
+- `--quality <5-10>` scales recording resolution from 50% through native resolution without changing FPS. Omitting it preserves the platform's current/native recording resolution.
+
 ## Tracing
 
 ```bash
@@ -948,16 +1226,54 @@ agent-device trace stop session.trace
 
 ## Remote Metro workflow
 
-```bash
-agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
-agent-device snapshot -i --remote-config ./agent-device.remote.json
-agent-device metro prepare --remote-config ./agent-device.remote.json --json
+Example `agent-device.remote.json`:
+
+```json
+{
+  "daemonBaseUrl": "https://bridge.example.com/agent-device",
+  "daemonTransport": "http",
+  "tenant": "acme",
+  "runId": "run-123",
+  "session": "adc-ios",
+  "sessionIsolation": "tenant",
+  "platform": "ios",
+  "leaseBackend": "ios-instance",
+  "metroProjectRoot": ".",
+  "metroProxyBaseUrl": "https://bridge.example.com"
+}
 ```
 
-- `--remote-config <path>` points to a remote workflow profile that captures stable host + Metro settings.
-- `open --remote-config ... --relaunch` is the main agent flow. It prepares Metro locally, derives platform runtime hints, and forwards them inline to the remote daemon before launch.
-- `snapshot`, `press`, `fill`, `screenshot`, and other normal commands can reuse the same `--remote-config` profile so agents do not need to repeat remote host/session selectors inline.
-- `metro prepare --remote-config ...` remains the inspection/debug path and can still write a `--runtime-file <path>` artifact when needed.
+```bash
+agent-device connect --remote-config ./agent-device.remote.json
+agent-device open com.example.myapp --relaunch
+agent-device snapshot -i
+agent-device disconnect
+```
+
+For self-contained scripts, pass the same profile to each step:
+
+```bash
+agent-device install-from-source https://example.com/builds/Demo.app.zip --remote-config ./agent-device.remote.json --platform ios
+agent-device open com.example.myapp --remote-config ./agent-device.remote.json --relaunch
+agent-device snapshot --remote-config ./agent-device.remote.json -i
+agent-device disconnect --remote-config ./agent-device.remote.json
+```
+
+- `--remote-config <path>` points to a remote workflow profile that captures stable host, tenant/run, and any optional session, platform, lease backend, or Metro overrides for `connect`.
+- `connect --remote-config ...` is the main agent flow. It generates a local session name when needed, authenticates to cloud when credentials are missing, stores the remote scope locally, and defers tenant lease allocation plus Metro preparation until a later command needs them.
+- Auth management commands are available for inspection and recovery: `agent-device auth status`, `agent-device auth login`, and `agent-device auth logout`. Human login stores a revocable CLI session locally; it does not create or persist an `adc_live_...` service token.
+- Cloud auth uses three credential classes: `adc_agent_...` short-lived command tokens, revocable CLI session refresh credentials, and explicit `adc_live_...` service/API tokens for CI. The CLI implements credential selection, CI refusal, local storage permissions, logout, and output redaction; the cloud API must enforce token expiry, tenant/run scope, revocation, one-time device approval, polling rate limits, and dashboard/API separation.
+- `AGENT_DEVICE_CLOUD_BASE_URL` should point at the bridge/control-plane API origin, not necessarily the dashboard origin. API-token setup links use `/api-keys` on that origin so the bridge can redirect users to the right dashboard page.
+- Deferred Metro preparation also applies to `batch` when any step opens an app and the batch does not provide its own per-step runtime.
+- After `connect`, `install-from-source`, `open`, `snapshot`, `devices`, `press`, `fill`, `screenshot`, and other normal commands reuse active connection state so agents do not repeat remote host/session/lease selectors inline. If `connection status` shows `leaseId=pending`, the first platform-bound command allocates or refreshes the lease. Passing the same `--remote-config` to a normal command is also supported for self-contained scripts; the CLI reuses matching saved state or creates it before dispatch.
+- Self-contained remote scripts should end with `disconnect --remote-config <path>` or `disconnect` to release the lease and stop the owned Metro companion.
+- Explicit command-line flags override connected defaults. When `open` uses explicit remote daemon or tenant flags without saved runtime hints, the CLI warns because React Native apps may launch without Metro bundle/runtime hints.
+- `metroProxyBaseUrl` is the bridge origin. Do not prebuild `/api/metro/...` paths in the client profile; the CLI calls the bridge endpoints itself.
+- For cloud stock React Native iOS, the bridge descriptor supplies direct wildcard HTTPS Metro hints such as `<runtime>.metro.agent-device.dev:443`. The XCTest runner package is still used for runner-backed device commands, not for Metro reachability.
+- Android keeps using bridge-provided runtime routes such as `/api/metro/runtimes/<runtimeId>/...`.
+- `metroPublicBaseUrl` is only needed for direct/non-bridge bundle hints. Bridged profiles can omit it and rely on `metroProxyBaseUrl`.
+- `metro prepare --remote-config ...` remains an advanced inspection/debug path and can still write a `--runtime-file <path>` artifact when needed.
+- The local Metro companion runs on the same machine as the React Native project and Metro. `disconnect` stops the companion owned by the connection, but it does not stop the user’s Metro server.
 
 ## Session inspection
 
@@ -1039,9 +1355,11 @@ Example:
   "device": "iPhone 16",
   "session": "qa-ios",
   "snapshotDepth": 3,
-  "daemonBaseUrl": "http://mac-host.example:4310/agent-device"
+  "daemonBaseUrl": "http://127.0.0.1:4310/agent-device"
 }
 ```
+
+For non-loopback remote daemon URLs, also set `daemonAuthToken` or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`. The client rejects non-loopback remote daemon URLs without auth.
 
 Common keys include:
 
@@ -1054,6 +1372,7 @@ Common keys include:
 - `sessionIsolation`
 - `runId`
 - `leaseId`
+- `leaseBackend`
 - `sessionLock`
 - `sessionLocked`
 - `sessionLockConflicts`
@@ -1068,7 +1387,22 @@ Common keys include:
 - `verbose`
 - `json`
 
-Command-specific defaults are supported too, for example `snapshotDepth`, `snapshotScope`, `activity`, `relaunch`, `shutdown`, `fps`, `stepsFile`, or `saveScript`.
+Command-specific defaults are supported too, for example `snapshotDepth`, `snapshotScope`, `activity`, `relaunch`, `shutdown`, `fps`, `quality`, `stepsFile`, or `saveScript`.
+
+`install-from-source` can also read a structured GitHub Actions artifact source from config when a compatible remote daemon resolves CI artifacts server-side:
+
+```json
+{
+  "platform": "android",
+  "installSource": {
+    "type": "github-actions-artifact",
+    "repo": "thymikee/RNCLI83",
+    "artifact": "rn-android-emulator-debug-pr-19"
+  }
+}
+```
+
+Use a numeric `artifact` value for an artifact ID. Use a string `artifact` value for an artifact name.
 
 Bound-session defaults use the same config and env mapping too:
 
@@ -1091,6 +1425,96 @@ This keeps one shared config file usable across different command families.
 
 - If `--config` or `AGENT_DEVICE_CONFIG` points to a missing file, agent-device fails during CLI parse before contacting the daemon.
 - Invalid JSON, unknown keys, or invalid values in config files also fail during CLI parse with `INVALID_ARGS`.
+
+
+
+---
+url: /agent-device/pr-preview/pr-352/docs/debugging-profiling.md
+---
+
+# Debugging & Profiling
+
+Use `agent-device` when the task moves past UI automation and you need runtime evidence from the app or device layer.
+
+## What `agent-device` covers well
+
+- Session app logs for targeted debugging windows
+- Network inspection from recent HTTP(s) entries in app logs via `network dump`
+- Performance snapshots with `perf` / `metrics`
+- Screenshots, recordings, and replayable repro flows
+
+## React Native component internals
+
+If the task needs the React Native component tree, props, state, hooks, or render profiling, use the `react-devtools` passthrough:
+
+```bash
+agent-device react-devtools status
+agent-device react-devtools get tree --depth 3
+agent-device react-devtools get component @c5
+agent-device react-devtools profile start
+agent-device react-devtools profile stop
+agent-device react-devtools profile slow --limit 5
+```
+
+`agent-device` remains centered on the device and app runtime layer. The `react-devtools` command dynamically runs pinned `agent-react-devtools` commands for React internals.
+
+## Fast path
+
+```bash
+agent-device open MyApp --platform ios
+agent-device logs clear --restart
+agent-device network dump 25 --include headers
+agent-device perf --json
+agent-device logs path
+```
+
+Use this flow when you need a clean repro window with logs, recent network activity, and a quick perf sample from the active app session.
+
+## Core commands
+
+### Logs
+
+```bash
+agent-device logs start
+agent-device logs stop
+agent-device logs clear --restart
+agent-device logs path
+agent-device logs doctor
+agent-device logs mark "before submit"
+```
+
+- Logging is off by default; enable it only for focused debugging windows.
+- Prefer `logs clear --restart` for clean repro loops.
+- Use `logs path` and then grep the file instead of loading whole logs into agent context.
+
+### Network inspection
+
+```bash
+agent-device network dump 25
+agent-device network dump 25 --include headers
+agent-device network dump 25 --include all
+```
+
+- `network dump` parses recent HTTP(s) entries from the session app log.
+- `network log` is an alias for `network dump`.
+- Parsed results depend on what the app emits into the platform log backend.
+
+### Performance snapshots
+
+```bash
+agent-device perf --json
+agent-device metrics --json
+```
+
+- `perf` returns session-scoped startup and, where supported, CPU and memory samples.
+- Startup is measured around the `open` command; it is not first-frame instrumentation.
+- CPU and memory availability depends on platform and whether the active session is bound to an app/package.
+
+## Where to go deeper
+
+- Full command reference: [Commands](/agent-device/pr-preview/pr-352/docs/commands.md)
+- Typed client observability APIs: [Typed Client](/agent-device/pr-preview/pr-352/docs/client-api.md)
+- Session behavior and lifecycle: [Sessions](/agent-device/pr-preview/pr-352/docs/sessions.md)
 
 
 
@@ -1128,6 +1552,7 @@ npx agent-device open Settings --platform ios
 - The macOS desktop path uses a local `agent-device-macos-helper` for permission checks (`settings permission ...`), alert handling, and helper-backed desktop snapshot surfaces (`frontmost-app`, `desktop`, `menubar`).
 - Source checkouts build the helper lazily on first use and cache it under `~/.agent-device/macos-helper/current/`.
 - Release distribution should ship a stable signed/notarized helper build so macOS trust/TCC state is tied to a durable code signature instead of an ad-hoc local binary.
+- Local helper overrides through `AGENT_DEVICE_MACOS_HELPER_BIN` are intended for operators and packaged distributions; the value must be an absolute executable path.
 
 ## iOS physical device prerequisites
 
@@ -1221,7 +1646,7 @@ agent-device snapshot -i
 # 4. Interact using refs
 agent-device click @e2
 
-# 5. Re-snapshot before next interactions, or use scrollintoview first if the target is off-screen
+# 5. Re-snapshot before next interactions; if a target only appears in an off-screen summary, scroll and re-snapshot first
 agent-device snapshot -i
 
 # 6. Optional: see structural changes since last baseline
@@ -1265,9 +1690,10 @@ agent-device close
 
 - Android: `.apk` and `.aab`
 - iOS: `.app` and `.ipa`
-- `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` with `java` in `PATH`.
+- `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<absolute-path-to-bundletool-all.jar>` with `java` in `PATH`.
 - Optional: `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` overrides bundletool `build-apks --mode` (default: `universal`).
 - `.ipa` installs extract `Payload/*.app`; if multiple app bundles exist, `<app>` selects the target by bundle id or bundle name.
+- Use `install-from-source` for existing artifact URLs, including direct Android `.apk`/`.aab` URLs and trusted archives with one installable artifact. Use `install-from-source --github-actions-artifact <owner/repo:artifact>` for daemon-resolved GitHub Actions artifacts.
 
 If `open` fails because no booted simulator/emulator/device is available, run `boot --platform ios|android` and retry.
 If `open` fails because the app id is wrong or missing, run `apps` and retry with the discovered package or bundle id instead of guessing.
@@ -1416,6 +1842,104 @@ agent-device test ./workflows --artifacts-dir ./tmp/agent-device-artifacts
 - The default text reporter prints the suite summary, failed tests, and passed-on-retry flaky tests; use `--verbose` to print every test result.
 - When `--fail-fast` and retries are both set, the current test still consumes its retries before the suite stops.
 
+## Parametrise `.ad` scripts
+
+Substitute `${VAR}` tokens in `.ad` scripts using values from the CLI, shell env, script-local `env` directives, or built-ins.
+
+```sh
+context platform=android
+env APP_ID=settings
+env WAIT_SHORT=500
+
+open ${APP_ID} --relaunch
+wait ${WAIT_SHORT}
+click "label=${APP_ID}"
+```
+
+### Precedence
+
+| Source                       | Priority | Example                                                                 |
+| ---------------------------- | -------- | ----------------------------------------------------------------------- |
+| CLI `-e KEY=VALUE`           | highest  | `agent-device test flow.ad -e APP_ID=demo`                              |
+| Shell env prefixed `AD_VAR_` |          | `AD_VAR_APP_ID=demo agent-device test flow.ad` (imported as `APP_ID`)   |
+| Script `env KEY=VALUE`       |          | `env APP_ID=settings` in header                                         |
+| Built-ins                    | runtime  | `AD_PLATFORM`, `AD_SESSION`, `AD_FILENAME`, `AD_DEVICE`, `AD_ARTIFACTS` |
+
+### Built-ins
+
+Built-ins are provided by replay/test runtime and use the reserved `AD_*` namespace.
+
+- `AD_PLATFORM` - matches `context platform=...` or the selected platform when available
+- `AD_SESSION` - active session name
+- `AD_FILENAME` - path of the running `.ad` file
+- `AD_DEVICE` - device identifier (when `--device` is set)
+- `AD_ARTIFACTS` - attempt artifacts directory (when running under `test`)
+
+User-defined keys starting with `AD_` are rejected in `env`, `-e`, and shell imports such as `AD_VAR_AD_FOO`, so built-ins cannot be overridden.
+
+Substitution happens inside parsed string values. It does not create extra arguments, so quote selectors or text values that contain spaces:
+
+```sh
+env SETTINGS="label=Account || label=Profile"
+click "${SETTINGS}"
+```
+
+### Fallback and escape
+
+```sh
+wait ${WAIT_MS:-500}
+```
+
+`${VAR:-default}` yields `default` when `VAR` is unset.
+
+```sh
+echo "Price: \${APP}"
+```
+
+`\${APP}` emits a literal `${APP}` with no substitution.
+
+### Recipes
+
+Run one flow against two app variants in CI:
+
+```sh
+agent-device test ./flows/login.ad -e APP_ID=com.example.debug
+agent-device test ./flows/login.ad -e APP_ID=com.example.release
+```
+
+Tune timings locally without editing the script:
+
+```sh
+AD_VAR_WAIT_SHORT=2000 agent-device replay ./flow.ad
+```
+
+Extract a reusable selector. Before:
+
+```sh
+click "label=Account || label=Profile || label=User"
+wait 500
+click "label=Account || label=Profile || label=User"
+```
+
+After:
+
+```sh
+env SETTINGS="label=Account || label=Profile || label=User"
+
+click "${SETTINGS}"
+wait 500
+click "${SETTINGS}"
+```
+
+Quote `${VAR}` inside selector expressions so the whole expression is treated as a single argument.
+
+### Notes
+
+- `replay -u` does not yet preserve `env` directives or `${VAR}` tokens. Workaround: temporarily inline the literal values, run `-u`, re-parametrise.
+- Shell env (`AD_VAR_*`) is collected on the CLI/client side at request time, so the same values are seen whether the daemon runs locally or remotely.
+- No nested fallback. `${A:-${B}}` is not supported.
+- Unresolved `${VAR}` fails with a `file:line` reference. Typos are loud.
+
 ## Update stale selectors in replay scripts
 
 ```bash
@@ -1556,10 +2080,100 @@ Notes:
 - `open <app> <url>` in iOS sessions opens deep links.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - On iOS, `appstate` is session-scoped and requires a matching active session on the target device.
-- `open --remote-config <path> --relaunch` is the recommended remote Metro-backed session flow. It prepares Metro locally when needed, forwards the effective runtime hints inline on `open`, and keeps the session launch state internal.
+- For remote `connect --remote-config` sessions, see [Commands](/agent-device/pr-preview/pr-352/docs/commands.md#remote-metro-workflow).
 - Use `--session <name>` to run multiple sessions in parallel.
 
 For replay scripts and deterministic E2E guidance, see [Replay & E2E (Experimental)](/agent-device/pr-preview/pr-352/docs/replay-e2e.md).
+
+
+
+---
+url: /agent-device/pr-preview/pr-352/docs/skillgym.md
+---
+
+# Skillgym
+
+`agent-device` works well with [`skillgym`](https://github.com/callstackincubator/skillgym) when you want to benchmark help-guided command planning and workflow quality before paying the cost of full live-device runs.
+
+## What `skillgym` gives us
+
+- repeatable agent sessions against the real repo
+- assertions on detected skills, file reads, tool calls, commands, and final output
+- artifact capture and token regression snapshots
+
+For `agent-device`, that makes it a strong fit for:
+
+- verifying that agents use version-matched `agent-device help workflow` guidance instead of stale priors
+- checking that planning guidance produces valid `agent-device` command shapes for a known fixture app
+- keeping optional skill telemetry visible without making it a hard dependency for every runner
+
+## Included starter
+
+This repo now includes a starter setup under `test/skillgym` plus a fixture app under `examples/test-app`:
+
+- `examples/test-app`: a minimal Expo fixture app
+- `test/skillgym/skillgym.config.ts`: starter config
+- `test/skillgym/suites/agent-device-smoke-suite.ts`: CI-safe smoke suite
+
+## Recommended rollout
+
+1. Start with fixture-aware planning suites against `Agent Device Tester` to keep prompts concrete.
+2. Add targeted cases when new help guidance or command surfaces are introduced.
+3. Add local-only cases that expect real `agent-device` command usage when a simulator or device is available.
+
+## Fixture app coverage
+
+`Agent Device Tester` keeps the screen count low while still covering a wide range of cases:
+
+- visible-text verification
+- interactive refs and selector targeting
+- form fill and multiline notes
+- search debounce and filter chips
+- long-list scroll and detail drill-in
+- modals, toggles, checkboxes, validation errors, and retryable async states
+
+The default suite now covers 48 cases in two MECE groups.
+
+Fixture smoke cases cover concrete app behavior:
+
+- Expo Go open/snapshot/close
+- Home banner dismissal, confirmation alerts, and refresh waits
+- Catalog search debounce, category filters, favorites, add-to-cart, and scroll
+- Product detail navigation, quantity edits, note append, and save-to-cart
+- Form validation errors, successful submit, keyboard dismiss, and reset
+- Settings diagnostics error/retry, preference toggles, and reset alert handling
+- Accessibility audit (screenshot vs snapshot)
+
+Skill-guidance regression cases cover command-planning habits:
+
+- read-only inspection versus mutation
+- fresh `@ref` targeting, durable selectors, and off-screen scroll recovery
+- text replacement, append semantics, keyboard status, and keyboard dismiss
+- install/open setup, app discovery, session scoping, and in-app back navigation
+- Metro reload, logs, network dump, alert fallback, and screenshot evidence
+- performance metrics, React DevTools profiling, gestures, settings, and trace capture
+- remote config, macOS menu bar surfaces, replay update, and batch during recording
+
+Runner skill telemetry is treated as optional. When a runner reports detected skills, the suite asserts that `agent-device` was selected; otherwise the suite still evaluates the final command plan.
+
+## Run it
+
+`skillgym` is installed as a repo dev dependency. From the repo root:
+
+```bash
+cd /absolute/path/to/agent-device
+pnpm install
+pnpm test:skillgym
+```
+
+Equivalent direct command after building the CLI:
+
+```bash
+pnpm build
+pnpm exec skillgym run \
+  ./test/skillgym/suites/agent-device-smoke-suite.ts \
+  --config ./test/skillgym/skillgym.config.ts
+```
 
 
 
@@ -1597,6 +2211,7 @@ It does not automatically switch to AX.
 - iOS and Android share the same mobile snapshot contract: visible-first output, actionable-now refs, and hidden list content communicated via discovery hints.
 - Default to `snapshot -i` for agent loops.
 - Default human-readable snapshot output is visible-first. Off-screen interactive content is collapsed into compact discovery summaries such as `[off-screen below] 3 interactive items: "Privacy", "Battery", "About"`.
+- If a target only appears in an off-screen summary, use `scroll <direction>` and re-snapshot until the target becomes visible.
 - When container ownership is known, hidden content is shown inline under the visible scroll/list container, for example `[content above scroll-area hidden]` or `[content below list hidden]`.
 - Those summaries intentionally show only a few labels for token efficiency. Use `snapshot --raw` when you need the full off-screen tree instead of the compact summary.
 - Add `-s "<label>"` (or `-s @ref`) to keep results screen-local.
@@ -1604,7 +2219,8 @@ It does not automatically switch to AX.
 - If `snapshot -i` returns 0 nodes on Android but the screen is visibly populated, trust `screenshot` as visual truth, wait briefly, then take one fresh `snapshot -i`.
 - If `snapshot -i -d <n>` says the interactive output is empty at that depth, retry once without `-d` before taking more shallow snapshots.
 - Re-snapshot after any UI mutation before reusing refs.
-- On Android after navigation or submit, if `snapshot -i` disagrees with the visible screen, trust `screenshot`, wait briefly, then take one fresh snapshot instead of looping stale snapshots.
+- On Android after navigation or submit, snapshot capture retries suspicious trees for a short post-action deadline and `@ref` interactions refresh while that freshness window is active. If `snapshot -i` still disagrees with the visible screen, trust `screenshot`, wait briefly, then take one fresh snapshot instead of looping stale snapshots.
+- For automation runs affected by Android animation churn, use `settings animations off` as an opt-in stabilizer and restore with `settings animations on` after the run.
 - Use `diff snapshot` between mutations to validate structural changes with lower output volume.
 - Use `snapshot --diff` when you discover the feature from snapshot help, but keep `diff snapshot` as the default exploration command.
 - Keep `--raw` for troubleshooting only when you need the full tree instead of visible-first output.
@@ -1645,7 +2261,7 @@ url: /agent-device/pr-preview/pr-352/index.md
 
 # Control iOS and Android devices with AI agents.
 
-> agent-device is a token-efficient, lightweight CLI for iOS and Android device automation. Gives your agents "eyes" to see and "hands" to interact with the UI.
+> agent-device is a token-efficient CLI for mobile UI automation and app observability. It gives agents structured UI access, deterministic interactions, and built-in logs, network inspection, and perf metrics when the happy path breaks.
 
 [Get Started](/docs/introduction) | [Commands](/docs/commands)
 
@@ -1654,8 +2270,9 @@ url: /agent-device/pr-preview/pr-352/index.md
 - **One CLI, many devices**: Control iOS simulators, Android emulators, and physical devices with consistent snapshot and interaction commands.
 - **Token-efficient UI snapshots**: Accessibility trees give agents a complete view of the UI while keeping output compact.
 - **Interactions that just work**: Tap, swipe, scroll, focus, and type with precise coordinates or semantic finders.
+- **Built-in observability**: Collect session logs, inspect recent HTTP traffic with network dump, and sample CPU and memory metrics with perf.
 - **Session and replay**: Open apps, switch apps in-session, and replay recorded actions to reproduce flows across platforms.
 - **Visual verification**: Capture full-resolution screenshots and video recordings for reporting and visual checks.
-- **Traceable automation**: Collect trace logs for XCTest to debug flaky interactions.
+- **Complementary React internals**: Use agent-device react-devtools to inspect React Native component trees, props, state, hooks, and render profiles through pinned agent-react-devtools.
 
 

@@ -19,7 +19,7 @@ agent-device snapshot -i
 # 4. Interact using refs
 agent-device click @e2
 
-# 5. Re-snapshot before next interactions, or use scrollintoview first if the target is off-screen
+# 5. Re-snapshot before next interactions; if a target only appears in an off-screen summary, scroll and re-snapshot first
 agent-device snapshot -i
 
 # 6. Optional: see structural changes since last baseline
@@ -63,9 +63,10 @@ agent-device close
 
 - Android: `.apk` and `.aab`
 - iOS: `.app` and `.ipa`
-- `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<path-to-bundletool-all.jar>` with `java` in `PATH`.
+- `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<absolute-path-to-bundletool-all.jar>` with `java` in `PATH`.
 - Optional: `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` overrides bundletool `build-apks --mode` (default: `universal`).
 - `.ipa` installs extract `Payload/*.app`; if multiple app bundles exist, `<app>` selects the target by bundle id or bundle name.
+- Use `install-from-source` for existing artifact URLs, including direct Android `.apk`/`.aab` URLs and trusted archives with one installable artifact. Use `install-from-source --github-actions-artifact <owner/repo:artifact>` for daemon-resolved GitHub Actions artifacts.
 
 If `open` fails because no booted simulator/emulator/device is available, run `boot --platform ios|android` and retry.
 If `open` fails because the app id is wrong or missing, run `apps` and retry with the discovered package or bundle id instead of guessing.

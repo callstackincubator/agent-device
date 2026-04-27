@@ -28,6 +28,7 @@ It does not automatically switch to AX.
 - iOS and Android share the same mobile snapshot contract: visible-first output, actionable-now refs, and hidden list content communicated via discovery hints.
 - Default to `snapshot -i` for agent loops.
 - Default human-readable snapshot output is visible-first. Off-screen interactive content is collapsed into compact discovery summaries such as `[off-screen below] 3 interactive items: "Privacy", "Battery", "About"`.
+- If a target only appears in an off-screen summary, use `scroll <direction>` and re-snapshot until the target becomes visible.
 - When container ownership is known, hidden content is shown inline under the visible scroll/list container, for example `[content above scroll-area hidden]` or `[content below list hidden]`.
 - Those summaries intentionally show only a few labels for token efficiency. Use `snapshot --raw` when you need the full off-screen tree instead of the compact summary.
 - Add `-s "<label>"` (or `-s @ref`) to keep results screen-local.
@@ -35,7 +36,8 @@ It does not automatically switch to AX.
 - If `snapshot -i` returns 0 nodes on Android but the screen is visibly populated, trust `screenshot` as visual truth, wait briefly, then take one fresh `snapshot -i`.
 - If `snapshot -i -d <n>` says the interactive output is empty at that depth, retry once without `-d` before taking more shallow snapshots.
 - Re-snapshot after any UI mutation before reusing refs.
-- On Android after navigation or submit, if `snapshot -i` disagrees with the visible screen, trust `screenshot`, wait briefly, then take one fresh snapshot instead of looping stale snapshots.
+- On Android after navigation or submit, snapshot capture retries suspicious trees for a short post-action deadline and `@ref` interactions refresh while that freshness window is active. If `snapshot -i` still disagrees with the visible screen, trust `screenshot`, wait briefly, then take one fresh snapshot instead of looping stale snapshots.
+- For automation runs affected by Android animation churn, use `settings animations off` as an opt-in stabilizer and restore with `settings animations on` after the run.
 - Use `diff snapshot` between mutations to validate structural changes with lower output volume.
 - Use `snapshot --diff` when you discover the feature from snapshot help, but keep `diff snapshot` as the default exploration command.
 - Keep `--raw` for troubleshooting only when you need the full tree instead of visible-first output.
