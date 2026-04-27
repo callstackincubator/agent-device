@@ -8,6 +8,8 @@ unavailable, it falls back to the active-window root.
 
 The helper is intentionally provider-neutral. Local `adb`, cloud ADB tunnels, and remote device
 providers can all install and run the same APK as long as they can execute ADB-style operations.
+Released helper APKs use the committed `debug.keystore`; do not rotate it casually, because Android
+requires a stable signing certificate for `adb install -r` upgrades.
 
 ## Build
 
@@ -31,6 +33,9 @@ adb shell am instrument -w \
 ```
 
 `maxDepth` also caps recursive traversal depth inside the helper.
+The `-t` install flag is required because the helper is a debuggable instrumentation/test APK.
+Devices or providers that block test-package installs must allow this package before helper capture
+can run.
 
 ## Output Contract
 
@@ -60,3 +65,8 @@ The final instrumentation result includes:
 - `elapsedMs`
 
 Failures return `ok=false`, `errorType`, and `message` in the final result.
+
+The release manifest is a stable provider contract for the current helper protocol. Providers should
+resolve the APK from `apkUrl`, verify `sha256`, install using `installArgs`, and run
+`instrumentationRunner`. `installArgs` must start with `install`; extra arguments are limited to adb
+install flags and the consumer appends the APK path.

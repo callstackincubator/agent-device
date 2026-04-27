@@ -432,6 +432,9 @@ test('parseAndroidSnapshotHelperManifest validates manifest shape', () => {
   assert.throws(() => parseAndroidSnapshotHelperManifest({ ...manifest, outputFormat: 'json' }), {
     message: 'Android snapshot helper manifest outputFormat must be "uiautomator-xml".',
   });
+  assert.throws(() => parseAndroidSnapshotHelperManifest({ ...manifest, installArgs: ['shell'] }), {
+    message: 'Android snapshot helper manifest installArgs must start with "install".',
+  });
 });
 
 function helperOutput(options: { chunks: string[]; result: Record<string, string> }): string {

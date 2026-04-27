@@ -162,6 +162,7 @@ public final class SnapshotInstrumentation extends Instrumentation {
         if (root != null) {
           root.recycle();
         }
+        // UiAutomation.getWindows() transfers recyclable AccessibilityWindowInfo instances.
         window.recycle();
       }
     }

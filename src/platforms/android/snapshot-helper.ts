@@ -154,7 +154,10 @@ export async function ensureAndroidSnapshotHelper(options: {
   }
 
   await verifyAndroidSnapshotHelperArtifact(artifact);
-  const installArgs = [...artifact.manifest.installArgs, artifact.apkPath];
+  const installArgs = [
+    ...readAndroidSnapshotHelperInstallArgs(artifact.manifest),
+    artifact.apkPath,
+  ];
   const result = await installAndroidSnapshotHelper(adb, installArgs, {
     packageName,
     timeoutMs: options.timeoutMs,
@@ -182,7 +185,7 @@ export async function verifyAndroidSnapshotHelperArtifact(
   artifact: AndroidSnapshotHelperArtifact,
 ): Promise<void> {
   const actual = await sha256File(artifact.apkPath);
-  if (actual !== artifact.manifest.sha256.toLowerCase()) {
+  if (actual !== artifact.manifest.sha256) {
     throw new AppError('COMMAND_FAILED', 'Android snapshot helper APK checksum mismatch', {
       apkPath: artifact.apkPath,
       expectedSha256: artifact.manifest.sha256,
@@ -503,8 +506,29 @@ export function parseAndroidSnapshotHelperManifest(value: unknown): AndroidSnaps
       'statusProtocol',
       'android-snapshot-helper-v1',
     ),
-    installArgs: readStringArray(record.installArgs, 'installArgs'),
+    installArgs: readAndroidSnapshotHelperManifestInstallArgs(record.installArgs),
   };
+}
+
+function readAndroidSnapshotHelperInstallArgs(manifest: AndroidSnapshotHelperManifest): string[] {
+  return readAndroidSnapshotHelperManifestInstallArgs(manifest.installArgs);
+}
+
+function readAndroidSnapshotHelperManifestInstallArgs(value: unknown): string[] {
+  const installArgs = readStringArray(value, 'installArgs');
+  if (installArgs[0] !== 'install') {
+    throw new AppError(
+      'INVALID_ARGS',
+      'Android snapshot helper manifest installArgs must start with "install".',
+    );
+  }
+  if (installArgs.some((arg) => arg.includes('\u0000'))) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'Android snapshot helper manifest installArgs must not contain null bytes.',
+    );
+  }
+  return installArgs;
 }
 
 async function readInstalledVersionCode(
