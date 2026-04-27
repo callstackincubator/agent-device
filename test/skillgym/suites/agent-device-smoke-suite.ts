@@ -431,6 +431,28 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     forbiddenOutputs: [RAW_COORDINATE_TARGET, /\btestID=/i],
   }),
   makeCase({
+    id: 'truncated-text-input-scope-ref',
+    contract: [
+      'App name: Agent Device Tester',
+      'Current screen: Checkout form tab',
+      'Fresh interactive snapshot already shows @e7 [textinput] "Delivery instructions" [preview:"Leave at side gate..." truncated]',
+      'Need the full text value of that truncated input before deciding whether to edit it',
+    ],
+    task: 'Plan the command to expand the truncated Delivery instructions text input using the current @e7 ref.',
+    outputs: [
+      commandPattern('snapshot'),
+      /(?:^|\n)(?:agent-device\s+)?snapshot\b.*(?:-s|--scope)\s+@e7\b/i,
+    ],
+    forbiddenOutputs: [
+      /snapshot --raw/i,
+      commandPattern('get'),
+      commandPattern('fill'),
+      commandPattern('type'),
+      commandPattern('press'),
+      RAW_COORDINATE_TARGET,
+    ],
+  }),
+  makeCase({
     id: 'target-selector-for-durable-field',
     contract: [
       'App name: Agent Device Tester',

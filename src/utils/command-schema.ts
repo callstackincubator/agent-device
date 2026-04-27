@@ -174,6 +174,7 @@ const AGENT_QUICKSTART_LINES = [
   'Default loop: devices/apps -> open -> snapshot -i -> press/fill/get/is/wait/find -> verify -> close.',
   'Use selectors or refs as positional targets: id="submit", label="Allow", or @ref after snapshot -i.',
   'Plain snapshot reads state; snapshot -i is required to refresh interactive refs.',
+  'Truncated text/input preview: expand first with snapshot -s @ref, not get text.',
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
   'After mutation: diff snapshot -i. Off-screen hints: scroll, then snapshot -i.',
   'Navigation: app-owned back uses back; system back uses back --system.',
@@ -247,6 +248,7 @@ Snapshots and refs:
   snapshot reads visible state. snapshot -i gets current interactive refs.
   Re-snapshot after navigation, submit, modal/list/reload/dynamic changes.
   Off-screen summaries are scroll hints; use scroll, not swipe, then snapshot -i.
+  Truncated text/input previews: do not use get text first; expand with snapshot -s @ref (for example snapshot -s @e7), then read the scoped output.
 
 Selectors:
   Use selectors as positional targets: id="field-email" or label="Allow".
@@ -1598,8 +1600,9 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   get: {
     usageOverride: 'get text|attrs <@ref|selector>',
-    helpDescription: 'Return element text/attributes by ref or selector',
-    summary: 'Get text or attrs by ref or selector',
+    helpDescription:
+      'Return exposed element text/attributes by ref or selector; use snapshot -s @ref for truncated previews',
+    summary: 'Get exposed text or attrs by ref or selector',
     positionalArgs: ['subcommand', 'target'],
     allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
