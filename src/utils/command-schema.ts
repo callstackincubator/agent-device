@@ -178,6 +178,8 @@ const AGENT_QUICKSTART_LINES = [
   'Use selectors or refs as positional targets: id="submit", label="Allow", or @ref after snapshot -i.',
   'Plain snapshot reads state; snapshot -i is required to refresh interactive refs.',
   'Truncated text/input preview: expand first with snapshot -s @ref, not get text.',
+  'RN warning/error overlays can block taps: screenshot, dismiss/close, then snapshot -i.',
+  'Expo Go/dev clients need their provided exp:// or dev-client URL; do not invent app ids.',
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
   'After mutation: diff snapshot -i. Off-screen hints: scroll, then snapshot -i.',
   'Navigation: app-owned back uses back; system back uses back --system.',
@@ -303,6 +305,13 @@ React Native dev loop:
     agent-device metro reload
     agent-device find "Home"
   Do not use agent-device reload. Use open --relaunch for native startup reset.
+  Warning/error overlays can obscure UI and intercept taps. If visible: screenshot it, dismiss/close it if it is not the task target, then snapshot -i before tapping the real UI.
+  Expo Go is a host shell; use the provided project URL instead of inventing a bundle id. iOS simulators can open the URL directly; use host + URL when targeting a specific host shell:
+    agent-device open exp://127.0.0.1:8081 --platform ios
+    agent-device open "Expo Go" exp://127.0.0.1:8081 --platform ios
+  Android uses the URL target directly; do not write open <app> <url> there:
+    agent-device open exp://127.0.0.1:8081 --platform android
+  Expo Dev Client/development builds: open the installed dev-client app id/name; if a dev-client URL is provided, open that URL next. For Metro setup use metro prepare --kind expo.
 
 React DevTools minimum loop:
   Keep the agent-device react-devtools prefix on every React DevTools command:
@@ -469,6 +478,8 @@ Loop:
 
 Coverage:
   Navigation, forms, empty/error/loading states, offline or retry behavior, permissions, settings, accessibility labels, orientation/keyboard, and obvious performance stalls.
+  React Native warning/error overlays can be real findings or test blockers. Capture them, dismiss if unrelated, re-snapshot, and report them.
+  Expo Go/dev-client shells: use the provided exp:// or dev-client URL and record whether the shell, project load, or app UI is being tested.
   Categories: visual, functional, UX, content, performance, diagnostics, permissions, accessibility.
   Severity: critical blocks a core flow/data/crashes; high breaks a major feature; medium has friction or workaround; low is polish.
 

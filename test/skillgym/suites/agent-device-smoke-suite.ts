@@ -566,6 +566,55 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     forbiddenOutputs: [/open\b.*--relaunch/i, /(?:^|\n)(?:agent-device\s+)?screenshot\b/i],
   }),
   makeCase({
+    id: 'rn-warning-overlay-dismiss-before-tap',
+    contract: [
+      'App name: Agent Device Tester',
+      'React Native dev warning overlay is visible after open',
+      'Overlay button label: Dismiss',
+      'The overlay covers the intended submit target and can intercept taps',
+      'Target selector after dismissing overlay: id="submit-order"',
+    ],
+    task: 'Plan commands to preserve evidence of the warning overlay, dismiss it, refresh interactive refs, then press the submit target.',
+    outputs: [commandPattern('screenshot'), /(?:Dismiss|Close)/i, /snapshot -i/i, /submit-order/i],
+    forbiddenOutputs: [
+      RAW_COORDINATE_TARGET,
+      /(?:^|\n)(?:agent-device\s+)?(?:press|click)\b[^\n]*submit-order[\s\S]*(?:Dismiss|Close)/i,
+      /alert accept/i,
+    ],
+  }),
+  makeCase({
+    id: 'expo-go-ios-project-url',
+    contract: [
+      'Platform: iOS simulator',
+      'Launch context: Expo Go',
+      'Project URL: exp://127.0.0.1:8081',
+      'The native bundle id for the project is not installed separately',
+    ],
+    task: 'Plan the command to launch the Expo project in Expo Go without inventing a native bundle id.',
+    outputs: [commandPattern('open'), /exp:\/\/127\.0\.0\.1:8081/i, /--platform ios/i],
+    forbiddenOutputs: [
+      /open\s+Agent Device Tester/i,
+      /host\.exp\.Exponent/i,
+      /com\.(?:callstack|example|agent)/i,
+    ],
+  }),
+  makeCase({
+    id: 'expo-go-android-url-only',
+    contract: [
+      'Platform: Android',
+      'Launch context: Expo Go',
+      'Project URL: exp://10.0.2.2:8081',
+      'Android does not support open <app> <url>; use a URL target for deep links',
+    ],
+    task: 'Plan the command to launch the Expo project on Android using the project URL.',
+    outputs: [commandPattern('open'), /exp:\/\/10\.0\.2\.2:8081/i, /--platform android/i],
+    forbiddenOutputs: [
+      /open\s+(?:"Expo Go"|Expo\s+Go)\s+exp:\/\//i,
+      /--activity/i,
+      /host\.exp\.exponent/i,
+    ],
+  }),
+  makeCase({
     id: 'debug-logs-short-window',
     contract: [
       'App name: Agent Device Tester',

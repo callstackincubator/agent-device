@@ -790,6 +790,8 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Use selectors or refs as positional targets/);
   assert.match(usageText, /Plain snapshot reads state; snapshot -i is required/);
   assert.match(usageText, /Truncated text\/input preview: expand first with snapshot -s @ref/);
+  assert.match(usageText, /RN warning\/error overlays can block taps/);
+  assert.match(usageText, /Expo Go\/dev clients need their provided exp:\/\//);
   assert.match(usageText, /fill 'id="field-email"' "qa@example\.com" replaces/);
   assert.match(usageText, /After mutation: diff snapshot -i/);
   assert.match(usageText, /app-owned back uses back/);
@@ -834,6 +836,11 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /Do not use CSS selectors/);
   assert.match(help, /Truncated text\/input previews: do not use get text first/);
   assert.match(help, /snapshot -s @e7/);
+  assert.match(help, /Warning\/error overlays can obscure UI and intercept taps/);
+  assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform ios/);
+  assert.match(help, /agent-device open "Expo Go" exp:\/\/127\.0\.0\.1:8081 --platform ios/);
+  assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform android/);
+  assert.match(help, /metro prepare --kind expo/);
   assert.match(help, /help react-devtools/);
 });
 
@@ -856,6 +863,8 @@ test('usageForCommand resolves dogfood help topic', () => {
   assert.match(help, /Severity: critical blocks a core flow\/data\/crashes/);
   assert.match(help, /Interactive\/behavioral issues need step screenshots/);
   assert.match(help, /Static\/on-load issues can use one screenshot/);
+  assert.match(help, /React Native warning\/error overlays can be real findings/);
+  assert.match(help, /Expo Go\/dev-client shells/);
   assert.match(help, /dogfood-output\/report\.md/);
   assert.match(help, /ID, severity, category, title, affected flow\/screen/);
   assert.match(help, /Never delete screenshots, videos, traces, or report artifacts/);
