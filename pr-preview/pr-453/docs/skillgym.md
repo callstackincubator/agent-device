@@ -39,7 +39,7 @@ This repo now includes a starter setup under `test/skillgym` plus a fixture app 
 - long-list scroll and detail drill-in
 - modals, toggles, checkboxes, validation errors, and retryable async states
 
-The default suite now covers 40+ cases in two MECE groups.
+The default suite now covers 48 cases in two MECE groups.
 
 Fixture smoke cases cover concrete app behavior:
 
@@ -58,7 +58,10 @@ Skill-guidance regression cases cover command-planning habits:
 - text replacement, append semantics, keyboard status, and keyboard dismiss
 - install/open setup, app discovery, session scoping, and in-app back navigation
 - Metro reload, logs, network dump, alert fallback, and screenshot evidence
+- performance metrics, React DevTools profiling, gestures, settings, and trace capture
 - remote config, macOS menu bar surfaces, replay update, and batch during recording
+
+Runner skill telemetry is treated as optional. When a runner reports detected skills, the suite asserts that `agent-device` was selected; otherwise the suite still evaluates the final command plan.
 
 ## Run it
 

@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-453/static/js/lib-react.b01af0f440.js"></script>
 <script defer src="/agent-device/pr-preview/pr-453/static/js/lib-router.a7e1ac803b.js"></script>
 <script defer src="/agent-device/pr-preview/pr-453/static/js/241.b2dd2a5254.js"></script>
-<script defer src="/agent-device/pr-preview/pr-453/static/js/index.bebaead00e.js"></script>
+<script defer src="/agent-device/pr-preview/pr-453/static/js/index.e5d067c251.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.8">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -58,7 +58,7 @@
 <li>long-list scroll and detail drill-in</li>
 <li>modals, toggles, checkboxes, validation errors, and retryable async states</li>
 </ul>
-<p>The default suite now covers 40+ cases in two MECE groups.</p>
+<p>The default suite now covers 48 cases in two MECE groups.</p>
 <p>Fixture smoke cases cover concrete app behavior:</p>
 <ul>
 <li>Expo Go open/snapshot/close</li>
@@ -76,8 +76,10 @@
 <li>text replacement, append semantics, keyboard status, and keyboard dismiss</li>
 <li>install/open setup, app discovery, session scoping, and in-app back navigation</li>
 <li>Metro reload, logs, network dump, alert fallback, and screenshot evidence</li>
+<li>performance metrics, React DevTools profiling, gestures, settings, and trace capture</li>
 <li>remote config, macOS menu bar surfaces, replay update, and batch during recording</li>
 </ul>
+<p>Runner skill telemetry is treated as optional. When a runner reports detected skills, the suite asserts that <code>agent-device</code> was selected; otherwise the suite still evaluates the final command plan.</p>
 <h2 class="rp-toc-include" id="run-it"><a href="#run-it" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Run it</h2>
 <p><code>skillgym</code> is installed as a repo dev dependency. From the repo root:</p>
 <div class="rp-codeblock language-bash"><div class="rp-codeblock__content"><div class="rp-codeblock__content__scroll-container rp-scrollbar rp-scrollbar--always"><pre class="shiki css-variables" style="background-color:var(--shiki-background);color:var(--shiki-foreground)" tabindex="0" data-lang="bash"><code><span class="line"><span style="color:var(--shiki-token-function)">cd</span><span style="color:var(--shiki-token-string)"> /absolute/path/to/agent-device</span></span>
