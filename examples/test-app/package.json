@@ -25,5 +25,12 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "typescript": "~5.9.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "@xmldom/xmldom": "0.8.13",
+      "postcss": "8.5.12",
+      "uuid": "14.0.0"
+    }
   }
 }
