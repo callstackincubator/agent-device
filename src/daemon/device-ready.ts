@@ -14,22 +14,59 @@ const IOS_DEVICE_READY_TIMEOUT_MS = resolveTimeoutMs(
 );
 const IOS_DEVICE_READY_COMMAND_TIMEOUT_BUFFER_MS = 3_000;
 
+// Exported so unit tests can assert TTL behavior without duplicating the value.
+export const DEVICE_READY_CACHE_TTL_MS = 5_000;
+
+const readyCache = new Map<string, number>();
+
 export async function ensureDeviceReady(device: DeviceInfo): Promise<void> {
+  const cacheKey = deviceReadyCacheKey(device);
+  const cachedUntil = readyCache.get(cacheKey);
+  if (cachedUntil !== undefined) {
+    if (cachedUntil > Date.now()) {
+      return;
+    }
+    readyCache.delete(cacheKey);
+  }
+
   if (device.platform === 'ios') {
     if (device.kind === 'simulator') {
       const { ensureBootedSimulator } = await import('../platforms/ios/index.ts');
       await ensureBootedSimulator(device);
+      markDeviceReady(cacheKey);
       return;
     }
     if (device.kind === 'device') {
       await ensureIosDeviceReady(device.id);
+      markDeviceReady(cacheKey);
       return;
     }
   }
   if (device.platform === 'android') {
     const { waitForAndroidBoot } = await import('../platforms/android/devices.ts');
     await waitForAndroidBoot(device.id);
+    markDeviceReady(cacheKey);
   }
+}
+
+// Test-only reset hook for this daemon-local cache.
+export function clearDeviceReadyCacheForTests(): void {
+  readyCache.clear();
+}
+
+function markDeviceReady(cacheKey: string): void {
+  readyCache.set(cacheKey, Date.now() + DEVICE_READY_CACHE_TTL_MS);
+}
+
+function deviceReadyCacheKey(device: DeviceInfo): string {
+  const simulatorSetPath = device.kind === 'simulator' ? (device.simulatorSetPath ?? '') : '';
+  return JSON.stringify([
+    device.platform,
+    device.kind,
+    device.id,
+    device.target ?? '',
+    simulatorSetPath,
+  ]);
 }
 
 async function ensureIosDeviceReady(deviceId: string): Promise<void> {
