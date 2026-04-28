@@ -235,7 +235,7 @@ Core loop:
   devices/apps -> open -> snapshot or snapshot -i -> get/is/find/wait or press/fill/scroll/back -> verify -> close
 
 Command shape:
-  Reading help through node bin/agent-device.mjs help <topic> in local tests is fine; final command plans should use agent-device, not node bin/agent-device.mjs, pnpm ad, raw platform tools, or helper prose.
+  Plans should use agent-device commands, not raw platform tools, pseudo commands, package-manager aliases, or helper prose.
   Put subcommand first, then positionals, then flags:
     agent-device open com.example.app --session checkout --platform android --relaunch
     agent-device record start ./checkout.mp4 --session checkout
