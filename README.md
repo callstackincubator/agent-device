@@ -1,6 +1,6 @@
 <a href="https://www.callstack.com/open-source?utm_campaign=generic&utm_source=github&utm_medium=referral&utm_content=agent-device" align="center">
   <picture>
-    <img alt="agent-device" src="website/docs/public/agent-device-banner.jpg">
+    <img alt="agent-device: device automation CLI for AI agents" src="website/docs/public/agent-device-banner.jpg">
   </picture>
 </a>
 
@@ -35,7 +35,7 @@ Install the CLI.
 npm install -g agent-device
 ```
 
-Prerequisites: Node.js 22+, Xcode for iOS/tvOS/macOS targets, Android SDK + ADB for Android, and macOS permissions for desktop automation. See [Installation](https://incubator.callstack.com/agent-device/docs/installation).
+Prerequisites: Node.js 22+, Xcode for iOS/tvOS/macOS targets, Android SDK + ADB for Android, and macOS Accessibility permission for desktop automation. See [Installation](https://incubator.callstack.com/agent-device/docs/installation).
 
 Try the loop.
 
@@ -46,7 +46,7 @@ agent-device apps --platform ios
 # Start a session.
 agent-device open SampleApp --platform ios
 
-# Inspect the current screen.
+# Inspect the current screen. -i returns interactive elements only.
 agent-device snapshot -i
 # @e1 [heading] "Settings"
 # @e2 [button] "Sign In"
@@ -58,14 +58,14 @@ agent-device screenshot ./artifacts/settings.png
 agent-device close
 ```
 
-Refs from the default snapshot are immediately actionable. For hidden content, scroll and re-snapshot.
+Snapshots assign refs like `@e1`, `@e2`, and `@e3` to current-screen elements. Refs from the default snapshot are immediately actionable; for hidden content, scroll and re-snapshot.
 
 ## Where To Run agent-device
 
 | Path | Best for | Start with |
 | --- | --- | --- |
-| Local | Simulators, emulators, physical devices, macOS apps, and Linux desktop targets. | Bring your own devices and wire `agent-device` into your agent workflow. |
-| CI/CD | Smoke checks, replay suites, QA flows, debugging, and PR validation. | Start with the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml). GitHub Actions template coming soon. |
+| Local | Exploration, debugging, and development loops on simulators, emulators, physical devices, macOS apps, and Linux desktop targets. | Bring your own devices and wire `agent-device` into your agent workflow. |
+| CI/CD | Automated PR and merge validation with replay scripts and captured artifacts. | Start with the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml). GitHub Actions template coming soon. |
 | Cloud | Linux runners, managed devices, and remote execution. | Use [Agent Device Cloud](https://agent-device.dev/cloud) or [contact Callstack](mailto:hello@callstack.com) for team-scale QA. |
 
 ## How It Works
@@ -76,16 +76,13 @@ Refs from the default snapshot are immediately actionable. For hidden content, s
 
 - **Platforms**: iOS, Android, tvOS, Android TV, macOS, and Linux. Real devices and simulators are supported.
 - **Capture**: screenshots, video, logs, network traffic, performance data, accessibility snapshots, and React render profiles.
-- **Produce**: replayable `.ad` scripts, e2e test runs, diff output, and debugging artifacts.
+- **Produce**: replayable `.ad` scripts, e2e test runs, snapshot and screenshot diffs, and debugging artifacts. `.ad` scripts are recorded replay files that can run locally or in CI.
 - **React Native and Expo**: component tree inspection, props/state/hooks, and render profiling.
 - **License**: MIT. Free to use.
 
 ## Used By
 
-Used by teams and developers at Callstack, Expensify, [Shopify](https://x.com/mustafa01ali/status/2035155157982289998), [Kindred](https://x.com/sregg/status/2045231628369191075), Total Wine & More, [LegendList](https://x.com/jmeistrich/status/2036398735698305178), [HerLyfe](https://x.com/oliverbowman_), App & Flow, and more.
-
-- [Oliver Bowman](https://x.com/oliverbowman_), HerLyfe: reduced the feedback loop in agentic workflows.
-- [Jay Meistrich](https://x.com/jmeistrich/status/2036398735698305178), LegendList: used it for Android phone and iOS simulator testing while developing LegendList optimizations.
+Used by teams and developers at Callstack, Expensify, Shopify, Kindred, Total Wine & More, LegendList, HerLyfe, App & Flow, and more.
 
 ## Documentation
 
@@ -107,4 +104,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Made at Callstack
 
-agent-device is an open source project and will always remain free to use. Callstack is a group of React and React Native geeks. Contact us at hello@callstack.com if you need any help with these technologies or just want to say hi.
+agent-device is an open source project and will always remain free to use. Try the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml), use [Agent Device Cloud](https://agent-device.dev/cloud), or contact us at hello@callstack.com.
