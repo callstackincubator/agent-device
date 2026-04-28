@@ -115,6 +115,8 @@ const RAW_COORDINATE_TARGET =
   /(?:^|\n)(?:agent-device\s+)?(?:click|fill|press)\s+-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?/i;
 const PSEUDO_ASSERTION_COMMAND = /(?:^|\n)\s*(?:assert|assertVisible|waitFor|waitForText)\b/i;
 const COMPACT_RECT_SNAPSHOT = /snapshot\b(?=[^\n]*(?:-c\b|--compact\b))(?=[^\n]*(?:--json|--raw))/i;
+const IOS_EXPO_GO_OPEN =
+  /(?:^|\n)(?:agent-device\s+)?open\s+["']Expo Go["']\s+["']?exp:\/\/127\.0\.0\.1:8081["']?/i;
 
 function makeCase(options: {
   id: string;
@@ -139,9 +141,14 @@ function makeCase(options: {
 const FIXTURE_SMOKE_CASES: TestCase[] = [
   makeCase({
     id: 'open-and-snapshot',
-    contract: ['App name: Agent Device Tester', 'Platform: iOS', 'Launch context: Expo Go'],
-    task: 'Plan the commands to open Agent Device Tester in Expo Go on iOS, take a snapshot -i, then close.',
-    outputs: [commandPattern('open'), /snapshot -i/i, commandPattern('close')],
+    contract: [
+      'App name: Agent Device Tester',
+      'Platform: iOS',
+      'Launch context: Expo Go',
+      'Project URL: exp://127.0.0.1:8081',
+    ],
+    task: 'Plan the commands to open Agent Device Tester in Expo Go on iOS, take a snapshot -i to verify the app UI loaded, then close.',
+    outputs: [IOS_EXPO_GO_OPEN, /snapshot -i/i, commandPattern('close')],
   }),
   makeCase({
     id: 'home-dismiss-notice',
@@ -165,9 +172,15 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
       'Current screen: Home tab',
       'testID=home-open-modal',
       'Opening it shows a native confirmation alert',
+      'Home tab selector: label="Home"',
     ],
-    task: 'Assume Agent Device Tester is already open on the Home tab. Plan the commands to open the confirmation alert and dismiss it using alert wait + alert dismiss.',
-    outputs: [/home-open-modal/i, commandPattern('alert wait'), commandPattern('alert dismiss')],
+    task: 'Assume Agent Device Tester is already open on the Home tab. Plan the commands to open the confirmation alert, dismiss it using alert wait + alert dismiss, then verify the app is still on Home.',
+    outputs: [
+      /home-open-modal/i,
+      commandPattern('alert wait'),
+      commandPattern('alert dismiss'),
+      /label=(?:["']Home["']|Home)/i,
+    ],
   }),
   makeCase({
     id: 'home-refresh-metrics',
@@ -267,8 +280,14 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
       'testID=quantity-decrease',
       'testID=quantity-value',
     ],
-    task: 'Assume Agent Device Tester is already on a product detail screen. Plan the commands to increase quantity once, decrease it once, and get the quantity value.',
-    outputs: [/quantity-increase/i, /quantity-decrease/i, /quantity-value/i],
+    task: 'Assume Agent Device Tester is already on a product detail screen. Plan the commands to increase quantity once, decrease it once, and get the quantity value through the durable quantity-value id rather than ambiguous visible number text.',
+    outputs: [
+      /quantity-increase/i,
+      /quantity-decrease/i,
+      commandPattern('get text'),
+      /id=(?:["']quantity-value["']|quantity-value)/i,
+    ],
+    forbiddenOutputs: [/get text ['"]?2['"]?/i, /wait text ['"]?2['"]?/i, /label=["']2["']/i],
   }),
   makeCase({
     id: 'product-note-append',
@@ -318,16 +337,18 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
     outputs: [/field-name/i, /field-email/i, /checkbox-agree/i, /form-success/i],
   }),
   makeCase({
-    id: 'form-keyboard-dismiss',
+    id: 'form-keyboard-dismiss-ios-fallback',
     contract: [
       'App name: Agent Device Tester',
+      'Platform: iOS simulator',
       'Current screen: Checkout form tab',
       'testID=field-name',
-      'keyboard can be dismissed after focusing the field',
+      'keyboard dismiss already returned UNSUPPORTED_OPERATION',
+      'visible app keyboard close control: Done',
     ],
-    task: 'Assume Agent Device Tester is on the Checkout form tab. Plan the commands to focus the Full name field and dismiss the keyboard using keyboard dismiss.',
-    outputs: [/field-name/i, /keyboard dismiss/i],
-    forbiddenOutputs: [commandPattern('back')],
+    task: 'Assume Agent Device Tester is on the Checkout form tab. Plan the fallback commands to focus the Full name field, close the iOS keyboard through the visible app control, and verify the field remains visible.',
+    outputs: [/field-name/i, /Done/i, commandAlternativesPattern(['press', 'click'])],
+    forbiddenOutputs: [commandPattern('keyboard dismiss'), commandPattern('back')],
   }),
   makeCase({
     id: 'form-reset',
@@ -335,10 +356,17 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
       'App name: Agent Device Tester',
       'Current screen: Checkout form tab',
       'testID=reset-form',
+      'Full name field can be checked through id="field-name" or id="full-name"',
+      'Validation errors can be checked through id="form-errors", id="full-name-error", or visible text "Required"',
       'toast text after reset: Form cleared',
     ],
-    task: 'Assume Agent Device Tester is on the Checkout form tab. Plan the commands to press Reset form and verify the Form cleared toast appears.',
-    outputs: [/reset-form/i, /Form cleared/i],
+    task: 'Assume Agent Device Tester is on the Checkout form tab after validation errors. Plan the commands to press Reset form, verify the Form cleared toast appears, verify validation errors are hidden, and verify the Full name field state is cleared.',
+    outputs: [
+      /reset-form/i,
+      /Form cleared/i,
+      /(?:form-errors|full-name-error|Required)/i,
+      /(?:field-name|full-name)/i,
+    ],
   }),
   makeCase({
     id: 'settings-toggle-preferences',
@@ -507,6 +535,27 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       /qa@example\.com/i,
     ],
     forbiddenOutputs: [commandPattern('type'), /(?:^|\n)(?:agent-device\s+)?fill\s+\d+\s+\d+/i],
+  }),
+  makeCase({
+    id: 'empty-fill-not-clear-field',
+    contract: [
+      'App name: Agent Device Tester',
+      'Current screen: Catalog tab',
+      'Search field selector: id="catalog-search"',
+      'Visible clear control selector: id="clear-search"',
+      'Need to clear the existing search text',
+      'fill <target> "" is not supported',
+    ],
+    task: 'Plan the supported command to clear the search field without using empty fill replacement.',
+    outputs: [
+      /id=(?:["']clear-search["']|clear-search)/i,
+      commandAlternativesPattern(['press', 'click']),
+    ],
+    forbiddenOutputs: [
+      /fill\b[^\n]*(?:id=["']catalog-search["']|catalog-search)[^\n]*(?:""|''|\s$)/i,
+      commandPattern('type'),
+      /\bclear\s+field\b/i,
+    ],
   }),
   makeCase({
     id: 'ios-allow-paste-prefill-only',
@@ -731,13 +780,33 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Launch context: Expo Go',
       'Project URL: exp://127.0.0.1:8081',
       'The native bundle id for the project is not installed separately',
+      'The final command must include --platform ios',
     ],
-    task: 'Plan the command to launch the Expo project in Expo Go without inventing a native bundle id.',
-    outputs: [commandPattern('open'), /exp:\/\/127\.0\.0\.1:8081/i, /--platform ios/i],
+    task: 'Plan the command to launch the Expo project in Expo Go on iOS without inventing a native bundle id.',
+    outputs: [IOS_EXPO_GO_OPEN, /--platform ios/i],
     forbiddenOutputs: [
       /open\s+Agent Device Tester/i,
       /host\.exp\.Exponent/i,
       /com\.(?:callstack|example|agent)/i,
+    ],
+  }),
+  makeCase({
+    id: 'expo-go-ios-runner-splash-retry-host-shell',
+    contract: [
+      'Platform: iOS simulator',
+      'Launch context: Expo Go',
+      'Project URL: exp://127.0.0.1:8081',
+      'Previous command open exp://127.0.0.1:8081 returned Opened',
+      'Fresh snapshot -i showed only the Agent Device Runner splash',
+      'Expo Go is available as a host shell',
+    ],
+    task: 'Plan the next commands to recover by opening the project through Expo Go and verifying the app UI loaded.',
+    outputs: [IOS_EXPO_GO_OPEN, /snapshot -i/i],
+    forbiddenOutputs: [
+      /open\s+Agent Device Runner/i,
+      /open\s+Agent Device Tester/i,
+      /com\.(?:callstack|example|agent)/i,
+      /host\.exp\.Exponent/i,
     ],
   }),
   makeCase({
@@ -750,7 +819,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Project URL: exp://127.0.0.1:8081',
     ],
     task: 'Plan the next command to launch the project after the app-id lookup miss without inventing a native bundle id.',
-    outputs: [commandPattern('open'), /exp:\/\/127\.0\.0\.1:8081/i],
+    outputs: [IOS_EXPO_GO_OPEN],
     forbiddenOutputs: [
       /open\s+Agent Device Tester/i,
       /com\.(?:callstack|example|agent)/i,
@@ -888,15 +957,16 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Current screen: onboarding carousel',
       'Need to advance and return across pages repeatedly',
       'Gesture should use a swipe series, not scroll',
+      'Use one direct swipe command with --count and --pattern; do not use batch',
     ],
-    task: 'Plan the gesture command to swipe horizontally across the carousel eight times with a 30ms pause and ping-pong pattern.',
+    task: 'Plan one direct gesture command to swipe horizontally across the carousel eight times with a 30ms pause and ping-pong pattern.',
     outputs: [
       commandPattern('swipe'),
       /--count\s+8/i,
       /--pause-ms\s+30/i,
       /--pattern\s+ping-pong/i,
     ],
-    forbiddenOutputs: [commandPattern('scroll'), RAW_COORDINATE_TARGET],
+    forbiddenOutputs: [commandPattern('scroll'), commandPattern('batch'), RAW_COORDINATE_TARGET],
   }),
   makeCase({
     id: 'gesture-longpress-context-menu',
@@ -1087,6 +1157,30 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       /(?:^|\n)(?:agent-device\s+)?record\s+stop/i,
     ],
     forbiddenOutputs: [PSEUDO_ASSERTION_COMMAND, /workflow batch/i, commandPattern('trace')],
+  }),
+  makeCase({
+    id: 'same-session-mutations-serial',
+    contract: [
+      'Session: dogfood-test-app',
+      'Current screen: Checkout form tab',
+      'Name field selector: id="field-name"',
+      'Email field selector: id="field-email"',
+      'Submit button selector: id="submit-order"',
+      'Need to fill name, fill email, and press submit as three separate commands',
+      'All commands mutate the same active device session',
+      'Parallel same-session mutations can pollute focus and field state',
+      'Do not use batch for this case; demonstrate serial command ordering',
+    ],
+    task: 'Plan the three separate serial commands for this same-session form flow using the durable selectors.',
+    outputs: [/--session dogfood-test-app/i, /field-name/i, /field-email/i, /submit-order/i],
+    forbiddenOutputs: [
+      /Based on my/i,
+      /Let me/i,
+      /Promise\.all/i,
+      /(?:^|\n).*(?:fill|press).*(?:&|&&).*(?:fill|press)/i,
+      /parallel/i,
+      commandPattern('batch'),
+    ],
   }),
   makeCase({
     id: 'batch-inline-step-schema-positionals',

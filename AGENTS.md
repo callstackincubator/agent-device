@@ -153,7 +153,9 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Do not duplicate `makeSessionStore`, `makeSession`, or device constants when a shared helper already exists.
 
 ## Testing Matrix
-- Docs/skills only: no tests required.
+- Docs/skills only: no tests required unless a more specific rule below applies.
+- CLI help/guidance changes in `src/utils/command-schema.ts`: run `pnpm exec vitest run src/utils/__tests__/args.test.ts`.
+- SkillGym prompt/assertion changes: run the touched `--case` checks; for broad validation, run cases in batches of 20 or fewer because full-suite runs can hang.
 - Non-TS, no behavior impact: no tests unless requested.
 - Keep tests behavioral; do not assert shapes or cases TypeScript already proves.
 - Any TS change: `pnpm typecheck` or `pnpm check:quick`.
@@ -182,18 +184,18 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Changing `tsconfig.lib.json`/build tooling without running `pnpm check:tooling`; declaration generation is stricter than `tsc --noEmit`.
 
 ## Docs & Skills
-- For behavior/CLI surface changes, evaluate docs/skills updates.
-- Update `README.md` and relevant `website/docs/**` pages for command behavior/flags/aliases/workflows.
-- Update relevant `skills/**/SKILL.md` when usage examples/workflow recommendations change.
-- Keep skill docs task-first:
-  - top-level `SKILL.md` should stay a thin router, not a full manual.
-  - keep detailed workflows/troubleshooting in a `references/` folder instead of growing the router.
-  - isolate true platform/infra exceptions (for example macOS-only or remote-tenancy-only guidance) in dedicated files.
-  - do not delete high-value operational guidance during refactors; move or condense it unless the behavior is obsolete.
-- Optimize skills for cheap, less capable models:
-  - keep routing explicit, shallow, and easy to follow in one pass.
-  - prefer short task-first steps, concrete commands, and low-ambiguity wording over dense prose.
-  - avoid long reference chains or “figure it out” guidance when a direct next action can be stated.
+- Versioned CLI help is the agent-facing source of truth. Put workflow guidance in `src/utils/command-schema.ts` help topics and assert important copy in `src/utils/__tests__/args.test.ts`.
+- Skills are thin routers. Keep `skills/**/SKILL.md` focused on when to use the skill, version gating, which `agent-device help <topic>` page to read, and a short default loop. Do not duplicate full CLI manuals in skills.
+- For behavior/CLI surface changes, update `README.md`, relevant `website/docs/**`, and router skills only when their short routing guidance or version assumptions change.
+- For command-planning guidance changes, update `test/skillgym/suites/agent-device-smoke-suite.ts` when the change should alter what an agent plans.
+- Keep SkillGym cases behavioral and command-planning oriented. Prefer prompts that assert the user-visible contract and expected command family over brittle exact output, but forbid known bad patterns.
+- Build before SkillGym when local CLI help is needed: `pnpm build`, then `pnpm exec skillgym run ... --case <id>`.
+- Run SkillGym broad validation in batches of 20 cases or fewer using repeated `--case` runs; do not rely on one full-suite invocation for large runs.
+- Preserve current high-value workflow guidance:
+  - iOS Expo Go dogfood: prefer `agent-device open "Expo Go" <url> --platform ios` when the shell is known, then `snapshot -i` to confirm the project UI rather than the runner splash.
+  - `keyboard dismiss` is best-effort on iOS; prefer a visible app dismiss control, or `back --system` only when system navigation is acceptable.
+  - Empty replacement is not a supported clear-field command; do not document or test `fill <target> ""` as clearing. Prefer visible clear/reset controls or report the tool gap.
+  - Mutating commands against one session must run serially. Parallelize only read-only commands or commands on separate sessions/devices.
 - In final summaries, state whether docs/skills were updated; if not, explain why.
 
 ## When Blocked

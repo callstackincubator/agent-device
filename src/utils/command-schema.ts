@@ -180,9 +180,11 @@ const AGENT_QUICKSTART_LINES = [
   'Read-only visible/state question: use snapshot/get/is/find; use snapshot -i only when refs are needed.',
   'Truncated text/input preview: expand first with snapshot -s @e12, not get text.',
   'RN warning/error overlays can block taps: snapshot -i, dismiss/close, then diff snapshot -i.',
-  'Expo Go/dev clients: use the provided URL when given; if only a target name is given, open that target and do not search project files for a URL.',
+  'Expo Go/dev clients: use the provided URL when given; on iOS prefer open "Expo Go" <url> when the host shell is known.',
   'Install flows: install/install-from-source first, then open the installed id with --relaunch.',
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
+  'Clearing text: do not use fill <target> ""; use a visible clear/reset control or report that clearing is unsupported.',
+  'Run mutating commands serially against one session; parallelize only read-only commands or separate sessions.',
   'Clipboard limits: iOS Allow Paste cannot be automated through XCUITest; prefill with clipboard write. Android non-ASCII should use fill/type, not raw adb input.',
   'After mutation: diff snapshot -i. Off-screen hints: scroll, then snapshot -i.',
   'Raw coordinates are fallback-only: use snapshot -i -c --json rects when iOS refs no-op or child refs are missing.',
@@ -283,10 +285,16 @@ Text entry:
     agent-device fill 'id="field-email"' "qa@example.com"
     agent-device press 'id="product-note"'
     agent-device type "Handle with care" --delay-ms 80
-  Debounced field with no result selector: agent-device wait 1000. Keyboard read-only: keyboard status/get. Blocked control: keyboard dismiss.
+  Empty replacement is not a supported clear-field command: do not plan fill <target> "" or fill <target> ''. Prefer a visible clear/reset control; if the app exposes none, report the tool gap instead of inventing a clear command.
+  Debounced field with no result selector: agent-device wait 1000. Keyboard read-only: keyboard status/get. Blocked control: try keyboard dismiss when supported.
+  iOS keyboard dismiss is best-effort and can return UNSUPPORTED_OPERATION when no native dismiss gesture/control is available. Prefer a visible app dismiss control, or use back --system only when system navigation is an acceptable side effect.
   Search-as-you-type fields on iOS can drop characters when driven too fast; use --delay-ms on fill/type before trying clipboard paste.
   iOS Allow Paste prompt cannot be exercised under XCUITest. To test paste-driven app behavior, prefill first with agent-device clipboard write "some text"; test the system prompt manually.
   Android non-ASCII can fail on some system images. Try fill/type normally; agent-device uses safer fallbacks. If the shell reports unsupported non-ASCII input, configure a trusted ADB keyboard IME outside the command plan and restore the previous IME afterward.
+
+Session ordering:
+  Stateful commands against one --session must run serially. Do not run open/press/fill/type/scroll/back/alert/replay/batch/close commands in parallel against the same session.
+  It is fine to parallelize independent read-only collection or commands that use different sessions/devices.
 
 Read-only and waits:
   Read-only visible/state question: use snapshot/get/is/find.
@@ -334,9 +342,11 @@ React Native dev loop:
     agent-device find "Home"
   Do not use agent-device reload. Use open --relaunch for native startup reset.
   Warning/error overlays can obscure UI and intercept taps. If snapshot -i shows one, dismiss/close its visible control (for example Dismiss or Close) if it is not the task target, then diff snapshot -i or snapshot -i before tapping the real UI.
-  Expo Go is a host shell. Use a provided project URL instead of inventing a bundle id; if no URL is provided but a target/app name is provided, open that target and do not inspect project files to find one. iOS simulators can open a URL directly; use host + URL when targeting a specific host shell:
-    agent-device open exp://127.0.0.1:8081 --platform ios
+  Expo Go is a host shell. Use a provided project URL instead of inventing a bundle id; if no URL is provided but a target/app name is provided, open that target and do not inspect project files to find one. On iOS, prefer host + URL when the host shell is known because direct URL open can report success while leaving the runner/shell focused; verify with snapshot -i after opening:
     agent-device open "Expo Go" exp://127.0.0.1:8081 --platform ios
+    agent-device snapshot -i --platform ios
+  Direct iOS URL open remains valid when no host shell is known, but verify that the app UI loaded:
+    agent-device open exp://127.0.0.1:8081 --platform ios
   Android uses the URL target directly; do not write open <app> <url> there:
     agent-device open exp://127.0.0.1:8081 --platform android
   If apps lookup misses the project but shows Expo Go/dev-client and a project URL is available, open the URL/host shell; if no URL is available, ask instead of inventing an app id.
@@ -536,11 +546,12 @@ Loop:
   4. Map top-level navigation, then exercise primary flows and edge states.
   5. For each issue, capture evidence and write the finding immediately, then continue.
   6. Close the session and reconcile the report summary.
+  Keep stateful commands serial within the same session. Parallel runs can pollute text fields, focus, alerts, and navigation state.
 
 Coverage:
   Navigation, forms, empty/error/loading states, offline or retry behavior, permissions, settings, accessibility labels, orientation/keyboard, and obvious performance stalls.
   React Native warning/error overlays can be real findings or test blockers. Capture them, dismiss if unrelated, re-snapshot, and report them.
-  Expo Go/dev-client shells: use the provided exp:// or dev-client URL and record whether the shell, project load, or app UI is being tested.
+  Expo Go/dev-client shells: use the provided exp:// or dev-client URL and record whether the shell, project load, or app UI is being tested. On iOS dogfood, prefer agent-device open "Expo Go" <url> when Expo Go is the known shell, then snapshot -i to confirm the project UI rather than the runner splash.
   Categories: visual, functional, UX, content, performance, diagnostics, permissions, accessibility.
   Severity: critical blocks a core flow/data/crashes; high breaks a major feature; medium has friction or workaround; low is polish.
 

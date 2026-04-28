@@ -35,6 +35,6 @@ Notes:
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - On iOS, `appstate` is session-scoped and requires a matching active session on the target device.
 - For remote `connect --remote-config` sessions, see [Commands](/docs/commands#remote-metro-workflow).
-- Use `--session <name>` to run multiple sessions in parallel.
+- Use `--session <name>` to run multiple sessions in parallel. Do not parallelize mutating commands against the same session; serialize stateful actions such as open, press, fill, type, scroll, back, alert, replay, batch, and close.
 
 For replay scripts and deterministic E2E guidance, see [Replay & E2E (Experimental)](/docs/replay-e2e).
