@@ -8,7 +8,11 @@ export {
   parseAndroidSnapshotHelperOutput,
   parseAndroidSnapshotHelperXml,
 } from './snapshot-helper-capture.ts';
-export { ensureAndroidSnapshotHelper } from './snapshot-helper-install.ts';
+export {
+  ensureAndroidSnapshotHelper,
+  forgetAndroidSnapshotHelperInstall,
+  resetAndroidSnapshotHelperInstallCache,
+} from './snapshot-helper-install.ts';
 export {
   ANDROID_SNAPSHOT_HELPER_NAME,
   ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,

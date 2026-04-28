@@ -29,7 +29,24 @@ jobs:
         id: android-replay-host
         uses: ./.github/actions/setup-android-replay-host
 
-      - name: Run Android smoke replay
+      - name: Install Android SDK packages
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/bin/sdkmanager"
+          fi
+          if [ ! -x "$SDKMANAGER" ]; then
+            echo "sdkmanager not found under $SDK_ROOT" >&2
+            exit 1
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Package npm-bundled Android snapshot helper
+        run: pnpm package:android-snapshot-helper:npm
+
+      - name: Run Android smoke checks
         uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
         with:
           api-level: 36
@@ -37,7 +54,10 @@ jobs:
           profile: pixel_7
           target: google_apis_playstore
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
-          script: node --experimental-strip-types src/bin.ts test test/integration/replays/android/01-settings.ad --retries 2 --report-junit test/artifacts/replays-android-smoke.junit.xml
+          script: |
+            set -e
+            node --experimental-strip-types src/bin.ts test test/integration/replays/android/01-settings.ad --retries 2 --report-junit test/artifacts/replays-android-smoke.junit.xml
+            sh ./test/scripts/android-snapshot-helper-release-smoke.sh
 
       - name: Upload Android artifacts
         if: always()
