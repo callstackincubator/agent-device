@@ -36,7 +36,7 @@ For agent-oriented operating guidance, start with `agent-device help` or `agent-
   - Physical-device recording defaults to 15 FPS and supports `--fps` caps.
   - `record start --quality <5-10>` scales recording resolution from 50% through native resolution; omitting it keeps native/current resolution.
 - Android supports the same core interaction set, plus `rotate`, `push` notification simulation, `clipboard read/write`, and `keyboard status|get|dismiss`.
-- iOS supports `keyboard dismiss` through the XCTest runner when the on-screen keyboard is visible.
+- iOS `keyboard dismiss` is best-effort through the XCTest runner and can fail when the app exposes no native dismiss gesture/control.
 - App-event triggers are available on iOS and Android through app-defined deep-link hooks (`trigger-app-event`), using active session context or explicit device selectors.
 
 ## Architecture (high level)
@@ -1101,9 +1101,10 @@ agent-device keyboard dismiss
 - `keyboard status` (or `keyboard get`) returns keyboard visibility and best-effort input type classification on Android.
 - `keyboard dismiss` attempts a non-navigation keyboard dismissal on Android and a native dismiss gesture/control on iOS, then confirms the keyboard is hidden.
 - If the keyboard remains visible after the platform-native dismiss path, the command returns an explicit `UNSUPPORTED_OPERATION` error instead of falling back to back navigation.
+- On iOS, `keyboard dismiss` is best-effort and can fail when the active app exposes no native dismiss gesture/control. Prefer a visible app dismiss control, or use `back --system` only when system navigation is an acceptable side effect.
 - Works with active sessions and explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
 - `keyboard status|get` is supported on Android emulator/device.
-- `keyboard dismiss` is supported on Android emulator/device and iOS simulator/device.
+- `keyboard dismiss` is supported on Android emulator/device and best-effort on iOS simulator/device.
 
 ## Performance metrics
 
@@ -2155,7 +2156,7 @@ Notes:
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
 - On iOS, `appstate` is session-scoped and requires a matching active session on the target device.
 - For remote `connect --remote-config` sessions, see [Commands](/agent-device/docs/commands.md#remote-metro-workflow).
-- Use `--session <name>` to run multiple sessions in parallel.
+- Use `--session <name>` to run multiple sessions in parallel. Do not parallelize mutating commands against the same session; serialize stateful actions such as open, press, fill, type, scroll, back, alert, replay, batch, and close.
 
 For replay scripts and deterministic E2E guidance, see [Replay & E2E (Experimental)](/agent-device/docs/replay-e2e.md).
 

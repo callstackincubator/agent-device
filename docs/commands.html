@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.f4adab48fc.js"></script>
 <script defer src="/agent-device/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/static/js/757.695a0ec7a3.js"></script>
-<script defer src="/agent-device/static/js/index.f8217fa6e2.js"></script>
+<script defer src="/agent-device/static/js/index.5ee8268f57.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -471,9 +471,10 @@ On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li
 <li><code>keyboard status</code> (or <code>keyboard get</code>) returns keyboard visibility and best-effort input type classification on Android.</li>
 <li><code>keyboard dismiss</code> attempts a non-navigation keyboard dismissal on Android and a native dismiss gesture/control on iOS, then confirms the keyboard is hidden.</li>
 <li>If the keyboard remains visible after the platform-native dismiss path, the command returns an explicit <code>UNSUPPORTED_OPERATION</code> error instead of falling back to back navigation.</li>
+<li>On iOS, <code>keyboard dismiss</code> is best-effort and can fail when the active app exposes no native dismiss gesture/control. Prefer a visible app dismiss control, or use <code>back --system</code> only when system navigation is an acceptable side effect.</li>
 <li>Works with active sessions and explicit selectors (<code>--platform</code>, <code>--device</code>, <code>--udid</code>, <code>--serial</code>).</li>
 <li><code>keyboard status|get</code> is supported on Android emulator/device.</li>
-<li><code>keyboard dismiss</code> is supported on Android emulator/device and iOS simulator/device.</li>
+<li><code>keyboard dismiss</code> is supported on Android emulator/device and best-effort on iOS simulator/device.</li>
 </ul>
 <h2 class="rp-toc-include" id="performance-metrics"><a href="#performance-metrics" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Performance metrics</h2>
 <div class="rp-codeblock language-bash"><div class="rp-codeblock__content"><div class="rp-codeblock__content__scroll-container rp-scrollbar rp-scrollbar--always"><pre class="shiki css-variables" style="background-color:var(--shiki-background);color:var(--shiki-foreground)" tabindex="0" data-lang="bash"><code><span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> perf</span><span style="color:var(--shiki-token-string)"> --json</span></span>

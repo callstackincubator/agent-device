@@ -32,7 +32,7 @@ For agent-oriented operating guidance, start with `agent-device help` or `agent-
   - Physical-device recording defaults to 15 FPS and supports `--fps` caps.
   - `record start --quality <5-10>` scales recording resolution from 50% through native resolution; omitting it keeps native/current resolution.
 - Android supports the same core interaction set, plus `rotate`, `push` notification simulation, `clipboard read/write`, and `keyboard status|get|dismiss`.
-- iOS supports `keyboard dismiss` through the XCTest runner when the on-screen keyboard is visible.
+- iOS `keyboard dismiss` is best-effort through the XCTest runner and can fail when the app exposes no native dismiss gesture/control.
 - App-event triggers are available on iOS and Android through app-defined deep-link hooks (`trigger-app-event`), using active session context or explicit device selectors.
 
 ## Architecture (high level)
