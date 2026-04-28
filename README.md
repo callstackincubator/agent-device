@@ -14,7 +14,7 @@
 
 Device automation CLI for AI agents. Mobile, TV, and desktop apps.
 
-`agent-device` lets coding agents run real apps, inspect UI state, interact with visible elements, and collect debugging evidence from the terminal.
+`agent-device` lets coding agents run real apps, inspect UI state, interact with visible elements, and collect debugging evidence through one CLI.
 
 It is built around token-efficient accessibility snapshots, not pixel-first screenshots. Agents read compact UI trees, locate elements through refs like `@e3`, perform touch and text actions, and capture screenshots, video, logs, network, perf, and React profiles only when evidence is needed.
 
@@ -64,7 +64,7 @@ Snapshots assign refs like `@e1`, `@e2`, and `@e3` to current-screen elements. R
 
 | Path | Best for | Start with |
 | --- | --- | --- |
-| Local | Exploration, debugging, and development loops on simulators, emulators, physical devices, macOS apps, and Linux desktop targets. | Bring your own devices and wire `agent-device` into your agent workflow. |
+| Local | Exploration, debugging, and development loops on simulators, emulators, physical devices, macOS apps, and Linux desktop targets. | Follow the Quick Start. |
 | CI/CD | Automated PR and merge validation with replay scripts and captured artifacts. | Start with the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml). GitHub Actions template coming soon. |
 | Cloud | Linux runners, managed devices, and remote execution. | Use [Agent Device Cloud](https://agent-device.dev/cloud) or [contact Callstack](mailto:hello@callstack.com) for team-scale QA. |
 
@@ -72,7 +72,7 @@ Snapshots assign refs like `@e1`, `@e2`, and `@e3` to current-screen elements. R
 
 - **Platforms**: iOS, Android, tvOS, Android TV, macOS, and Linux. Real devices and simulators are supported.
 - **Capture**: screenshots, video, logs, network traffic, performance data, accessibility snapshots, and React render profiles.
-- **Produce**: replayable `.ad` scripts, e2e test runs, snapshot and screenshot diffs, and debugging artifacts. `.ad` scripts are recorded replay files that can run locally or in CI.
+- **Produce**: replayable `.ad` scripts (recorded replay files that run locally or in CI), e2e test runs, snapshot and screenshot diffs, and debugging artifacts.
 - **React Native and Expo**: component tree inspection, props/state/hooks, and render profiling.
 - **License**: MIT. Free to use.
 
@@ -104,4 +104,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Made at Callstack
 
-agent-device is an open source project and will always remain free to use. Try the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml), use [Agent Device Cloud](https://agent-device.dev/cloud), or contact us at hello@callstack.com.
+agent-device is open source and MIT licensed. Try the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml), use [Agent Device Cloud](https://agent-device.dev/cloud), or contact us at hello@callstack.com.
