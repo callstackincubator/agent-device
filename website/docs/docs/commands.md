@@ -536,9 +536,10 @@ agent-device keyboard dismiss
 - `keyboard status` (or `keyboard get`) returns keyboard visibility and best-effort input type classification on Android.
 - `keyboard dismiss` attempts a non-navigation keyboard dismissal on Android and a native dismiss gesture/control on iOS, then confirms the keyboard is hidden.
 - If the keyboard remains visible after the platform-native dismiss path, the command returns an explicit `UNSUPPORTED_OPERATION` error instead of falling back to back navigation.
+- On iOS, `keyboard dismiss` is best-effort and can fail when the active app exposes no native dismiss gesture/control. Prefer a visible app dismiss control, or use `back --system` only when system navigation is an acceptable side effect.
 - Works with active sessions and explicit selectors (`--platform`, `--device`, `--udid`, `--serial`).
 - `keyboard status|get` is supported on Android emulator/device.
-- `keyboard dismiss` is supported on Android emulator/device and iOS simulator/device.
+- `keyboard dismiss` is supported on Android emulator/device and best-effort on iOS simulator/device.
 
 ## Performance metrics
 

@@ -31,4 +31,4 @@ agent-device help dogfood
 
 Default loop: `open -> snapshot/-i -> get/is/find or press/fill/scroll/wait -> verify -> close`.
 
-Keep refs current, prefer selectors/refs over coordinates, use `fill` to replace text, and use `back` for app-owned navigation. Let `help workflow` provide the exact command shapes.
+Use this skill only to route into version-matched CLI help. Let `help workflow` provide exact command shapes, platform limits, and current workflow guidance.

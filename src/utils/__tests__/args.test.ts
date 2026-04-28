@@ -796,9 +796,11 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Truncated text\/input preview: expand first with snapshot -s @e12/);
   assert.match(usageText, /RN warning\/error overlays can block taps: snapshot -i/);
   assert.match(usageText, /Expo Go\/dev clients: use the provided URL when given/);
-  assert.match(usageText, /if only a target name is given, open that target/);
+  assert.match(usageText, /on iOS prefer open "Expo Go" <url>/);
   assert.match(usageText, /Install flows: install\/install-from-source first/);
   assert.match(usageText, /fill 'id="field-email"' "qa@example\.com" replaces/);
+  assert.match(usageText, /do not use fill <target> ""/);
+  assert.match(usageText, /Run mutating commands serially against one session/);
   assert.match(usageText, /After mutation: diff snapshot -i/);
   assert.match(usageText, /app-owned back uses back/);
   assert.match(usageText, /logs clear --restart\/mark\/path/);
@@ -856,6 +858,15 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /report that gap instead of typing\/searching\/navigating/);
   assert.match(help, /If snapshot -i shows one, dismiss\/close its visible control/);
   assert.match(help, /iOS Allow Paste prompt cannot be exercised under XCUITest/);
+  assert.match(help, /Empty replacement is not a supported clear-field command/);
+  assert.match(help, /do not plan fill <target> ""/);
+  assert.match(help, /iOS keyboard dismiss is best-effort/);
+  assert.match(help, /UNSUPPORTED_OPERATION/);
+  assert.match(help, /Stateful commands against one --session must run serially/);
+  assert.match(
+    help,
+    /Do not run open\/press\/fill\/type\/scroll\/back\/alert\/replay\/batch\/close commands in parallel/,
+  );
   assert.match(help, /agent-device clipboard write "some text"/);
   assert.match(help, /trusted ADB keyboard IME/);
   assert.match(help, /if no URL is provided but a target\/app name is provided, open that target/);
@@ -863,6 +874,8 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /do not write network log headers/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform ios/);
   assert.match(help, /agent-device open "Expo Go" exp:\/\/127\.0\.0\.1:8081 --platform ios/);
+  assert.match(help, /direct URL open can report success while leaving the runner\/shell focused/);
+  assert.match(help, /verify with snapshot -i after opening/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform android/);
   assert.match(help, /apps lookup misses the project but shows Expo Go\/dev-client/);
   assert.match(help, /metro prepare --kind expo/);
@@ -909,6 +922,8 @@ test('usageForCommand resolves dogfood help topic', () => {
   assert.match(help, /Static\/on-load issues can use one screenshot/);
   assert.match(help, /React Native warning\/error overlays can be real findings/);
   assert.match(help, /Expo Go\/dev-client shells/);
+  assert.match(help, /Keep stateful commands serial within the same session/);
+  assert.match(help, /prefer agent-device open "Expo Go" <url>/);
   assert.match(help, /dogfood-output\/report\.md/);
   assert.match(help, /ID, severity, category, title, affected flow\/screen/);
   assert.match(help, /Never delete screenshots, videos, traces, or report artifacts/);

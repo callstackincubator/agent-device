@@ -22,4 +22,4 @@ agent-device help dogfood
 
 Loop: open named session -> snapshot -i + screenshot -> explore flows -> capture evidence per issue -> close.
 
-Target app is required; infer platform or ask. Default output is `./dogfood-output/`. Findings must come from runtime behavior, not source reads. Re-snapshot after mutations. Use logs, network, trace, perf, overlay screenshots, or react-devtools only when they add evidence.
+Target app is required; infer platform or ask. Findings must come from runtime behavior, not source reads. Let `help dogfood` provide exact report shape, evidence commands, and current workflow guidance.

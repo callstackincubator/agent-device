@@ -16,7 +16,7 @@ The included suite focuses on the first two layers so it stays stable and CI-saf
 
 - `../../examples/test-app/`: minimal Expo SDK 55 fixture app for broad UI coverage
 - `skillgym.config.ts`: starter config that runs Codex and Claude Haiku against this repo
-- `suites/agent-device-smoke-suite.ts`: 66-case suite for skill routing, fixture-aware planning, and skill-guidance regressions
+- `suites/agent-device-smoke-suite.ts`: planning suite for skill routing, fixture-aware flows, and skill-guidance regressions
 
 ## Current coverage
 
@@ -28,7 +28,7 @@ Fixture smoke cases cover concrete app surfaces:
 - banners, alerts, toggles, and quick actions on Home
 - search debounce, filters, long-list scroll, favorites, and cart updates in Catalog
 - detail navigation, quantity edits, note append, and save-to-cart on Product
-- form validation, success submit, keyboard dismiss, and reset on Checkout form
+- form validation, success submit, iOS keyboard-dismiss fallback, and reset on Checkout form
 - diagnostics load/error/retry plus reset alert handling in Settings
 - accessibility audit via screenshot + snapshot
 
@@ -36,11 +36,11 @@ Skill-guidance regression cases cover distinct command-planning habits:
 
 - read-only inspection versus mutation
 - fresh `@ref` targeting, durable selectors, raw-rect fallbacks, and off-screen scroll recovery
-- text replacement, append semantics, keyboard status, and keyboard dismiss
-- install/open setup, app discovery, session scoping, and app-owned navigation fallbacks
+- text replacement, append semantics, supported field clearing, keyboard status, and keyboard fallback
+- install/open setup, Expo Go host-shell launch, app discovery, session scoping, and app-owned navigation fallbacks
 - Metro reload, logs, network dump, alert fallback, and screenshot evidence
 - performance metrics, React DevTools profiling, gestures, settings, and trace capture
-- remote config, macOS menu bar surfaces, replay update, and batch schema/recording
+- remote config, macOS menu bar surfaces, replay update, same-session mutation ordering, and batch schema/recording
 
 `assertAgentDeviceEvidence` is intentionally soft when a runner does not expose skill-detection telemetry. When telemetry exists, the suite asserts that `agent-device` was loaded; when it is absent, the cases still judge command-planning output instead of failing on missing runner metadata.
 
