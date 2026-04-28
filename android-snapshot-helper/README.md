@@ -36,7 +36,7 @@ adb shell am instrument -w \
 ```
 
 `maxDepth` also caps recursive traversal depth inside the helper.
-The `-t` install flag is required because the helper is a debuggable instrumentation/test APK.
+The `-t` install flag is required because the helper is a test-only instrumentation APK.
 Devices or providers that block test-package installs must allow this package before helper capture
 can run.
 
