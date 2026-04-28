@@ -4,6 +4,23 @@
 
 ```bash
 npm install -g agent-device
+agent-device --version
+agent-device help
+```
+
+Use global install for normal agent workflows. It gives agents a stable `agent-device` command and version-matched help topics:
+
+```bash
+agent-device help workflow
+agent-device help debugging
+agent-device help react-devtools
+```
+
+The CLI help is the source of truth. Skills are optional but recommended when your agent runtime supports them because they auto-route relevant tasks to the installed CLI's own help. The published router skills require `agent-device >= 0.13.4`; if you install or update skills separately, update the CLI too:
+
+```bash
+npm install -g agent-device@latest
+agent-device --version
 ```
 
 Interactive CLI runs periodically check for a newer published `agent-device` package in the background. When an upgrade is available, the CLI suggests reinstalling the package globally; that also refreshes the bundled `skills/` directory shipped with the release.
@@ -15,6 +32,8 @@ Set `AGENT_DEVICE_NO_UPDATE_NOTIFIER=1` to disable the notice.
 ```bash
 npx agent-device open Settings --platform ios
 ```
+
+One-off `npx` usage is fine for humans and scripts. For agents, prefer global install so repeated commands and any installed skills resolve to the same CLI version. If an agent cannot rely on skills, it should run `agent-device help` or `agent-device help workflow` before planning device commands.
 
 ## Requirements
 
