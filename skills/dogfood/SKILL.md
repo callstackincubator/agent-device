@@ -12,7 +12,7 @@ Router for exploratory QA. Private setup before using this skill:
 agent-device --version
 ```
 
-Require `agent-device >= 0.13.4`; older CLIs lack these help topics. If older, run `npm install -g agent-device@latest`, recheck, then continue. If you cannot upgrade, stop and tell the user. Do not include version/upgrade commands in final plans.
+Require `agent-device >= 0.14.0`; older CLIs lack these help topics. If older, run `npm install -g agent-device@latest`, recheck, then continue. If you cannot upgrade, stop and tell the user. Do not include version/upgrade commands in final plans.
 
 Read current CLI guidance:
 

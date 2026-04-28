@@ -20,7 +20,7 @@ agent-device help debugging
 agent-device help react-devtools
 ```
 
-The CLI help is the source of truth. Skills are optional but recommended when your agent runtime supports them because they auto-route relevant tasks to the installed CLI's own help. The published router skills require `agent-device >= 0.13.4`; if you install or update skills separately, update the CLI too:
+The CLI help is the source of truth. Skills are optional but recommended when your agent runtime supports them because they auto-route relevant tasks to the installed CLI's own help. The published router skills require `agent-device >= 0.14.0`; if you install or update skills separately, update the CLI too:
 
 ```bash
 npm install -g agent-device@latest

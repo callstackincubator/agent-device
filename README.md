@@ -39,7 +39,7 @@ agent-device help workflow
 
 The CLI help is the source of truth for agents and is shipped with the installed version. Skills are optional but recommended when your agent runtime supports them: they auto-route device, React DevTools, and dogfood tasks to the right `agent-device help <topic>` page and verify the CLI is new enough before acting.
 
-If you install skills separately, keep the CLI on `agent-device >= 0.13.4`. Older CLIs do not include the workflow help topics that the router skills expect.
+If you install skills separately, keep the CLI on `agent-device >= 0.14.0`. Older CLIs do not include the workflow help topics that the router skills expect.
 
 ```bash
 npm install -g agent-device@latest
