@@ -6,7 +6,7 @@ import {
   type ExecBackgroundResult,
 } from '../../utils/exec.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
-import { isProcessAlive } from '../../utils/process-identity.ts';
+import { isProcessAlive, isProcessGroupAlive } from '../../utils/process-identity.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 import {
@@ -192,7 +192,9 @@ async function stopRunnerSessionInternal(
       new Promise<void>((resolve) => setTimeout(resolve, RUNNER_STOP_WAIT_TIMEOUT_MS)),
     ]);
   } catch {}
-  await killRunnerProcessTree(session.child.pid, 'SIGKILL');
+  if (isRunnerProcessTreeAlive(session.child.pid)) {
+    await killRunnerProcessTree(session.child.pid, 'SIGKILL');
+  }
   cleanupTempFile(session.xctestrunPath);
   cleanupTempFile(session.jsonPath);
   await session.simulatorSetRedirect?.release();
@@ -272,6 +274,11 @@ export async function stopAllIosRunnerSessions(): Promise<void> {
 function isRunnerProcessAlive(pid: number | undefined): boolean {
   if (!pid) return false;
   return isProcessAlive(pid);
+}
+
+function isRunnerProcessTreeAlive(pid: number | undefined): boolean {
+  if (!pid) return false;
+  return isRunnerProcessAlive(pid) || isProcessGroupAlive(pid);
 }
 
 async function killRunnerProcessTree(
