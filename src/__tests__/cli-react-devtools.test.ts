@@ -43,7 +43,7 @@ test('react-devtools passthrough pins agent-react-devtools package version', () 
 });
 
 test('react-devtools docs mention the pinned package version', () => {
-  const docs = ['README.md', 'website/docs/docs/commands.md', 'skills/react-devtools/SKILL.md'];
+  const docs = ['website/docs/docs/commands.md', 'skills/react-devtools/SKILL.md'];
 
   for (const file of docs) {
     assert.match(fs.readFileSync(file, 'utf8'), new RegExp(AGENT_REACT_DEVTOOLS_PACKAGE));
