@@ -5,6 +5,7 @@ import { resolveFileOverridePath, runCmd, whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
+import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';
 import { waitForAndroidBoot } from './devices.ts';
 import { adbArgs } from './adb.ts';
 import { classifyAndroidAppTarget } from './open-target.ts';
@@ -34,15 +35,27 @@ const ANDROID_APPS_DISCOVERY_HINT =
 const ANDROID_AMBIGUOUS_APP_HINT =
   'Run agent-device apps --platform android to see the exact installed package names before retrying open.';
 
+type AndroidAppResolution = { type: 'intent' | 'package'; value: string };
+
+const androidAppResolutionCache = createAppResolutionCache<AndroidAppResolution>();
+
+function androidAppResolutionScope(device: DeviceInfo): AppResolutionCacheScope {
+  return { platform: 'android', deviceId: device.id, variant: device.target ?? '' };
+}
+
 export async function resolveAndroidApp(
   device: DeviceInfo,
   app: string,
-): Promise<{ type: 'intent' | 'package'; value: string }> {
+): Promise<AndroidAppResolution> {
   const trimmed = app.trim();
   if (classifyAndroidAppTarget(trimmed) === 'package') return { type: 'package', value: trimmed };
 
   const alias = ALIASES[trimmed.toLowerCase()];
   if (alias) return alias;
+
+  const cacheScope = androidAppResolutionScope(device);
+  const cached = androidAppResolutionCache.get(cacheScope, trimmed);
+  if (cached) return cached;
 
   const result = await runCmd('adb', adbArgs(device, ['shell', 'pm', 'list', 'packages']));
   const packages = result.stdout
@@ -54,7 +67,10 @@ export async function resolveAndroidApp(
     pkg.toLowerCase().includes(trimmed.toLowerCase()),
   );
   if (matches.length === 1) {
-    return { type: 'package', value: matches[0] };
+    return androidAppResolutionCache.set(cacheScope, trimmed, {
+      type: 'package',
+      value: matches[0],
+    });
   }
 
   if (matches.length > 1) {
@@ -560,10 +576,12 @@ export async function installAndroidInstallablePath(
   device: DeviceInfo,
   installablePath: string,
 ): Promise<void> {
-  if (!device.booted) {
-    await waitForAndroidBoot(device.id);
-  }
-  await installAndroidAppFiles(device, installablePath);
+  await androidAppResolutionCache.invalidateWhile(androidAppResolutionScope(device), async () => {
+    if (!device.booted) {
+      await waitForAndroidBoot(device.id);
+    }
+    await installAndroidAppFiles(device, installablePath);
+  });
 }
 
 export async function installAndroidInstallablePathAndResolvePackageName(
@@ -617,18 +635,23 @@ export async function reinstallAndroidApp(
   app: string,
   appPath: string,
 ): Promise<{ package: string }> {
-  if (!device.booted) {
-    await waitForAndroidBoot(device.id);
-  }
-  const { package: pkg } = await uninstallAndroidApp(device, app);
-  const prepared = await prepareAndroidInstallArtifact(
-    { kind: 'path', path: appPath },
-    { resolveIdentity: false },
+  return await androidAppResolutionCache.invalidateWhile(
+    androidAppResolutionScope(device),
+    async () => {
+      if (!device.booted) {
+        await waitForAndroidBoot(device.id);
+      }
+      const { package: pkg } = await uninstallAndroidApp(device, app);
+      const prepared = await prepareAndroidInstallArtifact(
+        { kind: 'path', path: appPath },
+        { resolveIdentity: false },
+      );
+      try {
+        await installAndroidInstallablePath(device, prepared.installablePath);
+      } finally {
+        await prepared.cleanup();
+      }
+      return { package: pkg };
+    },
   );
-  try {
-    await installAndroidInstallablePath(device, prepared.installablePath);
-    return { package: pkg };
-  } finally {
-    await prepared.cleanup();
-  }
 }

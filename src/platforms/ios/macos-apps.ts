@@ -6,6 +6,7 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import { parseAppearanceAction } from '../appearance.ts';
+import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';
 import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
 import { quitMacOsApp } from './macos-helper.ts';
 import { readInfoPlistString } from './plist.ts';
@@ -16,6 +17,14 @@ const MACOS_ALIASES: Record<string, string> = {
 };
 
 const MACOS_BUNDLE_ID_PATTERN = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
+
+// macOS currently has no install/uninstall flow; add cache invalidation if that changes.
+const MACOS_APP_RESOLUTION_CACHE_SCOPE = {
+  platform: 'macos',
+  deviceId: 'host',
+  variant: 'all',
+} satisfies AppResolutionCacheScope;
+const macOsAppResolutionCache = createAppResolutionCache<string>();
 
 function isMacOsBundleId(value: string): boolean {
   return MACOS_BUNDLE_ID_PATTERN.test(value);
@@ -60,9 +69,18 @@ export async function resolveMacOsApp(app: string): Promise<string> {
     return trimmed;
   }
 
+  const cached = macOsAppResolutionCache.get(MACOS_APP_RESOLUTION_CACHE_SCOPE, trimmed);
+  if (cached) return cached;
+
   const apps = await listMacApps('all');
   const matches = apps.filter((entry) => entry.name.toLowerCase() === trimmed.toLowerCase());
-  if (matches.length === 1) return matches[0].bundleId;
+  if (matches.length === 1) {
+    return macOsAppResolutionCache.set(
+      MACOS_APP_RESOLUTION_CACHE_SCOPE,
+      trimmed,
+      matches[0].bundleId,
+    );
+  }
   if (matches.length > 1) {
     throw new AppError('INVALID_ARGS', `Multiple apps matched "${app}"`, { matches });
   }
