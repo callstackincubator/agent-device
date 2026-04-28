@@ -18,6 +18,16 @@ export function isProcessAlive(pid: number): boolean {
   }
 }
 
+export function isProcessGroupAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(-pid, 0);
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
 export function readProcessStartTime(pid: number): string | null {
   if (!Number.isInteger(pid) || pid <= 0) return null;
   try {

@@ -3,12 +3,17 @@ import assert from 'node:assert/strict';
 import {
   isAgentDeviceDaemonCommand,
   isProcessAlive,
+  isProcessGroupAlive,
   readProcessStartTime,
   readProcessCommand,
 } from '../process-identity.ts';
 
 test('isProcessAlive returns false for invalid pid', () => {
   assert.equal(isProcessAlive(-1), false);
+});
+
+test('isProcessGroupAlive returns false for invalid pid', () => {
+  assert.equal(isProcessGroupAlive(-1), false);
 });
 
 test('readProcessStartTime returns value for current process', () => {
