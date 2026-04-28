@@ -351,6 +351,19 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
     forbiddenOutputs: [commandPattern('keyboard dismiss'), commandPattern('back')],
   }),
   makeCase({
+    id: 'form-keyboard-dismiss-ios-done-control',
+    contract: [
+      'Platform: iOS',
+      'App name: Agent Device Tester',
+      'Current screen: Checkout form tab',
+      'testID=field-name',
+      'The focused field shows an iOS keyboard toolbar with a visible Done control',
+    ],
+    task: 'Plan the commands to focus the Full name field and dismiss the iOS keyboard without manually pressing Done.',
+    outputs: [/field-name/i, /keyboard dismiss/i],
+    forbiddenOutputs: [commandPattern('back'), /press\s+.*Done/i, /click\s+.*Done/i],
+  }),
+  makeCase({
     id: 'form-reset',
     contract: [
       'App name: Agent Device Tester',

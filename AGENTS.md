@@ -103,6 +103,7 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 ## Hard Rules
 - Use `runCmd`/`runCmdSync` from `src/utils/exec.ts` for process execution.
 - Use daemon session flow for interactions (`open` before interactions, `close` after).
+- Use `keyboard dismiss` for iOS keyboard dismissal; it may tap safe native controls such as `Done` but must not fall back to system back navigation.
 - Do not remove shared snapshot/session model behavior without full migration.
 - Command/device support must come from `src/core/capabilities.ts`.
 - Apple-family target changes must keep `src/utils/device.ts`, `src/core/capabilities.ts`, `src/core/dispatch-resolve.ts`, `src/platforms/ios/devices.ts`, and `src/platforms/ios/runner-xctestrun.ts` in sync.
@@ -186,14 +187,15 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 ## Docs & Skills
 - Versioned CLI help is the agent-facing source of truth. Put workflow guidance in `src/utils/command-schema.ts` help topics and assert important copy in `src/utils/__tests__/args.test.ts`.
 - Skills are thin routers. Keep `skills/**/SKILL.md` focused on when to use the skill, version gating, which `agent-device help <topic>` page to read, and a short default loop. Do not duplicate full CLI manuals in skills.
-- For behavior/CLI surface changes, update `README.md`, relevant `website/docs/**`, and router skills only when their short routing guidance or version assumptions change.
-- For command-planning guidance changes, update `test/skillgym/suites/agent-device-smoke-suite.ts` when the change should alter what an agent plans.
+- For behavior/CLI surface changes, update the versioned help instructions in `src/utils/command-schema.ts` and assert important help copy in `src/utils/__tests__/args.test.ts`. Also update `README.md` and relevant `website/docs/**` when user-facing docs need it.
+- For behavior/CLI surface changes and command-planning guidance changes, write or update a SkillGym case in `test/skillgym/suites/agent-device-smoke-suite.ts` that captures the expected agent command plan.
+- Do not update `skills/**/SKILL.md` for command behavior or workflow guidance unless the user explicitly asks; skills must route to versioned CLI help instead of carrying behavior details.
 - Keep SkillGym cases behavioral and command-planning oriented. Prefer prompts that assert the user-visible contract and expected command family over brittle exact output, but forbid known bad patterns.
 - Build before SkillGym when local CLI help is needed: `pnpm build`, then `pnpm exec skillgym run ... --case <id>`.
 - Run SkillGym broad validation in batches of 20 cases or fewer using repeated `--case` runs; do not rely on one full-suite invocation for large runs.
 - Preserve current high-value workflow guidance:
   - iOS Expo Go dogfood: prefer `agent-device open "Expo Go" <url> --platform ios` when the shell is known, then `snapshot -i` to confirm the project UI rather than the runner splash.
-  - `keyboard dismiss` is best-effort on iOS; prefer a visible app dismiss control, or `back --system` only when system navigation is acceptable.
+  - `keyboard dismiss` is the preferred iOS keyboard-dismissal path before manually pressing visible keyboard controls such as `Done`; it remains best-effort and can report unsupported layouts explicitly.
   - Empty replacement is not a supported clear-field command; do not document or test `fill <target> ""` as clearing. Prefer visible clear/reset controls or report the tool gap.
   - Mutating commands against one session must run serially. Parallelize only read-only commands or commands on separate sessions/devices.
 - In final summaries, state whether docs/skills were updated; if not, explain why.

@@ -287,7 +287,7 @@ Text entry:
     agent-device type "Handle with care" --delay-ms 80
   Empty replacement is not a supported clear-field command: do not plan fill <target> "" or fill <target> ''. Prefer a visible clear/reset control; if the app exposes none, report the tool gap instead of inventing a clear command.
   Debounced field with no result selector: agent-device wait 1000. Keyboard read-only: keyboard status/get. Blocked control: try keyboard dismiss when supported.
-  iOS keyboard dismiss is best-effort and can return UNSUPPORTED_OPERATION when no native dismiss gesture/control is available. Prefer a visible app dismiss control, or use back --system only when system navigation is an acceptable side effect.
+  On iOS, prefer keyboard dismiss before manually pressing visible Done; the runner can use safe native keyboard controls and still reports unsupported layouts explicitly. If it returns UNSUPPORTED_OPERATION, prefer a visible app dismiss control, or use back --system only when system navigation is an acceptable side effect.
   Search-as-you-type fields on iOS can drop characters when driven too fast; use --delay-ms on fill/type before trying clipboard paste.
   iOS Allow Paste prompt cannot be exercised under XCUITest. To test paste-driven app behavior, prefill first with agent-device clipboard write "some text"; test the system prompt manually.
   Android non-ASCII can fail on some system images. Try fill/type normally; agent-device uses safer fallbacks. If the shell reports unsupported non-ASCII input, configure a trusted ADB keyboard IME outside the command plan and restore the previous IME afterward.
