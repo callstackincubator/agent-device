@@ -68,10 +68,6 @@ Snapshots assign refs like `@e1`, `@e2`, and `@e3` to current-screen elements. R
 | CI/CD | Automated PR and merge validation with replay scripts and captured artifacts. | Start with the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml). GitHub Actions template coming soon. |
 | Cloud | Linux runners, managed devices, and remote execution. | Use [Agent Device Cloud](https://agent-device.dev/cloud) or [contact Callstack](mailto:hello@callstack.com) for team-scale QA. |
 
-## How It Works
-
-`agent-device` runs session-aware commands through platform backends: XCTest for iOS and tvOS, ADB plus the Android snapshot helper for Android, a local helper for macOS desktop automation, and AT-SPI for Linux desktop targets. See [Introduction](https://incubator.callstack.com/agent-device/docs/introduction) and [Commands](https://incubator.callstack.com/agent-device/docs/commands) for platform details.
-
 ## Capabilities
 
 - **Platforms**: iOS, Android, tvOS, Android TV, macOS, and Linux. Real devices and simulators are supported.
@@ -79,6 +75,10 @@ Snapshots assign refs like `@e1`, `@e2`, and `@e3` to current-screen elements. R
 - **Produce**: replayable `.ad` scripts, e2e test runs, snapshot and screenshot diffs, and debugging artifacts. `.ad` scripts are recorded replay files that can run locally or in CI.
 - **React Native and Expo**: component tree inspection, props/state/hooks, and render profiling.
 - **License**: MIT. Free to use.
+
+## How It Works
+
+`agent-device` runs session-aware commands through platform backends: XCTest for iOS and tvOS, ADB plus the Android snapshot helper for Android, a local helper for macOS desktop automation, and AT-SPI for Linux desktop targets. See [Introduction](https://incubator.callstack.com/agent-device/docs/introduction) and [Commands](https://incubator.callstack.com/agent-device/docs/commands) for platform details.
 
 ## Used By
 
