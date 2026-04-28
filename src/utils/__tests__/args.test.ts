@@ -758,37 +758,61 @@ test('usage includes concise top-level commands', () => {
   assert.match(usageText, /pinch <scale> \[x\] \[y\]/);
   assert.match(usageText, /rotate <orientation>/);
   assert.match(usageText, /record start \[path\] \| record stop/);
-  assert.match(usageText, /trace start \[path\] \| trace stop/);
+  assert.match(usageText, /trace start <path> \| trace stop <path>/);
 });
 
 test('usage includes only global flags in the top-level flags section', () => {
   const usageText = usage();
-  assert.match(usageText, /--target mobile\|tv/);
-  assert.match(usageText, /--ios-simulator-device-set <path>/);
-  assert.match(usageText, /--android-device-allowlist <serials>/);
-  assert.match(usageText, /--state-dir <path>/);
-  assert.match(usageText, /--daemon-transport auto\|socket\|http/);
-  assert.match(usageText, /--daemon-server-mode socket\|http\|dual/);
-  assert.match(usageText, /--tenant <id>/);
-  assert.match(usageText, /--session-isolation none\|tenant/);
-  assert.match(usageText, /--run-id <id>/);
-  assert.match(usageText, /--lease-id <id>/);
-  assert.match(usageText, /--lease-backend ios-simulator\|ios-instance\|android-instance/);
-  assert.doesNotMatch(usageText, /--relaunch/);
-  assert.doesNotMatch(usageText, /--header <name:value>/);
-  assert.doesNotMatch(usageText, /--restart/);
-  assert.doesNotMatch(usageText, /--fps <n>/);
-  assert.doesNotMatch(usageText, /--quality <5-10>/);
-  assert.doesNotMatch(usageText, /--save-script \[path\]/);
-  assert.doesNotMatch(usageText, /--metadata/);
+  const flagsSection = usageText.slice(
+    usageText.indexOf('Flags:'),
+    usageText.indexOf('Agent Quickstart:'),
+  );
+  assert.match(flagsSection, /--target mobile\|tv/);
+  assert.match(flagsSection, /--ios-simulator-device-set <path>/);
+  assert.match(flagsSection, /--android-device-allowlist <serials>/);
+  assert.match(flagsSection, /--state-dir <path>/);
+  assert.match(flagsSection, /--daemon-transport auto\|socket\|http/);
+  assert.match(flagsSection, /--daemon-server-mode socket\|http\|dual/);
+  assert.match(flagsSection, /--tenant <id>/);
+  assert.match(flagsSection, /--session-isolation none\|tenant/);
+  assert.match(flagsSection, /--run-id <id>/);
+  assert.match(flagsSection, /--lease-id <id>/);
+  assert.match(flagsSection, /--lease-backend ios-simulator\|ios-instance\|android-instance/);
+  assert.doesNotMatch(flagsSection, /--relaunch/);
+  assert.doesNotMatch(flagsSection, /--header <name:value>/);
+  assert.doesNotMatch(flagsSection, /--restart/);
+  assert.doesNotMatch(flagsSection, /--fps <n>/);
+  assert.doesNotMatch(flagsSection, /--quality <5-10>/);
+  assert.doesNotMatch(flagsSection, /--save-script \[path\]/);
+  assert.doesNotMatch(flagsSection, /--metadata/);
 });
 
-test('usage includes skills, config, environment, and examples footers', () => {
+test('usage includes agent workflows, config, environment, and examples footers', () => {
   const usageText = usage();
-  assert.match(usageText, /Agent Skills:/);
-  assert.match(usageText, /agent-device\s+Canonical mobile automation flows/);
-  assert.match(usageText, /dogfood\s+Exploratory QA and bug hunts/);
-  assert.match(usageText, /See `skills\/<name>\/SKILL\.md` in the installed package\./);
+  assert.match(usageText, /Agent Quickstart:/);
+  assert.match(usageText, /Default loop: devices\/apps -> open -> snapshot -i/);
+  assert.match(usageText, /Use selectors or refs as positional targets/);
+  assert.match(usageText, /Plain snapshot reads state; snapshot -i is required/);
+  assert.match(usageText, /Truncated text\/input preview: expand first with snapshot -s @e12/);
+  assert.match(usageText, /RN warning\/error overlays can block taps: snapshot -i/);
+  assert.match(usageText, /Expo Go\/dev clients: use the provided URL when given/);
+  assert.match(usageText, /if only a target name is given, open that target/);
+  assert.match(usageText, /Install flows: install\/install-from-source first/);
+  assert.match(usageText, /fill 'id="field-email"' "qa@example\.com" replaces/);
+  assert.match(usageText, /After mutation: diff snapshot -i/);
+  assert.match(usageText, /app-owned back uses back/);
+  assert.match(usageText, /logs clear --restart\/mark\/path/);
+  assert.match(usageText, /trace start \.\/path; trace stop \.\/path/);
+  assert.match(usageText, /network dump --include headers/);
+  assert.match(usageText, /Full operating guide: agent-device help workflow/);
+  assert.match(usageText, /Exploratory QA: agent-device help dogfood/);
+  assert.match(usageText, /Agent Workflows:/);
+  assert.match(usageText, /help workflow\s+Normal bootstrap, exploration, and validation loop/);
+  assert.match(usageText, /help debugging\s+Logs, network, alerts, diagnostics, and traces/);
+  assert.match(
+    usageText,
+    /help react-devtools\s+React Native performance, profiling, component tree, and renders/,
+  );
   assert.match(usageText, /Configuration:/);
   assert.match(
     usageText,
@@ -809,6 +833,106 @@ test('usage includes skills, config, environment, and examples footers', () => {
   assert.match(usageText, /agent-device fill @e3 "test@example\.com"/);
   assert.match(usageText, /agent-device replay \.\/session\.ad/);
   assert.match(usageText, /agent-device test \.\/suite --platform android/);
+});
+
+test('usageForCommand resolves workflow help topic', () => {
+  const help = usageForCommand('workflow');
+  if (help === null) throw new Error('Expected workflow help text');
+  assert.match(help, /agent-device help workflow/);
+  assert.match(help, /Use selectors as positional targets/);
+  assert.match(help, /Do not use CSS selectors/);
+  assert.match(help, /Snapshot legend:/);
+  assert.match(help, /@e12 \[button\] label="Add to cart"/);
+  assert.match(help, /Truncated text\/input previews: do not use get text first/);
+  assert.match(help, /snapshot -s @e7/);
+  assert.match(help, /Read-only visible\/state question: use snapshot\/get\/is\/find/);
+  assert.match(help, /Use snapshot -i only when refs are needed/);
+  assert.match(help, /install-from-source --github-actions-artifact org\/repo:app-debug/);
+  assert.match(help, /Discovery is not enough when the task asks to open\/start/);
+  assert.match(help, /If the task says install, use install/);
+  assert.match(help, /Do not open artifact paths or invent package ids/);
+  assert.match(help, /agent-device get attrs @e4/);
+  assert.match(help, /Ambiguous find: add --first or --last/);
+  assert.match(help, /report that gap instead of typing\/searching\/navigating/);
+  assert.match(help, /If snapshot -i shows one, dismiss\/close its visible control/);
+  assert.match(help, /iOS Allow Paste prompt cannot be exercised under XCUITest/);
+  assert.match(help, /agent-device clipboard write "some text"/);
+  assert.match(help, /trusted ADB keyboard IME/);
+  assert.match(help, /if no URL is provided but a target\/app name is provided, open that target/);
+  assert.match(help, /do not split clear\/restart/);
+  assert.match(help, /do not write network log headers/);
+  assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform ios/);
+  assert.match(help, /agent-device open "Expo Go" exp:\/\/127\.0\.0\.1:8081 --platform ios/);
+  assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform android/);
+  assert.match(help, /apps lookup misses the project but shows Expo Go\/dev-client/);
+  assert.match(help, /metro prepare --kind expo/);
+  assert.match(help, /help react-devtools/);
+});
+
+test('workflow help keeps common copyable command forms', () => {
+  const help = usageForCommand('workflow');
+  if (help === null) throw new Error('Expected workflow help text');
+  assert.match(help, /network dump --include headers/);
+  assert.match(help, /settings animations off/);
+  assert.match(help, /connect --remote-config/);
+  assert.match(help, /metro reload/);
+  assert.match(help, /screenshot --overlay-refs/);
+  assert.match(help, /snapshot -s @e7/);
+  assert.match(help, /clipboard write "some text"/);
+});
+
+test('usageForCommand resolves remote help topic', () => {
+  const help = usageForCommand('remote');
+  if (help === null) throw new Error('Expected remote help text');
+  assert.match(help, /agent-device open com\.example\.app --remote-config \.\/remote-config\.json/);
+  assert.match(help, /disconnect --remote-config \.\/remote-config\.json/);
+  assert.match(help, /Script flow, per-command config/);
+  assert.match(help, /same --remote-config to every operational command/);
+  assert.match(help, /install-from-source --github-actions-artifact org\/repo:artifact/);
+});
+
+test('usageForCommand resolves macos help topic', () => {
+  const help = usageForCommand('macos');
+  if (help === null) throw new Error('Expected macos help text');
+  assert.match(help, /agent-device click @e66 --button secondary --platform macos/);
+  assert.match(help, /Context menus are not ambient UI/);
+  assert.match(help, /menu-item refs/);
+});
+
+test('usageForCommand resolves dogfood help topic', () => {
+  const help = usageForCommand('dogfood');
+  if (help === null) throw new Error('Expected dogfood help text');
+  assert.match(help, /agent-device help dogfood/);
+  assert.match(help, /Find user-visible issues from runtime behavior/);
+  assert.match(help, /Severity: critical blocks a core flow\/data\/crashes/);
+  assert.match(help, /Interactive\/behavioral issues need step screenshots/);
+  assert.match(help, /Static\/on-load issues can use one screenshot/);
+  assert.match(help, /React Native warning\/error overlays can be real findings/);
+  assert.match(help, /Expo Go\/dev-client shells/);
+  assert.match(help, /dogfood-output\/report\.md/);
+  assert.match(help, /ID, severity, category, title, affected flow\/screen/);
+  assert.match(help, /Never delete screenshots, videos, traces, or report artifacts/);
+  assert.match(help, /screenshot \.\/dogfood-output\/screenshots\/issue-001\.png --overlay-refs/);
+});
+
+test('usageForCommand resolves react-devtools help topic', () => {
+  const help = usageForCommand('react-devtools');
+  if (help === null) throw new Error('Expected react-devtools help text');
+  assert.match(help, /agent-device react-devtools start/);
+  assert.match(help, /agent-device react-devtools wait --component <ComponentName>/);
+  assert.match(help, /agent-device react-devtools find <ComponentName> --exact/);
+  assert.match(help, /agent-device react-devtools errors/);
+  assert.match(help, /agent-device react-devtools profile report @c5/);
+  assert.match(help, /agent-device react-devtools profile timeline --limit 20/);
+  assert.match(help, /agent-device react-devtools profile export profile\.json/);
+  assert.match(
+    help,
+    /agent-device react-devtools profile diff before\.json after\.json --limit 10/,
+  );
+  assert.match(help, /render causes and changed props\/state\/hooks/);
+  assert.match(help, /@c refs reset after reload\/remount/);
+  assert.match(help, /isolated --state-dir/);
+  assert.match(help, /local service tunnel/);
 });
 
 test('apps defaults to --all filter and allows overrides', () => {

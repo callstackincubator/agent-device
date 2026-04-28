@@ -43,12 +43,47 @@ test('connect help documents cloud auth environment origins', async () => {
   assert.match(result.stdout, /AGENT_DEVICE_DAEMON_AUTH_TOKEN/);
 });
 
-test('help react-devtools prints passthrough command help and skips daemon dispatch', async () => {
+test('help react-devtools prints agent workflow topic and skips daemon dispatch', async () => {
   const result = await runCliCapture(['help', 'react-devtools']);
   assert.equal(result.code, 0);
   assert.equal(result.calls.length, 0);
-  assert.match(result.stdout, /Usage:\n  agent-device react-devtools \[\.\.\.args\]/);
-  assert.match(result.stdout, /React Native component trees/);
+  assert.match(result.stdout, /agent-device help react-devtools/);
+  assert.match(result.stdout, /React Native performance\/profiling/);
+  assert.match(result.stdout, /agent-device react-devtools status/);
+});
+
+test('help workflow prints agent workflow topic and skips daemon dispatch', async () => {
+  const result = await runCliCapture(['help', 'workflow']);
+  assert.equal(result.code, 0);
+  assert.equal(result.calls.length, 0);
+  assert.match(result.stdout, /agent-device help workflow/);
+  assert.match(result.stdout, /Core loop:/);
+  assert.match(result.stdout, /Do not use CSS selectors/);
+});
+
+test('help workflow preserves known device workaround guidance', async () => {
+  const result = await runCliCapture(['help', 'workflow']);
+  assert.equal(result.code, 0);
+  assert.equal(result.calls.length, 0);
+  assert.match(result.stdout, /disabled\/hittable:false/);
+  assert.match(result.stdout, /snapshot -i -c --json/);
+  assert.match(result.stdout, /@Label_Name/);
+  assert.match(result.stdout, /press @e12/);
+  assert.match(result.stdout, /Snapshot legend:/);
+  assert.match(result.stdout, /preview="Leave at side\.\.\." truncated/);
+  assert.match(result.stdout, /wait text/);
+  assert.match(result.stdout, /Never use args/);
+  assert.match(result.stdout, /Never use args, step/);
+  assert.match(result.stdout, /scrollintoview/);
+  assert.match(result.stdout, /--delay-ms/);
+  assert.match(result.stdout, /Discovery is not enough when the task asks to open\/start/);
+  assert.match(result.stdout, /If the task says install, use install/);
+  assert.match(result.stdout, /do not inspect project files to find one/);
+  assert.match(result.stdout, /do not split clear\/restart/);
+  assert.match(result.stdout, /do not write network log headers/);
+  assert.match(result.stdout, /iOS Allow Paste prompt cannot be exercised under XCUITest/);
+  assert.match(result.stdout, /agent-device clipboard write "some text"/);
+  assert.match(result.stdout, /trusted ADB keyboard IME/);
 });
 
 test('help unknown command prints error plus global usage and skips daemon dispatch', async () => {

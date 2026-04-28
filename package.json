@@ -1,6 +1,6 @@
 {
   "name": "agent-device",
-  "version": "0.13.3",
+  "version": "0.13.4",
   "description": "Agent-driven CLI for mobile UI automation, network inspection, and performance diagnostics across iOS, Android, tvOS, and macOS.",
   "license": "MIT",
   "author": "Callstack",
@@ -100,7 +100,7 @@
     "test-app:typecheck": "pnpm --dir examples/test-app typecheck",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "test:skillgym": "skillgym run ./test/skillgym/suites/agent-device-smoke-suite.ts --config ./test/skillgym/skillgym.config.ts",
+    "test:skillgym": "pnpm build && skillgym run ./test/skillgym/suites/agent-device-smoke-suite.ts --config ./test/skillgym/skillgym.config.ts",
     "test:smoke": "node --test test/integration/smoke-*.test.ts",
     "test:integration": "node --test test/integration/*.test.ts",
     "test:replay:ios": "node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator",
