@@ -763,24 +763,28 @@ test('usage includes concise top-level commands', () => {
 
 test('usage includes only global flags in the top-level flags section', () => {
   const usageText = usage();
-  assert.match(usageText, /--target mobile\|tv/);
-  assert.match(usageText, /--ios-simulator-device-set <path>/);
-  assert.match(usageText, /--android-device-allowlist <serials>/);
-  assert.match(usageText, /--state-dir <path>/);
-  assert.match(usageText, /--daemon-transport auto\|socket\|http/);
-  assert.match(usageText, /--daemon-server-mode socket\|http\|dual/);
-  assert.match(usageText, /--tenant <id>/);
-  assert.match(usageText, /--session-isolation none\|tenant/);
-  assert.match(usageText, /--run-id <id>/);
-  assert.match(usageText, /--lease-id <id>/);
-  assert.match(usageText, /--lease-backend ios-simulator\|ios-instance\|android-instance/);
-  assert.doesNotMatch(usageText, /--relaunch/);
-  assert.doesNotMatch(usageText, /--header <name:value>/);
-  assert.doesNotMatch(usageText, /--restart/);
-  assert.doesNotMatch(usageText, /--fps <n>/);
-  assert.doesNotMatch(usageText, /--quality <5-10>/);
-  assert.doesNotMatch(usageText, /--save-script \[path\]/);
-  assert.doesNotMatch(usageText, /--metadata/);
+  const flagsSection = usageText.slice(
+    usageText.indexOf('Flags:'),
+    usageText.indexOf('Agent Quickstart:'),
+  );
+  assert.match(flagsSection, /--target mobile\|tv/);
+  assert.match(flagsSection, /--ios-simulator-device-set <path>/);
+  assert.match(flagsSection, /--android-device-allowlist <serials>/);
+  assert.match(flagsSection, /--state-dir <path>/);
+  assert.match(flagsSection, /--daemon-transport auto\|socket\|http/);
+  assert.match(flagsSection, /--daemon-server-mode socket\|http\|dual/);
+  assert.match(flagsSection, /--tenant <id>/);
+  assert.match(flagsSection, /--session-isolation none\|tenant/);
+  assert.match(flagsSection, /--run-id <id>/);
+  assert.match(flagsSection, /--lease-id <id>/);
+  assert.match(flagsSection, /--lease-backend ios-simulator\|ios-instance\|android-instance/);
+  assert.doesNotMatch(flagsSection, /--relaunch/);
+  assert.doesNotMatch(flagsSection, /--header <name:value>/);
+  assert.doesNotMatch(flagsSection, /--restart/);
+  assert.doesNotMatch(flagsSection, /--fps <n>/);
+  assert.doesNotMatch(flagsSection, /--quality <5-10>/);
+  assert.doesNotMatch(flagsSection, /--save-script \[path\]/);
+  assert.doesNotMatch(flagsSection, /--metadata/);
 });
 
 test('usage includes agent workflows, config, environment, and examples footers', () => {
@@ -793,9 +797,11 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /RN warning\/error overlays can block taps: snapshot -i/);
   assert.match(usageText, /Expo Go\/dev clients: use the provided URL when given/);
   assert.match(usageText, /if only a target name is given, open that target/);
+  assert.match(usageText, /Install flows: install\/install-from-source first/);
   assert.match(usageText, /fill 'id="field-email"' "qa@example\.com" replaces/);
   assert.match(usageText, /After mutation: diff snapshot -i/);
   assert.match(usageText, /app-owned back uses back/);
+  assert.match(usageText, /logs clear --restart\/mark\/path/);
   assert.match(usageText, /trace start \.\/path; trace stop \.\/path/);
   assert.match(usageText, /network dump --include headers/);
   assert.match(usageText, /Full operating guide: agent-device help workflow/);
@@ -853,6 +859,8 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /agent-device clipboard write "some text"/);
   assert.match(help, /trusted ADB keyboard IME/);
   assert.match(help, /if no URL is provided but a target\/app name is provided, open that target/);
+  assert.match(help, /do not split clear\/restart/);
+  assert.match(help, /do not write network log headers/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform ios/);
   assert.match(help, /agent-device open "Expo Go" exp:\/\/127\.0\.0\.1:8081 --platform ios/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform android/);

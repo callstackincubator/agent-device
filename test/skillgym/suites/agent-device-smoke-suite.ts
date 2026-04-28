@@ -620,7 +620,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'No app session is open yet',
       'Session name: discovery',
     ],
-    task: 'Plan the bootstrap commands to discover the correct Android device and app identifier before opening the app in the named session.',
+    task: 'Plan the bootstrap commands to discover the correct Android device and app identifier, then open the discovered app in the named session.',
     outputs: [
       commandPattern('devices'),
       commandPattern('apps'),

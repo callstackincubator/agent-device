@@ -181,6 +181,7 @@ const AGENT_QUICKSTART_LINES = [
   'Truncated text/input preview: expand first with snapshot -s @e12, not get text.',
   'RN warning/error overlays can block taps: snapshot -i, dismiss/close, then diff snapshot -i.',
   'Expo Go/dev clients: use the provided URL when given; if only a target name is given, open that target and do not search project files for a URL.',
+  'Install flows: install/install-from-source first, then open the installed id with --relaunch.',
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
   'Clipboard limits: iOS Allow Paste cannot be automated through XCUITest; prefill with clipboard write. Android non-ASCII should use fill/type, not raw adb input.',
   'After mutation: diff snapshot -i. Off-screen hints: scroll, then snapshot -i.',
@@ -188,7 +189,7 @@ const AGENT_QUICKSTART_LINES = [
   'Batch JSON steps use "command", "positionals", "flags"; never "args" or "step".',
   'Navigation: app-owned back uses back; system back uses back --system.',
   'Verification commands must name the expected text/selector; bare screenshots/snapshots are not enough.',
-  'Debug evidence: logs clear/mark/path; trace start ./path; trace stop ./path; network dump --include headers.',
+  'Debug evidence: logs clear --restart/mark/path; trace start ./path; trace stop ./path; network dump --include headers.',
   'Use agent-device commands in final plans; raw platform tools, pseudo commands, and helper prose are wrong.',
   'Full operating guide: agent-device help workflow. Exploratory QA: agent-device help dogfood.',
 ] as const;
@@ -322,7 +323,8 @@ Validation and evidence:
     agent-device batch --steps '[{"command":"open","positionals":["settings"],"flags":{}},{"command":"wait","positionals":["100"],"flags":{}}]'
   Batch step keys are command, positionals, flags, and optional runtime. Never use args, step, text, or target as batch step fields.
   Android animations: settings animations off/on, not animations disable/restore.
-  Network headers: network dump --include headers.
+  Debug logs: logs clear --restart, logs mark, reproduce, then logs path; do not split clear/restart into separate stop/start commands.
+  Network headers: network dump --include headers; do not write network log headers.
   Remote config: connect --remote-config ./remote-config.json, open, snapshot, disconnect.
   macOS menu bar: open ... --platform macos --surface menubar; snapshot -i --platform macos --surface menubar.
 
@@ -370,13 +372,14 @@ Logs:
     agent-device press 'id="load-diagnostics"'
     agent-device logs path
   Do not cat a full stale log into agent context. Open or grep only the relevant window when needed.
+  logs clear --restart is the compact command to clear old logs and start a fresh capture; do not split it into logs stop, logs clear, logs start.
 
 Network:
   Use network dump for recent session HTTP traffic parsed from app logs.
     agent-device network dump --include headers
     agent-device network dump 20 --include all
   Use this instead of logs path when the question is request/response metadata.
-  network log is a supported alias, but network dump --include headers is the clearest plan form.
+  network log is a supported alias, but network dump --include headers is the clearest plan form. Do not write network log headers.
 
 Alerts:
   Native alerts:
