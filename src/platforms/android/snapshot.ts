@@ -27,6 +27,7 @@ import {
   captureAndroidSnapshotWithHelper,
   ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
   ensureAndroidSnapshotHelper,
+  forgetAndroidSnapshotHelperInstall,
   parseAndroidSnapshotHelperManifest,
   type AndroidAdbExecutor,
   type AndroidSnapshotHelperArtifact,
@@ -89,11 +90,13 @@ async function captureAndroidUiHierarchy(
 ): Promise<{ xml: string; metadata: AndroidSnapshotBackendMetadata }> {
   const helper = await resolveAndroidSnapshotHelperArtifact(options.helperArtifact);
   if (helper.artifact) {
+    const helperDeviceKey = getAndroidSnapshotHelperDeviceKey(device);
     try {
       const adb = options.helperAdb ?? createDeviceAdbExecutor(device);
       const install = await ensureAndroidSnapshotHelper({
         adb,
         artifact: helper.artifact,
+        deviceKey: helperDeviceKey,
         installPolicy: options.helperInstallPolicy,
         timeoutMs: HELPER_INSTALL_TIMEOUT_MS,
       });
@@ -125,6 +128,11 @@ async function captureAndroidUiHierarchy(
         },
       };
     } catch (error) {
+      forgetAndroidSnapshotHelperInstall({
+        deviceKey: helperDeviceKey,
+        packageName: helper.artifact.manifest.packageName,
+        versionCode: helper.artifact.manifest.versionCode,
+      });
       return await captureStockUiHierarchy(device, normalizeError(error).message);
     }
   }
@@ -182,6 +190,12 @@ async function captureStockUiHierarchy(
 
 function createDeviceAdbExecutor(device: DeviceInfo): AndroidAdbExecutor {
   return async (args, options) => await runCmd('adb', adbArgs(device, args), options);
+}
+
+function getAndroidSnapshotHelperDeviceKey(device: DeviceInfo): string {
+  // Emulator serials are port-based and can be reused after restart; capture failure invalidates
+  // this key before falling back so stale process-local entries self-heal on the next snapshot.
+  return `${device.platform}:${device.id}`;
 }
 
 async function deriveScrollableContentHintsIfNeeded(

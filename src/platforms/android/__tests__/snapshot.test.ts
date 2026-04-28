@@ -20,7 +20,11 @@ import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 import { runCmd } from '../../../utils/exec.ts';
 import { sleep } from '../adb.ts';
-import type { AndroidAdbExecutor, AndroidSnapshotHelperManifest } from '../snapshot-helper.ts';
+import {
+  resetAndroidSnapshotHelperInstallCache,
+  type AndroidAdbExecutor,
+  type AndroidSnapshotHelperManifest,
+} from '../snapshot-helper.ts';
 
 const VALID_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+b9xkAAAAASUVORK5CYII=',
@@ -53,6 +57,7 @@ const helperManifest: AndroidSnapshotHelperManifest = {
 };
 
 beforeEach(() => {
+  resetAndroidSnapshotHelperInstallCache();
   mockRunCmd.mockReset();
   mockSleep.mockReset();
   mockSleep.mockResolvedValue(undefined);
@@ -292,6 +297,56 @@ test('snapshotAndroid falls back to stock uiautomator when helper fails', async 
     result.androidSnapshot.fallbackReason ?? '',
     /failed before returning parseable output/,
   );
+});
+
+test('snapshotAndroid re-probes helper install after helper capture failure', async () => {
+  let versionProbeCount = 0;
+  let instrumentAttempts = 0;
+  const helperAdb: AndroidAdbExecutor = async (args) => {
+    if (args.includes('--show-versioncode')) {
+      versionProbeCount += 1;
+      return {
+        exitCode: 0,
+        stdout: 'package:com.callstack.agentdevice.snapshothelper versionCode:13003',
+        stderr: '',
+      };
+    }
+    if (args.includes('instrument')) {
+      instrumentAttempts += 1;
+      if (instrumentAttempts === 1) {
+        return { exitCode: 1, stdout: '', stderr: 'instrumentation failed' };
+      }
+      return {
+        exitCode: 0,
+        stdout: helperOutput('<hierarchy><node text="helper" bounds="[0,0][10,10]" /></hierarchy>'),
+        stderr: '',
+      };
+    }
+    throw new Error(`unexpected helper adb args: ${args.join(' ')}`);
+  };
+  const stockXml =
+    '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="stock" bounds="[0,0][10,10]" /></hierarchy>';
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 0, stdout: stockXml, stderr: '' };
+    }
+    return { exitCode: 0, stdout: '', stderr: '' };
+  });
+  const helperOptions = {
+    helperAdb,
+    helperArtifact: {
+      apkPath: '/tmp/helper.apk',
+      manifest: helperManifest,
+    },
+  };
+
+  const fallback = await snapshotAndroid(device, helperOptions);
+  const helper = await snapshotAndroid(device, helperOptions);
+
+  assert.equal(fallback.androidSnapshot.backend, 'uiautomator-dump');
+  assert.equal(helper.androidSnapshot.backend, 'android-helper');
+  assert.equal(helper.nodes[0]?.label, 'helper');
+  assert.equal(versionProbeCount, 2);
 });
 
 test('dumpUiHierarchy reads fallback XML when dump exits non-zero', async () => {

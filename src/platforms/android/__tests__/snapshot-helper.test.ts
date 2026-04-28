@@ -3,14 +3,16 @@ import crypto from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { test } from 'vitest';
+import { beforeEach, test } from 'vitest';
 import {
   captureAndroidSnapshotWithHelper,
   ensureAndroidSnapshotHelper,
+  forgetAndroidSnapshotHelperInstall,
   parseAndroidSnapshotHelperManifest,
   parseAndroidSnapshotHelperOutput,
   parseAndroidSnapshotHelperXml,
   prepareAndroidSnapshotHelperArtifactFromManifestUrl,
+  resetAndroidSnapshotHelperInstallCache,
   verifyAndroidSnapshotHelperArtifact,
   type AndroidAdbExecutor,
   type AndroidSnapshotHelperManifest,
@@ -30,6 +32,10 @@ const manifest: AndroidSnapshotHelperManifest = {
   statusProtocol: 'android-snapshot-helper-v1',
   installArgs: ['install', '-r', '-t'],
 };
+
+beforeEach(() => {
+  resetAndroidSnapshotHelperInstallCache();
+});
 
 test('parseAndroidSnapshotHelperOutput reconstructs XML chunks and metadata', () => {
   const xml = '<?xml version="1.0"?><hierarchy><node text="first&#10;second" /></hierarchy>';
@@ -210,6 +216,132 @@ test('ensureAndroidSnapshotHelper installs when missing and skips current versio
 
   assert.equal(skipped.installed, false);
   assert.equal(skipped.reason, 'current');
+});
+
+test('ensureAndroidSnapshotHelper caches successful install checks per device and helper version', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'snapshot-helper-install-cache-'));
+  const apkPath = path.join(tmpDir, 'helper.apk');
+  await fs.writeFile(apkPath, 'helper-apk');
+  const localManifest = {
+    ...manifest,
+    sha256: sha256Text('helper-apk'),
+  };
+  const calls: string[][] = [];
+  const adb: AndroidAdbExecutor = async (args) => {
+    calls.push(args);
+    if (args.includes('--show-versioncode')) {
+      return { exitCode: 1, stdout: '', stderr: 'not found' };
+    }
+    return { exitCode: 0, stdout: '', stderr: '' };
+  };
+  const artifact = { apkPath, manifest: localManifest };
+
+  const installed = await ensureAndroidSnapshotHelper({
+    adb,
+    artifact,
+    deviceKey: 'android:emulator-5554',
+  });
+  const cached = await ensureAndroidSnapshotHelper({
+    adb,
+    artifact,
+    deviceKey: 'android:emulator-5554',
+  });
+
+  assert.equal(installed.reason, 'missing');
+  assert.equal(cached.reason, 'current');
+  assert.equal(cached.installed, false);
+  assert.equal(cached.installedVersionCode, localManifest.versionCode);
+  assert.deepEqual(calls, [
+    [
+      'shell',
+      'cmd',
+      'package',
+      'list',
+      'packages',
+      '--show-versioncode',
+      localManifest.packageName,
+    ],
+    ['install', '-r', '-t', apkPath],
+  ]);
+
+  await ensureAndroidSnapshotHelper({
+    adb,
+    artifact,
+    deviceKey: 'android:device-2',
+  });
+  assert.equal(calls.length, 4);
+
+  forgetAndroidSnapshotHelperInstall({
+    deviceKey: 'android:emulator-5554',
+    packageName: localManifest.packageName,
+    versionCode: localManifest.versionCode,
+  });
+  await ensureAndroidSnapshotHelper({
+    adb,
+    artifact,
+    deviceKey: 'android:emulator-5554',
+  });
+  assert.equal(calls.length, 6);
+});
+
+test('ensureAndroidSnapshotHelper always policy bypasses cached install result', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'snapshot-helper-install-always-'));
+  const apkPath = path.join(tmpDir, 'helper.apk');
+  await fs.writeFile(apkPath, 'helper-apk');
+  const localManifest = {
+    ...manifest,
+    sha256: sha256Text('helper-apk'),
+  };
+  const calls: string[][] = [];
+  const adb: AndroidAdbExecutor = async (args) => {
+    calls.push(args);
+    if (args.includes('--show-versioncode')) {
+      return {
+        exitCode: 0,
+        stdout: `package:${localManifest.packageName} versionCode:${localManifest.versionCode}`,
+        stderr: '',
+      };
+    }
+    return { exitCode: 0, stdout: '', stderr: '' };
+  };
+  const artifact = { apkPath, manifest: localManifest };
+
+  const cached = await ensureAndroidSnapshotHelper({
+    adb,
+    artifact,
+    deviceKey: 'android:emulator-5554',
+  });
+  const forced = await ensureAndroidSnapshotHelper({
+    adb,
+    artifact,
+    deviceKey: 'android:emulator-5554',
+    installPolicy: 'always',
+  });
+
+  assert.equal(cached.reason, 'current');
+  assert.equal(forced.reason, 'forced');
+  assert.equal(forced.installed, true);
+  assert.deepEqual(calls, [
+    [
+      'shell',
+      'cmd',
+      'package',
+      'list',
+      'packages',
+      '--show-versioncode',
+      localManifest.packageName,
+    ],
+    [
+      'shell',
+      'cmd',
+      'package',
+      'list',
+      'packages',
+      '--show-versioncode',
+      localManifest.packageName,
+    ],
+    ['install', '-r', '-t', apkPath],
+  ]);
 });
 
 test('verifyAndroidSnapshotHelperArtifact rejects checksum mismatch', async () => {
