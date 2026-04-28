@@ -10,6 +10,7 @@ import {
   getAndroidKeyboardState,
   inferAndroidAppName,
   installAndroidApp,
+  installAndroidInstallablePath,
   isAmStartError,
   listAndroidApps,
   openAndroidApp,
@@ -974,6 +975,82 @@ test('resolveAndroidApp does not treat file paths as package names', async () =>
           return true;
         },
       );
+    },
+  );
+});
+
+test('resolveAndroidApp caches display-name package matches but bypasses exact package ids', async () => {
+  await withMockedAdb(
+    'agent-device-android-resolve-cache-',
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then shift; shift; fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ] && [ "$4" = "packages" ]; then',
+      '  echo "package:com.example.cachemaps"',
+      '  exit 0',
+      'fi',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      const first = await resolveAndroidApp(device, 'cachemaps');
+      const second = await resolveAndroidApp(device, 'cachemaps');
+      const exact = await resolveAndroidApp(device, 'com.example.cachemaps');
+
+      assert.deepEqual(first, { type: 'package', value: 'com.example.cachemaps' });
+      assert.deepEqual(second, first);
+      assert.deepEqual(exact, { type: 'package', value: 'com.example.cachemaps' });
+
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.equal((logged.match(/pm list packages/g) ?? []).length, 1);
+    },
+  );
+});
+
+test('installAndroidInstallablePath invalidates cached display-name package matches', async () => {
+  await withMockedAdb(
+    'agent-device-android-install-cache-',
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then shift; shift; fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ] && [ "$4" = "packages" ]; then',
+      '  if [ -f "$AGENT_DEVICE_TEST_INSTALL_MARKER" ]; then',
+      '    echo "package:com.example.installedcachemaps"',
+      '  else',
+      '    echo "package:com.example.cachemaps"',
+      '  fi',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "install" ] && [ "$2" = "-r" ]; then',
+      '  : > "$AGENT_DEVICE_TEST_INSTALL_MARKER"',
+      '  exit 0',
+      'fi',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-cache-apk-'));
+      const apkPath = path.join(tmpDir, 'App.apk');
+      const previousMarker = process.env.AGENT_DEVICE_TEST_INSTALL_MARKER;
+      process.env.AGENT_DEVICE_TEST_INSTALL_MARKER = path.join(tmpDir, 'installed.marker');
+      try {
+        await fs.writeFile(apkPath, '', 'utf8');
+        const before = await resolveAndroidApp(device, 'cachemaps');
+        await installAndroidInstallablePath(device, apkPath);
+        const after = await resolveAndroidApp(device, 'cachemaps');
+
+        assert.deepEqual(before, { type: 'package', value: 'com.example.cachemaps' });
+        assert.deepEqual(after, { type: 'package', value: 'com.example.installedcachemaps' });
+      } finally {
+        if (previousMarker === undefined) {
+          delete process.env.AGENT_DEVICE_TEST_INSTALL_MARKER;
+        } else {
+          process.env.AGENT_DEVICE_TEST_INSTALL_MARKER = previousMarker;
+        }
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      }
     },
   );
 });

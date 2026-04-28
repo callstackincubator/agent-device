@@ -46,6 +46,7 @@ const screenshotStatusBarActual = await vi.importActual<
 import {
   closeIosApp,
   installIosApp,
+  installIosInstallablePath,
   listIosApps,
   openIosApp,
   parseIosDeviceAppsPayload,
@@ -1704,6 +1705,128 @@ test('resolveIosApp resolves app display name on iOS physical devices', async ()
     assert.equal(bundleId, 'com.apple.Maps');
   } finally {
     process.env.PATH = previousPath;
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('resolveIosApp caches display-name bundle matches but bypasses exact bundle ids', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-resolve-cache-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(
+    xcrunPath,
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$*" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "simctl" ] && [ "$2" = "listapps" ]; then',
+      "  cat <<'JSON'",
+      '{"com.example.cachemaps":{"CFBundleDisplayName":"Cache Maps"}}',
+      'JSON',
+      '  exit 0',
+      'fi',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  const device: DeviceInfo = {
+    platform: 'ios',
+    id: 'sim-cache-1',
+    name: 'iPhone Cache',
+    kind: 'simulator',
+    booted: true,
+  };
+
+  try {
+    const first = await resolveIosApp(device, 'Cache Maps');
+    const second = await resolveIosApp(device, 'Cache Maps');
+    const exact = await resolveIosApp(device, 'com.example.cachemaps');
+
+    assert.equal(first, 'com.example.cachemaps');
+    assert.equal(second, 'com.example.cachemaps');
+    assert.equal(exact, 'com.example.cachemaps');
+
+    const logged = await fs.readFile(argsLogPath, 'utf8');
+    assert.equal((logged.match(/simctl listapps/g) ?? []).length, 1);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('installIosInstallablePath invalidates cached display-name bundle matches', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-install-cache-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const appPath = path.join(tmpDir, 'Cache.app');
+  const markerPath = path.join(tmpDir, 'installed.marker');
+  await fs.writeFile(
+    xcrunPath,
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "simctl" ] && [ "$2" = "listapps" ]; then',
+      '  if [ -f "$AGENT_DEVICE_TEST_INSTALL_MARKER" ]; then',
+      "    cat <<'JSON'",
+      '{"com.example.installedcachemaps":{"CFBundleDisplayName":"Cache Maps"}}',
+      'JSON',
+      '  else',
+      "    cat <<'JSON'",
+      '{"com.example.cachemaps":{"CFBundleDisplayName":"Cache Maps"}}',
+      'JSON',
+      '  fi',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "simctl" ] && [ "$2" = "install" ]; then',
+      '  : > "$AGENT_DEVICE_TEST_INSTALL_MARKER"',
+      '  exit 0',
+      'fi',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+  await fs.mkdir(appPath);
+
+  const previousPath = process.env.PATH;
+  const previousMarker = process.env.AGENT_DEVICE_TEST_INSTALL_MARKER;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_INSTALL_MARKER = markerPath;
+
+  const device: DeviceInfo = {
+    platform: 'ios',
+    id: 'sim-cache-install-1',
+    name: 'iPhone Cache',
+    kind: 'simulator',
+    booted: true,
+  };
+  mockEnsureBootedSimulator.mockResolvedValue(undefined);
+
+  try {
+    const before = await resolveIosApp(device, 'Cache Maps');
+    await installIosInstallablePath(device, appPath);
+    const after = await resolveIosApp(device, 'Cache Maps');
+
+    assert.equal(before, 'com.example.cachemaps');
+    assert.equal(after, 'com.example.installedcachemaps');
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousMarker === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_INSTALL_MARKER;
+    } else {
+      process.env.AGENT_DEVICE_TEST_INSTALL_MARKER = previousMarker;
+    }
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 });

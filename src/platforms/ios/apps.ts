@@ -14,6 +14,7 @@ import {
   type PermissionSettingOptions,
 } from '../permission-utils.ts';
 import { parseAppearanceAction } from '../appearance.ts';
+import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';
 
 import { IOS_APP_LAUNCH_TIMEOUT_MS, IOS_DEVICECTL_TIMEOUT_MS } from './config.ts';
 import {
@@ -52,8 +53,14 @@ export {
 const ALIASES: Record<string, string> = {
   settings: 'com.apple.Preferences',
 };
+
+const iosAppResolutionCache = createAppResolutionCache<string>();
 let cachedSimctlPrivacyServices: Set<string> | null = null;
 let cachedSimctlPrivacyServicesCacheKey: string | undefined;
+
+function iosAppResolutionScope(device: DeviceInfo): AppResolutionCacheScope {
+  return { platform: 'ios', deviceId: device.id, variant: device.kind };
+}
 
 function simctlArgs(device: DeviceInfo, args: string[]): string[] {
   return buildSimctlArgsForDevice(device, args);
@@ -85,12 +92,17 @@ export async function resolveIosApp(device: DeviceInfo, app: string): Promise<st
   const alias = ALIASES[trimmed.toLowerCase()];
   if (alias) return alias;
 
+  const cacheScope = iosAppResolutionScope(device);
+  const cached = iosAppResolutionCache.get(cacheScope, trimmed);
+  if (cached) return cached;
+
   const list =
     device.kind === 'simulator'
       ? await listSimulatorApps(device)
       : await listIosDeviceApps(device, 'all');
   const matches = list.filter((entry) => entry.name.toLowerCase() === trimmed.toLowerCase());
-  if (matches.length === 1) return matches[0].bundleId;
+  if (matches.length === 1)
+    return iosAppResolutionCache.set(cacheScope, trimmed, matches[0].bundleId);
   if (matches.length > 1) {
     throw new AppError('INVALID_ARGS', `Multiple apps matched "${app}"`, { matches });
   }
@@ -203,49 +215,51 @@ export async function uninstallIosApp(
   device: DeviceInfo,
   app: string,
 ): Promise<{ bundleId: string }> {
-  const bundleId = await resolveIosApp(device, app);
-  if (device.kind !== 'simulator') {
-    const args = ['devicectl', 'device', 'uninstall', 'app', '--device', device.id, bundleId];
-    const result = await runCmd('xcrun', args, {
+  return await iosAppResolutionCache.invalidateWhile(iosAppResolutionScope(device), async () => {
+    const bundleId = await resolveIosApp(device, app);
+    if (device.kind !== 'simulator') {
+      const args = ['devicectl', 'device', 'uninstall', 'app', '--device', device.id, bundleId];
+      const result = await runCmd('xcrun', args, {
+        allowFailure: true,
+        timeoutMs: IOS_DEVICECTL_TIMEOUT_MS,
+      });
+      if (result.exitCode !== 0) {
+        const stdout = String(result.stdout ?? '');
+        const stderr = String(result.stderr ?? '');
+        const output = `${stdout}\n${stderr}`.toLowerCase();
+        if (!isMissingAppErrorOutput(output)) {
+          throw new AppError('COMMAND_FAILED', `Failed to uninstall iOS app ${bundleId}`, {
+            cmd: 'xcrun',
+            args,
+            exitCode: result.exitCode,
+            stdout,
+            stderr,
+            deviceId: device.id,
+            hint: resolveIosDevicectlHint(stdout, stderr) ?? IOS_DEVICECTL_DEFAULT_HINT,
+          });
+        }
+      }
+      return { bundleId };
+    }
+
+    await ensureBootedSimulator(device);
+
+    const result = await runSimctl(device, ['uninstall', device.id, bundleId], {
       allowFailure: true,
-      timeoutMs: IOS_DEVICECTL_TIMEOUT_MS,
     });
     if (result.exitCode !== 0) {
-      const stdout = String(result.stdout ?? '');
-      const stderr = String(result.stderr ?? '');
-      const output = `${stdout}\n${stderr}`.toLowerCase();
+      const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
       if (!isMissingAppErrorOutput(output)) {
-        throw new AppError('COMMAND_FAILED', `Failed to uninstall iOS app ${bundleId}`, {
-          cmd: 'xcrun',
-          args,
+        throw new AppError('COMMAND_FAILED', `simctl uninstall failed for ${bundleId}`, {
+          stdout: result.stdout,
+          stderr: result.stderr,
           exitCode: result.exitCode,
-          stdout,
-          stderr,
-          deviceId: device.id,
-          hint: resolveIosDevicectlHint(stdout, stderr) ?? IOS_DEVICECTL_DEFAULT_HINT,
         });
       }
     }
+
     return { bundleId };
-  }
-
-  await ensureBootedSimulator(device);
-
-  const result = await runSimctl(device, ['uninstall', device.id, bundleId], {
-    allowFailure: true,
   });
-  if (result.exitCode !== 0) {
-    const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
-    if (!isMissingAppErrorOutput(output)) {
-      throw new AppError('COMMAND_FAILED', `simctl uninstall failed for ${bundleId}`, {
-        stdout: result.stdout,
-        stderr: result.stderr,
-        exitCode: result.exitCode,
-      });
-    }
-  }
-
-  return { bundleId };
 }
 
 export async function installIosApp(
@@ -279,25 +293,29 @@ export async function reinstallIosApp(
   app: string,
   appPath: string,
 ): Promise<{ bundleId: string }> {
-  const { bundleId } = await uninstallIosApp(device, app);
-  await installIosApp(device, appPath, { appIdentifierHint: app });
-  return { bundleId };
+  return await iosAppResolutionCache.invalidateWhile(iosAppResolutionScope(device), async () => {
+    const { bundleId } = await uninstallIosApp(device, app);
+    await installIosApp(device, appPath, { appIdentifierHint: app });
+    return { bundleId };
+  });
 }
 
 export async function installIosInstallablePath(
   device: DeviceInfo,
   installablePath: string,
 ): Promise<void> {
-  if (device.kind !== 'simulator') {
-    await runIosDevicectl(['device', 'install', 'app', '--device', device.id, installablePath], {
-      action: 'install iOS app',
-      deviceId: device.id,
-    });
-    return;
-  }
+  await iosAppResolutionCache.invalidateWhile(iosAppResolutionScope(device), async () => {
+    if (device.kind !== 'simulator') {
+      await runIosDevicectl(['device', 'install', 'app', '--device', device.id, installablePath], {
+        action: 'install iOS app',
+        deviceId: device.id,
+      });
+      return;
+    }
 
-  await ensureBootedSimulator(device);
-  await runSimctl(device, ['install', device.id, installablePath]);
+    await ensureBootedSimulator(device);
+    await runSimctl(device, ['install', device.id, installablePath]);
+  });
 }
 
 export async function readIosClipboardText(device: DeviceInfo): Promise<string> {
