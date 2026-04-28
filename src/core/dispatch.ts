@@ -39,7 +39,7 @@ import {
 import { readNotificationPayload } from './dispatch-payload.ts';
 import { parseDeviceRotation } from './device-rotation.ts';
 
-export { resolveTargetDevice } from './dispatch-resolve.ts';
+export { resolveTargetDevice, withResolveTargetDeviceCacheScope } from './dispatch-resolve.ts';
 export { shouldUseIosTapSeries, shouldUseIosDragSeries };
 
 export type BatchStep = {

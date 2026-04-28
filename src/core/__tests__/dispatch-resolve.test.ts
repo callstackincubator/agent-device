@@ -1,15 +1,27 @@
 import { beforeEach, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 
+const { mockFindBootableIosSimulator, mockListAppleDevices } = vi.hoisted(() => ({
+  mockFindBootableIosSimulator: vi.fn(),
+  mockListAppleDevices: vi.fn(),
+}));
+
 vi.mock('../../platforms/ios/devices.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../platforms/ios/devices.ts')>();
-  return { ...actual, findBootableIosSimulator: vi.fn() };
+  return {
+    ...actual,
+    findBootableIosSimulator: mockFindBootableIosSimulator,
+    listAppleDevices: mockListAppleDevices,
+  };
 });
 
-import { resolveIosDevice } from '../dispatch-resolve.ts';
+import {
+  resolveIosDevice,
+  resolveTargetDevice,
+  withResolveTargetDeviceCacheScope,
+} from '../dispatch-resolve.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
-import { findBootableIosSimulator } from '../../platforms/ios/devices.ts';
 
 const physical: DeviceInfo = {
   platform: 'ios',
@@ -38,11 +50,10 @@ const bootedSimulator: DeviceInfo = {
   booted: true,
 };
 
-const mockFindBootableIosSimulator = vi.mocked(findBootableIosSimulator);
-
 beforeEach(() => {
   mockFindBootableIosSimulator.mockReset();
   mockFindBootableIosSimulator.mockResolvedValue(null);
+  mockListAppleDevices.mockReset();
 });
 
 // --- Physical device rejected in favour of simulator fallback ---
@@ -111,4 +122,54 @@ test('resolveIosDevice returns simulator directly when present in device list', 
   assert.equal(result.id, 'sim-2');
   assert.equal(result.kind, 'simulator');
   assert.equal(mockFindBootableIosSimulator.mock.calls.length, 0);
+});
+
+test('resolveTargetDevice reuses request-scoped device resolution cache for identical selectors', async () => {
+  mockListAppleDevices.mockResolvedValue([bootedSimulator]);
+
+  const [first, second] = await withResolveTargetDeviceCacheScope(async () => [
+    await resolveTargetDevice({ platform: 'ios', device: 'iPhone 15' }),
+    await resolveTargetDevice({ platform: 'ios', device: 'iPhone 15' }),
+  ]);
+
+  assert.equal(first.id, 'sim-2');
+  assert.equal(second.id, 'sim-2');
+  assert.equal(mockListAppleDevices.mock.calls.length, 1);
+});
+
+test('resolveTargetDevice request cache key separates device selectors', async () => {
+  mockListAppleDevices.mockResolvedValue([simulator, bootedSimulator]);
+
+  await withResolveTargetDeviceCacheScope(async () => {
+    await resolveTargetDevice({ platform: 'ios', device: 'iPhone 16' });
+    await resolveTargetDevice({ platform: 'ios', device: 'iPhone 15' });
+  });
+
+  assert.equal(mockListAppleDevices.mock.calls.length, 2);
+});
+
+test('resolveTargetDevice does not reuse cache across request scopes', async () => {
+  mockListAppleDevices.mockResolvedValue([bootedSimulator]);
+
+  await withResolveTargetDeviceCacheScope(
+    async () => await resolveTargetDevice({ platform: 'ios', device: 'iPhone 15' }),
+  );
+  await withResolveTargetDeviceCacheScope(
+    async () => await resolveTargetDevice({ platform: 'ios', device: 'iPhone 15' }),
+  );
+
+  assert.equal(mockListAppleDevices.mock.calls.length, 2);
+});
+
+test('resolveTargetDevice reuses cache across nested request scopes', async () => {
+  mockListAppleDevices.mockResolvedValue([bootedSimulator]);
+
+  await withResolveTargetDeviceCacheScope(async () => {
+    await resolveTargetDevice({ platform: 'ios', device: 'iPhone 15' });
+    await withResolveTargetDeviceCacheScope(
+      async () => await resolveTargetDevice({ platform: 'ios', device: 'iPhone 15' }),
+    );
+  });
+
+  assert.equal(mockListAppleDevices.mock.calls.length, 1);
 });

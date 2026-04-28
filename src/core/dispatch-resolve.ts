@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { AppError } from '../utils/errors.ts';
 import {
   normalizePlatformSelector,
@@ -27,6 +28,8 @@ type ResolveDeviceFlags = Pick<
   | 'iosSimulatorDeviceSet'
   | 'androidDeviceAllowlist'
 >;
+
+const resolveTargetDeviceCacheScope = new AsyncLocalStorage<Map<string, DeviceInfo>>();
 
 type AppleDeviceSelector = {
   platform?: Exclude<PlatformSelector, 'android'>;
@@ -98,9 +101,25 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
     target: flags.target,
   });
   const androidSerialAllowlist = resolveAndroidSerialAllowlist(flags.androidDeviceAllowlist);
+  const cacheKey = buildResolveTargetDeviceCacheKey({
+    flags,
+    normalizedPlatform,
+    iosSimulatorSetPath,
+    androidSerialAllowlist,
+  });
+  const diagnosticData = {
+    platform: normalizedPlatform,
+    target: flags.target,
+    cacheHit: false,
+  };
   return await withDiagnosticTimer(
     'resolve_target_device',
     async () => {
+      const cached = readResolveTargetDeviceCache(cacheKey);
+      if (cached) {
+        diagnosticData.cacheHit = true;
+        return cached;
+      }
       const selector = {
         platform: normalizedPlatform,
         target: flags.target,
@@ -117,20 +136,23 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
 
       if (selector.platform === 'linux') {
         const devices = await listLinuxDevices();
-        return await resolveDevice(devices, selector);
+        return cacheResolvedTargetDevice(cacheKey, await resolveDevice(devices, selector));
       }
 
       if (selector.platform === 'android') {
         await ensureAdb();
         const devices = await listAndroidDevices({ serialAllowlist: androidSerialAllowlist });
-        return await resolveDevice(devices, selector);
+        return cacheResolvedTargetDevice(cacheKey, await resolveDevice(devices, selector));
       }
 
       if (selector.platform) {
         const devices = await listAppleDevices({ simulatorSetPath: iosSimulatorSetPath });
-        return await resolveAppleDevice(devices, selector as AppleDeviceSelector, {
-          simulatorSetPath: iosSimulatorSetPath,
-        });
+        return cacheResolvedTargetDevice(
+          cacheKey,
+          await resolveAppleDevice(devices, selector as AppleDeviceSelector, {
+            simulatorSetPath: iosSimulatorSetPath,
+          }),
+        );
       }
 
       const devices: DeviceInfo[] = [];
@@ -145,11 +167,48 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
       try {
         devices.push(...(await listLinuxDevices()));
       } catch {}
-      return await resolveDevice(devices, selector, { simulatorSetPath: iosSimulatorSetPath });
+      return cacheResolvedTargetDevice(
+        cacheKey,
+        await resolveDevice(devices, selector, { simulatorSetPath: iosSimulatorSetPath }),
+      );
     },
-    {
-      platform: normalizedPlatform,
-      target: flags.target,
-    },
+    diagnosticData,
   );
+}
+
+export async function withResolveTargetDeviceCacheScope<T>(task: () => Promise<T>): Promise<T> {
+  if (resolveTargetDeviceCacheScope.getStore()) return await task();
+  return await resolveTargetDeviceCacheScope.run(new Map(), task);
+}
+
+function readResolveTargetDeviceCache(cacheKey: string): DeviceInfo | undefined {
+  const cache = resolveTargetDeviceCacheScope.getStore();
+  const cached = cache?.get(cacheKey);
+  if (!cached) return undefined;
+  return { ...cached };
+}
+
+function cacheResolvedTargetDevice(cacheKey: string, device: DeviceInfo): DeviceInfo {
+  resolveTargetDeviceCacheScope.getStore()?.set(cacheKey, { ...device });
+  return device;
+}
+
+function buildResolveTargetDeviceCacheKey(params: {
+  flags: ResolveDeviceFlags;
+  normalizedPlatform?: PlatformSelector;
+  iosSimulatorSetPath?: string;
+  androidSerialAllowlist?: ReadonlySet<string>;
+}): string {
+  const { flags, normalizedPlatform, iosSimulatorSetPath, androidSerialAllowlist } = params;
+  return JSON.stringify({
+    platform: normalizedPlatform,
+    target: flags.target,
+    device: flags.device,
+    udid: flags.udid,
+    serial: flags.serial,
+    iosSimulatorSetPath,
+    androidSerialAllowlist: androidSerialAllowlist
+      ? Array.from(androidSerialAllowlist).sort()
+      : undefined,
+  });
 }
