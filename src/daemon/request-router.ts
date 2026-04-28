@@ -1,6 +1,10 @@
 import path from 'node:path';
 import type { CommandFlags } from '../core/dispatch.ts';
-import { dispatchCommand, resolveTargetDevice } from '../core/dispatch.ts';
+import {
+  dispatchCommand,
+  resolveTargetDevice,
+  withResolveTargetDeviceCacheScope,
+} from '../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
 import { AppError, normalizeError, toAppErrorCode } from '../utils/errors.ts';
 import type {
@@ -574,117 +578,119 @@ export function createRequestHandler(
         }
 
         try {
-          const scopedReq = scopeRequestSession(req);
-          emitDiagnostic({
-            level: 'info',
-            phase: 'request_start',
-            data: {
-              session: scopedReq.session,
-              command: scopedReq.command,
-              tenant: scopedReq.meta?.tenantId,
-              isolation: scopedReq.meta?.sessionIsolation,
-            },
+          return await withResolveTargetDeviceCacheScope(async () => {
+            const scopedReq = scopeRequestSession(req);
+            emitDiagnostic({
+              level: 'info',
+              phase: 'request_start',
+              data: {
+                session: scopedReq.session,
+                command: scopedReq.command,
+                tenant: scopedReq.meta?.tenantId,
+                isolation: scopedReq.meta?.sessionIsolation,
+              },
+            });
+
+            const command = scopedReq.command;
+            const leaseScope = resolveLeaseScope(scopedReq);
+            if (
+              !leaseAdmissionExemptCommands.has(command) &&
+              scopedReq.meta?.sessionIsolation === 'tenant'
+            ) {
+              leaseRegistry.assertLeaseAdmission({
+                tenantId: leaseScope.tenantId,
+                runId: leaseScope.runId,
+                leaseId: leaseScope.leaseId,
+                backend: leaseScope.leaseBackend,
+              });
+            }
+
+            const sessionName = resolveEffectiveSessionName(scopedReq, sessionStore);
+            const executionLockKey = sessionExecutionExemptCommands.has(command)
+              ? null
+              : await resolveExecutionLockKey(scopedReq, sessionName, sessionStore);
+
+            const executeSessionRequest = async (): Promise<DaemonResponse> => {
+              throwIfRequestCanceled(scopedReq);
+              const existingSession = sessionStore.get(sessionName);
+              if (existingSession) {
+                refreshRecordingHealth(existingSession);
+                sessionStore.set(sessionName, existingSession);
+              }
+              const lockedReq = applyRequestLockPolicy(scopedReq, existingSession);
+              const finalize = (response: DaemonResponse): DaemonResponse =>
+                finalizeDaemonResponse(lockedReq, response, trackDownloadableArtifact);
+
+              if (
+                existingSession?.recording?.invalidatedReason &&
+                shouldBlockForInvalidRecording(command)
+              ) {
+                return finalize({
+                  ok: false,
+                  error: {
+                    code: 'COMMAND_FAILED',
+                    message: existingSession.recording.invalidatedReason,
+                  },
+                });
+              }
+              if (
+                existingSession &&
+                !lockedReq.meta?.lockPolicy &&
+                !selectorValidationExemptCommands.has(command)
+              ) {
+                assertSessionSelectorMatches(existingSession, lockedReq.flags);
+              }
+
+              // Phase 1: Try specialized handler chain
+              const handlerResponse = await runHandlerChain({
+                req: lockedReq,
+                sessionName,
+                logPath,
+                sessionStore,
+                leaseRegistry,
+                invoke: handleRequest,
+                contextFromFlags: (flags, appBundleId, traceLogPath) =>
+                  ({
+                    ...contextFromFlags(logPath, flags, appBundleId, traceLogPath),
+                    surface: sessionStore.get(sessionName)?.surface,
+                  }) satisfies DaemonCommandContext,
+              });
+              if (handlerResponse) return finalize(handlerResponse);
+
+              // Phase 2: Require active session for generic dispatch
+              const session = sessionStore.get(sessionName);
+              if (!session) {
+                return finalize({
+                  ok: false,
+                  error: {
+                    code: 'SESSION_NOT_FOUND',
+                    message: 'No active session. Run open first.',
+                  },
+                });
+              }
+
+              // Phase 3: Dispatch command directly to device
+              const dispatchResponse = await dispatchGenericCommand({
+                req: lockedReq,
+                session,
+                sessionName,
+                logPath,
+                sessionStore,
+              });
+              return finalize(dispatchResponse);
+            };
+
+            if (!executionLockKey) {
+              throwIfRequestCanceled(scopedReq);
+              return await executeSessionRequest();
+            }
+            throwIfRequestCanceled(scopedReq);
+            return await withKeyedLock(
+              sessionExecutionLocks,
+              executionLockKey,
+              executeSessionRequest,
+            );
           });
-
-          const command = scopedReq.command;
-          const leaseScope = resolveLeaseScope(scopedReq);
-          if (
-            !leaseAdmissionExemptCommands.has(command) &&
-            scopedReq.meta?.sessionIsolation === 'tenant'
-          ) {
-            leaseRegistry.assertLeaseAdmission({
-              tenantId: leaseScope.tenantId,
-              runId: leaseScope.runId,
-              leaseId: leaseScope.leaseId,
-              backend: leaseScope.leaseBackend,
-            });
-          }
-
-          const sessionName = resolveEffectiveSessionName(scopedReq, sessionStore);
-          const executionLockKey = sessionExecutionExemptCommands.has(command)
-            ? null
-            : await resolveExecutionLockKey(scopedReq, sessionName, sessionStore);
-
-          const executeSessionRequest = async (): Promise<DaemonResponse> => {
-            throwIfRequestCanceled(scopedReq);
-            const existingSession = sessionStore.get(sessionName);
-            if (existingSession) {
-              refreshRecordingHealth(existingSession);
-              sessionStore.set(sessionName, existingSession);
-            }
-            const lockedReq = applyRequestLockPolicy(scopedReq, existingSession);
-            const finalize = (response: DaemonResponse): DaemonResponse =>
-              finalizeDaemonResponse(lockedReq, response, trackDownloadableArtifact);
-
-            if (
-              existingSession?.recording?.invalidatedReason &&
-              shouldBlockForInvalidRecording(command)
-            ) {
-              return finalize({
-                ok: false,
-                error: {
-                  code: 'COMMAND_FAILED',
-                  message: existingSession.recording.invalidatedReason,
-                },
-              });
-            }
-            if (
-              existingSession &&
-              !lockedReq.meta?.lockPolicy &&
-              !selectorValidationExemptCommands.has(command)
-            ) {
-              assertSessionSelectorMatches(existingSession, lockedReq.flags);
-            }
-
-            // Phase 1: Try specialized handler chain
-            const handlerResponse = await runHandlerChain({
-              req: lockedReq,
-              sessionName,
-              logPath,
-              sessionStore,
-              leaseRegistry,
-              invoke: handleRequest,
-              contextFromFlags: (flags, appBundleId, traceLogPath) =>
-                ({
-                  ...contextFromFlags(logPath, flags, appBundleId, traceLogPath),
-                  surface: sessionStore.get(sessionName)?.surface,
-                }) satisfies DaemonCommandContext,
-            });
-            if (handlerResponse) return finalize(handlerResponse);
-
-            // Phase 2: Require active session for generic dispatch
-            const session = sessionStore.get(sessionName);
-            if (!session) {
-              return finalize({
-                ok: false,
-                error: {
-                  code: 'SESSION_NOT_FOUND',
-                  message: 'No active session. Run open first.',
-                },
-              });
-            }
-
-            // Phase 3: Dispatch command directly to device
-            const dispatchResponse = await dispatchGenericCommand({
-              req: lockedReq,
-              session,
-              sessionName,
-              logPath,
-              sessionStore,
-            });
-            return finalize(dispatchResponse);
-          };
-
-          if (!executionLockKey) {
-            throwIfRequestCanceled(scopedReq);
-            return await executeSessionRequest();
-          }
-          throwIfRequestCanceled(scopedReq);
-          return await withKeyedLock(
-            sessionExecutionLocks,
-            executionLockKey,
-            executeSessionRequest,
-          );
         } catch (error) {
           emitDiagnostic({
             level: 'error',
