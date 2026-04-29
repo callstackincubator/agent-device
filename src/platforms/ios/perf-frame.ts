@@ -109,8 +109,7 @@ function parseAppleFrameLifetimeCount(xml: string): number {
 
 function parseAppleDisplayRefreshRate(xml: string | undefined): number | undefined {
   if (!xml) return undefined;
-  const rows = parseRows(xml, 'device-display-info');
-  const schema = readSchemaColumns(parseXmlDocumentSync(xml), 'device-display-info');
+  const { rows, schema } = parseTable(xml, 'device-display-info');
   const refreshIndex = schema.indexOf('max-refresh-rate');
   if (refreshIndex < 0) return undefined;
   const references = new Map<string, XmlReference>();
@@ -221,10 +220,16 @@ function buildAppleWorstWindow(
 }
 
 function parseRows(xml: string, schemaName: string): XmlNode[] {
+  return parseTable(xml, schemaName).rows;
+}
+
+function parseTable(xml: string, schemaName: string): { rows: XmlNode[]; schema: string[] } {
   const document = parseXmlDocumentSync(xml);
   const schema = readSchemaColumns(document, schemaName);
-  if (schema.length === 0) return [];
-  return findAllXmlNodes(document, (node) => node.name === 'row');
+  return {
+    rows: schema.length === 0 ? [] : findAllXmlNodes(document, (node) => node.name === 'row'),
+    schema,
+  };
 }
 
 function rememberXmlReferences(elements: XmlNode[], references: Map<string, XmlReference>): void {

@@ -92,6 +92,10 @@ type IosDeviceTraceRecord = {
   capturedAtMs: number;
 };
 
+type IosDeviceTraceRecordAttempt = IosDeviceTraceRecord & {
+  result: Awaited<ReturnType<typeof runCmd>>;
+};
+
 export async function sampleApplePerfMetrics(
   device: DeviceInfo,
   appBundleId: string,
@@ -285,46 +289,55 @@ async function recordIosDeviceTrace(params: {
     '--quiet',
     '--no-prompt',
   ];
-  const startedAt = new Date().toISOString();
-  const result = await runIosDeviceTraceRecord(recordArgs, params.tracePath);
-  const endedAt = new Date().toISOString();
-  if (result.exitCode === 0) {
+  const record = await runIosDeviceTraceRecord(recordArgs, params.tracePath);
+  if (record.result.exitCode === 0) {
     if (params.validateTraceOutput) {
-      await assertUsableTraceOutput(params, result.stdout, result.stderr);
+      await assertUsableTraceOutput(params, record.result.stdout, record.result.stderr);
     }
-    return { startedAt, endedAt, capturedAtMs: Date.now() };
+    return {
+      startedAt: record.startedAt,
+      endedAt: record.endedAt,
+      capturedAtMs: record.capturedAtMs,
+    };
   }
   throw new AppError('COMMAND_FAILED', params.failureMessage, {
     cmd: 'xcrun',
     args: recordArgs,
-    exitCode: result.exitCode,
-    stdout: result.stdout,
-    stderr: result.stderr,
+    exitCode: record.result.exitCode,
+    stdout: record.result.stdout,
+    stderr: record.result.stderr,
     appBundleId,
     deviceId: device.id,
-    hint: resolveIosDevicePerfHint(result.stdout, result.stderr),
+    hint: resolveIosDevicePerfHint(record.result.stdout, record.result.stderr),
   });
 }
 
 async function runIosDeviceTraceRecord(
   recordArgs: string[],
   tracePath: string,
-): Promise<Awaited<ReturnType<typeof runCmd>>> {
-  let lastResult: Awaited<ReturnType<typeof runCmd>> | undefined;
+): Promise<IosDeviceTraceRecordAttempt> {
+  let lastAttempt: IosDeviceTraceRecordAttempt | undefined;
   for (let attempt = 1; attempt <= IOS_DEVICE_TRACE_RECORD_MAX_ATTEMPTS; attempt += 1) {
     if (attempt > 1) {
       await fs.rm(tracePath, { recursive: true, force: true }).catch(() => {});
       await new Promise((resolve) => setTimeout(resolve, IOS_DEVICE_TRACE_RECORD_RETRY_DELAY_MS));
     }
-    lastResult = await runCmd('xcrun', recordArgs, {
+    const startedAt = new Date().toISOString();
+    const result = await runCmd('xcrun', recordArgs, {
       allowFailure: true,
       timeoutMs: IOS_DEVICE_PERF_RECORD_TIMEOUT_MS,
     });
-    if (lastResult.exitCode === 0 || !isRetryableIosDeviceTraceRecordFailure(lastResult)) {
-      return lastResult;
+    lastAttempt = {
+      result,
+      startedAt,
+      endedAt: new Date().toISOString(),
+      capturedAtMs: Date.now(),
+    };
+    if (result.exitCode === 0 || !isRetryableIosDeviceTraceRecordFailure(result)) {
+      return lastAttempt;
     }
   }
-  return lastResult as Awaited<ReturnType<typeof runCmd>>;
+  return lastAttempt as IosDeviceTraceRecordAttempt;
 }
 
 function isRetryableIosDeviceTraceRecordFailure(result: {

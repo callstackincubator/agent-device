@@ -238,14 +238,16 @@ async function sampleApplePerfResultsForSession(session: SessionState): Promise<
   fps: SettledMetricResult;
 }> {
   const appBundleId = session.appBundleId as string;
-  const [fps] = await Promise.allSettled([sampleAppleFramePerf(session.device, appBundleId)]);
-  const [processSample] = await Promise.allSettled([
-    sampleApplePerfMetrics(session.device, appBundleId),
-  ]);
+  const fps = await settleMetric(sampleAppleFramePerf(session.device, appBundleId));
+  const processSample = await settleMetric(sampleApplePerfMetrics(session.device, appBundleId));
   if (processSample.status === 'fulfilled') {
+    const processMetrics = processSample.value as {
+      memory: Record<string, unknown>;
+      cpu: Record<string, unknown>;
+    };
     return {
-      memory: { status: 'fulfilled', value: processSample.value.memory },
-      cpu: { status: 'fulfilled', value: processSample.value.cpu },
+      memory: { status: 'fulfilled', value: processMetrics.memory },
+      cpu: { status: 'fulfilled', value: processMetrics.cpu },
       fps,
     };
   }
@@ -254,6 +256,14 @@ async function sampleApplePerfResultsForSession(session: SessionState): Promise<
     cpu: { status: 'rejected', reason: processSample.reason },
     fps,
   };
+}
+
+async function settleMetric<T extends object>(promise: Promise<T>): Promise<SettledMetricResult> {
+  try {
+    return { status: 'fulfilled', value: (await promise) as Record<string, unknown> };
+  } catch (reason) {
+    return { status: 'rejected', reason };
+  }
 }
 
 function buildMetricResult(result: SettledMetricResult): MetricResult {

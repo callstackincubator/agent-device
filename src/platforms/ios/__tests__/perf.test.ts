@@ -260,6 +260,7 @@ test('sampleAppleFramePerf retries transient kperf lock failures', async () => {
 
   const sample = await sampleAppleFramePerf(IOS_DEVICE, 'com.example.device');
   assert.equal(sample.droppedFramePercent, 50);
+  assert.ok(sample.sampleWindowMs < 1000);
 }, 10_000);
 
 function mockXcrunCommands(handlers: XcrunMockHandler[]): void {
