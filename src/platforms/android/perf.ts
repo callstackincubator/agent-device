@@ -1,7 +1,6 @@
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
-import { runCmd } from '../../utils/exec.ts';
-import { adbArgs } from './adb.ts';
+import { resolveAndroidAdbExecutor, type AndroidAdbExecutor } from './adb-executor.ts';
 import { roundPercent } from '../perf-utils.ts';
 export {
   ANDROID_FRAME_SAMPLE_DESCRIPTION,
@@ -22,6 +21,10 @@ export const ANDROID_MEMORY_SAMPLE_DESCRIPTION =
 
 const ANDROID_PERF_TIMEOUT_MS = 15_000;
 
+export type AndroidPerfOptions = {
+  adb?: AndroidAdbExecutor;
+};
+
 export type AndroidCpuPerfSample = {
   usagePercent: number;
   measuredAt: string;
@@ -39,9 +42,11 @@ export type AndroidMemoryPerfSample = {
 export async function sampleAndroidCpuPerf(
   device: DeviceInfo,
   packageName: string,
+  options: AndroidPerfOptions = {},
 ): Promise<AndroidCpuPerfSample> {
+  const adb = resolveAndroidAdbExecutor(device, options.adb);
   try {
-    const result = await runCmd('adb', adbArgs(device, ['shell', 'dumpsys', 'cpuinfo']), {
+    const result = await adb(['shell', 'dumpsys', 'cpuinfo'], {
       timeoutMs: ANDROID_PERF_TIMEOUT_MS,
     });
     return parseAndroidCpuInfoSample(result.stdout, packageName, new Date().toISOString());
@@ -53,13 +58,13 @@ export async function sampleAndroidCpuPerf(
 export async function sampleAndroidMemoryPerf(
   device: DeviceInfo,
   packageName: string,
+  options: AndroidPerfOptions = {},
 ): Promise<AndroidMemoryPerfSample> {
+  const adb = resolveAndroidAdbExecutor(device, options.adb);
   try {
-    const result = await runCmd(
-      'adb',
-      adbArgs(device, ['shell', 'dumpsys', 'meminfo', packageName]),
-      { timeoutMs: ANDROID_PERF_TIMEOUT_MS },
-    );
+    const result = await adb(['shell', 'dumpsys', 'meminfo', packageName], {
+      timeoutMs: ANDROID_PERF_TIMEOUT_MS,
+    });
     return parseAndroidMemInfoSample(result.stdout, packageName, new Date().toISOString());
   } catch (error) {
     throw annotateAndroidPerfSamplingError('memory', packageName, error);
@@ -141,10 +146,7 @@ function annotateAndroidPerfSamplingError(
   packageName: string,
   error: unknown,
 ): AppError {
-  if (
-    error instanceof AppError &&
-    (error.code === 'TOOL_MISSING' || error.code === 'COMMAND_FAILED')
-  ) {
+  if (error instanceof AppError) {
     return new AppError(
       error.code,
       error.message,
@@ -155,10 +157,6 @@ function annotateAndroidPerfSamplingError(
       },
       error,
     );
-  }
-
-  if (error instanceof AppError) {
-    return error;
   }
 
   return new AppError(

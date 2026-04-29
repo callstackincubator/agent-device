@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { constants } from 'node:fs';
 import { access, stat } from 'node:fs/promises';
 import path from 'node:path';
@@ -13,7 +14,7 @@ export type ExecResult = {
   stdoutBuffer?: Buffer;
 };
 
-type ExecOptions = {
+export type ExecOptions = {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
   allowFailure?: boolean;
@@ -41,12 +42,34 @@ type ExecDetachedOptions = ExecOptions & {
 
 const BARE_COMMAND_RE = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/;
 const WINDOWS_PATH_EXTENSIONS = ['.com', '.exe', '.bat', '.cmd'];
+export type CommandExecutorOverride = (
+  cmd: string,
+  args: string[],
+  options: ExecOptions,
+) => Promise<ExecResult> | undefined;
+
+const commandExecutorOverrideScope = new AsyncLocalStorage<CommandExecutorOverride | undefined>();
+
+export async function withCommandExecutorOverride<T>(
+  override: CommandExecutorOverride | undefined,
+  fn: () => Promise<T>,
+): Promise<T> {
+  if (!override) return await fn();
+  return await commandExecutorOverrideScope.run(override, fn);
+}
+
+// Used by local executors to bypass the active override for intentional host command execution.
+export async function withoutCommandExecutorOverride<T>(fn: () => Promise<T>): Promise<T> {
+  return await commandExecutorOverrideScope.run(undefined, fn);
+}
 
 export async function runCmd(
   cmd: string,
   args: string[],
   options: ExecOptions = {},
 ): Promise<ExecResult> {
+  const overrideResult = commandExecutorOverrideScope.getStore()?.(cmd, args, options);
+  if (overrideResult) return await overrideResult;
   return await runSpawnedCommand(cmd, args, options);
 }
 
@@ -55,6 +78,8 @@ export async function runCmdStreaming(
   args: string[],
   options: ExecStreamOptions = {},
 ): Promise<ExecResult> {
+  const overrideResult = commandExecutorOverrideScope.getStore()?.(cmd, args, options);
+  if (overrideResult) return await overrideResult;
   return await runSpawnedCommand(cmd, args, options);
 }
 

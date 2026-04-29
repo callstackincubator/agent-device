@@ -22,6 +22,7 @@ import {
   type AndroidUiHierarchy,
 } from './ui-hierarchy.ts';
 import { adbArgs } from './adb.ts';
+import { createDeviceAdbExecutor } from './adb-executor.ts';
 import { deriveAndroidScrollableContentHints } from './scroll-hints.ts';
 import {
   captureAndroidSnapshotWithHelper,
@@ -186,10 +187,6 @@ async function captureStockUiHierarchy(
       ...(fallbackReason ? { fallbackReason } : {}),
     },
   };
-}
-
-function createDeviceAdbExecutor(device: DeviceInfo): AndroidAdbExecutor {
-  return async (args, options) => await runCmd('adb', adbArgs(device, args), options);
 }
 
 function getAndroidSnapshotHelperDeviceKey(device: DeviceInfo): string {
