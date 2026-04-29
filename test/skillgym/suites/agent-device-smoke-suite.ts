@@ -62,9 +62,15 @@ function plannedCommand(command: string): PlannedCommandMatcher {
 function plannedCommandAlternatives(commands: string[]): PlannedCommandMatcher {
   return {
     kind: 'planned-command',
-    matchers: commands.map((command) =>
-      commandMatcher('agent-device').args(...commandParts(command)),
-    ),
+    matchers: commands.flatMap((command) => {
+      const [executable, ...args] = commandParts(command);
+      assert.ok(executable, 'planned command must not be empty');
+
+      return [
+        commandMatcher('agent-device').args(executable, ...args),
+        commandMatcher(executable).args(...args),
+      ];
+    }),
   };
 }
 
@@ -701,7 +707,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     outputs: [
       COMPACT_RECT_SNAPSHOT,
       /(?:^|\n)(?:agent-device\s+)?(?:press|click)\s+84\s+220\b/i,
-      /(?:diff snapshot -i|snapshot\b.*(?:-i\b.*--diff|--diff\b.*-i\b)|snapshot -i|Berry Tart|Bakery)/i,
+      /(?:diff snapshot -i|snapshot\b.*(?:-i\b.*--diff|--diff\b.*-i\b)|snapshot\b.*-i|Berry Tart|Bakery)/i,
     ],
     forbiddenOutputs: [
       /(?:^|\n)(?:agent-device\s+)?(?:press|click)\s+@(?:e\d+|ref)\b/i,
