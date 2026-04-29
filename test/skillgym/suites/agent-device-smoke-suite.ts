@@ -77,15 +77,7 @@ function assertOutputs(finalOutput: string, matchers: OutputMatcher[]) {
       continue;
     }
 
-    if (typeof matcher === 'string') {
-      assert.ok(
-        output.includes(matcher),
-        `Expected final output to include ${JSON.stringify(matcher)}. Observed final output: ${finalOutput}`,
-      );
-      continue;
-    }
-
-    assert.match(output, matcher);
+    assert.output.includes(normalizedOutputReport(output), matcher);
   }
 }
 
@@ -159,6 +151,10 @@ function plannedCommandReport(output: string): SessionReport {
       .filter(Boolean)
       .map((command) => ({ type: 'command' as const, command })),
   } as SessionReport;
+}
+
+function normalizedOutputReport(output: string): SessionReport {
+  return { finalOutput: output } as SessionReport;
 }
 
 function commandParts(command: string): string[] {

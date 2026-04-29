@@ -95,7 +95,7 @@ pnpm exec skillgym run \
 
 Use `--reporter github-actions` in CI when you want annotations in GitHub Actions logs.
 
-The config uses `schedule: isolated-by-runner` with `maxParallel: 8`. That keeps each runner serial while allowing configured runners to overlap, and caps future runner additions to the expected local machine capacity instead of using all available host parallelism by default. Override with `--max-parallel <n>` for local experiments.
+The config uses `schedule: isolated-by-runner`, which keeps each runner serial while allowing configured runners to overlap. SkillGym v0.6 caps concurrent runs to available machine parallelism by default; override with `--max-parallel <n>` only for local experiments that need a different cap.
 
 Prerequisites:
 
