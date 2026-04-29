@@ -33,6 +33,10 @@
       "import": "./dist/src/metro.js",
       "types": "./dist/src/metro.d.ts"
     },
+    "./batch": {
+      "import": "./dist/src/batch.js",
+      "types": "./dist/src/batch.d.ts"
+    },
     "./remote-config": {
       "import": "./dist/src/remote-config.js",
       "types": "./dist/src/remote-config.d.ts"

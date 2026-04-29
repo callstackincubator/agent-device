@@ -5,8 +5,7 @@ import { readVersion } from './utils/version.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
 import fs from 'node:fs';
-import type { BatchStep } from './core/dispatch.ts';
-import { parseBatchStepsJson } from './core/batch.ts';
+import { parseBatchStepsJson, type BatchStep } from './core/batch.ts';
 import {
   createAgentDeviceClient,
   type AgentDeviceClientConfig,

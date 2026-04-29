@@ -11,7 +11,7 @@ import {
   type RemoteConnectionState,
 } from '../../remote-connection-state.ts';
 import { REMOTE_CONFIG_FIELD_SPECS, type RemoteConfigProfile } from '../../remote-config-schema.ts';
-import type { BatchStep } from '../../core/dispatch.ts';
+import type { BatchStep } from '../../core/batch.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { LeaseBackend, SessionRuntimeHints } from '../../contracts.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
