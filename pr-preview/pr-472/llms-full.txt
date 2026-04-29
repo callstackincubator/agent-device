@@ -275,7 +275,6 @@ Public subpath API exposed for Node consumers:
   - `runBatch(req, sessionName, invoke)`
   - `validateAndNormalizeBatchSteps(steps, maxSteps)`
   - `buildBatchStepFlags(parentFlags, stepFlags)`
-  - `mergeParentFlags(parentFlags, childFlags)`
   - `DEFAULT_BATCH_MAX_STEPS`
   - `BATCH_BLOCKED_COMMANDS`
   - `INHERITED_PARENT_FLAG_KEYS`
