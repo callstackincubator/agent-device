@@ -1,6 +1,13 @@
-import { assert, type TestCase } from 'skillgym';
+import { assert, commandMatcher, type CommandMatcher, type TestCase } from 'skillgym';
 
 type SessionReport = Parameters<typeof assert.skills.has>[0];
+type AssertionContext = Parameters<TestCase['assert']>[1];
+type OutputMatcher = string | RegExp | PlannedCommandMatcher;
+
+interface PlannedCommandMatcher {
+  kind: 'planned-command';
+  matchers: CommandMatcher[];
+}
 
 const APP_SOURCE = /(?:^|\/)examples\/test-app\//;
 const REPO_SOURCE = /(?:^|\/)src\//;
@@ -48,44 +55,51 @@ function assertNoProjectSourceReads(report: SessionReport) {
   assert.fileReads.notIncludes(report, COMMAND_DOCS);
 }
 
-function commandPattern(command: string) {
-  // The suite asks agents for one command per line, so command-name assertions stay line anchored.
-  return new RegExp(
-    `(?:^|\\n)(?:agent-device(?:\\s+--[^\\s]+(?:\\s+(?!-)[^\\s]+)?)*\\s+)?${command}(?:\\s|$)`,
-    'i',
-  );
+function plannedCommand(command: string): PlannedCommandMatcher {
+  return plannedCommandAlternatives([command]);
 }
 
-function commandAlternativesPattern(commands: string[]) {
-  const alternatives = commands.join('|');
-  return new RegExp(
-    `(?:^|\\n)(?:agent-device(?:\\s+--[^\\s]+(?:\\s+(?!-)[^\\s]+)?)*\\s+)?(?:${alternatives})(?:\\s|$)`,
-    'i',
-  );
+function plannedCommandAlternatives(commands: string[]): PlannedCommandMatcher {
+  return {
+    kind: 'planned-command',
+    matchers: commands.flatMap((command) => {
+      const [executable, ...args] = commandParts(command);
+      assert.ok(executable, 'planned command must not be empty');
+
+      return [
+        commandMatcher('agent-device').args(executable, ...args),
+        commandMatcher(executable).args(...args),
+      ];
+    }),
+  };
 }
 
-function assertOutputs(report: SessionReport, matchers: Array<string | RegExp>) {
-  const output = normalizedFinalOutput(report);
+function assertOutputs(finalOutput: string, matchers: OutputMatcher[]) {
+  const output = normalizedFinalOutput(finalOutput);
+  const plannedReport = plannedCommandReport(output);
   for (const matcher of matchers) {
-    if (typeof matcher === 'string') {
-      assert.ok(
-        output.includes(matcher),
-        `Expected final output to include ${JSON.stringify(matcher)}. Observed final output: ${report.finalOutput}`,
-      );
+    if (isPlannedCommandMatcher(matcher)) {
+      assertPlannedCommandIncludes(plannedReport, matcher);
       continue;
     }
 
-    assert.match(output, matcher);
+    assert.output.includes(normalizedOutputReport(output), matcher);
   }
 }
 
-function assertNoOutputs(report: SessionReport, matchers: Array<string | RegExp>) {
-  const output = normalizedFinalOutput(report);
+function assertNoOutputs(finalOutput: string, matchers: OutputMatcher[]) {
+  const output = normalizedFinalOutput(finalOutput);
+  const plannedReport = plannedCommandReport(output);
   for (const matcher of matchers) {
+    if (isPlannedCommandMatcher(matcher)) {
+      assertPlannedCommandNotIncludes(plannedReport, matcher);
+      continue;
+    }
+
     if (typeof matcher === 'string') {
       assert.ok(
         !output.includes(matcher),
-        `Expected final output not to include ${JSON.stringify(matcher)}. Observed final output: ${report.finalOutput}`,
+        `Expected final output not to include ${JSON.stringify(matcher)}. Observed final output: ${finalOutput}`,
       );
       continue;
     }
@@ -94,21 +108,76 @@ function assertNoOutputs(report: SessionReport, matchers: Array<string | RegExp>
   }
 }
 
-function normalizedFinalOutput(report: SessionReport): string {
-  return report.finalOutput
+function isPlannedCommandMatcher(matcher: OutputMatcher): matcher is PlannedCommandMatcher {
+  return (
+    typeof matcher === 'object' &&
+    !(matcher instanceof RegExp) &&
+    matcher.kind === 'planned-command'
+  );
+}
+
+function assertPlannedCommandIncludes(report: SessionReport, matcher: PlannedCommandMatcher) {
+  if (matcher.matchers.length === 1) {
+    assert.commands.includes(report, matcher.matchers[0]!);
+    return;
+  }
+
+  const failures: Error[] = [];
+  for (const command of matcher.matchers) {
+    try {
+      assert.commands.includes(report, command);
+      return;
+    } catch (error) {
+      failures.push(error as Error);
+    }
+  }
+
+  assert.fail(failures.map((error) => error.message).join('\n'));
+}
+
+function assertPlannedCommandNotIncludes(report: SessionReport, matcher: PlannedCommandMatcher) {
+  for (const command of matcher.matchers) {
+    assert.commands.notIncludes(report, command);
+  }
+}
+
+function normalizedFinalOutput(output: string): string {
+  return output
     .replace(/```[a-z]*\n?/gi, '')
     .replace(/```/g, '')
     .replace(/`([^`\n]+)`/g, '$1')
     .trim();
 }
 
-function assertExpectedOutput(report: SessionReport, matchers: Array<string | RegExp> = []) {
+function plannedCommandReport(output: string): SessionReport {
+  return {
+    events: output
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((command) => ({ type: 'command' as const, command })),
+  } as SessionReport;
+}
+
+function normalizedOutputReport(output: string): SessionReport {
+  return { finalOutput: output } as SessionReport;
+}
+
+function commandParts(command: string): string[] {
+  return command.split(' ').filter(Boolean);
+}
+
+function assertExpectedOutput(
+  report: SessionReport,
+  ctx: AssertionContext,
+  matchers: OutputMatcher[] = [],
+) {
   if (matchers.length === 0) {
     assert.output.notEmpty(report);
     return;
   }
 
-  assertOutputs(report, matchers);
+  assertOutputs(ctx.finalOutput(), matchers);
 }
 
 const RAW_COORDINATE_TARGET =
@@ -122,20 +191,29 @@ function makeCase(options: {
   id: string;
   contract: string[];
   task: string;
-  outputs?: Array<string | RegExp>;
-  forbiddenOutputs?: Array<string | RegExp>;
+  tags?: string[];
+  outputs?: OutputMatcher[];
+  forbiddenOutputs?: OutputMatcher[];
 }): TestCase {
   return {
     id: options.id,
+    tags: options.tags,
     prompt: buildPrompt({ contract: options.contract, task: options.task }),
-    assert(report) {
+    assert(report, ctx) {
       assertAgentDeviceEvidence(report);
       assertNoProjectSourceReads(report);
       assert.fileReads.notIncludes(report, SUITE_FILE);
-      assertExpectedOutput(report, options.outputs);
-      assertNoOutputs(report, options.forbiddenOutputs ?? []);
+      assertExpectedOutput(report, ctx, options.outputs);
+      assertNoOutputs(ctx.finalOutput(), options.forbiddenOutputs ?? []);
     },
   };
+}
+
+function withTags(tags: string[], cases: TestCase[]): TestCase[] {
+  return cases.map((testCase) => ({
+    ...testCase,
+    tags: [...new Set([...(testCase.tags ?? []), ...tags])],
+  }));
 }
 
 const FIXTURE_SMOKE_CASES: TestCase[] = [
@@ -148,7 +226,7 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
       'Project URL: exp://127.0.0.1:8081',
     ],
     task: 'Plan the commands to open Agent Device Tester in Expo Go on iOS, take a snapshot -i to verify the app UI loaded, then close.',
-    outputs: [IOS_EXPO_GO_OPEN, /snapshot -i/i, commandPattern('close')],
+    outputs: [IOS_EXPO_GO_OPEN, /snapshot -i/i, plannedCommand('close')],
   }),
   makeCase({
     id: 'home-dismiss-notice',
@@ -162,7 +240,7 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
     outputs: [
       /dismiss-notice/i,
       /(?:diff snapshot -i|snapshot\b.*(?:-i\b.*--diff|--diff\b.*-i\b))/i,
-      commandPattern('close'),
+      plannedCommand('close'),
     ],
   }),
   makeCase({
@@ -177,8 +255,8 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
     task: 'Assume Agent Device Tester is already open on the Home tab. Plan the commands to open the confirmation alert, dismiss it using alert wait + alert dismiss, then verify the app is still on Home.',
     outputs: [
       /home-open-modal/i,
-      commandPattern('alert wait'),
-      commandPattern('alert dismiss'),
+      plannedCommand('alert wait'),
+      plannedCommand('alert dismiss'),
       /label=(?:["']Home["']|Home)/i,
     ],
   }),
@@ -191,7 +269,7 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
       'visible loading text: Refreshing metrics...',
     ],
     task: 'Assume Agent Device Tester is already open on Home. Plan the commands to tap Refresh metrics, wait for "Refreshing metrics..." to appear, then verify the loading state is gone.',
-    outputs: [/refresh-metrics/i, commandPattern('wait'), /Refreshing metrics/i],
+    outputs: [/refresh-metrics/i, plannedCommand('wait'), /Refreshing metrics/i],
   }),
   makeCase({
     id: 'home-toggle-online',
@@ -213,7 +291,7 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
       'Search should respect debounce timing',
     ],
     task: 'Assume Agent Device Tester is on the Catalog tab. Plan the commands to fill the search field with "tart" using --delay-ms to respect the debounce, then wait for results to update.',
-    outputs: [/catalog-search/i, /--delay-ms/i, commandPattern('wait')],
+    outputs: [/catalog-search/i, /--delay-ms/i, plannedCommand('wait')],
   }),
   makeCase({
     id: 'catalog-filter-bakery',
@@ -257,7 +335,7 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
       'footer visible text: Seasonal footer target',
     ],
     task: 'Assume Agent Device Tester is on the Catalog tab. Plan the commands to scroll to the Seasonal footer target card using the scroll command.',
-    outputs: [commandPattern('scroll'), /(?:catalog-footer|Seasonal footer|down)/i],
+    outputs: [plannedCommand('scroll'), /(?:catalog-footer|Seasonal footer|down)/i],
     forbiddenOutputs: [/scrollintoview/i],
   }),
   makeCase({
@@ -284,7 +362,7 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
     outputs: [
       /quantity-increase/i,
       /quantity-decrease/i,
-      commandPattern('get text'),
+      plannedCommand('get text'),
       /id=(?:["']quantity-value["']|quantity-value)/i,
     ],
     forbiddenOutputs: [/get text ['"]?2['"]?/i, /wait text ['"]?2['"]?/i, /label=["']2["']/i],
@@ -298,8 +376,8 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
       'Use append semantics rather than replacement',
     ],
     task: 'Assume Agent Device Tester is already on a product detail screen. Plan the commands to append "Handle with care" to the product note using press + type (not fill).',
-    outputs: [/product-note/i, commandPattern('press'), commandPattern('type')],
-    forbiddenOutputs: [commandPattern('fill'), /(?:^|\n)(?:agent-device\s+)?type\s+@/i],
+    outputs: [/product-note/i, plannedCommand('press'), plannedCommand('type')],
+    forbiddenOutputs: [plannedCommand('fill'), /(?:^|\n)(?:agent-device\s+)?type\s+@/i],
   }),
   makeCase({
     id: 'product-save-to-cart',
@@ -347,8 +425,8 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
       'visible app keyboard close control: Done',
     ],
     task: 'Assume Agent Device Tester is on the Checkout form tab. Plan the fallback commands to focus the Full name field, close the iOS keyboard through the visible app control, and verify the field remains visible.',
-    outputs: [/field-name/i, /Done/i, commandAlternativesPattern(['press', 'click'])],
-    forbiddenOutputs: [commandPattern('keyboard dismiss'), commandPattern('back')],
+    outputs: [/field-name/i, /Done/i, plannedCommandAlternatives(['press', 'click'])],
+    forbiddenOutputs: [plannedCommand('keyboard dismiss'), plannedCommand('back')],
   }),
   makeCase({
     id: 'form-keyboard-dismiss-ios-done-control',
@@ -361,7 +439,7 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
     ],
     task: 'Plan the commands to focus the Full name field and dismiss the iOS keyboard without manually pressing Done.',
     outputs: [/field-name/i, /keyboard dismiss/i],
-    forbiddenOutputs: [commandPattern('back'), /press\s+.*Done/i, /click\s+.*Done/i],
+    forbiddenOutputs: [plannedCommand('back'), /press\s+.*Done/i, /click\s+.*Done/i],
   }),
   makeCase({
     id: 'form-reset',
@@ -424,7 +502,7 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
       'native alert title: Reset Agent Device Tester?',
     ],
     task: 'Assume Agent Device Tester is on the Settings tab. Plan the commands to trigger Reset lab state, then accept the native alert using alert wait + alert accept.',
-    outputs: [/reset-lab/i, commandPattern('alert wait'), commandPattern('alert accept')],
+    outputs: [/reset-lab/i, plannedCommand('alert wait'), plannedCommand('alert accept')],
   }),
   makeCase({
     id: 'home-accessibility-audit',
@@ -451,9 +529,9 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     outputs: [/(?:^|\n)(?:agent-device\s+)?(?:snapshot|is|find)(?:\s|$)/i, /Online/i],
     forbiddenOutputs: [
       /snapshot -i/i,
-      commandPattern('click'),
-      commandPattern('fill'),
-      commandPattern('press'),
+      plannedCommand('click'),
+      plannedCommand('fill'),
+      plannedCommand('press'),
     ],
   }),
   makeCase({
@@ -499,15 +577,15 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan the command to expand the truncated Delivery instructions text input using the current @e7 ref.',
     outputs: [
-      commandPattern('snapshot'),
+      plannedCommand('snapshot'),
       /(?:^|\n)(?:agent-device\s+)?snapshot\b.*(?:-s|--scope)\s+@e7\b/i,
     ],
     forbiddenOutputs: [
       /snapshot --raw/i,
-      commandPattern('get'),
-      commandPattern('fill'),
-      commandPattern('type'),
-      commandPattern('press'),
+      plannedCommand('get'),
+      plannedCommand('fill'),
+      plannedCommand('type'),
+      plannedCommand('press'),
       RAW_COORDINATE_TARGET,
     ],
   }),
@@ -521,10 +599,10 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan the commands to fill the catalog search field through the durable id selector with "tart" using --delay-ms, then wait for results.',
     outputs: [
-      commandPattern('fill'),
+      plannedCommand('fill'),
       /id=(?:["']catalog-search["']|catalog-search)/i,
       /--delay-ms/i,
-      commandPattern('wait'),
+      plannedCommand('wait'),
     ],
     forbiddenOutputs: [
       RAW_COORDINATE_TARGET,
@@ -543,11 +621,11 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan the command to replace the Email field value with "qa@example.com".',
     outputs: [
-      commandPattern('fill'),
+      plannedCommand('fill'),
       /id=(?:["']field-email["']|field-email)/i,
       /qa@example\.com/i,
     ],
-    forbiddenOutputs: [commandPattern('type'), /(?:^|\n)(?:agent-device\s+)?fill\s+\d+\s+\d+/i],
+    forbiddenOutputs: [plannedCommand('type'), /(?:^|\n)(?:agent-device\s+)?fill\s+\d+\s+\d+/i],
   }),
   makeCase({
     id: 'empty-fill-not-clear-field',
@@ -562,11 +640,11 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     task: 'Plan the supported command to clear the search field without using empty fill replacement.',
     outputs: [
       /id=(?:["']clear-search["']|clear-search)/i,
-      commandAlternativesPattern(['press', 'click']),
+      plannedCommandAlternatives(['press', 'click']),
     ],
     forbiddenOutputs: [
       /fill\b[^\n]*(?:id=["']catalog-search["']|catalog-search)[^\n]*(?:""|''|\s$)/i,
-      commandPattern('type'),
+      plannedCommand('type'),
       /\bclear\s+field\b/i,
     ],
   }),
@@ -580,7 +658,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Need to test app behavior when pasteboard contains: some text',
     ],
     task: 'Plan commands to prefill the simulator pasteboard and open the app for paste-driven behavior. Do not try to automate the Allow Paste system dialog.',
-    outputs: [commandPattern('clipboard'), /write/i, /some text/i, commandPattern('open')],
+    outputs: [plannedCommand('clipboard'), /write/i, /some text/i, plannedCommand('open')],
     forbiddenOutputs: [
       /Allow Paste/i,
       /alert (?:wait|accept|dismiss)/i,
@@ -598,7 +676,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Some Android system images fail with direct platform-shell text injection',
     ],
     task: 'Plan only the robust agent-device command to fill the field with the provided non-ASCII value.',
-    outputs: [commandPattern('fill'), /id=(?:["']field-name["']|field-name)/i, /Café ☕ 🎉/i],
+    outputs: [plannedCommand('fill'), /id=(?:["']field-name["']|field-name)/i, /Café ☕ 🎉/i],
     forbiddenOutputs: [/\badb\b/i, /shell input text/i, /\bime\b/i, /ADBKeyBoard/i],
   }),
   makeCase({
@@ -610,7 +688,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Off-screen refs are discovery hints, not actionable refs',
     ],
     task: 'Plan the commands to reach the Seasonal footer target from the off-screen summary, then refresh interactive refs before acting or verifying.',
-    outputs: [commandPattern('scroll'), /down/i, /snapshot -i/i],
+    outputs: [plannedCommand('scroll'), /down/i, /snapshot -i/i],
     forbiddenOutputs: [
       /scrollintoview/i,
       /(?:^|\n)(?:agent-device\s+)?(?:click|press)\s+@(?:e\d+|ref)/i,
@@ -629,7 +707,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     outputs: [
       COMPACT_RECT_SNAPSHOT,
       /(?:^|\n)(?:agent-device\s+)?(?:press|click)\s+84\s+220\b/i,
-      /(?:diff snapshot -i|snapshot\b.*(?:-i\b.*--diff|--diff\b.*-i\b)|snapshot -i|Berry Tart|Bakery)/i,
+      /(?:diff snapshot -i|snapshot\b.*(?:-i\b.*--diff|--diff\b.*-i\b)|snapshot\b.*-i|Berry Tart|Bakery)/i,
     ],
     forbiddenOutputs: [
       /(?:^|\n)(?:agent-device\s+)?(?:press|click)\s+@(?:e\d+|ref)\b/i,
@@ -646,8 +724,8 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'No interaction is needed; this is a presence check for visible text in a list',
     ],
     task: 'Plan the robust read-only command to wait for the Trip ideas list text to appear.',
-    outputs: [commandPattern('wait'), /Trip ideas/i],
-    forbiddenOutputs: [commandPattern('is visible'), /snapshot -i/i, commandPattern('press')],
+    outputs: [plannedCommand('wait'), /Trip ideas/i],
+    forbiddenOutputs: [plannedCommand('is visible'), /snapshot -i/i, plannedCommand('press')],
   }),
   makeCase({
     id: 'navigation-back-in-app',
@@ -657,7 +735,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Goal: return to the Catalog tab through normal app navigation',
     ],
     task: 'Plan the command to go back to Catalog using app-owned navigation semantics.',
-    outputs: [commandPattern('back')],
+    outputs: [plannedCommand('back')],
     forbiddenOutputs: [/back\s+--system/i],
   }),
   makeCase({
@@ -670,8 +748,8 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Goal: return one level inside the app, not trigger system back',
     ],
     task: 'Plan the next navigation command using the visible app-owned control instead of retrying back.',
-    outputs: [/nav-back/i, commandAlternativesPattern(['press', 'click'])],
-    forbiddenOutputs: [commandPattern('back'), /back\s+--system/i],
+    outputs: [/nav-back/i, plannedCommandAlternatives(['press', 'click'])],
+    forbiddenOutputs: [plannedCommand('back'), /back\s+--system/i],
   }),
   makeCase({
     id: 'setup-unknown-app-discover-first',
@@ -684,9 +762,9 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan the bootstrap commands to discover the correct Android device and app identifier, then open the discovered app in the named session.',
     outputs: [
-      commandPattern('devices'),
-      commandPattern('apps'),
-      commandPattern('open'),
+      plannedCommand('devices'),
+      plannedCommand('apps'),
+      plannedCommand('open'),
       /--session/i,
     ],
     forbiddenOutputs: [/com\.agent\.device\.tester/i, /com\.example/i],
@@ -701,9 +779,9 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan the commands to install the APK artifact, then open the installed package in a fresh runtime state.',
     outputs: [
-      commandPattern('install'),
+      plannedCommand('install'),
       /\.\/dist\/agent-device-tester\.apk/i,
-      commandPattern('open'),
+      plannedCommand('open'),
       /--relaunch/i,
     ],
     forbiddenOutputs: [/open\s+\.\/dist\/agent-device-tester\.apk/i],
@@ -718,9 +796,9 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan commands to install from the GitHub Actions artifact, then open the installed package in fresh runtime state.',
     outputs: [
-      commandPattern('install-from-source'),
+      plannedCommand('install-from-source'),
       /--github-actions-artifact\s+callstackincubator\/agent-device:agent-device-tester-apk/i,
-      commandPattern('open'),
+      plannedCommand('open'),
       /com\.callstack\.agentdevicetester/i,
       /--relaunch/i,
     ],
@@ -740,14 +818,14 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'No interaction was requested',
     ],
     task: 'Plan the minimal read-only command to inspect exposed UI without typing, navigating, or mutating the app to reveal hidden information.',
-    outputs: [commandPattern('snapshot')],
+    outputs: [plannedCommand('snapshot')],
     forbiddenOutputs: [
       /snapshot -i/i,
-      commandPattern('press'),
-      commandPattern('click'),
-      commandPattern('fill'),
-      commandPattern('type'),
-      commandPattern('open'),
+      plannedCommand('press'),
+      plannedCommand('click'),
+      plannedCommand('fill'),
+      plannedCommand('type'),
+      plannedCommand('open'),
     ],
   }),
   makeCase({
@@ -780,7 +858,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       /submit-order/i,
     ],
     forbiddenOutputs: [
-      commandPattern('screenshot'),
+      plannedCommand('screenshot'),
       RAW_COORDINATE_TARGET,
       /(?:^|\n)(?:agent-device\s+)?(?:press|click)\b[^\n]*submit-order[\s\S]*(?:Dismiss|Close)/i,
       /alert accept/i,
@@ -848,7 +926,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Android does not support open <app> <url>; use a URL target for deep links',
     ],
     task: 'Plan the command to launch the Expo project on Android using the project URL.',
-    outputs: [commandPattern('open'), /exp:\/\/10\.0\.2\.2:8081/i, /--platform android/i],
+    outputs: [plannedCommand('open'), /exp:\/\/10\.0\.2\.2:8081/i, /--platform android/i],
     forbiddenOutputs: [
       /open\s+(?:"Expo Go"|Expo\s+Go)\s+exp:\/\//i,
       /--activity/i,
@@ -879,7 +957,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     task: 'Plan the commands to reproduce the diagnostics request and inspect recent session network traffic with headers.',
     outputs: [
       /load-diagnostics/i,
-      commandPattern('network'),
+      plannedCommand('network'),
       /dump/i,
       /(?:--include\s+headers|\bheaders\b)/i,
     ],
@@ -893,7 +971,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'The bug report needs visual proof and tappable-region context for icon-only controls',
     ],
     task: 'Plan the command to capture screenshot evidence with current interactive ref overlays.',
-    outputs: [commandPattern('screenshot'), /--overlay-refs/i],
+    outputs: [plannedCommand('screenshot'), /--overlay-refs/i],
     forbiddenOutputs: [/snapshot --raw/i],
   }),
   makeCase({
@@ -905,8 +983,8 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Need session startup, memory, and CPU data as JSON',
     ],
     task: 'Plan the commands to open the app first if needed, then collect session performance metrics as JSON.',
-    outputs: [commandPattern('open'), commandAlternativesPattern(['perf', 'metrics']), /--json/i],
-    forbiddenOutputs: [commandPattern('logs'), commandPattern('network')],
+    outputs: [plannedCommand('open'), plannedCommandAlternatives(['perf', 'metrics']), /--json/i],
+    forbiddenOutputs: [plannedCommand('logs'), plannedCommand('network')],
   }),
   makeCase({
     id: 'react-devtools-profile-search',
@@ -919,15 +997,15 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan the commands to verify React DevTools is connected, profile the Catalog search interaction, then list slow components and rerenders.',
     outputs: [
-      commandPattern('react-devtools status'),
-      commandPattern('react-devtools wait'),
-      commandPattern('react-devtools profile start'),
+      plannedCommand('react-devtools status'),
+      plannedCommand('react-devtools wait'),
+      plannedCommand('react-devtools profile start'),
       /catalog-search/i,
-      commandPattern('react-devtools profile stop'),
-      commandPattern('react-devtools profile slow'),
-      commandPattern('react-devtools profile rerenders'),
+      plannedCommand('react-devtools profile stop'),
+      plannedCommand('react-devtools profile slow'),
+      plannedCommand('react-devtools profile rerenders'),
     ],
-    forbiddenOutputs: [commandPattern('snapshot'), commandPattern('perf')],
+    forbiddenOutputs: [plannedCommand('snapshot'), plannedCommand('perf')],
   }),
   makeCase({
     id: 'react-devtools-exact-component-inspect',
@@ -939,12 +1017,12 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan bounded React DevTools commands to find the exact SearchScreen component and inspect it.',
     outputs: [
-      commandPattern('react-devtools find'),
+      plannedCommand('react-devtools find'),
       /SearchScreen/i,
       /--exact/i,
-      commandPattern('react-devtools get component'),
+      plannedCommand('react-devtools get component'),
     ],
-    forbiddenOutputs: [commandPattern('snapshot'), commandPattern('perf')],
+    forbiddenOutputs: [plannedCommand('snapshot'), plannedCommand('perf')],
   }),
   makeCase({
     id: 'react-devtools-render-cause-report',
@@ -955,12 +1033,12 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Need render causes and changed props/state/hooks for that component',
     ],
     task: 'Plan the React DevTools command to inspect render causes for @c12.',
-    outputs: [commandPattern('react-devtools profile report'), /@c12/i],
+    outputs: [plannedCommand('react-devtools profile report'), /@c12/i],
     forbiddenOutputs: [
-      commandPattern('snapshot'),
-      commandPattern('perf'),
-      commandPattern('react-devtools profile slow'),
-      commandPattern('react-devtools profile rerenders'),
+      plannedCommand('snapshot'),
+      plannedCommand('perf'),
+      plannedCommand('react-devtools profile slow'),
+      plannedCommand('react-devtools profile rerenders'),
     ],
   }),
   makeCase({
@@ -974,12 +1052,12 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan one direct gesture command to swipe horizontally across the carousel eight times with a 30ms pause and ping-pong pattern.',
     outputs: [
-      commandPattern('swipe'),
+      plannedCommand('swipe'),
       /--count\s+8/i,
       /--pause-ms\s+30/i,
       /--pattern\s+ping-pong/i,
     ],
-    forbiddenOutputs: [commandPattern('scroll'), commandPattern('batch'), RAW_COORDINATE_TARGET],
+    forbiddenOutputs: [plannedCommand('scroll'), plannedCommand('batch'), RAW_COORDINATE_TARGET],
   }),
   makeCase({
     id: 'gesture-longpress-context-menu',
@@ -990,8 +1068,8 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Need to open a native context menu with an 800ms long press',
     ],
     task: 'Plan the gesture command to long-press the target center for 800ms.',
-    outputs: [commandPattern('longpress'), /300\s+500\s+800/i],
-    forbiddenOutputs: [/--duration-ms/i, /--hold-ms/i, commandPattern('click')],
+    outputs: [plannedCommand('longpress'), /300\s+500\s+800/i],
+    forbiddenOutputs: [/--duration-ms/i, /--hold-ms/i, plannedCommand('click')],
   }),
   makeCase({
     id: 'gesture-pinch-zoom',
@@ -1003,13 +1081,13 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Zoom-out scale: 0.5',
     ],
     task: 'Plan the gesture command to pinch zoom out at the specified center.',
-    outputs: [commandPattern('pinch'), /0\.5/i, /200\s+400/i],
+    outputs: [plannedCommand('pinch'), /0\.5/i, /200\s+400/i],
     forbiddenOutputs: [
       /(?:^|\s)--scale(?!\w)/i,
       /(?:^|\s)--x(?!\w)/i,
       /(?:^|\s)--y(?!\w)/i,
-      commandPattern('scroll'),
-      commandPattern('swipe'),
+      plannedCommand('scroll'),
+      plannedCommand('swipe'),
     ],
   }),
   makeCase({
@@ -1021,7 +1099,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Animations should be restored after the check',
     ],
     task: 'Plan the commands to disable platform animations before the app check, run a snapshot, then restore animations.',
-    outputs: [/settings animations off/i, commandPattern('snapshot'), /settings animations on/i],
+    outputs: [/settings animations off/i, plannedCommand('snapshot'), /settings animations on/i],
     forbiddenOutputs: [
       /--platform macos/i,
       /settings appearance/i,
@@ -1045,7 +1123,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       /trace stop \.\/traces\/diagnostics\.trace/i,
     ],
     forbiddenOutputs: [
-      commandPattern('record'),
+      plannedCommand('record'),
       /logs clear --restart/i,
       /trace (?:start|stop) --path/i,
     ],
@@ -1075,7 +1153,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan the read-only command to inspect Android keyboard visibility and input type.',
     outputs: [/(?:^|\n)(?:agent-device\s+)?keyboard\s+(?:status|get)(?:\s|$)/i],
-    forbiddenOutputs: [commandPattern('fill'), commandPattern('type'), /keyboard dismiss/i],
+    forbiddenOutputs: [plannedCommand('fill'), plannedCommand('type'), /keyboard dismiss/i],
   }),
   makeCase({
     id: 'remote-config-connect-flow',
@@ -1087,15 +1165,15 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     task: 'Plan a remote flow that connects through the remote config, opens the app, captures a snapshot, and disconnects cleanly.',
     outputs: [
       /connect --remote-config \.\/remote-config\.json/i,
-      commandPattern('open'),
-      commandPattern('snapshot'),
-      commandPattern('disconnect'),
+      plannedCommand('open'),
+      plannedCommand('snapshot'),
+      plannedCommand('disconnect'),
     ],
     forbiddenOutputs: [
       /--daemon-base-url/i,
       /--tenant/i,
       /--run-id/i,
-      commandPattern('screenshot'),
+      plannedCommand('screenshot'),
     ],
   }),
   makeCase({
@@ -1136,13 +1214,13 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
     task: 'Plan commands to open the context menu for @e66 and then refresh interactive refs for the menu items.',
     outputs: [
-      commandPattern('click'),
+      plannedCommand('click'),
       /@e66/i,
       /--button\s+secondary/i,
       /--platform\s+macos/i,
       /snapshot\b.*-i/i,
     ],
-    forbiddenOutputs: [commandPattern('longpress'), RAW_COORDINATE_TARGET, /--surface menubar/i],
+    forbiddenOutputs: [plannedCommand('longpress'), RAW_COORDINATE_TARGET, /--surface menubar/i],
   }),
   makeCase({
     id: 'replay-maintenance-update',
@@ -1152,7 +1230,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'Goal: maintain the replay script in place',
     ],
     task: 'Plan the command to maintain the existing replay script after selector drift.',
-    outputs: [commandPattern('replay'), /-u|--update/i, /\.\/replays\/catalog-checkout\.ad/i],
+    outputs: [plannedCommand('replay'), /-u|--update/i, /\.\/replays\/catalog-checkout\.ad/i],
     forbiddenOutputs: [/sed\s+-i/i, /open .*\.ad/i],
   }),
   makeCase({
@@ -1166,10 +1244,10 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     task: 'Plan the commands to start a recording, execute the known checkout steps from the provided steps file as one batch, and stop the recording.',
     outputs: [
       /(?:^|\n)(?:agent-device\s+)?record\s+start/i,
-      commandPattern('batch'),
+      plannedCommand('batch'),
       /(?:^|\n)(?:agent-device\s+)?record\s+stop/i,
     ],
-    forbiddenOutputs: [PSEUDO_ASSERTION_COMMAND, /workflow batch/i, commandPattern('trace')],
+    forbiddenOutputs: [PSEUDO_ASSERTION_COMMAND, /workflow batch/i, plannedCommand('trace')],
   }),
   makeCase({
     id: 'same-session-mutations-serial',
@@ -1192,7 +1270,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       /Promise\.all/i,
       /(?:^|\n).*(?:fill|press).*(?:&|&&).*(?:fill|press)/i,
       /parallel/i,
-      commandPattern('batch'),
+      plannedCommand('batch'),
     ],
   }),
   makeCase({
@@ -1205,11 +1283,14 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
       'The args field is invalid and must not be used',
     ],
     task: 'Plan the batch command with inline JSON steps using the supported step field for positional arguments.',
-    outputs: [commandPattern('batch'), /--steps/i, /"positionals"\s*:/i, /"open"/i, /"wait"/i],
+    outputs: [plannedCommand('batch'), /--steps/i, /"positionals"\s*:/i, /"open"/i, /"wait"/i],
     forbiddenOutputs: [/"args"\s*:/i, /workflow batch/i],
   }),
 ];
 
-const suite: TestCase[] = [...FIXTURE_SMOKE_CASES, ...SKILL_GUIDANCE_CASES];
+const suite: TestCase[] = [
+  ...withTags(['fixture-smoke'], FIXTURE_SMOKE_CASES),
+  ...withTags(['skill-guidance'], SKILL_GUIDANCE_CASES),
+];
 
 export default suite;

@@ -156,7 +156,7 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 ## Testing Matrix
 - Docs/skills only: no tests required unless a more specific rule below applies.
 - CLI help/guidance changes in `src/utils/command-schema.ts`: run `pnpm exec vitest run src/utils/__tests__/args.test.ts`.
-- SkillGym prompt/assertion changes: run the touched `--case` checks; for broad validation, run cases in batches of 20 or fewer because full-suite runs can hang.
+- SkillGym prompt/assertion changes: run the touched `--case` checks. For broad validation, use `pnpm test:skillgym`; use `--tag fixture-smoke` or `--tag skill-guidance` when validating one suite group.
 - Non-TS, no behavior impact: no tests unless requested.
 - Keep tests behavioral; do not assert shapes or cases TypeScript already proves.
 - Any TS change: `pnpm typecheck` or `pnpm check:quick`.
@@ -192,7 +192,7 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Do not update `skills/**/SKILL.md` for command behavior or workflow guidance unless the user explicitly asks; skills must route to versioned CLI help instead of carrying behavior details.
 - Keep SkillGym cases behavioral and command-planning oriented. Prefer prompts that assert the user-visible contract and expected command family over brittle exact output, but forbid known bad patterns.
 - Build before SkillGym when local CLI help is needed: `pnpm build`, then `pnpm exec skillgym run ... --case <id>`.
-- Run SkillGym broad validation in batches of 20 cases or fewer using repeated `--case` runs; do not rely on one full-suite invocation for large runs.
+- Run SkillGym broad validation with `pnpm test:skillgym`; use v0.6 `--tag` filters for focused suite groups.
 - Preserve current high-value workflow guidance:
   - iOS Expo Go dogfood: prefer `agent-device open "Expo Go" <url> --platform ios` when the shell is known, then `snapshot -i` to confirm the project UI rather than the runner splash.
   - `keyboard dismiss` is the preferred iOS keyboard-dismissal path before manually pressing visible keyboard controls such as `Done`; it remains best-effort and can report unsupported layouts explicitly.

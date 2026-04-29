@@ -166,7 +166,7 @@
     "fallow": "^2.52.0",
     "oxfmt": "^0.42.0",
     "oxlint": "^1.57.0",
-    "skillgym": "^0.5.0",
+    "skillgym": "^0.6.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.10"
   }
