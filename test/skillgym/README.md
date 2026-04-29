@@ -50,7 +50,7 @@ Skill-guidance regression cases cover distinct command-planning habits:
 
 The `codex-mini` baseline is a benchmark signal, not a required all-green gate. Its failures should map to command-planning regressions called out by individual case IDs; do not treat the historical pass/fail count as a fixed threshold.
 
-SkillGym v0.6 structured command matchers are for shell commands the agent actually executed. This suite primarily validates the command plan in the final answer, so it keeps line-anchored final-output matchers for planned `agent-device` commands.
+SkillGym v0.6 command assertions are for observed command events. This suite primarily validates the command plan in the final answer, so it converts final-output command lines into a small planned-command report before calling `assert.commands.includes` or `assert.commands.notIncludes`.
 
 ## Suggested workflow
 
