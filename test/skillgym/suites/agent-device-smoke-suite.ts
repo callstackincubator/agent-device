@@ -1,4 +1,4 @@
-import { assert, type TestCase } from 'skillgym';
+import { assert, commandMatcher, type CommandMatcher, type TestCase } from 'skillgym';
 
 type SessionReport = Parameters<typeof assert.skills.has>[0];
 type AssertionContext = Parameters<TestCase['assert']>[1];
@@ -6,7 +6,7 @@ type OutputMatcher = string | RegExp | PlannedCommandMatcher;
 
 interface PlannedCommandMatcher {
   kind: 'planned-command';
-  matcher: RegExp;
+  matchers: CommandMatcher[];
 }
 
 const APP_SOURCE = /(?:^|\/)examples\/test-app\//;
@@ -60,14 +60,10 @@ function plannedCommand(command: string): PlannedCommandMatcher {
 }
 
 function plannedCommandAlternatives(commands: string[]): PlannedCommandMatcher {
-  const alternatives = commands
-    .map((command) => command.split(/\s+/).map(escapeRegExp).join('\\s+'))
-    .join('|');
   return {
     kind: 'planned-command',
-    matcher: new RegExp(
-      `^(?:agent-device(?:\\s+--[^\\s]+(?:\\s+(?!-)[^\\s]+)?)*\\s+)?(?:${alternatives})(?:\\s|$)`,
-      'i',
+    matchers: commands.map((command) =>
+      commandMatcher('agent-device').args(...commandParts(command)),
     ),
   };
 }
@@ -77,7 +73,7 @@ function assertOutputs(finalOutput: string, matchers: OutputMatcher[]) {
   const plannedReport = plannedCommandReport(output);
   for (const matcher of matchers) {
     if (isPlannedCommandMatcher(matcher)) {
-      assert.commands.includes(plannedReport, matcher.matcher);
+      assertPlannedCommandIncludes(plannedReport, matcher);
       continue;
     }
 
@@ -98,7 +94,7 @@ function assertNoOutputs(finalOutput: string, matchers: OutputMatcher[]) {
   const plannedReport = plannedCommandReport(output);
   for (const matcher of matchers) {
     if (isPlannedCommandMatcher(matcher)) {
-      assert.commands.notIncludes(plannedReport, matcher.matcher);
+      assertPlannedCommandNotIncludes(plannedReport, matcher);
       continue;
     }
 
@@ -122,6 +118,31 @@ function isPlannedCommandMatcher(matcher: OutputMatcher): matcher is PlannedComm
   );
 }
 
+function assertPlannedCommandIncludes(report: SessionReport, matcher: PlannedCommandMatcher) {
+  if (matcher.matchers.length === 1) {
+    assert.commands.includes(report, matcher.matchers[0]!);
+    return;
+  }
+
+  const failures: Error[] = [];
+  for (const command of matcher.matchers) {
+    try {
+      assert.commands.includes(report, command);
+      return;
+    } catch (error) {
+      failures.push(error as Error);
+    }
+  }
+
+  assert.fail(failures.map((error) => error.message).join('\n'));
+}
+
+function assertPlannedCommandNotIncludes(report: SessionReport, matcher: PlannedCommandMatcher) {
+  for (const command of matcher.matchers) {
+    assert.commands.notIncludes(report, command);
+  }
+}
+
 function normalizedFinalOutput(output: string): string {
   return output
     .replace(/```[a-z]*\n?/gi, '')
@@ -140,8 +161,8 @@ function plannedCommandReport(output: string): SessionReport {
   } as SessionReport;
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function commandParts(command: string): string[] {
+  return command.split(' ').filter(Boolean);
 }
 
 function assertExpectedOutput(
