@@ -17,6 +17,7 @@
     "src/bin.ts",
     "src/companion-tunnel.ts",
     "src/daemon.ts",
+    "src/daemon-embedding.ts",
     "src/utils/update-check-entry.ts",
     "test/scripts/metro-prepare-packaged-smoke.mjs",
     "test/integration/*.test.ts",

@@ -103,7 +103,7 @@
     "src/client.ts:632-658|src/index.ts:79-105",
     "src/commands/admin.ts:306-313|src/commands/apps.ts:286-295",
     "src/commands/capture-snapshot.ts:104-110|src/commands/selector-read-shared.ts:42-47",
-    "src/commands/interactions.ts:207-215|src/core/dispatch.ts:875-883",
+    "src/commands/interactions.ts:207-215|src/core/dispatch.ts:876-884",
     "src/commands/selector-read.ts:169-178|src/commands/selector-read.ts:403-410",
     "src/contracts.ts:422-427|src/contracts.ts:457-462",
     "src/core/__tests__/dispatch-open.test.ts:17-25|src/core/__tests__/dispatch-push.test.ts:12-20",

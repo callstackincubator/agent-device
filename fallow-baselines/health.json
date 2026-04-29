@@ -217,6 +217,9 @@
     "src/core/dispatch-resolve.ts": {
       "crap_high": {
         "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
       }
     },
     "src/core/dispatch.ts": {

@@ -30,6 +30,21 @@ type ResolveDeviceFlags = Pick<
 >;
 
 const resolveTargetDeviceCacheScope = new AsyncLocalStorage<Map<string, DeviceInfo>>();
+const deviceInventoryProviderScope = new AsyncLocalStorage<DeviceInventoryProvider>();
+
+export type DeviceInventoryRequest = {
+  platform?: PlatformSelector;
+  target?: DeviceTarget;
+  deviceName?: string;
+  udid?: string;
+  serial?: string;
+  iosSimulatorSetPath?: string;
+  androidSerialAllowlist?: string[];
+};
+
+export type DeviceInventoryProvider = (
+  request: DeviceInventoryRequest,
+) => Promise<DeviceInfo[] | null | undefined>;
 
 type AppleDeviceSelector = {
   platform?: Exclude<PlatformSelector, 'android'>;
@@ -134,6 +149,20 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
         );
       }
 
+      const injectedDevices = await readInjectedDeviceInventory({
+        ...selector,
+        iosSimulatorSetPath,
+        androidSerialAllowlist: androidSerialAllowlist
+          ? Array.from(androidSerialAllowlist).sort()
+          : undefined,
+      });
+      if (injectedDevices) {
+        return cacheResolvedTargetDevice(
+          cacheKey,
+          await resolveDevice(injectedDevices, selector, { simulatorSetPath: iosSimulatorSetPath }),
+        );
+      }
+
       if (selector.platform === 'linux') {
         const devices = await listLinuxDevices();
         return cacheResolvedTargetDevice(cacheKey, await resolveDevice(devices, selector));
@@ -179,6 +208,34 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
 export async function withResolveTargetDeviceCacheScope<T>(task: () => Promise<T>): Promise<T> {
   if (resolveTargetDeviceCacheScope.getStore()) return await task();
   return await resolveTargetDeviceCacheScope.run(new Map(), task);
+}
+
+export async function withDeviceInventoryProvider<T>(
+  provider: DeviceInventoryProvider | undefined,
+  task: () => Promise<T>,
+): Promise<T> {
+  if (!provider) return await task();
+  return await deviceInventoryProviderScope.run(provider, task);
+}
+
+export async function withTargetDeviceResolutionScope<T>(
+  provider: DeviceInventoryProvider | undefined,
+  task: () => Promise<T>,
+): Promise<T> {
+  return await withDeviceInventoryProvider(
+    provider,
+    async () => await withResolveTargetDeviceCacheScope(task),
+  );
+}
+
+async function readInjectedDeviceInventory(
+  request: DeviceInventoryRequest,
+): Promise<DeviceInfo[] | null> {
+  const provider = deviceInventoryProviderScope.getStore();
+  if (!provider) return null;
+  const devices = await provider(request);
+  if (devices === undefined || devices === null) return null;
+  return devices.map((device) => ({ ...device }));
 }
 
 function readResolveTargetDeviceCache(cacheKey: string): DeviceInfo | undefined {
