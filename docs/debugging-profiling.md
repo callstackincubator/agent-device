@@ -72,9 +72,10 @@ agent-device perf --json
 agent-device metrics --json
 ```
 
-- `perf` returns session-scoped startup and, where supported, CPU and memory samples.
+- `perf` returns session-scoped startup and, where supported, CPU, memory, and Android frame-health samples.
 - Startup is measured around the `open` command; it is not first-frame instrumentation.
-- CPU and memory availability depends on platform and whether the active session is bound to an app/package.
+- CPU, memory, and Android frame-health availability depend on platform and whether the active session is bound to an app/package.
+- On Android, use `metrics.fps.droppedFramePercent` for the health check and `metrics.fps.worstWindows` to line up jank clusters with logs, network activity, or recent actions.
 
 ## Where to go deeper
 

@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.f4adab48fc.js"></script>
 <script defer src="/agent-device/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/static/js/757.695a0ec7a3.js"></script>
-<script defer src="/agent-device/static/js/index.c279763c97.js"></script>
+<script defer src="/agent-device/static/js/index.db4104b19f.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -223,6 +223,7 @@ interactive window roots, or <code>active-window</code> when the helper falls ba
 <li><code>client.recording.record()</code> and <code>client.recording.trace()</code></li>
 <li><code>client.settings.update()</code></li>
 </ul>
+<p><code>client.observability.perf()</code> returns daemon-shaped JSON so local and remote transports expose the same metrics payload. On Android, <code>data.metrics.fps.droppedFramePercent</code> is the primary frame-smoothness value. It is derived from the current <code>adb shell dumpsys gfxinfo &lt;package&gt; framestats</code> window and represents rendered frames that missed Android&#x27;s frame deadline, not recording FPS. Android frame samples also include <code>windowStartedAt</code>, <code>windowEndedAt</code>, and <code>worstWindows</code> so agents can correlate dropped-frame clusters with logs, network entries, and their own session actions. A successful read resets Android frame stats; <code>open &lt;app&gt;</code> resets the Android frame window too, so agents can call <code>perf</code>, perform a transition or gesture, then call <code>perf</code> again to inspect that focused window.</p>
 <p><code>client.recording.record({ action: &#x27;start&#x27;, path, quality: 5 })</code> starts a smaller 50% resolution video; omit <code>quality</code> to keep native/current resolution.</p>
 <h2 class="rp-toc-include" id="batch-orchestration-for-custom-transports"><a href="#batch-orchestration-for-custom-transports" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Batch orchestration for custom transports</h2>
 <p>Use <code>agent-device/batch</code> when a bridge or in-process runner receives daemon-shaped requests but owns command dispatch itself. The helper keeps validation, inherited flags, serial execution, partial results, and error envelopes aligned with the daemon batch command.</p>
