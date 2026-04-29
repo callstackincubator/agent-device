@@ -18,6 +18,13 @@ import { readInfoPlistString } from './plist.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 import { parseXmlDocumentSync, type XmlNode } from './xml.ts';
 import {
+  findAllXmlNodes,
+  findFirstXmlNode,
+  parseDirectXmlNumber,
+  readSchemaColumns,
+  resolveXmlNumber,
+} from './perf-xml.ts';
+import {
   APPLE_FRAME_SAMPLE_DESCRIPTION,
   APPLE_FRAME_SAMPLE_METHOD,
   parseAppleFramePerfSample,
@@ -101,12 +108,11 @@ export async function sampleApplePerfMetrics(
   }
 
   const measuredAt = new Date().toISOString();
-  const matchedProcesses = uniqueStrings(processes.map(() => executable.executableName));
   return buildApplePerfSamples({
     usagePercent: processes.reduce((total, process) => total + process.cpuPercent, 0),
     residentMemoryKb: processes.reduce((total, process) => total + process.rssKb, 0),
     measuredAt,
-    matchedProcesses,
+    matchedProcesses: [executable.executableName],
     cpuMethod: APPLE_CPU_SAMPLE_METHOD,
     memoryMethod: APPLE_MEMORY_SAMPLE_METHOD,
   });
@@ -204,8 +210,6 @@ async function captureIosDeviceFramePerf(
   appBundleId: string,
   processes: IosDeviceProcessInfo[],
 ): Promise<IosDeviceFramePerfCapture> {
-  const targetProcess = requireIosDeviceTargetProcess(device, appBundleId, processes);
-
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-frame-perf-'));
   const tracePath = path.join(tempDir, 'animation-hitches.trace');
   const hitchesPath = path.join(tempDir, 'hitches.xml');
@@ -218,7 +222,8 @@ async function captureIosDeviceFramePerf(
       tracePath,
       template: 'Animation Hitches',
       duration: IOS_DEVICE_FRAME_TRACE_DURATION,
-      targetPid: targetProcess.pid,
+      targetPids: processes.map((process) => process.pid),
+      validateTraceOutput: true,
       failureMessage: `Failed to record iOS frame-health sample for ${appBundleId}`,
     });
     await exportIosDevicePerfTable(device, appBundleId, tracePath, 'hitches', hitchesPath);
@@ -248,34 +253,21 @@ async function captureIosDeviceFramePerf(
   }
 }
 
-function requireIosDeviceTargetProcess(
-  device: DeviceInfo,
-  appBundleId: string,
-  processes: IosDeviceProcessInfo[],
-): IosDeviceProcessInfo {
-  const targetProcess = processes[0];
-  if (targetProcess) return targetProcess;
-  throw new AppError('COMMAND_FAILED', `No running process found for ${appBundleId}`, {
-    appBundleId,
-    deviceId: device.id,
-    hint: 'Run open <app> for this session again to ensure the iOS app is active, then retry perf.',
-  });
-}
-
 async function recordIosDeviceTrace(params: {
   device: DeviceInfo;
   appBundleId: string;
   tracePath: string;
   template: 'Activity Monitor' | 'Animation Hitches';
   duration: string;
-  targetPid?: number;
+  targetPids?: number[];
   allProcesses?: boolean;
+  validateTraceOutput?: boolean;
   failureMessage: string;
 }): Promise<IosDeviceTraceRecord> {
   const { device, appBundleId, tracePath, template, duration } = params;
   const targetArgs = params.allProcesses
     ? ['--all-processes']
-    : ['--attach', String(params.targetPid)];
+    : (params.targetPids ?? []).flatMap((pid) => ['--attach', String(pid)]);
   const recordArgs = [
     'xctrace',
     'record',
@@ -297,7 +289,12 @@ async function recordIosDeviceTrace(params: {
     timeoutMs: IOS_DEVICE_PERF_RECORD_TIMEOUT_MS,
   });
   const endedAt = new Date().toISOString();
-  if (result.exitCode === 0) return { startedAt, endedAt, capturedAtMs: Date.now() };
+  if (result.exitCode === 0) {
+    if (params.validateTraceOutput) {
+      await assertUsableTraceOutput(params, result.stdout, result.stderr);
+    }
+    return { startedAt, endedAt, capturedAtMs: Date.now() };
+  }
   throw new AppError('COMMAND_FAILED', params.failureMessage, {
     cmd: 'xcrun',
     args: recordArgs,
@@ -307,6 +304,32 @@ async function recordIosDeviceTrace(params: {
     appBundleId,
     deviceId: device.id,
     hint: resolveIosDevicePerfHint(result.stdout, result.stderr),
+  });
+}
+
+async function assertUsableTraceOutput(
+  params: {
+    device: DeviceInfo;
+    appBundleId: string;
+    tracePath: string;
+    failureMessage: string;
+  },
+  stdout: string,
+  stderr: string,
+): Promise<void> {
+  const stat = await fs.stat(params.tracePath).catch(() => null);
+  const hasTrace =
+    stat?.isDirectory() === true
+      ? (await fs.readdir(params.tracePath).catch(() => [])).length > 0
+      : (stat?.size ?? 0) > 0;
+  if (hasTrace) return;
+  throw new AppError('COMMAND_FAILED', `${params.failureMessage}: xctrace produced no trace data`, {
+    tracePath: params.tracePath,
+    appBundleId: params.appBundleId,
+    deviceId: params.device.id,
+    stdout,
+    stderr,
+    hint: 'Keep the iOS device unlocked and connected by cable, keep the app active, then retry perf.',
   });
 }
 
@@ -365,19 +388,13 @@ export function parseApplePsOutput(stdout: string): AppleProcessSample[] {
 
 async function parseIosDevicePerfTable(xml: string): Promise<IosDevicePerfProcessSample[]> {
   const document = parseXmlDocumentSync(xml);
-  const schema = findFirstXmlNode(
-    document,
-    (node) => node.name === 'schema' && node.attributes.name === 'activity-monitor-process-live',
-  );
-  if (!schema) {
+  const mnemonics = readSchemaColumns(document, 'activity-monitor-process-live');
+  if (mnemonics.length === 0) {
     throw new AppError(
       'COMMAND_FAILED',
       'Failed to parse xctrace activity-monitor-process-live schema',
     );
   }
-  const mnemonics = schema.children
-    .filter((child) => child.name === 'col')
-    .map((column) => readFirstChildText(column, 'mnemonic') ?? '');
   const pidIndex = mnemonics.indexOf('pid');
   const processIndex = mnemonics.indexOf('process');
   const cpuTimeIndex = mnemonics.indexOf('cpu-total');
@@ -454,12 +471,10 @@ async function resolveAppleExecutable(
 
   return {
     executableName,
-    executablePath: path.join(
-      appPath,
-      device.platform === 'macos' ? 'Contents' : '',
-      device.platform === 'macos' ? 'MacOS' : '',
-      executableName,
-    ),
+    executablePath:
+      device.platform === 'macos'
+        ? path.join(appPath, 'Contents', 'MacOS', executableName)
+        : path.join(appPath, executableName),
   };
 }
 
@@ -781,56 +796,6 @@ function buildApplePerfSamples(args: {
       matchedProcesses: args.matchedProcesses,
     },
   };
-}
-
-function findFirstXmlNode(
-  nodes: XmlNode[],
-  predicate: (node: XmlNode) => boolean,
-): XmlNode | undefined {
-  for (const node of nodes) {
-    if (predicate(node)) {
-      return node;
-    }
-    const descendant = findFirstXmlNode(node.children, predicate);
-    if (descendant) {
-      return descendant;
-    }
-  }
-  return undefined;
-}
-
-function findAllXmlNodes(nodes: XmlNode[], predicate: (node: XmlNode) => boolean): XmlNode[] {
-  const matches: XmlNode[] = [];
-  for (const node of nodes) {
-    if (predicate(node)) {
-      matches.push(node);
-    }
-    matches.push(...findAllXmlNodes(node.children, predicate));
-  }
-  return matches;
-}
-
-function readFirstChildText(node: XmlNode, childName: string): string | null {
-  const child = node.children.find((candidate) => candidate.name === childName);
-  return child?.text ?? null;
-}
-
-function parseDirectXmlNumber(element: XmlNode | undefined): number | null {
-  if (!element || element.children.some((child) => child.name === 'sentinel')) return null;
-  if (!element.text) return null;
-  const value = Number(element.text);
-  return Number.isFinite(value) ? value : null;
-}
-
-function resolveXmlNumber(
-  element: XmlNode | undefined,
-  references: Map<string, { numberValue?: number | null }>,
-): number | null {
-  if (!element) return null;
-  if (element.attributes.ref) {
-    return references.get(element.attributes.ref)?.numberValue ?? null;
-  }
-  return parseDirectXmlNumber(element);
 }
 
 function readDirectProcessNameFromXml(element: XmlNode | undefined): string | null {

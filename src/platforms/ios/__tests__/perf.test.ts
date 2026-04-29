@@ -280,6 +280,7 @@ function mockXctraceRecord(onRecord: () => void): XcrunMockHandler {
   return async (args) => {
     if (args[0] !== 'xctrace' || args[1] !== 'record') return null;
     onRecord();
+    await fs.writeFile(readOutputPath(args), 'trace', 'utf8');
     return emptyRunResult();
   };
 }
@@ -297,6 +298,7 @@ async function mockAnimationHitchesRecord(args: string[]): Promise<MockRunCmdRes
     '2s',
   ]);
   vi.setSystemTime(new Date('2026-04-01T10:00:02.000Z'));
+  await fs.writeFile(readOutputPath(args), 'trace', 'utf8');
   return emptyRunResult();
 }
 

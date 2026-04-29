@@ -1,5 +1,12 @@
-import { roundPercent } from '../perf-utils.ts';
+import { roundOneDecimal, roundPercent } from '../perf-utils.ts';
 import { parseXmlDocumentSync, type XmlNode } from './xml.ts';
+import {
+  findAllXmlNodes,
+  findFirstXmlNode,
+  parseDirectXmlNumber,
+  readSchemaColumns,
+  resolveXmlNumber,
+} from './perf-xml.ts';
 
 const MAX_WORST_WINDOWS = 3;
 const JANK_WINDOW_GAP_NS = 500_000_000;
@@ -24,11 +31,8 @@ export type AppleFramePerfSample = {
   sampleWindowMs: number;
   windowStartedAt: string;
   windowEndedAt: string;
-  timestampSource: 'xctrace-record-window';
   measuredAt: string;
   method: typeof APPLE_FRAME_SAMPLE_METHOD;
-  source: 'xctrace-animation-hitches';
-  attribution: 'attached-process-hitches-with-trace-frame-total';
   matchedProcesses: string[];
   frameDeadlineMs?: number;
   refreshRateHz?: number;
@@ -51,7 +55,6 @@ type AppleHitchSchemaIndexes = {
 
 type XmlReference = {
   numberValue?: number | null;
-  textValue?: string | null;
   process?: { pid?: number; name?: string } | null;
 };
 
@@ -86,18 +89,15 @@ export function parseAppleFramePerfSample(options: {
     sampleWindowMs,
     windowStartedAt: options.windowStartedAt,
     windowEndedAt: options.windowEndedAt,
-    timestampSource: 'xctrace-record-window',
     measuredAt: options.measuredAt,
     method: APPLE_FRAME_SAMPLE_METHOD,
-    source: 'xctrace-animation-hitches',
-    attribution: 'attached-process-hitches-with-trace-frame-total',
     matchedProcesses: uniqueStrings(
       hitches
         .map((row) => row.processName)
         .filter((value): value is string => typeof value === 'string' && value.length > 0),
     ),
     frameDeadlineMs:
-      refreshRateHz === undefined ? undefined : Math.round((1000 / refreshRateHz) * 10) / 10,
+      refreshRateHz === undefined ? undefined : roundOneDecimal(1000 / refreshRateHz),
     refreshRateHz,
     worstWindows: worstWindows.length > 0 ? worstWindows : undefined,
   };
@@ -214,8 +214,9 @@ function buildAppleWorstWindow(
     startAt: new Date(windowStartedAtMs + startOffsetMs).toISOString(),
     endAt: new Date(windowStartedAtMs + endOffsetMs).toISOString(),
     missedDeadlineFrameCount: hitches.length,
-    worstFrameMs:
-      Math.round((Math.max(...hitches.map((hitch) => hitch.durationNs)) / 1_000_000) * 10) / 10,
+    worstFrameMs: roundOneDecimal(
+      Math.max(...hitches.map((hitch) => hitch.durationNs)) / 1_000_000,
+    ),
   };
 }
 
@@ -226,48 +227,15 @@ function parseRows(xml: string, schemaName: string): XmlNode[] {
   return findAllXmlNodes(document, (node) => node.name === 'row');
 }
 
-function readSchemaColumns(document: XmlNode[], schemaName: string): string[] {
-  const schema = findFirstXmlNode(
-    document,
-    (node) => node.name === 'schema' && node.attributes.name === schemaName,
-  );
-  if (!schema) return [];
-  return schema.children
-    .filter((child) => child.name === 'col')
-    .map((column) => readFirstChildText(column, 'mnemonic') ?? '');
-}
-
 function rememberXmlReferences(elements: XmlNode[], references: Map<string, XmlReference>): void {
   for (const element of elements) {
     rememberXmlReferences(element.children, references);
     if (!element.attributes.id) continue;
     references.set(element.attributes.id, {
       numberValue: parseDirectXmlNumber(element),
-      textValue: readDirectXmlText(element),
       process: readDirectProcess(element),
     });
   }
-}
-
-function parseDirectXmlNumber(element: XmlNode | undefined): number | null {
-  if (!element || element.children.some((child) => child.name === 'sentinel')) return null;
-  if (!element.text) return null;
-  const value = Number(element.text);
-  return Number.isFinite(value) ? value : null;
-}
-
-function readDirectXmlText(element: XmlNode | undefined): string | null {
-  const value = element?.attributes.fmt?.trim() || element?.text?.trim() || '';
-  return value.length > 0 ? value : null;
-}
-
-function resolveXmlNumber(
-  element: XmlNode | undefined,
-  references: Map<string, XmlReference>,
-): number | null {
-  if (!element) return null;
-  if (element.attributes.ref) return references.get(element.attributes.ref)?.numberValue ?? null;
-  return parseDirectXmlNumber(element);
 }
 
 function resolveXmlBoolean(
@@ -298,32 +266,6 @@ function readDirectProcess(element: XmlNode | undefined): { pid?: number; name?:
     pid: pid ?? undefined,
     name: name.length > 0 ? name : undefined,
   };
-}
-
-function findFirstXmlNode(
-  nodes: XmlNode[],
-  predicate: (node: XmlNode) => boolean,
-): XmlNode | undefined {
-  for (const node of nodes) {
-    if (predicate(node)) return node;
-    const descendant = findFirstXmlNode(node.children, predicate);
-    if (descendant) return descendant;
-  }
-  return undefined;
-}
-
-function findAllXmlNodes(nodes: XmlNode[], predicate: (node: XmlNode) => boolean): XmlNode[] {
-  const matches: XmlNode[] = [];
-  for (const node of nodes) {
-    if (predicate(node)) matches.push(node);
-    matches.push(...findAllXmlNodes(node.children, predicate));
-  }
-  return matches;
-}
-
-function readFirstChildText(node: XmlNode, childName: string): string | null {
-  const child = node.children.find((candidate) => candidate.name === childName);
-  return child?.text ?? null;
 }
 
 function uniqueStrings(values: string[]): string[] {
