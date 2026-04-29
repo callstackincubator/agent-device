@@ -16,7 +16,7 @@ const config: SkillGymConfig = {
     schedule: 'isolated-by-runner',
     // Keep one serial queue per runner, but cap the total active agents so adding
     // runners later does not unexpectedly saturate the host.
-    maxParallel: 2,
+    maxParallel: 8,
   },
   defaults: {
     timeoutMs: 600_000,
