@@ -1,7 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { validateAndNormalizeBatchSteps } from '../batch.ts';
-import type { BatchStep } from '../dispatch.ts';
+import { validateAndNormalizeBatchSteps, type BatchStep } from '../batch.ts';
 
 test('validateAndNormalizeBatchSteps rejects unknown top-level step fields', () => {
   assert.throws(

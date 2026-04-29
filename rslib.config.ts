@@ -19,6 +19,7 @@ export default defineConfig({
           index: 'src/index.ts',
           io: 'src/io.ts',
           artifacts: 'src/artifacts.ts',
+          batch: 'src/batch.ts',
           metro: 'src/metro.ts',
           'remote-config': 'src/remote-config.ts',
           'install-source': 'src/install-source.ts',
