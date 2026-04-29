@@ -559,7 +559,7 @@ agent-device metrics --json
   - `memory` and `cpu`: Android emulator/device, macOS app sessions, iOS simulators with an active app session (`open <app>` first), and iOS physical devices with an active app session
   - `fps`: Android emulator/device app sessions
 - If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf`.
-- If the session has no app package/bundle ID yet, package-bound metrics remain unavailable until you `open <app>`.
+- Android URL/deep-link opens infer the foreground package after launch when possible, including Expo Go/dev-client shells. If the session still has no app package/bundle ID, package-bound metrics remain unavailable until you `open <app>`.
 - Android frame health is reset after each successful `perf` read and after `open <app>`, so run `perf`, perform the interaction, then run `perf` again for a focused window.
 - On physical iOS devices, `perf` records a short `xcrun xctrace` Activity Monitor sample. Keep the device unlocked, connected, and the app active in the foreground while sampling.
 - Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.
