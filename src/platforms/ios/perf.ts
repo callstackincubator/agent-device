@@ -81,7 +81,7 @@ type IosDeviceFramePerfCapture = {
   windowEndedAt: string;
   hitchesXml: string;
   frameLifetimesXml: string;
-  displayInfoXml: string;
+  displayInfoXml?: string;
 };
 
 type IosDeviceTraceRecord = {
@@ -234,7 +234,7 @@ async function captureIosDeviceFramePerf(
       'hitches-frame-lifetimes',
       frameLifetimesPath,
     );
-    await exportIosDevicePerfTable(
+    const hasDisplayInfo = await exportOptionalIosDevicePerfTable(
       device,
       appBundleId,
       tracePath,
@@ -246,7 +246,7 @@ async function captureIosDeviceFramePerf(
       windowEndedAt: record.endedAt,
       hitchesXml: await fs.readFile(hitchesPath, 'utf8'),
       frameLifetimesXml: await fs.readFile(frameLifetimesPath, 'utf8'),
-      displayInfoXml: await fs.readFile(displayInfoPath, 'utf8'),
+      displayInfoXml: hasDisplayInfo ? await fs.readFile(displayInfoPath, 'utf8') : undefined,
     };
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
@@ -365,6 +365,21 @@ async function exportIosDevicePerfTable(
     deviceId: device.id,
     hint: resolveIosDevicePerfHint(exportResult.stdout, exportResult.stderr),
   });
+}
+
+async function exportOptionalIosDevicePerfTable(
+  device: DeviceInfo,
+  appBundleId: string,
+  tracePath: string,
+  schema: string,
+  outputPath: string,
+): Promise<boolean> {
+  try {
+    await exportIosDevicePerfTable(device, appBundleId, tracePath, schema, outputPath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function parseApplePsOutput(stdout: string): AppleProcessSample[] {

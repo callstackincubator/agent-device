@@ -233,6 +233,23 @@ test('sampleAppleFramePerf records Animation Hitches for connected iOS devices',
   assert.equal(sample.method, 'xctrace-animation-hitches');
 });
 
+test('sampleAppleFramePerf keeps core metrics when display info export fails', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-04-01T10:00:00.000Z'));
+
+  mockXcrunCommands([
+    mockIosDeviceApps,
+    mockIosDeviceProcesses,
+    mockAnimationHitchesRecord,
+    mockFrameTableExportsWithoutDisplayInfo,
+  ]);
+
+  const sample = await sampleAppleFramePerf(IOS_DEVICE, 'com.example.device');
+  assert.equal(sample.droppedFramePercent, 50);
+  assert.equal(sample.refreshRateHz, undefined);
+  assert.equal(sample.frameDeadlineMs, undefined);
+});
+
 function mockXcrunCommands(handlers: XcrunMockHandler[]): void {
   mockRunCmd.mockImplementation(async (cmd, args) => {
     if (cmd !== 'xcrun') throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
@@ -270,6 +287,11 @@ async function mockIosDeviceProcesses(args: string[]): Promise<MockRunCmdResult 
             'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/ExampleDeviceApp',
           processIdentifier: 4001,
         },
+        {
+          executable:
+            'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/ExampleDeviceHelper',
+          processIdentifier: 4002,
+        },
       ],
     },
   });
@@ -294,9 +316,10 @@ async function mockAnimationHitchesRecord(args: string[]): Promise<MockRunCmdRes
     'ios-device-1',
     '--attach',
     '4001',
-    '--time-limit',
-    '2s',
+    '--attach',
+    '4002',
   ]);
+  assert.deepEqual(args.slice(10, 12), ['--time-limit', '2s']);
   vi.setSystemTime(new Date('2026-04-01T10:00:02.000Z'));
   await fs.writeFile(readOutputPath(args), 'trace', 'utf8');
   return emptyRunResult();
@@ -314,6 +337,18 @@ function mockSequentialExports(xmlPayloads: string[]): XcrunMockHandler {
 async function mockFrameTableExports(args: string[]): Promise<MockRunCmdResult | null> {
   if (args[0] !== 'xctrace' || args[1] !== 'export') return null;
   const xpath = args[args.indexOf('--xpath') + 1] ?? '';
+  await fs.writeFile(readOutputPath(args), readFrameTableXml(xpath), 'utf8');
+  return emptyRunResult();
+}
+
+async function mockFrameTableExportsWithoutDisplayInfo(
+  args: string[],
+): Promise<MockRunCmdResult | null> {
+  if (args[0] !== 'xctrace' || args[1] !== 'export') return null;
+  const xpath = args[args.indexOf('--xpath') + 1] ?? '';
+  if (xpath.includes('device-display-info')) {
+    return { stdout: '', stderr: 'missing display info', exitCode: 1 };
+  }
   await fs.writeFile(readOutputPath(args), readFrameTableXml(xpath), 'utf8');
   return emptyRunResult();
 }
