@@ -3,6 +3,15 @@ import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 import { adbArgs } from './adb.ts';
 import { roundPercent } from '../perf-utils.ts';
+export {
+  ANDROID_FRAME_SAMPLE_DESCRIPTION,
+  ANDROID_FRAME_SAMPLE_METHOD,
+  parseAndroidFramePerfSample,
+  resetAndroidFramePerfStats,
+  sampleAndroidFramePerf,
+  type AndroidFrameDropWindow,
+  type AndroidFramePerfSample,
+} from './perf-frame.ts';
 
 export const ANDROID_CPU_SAMPLE_METHOD = 'adb-shell-dumpsys-cpuinfo';
 export const ANDROID_CPU_SAMPLE_DESCRIPTION =

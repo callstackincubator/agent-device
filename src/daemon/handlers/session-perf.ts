@@ -3,9 +3,12 @@ import { normalizeError } from '../../utils/errors.ts';
 import {
   ANDROID_CPU_SAMPLE_DESCRIPTION,
   ANDROID_CPU_SAMPLE_METHOD,
+  ANDROID_FRAME_SAMPLE_DESCRIPTION,
+  ANDROID_FRAME_SAMPLE_METHOD,
   ANDROID_MEMORY_SAMPLE_DESCRIPTION,
   ANDROID_MEMORY_SAMPLE_METHOD,
   sampleAndroidCpuPerf,
+  sampleAndroidFramePerf,
   sampleAndroidMemoryPerf,
 } from '../../platforms/android/perf.ts';
 import { buildAppleSamplingMetadata, sampleApplePerfMetrics } from '../../platforms/ios/perf.ts';
@@ -16,6 +19,21 @@ import {
   STARTUP_SAMPLE_METHOD,
   type StartupPerfSample,
 } from './session-startup-metrics.ts';
+
+type SettledMetricResult = PromiseSettledResult<Record<string, unknown>>;
+type MetricResult =
+  | ({ available: true } & Record<string, unknown>)
+  | { available: false; reason: string; error: ReturnType<typeof normalizeError> };
+type PerfResponseData = {
+  session: string;
+  platform: string;
+  device: string;
+  deviceId: string;
+  metrics: Record<string, unknown>;
+  sampling: Record<string, unknown>;
+};
+
+const RELATED_PERF_ACTION_LIMIT = 12;
 
 function readStartupPerfSamples(actions: SessionAction[]): StartupPerfSample[] {
   const samples: StartupPerfSample[] = [];
@@ -53,6 +71,27 @@ function readStartupPerfSamples(actions: SessionAction[]): StartupPerfSample[] {
 export async function buildPerfResponseData(
   session: SessionState,
 ): Promise<Record<string, unknown>> {
+  const response = buildBasePerfResponse(session);
+
+  if (!supportsPlatformPerfMetrics(session)) {
+    return response;
+  }
+
+  if (!session.appBundleId) {
+    applyMissingAppPerfMetrics(response, session);
+    return response;
+  }
+
+  if (session.device.platform === 'android') {
+    await applyAndroidPerfMetrics(response, session);
+    return response;
+  }
+
+  await applyApplePerfMetrics(response, session);
+  return response;
+}
+
+function buildBasePerfResponse(session: SessionState): PerfResponseData {
   const startupSamples = readStartupPerfSamples(session.actions);
   const latestStartupSample = startupSamples.at(-1);
   const startupMetric = latestStartupSample
@@ -69,27 +108,14 @@ export async function buildPerfResponseData(
         reason: 'No startup sample captured yet. Run open <app|url> in this session first.',
         method: STARTUP_SAMPLE_METHOD,
       };
-  const defaultUnavailableMetrics = {
-    fps: { available: false, reason: PERF_UNAVAILABLE_REASON },
-    memory: { available: false, reason: PERF_UNAVAILABLE_REASON },
-    cpu: { available: false, reason: PERF_UNAVAILABLE_REASON },
-  };
-
-  const response: {
-    session: string;
-    platform: string;
-    device: string;
-    deviceId: string;
-    metrics: Record<string, unknown>;
-    sampling: Record<string, unknown>;
-  } = {
+  return {
     session: session.name,
     platform: session.device.platform,
     device: session.device.name,
     deviceId: session.device.id,
     metrics: {
       startup: startupMetric,
-      ...defaultUnavailableMetrics,
+      ...buildDefaultUnavailableMetrics(),
     },
     sampling: {
       startup: {
@@ -100,22 +126,46 @@ export async function buildPerfResponseData(
       ...buildPlatformSamplingMetadata(session),
     },
   };
+}
 
-  if (!supportsPlatformPerfMetrics(session)) {
-    return response;
-  }
+function buildDefaultUnavailableMetrics(): Record<string, unknown> {
+  return {
+    fps: {
+      available: false,
+      reason: 'Dropped-frame sampling is currently available only on Android.',
+    },
+    memory: { available: false, reason: PERF_UNAVAILABLE_REASON },
+    cpu: { available: false, reason: PERF_UNAVAILABLE_REASON },
+  };
+}
 
-  if (!session.appBundleId) {
-    const reason = buildMissingAppPerfReason(session);
-    response.metrics.memory = { available: false, reason };
-    response.metrics.cpu = { available: false, reason };
-    return response;
-  }
+function applyMissingAppPerfMetrics(response: PerfResponseData, session: SessionState): void {
+  const reason = buildMissingAppPerfReason(session);
+  response.metrics.fps = { available: false, reason };
+  response.metrics.memory = { available: false, reason };
+  response.metrics.cpu = { available: false, reason };
+}
 
-  const [memoryResult, cpuResult] = await samplePlatformPerfResults(session);
-  response.metrics.memory = buildMetricResult(memoryResult);
-  response.metrics.cpu = buildMetricResult(cpuResult);
-  return response;
+async function applyAndroidPerfMetrics(
+  response: PerfResponseData,
+  session: SessionState,
+): Promise<void> {
+  const results = await sampleAndroidPerfResults(session);
+  response.metrics.memory = buildMetricResult(results.memory);
+  response.metrics.cpu = buildMetricResult(results.cpu);
+  response.metrics.fps = enrichFrameMetricWithSessionContext(
+    buildMetricResult(results.fps),
+    session,
+  );
+}
+
+async function applyApplePerfMetrics(
+  response: PerfResponseData,
+  session: SessionState,
+): Promise<void> {
+  const results = await sampleApplePerfResultsForSession(session);
+  response.metrics.memory = buildMetricResult(results.memory);
+  response.metrics.cpu = buildMetricResult(results.cpu);
 }
 
 function supportsPlatformPerfMetrics(session: SessionState): boolean {
@@ -146,44 +196,54 @@ function buildPlatformSamplingMetadata(session: SessionState): Record<string, un
         description: ANDROID_CPU_SAMPLE_DESCRIPTION,
         unit: 'percent',
       },
+      fps: {
+        method: ANDROID_FRAME_SAMPLE_METHOD,
+        description: ANDROID_FRAME_SAMPLE_DESCRIPTION,
+        unit: 'percent',
+        primaryField: 'droppedFramePercent',
+        window: 'since previous Android gfxinfo reset or app process start',
+        resetsAfterRead: true,
+        relatedActionsLimit: RELATED_PERF_ACTION_LIMIT,
+      },
     };
   }
   return buildAppleSamplingMetadata(session.device);
 }
 
-async function samplePlatformPerfResults(
-  session: SessionState,
-): Promise<
-  [PromiseSettledResult<Record<string, unknown>>, PromiseSettledResult<Record<string, unknown>>]
-> {
+async function sampleAndroidPerfResults(session: SessionState): Promise<{
+  memory: SettledMetricResult;
+  cpu: SettledMetricResult;
+  fps: SettledMetricResult;
+}> {
   const appBundleId = session.appBundleId as string;
-  if (session.device.platform === 'android') {
-    const [memoryResult, cpuResult] = await Promise.allSettled([
-      sampleAndroidMemoryPerf(session.device, appBundleId),
-      sampleAndroidCpuPerf(session.device, appBundleId),
-    ]);
-    return [memoryResult, cpuResult];
-  }
+  const [memory, cpu, fps] = await Promise.allSettled([
+    sampleAndroidMemoryPerf(session.device, appBundleId),
+    sampleAndroidCpuPerf(session.device, appBundleId),
+    sampleAndroidFramePerf(session.device, appBundleId),
+  ]);
+  return { memory, cpu, fps };
+}
 
+async function sampleApplePerfResultsForSession(session: SessionState): Promise<{
+  memory: SettledMetricResult;
+  cpu: SettledMetricResult;
+}> {
+  const appBundleId = session.appBundleId as string;
   try {
     const sample = await sampleApplePerfMetrics(session.device, appBundleId);
-    return [
-      { status: 'fulfilled', value: sample.memory },
-      { status: 'fulfilled', value: sample.cpu },
-    ];
+    return {
+      memory: { status: 'fulfilled', value: sample.memory },
+      cpu: { status: 'fulfilled', value: sample.cpu },
+    };
   } catch (reason) {
-    return [
-      { status: 'rejected', reason },
-      { status: 'rejected', reason },
-    ];
+    return {
+      memory: { status: 'rejected', reason },
+      cpu: { status: 'rejected', reason },
+    };
   }
 }
 
-function buildMetricResult<T extends Record<string, unknown>>(
-  result: PromiseSettledResult<T>,
-):
-  | ({ available: true } & T)
-  | { available: false; reason: string; error: ReturnType<typeof normalizeError> } {
+function buildMetricResult(result: SettledMetricResult): MetricResult {
   if (result.status === 'fulfilled') {
     return { available: true, ...result.value };
   }
@@ -193,4 +253,57 @@ function buildMetricResult<T extends Record<string, unknown>>(
     reason: error.message,
     error,
   };
+}
+
+function enrichFrameMetricWithSessionContext(
+  metric: MetricResult,
+  session: SessionState,
+): MetricResult {
+  if (metric.available !== true) return metric;
+  const relatedActions = buildRelatedPerfActions(session.actions, metric);
+  if (relatedActions.length === 0) return metric;
+  return {
+    ...metric,
+    relatedActions,
+  };
+}
+
+function buildRelatedPerfActions(
+  actions: SessionAction[],
+  metric: Record<string, unknown>,
+): Array<{
+  command: string;
+  at: string;
+  offsetMs?: number;
+  target?: string;
+}> {
+  const windowStartedAtMs = parseIsoTime(metric.windowStartedAt);
+  const windowEndedAtMs = parseIsoTime(metric.windowEndedAt) ?? parseIsoTime(metric.measuredAt);
+  if (windowStartedAtMs === undefined || windowEndedAtMs === undefined) return [];
+
+  return actions
+    .filter((action) => action.ts >= windowStartedAtMs && action.ts <= windowEndedAtMs)
+    .map((action) => ({
+      command: action.command,
+      at: new Date(action.ts).toISOString(),
+      offsetMs: Math.max(0, Math.round(action.ts - windowStartedAtMs)),
+      target: readActionTarget(action),
+    }))
+    .slice(-RELATED_PERF_ACTION_LIMIT);
+}
+
+function parseIsoTime(value: unknown): number | undefined {
+  if (typeof value !== 'string') return undefined;
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? time : undefined;
+}
+
+function readActionTarget(action: SessionAction): string | undefined {
+  const result = action.result;
+  if (!result) return undefined;
+  for (const key of ['refLabel', 'ref', 'appName', 'appBundleId']) {
+    const value = result[key];
+    if (typeof value === 'string' && value.length > 0) return value;
+  }
+  return undefined;
 }
