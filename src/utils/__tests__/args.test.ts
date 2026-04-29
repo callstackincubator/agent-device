@@ -860,7 +860,7 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /iOS Allow Paste prompt cannot be exercised under XCUITest/);
   assert.match(help, /Empty replacement is not a supported clear-field command/);
   assert.match(help, /do not plan fill <target> ""/);
-  assert.match(help, /iOS keyboard dismiss is best-effort/);
+  assert.match(help, /prefer keyboard dismiss before manually pressing visible Done/);
   assert.match(help, /UNSUPPORTED_OPERATION/);
   assert.match(help, /Stateful commands against one --session must run serially/);
   assert.match(

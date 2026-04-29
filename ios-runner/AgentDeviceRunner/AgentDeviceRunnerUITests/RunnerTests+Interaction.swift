@@ -285,18 +285,42 @@ extension RunnerTests {
   }
 
   private func tapKeyboardDismissControl(app: XCUIApplication) -> Bool {
-    for label in ["Hide keyboard", "Dismiss keyboard"] {
+    let keyboardFrame = app.keyboards.firstMatch.frame
+    for label in ["Hide keyboard", "Dismiss keyboard", "Done"] {
       let candidates = [
         app.keyboards.buttons[label],
         app.keyboards.keys[label],
-        app.toolbars.buttons[label],
+        app.keyboards.toolbars.buttons[label],
       ]
       if let hittable = candidates.first(where: { $0.exists && $0.isHittable }) {
         hittable.tap()
         return true
       }
+
+      let toolbarButtonPredicate = NSPredicate(
+        format: "label == %@ OR identifier == %@",
+        label,
+        label
+      )
+      let toolbarButtons = app.toolbars.buttons
+        .matching(toolbarButtonPredicate)
+        .allElementsBoundByIndex
+      if let hittable = toolbarButtons.first(where: {
+        $0.exists && $0.isHittable && isKeyboardAccessoryControl($0, keyboardFrame: keyboardFrame)
+      }) {
+        hittable.tap()
+        return true
+      }
     }
     return false
+  }
+
+  private func isKeyboardAccessoryControl(_ element: XCUIElement, keyboardFrame: CGRect) -> Bool {
+    let frame = element.frame
+    guard !frame.isEmpty && !keyboardFrame.isEmpty else {
+      return false
+    }
+    return frame.intersects(keyboardFrame) || abs(frame.maxY - keyboardFrame.minY) <= 80
   }
 
   private func moveCaretToEnd(element: XCUIElement) {
