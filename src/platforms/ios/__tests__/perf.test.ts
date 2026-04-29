@@ -250,6 +250,18 @@ test('sampleAppleFramePerf keeps core metrics when display info export fails', a
   assert.equal(sample.frameDeadlineMs, undefined);
 });
 
+test('sampleAppleFramePerf retries transient kperf lock failures', async () => {
+  mockXcrunCommands([
+    mockIosDeviceApps,
+    mockIosDeviceProcesses,
+    mockKperfLockThenAnimationHitchesRecord(),
+    mockFrameTableExports,
+  ]);
+
+  const sample = await sampleAppleFramePerf(IOS_DEVICE, 'com.example.device');
+  assert.equal(sample.droppedFramePercent, 50);
+}, 10_000);
+
 function mockXcrunCommands(handlers: XcrunMockHandler[]): void {
   mockRunCmd.mockImplementation(async (cmd, args) => {
     if (cmd !== 'xcrun') throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
@@ -323,6 +335,24 @@ async function mockAnimationHitchesRecord(args: string[]): Promise<MockRunCmdRes
   vi.setSystemTime(new Date('2026-04-01T10:00:02.000Z'));
   await fs.writeFile(readOutputPath(args), 'trace', 'utf8');
   return emptyRunResult();
+}
+
+function mockKperfLockThenAnimationHitchesRecord(): XcrunMockHandler {
+  let didFail = false;
+  return async (args) => {
+    if (args[0] !== 'xctrace' || args[1] !== 'record') return null;
+    if (!didFail) {
+      didFail = true;
+      return {
+        stdout: '',
+        stderr:
+          'Run issues were detected (trace is still ready to be viewed):\n* [Error] Failed to start the recording: _lockKPerf: could not lock kperf. Likely another session just started.',
+        exitCode: 2,
+      };
+    }
+    await fs.writeFile(readOutputPath(args), 'trace', 'utf8');
+    return emptyRunResult();
+  };
 }
 
 function mockSequentialExports(xmlPayloads: string[]): XcrunMockHandler {

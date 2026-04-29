@@ -42,6 +42,8 @@ const IOS_DEVICE_PERF_RECORD_TIMEOUT_MS = 60_000;
 const IOS_DEVICE_PERF_EXPORT_TIMEOUT_MS = 15_000;
 const IOS_DEVICE_PERF_TRACE_DURATION = '1s';
 const IOS_DEVICE_FRAME_TRACE_DURATION = '2s';
+const IOS_DEVICE_TRACE_RECORD_MAX_ATTEMPTS = 3;
+const IOS_DEVICE_TRACE_RECORD_RETRY_DELAY_MS = 1_500;
 
 export type AppleCpuPerfSample = {
   usagePercent: number;
@@ -284,10 +286,7 @@ async function recordIosDeviceTrace(params: {
     '--no-prompt',
   ];
   const startedAt = new Date().toISOString();
-  const result = await runCmd('xcrun', recordArgs, {
-    allowFailure: true,
-    timeoutMs: IOS_DEVICE_PERF_RECORD_TIMEOUT_MS,
-  });
+  const result = await runIosDeviceTraceRecord(recordArgs, params.tracePath);
   const endedAt = new Date().toISOString();
   if (result.exitCode === 0) {
     if (params.validateTraceOutput) {
@@ -305,6 +304,39 @@ async function recordIosDeviceTrace(params: {
     deviceId: device.id,
     hint: resolveIosDevicePerfHint(result.stdout, result.stderr),
   });
+}
+
+async function runIosDeviceTraceRecord(
+  recordArgs: string[],
+  tracePath: string,
+): Promise<Awaited<ReturnType<typeof runCmd>>> {
+  let lastResult: Awaited<ReturnType<typeof runCmd>> | undefined;
+  for (let attempt = 1; attempt <= IOS_DEVICE_TRACE_RECORD_MAX_ATTEMPTS; attempt += 1) {
+    if (attempt > 1) {
+      await fs.rm(tracePath, { recursive: true, force: true }).catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, IOS_DEVICE_TRACE_RECORD_RETRY_DELAY_MS));
+    }
+    lastResult = await runCmd('xcrun', recordArgs, {
+      allowFailure: true,
+      timeoutMs: IOS_DEVICE_PERF_RECORD_TIMEOUT_MS,
+    });
+    if (lastResult.exitCode === 0 || !isRetryableIosDeviceTraceRecordFailure(lastResult)) {
+      return lastResult;
+    }
+  }
+  return lastResult as Awaited<ReturnType<typeof runCmd>>;
+}
+
+function isRetryableIosDeviceTraceRecordFailure(result: {
+  stdout: string;
+  stderr: string;
+}): boolean {
+  const text = `${result.stdout}\n${result.stderr}`.toLowerCase();
+  return (
+    text.includes('_lockkperf') ||
+    text.includes('could not lock kperf') ||
+    text.includes('likely another session just started')
+  );
 }
 
 async function assertUsableTraceOutput(
