@@ -1144,7 +1144,7 @@ agent-device metrics --json
 ```
 
 - `perf` (alias: `metrics`) returns a session-scoped metrics JSON blob.
-- Without `--json`, `perf` prints a compact platform-independent frame-health summary when frame data is available, and points to `--json` when only CPU/memory data is available.
+- Without `--json`, `perf` prints a compact summary: Android frame health when frame data is available, otherwise CPU/memory when those samples are available.
 - `startup` is sampled from `open-command-roundtrip`: elapsed wall-clock time around each `open` command dispatch for the active session app target.
 - Android app sessions with an active package also sample:
   - `fps` frame health from `adb shell dumpsys gfxinfo <package> framestats`, with `droppedFramePercent` as the primary value and `worstWindows` for dropped-frame clusters
