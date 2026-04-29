@@ -438,16 +438,21 @@ await withAndroidAdbProvider(provider, async () => {
 ## Daemon embedding
 
 Use `agent-device/daemon` only when an integration wants to embed the upstream request router.
-The subpath exports `createRequestHandler`, `SessionStore`, `LeaseRegistry`, artifact tracking
-helpers, daemon request/response/session types, device inventory provider types, and Android ADB
-provider types. Control-plane policy such as tenant auth, billing, external lease ownership,
-storage, and uploads remains the embedder's responsibility; pass those decisions through the
-dependency object instead of deep-importing daemon internals.
+The subpath is intentionally backend-neutral: it exports `createRequestHandler`, `SessionStore`,
+`LeaseRegistry`, artifact tracking helpers, daemon request/response/session types, device inventory
+provider types, and Android ADB provider hook types. Control-plane policy such as tenant auth,
+billing, external lease ownership, storage, and uploads remains the embedder's responsibility; pass
+those decisions through the dependency object instead of deep-importing daemon internals.
 
 `RequestRouterDeps.deviceInventoryProvider` can supply the full target candidate list for a request.
 When it returns an array, even an empty one, the daemon resolver treats that inventory as
 authoritative and does not call local host discovery such as `adb devices`, `simctl`, or Linux
 desktop discovery. Return `undefined` or `null` to fall back to local discovery for that request.
+
+`RequestRouterDeps.androidAdbProvider` can supply an Android command provider for the resolved
+request device. Device inventory controls discovery; the Android ADB provider controls command
+execution for Android paths that already use the provider seam. Until a command family has provider
+coverage, it may still require local host ADB access.
 
 Initial daemon conformance scope is the shared request/response contract in
 `agent-device/contracts`, request-router embedding through `createRequestHandler`, authoritative
