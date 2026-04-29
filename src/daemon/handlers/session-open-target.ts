@@ -44,6 +44,24 @@ export async function resolveAndroidPackageForOpen(
   }
 }
 
+export async function inferAndroidPackageAfterOpen(
+  device: DeviceInfo,
+  openTarget: string | undefined,
+  currentAppBundleId: string | undefined,
+): Promise<string | undefined> {
+  if (currentAppBundleId) return currentAppBundleId;
+  if (device.platform !== 'android' || !openTarget || !isDeepLinkTarget(openTarget)) {
+    return currentAppBundleId;
+  }
+  try {
+    const { getAndroidAppState } = await import('../../platforms/android/index.ts');
+    const foreground = await getAndroidAppState(device);
+    return foreground.package?.trim() || currentAppBundleId;
+  } catch {
+    return currentAppBundleId;
+  }
+}
+
 function shouldPreserveAndroidPackageContext(
   device: DeviceInfo,
   openTarget: string | undefined,

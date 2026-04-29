@@ -180,7 +180,7 @@ const AGENT_QUICKSTART_LINES = [
   'Read-only visible/state question: use snapshot/get/is/find; use snapshot -i only when refs are needed.',
   'Truncated text/input preview: expand first with snapshot -s @e12, not get text.',
   'RN warning/error overlays can block taps: snapshot -i, dismiss/close, then diff snapshot -i.',
-  'Expo Go/dev clients: use the provided URL when given; on iOS prefer open "Expo Go" <url> when the host shell is known.',
+  'Expo Go/dev clients: use the provided URL when given; on iOS prefer open "Expo Go" <url>; Android URL opens infer the foreground package for logs/perf when possible.',
   'Install flows: install/install-from-source first, then open the installed id with --relaunch.',
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
   'Clearing text: do not use fill <target> ""; use a visible clear/reset control or report that clearing is unsupported.',
@@ -324,7 +324,7 @@ Validation and evidence:
   Prefer provided testIDs/ids/selectors for verification; use visible text when no durable selector is provided.
   If task says snapshot, use snapshot. If it asks visual evidence, use screenshot.
   Icon/tappable visual proof: screenshot --overlay-refs. Flag is --overlay-refs.
-  Startup/CPU/memory: perf --json or metrics. Replay maintenance: replay -u ./flow.ad.
+  Startup/frame health/CPU/memory: perf --json or metrics. Replay maintenance: replay -u ./flow.ad.
   Recording: record start/stop. Tracing: trace start ./trace.log, trace stop ./trace.log. Paths are positional.
   Stable known flow: batch ./steps.json, not workflow batch.
   Inline batch JSON example:
@@ -349,6 +349,7 @@ React Native dev loop:
     agent-device open exp://127.0.0.1:8081 --platform ios
   Android uses the URL target directly; do not write open <app> <url> there:
     agent-device open exp://127.0.0.1:8081 --platform android
+  Android URL/deep-link opens infer the foreground package after launch when possible, so logs/perf can remain package-bound. If perf still says no package is associated, open the host package/app id first, then open the URL in the same session.
   If apps lookup misses the project but shows Expo Go/dev-client and a project URL is available, open the URL/host shell; if no URL is available, ask instead of inventing an app id.
   Expo Dev Client/development builds: open the installed dev-client app id/name; if a dev-client URL is provided, open that URL next. For Metro setup use metro prepare --kind expo.
 
@@ -1611,7 +1612,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   perf: {
-    helpDescription: 'Show session performance metrics',
+    helpDescription: 'Show session performance metrics, including Android frame health',
     summary: 'Show performance metrics',
     positionalArgs: [],
     allowedFlags: [],

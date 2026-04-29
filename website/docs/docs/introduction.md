@@ -10,7 +10,7 @@ title: Introduction
 - Deterministic interactions (tap, type, scroll)
 - Session-aware workflows and replay
 - Session logs and network inspection for debugging broken flows
-- Performance snapshots with `perf`/`metrics`, including CPU and memory data where supported
+- Performance snapshots with `perf`/`metrics`, including CPU, memory, and Android dropped-frame data where supported
 
 If you know `agent-browser`, this is the mobile-native counterpart for iOS/Android UI automation and app-level observability.
 For agent-oriented operating guidance, start with `agent-device help` or `agent-device help workflow`. Skills are recommended auto-routing helpers when your agent runtime supports them, but agents can operate from CLI help alone. For exploratory QA, use `agent-device help dogfood`. For React Native component trees, props/state/hooks, and render profiling, use `agent-device help react-devtools` and the `agent-device react-devtools` passthrough.
@@ -28,7 +28,7 @@ For agent-oriented operating guidance, start with `agent-device help` or `agent-
 - iOS/tvOS simulator-only: `settings`, `push`, `clipboard`.
 - Apple simulators and macOS desktop app sessions: `alert`, `pinch`.
 - Session diagnostics: `logs` and `network dump` are available for debugging active app sessions, with network inspection based on recent HTTP(s) entries captured in the session app log.
-- Session performance metrics: `perf`/`metrics` is available on iOS, macOS, and Android. Startup timing comes from `open` command round-trip duration. Android app sessions and Apple app sessions on macOS, iOS simulators, or connected iOS devices also expose CPU and memory snapshots when an app identifier is available in the session.
+- Session performance metrics: `perf`/`metrics` is available on iOS, macOS, and Android. Startup timing comes from `open` command round-trip duration. Android app sessions expose CPU, memory, and rendered-frame health; use `metrics.fps.droppedFramePercent` as the primary Android frame-smoothness signal, and `metrics.fps.worstWindows` to correlate jank clusters with logs or recent interactions. Apple app sessions on macOS, iOS simulators, or connected iOS devices expose CPU and memory snapshots when an app identifier is available in the session. Android dropped-frame data comes from the current `dumpsys gfxinfo ... framestats` window, is reset after each successful `perf` read, and is not video recording FPS.
 - iOS `record` supports simulators and physical devices.
   - Simulators use native `simctl io ... recordVideo`.
   - Physical devices use runner screenshot capture (`XCUIScreen.main.screenshot()` frames) stitched into MP4, so FPS is best-effort (not guaranteed 60 even with `--fps 60`).

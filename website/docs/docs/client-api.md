@@ -194,6 +194,8 @@ Additional CLI-backed methods are exposed on their domain groups with typed opti
 - `client.recording.record()` and `client.recording.trace()`
 - `client.settings.update()`
 
+`client.observability.perf()` returns daemon-shaped JSON so local and remote transports expose the same metrics payload. On Android, `data.metrics.fps.droppedFramePercent` is the primary frame-smoothness value. It is derived from the current `adb shell dumpsys gfxinfo <package> framestats` window and represents rendered frames that missed Android's frame deadline, not recording FPS. Android frame samples also include `windowStartedAt`, `windowEndedAt`, and `worstWindows` so agents can correlate dropped-frame clusters with logs, network entries, and their own session actions. A successful read resets Android frame stats; `open <app>` resets the Android frame window too, so agents can call `perf`, perform a transition or gesture, then call `perf` again to inspect that focused window.
+
 `client.recording.record({ action: 'start', path, quality: 5 })` starts a smaller 50% resolution video; omit `quality` to keep native/current resolution.
 
 ## Batch orchestration for custom transports

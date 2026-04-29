@@ -18,7 +18,9 @@ import { countConfiguredRuntimeHints, setSessionRuntimeHintsForOpen } from './se
 import { STARTUP_SAMPLE_METHOD, type StartupPerfSample } from './session-startup-metrics.ts';
 import { buildNextOpenSession, buildOpenResult } from './session-open-surface.ts';
 import { markAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
+import { resetAndroidFramePerfStats } from '../../platforms/android/perf.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
+import { inferAndroidPackageAfterOpen } from './session-open-target.ts';
 import {
   invalidOpenArgs,
   prepareOpenCommandDetails,
@@ -79,6 +81,7 @@ function buildStartupPerfSample(
   };
 }
 
+// fallow-ignore-next-line complexity
 async function completeOpenCommand(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -109,9 +112,10 @@ async function completeOpenCommand(params: {
   } = params;
   const shouldRelaunch = req.flags?.relaunch === true;
   const traceLogPath = existingSession?.trace?.outPath;
+  let sessionAppBundleId = appBundleId;
 
   if (shouldRelaunch && openTarget) {
-    const closeTarget = appBundleId ?? openTarget;
+    const closeTarget = sessionAppBundleId ?? openTarget;
     await relaunchCloseApp({
       device,
       closeTarget,
@@ -120,7 +124,7 @@ async function completeOpenCommand(params: {
         ...contextFromFlags(
           logPath,
           req.flags,
-          appBundleId ?? existingSession?.appBundleId,
+          sessionAppBundleId ?? existingSession?.appBundleId,
           traceLogPath,
         ),
       },
@@ -129,24 +133,28 @@ async function completeOpenCommand(params: {
 
   await applyRuntimeHintsToApp({
     device,
-    appId: appBundleId,
+    appId: sessionAppBundleId,
     runtime,
   });
   const openStartedAtMs = Date.now();
   await dispatchCommand(device, 'open', openPositionals, req.flags?.out, {
-    ...contextFromFlags(logPath, req.flags, appBundleId),
+    ...contextFromFlags(logPath, req.flags, sessionAppBundleId),
   });
   await maybeApplySessionLaunchUrl({
     runtime,
     device,
     req,
     logPath,
-    appBundleId,
+    appBundleId: sessionAppBundleId,
     traceLogPath,
     openPositionals,
   });
+  sessionAppBundleId = await inferAndroidPackageAfterOpen(device, openTarget, sessionAppBundleId);
+  if (device.platform === 'android' && sessionAppBundleId) {
+    await resetAndroidFramePerfStats(device, sessionAppBundleId);
+  }
   const startupSample = openTarget
-    ? buildStartupPerfSample(openStartedAtMs, openTarget, appBundleId)
+    ? buildStartupPerfSample(openStartedAtMs, openTarget, sessionAppBundleId)
     : undefined;
   await settleIosSimulator(device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
   if (isRequestCanceled(req.meta?.requestId)) {
@@ -164,7 +172,7 @@ async function completeOpenCommand(params: {
     sessionName,
     device,
     surface,
-    appBundleId,
+    appBundleId: sessionAppBundleId,
     appName,
     saveScript: Boolean(req.flags?.saveScript),
   });
@@ -174,7 +182,7 @@ async function completeOpenCommand(params: {
   const openResult = buildOpenResult({
     sessionName,
     appName,
-    appBundleId,
+    appBundleId: sessionAppBundleId,
     surface,
     startup: startupSample,
     device,
