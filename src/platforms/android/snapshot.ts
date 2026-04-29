@@ -1,6 +1,5 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { runCmd } from '../../utils/exec.ts';
 import { withRetry } from '../../utils/retry.ts';
 import { AppError, normalizeError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
@@ -21,8 +20,7 @@ import {
   type AndroidSnapshotAnalysis,
   type AndroidUiHierarchy,
 } from './ui-hierarchy.ts';
-import { adbArgs } from './adb.ts';
-import { createDeviceAdbExecutor } from './adb-executor.ts';
+import { resolveAndroidAdbExecutor } from './adb-executor.ts';
 import { deriveAndroidScrollableContentHints } from './scroll-hints.ts';
 import {
   captureAndroidSnapshotWithHelper,
@@ -58,11 +56,12 @@ export async function snapshotAndroid(
   analysis: AndroidSnapshotAnalysis;
   androidSnapshot: AndroidSnapshotBackendMetadata;
 }> {
-  const capture = await captureAndroidUiHierarchy(device, options);
+  const adb = resolveAndroidAdbExecutor(device, options.helperAdb);
+  const capture = await captureAndroidUiHierarchy(device, options, adb);
   const xml = capture.xml;
   if (!options.interactiveOnly) {
     const parsed = parseUiHierarchy(xml, ANDROID_SNAPSHOT_MAX_NODES, options);
-    const nativeHints = await deriveScrollableContentHintsIfNeeded(device, parsed.nodes);
+    const nativeHints = await deriveScrollableContentHintsIfNeeded(device, parsed.nodes, adb);
     applyHiddenContentHintsToNodes(nativeHints, parsed.nodes);
     return { ...parsed, androidSnapshot: capture.metadata };
   }
@@ -73,7 +72,7 @@ export async function snapshotAndroid(
     interactiveOnly: false,
   });
   const interactiveSnapshot = buildUiHierarchySnapshot(tree, ANDROID_SNAPSHOT_MAX_NODES, options);
-  const nativeHints = await deriveScrollableContentHintsIfNeeded(device, fullSnapshot.nodes);
+  const nativeHints = await deriveScrollableContentHintsIfNeeded(device, fullSnapshot.nodes, adb);
   applyHiddenContentHintsToInteractiveNodes(nativeHints, fullSnapshot, interactiveSnapshot);
   if (nativeHints.size === 0) {
     const presentationHints = deriveMobileSnapshotHiddenContentHints(
@@ -88,12 +87,12 @@ export async function snapshotAndroid(
 async function captureAndroidUiHierarchy(
   device: DeviceInfo,
   options: AndroidSnapshotOptions,
+  adb: AndroidAdbExecutor,
 ): Promise<{ xml: string; metadata: AndroidSnapshotBackendMetadata }> {
   const helper = await resolveAndroidSnapshotHelperArtifact(options.helperArtifact);
   if (helper.artifact) {
     const helperDeviceKey = getAndroidSnapshotHelperDeviceKey(device);
     try {
-      const adb = options.helperAdb ?? createDeviceAdbExecutor(device);
       const install = await ensureAndroidSnapshotHelper({
         adb,
         artifact: helper.artifact,
@@ -134,11 +133,11 @@ async function captureAndroidUiHierarchy(
         packageName: helper.artifact.manifest.packageName,
         versionCode: helper.artifact.manifest.versionCode,
       });
-      return await captureStockUiHierarchy(device, normalizeError(error).message);
+      return await captureStockUiHierarchy(device, normalizeError(error).message, adb);
     }
   }
 
-  return await captureStockUiHierarchy(device, helper.fallbackReason);
+  return await captureStockUiHierarchy(device, helper.fallbackReason, adb);
 }
 
 async function resolveAndroidSnapshotHelperArtifact(
@@ -179,9 +178,10 @@ async function resolveAndroidSnapshotHelperArtifact(
 async function captureStockUiHierarchy(
   device: DeviceInfo,
   fallbackReason?: string,
+  adb?: AndroidAdbExecutor,
 ): Promise<{ xml: string; metadata: AndroidSnapshotBackendMetadata }> {
   return {
-    xml: await dumpUiHierarchy(device),
+    xml: await dumpUiHierarchy(device, adb),
     metadata: {
       backend: 'uiautomator-dump',
       ...(fallbackReason ? { fallbackReason } : {}),
@@ -198,20 +198,24 @@ function getAndroidSnapshotHelperDeviceKey(device: DeviceInfo): string {
 async function deriveScrollableContentHintsIfNeeded(
   device: DeviceInfo,
   nodes: RawSnapshotNode[],
+  adb?: AndroidAdbExecutor,
 ): Promise<Map<number, HiddenContentHint>> {
   if (!nodes.some((node) => isScrollableType(node.type))) {
     return new Map();
   }
-  const activityTopDump = await dumpActivityTop(device);
+  const activityTopDump = await dumpActivityTop(device, adb);
   if (!activityTopDump) {
     return new Map();
   }
   return deriveAndroidScrollableContentHints(nodes, activityTopDump);
 }
 
-export async function dumpUiHierarchy(device: DeviceInfo): Promise<string> {
+export async function dumpUiHierarchy(
+  device: DeviceInfo,
+  adb = resolveAndroidAdbExecutor(device),
+): Promise<string> {
   try {
-    return await withRetry(() => dumpUiHierarchyOnce(device), {
+    return await withRetry(() => dumpUiHierarchyOnce(adb), {
       shouldRetry: isRetryableAdbError,
     });
   } catch (error) {
@@ -232,27 +236,25 @@ export async function dumpUiHierarchy(device: DeviceInfo): Promise<string> {
   }
 }
 
-async function dumpUiHierarchyOnce(device: DeviceInfo): Promise<string> {
+async function dumpUiHierarchyOnce(adb: AndroidAdbExecutor): Promise<string> {
   // Preferred: stream XML directly to stdout, avoiding file I/O race conditions.
-  const streamed = await runCmd(
-    'adb',
-    adbArgs(device, ['exec-out', 'uiautomator', 'dump', '/dev/tty']),
-    { allowFailure: true, timeoutMs: UI_HIERARCHY_DUMP_TIMEOUT_MS },
-  );
+  const streamed = await adb(['exec-out', 'uiautomator', 'dump', '/dev/tty'], {
+    allowFailure: true,
+    timeoutMs: UI_HIERARCHY_DUMP_TIMEOUT_MS,
+  });
   const fromStream = extractUiDumpXml(streamed.stdout, streamed.stderr);
   if (fromStream) return fromStream;
 
   // Fallback: dump to file and read back.
   // If `cat` fails with "no such file", the outer withRetry (via isRetryableAdbError) handles it.
   const dumpPath = '/sdcard/window_dump.xml';
-  const dumpResult = await runCmd(
-    'adb',
-    adbArgs(device, ['shell', 'uiautomator', 'dump', dumpPath]),
-    { allowFailure: true, timeoutMs: UI_HIERARCHY_DUMP_TIMEOUT_MS },
-  );
+  const dumpResult = await adb(['shell', 'uiautomator', 'dump', dumpPath], {
+    allowFailure: true,
+    timeoutMs: UI_HIERARCHY_DUMP_TIMEOUT_MS,
+  });
   const actualPath = resolveDumpPath(dumpPath, dumpResult.stdout, dumpResult.stderr);
 
-  const result = await runCmd('adb', adbArgs(device, ['shell', 'cat', actualPath]));
+  const result = await adb(['shell', 'cat', actualPath]);
   const xml = extractUiDumpXml(result.stdout, result.stderr);
   if (!xml) {
     throw new AppError('COMMAND_FAILED', 'uiautomator dump did not return XML', {
@@ -310,9 +312,12 @@ function isUiHierarchyDumpTimeout(err: unknown): err is AppError {
   return cmd === 'adb' && args.includes('uiautomator') && args.includes('dump');
 }
 
-async function dumpActivityTop(device: DeviceInfo): Promise<string | null> {
+async function dumpActivityTop(
+  device: DeviceInfo,
+  adb = resolveAndroidAdbExecutor(device),
+): Promise<string | null> {
   try {
-    const result = await runCmd('adb', adbArgs(device, ['shell', 'dumpsys', 'activity', 'top']), {
+    const result = await adb(['shell', 'dumpsys', 'activity', 'top'], {
       allowFailure: true,
       timeoutMs: 8_000,
     });

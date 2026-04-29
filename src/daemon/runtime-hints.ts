@@ -6,7 +6,7 @@ import {
   resolveRuntimeTransportHints,
   type ResolvedRuntimeTransport,
 } from '../utils/runtime-transport.ts';
-import { adbArgs } from '../platforms/android/adb.ts';
+import { runAndroidAdb } from '../platforms/android/adb.ts';
 import {
   classifyAndroidAppTarget,
   formatAndroidInstalledPackageRequiredMessage,
@@ -100,9 +100,9 @@ async function clearAndroidRuntimeHints(device: DeviceInfo, packageName: string)
 }
 
 async function readAndroidDevPrefs(device: DeviceInfo, packageName: string): Promise<string> {
-  const result = await runCmd(
-    'adb',
-    adbArgs(device, ['shell', 'run-as', packageName, 'cat', ANDROID_DEV_PREFS_PATH]),
+  const result = await runAndroidAdb(
+    device,
+    ['shell', 'run-as', packageName, 'cat', ANDROID_DEV_PREFS_PATH],
     { allowFailure: true },
   );
   if (result.exitCode !== 0) return DEFAULT_ANDROID_PREFS_XML;
@@ -114,8 +114,8 @@ async function writeAndroidDevPrefs(
   packageName: string,
   xml: string,
 ): Promise<void> {
-  const probeArgs = adbArgs(device, ['shell', 'run-as', packageName, 'id']);
-  const probeResult = await runCmd('adb', probeArgs, { allowFailure: true });
+  const probeArgs = ['shell', 'run-as', packageName, 'id'];
+  const probeResult = await runAndroidAdb(device, probeArgs, { allowFailure: true });
   if (probeResult.exitCode !== 0) {
     const runAsDenied = isAndroidRunAsDeniedOutput(probeResult.stdout, probeResult.stderr);
     throw new AppError(
@@ -136,15 +136,10 @@ async function writeAndroidDevPrefs(
   }
 
   try {
-    await runCmd(
-      'adb',
-      adbArgs(device, ['shell', 'run-as', packageName, 'mkdir', '-p', 'shared_prefs']),
-    );
-    await runCmd(
-      'adb',
-      adbArgs(device, ['shell', 'run-as', packageName, 'tee', ANDROID_DEV_PREFS_PATH]),
-      { stdin: xml.trimEnd() },
-    );
+    await runAndroidAdb(device, ['shell', 'run-as', packageName, 'mkdir', '-p', 'shared_prefs']);
+    await runAndroidAdb(device, ['shell', 'run-as', packageName, 'tee', ANDROID_DEV_PREFS_PATH], {
+      stdin: xml.trimEnd(),
+    });
   } catch (error) {
     const appErr = asAppError(error);
     if (appErr.code === 'TOOL_MISSING') throw appErr;

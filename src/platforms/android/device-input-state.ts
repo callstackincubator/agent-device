@@ -1,7 +1,7 @@
-import { runCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { adbArgs, isClipboardShellUnsupported, sleep } from './adb.ts';
+import { isClipboardShellUnsupported, sleep } from './adb.ts';
+import { resolveAndroidAdbExecutor, type AndroidAdbExecutor } from './adb-executor.ts';
 
 const ANDROID_INPUT_TYPE_CLASS_MASK = 0x0000000f;
 const ANDROID_INPUT_TYPE_CLASS_TEXT = 0x00000001;
@@ -34,7 +34,13 @@ export type AndroidKeyboardState = {
 };
 
 export async function getAndroidKeyboardState(device: DeviceInfo): Promise<AndroidKeyboardState> {
-  const result = await runCmd('adb', adbArgs(device, ['shell', 'dumpsys', 'input_method']), {
+  return await getAndroidKeyboardStatusWithAdb(resolveAndroidAdbExecutor(device));
+}
+
+export async function getAndroidKeyboardStatusWithAdb(
+  adb: AndroidAdbExecutor,
+): Promise<AndroidKeyboardState> {
+  const result = await adb(['shell', 'dumpsys', 'input_method'], {
     allowFailure: true,
   });
   if (result.exitCode !== 0) {
@@ -55,15 +61,26 @@ export async function dismissAndroidKeyboard(device: DeviceInfo): Promise<{
   inputType?: string;
   type?: AndroidKeyboardType;
 }> {
-  const initialState = await getAndroidKeyboardState(device);
+  return await dismissAndroidKeyboardWithAdb(resolveAndroidAdbExecutor(device));
+}
+
+export async function dismissAndroidKeyboardWithAdb(adb: AndroidAdbExecutor): Promise<{
+  attempts: number;
+  wasVisible: boolean;
+  dismissed: boolean;
+  visible: boolean;
+  inputType?: string;
+  type?: AndroidKeyboardType;
+}> {
+  const initialState = await getAndroidKeyboardStatusWithAdb(adb);
   let state = initialState;
   let attempts = 0;
 
   while (state.visible && attempts < ANDROID_KEYBOARD_DISMISS_MAX_ATTEMPTS) {
-    await runCmd('adb', adbArgs(device, ['shell', 'input', 'keyevent', ANDROID_KEYCODE_ESCAPE]));
+    await adb(['shell', 'input', 'keyevent', ANDROID_KEYCODE_ESCAPE]);
     attempts += 1;
     await sleep(ANDROID_KEYBOARD_DISMISS_RETRY_DELAY_MS);
-    state = await getAndroidKeyboardState(device);
+    state = await getAndroidKeyboardStatusWithAdb(adb);
   }
 
   if (initialState.visible && state.visible) {
@@ -156,8 +173,12 @@ function classifyAndroidKeyboardType(inputType: string): AndroidKeyboardType {
 }
 
 export async function readAndroidClipboardText(device: DeviceInfo): Promise<string> {
+  return await readAndroidClipboardWithAdb(resolveAndroidAdbExecutor(device));
+}
+
+export async function readAndroidClipboardWithAdb(adb: AndroidAdbExecutor): Promise<string> {
   const stdout = await runAndroidClipboardShellCommand(
-    device,
+    adb,
     ['shell', 'cmd', 'clipboard', 'get', 'text'],
     'read',
   );
@@ -165,19 +186,26 @@ export async function readAndroidClipboardText(device: DeviceInfo): Promise<stri
 }
 
 export async function writeAndroidClipboardText(device: DeviceInfo, text: string): Promise<void> {
+  await writeAndroidClipboardWithAdb(resolveAndroidAdbExecutor(device), text);
+}
+
+export async function writeAndroidClipboardWithAdb(
+  adb: AndroidAdbExecutor,
+  text: string,
+): Promise<void> {
   await runAndroidClipboardShellCommand(
-    device,
+    adb,
     ['shell', 'cmd', 'clipboard', 'set', 'text', text],
     'write',
   );
 }
 
 async function runAndroidClipboardShellCommand(
-  device: DeviceInfo,
+  adb: AndroidAdbExecutor,
   args: string[],
   operation: 'read' | 'write',
 ): Promise<string> {
-  const result = await runCmd('adb', adbArgs(device, args), { allowFailure: true });
+  const result = await adb(args, { allowFailure: true });
   if (isClipboardShellUnsupported(result.stdout, result.stderr)) {
     throw new AppError(
       'UNSUPPORTED_OPERATION',

@@ -1,6 +1,5 @@
 import { openAndroidApp, snapshotAndroid, getAndroidAppState } from '../platforms/android/index.ts';
-import { adbArgs } from '../platforms/android/adb.ts';
-import { runCmd } from '../utils/exec.ts';
+import { runAndroidAdb } from '../platforms/android/adb.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
 import { centerOfRect, attachRefs, type SnapshotNode } from '../utils/snapshot.ts';
 import { sleep } from '../utils/timeouts.ts';
@@ -31,15 +30,9 @@ export async function recoverAndroidBlockingSystemDialog(params: {
     }
 
     const { x, y } = centerOfRect(closeAppButton.rect);
-    const tapResult = await runCmd(
-      'adb',
-      adbArgs(session.device, [
-        'shell',
-        'input',
-        'tap',
-        String(Math.round(x)),
-        String(Math.round(y)),
-      ]),
+    const tapResult = await runAndroidAdb(
+      session.device,
+      ['shell', 'input', 'tap', String(Math.round(x)), String(Math.round(y))],
       { allowFailure: true },
     );
     if (tapResult.exitCode !== 0) {

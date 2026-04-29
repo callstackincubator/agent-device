@@ -1,8 +1,7 @@
 import { promises as fs } from 'node:fs';
-import { runCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { adbArgs, sleep } from './adb.ts';
+import { runAndroidAdb, sleep } from './adb.ts';
 
 // PNG file signature: 0x89 P N G \r \n 0x1A \n
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -24,8 +23,7 @@ export async function screenshotAndroid(device: DeviceInfo, outPath: string): Pr
  * for consistent screenshots.
  */
 async function enableAndroidDemoMode(device: DeviceInfo): Promise<void> {
-  const shell = (cmd: string) =>
-    runCmd('adb', adbArgs(device, ['shell', cmd]), { allowFailure: true });
+  const shell = (cmd: string) => runAndroidAdb(device, ['shell', cmd], { allowFailure: true });
 
   await shell('settings put global sysui_demo_allowed 1');
 
@@ -38,9 +36,9 @@ async function enableAndroidDemoMode(device: DeviceInfo): Promise<void> {
 
 /** Disable demo mode and restore the live status bar. */
 async function disableAndroidDemoMode(device: DeviceInfo): Promise<void> {
-  await runCmd(
-    'adb',
-    adbArgs(device, ['shell', 'am broadcast -a com.android.systemui.demo -e command exit']),
+  await runAndroidAdb(
+    device,
+    ['shell', 'am broadcast -a com.android.systemui.demo -e command exit'],
     {
       allowFailure: true,
     },
@@ -48,7 +46,7 @@ async function disableAndroidDemoMode(device: DeviceInfo): Promise<void> {
 }
 
 async function captureAndroidScreenshot(device: DeviceInfo, outPath: string): Promise<void> {
-  const result = await runCmd('adb', adbArgs(device, ['exec-out', 'screencap', '-p']), {
+  const result = await runAndroidAdb(device, ['exec-out', 'screencap', '-p'], {
     binaryStdout: true,
   });
   if (!result.stdoutBuffer) {

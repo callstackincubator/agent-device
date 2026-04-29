@@ -1,7 +1,15 @@
 import fs from 'node:fs';
-import { spawnAndroidAdbBySerial } from '../platforms/android/adb-executor.ts';
+import {
+  resolveAndroidAdbExecutor,
+  resolveAndroidAdbProvider,
+  type AndroidAdbProcess,
+} from '../platforms/android/adb-executor.ts';
+import { androidDeviceForSerial } from '../platforms/android/adb.ts';
+import {
+  captureAndroidLogcatWithAdb,
+  streamAndroidLogcatWithAdb,
+} from '../platforms/android/logcat.ts';
 import { AppError } from '../utils/errors.ts';
-import { runCmd } from '../utils/exec.ts';
 import {
   clearPidFile,
   readStoredAppLogProcessMeta,
@@ -22,9 +30,10 @@ export async function resolveAndroidPid(
   deviceId: string,
   appBundleId: string,
 ): Promise<string | null> {
-  const pidResult = await runCmd('adb', ['-s', deviceId, 'shell', 'pidof', appBundleId], {
-    allowFailure: true,
-  });
+  const pidResult = await resolveAndroidAdbExecutor(androidDeviceForSerial(deviceId))(
+    ['shell', 'pidof', appBundleId],
+    { allowFailure: true },
+  );
   const pid = pidResult.stdout.trim().split(/\s+/)[0];
   if (!pid || !/^\d+$/.test(pid)) return null;
   return pid;
@@ -43,18 +52,18 @@ export async function readRecentAndroidLogcatForPackage(
 ): Promise<{ pid: string | null; text: string; recoveredPids: string[] } | null> {
   assertAndroidPackageArgSafe(appBundleId);
   const pid = await resolveAndroidPid(deviceId, appBundleId);
-  const dump = await runCmd('adb', ['-s', deviceId, 'logcat', '-d', '-v', 'time', '-t', '4000'], {
-    allowFailure: true,
-    timeoutMs: 3_000,
-  });
-  if (dump.exitCode !== 0 || dump.stdout.trim().length === 0) {
+  const adb = resolveAndroidAdbExecutor(androidDeviceForSerial(deviceId));
+  const text = await captureAndroidLogcatWithAdb(adb, { lines: 4000, timeoutMs: 3_000 }).catch(
+    () => '',
+  );
+  if (text.trim().length === 0) {
     return null;
   }
-  const recoveredPids = collectAndroidPackagePids(dump.stdout, appBundleId, pid);
+  const recoveredPids = collectAndroidPackagePids(text, appBundleId, pid);
   if (recoveredPids.length === 0) {
     return null;
   }
-  const filteredText = filterAndroidLogcatToPids(dump.stdout, appBundleId, recoveredPids);
+  const filteredText = filterAndroidLogcatToPids(text, appBundleId, recoveredPids);
   if (filteredText.trim().length === 0) {
     return null;
   }
@@ -70,7 +79,7 @@ export async function startAndroidAppLog(
 ): Promise<AppLogResult> {
   let state: AppLogState = 'recovering';
   let stopped = false;
-  let activeChild: ReturnType<typeof spawnAndroidAdbBySerial> | undefined;
+  let activeChild: AndroidAdbProcess | undefined;
   let activeWait: ReturnType<typeof attachChildToStream> | undefined;
 
   const wait = (async () => {
@@ -82,16 +91,15 @@ export async function startAndroidAppLog(
           await sleep(1_000);
           continue;
         }
-        const child = spawnAndroidAdbBySerial(deviceId, ['logcat', '-v', 'time', '--pid', pid], {
-          stdio: ['ignore', 'pipe', 'pipe'],
-        });
+        const provider = resolveAndroidAdbProvider(androidDeviceForSerial(deviceId));
+        const child = streamAndroidLogcatWithAdb(provider, { pid });
         activeChild = child;
         const writer = createLineWriter(stream, { redactionPatterns });
         activeWait = attachChildToStream(child, stream, { endStreamOnClose: false, writer });
         if (typeof child.pid === 'number') {
           writePidFile(pidPath, child.pid);
-          state = 'active';
         }
+        state = 'active';
         await activeWait;
         clearPidFile(pidPath);
         activeChild = undefined;

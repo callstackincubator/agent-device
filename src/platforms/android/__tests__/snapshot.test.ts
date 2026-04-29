@@ -25,6 +25,7 @@ import {
   type AndroidAdbExecutor,
   type AndroidSnapshotHelperManifest,
 } from '../snapshot-helper.ts';
+import { withAndroidAdbProvider, type AndroidAdbProvider } from '../adb-executor.ts';
 
 const VALID_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+b9xkAAAAASUVORK5CYII=',
@@ -263,8 +264,55 @@ test('snapshotAndroid uses injected helper artifact before stock uiautomator', a
   assert.equal(mockRunCmd.mock.calls.length, 0);
 });
 
+test('snapshotAndroid resolves helper adb through scoped provider', async () => {
+  const adbCalls: string[][] = [];
+  const provider: AndroidAdbProvider = {
+    exec: async (args) => {
+      adbCalls.push(args);
+      if (args.includes('--show-versioncode')) {
+        return {
+          exitCode: 0,
+          stdout: 'package:com.callstack.agentdevice.snapshothelper versionCode:13003',
+          stderr: '',
+        };
+      }
+      if (args.includes('instrument')) {
+        return {
+          exitCode: 0,
+          stdout: helperOutput(
+            '<hierarchy><node text="provider-helper" bounds="[0,0][10,10]" /></hierarchy>',
+          ),
+          stderr: '',
+        };
+      }
+      throw new Error(`unexpected scoped helper adb args: ${args.join(' ')}`);
+    },
+  };
+
+  const result = await withAndroidAdbProvider(provider, { serial: device.id }, async () =>
+    snapshotAndroid(device, {
+      helperArtifact: {
+        apkPath: '/tmp/helper.apk',
+        manifest: helperManifest,
+      },
+    }),
+  );
+
+  assert.equal(result.nodes[0]?.label, 'provider-helper');
+  assert.equal(result.androidSnapshot.backend, 'android-helper');
+  assert.deepEqual(
+    adbCalls.map((args) => args[0]),
+    ['shell', 'shell'],
+  );
+  assert.equal(mockRunCmd.mock.calls.length, 0);
+});
+
 test('snapshotAndroid falls back to stock uiautomator when helper fails', async () => {
+  const adbCalls: string[][] = [];
+  const stockXml =
+    '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="stock" bounds="[0,0][10,10]" /></hierarchy>';
   const helperAdb: AndroidAdbExecutor = async (args) => {
+    adbCalls.push(args);
     if (args.includes('--show-versioncode')) {
       return {
         exitCode: 0,
@@ -272,16 +320,11 @@ test('snapshotAndroid falls back to stock uiautomator when helper fails', async 
         stderr: '',
       };
     }
-    return { exitCode: 1, stdout: '', stderr: 'instrumentation failed' };
-  };
-  const stockXml =
-    '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="stock" bounds="[0,0][10,10]" /></hierarchy>';
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
     if (args.includes('exec-out')) {
       return { exitCode: 0, stdout: stockXml, stderr: '' };
     }
-    return { exitCode: 0, stdout: '', stderr: '' };
-  });
+    return { exitCode: 1, stdout: '', stderr: 'instrumentation failed' };
+  };
 
   const result = await snapshotAndroid(device, {
     helperAdb,
@@ -297,6 +340,11 @@ test('snapshotAndroid falls back to stock uiautomator when helper fails', async 
     result.androidSnapshot.fallbackReason ?? '',
     /failed before returning parseable output/,
   );
+  assert.deepEqual(
+    adbCalls.map((args) => args[0]),
+    ['shell', 'shell', 'exec-out'],
+  );
+  assert.equal(mockRunCmd.mock.calls.length, 0);
 });
 
 test('snapshotAndroid re-probes helper install after helper capture failure', async () => {
@@ -322,16 +370,13 @@ test('snapshotAndroid re-probes helper install after helper capture failure', as
         stderr: '',
       };
     }
+    if (args.includes('exec-out')) {
+      return { exitCode: 0, stdout: stockXml, stderr: '' };
+    }
     throw new Error(`unexpected helper adb args: ${args.join(' ')}`);
   };
   const stockXml =
     '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="stock" bounds="[0,0][10,10]" /></hierarchy>';
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    if (args.includes('exec-out')) {
-      return { exitCode: 0, stdout: stockXml, stderr: '' };
-    }
-    return { exitCode: 0, stdout: '', stderr: '' };
-  });
   const helperOptions = {
     helperAdb,
     helperArtifact: {

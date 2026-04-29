@@ -54,12 +54,16 @@ vi.mock('../../platforms/android/index.ts', async (importOriginal) => {
 
 const execCalls: string[][] = [];
 
-vi.mock('../../utils/exec.ts', () => ({
-  runCmd: vi.fn(async (_cmd: string, args: string[]) => {
-    execCalls.push(args);
-    return { stdout: '', stderr: '', exitCode: 0 };
-  }),
-}));
+vi.mock('../../utils/exec.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../utils/exec.ts')>();
+  return {
+    ...actual,
+    runCmd: vi.fn(async (_cmd: string, args: string[]) => {
+      execCalls.push(args);
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }),
+  };
+});
 
 function makeAndroidSession(name: string): SessionState {
   return {
