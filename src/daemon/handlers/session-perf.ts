@@ -11,7 +11,11 @@ import {
   sampleAndroidFramePerf,
   sampleAndroidMemoryPerf,
 } from '../../platforms/android/perf.ts';
-import { buildAppleSamplingMetadata, sampleApplePerfMetrics } from '../../platforms/ios/perf.ts';
+import {
+  buildAppleSamplingMetadata,
+  sampleAppleFramePerf,
+  sampleApplePerfMetrics,
+} from '../../platforms/ios/perf.ts';
 import {
   PERF_STARTUP_SAMPLE_LIMIT,
   PERF_UNAVAILABLE_REASON,
@@ -166,6 +170,10 @@ async function applyApplePerfMetrics(
   const results = await sampleApplePerfResultsForSession(session);
   response.metrics.memory = buildMetricResult(results.memory);
   response.metrics.cpu = buildMetricResult(results.cpu);
+  response.metrics.fps = enrichFrameMetricWithSessionContext(
+    buildMetricResult(results.fps),
+    session,
+  );
 }
 
 function supportsPlatformPerfMetrics(session: SessionState): boolean {
@@ -227,20 +235,25 @@ async function sampleAndroidPerfResults(session: SessionState): Promise<{
 async function sampleApplePerfResultsForSession(session: SessionState): Promise<{
   memory: SettledMetricResult;
   cpu: SettledMetricResult;
+  fps: SettledMetricResult;
 }> {
   const appBundleId = session.appBundleId as string;
-  try {
-    const sample = await sampleApplePerfMetrics(session.device, appBundleId);
+  const [processSample, fps] = await Promise.allSettled([
+    sampleApplePerfMetrics(session.device, appBundleId),
+    sampleAppleFramePerf(session.device, appBundleId),
+  ]);
+  if (processSample.status === 'fulfilled') {
     return {
-      memory: { status: 'fulfilled', value: sample.memory },
-      cpu: { status: 'fulfilled', value: sample.cpu },
-    };
-  } catch (reason) {
-    return {
-      memory: { status: 'rejected', reason },
-      cpu: { status: 'rejected', reason },
+      memory: { status: 'fulfilled', value: processSample.value.memory },
+      cpu: { status: 'fulfilled', value: processSample.value.cpu },
+      fps,
     };
   }
+  return {
+    memory: { status: 'rejected', reason: processSample.reason },
+    cpu: { status: 'rejected', reason: processSample.reason },
+    fps,
+  };
 }
 
 function buildMetricResult(result: SettledMetricResult): MetricResult {

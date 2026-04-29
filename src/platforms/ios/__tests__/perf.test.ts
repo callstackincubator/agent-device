@@ -9,7 +9,8 @@ vi.mock('../../../utils/exec.ts', async (importOriginal) => {
   return { ...actual, runCmd: vi.fn(actual.runCmd) };
 });
 
-import { parseApplePsOutput, sampleApplePerfMetrics } from '../perf.ts';
+import { parseApplePsOutput, sampleAppleFramePerf, sampleApplePerfMetrics } from '../perf.ts';
+import { parseAppleFramePerfSample } from '../perf-frame.ts';
 import { runCmd } from '../../../utils/exec.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 
@@ -64,6 +65,37 @@ test('parseApplePsOutput reads pid cpu rss and command columns', () => {
       cpuPercent: 0,
       rssKb: 2048,
       command: 'Test',
+    },
+  ]);
+});
+
+test('parseAppleFramePerfSample summarizes app hitches and worst windows', () => {
+  const sample = parseAppleFramePerfSample({
+    hitchesXml: makeAppleHitchesXml(),
+    frameLifetimesXml: makeAppleFrameLifetimesXml(4),
+    displayInfoXml: makeAppleDisplayInfoXml(120),
+    processIds: [4001],
+    processNames: ['ExampleDeviceApp'],
+    windowStartedAt: '2026-04-01T10:00:00.000Z',
+    windowEndedAt: '2026-04-01T10:00:02.000Z',
+    measuredAt: '2026-04-01T10:00:02.000Z',
+  });
+
+  assert.equal(sample.droppedFrameCount, 2);
+  assert.equal(sample.totalFrameCount, 4);
+  assert.equal(sample.droppedFramePercent, 50);
+  assert.equal(sample.sampleWindowMs, 2000);
+  assert.equal(sample.refreshRateHz, 120);
+  assert.equal(sample.frameDeadlineMs, 8.3);
+  assert.deepEqual(sample.matchedProcesses, ['ExampleDeviceApp']);
+  assert.deepEqual(sample.worstWindows, [
+    {
+      startOffsetMs: 100,
+      endOffsetMs: 238,
+      startAt: '2026-04-01T10:00:00.100Z',
+      endAt: '2026-04-01T10:00:00.238Z',
+      missedDeadlineFrameCount: 2,
+      worstFrameMs: 37.5,
     },
   ]);
 });
@@ -124,7 +156,7 @@ test('sampleApplePerfMetrics uses simctl spawn ps for iOS simulators', async () 
     [
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<plist version="1.0"><dict>',
-      '<key>CFBundleExecutable</key><string>ExampleSimExec</string>',
+      '<key>CFBundleExecutable</key><string>Example Sim Exec</string>',
       '</dict></plist>',
     ].join(''),
     'utf8',
@@ -137,9 +169,12 @@ test('sampleApplePerfMetrics uses simctl spawn ps for iOS simulators', async () 
     if (cmd === 'plutil') {
       return { stdout: '', stderr: 'mock fallback', exitCode: 1 };
     }
-    if (cmd === 'xcrun' && args.includes('spawn') && args.includes('ps')) {
+    if (cmd === 'xcrun' && args.includes('spawn') && args.includes('/bin/ps')) {
       return {
-        stdout: ['111 12.0 8192 ExampleSimExec', '222 4.0 1024 SpringBoard'].join('\n'),
+        stdout: [
+          `111 12.0 8192 ${path.join(appPath, 'Example Sim Exec')}`,
+          '222 4.0 1024 SpringBoard',
+        ].join('\n'),
         stderr: '',
         exitCode: 0,
       };
@@ -151,7 +186,7 @@ test('sampleApplePerfMetrics uses simctl spawn ps for iOS simulators', async () 
     const metrics = await sampleApplePerfMetrics(IOS_SIMULATOR, 'com.example.sim');
     assert.equal(metrics.cpu.usagePercent, 12);
     assert.equal(metrics.memory.residentMemoryKb, 8192);
-    assert.deepEqual(metrics.cpu.matchedProcesses, ['ExampleSimExec']);
+    assert.deepEqual(metrics.cpu.matchedProcesses, ['Example Sim Exec']);
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
@@ -299,3 +334,179 @@ test('sampleApplePerfMetrics uses xctrace Activity Monitor for iOS devices', asy
   assert.equal(metrics.cpu.measuredAt, '2026-04-01T10:00:02.000Z');
   assert.equal(metrics.memory.measuredAt, '2026-04-01T10:00:02.000Z');
 });
+
+test('sampleAppleFramePerf records Animation Hitches for connected iOS devices', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-04-01T10:00:00.000Z'));
+
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd !== 'xcrun') {
+      throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
+    }
+    if (
+      args[0] === 'devicectl' &&
+      args[1] === 'device' &&
+      args[2] === 'info' &&
+      args[3] === 'apps'
+    ) {
+      const outputIndex = args.indexOf('--json-output');
+      await fs.writeFile(
+        args[outputIndex + 1]!,
+        JSON.stringify({
+          result: {
+            apps: [
+              {
+                bundleIdentifier: 'com.example.device',
+                name: 'Example Device App',
+                url: 'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/',
+              },
+            ],
+          },
+        }),
+        'utf8',
+      );
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    if (
+      args[0] === 'devicectl' &&
+      args[1] === 'device' &&
+      args[2] === 'info' &&
+      args[3] === 'processes'
+    ) {
+      const outputIndex = args.indexOf('--json-output');
+      await fs.writeFile(
+        args[outputIndex + 1]!,
+        JSON.stringify({
+          result: {
+            runningProcesses: [
+              {
+                executable:
+                  'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/ExampleDeviceApp',
+                processIdentifier: 4001,
+              },
+            ],
+          },
+        }),
+        'utf8',
+      );
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    if (args[0] === 'xctrace' && args[1] === 'record') {
+      assert.deepEqual(args.slice(2, 10), [
+        '--template',
+        'Animation Hitches',
+        '--device',
+        'ios-device-1',
+        '--attach',
+        '4001',
+        '--time-limit',
+        '2s',
+      ]);
+      vi.setSystemTime(new Date('2026-04-01T10:00:02.000Z'));
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    if (args[0] === 'xctrace' && args[1] === 'export') {
+      const outputIndex = args.indexOf('--output');
+      const xpath = args[args.indexOf('--xpath') + 1];
+      const outputPath = args[outputIndex + 1]!;
+      if (xpath?.includes('hitches-frame-lifetimes')) {
+        await fs.writeFile(outputPath, makeAppleFrameLifetimesXml(4), 'utf8');
+      } else if (xpath?.includes('device-display-info')) {
+        await fs.writeFile(outputPath, makeAppleDisplayInfoXml(120), 'utf8');
+      } else {
+        await fs.writeFile(outputPath, makeAppleHitchesXml(), 'utf8');
+      }
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    throw new Error(`unexpected xcrun args: ${args.join(' ')}`);
+  });
+
+  const sample = await sampleAppleFramePerf(IOS_DEVICE, 'com.example.device');
+  assert.equal(sample.droppedFramePercent, 50);
+  assert.equal(sample.windowStartedAt, '2026-04-01T10:00:00.000Z');
+  assert.equal(sample.windowEndedAt, '2026-04-01T10:00:02.000Z');
+  assert.equal(sample.method, 'xctrace-animation-hitches');
+});
+
+function makeAppleHitchesXml(): string {
+  return [
+    '<?xml version="1.0"?>',
+    '<trace-query-result><node>',
+    '<schema name="hitches">',
+    '<col><mnemonic>start</mnemonic></col>',
+    '<col><mnemonic>duration</mnemonic></col>',
+    '<col><mnemonic>process</mnemonic></col>',
+    '<col><mnemonic>is-system</mnemonic></col>',
+    '<col><mnemonic>swap-id</mnemonic></col>',
+    '<col><mnemonic>label</mnemonic></col>',
+    '<col><mnemonic>display</mnemonic></col>',
+    '<col><mnemonic>narrative-description</mnemonic></col>',
+    '</schema>',
+    '<row>',
+    '<start-time id="start-1" fmt="00:00.100">100000000</start-time>',
+    '<duration id="duration-1" fmt="16.67 ms">16666583</duration>',
+    '<process id="process-1" fmt="ExampleDeviceApp (4001)"><pid id="pid-1" fmt="4001">4001</pid></process>',
+    '<boolean id="false" fmt="No">0</boolean>',
+    '<uint32>1</uint32><string>0x1</string><display-name>Display 1</display-name><string></string>',
+    '</row>',
+    '<row>',
+    '<start-time fmt="00:00.200">200000000</start-time>',
+    '<duration fmt="37.50 ms">37500000</duration>',
+    '<process ref="process-1"/>',
+    '<boolean ref="false"/>',
+    '<uint32>2</uint32><string>0x2</string><display-name>Display 1</display-name><string></string>',
+    '</row>',
+    '<row>',
+    '<start-time fmt="00:00.200">200000000</start-time>',
+    '<duration ref="duration-1"/>',
+    '<sentinel/>',
+    '<boolean fmt="Yes">1</boolean>',
+    '<uint32>2</uint32><string>0x2</string><display-name>Display 1</display-name><string></string>',
+    '</row>',
+    '<row>',
+    '<start-time fmt="00:00.300">300000000</start-time>',
+    '<duration fmt="16.67 ms">16666583</duration>',
+    '<process fmt="OtherApp (5001)"><pid fmt="5001">5001</pid></process>',
+    '<boolean ref="false"/>',
+    '<uint32>3</uint32><string>0x3</string><display-name>Display 1</display-name><string></string>',
+    '</row>',
+    '</node></trace-query-result>',
+  ].join('');
+}
+
+function makeAppleFrameLifetimesXml(count: number): string {
+  return [
+    '<?xml version="1.0"?>',
+    '<trace-query-result><node>',
+    '<schema name="hitches-frame-lifetimes">',
+    '<col><mnemonic>start</mnemonic></col>',
+    '<col><mnemonic>duration</mnemonic></col>',
+    '</schema>',
+    ...Array.from(
+      { length: count },
+      (_, index) =>
+        `<row><start-time>${index * 16_000_000}</start-time><duration>16000000</duration></row>`,
+    ),
+    '</node></trace-query-result>',
+  ].join('');
+}
+
+function makeAppleDisplayInfoXml(refreshRateHz: number): string {
+  return [
+    '<?xml version="1.0"?>',
+    '<trace-query-result><node>',
+    '<schema name="device-display-info">',
+    '<col><mnemonic>timestamp</mnemonic></col>',
+    '<col><mnemonic>accelerator-id</mnemonic></col>',
+    '<col><mnemonic>display-id</mnemonic></col>',
+    '<col><mnemonic>device-name</mnemonic></col>',
+    '<col><mnemonic>framebuffer-index</mnemonic></col>',
+    '<col><mnemonic>resolution</mnemonic></col>',
+    '<col><mnemonic>built-in</mnemonic></col>',
+    '<col><mnemonic>max-refresh-rate</mnemonic></col>',
+    '<col><mnemonic>is-main-display</mnemonic></col>',
+    '</schema>',
+    `<row><event-time>0</event-time><uint64>1</uint64><uint64>1</uint64><string>Display</string><uint32>0</uint32><string>390 844</string><boolean>1</boolean><uint32>${refreshRateHz}</uint32><boolean>1</boolean></row>`,
+    '</node></trace-query-result>',
+  ].join('');
+}
