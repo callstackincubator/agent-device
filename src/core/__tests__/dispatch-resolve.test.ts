@@ -18,6 +18,7 @@ vi.mock('../../platforms/ios/devices.ts', async (importOriginal) => {
 import {
   resolveIosDevice,
   resolveTargetDevice,
+  withDeviceInventoryProvider,
   withResolveTargetDeviceCacheScope,
 } from '../dispatch-resolve.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
@@ -172,4 +173,29 @@ test('resolveTargetDevice reuses cache across nested request scopes', async () =
   });
 
   assert.equal(mockListAppleDevices.mock.calls.length, 1);
+});
+
+test('resolveTargetDevice uses injected device inventory without local discovery', async () => {
+  const result = await withDeviceInventoryProvider(
+    async (request) => {
+      assert.equal(request.platform, 'ios');
+      assert.equal(request.deviceName, 'Remote iPhone');
+      return [{ ...bootedSimulator, id: 'remote-ios-1', name: 'Remote iPhone' }];
+    },
+    async () => await resolveTargetDevice({ platform: 'ios', device: 'Remote iPhone' }),
+  );
+
+  assert.equal(result.id, 'remote-ios-1');
+  assert.equal(mockListAppleDevices.mock.calls.length, 0);
+});
+
+test('resolveTargetDevice treats empty injected inventory as authoritative', async () => {
+  const err = await withDeviceInventoryProvider(
+    async () => [],
+    async () => await resolveTargetDevice({ platform: 'ios' }),
+  ).catch((error) => error);
+
+  assert.ok(err instanceof AppError);
+  assert.equal(err.code, 'DEVICE_NOT_FOUND');
+  assert.equal(mockListAppleDevices.mock.calls.length, 0);
 });

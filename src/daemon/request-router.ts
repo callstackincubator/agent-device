@@ -1,15 +1,14 @@
 import path from 'node:path';
-import type { CommandFlags } from '../core/dispatch.ts';
 import {
   withAndroidAdbProvider,
   type AndroidAdbExecutor,
   type AndroidAdbProvider,
 } from '../platforms/android/adb-executor.ts';
+import { dispatchCommand, resolveTargetDevice, type CommandFlags } from '../core/dispatch.ts';
 import {
-  dispatchCommand,
-  resolveTargetDevice,
-  withResolveTargetDeviceCacheScope,
-} from '../core/dispatch.ts';
+  type DeviceInventoryProvider,
+  withTargetDeviceResolutionScope,
+} from '../core/dispatch-resolve.ts';
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
 import { AppError, normalizeError, toAppErrorCode } from '../utils/errors.ts';
 import type { DeviceInfo } from '../utils/device.ts';
@@ -86,7 +85,7 @@ const leaseAdmissionExemptCommands = new Set([
 const sessionExecutionExemptCommands = new Set(leaseAdmissionExemptCommands);
 const sessionExecutionLocks = new Map<string, Promise<unknown>>();
 
-type AndroidAdbProviderResolver = (params: {
+export type AndroidAdbProviderResolver = (params: {
   req: DaemonRequest;
   device: DeviceInfo;
   session?: SessionState;
@@ -603,6 +602,7 @@ export type RequestRouterDeps = {
   sessionStore: SessionStore;
   leaseRegistry: LeaseRegistry;
   androidAdbProvider?: AndroidAdbProviderResolver;
+  deviceInventoryProvider?: DeviceInventoryProvider;
   trackDownloadableArtifact: (opts: {
     artifactPath: string;
     tenantId?: string;
@@ -619,6 +619,7 @@ export function createRequestHandler(
     sessionStore,
     leaseRegistry,
     androidAdbProvider,
+    deviceInventoryProvider,
     trackDownloadableArtifact,
   } = deps;
 
@@ -639,7 +640,7 @@ export function createRequestHandler(
         }
 
         try {
-          return await withResolveTargetDeviceCacheScope(async () => {
+          return await withTargetDeviceResolutionScope(deviceInventoryProvider, async () => {
             const scopedReq = scopeRequestSession(req);
             emitDiagnostic({
               level: 'info',

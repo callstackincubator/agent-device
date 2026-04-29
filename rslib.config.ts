@@ -26,6 +26,7 @@ export default defineConfig({
           'android-apps': 'src/android-apps.ts',
           'android-adb': 'src/android-adb.ts',
           'android-snapshot-helper': 'src/android-snapshot-helper.ts',
+          'daemon-embedding': 'src/daemon-embedding.ts',
           contracts: 'src/contracts.ts',
           selectors: 'src/selectors.ts',
           finders: 'src/finders.ts',

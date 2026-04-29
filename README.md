@@ -94,6 +94,8 @@ Snapshots assign refs like `@e1`, `@e2`, and `@e3` to current-screen elements. R
 
 `agent-device` runs session-aware commands through platform backends: XCTest for iOS and tvOS, ADB plus the Android snapshot helper for Android, a local helper for macOS desktop automation, and AT-SPI for Linux desktop targets. See [Introduction](https://incubator.callstack.com/agent-device/docs/introduction) and [Commands](https://incubator.callstack.com/agent-device/docs/commands) for platform details.
 
+Node consumers can use the typed client and public subpaths for bridge integrations. `agent-device/android-adb` exposes the Android ADB provider contract and reusable helpers for ADB-backed app listing and foreground state. `agent-device/daemon` exposes the supported daemon embedding surface for integrations that intentionally reuse the upstream request router.
+
 ## Used By
 
 Used by teams and developers at Callstack, Expensify, Shopify, Kindred, Total Wine & More, LegendList, HerLyfe, App & Flow, and more.
@@ -101,6 +103,7 @@ Used by teams and developers at Callstack, Expensify, Shopify, Kindred, Total Wi
 ## Documentation
 
 - [Installation](https://incubator.callstack.com/agent-device/docs/installation)
+- [Typed Client](https://incubator.callstack.com/agent-device/docs/client-api)
 - [Commands](https://incubator.callstack.com/agent-device/docs/commands)
 - [Replay & E2E](https://incubator.callstack.com/agent-device/docs/replay-e2e)
 - [Known limitations](https://incubator.callstack.com/agent-device/docs/known-limitations)
