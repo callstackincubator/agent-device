@@ -1,6 +1,7 @@
 import { assert, type TestCase } from 'skillgym';
 
 type SessionReport = Parameters<typeof assert.skills.has>[0];
+type AssertionContext = Parameters<TestCase['assert']>[1];
 
 const APP_SOURCE = /(?:^|\/)examples\/test-app\//;
 const REPO_SOURCE = /(?:^|\/)src\//;
@@ -50,6 +51,8 @@ function assertNoProjectSourceReads(report: SessionReport) {
 
 function commandPattern(command: string) {
   // The suite asks agents for one command per line, so command-name assertions stay line anchored.
+  // SkillGym command matchers assert executed shell commands; these patterns validate the final
+  // command plan text instead.
   return new RegExp(
     `(?:^|\\n)(?:agent-device(?:\\s+--[^\\s]+(?:\\s+(?!-)[^\\s]+)?)*\\s+)?${command}(?:\\s|$)`,
     'i',
@@ -64,13 +67,13 @@ function commandAlternativesPattern(commands: string[]) {
   );
 }
 
-function assertOutputs(report: SessionReport, matchers: Array<string | RegExp>) {
-  const output = normalizedFinalOutput(report);
+function assertOutputs(finalOutput: string, matchers: Array<string | RegExp>) {
+  const output = normalizedFinalOutput(finalOutput);
   for (const matcher of matchers) {
     if (typeof matcher === 'string') {
       assert.ok(
         output.includes(matcher),
-        `Expected final output to include ${JSON.stringify(matcher)}. Observed final output: ${report.finalOutput}`,
+        `Expected final output to include ${JSON.stringify(matcher)}. Observed final output: ${finalOutput}`,
       );
       continue;
     }
@@ -79,13 +82,13 @@ function assertOutputs(report: SessionReport, matchers: Array<string | RegExp>) 
   }
 }
 
-function assertNoOutputs(report: SessionReport, matchers: Array<string | RegExp>) {
-  const output = normalizedFinalOutput(report);
+function assertNoOutputs(finalOutput: string, matchers: Array<string | RegExp>) {
+  const output = normalizedFinalOutput(finalOutput);
   for (const matcher of matchers) {
     if (typeof matcher === 'string') {
       assert.ok(
         !output.includes(matcher),
-        `Expected final output not to include ${JSON.stringify(matcher)}. Observed final output: ${report.finalOutput}`,
+        `Expected final output not to include ${JSON.stringify(matcher)}. Observed final output: ${finalOutput}`,
       );
       continue;
     }
@@ -94,21 +97,25 @@ function assertNoOutputs(report: SessionReport, matchers: Array<string | RegExp>
   }
 }
 
-function normalizedFinalOutput(report: SessionReport): string {
-  return report.finalOutput
+function normalizedFinalOutput(output: string): string {
+  return output
     .replace(/```[a-z]*\n?/gi, '')
     .replace(/```/g, '')
     .replace(/`([^`\n]+)`/g, '$1')
     .trim();
 }
 
-function assertExpectedOutput(report: SessionReport, matchers: Array<string | RegExp> = []) {
+function assertExpectedOutput(
+  report: SessionReport,
+  ctx: AssertionContext,
+  matchers: Array<string | RegExp> = [],
+) {
   if (matchers.length === 0) {
     assert.output.notEmpty(report);
     return;
   }
 
-  assertOutputs(report, matchers);
+  assertOutputs(ctx.finalOutput(), matchers);
 }
 
 const RAW_COORDINATE_TARGET =
@@ -122,20 +129,29 @@ function makeCase(options: {
   id: string;
   contract: string[];
   task: string;
+  tags?: string[];
   outputs?: Array<string | RegExp>;
   forbiddenOutputs?: Array<string | RegExp>;
 }): TestCase {
   return {
     id: options.id,
+    tags: options.tags,
     prompt: buildPrompt({ contract: options.contract, task: options.task }),
-    assert(report) {
+    assert(report, ctx) {
       assertAgentDeviceEvidence(report);
       assertNoProjectSourceReads(report);
       assert.fileReads.notIncludes(report, SUITE_FILE);
-      assertExpectedOutput(report, options.outputs);
-      assertNoOutputs(report, options.forbiddenOutputs ?? []);
+      assertExpectedOutput(report, ctx, options.outputs);
+      assertNoOutputs(ctx.finalOutput(), options.forbiddenOutputs ?? []);
     },
   };
+}
+
+function withTags(tags: string[], cases: TestCase[]): TestCase[] {
+  return cases.map((testCase) => ({
+    ...testCase,
+    tags: [...new Set([...(testCase.tags ?? []), ...tags])],
+  }));
 }
 
 const FIXTURE_SMOKE_CASES: TestCase[] = [
@@ -1210,6 +1226,9 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
   }),
 ];
 
-const suite: TestCase[] = [...FIXTURE_SMOKE_CASES, ...SKILL_GUIDANCE_CASES];
+const suite: TestCase[] = [
+  ...withTags(['fixture-smoke'], FIXTURE_SMOKE_CASES),
+  ...withTags(['skill-guidance'], SKILL_GUIDANCE_CASES),
+];
 
 export default suite;

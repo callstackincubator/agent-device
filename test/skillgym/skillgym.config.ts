@@ -14,6 +14,9 @@ const config: SkillGymConfig = {
     outputDir: './.skillgym-results',
     reporter: 'standard',
     schedule: 'isolated-by-runner',
+    // Keep one serial queue per runner, but cap the total active agents so adding
+    // runners later does not unexpectedly saturate the host.
+    maxParallel: 2,
   },
   defaults: {
     timeoutMs: 600_000,

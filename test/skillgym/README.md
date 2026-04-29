@@ -11,6 +11,10 @@ This folder is a starter `skillgym` setup for benchmarking the `agent-device` sk
 3. Optional live-device smoke runs: locally, you can extend prompts so the agent actually drives `agent-device` against a simulator or device.
 
 The included suite focuses on the first two layers so it stays stable and CI-safe.
+The suite uses SkillGym v0.6 case tags:
+
+- `fixture-smoke`: fixture-specific app surface coverage
+- `skill-guidance`: command-planning guidance regressions
 
 ## Included files
 
@@ -46,6 +50,8 @@ Skill-guidance regression cases cover distinct command-planning habits:
 
 The `codex-mini` baseline is a benchmark signal, not a required all-green gate. Its failures should map to command-planning regressions called out by individual case IDs; do not treat the historical pass/fail count as a fixed threshold.
 
+SkillGym v0.6 structured command matchers are for shell commands the agent actually executed. This suite primarily validates the command plan in the final answer, so it keeps line-anchored final-output matchers for planned `agent-device` commands.
+
 ## Suggested workflow
 
 1. Start with the included smoke suite to benchmark routing and default guidance.
@@ -71,6 +77,25 @@ pnpm exec skillgym run \
   ./test/skillgym/suites/agent-device-smoke-suite.ts \
   --config ./test/skillgym/skillgym.config.ts
 ```
+
+Useful v0.6 filters and reporters:
+
+```bash
+pnpm build
+pnpm exec skillgym run \
+  ./test/skillgym/suites/agent-device-smoke-suite.ts \
+  --config ./test/skillgym/skillgym.config.ts \
+  --tag fixture-smoke
+
+pnpm exec skillgym run \
+  ./test/skillgym/suites/agent-device-smoke-suite.ts \
+  --config ./test/skillgym/skillgym.config.ts \
+  --reporter json
+```
+
+Use `--reporter github-actions` in CI when you want annotations in GitHub Actions logs.
+
+The config uses `schedule: isolated-by-runner` with `maxParallel: 2`. That keeps each runner serial while allowing the two configured runners to overlap, and prevents future runner additions from using all available host parallelism by default. Override with `--max-parallel <n>` for local experiments.
 
 Prerequisites:
 
