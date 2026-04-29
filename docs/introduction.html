@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.f4adab48fc.js"></script>
 <script defer src="/agent-device/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/static/js/757.695a0ec7a3.js"></script>
-<script defer src="/agent-device/static/js/index.5ee8268f57.js"></script>
+<script defer src="/agent-device/static/js/index.8666a84e03.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -56,7 +56,7 @@ For agent-oriented operating guidance, start with <code>agent-device help</code>
 </ul>
 </li>
 <li>Android supports the same core interaction set, plus <code>rotate</code>, <code>push</code> notification simulation, <code>clipboard read/write</code>, and <code>keyboard status|get|dismiss</code>.</li>
-<li>iOS <code>keyboard dismiss</code> is best-effort through the XCTest runner and can fail when the app exposes no native dismiss gesture/control.</li>
+<li>iOS <code>keyboard dismiss</code> is best-effort through the XCTest runner, including common native controls such as keyboard toolbar <code>Done</code>, and can fail when the app exposes no native dismiss gesture/control.</li>
 <li>App-event triggers are available on iOS and Android through app-defined deep-link hooks (<code>trigger-app-event</code>), using active session context or explicit device selectors.</li>
 </ul>
 <h2 class="rp-toc-include" id="architecture-high-level"><a href="#architecture-high-level" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Architecture (high level)</h2>
