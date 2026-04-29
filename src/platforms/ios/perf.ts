@@ -77,6 +77,12 @@ type IosDeviceFramePerfCapture = {
   displayInfoXml: string;
 };
 
+type IosDeviceTraceRecord = {
+  startedAt: string;
+  endedAt: string;
+  capturedAtMs: number;
+};
+
 export async function sampleApplePerfMetrics(
   device: DeviceInfo,
   appBundleId: string,
@@ -177,7 +183,7 @@ export function buildAppleSamplingMetadata(device: DeviceInfo): Record<string, u
   const source =
     device.platform === 'macos'
       ? 'host ps for the running macOS app executable resolved from the bundle ID.'
-      : 'xcrun simctl spawn /bin/ps for the running iOS simulator app executable resolved from the bundle ID.';
+      : 'xcrun simctl spawn ps for the running iOS simulator app executable resolved from the bundle ID.';
   return {
     fps,
     memory: {
@@ -198,14 +204,7 @@ async function captureIosDeviceFramePerf(
   appBundleId: string,
   processes: IosDeviceProcessInfo[],
 ): Promise<IosDeviceFramePerfCapture> {
-  const targetProcess = processes[0];
-  if (!targetProcess) {
-    throw new AppError('COMMAND_FAILED', `No running process found for ${appBundleId}`, {
-      appBundleId,
-      deviceId: device.id,
-      hint: 'Run open <app> for this session again to ensure the iOS app is active, then retry perf.',
-    });
-  }
+  const targetProcess = requireIosDeviceTargetProcess(device, appBundleId, processes);
 
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-frame-perf-'));
   const tracePath = path.join(tempDir, 'animation-hitches.trace');
@@ -213,54 +212,24 @@ async function captureIosDeviceFramePerf(
   const frameLifetimesPath = path.join(tempDir, 'frame-lifetimes.xml');
   const displayInfoPath = path.join(tempDir, 'display-info.xml');
   try {
-    const recordArgs = [
-      'xctrace',
-      'record',
-      '--template',
-      'Animation Hitches',
-      '--device',
-      device.id,
-      '--attach',
-      String(targetProcess.pid),
-      '--time-limit',
-      IOS_DEVICE_FRAME_TRACE_DURATION,
-      '--output',
+    const record = await recordIosDeviceTrace({
+      device,
+      appBundleId,
       tracePath,
-      '--quiet',
-      '--no-prompt',
-    ];
-    const windowStartedAt = new Date().toISOString();
-    const recordResult = await runCmd('xcrun', recordArgs, {
-      allowFailure: true,
-      timeoutMs: IOS_DEVICE_PERF_RECORD_TIMEOUT_MS,
+      template: 'Animation Hitches',
+      duration: IOS_DEVICE_FRAME_TRACE_DURATION,
+      targetPid: targetProcess.pid,
+      failureMessage: `Failed to record iOS frame-health sample for ${appBundleId}`,
     });
-    const windowEndedAt = new Date().toISOString();
-    if (recordResult.exitCode !== 0) {
-      throw new AppError(
-        'COMMAND_FAILED',
-        `Failed to record iOS frame-health sample for ${appBundleId}`,
-        {
-          cmd: 'xcrun',
-          args: recordArgs,
-          exitCode: recordResult.exitCode,
-          stdout: recordResult.stdout,
-          stderr: recordResult.stderr,
-          appBundleId,
-          deviceId: device.id,
-          hint: resolveIosDevicePerfHint(recordResult.stdout, recordResult.stderr),
-        },
-      );
-    }
-
-    await exportIosDeviceFramePerfTable(device, appBundleId, tracePath, 'hitches', hitchesPath);
-    await exportIosDeviceFramePerfTable(
+    await exportIosDevicePerfTable(device, appBundleId, tracePath, 'hitches', hitchesPath);
+    await exportIosDevicePerfTable(
       device,
       appBundleId,
       tracePath,
       'hitches-frame-lifetimes',
       frameLifetimesPath,
     );
-    await exportIosDeviceFramePerfTable(
+    await exportIosDevicePerfTable(
       device,
       appBundleId,
       tracePath,
@@ -268,8 +237,8 @@ async function captureIosDeviceFramePerf(
       displayInfoPath,
     );
     return {
-      windowStartedAt,
-      windowEndedAt,
+      windowStartedAt: record.startedAt,
+      windowEndedAt: record.endedAt,
       hitchesXml: await fs.readFile(hitchesPath, 'utf8'),
       frameLifetimesXml: await fs.readFile(frameLifetimesPath, 'utf8'),
       displayInfoXml: await fs.readFile(displayInfoPath, 'utf8'),
@@ -279,7 +248,69 @@ async function captureIosDeviceFramePerf(
   }
 }
 
-async function exportIosDeviceFramePerfTable(
+function requireIosDeviceTargetProcess(
+  device: DeviceInfo,
+  appBundleId: string,
+  processes: IosDeviceProcessInfo[],
+): IosDeviceProcessInfo {
+  const targetProcess = processes[0];
+  if (targetProcess) return targetProcess;
+  throw new AppError('COMMAND_FAILED', `No running process found for ${appBundleId}`, {
+    appBundleId,
+    deviceId: device.id,
+    hint: 'Run open <app> for this session again to ensure the iOS app is active, then retry perf.',
+  });
+}
+
+async function recordIosDeviceTrace(params: {
+  device: DeviceInfo;
+  appBundleId: string;
+  tracePath: string;
+  template: 'Activity Monitor' | 'Animation Hitches';
+  duration: string;
+  targetPid?: number;
+  allProcesses?: boolean;
+  failureMessage: string;
+}): Promise<IosDeviceTraceRecord> {
+  const { device, appBundleId, tracePath, template, duration } = params;
+  const targetArgs = params.allProcesses
+    ? ['--all-processes']
+    : ['--attach', String(params.targetPid)];
+  const recordArgs = [
+    'xctrace',
+    'record',
+    '--template',
+    template,
+    '--device',
+    device.id,
+    ...targetArgs,
+    '--time-limit',
+    duration,
+    '--output',
+    tracePath,
+    '--quiet',
+    '--no-prompt',
+  ];
+  const startedAt = new Date().toISOString();
+  const result = await runCmd('xcrun', recordArgs, {
+    allowFailure: true,
+    timeoutMs: IOS_DEVICE_PERF_RECORD_TIMEOUT_MS,
+  });
+  const endedAt = new Date().toISOString();
+  if (result.exitCode === 0) return { startedAt, endedAt, capturedAtMs: Date.now() };
+  throw new AppError('COMMAND_FAILED', params.failureMessage, {
+    cmd: 'xcrun',
+    args: recordArgs,
+    exitCode: result.exitCode,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    appBundleId,
+    deviceId: device.id,
+    hint: resolveIosDevicePerfHint(result.stdout, result.stderr),
+  });
+}
+
+async function exportIosDevicePerfTable(
   device: DeviceInfo,
   appBundleId: string,
   tracePath: string,
@@ -301,7 +332,7 @@ async function exportIosDeviceFramePerfTable(
     timeoutMs: IOS_DEVICE_PERF_EXPORT_TIMEOUT_MS,
   });
   if (exportResult.exitCode === 0) return;
-  throw new AppError('COMMAND_FAILED', `Failed to export iOS frame-health ${schema} data`, {
+  throw new AppError('COMMAND_FAILED', `Failed to export iOS device ${schema} data`, {
     cmd: 'xcrun',
     args: exportArgs,
     exitCode: exportResult.exitCode,
@@ -532,75 +563,24 @@ async function captureIosDevicePerfTable(
   const tracePath = path.join(tempDir, 'sample.trace');
   const exportPath = path.join(tempDir, 'activity-monitor-process-live.xml');
   try {
-    const recordArgs = [
-      'xctrace',
-      'record',
-      '--template',
-      'Activity Monitor',
-      '--device',
-      device.id,
-      '--all-processes',
-      '--time-limit',
-      IOS_DEVICE_PERF_TRACE_DURATION,
-      '--output',
+    const record = await recordIosDeviceTrace({
+      device,
+      appBundleId,
       tracePath,
-      '--quiet',
-      '--no-prompt',
-    ];
-    const recordResult = await runCmd('xcrun', recordArgs, {
-      allowFailure: true,
-      timeoutMs: IOS_DEVICE_PERF_RECORD_TIMEOUT_MS,
+      template: 'Activity Monitor',
+      duration: IOS_DEVICE_PERF_TRACE_DURATION,
+      allProcesses: true,
+      failureMessage: `Failed to record iOS device Activity Monitor sample for ${appBundleId}`,
     });
-    const capturedAtMs = Date.now();
-    if (recordResult.exitCode !== 0) {
-      throw new AppError(
-        'COMMAND_FAILED',
-        `Failed to record iOS device Activity Monitor sample for ${appBundleId}`,
-        {
-          cmd: 'xcrun',
-          args: recordArgs,
-          exitCode: recordResult.exitCode,
-          stdout: recordResult.stdout,
-          stderr: recordResult.stderr,
-          appBundleId,
-          deviceId: device.id,
-          hint: resolveIosDevicePerfHint(recordResult.stdout, recordResult.stderr),
-        },
-      );
-    }
-
-    const exportArgs = [
-      'xctrace',
-      'export',
-      '--input',
+    await exportIosDevicePerfTable(
+      device,
+      appBundleId,
       tracePath,
-      '--xpath',
-      '/trace-toc/run/data/table[@schema="activity-monitor-process-live"]',
-      '--output',
+      'activity-monitor-process-live',
       exportPath,
-    ];
-    const exportResult = await runCmd('xcrun', exportArgs, {
-      allowFailure: true,
-      timeoutMs: IOS_DEVICE_PERF_EXPORT_TIMEOUT_MS,
-    });
-    if (exportResult.exitCode !== 0) {
-      throw new AppError(
-        'COMMAND_FAILED',
-        `Failed to export iOS device perf sample for ${appBundleId}`,
-        {
-          cmd: 'xcrun',
-          args: exportArgs,
-          exitCode: exportResult.exitCode,
-          stdout: exportResult.stdout,
-          stderr: exportResult.stderr,
-          appBundleId,
-          deviceId: device.id,
-          hint: resolveIosDevicePerfHint(exportResult.stdout, exportResult.stderr),
-        },
-      );
-    }
+    );
     return {
-      capturedAtMs,
+      capturedAtMs: record.capturedAtMs,
       xml: await fs.readFile(exportPath, 'utf8'),
     };
   } finally {
@@ -746,7 +726,7 @@ async function readAppleProcessSamples(
       : buildSimctlArgsForDevice(device, [
           'spawn',
           device.id,
-          '/bin/ps',
+          'ps',
           '-axo',
           'pid=,%cpu=,rss=,command=',
         ]);

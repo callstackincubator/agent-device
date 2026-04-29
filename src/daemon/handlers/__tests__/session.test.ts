@@ -2153,7 +2153,7 @@ test('perf samples Apple cpu and memory metrics on iOS simulator app sessions', 
     if (cmd === 'plutil') {
       return { stdout: 'ExampleSimExec\n', stderr: '', exitCode: 0 };
     }
-    if (cmd === 'xcrun' && args.includes('spawn') && args.includes('/bin/ps')) {
+    if (cmd === 'xcrun' && args.includes('spawn') && args.includes('ps')) {
       return {
         stdout: ['111 11.0 6144 ExampleSimExec', '222 2.0 2048 SpringBoard'].join('\n'),
         stderr: '',
@@ -2252,64 +2252,11 @@ test('perf samples Apple cpu and memory metrics on physical iOS devices', async 
       return { stdout: '', stderr: '', exitCode: 0 };
     }
     if (args[0] === 'xctrace' && args[1] === 'record') {
-      if (!args.includes('Animation Hitches')) {
-        vi.setSystemTime(new Date(Date.now() + 1000));
-      }
+      vi.setSystemTime(new Date(Date.now() + 1000));
       return { stdout: '', stderr: '', exitCode: 0 };
     }
     if (args[0] === 'xctrace' && args[1] === 'export') {
       const outputIndex = args.indexOf('--output');
-      const xpath = args[args.indexOf('--xpath') + 1] ?? '';
-      if (xpath.includes('hitches-frame-lifetimes')) {
-        await fs.promises.writeFile(
-          args[outputIndex + 1]!,
-          [
-            '<?xml version="1.0"?>',
-            '<trace-query-result><node>',
-            '<schema name="hitches-frame-lifetimes">',
-            '<col><mnemonic>start</mnemonic></col>',
-            '<col><mnemonic>duration</mnemonic></col>',
-            '</schema>',
-            '<row><start-time>0</start-time><duration>16000000</duration></row>',
-            '<row><start-time>16000000</start-time><duration>16000000</duration></row>',
-            '</node></trace-query-result>',
-          ].join(''),
-        );
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      if (xpath.includes('device-display-info')) {
-        await fs.promises.writeFile(
-          args[outputIndex + 1]!,
-          [
-            '<?xml version="1.0"?>',
-            '<trace-query-result><node>',
-            '<schema name="device-display-info">',
-            '<col><mnemonic>timestamp</mnemonic></col>',
-            '<col><mnemonic>max-refresh-rate</mnemonic></col>',
-            '</schema>',
-            '<row><event-time>0</event-time><uint32>60</uint32></row>',
-            '</node></trace-query-result>',
-          ].join(''),
-        );
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      if (xpath.includes('hitches')) {
-        await fs.promises.writeFile(
-          args[outputIndex + 1]!,
-          [
-            '<?xml version="1.0"?>',
-            '<trace-query-result><node>',
-            '<schema name="hitches">',
-            '<col><mnemonic>start</mnemonic></col>',
-            '<col><mnemonic>duration</mnemonic></col>',
-            '<col><mnemonic>process</mnemonic></col>',
-            '<col><mnemonic>is-system</mnemonic></col>',
-            '</schema>',
-            '</node></trace-query-result>',
-          ].join(''),
-        );
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
       exportCount += 1;
       await fs.promises.writeFile(
         args[outputIndex + 1]!,

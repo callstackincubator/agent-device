@@ -42,6 +42,13 @@ type AppleFrameHitchRow = {
   processName?: string;
 };
 
+type AppleHitchSchemaIndexes = {
+  start: number;
+  duration: number;
+  process: number;
+  isSystem: number;
+};
+
 type XmlReference = {
   numberValue?: number | null;
   textValue?: string | null;
@@ -117,28 +124,37 @@ function parseAppleDisplayRefreshRate(xml: string | undefined): number | undefin
 
 function parseAppleHitchRows(xml: string): AppleFrameHitchRow[] {
   const document = parseXmlDocumentSync(xml);
-  const schema = readSchemaColumns(document, 'hitches');
-  const startIndex = schema.indexOf('start');
-  const durationIndex = schema.indexOf('duration');
-  const processIndex = schema.indexOf('process');
-  const isSystemIndex = schema.indexOf('is-system');
-  if (startIndex < 0 || durationIndex < 0 || processIndex < 0 || isSystemIndex < 0) {
-    return [];
-  }
-
-  const rows: AppleFrameHitchRow[] = [];
+  const indexes = readAppleHitchSchemaIndexes(document);
+  if (!indexes) return [];
   const references = new Map<string, XmlReference>();
-  for (const row of findAllXmlNodes(document, (node) => node.name === 'row')) {
-    rememberXmlReferences(row.children, references);
-    const isSystem = resolveXmlBoolean(row.children[isSystemIndex], references);
-    if (isSystem === true) continue;
-    const startNs = resolveXmlNumber(row.children[startIndex], references);
-    const durationNs = resolveXmlNumber(row.children[durationIndex], references);
-    const process = resolveXmlProcess(row.children[processIndex], references);
-    if (startNs === null || durationNs === null) continue;
-    rows.push({ startNs, durationNs, pid: process?.pid, processName: process?.name });
-  }
-  return rows;
+  return findAllXmlNodes(document, (node) => node.name === 'row')
+    .map((row) => readAppleHitchRow(row, indexes, references))
+    .filter((row): row is AppleFrameHitchRow => Boolean(row));
+}
+
+function readAppleHitchSchemaIndexes(document: XmlNode[]): AppleHitchSchemaIndexes | null {
+  const schema = readSchemaColumns(document, 'hitches');
+  const indexes = {
+    start: schema.indexOf('start'),
+    duration: schema.indexOf('duration'),
+    process: schema.indexOf('process'),
+    isSystem: schema.indexOf('is-system'),
+  };
+  return Object.values(indexes).every((index) => index >= 0) ? indexes : null;
+}
+
+function readAppleHitchRow(
+  row: XmlNode,
+  indexes: AppleHitchSchemaIndexes,
+  references: Map<string, XmlReference>,
+): AppleFrameHitchRow | null {
+  rememberXmlReferences(row.children, references);
+  if (resolveXmlBoolean(row.children[indexes.isSystem], references) === true) return null;
+  const startNs = resolveXmlNumber(row.children[indexes.start], references);
+  const durationNs = resolveXmlNumber(row.children[indexes.duration], references);
+  if (startNs === null || durationNs === null) return null;
+  const process = resolveXmlProcess(row.children[indexes.process], references);
+  return { startNs, durationNs, pid: process?.pid, processName: process?.name };
 }
 
 function matchesAppleFrameProcess(

@@ -238,10 +238,10 @@ async function sampleApplePerfResultsForSession(session: SessionState): Promise<
   fps: SettledMetricResult;
 }> {
   const appBundleId = session.appBundleId as string;
-  const [processSample, fps] = await Promise.allSettled([
+  const [processSample] = await Promise.allSettled([
     sampleApplePerfMetrics(session.device, appBundleId),
-    sampleAppleFramePerf(session.device, appBundleId),
   ]);
+  const [fps] = await Promise.allSettled([sampleAppleFramePerf(session.device, appBundleId)]);
   if (processSample.status === 'fulfilled') {
     return {
       memory: { status: 'fulfilled', value: processSample.value.memory },

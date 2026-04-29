@@ -15,6 +15,8 @@ import { runCmd } from '../../../utils/exec.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 
 const mockRunCmd = vi.mocked(runCmd);
+type MockRunCmdResult = Awaited<ReturnType<typeof runCmd>>;
+type XcrunMockHandler = (args: string[]) => Promise<MockRunCmdResult | null>;
 
 const IOS_SIMULATOR: DeviceInfo = {
   platform: 'ios',
@@ -169,7 +171,7 @@ test('sampleApplePerfMetrics uses simctl spawn ps for iOS simulators', async () 
     if (cmd === 'plutil') {
       return { stdout: '', stderr: 'mock fallback', exitCode: 1 };
     }
-    if (cmd === 'xcrun' && args.includes('spawn') && args.includes('/bin/ps')) {
+    if (cmd === 'xcrun' && args.includes('spawn') && args.includes('ps')) {
       return {
         stdout: [
           `111 12.0 8192 ${path.join(appPath, 'Example Sim Exec')}`,
@@ -196,135 +198,13 @@ test('sampleApplePerfMetrics uses xctrace Activity Monitor for iOS devices', asy
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-04-01T10:00:00.000Z'));
 
-  const firstCaptureXml = [
-    '<?xml version="1.0"?>',
-    '<trace-query-result>',
-    '<node xpath="//trace-toc[1]/run[1]/data[1]/table[7]">',
-    '<schema name="activity-monitor-process-live">',
-    '<col><mnemonic>start</mnemonic></col>',
-    '<col><mnemonic>process</mnemonic></col>',
-    '<col><mnemonic>cpu-total</mnemonic></col>',
-    '<col><mnemonic>memory-real</mnemonic></col>',
-    '<col><mnemonic>pid</mnemonic></col>',
-    '</schema>',
-    '<row>',
-    '<start-time fmt="00:00.123">123</start-time>',
-    '<process fmt="ExampleDeviceApp (4001)"><pid fmt="4001">4001</pid></process>',
-    '<duration-on-core fmt="100.00 ms">100000000</duration-on-core>',
-    '<size-in-bytes fmt="8.00 MiB">8388608</size-in-bytes>',
-    '<pid fmt="4001">4001</pid>',
-    '<process ref="background-process"/>',
-    '</row>',
-    '<row>',
-    '<start-time fmt="00:00.124">124</start-time>',
-    '<process fmt="OtherApp (5001)"><pid fmt="5001">5001</pid></process>',
-    '<duration-on-core fmt="75.00 ms">75000000</duration-on-core>',
-    '<size-in-bytes fmt="4.00 MiB">4194304</size-in-bytes>',
-    '<pid fmt="5001">5001</pid>',
-    '</row>',
-    '</node>',
-    '</trace-query-result>',
-  ].join('');
-  const secondCaptureXml = firstCaptureXml
-    .replace(
-      '<duration-on-core fmt="100.00 ms">100000000</duration-on-core>',
-      '<duration-on-core id="cpu-ref" fmt="350.00 ms">350000000</duration-on-core>',
-    )
-    .replace(
-      '<size-in-bytes fmt="8.00 MiB">8388608</size-in-bytes>',
-      '<size-in-bytes id="mem-ref" fmt="8.00 MiB">8388608</size-in-bytes>',
-    )
-    .replace('<pid fmt="4001">4001</pid>', '<pid id="pid-ref" fmt="4001">4001</pid>')
-    .replace(
-      '<process fmt="ExampleDeviceApp (4001)"><pid fmt="4001">4001</pid></process>',
-      '<process id="proc-ref" fmt="ExampleDeviceApp (4001)"><pid fmt="4001">4001</pid></process>',
-    )
-    .replace(
-      '</row><row><start-time fmt="00:00.124">124</start-time>',
-      [
-        '</row>',
-        '<row>',
-        '<start-time fmt="00:00.123">123</start-time>',
-        '<process ref="proc-ref"/>',
-        '<duration-on-core ref="cpu-ref"/>',
-        '<size-in-bytes ref="mem-ref"/>',
-        '<pid ref="pid-ref"/>',
-        '<process ref="background-process"/>',
-        '</row>',
-        '<row>',
-        '<start-time fmt="00:00.124">124</start-time>',
-      ].join(''),
-    );
-  let exportCount = 0;
-
-  mockRunCmd.mockImplementation(async (cmd, args) => {
-    if (cmd !== 'xcrun') {
-      throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
-    }
-    if (
-      args[0] === 'devicectl' &&
-      args[1] === 'device' &&
-      args[2] === 'info' &&
-      args[3] === 'apps'
-    ) {
-      const outputIndex = args.indexOf('--json-output');
-      await fs.writeFile(
-        args[outputIndex + 1]!,
-        JSON.stringify({
-          result: {
-            apps: [
-              {
-                bundleIdentifier: 'com.example.device',
-                name: 'Example Device App',
-                url: 'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/',
-              },
-            ],
-          },
-        }),
-        'utf8',
-      );
-      return { stdout: '', stderr: '', exitCode: 0 };
-    }
-    if (
-      args[0] === 'devicectl' &&
-      args[1] === 'device' &&
-      args[2] === 'info' &&
-      args[3] === 'processes'
-    ) {
-      const outputIndex = args.indexOf('--json-output');
-      await fs.writeFile(
-        args[outputIndex + 1]!,
-        JSON.stringify({
-          result: {
-            runningProcesses: [
-              {
-                executable:
-                  'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/ExampleDeviceApp',
-                processIdentifier: 4001,
-              },
-            ],
-          },
-        }),
-        'utf8',
-      );
-      return { stdout: '', stderr: '', exitCode: 0 };
-    }
-    if (args[0] === 'xctrace' && args[1] === 'record') {
-      vi.setSystemTime(new Date(Date.now() + 1000));
-      return { stdout: '', stderr: '', exitCode: 0 };
-    }
-    if (args[0] === 'xctrace' && args[1] === 'export') {
-      const outputIndex = args.indexOf('--output');
-      exportCount += 1;
-      await fs.writeFile(
-        args[outputIndex + 1]!,
-        exportCount === 1 ? firstCaptureXml : secondCaptureXml,
-        'utf8',
-      );
-      return { stdout: '', stderr: '', exitCode: 0 };
-    }
-    throw new Error(`unexpected xcrun args: ${args.join(' ')}`);
-  });
+  const captures = makeActivityMonitorCaptureXmls();
+  mockXcrunCommands([
+    mockIosDeviceApps,
+    mockIosDeviceProcesses,
+    mockXctraceRecord(() => vi.setSystemTime(new Date(Date.now() + 1000))),
+    mockSequentialExports(captures),
+  ]);
 
   const metrics = await sampleApplePerfMetrics(IOS_DEVICE, 'com.example.device');
   assert.equal(metrics.cpu.usagePercent, 25);
@@ -339,87 +219,12 @@ test('sampleAppleFramePerf records Animation Hitches for connected iOS devices',
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-04-01T10:00:00.000Z'));
 
-  mockRunCmd.mockImplementation(async (cmd, args) => {
-    if (cmd !== 'xcrun') {
-      throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
-    }
-    if (
-      args[0] === 'devicectl' &&
-      args[1] === 'device' &&
-      args[2] === 'info' &&
-      args[3] === 'apps'
-    ) {
-      const outputIndex = args.indexOf('--json-output');
-      await fs.writeFile(
-        args[outputIndex + 1]!,
-        JSON.stringify({
-          result: {
-            apps: [
-              {
-                bundleIdentifier: 'com.example.device',
-                name: 'Example Device App',
-                url: 'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/',
-              },
-            ],
-          },
-        }),
-        'utf8',
-      );
-      return { stdout: '', stderr: '', exitCode: 0 };
-    }
-    if (
-      args[0] === 'devicectl' &&
-      args[1] === 'device' &&
-      args[2] === 'info' &&
-      args[3] === 'processes'
-    ) {
-      const outputIndex = args.indexOf('--json-output');
-      await fs.writeFile(
-        args[outputIndex + 1]!,
-        JSON.stringify({
-          result: {
-            runningProcesses: [
-              {
-                executable:
-                  'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/ExampleDeviceApp',
-                processIdentifier: 4001,
-              },
-            ],
-          },
-        }),
-        'utf8',
-      );
-      return { stdout: '', stderr: '', exitCode: 0 };
-    }
-    if (args[0] === 'xctrace' && args[1] === 'record') {
-      assert.deepEqual(args.slice(2, 10), [
-        '--template',
-        'Animation Hitches',
-        '--device',
-        'ios-device-1',
-        '--attach',
-        '4001',
-        '--time-limit',
-        '2s',
-      ]);
-      vi.setSystemTime(new Date('2026-04-01T10:00:02.000Z'));
-      return { stdout: '', stderr: '', exitCode: 0 };
-    }
-    if (args[0] === 'xctrace' && args[1] === 'export') {
-      const outputIndex = args.indexOf('--output');
-      const xpath = args[args.indexOf('--xpath') + 1];
-      const outputPath = args[outputIndex + 1]!;
-      if (xpath?.includes('hitches-frame-lifetimes')) {
-        await fs.writeFile(outputPath, makeAppleFrameLifetimesXml(4), 'utf8');
-      } else if (xpath?.includes('device-display-info')) {
-        await fs.writeFile(outputPath, makeAppleDisplayInfoXml(120), 'utf8');
-      } else {
-        await fs.writeFile(outputPath, makeAppleHitchesXml(), 'utf8');
-      }
-      return { stdout: '', stderr: '', exitCode: 0 };
-    }
-    throw new Error(`unexpected xcrun args: ${args.join(' ')}`);
-  });
+  mockXcrunCommands([
+    mockIosDeviceApps,
+    mockIosDeviceProcesses,
+    mockAnimationHitchesRecord,
+    mockFrameTableExports,
+  ]);
 
   const sample = await sampleAppleFramePerf(IOS_DEVICE, 'com.example.device');
   assert.equal(sample.droppedFramePercent, 50);
@@ -427,6 +232,186 @@ test('sampleAppleFramePerf records Animation Hitches for connected iOS devices',
   assert.equal(sample.windowEndedAt, '2026-04-01T10:00:02.000Z');
   assert.equal(sample.method, 'xctrace-animation-hitches');
 });
+
+function mockXcrunCommands(handlers: XcrunMockHandler[]): void {
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd !== 'xcrun') throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
+    for (const handler of handlers) {
+      const result = await handler(args);
+      if (result) return result;
+    }
+    throw new Error(`unexpected xcrun args: ${args.join(' ')}`);
+  });
+}
+
+async function mockIosDeviceApps(args: string[]): Promise<MockRunCmdResult | null> {
+  if (!matchesDevicectlInfo(args, 'apps')) return null;
+  await writeJsonOutput(args, {
+    result: {
+      apps: [
+        {
+          bundleIdentifier: 'com.example.device',
+          name: 'Example Device App',
+          url: 'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/',
+        },
+      ],
+    },
+  });
+  return emptyRunResult();
+}
+
+async function mockIosDeviceProcesses(args: string[]): Promise<MockRunCmdResult | null> {
+  if (!matchesDevicectlInfo(args, 'processes')) return null;
+  await writeJsonOutput(args, {
+    result: {
+      runningProcesses: [
+        {
+          executable:
+            'file:///private/var/containers/Bundle/Application/ABC123/ExampleDevice.app/ExampleDeviceApp',
+          processIdentifier: 4001,
+        },
+      ],
+    },
+  });
+  return emptyRunResult();
+}
+
+function mockXctraceRecord(onRecord: () => void): XcrunMockHandler {
+  return async (args) => {
+    if (args[0] !== 'xctrace' || args[1] !== 'record') return null;
+    onRecord();
+    return emptyRunResult();
+  };
+}
+
+async function mockAnimationHitchesRecord(args: string[]): Promise<MockRunCmdResult | null> {
+  if (args[0] !== 'xctrace' || args[1] !== 'record') return null;
+  assert.deepEqual(args.slice(2, 10), [
+    '--template',
+    'Animation Hitches',
+    '--device',
+    'ios-device-1',
+    '--attach',
+    '4001',
+    '--time-limit',
+    '2s',
+  ]);
+  vi.setSystemTime(new Date('2026-04-01T10:00:02.000Z'));
+  return emptyRunResult();
+}
+
+function mockSequentialExports(xmlPayloads: string[]): XcrunMockHandler {
+  let exportCount = 0;
+  return async (args) => {
+    if (args[0] !== 'xctrace' || args[1] !== 'export') return null;
+    await fs.writeFile(readOutputPath(args), xmlPayloads[exportCount++] ?? '', 'utf8');
+    return emptyRunResult();
+  };
+}
+
+async function mockFrameTableExports(args: string[]): Promise<MockRunCmdResult | null> {
+  if (args[0] !== 'xctrace' || args[1] !== 'export') return null;
+  const xpath = args[args.indexOf('--xpath') + 1] ?? '';
+  await fs.writeFile(readOutputPath(args), readFrameTableXml(xpath), 'utf8');
+  return emptyRunResult();
+}
+
+function readFrameTableXml(xpath: string): string {
+  if (xpath.includes('hitches-frame-lifetimes')) return makeAppleFrameLifetimesXml(4);
+  if (xpath.includes('device-display-info')) return makeAppleDisplayInfoXml(120);
+  return makeAppleHitchesXml();
+}
+
+function matchesDevicectlInfo(args: string[], subject: 'apps' | 'processes'): boolean {
+  return (
+    args[0] === 'devicectl' && args[1] === 'device' && args[2] === 'info' && args[3] === subject
+  );
+}
+
+async function writeJsonOutput(args: string[], data: unknown): Promise<void> {
+  await fs.writeFile(readOutputPath(args, '--json-output'), JSON.stringify(data), 'utf8');
+}
+
+function readOutputPath(args: string[], flag = '--output'): string {
+  return args[args.indexOf(flag) + 1]!;
+}
+
+function emptyRunResult(): MockRunCmdResult {
+  return { stdout: '', stderr: '', exitCode: 0 };
+}
+
+function makeActivityMonitorCaptureXmls(): string[] {
+  const firstCaptureXml = makeActivityMonitorCaptureXml();
+  const secondCaptureXml = firstCaptureXml
+    .replace(
+      '<duration-on-core fmt="100.00 ms">100000000</duration-on-core>',
+      '<duration-on-core id="cpu-ref" fmt="350.00 ms">350000000</duration-on-core>',
+    )
+    .replace(
+      '<size-in-bytes fmt="8.00 MiB">8388608</size-in-bytes>',
+      '<size-in-bytes id="mem-ref" fmt="8.00 MiB">8388608</size-in-bytes>',
+    )
+    .replace('<pid fmt="4001">4001</pid>', '<pid id="pid-ref" fmt="4001">4001</pid>')
+    .replace(
+      '<process fmt="ExampleDeviceApp (4001)"><pid fmt="4001">4001</pid></process>',
+      '<process id="proc-ref" fmt="ExampleDeviceApp (4001)"><pid fmt="4001">4001</pid></process>',
+    )
+    .replace('</row><row><start-time fmt="00:00.124">124</start-time>', makeReferenceRow());
+  return [firstCaptureXml, secondCaptureXml];
+}
+
+function makeActivityMonitorCaptureXml(): string {
+  return [
+    '<?xml version="1.0"?>',
+    '<trace-query-result>',
+    '<node xpath="//trace-toc[1]/run[1]/data[1]/table[7]">',
+    '<schema name="activity-monitor-process-live">',
+    '<col><mnemonic>start</mnemonic></col>',
+    '<col><mnemonic>process</mnemonic></col>',
+    '<col><mnemonic>cpu-total</mnemonic></col>',
+    '<col><mnemonic>memory-real</mnemonic></col>',
+    '<col><mnemonic>pid</mnemonic></col>',
+    '</schema>',
+    makeActivityMonitorRow('ExampleDeviceApp', 4001, 100_000_000, 8_388_608),
+    makeActivityMonitorRow('OtherApp', 5001, 75_000_000, 4_194_304),
+    '</node>',
+    '</trace-query-result>',
+  ].join('');
+}
+
+function makeActivityMonitorRow(
+  processName: string,
+  pid: number,
+  cpuTimeNs: number,
+  memoryBytes: number,
+): string {
+  return [
+    '<row>',
+    `<start-time fmt="00:00.123">${pid === 4001 ? 123 : 124}</start-time>`,
+    `<process fmt="${processName} (${pid})"><pid fmt="${pid}">${pid}</pid></process>`,
+    `<duration-on-core fmt="100.00 ms">${cpuTimeNs}</duration-on-core>`,
+    `<size-in-bytes fmt="8.00 MiB">${memoryBytes}</size-in-bytes>`,
+    `<pid fmt="${pid}">${pid}</pid>`,
+    pid === 4001 ? '<process ref="background-process"/>' : '',
+    '</row>',
+  ].join('');
+}
+
+function makeReferenceRow(): string {
+  return [
+    '</row>',
+    '<row>',
+    '<start-time fmt="00:00.123">123</start-time>',
+    '<process ref="proc-ref"/>',
+    '<duration-on-core ref="cpu-ref"/>',
+    '<size-in-bytes ref="mem-ref"/>',
+    '<pid ref="pid-ref"/>',
+    '<process ref="background-process"/>',
+    '</row>',
+    '<row>',
+    '<start-time fmt="00:00.124">124</start-time>',
+  ].join('');
+}
 
 function makeAppleHitchesXml(): string {
   return [
