@@ -1,4 +1,5 @@
 import type { RawSnapshotNode } from '../../utils/snapshot.ts';
+import type { AndroidAdbExecutor } from './adb-executor.ts';
 import type { AndroidSnapshotAnalysis } from './ui-hierarchy.ts';
 import type { AndroidSnapshotBackendMetadata } from './snapshot-types.ts';
 
@@ -11,17 +12,7 @@ export const ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT = 'uiautomator-xml';
 export const ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS = 500;
 export const ANDROID_SNAPSHOT_HELPER_COMMAND_OVERHEAD_MS = 5_000;
 
-export type AndroidAdbExecutor = (
-  args: string[],
-  options?: {
-    allowFailure?: boolean;
-    timeoutMs?: number;
-  },
-) => Promise<{
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-}>;
+export type { AndroidAdbExecutor } from './adb-executor.ts';
 
 export type AndroidSnapshotHelperManifest = {
   name: 'android-snapshot-helper';

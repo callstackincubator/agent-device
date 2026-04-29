@@ -9,6 +9,7 @@
     "src/remote-config.ts",
     "src/install-source.ts",
     "src/android-apps.ts",
+    "src/android-adb.ts",
     "src/android-snapshot-helper.ts",
     "src/contracts.ts",
     "src/selectors.ts",

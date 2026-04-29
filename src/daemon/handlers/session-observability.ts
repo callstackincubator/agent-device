@@ -1,5 +1,6 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { normalizeError } from '../../utils/errors.ts';
+import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import {
@@ -27,6 +28,7 @@ type ObservabilityParams = {
   req: DaemonRequest;
   sessionName: string;
   sessionStore: SessionStore;
+  androidAdbExecutor?: AndroidAdbExecutor;
 };
 
 function resolveSessionLogBackendLabel(
@@ -67,14 +69,17 @@ export async function handleSessionObservabilityCommands(
 // ---------------------------------------------------------------------------
 
 async function handlePerfCommand(params: ObservabilityParams): Promise<DaemonResponse> {
-  const { sessionName, sessionStore } = params;
+  const { sessionName, sessionStore, androidAdbExecutor } = params;
   const session = sessionStore.get(sessionName);
   if (!session) {
     return errorResponse('SESSION_NOT_FOUND', 'perf requires an active session. Run open first.');
   }
 
   try {
-    return { ok: true, data: await buildPerfResponseData(session) };
+    return {
+      ok: true,
+      data: await buildPerfResponseData(session, { androidAdb: androidAdbExecutor }),
+    };
   } catch (error) {
     return { ok: false, error: normalizeError(error) };
   }

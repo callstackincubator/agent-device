@@ -1,6 +1,7 @@
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { resolvePayloadInput } from '../../utils/payload-input.ts';
+import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { normalizePlatformSelector } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
@@ -139,8 +140,9 @@ export async function handleSessionCommands(params: {
   logPath: string;
   sessionStore: SessionStore;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  androidAdbExecutor?: AndroidAdbExecutor;
 }): Promise<DaemonResponse | null> {
-  const { req, sessionName, logPath, sessionStore, invoke } = params;
+  const { req, sessionName, logPath, sessionStore, invoke, androidAdbExecutor } = params;
 
   if (INVENTORY_COMMANDS.has(req.command)) {
     return await handleSessionInventoryCommands({
@@ -203,6 +205,7 @@ export async function handleSessionCommands(params: {
       req,
       sessionName,
       sessionStore,
+      androidAdbExecutor,
     });
   }
 

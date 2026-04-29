@@ -1,5 +1,5 @@
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import { spawnAndroidAdbBySerial } from '../platforms/android/adb-executor.ts';
 import { AppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
 import {
@@ -70,7 +70,7 @@ export async function startAndroidAppLog(
 ): Promise<AppLogResult> {
   let state: AppLogState = 'recovering';
   let stopped = false;
-  let activeChild: ReturnType<typeof spawn> | undefined;
+  let activeChild: ReturnType<typeof spawnAndroidAdbBySerial> | undefined;
   let activeWait: ReturnType<typeof attachChildToStream> | undefined;
 
   const wait = (async () => {
@@ -82,7 +82,7 @@ export async function startAndroidAppLog(
           await sleep(1_000);
           continue;
         }
-        const child = spawn('adb', ['-s', deviceId, 'logcat', '-v', 'time', '--pid', pid], {
+        const child = spawnAndroidAdbBySerial(deviceId, ['logcat', '-v', 'time', '--pid', pid], {
           stdio: ['ignore', 'pipe', 'pipe'],
         });
         activeChild = child;

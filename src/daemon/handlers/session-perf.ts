@@ -1,5 +1,6 @@
 import type { SessionAction, SessionState } from '../types.ts';
 import { normalizeError } from '../../utils/errors.ts';
+import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
 import {
   ANDROID_CPU_SAMPLE_DESCRIPTION,
   ANDROID_CPU_SAMPLE_METHOD,
@@ -31,6 +32,9 @@ type PerfResponseData = {
   deviceId: string;
   metrics: Record<string, unknown>;
   sampling: Record<string, unknown>;
+};
+type BuildPerfResponseOptions = {
+  androidAdb?: AndroidAdbExecutor;
 };
 
 const RELATED_PERF_ACTION_LIMIT = 12;
@@ -70,6 +74,7 @@ function readStartupPerfSamples(actions: SessionAction[]): StartupPerfSample[] {
 
 export async function buildPerfResponseData(
   session: SessionState,
+  options: BuildPerfResponseOptions = {},
 ): Promise<Record<string, unknown>> {
   const response = buildBasePerfResponse(session);
 
@@ -83,7 +88,7 @@ export async function buildPerfResponseData(
   }
 
   if (session.device.platform === 'android') {
-    await applyAndroidPerfMetrics(response, session);
+    await applyAndroidPerfMetrics(response, session, options);
     return response;
   }
 
@@ -149,8 +154,9 @@ function applyMissingAppPerfMetrics(response: PerfResponseData, session: Session
 async function applyAndroidPerfMetrics(
   response: PerfResponseData,
   session: SessionState,
+  options: BuildPerfResponseOptions,
 ): Promise<void> {
-  const results = await sampleAndroidPerfResults(session);
+  const results = await sampleAndroidPerfResults(session, options);
   response.metrics.memory = buildMetricResult(results.memory);
   response.metrics.cpu = buildMetricResult(results.cpu);
   response.metrics.fps = enrichFrameMetricWithSessionContext(
@@ -210,16 +216,20 @@ function buildPlatformSamplingMetadata(session: SessionState): Record<string, un
   return buildAppleSamplingMetadata(session.device);
 }
 
-async function sampleAndroidPerfResults(session: SessionState): Promise<{
+async function sampleAndroidPerfResults(
+  session: SessionState,
+  options: BuildPerfResponseOptions,
+): Promise<{
   memory: SettledMetricResult;
   cpu: SettledMetricResult;
   fps: SettledMetricResult;
 }> {
   const appBundleId = session.appBundleId as string;
+  const androidPerfOptions = { adb: options.androidAdb };
   const [memory, cpu, fps] = await Promise.allSettled([
-    sampleAndroidMemoryPerf(session.device, appBundleId),
-    sampleAndroidCpuPerf(session.device, appBundleId),
-    sampleAndroidFramePerf(session.device, appBundleId),
+    sampleAndroidMemoryPerf(session.device, appBundleId, androidPerfOptions),
+    sampleAndroidCpuPerf(session.device, appBundleId, androidPerfOptions),
+    sampleAndroidFramePerf(session.device, appBundleId, androidPerfOptions),
   ]);
   return { memory, cpu, fps };
 }

@@ -201,6 +201,7 @@ test('device login opens browser, stores CLI session, and returns agent token', 
   const opened: string[] = [];
   let stderr = '';
   const requests: string[] = [];
+  const bodies: unknown[] = [];
 
   const login = await loginWithDeviceAuth({
     stateDir: tempRoot,
@@ -218,8 +219,9 @@ test('device login opens browser, stores CLI session, and returns agent token', 
       openBrowser: async (url) => {
         opened.push(url);
       },
-      fetch: async (url) => {
+      fetch: async (url, init) => {
         requests.push(String(url));
+        bodies.push(JSON.parse(String(init?.body)));
         if (String(url).endsWith('/api/control-plane/device-auth/start')) {
           return jsonResponse({
             deviceCode: 'device-secret',
@@ -255,6 +257,12 @@ test('device login opens browser, stores CLI session, and returns agent token', 
     'https://cloud.example/api/control-plane/device-auth/start',
     'https://cloud.example/api/control-plane/device-auth/poll',
   ]);
+  assert.deepEqual(bodies[0], {
+    client: 'agent-device',
+    tenant: 'acme',
+    runId: 'run-123',
+    daemonBaseUrl: 'https://daemon.example',
+  });
   assert.equal(readCliSession({ stateDir: tempRoot })?.refreshCredential, 'adc_refresh_login');
   if (process.platform !== 'win32') {
     const mode = fs.statSync(resolveCliSessionPath(tempRoot)).mode & 0o777;

@@ -24,6 +24,7 @@ export default defineConfig({
           'remote-config': 'src/remote-config.ts',
           'install-source': 'src/install-source.ts',
           'android-apps': 'src/android-apps.ts',
+          'android-adb': 'src/android-adb.ts',
           'android-snapshot-helper': 'src/android-snapshot-helper.ts',
           contracts: 'src/contracts.ts',
           selectors: 'src/selectors.ts',
