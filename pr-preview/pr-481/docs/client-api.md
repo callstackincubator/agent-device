@@ -66,11 +66,8 @@ Public subpath API exposed for Node consumers:
   - types: `AndroidAdbExecutor`, `AndroidSnapshotHelperArtifact`, `AndroidSnapshotHelperManifest`, `AndroidSnapshotHelperOutput`, `AndroidSnapshotHelperParsedSnapshot`
 - `agent-device/android-adb`
   - `createAndroidPortReverseManager(provider)`
-  - `createDeviceAdbExecutor(device)`
   - `createLocalAndroidAdbProvider(device)`
-  - `resolveAndroidAdbExecutor(device, executor?)`
   - `resolveAndroidAdbProvider(device, provider?)`
-  - `withAndroidAdbProvider(provider, { serial }, task)`
   - `captureAndroidLogcatWithAdb(executor, options?)`
   - `streamAndroidLogcatWithAdb(provider, options?)`
   - `readAndroidClipboardWithAdb(executor)` / `writeAndroidClipboardWithAdb(executor, text)`
@@ -80,15 +77,12 @@ Public subpath API exposed for Node consumers:
   - `resolveAndroidLaunchComponentWithAdb(executor, packageName, categories?)`
   - `listAndroidAppsWithAdb(executor, options?)`
   - `getAndroidAppStateWithAdb(executor)`
-  - types: `AndroidAdbProvider`, `AndroidAdbProviderScopeOptions`, `AndroidAdbExecutor`, `AndroidAdbExecutorOptions`, `AndroidAdbExecutorResult`, `AndroidAdbProcess`, `AndroidAdbSpawner`, `AndroidPortReverseProvider`, `AndroidPortReverseManager`
+  - types: `AndroidAdbProvider`, `AndroidAdbExecutor`, `AndroidAdbExecutorOptions`, `AndroidAdbExecutorResult`, `AndroidAdbProcess`, `AndroidAdbSpawner`, `AndroidPortReverseProvider`, `AndroidPortReverseManager`
 - `agent-device/daemon`
   - `createRequestHandler(deps)`
-  - `withDeviceInventoryProvider(provider, task)`
-  - `SessionStore`
-  - `LeaseRegistry`
-  - request router, lease, device inventory, and Android ADB provider types for daemon embedders
+  - request router, device inventory, and Android ADB provider hook types for daemon embedders
 
-The `contracts`, `selectors`, `finders`, `install-source`, `android-apps`, `android-adb`, `daemon`, `artifacts`, `batch`, `metro`, `remote-config`, and `io` subpaths remain available for compatibility. The former hosted-runtime subpaths `agent-device/commands`, `agent-device/backend`, `agent-device/testing/conformance`, and `agent-device/observability` are no longer published.
+The `contracts`, `selectors`, `finders`, `install-source`, `android-adb`, `daemon`, `artifacts`, `batch`, `metro`, `remote-config`, and `io` subpaths are the supported Node entry points. The former compatibility subpath `agent-device/android-apps` and hosted-runtime subpaths `agent-device/commands`, `agent-device/backend`, `agent-device/testing/conformance`, and `agent-device/observability` are no longer published.
 
 ## Basic usage
 
@@ -164,14 +158,14 @@ interactive window roots, or `active-window` when the helper falls back to
 
 Use `agent-device/android-adb` when a bridge owns Android device access but wants upstream command
 behavior for ADB-shaped operations. Executors receive arguments after `adb`; local callers can use
-`createDeviceAdbExecutor(device)`, while remote bridges can route the same argument arrays through
-an abstract provider backed by an ADB tunnel, websocket API, or another remote transport.
+`createLocalAndroidAdbProvider(device)`, while remote bridges can route the same argument arrays
+through an abstract provider backed by an ADB tunnel, websocket API, or another remote transport.
 
 The provider contract covers normal stdout/stderr commands, binary stdout, stdin, timeout/signal
-cancellation, serial-bound command interception through `withAndroidAdbProvider`, and optional
-long-running spawn support for logcat-style streams. `withAndroidAdbProvider` only intercepts
-`adb -s <serial> ...` calls matching the supplied serial; calls for any other serial stay on the
-local command path.
+cancellation, optional long-running spawn support for logcat-style streams, and optional reverse
+support for port mappings. The daemon uses the provider from `RequestRouterDeps.androidAdbProvider`
+for the resolved request device; public helpers accept an executor/provider directly and do not
+expose the daemon's scoped adb interception internals.
 
 Providers can also expose `reverse` for first-class port reverse ownership. Plain executors do not
 advertise reverse support automatically through `resolveAndroidAdbProvider`; call
@@ -183,17 +177,14 @@ conflicting owners for the same local endpoint.
 import {
   getAndroidAppStateWithAdb,
   listAndroidAppsWithAdb,
-  withAndroidAdbProvider,
 } from 'agent-device/android-adb';
 
 const provider = {
   exec: async (args, options) => await runAdbThroughRemoteTunnel(args, options),
 };
 
-await withAndroidAdbProvider(provider, { serial: 'emulator-5554' }, async () => {
-  const apps = await listAndroidAppsWithAdb(provider.exec, { filter: 'user-installed' });
-  const foreground = await getAndroidAppStateWithAdb(provider.exec);
-});
+const apps = await listAndroidAppsWithAdb(provider.exec, { filter: 'user-installed' });
+const foreground = await getAndroidAppStateWithAdb(provider.exec);
 ```
 
 ## Daemon embedding
@@ -206,9 +197,9 @@ remains the embedder's responsibility; pass those decisions through the dependen
 of deep-importing daemon internals.
 
 The daemon embedding surface should stay small. Prefer stable dependency hooks and provider
-contracts over importing concrete daemon internals; `SessionStore` and `LeaseRegistry` remain for
-compatibility with the current request-router API but should not be treated as the long-term
-integration boundary.
+contracts over importing concrete daemon internals. `SessionStore`, `LeaseRegistry`, scoped device
+inventory globals, and artifact tracker helpers are internal daemon details and are not exported
+from `agent-device/daemon`.
 
 `RequestRouterDeps.deviceInventoryProvider` can supply the full target candidate list for a request.
 When it returns an array, even an empty one, the daemon resolver treats that inventory as
