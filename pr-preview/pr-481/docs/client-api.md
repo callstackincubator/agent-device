@@ -67,7 +67,6 @@ Public subpath API exposed for Node consumers:
 - `agent-device/android-adb`
   - `createAndroidPortReverseManager(provider)`
   - `createLocalAndroidAdbProvider(device)`
-  - `resolveAndroidAdbProvider(device, provider?)`
   - `captureAndroidLogcatWithAdb(executor, options?)`
   - `streamAndroidLogcatWithAdb(provider, options?)`
   - `readAndroidClipboardWithAdb(executor)` / `writeAndroidClipboardWithAdb(executor, text)`
@@ -171,10 +170,9 @@ expose the daemon's scoped adb interception internals.
 use `captureAndroidLogcatWithAdb(executor, options?)`.
 
 Providers can also expose `reverse` for first-class port reverse ownership. Plain executors do not
-advertise reverse support automatically through `resolveAndroidAdbProvider`; call
-`createAndroidPortReverseManager(providerOrExecutor)` only when the provider supports `adb reverse`
-argument semantics. The manager makes duplicate setup idempotent for the same owner and rejects
-conflicting owners for the same local endpoint.
+advertise reverse support automatically; call `createAndroidPortReverseManager(providerOrExecutor)`
+only when the provider supports `adb reverse` argument semantics. The manager makes duplicate setup
+idempotent for the same owner and rejects conflicting owners for the same local endpoint.
 
 ```ts
 import {
