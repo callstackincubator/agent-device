@@ -12,6 +12,7 @@ import {
   type RemoteConnectionState,
 } from '../../remote-connection-state.ts';
 import { AppError } from '../../utils/errors.ts';
+import { resolveCloudConnectProfile } from '../cloud-connection-profile.ts';
 import {
   hasDeferredMetroConfig,
   releasePreviousLease,
@@ -25,11 +26,18 @@ import type { CliFlags } from '../../utils/command-schema.ts';
 import type { ClientCommandHandler } from './router-types.ts';
 
 export const connectCommand: ClientCommandHandler = async ({ flags, client }) => {
-  if (!flags.remoteConfig) {
-    throw new AppError('INVALID_ARGS', 'connect requires --remote-config <path>.');
-  }
-  const tenant = flags.tenant;
-  const runId = flags.runId;
+  const stateDir = resolveDaemonPaths(flags.stateDir).baseDir;
+  const resolved = flags.remoteConfig
+    ? resolveRemoteConnectFlags(flags)
+    : await resolveCloudConnectProfile({
+        flags,
+        stateDir,
+        cwd: process.cwd(),
+        env: process.env,
+      });
+  const connectFlags = resolved.flags;
+  const tenant = connectFlags.tenant;
+  const runId = connectFlags.runId;
   if (!tenant) {
     throw new AppError(
       'INVALID_ARGS',
@@ -42,23 +50,17 @@ export const connectCommand: ClientCommandHandler = async ({ flags, client }) =>
       'connect requires runId in remote config or via --run-id <id>.',
     );
   }
-  if (!flags.daemonBaseUrl) {
+  if (!connectFlags.daemonBaseUrl) {
     throw new AppError(
       'INVALID_ARGS',
       'connect requires daemonBaseUrl in remote config, config, env, or --daemon-base-url.',
     );
   }
 
-  const stateDir = resolveDaemonPaths(flags.stateDir).baseDir;
-  const activeState = flags.session ? null : readActiveConnectionState({ stateDir });
-  const session = flags.session ?? activeState?.session ?? createRemoteSessionName(stateDir);
-  const remoteConfig = resolveRemoteConfigProfile({
-    configPath: flags.remoteConfig,
-    cwd: process.cwd(),
-    env: process.env,
-  });
-  const remoteConfigHash = hashRemoteConfigFile(remoteConfig.resolvedPath);
-  const daemon = buildDaemonState(flags);
+  const activeState = connectFlags.session ? null : readActiveConnectionState({ stateDir });
+  const session = connectFlags.session ?? activeState?.session ?? createRemoteSessionName(stateDir);
+  const remoteConfigHash = hashRemoteConfigFile(resolved.remoteConfigPath);
+  const daemon = buildDaemonState(connectFlags);
   const previous =
     activeState?.session === session
       ? activeState
@@ -66,15 +68,15 @@ export const connectCommand: ClientCommandHandler = async ({ flags, client }) =>
   if (
     previous &&
     !isCompatibleConnection(previous, {
-      flags,
+      flags: connectFlags,
       session,
-      remoteConfigPath: remoteConfig.resolvedPath,
+      remoteConfigPath: resolved.remoteConfigPath,
       remoteConfigHash,
-      desiredLeaseBackend: resolveRequestedLeaseBackend(flags),
+      desiredLeaseBackend: resolveRequestedLeaseBackend(connectFlags),
       daemon,
     })
   ) {
-    if (!flags.force) {
+    if (!connectFlags.force) {
       throw new AppError(
         'INVALID_ARGS',
         'A different remote connection is already active for this session. Re-run connect with --force to replace it.',
@@ -87,31 +89,34 @@ export const connectCommand: ClientCommandHandler = async ({ flags, client }) =>
   const state: RemoteConnectionState = {
     version: 1,
     session,
-    remoteConfigPath: remoteConfig.resolvedPath,
+    remoteConfigPath: resolved.remoteConfigPath,
     remoteConfigHash,
     daemon,
     tenant,
     runId,
-    leaseId: previous && !flags.force ? previous.leaseId : undefined,
+    leaseId: previous && !connectFlags.force ? previous.leaseId : undefined,
     leaseBackend:
-      previous && !flags.force ? previous.leaseBackend : resolveRequestedLeaseBackend(flags),
-    platform: flags.platform ?? (previous && !flags.force ? previous.platform : undefined),
-    target: flags.target ?? (previous && !flags.force ? previous.target : undefined),
-    runtime: previous && !flags.force ? previous.runtime : undefined,
-    metro: previous && !flags.force ? previous.metro : undefined,
-    connectedAt: previous && !flags.force ? previous.connectedAt : now,
+      previous && !connectFlags.force
+        ? previous.leaseBackend
+        : resolveRequestedLeaseBackend(connectFlags),
+    platform:
+      connectFlags.platform ?? (previous && !connectFlags.force ? previous.platform : undefined),
+    target: connectFlags.target ?? (previous && !connectFlags.force ? previous.target : undefined),
+    runtime: previous && !connectFlags.force ? previous.runtime : undefined,
+    metro: previous && !connectFlags.force ? previous.metro : undefined,
+    connectedAt: previous && !connectFlags.force ? previous.connectedAt : now,
     updatedAt: now,
   };
   writeRemoteConnectionState({ stateDir, state });
-  if (previous && flags.force) {
+  if (previous && connectFlags.force) {
     await stopMetroCleanup(previous.metro);
     await stopReactDevtoolsCleanup({ stateDir, state: previous });
     await releasePreviousLease(client, previous);
   }
   const leasePreparation = buildLeasePreparationNotice(state);
-  const runtimePreparation = buildRuntimePreparationNotice(flags, state);
+  const runtimePreparation = buildRuntimePreparationNotice(connectFlags, state);
 
-  writeCommandOutput(flags, serializeConnectionState(state, runtimePreparation), () =>
+  writeCommandOutput(connectFlags, serializeConnectionState(state, runtimePreparation), () =>
     [
       `Connected remote session "${session}" tenant "${tenant}" run "${runId}" ${
         state.leaseId ? `lease ${state.leaseId}` : 'lease pending'
@@ -124,6 +129,24 @@ export const connectCommand: ClientCommandHandler = async ({ flags, client }) =>
   );
   return true;
 };
+
+function resolveRemoteConnectFlags(flags: CliFlags): {
+  flags: CliFlags;
+  remoteConfigPath: string;
+} {
+  if (!flags.remoteConfig) {
+    throw new AppError('INVALID_ARGS', 'connect requires --remote-config <path>.');
+  }
+  const remoteConfig = resolveRemoteConfigProfile({
+    configPath: flags.remoteConfig,
+    cwd: process.cwd(),
+    env: process.env,
+  });
+  return {
+    flags,
+    remoteConfigPath: remoteConfig.resolvedPath,
+  };
+}
 
 export const disconnectCommand: ClientCommandHandler = async ({ flags, client }) => {
   const session = flags.session ?? 'default';

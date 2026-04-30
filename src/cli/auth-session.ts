@@ -108,16 +108,15 @@ export async function resolveRemoteAuth(options: {
     return { flags: options.flags, source: 'none' };
   }
 
-  const session = readCliSession({ stateDir: options.stateDir });
-  if (session && !isExpired(session.expiresAt, options.io?.now)) {
-    const refreshed = await refreshAgentToken({
-      session,
-      flags: options.flags,
-      env,
-      io: options.io,
-    });
+  const sessionAccess = await resolveCliSessionAccess({
+    stateDir: options.stateDir,
+    flags: options.flags,
+    env,
+    io: options.io,
+  });
+  if (sessionAccess) {
     return {
-      flags: { ...options.flags, daemonAuthToken: refreshed.accessToken },
+      flags: { ...options.flags, daemonAuthToken: sessionAccess.accessToken },
       source: 'cli-session',
     };
   }
@@ -143,13 +142,69 @@ export async function resolveRemoteAuth(options: {
   };
 }
 
+export async function resolveCloudAccessForConnect(options: {
+  stateDir: string;
+  flags: CliFlags;
+  env?: EnvMap;
+  io?: AuthIo;
+}): Promise<{
+  accessToken: string;
+  cloudBaseUrl: string;
+}> {
+  const env = options.env ?? options.io?.env ?? process.env;
+  if (hasToken(options.flags.daemonAuthToken)) {
+    return {
+      accessToken: options.flags.daemonAuthToken,
+      cloudBaseUrl: resolveCloudBaseUrl(env),
+    };
+  }
+  if (hasToken(env.AGENT_DEVICE_DAEMON_AUTH_TOKEN)) {
+    return {
+      accessToken: env.AGENT_DEVICE_DAEMON_AUTH_TOKEN,
+      cloudBaseUrl: resolveCloudBaseUrl(env),
+    };
+  }
+  const sessionAccess = await resolveCliSessionAccess({
+    stateDir: options.stateDir,
+    flags: options.flags,
+    env,
+    io: options.io,
+  });
+  if (sessionAccess) {
+    return {
+      accessToken: sessionAccess.accessToken,
+      cloudBaseUrl: sessionAccess.cloudBaseUrl,
+    };
+  }
+  if (options.flags.noLogin) {
+    throw new AppError('UNAUTHORIZED', 'Cloud connection profile authentication is required.', {
+      hint: 'Run agent-device auth login, unset --no-login, or set AGENT_DEVICE_DAEMON_AUTH_TOKEN.',
+    });
+  }
+  const login = await loginWithDeviceAuth({
+    stateDir: options.stateDir,
+    flags: options.flags,
+    env,
+    io: options.io,
+    commandLabel: 'agent-device connect',
+  });
+  return {
+    accessToken: login.accessToken,
+    cloudBaseUrl: login.session.cloudBaseUrl,
+  };
+}
+
 export async function loginWithDeviceAuth(options: {
   stateDir: string;
   flags: CliFlags;
   env?: EnvMap;
   io?: AuthIo;
   commandLabel?: string;
-}): Promise<{ accessToken: string; expiresAt?: string; session: CliSessionRecord }> {
+}): Promise<{
+  accessToken: string;
+  expiresAt?: string;
+  session: CliSessionRecord;
+}> {
   const env = options.env ?? options.io?.env ?? process.env;
   const authMode = detectAuthMode(env, options.io);
   if (authMode === 'non-interactive') {
@@ -211,7 +266,11 @@ export async function loginWithDeviceAuth(options: {
     expiresAt: approved.cliSession?.expiresAt,
   };
   writeCliSession({ stateDir: options.stateDir, session });
-  return { accessToken: approved.accessToken, expiresAt: approved.expiresAt, session };
+  return {
+    accessToken: approved.accessToken,
+    expiresAt: approved.expiresAt,
+    session,
+  };
 }
 
 export function readCliSession(options: { stateDir: string }): CliSessionRecord | null {
@@ -283,6 +342,28 @@ export function summarizeCliSession(options: { stateDir: string; now?: () => num
     createdAt: session.createdAt,
     expiresAt: session.expiresAt,
     expired: isExpired(session.expiresAt, options.now),
+  };
+}
+
+async function resolveCliSessionAccess(options: {
+  stateDir: string;
+  flags: CliFlags;
+  env: EnvMap;
+  io?: AuthIo;
+}): Promise<{ accessToken: string; cloudBaseUrl: string } | null> {
+  const session = readCliSession({ stateDir: options.stateDir });
+  if (!session || isExpired(session.expiresAt, options.io?.now)) {
+    return null;
+  }
+  const refreshed = await refreshAgentToken({
+    session,
+    flags: options.flags,
+    env: options.env,
+    io: options.io,
+  });
+  return {
+    accessToken: refreshed.accessToken,
+    cloudBaseUrl: resolveCloudBaseUrl(options.env, session.cloudBaseUrl),
   };
 }
 

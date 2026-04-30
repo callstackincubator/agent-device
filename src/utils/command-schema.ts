@@ -333,7 +333,7 @@ Validation and evidence:
   Android animations: settings animations off/on, not animations disable/restore.
   Debug logs: logs clear --restart, logs mark, reproduce, then logs path; do not split clear/restart into separate stop/start commands.
   Network headers: network dump --include headers; do not write network log headers.
-  Remote config: connect --remote-config ./remote-config.json, open, snapshot, disconnect.
+  Remote/cloud: connect to discover a cloud profile, or connect --remote-config ./remote-config.json for a local profile; then open, snapshot, disconnect.
   macOS menu bar: open ... --platform macos --surface menubar; snapshot -i --platform macos --surface menubar.
 
 React Native dev loop:
@@ -477,9 +477,15 @@ Use snapshot, screenshot, logs, network, and perf for device/app runtime evidenc
     summary: 'Remote config, tenant, lease, and remote host flow',
     body: `agent-device help remote
 
-Use remote config when a profile owns daemon URL, auth, tenant, run, lease, device scope, and Metro hints. Do not restate those as individual flags unless overriding intentionally.
+Use remote config or the cloud connection profile when a profile owns daemon URL, auth, tenant, run, lease, device scope, and Metro hints. Do not restate those as individual flags unless overriding intentionally.
 
-Normal flow:
+Cloud profile flow:
+  agent-device connect
+  agent-device open com.example.app
+  agent-device snapshot
+  agent-device disconnect
+
+Local profile flow:
   agent-device connect --remote-config ./remote-config.json
   agent-device open com.example.app
   agent-device snapshot
@@ -492,7 +498,8 @@ Script flow, per-command config:
 
 Rules:
   connect and disconnect are top-level commands. Do not write agent-device remote connect or agent-device remote disconnect.
-  Prefer --remote-config over --daemon-base-url, --tenant, --run-id, and --lease-id in ordinary remote flows.
+  Use connect without --remote-config when the cloud control plane owns the connection profile.
+  Prefer --remote-config over --daemon-base-url, --tenant, --run-id, and --lease-id when using a local profile.
   For self-contained scripts, pass the same --remote-config to every operational command, including disconnect; a preceding connect is optional but not required.
   For remote artifact installs, use install-from-source <url> or install-from-source --github-actions-artifact org/repo:artifact; do not download CI artifacts locally first.
   After connect, let the active remote connection supply runtime hints.
@@ -1437,7 +1444,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   connect: {
     usageOverride:
-      'connect --remote-config <path> [--tenant <id>] [--run-id <id>] [--lease-backend <backend>] [--force] [--no-login]',
+      'connect [--remote-config <path>] [--tenant <id>] [--run-id <id>] [--lease-backend <backend>] [--force] [--no-login]',
     helpDescription:
       'Connect to a remote daemon, authenticate when needed, and save remote session state. AGENT_DEVICE_CLOUD_BASE_URL is the bridge/control-plane API origin; use AGENT_DEVICE_DAEMON_AUTH_TOKEN=adc_live_... for CI/service-token automation.',
     summary: 'Connect to remote daemon',
