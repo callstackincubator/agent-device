@@ -181,6 +181,11 @@ function writeCompanionState(statePath: string, state: CompanionTunnelState): vo
   fs.writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
 }
 
+function touchCompanionState(statePath: string): void {
+  fs.mkdirSync(path.dirname(statePath), { recursive: true });
+  fs.closeSync(fs.openSync(statePath, 'a'));
+}
+
 function clearCompanionState(statePath: string): void {
   try {
     fs.unlinkSync(statePath);
@@ -447,8 +452,18 @@ export async function ensureCompanionTunnel(
     clearCompanionArtifacts(paths, options.definition);
   }
 
-  const spawned = spawnCompanionProcess(options, paths.logPath);
-  writeCompanionState(paths.statePath, withConsumer(spawned, consumerKey));
+  touchCompanionState(paths.statePath);
+  let spawned: CompanionTunnelState | undefined;
+  try {
+    spawned = spawnCompanionProcess(options, paths.logPath);
+    writeCompanionState(paths.statePath, withConsumer(spawned, consumerKey));
+  } catch (error) {
+    if (spawned) {
+      await stopCompanionProcess(spawned, options.definition).catch(() => {});
+    }
+    clearCompanionArtifacts(paths, options.definition);
+    throw error;
+  }
   return {
     pid: spawned.pid,
     spawned: true,
