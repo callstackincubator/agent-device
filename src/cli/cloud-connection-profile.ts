@@ -28,11 +28,6 @@ export async function resolveCloudConnectProfile(options: {
   env?: EnvMap;
   fetchImpl?: typeof fetch;
 }): Promise<{ flags: CliFlags; remoteConfigPath: string }> {
-  if (options.flags.noLogin) {
-    throw new AppError('INVALID_ARGS', 'connect without --remote-config requires cloud auth.', {
-      hint: 'Remove --no-login, pass --remote-config <path>, or set AGENT_DEVICE_DAEMON_AUTH_TOKEN.',
-    });
-  }
   const auth = await resolveCloudAccessForConnect({
     stateDir: options.stateDir,
     flags: options.flags,

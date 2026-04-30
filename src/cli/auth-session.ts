@@ -180,6 +180,11 @@ export async function resolveCloudAccessForConnect(options: {
       source: 'cli-session',
     };
   }
+  if (options.flags.noLogin) {
+    throw new AppError('UNAUTHORIZED', 'Cloud connection profile authentication is required.', {
+      hint: 'Run agent-device auth login, unset --no-login, or set AGENT_DEVICE_DAEMON_AUTH_TOKEN.',
+    });
+  }
   const login = await loginWithDeviceAuth({
     stateDir: options.stateDir,
     flags: options.flags,
