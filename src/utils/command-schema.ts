@@ -459,7 +459,7 @@ Rules:
   @c refs reset after reload/remount. After reload, wait --connected and inspect again.
   Keep the profile window narrow; unrelated navigation makes render data noisy.
   For cross-platform validation with explicit device selectors, prefer isolated --state-dir and restart react-devtools between platforms.
-  Remote bridge sessions (Android and iOS) run normally through agent-device react-devtools; the CLI manages the needed local service tunnel. Expo support depends on the SDK's bundled React Native runtime.
+  Remote Android and iOS bridge runs normally through agent-device react-devtools; the CLI keeps the needed local service tunnel alive until agent-device react-devtools stop or disconnect. Expo support depends on the SDK's bundled React Native runtime.
 
 Example:
   agent-device react-devtools status
@@ -496,7 +496,7 @@ Rules:
   For self-contained scripts, pass the same --remote-config to every operational command, including disconnect; a preceding connect is optional but not required.
   For remote artifact installs, use install-from-source <url> or install-from-source --github-actions-artifact org/repo:artifact; do not download CI artifacts locally first.
   After connect, let the active remote connection supply runtime hints.
-  For remote Android and iOS bridge React DevTools, run agent-device react-devtools normally. The CLI opens the needed local service tunnel for the DevTools daemon and cleans it up when the command exits.
+  For remote Android and iOS bridge React DevTools, run agent-device react-devtools normally. The CLI opens the needed local service tunnel for the DevTools daemon and keeps it alive until agent-device react-devtools stop or disconnect.
   Use --debug when remote connection or transport errors need diagnostic ids and remote log hints.`,
   },
   macos: {
