@@ -276,6 +276,125 @@ function shouldKeepWorkerRunning(options: CompanionTunnelWorkerOptions): boolean
   return !options.statePath || fs.existsSync(options.statePath);
 }
 
+async function handleBridgeHttpRequest(
+  bridgeSocket: WebSocket,
+  message: Extract<MetroCompanionRequest, { type: 'http-request' }>,
+  options: CompanionTunnelWorkerOptions,
+): Promise<void> {
+  try {
+    const response = await fetch(
+      new URL(message.path, `${normalizeBaseUrl(options.localBaseUrl)}/`),
+      {
+        method: message.method,
+        headers: message.headers,
+        ...(message.bodyBase64 ? { body: Buffer.from(message.bodyBase64, 'base64') } : {}),
+      },
+    );
+    const body = Buffer.from(await response.arrayBuffer());
+    sendJson(bridgeSocket, {
+      type: 'http-response',
+      requestId: message.requestId,
+      status: response.status,
+      headers: Object.fromEntries(response.headers.entries()),
+      ...(body.length > 0 ? { bodyBase64: body.toString('base64') } : {}),
+    });
+  } catch (error) {
+    sendJson(bridgeSocket, {
+      type: 'http-error',
+      requestId: message.requestId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+async function handleBridgeWebSocketOpen(
+  bridgeSocket: WebSocket,
+  message: Extract<MetroCompanionRequest, { type: 'ws-open' }>,
+  options: CompanionTunnelWorkerOptions,
+  upstreamSockets: Map<string, WebSocket>,
+): Promise<void> {
+  const upstreamSocket = new WebSocket(toUpstreamWebSocketUrl(options.localBaseUrl, message.path));
+  upstreamSocket.binaryType = 'arraybuffer';
+  let opened = false;
+  upstreamSocket.addEventListener('message', (event) => {
+    void (async () => {
+      if (!opened) return;
+      const payload = await bufferFromWebSocketData(event.data);
+      sendJson(bridgeSocket, {
+        type: 'ws-frame',
+        streamId: message.streamId,
+        dataBase64: payload.toString('base64'),
+        binary: typeof event.data !== 'string',
+      });
+    })().catch((error) => {
+      console.error(error instanceof Error ? error.message : String(error));
+    });
+  });
+  upstreamSocket.addEventListener('close', (event) => {
+    upstreamSockets.delete(message.streamId);
+    if (!opened) return;
+    sendJson(bridgeSocket, {
+      type: 'ws-close',
+      streamId: message.streamId,
+      code: event.code,
+      reason: event.reason,
+    });
+  });
+  upstreamSocket.addEventListener('error', () => {
+    if (!opened) return;
+    sendJson(bridgeSocket, {
+      type: 'ws-close',
+      streamId: message.streamId,
+      code: 1011,
+      reason: 'Upstream WebSocket error.',
+    });
+  });
+  upstreamSockets.set(message.streamId, upstreamSocket);
+  try {
+    await waitForSocketOpen(upstreamSocket, 'Upstream');
+    opened = true;
+    sendJson(bridgeSocket, {
+      type: 'ws-open-result',
+      streamId: message.streamId,
+      success: true,
+      headers: {},
+    });
+  } catch (error) {
+    upstreamSockets.delete(message.streamId);
+    closeSocketQuietly(upstreamSocket, 1011, 'open failed');
+    sendJson(bridgeSocket, {
+      type: 'ws-open-result',
+      streamId: message.streamId,
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+function handleBridgeWebSocketFrame(
+  message: Extract<MetroCompanionRequest, { type: 'ws-frame' }>,
+  upstreamSockets: Map<string, WebSocket>,
+): void {
+  const upstreamSocket = upstreamSockets.get(message.streamId);
+  if (!upstreamSocket || upstreamSocket.readyState !== WS_READY_STATE_OPEN) return;
+  const payload = Buffer.from(message.dataBase64, 'base64');
+  upstreamSocket.send(message.binary ? payload : payload.toString('utf8'));
+}
+
+function handleBridgeWebSocketClose(
+  message: Extract<MetroCompanionRequest, { type: 'ws-close' }>,
+  upstreamSockets: Map<string, WebSocket>,
+): void {
+  const upstreamSocket = upstreamSockets.get(message.streamId);
+  if (!upstreamSocket) return;
+  upstreamSockets.delete(message.streamId);
+  closeSocketQuietly(
+    upstreamSocket,
+    normalizeCloseCode(message.code),
+    message.reason ?? 'bridge requested close',
+  );
+}
+
 async function handleBridgeMessage(
   bridgeSocket: WebSocket,
   message: MetroCompanionRequest,
@@ -288,109 +407,19 @@ async function handleBridgeMessage(
       return;
     }
     case 'http-request': {
-      try {
-        const response = await fetch(
-          new URL(message.path, `${normalizeBaseUrl(options.localBaseUrl)}/`),
-          {
-            method: message.method,
-            headers: message.headers,
-            ...(message.bodyBase64 ? { body: Buffer.from(message.bodyBase64, 'base64') } : {}),
-          },
-        );
-        const body = Buffer.from(await response.arrayBuffer());
-        sendJson(bridgeSocket, {
-          type: 'http-response',
-          requestId: message.requestId,
-          status: response.status,
-          headers: Object.fromEntries(response.headers.entries()),
-          ...(body.length > 0 ? { bodyBase64: body.toString('base64') } : {}),
-        });
-      } catch (error) {
-        sendJson(bridgeSocket, {
-          type: 'http-error',
-          requestId: message.requestId,
-          message: error instanceof Error ? error.message : String(error),
-        });
-      }
+      await handleBridgeHttpRequest(bridgeSocket, message, options);
       return;
     }
     case 'ws-open': {
-      const upstreamSocket = new WebSocket(
-        toUpstreamWebSocketUrl(options.localBaseUrl, message.path),
-      );
-      upstreamSocket.binaryType = 'arraybuffer';
-      let opened = false;
-      upstreamSocket.addEventListener('message', (event) => {
-        void (async () => {
-          if (!opened) return;
-          const payload = await bufferFromWebSocketData(event.data);
-          sendJson(bridgeSocket, {
-            type: 'ws-frame',
-            streamId: message.streamId,
-            dataBase64: payload.toString('base64'),
-            binary: typeof event.data !== 'string',
-          });
-        })().catch((error) => {
-          console.error(error instanceof Error ? error.message : String(error));
-        });
-      });
-      upstreamSocket.addEventListener('close', (event) => {
-        upstreamSockets.delete(message.streamId);
-        if (!opened) return;
-        sendJson(bridgeSocket, {
-          type: 'ws-close',
-          streamId: message.streamId,
-          code: event.code,
-          reason: event.reason,
-        });
-      });
-      upstreamSocket.addEventListener('error', () => {
-        if (!opened) return;
-        sendJson(bridgeSocket, {
-          type: 'ws-close',
-          streamId: message.streamId,
-          code: 1011,
-          reason: 'Upstream WebSocket error.',
-        });
-      });
-      upstreamSockets.set(message.streamId, upstreamSocket);
-      try {
-        await waitForSocketOpen(upstreamSocket, 'Upstream');
-        opened = true;
-        sendJson(bridgeSocket, {
-          type: 'ws-open-result',
-          streamId: message.streamId,
-          success: true,
-          headers: {},
-        });
-      } catch (error) {
-        upstreamSockets.delete(message.streamId);
-        closeSocketQuietly(upstreamSocket, 1011, 'open failed');
-        sendJson(bridgeSocket, {
-          type: 'ws-open-result',
-          streamId: message.streamId,
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      await handleBridgeWebSocketOpen(bridgeSocket, message, options, upstreamSockets);
       return;
     }
     case 'ws-frame': {
-      const upstreamSocket = upstreamSockets.get(message.streamId);
-      if (!upstreamSocket || upstreamSocket.readyState !== WS_READY_STATE_OPEN) return;
-      const payload = Buffer.from(message.dataBase64, 'base64');
-      upstreamSocket.send(message.binary ? payload : payload.toString('utf8'));
+      handleBridgeWebSocketFrame(message, upstreamSockets);
       return;
     }
     case 'ws-close': {
-      const upstreamSocket = upstreamSockets.get(message.streamId);
-      if (!upstreamSocket) return;
-      upstreamSockets.delete(message.streamId);
-      closeSocketQuietly(
-        upstreamSocket,
-        normalizeCloseCode(message.code),
-        message.reason ?? 'bridge requested close',
-      );
+      handleBridgeWebSocketClose(message, upstreamSockets);
       return;
     }
   }
