@@ -77,7 +77,7 @@ Public subpath API exposed for Node consumers:
   - `resolveAndroidLaunchComponentWithAdb(executor, packageName, categories?)`
   - `listAndroidAppsWithAdb(executor, options?)`
   - `getAndroidAppStateWithAdb(executor)`
-  - types: `AndroidAdbProvider`, `AndroidAdbExecutor`, `AndroidAdbExecutorOptions`, `AndroidAdbExecutorResult`, `AndroidAdbProcess`, `AndroidAdbSpawner`, `AndroidPortReverseProvider`, `AndroidPortReverseManager`
+  - types: `AndroidAdbProvider`, `AndroidAdbExecutor`, `AndroidAdbExecutorOptions`, `AndroidAdbExecutorResult`, `AndroidAdbProcess`, `AndroidAdbSpawner`, `AndroidPortReverseProvider`
 - `agent-device/daemon`
   - `createRequestHandler(deps)`
   - request router, device inventory, and Android ADB provider hook types for daemon embedders
@@ -166,6 +166,9 @@ cancellation, optional long-running spawn support for logcat-style streams, and 
 support for port mappings. The daemon uses the provider from `RequestRouterDeps.androidAdbProvider`
 for the resolved request device; public helpers accept an executor/provider directly and do not
 expose the daemon's scoped adb interception internals.
+
+`streamAndroidLogcatWithAdb(provider, options?)` requires `provider.spawn`; exec-only providers can
+use `captureAndroidLogcatWithAdb(executor, options?)`.
 
 Providers can also expose `reverse` for first-class port reverse ownership. Plain executors do not
 advertise reverse support automatically through `resolveAndroidAdbProvider`; call
