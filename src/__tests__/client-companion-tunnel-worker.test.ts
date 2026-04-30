@@ -27,6 +27,16 @@ type ParsedWebSocketFrame = {
   nextOffset: number;
 };
 
+type CompanionWorkerProcess = {
+  companion: ReturnType<typeof spawn>;
+  earlyExit: Promise<never>;
+  readStderr: () => string;
+  waitForExit: (
+    label: string,
+    timeoutMs?: number,
+  ) => Promise<{ code: number | null; signal: NodeJS.Signals | null }>;
+};
+
 function createDeferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void;
   let reject!: (error: unknown) => void;
@@ -154,6 +164,43 @@ function attachWebSocketFrameParser(
   });
 }
 
+function acceptWebSocketUpgrade(req: http.IncomingMessage, socket: Duplex): boolean {
+  const key = req.headers['sec-websocket-key'];
+  if (typeof key !== 'string') {
+    socket.destroy();
+    return false;
+  }
+  const accept = crypto
+    .createHash('sha1')
+    .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+    .digest('base64');
+  socket.write(
+    [
+      'HTTP/1.1 101 Switching Protocols',
+      'Upgrade: websocket',
+      'Connection: Upgrade',
+      `Sec-WebSocket-Accept: ${accept}`,
+      '\r\n',
+    ].join('\r\n'),
+  );
+  return true;
+}
+
+function writeNotFound(res: http.ServerResponse): void {
+  res.writeHead(404);
+  res.end('not found');
+}
+
+function writeSuccessfulRegistration(res: http.ServerResponse, bridgePort: number): void {
+  res.writeHead(200, { 'content-type': 'application/json' });
+  res.end(
+    JSON.stringify({
+      ok: true,
+      data: { ws_url: `ws://127.0.0.1:${bridgePort}/bridge` },
+    }),
+  );
+}
+
 async function listen(server: http.Server): Promise<number> {
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
@@ -182,6 +229,12 @@ async function closeServer(server: http.Server): Promise<void> {
   });
 }
 
+async function listenNotFoundServer(): Promise<number> {
+  const server = http.createServer((_, res) => writeNotFound(res));
+  cleanupTasks.push(() => closeServer(server));
+  return listen(server);
+}
+
 async function stopChild(child: ReturnType<typeof spawn>): Promise<void> {
   if (child.exitCode !== null || child.killed) return;
   child.kill('SIGTERM');
@@ -192,6 +245,69 @@ async function stopChild(child: ReturnType<typeof spawn>): Promise<void> {
   if (exited) return;
   child.kill('SIGKILL');
   await new Promise<void>((resolve) => child.once('close', () => resolve()));
+}
+
+function spawnMetroCompanionWorker(options: {
+  bearerToken?: string;
+  bridgePort?: number;
+  localPort?: number;
+  serverBaseUrl?: string;
+  localBaseUrl?: string;
+  statePath?: string;
+}): CompanionWorkerProcess {
+  const serverBaseUrl = options.serverBaseUrl ?? `http://127.0.0.1:${options.bridgePort}`;
+  const localBaseUrl = options.localBaseUrl ?? `http://127.0.0.1:${options.localPort}`;
+  const companion = spawn(
+    process.execPath,
+    ['--experimental-strip-types', 'src/companion-tunnel.ts', '--agent-device-run-metro-companion'],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        AGENT_DEVICE_COMPANION_TUNNEL_SERVER_BASE_URL: serverBaseUrl,
+        AGENT_DEVICE_COMPANION_TUNNEL_BEARER_TOKEN: options.bearerToken ?? 'test-token',
+        AGENT_DEVICE_COMPANION_TUNNEL_LOCAL_BASE_URL: localBaseUrl,
+        AGENT_DEVICE_COMPANION_TUNNEL_REGISTER_PATH: '/api/metro/companion/register',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_TENANT_ID: 'tenant-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_RUN_ID: 'run-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_LEASE_ID: 'lease-1',
+        ...(options.statePath
+          ? { AGENT_DEVICE_COMPANION_TUNNEL_STATE_PATH: options.statePath }
+          : {}),
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
+  cleanupTasks.push(() => stopChild(companion));
+
+  let stderr = '';
+  companion.stderr.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
+
+  return {
+    companion,
+    get earlyExit() {
+      return new Promise<never>((_, reject) => {
+        companion.once('exit', (code, signal) => {
+          reject(
+            new Error(
+              `Metro companion exited unexpectedly with code=${String(code)} signal=${String(signal)} stderr=${stderr}`,
+            ),
+          );
+        });
+      });
+    },
+    readStderr: () => stderr,
+    waitForExit: (label, timeoutMs = 5_000) =>
+      waitFor(
+        new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
+          companion.once('exit', (code, signal) => resolve({ code, signal }));
+        }),
+        timeoutMs,
+        label,
+      ),
+  };
 }
 
 const cleanupTasks: Array<() => Promise<void>> = [];
@@ -242,34 +358,14 @@ test('metro companion worker proxies websocket frames to the local upstream serv
   let upstreamSocketRef: Duplex | null = null;
   let bridgeSocketRef: Duplex | null = null;
 
-  const upstreamServer = http.createServer((_, res) => {
-    res.writeHead(404);
-    res.end('not found');
-  });
+  const upstreamServer = http.createServer((_, res) => writeNotFound(res));
   upstreamServer.on('upgrade', (req, socket) => {
     if (req.url !== '/echo') {
       socket.destroy();
       return;
     }
     upstreamSocketRef = socket;
-    const key = req.headers['sec-websocket-key'];
-    if (typeof key !== 'string') {
-      socket.destroy();
-      return;
-    }
-    const accept = crypto
-      .createHash('sha1')
-      .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
-      .digest('base64');
-    socket.write(
-      [
-        'HTTP/1.1 101 Switching Protocols',
-        'Upgrade: websocket',
-        'Connection: Upgrade',
-        `Sec-WebSocket-Accept: ${accept}`,
-        '\r\n',
-      ].join('\r\n'),
-    );
+    if (!acceptWebSocketUpgrade(req, socket)) return;
     attachWebSocketFrameParser(
       socket,
       (text) => {
@@ -297,18 +393,11 @@ test('metro companion worker proxies websocket frames to the local upstream serv
       });
       req.on('end', () => {
         registrationBody.resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
-        res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(
-          JSON.stringify({
-            ok: true,
-            data: { ws_url: `ws://127.0.0.1:${bridgePort}/bridge` },
-          }),
-        );
+        writeSuccessfulRegistration(res, bridgePort);
       });
       return;
     }
-    res.writeHead(404);
-    res.end('not found');
+    writeNotFound(res);
   });
   bridgeServer.on('upgrade', (req, socket) => {
     if (req.url !== '/bridge') {
@@ -316,24 +405,7 @@ test('metro companion worker proxies websocket frames to the local upstream serv
       return;
     }
     bridgeSocketRef = socket;
-    const key = req.headers['sec-websocket-key'];
-    if (typeof key !== 'string') {
-      socket.destroy();
-      return;
-    }
-    const accept = crypto
-      .createHash('sha1')
-      .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
-      .digest('base64');
-    socket.write(
-      [
-        'HTTP/1.1 101 Switching Protocols',
-        'Upgrade: websocket',
-        'Connection: Upgrade',
-        `Sec-WebSocket-Accept: ${accept}`,
-        '\r\n',
-      ].join('\r\n'),
-    );
+    if (!acceptWebSocketUpgrade(req, socket)) return;
     bridgeSocketReady.resolve(socket);
 
     attachWebSocketFrameParser(socket, (text) => {
@@ -377,38 +449,9 @@ test('metro companion worker proxies websocket frames to the local upstream serv
   });
   const bridgePort = await listen(bridgeServer);
 
-  const companion = spawn(
-    process.execPath,
-    ['--experimental-strip-types', 'src/companion-tunnel.ts', '--agent-device-run-metro-companion'],
-    {
-      cwd: process.cwd(),
-      env: {
-        ...process.env,
-        AGENT_DEVICE_COMPANION_TUNNEL_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
-        AGENT_DEVICE_COMPANION_TUNNEL_BEARER_TOKEN: 'test-token',
-        AGENT_DEVICE_COMPANION_TUNNEL_LOCAL_BASE_URL: `http://127.0.0.1:${upstreamPort}`,
-        AGENT_DEVICE_COMPANION_TUNNEL_REGISTER_PATH: '/api/metro/companion/register',
-        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_TENANT_ID: 'tenant-1',
-        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_RUN_ID: 'run-1',
-        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_LEASE_ID: 'lease-1',
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    },
-  );
-  let stderr = '';
-  companion.stderr.on('data', (chunk) => {
-    stderr += chunk.toString();
-  });
-  cleanupTasks.push(() => stopChild(companion));
-
-  const earlyExit = new Promise<never>((_, reject) => {
-    companion.once('exit', (code, signal) => {
-      reject(
-        new Error(
-          `Metro companion exited unexpectedly with code=${String(code)} signal=${String(signal)} stderr=${stderr}`,
-        ),
-      );
-    });
+  const { earlyExit } = spawnMetroCompanionWorker({
+    bridgePort,
+    localPort: upstreamPort,
   });
 
   const bridgeSocket = await Promise.race([
@@ -463,30 +506,18 @@ test('metro companion worker reconnects after the bridge closes immediately afte
   let bridgePort = 0;
   let bridgeSocketRef: Duplex | null = null;
 
-  const localServer = http.createServer((_, res) => {
-    res.writeHead(404);
-    res.end('not found');
-  });
-  cleanupTasks.push(() => closeServer(localServer));
-  const localPort = await listen(localServer);
+  const localPort = await listenNotFoundServer();
 
   const bridgeServer = http.createServer((req, res) => {
     const url = new URL(req.url || '/', 'http://127.0.0.1');
     if (req.method === 'POST' && url.pathname === '/api/metro/companion/register') {
       req.resume();
       req.on('end', () => {
-        res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(
-          JSON.stringify({
-            ok: true,
-            data: { ws_url: `ws://127.0.0.1:${bridgePort}/bridge` },
-          }),
-        );
+        writeSuccessfulRegistration(res, bridgePort);
       });
       return;
     }
-    res.writeHead(404);
-    res.end('not found');
+    writeNotFound(res);
   });
   bridgeServer.on('upgrade', (req, socket) => {
     if (req.url !== '/bridge') {
@@ -496,24 +527,7 @@ test('metro companion worker reconnects after the bridge closes immediately afte
     socket.on('error', () => {
       // The first bridge socket is expected to drop immediately to exercise reconnect handling.
     });
-    const key = req.headers['sec-websocket-key'];
-    if (typeof key !== 'string') {
-      socket.destroy();
-      return;
-    }
-    const accept = crypto
-      .createHash('sha1')
-      .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
-      .digest('base64');
-    socket.write(
-      [
-        'HTTP/1.1 101 Switching Protocols',
-        'Upgrade: websocket',
-        'Connection: Upgrade',
-        `Sec-WebSocket-Accept: ${accept}`,
-        '\r\n',
-      ].join('\r\n'),
-    );
+    if (!acceptWebSocketUpgrade(req, socket)) return;
     bridgeSocketRef = socket;
     bridgeConnections += 1;
     if (bridgeConnections === 1) {
@@ -529,43 +543,105 @@ test('metro companion worker reconnects after the bridge closes immediately afte
   const listenedBridgePort = await listen(bridgeServer);
   bridgePort = listenedBridgePort;
 
-  const companion = spawn(
-    process.execPath,
-    ['--experimental-strip-types', 'src/companion-tunnel.ts', '--agent-device-run-metro-companion'],
-    {
-      cwd: process.cwd(),
-      env: {
-        ...process.env,
-        AGENT_DEVICE_COMPANION_TUNNEL_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
-        AGENT_DEVICE_COMPANION_TUNNEL_BEARER_TOKEN: 'test-token',
-        AGENT_DEVICE_COMPANION_TUNNEL_LOCAL_BASE_URL: `http://127.0.0.1:${localPort}`,
-        AGENT_DEVICE_COMPANION_TUNNEL_REGISTER_PATH: '/api/metro/companion/register',
-        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_TENANT_ID: 'tenant-1',
-        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_RUN_ID: 'run-1',
-        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_LEASE_ID: 'lease-1',
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    },
-  );
-  let stderr = '';
-  companion.stderr.on('data', (chunk) => {
-    stderr += chunk.toString();
-  });
-  cleanupTasks.push(() => stopChild(companion));
-
-  const earlyExit = new Promise<never>((_, reject) => {
-    companion.once('exit', (code, signal) => {
-      reject(
-        new Error(
-          `Metro companion exited unexpectedly with code=${String(code)} signal=${String(signal)} stderr=${stderr}`,
-        ),
-      );
-    });
-  });
+  const { earlyExit } = spawnMetroCompanionWorker({ bridgePort, localPort });
 
   await Promise.race([waitFor(bridgeReconnect.promise, 5_000, 'bridge reconnect'), earlyExit]);
 
   assert.equal(bridgeConnections, 2);
+});
+
+test('metro companion worker exits after non-retryable registration failure', async () => {
+  let registerAttempts = 0;
+
+  const localPort = await listenNotFoundServer();
+
+  const bridgeServer = http.createServer((req, res) => {
+    const url = new URL(req.url || '/', 'http://127.0.0.1');
+    if (req.method === 'POST' && url.pathname === '/api/metro/companion/register') {
+      registerAttempts += 1;
+      req.resume();
+      req.on('end', () => {
+        res.writeHead(401, { 'content-type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            ok: false,
+            error: { code: 'UNAUTHORIZED', message: 'Invalid token' },
+          }),
+        );
+      });
+      return;
+    }
+    writeNotFound(res);
+  });
+  cleanupTasks.push(() => closeServer(bridgeServer));
+  const bridgePort = await listen(bridgeServer);
+
+  const companion = spawnMetroCompanionWorker({
+    bearerToken: 'bad-token',
+    bridgePort,
+    localPort,
+  });
+  const exit = await companion.waitForExit('worker exit after non-retryable registration failure');
+
+  assert.equal(exit.signal, null, `unexpected worker stderr: ${companion.readStderr()}`);
+  assert.equal(exit.code, 0, `unexpected worker stderr: ${companion.readStderr()}`);
+  assert.equal(registerAttempts, 1);
+});
+
+test('metro companion worker retries registration failures with retry-after delay', async () => {
+  const bridgeSocketReady = createDeferred<void>();
+  const registerAttemptTimes: number[] = [];
+  let bridgePort = 0;
+  let bridgeSocketRef: Duplex | null = null;
+
+  const localPort = await listenNotFoundServer();
+
+  const bridgeServer = http.createServer((req, res) => {
+    const url = new URL(req.url || '/', 'http://127.0.0.1');
+    if (req.method === 'POST' && url.pathname === '/api/metro/companion/register') {
+      registerAttemptTimes.push(Date.now());
+      req.resume();
+      req.on('end', () => {
+        if (registerAttemptTimes.length === 1) {
+          res.writeHead(429, { 'content-type': 'application/json', 'retry-after': '0.05' });
+          res.end(
+            JSON.stringify({
+              ok: false,
+              error: { code: 'RATE_LIMITED', message: 'Try again later' },
+            }),
+          );
+          return;
+        }
+        writeSuccessfulRegistration(res, bridgePort);
+      });
+      return;
+    }
+    writeNotFound(res);
+  });
+  bridgeServer.on('upgrade', (req, socket) => {
+    if (req.url !== '/bridge') {
+      socket.destroy();
+      return;
+    }
+    bridgeSocketRef = socket;
+    if (!acceptWebSocketUpgrade(req, socket)) return;
+    bridgeSocketReady.resolve();
+  });
+  cleanupTasks.push(() => closeServer(bridgeServer));
+  cleanupTasks.push(async () => {
+    bridgeSocketRef?.destroy();
+  });
+  bridgePort = await listen(bridgeServer);
+
+  const { earlyExit } = spawnMetroCompanionWorker({ bridgePort, localPort });
+
+  await Promise.race([
+    waitFor(bridgeSocketReady.promise, 5_000, 'bridge websocket connection after retry'),
+    earlyExit,
+  ]);
+
+  assert.equal(registerAttemptTimes.length, 2);
+  assert.ok(registerAttemptTimes[1]! - registerAttemptTimes[0]! >= 40);
 });
 
 test('metro companion worker exits after its state file is removed', async () => {
@@ -580,30 +656,18 @@ test('metro companion worker exits after its state file is removed', async () =>
   let bridgePort = 0;
   let bridgeSocketRef: Duplex | null = null;
 
-  const localServer = http.createServer((_, res) => {
-    res.writeHead(404);
-    res.end('not found');
-  });
-  cleanupTasks.push(() => closeServer(localServer));
-  const localPort = await listen(localServer);
+  const localPort = await listenNotFoundServer();
 
   const bridgeServer = http.createServer((req, res) => {
     const url = new URL(req.url || '/', 'http://127.0.0.1');
     if (req.method === 'POST' && url.pathname === '/api/metro/companion/register') {
       req.resume();
       req.on('end', () => {
-        res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(
-          JSON.stringify({
-            ok: true,
-            data: { ws_url: `ws://127.0.0.1:${bridgePort}/bridge` },
-          }),
-        );
+        writeSuccessfulRegistration(res, bridgePort);
       });
       return;
     }
-    res.writeHead(404);
-    res.end('not found');
+    writeNotFound(res);
   });
   bridgeServer.on('upgrade', (req, socket) => {
     if (req.url !== '/bridge') {
@@ -611,24 +675,7 @@ test('metro companion worker exits after its state file is removed', async () =>
       return;
     }
     bridgeSocketRef = socket;
-    const key = req.headers['sec-websocket-key'];
-    if (typeof key !== 'string') {
-      socket.destroy();
-      return;
-    }
-    const accept = crypto
-      .createHash('sha1')
-      .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
-      .digest('base64');
-    socket.write(
-      [
-        'HTTP/1.1 101 Switching Protocols',
-        'Upgrade: websocket',
-        'Connection: Upgrade',
-        `Sec-WebSocket-Accept: ${accept}`,
-        '\r\n',
-      ].join('\r\n'),
-    );
+    if (!acceptWebSocketUpgrade(req, socket)) return;
     bridgeSocketReady.resolve();
   });
   cleanupTasks.push(() => closeServer(bridgeServer));
@@ -637,45 +684,15 @@ test('metro companion worker exits after its state file is removed', async () =>
   });
   bridgePort = await listen(bridgeServer);
 
-  const companion = spawn(
-    process.execPath,
-    ['--experimental-strip-types', 'src/companion-tunnel.ts', '--agent-device-run-metro-companion'],
-    {
-      cwd: process.cwd(),
-      env: {
-        ...process.env,
-        AGENT_DEVICE_COMPANION_TUNNEL_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
-        AGENT_DEVICE_COMPANION_TUNNEL_BEARER_TOKEN: 'test-token',
-        AGENT_DEVICE_COMPANION_TUNNEL_LOCAL_BASE_URL: `http://127.0.0.1:${localPort}`,
-        AGENT_DEVICE_COMPANION_TUNNEL_REGISTER_PATH: '/api/metro/companion/register',
-        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_TENANT_ID: 'tenant-1',
-        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_RUN_ID: 'run-1',
-        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_LEASE_ID: 'lease-1',
-        AGENT_DEVICE_COMPANION_TUNNEL_STATE_PATH: statePath,
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    },
-  );
-  cleanupTasks.push(() => stopChild(companion));
-
-  let stderr = '';
-  companion.stderr.on('data', (chunk) => {
-    stderr += chunk.toString();
-  });
+  const companion = spawnMetroCompanionWorker({ bridgePort, localPort, statePath });
 
   await waitFor(bridgeSocketReady.promise, 5_000, 'bridge websocket connection');
   fs.unlinkSync(statePath);
 
-  const exit = await waitFor(
-    new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
-      companion.once('exit', (code, signal) => resolve({ code, signal }));
-    }),
-    5_000,
-    'worker exit after state cleanup',
-  );
+  const exit = await companion.waitForExit('worker exit after state cleanup');
 
-  assert.equal(exit.signal, null, `unexpected worker stderr: ${stderr}`);
-  assert.equal(exit.code, 0, `unexpected worker stderr: ${stderr}`);
+  assert.equal(exit.signal, null, `unexpected worker stderr: ${companion.readStderr()}`);
+  assert.equal(exit.code, 0, `unexpected worker stderr: ${companion.readStderr()}`);
 });
 
 test('companion tunnel entrypoint reads neutral env and exits when state file is missing', async () => {
@@ -685,40 +702,13 @@ test('companion tunnel entrypoint reads neutral env and exits when state file is
     fs.rmSync(tempRoot, { recursive: true, force: true });
   });
 
-  const companion = spawn(
-    process.execPath,
-    ['--experimental-strip-types', 'src/companion-tunnel.ts', '--agent-device-run-metro-companion'],
-    {
-      cwd: process.cwd(),
-      env: {
-        ...process.env,
-        AGENT_DEVICE_COMPANION_TUNNEL_SERVER_BASE_URL: 'http://127.0.0.1:1',
-        AGENT_DEVICE_COMPANION_TUNNEL_BEARER_TOKEN: 'test-token',
-        AGENT_DEVICE_COMPANION_TUNNEL_LOCAL_BASE_URL: 'http://127.0.0.1:1',
-        AGENT_DEVICE_COMPANION_TUNNEL_REGISTER_PATH: '/api/metro/companion/register',
-        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_TENANT_ID: 'tenant-1',
-        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_RUN_ID: 'run-1',
-        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_LEASE_ID: 'lease-1',
-        AGENT_DEVICE_COMPANION_TUNNEL_STATE_PATH: statePath,
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    },
-  );
-  cleanupTasks.push(() => stopChild(companion));
-
-  let stderr = '';
-  companion.stderr.on('data', (chunk) => {
-    stderr += chunk.toString();
+  const companion = spawnMetroCompanionWorker({
+    serverBaseUrl: 'http://127.0.0.1:1',
+    localBaseUrl: 'http://127.0.0.1:1',
+    statePath,
   });
+  const exit = await companion.waitForExit('worker exit with missing state file');
 
-  const exit = await waitFor(
-    new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
-      companion.once('exit', (code, signal) => resolve({ code, signal }));
-    }),
-    5_000,
-    'worker exit with missing state file',
-  );
-
-  assert.equal(exit.signal, null, `unexpected worker stderr: ${stderr}`);
-  assert.equal(exit.code, 0, `unexpected worker stderr: ${stderr}`);
+  assert.equal(exit.signal, null, `unexpected worker stderr: ${companion.readStderr()}`);
+  assert.equal(exit.code, 0, `unexpected worker stderr: ${companion.readStderr()}`);
 });
