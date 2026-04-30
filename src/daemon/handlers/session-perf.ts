@@ -12,7 +12,11 @@ import {
   sampleAndroidFramePerf,
   sampleAndroidMemoryPerf,
 } from '../../platforms/android/perf.ts';
-import { buildAppleSamplingMetadata, sampleApplePerfMetrics } from '../../platforms/ios/perf.ts';
+import {
+  buildAppleSamplingMetadata,
+  sampleAppleFramePerf,
+  sampleApplePerfMetrics,
+} from '../../platforms/ios/perf.ts';
 import {
   PERF_STARTUP_SAMPLE_LIMIT,
   PERF_UNAVAILABLE_REASON,
@@ -172,6 +176,10 @@ async function applyApplePerfMetrics(
   const results = await sampleApplePerfResultsForSession(session);
   response.metrics.memory = buildMetricResult(results.memory);
   response.metrics.cpu = buildMetricResult(results.cpu);
+  response.metrics.fps = enrichFrameMetricWithSessionContext(
+    buildMetricResult(results.fps),
+    session,
+  );
 }
 
 function supportsPlatformPerfMetrics(session: SessionState): boolean {
@@ -237,19 +245,34 @@ async function sampleAndroidPerfResults(
 async function sampleApplePerfResultsForSession(session: SessionState): Promise<{
   memory: SettledMetricResult;
   cpu: SettledMetricResult;
+  fps: SettledMetricResult;
 }> {
   const appBundleId = session.appBundleId as string;
+  const fps = await settleMetric(sampleAppleFramePerf(session.device, appBundleId));
+  const processSample = await settleMetric(sampleApplePerfMetrics(session.device, appBundleId));
+  if (processSample.status === 'fulfilled') {
+    const processMetrics = processSample.value as {
+      memory: Record<string, unknown>;
+      cpu: Record<string, unknown>;
+    };
+    return {
+      memory: { status: 'fulfilled', value: processMetrics.memory },
+      cpu: { status: 'fulfilled', value: processMetrics.cpu },
+      fps,
+    };
+  }
+  return {
+    memory: { status: 'rejected', reason: processSample.reason },
+    cpu: { status: 'rejected', reason: processSample.reason },
+    fps,
+  };
+}
+
+async function settleMetric<T extends object>(promise: Promise<T>): Promise<SettledMetricResult> {
   try {
-    const sample = await sampleApplePerfMetrics(session.device, appBundleId);
-    return {
-      memory: { status: 'fulfilled', value: sample.memory },
-      cpu: { status: 'fulfilled', value: sample.cpu },
-    };
+    return { status: 'fulfilled', value: (await promise) as Record<string, unknown> };
   } catch (reason) {
-    return {
-      memory: { status: 'rejected', reason },
-      cpu: { status: 'rejected', reason },
-    };
+    return { status: 'rejected', reason };
   }
 }
 

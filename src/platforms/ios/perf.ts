@@ -17,6 +17,19 @@ import {
 import { readInfoPlistString } from './plist.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 import { parseXmlDocumentSync, type XmlNode } from './xml.ts';
+import {
+  findAllXmlNodes,
+  findFirstXmlNode,
+  parseDirectXmlNumber,
+  readSchemaColumns,
+  resolveXmlNumber,
+} from './perf-xml.ts';
+import {
+  APPLE_FRAME_SAMPLE_DESCRIPTION,
+  APPLE_FRAME_SAMPLE_METHOD,
+  parseAppleFramePerfSample,
+  type AppleFramePerfSample,
+} from './perf-frame.ts';
 
 const APPLE_CPU_SAMPLE_METHOD = 'ps-process-snapshot';
 const APPLE_MEMORY_SAMPLE_METHOD = 'ps-process-snapshot';
@@ -28,6 +41,9 @@ const APPLE_PERF_TIMEOUT_MS = 15_000;
 const IOS_DEVICE_PERF_RECORD_TIMEOUT_MS = 60_000;
 const IOS_DEVICE_PERF_EXPORT_TIMEOUT_MS = 15_000;
 const IOS_DEVICE_PERF_TRACE_DURATION = '1s';
+const IOS_DEVICE_FRAME_TRACE_DURATION = '2s';
+const IOS_DEVICE_TRACE_RECORD_MAX_ATTEMPTS = 3;
+const IOS_DEVICE_TRACE_RECORD_RETRY_DELAY_MS = 1_500;
 
 export type AppleCpuPerfSample = {
   usagePercent: number;
@@ -62,6 +78,24 @@ type IosDevicePerfCapture = {
   xml: string;
 };
 
+type IosDeviceFramePerfCapture = {
+  windowStartedAt: string;
+  windowEndedAt: string;
+  hitchesXml: string;
+  frameLifetimesXml: string;
+  displayInfoXml?: string;
+};
+
+type IosDeviceTraceRecord = {
+  startedAt: string;
+  endedAt: string;
+  capturedAtMs: number;
+};
+
+type IosDeviceTraceRecordAttempt = IosDeviceTraceRecord & {
+  result: Awaited<ReturnType<typeof runCmd>>;
+};
+
 export async function sampleApplePerfMetrics(
   device: DeviceInfo,
   appBundleId: string,
@@ -80,22 +114,69 @@ export async function sampleApplePerfMetrics(
   }
 
   const measuredAt = new Date().toISOString();
-  const matchedProcesses = uniqueStrings(
-    processes.map((process) => path.basename(readProcessCommandToken(process.command))),
-  );
   return buildApplePerfSamples({
     usagePercent: processes.reduce((total, process) => total + process.cpuPercent, 0),
     residentMemoryKb: processes.reduce((total, process) => total + process.rssKb, 0),
     measuredAt,
-    matchedProcesses,
+    matchedProcesses: [executable.executableName],
     cpuMethod: APPLE_CPU_SAMPLE_METHOD,
     memoryMethod: APPLE_MEMORY_SAMPLE_METHOD,
   });
 }
 
+export async function sampleAppleFramePerf(
+  device: DeviceInfo,
+  appBundleId: string,
+): Promise<AppleFramePerfSample> {
+  if (device.platform !== 'ios' || device.kind !== 'device') {
+    throw new AppError(
+      'COMMAND_FAILED',
+      'Apple frame-health sampling is currently available only on connected iOS devices.',
+      {
+        metric: 'fps',
+        platform: device.platform,
+        deviceKind: device.kind,
+      },
+    );
+  }
+
+  const processes = await resolveIosDevicePerfTarget(device, appBundleId);
+  const capture = await captureIosDeviceFramePerf(device, appBundleId, processes);
+  return parseAppleFramePerfSample({
+    hitchesXml: capture.hitchesXml,
+    frameLifetimesXml: capture.frameLifetimesXml,
+    displayInfoXml: capture.displayInfoXml,
+    processIds: processes.map((process) => process.pid),
+    processNames: uniqueStrings(
+      processes.map((process) => path.basename(fileURLToPath(process.executable))),
+    ),
+    windowStartedAt: capture.windowStartedAt,
+    windowEndedAt: capture.windowEndedAt,
+    measuredAt: capture.windowEndedAt,
+  });
+}
+
 export function buildAppleSamplingMetadata(device: DeviceInfo): Record<string, unknown> {
+  const fps =
+    device.platform === 'ios' && device.kind === 'device'
+      ? {
+          method: APPLE_FRAME_SAMPLE_METHOD,
+          description: APPLE_FRAME_SAMPLE_DESCRIPTION,
+          unit: 'percent',
+          primaryField: 'droppedFramePercent',
+          window: `short ${IOS_DEVICE_FRAME_TRACE_DURATION} xctrace Animation Hitches record of the active app process`,
+          resetsAfterRead: false,
+        }
+      : {
+          method: APPLE_FRAME_SAMPLE_METHOD,
+          description:
+            'Unavailable on iOS simulators and macOS because local Apple tooling does not expose reliable app frame hitches for these targets.',
+          unit: 'percent',
+          primaryField: 'droppedFramePercent',
+        };
   if (device.platform === 'ios' && device.kind === 'device') {
     return {
+      fps,
       memory: {
         method: IOS_DEVICE_MEMORY_SAMPLE_METHOD,
         description:
@@ -116,6 +197,7 @@ export function buildAppleSamplingMetadata(device: DeviceInfo): Record<string, u
       ? 'host ps for the running macOS app executable resolved from the bundle ID.'
       : 'xcrun simctl spawn ps for the running iOS simulator app executable resolved from the bundle ID.';
   return {
+    fps,
     memory: {
       method: APPLE_MEMORY_SAMPLE_METHOD,
       description: `Resident memory snapshot from ${source}`,
@@ -127,6 +209,222 @@ export function buildAppleSamplingMetadata(device: DeviceInfo): Record<string, u
       unit: 'percent',
     },
   };
+}
+
+async function captureIosDeviceFramePerf(
+  device: DeviceInfo,
+  appBundleId: string,
+  processes: IosDeviceProcessInfo[],
+): Promise<IosDeviceFramePerfCapture> {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-frame-perf-'));
+  const tracePath = path.join(tempDir, 'animation-hitches.trace');
+  const hitchesPath = path.join(tempDir, 'hitches.xml');
+  const frameLifetimesPath = path.join(tempDir, 'frame-lifetimes.xml');
+  const displayInfoPath = path.join(tempDir, 'display-info.xml');
+  try {
+    const record = await recordIosDeviceTrace({
+      device,
+      appBundleId,
+      tracePath,
+      template: 'Animation Hitches',
+      duration: IOS_DEVICE_FRAME_TRACE_DURATION,
+      targetPids: processes.map((process) => process.pid),
+      validateTraceOutput: true,
+      failureMessage: `Failed to record iOS frame-health sample for ${appBundleId}`,
+    });
+    await exportIosDevicePerfTable(device, appBundleId, tracePath, 'hitches', hitchesPath);
+    await exportIosDevicePerfTable(
+      device,
+      appBundleId,
+      tracePath,
+      'hitches-frame-lifetimes',
+      frameLifetimesPath,
+    );
+    const hasDisplayInfo = await exportOptionalIosDevicePerfTable(
+      device,
+      appBundleId,
+      tracePath,
+      'device-display-info',
+      displayInfoPath,
+    );
+    return {
+      windowStartedAt: record.startedAt,
+      windowEndedAt: record.endedAt,
+      hitchesXml: await fs.readFile(hitchesPath, 'utf8'),
+      frameLifetimesXml: await fs.readFile(frameLifetimesPath, 'utf8'),
+      displayInfoXml: hasDisplayInfo ? await fs.readFile(displayInfoPath, 'utf8') : undefined,
+    };
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+async function recordIosDeviceTrace(params: {
+  device: DeviceInfo;
+  appBundleId: string;
+  tracePath: string;
+  template: 'Activity Monitor' | 'Animation Hitches';
+  duration: string;
+  targetPids?: number[];
+  allProcesses?: boolean;
+  validateTraceOutput?: boolean;
+  failureMessage: string;
+}): Promise<IosDeviceTraceRecord> {
+  const { device, appBundleId, tracePath, template, duration } = params;
+  const targetArgs = params.allProcesses
+    ? ['--all-processes']
+    : (params.targetPids ?? []).flatMap((pid) => ['--attach', String(pid)]);
+  const recordArgs = [
+    'xctrace',
+    'record',
+    '--template',
+    template,
+    '--device',
+    device.id,
+    ...targetArgs,
+    '--time-limit',
+    duration,
+    '--output',
+    tracePath,
+    '--quiet',
+    '--no-prompt',
+  ];
+  const record = await runIosDeviceTraceRecord(recordArgs, params.tracePath);
+  if (record.result.exitCode === 0) {
+    if (params.validateTraceOutput) {
+      await assertUsableTraceOutput(params, record.result.stdout, record.result.stderr);
+    }
+    return {
+      startedAt: record.startedAt,
+      endedAt: record.endedAt,
+      capturedAtMs: record.capturedAtMs,
+    };
+  }
+  throw new AppError('COMMAND_FAILED', params.failureMessage, {
+    cmd: 'xcrun',
+    args: recordArgs,
+    exitCode: record.result.exitCode,
+    stdout: record.result.stdout,
+    stderr: record.result.stderr,
+    appBundleId,
+    deviceId: device.id,
+    hint: resolveIosDevicePerfHint(record.result.stdout, record.result.stderr),
+  });
+}
+
+async function runIosDeviceTraceRecord(
+  recordArgs: string[],
+  tracePath: string,
+): Promise<IosDeviceTraceRecordAttempt> {
+  let lastAttempt: IosDeviceTraceRecordAttempt | undefined;
+  for (let attempt = 1; attempt <= IOS_DEVICE_TRACE_RECORD_MAX_ATTEMPTS; attempt += 1) {
+    if (attempt > 1) {
+      await fs.rm(tracePath, { recursive: true, force: true }).catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, IOS_DEVICE_TRACE_RECORD_RETRY_DELAY_MS));
+    }
+    const startedAt = new Date().toISOString();
+    const result = await runCmd('xcrun', recordArgs, {
+      allowFailure: true,
+      timeoutMs: IOS_DEVICE_PERF_RECORD_TIMEOUT_MS,
+    });
+    lastAttempt = {
+      result,
+      startedAt,
+      endedAt: new Date().toISOString(),
+      capturedAtMs: Date.now(),
+    };
+    if (result.exitCode === 0 || !isRetryableIosDeviceTraceRecordFailure(result)) {
+      return lastAttempt;
+    }
+  }
+  return lastAttempt as IosDeviceTraceRecordAttempt;
+}
+
+function isRetryableIosDeviceTraceRecordFailure(result: {
+  stdout: string;
+  stderr: string;
+}): boolean {
+  const text = `${result.stdout}\n${result.stderr}`.toLowerCase();
+  return (
+    text.includes('_lockkperf') ||
+    text.includes('could not lock kperf') ||
+    text.includes('likely another session just started')
+  );
+}
+
+async function assertUsableTraceOutput(
+  params: {
+    device: DeviceInfo;
+    appBundleId: string;
+    tracePath: string;
+    failureMessage: string;
+  },
+  stdout: string,
+  stderr: string,
+): Promise<void> {
+  const stat = await fs.stat(params.tracePath).catch(() => null);
+  const hasTrace =
+    stat?.isDirectory() === true
+      ? (await fs.readdir(params.tracePath).catch(() => [])).length > 0
+      : (stat?.size ?? 0) > 0;
+  if (hasTrace) return;
+  throw new AppError('COMMAND_FAILED', `${params.failureMessage}: xctrace produced no trace data`, {
+    tracePath: params.tracePath,
+    appBundleId: params.appBundleId,
+    deviceId: params.device.id,
+    stdout,
+    stderr,
+    hint: 'Keep the iOS device unlocked and connected by cable, keep the app active, then retry perf.',
+  });
+}
+
+async function exportIosDevicePerfTable(
+  device: DeviceInfo,
+  appBundleId: string,
+  tracePath: string,
+  schema: string,
+  outputPath: string,
+): Promise<void> {
+  const exportArgs = [
+    'xctrace',
+    'export',
+    '--input',
+    tracePath,
+    '--xpath',
+    `/trace-toc/run/data/table[@schema="${schema}"]`,
+    '--output',
+    outputPath,
+  ];
+  const exportResult = await runCmd('xcrun', exportArgs, {
+    allowFailure: true,
+    timeoutMs: IOS_DEVICE_PERF_EXPORT_TIMEOUT_MS,
+  });
+  if (exportResult.exitCode === 0) return;
+  throw new AppError('COMMAND_FAILED', `Failed to export iOS device ${schema} data`, {
+    cmd: 'xcrun',
+    args: exportArgs,
+    exitCode: exportResult.exitCode,
+    stdout: exportResult.stdout,
+    stderr: exportResult.stderr,
+    appBundleId,
+    deviceId: device.id,
+    hint: resolveIosDevicePerfHint(exportResult.stdout, exportResult.stderr),
+  });
+}
+
+async function exportOptionalIosDevicePerfTable(
+  device: DeviceInfo,
+  appBundleId: string,
+  tracePath: string,
+  schema: string,
+  outputPath: string,
+): Promise<boolean> {
+  try {
+    await exportIosDevicePerfTable(device, appBundleId, tracePath, schema, outputPath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function parseApplePsOutput(stdout: string): AppleProcessSample[] {
@@ -150,19 +448,13 @@ export function parseApplePsOutput(stdout: string): AppleProcessSample[] {
 
 async function parseIosDevicePerfTable(xml: string): Promise<IosDevicePerfProcessSample[]> {
   const document = parseXmlDocumentSync(xml);
-  const schema = findFirstXmlNode(
-    document,
-    (node) => node.name === 'schema' && node.attributes.name === 'activity-monitor-process-live',
-  );
-  if (!schema) {
+  const mnemonics = readSchemaColumns(document, 'activity-monitor-process-live');
+  if (mnemonics.length === 0) {
     throw new AppError(
       'COMMAND_FAILED',
       'Failed to parse xctrace activity-monitor-process-live schema',
     );
   }
-  const mnemonics = schema.children
-    .filter((child) => child.name === 'col')
-    .map((column) => readFirstChildText(column, 'mnemonic') ?? '');
   const pidIndex = mnemonics.indexOf('pid');
   const processIndex = mnemonics.indexOf('process');
   const cpuTimeIndex = mnemonics.indexOf('cpu-total');
@@ -242,7 +534,7 @@ async function resolveAppleExecutable(
     executablePath:
       device.platform === 'macos'
         ? path.join(appPath, 'Contents', 'MacOS', executableName)
-        : undefined,
+        : path.join(appPath, executableName),
   };
 }
 
@@ -346,75 +638,24 @@ async function captureIosDevicePerfTable(
   const tracePath = path.join(tempDir, 'sample.trace');
   const exportPath = path.join(tempDir, 'activity-monitor-process-live.xml');
   try {
-    const recordArgs = [
-      'xctrace',
-      'record',
-      '--template',
-      'Activity Monitor',
-      '--device',
-      device.id,
-      '--all-processes',
-      '--time-limit',
-      IOS_DEVICE_PERF_TRACE_DURATION,
-      '--output',
+    const record = await recordIosDeviceTrace({
+      device,
+      appBundleId,
       tracePath,
-      '--quiet',
-      '--no-prompt',
-    ];
-    const recordResult = await runCmd('xcrun', recordArgs, {
-      allowFailure: true,
-      timeoutMs: IOS_DEVICE_PERF_RECORD_TIMEOUT_MS,
+      template: 'Activity Monitor',
+      duration: IOS_DEVICE_PERF_TRACE_DURATION,
+      allProcesses: true,
+      failureMessage: `Failed to record iOS device Activity Monitor sample for ${appBundleId}`,
     });
-    const capturedAtMs = Date.now();
-    if (recordResult.exitCode !== 0) {
-      throw new AppError(
-        'COMMAND_FAILED',
-        `Failed to record iOS device Activity Monitor sample for ${appBundleId}`,
-        {
-          cmd: 'xcrun',
-          args: recordArgs,
-          exitCode: recordResult.exitCode,
-          stdout: recordResult.stdout,
-          stderr: recordResult.stderr,
-          appBundleId,
-          deviceId: device.id,
-          hint: resolveIosDevicePerfHint(recordResult.stdout, recordResult.stderr),
-        },
-      );
-    }
-
-    const exportArgs = [
-      'xctrace',
-      'export',
-      '--input',
+    await exportIosDevicePerfTable(
+      device,
+      appBundleId,
       tracePath,
-      '--xpath',
-      '/trace-toc/run/data/table[@schema="activity-monitor-process-live"]',
-      '--output',
+      'activity-monitor-process-live',
       exportPath,
-    ];
-    const exportResult = await runCmd('xcrun', exportArgs, {
-      allowFailure: true,
-      timeoutMs: IOS_DEVICE_PERF_EXPORT_TIMEOUT_MS,
-    });
-    if (exportResult.exitCode !== 0) {
-      throw new AppError(
-        'COMMAND_FAILED',
-        `Failed to export iOS device perf sample for ${appBundleId}`,
-        {
-          cmd: 'xcrun',
-          args: exportArgs,
-          exitCode: exportResult.exitCode,
-          stdout: exportResult.stdout,
-          stderr: exportResult.stderr,
-          appBundleId,
-          deviceId: device.id,
-          hint: resolveIosDevicePerfHint(exportResult.stdout, exportResult.stderr),
-        },
-      );
-    }
+    );
     return {
-      capturedAtMs,
+      capturedAtMs: record.capturedAtMs,
       xml: await fs.readFile(exportPath, 'utf8'),
     };
   } finally {
@@ -579,7 +820,9 @@ function matchesAppleExecutableProcess(
   const token = readProcessCommandToken(command);
   if (
     executable.executablePath &&
-    (token === executable.executablePath || command.startsWith(`${executable.executablePath} `))
+    (command === executable.executablePath ||
+      token === executable.executablePath ||
+      command.startsWith(`${executable.executablePath} `))
   ) {
     return true;
   }
@@ -613,56 +856,6 @@ function buildApplePerfSamples(args: {
       matchedProcesses: args.matchedProcesses,
     },
   };
-}
-
-function findFirstXmlNode(
-  nodes: XmlNode[],
-  predicate: (node: XmlNode) => boolean,
-): XmlNode | undefined {
-  for (const node of nodes) {
-    if (predicate(node)) {
-      return node;
-    }
-    const descendant = findFirstXmlNode(node.children, predicate);
-    if (descendant) {
-      return descendant;
-    }
-  }
-  return undefined;
-}
-
-function findAllXmlNodes(nodes: XmlNode[], predicate: (node: XmlNode) => boolean): XmlNode[] {
-  const matches: XmlNode[] = [];
-  for (const node of nodes) {
-    if (predicate(node)) {
-      matches.push(node);
-    }
-    matches.push(...findAllXmlNodes(node.children, predicate));
-  }
-  return matches;
-}
-
-function readFirstChildText(node: XmlNode, childName: string): string | null {
-  const child = node.children.find((candidate) => candidate.name === childName);
-  return child?.text ?? null;
-}
-
-function parseDirectXmlNumber(element: XmlNode | undefined): number | null {
-  if (!element || element.children.some((child) => child.name === 'sentinel')) return null;
-  if (!element.text) return null;
-  const value = Number(element.text);
-  return Number.isFinite(value) ? value : null;
-}
-
-function resolveXmlNumber(
-  element: XmlNode | undefined,
-  references: Map<string, { numberValue?: number | null }>,
-): number | null {
-  if (!element) return null;
-  if (element.attributes.ref) {
-    return references.get(element.attributes.ref)?.numberValue ?? null;
-  }
-  return parseDirectXmlNumber(element);
 }
 
 function readDirectProcessNameFromXml(element: XmlNode | undefined): string | null {

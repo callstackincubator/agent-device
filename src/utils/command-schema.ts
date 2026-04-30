@@ -1612,7 +1612,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   perf: {
-    helpDescription: 'Show session performance metrics, including Android frame health',
+    helpDescription:
+      'Show session performance metrics, including frame health on Android and iOS devices',
     summary: 'Show performance metrics',
     positionalArgs: [],
     allowedFlags: [],
