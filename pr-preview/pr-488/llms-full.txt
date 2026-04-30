@@ -1406,6 +1406,7 @@ agent-device disconnect --remote-config ./agent-device.remote.json
 ```
 
 - `connect` without `--remote-config` authenticates to cloud when needed, fetches the connection profile, writes a generated local profile, stores the remote scope locally, and defers tenant lease allocation plus Metro preparation until a later command needs them.
+- Cloud connection profile responses must return a JSON object at `connection.remoteConfigProfile`. The older `connection.remoteConfig` JSON string shape is no longer accepted.
 - `--remote-config <path>` points to a local remote workflow profile that captures stable host, tenant/run, and any optional session, platform, lease backend, or Metro overrides for `connect`.
 - `connect --remote-config ...` follows the same state and deferred-preparation flow using the local profile instead of cloud discovery.
 - Auth management commands are available for inspection and recovery: `agent-device auth status`, `agent-device auth login`, and `agent-device auth logout`. Human login stores a revocable CLI session locally; it does not create or persist an `adc_live_...` service token.
@@ -1421,6 +1422,35 @@ agent-device disconnect --remote-config ./agent-device.remote.json
 - `metroPublicBaseUrl` is only needed for direct/non-bridge bundle hints. Bridged profiles can omit it and rely on `metroProxyBaseUrl`.
 - `metro prepare --remote-config ...` remains an advanced inspection/debug path and can still write a `--runtime-file <path>` artifact when needed.
 - The local Metro companion runs on the same machine as the React Native project and Metro. `disconnect` stops the companion owned by the connection, but it does not stop the user’s Metro server.
+
+### Cloud profile response migration
+
+Cloud/control-plane clients serving `/api/control-plane/connection-profile` must return the remote profile as an object:
+
+```json
+{
+  "connection": {
+    "remoteConfigProfile": {
+      "daemonBaseUrl": "https://bridge.example.com/agent-device",
+      "daemonTransport": "http",
+      "tenant": "acme",
+      "runId": "run-123"
+    }
+  }
+}
+```
+
+Do not return the old JSON-string wrapper:
+
+```json
+{
+  "connection": {
+    "remoteConfig": "{\"daemonBaseUrl\":\"https://bridge.example.com/agent-device\"}"
+  }
+}
+```
+
+The CLI now rejects that legacy shape before writing a generated remote config.
 
 ## Session inspection
 
