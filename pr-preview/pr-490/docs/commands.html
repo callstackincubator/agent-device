@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-490/static/js/lib-react.f4adab48fc.js"></script>
 <script defer src="/agent-device/pr-preview/pr-490/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/pr-preview/pr-490/static/js/757.695a0ec7a3.js"></script>
-<script defer src="/agent-device/pr-preview/pr-490/static/js/index.7ec266afbc.js"></script>
+<script defer src="/agent-device/pr-preview/pr-490/static/js/index.23ab87b940.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -529,6 +529,7 @@ On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li
 <li>Keep using <code>snapshot</code>, <code>press</code>, <code>fill</code>, <code>logs</code>, <code>network</code>, and <code>perf</code> for device/app runtime evidence. Use <code>react-devtools</code> for React internals.</li>
 <li>React Native development builds can connect to the DevTools daemon on port 8097. For Android emulators or physical devices, run <code>adb reverse tcp:8097 tcp:8097</code> if the app cannot reach the host. If Metro is local, also run <code>adb reverse tcp:8081 tcp:8081</code>.</li>
 <li>For Android and iOS sessions connected through a remote bridge profile, <code>react-devtools</code> registers a lease-scoped companion tunnel to the sandbox-local DevTools daemon at <code>127.0.0.1:8097</code>. Android bridge profiles use the bridge-owned remote <code>adb reverse</code> mapping; iOS bridge profiles use the bridge-owned wildcard Metro host tunnel. The CLI keeps the companion alive until <code>agent-device react-devtools stop</code> or <code>agent-device disconnect</code>.</li>
+<li>For remote iOS bridge sessions, open the app once to create the bridge session, run <code>agent-device react-devtools start</code>, then relaunch the same bundle id with <code>agent-device open &lt;bundle-id&gt; --platform ios --relaunch</code> before <code>wait --connected</code>. React Native attempts the legacy DevTools websocket during JavaScript startup, so starting DevTools after the first launch can miss that connection attempt.</li>
 <li>Remote bridge React DevTools assumes the React Native-bundled DevTools behavior in React Native 0.83+. Older browser/Chromium DevTools workflows are not assumed to exist inside remote sandboxes. Expo projects should be verified against the SDK&#x27;s bundled React Native version before relying on this path; this release does not claim a separately verified Expo SDK version.</li>
 <li>For cross-platform validation with explicit target selectors, prefer an isolated <code>--state-dir</code> over separate named sessions. Named sessions enable bound-session locks during setup. Restart <code>react-devtools</code> between iOS and Android runs.</li>
 </ul>
