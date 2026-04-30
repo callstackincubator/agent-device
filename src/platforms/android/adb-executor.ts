@@ -71,10 +71,39 @@ export type AndroidPortReverseProvider = {
   list?(options?: AndroidPortReverseOptions): Promise<AndroidPortReverseMapping[]>;
 };
 
+export type AndroidAdbTransferOptions = AndroidAdbExecutorOptions;
+export type AndroidAdbInstallOptions = AndroidAdbTransferOptions & {
+  replace?: boolean;
+  allowTestPackages?: boolean;
+  allowDowngrade?: boolean;
+  grantPermissions?: boolean;
+};
+
+export type AndroidAdbPuller = (
+  remotePath: string,
+  localPath: string,
+  options?: AndroidAdbTransferOptions,
+) => Promise<AndroidAdbExecutorResult>;
+
+/**
+ * Installs an APK path. Implementations are responsible for honoring semantic
+ * install options such as replace/test/downgrade/grant-permissions.
+ */
+export type AndroidAdbInstaller = (
+  apkPath: string,
+  options?: AndroidAdbInstallOptions,
+) => Promise<AndroidAdbExecutorResult>;
+
 export type AndroidAdbProvider = {
+  /**
+   * Fallback executor for device-scoped adb arguments. Providers may omit explicit
+   * methods to keep the legacy exec-shaped pull/install fallback.
+   */
   exec: AndroidAdbExecutor;
   spawn?: AndroidAdbSpawner;
   reverse?: AndroidPortReverseProvider;
+  pull?: AndroidAdbPuller;
+  install?: AndroidAdbInstaller;
 };
 
 export type AndroidAdbProviderScopeOptions = {
@@ -111,6 +140,12 @@ export function createLocalAndroidAdbProvider(device: DeviceInfo): AndroidAdbPro
     exec,
     spawn: createSerialAdbSpawner(device.id),
     reverse: createExecAndroidPortReverseProvider(exec),
+    pull: async (remotePath, localPath, options) =>
+      await exec(['pull', remotePath, localPath], options),
+    install: async (apkPath, options) => {
+      const { installArgs, execOptions } = normalizeAndroidAdbInstallOptions(options);
+      return await exec(['install', ...installArgs, apkPath], execOptions);
+    },
   };
 }
 
@@ -191,6 +226,64 @@ function normalizeAndroidAdbProvider(
     return { exec: provider };
   }
   return provider;
+}
+
+type AndroidAdbTransferProviderOptions = {
+  device?: DeviceInfo;
+  provider?: AndroidAdbProvider | AndroidAdbExecutor;
+};
+
+export async function pullAndroidAdbFile(
+  remotePath: string,
+  localPath: string,
+  options?: AndroidAdbTransferOptions & AndroidAdbTransferProviderOptions,
+): Promise<AndroidAdbExecutorResult> {
+  const { device, provider, ...transferOptions } = options ?? {};
+  const resolved = resolveTransferProvider(device, provider);
+  const pull = resolved?.pull;
+  if (pull) {
+    return await withoutCommandExecutorOverride(
+      async () => await pull(remotePath, localPath, transferOptions),
+    );
+  }
+  const exec = resolved?.exec;
+  if (!exec) {
+    throw new AppError('COMMAND_FAILED', 'Android adb pull requires an adb provider');
+  }
+  return await withoutCommandExecutorOverride(
+    async () => await exec(['pull', remotePath, localPath], transferOptions),
+  );
+}
+
+export async function installAndroidAdbPackage(
+  apkPath: string,
+  options?: AndroidAdbInstallOptions & AndroidAdbTransferProviderOptions,
+): Promise<AndroidAdbExecutorResult> {
+  const { device, provider, ...installOptions } = options ?? {};
+  const resolved = resolveTransferProvider(device, provider);
+  const install = resolved?.install;
+  if (install) {
+    return await withoutCommandExecutorOverride(async () => await install(apkPath, installOptions));
+  }
+  const exec = resolved?.exec;
+  if (!exec) {
+    throw new AppError('COMMAND_FAILED', 'Android adb install requires an adb provider');
+  }
+  const { installArgs, execOptions } = normalizeAndroidAdbInstallOptions(installOptions);
+  return await withoutCommandExecutorOverride(
+    async () => await exec(['install', ...installArgs, apkPath], execOptions),
+  );
+}
+
+function resolveTransferProvider(
+  device: DeviceInfo | undefined,
+  provider: AndroidAdbProvider | AndroidAdbExecutor | undefined,
+): AndroidAdbProvider | undefined {
+  if (provider) return normalizeAndroidAdbProvider(provider);
+  if (device) return resolveAndroidAdbProvider(device);
+  const scoped = androidAdbProviderScope.getStore();
+  if (scoped) return normalizeAndroidAdbProvider(scoped.provider);
+  return undefined;
 }
 
 export async function withAndroidAdbProvider<T>(
@@ -305,4 +398,18 @@ function parseAndroidReverseList(
 function isMissingReverseMapping(stdout: string, stderr: string): boolean {
   const text = `${stdout}\n${stderr}`.toLowerCase();
   return text.includes('listener') && text.includes('not found');
+}
+
+function normalizeAndroidAdbInstallOptions(options?: AndroidAdbInstallOptions): {
+  installArgs: string[];
+  execOptions: AndroidAdbTransferOptions;
+} {
+  const { replace, allowTestPackages, allowDowngrade, grantPermissions, ...execOptions } =
+    options ?? {};
+  const installArgs: string[] = [];
+  if (replace) installArgs.push('-r');
+  if (allowTestPackages) installArgs.push('-t');
+  if (allowDowngrade) installArgs.push('-d');
+  if (grantPermissions) installArgs.push('-g');
+  return { installArgs, execOptions };
 }
