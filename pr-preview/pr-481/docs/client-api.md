@@ -70,7 +70,7 @@ Public subpath API exposed for Node consumers:
   - `createLocalAndroidAdbProvider(device)`
   - `resolveAndroidAdbExecutor(device, executor?)`
   - `resolveAndroidAdbProvider(device, provider?)`
-  - `withAndroidAdbProvider(provider, task)`
+  - `withAndroidAdbProvider(provider, { serial }, task)`
   - `captureAndroidLogcatWithAdb(executor, options?)`
   - `streamAndroidLogcatWithAdb(provider, options?)`
   - `readAndroidClipboardWithAdb(executor)` / `writeAndroidClipboardWithAdb(executor, text)`
@@ -80,7 +80,7 @@ Public subpath API exposed for Node consumers:
   - `resolveAndroidLaunchComponentWithAdb(executor, packageName, categories?)`
   - `listAndroidAppsWithAdb(executor, options?)`
   - `getAndroidAppStateWithAdb(executor)`
-  - types: `AndroidAdbProvider`, `AndroidAdbExecutor`, `AndroidAdbExecutorOptions`, `AndroidAdbExecutorResult`, `AndroidAdbProcess`, `AndroidAdbSpawner`, `AndroidPortReverseProvider`, `AndroidPortReverseManager`
+  - types: `AndroidAdbProvider`, `AndroidAdbProviderScopeOptions`, `AndroidAdbExecutor`, `AndroidAdbExecutorOptions`, `AndroidAdbExecutorResult`, `AndroidAdbProcess`, `AndroidAdbSpawner`, `AndroidPortReverseProvider`, `AndroidPortReverseManager`
 - `agent-device/daemon`
   - `createRequestHandler(deps)`
   - `withDeviceInventoryProvider(provider, task)`
@@ -168,10 +168,16 @@ behavior for ADB-shaped operations. Executors receive arguments after `adb`; loc
 an abstract provider backed by an ADB tunnel, websocket API, or another remote transport.
 
 The provider contract covers normal stdout/stderr commands, binary stdout, stdin, timeout/signal
-cancellation, device-scoped command interception through `withAndroidAdbProvider`, and optional
-long-running spawn support for logcat-style streams. Providers can also expose `reverse` for
-first-class port reverse ownership; `createAndroidPortReverseManager(provider)` adds idempotent
-setup and owner cleanup semantics for session-scoped Metro/DevTools mappings.
+cancellation, serial-bound command interception through `withAndroidAdbProvider`, and optional
+long-running spawn support for logcat-style streams. `withAndroidAdbProvider` only intercepts
+`adb -s <serial> ...` calls matching the supplied serial; calls for any other serial stay on the
+local command path.
+
+Providers can also expose `reverse` for first-class port reverse ownership. Plain executors do not
+advertise reverse support automatically through `resolveAndroidAdbProvider`; call
+`createAndroidPortReverseManager(providerOrExecutor)` only when the provider supports `adb reverse`
+argument semantics. The manager makes duplicate setup idempotent for the same owner and rejects
+conflicting owners for the same local endpoint.
 
 ```ts
 import {
@@ -184,7 +190,7 @@ const provider = {
   exec: async (args, options) => await runAdbThroughRemoteTunnel(args, options),
 };
 
-await withAndroidAdbProvider(provider, async () => {
+await withAndroidAdbProvider(provider, { serial: 'emulator-5554' }, async () => {
   const apps = await listAndroidAppsWithAdb(provider.exec, { filter: 'user-installed' });
   const foreground = await getAndroidAppStateWithAdb(provider.exec);
 });
@@ -212,6 +218,9 @@ desktop discovery. Return `undefined` or `null` to fall back to local discovery 
 `RequestRouterDeps.androidAdbProvider` can supply an Android command provider for the resolved
 request device. Device inventory controls discovery; the Android ADB provider controls
 device-scoped Android command execution, streaming, binary/stdin operations, and reverse mappings.
+Android install and recording file-transfer paths still use `adb install`/`adb pull`-shaped
+arguments; pure websocket providers should either implement those argument shapes against bridge
+storage or wait for explicit transfer capability hooks.
 
 Initial daemon conformance scope is the shared request/response contract in
 `agent-device/contracts`, request-router embedding through `createRequestHandler`, authoritative
