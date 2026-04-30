@@ -67,6 +67,7 @@ import {
   overlayRecordingTouches,
 } from '../../../recording/overlay.ts';
 import { runCmd, runCmdBackground } from '../../../utils/exec.ts';
+import { withAndroidAdbProvider } from '../../../platforms/android/adb-executor.ts';
 
 type RunnerCall = {
   command: string;
@@ -1032,6 +1033,91 @@ test('record start/stop overlays Android gestures by default on devices', async 
     ]);
     expect(responseStop.data?.overlayWarning).toBeUndefined();
   }
+});
+
+test('record stop copies Android recording through provider pull capability', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-provider-pull';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Android',
+      kind: 'device',
+      booted: true,
+    }),
+  );
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    const command = args.join(' ');
+    if (
+      /^-s emulator-5554 shell screenrecord \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
+        command,
+      )
+    ) {
+      return { stdout: '4321\n', stderr: '', exitCode: 0 };
+    }
+    if (
+      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
+    ) {
+      return { stdout: '1024\n', stderr: '', exitCode: 0 };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './android-provider.mp4'],
+  });
+
+  const pullCalls: Array<{ remotePath: string; localPath: string }> = [];
+  const execCalls: string[][] = [];
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    const command = args.join(' ');
+    if (command === '-s emulator-5554 shell ps -o pid= -p 4321') {
+      return { stdout: '', stderr: '', exitCode: 1 };
+    }
+    if (
+      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
+    ) {
+      return { stdout: '2048\n', stderr: '', exitCode: 0 };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const responseStop = await withAndroidAdbProvider(
+    {
+      exec: async (args) => {
+        execCalls.push(args);
+        if (args.join(' ') === 'shell ps -o pid= -p 4321') {
+          return { stdout: '', stderr: '', exitCode: 1 };
+        }
+        if (/^shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(args.join(' '))) {
+          return { stdout: '2048\n', stderr: '', exitCode: 0 };
+        }
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      pull: async (remotePath, localPath) => {
+        pullCalls.push({ remotePath, localPath });
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+    },
+    { serial: 'emulator-5554' },
+    async () =>
+      await runRecordCommand({
+        sessionStore,
+        sessionName,
+        positionals: ['stop'],
+      }),
+  );
+
+  expect(responseStop?.ok).toBe(true);
+  expect(pullCalls).toHaveLength(1);
+  expect(pullCalls[0]?.remotePath).toMatch(/^\/sdcard\/agent-device-recording-\d+\.mp4$/);
+  expect(pullCalls[0]?.localPath).toBe(path.resolve('./android-provider.mp4'));
+  expect(execCalls.some((args) => args[0] === 'pull')).toBe(false);
 });
 
 test('record start passes scaled Android screenrecord size when quality is explicit', async () => {

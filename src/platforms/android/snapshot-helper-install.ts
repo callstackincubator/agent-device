@@ -1,10 +1,15 @@
 import { AppError } from '../../utils/errors.ts';
 import {
-  readAndroidSnapshotHelperInstallArgs,
+  readAndroidSnapshotHelperInstallOptions,
   verifyAndroidSnapshotHelperArtifact,
 } from './snapshot-helper-artifact.ts';
+import {
+  installAndroidAdbPackage,
+  type AndroidAdbExecutor,
+  type AndroidAdbProvider,
+} from './adb-executor.ts';
+import type { AndroidSnapshotHelperInstallOptions } from './snapshot-helper-artifact.ts';
 import type {
-  AndroidAdbExecutor,
   AndroidSnapshotHelperArtifact,
   AndroidSnapshotHelperInstallPolicy,
   AndroidSnapshotHelperInstallResult,
@@ -51,6 +56,7 @@ function forgetInstalledSnapshotHelper(cacheKey: string | undefined): void {
 
 export async function ensureAndroidSnapshotHelper(options: {
   adb: AndroidAdbExecutor;
+  adbProvider?: AndroidAdbProvider | AndroidAdbExecutor;
   artifact: AndroidSnapshotHelperArtifact;
   deviceKey?: string;
   installPolicy?: AndroidSnapshotHelperInstallPolicy;
@@ -99,14 +105,16 @@ export async function ensureAndroidSnapshotHelper(options: {
   }
 
   await verifyAndroidSnapshotHelperArtifact(artifact);
-  const installArgs = [
-    ...readAndroidSnapshotHelperInstallArgs(artifact.manifest),
+  const result = await installAndroidSnapshotHelper(
+    adb,
+    options.adbProvider ?? adb,
     artifact.apkPath,
-  ];
-  const result = await installAndroidSnapshotHelper(adb, installArgs, {
-    packageName,
-    timeoutMs: options.timeoutMs,
-  });
+    readAndroidSnapshotHelperInstallOptions(artifact.manifest),
+    {
+      packageName,
+      timeoutMs: options.timeoutMs,
+    },
+  );
   if (result.exitCode !== 0) {
     forgetInstalledSnapshotHelper(installCacheKey);
     throw new AppError('COMMAND_FAILED', 'Failed to install Android snapshot helper', {
@@ -148,10 +156,20 @@ async function readInstalledVersionCode(
 
 async function installAndroidSnapshotHelper(
   adb: AndroidAdbExecutor,
-  installArgs: string[],
+  adbProvider: AndroidAdbProvider | AndroidAdbExecutor,
+  apkPath: string,
+  installOptions: AndroidSnapshotHelperInstallOptions,
   options: { packageName: string; timeoutMs?: number },
 ): Promise<Awaited<ReturnType<AndroidAdbExecutor>>> {
-  const result = await adb(installArgs, { allowFailure: true, timeoutMs: options.timeoutMs });
+  const install = async () =>
+    await installAndroidAdbPackage(apkPath, {
+      allowFailure: true,
+      provider: adbProvider,
+      ...installOptions,
+      timeoutMs: options.timeoutMs,
+    });
+
+  const result = await install();
   if (result.exitCode === 0 || !isInstallUpdateIncompatible(result)) {
     return result;
   }
@@ -160,7 +178,7 @@ async function installAndroidSnapshotHelper(
     allowFailure: true,
     timeoutMs: options.timeoutMs,
   });
-  const retry = await adb(installArgs, { allowFailure: true, timeoutMs: options.timeoutMs });
+  const retry = await install();
   if (retry.exitCode === 0) {
     return retry;
   }

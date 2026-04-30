@@ -17,6 +17,7 @@ import {
   type AndroidAdbExecutor,
   type AndroidSnapshotHelperManifest,
 } from '../snapshot-helper.ts';
+import type { AndroidAdbProvider } from '../adb-executor.ts';
 
 const manifest: AndroidSnapshotHelperManifest = {
   name: 'android-snapshot-helper',
@@ -415,6 +416,107 @@ test('ensureAndroidSnapshotHelper uninstalls and retries when signatures differ'
   assert.deepEqual(calls[1], ['install', '-r', '-t', apkPath]);
   assert.deepEqual(calls[2], ['uninstall', 'com.callstack.agentdevice.snapshothelper']);
   assert.deepEqual(calls[3], ['install', '-r', '-t', apkPath]);
+});
+
+test('ensureAndroidSnapshotHelper uses provider install capability and semantic install options', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'snapshot-helper-provider-install-'));
+  const apkPath = path.join(tmpDir, 'helper.apk');
+  await fs.writeFile(apkPath, 'helper-apk');
+  const installCalls: Array<{
+    apkPath: string;
+    replace?: boolean;
+    allowTestPackages?: boolean;
+    allowDowngrade?: boolean;
+    grantPermissions?: boolean;
+  }> = [];
+  const adb: AndroidAdbExecutor = async (args) => {
+    if (args.includes('--show-versioncode')) {
+      return { exitCode: 1, stdout: '', stderr: 'not found' };
+    }
+    throw new Error(`unexpected adb call: ${args.join(' ')}`);
+  };
+  const adbProvider: AndroidAdbProvider = {
+    exec: adb,
+    install: async (path, options) => {
+      installCalls.push({
+        apkPath: path,
+        replace: options?.replace,
+        allowTestPackages: options?.allowTestPackages,
+        allowDowngrade: options?.allowDowngrade,
+        grantPermissions: options?.grantPermissions,
+      });
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  };
+
+  const result = await ensureAndroidSnapshotHelper({
+    adb,
+    adbProvider,
+    artifact: {
+      apkPath,
+      manifest: {
+        ...manifest,
+        installArgs: ['install', '-r', '-t', '-d', '-g'],
+        sha256: sha256Text('helper-apk'),
+      },
+    },
+  });
+
+  assert.equal(result.installed, true);
+  assert.deepEqual(installCalls, [
+    {
+      apkPath,
+      replace: true,
+      allowTestPackages: true,
+      allowDowngrade: true,
+      grantPermissions: true,
+    },
+  ]);
+});
+
+test('ensureAndroidSnapshotHelper retry install also uses provider install capability', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'snapshot-helper-provider-retry-'));
+  const apkPath = path.join(tmpDir, 'helper.apk');
+  await fs.writeFile(apkPath, 'helper-apk');
+  const adbCalls: string[][] = [];
+  const installCalls: string[] = [];
+  let installAttempts = 0;
+  const adb: AndroidAdbExecutor = async (args) => {
+    adbCalls.push(args);
+    if (args.includes('--show-versioncode')) {
+      return {
+        exitCode: 0,
+        stdout: 'package:com.callstack.agentdevice.snapshothelper versionCode:1',
+        stderr: '',
+      };
+    }
+    return { exitCode: 0, stdout: '', stderr: '' };
+  };
+  const adbProvider: AndroidAdbProvider = {
+    exec: adb,
+    install: async (path) => {
+      installCalls.push(path);
+      installAttempts += 1;
+      if (installAttempts === 1) {
+        return {
+          exitCode: 1,
+          stdout: '',
+          stderr: 'Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE]',
+        };
+      }
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  };
+
+  const result = await ensureAndroidSnapshotHelper({
+    adb,
+    adbProvider,
+    artifact: { apkPath, manifest: { ...manifest, sha256: sha256Text('helper-apk') } },
+  });
+
+  assert.equal(result.installed, true);
+  assert.deepEqual(installCalls, [apkPath, apkPath]);
+  assert.deepEqual(adbCalls[1], ['uninstall', 'com.callstack.agentdevice.snapshothelper']);
 });
 
 test('captureAndroidSnapshotWithHelper uses injected adb executor', async () => {
