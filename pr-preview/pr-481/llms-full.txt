@@ -28,7 +28,7 @@ For agent-oriented operating guidance, start with `agent-device help` or `agent-
 - iOS/tvOS simulator-only: `settings`, `push`, `clipboard`.
 - Apple simulators and macOS desktop app sessions: `alert`, `pinch`.
 - Session diagnostics: `logs` and `network dump` are available for debugging active app sessions, with network inspection based on recent HTTP(s) entries captured in the session app log.
-- Session performance metrics: `perf`/`metrics` is available on iOS, macOS, and Android. Startup timing comes from `open` command round-trip duration. Android app sessions expose CPU, memory, and rendered-frame health; use `metrics.fps.droppedFramePercent` as the primary Android frame-smoothness signal, and `metrics.fps.worstWindows` to correlate jank clusters with logs or recent interactions. Apple app sessions on macOS, iOS simulators, or connected iOS devices expose CPU and memory snapshots when an app identifier is available in the session. Android dropped-frame data comes from the current `dumpsys gfxinfo ... framestats` window, is reset after each successful `perf` read, and is not video recording FPS.
+- Session performance metrics: `perf`/`metrics` is available on iOS, macOS, and Android. Startup timing comes from `open` command round-trip duration. Android app sessions expose CPU, memory, and rendered-frame health; connected iOS device app sessions expose CPU, memory, and `xctrace` Animation Hitches frame health. Use `metrics.fps.droppedFramePercent` as the primary frame-smoothness signal, and `metrics.fps.worstWindows` to correlate jank clusters with logs or recent interactions. Apple app sessions on macOS or iOS simulators expose CPU and memory snapshots when an app identifier is available, but report frame health unavailable. Android dropped-frame data comes from the current `dumpsys gfxinfo ... framestats` window, is reset after each successful `perf` read, and is not video recording FPS.
 - iOS `record` supports simulators and physical devices.
   - Simulators use native `simctl io ... recordVideo`.
   - Physical devices use runner screenshot capture (`XCUIScreen.main.screenshot()` frames) stitched into MP4, so FPS is best-effort (not guaranteed 60 even with `--fps 60`).
@@ -492,7 +492,7 @@ Additional CLI-backed methods are exposed on their domain groups with typed opti
 - `client.recording.record()` and `client.recording.trace()`
 - `client.settings.update()`
 
-`client.observability.perf()` returns daemon-shaped JSON so local and remote transports expose the same metrics payload. On Android, `data.metrics.fps.droppedFramePercent` is the primary frame-smoothness value. It is derived from the current `adb shell dumpsys gfxinfo <package> framestats` window and represents rendered frames that missed Android's frame deadline, not recording FPS. Android frame samples also include `windowStartedAt`, `windowEndedAt`, and `worstWindows` so agents can correlate dropped-frame clusters with logs, network entries, and their own session actions. A successful read resets Android frame stats; `open <app>` resets the Android frame window too, so agents can call `perf`, perform a transition or gesture, then call `perf` again to inspect that focused window.
+`client.observability.perf()` returns daemon-shaped JSON so local and remote transports expose the same metrics payload. On Android and supported Apple targets, `data.metrics.fps.droppedFramePercent` is the primary frame-smoothness value. Android derives it from the current `adb shell dumpsys gfxinfo <package> framestats` window; connected iOS devices derive it from `xcrun xctrace` Animation Hitches for the active app process. Frame samples include `windowStartedAt`, `windowEndedAt`, and `worstWindows` so agents can correlate dropped-frame clusters with logs, network entries, and their own session actions. A successful Android read resets Android frame stats; `open <app>` resets the Android frame window too, so agents can call `perf`, perform a transition or gesture, then call `perf` again to inspect that focused window. iOS simulator and macOS app sessions report frame health as unavailable rather than inventing FPS or dropped-frame values.
 
 `client.recording.record({ action: 'start', path, quality: 5 })` starts a smaller 50% resolution video; omit `quality` to keep native/current resolution.
 
@@ -1191,23 +1191,24 @@ agent-device metrics --json
 ```
 
 - `perf` (alias: `metrics`) returns a session-scoped metrics JSON blob.
-- Without `--json`, `perf` prints a compact summary: Android frame health when frame data is available, otherwise CPU/memory when those samples are available.
+- Without `--json`, `perf` prints a compact summary: frame health when reliable frame data is available, otherwise CPU/memory when those samples are available.
 - `startup` is sampled from `open-command-roundtrip`: elapsed wall-clock time around each `open` command dispatch for the active session app target.
 - Android app sessions with an active package also sample:
   - `fps` frame health from `adb shell dumpsys gfxinfo <package> framestats`, with `droppedFramePercent` as the primary value and `worstWindows` for dropped-frame clusters
   - `memory` from `adb shell dumpsys meminfo <package>` with values reported in kilobytes (`kB`)
   - `cpu` from `adb shell dumpsys cpuinfo`, aggregated across matching package processes and reported as a recent percentage snapshot
 - Apple app sessions with an active bundle ID also sample:
+  - `fps` frame health from `xcrun xctrace` Animation Hitches on connected iOS devices, with `droppedFramePercent` as the primary value and `worstWindows` for hitch clusters
   - `memory` from process RSS snapshots reported in kilobytes (`kB`)
   - `cpu` from process CPU usage snapshots reported as a recent percentage
 - Platform support:
   - `startup`: iOS simulator, iOS physical device, Android emulator/device
   - `memory` and `cpu`: Android emulator/device, macOS app sessions, iOS simulators with an active app session (`open <app>` first), and iOS physical devices with an active app session
-  - `fps`: Android emulator/device app sessions
+  - `fps`: Android emulator/device app sessions and connected iOS device app sessions. iOS simulator and macOS frame health is reported unavailable because Apple tooling does not expose trustworthy app hitch data there.
 - If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf`.
 - Android URL/deep-link opens infer the foreground package after launch when possible, including Expo Go/dev-client shells. If the session still has no app package/bundle ID, package-bound metrics remain unavailable until you `open <app>`.
 - Android frame health is reset after each successful `perf` read and after `open <app>`, so run `perf`, perform the interaction, then run `perf` again for a focused window.
-- On physical iOS devices, `perf` records a short `xcrun xctrace` Activity Monitor sample. Keep the device unlocked, connected, and the app active in the foreground while sampling.
+- On physical iOS devices, `perf` records short `xcrun xctrace` Activity Monitor and Animation Hitches samples. Keep the device unlocked, connected, and the app active in the foreground while sampling.
 - Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.
 - CPU data is a lightweight process snapshot, so an idle app may legitimately read as `0`.
 

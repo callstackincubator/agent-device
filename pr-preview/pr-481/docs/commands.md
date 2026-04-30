@@ -545,23 +545,24 @@ agent-device metrics --json
 ```
 
 - `perf` (alias: `metrics`) returns a session-scoped metrics JSON blob.
-- Without `--json`, `perf` prints a compact summary: Android frame health when frame data is available, otherwise CPU/memory when those samples are available.
+- Without `--json`, `perf` prints a compact summary: frame health when reliable frame data is available, otherwise CPU/memory when those samples are available.
 - `startup` is sampled from `open-command-roundtrip`: elapsed wall-clock time around each `open` command dispatch for the active session app target.
 - Android app sessions with an active package also sample:
   - `fps` frame health from `adb shell dumpsys gfxinfo <package> framestats`, with `droppedFramePercent` as the primary value and `worstWindows` for dropped-frame clusters
   - `memory` from `adb shell dumpsys meminfo <package>` with values reported in kilobytes (`kB`)
   - `cpu` from `adb shell dumpsys cpuinfo`, aggregated across matching package processes and reported as a recent percentage snapshot
 - Apple app sessions with an active bundle ID also sample:
+  - `fps` frame health from `xcrun xctrace` Animation Hitches on connected iOS devices, with `droppedFramePercent` as the primary value and `worstWindows` for hitch clusters
   - `memory` from process RSS snapshots reported in kilobytes (`kB`)
   - `cpu` from process CPU usage snapshots reported as a recent percentage
 - Platform support:
   - `startup`: iOS simulator, iOS physical device, Android emulator/device
   - `memory` and `cpu`: Android emulator/device, macOS app sessions, iOS simulators with an active app session (`open <app>` first), and iOS physical devices with an active app session
-  - `fps`: Android emulator/device app sessions
+  - `fps`: Android emulator/device app sessions and connected iOS device app sessions. iOS simulator and macOS frame health is reported unavailable because Apple tooling does not expose trustworthy app hitch data there.
 - If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf`.
 - Android URL/deep-link opens infer the foreground package after launch when possible, including Expo Go/dev-client shells. If the session still has no app package/bundle ID, package-bound metrics remain unavailable until you `open <app>`.
 - Android frame health is reset after each successful `perf` read and after `open <app>`, so run `perf`, perform the interaction, then run `perf` again for a focused window.
-- On physical iOS devices, `perf` records a short `xcrun xctrace` Activity Monitor sample. Keep the device unlocked, connected, and the app active in the foreground while sampling.
+- On physical iOS devices, `perf` records short `xcrun xctrace` Activity Monitor and Animation Hitches samples. Keep the device unlocked, connected, and the app active in the foreground while sampling.
 - Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.
 - CPU data is a lightweight process snapshot, so an idle app may legitimately read as `0`.
 
