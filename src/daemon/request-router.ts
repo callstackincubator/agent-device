@@ -85,10 +85,15 @@ const leaseAdmissionExemptCommands = new Set([
 const sessionExecutionExemptCommands = new Set(leaseAdmissionExemptCommands);
 const sessionExecutionLocks = new Map<string, Promise<unknown>>();
 
+export type AndroidAdbProviderRequestSession = Pick<
+  SessionState,
+  'name' | 'device' | 'appBundleId' | 'appName' | 'surface'
+>;
+
 export type AndroidAdbProviderResolver = (params: {
   req: DaemonRequest;
   device: DeviceInfo;
-  session?: SessionState;
+  session?: AndroidAdbProviderRequestSession;
 }) => AndroidAdbProvider | AndroidAdbExecutor | undefined;
 
 // ---------------------------------------------------------------------------
@@ -322,6 +327,7 @@ async function resolveScopedAndroidAdbProvider(params: {
 }): Promise<{
   provider?: AndroidAdbProvider | AndroidAdbExecutor;
   executor?: AndroidAdbExecutor;
+  serial?: string;
 }> {
   const { req, existingSession, androidAdbProvider } = params;
   if (!androidAdbProvider) return {};
@@ -329,7 +335,7 @@ async function resolveScopedAndroidAdbProvider(params: {
   if (!device) return {};
   const provider = androidAdbProvider({ req, device, session: existingSession });
   const executor = typeof provider === 'function' ? provider : provider?.exec;
-  return { provider, executor };
+  return { provider, executor, serial: device.id };
 }
 
 // ---------------------------------------------------------------------------
@@ -593,7 +599,7 @@ function recordVisualizationAndAction(params: {
 }
 
 // ---------------------------------------------------------------------------
-// Public API
+// Request handler API
 // ---------------------------------------------------------------------------
 
 export type RequestRouterDeps = {
@@ -613,15 +619,9 @@ export type RequestRouterDeps = {
 export function createRequestHandler(
   deps: RequestRouterDeps,
 ): (req: DaemonRequest) => Promise<DaemonResponse> {
-  const {
-    logPath,
-    token,
-    sessionStore,
-    leaseRegistry,
-    androidAdbProvider,
-    deviceInventoryProvider,
-    trackDownloadableArtifact,
-  } = deps;
+  const { logPath, token, androidAdbProvider, deviceInventoryProvider, trackDownloadableArtifact } =
+    deps;
+  const { sessionStore, leaseRegistry } = deps;
 
   async function handleRequest(req: DaemonRequest): Promise<DaemonResponse> {
     const debug = Boolean(req.meta?.debug || req.flags?.verbose);
@@ -708,48 +708,52 @@ export function createRequestHandler(
                 existingSession,
                 androidAdbProvider,
               });
-              return await withAndroidAdbProvider(requestAdb.provider, async () => {
-                // The ADB provider is scoped to this single locked request; handlers may re-read
-                // the session state, but all device-scoped adb calls in this request share it.
-                // Phase 1: Try specialized handler chain
-                const handlerResponse = await runHandlerChain({
-                  req: lockedReq,
-                  sessionName,
-                  logPath,
-                  sessionStore,
-                  leaseRegistry,
-                  invoke: handleRequest,
-                  androidAdbExecutor: requestAdb.executor,
-                  contextFromFlags: (flags, appBundleId, traceLogPath) =>
-                    ({
-                      ...contextFromFlags(logPath, flags, appBundleId, traceLogPath),
-                      surface: sessionStore.get(sessionName)?.surface,
-                    }) satisfies DaemonCommandContext,
-                });
-                if (handlerResponse) return finalize(handlerResponse);
-
-                // Phase 2: Require active session for generic dispatch
-                const session = sessionStore.get(sessionName);
-                if (!session) {
-                  return finalize({
-                    ok: false,
-                    error: {
-                      code: 'SESSION_NOT_FOUND',
-                      message: 'No active session. Run open first.',
-                    },
+              return await withAndroidAdbProvider(
+                requestAdb.provider,
+                { serial: requestAdb.serial ?? '' },
+                async () => {
+                  // The ADB provider is scoped to this single locked request; handlers may re-read
+                  // the session state, but all device-scoped adb calls in this request share it.
+                  // Phase 1: Try specialized handler chain
+                  const handlerResponse = await runHandlerChain({
+                    req: lockedReq,
+                    sessionName,
+                    logPath,
+                    sessionStore,
+                    leaseRegistry,
+                    invoke: handleRequest,
+                    androidAdbExecutor: requestAdb.executor,
+                    contextFromFlags: (flags, appBundleId, traceLogPath) =>
+                      ({
+                        ...contextFromFlags(logPath, flags, appBundleId, traceLogPath),
+                        surface: sessionStore.get(sessionName)?.surface,
+                      }) satisfies DaemonCommandContext,
                   });
-                }
+                  if (handlerResponse) return finalize(handlerResponse);
 
-                // Phase 3: Dispatch command directly to device
-                const dispatchResponse = await dispatchGenericCommand({
-                  req: lockedReq,
-                  session,
-                  sessionName,
-                  logPath,
-                  sessionStore,
-                });
-                return finalize(dispatchResponse);
-              });
+                  // Phase 2: Require active session for generic dispatch
+                  const session = sessionStore.get(sessionName);
+                  if (!session) {
+                    return finalize({
+                      ok: false,
+                      error: {
+                        code: 'SESSION_NOT_FOUND',
+                        message: 'No active session. Run open first.',
+                      },
+                    });
+                  }
+
+                  // Phase 3: Dispatch command directly to device
+                  const dispatchResponse = await dispatchGenericCommand({
+                    req: lockedReq,
+                    session,
+                    sessionName,
+                    logPath,
+                    sessionStore,
+                  });
+                  return finalize(dispatchResponse);
+                },
+              );
             };
 
             if (!executionLockKey) {

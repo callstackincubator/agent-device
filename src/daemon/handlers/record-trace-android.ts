@@ -1,11 +1,16 @@
 import fs from 'node:fs';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { sleep } from '../../utils/timeouts.ts';
+import { androidDeviceForSerial, runAndroidAdb } from '../../platforms/android/adb.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
 import { formatRecordTraceExecFailure } from '../record-trace-errors.ts';
 import type { RecordTraceDeps } from './record-trace-types.ts';
 import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
 import { errorResponse } from './response.ts';
+import type {
+  AndroidAdbExecutorOptions,
+  AndroidAdbExecutorResult,
+} from '../../platforms/android/adb-executor.ts';
 
 const ANDROID_REMOTE_FILE_POLL_MS = 250;
 const ANDROID_REMOTE_FILE_ATTEMPTS = 20;
@@ -30,6 +35,14 @@ type AndroidRecordingBase = Pick<
   | 'gestureEvents'
 >;
 
+async function runAndroidRecordingAdb(
+  deviceId: string,
+  args: string[],
+  options?: AndroidAdbExecutorOptions,
+): Promise<AndroidAdbExecutorResult> {
+  return await runAndroidAdb(androidDeviceForSerial(deviceId), args, options);
+}
+
 function parseAndroidRemotePid(stdout: string): string | undefined {
   return stdout
     .split(/\r?\n/)
@@ -38,18 +51,10 @@ function parseAndroidRemotePid(stdout: string): string | undefined {
     .at(-1);
 }
 
-async function isAndroidProcessRunning(
-  deps: RecordTraceDeps,
-  deviceId: string,
-  pid: string,
-): Promise<boolean> {
-  const result = await deps.runCmd(
-    'adb',
-    ['-s', deviceId, 'shell', 'ps', '-o', 'pid=', '-p', pid],
-    {
-      allowFailure: true,
-    },
-  );
+async function isAndroidProcessRunning(deviceId: string, pid: string): Promise<boolean> {
+  const result = await runAndroidRecordingAdb(deviceId, ['shell', 'ps', '-o', 'pid=', '-p', pid], {
+    allowFailure: true,
+  });
   if (result.exitCode !== 0) {
     return false;
   }
@@ -59,22 +64,17 @@ async function isAndroidProcessRunning(
     .includes(pid);
 }
 
-async function waitForAndroidProcessExit(
-  deps: RecordTraceDeps,
-  deviceId: string,
-  pid: string,
-): Promise<boolean> {
+async function waitForAndroidProcessExit(deviceId: string, pid: string): Promise<boolean> {
   for (let attempt = 0; attempt < ANDROID_PROCESS_EXIT_ATTEMPTS; attempt += 1) {
-    if (!(await isAndroidProcessRunning(deps, deviceId, pid))) {
+    if (!(await isAndroidProcessRunning(deviceId, pid))) {
       return true;
     }
     await sleep(ANDROID_PROCESS_EXIT_POLL_MS);
   }
-  return !(await isAndroidProcessRunning(deps, deviceId, pid));
+  return !(await isAndroidProcessRunning(deviceId, pid));
 }
 
 async function waitForAndroidRemoteFileStability(
-  deps: RecordTraceDeps,
   deviceId: string,
   remotePath: string,
 ): Promise<void> {
@@ -82,9 +82,9 @@ async function waitForAndroidRemoteFileStability(
   let stableCount = 0;
 
   for (let attempt = 0; attempt < ANDROID_REMOTE_FILE_ATTEMPTS; attempt += 1) {
-    const statResult = await deps.runCmd(
-      'adb',
-      ['-s', deviceId, 'shell', 'stat', '-c', '%s', remotePath],
+    const statResult = await runAndroidRecordingAdb(
+      deviceId,
+      ['shell', 'stat', '-c', '%s', remotePath],
       { allowFailure: true },
     );
     const currentSize = statResult.exitCode === 0 ? statResult.stdout.trim() : '';
@@ -102,15 +102,14 @@ async function waitForAndroidRemoteFileStability(
 }
 
 async function waitForAndroidRecordingReady(
-  deps: RecordTraceDeps,
   deviceId: string,
   remotePath: string,
   remotePid: string,
 ): Promise<boolean> {
   for (let attempt = 0; attempt < ANDROID_RECORDING_READY_ATTEMPTS; attempt += 1) {
-    const statResult = await deps.runCmd(
-      'adb',
-      ['-s', deviceId, 'shell', 'stat', '-c', '%s', remotePath],
+    const statResult = await runAndroidRecordingAdb(
+      deviceId,
+      ['shell', 'stat', '-c', '%s', remotePath],
       { allowFailure: true },
     );
     const currentSize = statResult.exitCode === 0 ? Number(statResult.stdout.trim()) : NaN;
@@ -118,7 +117,7 @@ async function waitForAndroidRecordingReady(
       return true;
     }
 
-    if (!(await isAndroidProcessRunning(deps, deviceId, remotePid))) {
+    if (!(await isAndroidProcessRunning(deviceId, remotePid))) {
       return false;
     }
 
@@ -151,7 +150,7 @@ async function copyAndroidRecordingWithValidation(params: {
       // Ignore stale local file cleanup issues and let adb pull report the real failure.
     }
 
-    const pullResult = await deps.runCmd('adb', ['-s', deviceId, 'pull', remotePath, outPath], {
+    const pullResult = await runAndroidRecordingAdb(deviceId, ['pull', remotePath, outPath], {
       allowFailure: true,
     });
     if (pullResult.exitCode !== 0) {
@@ -213,16 +212,15 @@ function androidRemoteRecordingPaths(timestamp: number): string[] {
 }
 
 async function resolveAndroidRecordingSize(params: {
-  deps: RecordTraceDeps;
   deviceId: string;
   quality: number | undefined;
 }): Promise<{ width: number; height: number } | undefined> {
-  const { deps, deviceId, quality } = params;
+  const { deviceId, quality } = params;
   if (quality === undefined || quality >= 10) {
     return undefined;
   }
 
-  const sizeResult = await deps.runCmd('adb', ['-s', deviceId, 'shell', 'wm', 'size'], {
+  const sizeResult = await runAndroidRecordingAdb(deviceId, ['shell', 'wm', 'size'], {
     allowFailure: true,
   });
   const match =
@@ -256,22 +254,14 @@ function buildAndroidScreenrecordCommand(
   return `${screenrecordArgs.join(' ')} >/dev/null 2>&1 & echo $!`;
 }
 
-async function cleanupAndroidRemoteRecording(
-  deps: RecordTraceDeps,
-  deviceId: string,
-  remotePath: string,
-): Promise<void> {
-  await deps.runCmd('adb', ['-s', deviceId, 'shell', 'rm', '-f', remotePath], {
+async function cleanupAndroidRemoteRecording(deviceId: string, remotePath: string): Promise<void> {
+  await runAndroidRecordingAdb(deviceId, ['shell', 'rm', '-f', remotePath], {
     allowFailure: true,
   });
 }
 
-async function forceStopAndroidProcess(
-  deps: RecordTraceDeps,
-  deviceId: string,
-  pid: string,
-): Promise<boolean> {
-  const forceResult = await deps.runCmd('adb', ['-s', deviceId, 'shell', 'kill', '-9', pid], {
+async function forceStopAndroidProcess(deviceId: string, pid: string): Promise<boolean> {
+  const forceResult = await runAndroidRecordingAdb(deviceId, ['shell', 'kill', '-9', pid], {
     allowFailure: true,
   });
   emitDiagnostic({
@@ -285,24 +275,22 @@ async function forceStopAndroidProcess(
       stderr: forceResult.stderr.trim(),
     },
   });
-  if (forceResult.exitCode !== 0 && (await isAndroidProcessRunning(deps, deviceId, pid))) {
+  if (forceResult.exitCode !== 0 && (await isAndroidProcessRunning(deviceId, pid))) {
     return false;
   }
-  return await waitForAndroidProcessExit(deps, deviceId, pid);
+  return await waitForAndroidProcessExit(deviceId, pid);
 }
 
 export async function startAndroidRecording(params: {
-  deps: RecordTraceDeps;
   device: AndroidDevice;
   recordingBase: AndroidRecordingBase;
 }): Promise<DaemonResponse | AndroidRecording> {
-  const { deps, device, recordingBase } = params;
+  const { device, recordingBase } = params;
   let lastStartError =
     'failed to start recording: Android screenrecord did not begin producing frames';
   let recordingSize: { width: number; height: number } | undefined;
   try {
     recordingSize = await resolveAndroidRecordingSize({
-      deps,
       deviceId: device.id,
       quality: recordingBase.quality,
     });
@@ -311,9 +299,9 @@ export async function startAndroidRecording(params: {
   }
 
   for (const remotePath of androidRemoteRecordingPaths(Date.now())) {
-    const startResult = await deps.runCmd(
-      'adb',
-      ['-s', device.id, 'shell', buildAndroidScreenrecordCommand(remotePath, recordingSize)],
+    const startResult = await runAndroidRecordingAdb(
+      device.id,
+      ['shell', buildAndroidScreenrecordCommand(remotePath, recordingSize)],
       {
         allowFailure: true,
       },
@@ -327,7 +315,7 @@ export async function startAndroidRecording(params: {
     if (!remotePid) {
       lastStartError =
         'failed to start recording: adb did not return a valid Android screenrecord pid';
-      await cleanupAndroidRemoteRecording(deps, device.id, remotePath);
+      await cleanupAndroidRemoteRecording(device.id, remotePath);
       continue;
     }
 
@@ -341,7 +329,7 @@ export async function startAndroidRecording(params: {
       },
     });
 
-    if (await waitForAndroidRecordingReady(deps, device.id, remotePath, remotePid)) {
+    if (await waitForAndroidRecordingReady(device.id, remotePath, remotePid)) {
       return {
         platform: 'android',
         remotePath,
@@ -353,8 +341,8 @@ export async function startAndroidRecording(params: {
 
     lastStartError =
       'failed to start recording: Android screenrecord did not begin producing frames';
-    await forceStopAndroidProcess(deps, device.id, remotePid);
-    await cleanupAndroidRemoteRecording(deps, device.id, remotePath);
+    await forceStopAndroidProcess(device.id, remotePid);
+    await cleanupAndroidRemoteRecording(device.id, remotePath);
   }
 
   return errorResponse('COMMAND_FAILED', lastStartError);
@@ -375,9 +363,9 @@ export async function stopAndroidRecording(params: {
       remotePid: recording.remotePid,
     },
   });
-  const stopResult = await deps.runCmd(
-    'adb',
-    ['-s', device.id, 'shell', 'kill', '-2', recording.remotePid],
+  const stopResult = await runAndroidRecordingAdb(
+    device.id,
+    ['shell', 'kill', '-2', recording.remotePid],
     {
       allowFailure: true,
     },
@@ -396,20 +384,20 @@ export async function stopAndroidRecording(params: {
   });
   let stopError: string | undefined;
   if (stopResult.exitCode !== 0) {
-    if (await isAndroidProcessRunning(deps, device.id, recording.remotePid)) {
-      if (!(await forceStopAndroidProcess(deps, device.id, recording.remotePid))) {
+    if (await isAndroidProcessRunning(device.id, recording.remotePid)) {
+      if (!(await forceStopAndroidProcess(device.id, recording.remotePid))) {
         stopError = `failed to stop recording: ${formatRecordTraceExecFailure(stopResult, 'adb shell kill')}`;
       }
     }
-  } else if (!(await waitForAndroidProcessExit(deps, device.id, recording.remotePid))) {
-    if (!(await forceStopAndroidProcess(deps, device.id, recording.remotePid))) {
+  } else if (!(await waitForAndroidProcessExit(device.id, recording.remotePid))) {
+    if (!(await forceStopAndroidProcess(device.id, recording.remotePid))) {
       stopError = `failed to stop recording: Android screenrecord pid ${recording.remotePid} did not exit`;
     }
   }
   let cleanupError: string | undefined;
 
   if (!stopError) {
-    await waitForAndroidRemoteFileStability(deps, device.id, recording.remotePath);
+    await waitForAndroidRemoteFileStability(device.id, recording.remotePath);
     const copyError = await copyAndroidRecordingWithValidation({
       deps,
       deviceId: device.id,
@@ -441,9 +429,9 @@ export async function stopAndroidRecording(params: {
   return null;
 
   async function cleanupRemoteRecording(): Promise<void> {
-    const rmResult = await deps.runCmd(
-      'adb',
-      ['-s', device.id, 'shell', 'rm', '-f', recording.remotePath],
+    const rmResult = await runAndroidRecordingAdb(
+      device.id,
+      ['shell', 'rm', '-f', recording.remotePath],
       {
         allowFailure: true,
       },

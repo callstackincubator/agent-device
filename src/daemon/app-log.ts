@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { DeviceInfo } from '../utils/device.ts';
 import { AppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
+import { runAndroidAdb } from '../platforms/android/adb.ts';
 import {
   assertAndroidPackageArgSafe,
   readTrackedAndroidLogcatPid,
@@ -388,15 +389,19 @@ export async function runAppLogDoctor(
   }
   if (device.platform === 'android') {
     try {
-      const adb = await runCmd('adb', ['version'], { allowFailure: true });
+      const adb = await runAndroidAdb(device, ['shell', 'echo', 'ok'], {
+        allowFailure: true,
+        timeoutMs: 1_000,
+      });
       checks.adbAvailable = adb.exitCode === 0;
     } catch {
       checks.adbAvailable = false;
     }
     if (appBundleId) {
       try {
-        const pidof = await runCmd('adb', ['-s', device.id, 'shell', 'pidof', appBundleId], {
+        const pidof = await runAndroidAdb(device, ['shell', 'pidof', appBundleId], {
           allowFailure: true,
+          timeoutMs: 1_000,
         });
         checks.androidPidVisible = pidof.stdout.trim().length > 0;
       } catch {

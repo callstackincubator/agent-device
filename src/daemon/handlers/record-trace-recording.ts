@@ -252,7 +252,7 @@ async function startRecording(params: {
       resolvedOut,
     });
   } else {
-    recording = await startAndroidRecording({ deps, device, recordingBase });
+    recording = await startAndroidRecording({ device, recordingBase });
   }
 
   if ('ok' in recording) {

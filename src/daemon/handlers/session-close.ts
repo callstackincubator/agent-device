@@ -1,5 +1,4 @@
 import { normalizeError } from '../../utils/errors.ts';
-import { runCmd } from '../../utils/exec.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { isApplePlatform, type DeviceInfo } from '../../utils/device.ts';
 import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
@@ -8,6 +7,7 @@ import { contextFromFlags } from '../context.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { stopAppLog } from '../app-log.ts';
+import { runAndroidAdb } from '../../platforms/android/adb.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { shutdownSimulator } from '../../platforms/ios/simulator.ts';
 import { clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
@@ -27,7 +27,7 @@ async function shutdownAndroidEmulator(device: DeviceInfo): Promise<{
   stdout: string;
   stderr: string;
 }> {
-  const result = await runCmd('adb', ['-s', device.id, 'emu', 'kill'], {
+  const result = await runAndroidAdb(device, ['emu', 'kill'], {
     allowFailure: true,
     timeoutMs: 15_000,
   });

@@ -1,7 +1,6 @@
-import { runCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { adbArgs } from './adb.ts';
+import { runAndroidAdb } from './adb.ts';
 
 type AndroidBroadcastPayload = {
   action?: string;
@@ -37,7 +36,7 @@ export async function pushAndroidNotification(
     appendBroadcastExtra(args, key, rawValue);
     extrasCount += 1;
   }
-  await runCmd('adb', adbArgs(device, args));
+  await runAndroidAdb(device, args);
   return { action, extrasCount };
 }
 

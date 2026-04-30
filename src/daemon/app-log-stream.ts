@@ -1,5 +1,5 @@
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import type { Readable } from 'node:stream';
 import type { ExecResult } from '../utils/exec.ts';
 
 export async function waitForChildExit(
@@ -53,8 +53,17 @@ export function createLineWriter(
   };
 }
 
+type StreamableChildProcess = {
+  killed: boolean;
+  kill(signal?: NodeJS.Signals | number): boolean;
+  stdout: Readable | null;
+  stderr: Readable | null;
+  on(event: 'error', listener: (error: Error) => void): unknown;
+  on(event: 'close', listener: (code: number | null) => void): unknown;
+};
+
 export function attachChildToStream(
-  child: ReturnType<typeof spawn>,
+  child: StreamableChildProcess,
   stream: fs.WriteStream,
   options: {
     endStreamOnClose: boolean;

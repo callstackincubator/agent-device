@@ -7,9 +7,13 @@ import path from 'node:path';
 import { PassThrough } from 'node:stream';
 
 vi.mock('node:child_process', () => ({ spawn: vi.fn() }));
-vi.mock('../../utils/exec.ts', () => ({
-  runCmd: vi.fn(async () => ({ stdout: '', stderr: '', exitCode: 0 })),
-}));
+vi.mock('../../utils/exec.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../utils/exec.ts')>();
+  return {
+    ...actual,
+    runCmd: vi.fn(async () => ({ stdout: '', stderr: '', exitCode: 0 })),
+  };
+});
 vi.mock('../app-log-stream.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../app-log-stream.ts')>();
   return { ...actual, sleep: vi.fn(async () => {}) };
@@ -25,16 +29,18 @@ const mockRunCmd = vi.mocked(runCmd);
 type MockChild = EventEmitter & {
   stdout: PassThrough;
   stderr: PassThrough;
-  pid: number;
+  pid?: number;
   killed: boolean;
   kill: (signal?: NodeJS.Signals) => boolean;
 };
 
-function makeMockChild(pid: number): MockChild {
+function makeMockChild(pid?: number): MockChild {
   const child = new EventEmitter() as MockChild;
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
-  child.pid = pid;
+  if (pid !== undefined) {
+    child.pid = pid;
+  }
   child.killed = false;
   child.kill = () => {
     if (child.killed) return false;
@@ -85,6 +91,33 @@ test('startAndroidAppLog returns to active state after a successful reattach', a
   await vi.waitFor(() => {
     expect(mockSpawn).toHaveBeenCalledTimes(2);
   });
+  assert.equal(appLog.getState(), 'active');
+
+  await appLog.stop();
+  await appLog.wait;
+});
+
+test('startAndroidAppLog reports active for provider streams without host pid', async () => {
+  const logDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-android-log-'));
+  const stream = fs.createWriteStream(path.join(logDir, 'app.log'));
+  const child = makeMockChild();
+
+  mockRunCmd.mockReset();
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.join(' ') === '-s emulator-5554 shell pidof com.example.app') {
+      return { stdout: '111\n', stderr: '', exitCode: 0 };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  mockSpawn.mockReset();
+  mockSpawn.mockImplementation(() => child as unknown as ReturnType<typeof spawn>);
+
+  const appLog = await startAndroidAppLog('emulator-5554', 'com.example.app', stream, []);
+  await vi.waitFor(() => {
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
+  });
+
   assert.equal(appLog.getState(), 'active');
 
   await appLog.stop();

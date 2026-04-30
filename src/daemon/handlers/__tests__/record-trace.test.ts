@@ -3,13 +3,17 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-vi.mock('../../../utils/exec.ts', () => ({
-  runCmd: vi.fn(async () => ({ stdout: '', stderr: '', exitCode: 0 })),
-  runCmdBackground: vi.fn(() => ({
-    child: { kill: vi.fn() },
-    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-  })),
-}));
+vi.mock('../../../utils/exec.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../utils/exec.ts')>();
+  return {
+    ...actual,
+    runCmd: vi.fn(async () => ({ stdout: '', stderr: '', exitCode: 0 })),
+    runCmdBackground: vi.fn(() => ({
+      child: { kill: vi.fn() },
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    })),
+  };
+});
 
 vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/runner-client.ts')>();

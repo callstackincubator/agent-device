@@ -1,14 +1,13 @@
-import { runCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DeviceRotation } from '../../core/device-rotation.ts';
 import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
 import { parseBounds, readNodeAttributes } from './ui-hierarchy.ts';
 import { dumpUiHierarchy } from './snapshot.ts';
-import { adbArgs, isClipboardShellUnsupported, sleep } from './adb.ts';
+import { isClipboardShellUnsupported, runAndroidAdb, sleep } from './adb.ts';
 
 export async function pressAndroid(device: DeviceInfo, x: number, y: number): Promise<void> {
-  await runCmd('adb', adbArgs(device, ['shell', 'input', 'tap', String(x), String(y)]));
+  await runAndroidAdb(device, ['shell', 'input', 'tap', String(x), String(y)]);
 }
 
 export async function swipeAndroid(
@@ -19,27 +18,24 @@ export async function swipeAndroid(
   y2: number,
   durationMs = 250,
 ): Promise<void> {
-  await runCmd(
-    'adb',
-    adbArgs(device, [
-      'shell',
-      'input',
-      'swipe',
-      String(x1),
-      String(y1),
-      String(x2),
-      String(y2),
-      String(durationMs),
-    ]),
-  );
+  await runAndroidAdb(device, [
+    'shell',
+    'input',
+    'swipe',
+    String(x1),
+    String(y1),
+    String(x2),
+    String(y2),
+    String(durationMs),
+  ]);
 }
 
 export async function backAndroid(device: DeviceInfo): Promise<void> {
-  await runCmd('adb', adbArgs(device, ['shell', 'input', 'keyevent', '4']));
+  await runAndroidAdb(device, ['shell', 'input', 'keyevent', '4']);
 }
 
 export async function homeAndroid(device: DeviceInfo): Promise<void> {
-  await runCmd('adb', adbArgs(device, ['shell', 'input', 'keyevent', '3']));
+  await runAndroidAdb(device, ['shell', 'input', 'keyevent', '3']);
 }
 
 export async function rotateAndroid(
@@ -47,18 +43,26 @@ export async function rotateAndroid(
   orientation: DeviceRotation,
 ): Promise<void> {
   const userRotation = resolveAndroidUserRotation(orientation);
-  await runCmd(
-    'adb',
-    adbArgs(device, ['shell', 'settings', 'put', 'system', 'accelerometer_rotation', '0']),
-  );
-  await runCmd(
-    'adb',
-    adbArgs(device, ['shell', 'settings', 'put', 'system', 'user_rotation', userRotation]),
-  );
+  await runAndroidAdb(device, [
+    'shell',
+    'settings',
+    'put',
+    'system',
+    'accelerometer_rotation',
+    '0',
+  ]);
+  await runAndroidAdb(device, [
+    'shell',
+    'settings',
+    'put',
+    'system',
+    'user_rotation',
+    userRotation,
+  ]);
 }
 
 export async function appSwitcherAndroid(device: DeviceInfo): Promise<void> {
-  await runCmd('adb', adbArgs(device, ['shell', 'input', 'keyevent', '187']));
+  await runAndroidAdb(device, ['shell', 'input', 'keyevent', '187']);
 }
 
 export async function longPressAndroid(
@@ -67,19 +71,16 @@ export async function longPressAndroid(
   y: number,
   durationMs = 800,
 ): Promise<void> {
-  await runCmd(
-    'adb',
-    adbArgs(device, [
-      'shell',
-      'input',
-      'swipe',
-      String(x),
-      String(y),
-      String(x),
-      String(y),
-      String(durationMs),
-    ]),
-  );
+  await runAndroidAdb(device, [
+    'shell',
+    'input',
+    'swipe',
+    String(x),
+    String(y),
+    String(x),
+    String(y),
+    String(durationMs),
+  ]);
 }
 
 export async function typeAndroid(device: DeviceInfo, text: string, delayMs = 0): Promise<void> {
@@ -98,7 +99,7 @@ async function typeAndroidImmediate(device: DeviceInfo, text: string): Promise<v
   }
   try {
     const encoded = encodeAndroidInputText(text);
-    await runCmd('adb', adbArgs(device, ['shell', 'input', 'text', encoded]));
+    await runAndroidAdb(device, ['shell', 'input', 'text', encoded]);
   } catch (error) {
     if (shouldInjectViaClipboard && isAndroidInputTextUnsupported(error)) {
       throw new AppError(
@@ -231,19 +232,16 @@ export async function scrollAndroid(
     referenceHeight: size.height,
   });
 
-  await runCmd(
-    'adb',
-    adbArgs(device, [
-      'shell',
-      'input',
-      'swipe',
-      String(plan.x1),
-      String(plan.y1),
-      String(plan.x2),
-      String(plan.y2),
-      '300',
-    ]),
-  );
+  await runAndroidAdb(device, [
+    'shell',
+    'input',
+    'swipe',
+    String(plan.x1),
+    String(plan.y1),
+    String(plan.x2),
+    String(plan.y2),
+    '300',
+  ]);
 
   return plan;
 }
@@ -266,7 +264,7 @@ function resolveAndroidUserRotation(orientation: DeviceRotation): string {
 export async function getAndroidScreenSize(
   device: DeviceInfo,
 ): Promise<{ width: number; height: number }> {
-  const result = await runCmd('adb', adbArgs(device, ['shell', 'wm', 'size']));
+  const result = await runAndroidAdb(device, ['shell', 'wm', 'size']);
   const match = result.stdout.match(/Physical size:\s*(\d+)x(\d+)/);
   if (!match) throw new AppError('COMMAND_FAILED', 'Unable to read screen size');
   return { width: Number(match[1]), height: Number(match[2]) };
@@ -307,22 +305,20 @@ async function typeAndroidViaClipboard(
   device: DeviceInfo,
   text: string,
 ): Promise<'ok' | 'unsupported' | 'failed'> {
-  const setClipboard = await runCmd(
-    'adb',
-    adbArgs(device, ['shell', 'cmd', 'clipboard', 'set', 'text', text]),
+  const setClipboard = await runAndroidAdb(
+    device,
+    ['shell', 'cmd', 'clipboard', 'set', 'text', text],
     { allowFailure: true },
   );
   if (setClipboard.exitCode !== 0) return 'failed';
   if (isClipboardShellUnsupported(setClipboard.stdout, setClipboard.stderr)) return 'unsupported';
 
-  const pasteByName = await runCmd(
-    'adb',
-    adbArgs(device, ['shell', 'input', 'keyevent', 'KEYCODE_PASTE']),
-    { allowFailure: true },
-  );
+  const pasteByName = await runAndroidAdb(device, ['shell', 'input', 'keyevent', 'KEYCODE_PASTE'], {
+    allowFailure: true,
+  });
   if (pasteByName.exitCode === 0) return 'ok';
 
-  const pasteByCode = await runCmd('adb', adbArgs(device, ['shell', 'input', 'keyevent', '279']), {
+  const pasteByCode = await runAndroidAdb(device, ['shell', 'input', 'keyevent', '279'], {
     allowFailure: true,
   });
   return pasteByCode.exitCode === 0 ? 'ok' : 'failed';
@@ -341,15 +337,15 @@ function isAndroidInputTextUnsupported(error: unknown): boolean {
 
 async function clearFocusedText(device: DeviceInfo, count: number): Promise<void> {
   const deletes = Math.max(0, count);
-  await runCmd('adb', adbArgs(device, ['shell', 'input', 'keyevent', 'KEYCODE_MOVE_END']), {
+  await runAndroidAdb(device, ['shell', 'input', 'keyevent', 'KEYCODE_MOVE_END'], {
     allowFailure: true,
   });
   const batchSize = 24;
   for (let i = 0; i < deletes; i += batchSize) {
     const size = Math.min(batchSize, deletes - i);
-    await runCmd(
-      'adb',
-      adbArgs(device, ['shell', 'input', 'keyevent', ...Array(size).fill('KEYCODE_DEL')]),
+    await runAndroidAdb(
+      device,
+      ['shell', 'input', 'keyevent', ...Array(size).fill('KEYCODE_DEL')],
       {
         allowFailure: true,
       },

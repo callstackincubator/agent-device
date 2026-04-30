@@ -7,7 +7,7 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';
 import { waitForAndroidBoot } from './devices.ts';
-import { adbArgs } from './adb.ts';
+import { runAndroidAdb } from './adb.ts';
 import { classifyAndroidAppTarget } from './open-target.ts';
 import { prepareAndroidInstallArtifact } from './install-artifact.ts';
 import {
@@ -57,7 +57,7 @@ export async function resolveAndroidApp(
   const cached = androidAppResolutionCache.get(cacheScope, trimmed);
   if (cached) return cached;
 
-  const result = await runCmd('adb', adbArgs(device, ['shell', 'pm', 'list', 'packages']));
+  const result = await runAndroidAdb(device, ['shell', 'pm', 'list', 'packages']);
   const packages = result.stdout
     .split('\n')
     .map((line: string) => line.replace('package:', '').trim())
@@ -104,9 +104,9 @@ async function listAndroidLaunchablePackages(device: DeviceInfo): Promise<Set<st
   for (const category of resolveAndroidLaunchCategories(device, {
     includeFallbackWhenUnknown: true,
   })) {
-    const result = await runCmd(
-      'adb',
-      adbArgs(device, [
+    const result = await runAndroidAdb(
+      device,
+      [
         'shell',
         'cmd',
         'package',
@@ -116,7 +116,7 @@ async function listAndroidLaunchablePackages(device: DeviceInfo): Promise<Set<st
         'android.intent.action.MAIN',
         '-c',
         category,
-      ]),
+      ],
       { allowFailure: true },
     );
     if (result.exitCode !== 0 || result.stdout.trim().length === 0) {
@@ -150,7 +150,7 @@ function resolveAndroidLaunchCategories(
 }
 
 async function listAndroidUserInstalledPackages(device: DeviceInfo): Promise<string[]> {
-  const result = await runCmd('adb', adbArgs(device, ['shell', 'pm', 'list', 'packages', '-3']));
+  const result = await runAndroidAdb(device, ['shell', 'pm', 'list', 'packages', '-3']);
   return parseAndroidUserInstalledPackages(result.stdout);
 }
 
@@ -207,7 +207,7 @@ async function readAndroidFocus(
   commands: string[][],
 ): Promise<AndroidForegroundApp | null> {
   for (const args of commands) {
-    const result = await runCmd('adb', adbArgs(device, args), { allowFailure: true });
+    const result = await runAndroidAdb(device, args, { allowFailure: true });
     const text = result.stdout ?? '';
     const parsed = parseAndroidForegroundApp(text);
     if (parsed) return parsed;
@@ -231,19 +231,16 @@ export async function openAndroidApp(
         'Activity override is not supported when opening a deep link URL',
       );
     }
-    await runCmd(
-      'adb',
-      adbArgs(device, [
-        'shell',
-        'am',
-        'start',
-        '-W',
-        '-a',
-        'android.intent.action.VIEW',
-        '-d',
-        deepLinkTarget,
-      ]),
-    );
+    await runAndroidAdb(device, [
+      'shell',
+      'am',
+      'start',
+      '-W',
+      '-a',
+      'android.intent.action.VIEW',
+      '-d',
+      deepLinkTarget,
+    ]);
     return;
   }
   const resolved = await resolveAndroidApp(device, app);
@@ -255,7 +252,7 @@ export async function openAndroidApp(
         'Activity override requires a package name, not an intent',
       );
     }
-    await runCmd('adb', adbArgs(device, ['shell', 'am', 'start', '-W', '-a', resolved.value]));
+    await runAndroidAdb(device, ['shell', 'am', 'start', '-W', '-a', resolved.value]);
     return;
   }
   if (activity) {
@@ -263,32 +260,29 @@ export async function openAndroidApp(
       ? activity
       : `${resolved.value}/${activity.startsWith('.') ? activity : `.${activity}`}`;
     try {
-      await runCmd(
-        'adb',
-        adbArgs(device, [
-          'shell',
-          'am',
-          'start',
-          '-W',
-          '-a',
-          'android.intent.action.MAIN',
-          '-c',
-          ANDROID_DEFAULT_CATEGORY,
-          '-c',
-          launchCategory,
-          '-n',
-          component,
-        ]),
-      );
+      await runAndroidAdb(device, [
+        'shell',
+        'am',
+        'start',
+        '-W',
+        '-a',
+        'android.intent.action.MAIN',
+        '-c',
+        ANDROID_DEFAULT_CATEGORY,
+        '-c',
+        launchCategory,
+        '-n',
+        component,
+      ]);
     } catch (error) {
       await maybeRethrowAndroidMissingPackageError(device, resolved.value, error);
       throw error;
     }
     return;
   }
-  const primaryResult = await runCmd(
-    'adb',
-    adbArgs(device, [
+  const primaryResult = await runAndroidAdb(
+    device,
+    [
       'shell',
       'am',
       'start',
@@ -301,7 +295,7 @@ export async function openAndroidApp(
       launchCategory,
       '-p',
       resolved.value,
-    ]),
+    ],
     { allowFailure: true },
   );
   if (primaryResult.exitCode === 0 && !isAmStartError(primaryResult.stdout, primaryResult.stderr)) {
@@ -317,23 +311,20 @@ export async function openAndroidApp(
       stderr: primaryResult.stderr,
     });
   }
-  await runCmd(
-    'adb',
-    adbArgs(device, [
-      'shell',
-      'am',
-      'start',
-      '-W',
-      '-a',
-      'android.intent.action.MAIN',
-      '-c',
-      ANDROID_DEFAULT_CATEGORY,
-      '-c',
-      launchCategory,
-      '-n',
-      component,
-    ]),
-  );
+  await runAndroidAdb(device, [
+    'shell',
+    'am',
+    'start',
+    '-W',
+    '-a',
+    'android.intent.action.MAIN',
+    '-c',
+    ANDROID_DEFAULT_CATEGORY,
+    '-c',
+    launchCategory,
+    '-n',
+    component,
+  ]);
 }
 
 function buildAndroidPackageNotInstalledError(packageName: string): AppError {
@@ -347,7 +338,7 @@ async function isAndroidPackageInstalled(
   device: DeviceInfo,
   packageName: string,
 ): Promise<boolean> {
-  const result = await runCmd('adb', adbArgs(device, ['shell', 'pm', 'path', packageName]), {
+  const result = await runAndroidAdb(device, ['shell', 'pm', 'path', packageName], {
     allowFailure: true,
   });
   const output = `${result.stdout}\n${result.stderr}`;
@@ -394,9 +385,9 @@ async function resolveAndroidLaunchComponent(
     new Set(resolveAndroidLaunchCategories(device, { includeFallbackWhenUnknown: true })),
   );
   for (const category of categories) {
-    const result = await runCmd(
-      'adb',
-      adbArgs(device, [
+    const result = await runAndroidAdb(
+      device,
+      [
         'shell',
         'cmd',
         'package',
@@ -407,7 +398,7 @@ async function resolveAndroidLaunchComponent(
         '-c',
         category,
         packageName,
-      ]),
+      ],
       { allowFailure: true },
     );
     if (result.exitCode !== 0) {
@@ -446,14 +437,14 @@ export async function openAndroidDevice(device: DeviceInfo): Promise<void> {
 export async function closeAndroidApp(device: DeviceInfo, app: string): Promise<void> {
   const trimmed = app.trim();
   if (trimmed.toLowerCase() === 'settings') {
-    await runCmd('adb', adbArgs(device, ['shell', 'am', 'force-stop', 'com.android.settings']));
+    await runAndroidAdb(device, ['shell', 'am', 'force-stop', 'com.android.settings']);
     return;
   }
   const resolved = await resolveAndroidApp(device, app);
   if (resolved.type === 'intent') {
     throw new AppError('INVALID_ARGS', 'Close requires a package name, not an intent');
   }
-  await runCmd('adb', adbArgs(device, ['shell', 'am', 'force-stop', resolved.value]));
+  await runAndroidAdb(device, ['shell', 'am', 'force-stop', resolved.value]);
 }
 
 async function uninstallAndroidApp(device: DeviceInfo, app: string): Promise<{ package: string }> {
@@ -461,7 +452,7 @@ async function uninstallAndroidApp(device: DeviceInfo, app: string): Promise<{ p
   if (resolved.type === 'intent') {
     throw new AppError('INVALID_ARGS', 'App uninstall requires a package name, not an intent');
   }
-  const result = await runCmd('adb', adbArgs(device, ['uninstall', resolved.value]), {
+  const result = await runAndroidAdb(device, ['uninstall', resolved.value], {
     allowFailure: true,
   });
   if (result.exitCode !== 0) {
@@ -549,11 +540,11 @@ async function installAndroidAppFiles(device: DeviceInfo, appPath: string): Prom
     await installAndroidAppBundle(device, appPath);
     return;
   }
-  await runCmd('adb', adbArgs(device, ['install', '-r', appPath]));
+  await runAndroidAdb(device, ['install', '-r', appPath]);
 }
 
 async function listInstalledAndroidPackages(device: DeviceInfo): Promise<Set<string>> {
-  const result = await runCmd('adb', adbArgs(device, ['shell', 'pm', 'list', 'packages']));
+  const result = await runAndroidAdb(device, ['shell', 'pm', 'list', 'packages']);
   return new Set(
     result.stdout
       .split('\n')
