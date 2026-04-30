@@ -28,6 +28,18 @@ import type {
 import { normalizeBaseUrl } from './utils/url.ts';
 
 const COMPANION_REGISTER_TIMEOUT_MS = 5_000;
+const COMPANION_REGISTER_MAX_RETRY_DELAY_MS = 60_000;
+
+class CompanionRegistrationError extends Error {
+  readonly retryable: boolean;
+  readonly retryAfterMs: number | undefined;
+
+  constructor(message: string, retryable: boolean, retryAfterMs?: number) {
+    super(message);
+    this.retryable = retryable;
+    this.retryAfterMs = retryAfterMs;
+  }
+}
 
 function createHeaders(serverBaseUrl: string, token: string): Record<string, string> {
   return {
@@ -88,22 +100,64 @@ async function registerCompanion(
   let payload: {
     ok?: boolean;
     data?: { ws_url?: string };
+    error?: { code?: string; details?: { retryAfterMs?: unknown } };
   };
   try {
     payload = responseText ? (JSON.parse(responseText) as typeof payload) : {};
   } catch {
-    throw new Error(
+    throw new CompanionRegistrationError(
       `Failed to register companion (${response.status}): invalid JSON response: ${formatResponseSnippet(
         responseText,
       )}`,
+      isRetryableRegisterFailure(response.status, undefined),
+      retryDelayFromResponse(response, {}),
     );
   }
   if (!response.ok || payload.ok !== true || typeof payload.data?.ws_url !== 'string') {
-    throw new Error(
+    throw new CompanionRegistrationError(
       `Failed to register companion (${response.status}): ${JSON.stringify(payload)}`,
+      isRetryableRegisterFailure(response.status, payload.error?.code),
+      retryDelayFromResponse(response, payload),
     );
   }
   return { wsUrl: payload.data.ws_url };
+}
+
+function isRetryableRegisterFailure(status: number, code: string | undefined): boolean {
+  if (code === 'RATE_LIMITED') return true;
+  if (code === 'UNAUTHORIZED' || code === 'INVALID_ARGS' || code === 'SESSION_NOT_FOUND') {
+    return false;
+  }
+  return status === 408 || status === 409 || status === 425 || status === 429 || status >= 500;
+}
+
+function retryDelayFromResponse(
+  response: Response,
+  payload: { error?: { details?: { retryAfterMs?: unknown } } },
+): number | undefined {
+  const detailRetryAfter = payload.error?.details?.retryAfterMs;
+  if (typeof detailRetryAfter === 'number' && Number.isFinite(detailRetryAfter)) {
+    return clampRetryDelay(detailRetryAfter);
+  }
+  const retryAfter = response.headers.get('retry-after');
+  if (!retryAfter) return undefined;
+  const seconds = Number(retryAfter);
+  if (Number.isFinite(seconds)) {
+    return clampRetryDelay(seconds * 1000);
+  }
+  const retryAt = Date.parse(retryAfter);
+  if (Number.isFinite(retryAt)) {
+    return clampRetryDelay(retryAt - Date.now());
+  }
+  return undefined;
+}
+
+function clampRetryDelay(delayMs: number): number {
+  return Math.max(0, Math.min(COMPANION_REGISTER_MAX_RETRY_DELAY_MS, Math.ceil(delayMs)));
+}
+
+function nextRetryDelay(currentDelayMs: number): number {
+  return Math.min(currentDelayMs * 2, COMPANION_REGISTER_MAX_RETRY_DELAY_MS);
 }
 
 async function unregisterCompanion(options: CompanionTunnelWorkerOptions): Promise<void> {
@@ -369,11 +423,14 @@ async function runCompanionTunnelWorker(options: CompanionTunnelWorkerOptions): 
     }
   }, COMPANION_TUNNEL_LEASE_CHECK_INTERVAL_MS);
   lifetimeHandle.unref();
+  let registerRetryDelayMs = COMPANION_TUNNEL_RECONNECT_DELAY_MS;
   while (!shutdownRequested && shouldKeepWorkerRunning(options)) {
     let registered = false;
+    let retryDelayOverrideMs: number | undefined;
     try {
       activeRegistrationComplete = false;
       const registration = await registerCompanion(options);
+      registerRetryDelayMs = COMPANION_TUNNEL_RECONNECT_DELAY_MS;
       registered = true;
       activeRegistrationComplete = true;
       if (shutdownRequested || !shouldKeepWorkerRunning(options)) {
@@ -419,11 +476,18 @@ async function runCompanionTunnelWorker(options: CompanionTunnelWorkerOptions): 
         break;
       }
       console.error(error instanceof Error ? error.message : String(error));
+      if (error instanceof CompanionRegistrationError && !error.retryable) {
+        break;
+      }
+      retryDelayOverrideMs =
+        error instanceof CompanionRegistrationError ? error.retryAfterMs : undefined;
     }
     if (shutdownRequested || !shouldKeepWorkerRunning(options)) {
       break;
     }
-    await delay(COMPANION_TUNNEL_RECONNECT_DELAY_MS);
+    const delayMs = retryDelayOverrideMs ?? registerRetryDelayMs;
+    registerRetryDelayMs = nextRetryDelay(registerRetryDelayMs);
+    await delay(delayMs);
   }
   clearInterval(lifetimeHandle);
 }
