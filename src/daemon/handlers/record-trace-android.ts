@@ -11,6 +11,7 @@ import type {
   AndroidAdbExecutorOptions,
   AndroidAdbExecutorResult,
 } from '../../platforms/android/adb-executor.ts';
+import { pullAndroidAdbFile } from '../../platforms/android/adb-executor.ts';
 
 const ANDROID_REMOTE_FILE_POLL_MS = 250;
 const ANDROID_REMOTE_FILE_ATTEMPTS = 20;
@@ -150,8 +151,10 @@ async function copyAndroidRecordingWithValidation(params: {
       // Ignore stale local file cleanup issues and let adb pull report the real failure.
     }
 
-    const pullResult = await runAndroidRecordingAdb(deviceId, ['pull', remotePath, outPath], {
+    const device = androidDeviceForSerial(deviceId);
+    const pullResult = await pullAndroidAdbFile(remotePath, outPath, {
       allowFailure: true,
+      device,
     });
     if (pullResult.exitCode !== 0) {
       lastCopyError = formatRecordTraceExecFailure(pullResult, 'adb pull');

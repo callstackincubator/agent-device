@@ -8,6 +8,7 @@ import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';
 import { waitForAndroidBoot } from './devices.ts';
 import { runAndroidAdb } from './adb.ts';
+import { installAndroidAdbPackage } from './adb-executor.ts';
 import { classifyAndroidAppTarget } from './open-target.ts';
 import { prepareAndroidInstallArtifact } from './install-artifact.ts';
 import {
@@ -540,7 +541,10 @@ async function installAndroidAppFiles(device: DeviceInfo, appPath: string): Prom
     await installAndroidAppBundle(device, appPath);
     return;
   }
-  await runAndroidAdb(device, ['install', '-r', appPath]);
+  await installAndroidAdbPackage(appPath, {
+    device,
+    replace: true,
+  });
 }
 
 async function listInstalledAndroidPackages(device: DeviceInfo): Promise<Set<string>> {

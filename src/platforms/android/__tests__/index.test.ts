@@ -25,6 +25,7 @@ import {
   typeAndroid,
   writeAndroidClipboardText,
 } from '../index.ts';
+import { withAndroidAdbProvider } from '../adb-executor.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 import { findBounds, parseUiHierarchy } from '../ui-hierarchy.ts';
@@ -339,6 +340,39 @@ test('installAndroidApp installs .apk via adb install -r', async () => {
     },
   );
   await fs.rm(apkPath, { force: true });
+});
+
+test('installAndroidInstallablePath uses provider install capability when available', async () => {
+  const apkPath = path.join(os.tmpdir(), `agent-device-provider-install-${Date.now()}.apk`);
+  await fs.writeFile(apkPath, 'placeholder', 'utf8');
+  const installCalls: Array<{ source: string; replace: boolean | undefined }> = [];
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  try {
+    await withAndroidAdbProvider(
+      {
+        exec: async (args) => {
+          throw new Error(`unexpected adb exec: ${args.join(' ')}`);
+        },
+        install: async (source, options) => {
+          installCalls.push({ source: String(source), replace: options?.replace });
+          return { stdout: 'Success', stderr: '', exitCode: 0 };
+        },
+      },
+      { serial: 'emulator-5554' },
+      async () => await installAndroidInstallablePath(device, apkPath),
+    );
+  } finally {
+    await fs.rm(apkPath, { force: true });
+  }
+
+  assert.deepEqual(installCalls, [{ source: apkPath, replace: true }]);
 });
 
 test('installAndroidApp resolves packageName and launchTarget from nested archive artifacts', async () => {

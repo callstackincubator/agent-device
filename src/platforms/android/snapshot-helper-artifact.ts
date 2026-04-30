@@ -15,7 +15,24 @@ import {
 
 const ANDROID_SNAPSHOT_HELPER_MAX_MANIFEST_BYTES = 64 * 1024;
 const ANDROID_SNAPSHOT_HELPER_MAX_APK_BYTES = 20 * 1024 * 1024;
-const ANDROID_SNAPSHOT_HELPER_ALLOWED_INSTALL_FLAGS = new Set(['-r', '-t', '-d', '-g']);
+
+export type AndroidSnapshotHelperInstallOptions = {
+  replace?: boolean;
+  allowTestPackages?: boolean;
+  allowDowngrade?: boolean;
+  grantPermissions?: boolean;
+};
+
+type AndroidSnapshotHelperInstallOptionName = keyof AndroidSnapshotHelperInstallOptions;
+
+const ANDROID_SNAPSHOT_HELPER_INSTALL_FLAG_OPTIONS = {
+  '-r': 'replace',
+  '-t': 'allowTestPackages',
+  '-d': 'allowDowngrade',
+  '-g': 'grantPermissions',
+} as const satisfies Record<string, AndroidSnapshotHelperInstallOptionName>;
+
+type AndroidSnapshotHelperInstallFlag = keyof typeof ANDROID_SNAPSHOT_HELPER_INSTALL_FLAG_OPTIONS;
 
 export async function verifyAndroidSnapshotHelperArtifact(
   artifact: AndroidSnapshotHelperArtifact,
@@ -132,10 +149,11 @@ export function parseAndroidSnapshotHelperManifest(value: unknown): AndroidSnaps
   };
 }
 
-export function readAndroidSnapshotHelperInstallArgs(
+export function readAndroidSnapshotHelperInstallOptions(
   manifest: AndroidSnapshotHelperManifest,
-): string[] {
-  return readAndroidSnapshotHelperManifestInstallArgs(manifest.installArgs);
+): AndroidSnapshotHelperInstallOptions {
+  const installArgs = readAndroidSnapshotHelperManifestInstallArgs(manifest.installArgs);
+  return installOptionsFromSnapshotHelperInstallArgs(installArgs);
 }
 
 async function readResponseBodyWithLimit(
@@ -211,6 +229,23 @@ function readAndroidSnapshotHelperManifestInstallArgs(value: unknown): string[] 
   return installArgs;
 }
 
+function installOptionsFromSnapshotHelperInstallArgs(
+  installArgs: string[],
+): AndroidSnapshotHelperInstallOptions {
+  const options: AndroidSnapshotHelperInstallOptions = {};
+  for (const arg of installArgs.slice(1)) {
+    const optionName = installOptionForSnapshotHelperInstallFlag(arg);
+    if (!optionName) {
+      throw new AppError(
+        'INVALID_ARGS',
+        `Android snapshot helper manifest installArgs contains unsupported install flag "${arg}".`,
+      );
+    }
+    options[optionName] = true;
+  }
+  return options;
+}
+
 function readSha256(value: unknown): string {
   const sha256 = readString(value, 'sha256').trim().toLowerCase();
   if (sha256.length !== 64 || !isLowerHex(sha256)) {
@@ -283,7 +318,16 @@ function readStringArray(value: unknown, field: string): string[] {
 }
 
 function isAllowedInstallFlag(arg: string): boolean {
-  return ANDROID_SNAPSHOT_HELPER_ALLOWED_INSTALL_FLAGS.has(arg);
+  return installOptionForSnapshotHelperInstallFlag(arg) !== undefined;
+}
+
+function installOptionForSnapshotHelperInstallFlag(
+  arg: string,
+): AndroidSnapshotHelperInstallOptionName | undefined {
+  if (!Object.hasOwn(ANDROID_SNAPSHOT_HELPER_INSTALL_FLAG_OPTIONS, arg)) {
+    return undefined;
+  }
+  return ANDROID_SNAPSHOT_HELPER_INSTALL_FLAG_OPTIONS[arg as AndroidSnapshotHelperInstallFlag];
 }
 
 function isLowerHex(value: string): boolean {

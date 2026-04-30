@@ -20,7 +20,7 @@ import {
   type AndroidSnapshotAnalysis,
   type AndroidUiHierarchy,
 } from './ui-hierarchy.ts';
-import { resolveAndroidAdbExecutor } from './adb-executor.ts';
+import { resolveAndroidAdbExecutor, resolveAndroidAdbProvider } from './adb-executor.ts';
 import { deriveAndroidScrollableContentHints } from './scroll-hints.ts';
 import {
   captureAndroidSnapshotWithHelper,
@@ -93,8 +93,10 @@ async function captureAndroidUiHierarchy(
   if (helper.artifact) {
     const helperDeviceKey = getAndroidSnapshotHelperDeviceKey(device);
     try {
+      const adbProvider = resolveAndroidAdbProvider(device, options.helperAdb);
       const install = await ensureAndroidSnapshotHelper({
         adb,
+        adbProvider,
         artifact: helper.artifact,
         deviceKey: helperDeviceKey,
         installPolicy: options.helperInstallPolicy,

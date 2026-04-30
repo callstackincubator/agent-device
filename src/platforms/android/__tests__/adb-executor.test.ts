@@ -13,6 +13,8 @@ import {
   createAndroidPortReverseManager,
   createDeviceAdbExecutor,
   createLocalAndroidAdbProvider,
+  installAndroidAdbPackage,
+  pullAndroidAdbFile,
   resolveAndroidAdbExecutor,
   resolveAndroidAdbProvider,
   withAndroidAdbProvider,
@@ -125,6 +127,39 @@ test('createLocalAndroidAdbProvider exposes exec, spawn, and reverse over local 
   );
 });
 
+test('createLocalAndroidAdbProvider exposes local pull and install capabilities', async () => {
+  mockRunCmd.mockClear();
+  const provider = createLocalAndroidAdbProvider({
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel Emulator',
+    kind: 'emulator',
+    booted: true,
+  });
+
+  await provider.pull?.('/sdcard/video.mp4', '/tmp/video.mp4', { allowFailure: true });
+  await provider.install?.('/tmp/app.apk', {
+    allowDowngrade: true,
+    allowTestPackages: true,
+    grantPermissions: true,
+    replace: true,
+    timeoutMs: 2000,
+  });
+
+  assert.deepEqual(mockRunCmd.mock.calls, [
+    [
+      'adb',
+      ['-s', 'emulator-5554', 'pull', '/sdcard/video.mp4', '/tmp/video.mp4'],
+      { allowFailure: true },
+    ],
+    [
+      'adb',
+      ['-s', 'emulator-5554', 'install', '-r', '-t', '-d', '-g', '/tmp/app.apk'],
+      { timeoutMs: 2000 },
+    ],
+  ]);
+});
+
 test('createAndroidPortReverseManager makes duplicate setup idempotent and cleans owner mappings', async () => {
   const calls: string[][] = [];
   const manager = createAndroidPortReverseManager(async (args) => {
@@ -197,4 +232,53 @@ test('resolveAndroidAdbProvider does not infer reverse support for plain executo
   );
 
   assert.equal(provider.reverse, undefined);
+});
+
+test('explicit transfer helpers prefer provider capabilities over exec-shaped fallback', async () => {
+  const calls: string[] = [];
+
+  await withAndroidAdbProvider(
+    {
+      exec: async (args) => {
+        calls.push(`exec:${args.join(' ')}`);
+        return { stdout: 'exec', stderr: '', exitCode: 0 };
+      },
+      pull: async (remotePath, localPath) => {
+        calls.push(`pull:${remotePath}:${localPath}`);
+        return { stdout: 'pull', stderr: '', exitCode: 0 };
+      },
+      install: async (source, options) => {
+        calls.push(`install:${String(source)}:${options?.replace === true}`);
+        return { stdout: 'install', stderr: '', exitCode: 0 };
+      },
+    },
+    { serial: 'emulator-5554' },
+    async () => {
+      await pullAndroidAdbFile('/remote.mp4', '/local.mp4');
+      await installAndroidAdbPackage('/app.apk', { replace: true });
+    },
+  );
+
+  assert.deepEqual(calls, ['pull:/remote.mp4:/local.mp4', 'install:/app.apk:true']);
+});
+
+test('explicit transfer helpers keep exec-shaped fallback for older providers', async () => {
+  const calls: string[][] = [];
+
+  await withAndroidAdbProvider(
+    async (args) => {
+      calls.push(args);
+      return { stdout: 'ok', stderr: '', exitCode: 0 };
+    },
+    { serial: 'emulator-5554' },
+    async () => {
+      await pullAndroidAdbFile('/remote.mp4', '/local.mp4');
+      await installAndroidAdbPackage('/app.apk', { replace: true });
+    },
+  );
+
+  assert.deepEqual(calls, [
+    ['pull', '/remote.mp4', '/local.mp4'],
+    ['install', '-r', '/app.apk'],
+  ]);
 });
