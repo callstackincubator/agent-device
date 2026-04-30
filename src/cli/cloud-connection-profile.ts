@@ -109,29 +109,35 @@ function parseConnectionProfile(value: unknown): RemoteConfigProfile {
   if (!connection || typeof connection !== 'object') {
     throw new AppError('COMMAND_FAILED', 'Cloud connection profile response is missing profile.');
   }
-  if (
-    connection.remoteConfigProfile &&
-    typeof connection.remoteConfigProfile === 'object' &&
-    !Array.isArray(connection.remoteConfigProfile)
-  ) {
+  if (isRemoteConfigProfileObject(connection.remoteConfigProfile)) {
     return connection.remoteConfigProfile as RemoteConfigProfile;
   }
-  if (typeof connection.remoteConfig === 'string') {
-    try {
-      const parsed = JSON.parse(connection.remoteConfig) as unknown;
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        return parsed as RemoteConfigProfile;
-      }
-    } catch (error) {
-      throw new AppError(
-        'COMMAND_FAILED',
-        'Cloud connection profile returned invalid remote config JSON.',
-        {},
-        error instanceof Error ? error : undefined,
-      );
-    }
+  const legacyProfile = parseLegacyRemoteConfig(connection.remoteConfig);
+  if (legacyProfile) {
+    return legacyProfile;
   }
   throw new AppError('COMMAND_FAILED', 'Cloud connection profile did not include remote config.');
+}
+
+function isRemoteConfigProfileObject(value: unknown): value is RemoteConfigProfile {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+function parseLegacyRemoteConfig(value: unknown): RemoteConfigProfile | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return isRemoteConfigProfileObject(parsed) ? parsed : undefined;
+  } catch (error) {
+    throw new AppError(
+      'COMMAND_FAILED',
+      'Cloud connection profile returned invalid remote config JSON.',
+      {},
+      error instanceof Error ? error : undefined,
+    );
+  }
 }
 
 function writeGeneratedRemoteConfig(options: {

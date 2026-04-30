@@ -108,16 +108,15 @@ export async function resolveRemoteAuth(options: {
     return { flags: options.flags, source: 'none' };
   }
 
-  const session = readCliSession({ stateDir: options.stateDir });
-  if (session && !isExpired(session.expiresAt, options.io?.now)) {
-    const refreshed = await refreshAgentToken({
-      session,
-      flags: options.flags,
-      env,
-      io: options.io,
-    });
+  const sessionAccess = await resolveCliSessionAccess({
+    stateDir: options.stateDir,
+    flags: options.flags,
+    env,
+    io: options.io,
+  });
+  if (sessionAccess) {
     return {
-      flags: { ...options.flags, daemonAuthToken: refreshed.accessToken },
+      flags: { ...options.flags, daemonAuthToken: sessionAccess.accessToken },
       source: 'cli-session',
     };
   }
@@ -168,17 +167,16 @@ export async function resolveCloudAccessForConnect(options: {
       source: 'env',
     };
   }
-  const session = readCliSession({ stateDir: options.stateDir });
-  if (session && !isExpired(session.expiresAt, options.io?.now)) {
-    const refreshed = await refreshAgentToken({
-      session,
-      flags: options.flags,
-      env,
-      io: options.io,
-    });
+  const sessionAccess = await resolveCliSessionAccess({
+    stateDir: options.stateDir,
+    flags: options.flags,
+    env,
+    io: options.io,
+  });
+  if (sessionAccess) {
     return {
-      accessToken: refreshed.accessToken,
-      cloudBaseUrl: resolveCloudBaseUrl(env, session.cloudBaseUrl),
+      accessToken: sessionAccess.accessToken,
+      cloudBaseUrl: sessionAccess.cloudBaseUrl,
       source: 'cli-session',
     };
   }
@@ -347,6 +345,28 @@ export function summarizeCliSession(options: { stateDir: string; now?: () => num
   };
 }
 
+async function resolveCliSessionAccess(options: {
+  stateDir: string;
+  flags: CliFlags;
+  env: EnvMap;
+  io?: AuthIo;
+}): Promise<{ accessToken: string; cloudBaseUrl: string } | null> {
+  const session = readCliSession({ stateDir: options.stateDir });
+  if (!session || isExpired(session.expiresAt, options.io?.now)) {
+    return null;
+  }
+  const refreshed = await refreshAgentToken({
+    session,
+    flags: options.flags,
+    env: options.env,
+    io: options.io,
+  });
+  return {
+    accessToken: refreshed.accessToken,
+    cloudBaseUrl: resolveCloudBaseUrl(options.env, session.cloudBaseUrl),
+  };
+}
+
 async function refreshAgentToken(options: {
   session: CliSessionRecord;
   flags: CliFlags;
@@ -506,7 +526,7 @@ function buildNonInteractiveLoginError(command: string, env: EnvMap): AppError {
   );
 }
 
-export function resolveCloudBaseUrl(env: EnvMap, fallback?: string): string {
+function resolveCloudBaseUrl(env: EnvMap, fallback?: string): string {
   const raw = env.AGENT_DEVICE_CLOUD_BASE_URL ?? fallback ?? DEFAULT_CLOUD_BASE_URL;
   try {
     return new URL(raw).toString().replace(/\/+$/, '');
