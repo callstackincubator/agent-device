@@ -515,7 +515,9 @@ async function runCompanionTunnelWorker(options: CompanionTunnelWorkerOptions): 
       break;
     }
     const delayMs = retryDelayOverrideMs ?? registerRetryDelayMs;
-    registerRetryDelayMs = nextRetryDelay(registerRetryDelayMs);
+    if (retryDelayOverrideMs === undefined) {
+      registerRetryDelayMs = nextRetryDelay(registerRetryDelayMs);
+    }
     await delay(delayMs);
   }
   clearInterval(lifetimeHandle);

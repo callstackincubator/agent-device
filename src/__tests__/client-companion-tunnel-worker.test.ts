@@ -588,6 +588,62 @@ test('metro companion worker exits after non-retryable registration failure', as
   assert.equal(registerAttempts, 1);
 });
 
+test('metro companion worker retries registration failures with retry-after delay', async () => {
+  const bridgeSocketReady = createDeferred<void>();
+  const registerAttemptTimes: number[] = [];
+  let bridgePort = 0;
+  let bridgeSocketRef: Duplex | null = null;
+
+  const localPort = await listenNotFoundServer();
+
+  const bridgeServer = http.createServer((req, res) => {
+    const url = new URL(req.url || '/', 'http://127.0.0.1');
+    if (req.method === 'POST' && url.pathname === '/api/metro/companion/register') {
+      registerAttemptTimes.push(Date.now());
+      req.resume();
+      req.on('end', () => {
+        if (registerAttemptTimes.length === 1) {
+          res.writeHead(429, { 'content-type': 'application/json', 'retry-after': '0.05' });
+          res.end(
+            JSON.stringify({
+              ok: false,
+              error: { code: 'RATE_LIMITED', message: 'Try again later' },
+            }),
+          );
+          return;
+        }
+        writeSuccessfulRegistration(res, bridgePort);
+      });
+      return;
+    }
+    writeNotFound(res);
+  });
+  bridgeServer.on('upgrade', (req, socket) => {
+    if (req.url !== '/bridge') {
+      socket.destroy();
+      return;
+    }
+    bridgeSocketRef = socket;
+    if (!acceptWebSocketUpgrade(req, socket)) return;
+    bridgeSocketReady.resolve();
+  });
+  cleanupTasks.push(() => closeServer(bridgeServer));
+  cleanupTasks.push(async () => {
+    bridgeSocketRef?.destroy();
+  });
+  bridgePort = await listen(bridgeServer);
+
+  const { earlyExit } = spawnMetroCompanionWorker({ bridgePort, localPort });
+
+  await Promise.race([
+    waitFor(bridgeSocketReady.promise, 5_000, 'bridge websocket connection after retry'),
+    earlyExit,
+  ]);
+
+  assert.equal(registerAttemptTimes.length, 2);
+  assert.ok(registerAttemptTimes[1]! - registerAttemptTimes[0]! >= 40);
+});
+
 test('metro companion worker exits after its state file is removed', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-metro-companion-worker-'));
   const statePath = path.join(tempRoot, 'metro-companion.json');
