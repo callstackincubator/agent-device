@@ -459,7 +459,7 @@ Rules:
   @c refs reset after reload/remount. After reload, wait --connected and inspect again.
   Keep the profile window narrow; unrelated navigation makes render data noisy.
   For cross-platform validation with explicit device selectors, prefer isolated --state-dir and restart react-devtools between platforms.
-  Remote Android and iOS bridge runs normally through agent-device react-devtools; the CLI manages the needed local service tunnel. Expo support depends on the SDK's bundled React Native runtime.
+  Remote bridge sessions (Android and iOS) run normally through agent-device react-devtools; the CLI manages the needed local service tunnel. Expo support depends on the SDK's bundled React Native runtime.
 
 Example:
   agent-device react-devtools status
