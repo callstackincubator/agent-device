@@ -12,12 +12,17 @@ vi.mock('../client-react-devtools-companion.ts', () => ({
   stopReactDevtoolsCompanion: vi.fn(),
 }));
 
+vi.mock('../cli/auth-session.ts', () => ({
+  resolveCloudAccessForConnect: vi.fn(),
+}));
+
 import {
   connectCommand,
   connectionCommand,
   disconnectCommand,
 } from '../cli/commands/connection.ts';
 import { materializeRemoteConnectionForCommand } from '../cli/commands/connection-runtime.ts';
+import { resolveCloudAccessForConnect } from '../cli/auth-session.ts';
 import { stopMetroCompanion } from '../client-metro-companion.ts';
 import { AppError } from '../utils/errors.ts';
 import {
@@ -31,7 +36,10 @@ import type { AgentDeviceClient } from '../client.ts';
 afterEach(() => {
   vi.clearAllMocks();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
+
+const mockedResolveCloudAccessForConnect = vi.mocked(resolveCloudAccessForConnect);
 
 const unexpectedCommandCall = async (): Promise<never> => {
   throw new Error('unexpected call');
@@ -158,6 +166,137 @@ test('connect auto-generates a local session and writes minimal remote state', a
   fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
+test('connect without remote config generates one from cloud connection profile', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-cloud-'));
+  const stateDir = path.join(tempRoot, '.state');
+  mockedResolveCloudAccessForConnect.mockResolvedValue({
+    accessToken: 'adc_agent_cloud',
+    cloudBaseUrl: 'https://cloud.example',
+    source: 'login',
+  });
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            ok: true,
+            connection: {
+              version: 1,
+              remoteConfigProfile: {
+                daemonBaseUrl: 'https://bridge.example.com/agent-device',
+                daemonTransport: 'http',
+                tenant: 'acme',
+                runId: 'demo-run-001',
+                sessionIsolation: 'tenant',
+                metroKind: 'auto',
+                metroPublicBaseUrl: 'http://127.0.0.1:8081',
+                metroProxyBaseUrl: 'https://bridge.example.com',
+              },
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    ),
+  );
+
+  const connectOnce = async () => {
+    await connectCommand({
+      positionals: [],
+      flags: {
+        json: true,
+        help: false,
+        version: false,
+        stateDir,
+      },
+      client: createTestClient(),
+    });
+  };
+
+  await captureStdout(connectOnce);
+  await captureStdout(connectOnce);
+
+  const state = readActiveConnectionState({ stateDir });
+  assert.equal(state?.tenant, 'acme');
+  assert.equal(state?.runId, 'demo-run-001');
+  assert.equal(state?.daemon?.baseUrl, 'https://bridge.example.com/agent-device');
+  assert.match(
+    state?.remoteConfigPath ?? '',
+    /remote-connections\/generated\/cloud-[a-f0-9]{16}\.json$/,
+  );
+  assert.equal(state?.remoteConfigHash, hashRemoteConfigFile(state?.remoteConfigPath ?? ''));
+  const generatedConfig = JSON.parse(fs.readFileSync(state?.remoteConfigPath ?? '', 'utf8')) as {
+    tenant?: string;
+    metroProxyBaseUrl?: string;
+  };
+  assert.deepEqual(Object.keys(generatedConfig), [
+    'daemonBaseUrl',
+    'daemonTransport',
+    'metroKind',
+    'metroProxyBaseUrl',
+    'metroPublicBaseUrl',
+    'runId',
+    'sessionIsolation',
+    'tenant',
+  ]);
+  assert.equal(generatedConfig.tenant, 'acme');
+  assert.equal(generatedConfig.metroProxyBaseUrl, 'https://bridge.example.com');
+  assert.equal(
+    vi.mocked(fetch).mock.calls[0]?.[0]?.toString(),
+    'https://cloud.example/api/control-plane/connection-profile',
+  );
+  assert.equal(vi.mocked(fetch).mock.calls.length, 2);
+
+  fs.rmSync(tempRoot, { recursive: true, force: true });
+});
+
+test('connect without remote config accepts legacy remoteConfig profile response', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-cloud-legacy-'));
+  const stateDir = path.join(tempRoot, '.state');
+  mockedResolveCloudAccessForConnect.mockResolvedValue({
+    accessToken: 'adc_agent_cloud',
+    cloudBaseUrl: 'https://cloud.example',
+    source: 'login',
+  });
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            ok: true,
+            connection: {
+              remoteConfig: JSON.stringify({
+                daemonBaseUrl: 'https://bridge.example.com/agent-device',
+                daemonTransport: 'http',
+                tenant: 'acme',
+                runId: 'demo-run-001',
+              }),
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    ),
+  );
+
+  await captureStdout(async () => {
+    await connectCommand({
+      positionals: [],
+      flags: {
+        json: true,
+        help: false,
+        version: false,
+        stateDir,
+      },
+      client: createTestClient(),
+    });
+  });
+
+  const state = readActiveConnectionState({ stateDir });
+  assert.equal(state?.tenant, 'acme');
+  assert.equal(state?.daemon?.baseUrl, 'https://bridge.example.com/agent-device');
+  fs.rmSync(tempRoot, { recursive: true, force: true });
+});
 test('connect reports deferred Metro runtime preparation when remote config has Metro settings', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-metro-notice-'));
   const stateDir = path.join(tempRoot, '.state');

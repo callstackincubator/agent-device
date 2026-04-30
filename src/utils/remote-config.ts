@@ -8,7 +8,7 @@ const REMOTE_CONFIG_DEFAULT_FLAG_KEYS = REMOTE_CONFIG_FIELD_SPECS.map(
   (spec) => spec.key,
 ) as readonly (keyof RemoteConfigProfile)[];
 
-function profileToCliFlags(profile: RemoteConfigProfile): Partial<CliFlags> {
+export function profileToCliFlags(profile: RemoteConfigProfile): Partial<CliFlags> {
   const flags: Partial<CliFlags> = {};
   for (const key of REMOTE_CONFIG_DEFAULT_FLAG_KEYS) {
     const value = profile[key];

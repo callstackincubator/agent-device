@@ -1437,7 +1437,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   connect: {
     usageOverride:
-      'connect --remote-config <path> [--tenant <id>] [--run-id <id>] [--lease-backend <backend>] [--force] [--no-login]',
+      'connect [--remote-config <path>] [--tenant <id>] [--run-id <id>] [--lease-backend <backend>] [--force] [--no-login]',
     helpDescription:
       'Connect to a remote daemon, authenticate when needed, and save remote session state. AGENT_DEVICE_CLOUD_BASE_URL is the bridge/control-plane API origin; use AGENT_DEVICE_DAEMON_AUTH_TOKEN=adc_live_... for CI/service-token automation.',
     summary: 'Connect to remote daemon',

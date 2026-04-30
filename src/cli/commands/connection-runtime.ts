@@ -10,7 +10,7 @@ import {
   writeRemoteConnectionState,
   type RemoteConnectionState,
 } from '../../remote-connection-state.ts';
-import { REMOTE_CONFIG_FIELD_SPECS, type RemoteConfigProfile } from '../../remote-config-schema.ts';
+import { profileToCliFlags } from '../../utils/remote-config.ts';
 import type { BatchStep } from '../../core/batch.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { LeaseBackend, SessionRuntimeHints } from '../../contracts.ts';
@@ -340,17 +340,6 @@ function selectCompatibleRuntime(
 ): SessionRuntimeHints | undefined {
   if (!runtime) return undefined;
   return isRuntimeCompatibleWithPlatform(runtime, platform) ? runtime : undefined;
-}
-
-function profileToCliFlags(profile: RemoteConfigProfile): Partial<CliFlags> {
-  const flags: Partial<CliFlags> = {};
-  for (const spec of REMOTE_CONFIG_FIELD_SPECS) {
-    const value = profile[spec.key];
-    if (value !== undefined) {
-      (flags as Record<string, unknown>)[spec.key] = value;
-    }
-  }
-  return flags;
 }
 
 function createRemoteConnectionStateFromFlags(

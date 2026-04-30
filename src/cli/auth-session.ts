@@ -143,13 +143,70 @@ export async function resolveRemoteAuth(options: {
   };
 }
 
+export async function resolveCloudAccessForConnect(options: {
+  stateDir: string;
+  flags: CliFlags;
+  env?: EnvMap;
+  io?: AuthIo;
+}): Promise<{
+  accessToken: string;
+  cloudBaseUrl: string;
+  source: 'flag' | 'env' | 'cli-session' | 'login';
+}> {
+  const env = options.env ?? options.io?.env ?? process.env;
+  if (hasToken(options.flags.daemonAuthToken)) {
+    return {
+      accessToken: options.flags.daemonAuthToken,
+      cloudBaseUrl: resolveCloudBaseUrl(env),
+      source: 'flag',
+    };
+  }
+  if (hasToken(env.AGENT_DEVICE_DAEMON_AUTH_TOKEN)) {
+    return {
+      accessToken: env.AGENT_DEVICE_DAEMON_AUTH_TOKEN,
+      cloudBaseUrl: resolveCloudBaseUrl(env),
+      source: 'env',
+    };
+  }
+  const session = readCliSession({ stateDir: options.stateDir });
+  if (session && !isExpired(session.expiresAt, options.io?.now)) {
+    const refreshed = await refreshAgentToken({
+      session,
+      flags: options.flags,
+      env,
+      io: options.io,
+    });
+    return {
+      accessToken: refreshed.accessToken,
+      cloudBaseUrl: resolveCloudBaseUrl(env, session.cloudBaseUrl),
+      source: 'cli-session',
+    };
+  }
+  const login = await loginWithDeviceAuth({
+    stateDir: options.stateDir,
+    flags: options.flags,
+    env,
+    io: options.io,
+    commandLabel: 'agent-device connect',
+  });
+  return {
+    accessToken: login.accessToken,
+    cloudBaseUrl: login.session.cloudBaseUrl,
+    source: 'login',
+  };
+}
+
 export async function loginWithDeviceAuth(options: {
   stateDir: string;
   flags: CliFlags;
   env?: EnvMap;
   io?: AuthIo;
   commandLabel?: string;
-}): Promise<{ accessToken: string; expiresAt?: string; session: CliSessionRecord }> {
+}): Promise<{
+  accessToken: string;
+  expiresAt?: string;
+  session: CliSessionRecord;
+}> {
   const env = options.env ?? options.io?.env ?? process.env;
   const authMode = detectAuthMode(env, options.io);
   if (authMode === 'non-interactive') {
@@ -211,7 +268,11 @@ export async function loginWithDeviceAuth(options: {
     expiresAt: approved.cliSession?.expiresAt,
   };
   writeCliSession({ stateDir: options.stateDir, session });
-  return { accessToken: approved.accessToken, expiresAt: approved.expiresAt, session };
+  return {
+    accessToken: approved.accessToken,
+    expiresAt: approved.expiresAt,
+    session,
+  };
 }
 
 export function readCliSession(options: { stateDir: string }): CliSessionRecord | null {
@@ -445,7 +506,7 @@ function buildNonInteractiveLoginError(command: string, env: EnvMap): AppError {
   );
 }
 
-function resolveCloudBaseUrl(env: EnvMap, fallback?: string): string {
+export function resolveCloudBaseUrl(env: EnvMap, fallback?: string): string {
   const raw = env.AGENT_DEVICE_CLOUD_BASE_URL ?? fallback ?? DEFAULT_CLOUD_BASE_URL;
   try {
     return new URL(raw).toString().replace(/\/+$/, '');
