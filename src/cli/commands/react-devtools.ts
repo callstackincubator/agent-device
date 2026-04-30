@@ -85,6 +85,7 @@ function resolveRemoteBridgeConfig(
 }
 
 async function withRemoteDevtoolsCompanion<T>(
+  args: string[],
   options: ReactDevtoolsCommandOptions,
   action: () => Promise<T>,
 ): Promise<T> {
@@ -96,6 +97,20 @@ async function withRemoteDevtoolsCompanion<T>(
   const session = options.session ?? flags?.session ?? 'default';
   const profileKey =
     flags?.remoteConfig ?? `${bridgeConfig.tenantId}:${bridgeConfig.runId}:${bridgeConfig.leaseId}`;
+
+  if (args[0] === 'stop') {
+    try {
+      return await action();
+    } finally {
+      await stopReactDevtoolsCompanion({
+        projectRoot: options.cwd ?? process.cwd(),
+        stateDir,
+        profileKey,
+        consumerKey: session,
+      });
+    }
+  }
+
   await ensureReactDevtoolsCompanion({
     projectRoot: options.cwd ?? process.cwd(),
     stateDir,
@@ -111,16 +126,7 @@ async function withRemoteDevtoolsCompanion<T>(
     consumerKey: session,
     env: options.env ?? process.env,
   });
-  try {
-    return await action();
-  } finally {
-    await stopReactDevtoolsCompanion({
-      projectRoot: options.cwd ?? process.cwd(),
-      stateDir,
-      profileKey,
-      consumerKey: session,
-    });
-  }
+  return await action();
 }
 
 export async function runReactDevtoolsCommand(
@@ -129,7 +135,7 @@ export async function runReactDevtoolsCommand(
 ): Promise<number> {
   const cwd = options.cwd ?? process.cwd();
   const env = options.env ?? process.env;
-  return await withRemoteDevtoolsCompanion(options, async () => {
+  return await withRemoteDevtoolsCompanion(args, options, async () => {
     const result = await runCmdStreaming('npm', buildReactDevtoolsNpmExecArgs(args), {
       cwd,
       env,

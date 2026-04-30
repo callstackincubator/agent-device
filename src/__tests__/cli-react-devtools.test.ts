@@ -78,10 +78,6 @@ function mockRemoteCompanionSuccess(): void {
     statePath: '/tmp/state.json',
     logPath: '/tmp/companion.log',
   });
-  vi.mocked(stopReactDevtoolsCompanion).mockResolvedValueOnce({
-    stopped: true,
-    statePath: '/tmp/state.json',
-  });
 }
 
 function assertNoRemoteCompanion(): void {
@@ -125,17 +121,11 @@ function assertRemoteCompanionStarted(env: NodeJS.ProcessEnv): void {
   assert.equal(vi.mocked(runCmdStreaming).mock.calls[0]?.[0], 'npm');
   assert.equal(vi.mocked(runCmdStreaming).mock.calls[0]?.[2]?.cwd, '/tmp/project');
   assert.equal(vi.mocked(runCmdStreaming).mock.calls[0]?.[2]?.env, env);
-  assert.equal(vi.mocked(stopReactDevtoolsCompanion).mock.calls.length, 1);
-  assert.deepEqual(vi.mocked(stopReactDevtoolsCompanion).mock.calls[0]?.[0], {
-    projectRoot: '/tmp/project',
-    stateDir: '/tmp/agent-device-state',
-    profileKey: '/tmp/remote.json',
-    consumerKey: 'default',
-  });
+  assert.equal(vi.mocked(stopReactDevtoolsCompanion).mock.calls.length, 0);
 }
 
 for (const { label, leaseBackend } of remoteBridgeBackends) {
-  test(`react-devtools starts remote ${label} companion around passthrough command`, async () => {
+  test(`react-devtools keeps remote ${label} companion after passthrough command`, async () => {
     const env = { ...process.env };
     mockRemoteCompanionSuccess();
 
@@ -156,6 +146,52 @@ for (const { label, leaseBackend } of remoteBridgeBackends) {
     assertRemoteCompanionStarted(env);
   });
 }
+
+test('react-devtools stop cleans up remote companion', async () => {
+  const env = { ...process.env };
+  vi.mocked(runCmdStreaming).mockResolvedValueOnce({
+    exitCode: 0,
+    stdout: '',
+    stderr: '',
+  });
+  vi.mocked(stopReactDevtoolsCompanion).mockResolvedValueOnce({
+    stopped: true,
+    statePath: '/tmp/state.json',
+  });
+
+  const exitCode = await runReactDevtoolsCommand(['stop'], {
+    stateDir: '/tmp/agent-device-state',
+    session: 'default',
+    cwd: '/tmp/project',
+    env,
+    flags: {
+      ...remoteBridgeScope,
+      leaseBackend: 'ios-instance',
+      remoteConfig: '/tmp/remote.json',
+      session: 'default',
+    },
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(vi.mocked(ensureReactDevtoolsCompanion).mock.calls.length, 0);
+  assert.equal(vi.mocked(runCmdStreaming).mock.calls[0]?.[0], 'npm');
+  assert.deepEqual(vi.mocked(runCmdStreaming).mock.calls[0]?.[1], [
+    'exec',
+    '--yes',
+    '--package',
+    'agent-react-devtools@0.4.0',
+    '--',
+    'agent-react-devtools',
+    'stop',
+  ]);
+  assert.equal(vi.mocked(stopReactDevtoolsCompanion).mock.calls.length, 1);
+  assert.deepEqual(vi.mocked(stopReactDevtoolsCompanion).mock.calls[0]?.[0], {
+    projectRoot: '/tmp/project',
+    stateDir: '/tmp/agent-device-state',
+    profileKey: '/tmp/remote.json',
+    consumerKey: 'default',
+  });
+});
 
 test('react-devtools skips companion for non-bridge remote sessions', async () => {
   await runStatusWithoutCompanion({
