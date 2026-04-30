@@ -332,11 +332,8 @@ Public subpath API exposed for Node consumers:
   - `listAndroidAppsWithAdb(executor, options?)`
   - `getAndroidAppStateWithAdb(executor)`
   - types: `AndroidAdbProvider`, `AndroidAdbExecutor`, `AndroidAdbExecutorOptions`, `AndroidAdbExecutorResult`, `AndroidAdbProcess`, `AndroidAdbSpawner`, `AndroidPortReverseProvider`
-- `agent-device/daemon`
-  - `createRequestHandler(deps)`
-  - request router, device inventory, and Android ADB provider hook types for daemon embedders
 
-The `contracts`, `selectors`, `finders`, `install-source`, `android-adb`, `daemon`, `artifacts`, `batch`, `metro`, `remote-config`, and `io` subpaths are the supported Node entry points. The former compatibility subpath `agent-device/android-apps` and hosted-runtime subpaths `agent-device/commands`, `agent-device/backend`, `agent-device/testing/conformance`, and `agent-device/observability` are no longer published.
+The `contracts`, `selectors`, `finders`, `install-source`, `android-adb`, `artifacts`, `batch`, `metro`, `remote-config`, and `io` subpaths are the supported Node entry points. The former compatibility subpaths `agent-device/android-apps` and `agent-device/daemon`, plus hosted-runtime subpaths `agent-device/commands`, `agent-device/backend`, `agent-device/testing/conformance`, and `agent-device/observability`, are no longer published.
 
 ## Basic usage
 
@@ -417,9 +414,8 @@ through an abstract provider backed by an ADB tunnel, websocket API, or another 
 
 The provider contract covers normal stdout/stderr commands, binary stdout, stdin, timeout/signal
 cancellation, optional long-running spawn support for logcat-style streams, and optional reverse
-support for port mappings. The daemon uses the provider from `RequestRouterDeps.androidAdbProvider`
-for the resolved request device; public helpers accept an executor/provider directly and do not
-expose the daemon's scoped adb interception internals.
+support for port mappings. Public helpers accept an executor/provider directly and do not expose the
+daemon's scoped adb interception internals.
 
 `streamAndroidLogcatWithAdb(provider, options?)` requires `provider.spawn`; exec-only providers can
 use `captureAndroidLogcatWithAdb(executor, options?)`.
@@ -442,37 +438,6 @@ const provider = {
 const apps = await listAndroidAppsWithAdb(provider.exec, { filter: 'user-installed' });
 const foreground = await getAndroidAppStateWithAdb(provider.exec);
 ```
-
-## Daemon embedding
-
-Use `agent-device/daemon` only when an integration wants to embed the upstream request router.
-The subpath is intentionally backend-neutral: it exports `createRequestHandler`, daemon
-request/response types, device inventory provider types, and Android ADB provider hook types.
-Control-plane policy such as tenant auth, billing, external lease ownership, storage, and uploads
-remains the embedder's responsibility; pass those decisions through the dependency object instead
-of deep-importing daemon internals.
-
-The daemon embedding surface should stay small. Prefer stable dependency hooks and provider
-contracts over importing concrete daemon internals. `SessionStore`, `LeaseRegistry`, scoped device
-inventory globals, and artifact tracker helpers are internal daemon details and are not exported
-from `agent-device/daemon`.
-
-`RequestRouterDeps.deviceInventoryProvider` can supply the full target candidate list for a request.
-When it returns an array, even an empty one, the daemon resolver treats that inventory as
-authoritative and does not call local host discovery such as `adb devices`, `simctl`, or Linux
-desktop discovery. Return `undefined` or `null` to fall back to local discovery for that request.
-
-`RequestRouterDeps.androidAdbProvider` can supply an Android command provider for the resolved
-request device. Device inventory controls discovery; the Android ADB provider controls
-device-scoped Android command execution, streaming, binary/stdin operations, and reverse mappings.
-Android install and recording file-transfer paths still use `adb install`/`adb pull`-shaped
-arguments; pure websocket providers should either implement those argument shapes against bridge
-storage or wait for explicit transfer capability hooks.
-
-Initial daemon conformance scope is the shared request/response contract in
-`agent-device/contracts`, request-router embedding through `createRequestHandler`, authoritative
-device inventory injection, artifact metadata shaping, and Android ADB provider behavior. Bridge
-implementations should validate those surfaces before relying on deeper daemon internals.
 
 ## Command methods
 
