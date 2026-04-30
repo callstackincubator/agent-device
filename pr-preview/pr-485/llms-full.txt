@@ -710,7 +710,7 @@ agent-device app-switcher
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
 - Remote daemon clients can pass `--daemon-base-url http(s)://host:port[/base-path]` to skip local daemon discovery/startup and call a remote HTTP daemon directly.
 - Use `--daemon-auth-token <token>` (or `AGENT_DEVICE_DAEMON_AUTH_TOKEN`) for explicit service/API-token automation against non-loopback remote daemon URLs; the client sends it in both the JSON-RPC request token and HTTP auth headers.
-- For human cloud access, `connect --remote-config ...` refreshes a stored CLI session into a short-lived `adc_agent_...` token. If no CLI session exists, interactive shells start login automatically; CI and non-interactive shells fail with API-token setup instructions. Use `--no-login` to disable implicit login. `AGENT_DEVICE_CLOUD_BASE_URL` is the bridge/control-plane API origin; its `/api-keys` route may redirect to the dashboard for token creation.
+- For human cloud access, `connect --remote-config ...` refreshes a stored CLI session into a short-lived `adc_agent_...` token. If no CLI session exists, interactive shells start login automatically; CI and non-interactive shells fail with API-token setup instructions. Use `--no-login` to disable implicit login. `AGENT_DEVICE_CLOUD_BASE_URL` is the cloud/control-plane API origin; its `/api-keys` route may redirect to the dashboard for token creation.
 - For remote `connect --remote-config` flows, see [Remote Metro workflow](#remote-metro-workflow).
 - Android React Native relaunch flows require an installed package name for `open --relaunch`; install/reinstall the APK first, then relaunch by package. `open <apk|aab> --relaunch` is rejected because runtime hints are written through the installed app sandbox.
 - For Metro-backed React Native JS changes, use `metro reload` before `open <app> --relaunch`; it mirrors pressing `r` in the Metro terminal and keeps the native process alive.
@@ -1232,8 +1232,8 @@ agent-device react-devtools profile rerenders --limit 5
 - Use it when a React Native workflow needs component hierarchy, props, state, hooks, render causes, slow components, or re-render counts.
 - Keep using `snapshot`, `press`, `fill`, `logs`, `network`, and `perf` for device/app runtime evidence. Use `react-devtools` for React internals.
 - React Native development builds can connect to the DevTools daemon on port 8097. For Android emulators or physical devices, run `adb reverse tcp:8097 tcp:8097` if the app cannot reach the host. If Metro is local, also run `adb reverse tcp:8081 tcp:8081`.
-- For Android and iOS sessions connected through a remote bridge profile, `react-devtools` registers a lease-scoped companion tunnel to the sandbox-local DevTools daemon at `127.0.0.1:8097`. The bridge owns the remote device-side routing and the CLI unregisters the companion when the command exits.
-- Remote bridge React DevTools assumes the React Native-bundled DevTools behavior in React Native 0.83+. Older browser/Chromium DevTools workflows are not assumed to exist inside remote sandboxes. Expo projects should be verified against the SDK's bundled React Native version before relying on this path; this release does not claim a separately verified Expo SDK version.
+- For Android and iOS sessions connected through a remote/cloud profile, `react-devtools` registers a lease-scoped companion tunnel to the sandbox-local DevTools daemon at `127.0.0.1:8097`. The remote service owns device-side routing and the CLI unregisters the companion when the command exits.
+- Remote React DevTools assumes the React Native-bundled DevTools behavior in React Native 0.83+. Older browser/Chromium DevTools workflows are not assumed to exist inside remote sandboxes. Expo projects should be verified against the SDK's bundled React Native version before relying on this path; this release does not claim a separately verified Expo SDK version.
 - For cross-platform validation with explicit target selectors, prefer an isolated `--state-dir` over separate named sessions. Named sessions enable bound-session locks during setup. Restart `react-devtools` between iOS and Android runs.
 
 ## Metro reload
@@ -1367,7 +1367,7 @@ Example `agent-device.remote.json`:
 
 ```json
 {
-  "daemonBaseUrl": "https://bridge.example.com/agent-device",
+  "daemonBaseUrl": "https://cloud.example.com/agent-device",
   "daemonTransport": "http",
   "tenant": "acme",
   "runId": "run-123",
@@ -1376,7 +1376,7 @@ Example `agent-device.remote.json`:
   "platform": "ios",
   "leaseBackend": "ios-instance",
   "metroProjectRoot": ".",
-  "metroProxyBaseUrl": "https://bridge.example.com"
+  "metroProxyBaseUrl": "https://cloud.example.com"
 }
 ```
 
@@ -1400,15 +1400,15 @@ agent-device disconnect --remote-config ./agent-device.remote.json
 - `connect --remote-config ...` is the main agent flow. It generates a local session name when needed, authenticates to cloud when credentials are missing, stores the remote scope locally, and defers tenant lease allocation plus Metro preparation until a later command needs them.
 - Auth management commands are available for inspection and recovery: `agent-device auth status`, `agent-device auth login`, and `agent-device auth logout`. Human login stores a revocable CLI session locally; it does not create or persist an `adc_live_...` service token.
 - Cloud auth uses three credential classes: `adc_agent_...` short-lived command tokens, revocable CLI session refresh credentials, and explicit `adc_live_...` service/API tokens for CI. The CLI implements credential selection, CI refusal, local storage permissions, logout, and output redaction; the cloud API must enforce token expiry, tenant/run scope, revocation, one-time device approval, polling rate limits, and dashboard/API separation.
-- `AGENT_DEVICE_CLOUD_BASE_URL` should point at the bridge/control-plane API origin, not necessarily the dashboard origin. API-token setup links use `/api-keys` on that origin so the bridge can redirect users to the right dashboard page.
+- `AGENT_DEVICE_CLOUD_BASE_URL` should point at the cloud/control-plane API origin, not necessarily the dashboard origin. API-token setup links use `/api-keys` on that origin so the service can redirect users to the right dashboard page.
 - Deferred Metro preparation also applies to `batch` when any step opens an app and the batch does not provide its own per-step runtime.
 - After `connect`, `install-from-source`, `open`, `snapshot`, `devices`, `press`, `fill`, `screenshot`, and other normal commands reuse active connection state so agents do not repeat remote host/session/lease selectors inline. If `connection status` shows `leaseId=pending`, the first platform-bound command allocates or refreshes the lease. Passing the same `--remote-config` to a normal command is also supported for self-contained scripts; the CLI reuses matching saved state or creates it before dispatch.
 - Self-contained remote scripts should end with `disconnect --remote-config <path>` or `disconnect` to release the lease and stop the owned Metro companion.
 - Explicit command-line flags override connected defaults. When `open` uses explicit remote daemon or tenant flags without saved runtime hints, the CLI warns because React Native apps may launch without Metro bundle/runtime hints.
-- `metroProxyBaseUrl` is the bridge origin. Do not prebuild `/api/metro/...` paths in the client profile; the CLI calls the bridge endpoints itself.
-- For cloud stock React Native iOS, the bridge descriptor supplies direct wildcard HTTPS Metro hints such as `<runtime>.metro.agent-device.dev:443`. The XCTest runner package is still used for runner-backed device commands, not for Metro reachability.
-- Android keeps using bridge-provided runtime routes such as `/api/metro/runtimes/<runtimeId>/...`.
-- `metroPublicBaseUrl` is only needed for direct/non-bridge bundle hints. Bridged profiles can omit it and rely on `metroProxyBaseUrl`.
+- `metroProxyBaseUrl` is the remote service origin. Do not prebuild `/api/metro/...` paths in the client profile; the CLI calls the cloud service endpoints itself.
+- For cloud stock React Native iOS, the remote service descriptor supplies direct wildcard HTTPS Metro hints such as `<runtime>.metro.agent-device.dev:443`. The XCTest runner package is still used for runner-backed device commands, not for Metro reachability.
+- Android keeps using service-provided runtime routes such as `/api/metro/runtimes/<runtimeId>/...`.
+- `metroPublicBaseUrl` is only needed for direct/local bundle hints. Remote profiles can omit it and rely on `metroProxyBaseUrl`.
 - `metro prepare --remote-config ...` remains an advanced inspection/debug path and can still write a `--runtime-file <path>` artifact when needed.
 - The local Metro companion runs on the same machine as the React Native project and Metro. `disconnect` stops the companion owned by the connection, but it does not stop the user’s Metro server.
 
