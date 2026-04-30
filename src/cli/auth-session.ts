@@ -150,21 +150,18 @@ export async function resolveCloudAccessForConnect(options: {
 }): Promise<{
   accessToken: string;
   cloudBaseUrl: string;
-  source: 'flag' | 'env' | 'cli-session' | 'login';
 }> {
   const env = options.env ?? options.io?.env ?? process.env;
   if (hasToken(options.flags.daemonAuthToken)) {
     return {
       accessToken: options.flags.daemonAuthToken,
       cloudBaseUrl: resolveCloudBaseUrl(env),
-      source: 'flag',
     };
   }
   if (hasToken(env.AGENT_DEVICE_DAEMON_AUTH_TOKEN)) {
     return {
       accessToken: env.AGENT_DEVICE_DAEMON_AUTH_TOKEN,
       cloudBaseUrl: resolveCloudBaseUrl(env),
-      source: 'env',
     };
   }
   const sessionAccess = await resolveCliSessionAccess({
@@ -177,7 +174,6 @@ export async function resolveCloudAccessForConnect(options: {
     return {
       accessToken: sessionAccess.accessToken,
       cloudBaseUrl: sessionAccess.cloudBaseUrl,
-      source: 'cli-session',
     };
   }
   if (options.flags.noLogin) {
@@ -195,7 +191,6 @@ export async function resolveCloudAccessForConnect(options: {
   return {
     accessToken: login.accessToken,
     cloudBaseUrl: login.session.cloudBaseUrl,
-    source: 'login',
   };
 }
 

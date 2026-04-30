@@ -29,7 +29,12 @@ export const connectCommand: ClientCommandHandler = async ({ flags, client }) =>
   const stateDir = resolveDaemonPaths(flags.stateDir).baseDir;
   const resolved = flags.remoteConfig
     ? resolveRemoteConnectFlags(flags)
-    : await resolveGeneratedCloudConnectFlags(flags, stateDir);
+    : await resolveCloudConnectProfile({
+        flags,
+        stateDir,
+        cwd: process.cwd(),
+        env: process.env,
+      });
   const connectFlags = resolved.flags;
   const tenant = connectFlags.tenant;
   const runId = connectFlags.runId;
@@ -141,18 +146,6 @@ function resolveRemoteConnectFlags(flags: CliFlags): {
     flags,
     remoteConfigPath: remoteConfig.resolvedPath,
   };
-}
-
-async function resolveGeneratedCloudConnectFlags(
-  flags: CliFlags,
-  stateDir: string,
-): Promise<{ flags: CliFlags; remoteConfigPath: string }> {
-  return resolveCloudConnectProfile({
-    flags,
-    stateDir,
-    cwd: process.cwd(),
-    env: process.env,
-  });
 }
 
 export const disconnectCommand: ClientCommandHandler = async ({ flags, client }) => {

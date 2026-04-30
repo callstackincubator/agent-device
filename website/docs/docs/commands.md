@@ -774,32 +774,7 @@ agent-device disconnect --remote-config ./agent-device.remote.json
 
 ### Cloud profile response migration
 
-Cloud/control-plane clients serving `/api/control-plane/connection-profile` must return the remote profile as an object:
-
-```json
-{
-  "connection": {
-    "remoteConfigProfile": {
-      "daemonBaseUrl": "https://bridge.example.com/agent-device",
-      "daemonTransport": "http",
-      "tenant": "acme",
-      "runId": "run-123"
-    }
-  }
-}
-```
-
-Do not return the old JSON-string wrapper:
-
-```json
-{
-  "connection": {
-    "remoteConfig": "{\"daemonBaseUrl\":\"https://bridge.example.com/agent-device\"}"
-  }
-}
-```
-
-The CLI now rejects that legacy shape before writing a generated remote config.
+`/api/control-plane/connection-profile` must return an object at `connection.remoteConfigProfile`, for example `{"connection":{"remoteConfigProfile":{"daemonBaseUrl":"https://bridge.example.com/agent-device","daemonTransport":"http","tenant":"acme","runId":"run-123"}}}`. The old `connection.remoteConfig` JSON-string wrapper is rejected.
 
 ## Session inspection
 

@@ -84,7 +84,6 @@ test('connect without remote config reports cloud profile authorization failures
   mockedResolveCloudAccessForConnect.mockResolvedValue({
     accessToken: 'adc_agent_cloud',
     cloudBaseUrl: 'https://cloud.example',
-    source: 'login',
   });
   vi.stubGlobal(
     'fetch',
@@ -111,7 +110,7 @@ test('connect without remote config reports cloud profile authorization failures
   }
 });
 
-test('connect without remote config rejects unsupported cloud profile keys before writing config', async () => {
+test('connect without remote config reports unsupported cloud profile keys', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-cloud-invalid-'));
   const stateDir = path.join(tempRoot, '.state');
   mockCloudConnectionProfile({
@@ -126,10 +125,9 @@ test('connect without remote config rejects unsupported cloud profile keys befor
   try {
     await assert.rejects(connectWithGeneratedCloudProfile(stateDir), (error: unknown) => {
       assert.equal((error as { code?: string }).code, 'COMMAND_FAILED');
-      assert.match((error as Error).message, /unsupported remote config key/);
+      assert.match((error as Error).message, /invalid remote config/);
       return true;
     });
-    assert.equal(fs.existsSync(path.join(stateDir, 'remote-connections', 'generated')), false);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
@@ -139,7 +137,6 @@ function mockCloudConnectionProfile(connection: Record<string, unknown>): Return
   mockedResolveCloudAccessForConnect.mockResolvedValue({
     accessToken: 'adc_agent_cloud',
     cloudBaseUrl: 'https://cloud.example',
-    source: 'login',
   });
   const fetchMock = vi.fn(
     async () =>
