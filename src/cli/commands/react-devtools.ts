@@ -13,7 +13,6 @@ const AGENT_REACT_DEVTOOLS_BIN = 'agent-react-devtools';
 type ReactDevtoolsCommandOptions = {
   flags?: Pick<
     CliFlags,
-    | 'platform'
     | 'leaseBackend'
     | 'metroProxyBaseUrl'
     | 'metroBearerToken'
@@ -49,29 +48,32 @@ export function buildReactDevtoolsNpmExecArgs(args: string[]): string[] {
   ];
 }
 
-function isSupportedRemoteBridge(flags: ReactDevtoolsCommandOptions['flags']): boolean {
-  if (!flags?.metroProxyBaseUrl) return false;
-  if (flags.leaseBackend) {
-    return flags.leaseBackend === 'android-instance' || flags.leaseBackend === 'ios-instance';
-  }
-  return flags.platform === 'android' || flags.platform === 'ios';
+function isRemoteBridgeBackend(leaseBackend: CliFlags['leaseBackend']): boolean {
+  return leaseBackend === 'android-instance' || leaseBackend === 'ios-instance';
+}
+
+function readRemoteBridgeField(
+  missing: string[],
+  field: string,
+  value: string | undefined,
+): string {
+  if (value) return value;
+  missing.push(field);
+  return '';
 }
 
 function resolveRemoteBridgeConfig(
   flags: ReactDevtoolsCommandOptions['flags'],
 ): RemoteBridgeConfig | null {
-  if (!isSupportedRemoteBridge(flags)) return null;
-  const serverBaseUrl = flags?.metroProxyBaseUrl;
-  const bearerToken = flags?.metroBearerToken;
-  const tenantId = flags?.tenant;
-  const runId = flags?.runId;
-  const leaseId = flags?.leaseId;
+  if (!flags?.metroProxyBaseUrl || !isRemoteBridgeBackend(flags.leaseBackend)) return null;
   const missing: string[] = [];
-  if (!serverBaseUrl) missing.push('metroProxyBaseUrl');
-  if (!bearerToken) missing.push('metroBearerToken');
-  if (!tenantId) missing.push('tenant');
-  if (!runId) missing.push('runId');
-  if (!leaseId) missing.push('leaseId');
+  const config = {
+    serverBaseUrl: readRemoteBridgeField(missing, 'metroProxyBaseUrl', flags.metroProxyBaseUrl),
+    bearerToken: readRemoteBridgeField(missing, 'metroBearerToken', flags.metroBearerToken),
+    tenantId: readRemoteBridgeField(missing, 'tenant', flags.tenant),
+    runId: readRemoteBridgeField(missing, 'runId', flags.runId),
+    leaseId: readRemoteBridgeField(missing, 'leaseId', flags.leaseId),
+  };
   if (missing.length > 0) {
     throw new AppError(
       'INVALID_ARGS',
@@ -79,16 +81,7 @@ function resolveRemoteBridgeConfig(
       { missing },
     );
   }
-  if (!serverBaseUrl || !bearerToken || !tenantId || !runId || !leaseId) {
-    throw new AppError('INVALID_ARGS', 'react-devtools remote bridge is incomplete.');
-  }
-  return {
-    serverBaseUrl,
-    bearerToken,
-    tenantId,
-    runId,
-    leaseId,
-  };
+  return config;
 }
 
 async function withRemoteDevtoolsCompanion<T>(
