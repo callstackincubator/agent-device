@@ -1042,6 +1042,46 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     ],
   }),
   makeCase({
+    id: 'remote-cloud-avoids-local-device-setup',
+    contract: [
+      'Remote cloud profile path: ./remote-config.json',
+      'Platform: remote Android runtime',
+      'The remote service owns device boot and provisioning',
+      'App id: com.agentdevice.tester',
+      'Need to start the app and inspect the current screen',
+    ],
+    task: 'Plan the remote cloud startup commands without using local simulator/emulator setup commands.',
+    outputs: [
+      plannedCommand('connect'),
+      /--remote-config\s+\.\/remote-config\.json/i,
+      plannedCommand('open'),
+      /com\.agentdevice\.tester/i,
+      plannedCommand('snapshot'),
+    ],
+    forbiddenOutputs: [plannedCommand('boot'), plannedCommand('ensure-simulator')],
+  }),
+  makeCase({
+    id: 'remote-ios-cloud-react-devtools-unavailable',
+    contract: [
+      'Remote cloud profile is already connected',
+      'Platform: remote iOS runtime',
+      'React DevTools is unavailable for remote iOS in the current cloud service',
+      'Need device/runtime evidence for a sluggish Catalog search interaction',
+      'Search field selector: id="catalog-search"',
+    ],
+    task: 'Plan commands to gather runtime evidence for the sluggish search without starting React DevTools.',
+    outputs: [
+      /catalog-search/i,
+      plannedCommandAlternatives(['perf', 'metrics']),
+      plannedCommandAlternatives(['snapshot', 'screenshot']),
+    ],
+    forbiddenOutputs: [
+      plannedCommand('boot'),
+      plannedCommand('ensure-simulator'),
+      plannedCommand('react-devtools'),
+    ],
+  }),
+  makeCase({
     id: 'gesture-swipe-carousel',
     contract: [
       'Platform: iOS simulator',

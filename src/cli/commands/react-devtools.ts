@@ -52,6 +52,10 @@ function isRemoteBridgeBackend(leaseBackend: CliFlags['leaseBackend']): boolean 
   return leaseBackend === 'android-instance' || leaseBackend === 'ios-instance';
 }
 
+function isRemoteIosBridgeBackend(leaseBackend: CliFlags['leaseBackend']): boolean {
+  return leaseBackend === 'ios-instance';
+}
+
 function readRemoteBridgeField(
   missing: string[],
   field: string,
@@ -66,6 +70,15 @@ function resolveRemoteBridgeConfig(
   flags: ReactDevtoolsCommandOptions['flags'],
 ): RemoteBridgeConfig | null {
   if (!flags?.metroProxyBaseUrl || !isRemoteBridgeBackend(flags.leaseBackend)) return null;
+  if (isRemoteIosBridgeBackend(flags.leaseBackend)) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      'react-devtools is not available for remote iOS devices in the current cloud service.',
+      {
+        leaseBackend: flags.leaseBackend,
+      },
+    );
+  }
   const missing: string[] = [];
   const config = {
     serverBaseUrl: readRemoteBridgeField(missing, 'metroProxyBaseUrl', flags.metroProxyBaseUrl),
@@ -77,7 +90,7 @@ function resolveRemoteBridgeConfig(
   if (missing.length > 0) {
     throw new AppError(
       'INVALID_ARGS',
-      `react-devtools remote bridge requires ${missing.join(', ')}.`,
+      `react-devtools remote service tunnel requires ${missing.join(', ')}.`,
       { missing },
     );
   }

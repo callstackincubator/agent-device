@@ -872,6 +872,8 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /if no URL is provided but a target\/app name is provided, open that target/);
   assert.match(help, /do not split clear\/restart/);
   assert.match(help, /do not write network log headers/);
+  assert.match(help, /Remote profiles own device lifecycle/);
+  assert.match(help, /Runner-backed commands can be unavailable for remote devices/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform ios/);
   assert.match(help, /agent-device open "Expo Go" exp:\/\/127\.0\.0\.1:8081 --platform ios/);
   assert.match(help, /direct URL open can report success while leaving the runner\/shell focused/);
@@ -902,6 +904,10 @@ test('usageForCommand resolves remote help topic', () => {
   assert.match(help, /Script flow, per-command config/);
   assert.match(help, /same --remote-config to every operational command/);
   assert.match(help, /install-from-source --github-actions-artifact org\/repo:artifact/);
+  assert.match(help, /Do not run boot or ensure-simulator when a remote\/cloud service/);
+  assert.match(help, /alert and iOS keyboard dismiss can be unavailable remotely/);
+  assert.match(help, /For remote Android React DevTools, run agent-device react-devtools normally/);
+  assert.match(help, /Remote iOS is not available for React DevTools/);
 });
 
 test('usageForCommand resolves macos help topic', () => {
@@ -948,6 +954,8 @@ test('usageForCommand resolves react-devtools help topic', () => {
   assert.match(help, /@c refs reset after reload\/remount/);
   assert.match(help, /isolated --state-dir/);
   assert.match(help, /local service tunnel/);
+  assert.match(help, /Remote Android sessions run normally through agent-device react-devtools/);
+  assert.match(help, /Remote iOS is not available for React DevTools/);
 });
 
 test('apps defaults to --all filter and allows overrides', () => {
@@ -1243,6 +1251,20 @@ test('keyboard command usage is documented', () => {
   if (help === null) throw new Error('Expected command help text');
   assert.match(help, /keyboard \[status\|get\|dismiss\]/);
   assert.match(help, /Inspect Android keyboard visibility\/type or dismiss the device keyboard/);
+  assert.match(help, /runner-backed paths may be unavailable for remote devices/);
+});
+
+test('remote-inapplicable command usage is marked', () => {
+  const bootHelp = usageForCommand('boot');
+  const ensureHelp = usageForCommand('ensure-simulator');
+  const alertHelp = usageForCommand('alert');
+  if (bootHelp === null || ensureHelp === null || alertHelp === null) {
+    throw new Error('Expected command help text');
+  }
+
+  assert.match(bootHelp, /not for remote\/cloud device profiles/);
+  assert.match(ensureHelp, /not for remote\/cloud device profiles/);
+  assert.match(alertHelp, /may be unavailable for remote devices/);
 });
 
 test('rotate command usage is documented', () => {

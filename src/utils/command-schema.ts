@@ -212,7 +212,7 @@ const ENVIRONMENT_LINES = [
   },
   {
     label: 'AGENT_DEVICE_CLOUD_BASE_URL',
-    description: 'Bridge/control-plane API origin for cloud auth and /api-keys',
+    description: 'Cloud/control-plane API origin for auth and /api-keys',
   },
 ] as const;
 
@@ -333,7 +333,9 @@ Validation and evidence:
   Android animations: settings animations off/on, not animations disable/restore.
   Debug logs: logs clear --restart, logs mark, reproduce, then logs path; do not split clear/restart into separate stop/start commands.
   Network headers: network dump --include headers; do not write network log headers.
-  Remote config: connect --remote-config ./remote-config.json, open, snapshot, disconnect.
+  Remote/cloud devices: connect --remote-config ./remote-config.json, open, snapshot, disconnect.
+  Remote profiles own device lifecycle. Do not plan local-only setup commands such as boot or ensure-simulator when the device is provided by a remote service; use connect/open and follow the service error if a device is unavailable.
+  Runner-backed commands can be unavailable for remote devices. If alert or keyboard returns unsupported/no alert remotely, inspect with snapshot -i and use visible UI controls instead of retrying the runner command.
   macOS menu bar: open ... --platform macos --surface menubar; snapshot -i --platform macos --surface menubar.
 
 React Native dev loop:
@@ -459,7 +461,7 @@ Rules:
   @c refs reset after reload/remount. After reload, wait --connected and inspect again.
   Keep the profile window narrow; unrelated navigation makes render data noisy.
   For cross-platform validation with explicit device selectors, prefer isolated --state-dir and restart react-devtools between platforms.
-  Remote bridge sessions (Android and iOS) run normally through agent-device react-devtools; the CLI manages the needed local service tunnel. Expo support depends on the SDK's bundled React Native runtime.
+  Remote Android sessions run normally through agent-device react-devtools when the profile includes DevTools tunnel settings. The CLI manages the local service tunnel. Remote iOS is not available for React DevTools in the current cloud service; use normal device evidence or local iOS when React internals are required. Expo support depends on the SDK's bundled React Native runtime.
 
 Example:
   agent-device react-devtools status
@@ -496,7 +498,9 @@ Rules:
   For self-contained scripts, pass the same --remote-config to every operational command, including disconnect; a preceding connect is optional but not required.
   For remote artifact installs, use install-from-source <url> or install-from-source --github-actions-artifact org/repo:artifact; do not download CI artifacts locally first.
   After connect, let the active remote connection supply runtime hints.
-  For remote Android and iOS bridge React DevTools, run agent-device react-devtools normally. The CLI opens the needed local service tunnel for the DevTools daemon and cleans it up when the command exits.
+  Remote profiles own device boot/provisioning. Do not run boot or ensure-simulator when a remote/cloud service provides the device; start with connect/open and report the service error if no device is leased.
+  Runner-backed helpers such as alert and iOS keyboard dismiss can be unavailable remotely. When they report unsupported or no alert, use snapshot -i plus visible refs/selectors instead of looping on the helper.
+  For remote Android React DevTools, run agent-device react-devtools normally. The CLI opens the needed local service tunnel for the DevTools daemon and cleans it up when the command exits. Remote iOS is not available for React DevTools in the current cloud service.
   Use --debug when remote connection or transport errors need diagnostic ids and remote log hints.`,
   },
   macos: {
@@ -821,7 +825,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--proxy-base-url'],
     type: 'string',
     usageLabel: '--proxy-base-url <url>',
-    usageDescription: 'metro prepare: optional bridge origin for remote Metro access',
+    usageDescription: 'metro prepare: optional remote service origin for Metro access',
   },
   {
     key: 'metroBearerToken',
@@ -829,7 +833,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--bearer-token <token>',
     usageDescription:
-      'metro prepare: host bridge bearer token (prefer AGENT_DEVICE_PROXY_TOKEN or AGENT_DEVICE_METRO_BEARER_TOKEN)',
+      'metro prepare: remote service bearer token (prefer AGENT_DEVICE_PROXY_TOKEN or AGENT_DEVICE_METRO_BEARER_TOKEN)',
   },
   {
     key: 'metroPreparePort',
@@ -868,7 +872,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'int',
     min: 1,
     usageLabel: '--probe-timeout-ms <ms>',
-    usageDescription: 'metro prepare: timeout for /status and proxy bridge calls',
+    usageDescription: 'metro prepare: timeout for /status and remote service calls',
   },
   {
     key: 'metroRuntimeFile',
@@ -1423,7 +1427,8 @@ export const GLOBAL_FLAG_KEYS = new Set<FlagKey>([
 
 const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   boot: {
-    helpDescription: 'Ensure target device/simulator is booted and ready',
+    helpDescription:
+      'Ensure local target device/simulator is booted and ready (not for remote/cloud device profiles)',
     summary: 'Boot target device/simulator',
     positionalArgs: [],
     allowedFlags: ['headless'],
@@ -1439,7 +1444,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usageOverride:
       'connect --remote-config <path> [--tenant <id>] [--run-id <id>] [--lease-backend <backend>] [--force] [--no-login]',
     helpDescription:
-      'Connect to a remote daemon, authenticate when needed, and save remote session state. AGENT_DEVICE_CLOUD_BASE_URL is the bridge/control-plane API origin; use AGENT_DEVICE_DAEMON_AUTH_TOKEN=adc_live_... for CI/service-token automation.',
+      'Connect to a remote daemon, authenticate when needed, and save remote session state. AGENT_DEVICE_CLOUD_BASE_URL is the cloud/control-plane API origin; use AGENT_DEVICE_DAEMON_AUTH_TOKEN=adc_live_... for CI/service-token automation.',
     summary: 'Connect to remote daemon',
     positionalArgs: [],
     allowedFlags: [
@@ -1542,7 +1547,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [...SNAPSHOT_FLAGS, 'baseline', 'threshold', 'out', 'overlayRefs'],
   },
   'ensure-simulator': {
-    helpDescription: 'Ensure an iOS simulator exists in a device set (create if missing)',
+    helpDescription:
+      'Ensure a local iOS simulator exists in a device set (create if missing; not for remote/cloud device profiles)',
     summary: 'Ensure iOS simulator exists',
     positionalArgs: [],
     allowedFlags: ['runtime', 'boot', 'reuseExisting'],
@@ -1606,7 +1612,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   keyboard: {
     usageOverride: 'keyboard [status|get|dismiss]',
-    helpDescription: 'Inspect Android keyboard visibility/type or dismiss the device keyboard',
+    helpDescription:
+      'Inspect Android keyboard visibility/type or dismiss the device keyboard (runner-backed paths may be unavailable for remote devices)',
     summary: 'Inspect or dismiss the device keyboard',
     positionalArgs: ['action?'],
     allowedFlags: [],
@@ -1622,7 +1629,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     usageOverride: 'react-devtools [...args]',
     listUsageOverride: 'react-devtools [...args]',
     helpDescription:
-      'Run pinned agent-react-devtools commands for React Native performance profiling, component trees, props/state/hooks, and render analysis',
+      'Run pinned agent-react-devtools commands for React Native performance profiling, component trees, props/state/hooks, and render analysis (remote Android supported when the profile includes DevTools tunnel settings; remote iOS unavailable in the current cloud service)',
     summary: 'Profile React Native performance and component renders',
     positionalArgs: ['args?'],
     allowsExtraPositionals: true,
@@ -1665,7 +1672,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   alert: {
     usageOverride: 'alert [get|accept|dismiss|wait] [timeout]',
-    helpDescription: 'Inspect or handle alert (iOS simulator and macOS desktop)',
+    helpDescription:
+      'Inspect or handle runner-backed alerts (iOS simulator and macOS desktop; may be unavailable for remote devices)',
     summary: 'Inspect or handle iOS/macOS alerts',
     positionalArgs: ['action?', 'timeout?'],
     allowedFlags: [],
