@@ -78,6 +78,63 @@ test('connect without remote config accepts legacy remoteConfig profile response
   }
 });
 
+test('connect without remote config reports cloud profile authorization failures', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-cloud-denied-'));
+  const stateDir = path.join(tempRoot, '.state');
+  mockedResolveCloudAccessForConnect.mockResolvedValue({
+    accessToken: 'adc_agent_cloud',
+    cloudBaseUrl: 'https://cloud.example',
+    source: 'login',
+  });
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: 'forbidden' }), {
+          status: 403,
+          headers: { 'content-type': 'application/json' },
+        }),
+    ),
+  );
+
+  try {
+    await assert.rejects(connectWithGeneratedCloudProfile(stateDir), (error: unknown) => {
+      assert.equal((error as { code?: string }).code, 'UNAUTHORIZED');
+      assert.match(
+        (error as Error).message,
+        /Cloud connection profile endpoint rejected the request/,
+      );
+      return true;
+    });
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('connect without remote config rejects unsupported cloud profile keys before writing config', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-cloud-invalid-'));
+  const stateDir = path.join(tempRoot, '.state');
+  mockCloudConnectionProfile({
+    remoteConfigProfile: {
+      daemonBaseUrl: 'https://bridge.example.com/agent-device',
+      tenant: 'acme',
+      runId: 'demo-run-001',
+      typoTenant: 'wrong',
+    },
+  });
+
+  try {
+    await assert.rejects(connectWithGeneratedCloudProfile(stateDir), (error: unknown) => {
+      assert.equal((error as { code?: string }).code, 'COMMAND_FAILED');
+      assert.match((error as Error).message, /unsupported remote config key/);
+      return true;
+    });
+    assert.equal(fs.existsSync(path.join(stateDir, 'remote-connections', 'generated')), false);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 function mockCloudConnectionProfile(connection: Record<string, unknown>): ReturnType<typeof vi.fn> {
   mockedResolveCloudAccessForConnect.mockResolvedValue({
     accessToken: 'adc_agent_cloud',

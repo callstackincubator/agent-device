@@ -2,9 +2,13 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { resolveRemoteConfigProfile } from '../remote-config.ts';
-import type { RemoteConfigProfile } from '../remote-config-schema.ts';
+import {
+  REMOTE_CONFIG_FIELD_SPECS,
+  type RemoteConfigProfile,
+  type ResolvedRemoteConfigProfile,
+} from '../remote-config-schema.ts';
 import { profileToCliFlags } from '../utils/remote-config.ts';
-import { AppError } from '../utils/errors.ts';
+import { AppError, asAppError } from '../utils/errors.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { resolveCloudAccessForConnect } from './auth-session.ts';
 
@@ -13,13 +17,13 @@ const HTTP_TIMEOUT_MS = 15_000;
 
 type CloudConnectionProfileResponse = {
   connection?: {
-    version?: number;
     remoteConfig?: string;
     remoteConfigProfile?: unknown;
   };
 };
 
 type EnvMap = Record<string, string | undefined>;
+const REMOTE_CONFIG_KEYS = new Set(REMOTE_CONFIG_FIELD_SPECS.map((spec) => spec.key));
 
 export async function resolveCloudConnectProfile(options: {
   flags: CliFlags;
@@ -46,7 +50,7 @@ export async function resolveCloudConnectProfile(options: {
     stateDir: options.stateDir,
     profile,
   });
-  const remoteConfig = resolveRemoteConfigProfile({
+  const remoteConfig = resolveGeneratedRemoteConfigProfile({
     configPath: remoteConfigPath,
     cwd: options.cwd,
     env: options.env,
@@ -104,8 +108,8 @@ function parseConnectionProfile(value: unknown): RemoteConfigProfile {
   if (!connection || typeof connection !== 'object') {
     throw new AppError('COMMAND_FAILED', 'Cloud connection profile response is missing profile.');
   }
-  if (isRemoteConfigProfileObject(connection.remoteConfigProfile)) {
-    return connection.remoteConfigProfile as RemoteConfigProfile;
+  if (connection.remoteConfigProfile !== undefined) {
+    return validateRemoteConfigProfile(connection.remoteConfigProfile, 'remoteConfigProfile');
   }
   const legacyProfile = parseLegacyRemoteConfig(connection.remoteConfig);
   if (legacyProfile) {
@@ -114,8 +118,29 @@ function parseConnectionProfile(value: unknown): RemoteConfigProfile {
   throw new AppError('COMMAND_FAILED', 'Cloud connection profile did not include remote config.');
 }
 
-function isRemoteConfigProfileObject(value: unknown): value is RemoteConfigProfile {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+function validateRemoteConfigProfile(value: unknown, source: string): RemoteConfigProfile {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new AppError('COMMAND_FAILED', `Cloud connection profile ${source} is invalid.`);
+  }
+  const profile = value as Record<string, unknown>;
+  const keys = Object.keys(profile);
+  if (keys.length === 0) {
+    throw new AppError('COMMAND_FAILED', `Cloud connection profile ${source} is empty.`);
+  }
+  const unsupportedKey = keys.find(
+    (key) => !REMOTE_CONFIG_KEYS.has(key as keyof RemoteConfigProfile),
+  );
+  if (unsupportedKey) {
+    throw new AppError(
+      'COMMAND_FAILED',
+      'Cloud connection profile returned unsupported remote config key.',
+      {
+        key: unsupportedKey,
+        source,
+      },
+    );
+  }
+  return profile as RemoteConfigProfile;
 }
 
 function parseLegacyRemoteConfig(value: unknown): RemoteConfigProfile | undefined {
@@ -124,13 +149,38 @@ function parseLegacyRemoteConfig(value: unknown): RemoteConfigProfile | undefine
   }
   try {
     const parsed = JSON.parse(value) as unknown;
-    return isRemoteConfigProfileObject(parsed) ? parsed : undefined;
+    return validateRemoteConfigProfile(parsed, 'remoteConfig');
   } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
     throw new AppError(
       'COMMAND_FAILED',
       'Cloud connection profile returned invalid remote config JSON.',
       {},
       error instanceof Error ? error : undefined,
+    );
+  }
+}
+
+function resolveGeneratedRemoteConfigProfile(options: {
+  configPath: string;
+  cwd: string;
+  env?: EnvMap;
+}): ResolvedRemoteConfigProfile {
+  try {
+    // Re-read the generated file to reuse the standard env merge, type coercion, and path resolution.
+    return resolveRemoteConfigProfile(options);
+  } catch (error) {
+    const appError = asAppError(error);
+    throw new AppError(
+      'COMMAND_FAILED',
+      'Cloud connection profile returned invalid remote config.',
+      {
+        generatedConfigPath: options.configPath,
+        cause: appError.message,
+      },
+      appError,
     );
   }
 }
