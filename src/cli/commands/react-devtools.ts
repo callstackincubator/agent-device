@@ -29,7 +29,7 @@ type ReactDevtoolsCommandOptions = {
   env?: NodeJS.ProcessEnv;
 };
 
-type RemoteAndroidBridgeConfig = {
+type RemoteBridgeConfig = {
   serverBaseUrl: string;
   bearerToken: string;
   tenantId: string;
@@ -49,15 +49,18 @@ export function buildReactDevtoolsNpmExecArgs(args: string[]): string[] {
   ];
 }
 
-function isAndroidRemoteBridge(flags: ReactDevtoolsCommandOptions['flags']): boolean {
+function isSupportedRemoteBridge(flags: ReactDevtoolsCommandOptions['flags']): boolean {
   if (!flags?.metroProxyBaseUrl) return false;
-  return flags.platform === 'android' || flags.leaseBackend === 'android-instance';
+  if (flags.leaseBackend) {
+    return flags.leaseBackend === 'android-instance' || flags.leaseBackend === 'ios-instance';
+  }
+  return flags.platform === 'android' || flags.platform === 'ios';
 }
 
-function resolveRemoteAndroidBridgeConfig(
+function resolveRemoteBridgeConfig(
   flags: ReactDevtoolsCommandOptions['flags'],
-): RemoteAndroidBridgeConfig | null {
-  if (!isAndroidRemoteBridge(flags)) return null;
+): RemoteBridgeConfig | null {
+  if (!isSupportedRemoteBridge(flags)) return null;
   const serverBaseUrl = flags?.metroProxyBaseUrl;
   const bearerToken = flags?.metroBearerToken;
   const tenantId = flags?.tenant;
@@ -72,12 +75,12 @@ function resolveRemoteAndroidBridgeConfig(
   if (missing.length > 0) {
     throw new AppError(
       'INVALID_ARGS',
-      `react-devtools remote Android bridge requires ${missing.join(', ')}.`,
+      `react-devtools remote bridge requires ${missing.join(', ')}.`,
       { missing },
     );
   }
   if (!serverBaseUrl || !bearerToken || !tenantId || !runId || !leaseId) {
-    throw new AppError('INVALID_ARGS', 'react-devtools remote Android bridge is incomplete.');
+    throw new AppError('INVALID_ARGS', 'react-devtools remote bridge is incomplete.');
   }
   return {
     serverBaseUrl,
@@ -88,12 +91,12 @@ function resolveRemoteAndroidBridgeConfig(
   };
 }
 
-async function withRemoteAndroidDevtoolsCompanion<T>(
+async function withRemoteDevtoolsCompanion<T>(
   options: ReactDevtoolsCommandOptions,
   action: () => Promise<T>,
 ): Promise<T> {
   const { flags } = options;
-  const bridgeConfig = resolveRemoteAndroidBridgeConfig(flags);
+  const bridgeConfig = resolveRemoteBridgeConfig(flags);
   if (!bridgeConfig) return action();
 
   const stateDir = options.stateDir ?? process.cwd();
@@ -133,7 +136,7 @@ export async function runReactDevtoolsCommand(
 ): Promise<number> {
   const cwd = options.cwd ?? process.cwd();
   const env = options.env ?? process.env;
-  return await withRemoteAndroidDevtoolsCompanion(options, async () => {
+  return await withRemoteDevtoolsCompanion(options, async () => {
     const result = await runCmdStreaming('npm', buildReactDevtoolsNpmExecArgs(args), {
       cwd,
       env,

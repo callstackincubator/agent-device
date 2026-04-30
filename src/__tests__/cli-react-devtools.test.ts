@@ -115,7 +115,72 @@ test('react-devtools starts remote Android companion around passthrough command'
   });
 });
 
-test('react-devtools skips companion for non-Android remote sessions', async () => {
+test('react-devtools starts remote iOS companion around passthrough command', async () => {
+  const env = { ...process.env };
+  vi.mocked(runCmdStreaming).mockResolvedValueOnce({
+    exitCode: 0,
+    stdout: '',
+    stderr: '',
+  });
+  vi.mocked(ensureReactDevtoolsCompanion).mockResolvedValueOnce({
+    pid: 123,
+    spawned: true,
+    statePath: '/tmp/state.json',
+    logPath: '/tmp/companion.log',
+  });
+  vi.mocked(stopReactDevtoolsCompanion).mockResolvedValueOnce({
+    stopped: true,
+    statePath: '/tmp/state.json',
+  });
+
+  const exitCode = await runReactDevtoolsCommand(['status'], {
+    stateDir: '/tmp/agent-device-state',
+    session: 'default',
+    cwd: '/tmp/project',
+    env,
+    flags: {
+      platform: 'ios',
+      leaseBackend: 'ios-instance',
+      metroProxyBaseUrl: 'https://bridge.example.test',
+      metroBearerToken: 'token',
+      tenant: 'tenant-1',
+      runId: 'run-1',
+      leaseId: 'lease-1',
+      remoteConfig: '/tmp/remote.json',
+      session: 'default',
+    },
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(vi.mocked(ensureReactDevtoolsCompanion).mock.calls.length, 1);
+  assert.deepEqual(vi.mocked(ensureReactDevtoolsCompanion).mock.calls[0]?.[0], {
+    projectRoot: '/tmp/project',
+    stateDir: '/tmp/agent-device-state',
+    serverBaseUrl: 'https://bridge.example.test',
+    bearerToken: 'token',
+    bridgeScope: {
+      tenantId: 'tenant-1',
+      runId: 'run-1',
+      leaseId: 'lease-1',
+    },
+    session: 'default',
+    profileKey: '/tmp/remote.json',
+    consumerKey: 'default',
+    env,
+  });
+  assert.equal(vi.mocked(runCmdStreaming).mock.calls[0]?.[0], 'npm');
+  assert.equal(vi.mocked(runCmdStreaming).mock.calls[0]?.[2]?.cwd, '/tmp/project');
+  assert.equal(vi.mocked(runCmdStreaming).mock.calls[0]?.[2]?.env, env);
+  assert.equal(vi.mocked(stopReactDevtoolsCompanion).mock.calls.length, 1);
+  assert.deepEqual(vi.mocked(stopReactDevtoolsCompanion).mock.calls[0]?.[0], {
+    projectRoot: '/tmp/project',
+    stateDir: '/tmp/agent-device-state',
+    profileKey: '/tmp/remote.json',
+    consumerKey: 'default',
+  });
+});
+
+test('react-devtools skips companion for non-bridge remote sessions', async () => {
   vi.mocked(runCmdStreaming).mockResolvedValueOnce({
     exitCode: 0,
     stdout: '',
@@ -127,6 +192,7 @@ test('react-devtools skips companion for non-Android remote sessions', async () 
     session: 'default',
     flags: {
       platform: 'ios',
+      leaseBackend: 'ios-simulator',
       metroProxyBaseUrl: 'https://bridge.example.test',
       metroBearerToken: 'token',
       tenant: 'tenant-1',
@@ -154,7 +220,29 @@ test('react-devtools fails clearly when remote Android bridge scope is incomplet
           leaseId: 'lease-1',
         },
       }),
-    /react-devtools remote Android bridge requires metroBearerToken/,
+    /react-devtools remote bridge requires metroBearerToken/,
+  );
+
+  assert.equal(vi.mocked(runCmdStreaming).mock.calls.length, 0);
+  assert.equal(vi.mocked(ensureReactDevtoolsCompanion).mock.calls.length, 0);
+});
+
+test('react-devtools fails clearly when remote iOS bridge scope is incomplete', async () => {
+  await assert.rejects(
+    () =>
+      runReactDevtoolsCommand(['status'], {
+        stateDir: '/tmp/agent-device-state',
+        session: 'default',
+        flags: {
+          platform: 'ios',
+          leaseBackend: 'ios-instance',
+          metroProxyBaseUrl: 'https://bridge.example.test',
+          tenant: 'tenant-1',
+          runId: 'run-1',
+          leaseId: 'lease-1',
+        },
+      }),
+    /react-devtools remote bridge requires metroBearerToken/,
   );
 
   assert.equal(vi.mocked(runCmdStreaming).mock.calls.length, 0);
