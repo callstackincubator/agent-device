@@ -1,6 +1,6 @@
+import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { afterEach, test, vi } from 'vitest';
-import assert from 'node:assert/strict';
 
 vi.mock('../utils/exec.ts', () => ({
   runCmdStreaming: vi.fn(),
@@ -26,16 +26,15 @@ type ReactDevtoolsOptions = NonNullable<Parameters<typeof runReactDevtoolsComman
 type ReactDevtoolsFlags = NonNullable<ReactDevtoolsOptions['flags']>;
 
 const remoteBridgeScope = {
-  metroProxyBaseUrl: 'https://bridge.example.test',
+  metroProxyBaseUrl: 'https://cloud.example.test',
   metroBearerToken: 'token',
   tenant: 'tenant-1',
   runId: 'run-1',
   leaseId: 'lease-1',
 } as const;
 
-const remoteBridgeBackends = [
+const remoteAndroidBridgeBackends = [
   { label: 'Android', leaseBackend: 'android-instance' },
-  { label: 'iOS', leaseBackend: 'ios-instance' },
 ] as const;
 
 afterEach(() => {
@@ -110,7 +109,7 @@ function assertRemoteCompanionStarted(env: NodeJS.ProcessEnv): void {
   assert.deepEqual(vi.mocked(ensureReactDevtoolsCompanion).mock.calls[0]?.[0], {
     projectRoot: '/tmp/project',
     stateDir: '/tmp/agent-device-state',
-    serverBaseUrl: 'https://bridge.example.test',
+    serverBaseUrl: 'https://cloud.example.test',
     bearerToken: 'token',
     bridgeScope: {
       tenantId: 'tenant-1',
@@ -134,7 +133,7 @@ function assertRemoteCompanionStarted(env: NodeJS.ProcessEnv): void {
   });
 }
 
-for (const { label, leaseBackend } of remoteBridgeBackends) {
+for (const { label, leaseBackend } of remoteAndroidBridgeBackends) {
   test(`react-devtools starts remote ${label} companion around passthrough command`, async () => {
     const env = { ...process.env };
     mockRemoteCompanionSuccess();
@@ -168,25 +167,41 @@ test('react-devtools skips companion when remote bridge backend is missing', asy
   await runStatusWithoutCompanion(remoteBridgeScope);
 });
 
-for (const { label, leaseBackend } of remoteBridgeBackends) {
-  test(`react-devtools fails clearly when remote ${label} bridge scope is incomplete`, async () => {
-    await assert.rejects(
-      () =>
-        runReactDevtoolsCommand(['status'], {
-          stateDir: '/tmp/agent-device-state',
-          session: 'default',
-          flags: {
-            leaseBackend,
-            metroProxyBaseUrl: 'https://bridge.example.test',
-            tenant: 'tenant-1',
-            runId: 'run-1',
-            leaseId: 'lease-1',
-          },
-        }),
-      /react-devtools remote bridge requires metroBearerToken/,
-    );
+test('react-devtools fails clearly for remote iOS service sessions', async () => {
+  await assert.rejects(
+    () =>
+      runReactDevtoolsCommand(['status'], {
+        stateDir: '/tmp/agent-device-state',
+        session: 'default',
+        flags: {
+          leaseBackend: 'ios-instance',
+          ...remoteBridgeScope,
+        },
+      }),
+    /react-devtools is not available for remote iOS devices/,
+  );
 
-    assert.equal(vi.mocked(runCmdStreaming).mock.calls.length, 0);
-    assertNoRemoteCompanion();
-  });
-}
+  assert.equal(vi.mocked(runCmdStreaming).mock.calls.length, 0);
+  assertNoRemoteCompanion();
+});
+
+test('react-devtools fails clearly when remote Android service tunnel scope is incomplete', async () => {
+  await assert.rejects(
+    () =>
+      runReactDevtoolsCommand(['status'], {
+        stateDir: '/tmp/agent-device-state',
+        session: 'default',
+        flags: {
+          leaseBackend: 'android-instance',
+          metroProxyBaseUrl: remoteBridgeScope.metroProxyBaseUrl,
+          tenant: 'tenant-1',
+          runId: 'run-1',
+          leaseId: 'lease-1',
+        },
+      }),
+    /react-devtools remote service tunnel requires metroBearerToken/,
+  );
+
+  assert.equal(vi.mocked(runCmdStreaming).mock.calls.length, 0);
+  assertNoRemoteCompanion();
+});

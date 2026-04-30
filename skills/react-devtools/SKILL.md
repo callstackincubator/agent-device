@@ -11,7 +11,7 @@ Router for React Native internals. Private setup before using this skill:
 agent-device --version
 ```
 
-Require `agent-device >= 0.14.0`; older CLIs lack these help topics. If older, run `npm install -g agent-device@latest`, recheck, then continue. If you cannot upgrade, stop and tell the user. Do not include version/upgrade commands in final plans.
+Require `agent-device >= 0.14.2`; older CLIs lack the remote/cloud React DevTools guidance. If older, run `npm install -g agent-device@latest`, recheck, then continue. If you cannot upgrade, stop and tell the user. Do not include version/upgrade commands in final plans.
 
 Read current CLI guidance:
 
@@ -20,6 +20,8 @@ agent-device help react-devtools
 ```
 
 Use `agent-device react-devtools ...` for component tree, props, state, hooks, render ownership, performance profiling, slow components, or rerenders. It dynamically runs pinned `agent-react-devtools@0.4.0`. Use normal `agent-device` commands for visible UI, refs, screenshots, logs, network, or device-level perf.
+
+Remote sessions: Android cloud devices work through the CLI-managed service tunnel when the remote profile includes DevTools tunnel settings. Remote iOS cloud devices are not available for React DevTools in the current cloud service; use normal device evidence or local iOS when React internals are required.
 
 Core loop:
 
@@ -36,4 +38,4 @@ agent-device react-devtools profile rerenders --limit 5
 
 Rules:
 
-Keep reads bounded with `--depth`/`find`, treat `@c` refs as reload-local, profile only the investigated interaction, and run the same command in remote Android sessions; the CLI manages the needed local service tunnel.
+Keep reads bounded with `--depth`/`find`, treat `@c` refs as reload-local, profile only the investigated interaction, and use the same command in supported remote Android sessions; the CLI manages the needed local service tunnel.
