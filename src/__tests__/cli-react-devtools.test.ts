@@ -147,6 +147,48 @@ for (const { label, leaseBackend } of remoteBridgeBackends) {
   });
 }
 
+test('react-devtools wait hints to relaunch remote iOS after startup-time connection misses', async () => {
+  const env = { ...process.env };
+  let stderr = '';
+  const originalStderrWrite = process.stderr.write.bind(process.stderr);
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    stderr += chunk.toString();
+    return true;
+  }) as typeof process.stderr.write;
+  vi.mocked(runCmdStreaming).mockResolvedValueOnce({
+    exitCode: 1,
+    stdout: '',
+    stderr: '',
+  });
+  vi.mocked(ensureReactDevtoolsCompanion).mockResolvedValueOnce({
+    pid: 123,
+    spawned: true,
+    statePath: '/tmp/state.json',
+    logPath: '/tmp/companion.log',
+  });
+
+  try {
+    const exitCode = await runReactDevtoolsCommand(['wait', '--connected'], {
+      stateDir: '/tmp/agent-device-state',
+      session: 'default',
+      cwd: '/tmp/project',
+      env,
+      flags: {
+        ...remoteBridgeScope,
+        leaseBackend: 'ios-instance',
+        remoteConfig: '/tmp/remote.json',
+        session: 'default',
+      },
+    });
+
+    assert.equal(exitCode, 1);
+    assert.match(stderr, /Remote iOS React DevTools connects during JavaScript startup/);
+    assert.match(stderr, /open <bundle-id> --platform ios --relaunch/);
+  } finally {
+    process.stderr.write = originalStderrWrite;
+  }
+});
+
 test('react-devtools stop cleans up remote companion', async () => {
   const env = { ...process.env };
   vi.mocked(runCmdStreaming).mockResolvedValueOnce({

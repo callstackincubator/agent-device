@@ -34,6 +34,15 @@ agent-device react-devtools profile slow --limit 5
 agent-device react-devtools profile rerenders --limit 5
 ```
 
+Remote iOS bridge order:
+
+```bash
+agent-device open <bundle-id> --platform ios --relaunch
+agent-device react-devtools start
+agent-device open <bundle-id> --platform ios --relaunch
+agent-device react-devtools wait --connected
+```
+
 Rules:
 
-Keep reads bounded with `--depth`/`find`, treat `@c` refs as reload-local, profile only the investigated interaction, and run the same command in remote Android sessions; the CLI manages the needed local service tunnel.
+Keep reads bounded with `--depth`/`find`, treat `@c` refs as reload-local, profile only the investigated interaction, and run the same command in remote Android sessions; the CLI manages the needed local service tunnel. For remote iOS, relaunch after `react-devtools start` because React Native opens the legacy DevTools websocket during JavaScript startup.

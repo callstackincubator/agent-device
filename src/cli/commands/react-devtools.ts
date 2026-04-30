@@ -52,6 +52,35 @@ function isRemoteBridgeBackend(leaseBackend: CliFlags['leaseBackend']): boolean 
   return leaseBackend === 'android-instance' || leaseBackend === 'ios-instance';
 }
 
+function isRemoteIosBridgeBackend(leaseBackend: CliFlags['leaseBackend']): boolean {
+  return leaseBackend === 'ios-instance';
+}
+
+function isWaitConnectedCommand(args: string[]): boolean {
+  return args[0] === 'wait' && args.includes('--connected');
+}
+
+function maybePrintRemoteIosWaitHint(
+  args: string[],
+  flags: ReactDevtoolsCommandOptions['flags'],
+  exitCode: number,
+): void {
+  if (
+    exitCode === 0 ||
+    !isWaitConnectedCommand(args) ||
+    !isRemoteIosBridgeBackend(flags?.leaseBackend)
+  ) {
+    return;
+  }
+  process.stderr.write(
+    [
+      'Hint: Remote iOS React DevTools connects during JavaScript startup.',
+      'If the app was already open before `agent-device react-devtools start`, relaunch it with `agent-device open <bundle-id> --platform ios --relaunch`, then retry `agent-device react-devtools wait --connected`.',
+      '',
+    ].join('\n'),
+  );
+}
+
 function readRemoteBridgeField(
   missing: string[],
   field: string,
@@ -135,7 +164,7 @@ export async function runReactDevtoolsCommand(
 ): Promise<number> {
   const cwd = options.cwd ?? process.cwd();
   const env = options.env ?? process.env;
-  return await withRemoteDevtoolsCompanion(args, options, async () => {
+  const exitCode = await withRemoteDevtoolsCompanion(args, options, async () => {
     const result = await runCmdStreaming('npm', buildReactDevtoolsNpmExecArgs(args), {
       cwd,
       env,
@@ -149,4 +178,6 @@ export async function runReactDevtoolsCommand(
     });
     return result.exitCode;
   });
+  maybePrintRemoteIosWaitHint(args, options.flags, exitCode);
+  return exitCode;
 }
