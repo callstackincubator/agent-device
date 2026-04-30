@@ -568,6 +568,76 @@ test('metro companion worker reconnects after the bridge closes immediately afte
   assert.equal(bridgeConnections, 2);
 });
 
+test('metro companion worker exits after non-retryable registration failure', async () => {
+  let registerAttempts = 0;
+
+  const localServer = http.createServer((_, res) => {
+    res.writeHead(404);
+    res.end('not found');
+  });
+  cleanupTasks.push(() => closeServer(localServer));
+  const localPort = await listen(localServer);
+
+  const bridgeServer = http.createServer((req, res) => {
+    const url = new URL(req.url || '/', 'http://127.0.0.1');
+    if (req.method === 'POST' && url.pathname === '/api/metro/companion/register') {
+      registerAttempts += 1;
+      req.resume();
+      req.on('end', () => {
+        res.writeHead(401, { 'content-type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            ok: false,
+            error: { code: 'UNAUTHORIZED', message: 'Invalid token' },
+          }),
+        );
+      });
+      return;
+    }
+    res.writeHead(404);
+    res.end('not found');
+  });
+  cleanupTasks.push(() => closeServer(bridgeServer));
+  const bridgePort = await listen(bridgeServer);
+
+  const companion = spawn(
+    process.execPath,
+    ['--experimental-strip-types', 'src/companion-tunnel.ts', '--agent-device-run-metro-companion'],
+    {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        AGENT_DEVICE_COMPANION_TUNNEL_SERVER_BASE_URL: `http://127.0.0.1:${bridgePort}`,
+        AGENT_DEVICE_COMPANION_TUNNEL_BEARER_TOKEN: 'bad-token',
+        AGENT_DEVICE_COMPANION_TUNNEL_LOCAL_BASE_URL: `http://127.0.0.1:${localPort}`,
+        AGENT_DEVICE_COMPANION_TUNNEL_REGISTER_PATH: '/api/metro/companion/register',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_TENANT_ID: 'tenant-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_RUN_ID: 'run-1',
+        AGENT_DEVICE_COMPANION_TUNNEL_SCOPE_LEASE_ID: 'lease-1',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
+  cleanupTasks.push(() => stopChild(companion));
+
+  let stderr = '';
+  companion.stderr.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
+
+  const exit = await waitFor(
+    new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
+      companion.once('exit', (code, signal) => resolve({ code, signal }));
+    }),
+    5_000,
+    'worker exit after non-retryable registration failure',
+  );
+
+  assert.equal(exit.signal, null, `unexpected worker stderr: ${stderr}`);
+  assert.equal(exit.code, 0, `unexpected worker stderr: ${stderr}`);
+  assert.equal(registerAttempts, 1);
+});
+
 test('metro companion worker exits after its state file is removed', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-metro-companion-worker-'));
   const statePath = path.join(tempRoot, 'metro-companion.json');
