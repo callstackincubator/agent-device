@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
 import { uploadArtifact } from '../upload-client.ts';
-import { runCmdSync } from '../utils/exec.ts';
+import { runCmdSync, withCommandExecutorOverride } from '../utils/exec.ts';
 
 const TEST_TOKEN = 'agent-device-upload-test-token';
 const tempDirs: string[] = [];
@@ -395,6 +395,53 @@ test('uploadArtifact preflights and legacy-uploads compressed app bundle directo
     });
     assert.equal(uploadId, 'upload-app-bundle');
     assert.deepEqual(requests, ['POST /upload/preflight', 'POST /upload']);
+  } finally {
+    await server.close();
+  }
+});
+
+test('uploadArtifact disables macOS AppleDouble entries when archiving app bundles', async () => {
+  const tempRoot = createTempDir();
+  const appPath = path.join(tempRoot, 'Sample.app');
+  fs.mkdirSync(appPath, { recursive: true });
+  fs.writeFileSync(path.join(appPath, 'Info.plist'), 'fake-plist');
+  let tarEnv: NodeJS.ProcessEnv | undefined;
+
+  const server = await startServer(async (req, res) => {
+    if (req.method === 'POST' && req.url === '/upload/preflight') {
+      const body = JSON.parse((await readRequestBody(req)).toString('utf8')) as {
+        fileName: string;
+        artifactType: string;
+      };
+      assert.equal(body.fileName, 'Sample.app');
+      assert.equal(body.artifactType, 'app-bundle');
+      sendJson(res, { ok: true, cacheHit: true, uploadId: 'upload-cached-app' });
+      return;
+    }
+    res.statusCode = 404;
+    res.end('not found');
+  });
+
+  try {
+    const uploadId = await withCommandExecutorOverride(
+      (cmd, args, options) => {
+        if (cmd !== 'tar') return undefined;
+        tarEnv = options.env;
+        const archivePath = args[1];
+        assert.equal(args[0], 'czf');
+        assert.equal(typeof archivePath, 'string');
+        fs.writeFileSync(archivePath, 'fake-archive');
+        return Promise.resolve({ stdout: '', stderr: '', exitCode: 0 });
+      },
+      async () =>
+        await uploadArtifact({
+          localPath: appPath,
+          baseUrl: server.baseUrl,
+          token: TEST_TOKEN,
+        }),
+    );
+    assert.equal(uploadId, 'upload-cached-app');
+    assert.equal(tarEnv?.COPYFILE_DISABLE, '1');
   } finally {
     await server.close();
   }
