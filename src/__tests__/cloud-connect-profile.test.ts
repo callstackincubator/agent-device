@@ -55,7 +55,7 @@ test('connect without remote config generates one from cloud connection profile'
   }
 });
 
-test('connect without remote config accepts legacy remoteConfig profile response', async () => {
+test('connect without remote config rejects legacy remoteConfig string profile response', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-connect-cloud-legacy-'));
   const stateDir = path.join(tempRoot, '.state');
   mockCloudConnectionProfile({
@@ -68,11 +68,11 @@ test('connect without remote config accepts legacy remoteConfig profile response
   });
 
   try {
-    await connectWithGeneratedCloudProfile(stateDir);
-
-    const state = readRequiredActiveState(stateDir);
-    assert.equal(state.tenant, 'acme');
-    assert.equal(state.daemon?.baseUrl, 'https://bridge.example.com/agent-device');
+    await assert.rejects(connectWithGeneratedCloudProfile(stateDir), (error: unknown) => {
+      assert.equal((error as { code?: string }).code, 'COMMAND_FAILED');
+      assert.match((error as Error).message, /did not include remoteConfigProfile/);
+      return true;
+    });
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }

@@ -17,7 +17,6 @@ const HTTP_TIMEOUT_MS = 15_000;
 
 type CloudConnectionProfileResponse = {
   connection?: {
-    remoteConfig?: string;
     remoteConfigProfile?: unknown;
   };
 };
@@ -111,11 +110,10 @@ function parseConnectionProfile(value: unknown): RemoteConfigProfile {
   if (connection.remoteConfigProfile !== undefined) {
     return validateRemoteConfigProfile(connection.remoteConfigProfile, 'remoteConfigProfile');
   }
-  const legacyProfile = parseLegacyRemoteConfig(connection.remoteConfig);
-  if (legacyProfile) {
-    return legacyProfile;
-  }
-  throw new AppError('COMMAND_FAILED', 'Cloud connection profile did not include remote config.');
+  throw new AppError(
+    'COMMAND_FAILED',
+    'Cloud connection profile did not include remoteConfigProfile.',
+  );
 }
 
 function validateRemoteConfigProfile(value: unknown, source: string): RemoteConfigProfile {
@@ -141,26 +139,6 @@ function validateRemoteConfigProfile(value: unknown, source: string): RemoteConf
     );
   }
   return profile as RemoteConfigProfile;
-}
-
-function parseLegacyRemoteConfig(value: unknown): RemoteConfigProfile | undefined {
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return validateRemoteConfigProfile(parsed, 'remoteConfig');
-  } catch (error) {
-    if (error instanceof AppError) {
-      throw error;
-    }
-    throw new AppError(
-      'COMMAND_FAILED',
-      'Cloud connection profile returned invalid remote config JSON.',
-      {},
-      error instanceof Error ? error : undefined,
-    );
-  }
 }
 
 function resolveGeneratedRemoteConfigProfile(options: {
