@@ -1156,6 +1156,29 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     forbiddenOutputs: [plannedCommand('fill'), plannedCommand('type'), /keyboard dismiss/i],
   }),
   makeCase({
+    id: 'remote-cloud-connect-flow',
+    contract: [
+      'Cloud control plane owns the connection profile',
+      'No local remote config path was provided',
+      'App package: com.callstack.agentdevicetester',
+      'The cloud profile owns tenant, run, lease, and Metro hints',
+    ],
+    task: 'Plan a remote flow that discovers the cloud connection profile, opens the app, captures a snapshot, and disconnects cleanly.',
+    outputs: [
+      plannedCommand('connect'),
+      plannedCommand('open'),
+      plannedCommand('snapshot'),
+      plannedCommand('disconnect'),
+    ],
+    forbiddenOutputs: [
+      /--remote-config/i,
+      /--daemon-base-url/i,
+      /--tenant/i,
+      /--run-id/i,
+      plannedCommand('screenshot'),
+    ],
+  }),
+  makeCase({
     id: 'remote-config-connect-flow',
     contract: [
       'Remote config path: ./remote-config.json',

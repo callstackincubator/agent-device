@@ -897,6 +897,8 @@ test('workflow help keeps common copyable command forms', () => {
 test('usageForCommand resolves remote help topic', () => {
   const help = usageForCommand('remote');
   if (help === null) throw new Error('Expected remote help text');
+  assert.match(help, /agent-device connect/);
+  assert.match(help, /without --remote-config/);
   assert.match(help, /agent-device open com\.example\.app --remote-config \.\/remote-config\.json/);
   assert.match(help, /disconnect --remote-config \.\/remote-config\.json/);
   assert.match(help, /Script flow, per-command config/);
