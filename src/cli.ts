@@ -172,6 +172,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           stateDir: daemonPaths.baseDir,
           session: sessionName,
           remoteConfig: flags.remoteConfig,
+          hasResolvedSession: flags.session !== undefined,
         });
         effectiveFlags = connectionDefaults
           ? mergeConnectionFlags(flags, connectionDefaults.flags, explicitFlagKeys)
@@ -400,6 +401,7 @@ function resolveActiveConnectionDefaults(options: {
   stateDir: string;
   session: string;
   remoteConfig?: string;
+  hasResolvedSession: boolean;
 }): {
   flags: Partial<CliFlags>;
   runtime?: SessionRuntimeHints;
@@ -413,7 +415,7 @@ function resolveActiveConnectionDefaults(options: {
     env: process.env,
     allowActiveFallback:
       !options.explicitFlagKeys.has('session') &&
-      (!options.remoteConfig || options.command === 'disconnect'),
+      (!options.remoteConfig || options.command === 'disconnect' || !options.hasResolvedSession),
     validateRemoteConfigHash: options.command !== 'disconnect',
   });
   return defaults;

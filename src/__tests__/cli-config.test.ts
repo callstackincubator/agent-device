@@ -535,6 +535,161 @@ test('normal commands accept direct remote-config usage', async () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('remote-config commands reuse active generated session when profile has no session', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const stateDir = path.join(root, 'state');
+  const remoteConnectionsDir = path.join(stateDir, 'remote-connections');
+  fs.mkdirSync(remoteConnectionsDir, { recursive: true });
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      tenant: 'acme',
+      runId: 'run-123',
+      platform: 'android',
+    }),
+    'utf8',
+  );
+  const now = new Date().toISOString();
+  fs.writeFileSync(
+    path.join(remoteConnectionsDir, 'adc-generated.json'),
+    JSON.stringify({
+      version: 1,
+      session: 'adc-generated',
+      remoteConfigPath: remoteConfig,
+      remoteConfigHash: hashRemoteConfigFile(remoteConfig),
+      tenant: 'acme',
+      runId: 'run-123',
+      leaseId: 'lease-generated-001',
+      leaseBackend: 'android-instance',
+      platform: 'android',
+      connectedAt: now,
+      updatedAt: now,
+    }),
+    'utf8',
+  );
+  fs.writeFileSync(
+    path.join(remoteConnectionsDir, '.active-session.json'),
+    JSON.stringify({ session: 'adc-generated' }),
+    'utf8',
+  );
+
+  const result = await runCliCapture(
+    ['snapshot', '--remote-config', remoteConfig, '--state-dir', stateDir, '--json'],
+    {
+      cwd: project,
+      env: { HOME: home },
+      sendToDaemon: async (req) => {
+        if (req.command === 'lease_allocate') {
+          throw new Error('should reuse the active generated lease');
+        }
+        if (req.command === 'lease_heartbeat') {
+          return {
+            ok: true,
+            data: {
+              lease: {
+                leaseId: 'lease-generated-001',
+                tenantId: 'acme',
+                runId: 'run-123',
+                backend: 'android-instance',
+              },
+            },
+          };
+        }
+        return { ok: true, data: { nodes: [], truncated: false } };
+      },
+    },
+  );
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls.length, 2);
+  assert.equal(result.calls[0]?.command, 'lease_heartbeat');
+  assert.equal(result.calls[1]?.command, 'snapshot');
+  assert.equal(result.calls[1]?.session, 'adc-generated');
+  assert.equal(result.calls[1]?.meta?.leaseId, 'lease-generated-001');
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('remote-config commands keep profile session over active generated session', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  const stateDir = path.join(root, 'state');
+  const remoteConnectionsDir = path.join(stateDir, 'remote-connections');
+  fs.mkdirSync(remoteConnectionsDir, { recursive: true });
+  const remoteConfig = path.join(project, 'agent-device.remote.json');
+  fs.writeFileSync(
+    remoteConfig,
+    JSON.stringify({
+      daemonBaseUrl: 'http://remote-mac.example.test:9124/agent-device',
+      tenant: 'acme',
+      runId: 'run-profile',
+      session: 'profile-session',
+      platform: 'android',
+    }),
+    'utf8',
+  );
+  const now = new Date().toISOString();
+  fs.writeFileSync(
+    path.join(remoteConnectionsDir, 'adc-generated.json'),
+    JSON.stringify({
+      version: 1,
+      session: 'adc-generated',
+      remoteConfigPath: remoteConfig,
+      remoteConfigHash: hashRemoteConfigFile(remoteConfig),
+      tenant: 'acme',
+      runId: 'run-active',
+      leaseId: 'lease-generated-001',
+      leaseBackend: 'android-instance',
+      platform: 'android',
+      connectedAt: now,
+      updatedAt: now,
+    }),
+    'utf8',
+  );
+  fs.writeFileSync(
+    path.join(remoteConnectionsDir, '.active-session.json'),
+    JSON.stringify({ session: 'adc-generated' }),
+    'utf8',
+  );
+
+  const result = await runCliCapture(
+    ['snapshot', '--remote-config', remoteConfig, '--state-dir', stateDir, '--json'],
+    {
+      cwd: project,
+      env: { HOME: home },
+      sendToDaemon: async (req) => {
+        if (req.command === 'lease_heartbeat') {
+          throw new Error('should not reuse the active generated lease');
+        }
+        if (req.command === 'lease_allocate') {
+          return {
+            ok: true,
+            data: {
+              lease: {
+                leaseId: 'lease-profile-001',
+                tenantId: 'acme',
+                runId: 'run-profile',
+                backend: 'android-instance',
+              },
+            },
+          };
+        }
+        return { ok: true, data: { nodes: [], truncated: false } };
+      },
+    },
+  );
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls.length, 2);
+  assert.equal(result.calls[0]?.command, 'lease_allocate');
+  assert.equal(result.calls[1]?.command, 'snapshot');
+  assert.equal(result.calls[1]?.session, 'profile-session');
+  assert.equal(result.calls[1]?.meta?.leaseId, 'lease-profile-001');
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('devices allocates a pending remote lease before listing devices', async () => {
   const { root, home, project } = makeTempWorkspace();
   const stateDir = path.join(root, 'state');

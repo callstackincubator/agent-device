@@ -950,6 +950,7 @@ test('usageForCommand resolves react-devtools help topic', () => {
   assert.match(help, /@c refs reset after reload\/remount/);
   assert.match(help, /isolated --state-dir/);
   assert.match(help, /local service tunnel/);
+  assert.match(help, /Remote iOS apps attempt the legacy React DevTools websocket/);
 });
 
 test('apps defaults to --all filter and allows overrides', () => {

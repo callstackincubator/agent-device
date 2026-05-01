@@ -136,13 +136,16 @@ async function createGzipTarArchive(localPath: string, cleanupPaths: string[]): 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `agent-device-upload-${randomUUID()}-`));
   cleanupPaths.push(tempDir);
   const archivePath = path.join(tempDir, `${path.basename(localPath)}.tar.gz`);
-  await runCmd('tar', [
-    'czf',
-    archivePath,
-    '-C',
-    path.dirname(localPath),
-    path.basename(localPath),
-  ]);
+  await runCmd(
+    'tar',
+    ['czf', archivePath, '-C', path.dirname(localPath), path.basename(localPath)],
+    {
+      env: {
+        ...process.env,
+        COPYFILE_DISABLE: '1',
+      },
+    },
+  );
   return archivePath;
 }
 

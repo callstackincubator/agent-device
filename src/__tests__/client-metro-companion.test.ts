@@ -284,6 +284,43 @@ test('spawned companion uses neutral env names', async () => {
   }
 });
 
+test('state sentinel exists before spawning companion worker', async () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-companion-sentinel-'));
+  try {
+    vi.mocked(runCmdDetached).mockImplementationOnce((_, __, options) => {
+      const statePath = options?.env?.AGENT_DEVICE_COMPANION_TUNNEL_STATE_PATH;
+      if (typeof statePath !== 'string') {
+        throw new Error('expected companion state path env');
+      }
+      assert.equal(fs.existsSync(statePath), true);
+      assert.equal(fs.readFileSync(statePath, 'utf8'), '');
+      return 1001;
+    });
+    vi.mocked(readProcessStartTime).mockReturnValue('start-1001');
+    vi.mocked(readProcessCommand).mockReturnValue(
+      `${process.execPath} src/companion-tunnel.ts --agent-device-run-metro-companion`,
+    );
+
+    const spawned = await ensureMetroCompanion({
+      projectRoot,
+      serverBaseUrl: 'https://bridge.example.test',
+      bearerToken: 'token',
+      localBaseUrl: 'http://127.0.0.1:8081',
+      bridgeScope: TEST_BRIDGE_SCOPE,
+      consumerKey: 'session-a',
+    });
+
+    const state = JSON.parse(fs.readFileSync(spawned.statePath, 'utf8')) as {
+      pid?: number;
+      consumers?: string[];
+    };
+    assert.equal(state.pid, 1001);
+    assert.deepEqual(state.consumers, ['session-a']);
+  } finally {
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('legacy state without bridge scope is stopped before respawn', async () => {
   const projectRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), 'agent-device-metro-companion-legacy-'),
