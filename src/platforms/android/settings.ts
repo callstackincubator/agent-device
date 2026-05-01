@@ -46,6 +46,21 @@ export async function setAndroidSetting(
       return;
     }
     case 'location': {
+      if (state.toLowerCase() === 'set') {
+        if (device.kind !== 'emulator') {
+          throw new AppError(
+            'UNSUPPORTED_OPERATION',
+            'Android precise location coordinates are supported only on emulators.',
+            {
+              deviceId: device.id,
+              hint: 'Use an Android emulator for adb emu geo fix, or configure location through device/provider tooling.',
+            },
+          );
+        }
+        const { latitude, longitude } = requireLocationCoordinates(options);
+        await runAndroidAdb(device, ['emu', 'geo', 'fix', String(longitude), String(latitude)]);
+        return { latitude, longitude };
+      }
       const enabled = parseSettingState(state);
       const mode = enabled ? '3' : '0';
       await runAndroidAdb(device, ['shell', 'settings', 'put', 'secure', 'location_mode', mode]);
@@ -190,6 +205,31 @@ function parseSettingState(state: string): boolean {
   if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
   if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
+}
+
+function requireLocationCoordinates(options: PermissionSettingOptions | undefined): {
+  latitude: number;
+  longitude: number;
+} {
+  const latitude = options?.latitude;
+  const longitude = options?.longitude;
+  if (
+    typeof latitude !== 'number' ||
+    !Number.isFinite(latitude) ||
+    latitude < -90 ||
+    latitude > 90
+  ) {
+    throw new AppError('INVALID_ARGS', 'latitude must be a number from -90 to 90');
+  }
+  if (
+    typeof longitude !== 'number' ||
+    !Number.isFinite(longitude) ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    throw new AppError('INVALID_ARGS', 'longitude must be a number from -180 to 180');
+  }
+  return { latitude, longitude };
 }
 
 async function resolveAndroidAppearanceTarget(

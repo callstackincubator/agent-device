@@ -12,6 +12,7 @@ import type {
   MetroPrepareOptions,
   MetroReloadOptions,
 } from '../client.ts';
+import type { SettingsUpdateOptions } from '../client-types.ts';
 import { AppError } from '../utils/errors.ts';
 import { resolveCliOptions } from '../utils/cli-options.ts';
 
@@ -740,6 +741,41 @@ test('install prints command-owned success output in human mode', async () => {
   assert.match(stdout, /Installed: Demo/);
 });
 
+test('settings location set forwards coordinates to client settings update', async () => {
+  let observed: SettingsUpdateOptions | undefined;
+  const client = createStubClient({
+    installFromSource: async () => ({
+      launchTarget: 'com.example.demo',
+      packageName: 'com.example.demo',
+      identifiers: { appId: 'com.example.demo' },
+    }),
+    updateSettings: async (options) => {
+      observed = options;
+      return { identifiers: { session: 'default' } };
+    },
+  });
+
+  const handled = await tryRunClientBackedCommand({
+    command: 'settings',
+    positionals: ['location', 'set', '37.3349', '-122.009'],
+    flags: {
+      json: false,
+      help: false,
+      version: false,
+      platform: 'ios',
+      session: 'maps',
+    },
+    client,
+  });
+
+  assert.equal(handled, true);
+  assert.equal(observed?.platform, 'ios');
+  assert.equal(observed?.setting, 'location');
+  assert.equal(observed?.state, 'set');
+  assert.equal(observed?.latitude, 37.3349);
+  assert.equal(observed?.longitude, -122.009);
+});
+
 async function captureStdout(run: () => Promise<void>): Promise<string> {
   let stdout = '';
   const originalWrite = process.stdout.write.bind(process.stdout);
@@ -763,6 +799,7 @@ function createStubClient(params: {
   reloadMetro?: AgentDeviceClient['metro']['reload'];
   open?: AgentDeviceClient['apps']['open'];
   screenshot?: AgentDeviceClient['capture']['screenshot'];
+  updateSettings?: AgentDeviceClient['settings']['update'];
 }): AgentDeviceClient {
   const unexpectedCommandCall = async (): Promise<never> => {
     throw new Error('unexpected command call');
@@ -894,7 +931,9 @@ function createStubClient(params: {
     batch: createThrowingMethodGroup<AgentDeviceClient['batch']>(),
     observability: createThrowingMethodGroup<AgentDeviceClient['observability']>(),
     recording: createThrowingMethodGroup<AgentDeviceClient['recording']>(),
-    settings: createThrowingMethodGroup<AgentDeviceClient['settings']>(),
+    settings: {
+      update: params.updateSettings ?? unexpectedCommandCall,
+    },
   };
 }
 

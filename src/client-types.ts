@@ -708,6 +708,12 @@ export type SettingsUpdateOptions =
       state: 'on' | 'off';
     })
   | (ClientCommandBaseOptions & {
+      setting: 'location';
+      state: 'set';
+      latitude: number;
+      longitude: number;
+    })
+  | (ClientCommandBaseOptions & {
       setting: 'animations';
       state: 'on' | 'off';
     })
