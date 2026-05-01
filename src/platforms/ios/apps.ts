@@ -432,6 +432,17 @@ export async function setIosSetting(
       return;
     }
     case 'location': {
+      if (state.toLowerCase() === 'set') {
+        const { latitude, longitude } = requireLocationCoordinates(options);
+        await runSimctl(device, [
+          'location',
+          device.id,
+          'set',
+          String(latitude),
+          String(longitude),
+        ]);
+        return { latitude, longitude };
+      }
       const enabled = parseSettingState(state);
       if (!appBundleId) {
         throw new AppError('INVALID_ARGS', 'location setting requires an active app in session');
@@ -532,6 +543,31 @@ function parseSettingState(state: string): boolean {
   if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
   if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
   throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
+}
+
+function requireLocationCoordinates(options: PermissionSettingOptions | undefined): {
+  latitude: number;
+  longitude: number;
+} {
+  const latitude = options?.latitude;
+  const longitude = options?.longitude;
+  if (
+    typeof latitude !== 'number' ||
+    !Number.isFinite(latitude) ||
+    latitude < -90 ||
+    latitude > 90
+  ) {
+    throw new AppError('INVALID_ARGS', 'latitude must be a number from -90 to 90');
+  }
+  if (
+    typeof longitude !== 'number' ||
+    !Number.isFinite(longitude) ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    throw new AppError('INVALID_ARGS', 'longitude must be a number from -180 to 180');
+  }
+  return { latitude, longitude };
 }
 
 function parseMacOsPermissionTarget(value: string | undefined): MacOsPermissionTarget {

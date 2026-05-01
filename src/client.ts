@@ -471,6 +471,7 @@ export function createAgentDeviceClient(
           [
             options.setting,
             options.state,
+            ...('latitude' in options ? [String(options.latitude), String(options.longitude)] : []),
             ...('permission' in options ? [options.permission] : []),
             ...('mode' in options && options.mode ? [options.mode] : []),
           ],

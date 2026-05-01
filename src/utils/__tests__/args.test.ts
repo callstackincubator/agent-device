@@ -1257,6 +1257,7 @@ test('rotate command usage is documented', () => {
 test('settings usage documents canonical faceid states', () => {
   const help = usageForCommand('settings');
   if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /location set <lat> <lon>/);
   assert.match(help, /light\|dark\|toggle/);
   assert.match(help, /match\|nonmatch\|enroll\|unenroll/);
   assert.match(

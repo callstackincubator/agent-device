@@ -18,6 +18,8 @@ export type PermissionTarget =
 export type PermissionSettingOptions = {
   permissionTarget?: string;
   permissionMode?: string;
+  latitude?: number;
+  longitude?: number;
 };
 const PERMISSION_TARGETS: readonly PermissionTarget[] = [
   'camera',

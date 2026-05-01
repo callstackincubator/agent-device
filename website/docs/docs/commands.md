@@ -455,6 +455,7 @@ agent-device settings airplane on
 agent-device settings airplane off
 agent-device settings location on
 agent-device settings location off
+agent-device settings location set 37.3349 -122.009
 agent-device settings animations off
 agent-device settings animations on
 agent-device settings appearance light
@@ -483,6 +484,7 @@ agent-device settings permission reset screen-recording --platform macos
 - `settings wifi|airplane|location|animations` remain intentionally unsupported on macOS.
 - Android `settings animations off|on` toggles the global `window_animation_scale`, `transition_animation_scale`, and `animator_duration_scale` values. Use it as an opt-in stabilizer for automation runs with heavy system or app animations, then restore with `settings animations on` when needed.
 - `settings appearance` maps to macOS appearance, iOS simulator appearance, and Android night mode.
+- `settings location set <lat> <lon>` sets precise coordinates on iOS simulators and Android emulators.
 - Face ID and Touch ID controls are iOS simulator-only.
 - Fingerprint simulation is supported on Android targets where `cmd fingerprint` or `adb emu finger` is available.
   On physical Android devices, only `cmd fingerprint` is attempted.

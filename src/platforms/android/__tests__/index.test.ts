@@ -815,6 +815,21 @@ test('rotateAndroid locks auto-rotate and sets user rotation', async () => {
   );
 });
 
+test('setAndroidSetting location set sends emulator geo fix with longitude then latitude', async () => {
+  await withMockedAdb(
+    'agent-device-android-location-set-',
+    '#!/bin/sh\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    async ({ argsLogPath, device }) => {
+      await setAndroidSetting(device, 'location', 'set', undefined, {
+        latitude: 37.3349,
+        longitude: -122.009,
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /emu\ngeo\nfix\n-122\.009\n37\.3349/);
+    },
+  );
+});
+
 test('setAndroidSetting fingerprint match uses adb shell cmd fingerprint touch', async () => {
   await withMockedAdb(
     'agent-device-android-fingerprint-match-',

@@ -132,6 +132,7 @@ agent-device settings wifi on
 agent-device settings airplane on
 agent-device settings appearance toggle
 agent-device settings location off
+agent-device settings location set 37.3349 -122.009
 agent-device settings permission grant camera
 ```
 

@@ -687,14 +687,25 @@ async function handleSettingsCommand(
   positionals: string[],
   context: DispatchContext | undefined,
 ): Promise<Record<string, unknown>> {
-  const [setting, state, target, mode, appBundleId] = positionals;
-  const permissionOptions =
+  const [setting, state, target, mode] = positionals;
+  const appBundleId =
+    setting === 'permission'
+      ? (positionals[4] ?? context?.appBundleId)
+      : setting === 'location' && state === 'set'
+        ? (positionals[5] ?? context?.appBundleId)
+        : (positionals[2] ?? context?.appBundleId);
+  const settingOptions =
     setting === 'permission'
       ? {
           permissionTarget: target,
           permissionMode: mode,
         }
-      : undefined;
+      : setting === 'location' && state === 'set'
+        ? {
+            latitude: readLocationCoordinate(target, 'latitude', -90, 90),
+            longitude: readLocationCoordinate(mode, 'longitude', -180, 180),
+          }
+        : undefined;
   emitDiagnostic({
     level: 'debug',
     phase: 'settings_apply',
@@ -706,18 +717,29 @@ async function handleSettingsCommand(
       platform: device.platform,
     },
   });
-  const result = await interactor.setSetting(
-    setting,
-    state,
-    appBundleId ?? context?.appBundleId,
-    permissionOptions,
-  );
+  const result = await interactor.setSetting(setting, state, appBundleId, settingOptions);
   return result && typeof result === 'object'
     ? withSuccessText(
         { setting, state, ...result },
         readResultMessage(result) ?? `Updated setting: ${setting}`,
       )
     : { setting, state, ...successText(`Updated setting: ${setting}`) };
+}
+
+function readLocationCoordinate(
+  value: string | undefined,
+  label: 'latitude' | 'longitude',
+  min: number,
+  max: number,
+): number {
+  if (value === undefined || value.trim() === '') {
+    throw new AppError('INVALID_ARGS', `settings location set requires ${label}`);
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+    throw new AppError('INVALID_ARGS', `${label} must be a number from ${min} to ${max}`);
+  }
+  return parsed;
 }
 
 async function handlePushCommand(
