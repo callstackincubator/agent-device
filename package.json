@@ -1,6 +1,6 @@
 {
   "name": "agent-device",
-  "version": "0.14.6",
+  "version": "0.14.7",
   "description": "Agent-driven CLI for mobile UI automation, network inspection, and performance diagnostics across iOS, Android, tvOS, and macOS.",
   "license": "MIT",
   "author": "Callstack",
