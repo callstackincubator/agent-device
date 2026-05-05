@@ -15,6 +15,8 @@ type ParsedSettingsArgs = {
   setting: string;
   state: string;
   permissionTarget?: string;
+  latitude?: string;
+  longitude?: string;
 };
 
 type HandleSettingsCommandParams = {
@@ -32,17 +34,31 @@ export function parseSettingsArgs(
   const setting = req.positionals?.[0]?.toLowerCase();
   const state = req.positionals?.[1]?.toLowerCase();
   const permissionTarget = req.positionals?.[2]?.toLowerCase();
-  if (!setting || !state || (setting === 'permission' && !permissionTarget)) {
+  if (
+    !setting ||
+    !state ||
+    (setting === 'permission' && !permissionTarget) ||
+    (setting === 'location' && state === 'set' && (!req.positionals?.[2] || !req.positionals?.[3]))
+  ) {
     return errorResponse('INVALID_ARGS', SETTINGS_INVALID_ARGS_MESSAGE);
   }
-  return { ok: true, parsed: { setting, state, permissionTarget } };
+  return {
+    ok: true,
+    parsed: {
+      setting,
+      state,
+      permissionTarget,
+      latitude: req.positionals?.[2],
+      longitude: req.positionals?.[3],
+    },
+  };
 }
 
 export async function handleSettingsCommand(
   params: HandleSettingsCommandParams,
 ): Promise<DaemonResponse> {
   const { req, logPath, sessionStore, session, device, parsed } = params;
-  const { setting, state, permissionTarget } = parsed;
+  const { setting, state, permissionTarget, latitude, longitude } = parsed;
   if (!isCommandSupportedOnDevice('settings', device)) {
     return errorResponse('UNSUPPORTED_OPERATION', 'settings is not supported on this device');
   }
@@ -51,11 +67,13 @@ export async function handleSettingsCommand(
   }
 
   const appBundleId = session?.appBundleId;
-  // Settings positional layout for dispatch: setting, state, [target, mode], appBundleId.
+  // Settings positional layout for dispatch: setting, state, command payload, appBundleId.
   const positionals =
     setting === 'permission'
       ? [setting, state, permissionTarget ?? '', req.positionals?.[3] ?? '', appBundleId ?? '']
-      : [setting, state, appBundleId ?? ''];
+      : setting === 'location' && state === 'set'
+        ? [setting, state, latitude ?? '', longitude ?? '', appBundleId ?? '']
+        : [setting, state, appBundleId ?? ''];
   const data = await dispatchCommand(device, 'settings', positionals, req.flags?.out, {
     ...contextFromFlags(logPath, req.flags, appBundleId, session?.trace?.outPath),
   });

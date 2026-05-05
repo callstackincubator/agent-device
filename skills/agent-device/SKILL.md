@@ -32,3 +32,5 @@ agent-device help dogfood
 Default loop: `open -> snapshot/-i -> get/is/find or press/fill/scroll/wait -> verify -> close`.
 
 Use this skill only to route into version-matched CLI help. Let `help workflow` provide exact command shapes, platform limits, and current workflow guidance.
+
+For precise location workflows, read the installed `settings` help before planning so coordinate support and platform limits come from the active CLI version.

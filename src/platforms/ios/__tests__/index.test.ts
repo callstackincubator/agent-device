@@ -2343,6 +2343,22 @@ test('setIosSetting rejects unsupported macOS wifi setting with explicit subset 
   );
 });
 
+test('setIosSetting location set sends simulator latitude and longitude', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-location-set-test-',
+    '#!/bin/sh\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    async ({ argsLogPath }) => {
+      mockEnsureBootedSimulator.mockResolvedValue(undefined);
+      await setIosSetting(IOS_TEST_SIMULATOR, 'location', 'set', undefined, {
+        latitude: 37.3349,
+        longitude: -122.009,
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /simctl\nlocation\nsim-1\nset\n37\.3349,-122\.009/);
+    },
+  );
+});
+
 test('setIosSetting appearance toggle flips current simulator appearance', async () => {
   await withMockedXcrun(
     'agent-device-ios-appearance-toggle-test-',

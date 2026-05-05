@@ -50,13 +50,17 @@ jobs:
           preferred-device-name: iPhone 17 Pro
 
       - name: Run iOS simulator smoke replay
-        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator/01-settings.ad --retries 2 --report-junit test/artifacts/replays-ios-simulator-smoke.junit.xml
+        run: |
+          pnpm clean:daemon
+          node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator/01-settings.ad --retries 2 --report-junit test/artifacts/replays-ios-simulator-smoke.junit.xml
 
       - name: Run iOS physical device smoke replay
         if: env.IOS_UDID != ''
         env:
           IOS_UDID: ${{ vars.IOS_UDID }}
-        run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/device/01-physical-lifecycle.ad --udid "$IOS_UDID" --retries 2 --report-junit test/artifacts/replays-ios-device-smoke.junit.xml
+        run: |
+          pnpm clean:daemon
+          node --experimental-strip-types src/bin.ts test test/integration/replays/ios/device/01-physical-lifecycle.ad --udid "$IOS_UDID" --retries 2 --report-junit test/artifacts/replays-ios-device-smoke.junit.xml
 
       - name: Upload iOS artifacts
         if: always()

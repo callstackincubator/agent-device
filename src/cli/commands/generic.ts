@@ -12,6 +12,7 @@ import { announceReplayTestRun } from '../../cli-test.ts';
 import { splitSelectorFromArgs } from '../../daemon/selectors.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
+import { readLocationCoordinate } from '../../utils/location-coordinates.ts';
 import { buildSelectionOptions } from './shared.ts';
 import { writeCommandCliOutput } from './output.ts';
 import type { ClientCommandHandler, ClientCommandHandlerMap } from './router-types.ts';
@@ -470,6 +471,15 @@ function readSettingsOptions(positionals: string[], flags: CliFlags): SettingsUp
     (state === 'on' || state === 'off')
   ) {
     return { ...base, setting, state };
+  }
+  if (setting === 'location' && state === 'set') {
+    return {
+      ...base,
+      setting,
+      state,
+      latitude: readLocationCoordinate(positionals[2], 'latitude'),
+      longitude: readLocationCoordinate(positionals[3], 'longitude'),
+    };
   }
   if (setting === 'appearance' && (state === 'light' || state === 'dark' || state === 'toggle')) {
     return { ...base, setting, state };

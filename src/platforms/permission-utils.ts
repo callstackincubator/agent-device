@@ -15,9 +15,11 @@ export type PermissionTarget =
   | 'motion'
   | 'reminders'
   | 'siri';
-export type PermissionSettingOptions = {
+export type SettingOptions = {
   permissionTarget?: string;
   permissionMode?: string;
+  latitude?: number;
+  longitude?: number;
 };
 const PERMISSION_TARGETS: readonly PermissionTarget[] = [
   'camera',

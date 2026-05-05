@@ -26,6 +26,7 @@ import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
+import { readLocationCoordinate } from '../utils/location-coordinates.ts';
 import { successText, withSuccessText } from '../utils/success-text.ts';
 import { parseScrollDirection } from './scroll-gesture.ts';
 import {
@@ -39,7 +40,7 @@ import {
 import { readNotificationPayload } from './dispatch-payload.ts';
 import { parseDeviceRotation } from './device-rotation.ts';
 
-export { resolveTargetDevice, withResolveTargetDeviceCacheScope } from './dispatch-resolve.ts';
+export { resolveTargetDevice } from './dispatch-resolve.ts';
 export { shouldUseIosTapSeries, shouldUseIosDragSeries };
 
 export type BatchStep = {
@@ -687,14 +688,25 @@ async function handleSettingsCommand(
   positionals: string[],
   context: DispatchContext | undefined,
 ): Promise<Record<string, unknown>> {
-  const [setting, state, target, mode, appBundleId] = positionals;
-  const permissionOptions =
+  const [setting, state, target, mode] = positionals;
+  const appBundleId =
+    setting === 'permission'
+      ? (positionals[4] ?? context?.appBundleId)
+      : setting === 'location' && state === 'set'
+        ? (positionals[4] ?? context?.appBundleId)
+        : (positionals[2] ?? context?.appBundleId);
+  const settingOptions =
     setting === 'permission'
       ? {
           permissionTarget: target,
           permissionMode: mode,
         }
-      : undefined;
+      : setting === 'location' && state === 'set'
+        ? {
+            latitude: readLocationCoordinate(target, 'latitude'),
+            longitude: readLocationCoordinate(mode, 'longitude'),
+          }
+        : undefined;
   emitDiagnostic({
     level: 'debug',
     phase: 'settings_apply',
@@ -706,12 +718,7 @@ async function handleSettingsCommand(
       platform: device.platform,
     },
   });
-  const result = await interactor.setSetting(
-    setting,
-    state,
-    appBundleId ?? context?.appBundleId,
-    permissionOptions,
-  );
+  const result = await interactor.setSetting(setting, state, appBundleId, settingOptions);
   return result && typeof result === 'object'
     ? withSuccessText(
         { setting, state, ...result },

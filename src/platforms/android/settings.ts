@@ -1,11 +1,13 @@
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import { requireLocationCoordinates } from '../../utils/location-coordinates.ts';
 import {
   parsePermissionAction,
   parsePermissionTarget,
-  type PermissionSettingOptions,
+  type SettingOptions,
 } from '../permission-utils.ts';
 import { parseAppearanceAction } from '../appearance.ts';
+import { parseSettingState } from '../setting-state.ts';
 import { runAndroidAdb } from './adb.ts';
 
 const ANDROID_ANIMATION_SCALE_SETTINGS = [
@@ -19,7 +21,7 @@ export async function setAndroidSetting(
   setting: string,
   state: string,
   appPackage?: string,
-  options?: PermissionSettingOptions,
+  options?: SettingOptions,
 ): Promise<Record<string, unknown> | void> {
   const normalized = setting.toLowerCase();
   switch (normalized) {
@@ -46,6 +48,21 @@ export async function setAndroidSetting(
       return;
     }
     case 'location': {
+      if (state.toLowerCase() === 'set') {
+        if (device.kind !== 'emulator') {
+          throw new AppError(
+            'UNSUPPORTED_OPERATION',
+            'Android precise location coordinates are supported only on emulators.',
+            {
+              deviceId: device.id,
+              hint: 'Use an Android emulator for adb emu geo fix, or configure location through device/provider tooling.',
+            },
+          );
+        }
+        const { latitude, longitude } = requireLocationCoordinates(options);
+        await runAndroidAdb(device, ['emu', 'geo', 'fix', String(longitude), String(latitude)]);
+        return { latitude, longitude };
+      }
       const enabled = parseSettingState(state);
       const mode = enabled ? '3' : '0';
       await runAndroidAdb(device, ['shell', 'settings', 'put', 'secure', 'location_mode', mode]);
@@ -183,13 +200,6 @@ function isAndroidFingerprintCapabilityMissing(stdout: string, stderr: string): 
     text.includes('emulator console is not running') ||
     (text.includes('fingerprint') && text.includes('not found'))
   );
-}
-
-function parseSettingState(state: string): boolean {
-  const normalized = state.toLowerCase();
-  if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
-  if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
-  throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
 }
 
 async function resolveAndroidAppearanceTarget(

@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
+import { requireLocationCoordinates } from '../../utils/location-coordinates.ts';
 import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
@@ -11,9 +12,10 @@ import { getUnsupportedMacOsSettingMessage } from '../../core/settings-contract.
 import {
   parsePermissionAction,
   parsePermissionTarget,
-  type PermissionSettingOptions,
+  type SettingOptions,
 } from '../permission-utils.ts';
 import { parseAppearanceAction } from '../appearance.ts';
+import { parseSettingState } from '../setting-state.ts';
 import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';
 
 import { IOS_APP_LAUNCH_TIMEOUT_MS, IOS_DEVICECTL_TIMEOUT_MS } from './config.ts';
@@ -377,7 +379,7 @@ export async function setIosSetting(
   setting: string,
   state: string,
   appBundleId?: string,
-  options?: PermissionSettingOptions,
+  options?: SettingOptions,
 ): Promise<Record<string, unknown> | void> {
   if (device.platform === 'macos') {
     const normalizedSetting = setting.toLowerCase();
@@ -432,6 +434,11 @@ export async function setIosSetting(
       return;
     }
     case 'location': {
+      if (state.toLowerCase() === 'set') {
+        const { latitude, longitude } = requireLocationCoordinates(options);
+        await runSimctl(device, ['location', device.id, 'set', `${latitude},${longitude}`]);
+        return { latitude, longitude };
+      }
       const enabled = parseSettingState(state);
       if (!appBundleId) {
         throw new AppError('INVALID_ARGS', 'location setting requires an active app in session');
@@ -525,13 +532,6 @@ export async function listSimulatorApps(device: DeviceInfo): Promise<IosAppInfo[
     bundleId,
     name: info.CFBundleDisplayName ?? info.CFBundleName ?? bundleId,
   }));
-}
-
-function parseSettingState(state: string): boolean {
-  const normalized = state.toLowerCase();
-  if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
-  if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
-  throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
 }
 
 function parseMacOsPermissionTarget(value: string | undefined): MacOsPermissionTarget {
