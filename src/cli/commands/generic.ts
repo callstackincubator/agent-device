@@ -12,6 +12,7 @@ import { announceReplayTestRun } from '../../cli-test.ts';
 import { splitSelectorFromArgs } from '../../daemon/selectors.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
+import { readLocationCoordinate } from '../../utils/location-coordinates.ts';
 import { buildSelectionOptions } from './shared.ts';
 import { writeCommandCliOutput } from './output.ts';
 import type { ClientCommandHandler, ClientCommandHandlerMap } from './router-types.ts';
@@ -476,8 +477,8 @@ function readSettingsOptions(positionals: string[], flags: CliFlags): SettingsUp
       ...base,
       setting,
       state,
-      latitude: readCoordinate(positionals[2], 'latitude', -90, 90),
-      longitude: readCoordinate(positionals[3], 'longitude', -180, 180),
+      latitude: readLocationCoordinate(positionals[2], 'latitude'),
+      longitude: readLocationCoordinate(positionals[3], 'longitude'),
     };
   }
   if (setting === 'appearance' && (state === 'light' || state === 'dark' || state === 'toggle')) {
@@ -531,22 +532,6 @@ function readPermission(value: string | undefined): PermissionTarget {
 function readPermissionMode(value: string | undefined): 'full' | 'limited' | undefined {
   if (value === undefined || value === 'full' || value === 'limited') return value;
   throw new AppError('INVALID_ARGS', 'settings permission mode must be full or limited.');
-}
-
-function readCoordinate(
-  value: string | undefined,
-  label: 'latitude' | 'longitude',
-  min: number,
-  max: number,
-): number {
-  if (value === undefined || value.trim() === '') {
-    throw new AppError('INVALID_ARGS', `settings location set requires ${label}`);
-  }
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
-    throw new AppError('INVALID_ARGS', `${label} must be a number from ${min} to ${max}`);
-  }
-  return parsed;
 }
 
 function readJsonObject(value: string, label: string): Record<string, unknown> {

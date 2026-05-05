@@ -635,6 +635,38 @@ test('settings usage hint documents canonical faceid states', async () => {
   }
 });
 
+test('settings location set dispatches coordinates without placeholder slots', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-location';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, iosSimulatorDevice),
+    appBundleId: 'com.example.maps',
+  });
+  mockDispatch.mockResolvedValue({ setting: 'location', state: 'set' });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'settings',
+      positionals: ['location', 'set', '37.3349', '-122.009'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch).toHaveBeenCalledWith(
+    iosSimulatorDevice,
+    'settings',
+    ['location', 'set', '37.3349', '-122.009', 'com.example.maps'],
+    undefined,
+    expect.objectContaining({ appBundleId: 'com.example.maps' }),
+  );
+});
+
 test('settings on macOS returns helper-backed permission status', async () => {
   await withMockedMacOsHelper(
     [

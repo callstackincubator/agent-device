@@ -2354,7 +2354,7 @@ test('setIosSetting location set sends simulator latitude and longitude', async 
         longitude: -122.009,
       });
       const logged = await fs.readFile(argsLogPath, 'utf8');
-      assert.match(logged, /simctl\nlocation\nsim-1\nset\n37\.3349\n-122\.009/);
+      assert.match(logged, /simctl\nlocation\nsim-1\nset\n37\.3349,-122\.009/);
     },
   );
 });

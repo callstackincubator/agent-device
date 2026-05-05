@@ -67,12 +67,12 @@ export async function handleSettingsCommand(
   }
 
   const appBundleId = session?.appBundleId;
-  // Settings positional layout for dispatch: setting, state, [target, mode], appBundleId.
+  // Settings positional layout for dispatch: setting, state, command payload, appBundleId.
   const positionals =
     setting === 'permission'
       ? [setting, state, permissionTarget ?? '', req.positionals?.[3] ?? '', appBundleId ?? '']
       : setting === 'location' && state === 'set'
-        ? [setting, state, latitude ?? '', longitude ?? '', '', appBundleId ?? '']
+        ? [setting, state, latitude ?? '', longitude ?? '', appBundleId ?? '']
         : [setting, state, appBundleId ?? ''];
   const data = await dispatchCommand(device, 'settings', positionals, req.flags?.out, {
     ...contextFromFlags(logPath, req.flags, appBundleId, session?.trace?.outPath),

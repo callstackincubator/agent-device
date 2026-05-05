@@ -12,6 +12,7 @@ concurrency: preview-${{ github.ref }}
 
 jobs:
   deploy-preview:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: write

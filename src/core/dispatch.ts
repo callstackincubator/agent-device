@@ -26,6 +26,7 @@ import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
+import { readLocationCoordinate } from '../utils/location-coordinates.ts';
 import { successText, withSuccessText } from '../utils/success-text.ts';
 import { parseScrollDirection } from './scroll-gesture.ts';
 import {
@@ -695,7 +696,7 @@ async function handleSettingsCommand(
     setting === 'permission'
       ? (positionals[4] ?? context?.appBundleId)
       : setting === 'location' && state === 'set'
-        ? (positionals[5] ?? context?.appBundleId)
+        ? (positionals[4] ?? context?.appBundleId)
         : (positionals[2] ?? context?.appBundleId);
   const settingOptions =
     setting === 'permission'
@@ -705,8 +706,8 @@ async function handleSettingsCommand(
         }
       : setting === 'location' && state === 'set'
         ? {
-            latitude: readLocationCoordinate(target, 'latitude', -90, 90),
-            longitude: readLocationCoordinate(mode, 'longitude', -180, 180),
+            latitude: readLocationCoordinate(target, 'latitude'),
+            longitude: readLocationCoordinate(mode, 'longitude'),
           }
         : undefined;
   emitDiagnostic({
@@ -727,22 +728,6 @@ async function handleSettingsCommand(
         readResultMessage(result) ?? `Updated setting: ${setting}`,
       )
     : { setting, state, ...successText(`Updated setting: ${setting}`) };
-}
-
-function readLocationCoordinate(
-  value: string | undefined,
-  label: 'latitude' | 'longitude',
-  min: number,
-  max: number,
-): number {
-  if (value === undefined || value.trim() === '') {
-    throw new AppError('INVALID_ARGS', `settings location set requires ${label}`);
-  }
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
-    throw new AppError('INVALID_ARGS', `${label} must be a number from ${min} to ${max}`);
-  }
-  return parsed;
 }
 
 async function handlePushCommand(
