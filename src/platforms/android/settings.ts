@@ -1,11 +1,13 @@
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import { requireLocationCoordinates } from '../../utils/location-coordinates.ts';
 import {
   parsePermissionAction,
   parsePermissionTarget,
-  type PermissionSettingOptions,
+  type SettingOptions,
 } from '../permission-utils.ts';
 import { parseAppearanceAction } from '../appearance.ts';
+import { parseSettingState } from '../setting-state.ts';
 import { runAndroidAdb } from './adb.ts';
 
 const ANDROID_ANIMATION_SCALE_SETTINGS = [
@@ -19,7 +21,7 @@ export async function setAndroidSetting(
   setting: string,
   state: string,
   appPackage?: string,
-  options?: PermissionSettingOptions,
+  options?: SettingOptions,
 ): Promise<Record<string, unknown> | void> {
   const normalized = setting.toLowerCase();
   switch (normalized) {
@@ -198,38 +200,6 @@ function isAndroidFingerprintCapabilityMissing(stdout: string, stderr: string): 
     text.includes('emulator console is not running') ||
     (text.includes('fingerprint') && text.includes('not found'))
   );
-}
-
-function parseSettingState(state: string): boolean {
-  const normalized = state.toLowerCase();
-  if (normalized === 'on' || normalized === 'true' || normalized === '1') return true;
-  if (normalized === 'off' || normalized === 'false' || normalized === '0') return false;
-  throw new AppError('INVALID_ARGS', `Invalid setting state: ${state}`);
-}
-
-function requireLocationCoordinates(options: PermissionSettingOptions | undefined): {
-  latitude: number;
-  longitude: number;
-} {
-  const latitude = options?.latitude;
-  const longitude = options?.longitude;
-  if (
-    typeof latitude !== 'number' ||
-    !Number.isFinite(latitude) ||
-    latitude < -90 ||
-    latitude > 90
-  ) {
-    throw new AppError('INVALID_ARGS', 'latitude must be a number from -90 to 90');
-  }
-  if (
-    typeof longitude !== 'number' ||
-    !Number.isFinite(longitude) ||
-    longitude < -180 ||
-    longitude > 180
-  ) {
-    throw new AppError('INVALID_ARGS', 'longitude must be a number from -180 to 180');
-  }
-  return { latitude, longitude };
 }
 
 async function resolveAndroidAppearanceTarget(

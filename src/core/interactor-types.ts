@@ -1,6 +1,6 @@
 import type { DeviceRotation } from './device-rotation.ts';
 import type { ScrollDirection } from './scroll-gesture.ts';
-import type { PermissionSettingOptions } from '../platforms/permission-utils.ts';
+import type { SettingOptions } from '../platforms/permission-utils.ts';
 import type { SessionSurface } from './session-surface.ts';
 
 export type RunnerContext = {
@@ -59,6 +59,6 @@ export type Interactor = {
     setting: string,
     state: string,
     appId?: string,
-    options?: PermissionSettingOptions,
+    options?: SettingOptions,
   ): Promise<Record<string, unknown> | void>;
 };

@@ -776,6 +776,47 @@ test('settings location set forwards coordinates to client settings update', asy
   assert.equal(observed?.longitude, -122.009);
 });
 
+test('settings location set rejects invalid coordinates before client call', async () => {
+  const client = createStubClient({
+    installFromSource: async () => ({
+      launchTarget: 'com.example.demo',
+      packageName: 'com.example.demo',
+      identifiers: { appId: 'com.example.demo' },
+    }),
+    updateSettings: async () => {
+      throw new Error('unexpected settings update');
+    },
+  });
+
+  const cases: Array<[string[], RegExp]> = [
+    [['location', 'set', '91', '-122.009'], /latitude must be a number from -90 to 90/],
+    [['location', 'set', '37.3349', 'not-a-number'], /longitude must be a number from -180 to 180/],
+  ];
+
+  for (const [positionals, message] of cases) {
+    await assert.rejects(
+      () =>
+        tryRunClientBackedCommand({
+          command: 'settings',
+          positionals,
+          flags: {
+            json: false,
+            help: false,
+            version: false,
+            platform: 'ios',
+          },
+          client,
+        }),
+      (error: unknown) => {
+        assert.equal(error instanceof AppError, true);
+        assert.equal((error as AppError).code, 'INVALID_ARGS');
+        assert.match((error as AppError).message, message);
+        return true;
+      },
+    );
+  }
+});
+
 async function captureStdout(run: () => Promise<void>): Promise<string> {
   let stdout = '';
   const originalWrite = process.stdout.write.bind(process.stdout);
