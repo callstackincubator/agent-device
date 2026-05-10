@@ -233,7 +233,11 @@ extension RunnerTests {
         if let element = findElement(app: activeApp, text: text) {
           let timing = measureGesture {
             withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+#if os(tvOS)
+              XCUIRemote.shared.press(.select)
+#else
               element.tap()
+#endif
             }
           }
           return Response(
@@ -634,12 +638,20 @@ extension RunnerTests {
       }
       if action == "accept" {
         let button = alert.buttons.allElementsBoundByIndex.first
+#if os(tvOS)
+        XCUIRemote.shared.press(.select)
+#else
         button?.tap()
+#endif
         return Response(ok: true, data: DataPayload(message: "accepted"))
       }
       if action == "dismiss" {
         let button = alert.buttons.allElementsBoundByIndex.last
+#if os(tvOS)
+        XCUIRemote.shared.press(.select)
+#else
         button?.tap()
+#endif
         return Response(ok: true, data: DataPayload(message: "dismissed"))
       }
       let buttonLabels = alert.buttons.allElementsBoundByIndex.map { $0.label }
