@@ -1,7 +1,7 @@
-import { assert, commandMatcher, type CommandMatcher, type TestCase } from 'skillgym';
+import { assert, commandMatcher, type Case, type CommandMatcher } from 'skillgym';
 
 type SessionReport = Parameters<typeof assert.skills.has>[0];
-type AssertionContext = Parameters<TestCase['assert']>[1];
+type AssertionContext = Parameters<Case['assert']>[1];
 type OutputMatcher = string | RegExp | PlannedCommandMatcher;
 
 interface PlannedCommandMatcher {
@@ -40,7 +40,7 @@ function assertAgentDeviceEvidence(report: SessionReport) {
   // Some SkillGym runners do not expose skill telemetry. Keep this as a conditional routing
   // assertion instead of failing otherwise valid command-planning runs on missing metadata.
   if (hasDetectedSkills) {
-    assert.ok(
+    assert.soft.ok(
       hasBundledDeviceSkill,
       `Expected detectedSkills to include an agent-device bundled skill. Observed detectedSkills: ${detectedSkills
         .map((skill) => `${skill.skill} (${skill.confidence})`)
@@ -50,9 +50,15 @@ function assertAgentDeviceEvidence(report: SessionReport) {
 }
 
 function assertNoProjectSourceReads(report: SessionReport) {
-  assert.fileReads.notIncludes(report, APP_SOURCE);
-  assert.fileReads.notIncludes(report, REPO_SOURCE);
-  assert.fileReads.notIncludes(report, COMMAND_DOCS);
+  assert.soft.fileReads.notIncludes(report, APP_SOURCE, {
+    explain: { question: 'Why did you read the fixture app source instead of using CLI help?' },
+  });
+  assert.soft.fileReads.notIncludes(report, REPO_SOURCE, {
+    explain: { question: 'Why did you read repo source files instead of using CLI help?' },
+  });
+  assert.soft.fileReads.notIncludes(report, COMMAND_DOCS, {
+    explain: { question: 'Why did you read website command docs instead of local CLI help?' },
+  });
 }
 
 function plannedCommand(command: string): PlannedCommandMatcher {
@@ -194,7 +200,7 @@ function makeCase(options: {
   tags?: string[];
   outputs?: OutputMatcher[];
   forbiddenOutputs?: OutputMatcher[];
-}): TestCase {
+}): Case {
   return {
     id: options.id,
     tags: options.tags,
@@ -202,21 +208,23 @@ function makeCase(options: {
     assert(report, ctx) {
       assertAgentDeviceEvidence(report);
       assertNoProjectSourceReads(report);
-      assert.fileReads.notIncludes(report, SUITE_FILE);
+      assert.soft.fileReads.notIncludes(report, SUITE_FILE, {
+        explain: { question: 'Why did you inspect the benchmark suite while answering?' },
+      });
       assertExpectedOutput(report, ctx, options.outputs);
       assertNoOutputs(ctx.finalOutput(), options.forbiddenOutputs ?? []);
     },
   };
 }
 
-function withTags(tags: string[], cases: TestCase[]): TestCase[] {
+function withTags(tags: string[], cases: Case[]): Case[] {
   return cases.map((testCase) => ({
     ...testCase,
     tags: [...new Set([...(testCase.tags ?? []), ...tags])],
   }));
 }
 
-const FIXTURE_SMOKE_CASES: TestCase[] = [
+const FIXTURE_SMOKE_CASES: Case[] = [
   makeCase({
     id: 'open-and-snapshot',
     contract: [
@@ -516,7 +524,7 @@ const FIXTURE_SMOKE_CASES: TestCase[] = [
   }),
 ];
 
-const SKILL_GUIDANCE_CASES: TestCase[] = [
+const SKILL_GUIDANCE_CASES: Case[] = [
   makeCase({
     id: 'inspect-visible-text-readonly',
     contract: [
@@ -1311,7 +1319,7 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
   }),
 ];
 
-const suite: TestCase[] = [
+const suite: Case[] = [
   ...withTags(['fixture-smoke'], FIXTURE_SMOKE_CASES),
   ...withTags(['skill-guidance'], SKILL_GUIDANCE_CASES),
 ];

@@ -11,7 +11,7 @@ This folder is a starter `skillgym` setup for benchmarking the `agent-device` sk
 3. Optional live-device smoke runs: locally, you can extend prompts so the agent actually drives `agent-device` against a simulator or device.
 
 The included suite focuses on the first two layers so it stays stable and CI-safe.
-The suite uses SkillGym v0.6 case tags:
+The suite uses SkillGym v0.8 case tags:
 
 - `fixture-smoke`: fixture-specific app surface coverage
 - `skill-guidance`: command-planning guidance regressions
@@ -50,7 +50,9 @@ Skill-guidance regression cases cover distinct command-planning habits:
 
 The `codex-mini` baseline is a benchmark signal, not a required all-green gate. Its failures should map to command-planning regressions called out by individual case IDs; do not treat the historical pass/fail count as a fixed threshold.
 
-SkillGym v0.6 command assertions are for observed command events. This suite primarily validates the command plan in the final answer, so it converts final-output command lines into a small planned-command report before calling `assert.commands.includes` or `assert.commands.notIncludes`.
+SkillGym v0.8 command assertions are for observed command events. This suite primarily validates the command plan in the final answer, so it converts final-output command lines into a small planned-command report before calling `assert.commands.includes` or `assert.commands.notIncludes`.
+The source-read guardrails use `assert.soft.*` plus deferred explain questions so one failing run can report multiple routing mistakes and can later be inspected with `skillgym explain`.
+Suite types use the v0.8 root export name `Case`; older `TestCase` imports no longer typecheck.
 
 ## Suggested workflow
 
@@ -78,7 +80,7 @@ pnpm exec skillgym run \
   --config ./test/skillgym/skillgym.config.ts
 ```
 
-Useful v0.6 filters and reporters:
+Useful v0.8 filters, reporters, and recovery options:
 
 ```bash
 pnpm build
@@ -91,11 +93,19 @@ pnpm exec skillgym run \
   ./test/skillgym/suites/agent-device-smoke-suite.ts \
   --config ./test/skillgym/skillgym.config.ts \
   --reporter json
+
+pnpm exec skillgym run \
+  ./test/skillgym/suites/agent-device-smoke-suite.ts \
+  --config ./test/skillgym/skillgym.config.ts \
+  --repeat 3 \
+  --repeat-failure 1
 ```
 
 Use `--reporter github-actions` in CI when you want annotations in GitHub Actions logs.
 
-The config uses `schedule: parallel` so the planning suite can run case/runner pairs concurrently up to SkillGym v0.6's default available-machine parallelism cap. This is safe for the included suite because cases validate command plans and local CLI help, not live shared device state or workspace edits. Override with `--max-parallel <n>` for local experiments that need a different cap.
+The config uses `schedule: parallel` so the planning suite can run case/runner pairs concurrently up to SkillGym v0.8's default available-machine parallelism cap. This is safe for the included suite because cases validate command plans and local CLI help, not live shared device state or workspace edits. Override with `--max-parallel <n>` for local experiments that need a different cap.
+Use `--repeat <n>` when you want stability sampling rather than a single pass. Use `--repeat-failure <n>` for local benchmark recovery from transient runner failures; keep it off for strict regression checks unless you explicitly want retry artifacts.
+When a run fails on an assertion that records explain questions, run `pnpm exec skillgym explain <artifact-dir>` against the failed `repeat-*` artifact directory to resume the runner and collect its explanation.
 
 Prerequisites:
 

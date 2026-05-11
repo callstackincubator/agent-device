@@ -37,8 +37,8 @@ importers:
         specifier: ^1.57.0
         version: 1.57.0
       skillgym:
-        specifier: ^0.6.0
-        version: 0.6.0
+        specifier: ^0.8.0
+        version: 0.8.0
       typescript:
         specifier: ^6.0.2
         version: 6.0.2
@@ -1824,8 +1824,8 @@ packages:
   siginfo@2.0.0:
     resolution: {integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==}
 
-  skillgym@0.6.0:
-    resolution: {integrity: sha512-wIyZgWfZCNt5uo61Awz7c893MNS+KID9iJiNwBKGyI1ddzYuUjKGT4STSejCFcVXZrjhX7tdmhV1U0fQ/3+Ceg==}
+  skillgym@0.8.0:
+    resolution: {integrity: sha512-JR7BI7rYCZ0n9aiEBtaeWawfYHDijlHyV57l+akngatzdl4O//mXTftLxzvMQ3G3O3mG0OA+dIHUn7E2hpPp2A==}
     engines: {node: '>=22.18.0'}
     hasBin: true
 
@@ -4131,7 +4131,7 @@ snapshots:
 
   siginfo@2.0.0: {}
 
-  skillgym@0.6.0:
+  skillgym@0.8.0:
     dependencies:
       cli-spinners: 3.4.0
       nano-spawn: 2.1.0
