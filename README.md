@@ -41,6 +41,23 @@ The CLI help is the source of truth for agents and is shipped with the installed
 
 If you install skills separately, keep the CLI on `agent-device >= 0.14.0`. Older CLIs do not include the workflow help topics that the router skills expect.
 
+### MCP Router
+
+`agent-device` also ships an official stdio MCP router for discovery-oriented clients. It exposes only `status`, `install`, and `help` tools plus workflow prompts/resources; device automation still runs through the CLI commands returned by version-matched help.
+
+```json
+{
+  "mcpServers": {
+    "agent-device": {
+      "command": "agent-device",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Registry metadata uses MCP name `io.github.callstackincubator/agent-device`, npm package `agent-device`, stdio transport, `mcpName` package verification, `server.json`, and `smithery.yaml`.
+
 ```bash
 npm install -g agent-device@latest
 agent-device --version
@@ -113,6 +130,7 @@ Agent integration:
 - [agent-device skill](skills/agent-device/SKILL.md)
 - [react-devtools skill](skills/react-devtools/SKILL.md)
 - [dogfood skill](skills/dogfood/SKILL.md)
+- MCP router: `agent-device mcp`
 - [agent-device skill on ClawHub](https://clawhub.ai/okwasniewski/agent-device)
 
 ## Contributing

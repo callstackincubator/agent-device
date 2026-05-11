@@ -31,6 +31,43 @@ Interactive CLI runs periodically check for a newer published `agent-device` pac
 
 Set `AGENT_DEVICE_NO_UPDATE_NOTIFIER=1` to disable the notice.
 
+## MCP router
+
+`agent-device mcp` starts the official stdio MCP router for discovery-oriented clients. It exposes only `status`, `install`, and `help` tools plus workflow prompts/resources. Device automation still runs through the CLI commands returned by version-matched help.
+
+```bash
+npm install -g agent-device
+agent-device mcp
+```
+
+Generic MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "agent-device": {
+      "command": "agent-device",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+No global install variant:
+
+```json
+{
+  "mcpServers": {
+    "agent-device": {
+      "command": "npx",
+      "args": ["-y", "agent-device", "mcp"]
+    }
+  }
+}
+```
+
+Registry metadata uses MCP name `io.github.callstackincubator/agent-device`, npm package `agent-device`, stdio transport, `mcpName` package verification, `server.json`, and `smithery.yaml`.
+
 ## Without installing
 
 ```bash
