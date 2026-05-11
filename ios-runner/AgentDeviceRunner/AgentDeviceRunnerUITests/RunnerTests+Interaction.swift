@@ -59,7 +59,7 @@ extension RunnerTests {
 #if os(macOS)
     return false
 #else
-    if pressTvRemoteMenuIfAvailable() {
+    if pressTvRemote(.menu) {
       return true
     }
     performBackGesture(app: app)
@@ -89,7 +89,7 @@ extension RunnerTests {
 #if os(macOS)
     return
 #else
-    if pressTvRemoteHomeIfAvailable() {
+    if pressTvRemote(.home) {
       return
     }
     XCUIDevice.shared.press(.home)
@@ -439,14 +439,13 @@ extension RunnerTests {
     y2: Double,
     holdDuration: TimeInterval
   ) -> RunnerInteractionOutcome {
-    if canUseTvRemote() {
-      // tvOS has no coordinate drag. Preserve the direction as a focus move.
-      let dx = x2 - x
-      let dy = y2 - y
-      let button: TvRemoteButton = abs(dx) > abs(dy)
-        ? (dx > 0 ? .right : .left)
-        : (dy > 0 ? .down : .up)
-      _ = pressTvRemote(button)
+    // tvOS has no coordinate drag. Preserve the direction as a focus move.
+    let dx = x2 - x
+    let dy = y2 - y
+    let button: TvRemoteButton = abs(dx) > abs(dy)
+      ? (dx > 0 ? .right : .left)
+      : (dy > 0 ? .down : .up)
+    if pressTvRemote(button) {
       return .performed
     }
     return performCoordinateDrag(app: app, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)

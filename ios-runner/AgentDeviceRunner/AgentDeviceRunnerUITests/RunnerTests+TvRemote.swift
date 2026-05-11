@@ -16,14 +16,6 @@ enum TvRemoteButton {
 }
 
 extension RunnerTests {
-  func pressTvRemoteMenuIfAvailable() -> Bool {
-    return pressTvRemote(.menu)
-  }
-
-  func pressTvRemoteHomeIfAvailable() -> Bool {
-    return pressTvRemote(.home)
-  }
-
   func resolveTvRemoteDoublePressDelay() -> TimeInterval {
     guard
       let raw = ProcessInfo.processInfo.environment["AGENT_DEVICE_TV_REMOTE_DOUBLE_PRESS_DELAY_MS"],
@@ -35,14 +27,6 @@ extension RunnerTests {
       return tvRemoteDoublePressDelayDefault
     }
     return min(parsedMs, 1000) / 1000.0
-  }
-
-  func canUseTvRemote() -> Bool {
-#if os(tvOS)
-    return true
-#else
-    return false
-#endif
   }
 
   @discardableResult
@@ -58,11 +42,6 @@ extension RunnerTests {
 #else
     return false
 #endif
-  }
-
-  @discardableResult
-  func longPressTvRemoteSelect(duration: TimeInterval) -> Bool {
-    return pressTvRemote(.select, duration: duration)
   }
 
   func tvRemoteButton(from raw: String?) -> TvRemoteButton? {
@@ -120,7 +99,7 @@ extension RunnerTests {
     guard let focused = focusedTvElement(app: app), !focused.frame.isEmpty, focused.frame.contains(point) else {
       return .unsupported("long press is supported on tvOS only when the requested point is inside the focused element")
     }
-    _ = longPressTvRemoteSelect(duration: duration)
+    _ = pressTvRemote(.select, duration: duration)
     return .performed
 #else
     return nil
