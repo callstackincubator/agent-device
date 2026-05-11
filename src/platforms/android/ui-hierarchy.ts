@@ -21,24 +21,6 @@ export type AndroidUiNodeMetadata = {
   password?: boolean;
 };
 
-export function findBounds(xml: string, query: string): { x: number; y: number } | null {
-  const q = query.toLowerCase();
-  for (const node of androidUiNodes(xml)) {
-    const textVal = (node.text ?? '').toLowerCase();
-    const descVal = (node.desc ?? '').toLowerCase();
-    if (textVal.includes(q) || descVal.includes(q)) {
-      if (node.rect) {
-        return {
-          x: Math.floor(node.rect.x + node.rect.width / 2),
-          y: Math.floor(node.rect.y + node.rect.height / 2),
-        };
-      }
-      return { x: 0, y: 0 };
-    }
-  }
-  return null;
-}
-
 export function* androidUiNodes(xml: string): IterableIterator<AndroidUiNodeMetadata> {
   const nodeRegex = /<node\b[^>]*>/g;
   let match = nodeRegex.exec(xml);
