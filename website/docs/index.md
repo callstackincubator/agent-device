@@ -2,29 +2,27 @@
 pageType: home
 
 hero:
-  name: Control iOS and Android devices with AI agents.
-  tagline: agent-device is a token-efficient CLI for mobile UI automation and app observability. It gives agents structured UI access, deterministic interactions, and built-in logs, network inspection, and perf metrics when the happy path breaks.
+  name: Agent-native app automation for mobile, TV, and desktop.
+  tagline: agent-device gives coding agents structured UI access, deterministic interactions, and app-level evidence across mobile, TV, and desktop targets. Use it to verify generated code, debug broken flows, profile runtime behavior, and turn exploratory QA into replayable checks.
   actions:
     - theme: brand
       text: Get Started
-      link: /docs/introduction
+      link: /docs/agent-setup
     - theme: alt
       text: Commands
       link: /docs/commands
 
 features:
-  - title: One CLI, many devices
-    details: Control iOS simulators, Android emulators, and physical devices with consistent snapshot and interaction commands.
-  - title: Token-efficient UI snapshots
-    details: Accessibility trees give agents a complete view of the UI while keeping output compact.
-  - title: Interactions that just work
-    details: Tap, swipe, scroll, focus, and type with precise coordinates or semantic finders.
-  - title: Built-in observability
-    details: Collect session logs, inspect recent HTTP traffic with network dump, and sample CPU and memory metrics with perf.
+  - title: One CLI, many app surfaces
+    details: Control iOS, Android, tvOS, Android TV, macOS, and Linux desktop targets with consistent snapshot and interaction commands.
+  - title: Accessibility-first snapshots
+    details: Accessibility trees give agents compact UI context without forcing screenshot-only reasoning.
+  - title: Agent-native interactions
+    details: Tap, swipe, scroll, focus, type, assert, and find visible UI through refs, selectors, and semantic finders.
+  - title: Built-in debugging and profiling
+    details: Collect session logs, inspect recent HTTP traffic, capture screenshots and recordings, and sample CPU, memory, startup, and frame-health metrics.
   - title: Session and replay
-    details: Open apps, switch apps in-session, and replay recorded actions to reproduce flows across platforms.
-  - title: Visual verification
-    details: Capture full-resolution screenshots and video recordings for reporting and visual checks.
-  - title: Complementary React internals
+    details: Open apps, keep stateful context, and replay recorded `.ad` actions to reproduce flows without AI at runtime.
+  - title: React Native internals
     details: Use agent-device react-devtools to inspect React Native component trees, props, state, hooks, and render profiles through pinned agent-react-devtools.
 ---
