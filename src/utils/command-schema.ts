@@ -1470,6 +1470,14 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     ],
     skipCapabilityCheck: true,
   },
+  mcp: {
+    helpDescription:
+      'Start the official stdio MCP router for status, install guidance, version-matched CLI help, workflow prompts, and help resources. The MCP router does not expose device automation or shell execution tools.',
+    summary: 'Start MCP discovery router',
+    positionalArgs: [],
+    allowedFlags: [],
+    skipCapabilityCheck: true,
+  },
   disconnect: {
     helpDescription:
       'Disconnect remote daemon state, stop owned Metro companion, and release lease',
