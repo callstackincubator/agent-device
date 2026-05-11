@@ -28,6 +28,10 @@ The UI model is accessibility-first and token-efficient, so agents can reason ov
 
 It complements scripted test frameworks such as Appium, Maestro, Detox, XCTest, and Espresso. Use those for stable human-authored coverage. Use `agent-device` when an agent needs to explore, reproduce, debug, profile, collect evidence, or turn a successful session into a replayable `.ad` flow.
 
+`agent-device` closes the agentic development loop: agents can write code, run the real app, verify the UI end-to-end, collect screenshots/videos/logs/perf evidence, and feed bugs, crashes, or performance findings back into the next fix iteration before a human reviews the PR.
+
+![Sketch showing agent-device as the live app verification layer in the agentic development loop](/agentic-development-loop.svg)
+
 ## Platform support highlights
 
 - iOS core runner commands: `snapshot`, `snapshot --diff`, `diff snapshot`, `wait`, `click`, `fill`, `get`, `is`, `find`, `press`, `long-press`, `focus`, `type`, `scroll`, `back`, `home`, `rotate`, `app-switcher`, `open` (app), `close`, `screenshot`, `apps`, `appstate`, `install`, `install-from-source`, `reinstall`, `trigger-app-event`.
