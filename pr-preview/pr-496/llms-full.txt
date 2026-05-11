@@ -148,6 +148,12 @@ Use agent-device only for app/device automation tasks. Before planning commands,
 Use the CLI in the integrated terminal. MCP is only a discovery/help router and does not expose device automation tools. Prefer `open -> snapshot -i -> act -> re-snapshot -> verify -> close`. Use current refs such as `@e3` for exploration and selectors for durable replay. Keep mutating commands against one session serial. Capture screenshots, logs, network, perf, traces, recordings, and `.ad` replay scripts only when they add evidence.
 ```
 
+Install the skill when your agent runtime supports skills:
+
+```bash
+npx skills add callstackincubator/agent-device
+```
+
 The bundled [agent-device skill](https://github.com/callstackincubator/agent-device/blob/main/skills/agent-device/SKILL.md) is the canonical router for skill-aware clients. It intentionally points agents back to installed CLI help instead of duplicating the command manual.
 
 ## Cursor
