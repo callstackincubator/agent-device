@@ -55,6 +55,7 @@ MCP support is intentionally a thin discovery router for install/status/help. Ap
 
 ## Next steps
 
+- Install the CLI: [Installation](/agent-device/pr-preview/pr-496/docs/installation.md)
 - Set up an agent client: [AI Agent Setup](/agent-device/pr-preview/pr-496/docs/agent-setup.md)
 - Run the first commands: [Quick Start](/agent-device/pr-preview/pr-496/docs/quick-start.md)
 - Inspect all command groups: [Commands](/agent-device/pr-preview/pr-496/docs/commands.md)

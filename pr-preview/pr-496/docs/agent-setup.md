@@ -4,7 +4,7 @@
 
 The short version: install the CLI, make the agent read version-matched help, and let the agent run CLI commands in a terminal. MCP is available for discovery and help, not broad device control.
 
-## Install
+## Prerequisite: install the CLI
 
 ```bash
 npm install -g agent-device@latest
@@ -21,6 +21,18 @@ npx -y agent-device@latest help workflow
 
 Global install is better for normal agent workflows because repeated commands, skills, and terminal sessions resolve to one stable version.
 
+For Node, Xcode, Android SDK, macOS, and iOS device prerequisites, see [Installation](/agent-device/pr-preview/pr-496/docs/installation.md).
+
+## Install the skill
+
+Install the skill when your agent runtime supports skills:
+
+```bash
+npx skills add callstackincubator/agent-device
+```
+
+The bundled [agent-device skill](https://github.com/callstackincubator/agent-device/blob/main/skills/agent-device/SKILL.md) is the canonical router for skill-aware clients. It intentionally points agents back to installed CLI help instead of duplicating the command manual.
+
 ## Recommended agent rule
 
 Add this as a project rule, custom instruction, or skill equivalent when your agent client supports it:
@@ -31,26 +43,11 @@ Use agent-device only for app/device automation tasks. Before planning commands,
 Use the CLI in the integrated terminal. MCP is only a discovery/help router and does not expose device automation tools. Prefer `open -> snapshot -i -> act -> re-snapshot -> verify -> close`. Use current refs such as `@e3` for exploration and selectors for durable replay. Keep mutating commands against one session serial. Capture screenshots, logs, network, perf, traces, recordings, and `.ad` replay scripts only when they add evidence.
 ```
 
-Install the skill when your agent runtime supports skills:
+## MCP router
 
-```bash
-npx skills add callstackincubator/agent-device
-```
+`agent-device mcp` starts the official stdio MCP router for discovery-oriented clients. It exposes only `status`, `install`, and `help` tools plus workflow prompts/resources. Device automation still runs through the CLI commands returned by version-matched help.
 
-The bundled [agent-device skill](https://github.com/callstackincubator/agent-device/blob/main/skills/agent-device/SKILL.md) is the canonical router for skill-aware clients. It intentionally points agents back to installed CLI help instead of duplicating the command manual.
-
-## Cursor
-
-Use Agent mode with the integrated terminal. Add the recommended rule above as a project rule, then run:
-
-```bash
-agent-device help workflow
-agent-device apps --platform ios
-agent-device open <app-or-url> --platform ios
-agent-device snapshot -i
-```
-
-Optional Cursor MCP configuration in `.cursor/mcp.json`:
+Global install configuration:
 
 ```json
 {
@@ -75,6 +72,21 @@ No global install variant:
   }
 }
 ```
+
+Registry metadata uses MCP name `io.github.callstackincubator/agent-device`, npm package `agent-device`, stdio transport, `mcpName` package verification, `server.json`, and `smithery.yaml`.
+
+## Cursor
+
+Use Agent mode with the integrated terminal. Add the recommended rule above as a project rule, then run:
+
+```bash
+agent-device help workflow
+agent-device apps --platform ios
+agent-device open <app-or-url> --platform ios
+agent-device snapshot -i
+```
+
+Optional: paste the [MCP router](#mcp-router) configuration into `.cursor/mcp.json`.
 
 ## Codex
 
@@ -103,35 +115,17 @@ If you configure MCP, keep using CLI commands for automation. The MCP router giv
 
 ## Windsurf, Cline, Goose, and other MCP clients
 
-Use the generic MCP config when the client supports `mcpServers`, then tell the agent to run device commands through the terminal:
-
-```json
-{
-  "mcpServers": {
-    "agent-device": {
-      "command": "agent-device",
-      "args": ["mcp"]
-    }
-  }
-}
-```
+Use the [MCP router](#mcp-router) configuration when the client supports `mcpServers`, then tell the agent to run device commands through the terminal.
 
 If the client has project rules or custom instructions, add the recommended agent rule above. If it does not, start the conversation by asking the agent to run `agent-device help workflow` before planning.
 
-## What agent-device is good at
+## Why this setup works
 
-- AI mobile testing and app QA from coding agents.
-- Local iOS, Android, tvOS, Android TV, macOS, and Linux desktop app automation.
-- Token-efficient UI understanding through accessibility snapshots instead of screenshot-only reasoning.
-- Deterministic interactions with current-screen refs and selector-backed replay.
-- Debug evidence collection: screenshots, video, logs, network traffic, traces, CPU/memory/perf snapshots, crash-related logs, and React Native render profiles.
-- Turning exploratory agent sessions into `.ad` replay scripts that can run later without AI.
+The CLI stays the auditable automation surface, installed help stays version-matched with the commands, skills and rules route agents toward the right help topics, and MCP gives discovery-oriented clients a small install/status/help entry point.
 
-## Where it is different
+For the broader positioning, supported targets, observability features, and how `agent-device` differs from scripted test frameworks, see [Introduction](/agent-device/pr-preview/pr-496/docs/introduction.md). For exact command groups and platform behavior, see [Commands](/agent-device/pr-preview/pr-496/docs/commands.md).
 
-`agent-device` is not a general-purpose mobile MCP that exposes every device action as an MCP tool. The MCP surface is intentionally small so discovery, installation, and help are easy while automation remains explicit CLI activity in the terminal.
-
-`agent-device` is also not a replacement for every human-authored test framework. Keep Appium, Maestro, Detox, XCTest, Espresso, or Playwright-style tests when you already have stable scripted coverage. Use `agent-device` when an agent needs to inspect a real app, interact with visible UI, debug runtime behavior, capture evidence, or record a replay from exploration.
+For the local execution model, permissions, artifacts, and sensitive data guidance, see [Security & Trust](/agent-device/pr-preview/pr-496/docs/security-trust.md).
 
 ## Agent-readable docs
 
