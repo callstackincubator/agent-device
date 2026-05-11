@@ -7,6 +7,7 @@ const initialFormState: CheckoutFormState = {
   name: '',
   email: '',
   phone: '',
+  imeCaptureTarget: '',
   notes: '',
   shipping: 'Delivery',
   payment: 'Card',

@@ -14,6 +14,7 @@ export interface CheckoutFormState {
   name: string;
   email: string;
   phone: string;
+  imeCaptureTarget: string;
   notes: string;
   shipping: 'Delivery' | 'Pickup';
   payment: 'Card' | 'Cash';
@@ -133,6 +134,32 @@ export function FormScreen(props: FormScreenProps) {
       </SectionCard>
 
       <SectionCard
+        subtitle="A fixture for Android cases where Gboard handwriting owns the focused input."
+        title="Android IME capture"
+        testID="android-ime-capture-fixture"
+      >
+        {/* SkillGym fixture: static diagnostic copy, not live state. */}
+        <TextField
+          accessibilityLabel="Android IME target field"
+          autoCapitalize="none"
+          label="Android IME target field"
+          onChangeText={(value) => props.onChange('imeCaptureTarget', value)}
+          placeholder="Search term"
+          testID="field-ime-capture-target"
+          value={props.form.imeCaptureTarget}
+        />
+        <View style={styles.diagnosticBlock} testID="ime-capture-diagnostic">
+          <Text style={styles.diagnosticText}>
+            Android fill input was captured by the active keyboard instead of the app field
+          </Text>
+          <Text style={styles.diagnosticMeta}>targetInput id="field-ime-capture-target"</Text>
+          <Text style={styles.diagnosticMeta}>
+            actualInput packageName="com.google.android.inputmethod.latin" inputMethodOwned=true
+          </Text>
+        </View>
+      </SectionCard>
+
+      <SectionCard
         subtitle="These button groups are stable selector targets."
         title="Delivery choices"
       >
@@ -230,6 +257,25 @@ function createStyles(colors: AppColors) {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 8,
+    },
+    diagnosticBlock: {
+      backgroundColor: colors.cardStrong,
+      borderColor: colors.line,
+      borderRadius: 8,
+      borderWidth: StyleSheet.hairlineWidth,
+      gap: 6,
+      padding: 12,
+    },
+    diagnosticMeta: {
+      color: colors.textSoft,
+      fontFamily: 'monospace',
+      fontSize: 12,
+      lineHeight: 18,
+    },
+    diagnosticText: {
+      color: colors.text,
+      fontSize: 14,
+      lineHeight: 20,
     },
     checkboxRow: {
       alignItems: 'center',

@@ -1156,6 +1156,29 @@ const SKILL_GUIDANCE_CASES: TestCase[] = [
     forbiddenOutputs: [plannedCommand('fill'), plannedCommand('type'), /keyboard dismiss/i],
   }),
   makeCase({
+    id: 'android-fill-ime-capture-stop-retry-loop',
+    contract: [
+      'Platform: Android',
+      'App name: Agent Device Tester',
+      'Current screen: Checkout form tab',
+      'The Android IME capture fixture is visible: id="android-ime-capture-fixture"',
+      'The app field is still visible as targetInput id="field-ime-capture-target"',
+      'The last fill failed: Android fill input was captured by the active keyboard instead of the app field',
+      'Diagnostic details show actualInput packageName="com.google.android.inputmethod.latin" inputMethodOwned=true',
+    ],
+    task: 'Plan the next diagnostic step. Do not retry fill or type until the IME handwriting/stylus state has been corrected.',
+    outputs: [
+      /(?:^|\n)(?:agent-device\s+)?keyboard\s+(?:status|get)(?:\s|$)/i,
+      /(?:IME|keyboard|Gboard|handwriting|stylus)/i,
+    ],
+    forbiddenOutputs: [
+      plannedCommand('fill'),
+      plannedCommand('type'),
+      RAW_COORDINATE_TARGET,
+      /adb shell/i,
+    ],
+  }),
+  makeCase({
     id: 'remote-cloud-connect-flow',
     contract: [
       'Cloud control plane owns the connection profile',

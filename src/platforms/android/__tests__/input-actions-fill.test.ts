@@ -1,0 +1,165 @@
+import { test } from 'vitest';
+import assert from 'node:assert/strict';
+import { ANDROID_EMULATOR } from '../../../__tests__/test-utils/index.ts';
+import { AppError } from '../../../utils/errors.ts';
+import { fillAndroid } from '../index.ts';
+import { withAndroidAdbProvider, type AndroidAdbExecutor } from '../adb-executor.ts';
+import {
+  androidFillFailureDetails,
+  androidFillFailureMessage,
+  readAndroidTextAtPointInHierarchy,
+  verifyAndroidFilledTextInHierarchy,
+} from '../fill-verification.ts';
+
+test('fillAndroid reports when the IME captures input instead of the app field', async () => {
+  const calls: string[][] = [];
+  let imeText = '';
+  await withFillAdb(
+    async (args) => {
+      calls.push(args);
+      if (isTextInput(args)) imeText = args[3] ?? '';
+      return adbResult(args[0] === 'exec-out' ? imeCaptureHierarchy(imeText) : '');
+    },
+    async () => {
+      await assert.rejects(
+        () => fillAndroid(ANDROID_EMULATOR, 10, 10, 'chips'),
+        (error: unknown) => {
+          assert.ok(error instanceof AppError);
+          assert.equal(error.code, 'COMMAND_FAILED');
+          assert.match(error.message, /captured by the active keyboard/i);
+          assert.equal(error.details?.failureReason, 'ime_capture');
+          assert.equal(inputDetails(error, 'actualInput')?.resourceId, IME_RESOURCE_ID);
+          assert.equal(
+            inputDetails(error, 'targetInput')?.resourceId,
+            'com.example.shop:id/search',
+          );
+          return true;
+        },
+      );
+    },
+  );
+
+  assert.equal(
+    calls.some((args) => args.join('\n') === 'shell\ncmd\nclipboard\nset\ntext'),
+    false,
+  );
+  assert.equal(
+    calls.some((args) => args.join('\n') === 'shell\ninput\nkeyevent\nKEYCODE_PASTE'),
+    false,
+  );
+});
+
+test('verifyAndroidFilledTextInHierarchy accepts matching-length masked password verification', () => {
+  const verification = verifyAndroidFilledTextInHierarchy(
+    passwordHierarchy(maskBullets('Test@123')),
+    10,
+    10,
+    'Test@123',
+  );
+
+  assert.equal(verification.ok, true);
+  assert.equal(verification.masked, true);
+});
+
+test('fillAndroid accepts matching-length masked password verification', async () => {
+  let typed = '';
+  await withFillAdb(
+    async (args) => {
+      if (isDeleteKey(args)) typed = '';
+      if (isTextInput(args)) typed = args[3] ?? '';
+      return adbResult(args[0] === 'exec-out' ? passwordHierarchy(maskBullets(typed)) : '');
+    },
+    async () => {
+      await fillAndroid(ANDROID_EMULATOR, 10, 10, 'Test@123');
+    },
+  );
+});
+
+test('verifyAndroidFilledTextInHierarchy redacts masked password values on wrong-length failure', () => {
+  const exposedPasswordValue = 'secret-value';
+  const verification = verifyAndroidFilledTextInHierarchy(
+    passwordHierarchy(exposedPasswordValue),
+    10,
+    10,
+    'Test@123',
+  );
+
+  assert.equal(verification.ok, false);
+  assertMaskedPasswordFailure(
+    androidFillFailureMessage(verification),
+    androidFillFailureDetails('Test@123', verification),
+    exposedPasswordValue,
+  );
+});
+
+test('readAndroidTextAtPointInHierarchy prefers focused edit text over point fallback', () => {
+  assert.equal(readAndroidTextAtPointInHierarchy(focusedEditHierarchy(), 10, 10), 'focused value');
+});
+
+const IME_RESOURCE_ID = 'com.google.android.inputmethod.latin:id/0_resource_name_obfuscated';
+
+async function withFillAdb(exec: AndroidAdbExecutor, fn: () => Promise<void>): Promise<void> {
+  await withAndroidAdbProvider({ exec }, { serial: ANDROID_EMULATOR.id }, fn);
+}
+
+function adbResult(stdout: string) {
+  return { stdout, stderr: '', exitCode: 0 };
+}
+
+function isTextInput(args: string[]): boolean {
+  return args[0] === 'shell' && args[1] === 'input' && args[2] === 'text';
+}
+
+function isDeleteKey(args: string[]): boolean {
+  return args.join('\n') === 'shell\ninput\nkeyevent\nKEYCODE_DEL';
+}
+
+function inputDetails(error: AppError, key: 'actualInput' | 'targetInput') {
+  return error.details?.[key] as Record<string, unknown> | null | undefined;
+}
+
+function assertMaskedPasswordFailure(
+  message: string,
+  details: Record<string, unknown>,
+  exposedPasswordValue: string,
+): void {
+  assert.match(message, /could not confirm masked text value/i);
+  assert.equal(details.failureReason, 'masked_unverified');
+  assert.equal(details.masked, true);
+  assert.equal(details.expected, undefined);
+  assert.equal(details.expectedLength, 8);
+  assert.equal(details.actual, null);
+  assert.equal(details.actualLength, exposedPasswordValue.length);
+  assert.equal(detailsInput(details, 'actualInput')?.text, null);
+  assert.equal(detailsInput(details, 'actualInput')?.textRedacted, true);
+  assert.equal(detailsInput(details, 'targetInput')?.text, null);
+  assert.doesNotMatch(JSON.stringify(details), /Test@123|secret-value/);
+}
+
+function detailsInput(details: Record<string, unknown>, key: 'actualInput' | 'targetInput') {
+  return details[key] as Record<string, unknown> | null | undefined;
+}
+
+function imeCaptureHierarchy(imeText: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?><hierarchy>
+<node package="com.example.shop" class="android.widget.EditText" text="Search Products" resource-id="com.example.shop:id/search" focused="false" bounds="[0,0][300,100]"/>
+<node package="com.google.android.inputmethod.latin" class="android.widget.EditText" text="${imeText}" resource-id="${IME_RESOURCE_ID}" focused="true" bounds="[0,700][300,800]"/>
+</hierarchy>`;
+}
+
+function passwordHierarchy(mask: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?><hierarchy><node package="com.example" class="android.widget.EditText" text="${mask}" password="true" focused="true" bounds="[0,0][200,100]"/></hierarchy>`;
+}
+
+function focusedEditHierarchy(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?><hierarchy>
+<node package="com.example" class="android.widget.TextView" text="point fallback" focused="false" bounds="[0,0][200,100]"/>
+<node package="com.example" class="android.widget.EditText" text="focused value" focused="true" bounds="[300,300][500,400]"/>
+</hierarchy>`;
+}
+
+function maskBullets(value: string): string {
+  return Array.from(value)
+    .map(() => '&#8226;')
+    .join('');
+}

@@ -184,6 +184,7 @@ const AGENT_QUICKSTART_LINES = [
   'Install flows: install/install-from-source first, then open the installed id with --relaunch.',
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
   'Clearing text: do not use fill <target> ""; use a visible clear/reset control or report that clearing is unsupported.',
+  'Android IME capture: if fill says input was captured by the keyboard/IME, inspect keyboard state and switch/disable handwriting before retrying; do not loop fill/type.',
   'Run mutating commands serially against one session; parallelize only read-only commands or separate sessions.',
   'Clipboard limits: iOS Allow Paste cannot be automated through XCUITest; prefill with clipboard write. Android non-ASCII should use fill/type, not raw adb input.',
   'After mutation: diff snapshot -i. Off-screen hints: scroll, then snapshot -i.',
@@ -290,6 +291,7 @@ Text entry:
   On iOS, prefer keyboard dismiss before manually pressing visible Done; the runner can use safe native keyboard controls and still reports unsupported layouts explicitly. If it returns UNSUPPORTED_OPERATION, prefer a visible app dismiss control, or use back --system only when system navigation is an acceptable side effect.
   Search-as-you-type fields on iOS can drop characters when driven too fast; use --delay-ms on fill/type before trying clipboard paste.
   iOS Allow Paste prompt cannot be exercised under XCUITest. To test paste-driven app behavior, prefill first with agent-device clipboard write "some text"; test the system prompt manually.
+  Android Gboard handwriting/stylus UI can capture text in an IME-owned input instead of the app field. If fill reports that input was captured by the keyboard/IME, use the diagnostic targetInput/actualInput details, inspect with keyboard status/get if needed, and switch or disable handwriting/trusted ADB keyboard outside the command plan before retrying. Do not keep retrying fill/type against the same field while the IME owns focus.
   Android non-ASCII can fail on some system images. Try fill/type normally; agent-device uses safer fallbacks. If the shell reports unsupported non-ASCII input, configure a trusted ADB keyboard IME outside the command plan and restore the previous IME afterward.
 
 Session ordering:

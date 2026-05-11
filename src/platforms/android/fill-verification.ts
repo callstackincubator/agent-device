@@ -1,0 +1,308 @@
+import type { DeviceInfo } from '../../utils/device.ts';
+import type { Rect } from '../../utils/snapshot.ts';
+import {
+  buildFillFailureDetails,
+  type FillFailureDetails,
+  type FillDiagnosticNode,
+  type FillVerification,
+  isSensitiveFillDiagnosticNode,
+} from '../fill-diagnostics.ts';
+import { sleep } from './adb.ts';
+import { dumpUiHierarchy } from './snapshot.ts';
+import { parseBounds, readNodeAttributes } from './ui-hierarchy.ts';
+
+export type AndroidFillVerificationNode = FillDiagnosticNode & {
+  className: string | null;
+  resourceId: string | null;
+  packageName: string | null;
+  rect: Rect;
+  focused: boolean;
+  password: boolean;
+  inputMethodOwned: boolean;
+  area: number;
+};
+
+export type AndroidFillVerification = FillVerification<AndroidFillVerificationNode>;
+
+type AndroidFillVerificationCandidate = AndroidFillVerificationNode & {
+  editText: boolean;
+};
+
+type AndroidTextAtPointInspection = {
+  targetInput: AndroidFillVerificationNode | null;
+  actualInput: AndroidFillVerificationNode | null;
+};
+
+type AndroidTextAtPointScan = {
+  focusedEdit: AndroidFillVerificationCandidate | null;
+  editAtPoint: AndroidFillVerificationCandidate | null;
+  anyAtPoint: AndroidFillVerificationCandidate | null;
+};
+
+export async function verifyAndroidFilledText(
+  device: DeviceInfo,
+  x: number,
+  y: number,
+  expected: string,
+): Promise<AndroidFillVerification> {
+  const verificationDelaysMs = [0, 150, 350];
+  let lastVerification: AndroidFillVerification | null = null;
+
+  for (const delayMs of verificationDelaysMs) {
+    if (delayMs > 0) {
+      await sleep(delayMs);
+    }
+    const verification = await inspectAndroidFilledText(device, x, y, expected);
+    lastVerification = verification;
+    if (verification.ok) {
+      return verification;
+    }
+  }
+
+  return (
+    lastVerification ?? {
+      ok: false,
+      actual: null,
+      reason: 'text_mismatch',
+      targetInput: null,
+      actualInput: null,
+    }
+  );
+}
+
+export async function readAndroidTextAtPoint(
+  device: DeviceInfo,
+  x: number,
+  y: number,
+): Promise<string | null> {
+  return readAndroidTextAtPointInHierarchy(await dumpUiHierarchy(device), x, y);
+}
+
+export function verifyAndroidFilledTextInHierarchy(
+  xml: string,
+  x: number,
+  y: number,
+  expected: string,
+): AndroidFillVerification {
+  const inspection = inspectAndroidTextAtPointInHierarchy(xml, x, y);
+  if (isAndroidImeCapture(inspection)) {
+    return {
+      ok: false,
+      actual: inspection.actualInput?.text ?? null,
+      reason: 'ime_capture',
+      targetInput: inspection.targetInput,
+      actualInput: inspection.actualInput,
+    };
+  }
+
+  return (
+    maskedAndroidFillVerification(inspection, expected) ??
+    textAndroidFillVerification(inspection, expected)
+  );
+}
+
+export function readAndroidTextAtPointInHierarchy(
+  xml: string,
+  x: number,
+  y: number,
+): string | null {
+  return inspectAndroidTextAtPointInHierarchy(xml, x, y).actualInput?.text ?? null;
+}
+
+export function androidFillFailureMessage(verification: AndroidFillVerification | null): string {
+  if (verification?.reason === 'ime_capture') {
+    return 'Android fill input was captured by the active keyboard instead of the app field';
+  }
+  if (verification?.reason === 'masked_unverified') {
+    return 'Android fill verification could not confirm masked text value';
+  }
+  return 'Android fill verification failed';
+}
+
+export function androidFillFailureDetails(
+  expected: string,
+  verification: AndroidFillVerification | null,
+): FillFailureDetails<AndroidFillVerificationNode> {
+  const details = buildFillFailureDetails(expected, verification);
+  if (verification?.reason === 'ime_capture') {
+    details.hint =
+      'The focused input belongs to the Android keyboard/IME, not the app field. Disable handwriting/stylus input or switch to a standard IME, then retry fill.';
+  }
+  return details;
+}
+
+async function inspectAndroidFilledText(
+  device: DeviceInfo,
+  x: number,
+  y: number,
+  expected: string,
+): Promise<AndroidFillVerification> {
+  return verifyAndroidFilledTextInHierarchy(await dumpUiHierarchy(device), x, y, expected);
+}
+
+function inspectAndroidTextAtPointInHierarchy(
+  xml: string,
+  x: number,
+  y: number,
+): AndroidTextAtPointInspection {
+  const nodeRegex = /<node\b[^>]*>/g;
+  let match: RegExpExecArray | null;
+  const scan: AndroidTextAtPointScan = {
+    focusedEdit: null,
+    editAtPoint: null,
+    anyAtPoint: null,
+  };
+
+  while ((match = nodeRegex.exec(xml)) !== null) {
+    const candidate = androidFillCandidateFromNode(match[0]);
+    if (candidate) updateAndroidTextAtPointScan(scan, candidate, x, y);
+  }
+
+  return androidTextAtPointInspection(scan);
+}
+
+function isAndroidImeCapture(inspection: AndroidTextAtPointInspection): boolean {
+  const { targetInput, actualInput } = inspection;
+  if (!targetInput || !actualInput) return false;
+  if (actualInput === targetInput) return false;
+  return actualInput.inputMethodOwned && !targetInput.inputMethodOwned;
+}
+
+function maskedAndroidFillVerification(
+  inspection: AndroidTextAtPointInspection,
+  expected: string,
+): AndroidFillVerification | null {
+  const actualInput = inspection.actualInput;
+  if (!actualInput || !isMaskedAndroidInput(actualInput)) return null;
+  const actual = actualInput.text ?? null;
+  const actualLength = Array.from(actual ?? '').length;
+  const expectedLength = Array.from(expected).length;
+  const matched =
+    actual !== null && actualLength > 0 && expectedLength > 0 && actualLength === expectedLength;
+  return {
+    ok: matched,
+    actual,
+    reason: matched ? undefined : 'masked_unverified',
+    masked: true,
+    targetInput: inspection.targetInput,
+    actualInput,
+  };
+}
+
+function textAndroidFillVerification(
+  inspection: AndroidTextAtPointInspection,
+  expected: string,
+): AndroidFillVerification {
+  const actual = inspection.actualInput?.text ?? null;
+  return {
+    ok: isAcceptableAndroidFillMatch(actual, expected),
+    actual,
+    reason: 'text_mismatch',
+    targetInput: inspection.targetInput,
+    actualInput: inspection.actualInput,
+  };
+}
+
+function isAcceptableAndroidFillMatch(actual: string | null, expected: string): boolean {
+  if (actual === expected) {
+    return true;
+  }
+  const normalizedActual = normalizeFillVerificationText(actual);
+  const normalizedExpected = normalizeFillVerificationText(expected);
+  if (!normalizedActual || !normalizedExpected) {
+    return false;
+  }
+  if (normalizedActual === normalizedExpected) {
+    return true;
+  }
+  if (normalizedActual.includes(normalizedExpected)) {
+    return true;
+  }
+  return (
+    normalizedExpected.includes(normalizedActual) &&
+    normalizedActual.length >= Math.max(4, Math.floor(normalizedExpected.length * 0.8))
+  );
+}
+
+function normalizeFillVerificationText(value: string | null): string {
+  return (value ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function androidFillCandidateFromNode(node: string): AndroidFillVerificationCandidate | null {
+  const attrs = readNodeAttributes(node);
+  const rect = parseBounds(attrs.bounds);
+  if (!rect) return null;
+  const text = attrs.text ?? '';
+  const area = Math.max(1, rect.width * rect.height);
+  return {
+    text: text || null,
+    className: attrs.className,
+    resourceId: attrs.resourceId,
+    packageName: attrs.packageName,
+    rect,
+    focused: attrs.focused ?? false,
+    password: attrs.password === true,
+    inputMethodOwned: isInputMethodOwnedAndroidNode(attrs.packageName, attrs.resourceId),
+    area,
+    editText: isEditTextClass(attrs.className ?? ''),
+  };
+}
+
+function updateAndroidTextAtPointScan(
+  scan: AndroidTextAtPointScan,
+  candidate: AndroidFillVerificationCandidate,
+  x: number,
+  y: number,
+): void {
+  const containsPoint = containsAndroidPoint(candidate.rect, x, y);
+  if (containsPoint && candidate.editText) {
+    scan.editAtPoint = smallerAndroidFillCandidate(scan.editAtPoint, candidate);
+  }
+  if (candidate.focused && candidate.editText) {
+    scan.focusedEdit = smallerAndroidFillCandidate(scan.focusedEdit, candidate);
+    return;
+  }
+  if (containsPoint && candidate.text) {
+    scan.anyAtPoint = smallerAndroidFillCandidate(scan.anyAtPoint, candidate);
+  }
+}
+
+function containsAndroidPoint(rect: Rect, x: number, y: number): boolean {
+  return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
+}
+
+function smallerAndroidFillCandidate<T extends AndroidFillVerificationCandidate>(
+  current: T | null,
+  next: T,
+): T {
+  return current && current.area < next.area ? current : next;
+}
+
+function androidTextAtPointInspection(scan: AndroidTextAtPointScan): AndroidTextAtPointInspection {
+  const targetInput = scan.editAtPoint ?? scan.anyAtPoint;
+  const focusedInput = scan.focusedEdit?.text ? scan.focusedEdit : null;
+  return {
+    targetInput,
+    actualInput: focusedInput ?? targetInput,
+  };
+}
+
+function isEditTextClass(className: string): boolean {
+  const lower = className.toLowerCase();
+  return lower.includes('edittext') || lower.includes('textfield');
+}
+
+function isInputMethodOwnedAndroidNode(
+  packageName: string | null,
+  resourceId: string | null,
+): boolean {
+  const normalizedPackageName = (packageName ?? '').toLowerCase();
+  const normalizedResourceId = (resourceId ?? '').toLowerCase();
+  if (normalizedPackageName.includes('inputmethod')) return true;
+  if (normalizedPackageName === 'com.google.android.inputmethod.latin') return true;
+  return normalizedResourceId.startsWith('com.google.android.inputmethod.latin:id/');
+}
+
+function isMaskedAndroidInput(node: AndroidFillVerificationNode): boolean {
+  return isSensitiveFillDiagnosticNode(node);
+}

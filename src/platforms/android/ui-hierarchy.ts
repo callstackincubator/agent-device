@@ -176,12 +176,14 @@ export function readNodeAttributes(node: string): {
   text: string | null;
   desc: string | null;
   resourceId: string | null;
+  packageName: string | null;
   className: string | null;
   bounds: string | null;
   clickable?: boolean;
   enabled?: boolean;
   focusable?: boolean;
   focused?: boolean;
+  password?: boolean;
 } {
   const attrs = parseXmlNodeAttributes(node);
   const getAttr = (name: string): string | null => readXmlAttr(attrs, name);
@@ -194,12 +196,14 @@ export function readNodeAttributes(node: string): {
     text: getAttr('text'),
     desc: getAttr('content-desc'),
     resourceId: getAttr('resource-id'),
+    packageName: getAttr('package'),
     className: getAttr('class'),
     bounds: getAttr('bounds'),
     clickable: boolAttr('clickable'),
     enabled: boolAttr('enabled'),
     focusable: boolAttr('focusable'),
     focused: boolAttr('focused'),
+    password: boolAttr('password'),
   };
 }
 

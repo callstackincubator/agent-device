@@ -800,6 +800,7 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Install flows: install\/install-from-source first/);
   assert.match(usageText, /fill 'id="field-email"' "qa@example\.com" replaces/);
   assert.match(usageText, /do not use fill <target> ""/);
+  assert.match(usageText, /Android IME capture: if fill says input was captured/);
   assert.match(usageText, /Run mutating commands serially against one session/);
   assert.match(usageText, /After mutation: diff snapshot -i/);
   assert.match(usageText, /app-owned back uses back/);
@@ -868,6 +869,9 @@ test('usageForCommand resolves workflow help topic', () => {
     /Do not run open\/press\/fill\/type\/scroll\/back\/alert\/replay\/batch\/close commands in parallel/,
   );
   assert.match(help, /agent-device clipboard write "some text"/);
+  assert.match(help, /Android Gboard handwriting\/stylus UI can capture text/);
+  assert.match(help, /targetInput\/actualInput details/);
+  assert.match(help, /Do not keep retrying fill\/type against the same field/);
   assert.match(help, /trusted ADB keyboard IME/);
   assert.match(help, /if no URL is provided but a target\/app name is provided, open that target/);
   assert.match(help, /do not split clear\/restart/);

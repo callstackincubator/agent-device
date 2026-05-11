@@ -2,9 +2,15 @@ import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DeviceRotation } from '../../core/device-rotation.ts';
 import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
-import { parseBounds, readNodeAttributes } from './ui-hierarchy.ts';
-import { dumpUiHierarchy } from './snapshot.ts';
 import { isClipboardShellUnsupported, runAndroidAdb, sleep } from './adb.ts';
+import {
+  androidFillFailureDetails,
+  androidFillFailureMessage,
+  verifyAndroidFilledText,
+  type AndroidFillVerification,
+} from './fill-verification.ts';
+
+export { readAndroidTextAtPoint } from './fill-verification.ts';
 
 export async function pressAndroid(device: DeviceInfo, x: number, y: number): Promise<void> {
   await runAndroidAdb(device, ['shell', 'input', 'tap', String(x), String(y)]);
@@ -140,7 +146,7 @@ export async function fillAndroid(
     attempts.push({ strategy: 'chunked_input', clearPadding: 24, minClear: 16, maxClear: 96 });
   }
 
-  let lastActual: string | null = null;
+  let lastVerification: AndroidFillVerification | null = null;
 
   for (const attempt of attempts) {
     await focusAndroid(device, x, y);
@@ -161,61 +167,25 @@ export async function fillAndroid(
       await typeAndroidChunked(device, text, 1, delayMs > 0 ? delayMs : 15);
     }
     const verification = await verifyAndroidFilledText(device, x, y, text);
-    lastActual = verification.actual;
+    lastVerification = verification;
     if (verification.ok) return;
+    if (verification.reason === 'ime_capture') {
+      throwAndroidFillFailure(text, verification);
+    }
   }
 
-  throw new AppError('COMMAND_FAILED', 'Android fill verification failed', {
-    expected: text,
-    actual: lastActual ?? null,
-  });
+  throwAndroidFillFailure(text, lastVerification);
 }
 
-async function verifyAndroidFilledText(
-  device: DeviceInfo,
-  x: number,
-  y: number,
+function throwAndroidFillFailure(
   expected: string,
-): Promise<{ ok: boolean; actual: string | null }> {
-  const verificationDelaysMs = [0, 150, 350];
-  let lastActual: string | null = null;
-
-  for (const delayMs of verificationDelaysMs) {
-    if (delayMs > 0) {
-      await sleep(delayMs);
-    }
-    lastActual = await readAndroidTextAtPoint(device, x, y);
-    if (isAcceptableAndroidFillMatch(lastActual, expected)) {
-      return { ok: true, actual: lastActual };
-    }
-  }
-
-  return { ok: false, actual: lastActual };
-}
-
-function isAcceptableAndroidFillMatch(actual: string | null, expected: string): boolean {
-  if (actual === expected) {
-    return true;
-  }
-  const normalizedActual = normalizeFillVerificationText(actual);
-  const normalizedExpected = normalizeFillVerificationText(expected);
-  if (!normalizedActual || !normalizedExpected) {
-    return false;
-  }
-  if (normalizedActual === normalizedExpected) {
-    return true;
-  }
-  if (normalizedActual.includes(normalizedExpected)) {
-    return true;
-  }
-  return (
-    normalizedExpected.includes(normalizedActual) &&
-    normalizedActual.length >= Math.max(4, Math.floor(normalizedExpected.length * 0.8))
+  verification: AndroidFillVerification | null,
+): never {
+  throw new AppError(
+    'COMMAND_FAILED',
+    androidFillFailureMessage(verification),
+    androidFillFailureDetails(expected, verification),
   );
-}
-
-function normalizeFillVerificationText(value: string | null): string {
-  return (value ?? '').replace(/\s+/g, ' ').trim();
 }
 
 export async function scrollAndroid(
@@ -351,67 +321,6 @@ async function clearFocusedText(device: DeviceInfo, count: number): Promise<void
       },
     );
   }
-}
-
-export async function readAndroidTextAtPoint(
-  device: DeviceInfo,
-  x: number,
-  y: number,
-): Promise<string | null> {
-  const xml = await dumpUiHierarchy(device);
-  const nodeRegex = /<node\b[^>]*>/g;
-  let match: RegExpExecArray | null;
-  let focusedEdit: { text: string; area: number } | null = null;
-  let editAtPoint: { text: string; area: number } | null = null;
-  let anyAtPoint: { text: string; area: number } | null = null;
-
-  while ((match = nodeRegex.exec(xml)) !== null) {
-    const node = match[0];
-    const attrs = readNodeAttributes(node);
-    const rect = parseBounds(attrs.bounds);
-    if (!rect) continue;
-    const className = attrs.className ?? '';
-    const text = decodeXmlEntities(attrs.text ?? '');
-    const focused = attrs.focused ?? false;
-    if (!text) continue;
-    const area = Math.max(1, rect.width * rect.height);
-    const containsPoint =
-      x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height;
-
-    if (focused && isEditTextClass(className)) {
-      if (!focusedEdit || area <= focusedEdit.area) {
-        focusedEdit = { text, area };
-      }
-      continue;
-    }
-    if (containsPoint && isEditTextClass(className)) {
-      if (!editAtPoint || area <= editAtPoint.area) {
-        editAtPoint = { text, area };
-      }
-      continue;
-    }
-    if (containsPoint) {
-      if (!anyAtPoint || area <= anyAtPoint.area) {
-        anyAtPoint = { text, area };
-      }
-    }
-  }
-
-  return focusedEdit?.text ?? editAtPoint?.text ?? anyAtPoint?.text ?? null;
-}
-
-function isEditTextClass(className: string): boolean {
-  const lower = className.toLowerCase();
-  return lower.includes('edittext') || lower.includes('textfield');
-}
-
-function decodeXmlEntities(value: string): string {
-  return value
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&');
 }
 
 function clampCount(value: number, min: number, max: number): number {
