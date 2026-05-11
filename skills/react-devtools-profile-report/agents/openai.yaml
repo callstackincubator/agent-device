@@ -1,0 +1,4 @@
+interface:
+  display_name: 'React DevTools Profile Report'
+  short_description: 'Create HTML reports from React profiles'
+  default_prompt: 'Use $react-devtools-profile-report to export a React DevTools profile and create an HTML performance report.'

@@ -222,6 +222,7 @@ Agent integration:
 
 - [agent-device skill](skills/agent-device/SKILL.md)
 - [react-devtools skill](skills/react-devtools/SKILL.md)
+- [react-devtools-profile-report skill](skills/react-devtools-profile-report/SKILL.md)
 - [dogfood skill](skills/dogfood/SKILL.md)
 - MCP router: `agent-device mcp`
 - [agent-device skill on ClawHub](https://clawhub.ai/okwasniewski/agent-device)

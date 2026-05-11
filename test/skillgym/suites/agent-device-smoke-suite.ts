@@ -34,7 +34,9 @@ function assertAgentDeviceEvidence(report: SessionReport) {
   const detectedSkills = report.detectedSkills ?? [];
   const hasDetectedSkills = detectedSkills.length > 0;
   const hasBundledDeviceSkill = detectedSkills.some((skill) =>
-    ['agent-device', 'react-devtools', 'dogfood'].includes(skill.skill),
+    ['agent-device', 'react-devtools', 'react-devtools-profile-report', 'dogfood'].includes(
+      skill.skill,
+    ),
   );
 
   // Some SkillGym runners do not expose skill telemetry. Keep this as a conditional routing
