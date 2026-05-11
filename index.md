@@ -1,15 +1,14 @@
-# Control iOS and Android devices with AI agents.
+# Agent-native app automation for mobile, TV, and desktop.
 
-> agent-device is a token-efficient CLI for mobile UI automation and app observability. It gives agents structured UI access, deterministic interactions, and built-in logs, network inspection, and perf metrics when the happy path breaks.
+> agent-device gives coding agents structured UI access, deterministic interactions, and app-level evidence across mobile, TV, and desktop targets. Use it to verify generated code, debug broken flows, profile runtime behavior, and turn exploratory QA into replayable checks.
 
-[Get Started](/docs/introduction) | [Commands](/docs/commands)
+[Get Started](/docs/agent-setup) | [Commands](/docs/commands)
 
 ## Features
 
-- **One CLI, many devices**: Control iOS simulators, Android emulators, and physical devices with consistent snapshot and interaction commands.
-- **Token-efficient UI snapshots**: Accessibility trees give agents a complete view of the UI while keeping output compact.
-- **Interactions that just work**: Tap, swipe, scroll, focus, and type with precise coordinates or semantic finders.
-- **Built-in observability**: Collect session logs, inspect recent HTTP traffic with network dump, and sample CPU and memory metrics with perf.
-- **Session and replay**: Open apps, switch apps in-session, and replay recorded actions to reproduce flows across platforms.
-- **Visual verification**: Capture full-resolution screenshots and video recordings for reporting and visual checks.
-- **Complementary React internals**: Use agent-device react-devtools to inspect React Native component trees, props, state, hooks, and render profiles through pinned agent-react-devtools.
+- **One CLI, many app surfaces**: Control iOS, Android, tvOS, Android TV, macOS, and Linux desktop targets with consistent snapshot and interaction commands.
+- **Accessibility-first snapshots**: Accessibility trees give agents compact UI context without forcing screenshot-only reasoning.
+- **Agent-native interactions**: Tap, swipe, scroll, focus, type, assert, and find visible UI through refs, selectors, and semantic finders.
+- **Built-in debugging and profiling**: Collect session logs, inspect recent HTTP traffic, capture screenshots and recordings, and sample CPU, memory, startup, and frame-health metrics.
+- **Session and replay**: Open apps, keep stateful context, and replay recorded `.ad` actions to reproduce flows without AI at runtime.
+- **React Native internals**: Use agent-device react-devtools to inspect React Native component trees, props, state, hooks, and render profiles through pinned agent-react-devtools.

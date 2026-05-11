@@ -1,9 +1,11 @@
 # Installation
 
+Install `agent-device` on the machine where the coding agent will run terminal commands.
+
 ## Global install
 
 ```bash
-npm install -g agent-device
+npm install -g agent-device@latest
 agent-device --version
 agent-device help
 ```
@@ -16,58 +18,33 @@ agent-device help debugging
 agent-device help react-devtools
 ```
 
-The CLI help is the source of truth. Skills are optional but recommended when your agent runtime supports them because they auto-route relevant tasks to the installed CLI's own help. The published router skills require `agent-device >= 0.14.0`; if you install or update skills separately, update the CLI too:
+For Cursor, Codex, Claude Code, Windsurf, Cline, Goose, skills, project rules, and MCP configuration, see [AI Agent Setup](/agent-device/docs/agent-setup.md). For the first app automation commands, see [Quick Start](/agent-device/docs/quick-start.md).
+
+Interactive CLI runs periodically check for a newer published `agent-device` package in the background. When an upgrade is available, the CLI suggests reinstalling the package globally:
 
 ```bash
 npm install -g agent-device@latest
 agent-device --version
 ```
 
-Interactive CLI runs periodically check for a newer published `agent-device` package in the background. When an upgrade is available, the CLI suggests reinstalling the package globally; that also refreshes the bundled `skills/` directory shipped with the release.
-
 Set `AGENT_DEVICE_NO_UPDATE_NOTIFIER=1` to disable the notice.
 
-## MCP router
+## Agent clients and MCP
 
-`agent-device mcp` starts the official stdio MCP router for discovery-oriented clients. It exposes only `status`, `install`, and `help` tools plus workflow prompts/resources. Device automation still runs through the CLI commands returned by version-matched help.
+The official MCP router is intentionally thin. It helps clients discover install/status/help, while app and device automation remains explicit CLI activity in the terminal.
 
 ```bash
-npm install -g agent-device
 agent-device mcp
 ```
 
-Generic MCP client configuration:
-
-```json
-{
-  "mcpServers": {
-    "agent-device": {
-      "command": "agent-device",
-      "args": ["mcp"]
-    }
-  }
-}
-```
-
-No global install variant:
-
-```json
-{
-  "mcpServers": {
-    "agent-device": {
-      "command": "npx",
-      "args": ["-y", "agent-device", "mcp"]
-    }
-  }
-}
-```
-
-Registry metadata uses MCP name `io.github.callstackincubator/agent-device`, npm package `agent-device`, stdio transport, `mcpName` package verification, `server.json`, and `smithery.yaml`.
+Use [AI Agent Setup](/agent-device/docs/agent-setup.md#mcp-router) for copy-paste MCP client configuration.
 
 ## Without installing
 
 ```bash
-npx agent-device open Settings --platform ios
+npx -y agent-device@latest --version
+npx -y agent-device@latest help workflow
+npx -y agent-device@latest open Settings --platform ios
 ```
 
 One-off `npx` usage is fine for humans and scripts. For agents, prefer global install so repeated commands and any installed skills resolve to the same CLI version. If an agent cannot rely on skills, it should run `agent-device help` or `agent-device help workflow` before planning device commands.
