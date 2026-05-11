@@ -29,6 +29,7 @@ export type RawSnapshotNode = {
   rect?: Rect;
   enabled?: boolean;
   selected?: boolean;
+  focused?: boolean;
   hittable?: boolean;
   depth?: number;
   parentIndex?: number;

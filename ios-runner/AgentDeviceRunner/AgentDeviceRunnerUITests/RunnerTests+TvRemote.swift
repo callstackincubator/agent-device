@@ -1,0 +1,206 @@
+import XCTest
+
+enum RunnerInteractionOutcome {
+  case performed
+  case unsupported(String)
+}
+
+enum TvRemoteButton {
+  case select
+  case menu
+  case home
+  case up
+  case down
+  case left
+  case right
+}
+
+extension RunnerTests {
+  func pressTvRemoteMenuIfAvailable() -> Bool {
+    return pressTvRemote(.menu)
+  }
+
+  func pressTvRemoteHomeIfAvailable() -> Bool {
+    return pressTvRemote(.home)
+  }
+
+  func resolveTvRemoteDoublePressDelay() -> TimeInterval {
+    guard
+      let raw = ProcessInfo.processInfo.environment["AGENT_DEVICE_TV_REMOTE_DOUBLE_PRESS_DELAY_MS"],
+      !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    else {
+      return tvRemoteDoublePressDelayDefault
+    }
+    guard let parsedMs = Double(raw), parsedMs >= 0 else {
+      return tvRemoteDoublePressDelayDefault
+    }
+    return min(parsedMs, 1000) / 1000.0
+  }
+
+  func canUseTvRemote() -> Bool {
+#if os(tvOS)
+    return true
+#else
+    return false
+#endif
+  }
+
+  @discardableResult
+  func pressTvRemote(_ button: TvRemoteButton, duration: TimeInterval? = nil) -> Bool {
+#if os(tvOS)
+    let remoteButton = xcuiRemoteButton(button)
+    if let duration, duration > 0 {
+      XCUIRemote.shared.press(remoteButton, forDuration: duration)
+    } else {
+      XCUIRemote.shared.press(remoteButton)
+    }
+    return true
+#else
+    return false
+#endif
+  }
+
+  @discardableResult
+  func longPressTvRemoteSelect(duration: TimeInterval) -> Bool {
+    return pressTvRemote(.select, duration: duration)
+  }
+
+  func tvRemoteButton(from raw: String?) -> TvRemoteButton? {
+    switch raw?.lowercased() {
+    case "select":
+      return .select
+    case "menu":
+      return .menu
+    case "home":
+      return .home
+    case "up":
+      return .up
+    case "down":
+      return .down
+    case "left":
+      return .left
+    case "right":
+      return .right
+    default:
+      return nil
+    }
+  }
+
+  func elementHasFocus(_ element: XCUIElement) -> Bool {
+    var focused = false
+    _ = RunnerObjCExceptionCatcher.catchException({
+      if let value = (element as NSObject).value(forKey: "hasFocus") as? Bool {
+        focused = value
+      }
+    })
+    return focused
+  }
+
+  func activateElement(app: XCUIApplication, element: XCUIElement, action: String) -> RunnerInteractionOutcome {
+    if let outcome = selectFocusedTvElement(app: app, element: element, action: action) {
+      return outcome
+    }
+    return performElementTap(element)
+  }
+
+  func selectFocusedTvElement(app: XCUIApplication, point: CGPoint, action: String) -> RunnerInteractionOutcome? {
+#if os(tvOS)
+    guard let focused = focusedTvElement(app: app), !focused.frame.isEmpty, focused.frame.contains(point) else {
+      return .unsupported("\(action) is supported on tvOS only when the requested point is inside the focused element")
+    }
+    _ = pressTvRemote(.select)
+    return .performed
+#else
+    return nil
+#endif
+  }
+
+  func longSelectFocusedTvElement(app: XCUIApplication, point: CGPoint, duration: TimeInterval) -> RunnerInteractionOutcome? {
+#if os(tvOS)
+    guard let focused = focusedTvElement(app: app), !focused.frame.isEmpty, focused.frame.contains(point) else {
+      return .unsupported("long press is supported on tvOS only when the requested point is inside the focused element")
+    }
+    _ = longPressTvRemoteSelect(duration: duration)
+    return .performed
+#else
+    return nil
+#endif
+  }
+
+  private func performElementTap(_ element: XCUIElement) -> RunnerInteractionOutcome {
+#if os(tvOS)
+    return .unsupported("element tap is not supported on tvOS; move focus with swipe or scroll, then select the focused element")
+#else
+    element.tap()
+    return .performed
+#endif
+  }
+
+  private func selectFocusedTvElement(app: XCUIApplication, element: XCUIElement, action: String) -> RunnerInteractionOutcome? {
+#if os(tvOS)
+    guard tvFocusedElementMatches(app: app, target: element) else {
+      return .unsupported("\(action) is supported on tvOS only when the requested element is focused")
+    }
+    _ = pressTvRemote(.select)
+    return .performed
+#else
+    return nil
+#endif
+  }
+
+  private func tvFocusedElementMatches(app: XCUIApplication, target: XCUIElement) -> Bool {
+#if os(tvOS)
+    if target.hasFocus {
+      return true
+    }
+    guard let focused = focusedTvElement(app: app) else {
+      return false
+    }
+    let targetFrame = target.frame
+    let focusedFrame = focused.frame
+    guard !targetFrame.isEmpty && !focusedFrame.isEmpty else {
+      return false
+    }
+    let focusedCenter = CGPoint(x: focusedFrame.midX, y: focusedFrame.midY)
+    let targetCenter = CGPoint(x: targetFrame.midX, y: targetFrame.midY)
+    return targetFrame.contains(focusedCenter)
+      || focusedFrame.contains(targetCenter)
+      || targetFrame.intersects(focusedFrame)
+#else
+    return false
+#endif
+  }
+
+  private func focusedTvElement(app: XCUIApplication) -> XCUIElement? {
+#if os(tvOS)
+    let focused = app
+      .descendants(matching: .any)
+      .matching(NSPredicate(format: "hasFocus == true"))
+      .firstMatch
+    return focused.exists ? focused : nil
+#else
+    return nil
+#endif
+  }
+
+#if os(tvOS)
+  private func xcuiRemoteButton(_ button: TvRemoteButton) -> XCUIRemote.Button {
+    switch button {
+    case .select:
+      return .select
+    case .menu:
+      return .menu
+    case .home:
+      return .home
+    case .up:
+      return .up
+    case .down:
+      return .down
+    case .left:
+      return .left
+    case .right:
+      return .right
+    }
+  }
+#endif
+}

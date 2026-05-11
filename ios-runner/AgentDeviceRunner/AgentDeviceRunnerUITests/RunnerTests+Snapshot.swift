@@ -28,6 +28,7 @@ extension RunnerTests {
     let identifier: String
     let valueText: String?
     let hittable: Bool
+    let focused: Bool
     let visible: Bool
   }
 
@@ -341,6 +342,7 @@ extension RunnerTests {
       identifier: identifier,
       valueText: valueText,
       hittable: computedSnapshotHittable(snapshot, viewport: context.viewport, laterNodes: laterNodes),
+      focused: snapshotHasFocus(snapshot),
       visible: isVisibleInViewport(snapshot.frame, context.viewport)
     )
   }
@@ -360,6 +362,7 @@ extension RunnerTests {
       value: evaluation.valueText,
       rect: snapshotRect(from: snapshot.frame),
       enabled: snapshot.isEnabled,
+      focused: evaluation.focused ? true : nil,
       hittable: evaluation.hittable,
       depth: depth,
       parentIndex: parentIndex,
@@ -525,6 +528,7 @@ extension RunnerTests {
         value: node.value,
         rect: node.rect,
         enabled: node.enabled,
+        focused: node.focused,
         hittable: node.hittable,
         depth: depth,
         parentIndex: parentIndex,
@@ -575,6 +579,7 @@ extension RunnerTests {
         value: valueText,
         rect: snapshotRect(from: frame),
         enabled: element.isEnabled,
+        focused: elementHasFocus(element) ? true : nil,
         hittable: element.isHittable,
         depth: 0,
         parentIndex: nil,
@@ -590,6 +595,16 @@ extension RunnerTests {
       return nil
     }
     return node
+  }
+
+  private func snapshotHasFocus(_ snapshot: XCUIElementSnapshot) -> Bool {
+    var focused = false
+    _ = RunnerObjCExceptionCatcher.catchException({
+      if let value = (snapshot as! NSObject).value(forKey: "hasFocus") as? Bool {
+        focused = value
+      }
+    })
+    return focused
   }
 
   private func shouldExpandCollapsedTabContainer(_ snapshot: XCUIElementSnapshot) -> Bool {

@@ -340,6 +340,7 @@ function reindexSnapshotNodes(nodes: RawSnapshotNode[], depthOffset = 0): RawSna
 }
 
 function isInteractiveSnapshotNode(node: RawSnapshotNode): boolean {
+  if (node.focused) return true;
   if (node.hittable) return true;
   if (node.rect) return true;
   const role = `${node.type ?? ''} ${node.role ?? ''} ${node.subrole ?? ''}`.toLowerCase();

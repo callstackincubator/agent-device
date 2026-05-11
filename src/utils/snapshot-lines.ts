@@ -200,6 +200,7 @@ function buildLineMetadata(
     return metadata;
   }
   if (node.selected === true) metadata.push('selected');
+  if (node.focused === true) metadata.push('focused');
   if (isEditableRole(type)) metadata.push('editable');
   if (looksScrollable(node, type)) metadata.push('scrollable');
   if (!textSurface.shouldSummarize) {

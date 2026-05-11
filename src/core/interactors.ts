@@ -32,6 +32,7 @@ import {
 import { runMacOsScreenshotAction } from '../platforms/ios/macos-helper.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import {
+  appleRemotePressCommand,
   iosRunnerOverrides,
   resolveAppleBackRunnerCommand,
 } from '../platforms/ios/interactions.ts';
@@ -132,6 +133,14 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
           await screenshotIos(device, outPath, options?.appBundleId, options?.fullscreen);
         },
         back: async (mode) => {
+          if (device.target === 'tv') {
+            await runIosRunnerCommand(
+              device,
+              appleRemotePressCommand('menu', runnerContext.appBundleId),
+              runnerOpts,
+            );
+            return;
+          }
           await runIosRunnerCommand(
             device,
             {
@@ -142,6 +151,14 @@ export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext):
           );
         },
         home: async () => {
+          if (device.target === 'tv') {
+            await runIosRunnerCommand(
+              device,
+              appleRemotePressCommand('home', runnerContext.appBundleId),
+              runnerOpts,
+            );
+            return;
+          }
           await runIosRunnerCommand(
             device,
             { command: 'home', appBundleId: runnerContext.appBundleId },

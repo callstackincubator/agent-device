@@ -184,6 +184,7 @@ extension RunnerTests {
       .tap,
       .longPress,
       .drag,
+      .remotePress,
       .type,
       .swipe,
       .back,

@@ -27,7 +27,7 @@ extension RunnerTests {
     }
     return false
 #elseif os(tvOS)
-    XCUIRemote.shared.press(.menu)
+    _ = pressTvRemote(.menu)
     return true
 #else
     let buttons = app.navigationBars.buttons.allElementsBoundByIndex
@@ -40,9 +40,14 @@ extension RunnerTests {
   }
 
   func performBackGesture(app: XCUIApplication) {
-#if os(tvOS)
-    XCUIRemote.shared.press(.menu)
-#else
+    if pressTvRemote(.menu) {
+      return
+    }
+    performCoordinateBackGesture(app: app)
+  }
+
+  private func performCoordinateBackGesture(app: XCUIApplication) {
+#if !os(tvOS)
     let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
     let start = target.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
     let end = target.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
@@ -63,11 +68,16 @@ extension RunnerTests {
   }
 
   func performAppSwitcherGesture(app: XCUIApplication) {
-#if os(tvOS)
-    XCUIRemote.shared.press(.home)
-    sleepFor(resolveTvRemoteDoublePressDelay())
-    XCUIRemote.shared.press(.home)
-#else
+    if pressTvRemote(.home) {
+      sleepFor(resolveTvRemoteDoublePressDelay())
+      _ = pressTvRemote(.home)
+      return
+    }
+    performCoordinateAppSwitcherGesture(app: app)
+  }
+
+  private func performCoordinateAppSwitcherGesture(app: XCUIApplication) {
+#if !os(tvOS)
     let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
     let start = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99))
     let end = target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
@@ -105,48 +115,6 @@ extension RunnerTests {
     sleepFor(0.2)
     return true
 #endif
-  }
-
-  private func pressTvRemoteMenuIfAvailable() -> Bool {
-#if os(tvOS)
-    XCUIRemote.shared.press(.menu)
-    return true
-#else
-    return false
-#endif
-  }
-
-  private func pressTvRemoteHomeIfAvailable() -> Bool {
-#if os(tvOS)
-    XCUIRemote.shared.press(.home)
-    return true
-#else
-    return false
-#endif
-  }
-
-  private func performTvRemoteAppSwitcherIfAvailable() -> Bool {
-#if os(tvOS)
-    XCUIRemote.shared.press(.home)
-    sleepFor(resolveTvRemoteDoublePressDelay())
-    XCUIRemote.shared.press(.home)
-    return true
-#else
-    return false
-#endif
-  }
-
-  private func resolveTvRemoteDoublePressDelay() -> TimeInterval {
-    guard
-      let raw = ProcessInfo.processInfo.environment["AGENT_DEVICE_TV_REMOTE_DOUBLE_PRESS_DELAY_MS"],
-      !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    else {
-      return tvRemoteDoublePressDelayDefault
-    }
-    guard let parsedMs = Double(raw), parsedMs >= 0 else {
-      return tvRemoteDoublePressDelayDefault
-    }
-    return min(parsedMs, 1000) / 1000.0
   }
 
   func findElement(app: XCUIApplication, text: String) -> XCUIElement? {
@@ -278,7 +246,7 @@ extension RunnerTests {
     }
 
 #if os(tvOS)
-    XCUIRemote.shared.press(.menu)
+    _ = pressTvRemote(.menu)
     sleepFor(0.2)
     let visible = isKeyboardVisible(app: app)
     return (wasVisible: true, dismissed: !visible, visible: visible)
@@ -300,8 +268,10 @@ extension RunnerTests {
 #endif
   }
 
-#if !os(tvOS)
   private func tapKeyboardDismissControl(app: XCUIApplication) -> Bool {
+#if os(tvOS)
+    return false
+#else
     let keyboardFrame = app.keyboards.firstMatch.frame
     for label in ["Hide keyboard", "Dismiss keyboard", "Done"] {
       let candidates = [
@@ -330,8 +300,8 @@ extension RunnerTests {
       }
     }
     return false
-  }
 #endif
+  }
 
   private func isKeyboardAccessoryControl(_ element: XCUIElement, keyboardFrame: CGRect) -> Bool {
     let frame = element.frame
@@ -341,8 +311,10 @@ extension RunnerTests {
     return frame.intersects(keyboardFrame) || abs(frame.maxY - keyboardFrame.minY) <= 80
   }
 
-#if !os(tvOS)
   private func moveCaretToEnd(element: XCUIElement) {
+#if os(tvOS)
+    return
+#else
     let frame = element.frame
     guard !frame.isEmpty else {
       element.tap()
@@ -353,8 +325,8 @@ extension RunnerTests {
       CGVector(dx: max(2, frame.width - 4), dy: max(2, frame.height / 2))
     )
     target.tap()
-  }
 #endif
+  }
 
   private func estimatedDeleteCount(for element: XCUIElement) -> Int {
     let valueText = String(describing: element.value ?? "")
@@ -399,13 +371,11 @@ extension RunnerTests {
     return element.exists ? element : nil
   }
 
-  func tapAt(app: XCUIApplication, x: Double, y: Double) {
-#if os(tvOS)
-    XCUIRemote.shared.press(.select)
-#else
-    let coordinate = interactionCoordinate(app: app, x: x, y: y)
-    coordinate.tap()
-#endif
+  func tapAt(app: XCUIApplication, x: Double, y: Double) -> RunnerInteractionOutcome {
+    if let outcome = selectFocusedTvElement(app: app, point: CGPoint(x: x, y: y), action: "tap") {
+      return outcome
+    }
+    return performCoordinateTap(app: app, x: x, y: y)
   }
 
   func mouseClickAt(app: XCUIApplication, x: Double, y: Double, button: String) throws {
@@ -444,24 +414,21 @@ extension RunnerTests {
 #endif
   }
 
-  func doubleTapAt(app: XCUIApplication, x: Double, y: Double) {
-#if os(tvOS)
-    XCUIRemote.shared.press(.select)
-    sleepFor(0.1)
-    XCUIRemote.shared.press(.select)
-#else
-    let coordinate = interactionCoordinate(app: app, x: x, y: y)
-    coordinate.doubleTap()
-#endif
+  func doubleTapAt(app: XCUIApplication, x: Double, y: Double) -> RunnerInteractionOutcome {
+    if let outcome = selectFocusedTvElement(app: app, point: CGPoint(x: x, y: y), action: "double tap") {
+      guard case .performed = outcome else { return outcome }
+      sleepFor(0.1)
+      _ = pressTvRemote(.select)
+      return .performed
+    }
+    return performCoordinateDoubleTap(app: app, x: x, y: y)
   }
 
-  func longPressAt(app: XCUIApplication, x: Double, y: Double, duration: TimeInterval) {
-#if os(tvOS)
-    XCUIRemote.shared.press(.select, forDuration: duration)
-#else
-    let coordinate = interactionCoordinate(app: app, x: x, y: y)
-    coordinate.press(forDuration: duration)
-#endif
+  func longPressAt(app: XCUIApplication, x: Double, y: Double, duration: TimeInterval) -> RunnerInteractionOutcome {
+    if let outcome = longSelectFocusedTvElement(app: app, point: CGPoint(x: x, y: y), duration: duration) {
+      return outcome
+    }
+    return performCoordinateLongPress(app: app, x: x, y: y, duration: duration)
   }
 
   func dragAt(
@@ -471,21 +438,18 @@ extension RunnerTests {
     x2: Double,
     y2: Double,
     holdDuration: TimeInterval
-  ) {
-#if os(tvOS)
-    // Drag is not meaningful on tvOS; map to directional swipe based on primary axis
-    let dx = x2 - x
-    let dy = y2 - y
-    if abs(dx) > abs(dy) {
-      XCUIRemote.shared.press(dx > 0 ? .right : .left)
-    } else {
-      XCUIRemote.shared.press(dy > 0 ? .down : .up)
+  ) -> RunnerInteractionOutcome {
+    if canUseTvRemote() {
+      // tvOS has no coordinate drag. Preserve the direction as a focus move.
+      let dx = x2 - x
+      let dy = y2 - y
+      let button: TvRemoteButton = abs(dx) > abs(dy)
+        ? (dx > 0 ? .right : .left)
+        : (dy > 0 ? .down : .up)
+      _ = pressTvRemote(button)
+      return .performed
     }
-#else
-    let start = interactionCoordinate(app: app, x: x, y: y)
-    let end = interactionCoordinate(app: app, x: x2, y: y2)
-    start.press(forDuration: holdDuration, thenDragTo: end)
-#endif
+    return performCoordinateDrag(app: app, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
   }
 
   func resolvedTouchVisualizationFrame(app: XCUIApplication, x: Double, y: Double) -> TouchVisualizationFrame {
@@ -561,29 +525,27 @@ extension RunnerTests {
   }
 
   private func performTvRemoteSwipeIfAvailable(direction: String) -> Bool {
-#if os(tvOS)
     switch direction {
     case "up":
-      XCUIRemote.shared.press(.up)
+      return pressTvRemote(.up)
     case "down":
-      XCUIRemote.shared.press(.down)
+      return pressTvRemote(.down)
     case "left":
-      XCUIRemote.shared.press(.left)
+      return pressTvRemote(.left)
     case "right":
-      XCUIRemote.shared.press(.right)
+      return pressTvRemote(.right)
     default:
       return false
     }
-    return true
-#else
-    return false
-#endif
   }
 
-  func pinch(app: XCUIApplication, scale: Double, x: Double?, y: Double?) {
+  func pinch(app: XCUIApplication, scale: Double, x: Double?, y: Double?) -> RunnerInteractionOutcome {
+    return performCoordinatePinch(app: app, scale: scale, x: x, y: y)
+  }
+
+  private func performCoordinatePinch(app: XCUIApplication, scale: Double, x: Double?, y: Double?) -> RunnerInteractionOutcome {
 #if os(tvOS)
-    // Pinch/zoom is not supported on tvOS
-    return
+    return .unsupported("pinch is not supported on tvOS")
 #else
     let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
 
@@ -615,6 +577,7 @@ extension RunnerTests {
 
     // Immediately press and drag (second tap + drag)
     center.press(forDuration: 0.05, thenDragTo: endPoint)
+    return .performed
 #endif
   }
 
@@ -624,6 +587,51 @@ extension RunnerTests {
       return window
     }
     return app
+  }
+
+  private func performCoordinateTap(app: XCUIApplication, x: Double, y: Double) -> RunnerInteractionOutcome {
+#if os(tvOS)
+    return .unsupported("coordinate tap is not supported on tvOS; move focus with swipe or scroll, then select the focused element")
+#else
+    interactionCoordinate(app: app, x: x, y: y).tap()
+    return .performed
+#endif
+  }
+
+  private func performCoordinateDoubleTap(app: XCUIApplication, x: Double, y: Double) -> RunnerInteractionOutcome {
+#if os(tvOS)
+    return .unsupported("coordinate double tap is not supported on tvOS; move focus with swipe or scroll, then select the focused element")
+#else
+    interactionCoordinate(app: app, x: x, y: y).doubleTap()
+    return .performed
+#endif
+  }
+
+  private func performCoordinateLongPress(app: XCUIApplication, x: Double, y: Double, duration: TimeInterval) -> RunnerInteractionOutcome {
+#if os(tvOS)
+    return .unsupported("coordinate long press is not supported on tvOS; move focus with swipe or scroll, then long-select the focused element")
+#else
+    interactionCoordinate(app: app, x: x, y: y).press(forDuration: duration)
+    return .performed
+#endif
+  }
+
+  private func performCoordinateDrag(
+    app: XCUIApplication,
+    x: Double,
+    y: Double,
+    x2: Double,
+    y2: Double,
+    holdDuration: TimeInterval
+  ) -> RunnerInteractionOutcome {
+#if os(tvOS)
+    return .unsupported("coordinate drag is not supported on tvOS")
+#else
+    let start = interactionCoordinate(app: app, x: x, y: y)
+    let end = interactionCoordinate(app: app, x: x2, y: y2)
+    start.press(forDuration: holdDuration, thenDragTo: end)
+    return .performed
+#endif
   }
 
 #if !os(tvOS)
@@ -638,14 +646,12 @@ extension RunnerTests {
 #endif
 
   private func tapElementCenter(app: XCUIApplication, element: XCUIElement) {
-#if os(tvOS)
-    XCUIRemote.shared.press(.select)
-#else
     let frame = element.frame
     if !frame.isEmpty {
-      tapAt(app: app, x: frame.midX, y: frame.midY)
+      _ = tapAt(app: app, x: frame.midX, y: frame.midY)
       return
     }
+#if !os(tvOS)
     element.tap()
 #endif
   }

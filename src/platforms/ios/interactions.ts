@@ -5,6 +5,7 @@ import { runIosRunnerCommand } from './runner-client.ts';
 import type { BackMode, Interactor, RunnerContext } from '../../core/interactor-types.ts';
 
 export type AppleBackRunnerCommand = 'backInApp' | 'backSystem';
+type AppleRemoteButton = 'select' | 'menu' | 'home' | 'up' | 'down' | 'left' | 'right';
 type RunIosRunnerCommand = typeof runIosRunnerCommand;
 type RunnerOpts = {
   verbose?: boolean;
@@ -135,21 +136,17 @@ export function iosRunnerOverrides(
   };
 }
 
-function invertScrollDirection(direction: ScrollDirection): ScrollDirection {
-  switch (direction) {
-    case 'up':
-      return 'down';
-    case 'down':
-      return 'up';
-    case 'left':
-      return 'right';
-    case 'right':
-      return 'left';
-    default: {
-      const _exhaustive: never = direction;
-      return _exhaustive;
-    }
-  }
+export function appleRemotePressCommand(
+  remoteButton: AppleRemoteButton,
+  appBundleId?: string,
+  durationMs?: number,
+): Parameters<RunIosRunnerCommand>[1] {
+  return {
+    command: 'remotePress',
+    remoteButton,
+    ...(durationMs !== undefined ? { durationMs } : {}),
+    ...(appBundleId !== undefined ? { appBundleId } : {}),
+  };
 }
 
 async function runAppleScroll(
@@ -164,11 +161,7 @@ async function runAppleScroll(
   if (device.target === 'tv') {
     const runnerResult = await runRunnerCommand(
       device,
-      {
-        command: 'swipe',
-        direction: invertScrollDirection(direction),
-        appBundleId: ctx.appBundleId,
-      },
+      appleRemotePressCommand(direction, ctx.appBundleId),
       runnerOpts,
     );
     return normalizeIosScrollResult(runnerResult, options);

@@ -17,6 +17,8 @@ type CommandCapability = {
 const isNotMacOs = (device: DeviceInfo): boolean => device.platform !== 'macos';
 const isMacOsOrAppleSimulator = (device: DeviceInfo): boolean =>
   device.platform === 'macos' || device.kind === 'simulator';
+const isMacOsOrMobileAppleSimulator = (device: DeviceInfo): boolean =>
+  device.platform === 'macos' || (device.kind === 'simulator' && device.target !== 'tv');
 
 // Linux desktop supports these commands via xdotool/ydotool + AT-SPI2.
 // Linux device kind is always 'device' (local desktop).
@@ -39,7 +41,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     apple: { simulator: true, device: true },
     android: {},
     linux: LINUX_NONE,
-    supports: isMacOsOrAppleSimulator,
+    supports: isMacOsOrMobileAppleSimulator,
   },
   'app-switcher': {
     apple: { simulator: true, device: true },

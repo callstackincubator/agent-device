@@ -14,6 +14,7 @@ export type RunnerCommand = {
     | 'interactionFrame'
     | 'drag'
     | 'dragSeries'
+    | 'remotePress'
     | 'type'
     | 'swipe'
     | 'findText'
@@ -40,6 +41,7 @@ export type RunnerCommand = {
   x?: number;
   y?: number;
   button?: ClickButton;
+  remoteButton?: 'select' | 'menu' | 'home' | 'up' | 'down' | 'left' | 'right';
   count?: number;
   intervalMs?: number;
   doubleTap?: boolean;

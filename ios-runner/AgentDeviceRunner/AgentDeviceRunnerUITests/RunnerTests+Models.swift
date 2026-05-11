@@ -8,6 +8,7 @@ enum CommandType: String, Codable {
   case interactionFrame
   case drag
   case dragSeries
+  case remotePress
   case type
   case swipe
   case findText
@@ -39,6 +40,7 @@ struct Command: Codable {
   let x: Double?
   let y: Double?
   let button: String?
+  let remoteButton: String?
   let count: Double?
   let intervalMs: Double?
   let doubleTap: Bool?
@@ -162,6 +164,7 @@ struct SnapshotNode: Codable {
   let value: String?
   let rect: SnapshotRect
   let enabled: Bool
+  let focused: Bool?
   let hittable: Bool
   let depth: Int
   let parentIndex: Int?

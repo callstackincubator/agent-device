@@ -250,8 +250,13 @@ test('tvOS follows iOS capability matrix by device kind', () => {
     [{ device: tvOsSimulator, expected: true, label: 'on tvOS' }],
   );
   assertCommandSupport(
-    ['pinch', 'push', 'settings', 'alert'],
+    ['push', 'settings', 'alert'],
     [{ device: tvOsSimulator, expected: true, label: 'on tvOS simulator' }],
+  );
+  assert.equal(
+    isCommandSupportedOnDevice('pinch', tvOsSimulator),
+    false,
+    'pinch on tvOS simulator',
   );
   assert.equal(
     isCommandSupportedOnDevice('keyboard', tvOsSimulator),

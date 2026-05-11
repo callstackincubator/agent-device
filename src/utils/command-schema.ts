@@ -264,6 +264,7 @@ Snapshots and refs:
   Snapshot legend:
     @e12 [button] label="Add to cart" id="add-cart" enabled hittable -> press @e12 or press 'id="add-cart"'.
     @e13 [textinput] label="Notes" preview="Leave at side..." truncated -> snapshot -s @e13 before reading.
+    @e14 [cell] label="Profiles" focused -> tvOS focus is currently on this row.
     [off-screen below] 4 items: "Privacy", "About" -> scroll down, then snapshot -i; those are hints, not refs.
   Re-snapshot after navigation, submit, modal/list/reload/dynamic changes.
   Off-screen summaries are scroll hints; use scroll, not swipe, then snapshot -i.

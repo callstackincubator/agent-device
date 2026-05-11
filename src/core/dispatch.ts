@@ -568,6 +568,9 @@ async function handlePinchCommand(
       'Android pinch is not supported in current adb backend; requires instrumentation-based backend.',
     );
   }
+  if (device.target === 'tv') {
+    throw new AppError('UNSUPPORTED_OPERATION', 'pinch is not supported on tvOS');
+  }
   if (device.platform === 'macos' && context?.surface && context.surface !== 'app') {
     throw new AppError(
       'UNSUPPORTED_OPERATION',

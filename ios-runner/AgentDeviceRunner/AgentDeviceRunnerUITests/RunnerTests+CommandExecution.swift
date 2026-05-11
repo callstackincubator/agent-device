@@ -13,6 +13,18 @@ extension RunnerTests {
     return (gestureStartUptimeMs, currentUptimeMs())
   }
 
+  private func unsupportedResponse(for outcome: RunnerInteractionOutcome) -> Response? {
+    switch outcome {
+    case .performed:
+      return nil
+    case .unsupported(let message):
+      return Response(
+        ok: false,
+        error: ErrorPayload(code: "UNSUPPORTED_OPERATION", message: message)
+      )
+    }
+  }
+
   func execute(command: Command) throws -> Response {
     if Thread.isMainThread {
       return try executeOnMainSafely(command: command)
@@ -231,14 +243,14 @@ extension RunnerTests {
     case .tap:
       if let text = command.text {
         if let element = findElement(app: activeApp, text: text) {
+          var outcome = RunnerInteractionOutcome.performed
           let timing = measureGesture {
             withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-#if os(tvOS)
-              XCUIRemote.shared.press(.select)
-#else
-              element.tap()
-#endif
+              outcome = activateElement(app: activeApp, element: element, action: "tap by text")
             }
+          }
+          if let response = unsupportedResponse(for: outcome) {
+            return response
           }
           return Response(
             ok: true,
@@ -253,10 +265,14 @@ extension RunnerTests {
       }
       if let x = command.x, let y = command.y {
         let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
+        var outcome = RunnerInteractionOutcome.performed
         let timing = measureGesture {
           withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-            tapAt(app: activeApp, x: x, y: y)
+            outcome = tapAt(app: activeApp, x: x, y: y)
           }
+        }
+        if let response = unsupportedResponse(for: outcome) {
+          return response
         }
         return Response(
           ok: true,
@@ -313,12 +329,18 @@ extension RunnerTests {
       let doubleTap = command.doubleTap ?? false
       let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
       if doubleTap {
+        var outcome = RunnerInteractionOutcome.performed
         let timing = measureGesture {
           withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
             runSeries(count: count, pauseMs: intervalMs) { _ in
-              doubleTapAt(app: activeApp, x: x, y: y)
+              if case .performed = outcome {
+                outcome = doubleTapAt(app: activeApp, x: x, y: y)
+              }
             }
           }
+        }
+        if let response = unsupportedResponse(for: outcome) {
+          return response
         }
         return Response(
           ok: true,
@@ -333,12 +355,18 @@ extension RunnerTests {
           )
         )
       }
+      var outcome = RunnerInteractionOutcome.performed
       let timing = measureGesture {
         withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
           runSeries(count: count, pauseMs: intervalMs) { _ in
-            tapAt(app: activeApp, x: x, y: y)
+            if case .performed = outcome {
+              outcome = tapAt(app: activeApp, x: x, y: y)
+            }
           }
         }
+      }
+      if let response = unsupportedResponse(for: outcome) {
+        return response
       }
       return Response(
         ok: true,
@@ -358,10 +386,14 @@ extension RunnerTests {
       }
       let duration = (command.durationMs ?? 800) / 1000.0
       let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
+      var outcome = RunnerInteractionOutcome.performed
       let timing = measureGesture {
         withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-          longPressAt(app: activeApp, x: x, y: y, duration: duration)
+          outcome = longPressAt(app: activeApp, x: x, y: y, duration: duration)
         }
+      }
+      if let response = unsupportedResponse(for: outcome) {
+        return response
       }
       return Response(
         ok: true,
@@ -381,10 +413,14 @@ extension RunnerTests {
       }
       let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
       let dragFrame = resolvedDragVisualizationFrame(app: activeApp, x: x, y: y, x2: x2, y2: y2)
+      var outcome = RunnerInteractionOutcome.performed
       let timing = measureGesture {
         withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-          dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+          outcome = dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
         }
+      }
+      if let response = unsupportedResponse(for: outcome) {
+        return response
       }
       return Response(
         ok: true,
@@ -411,17 +447,24 @@ extension RunnerTests {
         return Response(ok: false, error: ErrorPayload(message: "dragSeries pattern must be one-way or ping-pong"))
       }
       let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
+      var outcome = RunnerInteractionOutcome.performed
       let timing = measureGesture {
         withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
           runSeries(count: count, pauseMs: pauseMs) { idx in
+            guard case .performed = outcome else {
+              return
+            }
             let reverse = pattern == "ping-pong" && (idx % 2 == 1)
             if reverse {
-              dragAt(app: activeApp, x: x2, y: y2, x2: x, y2: y, holdDuration: holdDuration)
+              outcome = dragAt(app: activeApp, x: x2, y: y2, x2: x, y2: y, holdDuration: holdDuration)
             } else {
-              dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+              outcome = dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
             }
           }
         }
+      }
+      if let response = unsupportedResponse(for: outcome) {
+        return response
       }
       return Response(
         ok: true,
@@ -431,6 +474,18 @@ extension RunnerTests {
           gestureEndUptimeMs: timing.gestureEndUptimeMs
         )
       )
+    case .remotePress:
+      guard let button = tvRemoteButton(from: command.remoteButton) else {
+        return Response(ok: false, error: ErrorPayload(message: "remotePress requires remoteButton"))
+      }
+      let duration = (command.durationMs ?? 0) / 1000.0
+      guard pressTvRemote(button, duration: duration) else {
+        return Response(
+          ok: false,
+          error: ErrorPayload(code: "UNSUPPORTED_OPERATION", message: "remotePress is only supported on tvOS")
+        )
+      }
+      return Response(ok: true, data: DataPayload(message: "remote pressed"))
     case .type:
       guard let text = command.text else {
         return Response(ok: false, error: ErrorPayload(message: "type requires text"))
@@ -637,21 +692,23 @@ extension RunnerTests {
         return Response(ok: false, error: ErrorPayload(message: "alert not found"))
       }
       if action == "accept" {
-        let button = alert.buttons.allElementsBoundByIndex.first
-#if os(tvOS)
-        XCUIRemote.shared.press(.select)
-#else
-        button?.tap()
-#endif
+        guard let button = alert.buttons.allElementsBoundByIndex.first else {
+          return Response(ok: false, error: ErrorPayload(message: "alert accept button not found"))
+        }
+        let outcome = activateElement(app: activeApp, element: button, action: "alert accept")
+        if let response = unsupportedResponse(for: outcome) {
+          return response
+        }
         return Response(ok: true, data: DataPayload(message: "accepted"))
       }
       if action == "dismiss" {
-        let button = alert.buttons.allElementsBoundByIndex.last
-#if os(tvOS)
-        XCUIRemote.shared.press(.select)
-#else
-        button?.tap()
-#endif
+        guard let button = alert.buttons.allElementsBoundByIndex.last else {
+          return Response(ok: false, error: ErrorPayload(message: "alert dismiss button not found"))
+        }
+        let outcome = activateElement(app: activeApp, element: button, action: "alert dismiss")
+        if let response = unsupportedResponse(for: outcome) {
+          return response
+        }
         return Response(ok: true, data: DataPayload(message: "dismissed"))
       }
       let buttonLabels = alert.buttons.allElementsBoundByIndex.map { $0.label }
@@ -660,8 +717,12 @@ extension RunnerTests {
       guard let scale = command.scale, scale > 0 else {
         return Response(ok: false, error: ErrorPayload(message: "pinch requires scale > 0"))
       }
+      var outcome = RunnerInteractionOutcome.performed
       let timing = measureGesture {
-        pinch(app: activeApp, scale: scale, x: command.x, y: command.y)
+        outcome = pinch(app: activeApp, scale: scale, x: command.x, y: command.y)
+      }
+      if let response = unsupportedResponse(for: outcome) {
+        return response
       }
       return Response(
         ok: true,
