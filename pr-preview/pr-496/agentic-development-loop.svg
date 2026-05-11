@@ -88,12 +88,14 @@
   <path d="M1318 372 L1390 372" class="black" stroke-width="4" marker-end="url(#arrow-black)" stroke-linecap="round"/>
   <text x="1400" y="384" class="hand black-text" font-size="34">ship</text>
 
-  <rect x="20" y="689" width="28" height="24" rx="4" class="blue" stroke-width="3"/>
-  <text x="65" y="710" class="hand black-text" font-size="22">agent (Claude, Codex, Cursor, ...)</text>
-  <rect x="20" y="724" width="28" height="24" rx="4" class="blue-fill" stroke-width="3" transform="translate(0 -18)"/>
-  <text x="65" y="736" class="hand black-text" font-size="22" transform="translate(0 -18)">agent + agent-device</text>
-  <rect x="20" y="759" width="28" height="24" rx="4" class="green-fill" stroke-width="3" transform="translate(0 -36)"/>
-  <text x="65" y="762" class="hand black-text" font-size="22" transform="translate(0 -36)">human (with agent)</text>
+  <g transform="translate(20 686)">
+    <rect x="0" y="0" width="28" height="24" rx="4" class="blue" stroke-width="3"/>
+    <text x="45" y="21" class="hand black-text" font-size="20">agent (Claude, Codex, Cursor, ...)</text>
+    <rect x="0" y="36" width="28" height="24" rx="4" class="blue-fill" stroke-width="3"/>
+    <text x="45" y="57" class="hand black-text" font-size="20">agent + agent-device</text>
+    <rect x="0" y="72" width="28" height="24" rx="4" class="green-fill" stroke-width="3"/>
+    <text x="45" y="93" class="hand black-text" font-size="20">human (with agent)</text>
+  </g>
 
   <text x="828" y="707" class="hand black-text" font-size="34">mostly automated app development</text>
 </svg>
