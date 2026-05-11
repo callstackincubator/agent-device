@@ -10,6 +10,11 @@
     "label": "Installation"
   },
   {
+    "name": "agent-setup",
+    "type": "file",
+    "label": "AI Agent Setup"
+  },
+  {
     "name": "quick-start",
     "type": "file",
     "label": "Quick Start"
@@ -33,6 +38,11 @@
     "name": "configuration",
     "type": "file",
     "label": "Configuration"
+  },
+  {
+    "name": "security-trust",
+    "type": "file",
+    "label": "Security & Trust"
   },
   {
     "name": "batching",

@@ -7,7 +7,7 @@ export default withCallstackPreset(
     docs: {
       title: 'agent-device',
       description:
-        'CLI for mobile UI automation, logs, network inspection, and performance diagnostics for AI agents',
+        'Agent-native CLI for AI mobile testing, React Native QA, Expo app verification, simulator and emulator automation, app observability, and replayable device workflows.',
       editUrl: 'https://github.com/callstackincubator/agent-device/edit/main/website',
       rootUrl: 'https://incubator.callstack.com/agent-device',
       rootDir: 'docs',
