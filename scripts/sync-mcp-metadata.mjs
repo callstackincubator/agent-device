@@ -11,12 +11,16 @@ const pkg = readJson(packagePath);
 const server = readJson(serverPath);
 const expectedName = pkg.mcpName;
 const expectedVersion = pkg.version;
+const registryDescriptionMaxLength = 100;
 
 if (typeof expectedName !== 'string' || expectedName.length === 0) {
   fail('package.json must define mcpName.');
 }
 if (typeof expectedVersion !== 'string' || expectedVersion.length === 0) {
   fail('package.json must define version.');
+}
+if (typeof server.description === 'string' && server.description.length > registryDescriptionMaxLength) {
+  fail(`server.json description must be ${registryDescriptionMaxLength} characters or fewer.`);
 }
 
 server.name = expectedName;
