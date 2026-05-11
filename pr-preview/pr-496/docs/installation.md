@@ -27,6 +27,8 @@ Interactive CLI runs periodically check for a newer published `agent-device` pac
 
 Set `AGENT_DEVICE_NO_UPDATE_NOTIFIER=1` to disable the notice.
 
+For Cursor, Codex, Claude Code, Windsurf, Cline, Goose, and other coding-agent setup patterns, see [AI Agent Setup](/agent-device/pr-preview/pr-496/docs/agent-setup.md).
+
 ## MCP router
 
 `agent-device mcp` starts the official stdio MCP router for discovery-oriented clients. It exposes only `status`, `install`, and `help` tools plus workflow prompts/resources. Device automation still runs through the CLI commands returned by version-matched help.
@@ -63,6 +65,8 @@ No global install variant:
 ```
 
 Registry metadata uses MCP name `io.github.callstackincubator/agent-device`, npm package `agent-device`, stdio transport, `mcpName` package verification, `server.json`, and `smithery.yaml`.
+
+The MCP router is intentionally thin. It helps agents discover install/status/version-matched help, while device automation remains CLI activity in the terminal.
 
 ## Without installing
 

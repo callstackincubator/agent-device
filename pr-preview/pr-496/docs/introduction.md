@@ -1,21 +1,32 @@
 # Introduction
 
-`agent-device` is a CLI for automating iOS simulators + physical devices and Android emulators + devices from agents. It provides:
+`agent-device` is an agent-native CLI for AI mobile testing and app verification from coding agents. It automates iOS simulators, iOS physical devices, Android emulators, Android devices, tvOS, Android TV, macOS apps, and Linux desktop apps.
+
+It provides:
 
 - Accessibility snapshots for UI understanding
 - Deterministic interactions (tap, type, scroll)
 - Session-aware workflows and replay
-- Session logs and network inspection for debugging broken flows
-- Performance snapshots with `perf`/`metrics`, including CPU, memory, and Android dropped-frame data where supported
+- Session logs, network inspection, traces, and crash-related logs for debugging broken flows
+- Performance snapshots with `perf`/`metrics`, including startup, CPU, memory, and frame-health data where supported
+- React Native and Expo workflows through device automation plus optional React DevTools profiling
 
 If you know `agent-browser`, this is the mobile-native counterpart for iOS/Android UI automation and app-level observability.
 For agent-oriented operating guidance, start with `agent-device help` or `agent-device help workflow`. Skills are recommended auto-routing helpers when your agent runtime supports them, but agents can operate from CLI help alone. For exploratory QA, use `agent-device help dogfood`. For React Native component trees, props/state/hooks, and render profiling, use `agent-device help react-devtools` and the `agent-device react-devtools` passthrough.
 
 ## What it’s good at
 
-- Exploring and driving app flows on real devices and simulators
-- Collecting debugging evidence through logs, network traffic, screenshots, recordings, and performance snapshots
+- Exploring and driving mobile, TV, and desktop app flows on real devices, simulators, and emulators
+- Collecting debugging evidence through logs, network traffic, screenshots, recordings, traces, crash-related logs, CPU/memory snapshots, and performance data
 - Replaying successful flows as lightweight regression checks
+
+## Where it fits
+
+`agent-device` is for agents that need to inspect and operate real apps. Humans install it, grant permissions, review artifacts, and decide when an agent should use it.
+
+The UI model is accessibility-first and token-efficient, so agents can reason over compact snapshots instead of relying only on screenshots. MCP support is intentionally a thin discovery router for status, install guidance, and version-matched help; app/device automation remains explicit CLI activity in the terminal.
+
+It complements scripted test frameworks such as Appium, Maestro, Detox, XCTest, and Espresso. Use those for stable human-authored coverage. Use `agent-device` when an agent needs to explore, reproduce, debug, profile, collect evidence, or turn a successful session into a replayable `.ad` flow.
 
 ## Platform support highlights
 

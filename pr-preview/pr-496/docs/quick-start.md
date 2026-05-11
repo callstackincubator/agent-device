@@ -1,5 +1,7 @@
 # Quick Start
 
+For client-specific setup in Cursor, Codex, Claude Code, Windsurf, Cline, Goose, and other coding agents, see [AI Agent Setup](/agent-device/pr-preview/pr-496/docs/agent-setup.md). For a single text bundle that agents can ingest, use [llms-full.txt](https://incubator.callstack.com/agent-device/llms-full.txt).
+
 Every device automation follows this pattern:
 
 ```bash
