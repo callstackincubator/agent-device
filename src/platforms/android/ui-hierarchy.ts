@@ -6,28 +6,55 @@ export type AndroidSnapshotAnalysis = {
   maxDepth: number;
 };
 
+export type AndroidUiNodeMetadata = {
+  text: string | null;
+  desc: string | null;
+  resourceId: string | null;
+  packageName: string | null;
+  className: string | null;
+  bounds: string | null;
+  rect?: Rect;
+  clickable?: boolean;
+  enabled?: boolean;
+  focusable?: boolean;
+  focused?: boolean;
+  password?: boolean;
+};
+
 export function findBounds(xml: string, query: string): { x: number; y: number } | null {
   const q = query.toLowerCase();
-  const nodeRegex = /<node[^>]+>/g;
-  let match = nodeRegex.exec(xml);
-  while (match) {
-    const node = match[0];
-    const attrs = parseXmlNodeAttributes(node);
-    const textVal = (readXmlAttr(attrs, 'text') ?? '').toLowerCase();
-    const descVal = (readXmlAttr(attrs, 'content-desc') ?? '').toLowerCase();
+  for (const node of androidUiNodes(xml)) {
+    const textVal = (node.text ?? '').toLowerCase();
+    const descVal = (node.desc ?? '').toLowerCase();
     if (textVal.includes(q) || descVal.includes(q)) {
-      const rect = parseBounds(readXmlAttr(attrs, 'bounds'));
-      if (rect) {
+      if (node.rect) {
         return {
-          x: Math.floor(rect.x + rect.width / 2),
-          y: Math.floor(rect.y + rect.height / 2),
+          x: Math.floor(node.rect.x + node.rect.width / 2),
+          y: Math.floor(node.rect.y + node.rect.height / 2),
         };
       }
       return { x: 0, y: 0 };
     }
-    match = nodeRegex.exec(xml);
   }
   return null;
+}
+
+export function* androidUiNodes(xml: string): IterableIterator<AndroidUiNodeMetadata> {
+  const nodeRegex = /<node\b[^>]*>/g;
+  let match = nodeRegex.exec(xml);
+  while (match) {
+    yield readAndroidUiNodeMetadata(match[0]);
+    match = nodeRegex.exec(xml);
+  }
+}
+
+function readAndroidUiNodeMetadata(node: string): AndroidUiNodeMetadata {
+  const attrs = readNodeAttributes(node);
+  const rect = parseBounds(attrs.bounds);
+  return {
+    ...attrs,
+    ...(rect ? { rect } : {}),
+  };
 }
 
 export function parseUiHierarchy(
@@ -172,19 +199,7 @@ function hasInteractiveDescendant(state: AndroidSnapshotBuildState, node: Androi
   return false;
 }
 
-export function readNodeAttributes(node: string): {
-  text: string | null;
-  desc: string | null;
-  resourceId: string | null;
-  packageName: string | null;
-  className: string | null;
-  bounds: string | null;
-  clickable?: boolean;
-  enabled?: boolean;
-  focusable?: boolean;
-  focused?: boolean;
-  password?: boolean;
-} {
+function readNodeAttributes(node: string): Omit<AndroidUiNodeMetadata, 'rect'> {
   const attrs = parseXmlNodeAttributes(node);
   const getAttr = (name: string): string | null => readXmlAttr(attrs, name);
   const boolAttr = (name: string): boolean | undefined => {
@@ -332,7 +347,7 @@ function readXmlAttr(attrs: Map<string, string>, name: string): string | null {
   return attrs.get(name) ?? null;
 }
 
-export function parseBounds(bounds: string | null): Rect | undefined {
+function parseBounds(bounds: string | null): Rect | undefined {
   if (!bounds) return undefined;
   const match = /\[(\d+),(\d+)\]\[(\d+),(\d+)\]/.exec(bounds);
   if (!match) return undefined;
@@ -387,15 +402,14 @@ export function parseUiHierarchyTree(xml: string): AndroidUiHierarchy {
       match = tokenRegex.exec(xml);
       continue;
     }
-    const attrs = readNodeAttributes(token);
-    const rect = parseBounds(attrs.bounds);
+    const attrs = readAndroidUiNodeMetadata(token);
     const parent = stack[stack.length - 1];
     const node: AndroidUiHierarchy = {
       type: attrs.className,
       label: attrs.text || attrs.desc,
       value: attrs.text,
       identifier: attrs.resourceId,
-      rect,
+      rect: attrs.rect,
       enabled: attrs.enabled,
       hittable: attrs.clickable ?? attrs.focusable,
       depth: parent.depth + 1,

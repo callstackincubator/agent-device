@@ -28,7 +28,7 @@ import {
 import { withAndroidAdbProvider } from '../adb-executor.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
-import { findBounds, parseUiHierarchy } from '../ui-hierarchy.ts';
+import { androidUiNodes, findBounds, parseUiHierarchy } from '../ui-hierarchy.ts';
 
 async function withMockedAdb(
   tempPrefix: string,
@@ -114,6 +114,28 @@ test('parseUiHierarchy decodes XML entities in Android node attributes', () => {
   assert.equal(result.nodes.length, 1);
   assert.equal(result.nodes[0].value, 'Line 1\nLine 2\t&<>"\'');
   assert.equal(result.nodes[0].label, 'Line 1\nLine 2\t&<>"\'');
+});
+
+test('androidUiNodes exposes decoded Android hierarchy metadata', () => {
+  const xml =
+    '<hierarchy><node package="com.example.app" class="android.widget.EditText" text="Fish &amp; Chips" content-desc="Search&#10;field" resource-id="com.example.app:id/search" bounds="[10,20][110,70]" clickable="false" enabled="true" focusable="true" focused="true" password="true"/></hierarchy>';
+
+  assert.deepEqual(Array.from(androidUiNodes(xml)), [
+    {
+      text: 'Fish & Chips',
+      desc: 'Search\nfield',
+      resourceId: 'com.example.app:id/search',
+      packageName: 'com.example.app',
+      className: 'android.widget.EditText',
+      bounds: '[10,20][110,70]',
+      rect: { x: 10, y: 20, width: 100, height: 50 },
+      clickable: false,
+      enabled: true,
+      focusable: true,
+      focused: true,
+      password: true,
+    },
+  ]);
 });
 
 test('findBounds supports single and double quoted attributes', () => {

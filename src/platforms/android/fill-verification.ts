@@ -9,7 +9,7 @@ import {
 } from '../fill-diagnostics.ts';
 import { sleep } from './adb.ts';
 import { dumpUiHierarchy } from './snapshot.ts';
-import { parseBounds, readNodeAttributes } from './ui-hierarchy.ts';
+import { androidUiNodes, type AndroidUiNodeMetadata } from './ui-hierarchy.ts';
 
 export type AndroidFillVerificationNode = FillDiagnosticNode & {
   className: string | null;
@@ -145,16 +145,14 @@ function inspectAndroidTextAtPointInHierarchy(
   x: number,
   y: number,
 ): AndroidTextAtPointInspection {
-  const nodeRegex = /<node\b[^>]*>/g;
-  let match: RegExpExecArray | null;
   const scan: AndroidTextAtPointScan = {
     focusedEdit: null,
     editAtPoint: null,
     anyAtPoint: null,
   };
 
-  while ((match = nodeRegex.exec(xml)) !== null) {
-    const candidate = androidFillCandidateFromNode(match[0]);
+  for (const node of androidUiNodes(xml)) {
+    const candidate = androidFillCandidateFromNode(node);
     if (candidate) updateAndroidTextAtPointScan(scan, candidate, x, y);
   }
 
@@ -228,23 +226,23 @@ function normalizeFillVerificationText(value: string | null): string {
   return (value ?? '').replace(/\s+/g, ' ').trim();
 }
 
-function androidFillCandidateFromNode(node: string): AndroidFillVerificationCandidate | null {
-  const attrs = readNodeAttributes(node);
-  const rect = parseBounds(attrs.bounds);
-  if (!rect) return null;
-  const text = attrs.text ?? '';
-  const area = Math.max(1, rect.width * rect.height);
+function androidFillCandidateFromNode(
+  node: AndroidUiNodeMetadata,
+): AndroidFillVerificationCandidate | null {
+  if (!node.rect) return null;
+  const text = node.text ?? '';
+  const area = Math.max(1, node.rect.width * node.rect.height);
   return {
     text: text || null,
-    className: attrs.className,
-    resourceId: attrs.resourceId,
-    packageName: attrs.packageName,
-    rect,
-    focused: attrs.focused ?? false,
-    password: attrs.password === true,
-    inputMethodOwned: isInputMethodOwnedAndroidNode(attrs.packageName, attrs.resourceId),
+    className: node.className,
+    resourceId: node.resourceId,
+    packageName: node.packageName,
+    rect: node.rect,
+    focused: node.focused ?? false,
+    password: node.password === true,
+    inputMethodOwned: isInputMethodOwnedAndroidNode(node.packageName, node.resourceId),
     area,
-    editText: isEditTextClass(attrs.className ?? ''),
+    editText: isEditTextClass(node.className ?? ''),
   };
 }
 
