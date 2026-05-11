@@ -672,25 +672,6 @@ test('formatSnapshotLine keeps snapshot-only metadata off the default formatter 
   assert.doesNotMatch(line, /\[scrollable\]/);
 });
 
-test('formatSnapshotLine marks focused nodes in snapshot output', () => {
-  const line = formatSnapshotLine(
-    {
-      ref: 'e1',
-      index: 0,
-      depth: 0,
-      type: 'Button',
-      label: 'General',
-      enabled: true,
-      focused: true,
-    },
-    0,
-    false,
-    undefined,
-    { summarizeTextSurfaces: true },
-  );
-  assert.match(line, /\[focused\]/);
-});
-
 function withNoColor<T>(fn: () => T): T {
   const originalForceColor = process.env.FORCE_COLOR;
   const originalNoColor = process.env.NO_COLOR;

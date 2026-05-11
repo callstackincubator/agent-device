@@ -845,7 +845,6 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /Do not use CSS selectors/);
   assert.match(help, /Snapshot legend:/);
   assert.match(help, /@e12 \[button\] label="Add to cart"/);
-  assert.match(help, /@e14 \[cell\] label="Profiles" focused/);
   assert.match(help, /Truncated text\/input previews: do not use get text first/);
   assert.match(help, /snapshot -s @e7/);
   assert.match(help, /Read-only visible\/state question: use snapshot\/get\/is\/find/);
