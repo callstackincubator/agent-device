@@ -4,7 +4,7 @@ url: /agent-device/pr-preview/pr-496/docs/introduction.md
 
 # Introduction
 
-`agent-device` is an agent-native CLI for verifying real apps from coding agents. It gives agents structured UI access, deterministic interactions, debugging evidence, performance signals, and replayable flows across iOS, Android, tvOS, Android TV, macOS, and Linux desktop targets.
+`agent-device` is an agent-native CLI for app verification and QA from coding agents. It gives agents structured UI access, deterministic interactions, debugging evidence, performance signals, and replayable flows across iOS, Android, tvOS, Android TV, macOS, and Linux desktop targets.
 
 Use it when an agent needs to inspect and operate a real app, not just reason about source code or screenshots.
 
@@ -15,7 +15,7 @@ Use it when an agent needs to inspect and operate a real app, not just reason ab
 - **Runtime evidence**: capture screenshots, recordings, logs, network traffic, traces, CPU/memory/perf snapshots, and crash-related logs when the happy path breaks.
 - **Replayable checks**: turn stable exploratory sessions into `.ad` replay scripts that can run again without AI.
 - **React Native and Expo workflows**: pair device automation with optional React DevTools profiling for component trees, props/state/hooks, slow renders, and rerenders.
-- **Local and remote devices**: drive simulators, emulators, physical devices, desktop apps, and remote profiles through one CLI.
+- **Local devices and app surfaces**: drive simulators, emulators, physical devices, TV targets, and desktop apps through one CLI.
 
 If you know `agent-browser`, `agent-device` is the app/device counterpart for mobile, TV, and desktop targets.
 
@@ -85,7 +85,9 @@ url: /agent-device/pr-preview/pr-496/docs/agent-setup.md
 
 # AI Agent Setup
 
-`agent-device` is built for AI agents, but humans usually install it, grant device permissions, and decide which agent client should use it. Use this page when setting up Cursor, Codex, Claude Code, Windsurf, Cline, Goose, or another coding agent for AI mobile testing, React Native QA, Expo app verification, iOS Simulator automation, Android Emulator automation, tvOS checks, Android TV checks, or desktop app verification.
+`agent-device` is built for AI agents, but humans usually install it, grant device permissions, and decide which agent client should use it.
+
+Use this page to wire Cursor, Codex, Claude Code, Windsurf, Cline, Goose, or another coding agent into mobile, TV, and desktop app verification. It covers skills, project rules, and MCP setup for React Native QA, Expo app verification, iOS Simulator automation, Android Emulator automation, tvOS checks, Android TV checks, debugging, profiling, and exploratory QA.
 
 The short version: install the CLI, make the agent read version-matched help, and let the agent run CLI commands in a terminal. MCP is available for discovery and help, not broad device control.
 
@@ -2530,7 +2532,7 @@ url: /agent-device/pr-preview/pr-496/index.md
 
 # Agent-native app automation for mobile, TV, and desktop.
 
-> agent-device gives coding agents structured UI access, deterministic interactions, and app-level evidence across mobile, TV, and desktop targets. Use it to inspect real apps, debug broken flows, profile runtime behavior, and turn successful explorations into replayable checks.
+> agent-device gives coding agents structured UI access, deterministic interactions, and app-level evidence across mobile, TV, and desktop targets. Use it to verify generated code, debug broken flows, profile runtime behavior, and turn exploratory QA into replayable checks.
 
 [Get Started](/docs/agent-setup) | [Commands](/docs/commands)
 
@@ -2539,7 +2541,7 @@ url: /agent-device/pr-preview/pr-496/index.md
 - **One CLI, many app surfaces**: Control iOS, Android, tvOS, Android TV, macOS, and Linux desktop targets with consistent snapshot and interaction commands.
 - **Accessibility-first snapshots**: Accessibility trees give agents compact UI context without forcing screenshot-only reasoning.
 - **Agent-native interactions**: Tap, swipe, scroll, focus, type, assert, and find visible UI through refs, selectors, and semantic finders.
-- **Built-in observability**: Collect session logs, inspect recent HTTP traffic, capture screenshots and recordings, and sample CPU, memory, startup, and frame-health metrics.
+- **Built-in debugging and profiling**: Collect session logs, inspect recent HTTP traffic, capture screenshots and recordings, and sample CPU, memory, startup, and frame-health metrics.
 - **Session and replay**: Open apps, keep stateful context, and replay recorded `.ad` actions to reproduce flows without AI at runtime.
 - **React Native internals**: Use agent-device react-devtools to inspect React Native component trees, props, state, hooks, and render profiles through pinned agent-react-devtools.
 

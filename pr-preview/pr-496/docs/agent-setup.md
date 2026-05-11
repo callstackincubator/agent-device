@@ -1,6 +1,8 @@
 # AI Agent Setup
 
-`agent-device` is built for AI agents, but humans usually install it, grant device permissions, and decide which agent client should use it. Use this page when setting up Cursor, Codex, Claude Code, Windsurf, Cline, Goose, or another coding agent for AI mobile testing, React Native QA, Expo app verification, iOS Simulator automation, Android Emulator automation, tvOS checks, Android TV checks, or desktop app verification.
+`agent-device` is built for AI agents, but humans usually install it, grant device permissions, and decide which agent client should use it.
+
+Use this page to wire Cursor, Codex, Claude Code, Windsurf, Cline, Goose, or another coding agent into mobile, TV, and desktop app verification. It covers skills, project rules, and MCP setup for React Native QA, Expo app verification, iOS Simulator automation, Android Emulator automation, tvOS checks, Android TV checks, debugging, profiling, and exploratory QA.
 
 The short version: install the CLI, make the agent read version-matched help, and let the agent run CLI commands in a terminal. MCP is available for discovery and help, not broad device control.
 
