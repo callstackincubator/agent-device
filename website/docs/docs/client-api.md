@@ -131,9 +131,13 @@ import {
   prepareAndroidSnapshotHelperArtifactFromManifestUrl,
 } from 'agent-device/android-snapshot-helper';
 
+const helperVersion = '<agent-device version>';
+const manifestUrl =
+  `https://github.com/callstackincubator/agent-device/releases/download/v${helperVersion}/` +
+  `agent-device-android-snapshot-helper-${helperVersion}.manifest.json`;
+
 const artifact = await prepareAndroidSnapshotHelperArtifactFromManifestUrl({
-  manifestUrl:
-    'https://github.com/callstackincubator/agent-device/releases/download/v0.13.3/agent-device-android-snapshot-helper-0.13.3.manifest.json',
+  manifestUrl,
 });
 
 await ensureAndroidSnapshotHelper({

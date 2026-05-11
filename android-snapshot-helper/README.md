@@ -14,7 +14,8 @@ requires a stable signing certificate for `adb install -r` upgrades.
 ## Build
 
 ```sh
-sh ./scripts/build-android-snapshot-helper.sh 0.13.3 .tmp/android-snapshot-helper
+VERSION="$(node -p 'require("./package.json").version')"
+sh ./scripts/build-android-snapshot-helper.sh "$VERSION" .tmp/android-snapshot-helper
 ```
 
 The build uses Android SDK command-line tools directly. It expects `ANDROID_HOME` or
@@ -26,7 +27,8 @@ missing or outdated.
 ## Run
 
 ```sh
-adb install -r -t .tmp/android-snapshot-helper/agent-device-android-snapshot-helper-0.13.3.apk
+VERSION="$(node -p 'require("./package.json").version')"
+adb install -r -t ".tmp/android-snapshot-helper/agent-device-android-snapshot-helper-$VERSION.apk"
 adb shell am instrument -w \
   -e waitForIdleTimeoutMs 500 \
   -e timeoutMs 8000 \
