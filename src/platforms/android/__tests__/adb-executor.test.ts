@@ -1,23 +1,19 @@
 import assert from 'node:assert/strict';
 import { test, vi } from 'vitest';
 
-const { spawnMock } = vi.hoisted(() => ({
-  spawnMock: vi.fn(() => ({})),
+const { runCmdBackgroundMock } = vi.hoisted(() => ({
+  runCmdBackgroundMock: vi.fn(() => ({
+    child: {},
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  })),
 }));
-
-vi.mock('node:child_process', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('node:child_process')>();
-  return {
-    ...actual,
-    spawn: spawnMock,
-  };
-});
 
 vi.mock('../../../utils/exec.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../utils/exec.ts')>();
   return {
     ...actual,
     runCmd: vi.fn(async () => ({ stdout: 'ok', stderr: '', exitCode: 0 })),
+    runCmdBackground: runCmdBackgroundMock,
   };
 });
 
@@ -31,9 +27,10 @@ import {
   resolveAndroidAdbProvider,
   withAndroidAdbProvider,
 } from '../adb-executor.ts';
-import { runCmd } from '../../../utils/exec.ts';
+import { runCmd, runCmdBackground } from '../../../utils/exec.ts';
 
 const mockRunCmd = vi.mocked(runCmd);
+const mockRunCmdBackground = vi.mocked(runCmdBackground);
 
 test('createDeviceAdbExecutor routes local commands through adb with the device serial', async () => {
   const adb = createDeviceAdbExecutor({
@@ -117,6 +114,7 @@ test('scoped provider only resolves for the matching device serial', async () =>
 
 test('createLocalAndroidAdbProvider exposes exec, spawn, and reverse over local adb', async () => {
   mockRunCmd.mockClear();
+  mockRunCmdBackground.mockClear();
   const provider = createLocalAndroidAdbProvider({
     platform: 'android',
     id: 'emulator-5554',
@@ -130,11 +128,11 @@ test('createLocalAndroidAdbProvider exposes exec, spawn, and reverse over local 
   await provider.reverse?.ensure({ local: 'tcp:8081', remote: 'tcp:8081', ownerId: 'session-a' });
   await provider.reverse?.removeAllOwned('session-a');
 
-  assert.deepEqual(spawnMock.mock.calls, [
+  assert.deepEqual(mockRunCmdBackground.mock.calls, [
     [
       'adb',
       ['-s', 'emulator-5554', 'logcat'],
-      { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true },
+      { stdio: ['ignore', 'pipe', 'pipe'], allowFailure: true, captureOutput: false },
     ],
   ]);
   assert.deepEqual(

@@ -102,7 +102,7 @@ A new snapshot/command flag touches up to 7 files in a fixed order. Follow this 
 Command-only flags (like `find --first`) that don't flow to the platform layer only need steps 1 and the handler file.
 
 ## Hard Rules
-- Use `runCmd`/`runCmdSync` from `src/utils/exec.ts` for process execution.
+- Use process helpers from `src/utils/exec.ts` for TypeScript process execution: `runCmd`, `runCmdStreaming`, `runCmdSync`, `runCmdBackground`, and `runCmdDetached`. Do not import raw `spawn`/`spawnSync` outside `src/utils/exec.ts`; add or extend an exec helper instead. Plain `.mjs` packaging fixtures that cannot import TypeScript helpers should keep child-process usage local and prefer `execFile`/`execFileSync` over spawn.
 - Use daemon session flow for interactions (`open` before interactions, `close` after).
 - Use `keyboard dismiss` for iOS keyboard dismissal; it may tap safe native controls such as `Done` but must not fall back to system back navigation.
 - Do not remove shared snapshot/session model behavior without full migration.

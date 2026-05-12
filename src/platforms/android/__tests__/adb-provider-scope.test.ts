@@ -2,10 +2,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { ChildProcess } from 'node:child_process';
 import { test } from 'vitest';
 import { runCmd } from '../../../utils/exec.ts';
-import { resolveAndroidAdbProvider, withAndroidAdbProvider } from '../adb-executor.ts';
+import {
+  resolveAndroidAdbProvider,
+  withAndroidAdbProvider,
+  type AndroidAdbProcess,
+} from '../adb-executor.ts';
 
 const device = {
   platform: 'android',
@@ -66,7 +69,7 @@ test('withAndroidAdbProvider ignores adb commands for another serial', async () 
 });
 
 test('resolveAndroidAdbProvider uses the scoped provider spawner', async () => {
-  const child = { pid: 123 } as ChildProcess;
+  const child = { pid: 123 } as AndroidAdbProcess;
   const calls: string[][] = [];
 
   const result = await withAndroidAdbProvider(

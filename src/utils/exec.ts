@@ -40,6 +40,15 @@ type ExecDetachedOptions = ExecOptions & {
   stdio?: StdioOptions;
 };
 
+export type ExecBackgroundOptions = ExecOptions & {
+  /**
+   * Capture stdout/stderr into the wait result when the child has piped stdio.
+   * Set false when the caller owns, ignores, or forwards the streams.
+   */
+  captureOutput?: boolean;
+  stdio?: StdioOptions;
+};
+
 const BARE_COMMAND_RE = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/;
 const WINDOWS_PATH_EXTENSIONS = ['.com', '.exe', '.bat', '.cmd'];
 export type CommandExecutorOverride = (
@@ -104,7 +113,6 @@ function runSpawnedCommand(
     const stdoutChunks: Buffer[] | undefined = options.binaryStdout ? [] : undefined;
     let stderr = '';
     let didTimeout = false;
-    let didAbort = false;
     const timeoutMs = normalizeTimeoutMs(options.timeoutMs);
     const timeoutHandle = timeoutMs
       ? setTimeout(() => {
@@ -112,21 +120,13 @@ function runSpawnedCommand(
           killProcessTree(child, options.detached);
         }, timeoutMs)
       : null;
-    const onAbort = () => {
-      didAbort = true;
-      killProcessTree(child, options.detached);
-    };
-    if (options.signal?.aborted) {
-      onAbort();
-    } else {
-      options.signal?.addEventListener('abort', onAbort, { once: true });
-    }
+    const abort = watchCommandAbort(child, options);
 
     if (!options.binaryStdout) child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
 
     void writeChildStdin(child, options.stdin).catch((err: unknown) => {
-      if (didAbort || didTimeout) return;
+      if (abort.didAbort || didTimeout) return;
       if (isEpipeError(err)) return;
       reject(createStdinError(executable, cmd, args, err));
       killProcessTree(child, options.detached);
@@ -150,9 +150,9 @@ function runSpawnedCommand(
 
     child.on('error', (err) => {
       if (timeoutHandle) clearTimeout(timeoutHandle);
-      options.signal?.removeEventListener('abort', onAbort);
+      abort.dispose();
       reject(
-        didAbort
+        abort.didAbort
           ? createCommandCanceledError(executable, cmd, args)
           : createSpawnError(executable, cmd, args, err),
       );
@@ -160,9 +160,9 @@ function runSpawnedCommand(
 
     child.on('close', (code) => {
       if (timeoutHandle) clearTimeout(timeoutHandle);
-      options.signal?.removeEventListener('abort', onAbort);
+      abort.dispose();
       const exitCode = code ?? 1;
-      if (didAbort) {
+      if (abort.didAbort) {
         reject(createCommandCanceledError(executable, cmd, args));
         return;
       }
@@ -315,13 +315,13 @@ export function runCmdDetached(
 export function runCmdBackground(
   cmd: string,
   args: string[],
-  options: ExecOptions = {},
+  options: ExecBackgroundOptions = {},
 ): ExecBackgroundResult {
   const executable = normalizeExecutableCommand(cmd);
   const child = spawn(executable, args, {
     cwd: options.cwd,
     env: options.env,
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: options.stdio ?? ['ignore', 'pipe', 'pipe'],
     detached: options.detached,
     windowsHide: true,
     shell: false,
@@ -329,23 +329,37 @@ export function runCmdBackground(
 
   let stdout = '';
   let stderr = '';
+  const captureOutput = options.captureOutput ?? true;
+  const abort = watchCommandAbort(child, options);
 
-  child.stdout.setEncoding('utf8');
-  child.stderr.setEncoding('utf8');
+  if (captureOutput) {
+    child.stdout?.setEncoding('utf8');
+    child.stderr?.setEncoding('utf8');
 
-  child.stdout.on('data', (chunk) => {
-    stdout += chunk;
-  });
-  child.stderr.on('data', (chunk) => {
-    stderr += chunk;
-  });
+    child.stdout?.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr?.on('data', (chunk) => {
+      stderr += chunk;
+    });
+  }
 
   const wait = new Promise<ExecResult>((resolve, reject) => {
     child.on('error', (err) => {
-      reject(createSpawnError(executable, cmd, args, err));
+      abort.dispose();
+      reject(
+        abort.didAbort
+          ? createCommandCanceledError(executable, cmd, args)
+          : createSpawnError(executable, cmd, args, err),
+      );
     });
     child.on('close', (code) => {
+      abort.dispose();
       const exitCode = code ?? 1;
+      if (abort.didAbort) {
+        reject(createCommandCanceledError(executable, cmd, args));
+        return;
+      }
       if (exitCode !== 0 && !options.allowFailure) {
         reject(createExitError(executable, cmd, args, exitCode, stdout, stderr));
         return;
@@ -520,6 +534,30 @@ function normalizeTimeoutMs(value: number | undefined): number | undefined {
   const timeout = Math.floor(value as number);
   if (timeout <= 0) return undefined;
   return timeout;
+}
+
+function watchCommandAbort(
+  child: ChildProcess,
+  options: Pick<ExecOptions, 'detached' | 'signal'>,
+): { readonly didAbort: boolean; dispose: () => void } {
+  let didAbort = false;
+  const onAbort = () => {
+    didAbort = true;
+    killProcessTree(child, options.detached);
+  };
+  if (options.signal?.aborted) {
+    onAbort();
+  } else {
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+  }
+  return {
+    get didAbort() {
+      return didAbort;
+    },
+    dispose: () => {
+      options.signal?.removeEventListener('abort', onAbort);
+    },
+  };
 }
 
 function killProcessTree(child: ChildProcess, detached: boolean | undefined): void {

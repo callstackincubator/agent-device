@@ -12,7 +12,7 @@ export type { DaemonLockPolicy } from '../contracts.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionSurface } from '../core/session-surface.ts';
 import type { DeviceInfo, Platform, PlatformSelector } from '../utils/device.ts';
-import type { ExecResult } from '../utils/exec.ts';
+import type { ExecBackgroundResult, ExecResult } from '../utils/exec.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
 import type { AppLogState } from './app-log-process.ts';
 
@@ -177,7 +177,7 @@ export type SessionState = {
   recording?:
     | (SessionRecordingBase & {
         platform: 'ios';
-        child: ReturnType<typeof import('node:child_process').spawn>;
+        child: ExecBackgroundResult['child'];
         wait: Promise<ExecResult>;
         remotePath?: string;
       })

@@ -70,6 +70,41 @@ test('runCmd writes stdin through pipeline', async () => {
   assert.equal(result.stdout, String(stdin.length));
 });
 
+test('runCmdBackground can leave output streams to the caller', async () => {
+  const { child, wait } = runCmdBackground(
+    process.execPath,
+    ['-e', 'process.stdout.write("out"); process.stderr.write("err");'],
+    { captureOutput: false },
+  );
+  let stdout = '';
+  let stderr = '';
+  child.stdout?.setEncoding('utf8');
+  child.stderr?.setEncoding('utf8');
+  child.stdout?.on('data', (chunk) => {
+    stdout += chunk;
+  });
+  child.stderr?.on('data', (chunk) => {
+    stderr += chunk;
+  });
+
+  const result = await wait;
+
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, '');
+  assert.equal(stdout, 'out');
+  assert.equal(stderr, 'err');
+});
+
+test('runCmdBackground aborts with request cancellation details', async () => {
+  const controller = new AbortController();
+  const { wait } = runCmdBackground(process.execPath, ['-e', 'setTimeout(() => {}, 10_000)'], {
+    signal: controller.signal,
+  });
+  controller.abort();
+
+  await assertRejectsRequestCanceled(wait);
+});
+
 test('whichCmd resolves absolute executable paths without invoking a shell', async () => {
   assert.equal(await whichCmd(process.execPath), true);
 });
