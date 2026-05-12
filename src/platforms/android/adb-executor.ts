@@ -131,7 +131,8 @@ function createSerialAdbExecutor(serial: string): AndroidAdbExecutor {
 }
 
 function createSerialAdbSpawner(serial: string): AndroidAdbSpawner {
-  return (args, options) => spawn('adb', ['-s', serial, ...args], options ?? {});
+  return (args, options) =>
+    spawn('adb', ['-s', serial, ...args], { ...options, windowsHide: true });
 }
 
 export function createLocalAndroidAdbProvider(device: DeviceInfo): AndroidAdbProvider {

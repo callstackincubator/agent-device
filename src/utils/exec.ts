@@ -95,6 +95,7 @@ function runSpawnedCommand(
       env: options.env,
       stdio: ['pipe', 'pipe', 'pipe'],
       detached: options.detached,
+      windowsHide: true,
       shell: false,
     });
     options.onSpawn?.(child);
@@ -248,6 +249,7 @@ export function runCmdSync(cmd: string, args: string[], options: ExecOptions = {
     encoding: options.binaryStdout ? undefined : 'utf8',
     input: options.stdin,
     timeout: normalizeTimeoutMs(options.timeoutMs),
+    windowsHide: true,
     shell: false,
   });
 
@@ -303,6 +305,7 @@ export function runCmdDetached(
     env: options.env,
     stdio: options.stdio ?? 'ignore',
     detached: true,
+    windowsHide: true,
     shell: false,
   });
   child.unref();
@@ -320,6 +323,7 @@ export function runCmdBackground(
     env: options.env,
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: options.detached,
+    windowsHide: true,
     shell: false,
   });
 

@@ -1,6 +1,18 @@
 import assert from 'node:assert/strict';
 import { test, vi } from 'vitest';
 
+const { spawnMock } = vi.hoisted(() => ({
+  spawnMock: vi.fn(() => ({})),
+}));
+
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>();
+  return {
+    ...actual,
+    spawn: spawnMock,
+  };
+});
+
 vi.mock('../../../utils/exec.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../utils/exec.ts')>();
   return {
@@ -114,9 +126,17 @@ test('createLocalAndroidAdbProvider exposes exec, spawn, and reverse over local 
   });
 
   await provider.exec(['shell', 'echo', 'ok']);
+  provider.spawn?.(['logcat'], { stdio: ['ignore', 'pipe', 'pipe'] });
   await provider.reverse?.ensure({ local: 'tcp:8081', remote: 'tcp:8081', ownerId: 'session-a' });
   await provider.reverse?.removeAllOwned('session-a');
 
+  assert.deepEqual(spawnMock.mock.calls, [
+    [
+      'adb',
+      ['-s', 'emulator-5554', 'logcat'],
+      { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true },
+    ],
+  ]);
   assert.deepEqual(
     mockRunCmd.mock.calls.map((call) => call[1]),
     [
