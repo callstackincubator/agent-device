@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.f4adab48fc.js"></script>
 <script defer src="/agent-device/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/static/js/757.695a0ec7a3.js"></script>
-<script defer src="/agent-device/static/js/index.0b51e6eafc.js"></script>
+<script defer src="/agent-device/static/js/index.2c2c8c5f4b.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -403,6 +403,7 @@ When a target only appears in an off-screen summary, use <code>scroll &lt;direct
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> airplane</span><span style="color:var(--shiki-token-string)"> off</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> location</span><span style="color:var(--shiki-token-string)"> on</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> location</span><span style="color:var(--shiki-token-string)"> off</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> location</span><span style="color:var(--shiki-token-string)"> set</span><span style="color:var(--shiki-token-constant)"> 37.3349</span><span style="color:var(--shiki-token-string)"> -122.009</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> animations</span><span style="color:var(--shiki-token-string)"> off</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> animations</span><span style="color:var(--shiki-token-string)"> on</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> appearance</span><span style="color:var(--shiki-token-string)"> light</span></span>
@@ -430,6 +431,7 @@ When a target only appears in an off-screen summary, use <code>scroll &lt;direct
 <li><code>settings wifi|airplane|location|animations</code> remain intentionally unsupported on macOS.</li>
 <li>Android <code>settings animations off|on</code> toggles the global <code>window_animation_scale</code>, <code>transition_animation_scale</code>, and <code>animator_duration_scale</code> values. Use it as an opt-in stabilizer for automation runs with heavy system or app animations, then restore with <code>settings animations on</code> when needed.</li>
 <li><code>settings appearance</code> maps to macOS appearance, iOS simulator appearance, and Android night mode.</li>
+<li><code>settings location set &lt;lat&gt; &lt;lon&gt;</code> sets precise coordinates on iOS simulators and Android emulators.</li>
 <li>Face ID and Touch ID controls are iOS simulator-only.</li>
 <li>Fingerprint simulation is supported on Android targets where <code>cmd fingerprint</code> or <code>adb emu finger</code> is available.
 On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li>
