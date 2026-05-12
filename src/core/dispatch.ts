@@ -692,34 +692,37 @@ async function handleSettingsCommand(
   context: DispatchContext | undefined,
 ): Promise<Record<string, unknown>> {
   const [setting, state, target, mode] = positionals;
+  const isLocationSet = setting === 'location' && state === 'set';
+  const usesPayloadAppBundleSlot = setting === 'permission' || isLocationSet;
   const appBundleId =
-    setting === 'permission'
-      ? (positionals[4] ?? context?.appBundleId)
-      : setting === 'location' && state === 'set'
-        ? (positionals[4] ?? context?.appBundleId)
-        : (positionals[2] ?? context?.appBundleId);
+    (usesPayloadAppBundleSlot ? positionals[4] : positionals[2]) ?? context?.appBundleId;
   const settingOptions =
     setting === 'permission'
       ? {
           permissionTarget: target,
           permissionMode: mode,
         }
-      : setting === 'location' && state === 'set'
+      : isLocationSet
         ? {
             latitude: readLocationCoordinate(target, 'latitude'),
             longitude: readLocationCoordinate(mode, 'longitude'),
           }
         : undefined;
+  const diagnosticPayload = isLocationSet
+    ? { setting, state, latitude: target, longitude: mode, platform: device.platform }
+    : setting === 'permission'
+      ? {
+          setting,
+          state,
+          permissionTarget: target,
+          permissionMode: mode,
+          platform: device.platform,
+        }
+      : { setting, state, appBundleId, platform: device.platform };
   emitDiagnostic({
     level: 'debug',
     phase: 'settings_apply',
-    data: {
-      setting,
-      state,
-      target,
-      mode,
-      platform: device.platform,
-    },
+    data: diagnosticPayload,
   });
   const result = await interactor.setSetting(setting, state, appBundleId, settingOptions);
   return result && typeof result === 'object'
