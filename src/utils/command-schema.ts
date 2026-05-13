@@ -1,9 +1,15 @@
 import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
 import { SESSION_SURFACES } from '../core/session-surface.ts';
 import type { DaemonInstallSource } from '../contracts.ts';
+import type { RemoteConfigMetroOptions } from '../remote-config-schema.ts';
+import { CAPTURE_COMMAND_SCHEMAS } from '../commands/capture-definition.ts';
 import { INTERACTION_COMMAND_SCHEMAS } from '../commands/interactions/definition.ts';
+import {
+  SELECTOR_COMMAND_SCHEMAS,
+  SELECTOR_SNAPSHOT_FLAGS,
+} from '../commands/selectors-definition.ts';
 
-export type CliFlags = {
+export type CliFlags = RemoteConfigMetroOptions & {
   json: boolean;
   config?: string;
   remoteConfig?: string;
@@ -34,19 +40,6 @@ export type CliFlags = {
   runtime?: string;
   metroHost?: string;
   metroPort?: number;
-  metroProjectRoot?: string;
-  metroKind?: 'auto' | 'react-native' | 'expo';
-  metroPublicBaseUrl?: string;
-  metroProxyBaseUrl?: string;
-  metroBearerToken?: string;
-  metroPreparePort?: number;
-  metroListenHost?: string;
-  metroStatusHost?: string;
-  metroStartupTimeoutMs?: number;
-  metroProbeTimeoutMs?: number;
-  metroRuntimeFile?: string;
-  metroNoReuseExisting?: boolean;
-  metroNoInstallDeps?: boolean;
   bundleUrl?: string;
   launchUrl?: string;
   boot?: boolean;
@@ -142,22 +135,6 @@ export type CommandSchema = {
   usageOverride?: string;
   listUsageOverride?: string;
 };
-
-const SNAPSHOT_FLAGS = [
-  'snapshotInteractiveOnly',
-  'snapshotCompact',
-  'snapshotDepth',
-  'snapshotScope',
-  'snapshotRaw',
-] as const satisfies readonly FlagKey[];
-
-const SELECTOR_SNAPSHOT_FLAGS = [
-  'snapshotDepth',
-  'snapshotScope',
-  'snapshotRaw',
-] as const satisfies readonly FlagKey[];
-
-const FIND_SNAPSHOT_FLAGS = ['snapshotDepth', 'snapshotRaw'] as const satisfies readonly FlagKey[];
 
 const AGENT_WORKFLOWS = [
   { label: 'help workflow', description: 'Normal bootstrap, exploration, and validation loop' },
@@ -1547,20 +1524,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: ['bundleOrPackage', 'payloadOrJson'],
     allowedFlags: [],
   },
-  snapshot: {
-    usageOverride: 'snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw]',
-    helpDescription: 'Capture accessibility tree or diff against the previous session baseline',
-    positionalArgs: [],
-    allowedFlags: ['snapshotDiff', ...SNAPSHOT_FLAGS],
-  },
-  diff: {
-    usageOverride:
-      'diff snapshot | diff screenshot --baseline <path> [current.png] [--out <diff.png>] [--threshold <0-1>] [--overlay-refs]',
-    helpDescription: 'Diff accessibility snapshot or compare screenshots pixel-by-pixel',
-    summary: 'Diff snapshot or screenshot',
-    positionalArgs: ['kind', 'current?'],
-    allowedFlags: [...SNAPSHOT_FLAGS, 'baseline', 'threshold', 'out', 'overlayRefs'],
-  },
+  ...CAPTURE_COMMAND_SCHEMAS,
   'ensure-simulator': {
     helpDescription: 'Ensure an iOS simulator exists in a device set (create if missing)',
     summary: 'Ensure iOS simulator exists',
@@ -1675,14 +1639,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: [],
     allowedFlags: [],
   },
-  wait: {
-    usageOverride: 'wait <ms>|text <text>|@ref|<selector> [timeoutMs]',
-    helpDescription: 'Wait for duration, text, ref, or selector to appear',
-    summary: 'Wait for time, text, ref, or selector',
-    positionalArgs: ['durationOrSelector', 'timeoutMs?'],
-    allowsExtraPositionals: true,
-    allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
-  },
+  ...SELECTOR_COMMAND_SCHEMAS,
   alert: {
     usageOverride: 'alert [get|accept|dismiss|wait] [timeout]',
     helpDescription: 'Inspect or handle alert (iOS simulator and macOS desktop)',
@@ -1705,14 +1662,6 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
       'clickButton',
       ...SELECTOR_SNAPSHOT_FLAGS,
     ],
-  },
-  get: {
-    usageOverride: 'get text|attrs <@ref|selector>',
-    helpDescription:
-      'Return exposed element text/attributes by ref or selector; use snapshot -s @ref for truncated previews',
-    summary: 'Get exposed text or attrs by ref or selector',
-    positionalArgs: ['subcommand', 'target'],
-    allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
   replay: {
     helpDescription: 'Replay a recorded session',
@@ -1800,12 +1749,6 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: ['scale', 'x?', 'y?'],
     allowedFlags: [],
   },
-  screenshot: {
-    helpDescription:
-      'Capture screenshot (macOS app sessions default to the app window; use --fullscreen for full desktop, --max-size to downscale, or --overlay-refs to annotate the image with current refs)',
-    positionalArgs: ['path?'],
-    allowedFlags: ['out', 'overlayRefs', 'screenshotFullscreen', 'screenshotMaxSize'],
-  },
   'trigger-app-event': {
     usageOverride: 'trigger-app-event <event> [payloadJson]',
     helpDescription: 'Trigger app-defined event hook via deep link template',
@@ -1848,21 +1791,6 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     summary: 'Show recent HTTP traffic',
     positionalArgs: ['dump|log', 'limit?', 'include?'],
     allowedFlags: ['networkInclude'],
-  },
-  find: {
-    usageOverride: 'find <locator|text> <action> [value] [--first|--last]',
-    helpDescription: 'Find by text/label/value/role/id and run action',
-    summary: 'Find an element and act',
-    positionalArgs: ['query', 'action', 'value?'],
-    allowsExtraPositionals: true,
-    allowedFlags: [...FIND_SNAPSHOT_FLAGS, 'findFirst', 'findLast'],
-  },
-  is: {
-    helpDescription: 'Assert UI state (visible|hidden|exists|editable|selected|text)',
-    summary: 'Assert UI state',
-    positionalArgs: ['predicate', 'selector', 'value?'],
-    allowsExtraPositionals: true,
-    allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
   },
   settings: {
     usageOverride: SETTINGS_USAGE_OVERRIDE,

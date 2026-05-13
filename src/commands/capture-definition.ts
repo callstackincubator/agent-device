@@ -1,0 +1,59 @@
+import { PUBLIC_COMMANDS } from '../command-catalog.ts';
+import {
+  ALL_DEVICE_COMMAND_CAPABILITY,
+  commandCapabilityMap,
+  commandSchemaMap,
+  defineCommand,
+} from './command-definition.ts';
+
+const SNAPSHOT_FLAGS = [
+  'snapshotInteractiveOnly',
+  'snapshotCompact',
+  'snapshotDepth',
+  'snapshotScope',
+  'snapshotRaw',
+] as const;
+
+const snapshotCommandDefinition = defineCommand({
+  name: PUBLIC_COMMANDS.snapshot,
+  schema: {
+    usageOverride: 'snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw]',
+    helpDescription: 'Capture accessibility tree or diff against the previous session baseline',
+    positionalArgs: [],
+    allowedFlags: ['snapshotDiff', ...SNAPSHOT_FLAGS],
+  },
+  capability: ALL_DEVICE_COMMAND_CAPABILITY,
+});
+
+const diffCommandDefinition = defineCommand({
+  name: PUBLIC_COMMANDS.diff,
+  schema: {
+    usageOverride:
+      'diff snapshot | diff screenshot --baseline <path> [current.png] [--out <diff.png>] [--threshold <0-1>] [--overlay-refs]',
+    helpDescription: 'Diff accessibility snapshot or compare screenshots pixel-by-pixel',
+    summary: 'Diff snapshot or screenshot',
+    positionalArgs: ['kind', 'current?'],
+    allowedFlags: [...SNAPSHOT_FLAGS, 'baseline', 'threshold', 'out', 'overlayRefs'],
+  },
+  capability: ALL_DEVICE_COMMAND_CAPABILITY,
+});
+
+const screenshotCommandDefinition = defineCommand({
+  name: PUBLIC_COMMANDS.screenshot,
+  schema: {
+    helpDescription:
+      'Capture screenshot (macOS app sessions default to the app window; use --fullscreen for full desktop, --max-size to downscale, or --overlay-refs to annotate the image with current refs)',
+    positionalArgs: ['path?'],
+    allowedFlags: ['out', 'overlayRefs', 'screenshotFullscreen', 'screenshotMaxSize'],
+  },
+  capability: ALL_DEVICE_COMMAND_CAPABILITY,
+});
+
+export const CAPTURE_COMMAND_DEFINITIONS = [
+  snapshotCommandDefinition,
+  diffCommandDefinition,
+  screenshotCommandDefinition,
+] as const;
+
+export const CAPTURE_COMMAND_SCHEMAS = commandSchemaMap(CAPTURE_COMMAND_DEFINITIONS);
+export const CAPTURE_COMMAND_CAPABILITIES = commandCapabilityMap(CAPTURE_COMMAND_DEFINITIONS);
