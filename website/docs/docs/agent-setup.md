@@ -19,14 +19,16 @@ agent-device --version
 agent-device help workflow
 ```
 
-For one-off use without a global install:
+For one-off human use without a global install:
 
 ```bash
-npx -y agent-device@latest --version
-npx -y agent-device@latest help workflow
+npx agent-device --version
+npx agent-device help workflow
 ```
 
-Global install is better for normal agent workflows because repeated commands, skills, and terminal sessions resolve to one stable version.
+Global install is better for normal agent workflows because repeated commands, skills, and terminal sessions resolve to one stable version. Project-local installs are also good when you want a lockfile-pinned agent-device version.
+
+Avoid telling agents to choose an npm version or run `npx -y agent-device@latest` autonomously: it fetches and executes a mutable npm package without a human prompt. For unattended agent use, prefer a trusted installed binary, a project-local install, or a version supplied by the user or project config.
 
 For Node, Xcode, Android SDK, macOS, and iOS device prerequisites, see [Installation](/docs/installation).
 
@@ -47,7 +49,7 @@ Add this as a project rule, custom instruction, or skill equivalent when your ag
 ```text
 Use agent-device only for app/device automation tasks. Before planning commands, run `agent-device --version` and read `agent-device help workflow`. For exploratory QA, read `agent-device help dogfood`. For logs, network, traces, or runtime failures, read `agent-device help debugging`. For React Native component trees, props/state/hooks, slow renders, or rerenders, read `agent-device help react-devtools`.
 
-Use the CLI in the integrated terminal. MCP is only a discovery/help router and does not expose device automation tools. Prefer `open -> snapshot -i -> act -> re-snapshot -> verify -> close`. Use current refs such as `@e3` for exploration and selectors for durable replay. Keep mutating commands against one session serial. Capture screenshots, logs, network, perf, traces, recordings, and `.ad` replay scripts only when they add evidence.
+Use the CLI in the integrated terminal. If `agent-device` is not on PATH but the user installed it globally in another shell, ask the user's login shell for the absolute path and run that path instead. For macOS zsh users, use `zsh -lic 'command -v agent-device'`; for other shells, use the equivalent login-shell lookup. Do not silently fall back to `npx -y agent-device@latest`; ask or use an exact version. MCP is only a discovery/help router and does not expose device automation tools. Prefer `open -> snapshot -i -> act -> re-snapshot -> verify -> close`. Use current refs such as `@e3` for exploration and selectors for durable replay. Keep mutating commands against one session serial. Capture screenshots, logs, network, perf, traces, recordings, and `.ad` replay scripts only when they add evidence.
 ```
 
 ## MCP router
@@ -67,14 +69,14 @@ Global install configuration:
 }
 ```
 
-No global install variant:
+No global install variant. Pin a user- or project-selected package version for unattended agent use:
 
 ```json
 {
   "mcpServers": {
     "agent-device": {
       "command": "npx",
-      "args": ["-y", "agent-device@latest", "mcp"]
+      "args": ["-y", "agent-device@<reviewed-version>", "mcp"]
     }
   }
 }
@@ -105,6 +107,16 @@ agent-device boot --platform ios
 agent-device open <app-or-url> --platform ios
 agent-device snapshot -i
 ```
+
+Some agent clients run commands in an environment that differs from the user's normal install shell. If the user installed `agent-device` globally but the agent cannot find it, have the agent ask the user's login shell for the absolute path.
+
+For macOS zsh users:
+
+```bash
+zsh -lic 'command -v agent-device'
+```
+
+For other shells, use the equivalent login-shell lookup. Then use the printed path for `--version`, `help workflow`, and subsequent commands.
 
 For reviews or planning-only tasks, tell the agent not to run devices unless explicitly requested.
 

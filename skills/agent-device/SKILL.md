@@ -11,7 +11,15 @@ Router only. Private setup before using this skill:
 agent-device --version
 ```
 
-Require `agent-device >= 0.14.0`; older CLIs lack these help topics. If older, run `npm install -g agent-device@latest`, recheck, then continue. If you cannot upgrade, stop and tell the user. Do not include version/upgrade commands in final plans.
+If that fails but the user installed `agent-device` globally, try the user's login shell before using `npx`:
+
+```bash
+zsh -lic 'command -v agent-device'
+```
+
+If it prints a path, run that absolute path instead of `agent-device`. For non-zsh shells, use the equivalent login-shell command.
+
+Require `agent-device >= 0.14.0`; older CLIs lack these help topics. If older, stop and tell the user to upgrade the trusted install or approve an exact-version npm command. Do not run `npm install -g agent-device@latest` or `npx -y agent-device@latest` autonomously, and do not include version/upgrade commands in final plans.
 
 Before your first agent-device command or plan, read the version-matched CLI guide:
 

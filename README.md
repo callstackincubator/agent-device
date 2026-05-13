@@ -89,7 +89,7 @@ Paste one of these into clients that accept `mcpServers`, such as Cursor project
   "mcpServers": {
     "agent-device": {
       "command": "npx",
-      "args": ["-y", "agent-device@latest", "mcp"]
+      "args": ["-y", "agent-device@<reviewed-version>", "mcp"]
     }
   }
 }
@@ -221,7 +221,6 @@ Used by teams and developers at Callstack, Expensify, Shopify, Kindred, Total Wi
 Agent integration:
 
 - [agent-device skill](skills/agent-device/SKILL.md)
-- [react-devtools skill](skills/react-devtools/SKILL.md)
 - [dogfood skill](skills/dogfood/SKILL.md)
 - MCP router: `agent-device mcp`
 - [agent-device skill on ClawHub](https://clawhub.ai/okwasniewski/agent-device)
