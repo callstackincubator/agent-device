@@ -1,7 +1,4 @@
-import {
-  withAndroidAdbProvider,
-  type AndroidAdbExecutor,
-} from '../platforms/android/adb-executor.ts';
+import { withAndroidAdbProvider } from '../platforms/android/adb-executor.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
 import {
   type DeviceInventoryProvider,
@@ -14,12 +11,6 @@ import {
   contextFromFlags as contextFromFlagsWithLog,
   type DaemonCommandContext,
 } from './context.ts';
-import { handleSessionCommands } from './handlers/session.ts';
-import { handleSnapshotCommands } from './handlers/snapshot.ts';
-import { handleFindCommands } from './handlers/find.ts';
-import { handleRecordTraceCommands } from './handlers/record-trace.ts';
-import { handleInteractionCommands } from './handlers/interaction.ts';
-import { handleLeaseCommands } from './handlers/lease.ts';
 import { assertSessionSelectorMatches } from './session-selector.ts';
 import { applyRequestLockPolicy } from './request-lock-policy.ts';
 import { resolveEffectiveSessionName } from './session-routing.ts';
@@ -49,6 +40,7 @@ import {
   refreshRecordingHealth,
   shouldBlockForInvalidRecording,
 } from './request-recording-health.ts';
+import { runRequestHandlerChain } from './request-handler-chain.ts';
 
 const sessionExecutionLocks = new Map<string, Promise<unknown>>();
 
@@ -73,85 +65,6 @@ function contextFromFlags(
     ...contextFromFlagsWithLog(logPath, flags, appBundleId, traceLogPath, requestId),
     requestId,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Specialized handler chain
-// ---------------------------------------------------------------------------
-
-async function runHandlerChain(params: {
-  req: DaemonRequest;
-  sessionName: string;
-  logPath: string;
-  sessionStore: SessionStore;
-  leaseRegistry: LeaseRegistry;
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
-  androidAdbExecutor?: AndroidAdbExecutor;
-  contextFromFlags: (
-    flags: CommandFlags | undefined,
-    appBundleId?: string,
-    traceLogPath?: string,
-  ) => DaemonCommandContext;
-}): Promise<DaemonResponse | null> {
-  const {
-    req,
-    sessionName,
-    logPath,
-    sessionStore,
-    leaseRegistry,
-    invoke,
-    androidAdbExecutor,
-    contextFromFlags,
-  } = params;
-
-  const leaseResponse = await handleLeaseCommands({ req, leaseRegistry });
-  if (leaseResponse) return leaseResponse;
-
-  const sessionResponse = await handleSessionCommands({
-    req,
-    sessionName,
-    logPath,
-    sessionStore,
-    invoke,
-    androidAdbExecutor,
-  });
-  if (sessionResponse) return sessionResponse;
-
-  const snapshotResponse = await handleSnapshotCommands({
-    req,
-    sessionName,
-    logPath,
-    sessionStore,
-  });
-  if (snapshotResponse) return snapshotResponse;
-
-  const recordTraceResponse = await handleRecordTraceCommands({
-    req,
-    sessionName,
-    sessionStore,
-    logPath,
-  });
-  if (recordTraceResponse) return recordTraceResponse;
-
-  const findResponse = await handleFindCommands({
-    req,
-    sessionName,
-    logPath,
-    sessionStore,
-    invoke,
-  });
-  if (findResponse) return findResponse;
-
-  const interactionResponse = await handleInteractionCommands({
-    req,
-    sessionName,
-    logPath,
-    sessionStore,
-    contextFromFlags,
-  });
-  if (interactionResponse) return interactionResponse;
-
-  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -260,7 +173,7 @@ export function createRequestHandler(
                   // The ADB provider is scoped to this single locked request; handlers may re-read
                   // the session state, but all device-scoped adb calls in this request share it.
                   // Phase 1: Try specialized handler chain
-                  const handlerResponse = await runHandlerChain({
+                  const handlerResponse = await runRequestHandlerChain({
                     req: lockedReq,
                     sessionName,
                     logPath,
