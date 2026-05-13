@@ -2,6 +2,8 @@ import type { AgentDeviceClient, CommandRequestResult } from '../../client.ts';
 import { CLIENT_COMMANDS } from '../../client-command-registry.ts';
 import type { RecordOptions } from '../../client-types.ts';
 import { announceReplayTestRun } from '../../cli-test.ts';
+import { runTypeCliCommand } from '../../commands/interactions/cli.ts';
+import { typeCommandDefinition } from '../../commands/interactions/definition.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import {
@@ -151,14 +153,9 @@ export const genericClientCommandHandlers = {
         y: Number(positionals[1]),
       }),
   ),
-  [CLIENT_COMMANDS.type]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.type,
-    ({ client, positionals, flags }) =>
-      client.interactions.type({
-        ...buildSelectionOptions(flags),
-        text: positionals.join(' '),
-        delayMs: flags.delayMs,
-      }),
+  [typeCommandDefinition.name]: createGenericClientCommandHandler(
+    typeCommandDefinition.name,
+    runTypeCliCommand,
   ),
   [CLIENT_COMMANDS.fill]: createGenericClientCommandHandler(
     CLIENT_COMMANDS.fill,

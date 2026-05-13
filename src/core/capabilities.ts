@@ -1,4 +1,5 @@
 import { isApplePlatform, type DeviceInfo } from '../utils/device.ts';
+import { INTERACTION_COMMAND_CAPABILITIES } from '../commands/interactions/definition.ts';
 
 type KindMatrix = {
   simulator?: boolean;
@@ -7,7 +8,7 @@ type KindMatrix = {
   unknown?: boolean;
 };
 
-type CommandCapability = {
+export type CommandCapability = {
   apple?: KindMatrix;
   android?: KindMatrix;
   linux?: KindMatrix;
@@ -227,11 +228,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,
   },
-  type: {
-    apple: { simulator: true, device: true },
-    android: { emulator: true, device: true, unknown: true },
-    linux: LINUX_DEVICE,
-  },
+  ...INTERACTION_COMMAND_CAPABILITIES,
   wait: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
@@ -251,6 +248,10 @@ export function isCommandSupportedOnDevice(command: string, device: DeviceInfo):
   if (capability.supports && !capability.supports(device)) return false;
   const kind = (device.kind ?? 'unknown') as keyof KindMatrix;
   return byPlatform[kind] === true;
+}
+
+export function getCommandCapability(command: string): CommandCapability | undefined {
+  return COMMAND_CAPABILITY_MATRIX[command];
 }
 
 export function listCapabilityCommands(): string[] {

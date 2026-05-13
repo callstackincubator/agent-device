@@ -1,6 +1,7 @@
 import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
 import { SESSION_SURFACES } from '../core/session-surface.ts';
 import type { DaemonInstallSource } from '../contracts.ts';
+import { INTERACTION_COMMAND_SCHEMAS } from '../commands/interactions/definition.ts';
 
 export type CliFlags = {
   json: boolean;
@@ -130,7 +131,7 @@ export type FlagDefinition = {
   usageDescription?: string;
 };
 
-type CommandSchema = {
+export type CommandSchema = {
   helpDescription: string;
   summary?: string;
   positionalArgs: readonly string[];
@@ -1779,12 +1780,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: ['x', 'y'],
     allowedFlags: [],
   },
-  type: {
-    helpDescription: 'Type text in focused field',
-    positionalArgs: ['text'],
-    allowsExtraPositionals: true,
-    allowedFlags: ['delayMs'],
-  },
+  ...INTERACTION_COMMAND_SCHEMAS,
   fill: {
     usageOverride: 'fill <x> <y> <text> | fill <@ref|selector> <text>',
     helpDescription: 'Tap then type',
