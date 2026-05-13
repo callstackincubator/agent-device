@@ -8,6 +8,7 @@ import {
   SELECTOR_COMMAND_SCHEMAS,
   SELECTOR_SNAPSHOT_FLAGS,
 } from '../commands/selectors-definition.ts';
+import { SESSION_LIFECYCLE_COMMAND_SCHEMAS } from '../commands/session-lifecycle/definition.ts';
 
 export type CliFlags = RemoteConfigMetroOptions & {
   json: boolean;
@@ -1417,13 +1418,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: [],
     allowedFlags: ['headless'],
   },
-  open: {
-    helpDescription:
-      'Boot device/simulator; optionally launch app or deep link URL (macOS also supports --surface app|frontmost-app|desktop|menubar)',
-    summary: 'Open an app, deep link or URL, save replays',
-    positionalArgs: ['appOrUrl?', 'url?'],
-    allowedFlags: ['activity', 'saveScript', 'relaunch', 'surface'],
-  },
+  ...SESSION_LIFECYCLE_COMMAND_SCHEMAS,
   connect: {
     usageOverride:
       'connect [--remote-config <path>] [--tenant <id>] [--run-id <id>] [--lease-backend <backend>] [--force] [--no-login]',
@@ -1485,39 +1480,6 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
     skipCapabilityCheck: true,
   },
-  close: {
-    helpDescription: 'Close app or just end session',
-    summary: 'Close app or end session',
-    positionalArgs: ['app?'],
-    allowedFlags: ['saveScript', 'shutdown'],
-  },
-  reinstall: {
-    helpDescription: 'Uninstall + install app from binary path',
-    summary: 'Reinstall app from binary path',
-    positionalArgs: ['app', 'path'],
-    allowedFlags: [],
-  },
-  install: {
-    helpDescription: 'Install app from binary path without uninstalling first',
-    summary: 'Install app from binary path',
-    positionalArgs: ['app', 'path'],
-    allowedFlags: [],
-  },
-  'install-from-source': {
-    usageOverride:
-      'install-from-source <url> | install-from-source --github-actions-artifact <owner/repo:artifact>',
-    listUsageOverride: 'install-from-source <url> | install-from-source --github-actions-artifact',
-    helpDescription: 'Install app from a URL or remote-resolved source',
-    summary: 'Install app from a source',
-    positionalArgs: ['url?'],
-    allowedFlags: [
-      'header',
-      'githubActionsArtifact',
-      'installSource',
-      'retainPaths',
-      'retentionMs',
-    ],
-  },
   push: {
     helpDescription: 'Simulate push notification payload delivery',
     summary: 'Deliver push payload',
@@ -1537,13 +1499,6 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: [],
     allowedFlags: [],
     skipCapabilityCheck: true,
-  },
-  apps: {
-    helpDescription: 'List installed apps (includes default/system apps by default)',
-    summary: 'List installed apps',
-    positionalArgs: [],
-    allowedFlags: ['appsFilter'],
-    defaults: { appsFilter: 'all' },
   },
   appstate: {
     helpDescription: 'Show foreground app/activity',
