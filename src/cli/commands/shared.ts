@@ -1,25 +1,10 @@
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { printJson } from '../../utils/output.ts';
 import { readCommandMessage } from '../../utils/success-text.ts';
+import { selectionOptionsFromFlags, type SelectionOptions } from '../../command-codecs/flags.ts';
 
-export function buildSelectionOptions(flags: CliFlags): {
-  platform?: CliFlags['platform'];
-  target?: CliFlags['target'];
-  device?: string;
-  udid?: string;
-  serial?: string;
-  iosSimulatorDeviceSet?: string;
-  androidDeviceAllowlist?: string;
-} {
-  return {
-    platform: flags.platform,
-    target: flags.target,
-    device: flags.device,
-    udid: flags.udid,
-    serial: flags.serial,
-    iosSimulatorDeviceSet: flags.iosSimulatorDeviceSet,
-    androidDeviceAllowlist: flags.androidDeviceAllowlist,
-  };
+export function buildSelectionOptions(flags: CliFlags): SelectionOptions {
+  return selectionOptionsFromFlags(flags);
 }
 
 export function writeCommandOutput(

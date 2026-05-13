@@ -1,0 +1,102 @@
+import { DAEMON_COMMAND_GROUPS } from '../command-catalog.ts';
+import { resolveTargetDevice } from '../core/dispatch-resolve.ts';
+import { AppError } from '../utils/errors.ts';
+import { normalizeTenantId, resolveSessionIsolationMode } from './config.ts';
+import { hasExplicitDeviceSelector } from './handlers/session-device-utils.ts';
+import { resolveLeaseScope } from './lease-context.ts';
+import type { LeaseRegistry } from './lease-registry.ts';
+import { SessionStore } from './session-store.ts';
+import type { DaemonRequest } from './types.ts';
+
+const selectorValidationExemptCommands = DAEMON_COMMAND_GROUPS.selectorValidationExempt;
+const leaseAdmissionExemptCommands = DAEMON_COMMAND_GROUPS.leaseAdmissionExempt;
+const sessionExecutionExemptCommands = new Set(leaseAdmissionExemptCommands);
+
+export function scopeRequestSession(req: DaemonRequest): DaemonRequest {
+  const isolation = resolveSessionIsolationMode(
+    req.meta?.sessionIsolation ?? req.flags?.sessionIsolation,
+  );
+  const rawTenant = req.meta?.tenantId ?? req.flags?.tenant;
+  const tenant = normalizeTenantId(rawTenant);
+
+  if (rawTenant && !tenant) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'Invalid tenant id. Use 1-128 chars: letters, numbers, dot, underscore, hyphen.',
+    );
+  }
+  if (isolation !== 'tenant') {
+    return req;
+  }
+  if (!tenant) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'session isolation mode tenant requires --tenant (or meta.tenantId).',
+    );
+  }
+  const requestedSession = req.session || 'default';
+  if (requestedSession.startsWith(`${tenant}:`)) {
+    return {
+      ...req,
+      meta: {
+        ...req.meta,
+        tenantId: tenant,
+        sessionIsolation: isolation,
+      },
+    };
+  }
+  return {
+    ...req,
+    session: `${tenant}:${requestedSession}`,
+    meta: {
+      ...req.meta,
+      tenantId: tenant,
+      sessionIsolation: isolation,
+    },
+  };
+}
+
+export function assertRequestLeaseAdmission(
+  req: DaemonRequest,
+  leaseRegistry: LeaseRegistry,
+): void {
+  if (leaseAdmissionExemptCommands.has(req.command) || req.meta?.sessionIsolation !== 'tenant') {
+    return;
+  }
+  const leaseScope = resolveLeaseScope(req);
+  leaseRegistry.assertLeaseAdmission({
+    tenantId: leaseScope.tenantId,
+    runId: leaseScope.runId,
+    leaseId: leaseScope.leaseId,
+    backend: leaseScope.leaseBackend,
+  });
+}
+
+export function shouldValidateSessionSelector(command: string): boolean {
+  return !selectorValidationExemptCommands.has(command);
+}
+
+export function shouldLockSessionExecution(command: string): boolean {
+  return !sessionExecutionExemptCommands.has(command);
+}
+
+export async function resolveExecutionLockKey(params: {
+  req: DaemonRequest;
+  sessionName: string;
+  sessionStore: SessionStore;
+}): Promise<string> {
+  const { req, sessionName, sessionStore } = params;
+  const existingSession = sessionStore.get(sessionName);
+  if (existingSession) {
+    return `device:${existingSession.device.id}`;
+  }
+  if (req.command === 'open' || hasExplicitDeviceSelector(req.flags)) {
+    try {
+      const device = await resolveTargetDevice(req.flags ?? {});
+      return `device:${device.id}`;
+    } catch {
+      // Fall back to session scoping when device resolution is not yet available.
+    }
+  }
+  return `session:${sessionName}`;
+}

@@ -1,18 +1,11 @@
 import { test, expect, vi, beforeEach } from 'vitest';
 import os from 'node:os';
 import path from 'node:path';
+import { getResolveTargetDeviceMock } from './request-router-dispatch-mocks.ts';
 
-vi.mock('../../core/dispatch.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../core/dispatch.ts')>();
-  return {
-    ...actual,
-    dispatchCommand: vi.fn(async () => ({})),
-    resolveTargetDevice: vi.fn(),
-  };
-});
 vi.mock('../device-ready.ts', () => ({ ensureDeviceReady: vi.fn(async () => {}) }));
 
-import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
+import { dispatchCommand } from '../../core/dispatch.ts';
 import { createRequestHandler } from '../request-router.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
@@ -21,7 +14,7 @@ import { AppError } from '../../utils/errors.ts';
 import { makeSessionStore } from '../../__tests__/test-utils/store-factory.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
-const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
+const mockResolveTargetDevice = vi.mocked(getResolveTargetDeviceMock());
 const mockEnsureDeviceReady = vi.mocked(ensureDeviceReady);
 
 function makeIosDevice(id: string): DeviceInfo {
@@ -32,6 +25,27 @@ function makeIosDevice(id: string): DeviceInfo {
     kind: 'simulator',
     target: 'mobile',
     booted: true,
+  };
+}
+
+function createOpenHandler(sessionStore: ReturnType<typeof makeSessionStore>) {
+  return createRequestHandler({
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    token: 'test-token',
+    sessionStore,
+    leaseRegistry: new LeaseRegistry(),
+    trackDownloadableArtifact: () => 'artifact-id',
+  });
+}
+
+function openRequest(session: string, flags: Record<string, unknown>, requestId: string) {
+  return {
+    token: 'test-token',
+    session,
+    command: 'open',
+    positionals: [],
+    flags,
+    meta: { requestId },
   };
 }
 
@@ -83,35 +97,17 @@ test('router serializes same-device open requests before first session creation 
     activeEnsures -= 1;
   });
 
-  const handler = createRequestHandler({
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    token: 'test-token',
-    sessionStore,
-    leaseRegistry: new LeaseRegistry(),
-    trackDownloadableArtifact: () => 'artifact-id',
-  });
+  const handler = createOpenHandler(sessionStore);
 
-  const firstOpen = handler({
-    token: 'test-token',
-    session: 'session-a',
-    command: 'open',
-    positionals: [],
-    flags: { platform: 'ios' },
-    meta: { requestId: 'req-open-1' },
-  });
+  const firstOpen = handler(openRequest('session-a', { platform: 'ios' }, 'req-open-1'));
 
   await vi.waitFor(() => {
     expect(ensureCalls).toBe(1);
   });
 
-  const secondOpen = handler({
-    token: 'test-token',
-    session: 'session-b',
-    command: 'open',
-    positionals: [],
-    flags: { platform: 'ios', udid: 'SIM-001' },
-    meta: { requestId: 'req-open-2' },
-  });
+  const secondOpen = handler(
+    openRequest('session-b', { platform: 'ios', udid: 'SIM-001' }, 'req-open-2'),
+  );
 
   await new Promise((resolve) => setTimeout(resolve, 20));
   expect(ensureCalls).toBe(1);
@@ -159,30 +155,14 @@ test('router allows pre-open requests for different devices to proceed concurren
     });
   });
 
-  const handler = createRequestHandler({
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    token: 'test-token',
-    sessionStore,
-    leaseRegistry: new LeaseRegistry(),
-    trackDownloadableArtifact: () => 'artifact-id',
-  });
+  const handler = createOpenHandler(sessionStore);
 
-  const firstOpen = handler({
-    token: 'test-token',
-    session: 'session-a',
-    command: 'open',
-    positionals: [],
-    flags: { platform: 'ios', udid: 'SIM-001' },
-    meta: { requestId: 'req-open-a' },
-  });
-  const secondOpen = handler({
-    token: 'test-token',
-    session: 'session-b',
-    command: 'open',
-    positionals: [],
-    flags: { platform: 'ios', udid: 'SIM-002' },
-    meta: { requestId: 'req-open-b' },
-  });
+  const firstOpen = handler(
+    openRequest('session-a', { platform: 'ios', udid: 'SIM-001' }, 'req-open-a'),
+  );
+  const secondOpen = handler(
+    openRequest('session-b', { platform: 'ios', udid: 'SIM-002' }, 'req-open-b'),
+  );
 
   await vi.waitFor(() => {
     expect(ensureCalls).toBe(2);

@@ -4,6 +4,7 @@ import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts'
 import { isFillableType } from '../utils/snapshot-processing.ts';
 import { requireIntInRange } from '../utils/validation.ts';
 import { successText } from '../utils/success-text.ts';
+import { findMistargetedTypeRefToken } from '../utils/type-target-warning.ts';
 import type { ResolvedTarget } from './selector-read.ts';
 import { toBackendContext } from './selector-read-utils.ts';
 import type { RuntimeCommand } from './runtime-types.ts';
@@ -204,13 +205,5 @@ function formatTargetForWarning(result: {
 }
 
 function findMistargetedTypeRef(text: string): string | null {
-  const first = text.trim().split(/\s+/, 1)[0];
-  if (!first || !first.startsWith('@') || first.length < 3) {
-    return null;
-  }
-  const body = first.slice(1);
-  if (/^[A-Za-z_-]*\d[\w-]*$/i.test(body) || /^(?:ref|node|element|el)[\w-]*$/i.test(body)) {
-    return first;
-  }
-  return null;
+  return findMistargetedTypeRefToken(text);
 }

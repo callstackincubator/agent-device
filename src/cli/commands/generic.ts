@@ -1,18 +1,18 @@
 import type { AgentDeviceClient, CommandRequestResult } from '../../client.ts';
 import { CLIENT_COMMANDS } from '../../client-command-registry.ts';
-import type {
-  FindLocator,
-  FindOptions,
-  IsOptions,
-  PermissionTarget,
-  RecordOptions,
-  SettingsUpdateOptions,
-} from '../../client-types.ts';
+import type { RecordOptions } from '../../client-types.ts';
 import { announceReplayTestRun } from '../../cli-test.ts';
-import { splitSelectorFromArgs } from '../../daemon/selectors.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
-import { readLocationCoordinate } from '../../utils/location-coordinates.ts';
+import {
+  elementTargetCodec,
+  fillCommandCodec,
+  findCommandCodec,
+  interactionTargetCodec,
+  isCommandCodec,
+  settingsCommandCodec,
+} from '../../command-codecs.ts';
+import { selectorSnapshotOptionsFromFlags } from '../../command-codecs/flags.ts';
 import { buildSelectionOptions } from './shared.ts';
 import { writeCommandCliOutput } from './output.ts';
 import type { ClientCommandHandler, ClientCommandHandlerMap } from './router-types.ts';
@@ -46,8 +46,8 @@ export const genericClientCommandHandlers = {
     CLIENT_COMMANDS.click,
     ({ client, positionals, flags }) =>
       client.interactions.click({
-        ...readInteractionTarget(positionals),
-        ...readSelectorSnapshotOptions(flags),
+        ...interactionTargetCodec.decode(positionals),
+        ...selectorSnapshotOptionsFromFlags(flags),
         ...buildSelectionOptions(flags),
         count: flags.count,
         intervalMs: flags.intervalMs,
@@ -61,8 +61,8 @@ export const genericClientCommandHandlers = {
     CLIENT_COMMANDS.get,
     ({ client, positionals, flags }) =>
       client.interactions.get({
-        ...readElementTarget(positionals.slice(1)),
-        ...readSelectorSnapshotOptions(flags),
+        ...elementTargetCodec.decode(positionals.slice(1)),
+        ...selectorSnapshotOptionsFromFlags(flags),
         ...buildSelectionOptions(flags),
         format: readGetFormat(positionals[0]),
       }),
@@ -109,8 +109,8 @@ export const genericClientCommandHandlers = {
     CLIENT_COMMANDS.press,
     ({ client, positionals, flags }) =>
       client.interactions.press({
-        ...readInteractionTarget(positionals),
-        ...readSelectorSnapshotOptions(flags),
+        ...interactionTargetCodec.decode(positionals),
+        ...selectorSnapshotOptionsFromFlags(flags),
         ...buildSelectionOptions(flags),
         count: flags.count,
         intervalMs: flags.intervalMs,
@@ -162,13 +162,16 @@ export const genericClientCommandHandlers = {
   ),
   [CLIENT_COMMANDS.fill]: createGenericClientCommandHandler(
     CLIENT_COMMANDS.fill,
-    ({ client, positionals, flags }) =>
-      client.interactions.fill({
-        ...readFillTarget(positionals),
-        ...readSelectorSnapshotOptions(flags),
+    ({ client, positionals, flags }) => {
+      const decoded = fillCommandCodec.decode(positionals);
+      return client.interactions.fill({
+        ...decoded.target,
+        text: decoded.text,
+        ...selectorSnapshotOptionsFromFlags(flags),
         ...buildSelectionOptions(flags),
         delayMs: flags.delayMs,
-      }),
+      });
+    },
   ),
   [CLIENT_COMMANDS.scroll]: createGenericClientCommandHandler(
     CLIENT_COMMANDS.scroll,
@@ -245,27 +248,17 @@ export const genericClientCommandHandlers = {
   [CLIENT_COMMANDS.find]: createGenericClientCommandHandler(
     CLIENT_COMMANDS.find,
     ({ client, positionals, flags }) =>
-      client.interactions.find({
-        ...readFindOptions(positionals),
-        ...readFindSnapshotOptions(flags),
-        ...buildSelectionOptions(flags),
-        first: flags.findFirst,
-        last: flags.findLast,
-      }),
+      client.interactions.find(findCommandCodec.decode(positionals, flags)),
   ),
   [CLIENT_COMMANDS.is]: createGenericClientCommandHandler(
     CLIENT_COMMANDS.is,
     ({ client, positionals, flags }) =>
-      client.interactions.is({
-        ...readIsOptions(positionals),
-        ...readSelectorSnapshotOptions(flags),
-        ...buildSelectionOptions(flags),
-      }),
+      client.interactions.is(isCommandCodec.decode(positionals, flags)),
   ),
   [CLIENT_COMMANDS.settings]: createGenericClientCommandHandler(
     CLIENT_COMMANDS.settings,
     ({ client, positionals, flags }) =>
-      client.settings.update(readSettingsOptions(positionals, flags)),
+      client.settings.update(settingsCommandCodec.decode(positionals, flags)),
   ),
 } satisfies ClientCommandHandlerMap;
 
@@ -280,59 +273,6 @@ function createGenericClientCommandHandler(
       process.exit(exitCode);
     }
     return true;
-  };
-}
-
-function readSelectorSnapshotOptions(flags: CliFlags) {
-  return {
-    depth: flags.snapshotDepth,
-    scope: flags.snapshotScope,
-    raw: flags.snapshotRaw,
-  };
-}
-
-function readFindSnapshotOptions(flags: CliFlags) {
-  return {
-    depth: flags.snapshotDepth,
-    raw: flags.snapshotRaw,
-  };
-}
-
-function readInteractionTarget(positionals: string[]) {
-  if (positionals[0]?.startsWith('@')) {
-    return { ref: positionals[0], label: positionals.slice(1).join(' ') || undefined };
-  }
-  const selectorArgs = splitSelectorFromArgs(positionals);
-  if (selectorArgs) return { selector: selectorArgs.selectorExpression };
-  return { x: Number(positionals[0]), y: Number(positionals[1]) };
-}
-
-function readElementTarget(positionals: string[]) {
-  if (positionals[0]?.startsWith('@')) {
-    return { ref: positionals[0], label: positionals.slice(1).join(' ') || undefined };
-  }
-  const selector = positionals.join(' ').trim();
-  if (!selector) throw new AppError('INVALID_ARGS', 'get requires @ref or selector expression');
-  return { selector };
-}
-
-function readFillTarget(positionals: string[]) {
-  if (positionals[0]?.startsWith('@')) {
-    const text =
-      positionals.length >= 3 ? positionals.slice(2).join(' ') : positionals.slice(1).join(' ');
-    return {
-      ref: positionals[0],
-      label: positionals.length >= 3 ? positionals[1] : undefined,
-      text,
-    };
-  }
-  const selectorArgs = splitSelectorFromArgs(positionals, { preferTrailingValue: true });
-  if (selectorArgs)
-    return { selector: selectorArgs.selectorExpression, text: selectorArgs.rest.join(' ') };
-  return {
-    x: Number(positionals[0]),
-    y: Number(positionals[1]),
-    text: positionals.slice(2).join(' '),
   };
 }
 
@@ -381,157 +321,6 @@ function readNetworkInclude(
   if (value === 'summary' || value === 'headers' || value === 'body' || value === 'all')
     return value;
   throw new AppError('INVALID_ARGS', 'network include mode must be summary, headers, body, or all');
-}
-
-function readFindOptions(positionals: string[]): FindOptions {
-  const locator = readFindLocator(positionals[0]);
-  const hasExplicitLocator = locator !== undefined;
-  const query = hasExplicitLocator ? positionals[1] : positionals[0];
-  const actionOffset = hasExplicitLocator ? 2 : 1;
-  const action = positionals[actionOffset];
-  if (action === undefined) return { locator, query: required(query, 'find requires query') };
-  if (action === 'get') {
-    const subcommand = positionals[actionOffset + 1];
-    if (subcommand === 'text') {
-      return { locator, query: required(query, 'find requires query'), action: 'getText' };
-    }
-    if (subcommand === 'attrs') {
-      return { locator, query: required(query, 'find requires query'), action: 'getAttrs' };
-    }
-    throw new AppError('INVALID_ARGS', 'find get only supports text or attrs');
-  }
-  if (action === 'wait') {
-    return {
-      locator,
-      query: required(query, 'find requires query'),
-      action: 'wait',
-      timeoutMs: optionalNumber(positionals[actionOffset + 1]),
-    };
-  }
-  if (action === 'fill' || action === 'type') {
-    return {
-      locator,
-      query: required(query, 'find requires query'),
-      action,
-      value: positionals.slice(actionOffset + 1).join(' '),
-    };
-  }
-  if (action === 'click' || action === 'focus' || action === 'exists') {
-    return { locator, query: required(query, 'find requires query'), action };
-  }
-  throw new AppError('INVALID_ARGS', `Unsupported find action: ${action}`);
-}
-
-function readFindLocator(value: string | undefined): FindLocator | undefined {
-  if (
-    value === 'text' ||
-    value === 'label' ||
-    value === 'value' ||
-    value === 'role' ||
-    value === 'id'
-  ) {
-    return value;
-  }
-  return undefined;
-}
-
-function readIsOptions(positionals: string[]): IsOptions {
-  const predicate = positionals[0];
-  const split = splitSelectorFromArgs(positionals.slice(1), {
-    preferTrailingValue: predicate === 'text',
-  });
-  if (!split) throw new AppError('INVALID_ARGS', 'is requires a selector expression');
-  if (predicate === 'text') {
-    return { predicate, selector: split.selectorExpression, value: split.rest.join(' ') };
-  }
-  if (
-    predicate === 'visible' ||
-    predicate === 'hidden' ||
-    predicate === 'exists' ||
-    predicate === 'editable' ||
-    predicate === 'selected'
-  ) {
-    return { predicate, selector: split.selectorExpression };
-  }
-  throw new AppError(
-    'INVALID_ARGS',
-    'is requires predicate: visible|hidden|exists|editable|selected|text',
-  );
-}
-
-function readSettingsOptions(positionals: string[], flags: CliFlags): SettingsUpdateOptions {
-  const base = buildSelectionOptions(flags);
-  const setting = positionals[0];
-  const state = positionals[1];
-  if (
-    (setting === 'wifi' ||
-      setting === 'airplane' ||
-      setting === 'location' ||
-      setting === 'animations') &&
-    (state === 'on' || state === 'off')
-  ) {
-    return { ...base, setting, state };
-  }
-  if (setting === 'location' && state === 'set') {
-    return {
-      ...base,
-      setting,
-      state,
-      latitude: readLocationCoordinate(positionals[2], 'latitude'),
-      longitude: readLocationCoordinate(positionals[3], 'longitude'),
-    };
-  }
-  if (setting === 'appearance' && (state === 'light' || state === 'dark' || state === 'toggle')) {
-    return { ...base, setting, state };
-  }
-  if (
-    (setting === 'faceid' || setting === 'touchid') &&
-    (state === 'match' || state === 'nonmatch' || state === 'enroll' || state === 'unenroll')
-  ) {
-    return { ...base, setting, state };
-  }
-  if (setting === 'fingerprint' && (state === 'match' || state === 'nonmatch')) {
-    return { ...base, setting, state };
-  }
-  if (setting === 'permission' && (state === 'grant' || state === 'deny' || state === 'reset')) {
-    return {
-      ...base,
-      setting,
-      state,
-      permission: readPermission(positionals[2]),
-      mode: readPermissionMode(positionals[3]),
-    };
-  }
-  throw new AppError('INVALID_ARGS', 'Invalid settings arguments.');
-}
-
-function readPermission(value: string | undefined): PermissionTarget {
-  switch (value) {
-    case 'camera':
-    case 'microphone':
-    case 'photos':
-    case 'contacts':
-    case 'contacts-limited':
-    case 'notifications':
-    case 'calendar':
-    case 'location':
-    case 'location-always':
-    case 'media-library':
-    case 'motion':
-    case 'reminders':
-    case 'siri':
-    case 'accessibility':
-    case 'screen-recording':
-    case 'input-monitoring':
-      return value;
-    default:
-      throw new AppError('INVALID_ARGS', 'settings permission requires a permission target.');
-  }
-}
-
-function readPermissionMode(value: string | undefined): 'full' | 'limited' | undefined {
-  if (value === undefined || value === 'full' || value === 'limited') return value;
-  throw new AppError('INVALID_ARGS', 'settings permission mode must be full or limited.');
 }
 
 function readJsonObject(value: string, label: string): Record<string, unknown> {
