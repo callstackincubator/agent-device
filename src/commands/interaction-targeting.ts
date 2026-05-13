@@ -18,25 +18,45 @@ const SEMANTIC_TOUCH_ROLE_FRAGMENTS = [
   'cell',
 ];
 
+type ActionableTouchResolutionReason =
+  | 'same-rect-descendant'
+  | 'semantic-target'
+  | 'hittable-ancestor'
+  | 'overly-broad-ancestor'
+  | 'original';
+
+type ActionableTouchResolution = {
+  node: SnapshotNode;
+  reason: ActionableTouchResolutionReason;
+};
+
 export function resolveActionableTouchNode(
   nodes: SnapshotNode[],
   node: SnapshotNode,
 ): SnapshotNode {
+  return resolveActionableTouchResolution(nodes, node).node;
+}
+
+/** @internal Exposed for focused policy tests; runtime callers should use resolveActionableTouchNode. */
+export function resolveActionableTouchResolution(
+  nodes: SnapshotNode[],
+  node: SnapshotNode,
+): ActionableTouchResolution {
   const descendant = findPreferredActionableDescendant(nodes, node);
   if (descendant?.rect && resolveRectCenter(descendant.rect)) {
-    return descendant;
+    return { node: descendant, reason: 'same-rect-descendant' };
   }
-  if (isSemanticallyTouchableNode(node) && node.rect && resolveRectCenter(node.rect)) {
-    return node;
+  if (isSemanticTouchTarget(node) && node.rect && resolveRectCenter(node.rect)) {
+    return { node, reason: 'semantic-target' };
   }
   const ancestor = findNearestHittableAncestor(nodes, node);
   if (ancestor?.rect && resolveRectCenter(ancestor.rect)) {
     if (isOverlyBroadAncestor(node, ancestor, nodes)) {
-      return node;
+      return { node, reason: 'overly-broad-ancestor' };
     }
-    return ancestor;
+    return { node: ancestor, reason: 'hittable-ancestor' };
   }
-  return node;
+  return { node, reason: 'original' };
 }
 
 function findPreferredActionableDescendant(
@@ -66,7 +86,7 @@ function findPreferredActionableDescendant(
   return current === node ? null : current;
 }
 
-function isSemanticallyTouchableNode(node: SnapshotNode): boolean {
+function isSemanticTouchTarget(node: SnapshotNode): boolean {
   const roles = [node.type, node.role, node.subrole].map((value) => normalizeType(value ?? ''));
   return roles.some(isSemanticTouchRole);
 }
