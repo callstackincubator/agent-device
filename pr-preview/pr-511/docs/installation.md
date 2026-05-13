@@ -52,12 +52,12 @@ Use [AI Agent Setup](/agent-device/pr-preview/pr-511/docs/agent-setup.md#mcp-rou
 ## Without installing
 
 ```bash
-npx -y agent-device@<exact-version> --version
-npx -y agent-device@<exact-version> help workflow
-npx -y agent-device@<exact-version> open Settings --platform ios
+npx agent-device --version
+npx agent-device help workflow
+npx agent-device open Settings --platform ios
 ```
 
-One-off `npx` usage is fine for humans and scripts. For agents, prefer a global install, a project-local install, or an exact npm version so repeated commands resolve to a known CLI. Do not ask agents to run `npx -y agent-device@latest` without an explicit trust decision.
+One-off `npx` usage is fine for humans and scripts that intentionally fetch from npm. For agents, prefer a global install, a project-local install, or a version supplied by the user or project config so repeated commands resolve to a known CLI. Do not ask agents to choose a version or run `npx -y agent-device@latest` without an explicit trust decision.
 
 ## Requirements
 

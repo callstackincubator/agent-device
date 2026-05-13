@@ -14,16 +14,16 @@ agent-device --version
 agent-device help workflow
 ```
 
-For one-off use without a global install:
+For one-off human use without a global install:
 
 ```bash
-npx -y agent-device@<exact-version> --version
-npx -y agent-device@<exact-version> help workflow
+npx agent-device --version
+npx agent-device help workflow
 ```
 
 Global install is better for normal agent workflows because repeated commands, skills, and terminal sessions resolve to one stable version. Project-local installs are also good when you want a lockfile-pinned agent-device version.
 
-Avoid telling agents to run `npx -y agent-device@latest` autonomously: it fetches and executes a mutable npm package. Use an exact version, a project-local install, or a trusted installed binary path.
+Avoid telling agents to choose an npm version or run `npx -y agent-device@latest` autonomously: it fetches and executes a mutable npm package without a human prompt. For unattended agent use, prefer a trusted installed binary, a project-local install, or a version supplied by the user or project config.
 
 For Node, Xcode, Android SDK, macOS, and iOS device prerequisites, see [Installation](/agent-device/pr-preview/pr-511/docs/installation.md).
 
@@ -64,14 +64,14 @@ Global install configuration:
 }
 ```
 
-No global install variant. Pin the package version for unattended agent use:
+No global install variant. Pin a user- or project-selected package version for unattended agent use:
 
 ```json
 {
   "mcpServers": {
     "agent-device": {
       "command": "npx",
-      "args": ["-y", "agent-device@<exact-version>", "mcp"]
+      "args": ["-y", "agent-device@<reviewed-version>", "mcp"]
     }
   }
 }
