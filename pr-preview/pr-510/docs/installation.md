@@ -18,6 +18,16 @@ agent-device help debugging
 agent-device help react-devtools
 ```
 
+Some agent clients run commands in an environment that differs from the user's normal install shell. If `agent-device` is missing in the agent terminal but was installed globally elsewhere, ask the user's login shell for the absolute path.
+
+For macOS zsh users:
+
+```bash
+zsh -lic 'command -v agent-device'
+```
+
+For other shells, use the equivalent login-shell lookup. Then use the printed path for agent commands.
+
 For Cursor, Codex, Claude Code, Windsurf, Cline, Goose, skills, project rules, and MCP configuration, see [AI Agent Setup](/agent-device/pr-preview/pr-510/docs/agent-setup.md). For the first app automation commands, see [Quick Start](/agent-device/pr-preview/pr-510/docs/quick-start.md).
 
 Interactive CLI runs periodically check for a newer published `agent-device` package in the background. When an upgrade is available, the CLI suggests reinstalling the package globally:
@@ -42,12 +52,12 @@ Use [AI Agent Setup](/agent-device/pr-preview/pr-510/docs/agent-setup.md#mcp-rou
 ## Without installing
 
 ```bash
-npx -y agent-device@latest --version
-npx -y agent-device@latest help workflow
-npx -y agent-device@latest open Settings --platform ios
+npx agent-device --version
+npx agent-device help workflow
+npx agent-device open Settings --platform ios
 ```
 
-One-off `npx` usage is fine for humans and scripts. For agents, prefer global install so repeated commands and any installed skills resolve to the same CLI version. If an agent cannot rely on skills, it should run `agent-device help` or `agent-device help workflow` before planning device commands.
+One-off `npx` usage is fine for humans and scripts that intentionally fetch from npm. For agents, prefer a global install, a project-local install, or a version supplied by the user or project config so repeated commands resolve to a known CLI. Do not ask agents to choose a version or run `npx -y agent-device@latest` without an explicit trust decision.
 
 ## Requirements
 
