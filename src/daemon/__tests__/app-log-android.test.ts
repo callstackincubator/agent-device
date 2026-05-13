@@ -6,12 +6,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { PassThrough } from 'node:stream';
 
-vi.mock('node:child_process', () => ({ spawn: vi.fn() }));
 vi.mock('../../utils/exec.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../utils/exec.ts')>();
   return {
     ...actual,
     runCmd: vi.fn(async () => ({ stdout: '', stderr: '', exitCode: 0 })),
+    runCmdBackground: vi.fn(),
   };
 });
 vi.mock('../app-log-stream.ts', async (importOriginal) => {
@@ -19,12 +19,11 @@ vi.mock('../app-log-stream.ts', async (importOriginal) => {
   return { ...actual, sleep: vi.fn(async () => {}) };
 });
 
-import { spawn } from 'node:child_process';
-import { runCmd } from '../../utils/exec.ts';
+import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { readRecentAndroidLogcatForPackage, startAndroidAppLog } from '../app-log-android.ts';
 
-const mockSpawn = vi.mocked(spawn);
 const mockRunCmd = vi.mocked(runCmd);
+const mockRunCmdBackground = vi.mocked(runCmdBackground);
 
 type MockChild = EventEmitter & {
   stdout: PassThrough;
@@ -51,6 +50,15 @@ function makeMockChild(pid?: number): MockChild {
   return child;
 }
 
+function mockBackgroundChild(child: MockChild): ReturnType<typeof runCmdBackground> {
+  return {
+    child: child as unknown as ReturnType<typeof runCmdBackground>['child'],
+    wait: new Promise((resolve) => {
+      child.once('close', (code) => resolve({ stdout: '', stderr: '', exitCode: code ?? 0 }));
+    }),
+  };
+}
+
 test('startAndroidAppLog returns to active state after a successful reattach', async () => {
   const logDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-android-log-'));
   const stream = fs.createWriteStream(path.join(logDir, 'app.log'));
@@ -71,25 +79,25 @@ test('startAndroidAppLog returns to active state after a successful reattach', a
     return { stdout: '', stderr: '', exitCode: 0 };
   });
 
-  mockSpawn.mockReset();
+  mockRunCmdBackground.mockReset();
   let spawnCount = 0;
-  mockSpawn.mockImplementation(() => {
+  mockRunCmdBackground.mockImplementation(() => {
     spawnCount += 1;
     if (spawnCount === 1) {
-      return firstChild as unknown as ReturnType<typeof spawn>;
+      return mockBackgroundChild(firstChild);
     }
-    return secondChild as unknown as ReturnType<typeof spawn>;
+    return mockBackgroundChild(secondChild);
   });
 
   const appLog = await startAndroidAppLog('emulator-5554', 'com.example.app', stream, []);
   await vi.waitFor(() => {
-    expect(mockSpawn).toHaveBeenCalledTimes(1);
+    expect(mockRunCmdBackground).toHaveBeenCalledTimes(1);
   });
   assert.equal(appLog.getState(), 'active');
 
   firstChild.emit('close', 1);
   await vi.waitFor(() => {
-    expect(mockSpawn).toHaveBeenCalledTimes(2);
+    expect(mockRunCmdBackground).toHaveBeenCalledTimes(2);
   });
   assert.equal(appLog.getState(), 'active');
 
@@ -110,12 +118,12 @@ test('startAndroidAppLog reports active for provider streams without host pid', 
     return { stdout: '', stderr: '', exitCode: 0 };
   });
 
-  mockSpawn.mockReset();
-  mockSpawn.mockImplementation(() => child as unknown as ReturnType<typeof spawn>);
+  mockRunCmdBackground.mockReset();
+  mockRunCmdBackground.mockImplementation(() => mockBackgroundChild(child));
 
   const appLog = await startAndroidAppLog('emulator-5554', 'com.example.app', stream, []);
   await vi.waitFor(() => {
-    expect(mockSpawn).toHaveBeenCalledTimes(1);
+    expect(mockRunCmdBackground).toHaveBeenCalledTimes(1);
   });
 
   assert.equal(appLog.getState(), 'active');

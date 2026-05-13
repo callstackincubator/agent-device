@@ -1,12 +1,13 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { spawn, type SpawnOptions } from 'node:child_process';
 import type { Readable, Writable } from 'node:stream';
 import type { DeviceInfo } from '../../utils/device.ts';
 import {
   runCmd,
+  runCmdBackground,
   withCommandExecutorOverride,
   withoutCommandExecutorOverride,
   type CommandExecutorOverride,
+  type ExecBackgroundOptions,
   type ExecOptions,
   type ExecResult,
 } from '../../utils/exec.ts';
@@ -49,7 +50,10 @@ export type AndroidAdbExecutor = (
   options?: AndroidAdbExecutorOptions,
 ) => Promise<AndroidAdbExecutorResult>;
 
-export type AndroidAdbSpawner = (args: string[], options?: SpawnOptions) => AndroidAdbProcess;
+export type AndroidAdbSpawner = (
+  args: string[],
+  options?: ExecBackgroundOptions,
+) => AndroidAdbProcess;
 
 export type AndroidPortReverseEndpoint = `tcp:${number}` | `localabstract:${string}`;
 
@@ -131,8 +135,15 @@ function createSerialAdbExecutor(serial: string): AndroidAdbExecutor {
 }
 
 function createSerialAdbSpawner(serial: string): AndroidAdbSpawner {
-  return (args, options) =>
-    spawn('adb', ['-s', serial, ...args], { ...options, windowsHide: true });
+  return (args, options) => {
+    const background = runCmdBackground('adb', ['-s', serial, ...args], {
+      ...options,
+      allowFailure: true,
+      captureOutput: false,
+    });
+    void background.wait.catch(() => {});
+    return background.child;
+  };
 }
 
 export function createLocalAndroidAdbProvider(device: DeviceInfo): AndroidAdbProvider {

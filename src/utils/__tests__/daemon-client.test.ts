@@ -2,11 +2,11 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { EventEmitter } from 'node:events';
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { PassThrough, Writable } from 'node:stream';
+import { runCmdBackground } from '../exec.ts';
 import {
   computeDaemonCodeSignature,
   downloadRemoteArtifact,
@@ -1293,9 +1293,13 @@ test('stopDaemonProcessForTakeover terminates a matching daemon process', async 
   const daemonScriptPath = path.join(daemonDir, 'daemon.js');
   fs.mkdirSync(daemonDir, { recursive: true });
   fs.writeFileSync(daemonScriptPath, 'setInterval(() => {}, 1000);\n', 'utf8');
-  const child = spawn(process.execPath, [daemonScriptPath], {
+  const daemonProcess = runCmdBackground(process.execPath, [daemonScriptPath], {
     stdio: 'ignore',
+    allowFailure: true,
+    captureOutput: false,
   });
+  void daemonProcess.wait.catch(() => {});
+  const child = daemonProcess.child;
   const pid = child.pid;
   assert.ok(pid, 'spawned child should have a pid');
 
@@ -1322,9 +1326,13 @@ test('stopDaemonProcessForTakeover terminates a matching daemon process', async 
 });
 
 test('stopDaemonProcessForTakeover does not terminate non-daemon process', async () => {
-  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
+  const daemonProcess = runCmdBackground(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
     stdio: 'ignore',
+    allowFailure: true,
+    captureOutput: false,
   });
+  void daemonProcess.wait.catch(() => {});
+  const child = daemonProcess.child;
   const pid = child.pid;
   assert.ok(pid, 'spawned child should have a pid');
 

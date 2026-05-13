@@ -1,7 +1,6 @@
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import { buildSimctlArgs } from '../platforms/ios/simctl.ts';
-import { runCmd } from '../utils/exec.ts';
+import { runCmd, runCmdBackground } from '../utils/exec.ts';
 import { clearPidFile, writePidFile, type AppLogResult } from './app-log-process.ts';
 import { attachChildToStream, createLineWriter, waitForChildExit } from './app-log-stream.ts';
 
@@ -96,38 +95,14 @@ export async function startIosSimulatorAppLog(
   simulatorSetPath?: string,
   pidPath?: string,
 ): Promise<AppLogResult> {
-  let state: 'active' | 'failed' = 'active';
-  const child = spawn(
-    'xcrun',
-    buildIosSimulatorLogStreamArgs({ deviceId, appBundleId, simulatorSetPath }),
-    {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    },
-  );
-  const writer = createLineWriter(stream, { redactionPatterns });
-  if (typeof child.pid === 'number') {
-    writePidFile(pidPath, child.pid);
-  }
-  const wait = attachChildToStream(child, stream, { endStreamOnClose: true, writer }).then(
-    (result) => {
-      if (result.exitCode !== 0) state = 'failed';
-      clearPidFile(pidPath);
-      return result;
-    },
-  );
-  return {
+  return startAppleAppLogStream({
     backend: 'ios-simulator',
-    getState: () => state,
-    startedAt: Date.now(),
-    wait,
-    stop: async () => {
-      if (!child.killed) child.kill('SIGINT');
-      await waitForChildExit(wait);
-      if (!child.killed) child.kill('SIGKILL');
-      await waitForChildExit(wait);
-      clearPidFile(pidPath);
-    },
-  };
+    cmd: 'xcrun',
+    args: buildIosSimulatorLogStreamArgs({ deviceId, appBundleId, simulatorSetPath }),
+    stream,
+    redactionPatterns,
+    pidPath,
+  });
 }
 
 export async function startMacOsAppLog(
@@ -136,38 +111,14 @@ export async function startMacOsAppLog(
   redactionPatterns: RegExp[],
   pidPath?: string,
 ): Promise<AppLogResult> {
-  let state: 'active' | 'failed' = 'active';
-  const child = spawn(
-    'log',
-    ['stream', '--style', 'compact', '--predicate', buildAppleLogPredicate(appBundleId)],
-    {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    },
-  );
-  const writer = createLineWriter(stream, { redactionPatterns });
-  if (typeof child.pid === 'number') {
-    writePidFile(pidPath, child.pid);
-  }
-  const wait = attachChildToStream(child, stream, { endStreamOnClose: true, writer }).then(
-    (result) => {
-      if (result.exitCode !== 0) state = 'failed';
-      clearPidFile(pidPath);
-      return result;
-    },
-  );
-  return {
+  return startAppleAppLogStream({
     backend: 'macos',
-    getState: () => state,
-    startedAt: Date.now(),
-    wait,
-    stop: async () => {
-      if (!child.killed) child.kill('SIGINT');
-      await waitForChildExit(wait);
-      if (!child.killed) child.kill('SIGKILL');
-      await waitForChildExit(wait);
-      clearPidFile(pidPath);
-    },
-  };
+    cmd: 'log',
+    args: ['stream', '--style', 'compact', '--predicate', buildAppleLogPredicate(appBundleId)],
+    stream,
+    redactionPatterns,
+    pidPath,
+  });
 }
 
 export async function startIosDeviceAppLog(
@@ -176,23 +127,52 @@ export async function startIosDeviceAppLog(
   redactionPatterns: RegExp[],
   pidPath?: string,
 ): Promise<AppLogResult> {
-  let state: 'active' | 'failed' = 'active';
-  const child = spawn('xcrun', buildIosDeviceLogStreamArgs(deviceId), {
-    stdio: ['ignore', 'pipe', 'pipe'],
+  return startAppleAppLogStream({
+    backend: 'ios-device',
+    cmd: 'xcrun',
+    args: buildIosDeviceLogStreamArgs(deviceId),
+    stream,
+    redactionPatterns,
+    pidPath,
   });
-  const writer = createLineWriter(stream, { redactionPatterns });
+}
+
+function startAppleAppLogStream(params: {
+  backend: AppLogResult['backend'];
+  cmd: string;
+  args: string[];
+  stream: fs.WriteStream;
+  redactionPatterns: RegExp[];
+  pidPath?: string;
+}): AppLogResult {
+  let state: 'active' | 'failed' = 'active';
+  const background = runCmdBackground(params.cmd, params.args, {
+    allowFailure: true,
+    captureOutput: false,
+  });
+  void background.wait.catch(() => {});
+  const child = background.child;
+  const writer = createLineWriter(params.stream, { redactionPatterns: params.redactionPatterns });
   if (typeof child.pid === 'number') {
-    writePidFile(pidPath, child.pid);
+    writePidFile(params.pidPath, child.pid);
   }
-  const wait = attachChildToStream(child, stream, { endStreamOnClose: true, writer }).then(
+  const wait = attachChildToStream(child, params.stream, {
+    endStreamOnClose: true,
+    writer,
+  }).then(
     (result) => {
       if (result.exitCode !== 0) state = 'failed';
-      clearPidFile(pidPath);
+      clearPidFile(params.pidPath);
       return result;
+    },
+    (error: unknown) => {
+      state = 'failed';
+      clearPidFile(params.pidPath);
+      throw error;
     },
   );
   return {
-    backend: 'ios-device',
+    backend: params.backend,
     getState: () => state,
     startedAt: Date.now(),
     wait,
@@ -201,7 +181,7 @@ export async function startIosDeviceAppLog(
       await waitForChildExit(wait);
       if (!child.killed) child.kill('SIGKILL');
       await waitForChildExit(wait);
-      clearPidFile(pidPath);
+      clearPidFile(params.pidPath);
     },
   };
 }
