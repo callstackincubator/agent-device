@@ -1,16 +1,9 @@
 import { expect, test, vi } from 'vitest';
+import { getResolveTargetDeviceMock } from './request-router-dispatch-mocks.ts';
 
-vi.mock('../../core/dispatch.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../core/dispatch.ts')>();
-  return {
-    ...actual,
-    dispatchCommand: vi.fn(),
-    resolveTargetDevice: vi.fn(),
-  };
-});
 vi.mock('../device-ready.ts', () => ({ ensureDeviceReady: vi.fn(async () => {}) }));
 
-import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
+import { dispatchCommand } from '../../core/dispatch.ts';
 import { runCmd } from '../../utils/exec.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { createRequestHandler } from '../request-router.ts';
@@ -27,7 +20,7 @@ const androidDevice: DeviceInfo = {
 };
 
 test('router scopes first Android open request through injected adb provider', async () => {
-  vi.mocked(resolveTargetDevice).mockResolvedValue(androidDevice);
+  vi.mocked(getResolveTargetDeviceMock()).mockResolvedValue(androidDevice);
   vi.mocked(dispatchCommand).mockImplementationOnce(async (device) => {
     await runCmd('adb', ['-s', device.id, 'shell', 'am', 'start', 'com.example.app']);
     return {};

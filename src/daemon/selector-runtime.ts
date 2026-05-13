@@ -4,6 +4,7 @@ import type {
   BackendSnapshotResult,
 } from '../backend.ts';
 import { createAgentDevice, localCommandPolicy } from '../runtime.ts';
+import { parseWaitPositionals, type WaitParsed } from '../command-codecs/wait.ts';
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
 import { resolveTargetDevice, type CommandFlags } from '../core/dispatch.ts';
 import { isApplePlatform } from '../utils/device.ts';
@@ -16,11 +17,6 @@ import { contextFromFlags } from './context.ts';
 import { ensureDeviceReady } from './device-ready.ts';
 import { captureSnapshot } from './handlers/snapshot-capture.ts';
 import { readTextForNode } from './handlers/interaction-read.ts';
-import {
-  parseWaitArgs,
-  waitNeedsRunnerCleanup,
-  type WaitParsed,
-} from './handlers/snapshot-wait.ts';
 import { errorResponse } from './handlers/response.ts';
 import { findNodeByLabel } from './snapshot-processing.ts';
 import { resolveSessionDevice, withSessionlessRunnerCleanup } from './handlers/snapshot-session.ts';
@@ -190,7 +186,7 @@ export async function dispatchWaitViaRuntime(
   params: SelectorRuntimeParams,
 ): Promise<DaemonResponse> {
   const { req, sessionName, sessionStore } = params;
-  const parsed = parseWaitArgs(req.positionals ?? []);
+  const parsed = parseWaitPositionals(req.positionals ?? []);
   if (!parsed) return errorResponse('INVALID_ARGS', 'wait requires a duration or text');
   const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
   if (parsed.kind !== 'sleep' && !isCommandSupportedOnDevice('wait', device)) {
@@ -213,7 +209,7 @@ export async function dispatchWaitViaRuntime(
     });
     return await maybeAndroidForegroundBlockerResponse(params, response, 'wait');
   };
-  if (!waitNeedsRunnerCleanup(parsed)) return await execute();
+  if (parsed.kind === 'sleep') return await execute();
   return await withSessionlessRunnerCleanup(session, device, execute);
 }
 

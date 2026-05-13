@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { parseWaitArgs } from '../snapshot.ts';
+import { parseWaitPositionals as parseWaitArgs } from '../../../command-codecs/wait.ts';
 import { parseTimeout } from '../parse-utils.ts';
 
 // --- parseTimeout ---

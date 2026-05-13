@@ -1,5 +1,6 @@
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import { DAEMON_COMMAND_GROUPS, INTERNAL_COMMANDS } from '../../command-catalog.ts';
 import { resolvePayloadInput } from '../../utils/payload-input.ts';
 import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
@@ -31,10 +32,10 @@ import { handleSessionStateCommands } from './session-state.ts';
 import { handleSessionObservabilityCommands } from './session-observability.ts';
 import { handleSessionReplayCommands } from './session-replay.ts';
 
-const INVENTORY_COMMANDS = new Set(['session_list', 'ensure-simulator', 'devices', 'apps']);
-const STATE_COMMANDS = new Set(['boot', 'appstate']);
-const OBSERVABILITY_COMMANDS = new Set(['perf', 'logs', 'network']);
-const REPLAY_COMMANDS = new Set(['replay', 'test']);
+const INVENTORY_COMMANDS = DAEMON_COMMAND_GROUPS.inventory;
+const STATE_COMMANDS = DAEMON_COMMAND_GROUPS.state;
+const OBSERVABILITY_COMMANDS = DAEMON_COMMAND_GROUPS.observability;
+const REPLAY_COMMANDS = DAEMON_COMMAND_GROUPS.replay;
 
 async function runSessionOrSelectorDispatch(params: {
   req: DaemonRequest;
@@ -219,7 +220,7 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  if (req.command === 'install_source') {
+  if (req.command === INTERNAL_COMMANDS.installSource) {
     return await handleInstallFromSourceCommand({
       req,
       sessionName,

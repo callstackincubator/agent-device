@@ -5,19 +5,21 @@ import type {
   ClipboardCommandResult,
   KeyboardCommandOptions,
   RotateCommandOptions,
-  WaitCommandOptions,
 } from '../../client.ts';
 import { CLIENT_COMMANDS } from '../../client-command-registry.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { AppError } from '../../utils/errors.ts';
-import { parseWaitArgs } from '../../daemon/handlers/snapshot.ts';
+import { waitCommandCodec } from '../../command-codecs.ts';
 import { parseDeviceRotation } from '../../core/device-rotation.ts';
 import { buildSelectionOptions, writeCommandMessage, writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandlerMap } from './router-types.ts';
 
 export const clientCommandMethodHandlers = {
   [CLIENT_COMMANDS.wait]: async ({ positionals, flags, client }) => {
-    writeCommandMessage(flags, await client.command.wait(readWaitOptions(positionals, flags)));
+    writeCommandMessage(
+      flags,
+      await client.command.wait(waitCommandCodec.decode(positionals, flags)),
+    );
     return true;
   },
   [CLIENT_COMMANDS.alert]: async ({ positionals, flags, client }) => {
@@ -63,41 +65,6 @@ export const clientCommandMethodHandlers = {
     return true;
   },
 } satisfies ClientCommandHandlerMap;
-
-function readWaitOptions(positionals: string[], flags: CliFlags): WaitCommandOptions {
-  const parsed = parseWaitArgs(positionals);
-  if (!parsed) {
-    throw new AppError(
-      'INVALID_ARGS',
-      'wait requires <ms>, text <text>, @ref, or <selector> [timeoutMs].',
-    );
-  }
-
-  const base = {
-    ...buildSelectionOptions(flags),
-    depth: flags.snapshotDepth,
-    scope: flags.snapshotScope,
-    raw: flags.snapshotRaw,
-  };
-
-  if (parsed.kind === 'sleep') return { ...base, durationMs: parsed.durationMs };
-  if (parsed.kind === 'text') {
-    if (!parsed.text) throw new AppError('INVALID_ARGS', 'wait requires text.');
-    return { ...base, text: parsed.text, ...readTimeoutOption(parsed.timeoutMs) };
-  }
-  if (parsed.kind === 'ref') {
-    return { ...base, ref: parsed.rawRef, ...readTimeoutOption(parsed.timeoutMs) };
-  }
-  return {
-    ...base,
-    selector: parsed.selectorExpression,
-    ...readTimeoutOption(parsed.timeoutMs),
-  };
-}
-
-function readTimeoutOption(timeoutMs: number | null): { timeoutMs?: number } {
-  return timeoutMs === null ? {} : { timeoutMs };
-}
 
 function readAlertOptions(positionals: string[], flags: CliFlags): AlertCommandOptions {
   if (positionals.length > 2) {

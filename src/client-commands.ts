@@ -1,6 +1,5 @@
-import { AppError } from './utils/errors.ts';
-import { tryParseSelectorChain } from './daemon/selectors.ts';
 import { CLIENT_COMMANDS } from './client-command-registry.ts';
+import { waitCommandCodec } from './command-codecs.ts';
 import type { AgentDeviceCommandClient, InternalRequestOptions } from './client-types.ts';
 
 export type PreparedClientCommand = {
@@ -71,49 +70,11 @@ export function createAgentDeviceCommandClient(
 }
 
 function prepareWaitCommand(options: CommandOptions<'wait'>): PreparedClientCommand {
-  const targets = [
-    options.durationMs !== undefined ? 'durationMs' : undefined,
-    options.text !== undefined ? 'text' : undefined,
-    options.ref !== undefined ? 'ref' : undefined,
-    options.selector !== undefined ? 'selector' : undefined,
-  ].filter(Boolean);
-  if (targets.length !== 1) {
-    throw new AppError(
-      'INVALID_ARGS',
-      'wait command requires exactly one of durationMs, text, ref, or selector.',
-    );
-  }
-  if (options.durationMs !== undefined) {
-    return { command: CLIENT_COMMANDS.wait, positionals: [String(options.durationMs)], options };
-  }
-
-  const timeout = options.timeoutMs !== undefined ? [String(options.timeoutMs)] : [];
-  if (options.text !== undefined) {
-    return {
-      command: CLIENT_COMMANDS.wait,
-      positionals: ['text', options.text, ...timeout],
-      options,
-    };
-  }
-  if (options.ref !== undefined) {
-    return {
-      command: CLIENT_COMMANDS.wait,
-      positionals: [options.ref, ...timeout],
-      options,
-    };
-  }
-  const selector = options.selector!;
-  assertValidSelector(selector);
   return {
     command: CLIENT_COMMANDS.wait,
-    positionals: [selector, ...timeout],
+    positionals: waitCommandCodec.encode(options),
     options,
   };
-}
-
-function assertValidSelector(selector: string): void {
-  if (tryParseSelectorChain(selector)) return;
-  throw new AppError('INVALID_ARGS', `Invalid wait selector: ${selector}`);
 }
 
 function prepareAlertCommand(options: CommandOptions<'alert'>): PreparedClientCommand {

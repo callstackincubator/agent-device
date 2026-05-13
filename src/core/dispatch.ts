@@ -6,80 +6,37 @@ import {
   dismissAndroidKeyboard,
   getAndroidKeyboardState,
   pushAndroidNotification,
-  readAndroidTextAtPoint,
   snapshotAndroid,
 } from '../platforms/android/index.ts';
 import { getInteractor, type Interactor, type RunnerContext } from './interactors.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
-import { runMacOsPressAction, runMacOsReadTextAction } from '../platforms/ios/macos-helper.ts';
 import { pushIosNotification } from '../platforms/ios/index.ts';
 import { snapshotLinux } from '../platforms/linux/snapshot.ts';
-import { rightClickLinux, middleClickLinux } from '../platforms/linux/input-actions.ts';
-import type { SessionSurface } from './session-surface.ts';
 import { isDeepLinkTarget } from './open-target.ts';
-import {
-  getClickButtonValidationError,
-  resolveClickButton,
-  type ClickButton,
-} from './click-button.ts';
 import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
 import type { RawSnapshotNode } from '../utils/snapshot.ts';
-import type { CliFlags } from '../utils/command-schema.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
 import { readLocationCoordinate } from '../utils/location-coordinates.ts';
 import { successText, withSuccessText } from '../utils/success-text.ts';
-import { parseScrollDirection } from './scroll-gesture.ts';
+import type { DispatchContext } from './dispatch-context.ts';
+import { shouldUseIosTapSeries, shouldUseIosDragSeries } from './dispatch-series.ts';
 import {
-  requireIntInRange,
-  clampIosSwipeDuration,
-  shouldUseIosTapSeries,
-  shouldUseIosDragSeries,
-  computeDeterministicJitter,
-  runRepeatedSeries,
-} from './dispatch-series.ts';
+  handleFillCommand,
+  handleFocusCommand,
+  handleLongPressCommand,
+  handlePinchCommand,
+  handlePressCommand,
+  handleReadCommand,
+  handleScrollCommand,
+  handleSwipeCommand,
+  handleTypeCommand,
+} from './dispatch-interactions.ts';
 import { readNotificationPayload } from './dispatch-payload.ts';
 import { parseDeviceRotation } from './device-rotation.ts';
 
 export { resolveTargetDevice } from './dispatch-resolve.ts';
 export { shouldUseIosTapSeries, shouldUseIosDragSeries };
-
-export type BatchStep = {
-  command: string;
-  positionals?: string[];
-  flags?: Partial<CommandFlags>;
-  runtime?: unknown;
-};
-
-export type CommandFlags = Omit<CliFlags, 'json' | 'help' | 'version' | 'batchSteps'> & {
-  batchSteps?: BatchStep[];
-};
-
-type DispatchContext = {
-  requestId?: string;
-  appBundleId?: string;
-  activity?: string;
-  verbose?: boolean;
-  logPath?: string;
-  traceLogPath?: string;
-  snapshotInteractiveOnly?: boolean;
-  snapshotCompact?: boolean;
-  snapshotDepth?: number;
-  snapshotScope?: string;
-  snapshotRaw?: boolean;
-  screenshotFullscreen?: boolean;
-  count?: number;
-  intervalMs?: number;
-  delayMs?: number;
-  holdMs?: number;
-  jitterPx?: number;
-  pixels?: number;
-  doubleTap?: boolean;
-  clickButton?: ClickButton;
-  backMode?: 'in-app' | 'system';
-  pauseMs?: number;
-  pattern?: 'one-way' | 'ping-pong';
-  surface?: SessionSurface;
-};
+export type { BatchStep, CommandFlags, DispatchContext } from './dispatch-context.ts';
 
 export async function dispatchCommand(
   device: DeviceInfo,
@@ -123,51 +80,14 @@ export async function dispatchCommand(
           return handlePressCommand(device, interactor, positionals, context, runnerCtx);
         case 'swipe':
           return handleSwipeCommand(device, interactor, positionals, context, runnerCtx);
-        case 'longpress': {
-          const x = Number(positionals[0]);
-          const y = Number(positionals[1]);
-          const durationMs = positionals[2] ? Number(positionals[2]) : undefined;
-          if (Number.isNaN(x) || Number.isNaN(y)) {
-            throw new AppError('INVALID_ARGS', 'longpress requires x y [durationMs]');
-          }
-          await interactor.longPress(x, y, durationMs);
-          return { x, y, durationMs, ...successText(`Long pressed (${x}, ${y})`) };
-        }
-        case 'focus': {
-          const [x, y] = positionals.map(Number);
-          if (Number.isNaN(x) || Number.isNaN(y))
-            throw new AppError('INVALID_ARGS', 'focus requires x y');
-          await interactor.focus(x, y);
-          return { x, y, ...successText(`Focused (${x}, ${y})`) };
-        }
-        case 'type': {
-          const mistargetedRef = findMistargetedTypeRef(positionals);
-          if (mistargetedRef) {
-            throw new AppError(
-              'INVALID_ARGS',
-              `type does not accept a target ref like "${mistargetedRef}"`,
-              {
-                hint: `Use fill ${mistargetedRef} "text" to target that field, or press ${mistargetedRef} then type "text" to append.`,
-              },
-            );
-          }
-          const text = positionals.join(' ');
-          if (!text) throw new AppError('INVALID_ARGS', 'type requires text');
-          const delayMs = requireIntInRange(context?.delayMs ?? 0, 'delay-ms', 0, 10_000);
-          await interactor.type(text, delayMs);
-          return { text, delayMs, ...successText(formatTextLengthMessage('Typed', text)) };
-        }
-        case 'fill': {
-          const x = Number(positionals[0]);
-          const y = Number(positionals[1]);
-          const text = positionals.slice(2).join(' ');
-          if (Number.isNaN(x) || Number.isNaN(y) || !text) {
-            throw new AppError('INVALID_ARGS', 'fill requires x y text');
-          }
-          const delayMs = requireIntInRange(context?.delayMs ?? 0, 'delay-ms', 0, 10_000);
-          await interactor.fill(x, y, text, delayMs);
-          return { x, y, text, delayMs, ...successText(formatTextLengthMessage('Filled', text)) };
-        }
+        case 'longpress':
+          return handleLongPressCommand(interactor, positionals);
+        case 'focus':
+          return handleFocusCommand(interactor, positionals);
+        case 'type':
+          return handleTypeCommand(interactor, positionals, context);
+        case 'fill':
+          return handleFillCommand(interactor, positionals, context);
         case 'scroll':
           return handleScrollCommand(interactor, positionals, context);
         case 'pinch':
@@ -279,322 +199,6 @@ async function handleOpenCommand(
     appBundleId: context?.appBundleId,
   });
   return { app, ...successText(`Opened: ${app}`) };
-}
-
-async function handlePressCommand(
-  device: DeviceInfo,
-  interactor: Interactor,
-  positionals: string[],
-  context: DispatchContext | undefined,
-  _runnerCtx: RunnerContext,
-): Promise<Record<string, unknown>> {
-  const [x, y] = positionals.map(Number);
-  if (Number.isNaN(x) || Number.isNaN(y)) throw new AppError('INVALID_ARGS', 'press requires x y');
-
-  if (device.platform === 'macos' && context?.surface && context.surface !== 'app') {
-    const clickButton = resolveClickButton(context);
-    if (clickButton !== 'primary') {
-      throw new AppError(
-        'UNSUPPORTED_OPERATION',
-        `${clickButton} click is not supported on macOS ${context.surface} sessions.`,
-      );
-    }
-    await runMacOsPressAction(x, y, {
-      bundleId: context.appBundleId,
-      surface: context.surface,
-    });
-    return { x, y, ...successText(formatPressMessage({ x, y })) };
-  }
-
-  const clickButton = resolveClickButton(context);
-  if (clickButton !== 'primary') {
-    const validationError = getClickButtonValidationError({
-      commandLabel: 'click',
-      platform: device.platform,
-      button: clickButton,
-      count: context?.count,
-      intervalMs: context?.intervalMs,
-      holdMs: context?.holdMs,
-      jitterPx: context?.jitterPx,
-      doubleTap: context?.doubleTap,
-    });
-    if (validationError) {
-      throw validationError;
-    }
-    if (device.platform === 'linux') {
-      if (clickButton === 'secondary') {
-        await rightClickLinux(x, y);
-      } else {
-        await middleClickLinux(x, y);
-      }
-      return {
-        x,
-        y,
-        button: clickButton,
-        ...successText(formatPressMessage({ x, y, button: clickButton })),
-      };
-    }
-    await runIosRunnerCommand(
-      device,
-      {
-        command: 'mouseClick',
-        x,
-        y,
-        button: clickButton,
-        appBundleId: context?.appBundleId,
-      },
-      {
-        verbose: context?.verbose,
-        logPath: context?.logPath,
-        traceLogPath: context?.traceLogPath,
-        requestId: context?.requestId,
-      },
-    );
-    return {
-      x,
-      y,
-      button: clickButton,
-      ...successText(formatPressMessage({ x, y, button: clickButton })),
-    };
-  }
-
-  const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
-  const intervalMs = requireIntInRange(context?.intervalMs ?? 0, 'interval-ms', 0, 10_000);
-  const holdMs = requireIntInRange(context?.holdMs ?? 0, 'hold-ms', 0, 10_000);
-  const jitterPx = requireIntInRange(context?.jitterPx ?? 0, 'jitter-px', 0, 100);
-  const doubleTap = context?.doubleTap === true;
-
-  if (doubleTap && holdMs > 0) {
-    throw new AppError('INVALID_ARGS', 'double-tap cannot be combined with hold-ms');
-  }
-  if (doubleTap && jitterPx > 0) {
-    throw new AppError('INVALID_ARGS', 'double-tap cannot be combined with jitter-px');
-  }
-
-  if (shouldUseIosTapSeries(device, count, holdMs, jitterPx)) {
-    const runnerResult = await runIosRunnerCommand(
-      device,
-      {
-        command: 'tapSeries',
-        x,
-        y,
-        count,
-        intervalMs,
-        doubleTap,
-        appBundleId: context?.appBundleId,
-      },
-      {
-        verbose: context?.verbose,
-        logPath: context?.logPath,
-        traceLogPath: context?.traceLogPath,
-        requestId: context?.requestId,
-      },
-    );
-    return {
-      x,
-      y,
-      count,
-      intervalMs,
-      holdMs,
-      jitterPx,
-      doubleTap,
-      timingMode: 'runner-series',
-      ...runnerResult,
-      ...successText(formatPressMessage({ x, y })),
-    };
-  }
-
-  let interactionResult: Record<string, unknown> | undefined;
-  await runRepeatedSeries(count, intervalMs, async (index) => {
-    const [dx, dy] = computeDeterministicJitter(index, jitterPx);
-    const targetX = x + dx;
-    const targetY = y + dy;
-    if (doubleTap) {
-      interactionResult ??= (await interactor.doubleTap(targetX, targetY)) ?? undefined;
-      return;
-    }
-    if (holdMs > 0) {
-      interactionResult ??= (await interactor.longPress(targetX, targetY, holdMs)) ?? undefined;
-    } else {
-      interactionResult ??= (await interactor.tap(targetX, targetY)) ?? undefined;
-    }
-  });
-
-  return withSuccessText(
-    {
-      x,
-      y,
-      count,
-      intervalMs,
-      holdMs,
-      jitterPx,
-      doubleTap,
-      ...interactionResult,
-    },
-    formatPressMessage({ x, y }),
-  );
-}
-
-async function handleSwipeCommand(
-  device: DeviceInfo,
-  interactor: Interactor,
-  positionals: string[],
-  context: DispatchContext | undefined,
-  _runnerCtx: RunnerContext,
-): Promise<Record<string, unknown>> {
-  const x1 = Number(positionals[0]);
-  const y1 = Number(positionals[1]);
-  const x2 = Number(positionals[2]);
-  const y2 = Number(positionals[3]);
-  if ([x1, y1, x2, y2].some(Number.isNaN)) {
-    throw new AppError('INVALID_ARGS', 'swipe requires x1 y1 x2 y2 [durationMs]');
-  }
-
-  const requestedDurationMs = positionals[4] ? Number(positionals[4]) : 250;
-  const durationMs = requireIntInRange(requestedDurationMs, 'durationMs', 16, 10_000);
-  const effectiveDurationMs =
-    device.platform === 'ios' ? clampIosSwipeDuration(durationMs) : durationMs;
-  const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
-  const pauseMs = requireIntInRange(context?.pauseMs ?? 0, 'pause-ms', 0, 10_000);
-  const pattern = context?.pattern ?? 'one-way';
-  if (pattern !== 'one-way' && pattern !== 'ping-pong') {
-    throw new AppError('INVALID_ARGS', `Invalid pattern: ${pattern}`);
-  }
-
-  if (shouldUseIosDragSeries(device, count)) {
-    const runnerResult = await runIosRunnerCommand(
-      device,
-      {
-        command: 'dragSeries',
-        x: x1,
-        y: y1,
-        x2,
-        y2,
-        durationMs: effectiveDurationMs,
-        count,
-        pauseMs,
-        pattern,
-        appBundleId: context?.appBundleId,
-      },
-      {
-        verbose: context?.verbose,
-        logPath: context?.logPath,
-        traceLogPath: context?.traceLogPath,
-        requestId: context?.requestId,
-      },
-    );
-    return {
-      x1,
-      y1,
-      x2,
-      y2,
-      durationMs,
-      effectiveDurationMs,
-      timingMode: 'runner-series',
-      count,
-      pauseMs,
-      pattern,
-      ...runnerResult,
-      ...successText(formatSwipeMessage(count, pattern)),
-    };
-  }
-
-  await runRepeatedSeries(count, pauseMs, async (index) => {
-    const reverse = pattern === 'ping-pong' && index % 2 === 1;
-    if (reverse) await interactor.swipe(x2, y2, x1, y1, effectiveDurationMs);
-    else await interactor.swipe(x1, y1, x2, y2, effectiveDurationMs);
-  });
-
-  return withSuccessText(
-    {
-      x1,
-      y1,
-      x2,
-      y2,
-      durationMs,
-      effectiveDurationMs,
-      timingMode: device.platform === 'ios' ? 'safe-normalized' : 'direct',
-      count,
-      pauseMs,
-      pattern,
-    },
-    formatSwipeMessage(count, pattern),
-  );
-}
-
-async function handleScrollCommand(
-  interactor: Interactor,
-  positionals: string[],
-  context: DispatchContext | undefined,
-): Promise<Record<string, unknown>> {
-  const directionInput = positionals[0];
-  const amount = positionals[1] ? Number(positionals[1]) : undefined;
-  const pixels = context?.pixels;
-  if (!directionInput) throw new AppError('INVALID_ARGS', 'scroll requires direction');
-  if (amount !== undefined && !Number.isFinite(amount)) {
-    throw new AppError('INVALID_ARGS', 'scroll amount must be a number');
-  }
-  if (amount !== undefined && pixels !== undefined) {
-    throw new AppError(
-      'INVALID_ARGS',
-      'scroll accepts either a relative amount or --pixels, not both',
-    );
-  }
-  const direction = parseScrollDirection(directionInput);
-  const interactionResult = await interactor.scroll(direction, { amount, pixels });
-  return withSuccessText(
-    {
-      direction,
-      ...(amount !== undefined ? { amount } : {}),
-      ...(pixels !== undefined ? { pixels } : {}),
-      ...interactionResult,
-    },
-    pixels !== undefined
-      ? `Scrolled ${direction} by ${pixels}px`
-      : amount !== undefined
-        ? `Scrolled ${direction} by ${amount}`
-        : `Scrolled ${direction}`,
-  );
-}
-
-async function handlePinchCommand(
-  device: DeviceInfo,
-  positionals: string[],
-  context: DispatchContext | undefined,
-  _runnerCtx: RunnerContext,
-): Promise<Record<string, unknown>> {
-  if (device.platform === 'android') {
-    throw new AppError(
-      'UNSUPPORTED_OPERATION',
-      'Android pinch is not supported in current adb backend; requires instrumentation-based backend.',
-    );
-  }
-  if (device.target === 'tv') {
-    throw new AppError('UNSUPPORTED_OPERATION', 'pinch is not supported on tvOS');
-  }
-  if (device.platform === 'macos' && context?.surface && context.surface !== 'app') {
-    throw new AppError(
-      'UNSUPPORTED_OPERATION',
-      'pinch is only supported in macOS app sessions. Re-open the target app without --surface desktop|menubar|frontmost-app first.',
-    );
-  }
-  const scale = Number(positionals[0]);
-  const x = positionals[1] ? Number(positionals[1]) : undefined;
-  const y = positionals[2] ? Number(positionals[2]) : undefined;
-  if (Number.isNaN(scale) || scale <= 0) {
-    throw new AppError('INVALID_ARGS', 'pinch requires scale > 0');
-  }
-  await runIosRunnerCommand(
-    device,
-    { command: 'pinch', scale, x, y, appBundleId: context?.appBundleId },
-    {
-      verbose: context?.verbose,
-      logPath: context?.logPath,
-      traceLogPath: context?.traceLogPath,
-      requestId: context?.requestId,
-    },
-  );
-  return { scale, x, y, ...successText(`Pinched to scale ${scale}`) };
 }
 
 async function handleClipboardCommand(
@@ -833,84 +437,6 @@ async function handleSnapshotCommand(
     analysis: androidResult.analysis,
     androidSnapshot: androidResult.androidSnapshot,
   };
-}
-
-async function handleReadCommand(
-  device: DeviceInfo,
-  positionals: string[],
-  context: DispatchContext | undefined,
-  _runnerCtx: RunnerContext,
-): Promise<Record<string, unknown>> {
-  const [x, y] = positionals.map(Number);
-  if (Number.isNaN(x) || Number.isNaN(y)) {
-    throw new AppError('INVALID_ARGS', 'read requires x y');
-  }
-  if (device.platform === 'android') {
-    const text = await readAndroidTextAtPoint(device, x, y);
-    return { action: 'read', text: text ?? '' };
-  }
-  if (device.platform === 'macos' && context?.surface && context.surface !== 'app') {
-    const result = await runMacOsReadTextAction(x, y, {
-      bundleId: context.appBundleId,
-      surface: context.surface,
-    });
-    return { action: 'read', text: result.text };
-  }
-  // macOS app sessions run through the XCUITest runner; only desktop/menubar surfaces use the helper.
-  const result = await runIosRunnerCommand(
-    device,
-    {
-      command: 'readText',
-      x,
-      y,
-      appBundleId: context?.appBundleId,
-    },
-    {
-      verbose: context?.verbose,
-      logPath: context?.logPath,
-      traceLogPath: context?.traceLogPath,
-      requestId: context?.requestId,
-    },
-  );
-  const text =
-    typeof result.text === 'string'
-      ? result.text
-      : typeof result.message === 'string'
-        ? result.message
-        : '';
-  return { action: 'read', text };
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function findMistargetedTypeRef(positionals: string[]): string | null {
-  const first = positionals[0]?.trim();
-  if (!first || !first.startsWith('@') || first.length < 3) {
-    return null;
-  }
-  const body = first.slice(1);
-  if (/^[A-Za-z_-]*\d[\w-]*$/i.test(body) || /^(?:ref|node|element|el)[\w-]*$/i.test(body)) {
-    return first;
-  }
-  return null;
-}
-
-function formatPressMessage(params: { x: number; y: number; button?: ClickButton }): string {
-  if (params.button && params.button !== 'primary') {
-    return `Clicked ${params.button} (${params.x}, ${params.y})`;
-  }
-  return `Tapped (${params.x}, ${params.y})`;
-}
-
-function formatSwipeMessage(count: number, pattern: 'one-way' | 'ping-pong'): string {
-  if (count <= 1) return 'Swiped';
-  return pattern === 'ping-pong' ? `Swiped ${count} times (ping-pong)` : `Swiped ${count} times`;
-}
-
-function formatTextLengthMessage(action: 'Typed' | 'Filled', text: string): string {
-  return `${action} ${Array.from(text).length} chars`;
 }
 
 function readResultMessage(result: Record<string, unknown>): string | undefined {

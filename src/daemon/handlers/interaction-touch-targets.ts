@@ -3,8 +3,8 @@ import type {
   InteractionTarget,
   PressCommandResult,
 } from '../../commands/index.ts';
+import { fillCommandCodec, interactionTargetCodec } from '../../command-codecs.ts';
 import type { DaemonResponse } from '../types.ts';
-import { splitSelectorFromArgs } from '../selectors.ts';
 import { parseCoordinateTarget } from './interaction-targeting.ts';
 import { errorResponse } from './response.ts';
 
@@ -19,12 +19,13 @@ export function parsePressTarget(positionals: string[], commandLabel: string): P
   }
   const first = positionals[0] ?? '';
   if (first.startsWith('@')) {
+    const parsed = interactionTargetCodec.decode(positionals);
     return {
       ok: true,
       target: {
         kind: 'ref',
         ref: first,
-        fallbackLabel: positionals.length > 1 ? positionals.slice(1).join(' ').trim() : '',
+        fallbackLabel: parsed.label ?? '',
       },
     };
   }
@@ -48,9 +49,8 @@ export type ParsedFillTarget =
 export function parseFillTarget(positionals: string[]): ParsedFillTarget {
   const first = positionals[0] ?? '';
   if (first.startsWith('@')) {
-    const labelCandidate = positionals.length >= 3 ? positionals[1] : '';
-    const text =
-      positionals.length >= 3 ? positionals.slice(2).join(' ') : positionals.slice(1).join(' ');
+    const parsed = fillCommandCodec.decode(positionals);
+    const text = parsed.text;
     if (!text)
       return { ok: false, response: errorResponse('INVALID_ARGS', 'fill requires text after ref') };
     return {
@@ -58,7 +58,7 @@ export function parseFillTarget(positionals: string[]): ParsedFillTarget {
       target: {
         kind: 'ref',
         ref: first,
-        fallbackLabel: labelCandidate,
+        fallbackLabel: readRefFallbackLabel(positionals),
       },
       text,
     };
@@ -75,8 +75,8 @@ export function parseFillTarget(positionals: string[]): ParsedFillTarget {
     return { ok: true, target: { kind: 'point', x: coordinates.x, y: coordinates.y }, text };
   }
 
-  const selectorArgs = splitSelectorFromArgs(positionals, { preferTrailingValue: true });
-  if (!selectorArgs) {
+  const parsed = fillCommandCodec.decode(positionals);
+  if (parsed.kind !== 'selector') {
     return {
       ok: false,
       response: errorResponse(
@@ -85,7 +85,7 @@ export function parseFillTarget(positionals: string[]): ParsedFillTarget {
       ),
     };
   }
-  const text = selectorArgs.rest.join(' ').trim();
+  const text = parsed.text.trim();
   if (!text) {
     return {
       ok: false,
@@ -94,7 +94,7 @@ export function parseFillTarget(positionals: string[]): ParsedFillTarget {
   }
   return {
     ok: true,
-    target: { kind: 'selector', selector: selectorArgs.selectorExpression },
+    target: { kind: 'selector', selector: parsed.target.selector },
     text,
   };
 }
@@ -132,4 +132,8 @@ export function formatPressTargetLabel(
 
 export function stripAtPrefix(ref: string | undefined): string | undefined {
   return ref?.startsWith('@') ? ref.slice(1) : ref;
+}
+
+function readRefFallbackLabel(positionals: string[]): string {
+  return positionals.length >= 3 ? positionals[1]?.trim() || '' : '';
 }

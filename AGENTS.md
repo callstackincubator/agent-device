@@ -42,6 +42,15 @@ Minimal operating guide for AI coding agents in this repo.
 
 ## Routing
 - Keep `src/daemon.ts` as a thin router.
+- Keep command names and daemon routing groups centralized in `src/command-catalog.ts`; do not re-create command string sets in handlers or request policy modules.
+- Keep CLI/client positional grammar in `src/command-codecs.ts` and its `src/command-codecs/*` command-family modules. CLI commands, typed client methods, and daemon interaction adapters should reuse these codecs instead of duplicating selector/ref/positionals parsing.
+- Keep `src/daemon/request-router.ts` as request orchestration: auth, diagnostics scope, request admission, locking, handler chain, and fallback dispatch.
+- Put request policies in focused request modules:
+  - tenant/lease/selector/lock admission: `src/daemon/request-admission.ts`
+  - artifact/error finalization: `src/daemon/request-finalization.ts`
+  - Android ADB provider scoping: `src/daemon/request-android-adb.ts`
+  - generic fallback dispatch + action recording: `src/daemon/request-generic-dispatch.ts`
+  - recording invalidation health: `src/daemon/request-recording-health.ts`
 - Put command logic in handler modules:
   - session/apps/appstate/open/close/replay/logs: `src/daemon/handlers/session.ts`
   - click/fill/get/is: `src/daemon/handlers/interaction.ts`
@@ -96,7 +105,7 @@ A new snapshot/command flag touches up to 7 files in a fixed order. Follow this 
 3. `src/client-types.ts`: add to `CaptureSnapshotOptions` (or equivalent public options type) **and** `InternalRequestOptions`.
 4. `src/client-normalizers.ts`: map the public option name to the internal flag name in `buildFlags`.
 5. `src/daemon/context.ts`: add to `DaemonCommandContext` type and `contextFromFlags` function.
-6. `src/core/dispatch.ts`: add to the inline context type on `dispatchCommand` and thread it to the platform call.
+6. `src/core/dispatch-context.ts`: add to `DispatchContext` when the flag flows into platform dispatch, then thread it through the relevant dispatcher module.
 7. `src/cli/commands/<command>.ts`: pass the flag from `flags.*` to the client call.
 
 Command-only flags (like `find --first`) that don't flow to the platform layer only need steps 1 and the handler file.
@@ -217,7 +226,9 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Shared action helpers: `src/daemon/action-utils.ts`
 - Snapshot shaping + labels: `src/daemon/snapshot-processing.ts`
 - Handler context helpers: `src/daemon/context.ts`, `src/daemon/device-ready.ts`
-- Dispatcher + capability map: `src/core/dispatch.ts`, `src/core/capabilities.ts`
+- Request routing/policy: `src/daemon/request-router.ts`, `src/daemon/request-admission.ts`, `src/daemon/request-generic-dispatch.ts`
+- Dispatcher + capability map: `src/core/dispatch.ts`, `src/core/dispatch-context.ts`, `src/core/dispatch-interactions.ts`, `src/core/capabilities.ts`
+- Command catalog + positional codecs: `src/command-catalog.ts`, `src/command-codecs.ts`, `src/command-codecs/*`
 - Platform backends: `src/platforms/ios/*`, `ios-runner/*`, `src/platforms/android/*`
 
 ## Pull Requests

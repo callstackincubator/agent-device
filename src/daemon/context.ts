@@ -1,34 +1,9 @@
-import type { CommandFlags } from '../core/dispatch.ts';
-import { resolveClickButton, type ClickButton } from '../core/click-button.ts';
-import type { SessionSurface } from '../core/session-surface.ts';
+import type { CommandFlags, DispatchContext } from '../core/dispatch-context.ts';
+import { resolveClickButton } from '../core/click-button.ts';
 import { getDiagnosticsMeta } from '../utils/diagnostics.ts';
 
-export type DaemonCommandContext = {
-  requestId?: string;
-  appBundleId?: string;
-  activity?: string;
-  verbose?: boolean;
-  logPath?: string;
-  traceLogPath?: string;
-  snapshotInteractiveOnly?: boolean;
-  snapshotCompact?: boolean;
-  snapshotDepth?: number;
-  snapshotScope?: string;
-  snapshotRaw?: boolean;
-  screenshotFullscreen?: boolean;
+export type DaemonCommandContext = DispatchContext & {
   screenshotMaxSize?: number;
-  count?: number;
-  intervalMs?: number;
-  delayMs?: number;
-  holdMs?: number;
-  jitterPx?: number;
-  pixels?: number;
-  doubleTap?: boolean;
-  clickButton?: ClickButton;
-  backMode?: 'in-app' | 'system';
-  pauseMs?: number;
-  pattern?: 'one-way' | 'ping-pong';
-  surface?: SessionSurface;
 };
 
 export function contextFromFlags(

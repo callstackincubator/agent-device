@@ -1,51 +1,41 @@
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { errorResponse } from './response.ts';
-import { parseWaitArgs } from './snapshot-wait.ts';
+import { DAEMON_COMMAND_GROUPS } from '../../command-catalog.ts';
 import { handleAlertCommand } from './snapshot-alert.ts';
 import { handleSettingsCommand, parseSettingsArgs } from './snapshot-settings.ts';
 import { dispatchSnapshotDiffViaRuntime, dispatchSnapshotViaRuntime } from '../snapshot-runtime.ts';
 import { dispatchWaitViaRuntime } from '../selector-runtime.ts';
 import { resolveSessionDevice, withSessionlessRunnerCleanup } from './snapshot-session.ts';
 
-const SNAPSHOT_COMMANDS = new Set(['snapshot', 'diff', 'wait', 'alert', 'settings']);
+const SNAPSHOT_COMMANDS = DAEMON_COMMAND_GROUPS.snapshot;
 
-export { parseWaitArgs };
-
-export async function handleSnapshotCommands(params: {
+type SnapshotCommandParams = {
   req: DaemonRequest;
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
-}): Promise<DaemonResponse | null> {
-  const { req, sessionName, logPath, sessionStore } = params;
-  const command = req.command;
+};
 
-  if (!SNAPSHOT_COMMANDS.has(command)) {
-    return null;
-  }
+type SnapshotCommandHandler = (params: SnapshotCommandParams) => Promise<DaemonResponse>;
 
-  if (command === 'snapshot') {
-    return await dispatchSnapshotViaRuntime({
+export const SNAPSHOT_COMMAND_HANDLERS = {
+  snapshot: async ({ req, sessionName, logPath, sessionStore }) =>
+    await dispatchSnapshotViaRuntime({
       req,
       sessionName,
       logPath,
       sessionStore,
-    });
-  }
-
-  if (command === 'diff') {
+    }),
+  diff: async ({ req, sessionName, logPath, sessionStore }) => {
     if (req.positionals?.[0] !== 'snapshot') {
       return errorResponse('INVALID_ARGS', 'diff currently supports only: diff snapshot');
     }
     return await dispatchSnapshotDiffViaRuntime({ req, sessionName, logPath, sessionStore });
-  }
-
-  if (command === 'wait') {
-    return await dispatchWaitViaRuntime({ req, sessionName, logPath, sessionStore });
-  }
-
-  if (command === 'alert') {
+  },
+  wait: async ({ req, sessionName, logPath, sessionStore }) =>
+    await dispatchWaitViaRuntime({ req, sessionName, logPath, sessionStore }),
+  alert: async ({ req, sessionName, logPath, sessionStore }) => {
     const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
     return await withSessionlessRunnerCleanup(session, device, async () => {
       return await handleAlertCommand({
@@ -56,9 +46,8 @@ export async function handleSnapshotCommands(params: {
         device,
       });
     });
-  }
-
-  if (command === 'settings') {
+  },
+  settings: async ({ req, sessionName, logPath, sessionStore }) => {
     const parsedSettings = parseSettingsArgs(req);
     if (!parsedSettings.ok) return parsedSettings;
     const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
@@ -72,7 +61,22 @@ export async function handleSnapshotCommands(params: {
         parsed: parsedSettings.parsed,
       });
     });
+  },
+} satisfies Record<string, SnapshotCommandHandler>;
+
+export async function handleSnapshotCommands(
+  params: SnapshotCommandParams,
+): Promise<DaemonResponse | null> {
+  const command = params.req.command;
+
+  if (!SNAPSHOT_COMMANDS.has(command)) {
+    return null;
   }
 
-  return null;
+  const handler = SNAPSHOT_COMMAND_HANDLERS[command as keyof typeof SNAPSHOT_COMMAND_HANDLERS];
+  if (!handler) {
+    return errorResponse('COMMAND_FAILED', `Snapshot command has no handler: ${command}`);
+  }
+
+  return await handler(params);
 }

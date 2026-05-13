@@ -1,0 +1,30 @@
+import { getRunnerSessionSnapshot } from '../platforms/ios/runner-client.ts';
+import type { SessionState } from './types.ts';
+
+export function refreshRecordingHealth(session: SessionState): void {
+  const recording = session.recording;
+  if (!recording || session.device.platform !== 'ios') {
+    return;
+  }
+
+  const snapshot = getRunnerSessionSnapshot(session.device.id);
+  if (!recording.runnerSessionId) {
+    if (snapshot?.alive) {
+      recording.runnerSessionId = snapshot.sessionId;
+    }
+    return;
+  }
+
+  if (!snapshot?.alive) {
+    recording.invalidatedReason ??= 'iOS runner session exited during recording';
+    return;
+  }
+
+  if (snapshot.sessionId !== recording.runnerSessionId) {
+    recording.invalidatedReason ??= 'iOS runner session restarted during recording';
+  }
+}
+
+export function shouldBlockForInvalidRecording(command: string): boolean {
+  return command !== 'record' && command !== 'close';
+}
