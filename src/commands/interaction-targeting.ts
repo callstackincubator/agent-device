@@ -1,8 +1,22 @@
 import type { Rect, SnapshotNode } from '../utils/snapshot.ts';
 import { centerOfRect } from '../utils/snapshot.ts';
 import { containsPoint, pickLargestRect } from '../utils/rect-visibility.ts';
-import { findNearestHittableAncestor } from '../utils/snapshot-processing.ts';
+import { findNearestHittableAncestor, normalizeType } from '../utils/snapshot-processing.ts';
 import { normalizeRect, resolveRectCenter } from '../utils/rect-center.ts';
+
+const SEMANTIC_TOUCH_ROLE_FRAGMENTS = [
+  'button',
+  'link',
+  'menuitem',
+  'tabitem',
+  'textfield',
+  'searchfield',
+  'securetextfield',
+  'checkbox',
+  'radio',
+  'switch',
+  'cell',
+];
 
 export function resolveActionableTouchNode(
   nodes: SnapshotNode[],
@@ -11,6 +25,9 @@ export function resolveActionableTouchNode(
   const descendant = findPreferredActionableDescendant(nodes, node);
   if (descendant?.rect && resolveRectCenter(descendant.rect)) {
     return descendant;
+  }
+  if (isSemanticallyTouchableNode(node) && node.rect && resolveRectCenter(node.rect)) {
+    return node;
   }
   const ancestor = findNearestHittableAncestor(nodes, node);
   if (ancestor?.rect && resolveRectCenter(ancestor.rect)) {
@@ -47,6 +64,18 @@ function findPreferredActionableDescendant(
   }
 
   return current === node ? null : current;
+}
+
+function isSemanticallyTouchableNode(node: SnapshotNode): boolean {
+  const roles = [node.type, node.role, node.subrole].map((value) => normalizeType(value ?? ''));
+  return roles.some(isSemanticTouchRole);
+}
+
+function isSemanticTouchRole(role: string): boolean {
+  // Match Tab exactly so broad roles like Table/TabBar do not become touch targets.
+  return (
+    role === 'tab' || SEMANTIC_TOUCH_ROLE_FRAGMENTS.some((fragment) => role.includes(fragment))
+  );
 }
 
 function areRectsApproximatelyEqual(left: Rect, right: Rect): boolean {

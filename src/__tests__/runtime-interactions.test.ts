@@ -67,6 +67,61 @@ test('runtime press resolves selector targets to the actionable node center', as
   assert.deepEqual(result.backendResult, { ok: true });
 });
 
+test('runtime click keeps distinct tab button centers when iOS reports the tab bar as hittable', async () => {
+  const calls: Point[] = [];
+  const device = createInteractionDevice(iosTabBarSnapshot(), {
+    tap: async (_context, point) => {
+      calls.push(point);
+    },
+  });
+
+  const refResult = await device.interactions.click(ref('@e4'), {
+    session: 'default',
+  });
+  const selectorResult = await device.interactions.click(selector('label=Settings'), {
+    session: 'default',
+  });
+
+  assert.deepEqual(calls, [
+    { x: 166, y: 822 },
+    { x: 257, y: 822 },
+  ]);
+  assert.equal(refResult.kind, 'ref');
+  assert.equal(refResult.node?.label, 'Library');
+  assert.equal(selectorResult.kind, 'selector');
+  assert.equal(selectorResult.node?.label, 'Settings');
+});
+
+test('runtime click keeps non-button semantic targets at their own center', async () => {
+  const calls: Point[] = [];
+  const device = createInteractionDevice(nonHittableCellSnapshot(), {
+    tap: async (_context, point) => {
+      calls.push(point);
+    },
+  });
+
+  const result = await clickRefE2(device);
+
+  assert.deepEqual(calls, [{ x: 70, y: 30 }]);
+  assert.equal(result.kind, 'ref');
+  assert.equal(result.node?.label, 'Account');
+});
+
+test('runtime click still promotes non-touchable nodes to hittable ancestors', async () => {
+  const calls: Point[] = [];
+  const device = createInteractionDevice(nonTouchableGroupSnapshot(), {
+    tap: async (_context, point) => {
+      calls.push(point);
+    },
+  });
+
+  const result = await clickRefE2(device);
+
+  assert.deepEqual(calls, [{ x: 160, y: 60 }]);
+  assert.equal(result.kind, 'ref');
+  assert.equal(result.node?.label, 'Clickable group');
+});
+
 test('runtime fill resolves refs and forwards text to the backend primitive', async () => {
   const calls: Array<{ point: Point; text: string; delayMs?: number }> = [];
   const device = createInteractionDevice(fillableSnapshot(), {
@@ -422,6 +477,107 @@ function fillableSnapshot(): SnapshotState {
   ]);
 }
 
+function iosTabBarSnapshot(): SnapshotState {
+  return makeSnapshotState([
+    {
+      index: 0,
+      depth: 0,
+      type: 'XCUIElementTypeApplication',
+      label: 'TabRepro',
+      rect: { x: 0, y: 0, width: 402, height: 874 },
+      hittable: false,
+    },
+    {
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'XCUIElementTypeTabBar',
+      rect: { x: 0, y: 791, width: 402, height: 83 },
+      hittable: true,
+    },
+    {
+      index: 2,
+      depth: 2,
+      parentIndex: 1,
+      type: 'XCUIElementTypeButton',
+      label: 'Home',
+      rect: { x: 30, y: 800, width: 91, height: 44 },
+      hittable: false,
+    },
+    {
+      index: 3,
+      depth: 2,
+      parentIndex: 1,
+      type: 'XCUIElementTypeButton',
+      label: 'Library',
+      rect: { x: 120, y: 800, width: 92, height: 44 },
+      hittable: false,
+    },
+    {
+      index: 4,
+      depth: 2,
+      parentIndex: 1,
+      type: 'XCUIElementTypeButton',
+      label: 'Settings',
+      rect: { x: 211, y: 800, width: 91, height: 44 },
+      hittable: false,
+    },
+    {
+      index: 5,
+      depth: 2,
+      parentIndex: 1,
+      type: 'XCUIElementTypeButton',
+      label: 'Search',
+      rect: { x: 304, y: 800, width: 92, height: 44 },
+      hittable: false,
+    },
+  ]);
+}
+
+function nonHittableCellSnapshot(): SnapshotState {
+  return makeSnapshotState([
+    {
+      index: 0,
+      depth: 0,
+      type: 'XCUIElementTypeOther',
+      label: 'Settings list',
+      rect: { x: 10, y: 20, width: 300, height: 80 },
+      hittable: true,
+    },
+    {
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'XCUIElementTypeCell',
+      label: 'Account',
+      rect: { x: 20, y: 10, width: 100, height: 40 },
+      hittable: false,
+    },
+  ]);
+}
+
+function nonTouchableGroupSnapshot(): SnapshotState {
+  return makeSnapshotState([
+    {
+      index: 0,
+      depth: 0,
+      type: 'XCUIElementTypeOther',
+      label: 'Clickable group',
+      rect: { x: 10, y: 20, width: 300, height: 80 },
+      hittable: true,
+    },
+    {
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'XCUIElementTypeOther',
+      label: 'Decorative group',
+      rect: { x: 30, y: 40, width: 60, height: 20 },
+      hittable: false,
+    },
+  ]);
+}
+
 function snapshotWithOffscreenContent(): SnapshotState {
   return makeSnapshotState([
     {
@@ -493,5 +649,11 @@ function createInteractionDevice(
       { name: 'default', snapshot, metadata: overrides.sessionMetadata },
     ]),
     policy: localCommandPolicy(),
+  });
+}
+
+async function clickRefE2(device: ReturnType<typeof createInteractionDevice>) {
+  return await device.interactions.click(ref('@e2'), {
+    session: 'default',
   });
 }
