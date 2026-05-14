@@ -37,7 +37,7 @@ export function formatScriptStringLiteral(value: string): string {
 }
 
 // Preserve readable CLI-ish script output for ordinary tokens while still quoting whitespace.
-export function formatScriptArgQuoteIfNeeded(value: string): string {
+function formatScriptArgQuoteIfNeeded(value: string): string {
   return formatScriptToken(value, isBareScriptToken);
 }
 
@@ -136,6 +136,48 @@ export function appendRecordActionScriptArgs(parts: string[], action: SessionAct
   if (action.flags?.hideTouches) {
     parts.push('--hide-touches');
   }
+}
+
+export function appendSnapshotActionScriptArgs(parts: string[], action: SessionAction): void {
+  if (action.flags?.snapshotInteractiveOnly) parts.push('-i');
+  if (action.flags?.snapshotCompact) parts.push('-c');
+  if (typeof action.flags?.snapshotDepth === 'number') {
+    parts.push('-d', String(action.flags.snapshotDepth));
+  }
+  if (action.flags?.snapshotScope) {
+    parts.push('-s', formatScriptArg(action.flags.snapshotScope));
+  }
+  if (action.flags?.snapshotRaw) parts.push('--raw');
+}
+
+export function appendScreenshotActionScriptArgs(parts: string[], action: SessionAction): void {
+  for (const positional of action.positionals ?? []) {
+    parts.push(formatScriptArg(positional));
+  }
+  if (action.flags?.screenshotFullscreen) parts.push('--fullscreen');
+  if (typeof action.flags?.screenshotMaxSize === 'number') {
+    parts.push('--max-size', String(action.flags.screenshotMaxSize));
+  }
+}
+
+export function appendRuntimeActionScriptArgs(
+  parts: string[],
+  action: SessionAction,
+  options: { includeAllPositionals?: boolean } = {},
+): void {
+  const positionals = action.positionals ?? [];
+  const selectedPositionals = options.includeAllPositionals ? positionals : positionals.slice(0, 1);
+  for (const positional of selectedPositionals) {
+    parts.push(formatScriptArgQuoteIfNeeded(positional));
+  }
+  appendRuntimeHintFlags(parts, action.flags);
+}
+
+export function appendGenericActionScriptArgs(parts: string[], action: SessionAction): void {
+  for (const positional of action.positionals ?? []) {
+    parts.push(formatScriptArg(positional));
+  }
+  appendScriptSeriesFlags(parts, action);
 }
 
 export function parseReplaySeriesFlags(

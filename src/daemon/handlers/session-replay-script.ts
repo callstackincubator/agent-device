@@ -1,14 +1,10 @@
 import fs from 'node:fs';
 import { AppError } from '../../utils/errors.ts';
 import type { PlatformSelector } from '../../utils/device.ts';
-import { appendOpenActionScriptArgs, parseReplayOpenFlags } from '../session-open-script.ts';
+import { parseReplayOpenFlags } from '../session-open-script.ts';
+import { formatPortableActionLine } from '../session-script-formatting.ts';
 import type { SessionAction, SessionState } from '../types.ts';
 import {
-  appendRecordActionScriptArgs,
-  appendRuntimeHintFlags,
-  appendScriptSeriesFlags,
-  formatScriptArgQuoteIfNeeded,
-  formatScriptArg,
   formatScriptStringLiteral,
   isClickLikeCommand,
   parseReplaySeriesFlags,
@@ -381,36 +377,57 @@ function tokenizeReplayLine(line: string): string[] {
   const tokens: string[] = [];
   let cursor = 0;
   while (cursor < line.length) {
-    while (cursor < line.length && /\s/.test(line[cursor])) {
-      cursor += 1;
-    }
+    cursor = skipReplayWhitespace(line, cursor);
     if (cursor >= line.length) break;
-    if (line[cursor] === '"') {
-      let end = cursor + 1;
-      let escaped = false;
-      while (end < line.length) {
-        const char = line[end];
-        if (char === '"' && !escaped) break;
-        escaped = char === '\\' && !escaped;
-        if (char !== '\\') escaped = false;
-        end += 1;
-      }
-      if (end >= line.length) {
-        throw new AppError('INVALID_ARGS', `Invalid replay script line: ${line}`);
-      }
-      const literal = line.slice(cursor, end + 1);
-      tokens.push(JSON.parse(literal) as string);
-      cursor = end + 1;
-      continue;
-    }
-    let end = cursor;
-    while (end < line.length && !/\s/.test(line[end])) {
-      end += 1;
-    }
-    tokens.push(line.slice(cursor, end));
-    cursor = end;
+    const parsed =
+      line[cursor] === '"'
+        ? readQuotedReplayToken(line, cursor)
+        : readBareReplayToken(line, cursor);
+    tokens.push(parsed.value);
+    cursor = parsed.nextCursor;
   }
   return tokens;
+}
+
+function skipReplayWhitespace(line: string, cursor: number): number {
+  let nextCursor = cursor;
+  while (nextCursor < line.length && /\s/.test(line[nextCursor])) {
+    nextCursor += 1;
+  }
+  return nextCursor;
+}
+
+function readQuotedReplayToken(
+  line: string,
+  cursor: number,
+): { value: string; nextCursor: number } {
+  const tokenStart = cursor + 1;
+  let escaped = false;
+  let end = tokenStart;
+  for (; end < line.length; end += 1) {
+    const char = line[end];
+    if (char === '"' && !escaped) break;
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    escaped = char === '\\';
+  }
+  if (end >= line.length) {
+    throw new AppError('INVALID_ARGS', `Invalid replay script line: ${line}`);
+  }
+  return {
+    value: JSON.parse(line.slice(cursor, end + 1)) as string,
+    nextCursor: end + 1,
+  };
+}
+
+function readBareReplayToken(line: string, cursor: number): { value: string; nextCursor: number } {
+  let end = cursor;
+  while (end < line.length && !/\s/.test(line[end])) {
+    end += 1;
+  }
+  return { value: line.slice(cursor, end), nextCursor: end };
 }
 
 export function writeReplayScript(
@@ -438,47 +455,5 @@ export function writeReplayScript(
 }
 
 function formatReplayActionLine(action: SessionAction): string {
-  const parts: string[] = [action.command];
-  if (action.command === 'snapshot') {
-    if (action.flags?.snapshotInteractiveOnly) parts.push('-i');
-    if (action.flags?.snapshotCompact) parts.push('-c');
-    if (typeof action.flags?.snapshotDepth === 'number') {
-      parts.push('-d', String(action.flags.snapshotDepth));
-    }
-    if (action.flags?.snapshotScope) {
-      parts.push('-s', formatScriptArg(action.flags.snapshotScope));
-    }
-    if (action.flags?.snapshotRaw) parts.push('--raw');
-    return parts.join(' ');
-  }
-  if (action.command === 'open') {
-    appendOpenActionScriptArgs(parts, action);
-    return parts.join(' ');
-  }
-  if (action.command === 'runtime') {
-    for (const positional of action.positionals ?? []) {
-      parts.push(formatScriptArgQuoteIfNeeded(positional));
-    }
-    appendRuntimeHintFlags(parts, action.flags);
-    return parts.join(' ');
-  }
-  if (action.command === 'record') {
-    appendRecordActionScriptArgs(parts, action);
-    return parts.join(' ');
-  }
-  if (action.command === 'screenshot') {
-    for (const positional of action.positionals ?? []) {
-      parts.push(formatScriptArg(positional));
-    }
-    if (action.flags?.screenshotFullscreen) parts.push('--fullscreen');
-    if (typeof action.flags?.screenshotMaxSize === 'number') {
-      parts.push('--max-size', String(action.flags.screenshotMaxSize));
-    }
-    return parts.join(' ');
-  }
-  for (const positional of action.positionals ?? []) {
-    parts.push(formatScriptArg(positional));
-  }
-  appendScriptSeriesFlags(parts, action);
-  return parts.join(' ');
+  return formatPortableActionLine(action, { runtimeIncludeAllPositionals: true });
 }

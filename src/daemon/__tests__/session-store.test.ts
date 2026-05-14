@@ -6,6 +6,14 @@ import path from 'node:path';
 import { SessionStore } from '../session-store.ts';
 import type { SessionState } from '../types.ts';
 
+type RecordActionEntry = Parameters<SessionStore['recordAction']>[1];
+
+type SessionStoreFixture = {
+  root: string;
+  store: SessionStore;
+  session: SessionState;
+};
+
 function makeSession(name: string): SessionState {
   return {
     name,
@@ -35,6 +43,50 @@ function readWrittenSessionScript(root: string): string {
   return fs.readFileSync(path.join(root, scriptFile), 'utf8');
 }
 
+function makeFixture(prefix: string, sessionsDir?: string): SessionStoreFixture {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  return {
+    root,
+    store: new SessionStore(sessionsDir ? path.join(root, sessionsDir) : root),
+    session: makeSession('default'),
+  };
+}
+
+function recordOpen(
+  store: SessionStore,
+  session: SessionState,
+  flags: RecordActionEntry['flags'] = { platform: 'ios', saveScript: true },
+  runtime?: RecordActionEntry['runtime'],
+): void {
+  store.recordAction(session, {
+    command: 'open',
+    positionals: ['Settings'],
+    flags,
+    runtime,
+    result: {},
+  });
+}
+
+function recordClose(store: SessionStore, session: SessionState): void {
+  store.recordAction(session, {
+    command: 'close',
+    positionals: [],
+    flags: { platform: 'ios' },
+    result: {},
+  });
+}
+
+function writeScript({ root, store, session }: SessionStoreFixture): string {
+  store.writeSessionLog(session);
+  return readWrittenSessionScript(root);
+}
+
+function assertScriptMatches(script: string, patterns: RegExp[]): void {
+  for (const pattern of patterns) {
+    assert.match(script, pattern);
+  }
+}
+
 test('expandHome resolves tilde, relative-with-cwd, and absolute paths', () => {
   const homePath = SessionStore.expandHome('~/flows/replay.ad');
   assert.equal(homePath.startsWith(os.homedir()), true);
@@ -54,13 +106,25 @@ test('recordAction stores normalized action entries', () => {
   store.recordAction(session, {
     command: 'snapshot',
     positionals: [],
-    flags: { platform: 'ios', snapshotInteractiveOnly: true, verbose: true },
+    flags: {
+      platform: 'ios',
+      snapshotInteractiveOnly: true,
+      verbose: true,
+      json: true,
+      unknownFlag: 'drop-me',
+    } as Parameters<SessionStore['recordAction']>[1]['flags'] & {
+      json: boolean;
+      unknownFlag: string;
+    },
     result: { nodes: 1 },
   });
   assert.equal(session.actions.length, 1);
   assert.equal(session.actions[0].command, 'snapshot');
-  assert.equal(session.actions[0].flags.platform, 'ios');
-  assert.equal(session.actions[0].flags.snapshotInteractiveOnly, true);
+  assert.deepEqual(session.actions[0].flags, {
+    platform: 'ios',
+    snapshotInteractiveOnly: true,
+    verbose: true,
+  });
 });
 
 test('recordAction skips entries marked noRecord', () => {
@@ -84,58 +148,27 @@ test('defaultTracePath sanitizes session name', () => {
 });
 
 test('writeSessionLog writes .ad only when recording is enabled', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-disabled-'));
-  const store = new SessionStore(root);
-  const session = makeSession('default');
-  store.recordAction(session, {
-    command: 'open',
-    positionals: ['Settings'],
-    flags: { platform: 'ios' },
-    result: {},
-  });
+  const { root, store, session } = makeFixture('agent-device-session-log-disabled-');
+  recordOpen(store, session, { platform: 'ios' });
 
   store.writeSessionLog(session);
   assert.equal(listSessionScriptFiles(root).length, 0);
 });
 
 test('saveScript flag enables .ad session log writing', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-enabled-'));
-  const store = new SessionStore(root);
-  const session = makeSession('default');
-  store.recordAction(session, {
-    command: 'open',
-    positionals: ['Settings'],
-    flags: { platform: 'ios', saveScript: true },
-    result: {},
-  });
-  store.recordAction(session, {
-    command: 'close',
-    positionals: [],
-    flags: { platform: 'ios' },
-    result: {},
-  });
+  const { root, store, session } = makeFixture('agent-device-session-log-enabled-');
+  recordOpen(store, session);
+  recordClose(store, session);
 
   store.writeSessionLog(session);
   assert.equal(listSessionScriptFiles(root).length, 1);
 });
 
 test('saveScript path writes session log to custom location', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-custom-path-'));
-  const store = new SessionStore(path.join(root, 'sessions'));
-  const session = makeSession('default');
+  const { root, store, session } = makeFixture('agent-device-session-log-custom-path-', 'sessions');
   const customPath = path.join(root, 'workflows', 'my-flow.ad');
-  store.recordAction(session, {
-    command: 'open',
-    positionals: ['Settings'],
-    flags: { platform: 'ios', saveScript: customPath },
-    result: {},
-  });
-  store.recordAction(session, {
-    command: 'close',
-    positionals: [],
-    flags: { platform: 'ios' },
-    result: {},
-  });
+  recordOpen(store, session, { platform: 'ios', saveScript: customPath });
+  recordClose(store, session);
 
   store.writeSessionLog(session);
   assert.equal(fs.existsSync(customPath), true);
@@ -143,96 +176,58 @@ test('saveScript path writes session log to custom location', () => {
 });
 
 test('writeSessionLog persists open --relaunch in script output', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-relaunch-'));
-  const store = new SessionStore(root);
-  const session = makeSession('default');
-  store.recordAction(session, {
-    command: 'open',
-    positionals: ['Settings'],
-    flags: { platform: 'ios', saveScript: true, relaunch: true },
-    result: {},
-  });
-  store.recordAction(session, {
-    command: 'close',
-    positionals: [],
-    flags: { platform: 'ios' },
-    result: {},
-  });
+  const fixture = makeFixture('agent-device-session-log-relaunch-');
+  recordOpen(fixture.store, fixture.session, { platform: 'ios', saveScript: true, relaunch: true });
+  recordClose(fixture.store, fixture.session);
 
-  store.writeSessionLog(session);
-  const script = readWrittenSessionScript(root);
+  const script = writeScript(fixture);
   assert.match(script, /open "Settings" --relaunch/);
 });
 
 test('writeSessionLog persists record --hide-touches flags in script output', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-record-'));
-  const store = new SessionStore(root);
-  const session = makeSession('default');
-  store.recordAction(session, {
-    command: 'open',
-    positionals: ['Settings'],
-    flags: { platform: 'ios', saveScript: true },
-    result: {},
-  });
-  store.recordAction(session, {
+  const fixture = makeFixture('agent-device-session-log-record-');
+  recordOpen(fixture.store, fixture.session);
+  fixture.store.recordAction(fixture.session, {
     command: 'record',
     positionals: ['start', './capture.mp4'],
     flags: { platform: 'ios', fps: 30, quality: 8, hideTouches: true },
     result: { action: 'start', showTouches: false },
   });
 
-  store.writeSessionLog(session);
-  const script = readWrittenSessionScript(root);
+  const script = writeScript(fixture);
   assert.match(script, /record start "\.\/capture\.mp4" --fps 30 --quality 8 --hide-touches/);
 });
 
 test('writeSessionLog persists screenshot flags in script output', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-screenshot-'));
-  const store = new SessionStore(root);
-  const session = makeSession('default');
-  store.recordAction(session, {
-    command: 'open',
-    positionals: ['Settings'],
-    flags: { platform: 'ios', saveScript: true },
-    result: {},
-  });
-  store.recordAction(session, {
+  const fixture = makeFixture('agent-device-session-log-screenshot-');
+  recordOpen(fixture.store, fixture.session);
+  fixture.store.recordAction(fixture.session, {
     command: 'screenshot',
     positionals: ['./page.png'],
     flags: { platform: 'ios', screenshotFullscreen: true, screenshotMaxSize: 1024 },
     result: {},
   });
 
-  store.writeSessionLog(session);
-  const script = readWrittenSessionScript(root);
+  const script = writeScript(fixture);
   assert.match(script, /screenshot "\.\/page\.png" --fullscreen --max-size 1024/);
 });
 
 test('writeSessionLog persists inline open runtime hints in script output', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-open-runtime-'));
-  const store = new SessionStore(root);
-  const session = makeSession('default');
-  store.recordAction(session, {
-    command: 'open',
-    positionals: ['Settings'],
-    flags: { platform: 'ios', saveScript: true, relaunch: true },
-    runtime: {
+  const fixture = makeFixture('agent-device-session-log-open-runtime-');
+  recordOpen(
+    fixture.store,
+    fixture.session,
+    { platform: 'ios', saveScript: true, relaunch: true },
+    {
       platform: 'ios',
       metroHost: '127.0.0.1',
       metroPort: 8081,
       launchUrl: 'myapp://dev',
     },
-    result: {},
-  });
-  store.recordAction(session, {
-    command: 'close',
-    positionals: [],
-    flags: { platform: 'ios' },
-    result: {},
-  });
+  );
+  recordClose(fixture.store, fixture.session);
 
-  store.writeSessionLog(session);
-  const script = readWrittenSessionScript(root);
+  const script = writeScript(fixture);
   assert.match(
     script,
     /open "Settings" --relaunch --platform ios --metro-host 127\.0\.0\.1 --metro-port 8081 --launch-url myapp:\/\/dev/,
@@ -240,16 +235,9 @@ test('writeSessionLog persists inline open runtime hints in script output', () =
 });
 
 test('writeSessionLog persists runtime set hints in script output', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-runtime-'));
-  const store = new SessionStore(root);
-  const session = makeSession('default');
-  store.recordAction(session, {
-    command: 'open',
-    positionals: ['Settings'],
-    flags: { platform: 'ios', saveScript: true },
-    result: {},
-  });
-  store.recordAction(session, {
+  const fixture = makeFixture('agent-device-session-log-runtime-');
+  recordOpen(fixture.store, fixture.session);
+  fixture.store.recordAction(fixture.session, {
     command: 'runtime',
     positionals: ['set'],
     flags: {
@@ -260,15 +248,9 @@ test('writeSessionLog persists runtime set hints in script output', () => {
     },
     result: {},
   });
-  store.recordAction(session, {
-    command: 'close',
-    positionals: [],
-    flags: { platform: 'ios' },
-    result: {},
-  });
+  recordClose(fixture.store, fixture.session);
 
-  store.writeSessionLog(session);
-  const script = readWrittenSessionScript(root);
+  const script = writeScript(fixture);
   assert.match(
     script,
     /runtime set --platform ios --metro-host 127\.0\.0\.1 --metro-port 8081 --launch-url myapp:\/\/dev/,
@@ -276,16 +258,9 @@ test('writeSessionLog persists runtime set hints in script output', () => {
 });
 
 test('writeSessionLog preserves interaction series flags for click/press/swipe', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-series-flags-'));
-  const store = new SessionStore(root);
-  const session = makeSession('default');
-  store.recordAction(session, {
-    command: 'open',
-    positionals: ['Settings'],
-    flags: { platform: 'ios', saveScript: true },
-    result: {},
-  });
-  store.recordAction(session, {
+  const fixture = makeFixture('agent-device-session-log-series-flags-');
+  recordOpen(fixture.store, fixture.session);
+  fixture.store.recordAction(fixture.session, {
     command: 'click',
     positionals: ['id="continue_button"'],
     flags: {
@@ -298,7 +273,7 @@ test('writeSessionLog preserves interaction series flags for click/press/swipe',
     },
     result: {},
   });
-  store.recordAction(session, {
+  fixture.store.recordAction(fixture.session, {
     command: 'press',
     positionals: ['201', '545'],
     flags: {
@@ -308,7 +283,7 @@ test('writeSessionLog preserves interaction series flags for click/press/swipe',
     },
     result: {},
   });
-  store.recordAction(session, {
+  fixture.store.recordAction(fixture.session, {
     command: 'swipe',
     positionals: ['10', '20', '30', '40'],
     flags: {
@@ -319,7 +294,7 @@ test('writeSessionLog preserves interaction series flags for click/press/swipe',
     },
     result: {},
   });
-  store.recordAction(session, {
+  fixture.store.recordAction(fixture.session, {
     command: 'fill',
     positionals: ['@e5', 'search'],
     flags: {
@@ -328,38 +303,54 @@ test('writeSessionLog preserves interaction series flags for click/press/swipe',
     },
     result: {},
   });
-  store.recordAction(session, {
-    command: 'close',
+  recordClose(fixture.store, fixture.session);
+
+  const script = writeScript(fixture);
+  assertScriptMatches(script, [
+    /click "id=\\"continue_button\\"" --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --double-tap/,
+    /press 201 545 --count 4 --interval-ms 8/,
+    /swipe 10 20 30 40 --count 3 --pause-ms 12 --pattern ping-pong/,
+    /fill @e5 "search" --delay-ms 40/,
+  ]);
+});
+
+test('writeSessionLog optimizes selector chains and scopes fallback snapshots', () => {
+  const fixture = makeFixture('agent-device-session-log-selectors-');
+  recordOpen(fixture.store, fixture.session);
+  fixture.store.recordAction(fixture.session, {
+    command: 'snapshot',
     positionals: [],
-    flags: { platform: 'ios' },
+    flags: { platform: 'ios', snapshotInteractiveOnly: true },
     result: {},
   });
+  fixture.store.recordAction(fixture.session, {
+    command: 'click',
+    positionals: ['@e1'],
+    flags: { platform: 'ios', count: 2 },
+    result: { selectorChain: ['text="Continue"', 'role=button'], refLabel: 'Continue' },
+  });
+  fixture.store.recordAction(fixture.session, {
+    command: 'fill',
+    positionals: ['@e2', 'hello world'],
+    flags: { platform: 'ios', delayMs: 5 },
+    result: { refLabel: 'Email' },
+  });
 
-  store.writeSessionLog(session);
-  const script = readWrittenSessionScript(root);
-  assert.match(
-    script,
-    /click "id=\\"continue_button\\"" --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --double-tap/,
-  );
-  assert.match(script, /press 201 545 --count 4 --interval-ms 8/);
-  assert.match(script, /swipe 10 20 30 40 --count 3 --pause-ms 12 --pattern ping-pong/);
-  assert.match(script, /fill @e5 "search" --delay-ms 40/);
+  const script = writeScript(fixture);
+  assert.doesNotMatch(script, /\nsnapshot\n/);
+  assertScriptMatches(script, [
+    /click "text=\\"Continue\\" \|\| role=button" --count 2/,
+    /snapshot -i -c -s "Email"/,
+    /fill @e2 "Email" "hello world" --delay-ms 5/,
+  ]);
 });
 
 test('writeSessionLog escapes device labels with quotes and backslashes', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-device-label-'));
-  const store = new SessionStore(root);
-  const session = makeSession('default');
-  session.device.name = 'QA "Lab" \\ Shelf';
-  store.recordAction(session, {
-    command: 'open',
-    positionals: ['Settings'],
-    flags: { platform: 'ios', saveScript: true },
-    result: {},
-  });
+  const fixture = makeFixture('agent-device-session-log-device-label-');
+  fixture.session.device.name = 'QA "Lab" \\ Shelf';
+  recordOpen(fixture.store, fixture.session);
 
-  store.writeSessionLog(session);
-  const script = readWrittenSessionScript(root);
+  const script = writeScript(fixture);
   assert.match(
     script,
     /context platform=ios device="QA \\"Lab\\" \\\\ Shelf" kind=simulator theme=unknown/,
@@ -367,43 +358,41 @@ test('writeSessionLog escapes device labels with quotes and backslashes', () => 
 });
 
 test('writeSessionLog preserves significant whitespace and empty string arguments', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-log-whitespace-'));
-  const store = new SessionStore(root);
-  const session = makeSession('default');
-  store.recordAction(session, {
-    command: 'open',
-    positionals: ['Settings'],
-    flags: { platform: 'ios', saveScript: true },
-    runtime: {
+  const fixture = makeFixture('agent-device-session-log-whitespace-');
+  recordOpen(
+    fixture.store,
+    fixture.session,
+    { platform: 'ios', saveScript: true },
+    {
       platform: 'ios',
       metroHost: ' host\t',
       launchUrl: 'myapp://dev ',
     },
-    result: {},
-  });
-  store.recordAction(session, {
+  );
+  fixture.store.recordAction(fixture.session, {
     command: 'type',
     positionals: ['  leading\ttrailing  '],
     flags: { platform: 'ios' },
     result: {},
   });
-  store.recordAction(session, {
+  fixture.store.recordAction(fixture.session, {
     command: 'fill',
     positionals: ['@e5', ''],
     flags: { platform: 'ios' },
     result: { refLabel: 'Search field' },
   });
-  store.recordAction(session, {
+  fixture.store.recordAction(fixture.session, {
     command: 'screenshot',
     positionals: [' ./screens/final.png '],
     flags: { platform: 'ios' },
     result: {},
   });
 
-  store.writeSessionLog(session);
-  const script = readWrittenSessionScript(root);
-  assert.match(script, /type "  leading\\ttrailing  "/);
-  assert.match(script, /fill @e5 "Search field" ""/);
-  assert.match(script, /screenshot " \.\/screens\/final\.png "/);
-  assert.match(script, /--metro-host " host\\t" --launch-url "myapp:\/\/dev "/);
+  const script = writeScript(fixture);
+  assertScriptMatches(script, [
+    /type "  leading\\ttrailing  "/,
+    /fill @e5 "Search field" ""/,
+    /screenshot " \.\/screens\/final\.png "/,
+    /--metro-host " host\\t" --launch-url "myapp:\/\/dev "/,
+  ]);
 });
