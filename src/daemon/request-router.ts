@@ -88,7 +88,7 @@ export function createRequestHandler(
                   existingSession: lockedScope.existingSession,
                   androidAdbProvider,
                 },
-                async ({ executor }) => {
+                async (executor) => {
                   // The ADB provider is scoped to this single locked request; handlers may re-read
                   // the session state, but all device-scoped adb calls in this request share it.
                   // Phase 1: Try specialized handler chain

@@ -23,6 +23,8 @@ import type { LeaseRegistry } from './lease-registry.ts';
 import type { SessionStore } from './session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from './types.ts';
 
+// Production daemon wiring owns one LeaseRegistry per process; scoping locks by registry keeps
+// test and embedded routers isolated without changing process-level serialization there.
 const leaseRegistryExecutionLocks = new WeakMap<LeaseRegistry, Map<string, Promise<unknown>>>();
 
 export type RequestExecutionScope = {
@@ -112,6 +114,7 @@ export function prepareLockedRequestScope(params: {
   scope.throwIfCanceled();
   const existingSession = sessionStore.get(scope.sessionName);
   if (existingSession) {
+    // Called under runLocked: refreshRecordingHealth may mutate session recording state.
     refreshRecordingHealth(existingSession);
     sessionStore.set(scope.sessionName, existingSession);
   }
@@ -160,6 +163,7 @@ export function prepareLockedRequestScope(params: {
       handlerContextFromFlags: (flags, appBundleId, traceLogPath) =>
         ({
           ...contextFromFlags(flags, appBundleId, traceLogPath),
+          // Handlers may update surface during the request, so read the current session state.
           surface: sessionStore.get(scope.sessionName)?.surface,
         }) satisfies DaemonCommandContext,
     },

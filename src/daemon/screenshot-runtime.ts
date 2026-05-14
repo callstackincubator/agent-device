@@ -8,6 +8,7 @@ import { dispatchCommand } from '../core/dispatch.ts';
 import { AppError } from '../utils/errors.ts';
 import type { DaemonCommandContext } from './context.ts';
 import type { SessionState } from './types.ts';
+import { createDaemonRuntimeSessionStore } from './runtime-session.ts';
 
 export type ScreenshotOutputPlacement = 'positional' | 'out' | 'default';
 
@@ -22,17 +23,12 @@ export async function dispatchScreenshotViaRuntime(params: {
   const runtime = createAgentDevice({
     backend: createDispatchScreenshotBackend({ session, outputPlacement, dispatchContext }),
     artifacts: createDaemonScreenshotArtifactAdapter(),
-    sessions: {
-      get: (name) =>
-        name === sessionName
-          ? {
-              name: sessionName,
-              appBundleId: session.appBundleId,
-              metadata: { surface: session.surface },
-            }
-          : undefined,
-      set: () => {},
-    },
+    sessions: createDaemonRuntimeSessionStore({
+      sessionName,
+      getSession: () => session,
+      recordOptions: { includeSnapshot: false },
+      setRecord: () => {},
+    }),
     policy: localCommandPolicy(),
   });
 

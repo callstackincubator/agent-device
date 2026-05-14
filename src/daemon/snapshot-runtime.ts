@@ -1,18 +1,20 @@
 import type { AgentDeviceBackend, BackendSnapshotResult } from '../backend.ts';
 import type { CommandSessionRecord } from '../runtime.ts';
-import { createAgentDevice, localCommandPolicy } from '../runtime.ts';
+import { createAgentDevice } from '../runtime.ts';
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
 import { AppError } from '../utils/errors.ts';
-import type { DaemonRequest, DaemonResponse, SessionState } from './types.ts';
+import type { SnapshotDiffSummary } from '../utils/snapshot-diff.ts';
+import type { DaemonRequest, DaemonResponse, DaemonResponseData, SessionState } from './types.ts';
 import { SessionStore } from './session-store.ts';
 import { errorResponse } from './handlers/response.ts';
-import { createUnsupportedArtifactAdapter } from './runtime-artifacts.ts';
 import { captureSnapshot, resolveSnapshotScope } from './handlers/snapshot-capture.ts';
 import {
   buildSnapshotSession,
   resolveSessionDevice,
   withSessionlessRunnerCleanup,
 } from './handlers/snapshot-session.ts';
+import { createDaemonRuntimePolicy } from './runtime-policy.ts';
+import { createDaemonRuntimeSessionStore } from './runtime-session.ts';
 
 export async function dispatchSnapshotViaRuntime(params: {
   req: DaemonRequest;
@@ -20,45 +22,28 @@ export async function dispatchSnapshotViaRuntime(params: {
   logPath: string;
   sessionStore: SessionStore;
 }): Promise<DaemonResponse> {
-  const { req, sessionName, logPath, sessionStore } = params;
-  const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
-  if (!isCommandSupportedOnDevice('snapshot', device)) {
-    return errorResponse('UNSUPPORTED_OPERATION', 'snapshot is not supported on this device');
-  }
-  const resolvedScope = resolveSnapshotScope(req.flags?.snapshotScope, session);
-  if (!resolvedScope.ok) return resolvedScope;
-
-  return await withSessionlessRunnerCleanup(session, device, async () => {
-    const runtime = createSnapshotRuntime({
-      req,
-      sessionName,
-      logPath,
-      sessionStore,
-      session,
-      device,
-      snapshotScope: resolvedScope.scope,
-    });
-    const result = await runtime.capture.snapshot({
-      session: sessionName,
-      interactiveOnly: req.flags?.snapshotInteractiveOnly,
-      compact: req.flags?.snapshotCompact,
-      depth: req.flags?.snapshotDepth,
-      scope: resolvedScope.scope,
-      raw: req.flags?.snapshotRaw,
-    });
-    recordSnapshotRuntimeAction({
-      req,
-      sessionName,
-      sessionStore,
-      result: {
-        nodes: result.nodes.length,
-        truncated: result.truncated,
-      },
-    });
-    return {
-      ok: true,
-      data: result,
-    };
+  return await dispatchSnapshotRuntimeCommand({
+    ...params,
+    command: 'snapshot',
+    unsupportedMessage: 'snapshot is not supported on this device',
+    execute: async ({ runtime, sessionName, req, snapshotScope }) => {
+      const result = await runtime.capture.snapshot({
+        session: sessionName,
+        interactiveOnly: req.flags?.snapshotInteractiveOnly,
+        compact: req.flags?.snapshotCompact,
+        depth: req.flags?.snapshotDepth,
+        scope: snapshotScope,
+        raw: req.flags?.snapshotRaw,
+      });
+      return {
+        data: result,
+        record: {
+          kind: 'snapshot',
+          nodes: result.nodes.length,
+          truncated: result.truncated,
+        },
+      };
+    },
   });
 }
 
@@ -68,10 +53,63 @@ export async function dispatchSnapshotDiffViaRuntime(params: {
   logPath: string;
   sessionStore: SessionStore;
 }): Promise<DaemonResponse> {
+  return await dispatchSnapshotRuntimeCommand({
+    ...params,
+    command: 'diff',
+    unsupportedMessage: 'diff is not supported on this device',
+    execute: async ({ runtime, sessionName, req, snapshotScope }) => {
+      const result = await runtime.capture.diffSnapshot({
+        session: sessionName,
+        interactiveOnly: req.flags?.snapshotInteractiveOnly,
+        compact: req.flags?.snapshotCompact,
+        depth: req.flags?.snapshotDepth,
+        scope: snapshotScope,
+        raw: req.flags?.snapshotRaw,
+      });
+      return {
+        data: result,
+        record: {
+          kind: 'diff',
+          mode: 'snapshot',
+          baselineInitialized: result.baselineInitialized,
+          summary: result.summary,
+        },
+      };
+    },
+  });
+}
+
+type SnapshotRuntimeCommandParams = {
+  req: DaemonRequest;
+  sessionName: string;
+  logPath: string;
+  sessionStore: SessionStore;
+  command: 'snapshot' | 'diff';
+  unsupportedMessage: string;
+  execute(params: {
+    runtime: ReturnType<typeof createSnapshotRuntime>;
+    sessionName: string;
+    req: DaemonRequest;
+    snapshotScope: string | undefined;
+  }): Promise<{ data: DaemonResponseData; record: SnapshotRuntimeRecord }>;
+};
+
+type SnapshotRuntimeRecord =
+  | { kind: 'snapshot'; nodes: number; truncated: boolean | undefined }
+  | {
+      kind: 'diff';
+      mode: 'snapshot';
+      baselineInitialized: boolean;
+      summary: SnapshotDiffSummary;
+    };
+
+async function dispatchSnapshotRuntimeCommand(
+  params: SnapshotRuntimeCommandParams,
+): Promise<DaemonResponse> {
   const { req, sessionName, logPath, sessionStore } = params;
   const { session, device } = await resolveSessionDevice(sessionStore, sessionName, req.flags);
-  if (!isCommandSupportedOnDevice('diff', device)) {
-    return errorResponse('UNSUPPORTED_OPERATION', 'diff is not supported on this device');
+  if (!isCommandSupportedOnDevice(params.command, device)) {
+    return errorResponse('UNSUPPORTED_OPERATION', params.unsupportedMessage);
   }
   const resolvedScope = resolveSnapshotScope(req.flags?.snapshotScope, session);
   if (!resolvedScope.ok) return resolvedScope;
@@ -86,27 +124,21 @@ export async function dispatchSnapshotDiffViaRuntime(params: {
       device,
       snapshotScope: resolvedScope.scope,
     });
-    const result = await runtime.capture.diffSnapshot({
-      session: sessionName,
-      interactiveOnly: req.flags?.snapshotInteractiveOnly,
-      compact: req.flags?.snapshotCompact,
-      depth: req.flags?.snapshotDepth,
-      scope: resolvedScope.scope,
-      raw: req.flags?.snapshotRaw,
+    const result = await params.execute({
+      runtime,
+      sessionName,
+      req,
+      snapshotScope: resolvedScope.scope,
     });
     recordSnapshotRuntimeAction({
       req,
       sessionName,
       sessionStore,
-      result: {
-        mode: 'snapshot',
-        baselineInitialized: result.baselineInitialized,
-        summary: result.summary,
-      },
+      result: result.record,
     });
     return {
       ok: true,
-      data: result,
+      data: result.data,
     };
   });
 }
@@ -129,14 +161,13 @@ function createSnapshotRuntime(params: {
       device,
       snapshotScope,
     }),
-    artifacts: createUnsupportedArtifactAdapter('snapshot'),
-    sessions: {
-      get: (name) =>
-        name === sessionName ? toCommandSessionRecord(sessionStore.get(sessionName)) : undefined,
-      set: (record) => {
-        if (!record.snapshot) {
-          throw new AppError('UNKNOWN', 'snapshot runtime did not produce session state');
-        }
+    ...createDaemonRuntimePolicy('snapshot'),
+    sessions: createDaemonRuntimeSessionStore({
+      sessionName,
+      getSession: () => sessionStore.get(sessionName),
+      recordOptions: { includeSnapshot: true },
+      setRecord: (record) => {
+        const snapshotRecord = assertSnapshotSessionRecord(record);
         const current = sessionStore.get(sessionName);
         sessionStore.set(
           sessionName,
@@ -144,13 +175,12 @@ function createSnapshotRuntime(params: {
             current,
             sessionName,
             device,
-            record,
+            record: snapshotRecord,
             refScopedSnapshot: isRefScopedSnapshot(req),
           }),
         );
       },
-    },
-    policy: localCommandPolicy(),
+    }),
   });
 }
 
@@ -158,13 +188,10 @@ function buildNextSnapshotSession(params: {
   current: SessionState | undefined;
   sessionName: string;
   device: SessionState['device'];
-  record: CommandSessionRecord;
+  record: CommandSessionRecord & { snapshot: NonNullable<CommandSessionRecord['snapshot']> };
   refScopedSnapshot: boolean;
 }): SessionState {
   const { current, sessionName, device, record, refScopedSnapshot } = params;
-  if (!record.snapshot) {
-    throw new AppError('UNKNOWN', 'snapshot runtime did not produce session state');
-  }
   const keepCurrentSnapshot = shouldKeepCurrentSnapshot(current, record, refScopedSnapshot);
   const snapshot = keepCurrentSnapshot ? current.snapshot : record.snapshot;
   const nextSession = buildSnapshotSession({
@@ -239,26 +266,11 @@ function createDaemonSnapshotBackend(params: {
   };
 }
 
-function toCommandSessionRecord(
-  session: SessionState | undefined,
-): CommandSessionRecord | undefined {
-  if (!session) return undefined;
-  return {
-    name: session.name,
-    appBundleId: session.appBundleId,
-    appName: session.appName,
-    snapshot: session.snapshot,
-    metadata: {
-      surface: session.surface,
-    },
-  };
-}
-
 function recordSnapshotRuntimeAction(params: {
   req: DaemonRequest;
   sessionName: string;
   sessionStore: SessionStore;
-  result: Record<string, unknown>;
+  result: SnapshotRuntimeRecord;
 }): void {
   const session = params.sessionStore.get(params.sessionName);
   if (!session) return;
@@ -266,6 +278,28 @@ function recordSnapshotRuntimeAction(params: {
     command: params.req.command,
     positionals: params.req.positionals ?? [],
     flags: params.req.flags ?? {},
-    result: params.result,
+    result: toRecordedSnapshotRuntimeResult(params.result),
   });
+}
+
+function assertSnapshotSessionRecord(
+  record: CommandSessionRecord,
+): CommandSessionRecord & { snapshot: NonNullable<CommandSessionRecord['snapshot']> } {
+  if (!record.snapshot) {
+    throw new AppError('UNKNOWN', 'snapshot runtime did not produce session state');
+  }
+  return record as CommandSessionRecord & {
+    snapshot: NonNullable<CommandSessionRecord['snapshot']>;
+  };
+}
+
+function toRecordedSnapshotRuntimeResult(record: SnapshotRuntimeRecord): Record<string, unknown> {
+  if (record.kind === 'snapshot') {
+    return { nodes: record.nodes, truncated: record.truncated };
+  }
+  return {
+    mode: record.mode,
+    baselineInitialized: record.baselineInitialized,
+    summary: record.summary,
+  };
 }

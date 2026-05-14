@@ -43,7 +43,7 @@ export async function withRequestAndroidAdbScope<T>(
     existingSession: SessionState | undefined;
     androidAdbProvider?: AndroidAdbProviderResolver;
   },
-  task: (adb: { executor?: AndroidAdbExecutor }) => Promise<T>,
+  task: (executor?: AndroidAdbExecutor) => Promise<T>,
 ): Promise<T> {
   const requestAdb = await resolveScopedAndroidAdbProvider({
     req: params.req,
@@ -53,7 +53,7 @@ export async function withRequestAndroidAdbScope<T>(
   return await withAndroidAdbProvider(
     requestAdb.provider,
     { serial: requestAdb.serial ?? '' },
-    async () => await task({ executor: requestAdb.executor }),
+    async () => await task(requestAdb.executor),
   );
 }
 

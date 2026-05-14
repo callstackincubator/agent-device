@@ -1,4 +1,4 @@
-import { test, expect } from 'vitest';
+import { afterAll, test, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -18,6 +18,10 @@ import type { DaemonRequest } from '../types.ts';
 
 const TEST_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-request-execution-scope-'));
 const LOG_PATH = path.join(TEST_ROOT, 'diagnostics.log');
+
+afterAll(() => {
+  fs.rmSync(TEST_ROOT, { recursive: true, force: true });
+});
 
 test('createRequestExecutionScope applies tenant scoping and lease admission', async () => {
   const sessionStore = makeSessionStore('agent-device-request-scope-');

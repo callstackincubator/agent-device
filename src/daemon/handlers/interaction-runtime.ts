@@ -4,13 +4,14 @@ import type {
   BackendActionResult,
   BackendSnapshotResult,
 } from '../../backend.ts';
-import { createAgentDevice, localCommandPolicy } from '../../runtime.ts';
+import { createAgentDevice } from '../../runtime.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { SessionState } from '../types.ts';
-import { createUnsupportedArtifactAdapter } from '../runtime-artifacts.ts';
 import { setSessionSnapshot } from '../session-snapshot.ts';
 import type { InteractionHandlerParams } from './interaction-common.ts';
 import type { CaptureSnapshotForSession } from './interaction-snapshot.ts';
+import { createDaemonRuntimePolicy } from '../runtime-policy.ts';
+import { createDaemonRuntimeSessionStore } from '../runtime-session.ts';
 
 export function createInteractionRuntime(
   params: InteractionHandlerParams & {
@@ -21,25 +22,17 @@ export function createInteractionRuntime(
   if (!session) throw new AppError('SESSION_NOT_FOUND', 'No active session. Run open first.');
   return createAgentDevice({
     backend: createInteractionBackend({ ...params, session }),
-    artifacts: createUnsupportedArtifactAdapter('interaction commands', { plural: true }),
-    sessions: {
-      get: (name) =>
-        name === params.sessionName
-          ? {
-              name: params.sessionName,
-              appBundleId: session.appBundleId,
-              appName: session.appName,
-              snapshot: session.snapshot,
-              metadata: { surface: session.surface },
-            }
-          : undefined,
-      set: (record) => {
+    ...createDaemonRuntimePolicy('interaction commands', { plural: true }),
+    sessions: createDaemonRuntimeSessionStore({
+      sessionName: params.sessionName,
+      getSession: () => session,
+      recordOptions: { includeSnapshot: true },
+      setRecord: (record) => {
         if (!record.snapshot) return;
         setSessionSnapshot(session, record.snapshot);
         params.sessionStore.set(params.sessionName, session);
       },
-    },
-    policy: localCommandPolicy(),
+    }),
   });
 }
 

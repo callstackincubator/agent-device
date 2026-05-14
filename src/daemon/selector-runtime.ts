@@ -3,7 +3,7 @@ import type {
   BackendSnapshotOptions,
   BackendSnapshotResult,
 } from '../backend.ts';
-import { createAgentDevice, localCommandPolicy } from '../runtime.ts';
+import { createAgentDevice } from '../runtime.ts';
 import { parseWaitPositionals, type WaitParsed } from '../command-codecs/wait.ts';
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
 import { resolveTargetDevice, type CommandFlags } from '../core/dispatch.ts';
@@ -26,7 +26,6 @@ import { refSnapshotFlagGuardResponse } from './handlers/interaction-flags.ts';
 import type { IsCommandOptions } from '../commands/selector-read.ts';
 import { isSupportedPredicate } from './is-predicates.ts';
 import type { ContextFromFlags } from './handlers/interaction-common.ts';
-import { createUnsupportedArtifactAdapter } from './runtime-artifacts.ts';
 import { setSessionSnapshot } from './session-snapshot.ts';
 import { getActiveAndroidSnapshotFreshness } from './android-snapshot-freshness.ts';
 import {
@@ -42,6 +41,8 @@ import {
   toDaemonGetData,
   toDaemonWaitData,
 } from './selector-recording.ts';
+import { createDaemonRuntimePolicy } from './runtime-policy.ts';
+import { createDaemonRuntimeSessionStore } from './runtime-session.ts';
 
 type SelectorRuntimeParams = {
   req: DaemonRequest;
@@ -224,16 +225,17 @@ function createSelectorRuntimeForDevice(params: {
 }) {
   return createAgentDevice({
     backend: createSelectorBackend(params),
-    artifacts: createUnsupportedArtifactAdapter('selector commands', { plural: true }),
-    sessions: {
-      get: (name) => (name === params.sessionName ? toCommandSession(params.session) : undefined),
-      set: (record) => {
+    ...createDaemonRuntimePolicy('selector commands', { plural: true }),
+    sessions: createDaemonRuntimeSessionStore({
+      sessionName: params.sessionName,
+      getSession: () => params.session,
+      recordOptions: { includeSnapshot: true },
+      setRecord: (record) => {
         if (!params.session || !record.snapshot) return;
         setSessionSnapshot(params.session, record.snapshot);
         params.sessionStore.set(params.sessionName, params.session);
       },
-    },
-    policy: localCommandPolicy(),
+    }),
   });
 }
 
@@ -492,17 +494,6 @@ async function maybeAndroidForegroundBlockerResponse(
       originalMessage: response.error.message,
     },
   );
-}
-
-function toCommandSession(session: SessionState | undefined) {
-  if (!session) return undefined;
-  return {
-    name: session.name,
-    appName: session.appName,
-    appBundleId: session.appBundleId,
-    snapshot: session.snapshot,
-    metadata: { surface: session.surface },
-  };
 }
 
 function isReadOnlyFindAction(
