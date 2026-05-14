@@ -1,9 +1,7 @@
 import type { AgentDeviceClient, CommandRequestResult } from '../../client.ts';
-import { CLIENT_COMMANDS } from '../../client-command-registry.ts';
 import type { RecordOptions } from '../../client-types.ts';
 import { announceReplayTestRun } from '../../cli-test.ts';
 import { runTypeCliCommand } from '../../commands/interactions/cli.ts';
-import { typeCommandDefinition } from '../../commands/interactions/definition.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import {
@@ -17,7 +15,8 @@ import {
 import { selectorSnapshotOptionsFromFlags } from '../../command-codecs/flags.ts';
 import { buildSelectionOptions } from './shared.ts';
 import { writeCommandCliOutput } from './output.ts';
-import type { ClientCommandHandler, ClientCommandHandlerMap } from './router-types.ts';
+import type { PublicCommandName } from '../../command-catalog.ts';
+import type { ClientCommandHandler } from './router-types.ts';
 
 type GenericClientCommandRunner = (params: {
   client: AgentDeviceClient;
@@ -25,242 +24,180 @@ type GenericClientCommandRunner = (params: {
   flags: CliFlags;
 }) => Promise<CommandRequestResult>;
 
-export const genericClientCommandHandlers = {
-  [CLIENT_COMMANDS.boot]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.boot,
-    ({ client, flags }) =>
-      client.devices.boot({ ...buildSelectionOptions(flags), headless: flags.headless }),
-  ),
-  [CLIENT_COMMANDS.push]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.push,
-    ({ client, positionals, flags }) =>
-      client.apps.push({
-        ...buildSelectionOptions(flags),
-        app: required(positionals[0], 'push requires bundleOrPackage'),
-        payload: required(positionals[1], 'push requires payloadOrJson'),
-      }),
-  ),
-  [CLIENT_COMMANDS.perf]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.perf,
-    ({ client, flags }) => client.observability.perf(buildSelectionOptions(flags)),
-  ),
-  [CLIENT_COMMANDS.click]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.click,
-    ({ client, positionals, flags }) =>
-      client.interactions.click({
-        ...interactionTargetCodec.decode(positionals),
-        ...selectorSnapshotOptionsFromFlags(flags),
-        ...buildSelectionOptions(flags),
-        count: flags.count,
-        intervalMs: flags.intervalMs,
-        holdMs: flags.holdMs,
-        jitterPx: flags.jitterPx,
-        doubleTap: flags.doubleTap,
-        button: flags.clickButton,
-      }),
-  ),
-  [CLIENT_COMMANDS.get]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.get,
-    ({ client, positionals, flags }) =>
-      client.interactions.get({
-        ...elementTargetCodec.decode(positionals.slice(1)),
-        ...selectorSnapshotOptionsFromFlags(flags),
-        ...buildSelectionOptions(flags),
-        format: readGetFormat(positionals[0]),
-      }),
-  ),
-  [CLIENT_COMMANDS.replay]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.replay,
-    ({ client, positionals, flags }) =>
-      client.replay.run({
-        ...buildSelectionOptions(flags),
-        path: required(positionals[0], 'replay requires path'),
-        update: flags.replayUpdate,
-        env: flags.replayEnv,
-      }),
-  ),
-  [CLIENT_COMMANDS.test]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.test,
-    ({ client, positionals, flags }) => {
-      announceReplayTestRun({ json: flags.json });
-      return client.replay.test({
-        ...buildSelectionOptions(flags),
-        paths: positionals,
-        update: flags.replayUpdate,
-        env: flags.replayEnv,
-        failFast: flags.failFast,
-        timeoutMs: flags.timeoutMs,
-        retries: flags.retries,
-        artifactsDir: flags.artifactsDir,
-        reportJunit: flags.reportJunit,
-      });
-    },
-  ),
-  [CLIENT_COMMANDS.batch]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.batch,
-    ({ client, flags }) =>
-      client.batch.run({
-        ...buildSelectionOptions(flags),
-        steps: flags.batchSteps ?? [],
-        onError: flags.batchOnError,
-        maxSteps: flags.batchMaxSteps,
-        out: flags.out,
-      }),
-  ),
-  [CLIENT_COMMANDS.press]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.press,
-    ({ client, positionals, flags }) =>
-      client.interactions.press({
-        ...interactionTargetCodec.decode(positionals),
-        ...selectorSnapshotOptionsFromFlags(flags),
-        ...buildSelectionOptions(flags),
-        count: flags.count,
-        intervalMs: flags.intervalMs,
-        holdMs: flags.holdMs,
-        jitterPx: flags.jitterPx,
-        doubleTap: flags.doubleTap,
-      }),
-  ),
-  [CLIENT_COMMANDS.longPress]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.longPress,
-    ({ client, positionals, flags }) =>
-      client.interactions.longPress({
-        ...buildSelectionOptions(flags),
-        x: Number(positionals[0]),
-        y: Number(positionals[1]),
-        durationMs: optionalNumber(positionals[2]),
-      }),
-  ),
-  [CLIENT_COMMANDS.swipe]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.swipe,
-    ({ client, positionals, flags }) =>
-      client.interactions.swipe({
-        ...buildSelectionOptions(flags),
-        from: { x: Number(positionals[0]), y: Number(positionals[1]) },
-        to: { x: Number(positionals[2]), y: Number(positionals[3]) },
-        durationMs: optionalNumber(positionals[4]),
-        count: flags.count,
-        pauseMs: flags.pauseMs,
-        pattern: flags.pattern,
-      }),
-  ),
-  [CLIENT_COMMANDS.focus]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.focus,
-    ({ client, positionals, flags }) =>
-      client.interactions.focus({
-        ...buildSelectionOptions(flags),
-        x: Number(positionals[0]),
-        y: Number(positionals[1]),
-      }),
-  ),
-  [typeCommandDefinition.name]: createGenericClientCommandHandler(
-    typeCommandDefinition.name,
-    runTypeCliCommand,
-  ),
-  [CLIENT_COMMANDS.fill]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.fill,
-    ({ client, positionals, flags }) => {
-      const decoded = fillCommandCodec.decode(positionals);
-      return client.interactions.fill({
-        ...decoded.target,
-        text: decoded.text,
-        ...selectorSnapshotOptionsFromFlags(flags),
-        ...buildSelectionOptions(flags),
-        delayMs: flags.delayMs,
-      });
-    },
-  ),
-  [CLIENT_COMMANDS.scroll]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.scroll,
-    ({ client, positionals, flags }) =>
-      client.interactions.scroll({
-        ...buildSelectionOptions(flags),
-        direction: readScrollDirection(positionals[0]),
-        amount: optionalNumber(positionals[1]),
-        pixels: flags.pixels,
-      }),
-  ),
-  [CLIENT_COMMANDS.pinch]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.pinch,
-    ({ client, positionals, flags }) =>
-      client.interactions.pinch({
-        ...buildSelectionOptions(flags),
-        scale: Number(positionals[0]),
-        x: optionalNumber(positionals[1]),
-        y: optionalNumber(positionals[2]),
-      }),
-  ),
-  [CLIENT_COMMANDS.triggerAppEvent]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.triggerAppEvent,
-    ({ client, positionals, flags }) =>
-      client.apps.triggerEvent({
-        ...buildSelectionOptions(flags),
-        event: required(positionals[0], 'trigger-app-event requires event'),
-        payload: positionals[1]
-          ? readJsonObject(positionals[1], 'trigger-app-event payload')
-          : undefined,
-      }),
-  ),
-  [CLIENT_COMMANDS.record]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.record,
-    ({ client, positionals, flags }) =>
-      client.recording.record({
-        ...buildSelectionOptions(flags),
-        action: readStartStop(positionals[0], 'record'),
-        path: positionals[1],
-        fps: flags.fps,
-        quality: flags.quality as RecordOptions['quality'],
-        hideTouches: flags.hideTouches,
-      }),
-  ),
-  [CLIENT_COMMANDS.trace]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.trace,
-    ({ client, positionals, flags }) =>
-      client.recording.trace({
-        ...buildSelectionOptions(flags),
-        action: readStartStop(positionals[0], 'trace'),
-        path: positionals[1],
-      }),
-  ),
-  [CLIENT_COMMANDS.logs]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.logs,
-    ({ client, positionals, flags }) =>
-      client.observability.logs({
-        ...buildSelectionOptions(flags),
-        action: readLogsAction(positionals[0]),
-        message: positionals.slice(1).join(' ') || undefined,
-        restart: flags.restart,
-      }),
-  ),
-  [CLIENT_COMMANDS.network]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.network,
-    ({ client, positionals, flags }) =>
-      client.observability.network({
-        ...buildSelectionOptions(flags),
-        action: readNetworkAction(positionals[0]),
-        limit: optionalNumber(positionals[1]),
-        include: flags.networkInclude ?? readNetworkInclude(positionals[2]),
-      }),
-  ),
-  [CLIENT_COMMANDS.find]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.find,
-    ({ client, positionals, flags }) =>
-      client.interactions.find(findCommandCodec.decode(positionals, flags)),
-  ),
-  [CLIENT_COMMANDS.is]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.is,
-    ({ client, positionals, flags }) =>
-      client.interactions.is(isCommandCodec.decode(positionals, flags)),
-  ),
-  [CLIENT_COMMANDS.settings]: createGenericClientCommandHandler(
-    CLIENT_COMMANDS.settings,
-    ({ client, positionals, flags }) =>
-      client.settings.update(settingsCommandCodec.decode(positionals, flags)),
-  ),
-} satisfies ClientCommandHandlerMap;
+const genericClientCommandRunners = {
+  boot: ({ client, flags }) =>
+    client.devices.boot({ ...buildSelectionOptions(flags), headless: flags.headless }),
+  push: ({ client, positionals, flags }) =>
+    client.apps.push({
+      ...buildSelectionOptions(flags),
+      app: required(positionals[0], 'push requires bundleOrPackage'),
+      payload: required(positionals[1], 'push requires payloadOrJson'),
+    }),
+  perf: ({ client, flags }) => client.observability.perf(buildSelectionOptions(flags)),
+  click: ({ client, positionals, flags }) =>
+    client.interactions.click({
+      ...interactionTargetCodec.decode(positionals),
+      ...selectorSnapshotOptionsFromFlags(flags),
+      ...buildSelectionOptions(flags),
+      count: flags.count,
+      intervalMs: flags.intervalMs,
+      holdMs: flags.holdMs,
+      jitterPx: flags.jitterPx,
+      doubleTap: flags.doubleTap,
+      button: flags.clickButton,
+    }),
+  get: ({ client, positionals, flags }) =>
+    client.interactions.get({
+      ...elementTargetCodec.decode(positionals.slice(1)),
+      ...selectorSnapshotOptionsFromFlags(flags),
+      ...buildSelectionOptions(flags),
+      format: readGetFormat(positionals[0]),
+    }),
+  replay: ({ client, positionals, flags }) =>
+    client.replay.run({
+      ...buildSelectionOptions(flags),
+      path: required(positionals[0], 'replay requires path'),
+      update: flags.replayUpdate,
+      env: flags.replayEnv,
+    }),
+  test: ({ client, positionals, flags }) => {
+    announceReplayTestRun({ json: flags.json });
+    return client.replay.test({
+      ...buildSelectionOptions(flags),
+      paths: positionals,
+      update: flags.replayUpdate,
+      env: flags.replayEnv,
+      failFast: flags.failFast,
+      timeoutMs: flags.timeoutMs,
+      retries: flags.retries,
+      artifactsDir: flags.artifactsDir,
+      reportJunit: flags.reportJunit,
+    });
+  },
+  batch: ({ client, flags }) =>
+    client.batch.run({
+      ...buildSelectionOptions(flags),
+      steps: flags.batchSteps ?? [],
+      onError: flags.batchOnError,
+      maxSteps: flags.batchMaxSteps,
+      out: flags.out,
+    }),
+  press: ({ client, positionals, flags }) =>
+    client.interactions.press({
+      ...interactionTargetCodec.decode(positionals),
+      ...selectorSnapshotOptionsFromFlags(flags),
+      ...buildSelectionOptions(flags),
+      count: flags.count,
+      intervalMs: flags.intervalMs,
+      holdMs: flags.holdMs,
+      jitterPx: flags.jitterPx,
+      doubleTap: flags.doubleTap,
+    }),
+  longpress: ({ client, positionals, flags }) =>
+    client.interactions.longPress({
+      ...buildSelectionOptions(flags),
+      x: Number(positionals[0]),
+      y: Number(positionals[1]),
+      durationMs: optionalNumber(positionals[2]),
+    }),
+  swipe: ({ client, positionals, flags }) =>
+    client.interactions.swipe({
+      ...buildSelectionOptions(flags),
+      from: { x: Number(positionals[0]), y: Number(positionals[1]) },
+      to: { x: Number(positionals[2]), y: Number(positionals[3]) },
+      durationMs: optionalNumber(positionals[4]),
+      count: flags.count,
+      pauseMs: flags.pauseMs,
+      pattern: flags.pattern,
+    }),
+  focus: ({ client, positionals, flags }) =>
+    client.interactions.focus({
+      ...buildSelectionOptions(flags),
+      x: Number(positionals[0]),
+      y: Number(positionals[1]),
+    }),
+  type: runTypeCliCommand,
+  fill: ({ client, positionals, flags }) => {
+    const decoded = fillCommandCodec.decode(positionals);
+    return client.interactions.fill({
+      ...decoded.target,
+      text: decoded.text,
+      ...selectorSnapshotOptionsFromFlags(flags),
+      ...buildSelectionOptions(flags),
+      delayMs: flags.delayMs,
+    });
+  },
+  scroll: ({ client, positionals, flags }) =>
+    client.interactions.scroll({
+      ...buildSelectionOptions(flags),
+      direction: readScrollDirection(positionals[0]),
+      amount: optionalNumber(positionals[1]),
+      pixels: flags.pixels,
+    }),
+  pinch: ({ client, positionals, flags }) =>
+    client.interactions.pinch({
+      ...buildSelectionOptions(flags),
+      scale: Number(positionals[0]),
+      x: optionalNumber(positionals[1]),
+      y: optionalNumber(positionals[2]),
+    }),
+  'trigger-app-event': ({ client, positionals, flags }) =>
+    client.apps.triggerEvent({
+      ...buildSelectionOptions(flags),
+      event: required(positionals[0], 'trigger-app-event requires event'),
+      payload: positionals[1]
+        ? readJsonObject(positionals[1], 'trigger-app-event payload')
+        : undefined,
+    }),
+  record: ({ client, positionals, flags }) =>
+    client.recording.record({
+      ...buildSelectionOptions(flags),
+      action: readStartStop(positionals[0], 'record'),
+      path: positionals[1],
+      fps: flags.fps,
+      quality: flags.quality as RecordOptions['quality'],
+      hideTouches: flags.hideTouches,
+    }),
+  trace: ({ client, positionals, flags }) =>
+    client.recording.trace({
+      ...buildSelectionOptions(flags),
+      action: readStartStop(positionals[0], 'trace'),
+      path: positionals[1],
+    }),
+  logs: ({ client, positionals, flags }) =>
+    client.observability.logs({
+      ...buildSelectionOptions(flags),
+      action: readLogsAction(positionals[0]),
+      message: positionals.slice(1).join(' ') || undefined,
+      restart: flags.restart,
+    }),
+  network: ({ client, positionals, flags }) =>
+    client.observability.network({
+      ...buildSelectionOptions(flags),
+      action: readNetworkAction(positionals[0]),
+      limit: optionalNumber(positionals[1]),
+      include: flags.networkInclude ?? readNetworkInclude(positionals[2]),
+    }),
+  find: ({ client, positionals, flags }) =>
+    client.interactions.find(findCommandCodec.decode(positionals, flags)),
+  is: ({ client, positionals, flags }) =>
+    client.interactions.is(isCommandCodec.decode(positionals, flags)),
+  settings: ({ client, positionals, flags }) =>
+    client.settings.update(settingsCommandCodec.decode(positionals, flags)),
+} satisfies Partial<Record<PublicCommandName, GenericClientCommandRunner>>;
+
+export const genericClientCommandHandlers = Object.fromEntries(
+  Object.entries(genericClientCommandRunners).map(([command, run]) => [
+    command,
+    createGenericClientCommandHandler(
+      command as PublicCommandName,
+      run as GenericClientCommandRunner,
+    ),
+  ]),
+) as { [TCommand in keyof typeof genericClientCommandRunners]: ClientCommandHandler };
 
 function createGenericClientCommandHandler(
-  command: string,
+  command: PublicCommandName,
   run: GenericClientCommandRunner,
 ): ClientCommandHandler {
   return async ({ positionals, flags, client }) => {

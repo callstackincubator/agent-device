@@ -1,6 +1,5 @@
 import type { CliFlags } from '../../utils/command-schema.ts';
 import type { AgentDeviceClient } from '../../client.ts';
-import { CLIENT_COMMANDS, type ClientCommandName } from '../../client-command-registry.ts';
 import { sessionCommand } from './session.ts';
 import { devicesCommand } from './devices.ts';
 import { ensureSimulatorCommand } from './ensure-simulator.ts';
@@ -14,7 +13,7 @@ import { snapshotCommand } from './snapshot.ts';
 import { screenshotCommand, diffCommand } from './screenshot.ts';
 import { clientCommandMethodHandlers } from './client-command.ts';
 import { genericClientCommandHandlers } from './generic.ts';
-import type { ClientCommandHandler, ClientCommandHandlerMap } from './router-types.ts';
+import type { ClientCommandHandlerMap } from './router-types.ts';
 
 export type {
   ClientCommandHandler,
@@ -22,29 +21,28 @@ export type {
   ClientCommandParams,
 } from './router-types.ts';
 
-const dedicatedClientApiHandlers = {
+const dedicatedCliCommandHandlers = {
   session: sessionCommand,
-  [CLIENT_COMMANDS.devices]: devicesCommand,
-  [CLIENT_COMMANDS.apps]: appsCommand,
+  devices: devicesCommand,
+  apps: appsCommand,
   'ensure-simulator': ensureSimulatorCommand,
   metro: metroCommand,
-  [CLIENT_COMMANDS.install]: installCommand,
-  [CLIENT_COMMANDS.reinstall]: reinstallCommand,
-  [CLIENT_COMMANDS.installFromSource]: installFromSourceCommand,
+  install: installCommand,
+  reinstall: reinstallCommand,
+  'install-from-source': installFromSourceCommand,
   connect: connectCommand,
   disconnect: disconnectCommand,
   connection: connectionCommand,
   auth: authCommand,
-  [CLIENT_COMMANDS.open]: openCommand,
-  [CLIENT_COMMANDS.close]: closeCommand,
-  [CLIENT_COMMANDS.snapshot]: snapshotCommand,
-  [CLIENT_COMMANDS.screenshot]: screenshotCommand,
-  [CLIENT_COMMANDS.diff]: diffCommand,
+  open: openCommand,
+  close: closeCommand,
+  snapshot: snapshotCommand,
+  screenshot: screenshotCommand,
+  diff: diffCommand,
 } satisfies ClientCommandHandlerMap;
 
-const clientCommandHandlers: ClientCommandHandlerMap &
-  Record<ClientCommandName, ClientCommandHandler> = {
-  ...dedicatedClientApiHandlers,
+const clientCommandHandlers: ClientCommandHandlerMap = {
+  ...dedicatedCliCommandHandlers,
   ...clientCommandMethodHandlers,
   ...genericClientCommandHandlers,
 };
@@ -55,6 +53,6 @@ export async function tryRunClientBackedCommand(params: {
   flags: CliFlags;
   client: AgentDeviceClient;
 }): Promise<boolean> {
-  const handler = clientCommandHandlers[params.command];
+  const handler = clientCommandHandlers[params.command as keyof typeof clientCommandHandlers];
   return handler ? await handler(params) : false;
 }

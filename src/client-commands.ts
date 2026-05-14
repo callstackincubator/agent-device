@@ -1,9 +1,9 @@
-import { CLIENT_COMMANDS } from './client-command-registry.ts';
+import { PUBLIC_COMMANDS, type PublicCommandName } from './command-catalog.ts';
 import { waitCommandCodec } from './command-codecs.ts';
 import type { AgentDeviceCommandClient, InternalRequestOptions } from './client-types.ts';
 
 export type PreparedClientCommand = {
-  command: string;
+  command: PublicCommandName;
   positionals: string[];
   options: InternalRequestOptions;
 };
@@ -28,13 +28,13 @@ export function createAgentDeviceCommandClient(
     alert: async (options = {}) => await run<'alert'>(prepareAlertCommand(options)),
     appState: async (options = {}) =>
       await run<'appState'>({
-        command: CLIENT_COMMANDS.appState,
+        command: PUBLIC_COMMANDS.appState,
         positionals: [],
         options,
       }),
     back: async (options = {}) =>
       await run<'back'>({
-        command: CLIENT_COMMANDS.back,
+        command: PUBLIC_COMMANDS.back,
         positionals: [],
         options: {
           ...options,
@@ -43,25 +43,25 @@ export function createAgentDeviceCommandClient(
       }),
     home: async (options = {}) =>
       await run<'home'>({
-        command: CLIENT_COMMANDS.home,
+        command: PUBLIC_COMMANDS.home,
         positionals: [],
         options,
       }),
     rotate: async (options) =>
       await run<'rotate'>({
-        command: CLIENT_COMMANDS.rotate,
+        command: PUBLIC_COMMANDS.rotate,
         positionals: [options.orientation],
         options,
       }),
     appSwitcher: async (options = {}) =>
       await run<'appSwitcher'>({
-        command: CLIENT_COMMANDS.appSwitcher,
+        command: PUBLIC_COMMANDS.appSwitcher,
         positionals: [],
         options,
       }),
     keyboard: async (options = {}) =>
       await run<'keyboard'>({
-        command: CLIENT_COMMANDS.keyboard,
+        command: PUBLIC_COMMANDS.keyboard,
         positionals: options.action ? [options.action] : [],
         options,
       }),
@@ -71,7 +71,7 @@ export function createAgentDeviceCommandClient(
 
 function prepareWaitCommand(options: CommandOptions<'wait'>): PreparedClientCommand {
   return {
-    command: CLIENT_COMMANDS.wait,
+    command: PUBLIC_COMMANDS.wait,
     positionals: waitCommandCodec.encode(options),
     options,
   };
@@ -80,7 +80,7 @@ function prepareWaitCommand(options: CommandOptions<'wait'>): PreparedClientComm
 function prepareAlertCommand(options: CommandOptions<'alert'>): PreparedClientCommand {
   const action = options.action ?? 'get';
   return {
-    command: CLIENT_COMMANDS.alert,
+    command: PUBLIC_COMMANDS.alert,
     positionals: [action, ...(options.timeoutMs !== undefined ? [String(options.timeoutMs)] : [])],
     options,
   };
@@ -88,10 +88,10 @@ function prepareAlertCommand(options: CommandOptions<'alert'>): PreparedClientCo
 
 function prepareClipboardCommand(options: CommandOptions<'clipboard'>): PreparedClientCommand {
   if (options.action === 'read') {
-    return { command: CLIENT_COMMANDS.clipboard, positionals: ['read'], options };
+    return { command: PUBLIC_COMMANDS.clipboard, positionals: ['read'], options };
   }
   return {
-    command: CLIENT_COMMANDS.clipboard,
+    command: PUBLIC_COMMANDS.clipboard,
     positionals: ['write', options.text],
     options,
   };

@@ -6,7 +6,6 @@ import type {
   KeyboardCommandOptions,
   RotateCommandOptions,
 } from '../../client.ts';
-import { CLIENT_COMMANDS } from '../../client-command-registry.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { AppError } from '../../utils/errors.ts';
 import { waitCommandCodec } from '../../command-codecs.ts';
@@ -15,49 +14,49 @@ import { buildSelectionOptions, writeCommandMessage, writeCommandOutput } from '
 import type { ClientCommandHandlerMap } from './router-types.ts';
 
 export const clientCommandMethodHandlers = {
-  [CLIENT_COMMANDS.wait]: async ({ positionals, flags, client }) => {
+  wait: async ({ positionals, flags, client }) => {
     writeCommandMessage(
       flags,
       await client.command.wait(waitCommandCodec.decode(positionals, flags)),
     );
     return true;
   },
-  [CLIENT_COMMANDS.alert]: async ({ positionals, flags, client }) => {
+  alert: async ({ positionals, flags, client }) => {
     writeCommandMessage(flags, await client.command.alert(readAlertOptions(positionals, flags)));
     return true;
   },
-  [CLIENT_COMMANDS.appState]: async ({ flags, client }) => {
+  appstate: async ({ flags, client }) => {
     const result = await client.command.appState(buildSelectionOptions(flags));
     writeCommandOutput(flags, result, () => formatAppState(result));
     return true;
   },
-  [CLIENT_COMMANDS.back]: async ({ flags, client }) => {
+  back: async ({ flags, client }) => {
     writeCommandMessage(
       flags,
       await client.command.back({ ...buildSelectionOptions(flags), mode: flags.backMode }),
     );
     return true;
   },
-  [CLIENT_COMMANDS.home]: async ({ flags, client }) => {
+  home: async ({ flags, client }) => {
     writeCommandMessage(flags, await client.command.home(buildSelectionOptions(flags)));
     return true;
   },
-  [CLIENT_COMMANDS.rotate]: async ({ positionals, flags, client }) => {
+  rotate: async ({ positionals, flags, client }) => {
     writeCommandMessage(flags, await client.command.rotate(readRotateOptions(positionals, flags)));
     return true;
   },
-  [CLIENT_COMMANDS.appSwitcher]: async ({ flags, client }) => {
+  'app-switcher': async ({ flags, client }) => {
     writeCommandMessage(flags, await client.command.appSwitcher(buildSelectionOptions(flags)));
     return true;
   },
-  [CLIENT_COMMANDS.keyboard]: async ({ positionals, flags, client }) => {
+  keyboard: async ({ positionals, flags, client }) => {
     writeCommandMessage(
       flags,
       await client.command.keyboard(readKeyboardOptions(positionals, flags)),
     );
     return true;
   },
-  [CLIENT_COMMANDS.clipboard]: async ({ positionals, flags, client }) => {
+  clipboard: async ({ positionals, flags, client }) => {
     writeClipboardOutput(
       flags,
       await client.command.clipboard(readClipboardOptions(positionals, flags)),

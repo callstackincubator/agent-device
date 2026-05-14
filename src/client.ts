@@ -1,6 +1,6 @@
 import { sendToDaemon } from './daemon-client.ts';
 import { prepareMetroRuntime, reloadMetro } from './client-metro.ts';
-import { CLIENT_COMMANDS } from './client-command-registry.ts';
+import { INTERNAL_COMMANDS, PUBLIC_COMMANDS } from './command-catalog.ts';
 import { createAgentDeviceCommandClient, type PreparedClientCommand } from './client-commands.ts';
 import {
   elementTargetCodec,
@@ -79,7 +79,7 @@ export function createAgentDeviceClient(
   };
 
   const listSessions = async (options = {}) => {
-    const data = await execute('session_list', [], options);
+    const data = await execute(INTERNAL_COMMANDS.sessionList, [], options);
     const sessions = Array.isArray(data.sessions) ? data.sessions : [];
     return sessions.map(normalizeSession);
   };
@@ -101,17 +101,17 @@ export function createAgentDeviceClient(
     command: createAgentDeviceCommandClient(executePreparedCommand),
     devices: {
       list: async (options = {}) => {
-        const data = await execute(CLIENT_COMMANDS.devices, [], options);
+        const data = await execute(PUBLIC_COMMANDS.devices, [], options);
         const devices = Array.isArray(data.devices) ? data.devices : [];
         return devices.map(normalizeDevice);
       },
-      boot: async (options = {}) => await executeCommandRequest(CLIENT_COMMANDS.boot, [], options),
+      boot: async (options = {}) => await executeCommandRequest(PUBLIC_COMMANDS.boot, [], options),
     },
     sessions: {
       list: async (options = {}) => await listSessions(options),
       close: async (options = {}) => {
         const session = resolveRequestSession(options);
-        const data = await execute('close', [], options);
+        const data = await execute(PUBLIC_COMMANDS.close, [], options);
         const shutdown = data.shutdown;
         return {
           session,
@@ -126,7 +126,7 @@ export function createAgentDeviceClient(
     simulators: {
       ensure: async (options: EnsureSimulatorOptions) => {
         const { runtime, ...rest } = options;
-        const data = await execute('ensure-simulator', [], {
+        const data = await execute(INTERNAL_COMMANDS.ensureSimulator, [], {
           ...rest,
           simulatorRuntimeId: runtime,
         });
@@ -150,17 +150,17 @@ export function createAgentDeviceClient(
     apps: {
       install: async (options: AppDeployOptions) =>
         normalizeDeployResult(
-          await execute('install', [options.app, options.appPath], options),
+          await execute(PUBLIC_COMMANDS.install, [options.app, options.appPath], options),
           resolveRequestSession(options),
         ),
       reinstall: async (options: AppDeployOptions) =>
         normalizeDeployResult(
-          await execute('reinstall', [options.app, options.appPath], options),
+          await execute(PUBLIC_COMMANDS.reinstall, [options.app, options.appPath], options),
           resolveRequestSession(options),
         ),
       installFromSource: async (options: AppInstallFromSourceOptions) =>
         normalizeInstallFromSourceResult(
-          await execute('install_source', [], {
+          await execute(INTERNAL_COMMANDS.installSource, [], {
             ...options,
             installSource: options.source,
             retainMaterializedPaths: options.retainPaths,
@@ -169,7 +169,7 @@ export function createAgentDeviceClient(
           resolveRequestSession(options),
         ),
       list: async (options: AppListOptions = {}) => {
-        const data = await execute(CLIENT_COMMANDS.apps, [], options);
+        const data = await execute(PUBLIC_COMMANDS.apps, [], options);
         return Array.isArray(data.apps)
           ? data.apps.filter((app): app is string => typeof app === 'string')
           : [];
@@ -181,7 +181,7 @@ export function createAgentDeviceClient(
             ? [options.app, options.url]
             : [options.app]
           : [];
-        const data = await execute('open', positionals, options);
+        const data = await execute(PUBLIC_COMMANDS.open, positionals, options);
         const device = normalizeOpenDevice(data);
         const appBundleId = readOptionalString(data, 'appBundleId');
         const appId = appBundleId;
@@ -206,7 +206,11 @@ export function createAgentDeviceClient(
       },
       close: async (options: AppCloseOptions = {}) => {
         const session = resolveRequestSession(options);
-        const data = await execute('close', options.app ? [options.app] : [], options);
+        const data = await execute(
+          PUBLIC_COMMANDS.close,
+          options.app ? [options.app] : [],
+          options,
+        );
         const shutdown = data.shutdown;
         return {
           session,
@@ -220,13 +224,13 @@ export function createAgentDeviceClient(
       },
       push: async (options) =>
         await executeCommandRequest(
-          CLIENT_COMMANDS.push,
+          PUBLIC_COMMANDS.push,
           [options.app, stringifyPayload(options.payload)],
           options,
         ),
       triggerEvent: async (options) =>
         await executeCommandRequest(
-          CLIENT_COMMANDS.triggerAppEvent,
+          PUBLIC_COMMANDS.triggerAppEvent,
           triggerEventPositionals(options),
           options,
         ),
@@ -234,7 +238,7 @@ export function createAgentDeviceClient(
     materializations: {
       release: async (options: MaterializationReleaseOptions) =>
         normalizeMaterializationReleaseResult(
-          await execute('release_materialized_paths', [], {
+          await execute(INTERNAL_COMMANDS.releaseMaterializedPaths, [], {
             ...options,
             materializationId: options.materializationId,
           }),
@@ -243,7 +247,7 @@ export function createAgentDeviceClient(
     leases: {
       allocate: async (options) =>
         normalizeLease(
-          await execute('lease_allocate', [], {
+          await execute(INTERNAL_COMMANDS.leaseAllocate, [], {
             ...options,
             leaseId: undefined,
             leaseTtlMs: options.ttlMs,
@@ -251,13 +255,13 @@ export function createAgentDeviceClient(
         ),
       heartbeat: async (options) =>
         normalizeLease(
-          await execute('lease_heartbeat', [], {
+          await execute(INTERNAL_COMMANDS.leaseHeartbeat, [], {
             ...options,
             leaseTtlMs: options.ttlMs,
           }),
         ),
       release: async (options) => {
-        const data = await execute('lease_release', [], options);
+        const data = await execute(INTERNAL_COMMANDS.leaseRelease, [], options);
         return { released: data.released === true };
       },
     },
@@ -295,7 +299,7 @@ export function createAgentDeviceClient(
     capture: {
       snapshot: async (options: CaptureSnapshotOptions = {}) => {
         const session = resolveRequestSession(options);
-        const data = await execute(CLIENT_COMMANDS.snapshot, [], options);
+        const data = await execute(PUBLIC_COMMANDS.snapshot, [], options);
         const appBundleId = readOptionalString(data, 'appBundleId');
         const visibility =
           typeof data.visibility === 'object' && data.visibility !== null
@@ -324,7 +328,7 @@ export function createAgentDeviceClient(
       },
       screenshot: async (options: CaptureScreenshotOptions = {}) => {
         const session = resolveRequestSession(options);
-        const data = await execute(CLIENT_COMMANDS.screenshot, options.path ? [options.path] : [], {
+        const data = await execute(PUBLIC_COMMANDS.screenshot, options.path ? [options.path] : [], {
           ...options,
           screenshotFullscreen: options.fullscreen,
           screenshotMaxSize: options.maxSize,
@@ -336,7 +340,7 @@ export function createAgentDeviceClient(
         };
       },
       diff: async (options) =>
-        await executeCommandRequest(CLIENT_COMMANDS.diff, [options.kind], {
+        await executeCommandRequest(PUBLIC_COMMANDS.diff, [options.kind], {
           ...options,
           interactiveOnly: options.interactiveOnly,
           compact: options.compact,
@@ -347,25 +351,25 @@ export function createAgentDeviceClient(
     },
     interactions: {
       click: async (options) =>
-        await executeCommandRequest(CLIENT_COMMANDS.click, interactionTargetCodec.encode(options), {
+        await executeCommandRequest(PUBLIC_COMMANDS.click, interactionTargetCodec.encode(options), {
           ...options,
           clickButton: options.button,
         }),
       press: async (options) =>
         await executeCommandRequest(
-          CLIENT_COMMANDS.press,
+          PUBLIC_COMMANDS.press,
           interactionTargetCodec.encode(options),
           options,
         ),
       longPress: async (options) =>
         await executeCommandRequest(
-          CLIENT_COMMANDS.longPress,
+          PUBLIC_COMMANDS.longPress,
           [String(options.x), String(options.y), ...optionalNumber(options.durationMs)],
           options,
         ),
       swipe: async (options) =>
         await executeCommandRequest(
-          CLIENT_COMMANDS.swipe,
+          PUBLIC_COMMANDS.swipe,
           [
             String(options.from.x),
             String(options.from.y),
@@ -377,40 +381,40 @@ export function createAgentDeviceClient(
         ),
       focus: async (options) =>
         await executeCommandRequest(
-          CLIENT_COMMANDS.focus,
+          PUBLIC_COMMANDS.focus,
           [String(options.x), String(options.y)],
           options,
         ),
       type: async (options) =>
-        await executeCommandRequest(CLIENT_COMMANDS.type, [options.text], options),
+        await executeCommandRequest(PUBLIC_COMMANDS.type, [options.text], options),
       fill: async (options) =>
         await executeCommandRequest(
-          CLIENT_COMMANDS.fill,
+          PUBLIC_COMMANDS.fill,
           fillCommandCodec.encode(options),
           options,
         ),
       scroll: async (options) =>
         await executeCommandRequest(
-          CLIENT_COMMANDS.scroll,
+          PUBLIC_COMMANDS.scroll,
           [options.direction, ...optionalNumber(options.amount)],
           options,
         ),
       pinch: async (options) =>
         await executeCommandRequest(
-          CLIENT_COMMANDS.pinch,
+          PUBLIC_COMMANDS.pinch,
           [String(options.scale), ...optionalNumber(options.x), ...optionalNumber(options.y)],
           options,
         ),
       get: async (options) =>
         await executeCommandRequest(
-          CLIENT_COMMANDS.get,
+          PUBLIC_COMMANDS.get,
           [options.format, ...elementTargetCodec.encode(options)],
           options,
         ),
       is: async (options) =>
-        await executeCommandRequest(CLIENT_COMMANDS.is, isCommandCodec.encode(options), options),
+        await executeCommandRequest(PUBLIC_COMMANDS.is, isCommandCodec.encode(options), options),
       find: async (options) =>
-        await executeCommandRequest(CLIENT_COMMANDS.find, findCommandCodec.encode(options), {
+        await executeCommandRequest(PUBLIC_COMMANDS.find, findCommandCodec.encode(options), {
           ...options,
           findFirst: options.first,
           findLast: options.last,
@@ -418,14 +422,14 @@ export function createAgentDeviceClient(
     },
     replay: {
       run: async (options) =>
-        await executeCommandRequest(CLIENT_COMMANDS.replay, [options.path], {
+        await executeCommandRequest(PUBLIC_COMMANDS.replay, [options.path], {
           ...options,
           replayUpdate: options.update,
           replayEnv: options.env,
           replayShellEnv: collectReplayClientShellEnv(process.env),
         }),
       test: async (options) =>
-        await executeCommandRequest(CLIENT_COMMANDS.test, options.paths, {
+        await executeCommandRequest(PUBLIC_COMMANDS.test, options.paths, {
           ...options,
           replayUpdate: options.update,
           replayEnv: options.env,
@@ -434,7 +438,7 @@ export function createAgentDeviceClient(
     },
     batch: {
       run: async (options) =>
-        await executeCommandRequest(CLIENT_COMMANDS.batch, [], {
+        await executeCommandRequest(PUBLIC_COMMANDS.batch, [], {
           ...options,
           batchSteps: options.steps,
           batchOnError: options.onError,
@@ -442,11 +446,11 @@ export function createAgentDeviceClient(
         }),
     },
     observability: {
-      perf: async (options = {}) => await executeCommandRequest(CLIENT_COMMANDS.perf, [], options),
+      perf: async (options = {}) => await executeCommandRequest(PUBLIC_COMMANDS.perf, [], options),
       logs: async (options = {}) =>
-        await executeCommandRequest(CLIENT_COMMANDS.logs, logsPositionals(options), options),
+        await executeCommandRequest(PUBLIC_COMMANDS.logs, logsPositionals(options), options),
       network: async (options = {}) =>
-        await executeCommandRequest(CLIENT_COMMANDS.network, networkPositionals(options), {
+        await executeCommandRequest(PUBLIC_COMMANDS.network, networkPositionals(options), {
           ...options,
           networkInclude: options.include,
         }),
@@ -454,13 +458,13 @@ export function createAgentDeviceClient(
     recording: {
       record: async (options) =>
         await executeCommandRequest(
-          CLIENT_COMMANDS.record,
+          PUBLIC_COMMANDS.record,
           [options.action, ...optionalString(options.path)],
           options,
         ),
       trace: async (options) =>
         await executeCommandRequest(
-          CLIENT_COMMANDS.trace,
+          PUBLIC_COMMANDS.trace,
           [options.action, ...optionalString(options.path)],
           options,
         ),
@@ -468,7 +472,7 @@ export function createAgentDeviceClient(
     settings: {
       update: async (options) =>
         await executeCommandRequest(
-          CLIENT_COMMANDS.settings,
+          PUBLIC_COMMANDS.settings,
           settingsCommandCodec.encode(options),
           options,
         ),

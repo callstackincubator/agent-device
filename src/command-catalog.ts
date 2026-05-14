@@ -54,6 +54,17 @@ export const INTERNAL_COMMANDS = {
   sessionList: 'session_list',
 } as const;
 
+export type PublicCommandName = (typeof PUBLIC_COMMANDS)[keyof typeof PUBLIC_COMMANDS];
+export type CliCommandName =
+  | PublicCommandName
+  | 'auth'
+  | 'connect'
+  | 'connection'
+  | 'disconnect'
+  | 'ensure-simulator'
+  | 'metro'
+  | 'session';
+
 export const DAEMON_COMMAND_GROUPS = {
   inventory: commandSet(
     INTERNAL_COMMANDS.sessionList,

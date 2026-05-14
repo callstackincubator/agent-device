@@ -1,5 +1,5 @@
 import type { CliFlags } from '../../utils/command-schema.ts';
-import { CLIENT_COMMANDS } from '../../client-command-registry.ts';
+import type { PublicCommandName } from '../../command-catalog.ts';
 import { readCommandMessage } from '../../utils/success-text.ts';
 import { printJson } from '../../utils/output.ts';
 import { renderReplayTestResponse } from '../../cli-test.ts';
@@ -44,7 +44,7 @@ function renderBatchStepLine(entry: unknown): string | undefined {
 }
 
 export function writeCommandCliOutput(
-  command: string,
+  command: PublicCommandName,
   positionals: string[],
   flags: CliOutputFlags,
   data: Record<string, unknown>,
@@ -53,7 +53,7 @@ export function writeCommandCliOutput(
     return writeJsonCliOutput(command, flags, data);
   }
 
-  if (command === CLIENT_COMMANDS.test) {
+  if (command === 'test') {
     return renderReplayTestResponse({
       suite: data as ReplaySuiteResult,
       verbose: flags.verbose,
@@ -74,11 +74,11 @@ export function writeCommandCliOutput(
 }
 
 function writeJsonCliOutput(
-  command: string,
+  command: PublicCommandName,
   flags: CliOutputFlags,
   data: Record<string, unknown>,
 ): number {
-  if (command === CLIENT_COMMANDS.test) {
+  if (command === 'test') {
     return renderReplayTestResponse({
       suite: data as ReplaySuiteResult,
       json: true,
@@ -89,39 +89,39 @@ function writeJsonCliOutput(
   return 0;
 }
 
-const TEXT_OUTPUT_HANDLERS: Partial<Record<string, TextOutputHandler>> = {
-  [CLIENT_COMMANDS.batch]: ({ data }) => {
+const TEXT_OUTPUT_HANDLERS: Partial<Record<PublicCommandName, TextOutputHandler>> = {
+  batch: ({ data }) => {
     renderBatchSummary(data);
     return true;
   },
-  [CLIENT_COMMANDS.get]: ({ positionals, data }) => writeGetCliOutput(positionals, data),
-  [CLIENT_COMMANDS.find]: ({ data }) => writeFindCliOutput(data),
-  [CLIENT_COMMANDS.is]: ({ data }) => {
+  get: ({ positionals, data }) => writeGetCliOutput(positionals, data),
+  find: ({ data }) => writeFindCliOutput(data),
+  is: ({ data }) => {
     process.stdout.write(`Passed: is ${data.predicate ?? 'assertion'}\n`);
     return true;
   },
-  [CLIENT_COMMANDS.boot]: ({ data }) => {
+  boot: ({ data }) => {
     const platform = data.platform ?? 'unknown';
     const device = data.device ?? data.id ?? 'unknown';
     process.stdout.write(`Boot ready: ${device} (${platform})\n`);
     return true;
   },
-  [CLIENT_COMMANDS.record]: ({ data }) => {
+  record: ({ data }) => {
     const outPath = typeof data.outPath === 'string' ? data.outPath : '';
     if (outPath) process.stdout.write(`${outPath}\n`);
     return true;
   },
-  [CLIENT_COMMANDS.logs]: ({ data, flags }) => {
+  logs: ({ data, flags }) => {
     writeLogsCliOutput(data, flags);
     return true;
   },
-  [CLIENT_COMMANDS.network]: ({ data }) => {
+  network: ({ data }) => {
     writeNetworkCliOutput(data);
     return true;
   },
-  [CLIENT_COMMANDS.click]: ({ data }) => writeTapCliOutput(data),
-  [CLIENT_COMMANDS.press]: ({ data }) => writeTapCliOutput(data),
-  [CLIENT_COMMANDS.perf]: ({ data }) => {
+  click: ({ data }) => writeTapCliOutput(data),
+  press: ({ data }) => writeTapCliOutput(data),
+  perf: ({ data }) => {
     writePerfCliOutput(data);
     return true;
   },
