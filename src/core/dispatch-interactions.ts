@@ -21,7 +21,7 @@ import {
   runRepeatedSeries,
 } from './dispatch-series.ts';
 import type { DispatchContext } from './dispatch-context.ts';
-import type { Interactor, RunnerContext } from './interactors.ts';
+import type { Interactor } from './interactor-types.ts';
 
 export async function handleLongPressCommand(
   interactor: Interactor,
@@ -92,7 +92,6 @@ export async function handlePressCommand(
   interactor: Interactor,
   positionals: string[],
   context: DispatchContext | undefined,
-  _runnerCtx: RunnerContext,
 ): Promise<Record<string, unknown>> {
   const { x, y } = readPoint(positionals, 'press requires x y');
 
@@ -338,7 +337,6 @@ export async function handleSwipeCommand(
   interactor: Interactor,
   positionals: string[],
   context: DispatchContext | undefined,
-  _runnerCtx: RunnerContext,
 ): Promise<Record<string, unknown>> {
   const x1 = Number(positionals[0]);
   const y1 = Number(positionals[1]);
@@ -459,7 +457,6 @@ export async function handlePinchCommand(
   device: DeviceInfo,
   positionals: string[],
   context: DispatchContext | undefined,
-  _runnerCtx: RunnerContext,
 ): Promise<Record<string, unknown>> {
   if (device.platform === 'android') {
     throw new AppError(
@@ -499,7 +496,6 @@ export async function handleReadCommand(
   device: DeviceInfo,
   positionals: string[],
   context: DispatchContext | undefined,
-  _runnerCtx: RunnerContext,
 ): Promise<Record<string, unknown>> {
   const [x, y] = positionals.map(Number);
   if (Number.isNaN(x) || Number.isNaN(y)) {
