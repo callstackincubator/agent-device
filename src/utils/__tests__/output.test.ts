@@ -301,6 +301,185 @@ test('formatSnapshotText keeps zero-height visible nodes out of off-screen summa
   assert.match(text, /\[off-screen below\] 1 interactive item: "Later"/);
 });
 
+test('formatSnapshotText collapses inactive Android helper nodes in human output', () => {
+  const nodes = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'Window',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.widget.Button',
+      label: 'Alice, Today, filed the expense',
+      rect: { x: 0, y: 420, width: 390, height: 96 },
+      hittable: true,
+    },
+    {
+      ref: 'e3',
+      index: 2,
+      depth: 2,
+      parentIndex: 1,
+      type: 'android.widget.Button',
+      label: 'alice@example.com',
+      rect: { x: 16, y: 432, width: 48, height: 48 },
+      hittable: true,
+    },
+    {
+      ref: 'e4',
+      index: 3,
+      depth: 2,
+      parentIndex: 1,
+      type: 'android.widget.Button',
+      label: 'alice@example.com',
+      rect: { x: 80, y: 432, width: 120, height: 48 },
+      hittable: true,
+    },
+    {
+      ref: 'e5',
+      index: 4,
+      depth: 3,
+      parentIndex: 3,
+      type: 'android.widget.TextView',
+      label: 'Alice',
+      rect: { x: 80, y: 432, width: 120, height: 48 },
+    },
+    {
+      ref: 'e6',
+      index: 5,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.widget.Button',
+      label: 'Invisible stale action',
+      rect: { x: 0, y: 160, width: 390, height: 0 },
+      hittable: true,
+    },
+    {
+      ref: 'e7',
+      index: 6,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.widget.EditText',
+      label: 'Write something...',
+      identifier: 'composer',
+      rect: { x: 72, y: 760, width: 240, height: 44 },
+      hittable: true,
+    },
+    {
+      ref: 'e8',
+      index: 7,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.view.View',
+      label: 'Dashboard',
+      rect: { x: 0, y: 720, width: 78, height: 96 },
+      hittable: true,
+    },
+    {
+      ref: 'e9',
+      index: 8,
+      depth: 2,
+      parentIndex: 7,
+      type: 'android.widget.TextView',
+      label: 'Dashboard',
+      rect: { x: 20, y: 780, width: 40, height: 24 },
+    },
+    {
+      ref: 'e10',
+      index: 9,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.view.View',
+      label: 'Messages. Your review is required',
+      rect: { x: 78, y: 720, width: 78, height: 96 },
+      hittable: true,
+    },
+    {
+      ref: 'e11',
+      index: 10,
+      depth: 2,
+      parentIndex: 9,
+      type: 'android.widget.TextView',
+      label: 'Messages',
+      rect: { x: 98, y: 780, width: 40, height: 24 },
+    },
+    {
+      ref: 'e12',
+      index: 11,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.view.View',
+      label: 'Billing',
+      rect: { x: 156, y: 720, width: 78, height: 96 },
+      hittable: true,
+    },
+    {
+      ref: 'e13',
+      index: 12,
+      depth: 2,
+      parentIndex: 11,
+      type: 'android.widget.TextView',
+      label: 'Billing',
+      rect: { x: 176, y: 780, width: 40, height: 24 },
+    },
+    {
+      ref: 'e14',
+      index: 13,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.view.View',
+      label: 'Profile, My settings.',
+      rect: { x: 312, y: 720, width: 78, height: 96 },
+      hittable: true,
+    },
+    {
+      ref: 'e15',
+      index: 14,
+      depth: 2,
+      parentIndex: 13,
+      type: 'android.widget.TextView',
+      label: 'Profile',
+      rect: { x: 332, y: 780, width: 40, height: 24 },
+    },
+  ];
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes,
+      truncated: false,
+      androidSnapshot: { backend: 'android-helper' },
+    }),
+  );
+
+  assert.match(text, /Snapshot: 4 visible nodes \(15 total\)/);
+  assert.match(text, /Collapsed 11 inactive Android helper nodes from text output/);
+  assert.match(text, /@e3 \[button\] "alice@example\.com"/);
+  assert.doesNotMatch(text, /@e4 \[button\] "alice@example\.com"/);
+  assert.doesNotMatch(text, /Invisible stale action/);
+  assert.doesNotMatch(text, /\[group\] "Dashboard"/);
+  assert.doesNotMatch(text, /\[group\] "Messages/);
+  assert.doesNotMatch(text, /\[group\] "Billing"/);
+  assert.doesNotMatch(text, /\[group\] "Profile/);
+  assert.doesNotMatch(text, /possible repeated nav subtree/);
+
+  const raw = withNoColor(() =>
+    formatSnapshotText(
+      {
+        nodes,
+        truncated: false,
+        androidSnapshot: { backend: 'android-helper' },
+      },
+      { raw: true },
+    ),
+  );
+  assert.match(raw, /"Invisible stale action"/);
+  assert.match(raw, /"Messages\. Your review is required"/);
+});
+
 test('formatSnapshotText renders explicit hidden scroll-area content hints', () => {
   const text = withNoColor(() =>
     formatSnapshotText({

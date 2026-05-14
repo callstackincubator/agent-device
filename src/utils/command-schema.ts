@@ -439,16 +439,20 @@ Core commands:
 
 Profiling loop:
   1. Verify the app is connected: react-devtools status, then wait --connected if needed.
-  2. Start profiling immediately before the interaction.
-  3. Drive the interaction with normal agent-device commands.
-  4. Stop profiling.
-  5. Inspect slow components and rerenders.
-  6. Use profile report @cN for render causes and changed props/state/hooks; use get component @cN for current props/state/hooks.
+  2. If correlating with logs or network, run logs clear --restart before the first logs mark.
+  3. Start profiling immediately before the interaction.
+  4. Drive the interaction with normal agent-device commands and mark before/after the repro when timing matters.
+  5. Stop profiling.
+  6. Inspect slow components and rerenders.
+  7. Use profile report @cN for render causes and changed props/state/hooks; use get component @cN for current props/state/hooks.
 
 Rules:
+  Every React DevTools command is an agent-device subcommand: agent-device react-devtools ...
+  Do not write agent-devtools, agent-react-devtools, or bare react-devtools commands in final command plans.
   Start with get tree --depth 3 or find <name>; use find --exact when fuzzy results are noisy.
   @c refs reset after reload/remount. After reload, wait --connected and inspect again.
   Keep the profile window narrow; unrelated navigation makes render data noisy.
+  For network evidence, use agent-device network dump --include headers; headers is not a positional argument.
   For cross-platform validation with explicit device selectors, prefer isolated --state-dir and restart react-devtools between platforms.
   Remote Android and iOS bridge runs normally through agent-device react-devtools; the CLI keeps the needed local service tunnel alive until agent-device react-devtools stop or disconnect. Expo support depends on the SDK's bundled React Native runtime.
   Remote iOS apps attempt the legacy React DevTools websocket during JavaScript startup. If the app was already open before react-devtools start, run open <bundle-id> --platform ios --relaunch, then wait --connected.
@@ -456,12 +460,16 @@ Rules:
 Example:
   agent-device react-devtools status
   agent-device react-devtools wait --connected
+  agent-device logs clear --restart
+  agent-device logs mark "before catalog search"
   agent-device react-devtools profile start
   agent-device fill 'id="catalog-search"' "tart" --delay-ms 80
+  agent-device logs mark "after catalog search"
   agent-device react-devtools profile stop
   agent-device react-devtools profile slow --limit 5
   agent-device react-devtools profile rerenders --limit 5
   agent-device react-devtools profile report @c5
+  agent-device network dump --include headers
 
 Use snapshot, screenshot, logs, network, and perf for device/app runtime evidence. Use react-devtools only when component internals or React rendering behavior matters.`,
   },

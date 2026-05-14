@@ -970,6 +970,10 @@ test('usageForCommand resolves react-devtools help topic', () => {
     /agent-device react-devtools profile diff before\.json after\.json --limit 10/,
   );
   assert.match(help, /render causes and changed props\/state\/hooks/);
+  assert.match(help, /logs clear --restart before the first logs mark/);
+  assert.match(help, /agent-device logs mark "before catalog search"/);
+  assert.match(help, /Do not write agent-devtools/);
+  assert.match(help, /agent-device network dump --include headers/);
   assert.match(help, /@c refs reset after reload\/remount/);
   assert.match(help, /isolated --state-dir/);
   assert.match(help, /local service tunnel/);

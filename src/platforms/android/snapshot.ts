@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { withRetry } from '../../utils/retry.ts';
-import { AppError, normalizeError } from '../../utils/errors.ts';
+import { AppError, normalizeError, toAppErrorCode } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { findProjectRoot, readVersion } from '../../utils/version.ts';
 import {
@@ -39,7 +39,9 @@ import {
 
 const UI_HIERARCHY_DUMP_TIMEOUT_MS = 8_000;
 const HELPER_INSTALL_TIMEOUT_MS = 30_000;
-const HELPER_COMMAND_TIMEOUT_MS = UI_HIERARCHY_DUMP_TIMEOUT_MS + 5_000;
+// Large React Native trees can legitimately exceed the stock dump timeout while
+// the helper is still making progress; keep this below the full fallback path.
+const HELPER_COMMAND_TIMEOUT_MS = 30_000;
 
 type AndroidSnapshotOptions = SnapshotOptions & {
   helperArtifact?: AndroidSnapshotHelperArtifact;
@@ -182,13 +184,39 @@ async function captureStockUiHierarchy(
   fallbackReason?: string,
   adb?: AndroidAdbExecutor,
 ): Promise<{ xml: string; metadata: AndroidSnapshotBackendMetadata }> {
+  let xml: string;
+  try {
+    xml = await dumpUiHierarchy(device, adb);
+  } catch (error) {
+    if (fallbackReason) {
+      throw enrichStockSnapshotFailureWithHelperReason(error, fallbackReason);
+    }
+    throw error;
+  }
   return {
-    xml: await dumpUiHierarchy(device, adb),
+    xml,
     metadata: {
       backend: 'uiautomator-dump',
       ...(fallbackReason ? { fallbackReason } : {}),
     },
   };
+}
+
+function enrichStockSnapshotFailureWithHelperReason(
+  error: unknown,
+  fallbackReason: string,
+): AppError {
+  const normalized = normalizeError(error);
+  return new AppError(
+    toAppErrorCode(normalized.code),
+    `${normalized.message} Android snapshot helper failed before stock fallback: ${fallbackReason}`,
+    {
+      ...normalized.details,
+      androidSnapshotHelperFallbackReason: fallbackReason,
+      ...(normalized.hint ? { hint: normalized.hint } : {}),
+    },
+    error,
+  );
 }
 
 function getAndroidSnapshotHelperDeviceKey(device: DeviceInfo): string {

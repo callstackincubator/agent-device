@@ -1,8 +1,12 @@
 import path from 'node:path';
+import {
+  buildAndroidHelperPresentationInput,
+  detectPossibleRepeatedNavSubtree,
+  type AndroidHelperPresentationInput,
+} from './android-helper-snapshot-presentation.ts';
 import { AppError, normalizeError, type NormalizedError } from './errors.ts';
 import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.ts';
 import type { SnapshotNode, SnapshotVisibility } from './snapshot.ts';
-import { displayNodeLabel } from './snapshot-tree.ts';
 import type { ScreenshotDiffResult } from './screenshot-diff.ts';
 import type { ScreenshotDiffRegion } from './screenshot-diff-regions.ts';
 import { styleText } from 'node:util';
@@ -58,17 +62,26 @@ export function formatSnapshotText(
   const rawNodes = data.nodes;
   const nodes = Array.isArray(rawNodes) ? (rawNodes as SnapshotNode[]) : [];
   const backend = typeof data.backend === 'string' ? data.backend : undefined;
+  const helperPresentation = buildAndroidHelperPresentationInput(data, nodes, options);
   const visiblePresentation =
-    options.raw || backend === 'macos-helper' ? null : buildMobileSnapshotPresentation(nodes);
+    options.raw || backend === 'macos-helper'
+      ? null
+      : buildMobileSnapshotPresentation(helperPresentation.nodes);
   const truncated = Boolean(data.truncated);
   const displayedNodes = visiblePresentation?.nodes ?? nodes;
   const visibility =
     options.raw || backend === 'macos-helper'
       ? null
-      : readSnapshotVisibility(data, visiblePresentation, displayedNodes.length, nodes.length);
+      : readSnapshotVisibility(
+          data,
+          visiblePresentation,
+          displayedNodes.length,
+          nodes.length,
+          helperPresentation.filteredCount,
+        );
   const header = formatSnapshotHeader(nodes.length, visibility, truncated);
   const prefix = formatSnapshotMetaPrefix(data);
-  const notices = buildSnapshotNotices(data, nodes, options);
+  const notices = buildSnapshotNotices(data, nodes, options, helperPresentation);
   const noticesBlock = notices.length > 0 ? `${notices.join('\n')}\n` : '';
   if (nodes.length === 0) {
     return `${prefix}${header}\n${noticesBlock}`;
@@ -133,28 +146,14 @@ function readSnapshotVisibility(
   visiblePresentation: ReturnType<typeof buildMobileSnapshotPresentation> | null,
   displayedNodeCount: number,
   totalNodeCount: number,
+  filteredCount: number = 0,
 ): SnapshotVisibility | null {
-  const candidate = data.visibility;
-  if (candidate && typeof candidate === 'object') {
-    const visibility = candidate as Partial<SnapshotVisibility>;
-    if (
-      typeof visibility.partial === 'boolean' &&
-      typeof visibility.visibleNodeCount === 'number' &&
-      typeof visibility.totalNodeCount === 'number' &&
-      Array.isArray(visibility.reasons)
-    ) {
-      return {
-        partial: visibility.partial,
-        visibleNodeCount: visibility.visibleNodeCount,
-        totalNodeCount: visibility.totalNodeCount,
-        reasons: visibility.reasons.filter(
-          (reason): reason is SnapshotVisibility['reasons'][number] => typeof reason === 'string',
-        ),
-      };
-    }
+  const payloadVisibility = readPayloadSnapshotVisibility(data);
+  if (filteredCount === 0 && payloadVisibility) {
+    return payloadVisibility;
   }
 
-  const hiddenCount = visiblePresentation?.hiddenCount ?? 0;
+  const hiddenCount = (visiblePresentation?.hiddenCount ?? 0) + filteredCount;
   const hasExplicitHiddenContentHints = visiblePresentation
     ? visiblePresentation.nodes.some((node) => node.hiddenContentAbove || node.hiddenContentBelow)
     : false;
@@ -162,9 +161,15 @@ function readSnapshotVisibility(
     return {
       partial: true,
       visibleNodeCount: displayedNodeCount,
-      totalNodeCount,
-      reasons: ['offscreen-nodes'],
+      totalNodeCount: Math.max(totalNodeCount, payloadVisibility?.totalNodeCount ?? totalNodeCount),
+      reasons: uniqueSnapshotVisibilityReasons([
+        ...(payloadVisibility?.reasons ?? []),
+        'offscreen-nodes',
+      ]),
     };
+  }
+  if (payloadVisibility) {
+    return payloadVisibility;
   }
   if (hasExplicitHiddenContentHints) {
     return {
@@ -175,6 +180,34 @@ function readSnapshotVisibility(
     };
   }
   return null;
+}
+
+function readPayloadSnapshotVisibility(data: Record<string, unknown>): SnapshotVisibility | null {
+  const candidate = data.visibility;
+  if (!candidate || typeof candidate !== 'object') return null;
+  const visibility = candidate as Partial<SnapshotVisibility>;
+  if (
+    typeof visibility.partial !== 'boolean' ||
+    typeof visibility.visibleNodeCount !== 'number' ||
+    typeof visibility.totalNodeCount !== 'number' ||
+    !Array.isArray(visibility.reasons)
+  ) {
+    return null;
+  }
+  return {
+    partial: visibility.partial,
+    visibleNodeCount: visibility.visibleNodeCount,
+    totalNodeCount: visibility.totalNodeCount,
+    reasons: visibility.reasons.filter(
+      (reason): reason is SnapshotVisibility['reasons'][number] => typeof reason === 'string',
+    ),
+  };
+}
+
+function uniqueSnapshotVisibilityReasons(
+  reasons: SnapshotVisibility['reasons'],
+): SnapshotVisibility['reasons'] {
+  return [...new Set(reasons)];
 }
 
 export function formatSnapshotDiffText(data: Record<string, unknown>): string {
@@ -526,9 +559,16 @@ function buildSnapshotNotices(
   data: Record<string, unknown>,
   nodes: SnapshotNode[],
   options: { raw?: boolean; flatten?: boolean },
+  helperPresentation: AndroidHelperPresentationInput = { nodes, filteredCount: 0 },
 ): string[] {
   const notices = readSnapshotWarnings(data);
-  if (!options.raw && detectPossibleRepeatedNavSubtree(nodes)) {
+  if (!options.raw && helperPresentation.filteredCount > 0) {
+    notices.push(
+      `Collapsed ${helperPresentation.filteredCount} inactive Android helper node${helperPresentation.filteredCount === 1 ? '' : 's'} from text output; use --raw or --json for the full hierarchy.`,
+    );
+  }
+  const repeatedNavNodes = helperPresentation.filteredCount > 0 ? helperPresentation.nodes : nodes;
+  if (!options.raw && detectPossibleRepeatedNavSubtree(repeatedNavNodes)) {
     notices.push('Warning: possible repeated nav subtree detected.');
   }
   return notices;
@@ -542,30 +582,6 @@ function readSnapshotWarnings(data: Record<string, unknown>): string[] {
   return rawWarnings.filter(
     (entry): entry is string => typeof entry === 'string' && entry.length > 0,
   );
-}
-
-// Detects likely duplicated navigation chrome (e.g. bottom tab bars rendered once
-// per tab).  Thresholds: ≥20 total nodes to avoid false positives on tiny trees,
-// and ≥8 cumulative duplicate-signature nodes to surface the warning.
-function detectPossibleRepeatedNavSubtree(nodes: SnapshotNode[]): boolean {
-  if (nodes.length < 20) {
-    return false;
-  }
-  const counts = new Map<string, number>();
-  for (const node of nodes) {
-    const type = (node.type ?? '').toLowerCase();
-    const label = displayNodeLabel(node).trim().toLowerCase();
-    if (!label) continue;
-    const signature = `${type}|${label}`;
-    counts.set(signature, (counts.get(signature) ?? 0) + 1);
-  }
-  let duplicateCount = 0;
-  for (const count of counts.values()) {
-    if (count > 1) {
-      duplicateCount += count;
-    }
-  }
-  return duplicateCount >= 8;
 }
 
 function renderSnapshotDisplayLines(lines: ReturnType<typeof buildSnapshotDisplayLines>): string[] {

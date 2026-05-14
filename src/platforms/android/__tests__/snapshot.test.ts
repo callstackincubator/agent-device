@@ -260,7 +260,7 @@ test('snapshotAndroid uses injected helper artifact before stock uiautomator', a
   assert.equal(result.androidSnapshot.installReason, 'current');
   assert.equal(result.androidSnapshot.captureMode, 'interactive-windows');
   assert.equal(result.androidSnapshot.windowCount, 1);
-  assert.deepEqual(timeouts, [30000, 13000]);
+  assert.deepEqual(timeouts, [30000, 30000]);
   assert.equal(mockRunCmd.mock.calls.length, 0);
 });
 
@@ -345,6 +345,45 @@ test('snapshotAndroid falls back to stock uiautomator when helper fails', async 
     ['shell', 'shell', 'exec-out'],
   );
   assert.equal(mockRunCmd.mock.calls.length, 0);
+});
+
+test('snapshotAndroid preserves helper failure reason when stock fallback fails', async () => {
+  const helperAdb: AndroidAdbExecutor = async (args) => {
+    if (args.includes('--show-versioncode')) {
+      return {
+        exitCode: 0,
+        stdout: 'package:com.callstack.agentdevice.snapshothelper versionCode:13003',
+        stderr: '',
+      };
+    }
+    if (args.includes('exec-out')) {
+      throw new AppError('COMMAND_FAILED', 'stock dump timed out', { hint: 'stock hint' });
+    }
+    return { exitCode: 1, stdout: '', stderr: 'instrumentation failed' };
+  };
+
+  await assert.rejects(
+    () =>
+      snapshotAndroid(device, {
+        helperAdb,
+        helperArtifact: {
+          apkPath: '/tmp/helper.apk',
+          manifest: helperManifest,
+        },
+      }),
+    (error) => {
+      assert.ok(error instanceof AppError);
+      assert.match(error.message, /stock dump timed out/);
+      assert.match(error.message, /Android snapshot helper failed before stock fallback/);
+      assert.match(error.message, /failed before returning parseable output/);
+      assert.equal(
+        error.details?.androidSnapshotHelperFallbackReason,
+        'Android snapshot helper failed before returning parseable output',
+      );
+      assert.equal(error.details?.hint, 'stock hint');
+      return true;
+    },
+  );
 });
 
 test('snapshotAndroid re-probes helper install after helper capture failure', async () => {

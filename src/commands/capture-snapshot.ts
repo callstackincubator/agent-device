@@ -194,6 +194,7 @@ function buildSnapshotWarnings(params: {
   const warnings = [...(params.result.warnings ?? [])];
   const interactiveOnly = params.options.interactiveOnly === true;
   const analysis = params.result.analysis;
+  const androidSnapshot = params.result.androidSnapshot;
 
   if (
     params.snapshot.backend === 'android' &&
@@ -214,6 +215,15 @@ function buildSnapshotWarnings(params: {
         `Interactive output is empty at depth ${params.options.depth}; retry without -d.`,
       );
     }
+  }
+
+  if (androidSnapshot?.backend === 'uiautomator-dump') {
+    const reason = androidSnapshot.fallbackReason
+      ? ` Reason: ${androidSnapshot.fallbackReason}`
+      : '';
+    warnings.push(
+      `Android snapshot helper unavailable; using stock UIAutomator dump, which can time out on busy React Native UIs.${reason}`,
+    );
   }
 
   if (hasReactNativeOverlay(params.snapshot.nodes)) {
