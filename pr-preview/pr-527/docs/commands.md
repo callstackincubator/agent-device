@@ -10,6 +10,7 @@ For agent workflow guidance that is matched to the installed CLI, run:
 agent-device help
 agent-device help workflow
 agent-device help debugging
+agent-device help react-native
 agent-device help react-devtools
 agent-device help remote
 agent-device help macos
@@ -276,7 +277,7 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (Apple simulator or mac
 Use `--delay-ms` on `type` or `fill` for debounced search fields and search-as-you-type inputs that miss characters when text is injected too quickly.
 Delayed typing prefers paced character entry over clipboard-style fallbacks so the target field still receives incremental updates.
 On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
-Some Android images cannot enter non-ASCII text over shell input; in that case use a trusted ADB keyboard IME and verify APK checksum/signature before install.
+Some Android images cannot enter non-ASCII text over shell input. Use `fill`/`type` and let `agent-device` own the safer fallback path; do not switch to clipboard or paste for non-ASCII field entry. If the shell still reports unsupported non-ASCII input, use a trusted ADB keyboard IME and verify APK checksum/signature before install.
 `click --button secondary` is the desktop context-menu flow on macOS.
 `click --button middle` is reserved for future runner support and currently returns an explicit unsupported-operation error on macOS.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
@@ -595,6 +596,8 @@ agent-device react-devtools profile rerenders --limit 5
 - `agent-device` global flags work before or after `react-devtools`. Use `--` before downstream flags only when they intentionally share an `agent-device` global flag name.
 - Use it when a React Native workflow needs component hierarchy, props, state, hooks, render causes, slow components, or re-render counts.
 - Keep using `snapshot`, `press`, `fill`, `logs`, `network`, and `perf` for device/app runtime evidence. Use `react-devtools` for React internals.
+- For React Native apps, overlays, Metro/Fast Refresh blockers, and routing to React DevTools or debugging evidence, start with `agent-device help react-native`.
+- On Android, permission prompts are visible UI; use `snapshot -i` and press visible `Allow`/`Deny` controls instead of `alert wait`. Do not use `settings permission` to answer a dialog already on screen; reserve it for setup or resetting permission state before a flow.
 - React Native development builds can connect to the DevTools daemon on port 8097. For Android emulators or physical devices, run `adb reverse tcp:8097 tcp:8097` if the app cannot reach the host. If Metro is local, also run `adb reverse tcp:8081 tcp:8081`.
 - For Android and iOS sessions connected through a remote bridge profile, `react-devtools` registers a lease-scoped companion tunnel to the sandbox-local DevTools daemon at `127.0.0.1:8097`. Android bridge profiles use the bridge-owned remote `adb reverse` mapping; iOS bridge profiles use the bridge-owned wildcard Metro host tunnel. The CLI keeps the companion alive until `agent-device react-devtools stop` or `agent-device disconnect`.
 - For remote iOS bridge sessions, open the app once to create the bridge session, run `agent-device react-devtools start`, then relaunch the same bundle id with `agent-device open <bundle-id> --platform ios --relaunch` before `wait --connected`. React Native attempts the legacy DevTools websocket during JavaScript startup, so starting DevTools after the first launch can miss that connection attempt.
