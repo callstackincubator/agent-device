@@ -54,7 +54,7 @@ If you install skills separately, keep the CLI on `agent-device >= 0.14.0`. Olde
 ### AI Agent Entry Points
 
 - **Agent + terminal**: in Cursor, Codex, Claude Code, Windsurf, and similar clients, run `agent-device` in the integrated terminal. Start planning with `agent-device help workflow`; CLI help is authoritative.
-- **Skills or rules**: install the skill with `npx skills add callstackincubator/agent-device`, use the bundled [agent-device skill](skills/agent-device/SKILL.md), or mirror it as a thin project rule, so the agent checks the installed version and reads `agent-device help workflow` before acting.
+- **Skills or rules**: install the skill with `npx skills add callstackincubator/agent-device`, use the bundled [agent-device skill](skills/agent-device/SKILL.md), or mirror it as a thin project rule, so the agent checks the installed version and reads `agent-device help workflow` before acting. Use `agent-device help react-native` for React Native apps, overlays, Metro/Fast Refresh blockers, and routing to React DevTools or debugging evidence.
 - **MCP router**: use `agent-device mcp` when an MCP-aware client needs install, status, and version-matched help discovery. MCP is intentionally a thin router; device automation still runs through CLI commands.
 
 For client-specific setup, see [AI Agent Setup](https://incubator.callstack.com/agent-device/docs/agent-setup). For agent-readable docs, use [llms-full.txt](https://incubator.callstack.com/agent-device/llms-full.txt).

@@ -315,7 +315,7 @@ test('handleFindCommands wait bypasses snapshot cache while Android freshness re
     })
     .mockResolvedValueOnce({
       nodes: [
-        { index: 0, depth: 0, type: 'android.widget.TextView', label: 'Create expense' },
+        { index: 0, depth: 0, type: 'android.widget.TextView', label: 'Create document' },
         { index: 1, depth: 0, type: 'android.widget.Button', label: 'Submit', hittable: true },
       ],
       truncated: false,
@@ -324,7 +324,7 @@ test('handleFindCommands wait bypasses snapshot cache while Android freshness re
     });
 
   const { response } = await runFindClickScenario({
-    positionals: ['text', 'Create expense', 'wait', '700'],
+    positionals: ['text', 'Create document', 'wait', '700'],
     session,
   });
 

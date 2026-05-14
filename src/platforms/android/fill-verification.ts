@@ -213,6 +213,9 @@ function isAcceptableAndroidFillMatch(actual: string | null, expected: string): 
   if (normalizedActual === normalizedExpected) {
     return true;
   }
+  if (isSentenceAutocapitalizeMatch(normalizedActual, normalizedExpected)) {
+    return true;
+  }
   if (normalizedActual.includes(normalizedExpected)) {
     return true;
   }
@@ -224,6 +227,17 @@ function isAcceptableAndroidFillMatch(actual: string | null, expected: string): 
 
 function normalizeFillVerificationText(value: string | null): string {
   return (value ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function isSentenceAutocapitalizeMatch(actual: string, expected: string): boolean {
+  if (actual.length !== expected.length || actual.length === 0) return false;
+  if (actual.slice(1) !== expected.slice(1)) return false;
+  const actualFirst = actual[0];
+  const expectedFirst = expected[0];
+  if (!actualFirst || !expectedFirst) return false;
+  return (
+    expectedFirst.toLowerCase() === expectedFirst && actualFirst === expectedFirst.toUpperCase()
+  );
 }
 
 function androidFillCandidateFromNode(

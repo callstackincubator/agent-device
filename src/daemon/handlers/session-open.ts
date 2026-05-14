@@ -314,7 +314,12 @@ export async function handleOpenCommand(params: {
       return errorResponse(
         'DEVICE_IN_USE',
         `Device is already in use by session "${inUse.name}".`,
-        { session: inUse.name, deviceId: device.id, deviceName: device.name },
+        {
+          session: inUse.name,
+          deviceId: device.id,
+          deviceName: device.name,
+          hint: `Run agent-device session list and reuse --session ${inUse.name}, or close that session before opening a new one on this device.`,
+        },
       );
     }
 

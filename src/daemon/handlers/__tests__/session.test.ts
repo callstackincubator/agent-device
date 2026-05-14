@@ -3743,6 +3743,8 @@ test('open on in-use device returns DEVICE_IN_USE before readiness checks', asyn
   expect(response?.ok).toBe(false);
   if (response && !response.ok) {
     expect(response.error.code).toBe('DEVICE_IN_USE');
+    expect(response.error.details?.hint).toContain('agent-device session list');
+    expect(response.error.details?.hint).toContain('--session busy-session');
   }
   expect(mockEnsureDeviceReady).not.toHaveBeenCalled();
 });
@@ -4733,7 +4735,7 @@ test('network dump recovers Android entries from adb logcat when the session str
       return {
         stdout:
           '04-01 10:00:14.500 I/ActivityManager( 9999): Start proc 4321:com.example.app/u0a123 for top-activity\n' +
-          '04-01 10:00:15.000 D/GIBSDK  (4321): POST https://api.example.com/v1/expenses status=200 duration=15032\n',
+          '04-01 10:00:15.000 D/GIBSDK  (4321): POST https://api.example.com/v1/documents status=200 duration=15032\n',
         stderr: '',
         exitCode: 0,
       };
@@ -4763,7 +4765,7 @@ test('network dump recovers Android entries from adb logcat when the session str
     expect(entries.length).toBe(1);
     const latest = entries[0] as Record<string, unknown>;
     expect(latest.method).toBe('POST');
-    expect(latest.url).toBe('https://api.example.com/v1/expenses');
+    expect(latest.url).toBe('https://api.example.com/v1/documents');
     expect(latest.status).toBe(200);
     expect(response.data?.notes).toContain(
       'Session app log stream was inactive. Recovered recent Android HTTP entries from adb logcat for PID set 4321.',
@@ -4996,7 +4998,7 @@ test('network dump recovers iOS simulator entries from simctl log show when the 
   fs.mkdirSync(path.dirname(appLogPath), { recursive: true });
   fs.writeFileSync(
     appLogPath,
-    'Filtering the log data using "subsystem == \\"com.expensify.chat.dev\\""\n',
+    'Filtering the log data using "subsystem == \\"com.agentdevice.tester\\""\n',
     'utf8',
   );
   sessionStore.set(sessionName, {
@@ -5007,7 +5009,7 @@ test('network dump recovers iOS simulator entries from simctl log show when the 
       kind: 'simulator',
       booted: true,
     }),
-    appBundleId: 'com.expensify.chat.dev',
+    appBundleId: 'com.agentdevice.tester',
     appLog: {
       platform: 'ios',
       backend: 'ios-simulator',
@@ -5030,7 +5032,7 @@ test('network dump recovers iOS simulator entries from simctl log show when the 
       return {
         stdout:
           'Timestamp               Ty Process[PID:TID]\n' +
-          '2026-04-02 08:08:50.665 I New Expensify Dev[32193:8c7411e] POST https://api.example.com/v1/search statusCode=200 duration=42\n',
+          '2026-04-02 08:08:50.665 I Agent Device Tester[32193:8c7411e] POST https://api.example.com/v1/search statusCode=200 duration=42\n',
         stderr: '',
         exitCode: 0,
       };
@@ -5073,7 +5075,7 @@ test('network dump explains when iOS simulator recovery found app logs but no HT
   fs.mkdirSync(path.dirname(appLogPath), { recursive: true });
   fs.writeFileSync(
     appLogPath,
-    'Filtering the log data using "subsystem == \\"com.expensify.chat.dev\\""\n',
+    'Filtering the log data using "subsystem == \\"com.agentdevice.tester\\""\n',
     'utf8',
   );
   sessionStore.set(sessionName, {
@@ -5084,7 +5086,7 @@ test('network dump explains when iOS simulator recovery found app logs but no HT
       kind: 'simulator',
       booted: true,
     }),
-    appBundleId: 'com.expensify.chat.dev',
+    appBundleId: 'com.agentdevice.tester',
     appLog: {
       platform: 'ios',
       backend: 'ios-simulator',
@@ -5107,7 +5109,7 @@ test('network dump explains when iOS simulator recovery found app logs but no HT
       return {
         stdout:
           'Timestamp               Ty Process[PID:TID]\n' +
-          '2026-04-02 08:08:50.665 E New Expensify Dev[32193:8c7411e] Airship config warning\n',
+          '2026-04-02 08:08:50.665 E Agent Device Tester[32193:8c7411e] Airship config warning\n',
         stderr: '',
         exitCode: 0,
       };

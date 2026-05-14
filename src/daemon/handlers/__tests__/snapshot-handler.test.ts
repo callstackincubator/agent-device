@@ -243,7 +243,7 @@ test('snapshot automatically retries stale Android trees after recent navigation
     })
     .mockResolvedValueOnce({
       nodes: [
-        { index: 0, depth: 0, type: 'android.widget.TextView', label: 'Create expense' },
+        { index: 0, depth: 0, type: 'android.widget.TextView', label: 'Create document' },
         { index: 1, depth: 0, type: 'android.widget.Button', label: 'Submit', hittable: true },
       ],
       truncated: false,
@@ -268,7 +268,7 @@ test('snapshot automatically retries stale Android trees after recent navigation
   if (response?.ok) {
     expect(response.data?.warnings).toBeUndefined();
     expect(response.data?.nodes).toEqual(
-      expect.arrayContaining([expect.objectContaining({ label: 'Create expense' })]),
+      expect.arrayContaining([expect.objectContaining({ label: 'Create document' })]),
     );
   }
   expect(mockDispatch).toHaveBeenCalledTimes(2);
@@ -543,7 +543,7 @@ test('wait text on Android uses freshness-aware capture instead of one-shot snap
     })
     .mockResolvedValueOnce({
       nodes: [
-        { index: 0, depth: 0, type: 'android.widget.TextView', label: 'Create expense' },
+        { index: 0, depth: 0, type: 'android.widget.TextView', label: 'Create document' },
         { index: 1, depth: 0, type: 'android.widget.TextView', label: 'Done' },
       ],
       truncated: false,
@@ -556,7 +556,7 @@ test('wait text on Android uses freshness-aware capture instead of one-shot snap
       token: 't',
       session: sessionName,
       command: 'wait',
-      positionals: ['Create expense', '50'],
+      positionals: ['Create document', '50'],
       flags: {},
     },
     sessionName,
@@ -566,11 +566,11 @@ test('wait text on Android uses freshness-aware capture instead of one-shot snap
 
   expect(response?.ok).toBe(true);
   if (response?.ok) {
-    expect(response.data?.text).toBe('Create expense');
+    expect(response.data?.text).toBe('Create document');
   }
   expect(mockDispatch).toHaveBeenCalledTimes(2);
   expect(sessionStore.get(sessionName)?.snapshot?.nodes).toEqual(
-    expect.arrayContaining([expect.objectContaining({ label: 'Create expense' })]),
+    expect.arrayContaining([expect.objectContaining({ label: 'Create document' })]),
   );
 });
 

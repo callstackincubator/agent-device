@@ -794,7 +794,7 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Use selectors or refs as positional targets/);
   assert.match(usageText, /Plain snapshot reads state; snapshot -i is required/);
   assert.match(usageText, /Truncated text\/input preview: expand first with snapshot -s @e12/);
-  assert.match(usageText, /RN warning\/error overlays can block taps: snapshot -i/);
+  assert.match(usageText, /React Native apps: read help react-native/);
   assert.match(usageText, /Expo Go\/dev clients: use the provided URL when given/);
   assert.match(usageText, /on iOS prefer open "Expo Go" <url>/);
   assert.match(usageText, /Install flows: install\/install-from-source first/);
@@ -802,6 +802,7 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /do not use fill <target> ""/);
   assert.match(usageText, /Android IME capture: if fill says input was captured/);
   assert.match(usageText, /Run mutating commands serially against one session/);
+  assert.match(usageText, /run session list and reuse the active session name/);
   assert.match(usageText, /After mutation: diff snapshot -i/);
   assert.match(usageText, /app-owned back uses back/);
   assert.match(usageText, /logs clear --restart\/mark\/path/);
@@ -815,6 +816,10 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(
     usageText,
     /help react-devtools\s+React Native performance, profiling, component tree, and renders/,
+  );
+  assert.match(
+    usageText,
+    /help react-native\s+React Native app automation hazards, overlays, Metro, and routing/,
   );
   assert.match(usageText, /Configuration:/);
   assert.match(
@@ -857,7 +862,9 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /agent-device get attrs @e4/);
   assert.match(help, /Ambiguous find: add --first or --last/);
   assert.match(help, /report that gap instead of typing\/searching\/navigating/);
-  assert.match(help, /If snapshot -i shows one, dismiss\/close its visible control/);
+  assert.match(help, /App-owned action sheets, menus, and camera\/scan screens are normal UI/);
+  assert.match(help, /wait for a concrete result before returning to chat\/form state/);
+  assert.match(help, /use help react-native for Metro\/Fast Refresh/);
   assert.match(help, /iOS Allow Paste prompt cannot be exercised under XCUITest/);
   assert.match(help, /Empty replacement is not a supported clear-field command/);
   assert.match(help, /do not plan fill <target> ""/);
@@ -872,18 +879,21 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /Android Gboard handwriting\/stylus UI can capture text/);
   assert.match(help, /targetInput\/actualInput details/);
   assert.match(help, /Do not keep retrying fill\/type against the same field/);
+  assert.match(help, /do not switch to clipboard or paste for non-ASCII field entry/);
   assert.match(help, /trusted ADB keyboard IME/);
   assert.match(help, /if no URL is provided but a target\/app name is provided, open that target/);
   assert.match(help, /do not split clear\/restart/);
   assert.match(help, /do not write network log headers/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform ios/);
   assert.match(help, /agent-device open "Expo Go" exp:\/\/127\.0\.0\.1:8081 --platform ios/);
+  assert.match(help, /There is no open-url command/);
   assert.match(help, /direct URL open can report success while leaving the runner\/shell focused/);
   assert.match(help, /verify with snapshot -i after opening/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform android/);
   assert.match(help, /apps lookup misses the project but shows Expo Go\/dev-client/);
   assert.match(help, /metro prepare --kind expo/);
   assert.match(help, /help react-devtools/);
+  assert.match(help, /help react-native/);
 });
 
 test('workflow help keeps common copyable command forms', () => {
@@ -896,6 +906,15 @@ test('workflow help keeps common copyable command forms', () => {
   assert.match(help, /screenshot --overlay-refs/);
   assert.match(help, /snapshot -s @e7/);
   assert.match(help, /clipboard write "some text"/);
+});
+
+test('usageForCommand resolves debugging help topic', () => {
+  const help = usageForCommand('debugging');
+  if (help === null) throw new Error('Expected debugging help text');
+  assert.match(help, /agent-device help debugging/);
+  assert.match(help, /agent-device alert wait 3000/);
+  assert.match(help, /Do not use alert wait for them/);
+  assert.match(help, /do not use settings permission to answer a dialog already on screen/);
 });
 
 test('usageForCommand resolves remote help topic', () => {
@@ -955,6 +974,26 @@ test('usageForCommand resolves react-devtools help topic', () => {
   assert.match(help, /isolated --state-dir/);
   assert.match(help, /local service tunnel/);
   assert.match(help, /Remote iOS apps attempt the legacy React DevTools websocket/);
+});
+
+test('usageForCommand resolves react-native help topic', () => {
+  const help = usageForCommand('react-native');
+  if (help === null) throw new Error('Expected react-native help text');
+  assert.match(help, /agent-device help react-native/);
+  assert.match(help, /React Native-specific automation hazards/);
+  assert.match(help, /Choose the next help topic/);
+  assert.match(help, /help workflow/);
+  assert.match(help, /help debugging/);
+  assert.match(help, /help react-devtools/);
+  assert.match(help, /Help workflow owns the full Expo URL command shapes/);
+  assert.match(help, /Keep the agent-device react-devtools prefix/);
+  assert.match(help, /Use help react-devtools for status\/wait/);
+  assert.match(help, /logs clear --restart/);
+  assert.match(help, /network dump --include headers/);
+  assert.match(help, /React Native warning\/error overlays belong to the app run/);
+  assert.match(help, /Android runtime permission dialogs are visible UI/);
+  assert.match(help, /snapshot times out because the UI never becomes idle/);
+  assert.match(help, /Report React render offenders separately/);
 });
 
 test('apps defaults to --all filter and allows overrides', () => {

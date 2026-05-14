@@ -86,22 +86,14 @@ test('runtime diff snapshot initializes baseline when no previous snapshot exist
 });
 
 test('runtime snapshot emits filtered Android guidance from backend analysis', async () => {
-  const device = createAgentDevice({
-    backend: createSnapshotBackend(() => ({
-      nodes: [],
-      truncated: false,
-      backend: 'android',
-      analysis: {
-        rawNodeCount: 42,
-        maxDepth: 6,
-      },
-    })),
-    artifacts: createLocalArtifactAdapter(),
-    sessions: {
-      get: () => undefined,
-      set: () => {},
+  const device = createSnapshotOnlyDevice({
+    nodes: [],
+    truncated: false,
+    backend: 'android',
+    analysis: {
+      rawNodeCount: 42,
+      maxDepth: 6,
     },
-    policy: localCommandPolicy(),
   });
 
   const result = await device.capture.snapshot({
@@ -114,6 +106,99 @@ test('runtime snapshot emits filtered Android guidance from backend analysis', a
     'Interactive snapshot is empty after filtering 42 raw Android nodes. Likely causes: depth too low, transient route change, or collector filtering.',
     'Interactive output is empty at depth 3; retry without -d.',
   ]);
+});
+
+test('runtime snapshot warns when Android hierarchy looks like a React Native overlay', async () => {
+  const device = createSnapshotOnlyDevice({
+    nodes: [
+      { ref: 'e1', index: 0, depth: 0, type: 'Text', label: 'LogBox' },
+      { ref: 'e2', index: 1, depth: 1, type: 'Text', label: 'Warnings' },
+      { ref: 'e3', index: 2, depth: 1, type: 'Button', label: 'Dismiss' },
+    ],
+    truncated: false,
+    backend: 'android',
+  });
+
+  const result = await device.capture.snapshot({ session: 'default', interactiveOnly: true });
+
+  assertReactNativeOverlayWarning(result.warnings);
+});
+
+test('runtime snapshot warns on collapsed Android React Native warning banners', async () => {
+  const device = createSnapshotOnlyDevice({
+    nodes: [
+      {
+        ref: 'e1',
+        index: 0,
+        depth: 0,
+        type: 'android.view.ViewGroup',
+        label: '!, Open debugger to view warnings.',
+      },
+      {
+        ref: 'e2',
+        index: 1,
+        depth: 1,
+        type: 'android.widget.TextView',
+        label: 'Open debugger to view warnings.',
+      },
+    ],
+    truncated: false,
+    backend: 'android',
+  });
+
+  const result = await device.capture.snapshot({ session: 'default', interactiveOnly: true });
+
+  assertReactNativeOverlayWarning(result.warnings);
+});
+
+test('runtime snapshot warns when iOS hierarchy looks like a React Native overlay', async () => {
+  const device = createSnapshotOnlyDevice({
+    nodes: [
+      {
+        ref: 'e1',
+        index: 0,
+        depth: 0,
+        type: 'XCUIElementTypeOther',
+        label: 'React Native RedBox',
+      },
+      {
+        ref: 'e2',
+        index: 1,
+        depth: 1,
+        type: 'XCUIElementTypeStaticText',
+        value: 'Runtime Error',
+      },
+      {
+        ref: 'e3',
+        index: 2,
+        depth: 1,
+        type: 'XCUIElementTypeButton',
+        identifier: 'Reload JS',
+      },
+    ],
+    truncated: false,
+    backend: 'xctest',
+  });
+
+  const result = await device.capture.snapshot({ session: 'default', interactiveOnly: true });
+
+  assertReactNativeOverlayWarning(result.warnings);
+});
+
+test('runtime snapshot does not warn for ordinary Android validation errors', async () => {
+  const device = createSnapshotOnlyDevice({
+    nodes: [
+      { ref: 'e1', index: 0, depth: 0, type: 'Text', label: 'Validation errors' },
+      { ref: 'e2', index: 1, depth: 1, type: 'Text', label: 'Required' },
+      { ref: 'e3', index: 2, depth: 1, type: 'Button', label: 'Submit order' },
+    ],
+    truncated: false,
+    backend: 'android',
+  });
+
+  const result = await device.capture.snapshot({ session: 'default', interactiveOnly: true });
+
+  assert.equal(result.warnings, undefined);
 });
 
 test('runtime snapshot stale-drop warning uses the runtime clock', async () => {
@@ -256,4 +341,21 @@ function createSnapshotBackend(
     platform: 'ios',
     captureSnapshot: async () => await captureSnapshot(),
   };
+}
+
+function createSnapshotOnlyDevice(result: BackendSnapshotResult) {
+  return createAgentDevice({
+    backend: createSnapshotBackend(() => result),
+    artifacts: createLocalArtifactAdapter(),
+    sessions: {
+      get: () => undefined,
+      set: () => {},
+    },
+    policy: localCommandPolicy(),
+  });
+}
+
+function assertReactNativeOverlayWarning(warnings: string[] | undefined) {
+  assert.equal(warnings?.length, 1);
+  assert.match(warnings[0] ?? '', /Possible React Native warning\/error overlay/);
 }

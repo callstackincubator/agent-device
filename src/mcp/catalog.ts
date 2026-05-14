@@ -1,19 +1,13 @@
-import { buildCommandUsageText, buildUsageText } from '../utils/command-schema.ts';
+import {
+  buildCommandUsageText,
+  buildUsageText,
+  HELP_TOPIC_NAMES,
+  type HelpTopicName,
+} from '../utils/command-schema.ts';
 import { readVersion } from '../utils/version.ts';
 
 export const MCP_SERVER_NAME = 'agent-device';
 const MCP_REGISTRY_NAME = 'io.github.callstackincubator/agent-device';
-
-const HELP_TOPICS = [
-  'workflow',
-  'debugging',
-  'react-devtools',
-  'remote',
-  'macos',
-  'dogfood',
-] as const;
-
-type HelpTopic = (typeof HELP_TOPICS)[number];
 
 type InstallArgs = {
   client?: string;
@@ -71,7 +65,7 @@ export function createHelpText(args: { topic?: string; command?: string } = {}):
   if (!target) return buildUsageText();
   if (args.topic && !isHelpTopic(args.topic)) {
     throw new Error(
-      `Unknown help topic: ${args.topic}. Expected one of: ${HELP_TOPICS.join(', ')}`,
+      `Unknown help topic: ${args.topic}. Expected one of: ${HELP_TOPIC_NAMES.join(', ')}`,
     );
   }
   const help = buildCommandUsageText(target);
@@ -116,7 +110,7 @@ export function listTools(): unknown[] {
         properties: {
           topic: {
             type: 'string',
-            enum: HELP_TOPICS,
+            enum: HELP_TOPIC_NAMES,
             description: 'Agent workflow topic.',
           },
           command: {
@@ -149,7 +143,7 @@ export function listResources(): Array<{
       description: 'Version-matched command list and global flags.',
       mimeType: 'text/plain',
     },
-    ...HELP_TOPICS.map((topic) => ({
+    ...HELP_TOPIC_NAMES.map((topic) => ({
       uri: `agent-device://help/${topic}`,
       name: `agent-device help ${topic}`,
       description: `Version-matched ${topic} workflow guidance.`,
@@ -177,19 +171,19 @@ export function listPrompts(): Array<{ name: string; description: string; argume
       'Run exploratory QA with reproducible evidence.',
     ),
     createPromptDescriptor(
-      'agent-device-react-native-performance',
-      'Inspect React Native renders.',
+      'agent-device-react-native',
+      'Plan React Native app automation with overlay and DevTools routing.',
     ),
     createPromptDescriptor('agent-device-macos', 'Inspect a macOS app or surface.'),
   ];
 }
 
 export function getPrompt(name: string, args: Record<string, string> = {}): unknown {
-  const topicByPrompt: Record<string, HelpTopic> = {
+  const topicByPrompt: Record<string, HelpTopicName> = {
     'agent-device-workflow': 'workflow',
     'agent-device-debugging': 'debugging',
     'agent-device-dogfood': 'dogfood',
-    'agent-device-react-native-performance': 'react-devtools',
+    'agent-device-react-native': 'react-native',
     'agent-device-macos': 'macos',
   };
   const topic = topicByPrompt[name];
@@ -230,6 +224,6 @@ function createPromptDescriptor(
   };
 }
 
-function isHelpTopic(value: string): value is HelpTopic {
-  return (HELP_TOPICS as readonly string[]).includes(value);
+function isHelpTopic(value: string): value is HelpTopicName {
+  return (HELP_TOPIC_NAMES as readonly string[]).includes(value);
 }

@@ -48,7 +48,7 @@ test('readRecentNetworkTraffic enriches Android GIBSDK URL lines with timing met
     [
       '03-31 17:43:32.564 V/GIBSDK  (17434): [NetworkAgent]: packet id 23911610 added, queue size: 1',
       '03-31 17:43:33.031 D/GIBSDK  (17434): [NetworkAgent] packet id 23911610 total elapsed request/response time, ms: 377; response code: 200;',
-      '03-31 17:43:33.031 D/GIBSDK  (17434): URL: https://www.expensify.com/api/fl?as=2.0.2816300925',
+      '03-31 17:43:33.031 D/GIBSDK  (17434): URL: https://api.example.com/v1/fixture?as=2.0.2816300925',
       '03-31 17:43:33.032 V/GIBSDK  (17434): [NetworkAgent]: packet id 23911610 sent successfully, 0 left in queue',
     ].join('\n'),
     'utf8',
@@ -64,7 +64,7 @@ test('readRecentNetworkTraffic enriches Android GIBSDK URL lines with timing met
 
   assert.equal(dump.exists, true);
   assert.equal(dump.entries.length, 1);
-  assert.equal(dump.entries[0]?.url, 'https://www.expensify.com/api/fl?as=2.0.2816300925');
+  assert.equal(dump.entries[0]?.url, 'https://api.example.com/v1/fixture?as=2.0.2816300925');
   assert.equal(dump.entries[0]?.timestamp, '03-31 17:43:33.031');
   assert.equal(dump.entries[0]?.status, 200);
   assert.equal(dump.entries[0]?.durationMs, 377);
@@ -83,7 +83,7 @@ test('readRecentNetworkTraffic tolerates interleaved Android lines within the pa
       '03-31 17:43:32.900 V/OtherTag (17434): unrelated line 3',
       '03-31 17:43:33.000 V/OtherTag (17434): unrelated line 4',
       '03-31 17:43:33.031 D/GIBSDK  (17434): [NetworkAgent] packet id 23911610 total elapsed request/response time, ms: 377; response code: 200;',
-      '03-31 17:43:33.032 D/GIBSDK  (17434): URL: https://www.expensify.com/api/fl?as=2.0.2816300925',
+      '03-31 17:43:33.032 D/GIBSDK  (17434): URL: https://api.example.com/v1/fixture?as=2.0.2816300925',
     ].join('\n'),
     'utf8',
   );
@@ -109,7 +109,7 @@ test('readRecentNetworkTraffic keeps Android packet enrichment disabled for Appl
     logPath,
     [
       '2026-03-31 17:43:33.031 response code: 200',
-      '2026-03-31 17:43:33.032 URL: https://www.expensify.com/api/fl?as=2.0.2816300925',
+      '2026-03-31 17:43:33.032 URL: https://api.example.com/v1/fixture?as=2.0.2816300925',
     ].join('\n'),
     'utf8',
   );
@@ -123,7 +123,7 @@ test('readRecentNetworkTraffic keeps Android packet enrichment disabled for Appl
   });
 
   assert.equal(dump.entries.length, 1);
-  assert.equal(dump.entries[0]?.url, 'https://www.expensify.com/api/fl?as=2.0.2816300925');
+  assert.equal(dump.entries[0]?.url, 'https://api.example.com/v1/fixture?as=2.0.2816300925');
   assert.equal(dump.entries[0]?.timestamp, '2026-03-31 17:43:33.032');
   assert.equal(dump.entries[0]?.status, undefined);
   assert.equal(dump.entries[0]?.durationMs, undefined);
@@ -134,7 +134,7 @@ test('readRecentNetworkTraffic ignores plain documentation URLs in non-network l
   const logPath = path.join(tempDir, 'app.log');
   fs.writeFileSync(
     logPath,
-    '2026-04-02 08:14:44.371 E New Expensify Dev[32193:8c7e18d] Airship config warning. See https://docs.airship.com/platform/mobile/setup/sdk/ios/#url-allow-list for more information.\n',
+    '2026-04-02 08:14:44.371 E Agent Device Tester[32193:8c7e18d] Airship config warning. See https://docs.airship.com/platform/mobile/setup/sdk/ios/#url-allow-list for more information.\n',
     'utf8',
   );
 
