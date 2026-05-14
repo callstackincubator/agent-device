@@ -27,7 +27,7 @@ agent-device react-devtools profile report @c5
 
 `agent-device` remains centered on the device and app runtime layer. The `react-devtools` command dynamically runs pinned `agent-react-devtools` commands for React internals.
 
-For a full slow-flow investigation, use `agent-device help react-native-performance`. That flow combines `logs clear --restart`, before/after `logs mark` entries, a narrow React DevTools profile window, `wait` for the exact async result, `network dump --include headers`, and `perf --json`.
+For React Native apps, overlays, Metro/Fast Refresh blockers, and routing to React DevTools or debugging evidence, start with `agent-device help react-native`. For slow-flow investigations, combine `help react-devtools` for the narrow React profile window with `help debugging` for log markers, network evidence, traces, and perf samples.
 
 React Native warning/error overlays belong to the app run. Treat them as findings or blockers: capture them, check `react-devtools errors` when connected, dismiss visible `Dismiss`/`Close` controls only when unrelated, then re-snapshot and report the overlay.
 
