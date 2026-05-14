@@ -12,6 +12,7 @@ import { listAndroidDevices } from '../platforms/android/devices.ts';
 import { ensureAdb } from '../platforms/android/index.ts';
 import { findBootableIosSimulator, listAppleDevices } from '../platforms/ios/devices.ts';
 import { listLinuxDevices } from '../platforms/linux/devices.ts';
+import { listMacosDevices } from '../platforms/macos/devices.ts';
 import { withDiagnosticTimer } from '../utils/diagnostics.ts';
 import {
   resolveAndroidSerialAllowlist,
@@ -163,6 +164,11 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
         );
       }
 
+      if (shouldUseHostMacFastPath(selector)) {
+        const devices = await listMacosDevices();
+        return cacheResolvedTargetDevice(cacheKey, await resolveDevice(devices, selector));
+      }
+
       if (selector.platform === 'linux') {
         const devices = await listLinuxDevices();
         return cacheResolvedTargetDevice(cacheKey, await resolveDevice(devices, selector));
@@ -202,6 +208,16 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
       );
     },
     diagnosticData,
+  );
+}
+
+function shouldUseHostMacFastPath(selector: {
+  platform?: PlatformSelector;
+  target?: DeviceTarget;
+}): boolean {
+  return (
+    selector.platform === 'macos' ||
+    (selector.platform === 'apple' && selector.target === 'desktop')
   );
 }
 
