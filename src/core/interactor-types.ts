@@ -2,6 +2,12 @@ import type { DeviceRotation } from './device-rotation.ts';
 import type { ScrollDirection } from './scroll-gesture.ts';
 import type { SettingOptions } from '../platforms/permission-utils.ts';
 import type { SessionSurface } from './session-surface.ts';
+import type { BackendSnapshotResult } from '../backend.ts';
+import type {
+  RawSnapshotNode,
+  SnapshotBackend,
+  SnapshotOptions as BaseSnapshotOptions,
+} from '../utils/snapshot.ts';
 
 export type RunnerContext = {
   requestId?: string;
@@ -17,6 +23,16 @@ export type ScreenshotOptions = {
   appBundleId?: string;
   fullscreen?: boolean;
   surface?: SessionSurface;
+};
+
+export type SnapshotOptions = BaseSnapshotOptions & {
+  appBundleId?: string;
+  surface?: SessionSurface;
+};
+
+export type SnapshotResult = Omit<BackendSnapshotResult, 'backend' | 'nodes'> & {
+  nodes?: RawSnapshotNode[];
+  backend: Extract<SnapshotBackend, 'android' | 'xctest' | 'linux-atspi'>;
 };
 
 export type Interactor = {
@@ -49,6 +65,7 @@ export type Interactor = {
     options?: { amount?: number; pixels?: number },
   ): Promise<Record<string, unknown> | void>;
   screenshot(outPath: string, options?: ScreenshotOptions): Promise<void>;
+  snapshot(options?: SnapshotOptions): Promise<SnapshotResult>;
   back(mode?: BackMode): Promise<void>;
   home(): Promise<void>;
   rotate(orientation: DeviceRotation): Promise<void>;

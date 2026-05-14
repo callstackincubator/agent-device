@@ -6,20 +6,17 @@ import {
   dismissAndroidKeyboard,
   getAndroidKeyboardState,
   pushAndroidNotification,
-  snapshotAndroid,
 } from '../platforms/android/index.ts';
-import { getInteractor, type Interactor, type RunnerContext } from './interactors.ts';
+import { getInteractor } from './interactors.ts';
+import type { Interactor, RunnerContext } from './interactor-types.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { pushIosNotification } from '../platforms/ios/index.ts';
-import { snapshotLinux } from '../platforms/linux/snapshot.ts';
 import { isDeepLinkTarget } from './open-target.ts';
 import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
-import type { RawSnapshotNode } from '../utils/snapshot.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
 import { readLocationCoordinate } from '../utils/location-coordinates.ts';
 import { successText, withSuccessText } from '../utils/success-text.ts';
 import type { DispatchContext } from './dispatch-context.ts';
-import { shouldUseIosTapSeries, shouldUseIosDragSeries } from './dispatch-series.ts';
 import {
   handleFillCommand,
   handleFocusCommand,
@@ -35,7 +32,6 @@ import { readNotificationPayload } from './dispatch-payload.ts';
 import { parseDeviceRotation } from './device-rotation.ts';
 
 export { resolveTargetDevice } from './dispatch-resolve.ts';
-export { shouldUseIosTapSeries, shouldUseIosDragSeries };
 export type { BatchStep, CommandFlags, DispatchContext } from './dispatch-context.ts';
 
 export async function dispatchCommand(
@@ -77,9 +73,9 @@ export async function dispatchCommand(
           return { app, ...successText(`Closed: ${app}`) };
         }
         case 'press':
-          return handlePressCommand(device, interactor, positionals, context, runnerCtx);
+          return handlePressCommand(device, interactor, positionals, context);
         case 'swipe':
-          return handleSwipeCommand(device, interactor, positionals, context, runnerCtx);
+          return handleSwipeCommand(device, interactor, positionals, context);
         case 'longpress':
           return handleLongPressCommand(interactor, positionals);
         case 'focus':
@@ -91,7 +87,7 @@ export async function dispatchCommand(
         case 'scroll':
           return handleScrollCommand(interactor, positionals, context);
         case 'pinch':
-          return handlePinchCommand(device, positionals, context, runnerCtx);
+          return handlePinchCommand(device, positionals, context);
         case 'trigger-app-event': {
           const { eventName, payload } = parseTriggerAppEventArgs(positionals);
           const eventUrl = resolveAppEventUrl(device.platform, eventName, payload);
@@ -135,15 +131,15 @@ export async function dispatchCommand(
         case 'clipboard':
           return handleClipboardCommand(interactor, positionals);
         case 'keyboard':
-          return handleKeyboardCommand(device, interactor, positionals, context, runnerCtx);
+          return handleKeyboardCommand(device, positionals, context, runnerCtx);
         case 'settings':
           return handleSettingsCommand(device, interactor, positionals, context);
         case 'push':
           return handlePushCommand(device, positionals, context);
         case 'snapshot':
-          return handleSnapshotCommand(device, positionals, context, runnerCtx);
+          return await handleSnapshotCommand(interactor, context);
         case 'read':
-          return handleReadCommand(device, positionals, context, runnerCtx);
+          return handleReadCommand(device, positionals, context);
         default:
           throw new AppError('INVALID_ARGS', `Unknown command: ${command}`);
       }
@@ -230,7 +226,6 @@ async function handleClipboardCommand(
 
 async function handleKeyboardCommand(
   device: DeviceInfo,
-  _interactor: Interactor,
   positionals: string[],
   context: DispatchContext | undefined,
   runnerCtx: RunnerContext,
@@ -367,76 +362,18 @@ async function handlePushCommand(
 }
 
 async function handleSnapshotCommand(
-  device: DeviceInfo,
-  _positionals: string[],
+  interactor: Interactor,
   context: DispatchContext | undefined,
-  _runnerCtx: RunnerContext,
 ): Promise<Record<string, unknown>> {
-  if (device.platform === 'linux') {
-    const linuxResult = await withDiagnosticTimer(
-      'snapshot_capture',
-      async () => await snapshotLinux(context?.surface),
-      { backend: 'linux-atspi' },
-    );
-    return {
-      nodes: linuxResult.nodes ?? [],
-      truncated: linuxResult.truncated ?? false,
-      backend: 'linux-atspi',
-    };
-  }
-  if (device.platform !== 'android') {
-    const result = (await withDiagnosticTimer(
-      'snapshot_capture',
-      async () =>
-        await runIosRunnerCommand(
-          device,
-          {
-            command: 'snapshot',
-            appBundleId: context?.appBundleId,
-            interactiveOnly: context?.snapshotInteractiveOnly,
-            compact: context?.snapshotCompact,
-            depth: context?.snapshotDepth,
-            scope: context?.snapshotScope,
-            raw: context?.snapshotRaw,
-          },
-          {
-            verbose: context?.verbose,
-            logPath: context?.logPath,
-            traceLogPath: context?.traceLogPath,
-            requestId: context?.requestId,
-          },
-        ),
-      {
-        backend: 'xctest',
-      },
-    )) as { nodes?: RawSnapshotNode[]; truncated?: boolean };
-    const nodes = result.nodes ?? [];
-    if (nodes.length === 0 && device.kind === 'simulator') {
-      throw new AppError('COMMAND_FAILED', 'XCTest snapshot returned 0 nodes on iOS simulator.');
-    }
-    return { nodes, truncated: result.truncated ?? false, backend: 'xctest' };
-  }
-  const androidResult = await withDiagnosticTimer(
-    'snapshot_capture',
-    async () =>
-      await snapshotAndroid(device, {
-        interactiveOnly: context?.snapshotInteractiveOnly,
-        compact: context?.snapshotCompact,
-        depth: context?.snapshotDepth,
-        scope: context?.snapshotScope,
-        raw: context?.snapshotRaw,
-      }),
-    {
-      backend: 'android',
-    },
-  );
-  return {
-    nodes: androidResult.nodes ?? [],
-    truncated: androidResult.truncated ?? false,
-    backend: 'android',
-    analysis: androidResult.analysis,
-    androidSnapshot: androidResult.androidSnapshot,
-  };
+  return await interactor.snapshot({
+    appBundleId: context?.appBundleId,
+    interactiveOnly: context?.snapshotInteractiveOnly,
+    compact: context?.snapshotCompact,
+    depth: context?.snapshotDepth,
+    scope: context?.snapshotScope,
+    raw: context?.snapshotRaw,
+    surface: context?.surface,
+  });
 }
 
 function readResultMessage(result: Record<string, unknown>): string | undefined {

@@ -1,7 +1,7 @@
 import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { handlePressCommand } from '../dispatch-interactions.ts';
-import type { Interactor } from '../interactors.ts';
+import type { Interactor } from '../interactor-types.ts';
 import { MACOS_DEVICE } from '../../__tests__/test-utils/device-fixtures.ts';
 
 vi.mock('../../platforms/ios/macos-helper.ts', async (importOriginal) => {
@@ -31,6 +31,7 @@ function makeUnusedInteractor(): Interactor {
     fill: fail,
     scroll: fail,
     screenshot: fail,
+    snapshot: fail,
     back: fail,
     home: fail,
     rotate: fail,
@@ -45,16 +46,10 @@ test('handlePressCommand routes macOS menubar press through the helper', async (
   const mockRunMacOsPressAction = vi.mocked(runMacOsPressAction);
   mockRunMacOsPressAction.mockClear();
 
-  const result = await handlePressCommand(
-    MACOS_DEVICE,
-    makeUnusedInteractor(),
-    ['100', '200'],
-    {
-      surface: 'menubar',
-      appBundleId: 'com.example.menubarapp',
-    },
-    {},
-  );
+  const result = await handlePressCommand(MACOS_DEVICE, makeUnusedInteractor(), ['100', '200'], {
+    surface: 'menubar',
+    appBundleId: 'com.example.menubarapp',
+  });
 
   assert.deepEqual(result, {
     x: 100,
