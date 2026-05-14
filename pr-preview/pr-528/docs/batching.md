@@ -108,14 +108,14 @@ Open app -> open thread -> type -> send
   { "command": "open", "positionals": ["com.example.chat"], "flags": { "platform": "android" } },
   { "command": "wait", "positionals": ["text", "Inbox", "3000"], "flags": {} },
   { "command": "press", "positionals": ["label=\"Inbox\" role=button"], "flags": {} },
-  { "command": "press", "positionals": ["label=\"Adam Horodyski\""], "flags": {} },
+  { "command": "press", "positionals": ["label=\"Morgan Lee\""], "flags": {} },
   {
     "command": "fill",
-    "positionals": ["label=\"Message\" role=text-field", "filed the expense"],
+    "positionals": ["label=\"Message\" role=text-field", "sent the update"],
     "flags": {}
   },
   { "command": "press", "positionals": ["label=\"Send\" role=button"], "flags": {} },
-  { "command": "wait", "positionals": ["text", "filed the expense", "3000"], "flags": {} }
+  { "command": "wait", "positionals": ["text", "sent the update", "3000"], "flags": {} }
 ]
 ```
 
@@ -126,10 +126,10 @@ Open app -> open action menu -> choose option -> verify
   { "command": "open", "positionals": ["com.example.app"], "flags": { "platform": "android" } },
   { "command": "wait", "positionals": ["text", "Home", "3000"], "flags": {} },
   { "command": "press", "positionals": ["label=\"More actions\" role=button"], "flags": {} },
-  { "command": "wait", "positionals": ["text", "Camera scan", "2000"], "flags": {} },
-  { "command": "press", "positionals": ["label=\"Camera scan\""], "flags": {} },
-  { "command": "wait", "positionals": ["text", "Expense created", "15000"], "flags": {} },
-  { "command": "is", "positionals": ["visible", "label=\"Expense created\""], "flags": {} }
+  { "command": "wait", "positionals": ["text", "Scan document", "2000"], "flags": {} },
+  { "command": "press", "positionals": ["label=\"Scan document\""], "flags": {} },
+  { "command": "wait", "positionals": ["text", "Document uploaded", "15000"], "flags": {} },
+  { "command": "is", "positionals": ["visible", "label=\"Document uploaded\""], "flags": {} }
 ]
 ```
 
