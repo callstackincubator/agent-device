@@ -8,7 +8,7 @@ import { handleRecordTraceCommands } from './handlers/record-trace.ts';
 import { handleSessionCommands } from './handlers/session.ts';
 import { handleSnapshotCommands } from './handlers/snapshot.ts';
 import type { LeaseRegistry } from './lease-registry.ts';
-import { SessionStore } from './session-store.ts';
+import type { SessionStore } from './session-store.ts';
 import type { DaemonRequest, DaemonResponse } from './types.ts';
 
 export async function runRequestHandlerChain(params: {
