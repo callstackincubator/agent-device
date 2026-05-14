@@ -6,7 +6,9 @@ export function parseAndroidLaunchablePackages(stdout: string): string[] {
     const trimmed = line.trim();
     if (!trimmed) continue;
     const firstToken = trimmed.split(/\s+/)[0];
-    const pkg = firstToken.includes('/') ? firstToken.split('/')[0] : firstToken;
+    if (!firstToken.includes('/')) continue;
+    const pkg = firstToken.split('/')[0];
+    if (!pkg.includes('.')) continue;
     if (pkg) packages.add(pkg);
   }
   return Array.from(packages);

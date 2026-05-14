@@ -204,7 +204,7 @@ function buildSnapshotWarnings(params: {
     (analysis.rawNodeCount ?? 0) >= 12
   ) {
     warnings.push(
-      `Interactive snapshot is empty after filtering ${analysis.rawNodeCount} raw Android nodes. Likely causes: depth too low, transient route change, or collector filtering.`,
+      `Interactive snapshot is empty after filtering ${analysis.rawNodeCount} raw Android nodes. Likely causes: the app content is not accessibility-visible yet, a transient route change, or depth/filter options hid the target.`,
     );
     if (
       typeof params.options.depth === 'number' &&

@@ -280,8 +280,8 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (Apple simulator or mac
 `type` accepts text only. Do not pass `@ref` to `type`; use `fill @ref "text"` to target a field directly, or `press @ref` then `type "text"` to append in the focused field.
 Use `--delay-ms` on `type` or `fill` for debounced search fields and search-as-you-type inputs that miss characters when text is injected too quickly.
 Delayed typing prefers paced character entry over clipboard-style fallbacks so the target field still receives incremental updates.
-On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
-Some Android images cannot enter non-ASCII text over shell input. Use `fill`/`type` and let `agent-device` own the safer fallback path; do not switch to clipboard or paste for non-ASCII field entry. If the shell still reports unsupported non-ASCII input, use a trusted ADB keyboard IME and verify APK checksum/signature before install.
+On Android, `fill` also verifies text and treats IME-owned capture as a terminal failure instead of retrying against the wrong field.
+Android text entry is owned by `agent-device`: provider-native injection when available, then chunk-safe ASCII shell input. Do not switch to raw `adb`, clipboard, or paste as an agent fallback. If non-ASCII is unsupported in the current backend, report the tool/device gap.
 `click --button secondary` is the desktop context-menu flow on macOS.
 `click --button middle` is reserved for future runner support and currently returns an explicit unsupported-operation error on macOS.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).

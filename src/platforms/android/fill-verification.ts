@@ -8,6 +8,7 @@ import {
   isSensitiveFillDiagnosticNode,
 } from '../fill-diagnostics.ts';
 import { sleep } from './adb.ts';
+import { isAndroidInputMethodOwned } from './input-ownership.ts';
 import { dumpUiHierarchy } from './snapshot.ts';
 import { androidUiNodes, type AndroidUiNodeMetadata } from './ui-hierarchy.ts';
 
@@ -55,6 +56,9 @@ export async function verifyAndroidFilledText(
     const verification = await inspectAndroidFilledText(device, x, y, expected);
     lastVerification = verification;
     if (verification.ok) {
+      return verification;
+    }
+    if (verification.reason === 'ime_capture') {
       return verification;
     }
   }
@@ -254,7 +258,7 @@ function androidFillCandidateFromNode(
     rect: node.rect,
     focused: node.focused ?? false,
     password: node.password === true,
-    inputMethodOwned: isInputMethodOwnedAndroidNode(node.packageName, node.resourceId),
+    inputMethodOwned: isAndroidInputMethodOwned(node.packageName, node.resourceId),
     area,
     editText: isEditTextClass(node.className ?? ''),
   };
@@ -302,17 +306,6 @@ function androidTextAtPointInspection(scan: AndroidTextAtPointScan): AndroidText
 function isEditTextClass(className: string): boolean {
   const lower = className.toLowerCase();
   return lower.includes('edittext') || lower.includes('textfield');
-}
-
-function isInputMethodOwnedAndroidNode(
-  packageName: string | null,
-  resourceId: string | null,
-): boolean {
-  const normalizedPackageName = (packageName ?? '').toLowerCase();
-  const normalizedResourceId = (resourceId ?? '').toLowerCase();
-  if (normalizedPackageName.includes('inputmethod')) return true;
-  if (normalizedPackageName === 'com.google.android.inputmethod.latin') return true;
-  return normalizedResourceId.startsWith('com.google.android.inputmethod.latin:id/');
 }
 
 function isMaskedAndroidInput(node: AndroidFillVerificationNode): boolean {

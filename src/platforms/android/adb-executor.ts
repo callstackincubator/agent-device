@@ -98,6 +98,31 @@ export type AndroidAdbInstaller = (
   options?: AndroidAdbInstallOptions,
 ) => Promise<AndroidAdbExecutorResult>;
 
+export type AndroidTextInjectionBackend = 'provider-native' | 'helper' | 'adb-shell';
+
+export type AndroidTextInjectionRequest = {
+  action: 'type' | 'fill';
+  text: string;
+  delayMs?: number;
+  /**
+   * Present only for fill. Providers must make this target the focused/replaced
+   * input for the request, not inject into an unrelated currently focused field.
+   */
+  target?: {
+    x: number;
+    y: number;
+  };
+};
+
+export type AndroidTextInjectionResult = {
+  backend: AndroidTextInjectionBackend;
+  textLength: number;
+};
+
+export type AndroidTextInjector = (
+  request: AndroidTextInjectionRequest,
+) => Promise<AndroidTextInjectionResult>;
+
 export type AndroidAdbProvider = {
   /**
    * Fallback executor for device-scoped adb arguments. Providers may omit explicit
@@ -108,6 +133,7 @@ export type AndroidAdbProvider = {
   reverse?: AndroidPortReverseProvider;
   pull?: AndroidAdbPuller;
   install?: AndroidAdbInstaller;
+  text?: AndroidTextInjector;
 };
 
 export type AndroidAdbProviderScopeOptions = {
@@ -180,6 +206,11 @@ export function resolveAndroidAdbProvider(
   return scoped?.serial === device.id
     ? normalizeAndroidAdbProvider(scoped.provider)
     : createLocalAndroidAdbProvider(device);
+}
+
+export function resolveAndroidTextInjector(device: DeviceInfo): AndroidTextInjector | undefined {
+  const scoped = androidAdbProviderScope.getStore();
+  return scoped?.serial === device.id ? scoped.provider.text : undefined;
 }
 
 export function createAndroidPortReverseManager(

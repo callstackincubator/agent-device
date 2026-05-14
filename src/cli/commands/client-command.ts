@@ -4,10 +4,12 @@ import type {
   ClipboardCommandOptions,
   ClipboardCommandResult,
   KeyboardCommandOptions,
+  KeyboardCommandResult,
   RotateCommandOptions,
 } from '../../client.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { AppError } from '../../utils/errors.ts';
+import { readCommandMessage } from '../../utils/success-text.ts';
 import { waitCommandCodec } from '../../command-codecs.ts';
 import { parseDeviceRotation } from '../../core/device-rotation.ts';
 import { buildSelectionOptions, writeCommandMessage, writeCommandOutput } from './shared.ts';
@@ -50,7 +52,7 @@ export const clientCommandMethodHandlers = {
     return true;
   },
   keyboard: async ({ positionals, flags, client }) => {
-    writeCommandMessage(
+    writeKeyboardOutput(
       flags,
       await client.command.keyboard(readKeyboardOptions(positionals, flags)),
     );
@@ -97,6 +99,24 @@ function readKeyboardOptions(positionals: string[], flags: CliFlags): KeyboardCo
     ...buildSelectionOptions(flags),
     ...(action ? { action } : {}),
   };
+}
+
+function writeKeyboardOutput(flags: CliFlags, result: KeyboardCommandResult): void {
+  writeCommandOutput(flags, result, () => {
+    if (result.platform === 'android' && result.action === 'status') {
+      const lines = [
+        `Keyboard visible: ${result.visible === true ? 'yes' : 'no'}`,
+        `Input type: ${result.type ?? result.inputType ?? 'unknown'}`,
+        `Input owner: ${result.inputOwner ?? 'unknown'}`,
+      ];
+      if (result.inputMethodPackage) lines.push(`Input method: ${result.inputMethodPackage}`);
+      if (result.focusedPackage) lines.push(`Focused package: ${result.focusedPackage}`);
+      if (result.focusedResourceId) lines.push(`Focused resource: ${result.focusedResourceId}`);
+      if (result.nextAction) lines.push(`Next action: ${result.nextAction}`);
+      return lines.join('\n');
+    }
+    return readCommandMessage(result);
+  });
 }
 
 function readClipboardOptions(positionals: string[], flags: CliFlags): ClipboardCommandOptions {

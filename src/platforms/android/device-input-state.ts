@@ -2,6 +2,7 @@ import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { isClipboardShellUnsupported, sleep } from './adb.ts';
 import { resolveAndroidAdbExecutor, type AndroidAdbExecutor } from './adb-executor.ts';
+import { classifyAndroidInputOwner, type AndroidInputOwner } from './input-ownership.ts';
 
 const ANDROID_INPUT_TYPE_CLASS_MASK = 0x0000000f;
 const ANDROID_INPUT_TYPE_CLASS_TEXT = 0x00000001;
@@ -31,6 +32,17 @@ export type AndroidKeyboardState = {
   visible: boolean;
   inputType?: string;
   type?: AndroidKeyboardType;
+  inputMethodPackage?: string;
+  focusedPackage?: string;
+  focusedResourceId?: string;
+  inputOwner: AndroidInputOwner;
+  nextAction: string;
+};
+
+export type AndroidKeyboardDismissResult = AndroidKeyboardState & {
+  attempts: number;
+  wasVisible: boolean;
+  dismissed: boolean;
 };
 
 export async function getAndroidKeyboardState(device: DeviceInfo): Promise<AndroidKeyboardState> {
@@ -53,25 +65,15 @@ export async function getAndroidKeyboardStatusWithAdb(
   return parseAndroidKeyboardState(result.stdout);
 }
 
-export async function dismissAndroidKeyboard(device: DeviceInfo): Promise<{
-  attempts: number;
-  wasVisible: boolean;
-  dismissed: boolean;
-  visible: boolean;
-  inputType?: string;
-  type?: AndroidKeyboardType;
-}> {
+export async function dismissAndroidKeyboard(
+  device: DeviceInfo,
+): Promise<AndroidKeyboardDismissResult> {
   return await dismissAndroidKeyboardWithAdb(resolveAndroidAdbExecutor(device));
 }
 
-export async function dismissAndroidKeyboardWithAdb(adb: AndroidAdbExecutor): Promise<{
-  attempts: number;
-  wasVisible: boolean;
-  dismissed: boolean;
-  visible: boolean;
-  inputType?: string;
-  type?: AndroidKeyboardType;
-}> {
+export async function dismissAndroidKeyboardWithAdb(
+  adb: AndroidAdbExecutor,
+): Promise<AndroidKeyboardDismissResult> {
   const initialState = await getAndroidKeyboardStatusWithAdb(adb);
   let state = initialState;
   let attempts = 0;
@@ -91,6 +93,11 @@ export async function dismissAndroidKeyboardWithAdb(adb: AndroidAdbExecutor): Pr
         attempts,
         inputType: state.inputType,
         type: state.type,
+        inputMethodPackage: state.inputMethodPackage,
+        focusedPackage: state.focusedPackage,
+        focusedResourceId: state.focusedResourceId,
+        inputOwner: state.inputOwner,
+        nextAction: state.nextAction,
       },
     );
   }
@@ -102,6 +109,11 @@ export async function dismissAndroidKeyboardWithAdb(adb: AndroidAdbExecutor): Pr
     visible: state.visible,
     inputType: state.inputType,
     type: state.type,
+    inputMethodPackage: state.inputMethodPackage,
+    focusedPackage: state.focusedPackage,
+    focusedResourceId: state.focusedResourceId,
+    inputOwner: state.inputOwner,
+    nextAction: state.nextAction,
   };
 }
 
@@ -122,12 +134,54 @@ function parseAndroidKeyboardState(stdout: string): AndroidKeyboardState {
   const lastInputType =
     inputTypeMatches.length > 0 ? inputTypeMatches[inputTypeMatches.length - 1]?.[1] : undefined;
   const inputType = lastInputType ? `0x${lastInputType.toLowerCase()}` : undefined;
+  const focusedPackage = parseLastDumpsysValue(stdout, /\bpackageName=([A-Za-z0-9_.]+)\b/g);
+  const focusedResourceId = parseLastDumpsysValue(
+    stdout,
+    /\b(?:resourceId|resource-id)=([^\s,}]+)/g,
+  );
+  const inputMethodPackage = parseAndroidInputMethodPackage(stdout);
+  const inputOwner = classifyAndroidInputOwner(
+    focusedPackage,
+    focusedResourceId,
+    inputMethodPackage,
+  );
 
   return {
     visible,
     inputType,
     type: inputType ? classifyAndroidKeyboardType(inputType) : undefined,
+    inputMethodPackage,
+    focusedPackage,
+    focusedResourceId,
+    inputOwner,
+    nextAction: androidKeyboardNextAction(visible, inputOwner),
   };
+}
+
+function parseAndroidInputMethodPackage(stdout: string): string | undefined {
+  const methodId = parseLastDumpsysValue(
+    stdout,
+    /\b(?:mCurMethodId|mCurId|mCurrentInputMethodId)=([^\s]+)/g,
+  );
+  return methodId?.split('/')[0];
+}
+
+function parseLastDumpsysValue(stdout: string, pattern: RegExp): string | undefined {
+  let value: string | undefined;
+  for (const match of stdout.matchAll(pattern)) {
+    value = match[1];
+  }
+  return value;
+}
+
+function androidKeyboardNextAction(visible: boolean, inputOwner: AndroidInputOwner): string {
+  if (inputOwner === 'ime') {
+    return 'Focused input appears to be owned by the keyboard/IME; dismiss or change the IME before retrying text entry.';
+  }
+  if (visible) {
+    return 'Keyboard is visible and focused input appears app-owned; fill/type can proceed.';
+  }
+  return 'Keyboard is hidden; focus an app field before type, or use fill with a concrete target.';
 }
 
 function parseAndroidKeyboardVisibility(stdout: string): boolean | null {

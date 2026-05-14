@@ -80,7 +80,7 @@ Public subpath API exposed for Node consumers:
   - `resolveAndroidLaunchComponentWithAdb(executor, packageName, categories?)`
   - `listAndroidAppsWithAdb(executor, options?)`
   - `getAndroidAppStateWithAdb(executor)`
-  - types: `AndroidAdbProvider`, `AndroidAdbExecutor`, `AndroidAdbExecutorOptions`, `AndroidAdbExecutorResult`, `AndroidAdbProcess`, `AndroidAdbSpawner`, `AndroidPortReverseProvider`
+  - types: `AndroidAdbProvider`, `AndroidAdbExecutor`, `AndroidAdbExecutorOptions`, `AndroidAdbExecutorResult`, `AndroidAdbProcess`, `AndroidAdbSpawner`, `AndroidPortReverseProvider`, `AndroidTextInjector`
 
 The `contracts`, `selectors`, `finders`, `install-source`, `android-adb`, `artifacts`, `batch`, `metro`, `remote-config`, and `io` subpaths are the supported Node entry points. The former compatibility subpaths `agent-device/android-apps` and `agent-device/daemon`, plus hosted-runtime subpaths `agent-device/commands`, `agent-device/backend`, `agent-device/testing/conformance`, and `agent-device/observability`, are no longer published.
 
@@ -122,6 +122,11 @@ await client.sessions.close();
 Remote Android providers should import `agent-device/android-snapshot-helper` and inject their own
 ADB-shaped executor. The executor receives arguments after `adb`, so local callers may wrap
 `adb -s <serial>`, while cloud providers can route the same operations through an ADB tunnel.
+
+Remote Android providers that expose stronger text entry should attach a provider-native
+`AndroidTextInjector` to their `AndroidAdbProvider`. Agent Device prefers that injector for
+`fill`/`type`; without one, local Android text entry uses chunk-safe ASCII shell input and
+reports unsupported non-ASCII/control text explicitly.
 
 ```ts
 import {

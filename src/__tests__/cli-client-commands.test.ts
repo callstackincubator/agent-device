@@ -637,6 +637,49 @@ test('clipboard read keeps human text output through the typed client command AP
   assert.equal(stdout, 'hello\n');
 });
 
+test('keyboard status prints Android input ownership in human output', async () => {
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+  });
+  client.command.keyboard = async () => ({
+    platform: 'android',
+    action: 'status',
+    visible: true,
+    type: 'text',
+    inputMethodPackage: 'com.google.android.inputmethod.latin',
+    focusedPackage: 'com.google.android.inputmethod.latin',
+    focusedResourceId: 'com.google.android.inputmethod.latin:id/handwriting',
+    inputOwner: 'ime',
+    nextAction: 'Focused input appears to be owned by the keyboard/IME.',
+  });
+
+  const stdout = await captureStdout(async () => {
+    const handled = await tryRunClientBackedCommand({
+      command: 'keyboard',
+      positionals: ['status'],
+      flags: {
+        json: false,
+        help: false,
+        version: false,
+      },
+      client,
+    });
+    assert.equal(handled, true);
+  });
+
+  assert.match(stdout, /Keyboard visible: yes/);
+  assert.match(stdout, /Input type: text/);
+  assert.match(stdout, /Input owner: ime/);
+  assert.match(stdout, /Input method: com\.google\.android\.inputmethod\.latin/);
+  assert.match(
+    stdout,
+    /Focused resource: com\.google\.android\.inputmethod\.latin:id\/handwriting/,
+  );
+  assert.match(stdout, /Next action: Focused input appears to be owned by the keyboard\/IME\./);
+});
+
 test('metro prepare wraps output in the standard success envelope for --json', async () => {
   const client = createStubClient({
     installFromSource: async () => {

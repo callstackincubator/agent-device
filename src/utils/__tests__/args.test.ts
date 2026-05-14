@@ -879,8 +879,8 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /Android Gboard handwriting\/stylus UI can capture text/);
   assert.match(help, /targetInput\/actualInput details/);
   assert.match(help, /Do not keep retrying fill\/type against the same field/);
-  assert.match(help, /do not switch to clipboard or paste for non-ASCII field entry/);
-  assert.match(help, /trusted ADB keyboard IME/);
+  assert.match(help, /provider-native text injection when available/);
+  assert.match(help, /Do not switch to raw adb, clipboard, or paste as an agent fallback/);
   assert.match(help, /if no URL is provided but a target\/app name is provided, open that target/);
   assert.match(help, /do not split clear\/restart/);
   assert.match(help, /do not write network log headers/);

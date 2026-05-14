@@ -83,7 +83,8 @@ test('help workflow preserves known device workaround guidance', async () => {
   assert.match(result.stdout, /do not write network log headers/);
   assert.match(result.stdout, /iOS Allow Paste prompt cannot be exercised under XCUITest/);
   assert.match(result.stdout, /agent-device clipboard write "some text"/);
-  assert.match(result.stdout, /trusted ADB keyboard IME/);
+  assert.match(result.stdout, /provider-native text injection when available/);
+  assert.match(result.stdout, /Do not switch to raw adb, clipboard, or paste as an agent fallback/);
 });
 
 test('help unknown command prints error plus global usage and skips daemon dispatch', async () => {

@@ -103,7 +103,7 @@ test('runtime snapshot emits filtered Android guidance from backend analysis', a
   });
 
   assert.deepEqual(result.warnings, [
-    'Interactive snapshot is empty after filtering 42 raw Android nodes. Likely causes: depth too low, transient route change, or collector filtering.',
+    'Interactive snapshot is empty after filtering 42 raw Android nodes. Likely causes: the app content is not accessibility-visible yet, a transient route change, or depth/filter options hid the target.',
     'Interactive output is empty at depth 3; retry without -d.',
   ]);
 });
