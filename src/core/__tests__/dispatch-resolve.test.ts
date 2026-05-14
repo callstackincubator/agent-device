@@ -190,12 +190,45 @@ test('resolveTargetDevice uses injected device inventory without local discovery
 });
 
 test('resolveTargetDevice treats empty injected inventory as authoritative', async () => {
-  const err = await withDeviceInventoryProvider(
-    async () => [],
-    async () => await resolveTargetDevice({ platform: 'ios' }),
-  ).catch((error) => error);
+  await expectDeviceNotFound(() =>
+    withDeviceInventoryProvider(
+      async () => [],
+      async () => await resolveTargetDevice({ platform: 'ios' }),
+    ),
+  );
+
+  assert.equal(mockListAppleDevices.mock.calls.length, 0);
+});
+
+test('resolveTargetDevice fast-paths explicit macOS without Apple mobile discovery', async () => {
+  const result = await resolveTargetDevice({ platform: 'macos' });
+
+  assert.equal(result.platform, 'macos');
+  assert.equal(result.id, 'host-macos-local');
+  assert.equal(mockListAppleDevices.mock.calls.length, 0);
+});
+
+test('resolveTargetDevice fast-paths Apple desktop target without simulator-set discovery', async () => {
+  const result = await resolveTargetDevice({
+    platform: 'apple',
+    target: 'desktop',
+    iosSimulatorDeviceSet: '/tmp/simulators',
+  });
+
+  assert.equal(result.platform, 'macos');
+  assert.equal(result.target, 'desktop');
+  assert.equal(mockListAppleDevices.mock.calls.length, 0);
+});
+
+test('resolveTargetDevice fast-path preserves macOS selector validation', async () => {
+  await expectDeviceNotFound(() => resolveTargetDevice({ platform: 'macos', udid: 'other-mac' }));
+
+  assert.equal(mockListAppleDevices.mock.calls.length, 0);
+});
+
+async function expectDeviceNotFound(action: () => Promise<unknown>): Promise<void> {
+  const err = await action().catch((error) => error);
 
   assert.ok(err instanceof AppError);
   assert.equal(err.code, 'DEVICE_NOT_FOUND');
-  assert.equal(mockListAppleDevices.mock.calls.length, 0);
-});
+}

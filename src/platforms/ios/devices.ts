@@ -6,6 +6,7 @@ import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo, DeviceTarget } from '../../utils/device.ts';
 import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
+import { buildHostMacDevice } from '../macos/devices.ts';
 import { buildSimctlArgs } from './simctl.ts';
 
 const IOS_DEVICECTL_LIST_TIMEOUT_MS = resolveTimeoutMs(
@@ -47,7 +48,6 @@ type IosDeviceDiscoveryOptions = {
   simulatorSetPath?: string;
 };
 
-const HOST_MAC_DEVICE_ID = 'host-macos-local';
 const XCTRACE_SECTION_HEADER_PATTERN = /^==\s*(.+?)\s*==$/;
 const XCTRACE_DEVICE_LINE_PATTERN = /^(?<name>.+?)\s+\[(?<id>[^[\]]+)\]\s*$/;
 
@@ -179,17 +179,6 @@ export async function findBootableIosSimulator(
   }
 
   return bestBooted ?? bestMobile ?? bestAny;
-}
-
-function buildHostMacDevice(): DeviceInfo {
-  return {
-    platform: 'macos',
-    id: HOST_MAC_DEVICE_ID,
-    name: os.hostname(),
-    kind: 'device',
-    target: 'desktop',
-    booted: true,
-  };
 }
 
 function parseSimctlAppleDevices(
