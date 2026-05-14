@@ -49,7 +49,7 @@ Add this as a project rule, custom instruction, or skill equivalent when your ag
 ```text
 Use agent-device only for app/device automation tasks. Before planning commands, run `agent-device --version` and read `agent-device help workflow`. For exploratory QA, read `agent-device help dogfood`. For logs, network, traces, or runtime failures, read `agent-device help debugging`. For React Native component trees, props/state/hooks, slow renders, or rerenders, read `agent-device help react-devtools`.
 
-Use the CLI in the integrated terminal. If `agent-device` is not on PATH but the user installed it globally in another shell, ask the user's login shell for the absolute path and run that path instead. For macOS zsh users, use `zsh -lic 'command -v agent-device'`; for other shells, use the equivalent login-shell lookup. Do not silently fall back to `npx -y agent-device@latest`; ask or use an exact version. MCP is only a discovery/help router and does not expose device automation tools. Prefer `open -> snapshot -i -> act -> re-snapshot -> verify -> close`. Use current refs such as `@e3` for exploration and selectors for durable replay. Keep mutating commands against one session serial. Capture screenshots, logs, network, perf, traces, recordings, and `.ad` replay scripts only when they add evidence.
+Use the CLI in the integrated terminal. If `agent-device` is not on PATH but the user installed it globally in another shell, resolve the command the same way the user would from a normal terminal session and run that absolute path instead. This may require inspecting shell startup behavior or package-manager/global bin locations; do not assume the agent process `PATH` is the user's `PATH`. Do not silently fall back to `npx -y agent-device@latest`; ask or use an exact version. MCP is only a discovery/help router and does not expose device automation tools. Prefer `open -> snapshot -i -> act -> re-snapshot -> verify -> close`. Use current refs such as `@e3` for exploration and selectors for durable replay. Keep mutating commands against one session serial. Capture screenshots, logs, network, perf, traces, recordings, and `.ad` replay scripts only when they add evidence.
 ```
 
 ## MCP router
@@ -108,15 +108,7 @@ agent-device open <app-or-url> --platform ios
 agent-device snapshot -i
 ```
 
-Some agent clients run commands in an environment that differs from the user's normal install shell. If the user installed `agent-device` globally but the agent cannot find it, have the agent ask the user's login shell for the absolute path.
-
-For macOS zsh users:
-
-```bash
-zsh -lic 'command -v agent-device'
-```
-
-For other shells, use the equivalent login-shell lookup. Then use the printed path for `--version`, `help workflow`, and subsequent commands.
+Some agent clients run commands in an environment that differs from the user's normal install shell. If the user installed `agent-device` globally but the agent cannot find it, resolve the command the same way the user would from a normal terminal session, then use the absolute binary path for `--version`, `help workflow`, and subsequent commands. This may require inspecting shell startup behavior or package-manager/global bin locations; do not assume the agent process `PATH` is the user's `PATH`.
 
 For reviews or planning-only tasks, tell the agent not to run devices unless explicitly requested.
 

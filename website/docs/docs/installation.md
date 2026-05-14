@@ -23,15 +23,7 @@ agent-device help debugging
 agent-device help react-devtools
 ```
 
-Some agent clients run commands in an environment that differs from the user's normal install shell. If `agent-device` is missing in the agent terminal but was installed globally elsewhere, ask the user's login shell for the absolute path.
-
-For macOS zsh users:
-
-```bash
-zsh -lic 'command -v agent-device'
-```
-
-For other shells, use the equivalent login-shell lookup. Then use the printed path for agent commands.
+Some agent clients run commands in an environment that differs from the user's normal install shell. If `agent-device` is missing in the agent terminal but was installed globally elsewhere, resolve the command the same way the user would from a normal terminal session, then use the absolute binary path for agent commands. This may require inspecting shell startup behavior or package-manager/global bin locations; do not assume the agent process `PATH` is the user's `PATH`.
 
 For Cursor, Codex, Claude Code, Windsurf, Cline, Goose, skills, project rules, and MCP configuration, see [AI Agent Setup](/docs/agent-setup). For the first app automation commands, see [Quick Start](/docs/quick-start).
 
