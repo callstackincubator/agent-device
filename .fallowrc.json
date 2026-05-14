@@ -22,7 +22,10 @@
     "website/docs/404.mdx",
     "website/rspress.config.ts"
   ],
-  "ignorePatterns": ["examples/test-app/**"],
+  "ignorePatterns": [
+    "examples/test-app/**",
+    "ios-runner/AgentDeviceRunner/AgentDeviceRunnerUITests.xctestplan"
+  ],
   "ignoreDependencies": ["@theme"],
   "ignoreExports": [
     {
