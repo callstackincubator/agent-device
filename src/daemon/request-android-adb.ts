@@ -1,6 +1,7 @@
 import {
   type AndroidAdbExecutor,
   type AndroidAdbProvider,
+  withAndroidAdbProvider,
 } from '../platforms/android/adb-executor.ts';
 import { resolveTargetDevice } from '../core/dispatch-resolve.ts';
 import type { DeviceInfo } from '../utils/device.ts';
@@ -18,7 +19,7 @@ export type AndroidAdbProviderResolver = (params: {
   session?: AndroidAdbProviderRequestSession;
 }) => AndroidAdbProvider | AndroidAdbExecutor | undefined;
 
-export async function resolveScopedAndroidAdbProvider(params: {
+async function resolveScopedAndroidAdbProvider(params: {
   req: DaemonRequest;
   existingSession: SessionState | undefined;
   androidAdbProvider?: AndroidAdbProviderResolver;
@@ -34,6 +35,26 @@ export async function resolveScopedAndroidAdbProvider(params: {
   const provider = androidAdbProvider({ req, device, session: existingSession });
   const executor = typeof provider === 'function' ? provider : provider?.exec;
   return { provider, executor, serial: device.id };
+}
+
+export async function withRequestAndroidAdbScope<T>(
+  params: {
+    req: DaemonRequest;
+    existingSession: SessionState | undefined;
+    androidAdbProvider?: AndroidAdbProviderResolver;
+  },
+  task: (adb: { executor?: AndroidAdbExecutor }) => Promise<T>,
+): Promise<T> {
+  const requestAdb = await resolveScopedAndroidAdbProvider({
+    req: params.req,
+    existingSession: params.existingSession,
+    androidAdbProvider: params.androidAdbProvider,
+  });
+  return await withAndroidAdbProvider(
+    requestAdb.provider,
+    { serial: requestAdb.serial ?? '' },
+    async () => await task({ executor: requestAdb.executor }),
+  );
 }
 
 async function resolveAndroidAdbProviderDevice(
