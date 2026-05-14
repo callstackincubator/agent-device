@@ -3,10 +3,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
 import type { DeviceInfo } from '../../../utils/device.ts';
+import { withCommandExecutorOverride } from '../../../utils/exec.ts';
 import {
   acquireXcodebuildSimulatorSetRedirect,
   findXctestrun,
+  prepareXctestrunWithEnv,
   resolveXcodebuildSimulatorDeviceSetPath,
   scoreXctestrunCandidate,
 } from '../runner-xctestrun.ts';
@@ -26,6 +29,98 @@ const iosDevice: DeviceInfo = {
   kind: 'device',
   booted: true,
 };
+
+type RedirectPaths = {
+  requestedSetPath: string;
+  xctestDeviceSetPath: string;
+  lockDirPath: string;
+  backupPath: string;
+};
+
+const runnerPortEnv = { AGENT_DEVICE_RUNNER_PORT: '12345' };
+
+async function withTempDir<T>(prefix: string, fn: (root: string) => Promise<T> | T): Promise<T> {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  try {
+    return await fn(root);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function makeRedirectPaths(root: string): RedirectPaths {
+  const xctestDeviceSetPath = path.join(root, 'Library', 'Developer', 'XCTestDevices');
+  return {
+    requestedSetPath: path.join(root, 'requested'),
+    xctestDeviceSetPath,
+    lockDirPath: path.join(root, '.agent-device', 'xctest-device-set.lock'),
+    backupPath: `${xctestDeviceSetPath}.agent-device-backup`,
+  };
+}
+
+function makeScopedSimulator(paths: RedirectPaths): DeviceInfo {
+  return { ...iosSimulator, simulatorSetPath: paths.requestedSetPath };
+}
+
+async function acquireRedirect(
+  paths: RedirectPaths,
+  options: Partial<Parameters<typeof acquireXcodebuildSimulatorSetRedirect>[1]> = {},
+): ReturnType<typeof acquireXcodebuildSimulatorSetRedirect> {
+  return await acquireXcodebuildSimulatorSetRedirect(makeScopedSimulator(paths), {
+    lockDirPath: paths.lockDirPath,
+    xctestDeviceSetPath: paths.xctestDeviceSetPath,
+    ...options,
+  });
+}
+
+async function prepareXctestrunJson(
+  xctestrunPath: string,
+  envVars: Record<string, string>,
+  suffix: string,
+): Promise<Record<string, any>> {
+  const prepared = await withCommandExecutorOverride(
+    (cmd, args) => {
+      if (cmd !== 'plutil') return undefined;
+      if (args[0] === '-convert' && args[1] === 'json' && args[2] === '-o' && args[3] === '-') {
+        return Promise.resolve({
+          stdout: fs.readFileSync(String(args[4]), 'utf8'),
+          stderr: '',
+          exitCode: 0,
+        });
+      }
+      if (args[0] === '-convert' && args[1] === 'xml1' && args[2] === '-o') {
+        fs.copyFileSync(String(args[4]), String(args[3]));
+        return Promise.resolve({ stdout: '', stderr: '', exitCode: 0 });
+      }
+      return Promise.resolve({
+        stdout: '',
+        stderr: `unexpected plutil args: ${args.join(' ')}`,
+        exitCode: 1,
+      });
+    },
+    () => prepareXctestrunWithEnv(xctestrunPath, envVars, suffix),
+  );
+  return JSON.parse(fs.readFileSync(prepared.jsonPath, 'utf8'));
+}
+
+function assertCapturePolicy(target: any): void {
+  assert.equal(target?.PreferredScreenCaptureFormat, 'screenshots');
+  assert.equal(target?.SystemAttachmentLifetime, 'keepNever');
+  assert.equal(target?.UserAttachmentLifetime, 'keepNever');
+}
+
+function assertNoCapturePolicy(target: any): void {
+  assert.equal(target?.PreferredScreenCaptureFormat, undefined);
+  assert.equal(target?.SystemAttachmentLifetime, undefined);
+  assert.equal(target?.UserAttachmentLifetime, undefined);
+}
+
+function assertRedirectTargetsRequestedSet(paths: RedirectPaths): void {
+  assert.equal(
+    fs.realpathSync.native(paths.xctestDeviceSetPath),
+    fs.realpathSync.native(paths.requestedSetPath),
+  );
+}
 
 test('findXctestrun prefers simulator xctestrun over newer macos candidate', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-xctestrun-'));
@@ -98,6 +193,58 @@ test('scoreXctestrunCandidate penalizes macos and env xctestrun files for simula
   assert.ok(simulatorScore > macosEnvScore);
 });
 
+test('prepareXctestrunWithEnv avoids XCTest screen recordings for nested and legacy targets', async () => {
+  await withTempDir('runner-xctestrun-policy-', async (root) => {
+    const xctestrunPath = path.join(root, 'AgentDeviceRunner.xctestrun');
+    fs.writeFileSync(
+      xctestrunPath,
+      JSON.stringify({
+        AgentDeviceRunnerUITests: {
+          TestBundlePath: '__TESTHOST__/PlugIns/AgentDeviceRunnerUITests.xctest',
+          PreferredScreenCaptureFormat: 'screenRecording',
+        },
+        TestConfigurations: [
+          {
+            TestTargets: [
+              {
+                TestBundlePath: '__TESTHOST__/PlugIns/AgentDeviceRunnerUITests.xctest',
+                PreferredScreenCaptureFormat: 'screenRecording',
+                SystemAttachmentLifetime: 'deleteOnSuccess',
+                UserAttachmentLifetime: 'deleteOnSuccess',
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    const parsed = await prepareXctestrunJson(xctestrunPath, runnerPortEnv, 'policy');
+    const target = parsed.TestConfigurations[0]?.TestTargets[0];
+
+    assert.equal(target?.EnvironmentVariables?.AGENT_DEVICE_RUNNER_PORT, '12345');
+    assertCapturePolicy(target);
+    assertCapturePolicy(parsed.AgentDeviceRunnerUITests);
+  });
+});
+
+test('prepareXctestrunWithEnv leaves unrelated targets without capture policy', async () => {
+  await withTempDir('runner-xctestrun-policy-', async (root) => {
+    const xctestrunPath = path.join(root, 'AgentDeviceRunner.xctestrun');
+    const original = {
+      ContainerInfo: { SchemeName: 'AgentDeviceRunner' },
+      TestConfigurations: [{ TestTargets: [{}] }],
+    };
+    fs.writeFileSync(xctestrunPath, JSON.stringify(original));
+
+    const parsed = await prepareXctestrunJson(xctestrunPath, runnerPortEnv, 'policy-no-targets');
+    const target = parsed.TestConfigurations[0]?.TestTargets[0];
+
+    assert.equal(target?.EnvironmentVariables?.AGENT_DEVICE_RUNNER_PORT, '12345');
+    assertNoCapturePolicy(target);
+    assert.deepEqual(parsed.ContainerInfo, original.ContainerInfo);
+  });
+});
+
 test('resolveXcodebuildSimulatorDeviceSetPath uses XCTestDevices under the user home', () => {
   assert.equal(
     resolveXcodebuildSimulatorDeviceSetPath('/tmp/agent-device-home'),
@@ -106,44 +253,35 @@ test('resolveXcodebuildSimulatorDeviceSetPath uses XCTestDevices under the user 
 });
 
 test('acquireXcodebuildSimulatorSetRedirect swaps XCTestDevices to the requested simulator set', async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-xctestrun-redirect-'));
   let handle: Awaited<ReturnType<typeof acquireXcodebuildSimulatorSetRedirect>> | null = null;
-  try {
-    const requestedSetPath = path.join(root, 'requested');
-    const xctestDeviceSetPath = path.join(root, 'Library', 'Developer', 'XCTestDevices');
-    const lockDirPath = path.join(root, '.agent-device', 'xctest-device-set.lock');
+  await withTempDir('runner-xctestrun-redirect-', async (root) => {
+    const paths = makeRedirectPaths(root);
     const originalMarkerPath = path.join(root, 'original-marker.txt');
-    fs.mkdirSync(requestedSetPath, { recursive: true });
-    fs.mkdirSync(xctestDeviceSetPath, { recursive: true });
-    fs.writeFileSync(path.join(xctestDeviceSetPath, 'original.txt'), originalMarkerPath, 'utf8');
-
-    handle = await acquireXcodebuildSimulatorSetRedirect(
-      {
-        ...iosSimulator,
-        simulatorSetPath: requestedSetPath,
-      },
-      { lockDirPath, xctestDeviceSetPath },
+    fs.mkdirSync(paths.requestedSetPath, { recursive: true });
+    fs.mkdirSync(paths.xctestDeviceSetPath, { recursive: true });
+    fs.writeFileSync(
+      path.join(paths.xctestDeviceSetPath, 'original.txt'),
+      originalMarkerPath,
+      'utf8',
     );
+
+    handle = await acquireRedirect(paths);
 
     assert.notEqual(handle, null);
-    assert.equal(fs.lstatSync(xctestDeviceSetPath).isSymbolicLink(), true);
-    assert.equal(
-      fs.realpathSync.native(xctestDeviceSetPath),
-      fs.realpathSync.native(requestedSetPath),
-    );
+    assert.equal(fs.lstatSync(paths.xctestDeviceSetPath).isSymbolicLink(), true);
+    assertRedirectTargetsRequestedSet(paths);
 
     await handle?.release();
     handle = null;
 
-    assert.equal(fs.lstatSync(xctestDeviceSetPath).isDirectory(), true);
+    assert.equal(fs.lstatSync(paths.xctestDeviceSetPath).isDirectory(), true);
     assert.equal(
-      fs.readFileSync(path.join(xctestDeviceSetPath, 'original.txt'), 'utf8'),
+      fs.readFileSync(path.join(paths.xctestDeviceSetPath, 'original.txt'), 'utf8'),
       originalMarkerPath,
     );
-  } finally {
+  }).finally(async () => {
     await handle?.release();
-    fs.rmSync(root, { recursive: true, force: true });
-  }
+  });
 });
 
 test('acquireXcodebuildSimulatorSetRedirect is a no-op for simulators without a scoped device set', async () => {
@@ -152,90 +290,64 @@ test('acquireXcodebuildSimulatorSetRedirect is a no-op for simulators without a 
 });
 
 test('acquireXcodebuildSimulatorSetRedirect restores stale redirected XCTestDevices before applying a new one', async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-xctestrun-redirect-'));
   let handle: Awaited<ReturnType<typeof acquireXcodebuildSimulatorSetRedirect>> | null = null;
-  try {
-    const requestedSetPath = path.join(root, 'requested');
+  await withTempDir('runner-xctestrun-redirect-', async (root) => {
+    const paths = makeRedirectPaths(root);
     const staleRequestedSetPath = path.join(root, 'stale-requested');
-    const xctestDeviceSetPath = path.join(root, 'Library', 'Developer', 'XCTestDevices');
-    const backupPath = `${xctestDeviceSetPath}.agent-device-backup`;
-    const lockDirPath = path.join(root, '.agent-device', 'xctest-device-set.lock');
-    fs.mkdirSync(requestedSetPath, { recursive: true });
+    fs.mkdirSync(paths.requestedSetPath, { recursive: true });
     fs.mkdirSync(staleRequestedSetPath, { recursive: true });
-    fs.mkdirSync(path.dirname(xctestDeviceSetPath), { recursive: true });
-    fs.mkdirSync(backupPath, { recursive: true });
-    fs.writeFileSync(path.join(backupPath, 'original.txt'), 'restored', 'utf8');
-    fs.symlinkSync(staleRequestedSetPath, xctestDeviceSetPath, 'dir');
+    fs.mkdirSync(path.dirname(paths.xctestDeviceSetPath), { recursive: true });
+    fs.mkdirSync(paths.backupPath, { recursive: true });
+    fs.writeFileSync(path.join(paths.backupPath, 'original.txt'), 'restored', 'utf8');
+    fs.symlinkSync(staleRequestedSetPath, paths.xctestDeviceSetPath, 'dir');
 
-    handle = await acquireXcodebuildSimulatorSetRedirect(
-      {
-        ...iosSimulator,
-        simulatorSetPath: requestedSetPath,
-      },
-      { backupPath, lockDirPath, xctestDeviceSetPath },
-    );
+    handle = await acquireRedirect(paths, { backupPath: paths.backupPath });
 
     assert.notEqual(handle, null);
-    assert.equal(
-      fs.realpathSync.native(xctestDeviceSetPath),
-      fs.realpathSync.native(requestedSetPath),
-    );
+    assertRedirectTargetsRequestedSet(paths);
 
     await handle?.release();
     handle = null;
 
-    assert.equal(fs.existsSync(backupPath), false);
+    assert.equal(fs.existsSync(paths.backupPath), false);
     assert.equal(
-      fs.readFileSync(path.join(xctestDeviceSetPath, 'original.txt'), 'utf8'),
+      fs.readFileSync(path.join(paths.xctestDeviceSetPath, 'original.txt'), 'utf8'),
       'restored',
     );
-  } finally {
+  }).finally(async () => {
     await handle?.release();
-    fs.rmSync(root, { recursive: true, force: true });
-  }
+  });
 });
 
 test('acquireXcodebuildSimulatorSetRedirect clears stale lock directories from dead owners', async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-xctestrun-redirect-'));
   let handle: Awaited<ReturnType<typeof acquireXcodebuildSimulatorSetRedirect>> | null = null;
-  try {
-    const requestedSetPath = path.join(root, 'requested');
-    const xctestDeviceSetPath = path.join(root, 'Library', 'Developer', 'XCTestDevices');
-    const lockDirPath = path.join(root, '.agent-device', 'xctest-device-set.lock');
-    fs.mkdirSync(requestedSetPath, { recursive: true });
-    fs.mkdirSync(lockDirPath, { recursive: true });
+  await withTempDir('runner-xctestrun-redirect-', async (root) => {
+    const paths = makeRedirectPaths(root);
+    fs.mkdirSync(paths.requestedSetPath, { recursive: true });
+    fs.mkdirSync(paths.lockDirPath, { recursive: true });
     fs.writeFileSync(
-      path.join(lockDirPath, 'owner.json'),
+      path.join(paths.lockDirPath, 'owner.json'),
       JSON.stringify({ pid: 999_999, startTime: null, acquiredAtMs: Date.now() - 60_000 }),
       'utf8',
     );
 
-    handle = await acquireXcodebuildSimulatorSetRedirect(
-      {
-        ...iosSimulator,
-        simulatorSetPath: requestedSetPath,
-      },
-      { lockDirPath, xctestDeviceSetPath },
-    );
+    handle = await acquireRedirect(paths);
 
     assert.notEqual(handle, null);
-    assert.equal(fs.lstatSync(xctestDeviceSetPath).isSymbolicLink(), true);
+    assert.equal(fs.lstatSync(paths.xctestDeviceSetPath).isSymbolicLink(), true);
 
     await handle?.release();
     handle = null;
 
-    assert.equal(fs.existsSync(lockDirPath), false);
-  } finally {
+    assert.equal(fs.existsSync(paths.lockDirPath), false);
+  }).finally(async () => {
     await handle?.release();
-    fs.rmSync(root, { recursive: true, force: true });
-  }
+  });
 });
 
 test('acquireXcodebuildSimulatorSetRedirect preserves the backup when XCTestDevices is recreated mid-swap', async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-xctestrun-redirect-'));
   const renameSync = fs.renameSync.bind(fs);
-  const xctestDeviceSetPath = path.join(root, 'Library', 'Developer', 'XCTestDevices');
-  const backupPath = `${xctestDeviceSetPath}.agent-device-backup`;
+  let xctestDeviceSetPath = '';
   const renameSpy = vi.spyOn(fs, 'renameSync').mockImplementation((oldPath, newPath) => {
     if (
       typeof oldPath === 'string' &&
@@ -249,30 +361,25 @@ test('acquireXcodebuildSimulatorSetRedirect preserves the backup when XCTestDevi
     return renameSync(oldPath, newPath);
   });
   try {
-    const requestedSetPath = path.join(root, 'requested');
-    const lockDirPath = path.join(root, '.agent-device', 'xctest-device-set.lock');
-    fs.mkdirSync(requestedSetPath, { recursive: true });
-    fs.mkdirSync(xctestDeviceSetPath, { recursive: true });
-    fs.writeFileSync(path.join(xctestDeviceSetPath, 'original.txt'), 'original', 'utf8');
+    await withTempDir('runner-xctestrun-redirect-', async (root) => {
+      const paths = makeRedirectPaths(root);
+      xctestDeviceSetPath = paths.xctestDeviceSetPath;
+      fs.mkdirSync(paths.requestedSetPath, { recursive: true });
+      fs.mkdirSync(paths.xctestDeviceSetPath, { recursive: true });
+      fs.writeFileSync(path.join(paths.xctestDeviceSetPath, 'original.txt'), 'original', 'utf8');
 
-    await assert.rejects(
-      acquireXcodebuildSimulatorSetRedirect(
-        {
-          ...iosSimulator,
-          simulatorSetPath: requestedSetPath,
-        },
-        { backupPath, lockDirPath, xctestDeviceSetPath },
-      ),
-      /Failed to redirect XCTest device set path/,
-    );
+      await assert.rejects(
+        acquireRedirect(paths, { backupPath: paths.backupPath }),
+        /Failed to redirect XCTest device set path/,
+      );
 
-    assert.equal(fs.readFileSync(path.join(backupPath, 'original.txt'), 'utf8'), 'original');
-    assert.equal(
-      fs.readFileSync(path.join(xctestDeviceSetPath, 'collision.txt'), 'utf8'),
-      'collision',
-    );
+      assert.equal(fs.readFileSync(path.join(paths.backupPath, 'original.txt'), 'utf8'), 'original');
+      assert.equal(
+        fs.readFileSync(path.join(paths.xctestDeviceSetPath, 'collision.txt'), 'utf8'),
+        'collision',
+      );
+    });
   } finally {
     renameSpy.mockRestore();
-    fs.rmSync(root, { recursive: true, force: true });
   }
 });
