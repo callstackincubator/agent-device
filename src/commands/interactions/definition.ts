@@ -1,14 +1,9 @@
 import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
 import type { CommandCapability } from '../../core/capabilities.ts';
 import type { CommandSchema } from '../../utils/command-schema.ts';
-import {
-  commandCapabilityMap,
-  commandNames,
-  commandSchemaMap,
-  defineCommand,
-} from '../command-definition.ts';
+import { commandCapabilityMap, commandSchemaMap, defineCommand } from '../command-definition.ts';
 
-export const INTERACTION_COMMAND_FAMILY = 'interactions';
+const INTERACTION_COMMAND_FAMILY = 'interactions';
 
 export const typeCommandDefinition = defineCommand({
   name: PUBLIC_COMMANDS.type,
@@ -37,4 +32,3 @@ export const INTERACTION_COMMAND_SCHEMAS = commandSchemaMap(INTERACTION_COMMAND_
 export const INTERACTION_COMMAND_CAPABILITIES = commandCapabilityMap(
   INTERACTION_COMMAND_DEFINITIONS,
 );
-export const INTERACTION_COMMAND_NAMES = commandNames(INTERACTION_COMMAND_DEFINITIONS);

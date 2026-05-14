@@ -31,9 +31,3 @@ export function commandCapabilityMap<TName extends string, TCapability>(
     definitions.map((definition) => [definition.name, definition.capability]),
   ) as Record<TName, TCapability>;
 }
-
-export function commandNames<
-  const TDefinitions extends readonly CommandDefinition<string, string, unknown, unknown>[],
->(definitions: TDefinitions): Array<TDefinitions[number]['name']> {
-  return definitions.map((definition) => definition.name) as Array<TDefinitions[number]['name']>;
-}
