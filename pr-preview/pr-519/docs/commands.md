@@ -10,8 +10,8 @@ For agent workflow guidance that is matched to the installed CLI, run:
 agent-device help
 agent-device help workflow
 agent-device help debugging
-agent-device help react-devtools
 agent-device help react-native
+agent-device help react-devtools
 agent-device help remote
 agent-device help macos
 agent-device help dogfood
