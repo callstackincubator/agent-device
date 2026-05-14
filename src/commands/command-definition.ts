@@ -1,33 +1,30 @@
-export type CommandDefinition<
-  TName extends string,
-  TFamily extends string,
-  TSchema,
-  TCapability,
-> = {
+import type { CommandCapability } from '../core/capabilities.ts';
+import type { CommandSchema } from '../utils/command-schema.ts';
+
+export type CommandDefinition<TName extends string = string> = {
   name: TName;
-  family: TFamily;
-  schema: TSchema;
-  capability: TCapability;
+  schema: CommandSchema;
+  capability: CommandCapability;
 };
 
-export function defineCommand<TName extends string, TFamily extends string, TSchema, TCapability>(
-  definition: CommandDefinition<TName, TFamily, TSchema, TCapability>,
-): CommandDefinition<TName, TFamily, TSchema, TCapability> {
+export function defineCommand<const TDefinition extends CommandDefinition>(
+  definition: TDefinition,
+): TDefinition {
   return definition;
 }
 
-export function commandSchemaMap<TName extends string, TSchema>(
-  definitions: readonly CommandDefinition<TName, string, TSchema, unknown>[],
-): Record<TName, TSchema> {
+export function commandSchemaMap<TName extends string>(
+  definitions: readonly CommandDefinition<TName>[],
+): Record<TName, CommandSchema> {
   return Object.fromEntries(
     definitions.map((definition) => [definition.name, definition.schema]),
-  ) as Record<TName, TSchema>;
+  ) as Record<TName, CommandSchema>;
 }
 
-export function commandCapabilityMap<TName extends string, TCapability>(
-  definitions: readonly CommandDefinition<TName, string, unknown, TCapability>[],
-): Record<TName, TCapability> {
+export function commandCapabilityMap<TName extends string>(
+  definitions: readonly CommandDefinition<TName>[],
+): Record<TName, CommandCapability> {
   return Object.fromEntries(
     definitions.map((definition) => [definition.name, definition.capability]),
-  ) as Record<TName, TCapability>;
+  ) as Record<TName, CommandCapability>;
 }
