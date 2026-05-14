@@ -6,7 +6,7 @@ import { ANDROID_EMULATOR } from '../../__tests__/test-utils/device-fixtures.ts'
 
 test('dispatch type rejects ref-shaped first positional with a repair hint', async () => {
   await assert.rejects(
-    () => dispatchCommand(ANDROID_EMULATOR, 'type', ['@ref42', 'filed', 'the', 'expense']),
+    () => dispatchCommand(ANDROID_EMULATOR, 'type', ['@ref42', 'sent', 'the', 'update']),
     (error: unknown) =>
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&

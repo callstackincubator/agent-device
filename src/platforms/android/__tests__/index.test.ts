@@ -1510,7 +1510,7 @@ test('fillAndroid tolerates delayed React Native text verification', async () =>
       '  count=$((count + 1))',
       '  printf "%s" "$count" > "$DUMP_COUNT_FILE"',
       '  if [ "$count" -eq 1 ]; then',
-      '    text="filed the expens"',
+      '    text="sent the updat"',
       '  else',
       '    text="$(cat "$STATE_FILE" 2>/dev/null)"',
       '  fi',
@@ -1522,7 +1522,7 @@ test('fillAndroid tolerates delayed React Native text verification', async () =>
       '',
     ].join('\n'),
     async ({ device }) => {
-      await fillAndroid(device, 10, 10, 'filed the expense');
+      await fillAndroid(device, 10, 10, 'sent the update');
     },
   );
 });

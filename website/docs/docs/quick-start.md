@@ -94,7 +94,7 @@ Example batch payload for a known chat flow:
   { "command": "open", "positionals": ["ChatApp"], "flags": { "platform": "android" } },
   { "command": "click", "positionals": ["label=\"Travel chat\""], "flags": {} },
   { "command": "wait", "positionals": ["label=\"Message\"", "3000"], "flags": {} },
-  { "command": "fill", "positionals": ["label=\"Message\"", "Filed the expense"], "flags": {} },
+  { "command": "fill", "positionals": ["label=\"Message\"", "Sent the update"], "flags": {} },
   { "command": "press", "positionals": ["label=\"Send\""], "flags": {} }
 ]
 ```

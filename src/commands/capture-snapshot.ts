@@ -216,6 +216,12 @@ function buildSnapshotWarnings(params: {
     }
   }
 
+  if (hasReactNativeOverlay(params.snapshot.nodes)) {
+    warnings.push(
+      'Possible React Native warning/error overlay detected. Capture screenshot --overlay-refs, check react-devtools errors if connected, dismiss Dismiss/Close only if unrelated, re-snapshot, and report it.',
+    );
+  }
+
   const previousSnapshot = params.session?.snapshot;
   const isRecentSnapshot = previousSnapshot
     ? [params.capturedAt, params.runtimeNow].some((timestamp) => {
@@ -253,4 +259,17 @@ function buildSnapshotWarnings(params: {
 function isLikelyStaleSnapshotDrop(previousCount: number, currentCount: number): boolean {
   if (previousCount < 12) return false;
   return currentCount <= Math.floor(previousCount * 0.2);
+}
+
+function hasReactNativeOverlay(nodes: SnapshotNode[]): boolean {
+  const text = nodes
+    .map((node) =>
+      [node.label, node.value, node.identifier, node.type, node.role].filter(Boolean).join(' '),
+    )
+    .join('\n')
+    .toLowerCase();
+
+  return /\b(logbox|redbox|reload js|copy stack|component stack|call stack|runtime error|open debugger to view warnings)\b/.test(
+    text,
+  );
 }

@@ -31,6 +31,7 @@ Escalate only when relevant:
 
 ```bash
 agent-device help debugging
+agent-device help react-native
 agent-device help react-devtools
 agent-device help remote
 agent-device help macos

@@ -162,6 +162,10 @@ const AGENT_WORKFLOWS = [
   { label: 'help workflow', description: 'Normal bootstrap, exploration, and validation loop' },
   { label: 'help debugging', description: 'Logs, network, alerts, diagnostics, and traces' },
   {
+    label: 'help react-native',
+    description: 'React Native app automation hazards, overlays, Metro, and routing',
+  },
+  {
     label: 'help react-devtools',
     description: 'React Native performance, profiling, component tree, and renders',
   },
@@ -179,13 +183,14 @@ const AGENT_QUICKSTART_LINES = [
   'Plain snapshot reads state; snapshot -i is required to refresh interactive refs.',
   'Read-only visible/state question: use snapshot/get/is/find; use snapshot -i only when refs are needed.',
   'Truncated text/input preview: expand first with snapshot -s @e12, not get text.',
-  'RN warning/error overlays can block taps: snapshot -i, dismiss/close, then diff snapshot -i.',
+  'React Native apps: read help react-native for Metro, LogBox/RedBox overlays, DevTools routing, and RN-specific blockers.',
   'Expo Go/dev clients: use the provided URL when given; on iOS prefer open "Expo Go" <url>; Android URL opens infer the foreground package for logs/perf when possible.',
   'Install flows: install/install-from-source first, then open the installed id with --relaunch.',
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
   'Clearing text: do not use fill <target> ""; use a visible clear/reset control or report that clearing is unsupported.',
   'Android IME capture: if fill says input was captured by the keyboard/IME, inspect keyboard state and switch/disable handwriting before retrying; do not loop fill/type.',
   'Run mutating commands serially against one session; parallelize only read-only commands or separate sessions.',
+  'Before taking over a shared device, run session list and reuse the active session name when one already owns the device.',
   'Clipboard limits: iOS Allow Paste cannot be automated through XCUITest; prefill with clipboard write. Android non-ASCII should use fill/type, not raw adb input.',
   'After mutation: diff snapshot -i. Off-screen hints: scroll, then snapshot -i.',
   'Raw coordinates are fallback-only: use snapshot -i -c --json rects when iOS refs no-op or child refs are missing.',
@@ -293,7 +298,7 @@ Text entry:
   Search-as-you-type fields on iOS can drop characters when driven too fast; use --delay-ms on fill/type before trying clipboard paste.
   iOS Allow Paste prompt cannot be exercised under XCUITest. To test paste-driven app behavior, prefill first with agent-device clipboard write "some text"; test the system prompt manually.
   Android Gboard handwriting/stylus UI can capture text in an IME-owned input instead of the app field. If fill reports that input was captured by the keyboard/IME, use the diagnostic targetInput/actualInput details, inspect with keyboard status/get if needed, and switch or disable handwriting/trusted ADB keyboard outside the command plan before retrying. Do not keep retrying fill/type against the same field while the IME owns focus.
-  Android non-ASCII can fail on some system images. Try fill/type normally; agent-device uses safer fallbacks. If the shell reports unsupported non-ASCII input, configure a trusted ADB keyboard IME outside the command plan and restore the previous IME afterward.
+  Android non-ASCII can fail on some system images. Use fill/type and let agent-device own the safer fallback path; do not switch to clipboard or paste for non-ASCII field entry. If the shell reports unsupported non-ASCII input, configure a trusted ADB keyboard IME outside the command plan and restore the previous IME afterward.
 
 Session ordering:
   Stateful commands against one --session must run serially. Do not run open/press/fill/type/scroll/back/alert/replay/batch/close commands in parallel against the same session.
@@ -315,6 +320,7 @@ Read-only and waits:
 Navigation and gestures:
   Use scroll for lists; swipe for coordinate gestures/carousels.
   If app-owned back is ambiguous or has just misrouted, prefer a visible nav/back button ref, tab-bar ref, or deep link over repeated back/system back.
+  App-owned action sheets, menus, and camera/scan screens are normal UI. After opening one, run snapshot -i or wait for the option, press by label/ref, handle visible permission sheets through UI or platform-supported native alerts, then wait for a concrete result before returning to chat/form state.
   Keep count/pause/pattern on one swipe; flags are --count, --pause-ms, --pattern ping-pong.
   longpress duration and pinch scale/center are positional:
     agent-device longpress 300 500 800
@@ -344,10 +350,11 @@ React Native dev loop:
     agent-device metro reload
     agent-device find "Home"
   Do not use agent-device reload. Use open --relaunch for native startup reset.
-  Warning/error overlays can obscure UI and intercept taps. If snapshot -i shows one, dismiss/close its visible control (for example Dismiss or Close) if it is not the task target, then diff snapshot -i or snapshot -i before tapping the real UI.
+  React Native apps: use help react-native for Metro/Fast Refresh, LogBox/RedBox overlays, DevTools routing, and RN-specific blockers.
   Expo Go is a host shell. Use a provided project URL instead of inventing a bundle id; if no URL is provided but a target/app name is provided, open that target and do not inspect project files to find one. On iOS, prefer host + URL when the host shell is known because direct URL open can report success while leaving the runner/shell focused; verify with snapshot -i after opening:
     agent-device open "Expo Go" exp://127.0.0.1:8081 --platform ios
     agent-device snapshot -i --platform ios
+  There is no open-url command; use open with the URL target or host + URL form.
   Direct iOS URL open remains valid when no host shell is known, but verify that the app UI loaded:
     agent-device open exp://127.0.0.1:8081 --platform ios
   Android uses the URL target directly; do not write open <app> <url> there:
@@ -369,6 +376,7 @@ React DevTools minimum loop:
 Escalate:
   help debugging       logs, network, alerts, traces, flaky runtime failures
   help react-devtools  React Native performance, profiling, props/state/hooks, slow renders, rerenders
+  help react-native   React Native app automation hazards, overlays, Metro, and routing
   help remote          remote/cloud config, tenant, lease, local service tunnels
   help macos           desktop, frontmost-app, menu bar surfaces
   help dogfood         exploratory QA report workflow`,
@@ -403,6 +411,7 @@ Alerts:
   If alert accept says no alert but a permission sheet is visibly on screen, treat it as normal UI:
     agent-device snapshot -i
     agent-device press 'label="Allow"'
+  Android runtime permission prompts are visible UI. Do not use alert wait for them, and do not use settings permission to answer a dialog already on screen. Reserve settings permission for setup/resetting permission state before a flow.
 
 Diagnostics and traces:
   Use --debug for CLI/daemon diagnostic ids and log paths.
@@ -476,6 +485,44 @@ Example:
   agent-device react-devtools profile report @c5
 
 Use snapshot, screenshot, logs, network, and perf for device/app runtime evidence. Use react-devtools only when component internals or React rendering behavior matters.`,
+  },
+  'react-native': {
+    summary: 'React Native app automation hazards and routing',
+    body: `agent-device help react-native
+
+Use this when the target app is React Native, Expo, or a React Native dev client.
+This topic covers React Native-specific automation hazards and routes deeper
+questions to the owning help topic.
+
+Choose the next help topic:
+  Generic navigation, selectors, refs, verification, serial commands: help workflow.
+  Logs, network, diagnostics, traces, permission dialogs, or runtime failures: help debugging.
+  Component tree, props/state/hooks, slow renders, rerenders, or render causes: help react-devtools.
+  Remote/cloud config, leases, and local service tunnels: help remote.
+
+React Native dev loop:
+  JS-only change with Metro connected:
+    agent-device metro reload
+    agent-device find "Home"
+  Do not use agent-device reload. Use open --relaunch for native startup reset.
+  Expo Go/dev clients are host shells. Use provided project URLs, verify with snapshot -i after opening, and ask instead of inventing app ids or URLs. Help workflow owns the full Expo URL command shapes.
+
+Overlays and busy RN UIs:
+  React Native warning/error overlays belong to the app run. Treat them as findings or blockers: capture screenshot --overlay-refs, run react-devtools errors when connected, dismiss visible Dismiss/Close only if unrelated, re-snapshot, and report the overlay.
+  If snapshot times out because the UI never becomes idle, use screenshot as visual truth, try settings animations off for Android, or wait briefly and retry; report the busy UI as the blocker if it persists.
+  Android runtime permission dialogs are visible UI: inspect snapshot -i and press Allow/Deny by visible label/ref. Use alert wait/accept/dismiss only where the platform supports native alerts.
+
+React DevTools routing:
+  Keep the agent-device react-devtools prefix on every React DevTools command.
+  Use help react-devtools for status/wait, component trees, props/state/hooks, profile windows, slow renders, rerenders, and remote bridge rules.
+  If React DevTools cannot connect, report status and continue with logs, network, perf, screenshot, and trace evidence instead of blocking the whole flow.
+
+Slow-flow investigation:
+  Keep one named session, start with session list, open, and snapshot -i.
+  Use help react-devtools for the narrow React profile window.
+  Use help debugging for logs clear --restart, logs mark, network dump --include headers, perf --json, traces, and runtime failure evidence.
+  For 15-20s async work, use wait with the exact expected text or selector instead of repeated snapshots.
+  Report React render offenders separately from network/backend waits and device frame/CPU/memory findings.`,
   },
   remote: {
     summary: 'Remote config, tenant, lease, and remote host flow',
@@ -601,6 +648,9 @@ Rules:
   Escalate to help debugging or help react-devtools when runtime symptoms require those tools.`,
   },
 } as const satisfies Record<string, { summary: string; body: string }>;
+
+export type HelpTopicName = keyof typeof HELP_TOPICS;
+export const HELP_TOPIC_NAMES = Object.keys(HELP_TOPICS) as readonly HelpTopicName[];
 
 const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
   {

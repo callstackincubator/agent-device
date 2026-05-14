@@ -1024,7 +1024,7 @@ test('press @ref fails when Android tap escapes to Settings', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-settings-escape';
   const session = makeAndroidSession(sessionName);
-  session.appBundleId = 'com.expensify.chat.dev';
+  session.appBundleId = 'com.agentdevice.tester';
   session.snapshot = {
     nodes: attachRefs([
       {

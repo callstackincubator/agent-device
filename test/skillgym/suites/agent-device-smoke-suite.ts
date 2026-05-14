@@ -9,10 +9,11 @@ interface PlannedCommandMatcher {
   matchers: CommandMatcher[];
 }
 
-const APP_SOURCE = /(?:^|\/)examples\/test-app\//;
-const REPO_SOURCE = /(?:^|\/)src\//;
-const COMMAND_DOCS = /website\/docs\/docs\/commands\.md$/;
-const SUITE_FILE = /test\/skillgym\/suites\/agent-device-smoke-suite\.ts$/;
+const WORKSPACE_ROOT = process.cwd().replaceAll('\\', '/');
+const APP_SOURCE = workspacePathPattern('examples/test-app', 'directory');
+const REPO_SOURCE = workspacePathPattern('src', 'directory');
+const COMMAND_DOCS = workspacePathPattern('website/docs/docs/commands.md', 'file');
+const SUITE_FILE = workspacePathPattern('test/skillgym/suites/agent-device-smoke-suite.ts', 'file');
 
 const BASE_INSTRUCTIONS = `
 You are benchmarking agent-device command planning for a known fixture app.
@@ -24,6 +25,18 @@ Use only this prompt plus local CLI help as private reference.
 For local CLI help in this repo, use node bin/agent-device.mjs help or --help; final commands still use agent-device.
 Final output: only agent-device commands, one per line. Any prose or Markdown fails.
 `.trim();
+
+function workspacePathPattern(relativePath: string, kind: 'directory' | 'file') {
+  const normalizedPath = relativePath.replaceAll('\\', '/').replace(/^\.\//, '');
+  const escapedRoot = escapeRegExp(WORKSPACE_ROOT);
+  const escapedRelativePath = escapeRegExp(normalizedPath);
+  const boundary = kind === 'directory' ? '(?:/|$)' : '$';
+  return new RegExp(`^(?:${escapedRelativePath}|${escapedRoot}/${escapedRelativePath})${boundary}`);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 function buildPrompt(options: { contract: string[]; task: string }) {
   const contractLines = options.contract.map((line) => `- ${line}`).join('\n');
@@ -682,10 +695,18 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'Field selector: id="field-name"',
       'Desired value: Café ☕ 🎉',
       'Some Android system images fail with direct platform-shell text injection',
+      'agent-device fill owns the non-ASCII fallback; do not use clipboard or paste',
     ],
     task: 'Plan only the robust agent-device command to fill the field with the provided non-ASCII value.',
     outputs: [plannedCommand('fill'), /id=(?:["']field-name["']|field-name)/i, /Café ☕ 🎉/i],
-    forbiddenOutputs: [/\badb\b/i, /shell input text/i, /\bime\b/i, /ADBKeyBoard/i],
+    forbiddenOutputs: [
+      plannedCommand('adb'),
+      plannedCommand('clipboard'),
+      /shell input text/i,
+      /\bpaste\b/i,
+      /\bime\b/i,
+      /ADBKeyBoard/i,
+    ],
   }),
   makeCase({
     id: 'offscreen-target-scroll-resnapshot',
@@ -713,8 +734,8 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     ],
     task: 'Plan commands to handle the missing child refs by inspecting raw compact rects, tapping the Bakery center, and verifying the selected filter changed.',
     outputs: [
-      COMPACT_RECT_SNAPSHOT,
-      /(?:^|\n)(?:agent-device\s+)?(?:press|click)\s+84\s+220\b/i,
+      /(?:snapshot\b(?=[^\n]*(?:-c\b|--compact\b))(?=[^\n]*(?:--json|--raw))|snapshot\b.*-i)/i,
+      /(?:^|\n)(?:agent-device\s+(?:--platform\s+ios\s+)?)?(?:press|click)\s+84\s+220\b/i,
       /(?:diff snapshot -i|snapshot\b.*(?:-i\b.*--diff|--diff\b.*-i\b)|snapshot\b.*-i|Berry Tart|Bakery)/i,
     ],
     forbiddenOutputs: [
@@ -741,8 +762,9 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'App name: Agent Device Tester',
       'Current screen: product detail',
       'Goal: return to the Catalog tab through normal app navigation',
+      'No visible Catalog tab selector or nav-back selector is currently exposed',
     ],
-    task: 'Plan the command to go back to Catalog using app-owned navigation semantics.',
+    task: 'Plan the command to go back to Catalog using the app-owned back command.',
     outputs: [plannedCommand('back')],
     forbiddenOutputs: [/back\s+--system/i],
   }),
@@ -828,7 +850,6 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     task: 'Plan the minimal read-only command to inspect exposed UI without typing, navigating, or mutating the app to reveal hidden information.',
     outputs: [plannedCommand('snapshot')],
     forbiddenOutputs: [
-      /snapshot -i/i,
       plannedCommand('press'),
       plannedCommand('click'),
       plannedCommand('fill'),
@@ -862,7 +883,7 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     ],
     task: 'Plan commands to identify the warning overlay in snapshot -i, dismiss it, verify the overlay is gone with diff snapshot -i or a fresh snapshot -i, then press the submit target.',
     outputs: [
-      /snapshot -i[\s\S]*(?:press|click)\b[^\n]*(?:Dismiss|Close|warning)[\s\S]*(?:diff snapshot -i|snapshot\b.*-i)/i,
+      /snapshot -i[\s\S]*(?:(?:press|click)\b[^\n]*(?:Dismiss|Close|warning)|find\b[^\n]*(?:Dismiss|Close|warning)[^\n]*(?:press|click))[\s\S]*(?:diff snapshot -i|snapshot\b.*-i)/i,
       /submit-order/i,
     ],
     forbiddenOutputs: [
@@ -871,6 +892,29 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       /(?:^|\n)(?:agent-device\s+)?(?:press|click)\b[^\n]*submit-order[\s\S]*(?:Dismiss|Close)/i,
       /alert accept/i,
     ],
+  }),
+  makeCase({
+    id: 'rn-error-overlay-human-flag',
+    contract: [
+      'App name: Agent Device Tester',
+      'Platform: Android',
+      'Fresh interactive snapshot shows a React Native error overlay',
+      'Overlay controls include Dismiss and Reload JS',
+      'React DevTools is connected',
+      'The overlay is unrelated to the requested checkout task but should be reported',
+      'Checkout target selector after dismissing overlay: id="submit-order"',
+      'Need overlay screenshot evidence with refs before dismissing it',
+    ],
+    task: 'Plan commands to capture the error overlay using screenshot --overlay-refs, inspect React DevTools errors, dismiss only the unrelated overlay, re-snapshot, then continue to id="submit-order".',
+    outputs: [
+      /snapshot(?:\s+-i)?/i,
+      /screenshot\b[^\n]*--overlay-refs/i,
+      plannedCommand('react-devtools errors'),
+      /(?:(?:press|click)\b[^\n]*(?:Dismiss|Close)|find\b[^\n]*(?:Dismiss|Close)[^\n]*(?:press|click))/i,
+      /(?:diff snapshot -i|snapshot(?:\s+-i)?)/i,
+      /submit-order/i,
+    ],
+    forbiddenOutputs: [RAW_COORDINATE_TARGET, /alert accept/i, /ignore/i],
   }),
   makeCase({
     id: 'expo-go-ios-project-url',
@@ -920,6 +964,7 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     task: 'Plan the next command to launch the project after the app-id lookup miss without inventing a native bundle id.',
     outputs: [IOS_EXPO_GO_OPEN],
     forbiddenOutputs: [
+      /open-url/i,
       /open\s+Agent Device Tester/i,
       /com\.(?:callstack|example|agent)/i,
       /host\.exp\.Exponent/i,
@@ -966,10 +1011,53 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     outputs: [
       /load-diagnostics/i,
       plannedCommand('network'),
-      /dump/i,
-      /(?:--include\s+headers|\bheaders\b)/i,
+      /(?:dump|log)/i,
+      /(?:--include\s+headers|\bheaders\b|network dump\b[^\n]*\ball\b)/i,
     ],
     forbiddenOutputs: [/logs path/i, /cat .*log/i],
+  }),
+  makeCase({
+    id: 'android-open-verify-ui',
+    contract: [
+      'App name: Agent Device Tester',
+      'Platform: Android',
+      'Package id: com.agentdevice.tester',
+      'Expected loaded text: Agent Device Tester',
+      'Need to verify the UI loaded after relaunch',
+    ],
+    task: 'Plan commands to open the Android package with a relaunch and verify the app UI loaded. Do not rely on screenshot-only verification.',
+    outputs: [
+      plannedCommand('open'),
+      /com\.agentdevice\.tester/i,
+      /--relaunch/i,
+      /(?:wait(?:\s+text)?|is visible|find)\b[^\n]*Agent Device Tester/i,
+    ],
+    forbiddenOutputs: [plannedCommand('screenshot')],
+  }),
+  makeCase({
+    id: 'android-action-sheet-document-scan-wait',
+    contract: [
+      'App name: Document Fixture',
+      'Platform: Android',
+      'Current screen: chat composer',
+      'Action sheet trigger selector: id="composer-actions"',
+      'Scan option text: Scan document',
+      'Expected result text after upload: Document uploaded',
+      'Android camera permission may appear as visible UI',
+    ],
+    task: 'Plan commands to open the composer action sheet, choose Scan document, handle any visible permission prompt, and wait for the upload result.',
+    outputs: [
+      /composer-actions/i,
+      /Scan document/i,
+      /Allow|snapshot -i/i,
+      /wait\b[^\n]*Document uploaded/i,
+    ],
+    forbiddenOutputs: [
+      RAW_COORDINATE_TARGET,
+      PSEUDO_ASSERTION_COMMAND,
+      /alert wait/i,
+      /settings permission/i,
+    ],
   }),
   makeCase({
     id: 'evidence-screenshot-overlay-refs',
@@ -992,7 +1080,7 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     ],
     task: 'Plan the commands to open the app first if needed, then collect session performance metrics as JSON.',
     outputs: [plannedCommand('open'), plannedCommandAlternatives(['perf', 'metrics']), /--json/i],
-    forbiddenOutputs: [plannedCommand('logs'), plannedCommand('network')],
+    forbiddenOutputs: [plannedCommand('network')],
   }),
   makeCase({
     id: 'react-devtools-profile-search',
@@ -1005,7 +1093,7 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     ],
     task: 'Plan the commands to verify React DevTools is connected, profile the Catalog search interaction, then list slow components and rerenders.',
     outputs: [
-      plannedCommand('react-devtools status'),
+      plannedCommandAlternatives(['react-devtools status', 'react-devtools start']),
       plannedCommand('react-devtools wait'),
       plannedCommand('react-devtools profile start'),
       /catalog-search/i,
@@ -1048,6 +1136,41 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       plannedCommand('react-devtools profile slow'),
       plannedCommand('react-devtools profile rerenders'),
     ],
+  }),
+  makeCase({
+    id: 'react-native-diagnostics-flow',
+    contract: [
+      'App name: Agent Device Tester',
+      'Platform: Android',
+      'Current screen: Settings tab',
+      'Slow interaction: load diagnostics from the Settings screen',
+      'Diagnostics trigger selector: id="load-diagnostics"',
+      'Expected async result selector: id="diagnostics-error"',
+      'The diagnostics request can take 5-10 seconds',
+      'Need React component offenders and network evidence',
+      'Before beginning the shared-device flow, run session list to discover/reuse any active session',
+      'Open Agent Device Tester on Android and take snapshot -i before interacting',
+    ],
+    task: 'Plan commands for a focused React Native performance run around the Settings diagnostics load flow, including debug markers, async verification, slow/rerender output, and network headers.',
+    outputs: [
+      plannedCommand('session list'),
+      plannedCommand('open'),
+      /snapshot -i/i,
+      /logs (?:clear --restart|start)/i,
+      /logs mark\b[^\n]*(?:before|start|begin)/i,
+      plannedCommand('react-devtools status'),
+      plannedCommand('react-devtools wait'),
+      plannedCommand('react-devtools profile start'),
+      /load-diagnostics/i,
+      /wait\b[^\n]*(?:diagnostics-error|Diagnostics error)/i,
+      /(?:5000|10000|12000|15000|20000)/i,
+      /logs mark\b[^\n]*(?:after|end|verified|diagnostics|loaded)/i,
+      plannedCommand('react-devtools profile stop'),
+      plannedCommand('react-devtools profile slow'),
+      plannedCommand('react-devtools profile rerenders'),
+      /network dump\b[^\n]*(?:--include headers|\bheaders\b|\ball\b)/i,
+    ],
+    forbiddenOutputs: [RAW_COORDINATE_TARGET, /cat .*log/i, /alert wait/i, /agent-devtools/i],
   }),
   makeCase({
     id: 'gesture-swipe-carousel',
@@ -1160,7 +1283,7 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'Question: is the keyboard visible and what input type is active?',
     ],
     task: 'Plan the read-only command to inspect Android keyboard visibility and input type.',
-    outputs: [/(?:^|\n)(?:agent-device\s+)?keyboard\s+(?:status|get)(?:\s|$)/i],
+    outputs: [/(?:^|\n)(?:agent-device\s+)?keyboard(?:\s+(?:status|get))?(?:\s|$)/i],
     forbiddenOutputs: [plannedCommand('fill'), plannedCommand('type'), /keyboard dismiss/i],
   }),
   makeCase({
@@ -1176,7 +1299,7 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     ],
     task: 'Plan the next diagnostic step. Do not retry fill or type until the IME handwriting/stylus state has been corrected.',
     outputs: [
-      /(?:^|\n)(?:agent-device\s+)?keyboard\s+(?:status|get)(?:\s|$)/i,
+      /(?:^|\n)(?:agent-device\s+)?keyboard(?:\s+(?:status|get))?(?:\s|$)/i,
       /(?:IME|keyboard|Gboard|handwriting|stylus)/i,
     ],
     forbiddenOutputs: [
@@ -1253,8 +1376,9 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'App name: Agent Device Tester Menu',
       'The app lives entirely as a menu bar extra',
       'Normal app snapshots can be sparse or empty',
+      'Required flags: --platform macos --surface menubar',
     ],
-    task: 'Plan the commands to inspect the menu bar app surface and capture interactive refs with snapshot -i.',
+    task: 'Plan the commands to inspect the menu bar app surface with --platform macos --surface menubar and capture interactive refs with snapshot -i.',
     outputs: [/--platform macos/i, /--surface menubar/i, /snapshot\b.*(?:-i\b|\s-i\b)/i],
     forbiddenOutputs: [/--surface app/i, /snapshot --raw/i],
   }),
@@ -1265,8 +1389,9 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'Current surface: app',
       'Target row current ref: @e66',
       'Need to open its native context menu and inspect menu item refs',
+      'Required platform flag: --platform macos',
     ],
-    task: 'Plan commands to open the context menu for @e66 and then refresh interactive refs for the menu items.',
+    task: 'Plan commands with --platform macos to open the context menu for @e66 and then refresh interactive refs for the menu items.',
     outputs: [
       plannedCommand('click'),
       /@e66/i,

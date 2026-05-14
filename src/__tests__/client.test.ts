@@ -506,7 +506,7 @@ test('client capture.snapshot preserves visibility metadata from daemon response
     data: {
       nodes: [],
       truncated: false,
-      appBundleId: 'com.expensify.chat.dev',
+      appBundleId: 'com.agentdevice.tester',
       visibility: {
         partial: true,
         visibleNodeCount: 64,

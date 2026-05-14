@@ -19,20 +19,31 @@ If the task needs the React Native component tree, props, state, hooks, or rende
 
 ```bash
 agent-device react-devtools status
+agent-device react-devtools wait --connected
 agent-device react-devtools get tree --depth 3
 agent-device react-devtools get component @c5
 agent-device react-devtools profile start
 agent-device react-devtools profile stop
 agent-device react-devtools profile slow --limit 5
+agent-device react-devtools profile rerenders --limit 5
+agent-device react-devtools profile report @c5
 ```
 
 `agent-device` remains centered on the device and app runtime layer. The `react-devtools` command dynamically runs pinned `agent-react-devtools` commands for React internals.
+
+For React Native apps, overlays, Metro/Fast Refresh blockers, and routing to React DevTools or debugging evidence, start with `agent-device help react-native`. For slow-flow investigations, combine `help react-devtools` for the narrow React profile window with `help debugging` for log markers, network evidence, traces, and perf samples.
+
+React Native warning/error overlays belong to the app run. Treat them as findings or blockers: capture them, check `react-devtools errors` when connected, dismiss visible `Dismiss`/`Close` controls only when unrelated, then re-snapshot and report the overlay.
+
+On Android, runtime permission dialogs are visible UI for `snapshot -i` plus visible `Allow`/`Deny` refs or labels. Do not use `alert wait` for Android permission prompts, and do not use `settings permission` to answer a dialog already on screen. Reserve `settings permission` for setup or resetting permission state before a flow.
 
 ## Fast path
 
 ```bash
 agent-device open MyApp --platform ios
 agent-device logs clear --restart
+agent-device logs mark "before repro"
+agent-device press 'id="submit"'
 agent-device network dump 25 --include headers
 agent-device perf --json
 agent-device logs path
