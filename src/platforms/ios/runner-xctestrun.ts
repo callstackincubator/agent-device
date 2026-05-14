@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { AppError } from '../../utils/errors.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { runCmd, runCmdStreaming, type ExecBackgroundResult } from '../../utils/exec.ts';
@@ -11,6 +10,7 @@ import { isEnvTruthy } from '../../utils/retry.ts';
 import { resolveApplePlatformName, type DeviceInfo } from '../../utils/device.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
+import { findProjectRoot } from '../../utils/version.ts';
 import { resolveSigningFailureHint } from './runner-contract.ts';
 import { logChunk } from './runner-transport.ts';
 import {
@@ -18,7 +18,6 @@ import {
   isExpectedRunnerRepairFailure,
 } from './runner-macos-products.ts';
 import { resolveExistingXctestrunProductPaths } from './runner-xctestrun-products.ts';
-export { xctestrunReferencesExistingProducts } from './runner-xctestrun-products.ts';
 
 const DEFAULT_IOS_RUNNER_APP_BUNDLE_ID = 'com.callstack.agentdevice.runner';
 const XCTEST_DEVICE_SET_BASE_NAME = 'XCTestDevices';
@@ -631,17 +630,6 @@ export function xctestrunReferencesProjectRoot(
   } catch {
     return false;
   }
-}
-
-function findProjectRoot(): string {
-  const start = path.dirname(fileURLToPath(import.meta.url));
-  let current = start;
-  for (let i = 0; i < 6; i += 1) {
-    const pkgPath = path.join(current, 'package.json');
-    if (fs.existsSync(pkgPath)) return current;
-    current = path.dirname(current);
-  }
-  return start;
 }
 
 export async function prepareXctestrunWithEnv(

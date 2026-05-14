@@ -26,39 +26,70 @@ export function resolveExistingXctestrunProductPaths(xctestrunPath: string): str
   }
   const testRoot = path.dirname(xctestrunPath);
   const resolvedPaths = new Set<string>();
+  const hostProducts = collectResolvedTestHostProducts(values, testRoot);
+
+  for (const resolvedPath of hostProducts.testRootPaths) {
+    if (!fs.existsSync(resolvedPath)) {
+      return null;
+    }
+    resolvedPaths.add(resolvedPath);
+  }
+
+  for (const resolvedPath of resolveTestHostRelativePaths(hostProducts)) {
+    if (!resolvedPath) {
+      return null;
+    }
+    resolvedPaths.add(resolvedPath);
+  }
+
+  return Array.from(resolvedPaths);
+}
+
+function collectResolvedTestHostProducts(
+  values: readonly string[],
+  testRoot: string,
+): {
+  testRootPaths: string[];
+  hostRoots: string[];
+  hostRelativePaths: string[];
+} {
+  const testRootPaths: string[] = [];
   const hostRoots = new Set<string>();
   const hostRelativePaths: string[] = [];
 
   for (const value of values) {
-    if (value.startsWith('__TESTROOT__/')) {
-      const relativePath = value.slice('__TESTROOT__/'.length);
-      const resolvedPath = path.join(testRoot, relativePath);
-      if (!fs.existsSync(resolvedPath)) {
-        return null;
-      }
-      resolvedPaths.add(resolvedPath);
-      const appBundleRoot = extractAppBundleRoot(relativePath);
-      if (appBundleRoot) {
-        hostRoots.add(path.join(testRoot, appBundleRoot));
-      }
-      continue;
-    }
     if (value.startsWith('__TESTHOST__/')) {
       hostRelativePaths.push(value.slice('__TESTHOST__/'.length));
+      continue;
+    }
+    if (!value.startsWith('__TESTROOT__/')) {
+      continue;
+    }
+    const relativePath = value.slice('__TESTROOT__/'.length);
+    testRootPaths.push(path.join(testRoot, relativePath));
+    const appBundleRoot = extractAppBundleRoot(relativePath);
+    if (appBundleRoot) {
+      hostRoots.add(path.join(testRoot, appBundleRoot));
     }
   }
 
-  for (const relativePath of hostRelativePaths) {
-    const resolvedHostRoot = Array.from(hostRoots).find((hostRoot) =>
+  return {
+    testRootPaths,
+    hostRoots: Array.from(hostRoots),
+    hostRelativePaths,
+  };
+}
+
+function resolveTestHostRelativePaths(products: {
+  hostRoots: readonly string[];
+  hostRelativePaths: readonly string[];
+}): (string | null)[] {
+  return products.hostRelativePaths.map((relativePath) => {
+    const resolvedHostRoot = products.hostRoots.find((hostRoot) =>
       fs.existsSync(path.join(hostRoot, relativePath)),
     );
-    if (!resolvedHostRoot) {
-      return null;
-    }
-    resolvedPaths.add(path.join(resolvedHostRoot, relativePath));
-  }
-
-  return Array.from(resolvedPaths);
+    return resolvedHostRoot ? path.join(resolvedHostRoot, relativePath) : null;
+  });
 }
 
 function resolveXctestrunProductReferences(xctestrunPath: string): string[] | null {
@@ -96,43 +127,49 @@ function readXctestrunJson(xctestrunPath: string): Record<string, unknown> | nul
 
 function resolveXctestrunProductReferencesFromJson(parsed: Record<string, unknown>): string[] {
   const values = new Set<string>();
-  const addTargetValues = (target: unknown) => {
-    if (!target || typeof target !== 'object') {
-      return;
-    }
-    for (const value of collectXctestrunProductReferenceValuesFromTarget(
-      target as Record<string, unknown>,
-    )) {
+
+  for (const target of collectXctestrunProductReferenceTargets(parsed)) {
+    for (const value of collectXctestrunProductReferenceValuesFromTarget(target)) {
       values.add(value);
     }
-  };
-
-  addTargetValues(parsed);
-
-  const testConfigurations = parsed.TestConfigurations;
-  if (Array.isArray(testConfigurations)) {
-    for (const config of testConfigurations) {
-      if (!config || typeof config !== 'object') {
-        continue;
-      }
-      const testTargets = (config as Record<string, unknown>).TestTargets;
-      if (!Array.isArray(testTargets)) {
-        continue;
-      }
-      for (const target of testTargets) {
-        addTargetValues(target);
-      }
-    }
-  }
-
-  for (const value of Object.values(parsed)) {
-    if (!value || typeof value !== 'object' || !('TestBundlePath' in value)) {
-      continue;
-    }
-    addTargetValues(value);
   }
 
   return Array.from(values);
+}
+
+function collectXctestrunProductReferenceTargets(
+  parsed: Record<string, unknown>,
+): Record<string, unknown>[] {
+  return [parsed, ...collectConfiguredTestTargets(parsed), ...collectLegacyTestTargets(parsed)];
+}
+
+function collectConfiguredTestTargets(parsed: Record<string, unknown>): Record<string, unknown>[] {
+  const testConfigurations = parsed.TestConfigurations;
+  if (!Array.isArray(testConfigurations)) {
+    return [];
+  }
+
+  const targets: Record<string, unknown>[] = [];
+  for (const config of testConfigurations) {
+    if (!isRecord(config)) {
+      continue;
+    }
+    const testTargets = config.TestTargets;
+    if (Array.isArray(testTargets)) {
+      targets.push(...testTargets.filter(isRecord));
+    }
+  }
+  return targets;
+}
+
+function collectLegacyTestTargets(parsed: Record<string, unknown>): Record<string, unknown>[] {
+  return Object.values(parsed).filter(
+    (value): value is Record<string, unknown> => isRecord(value) && 'TestBundlePath' in value,
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object';
 }
 
 function collectXctestrunProductReferenceValuesFromTarget(
