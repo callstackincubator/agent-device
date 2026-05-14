@@ -48,9 +48,9 @@ import {
   ensureXctestrun,
   resolveRunnerPerformanceBuildSettings,
   shouldDeleteRunnerDerivedRootEntry,
-  xctestrunReferencesExistingProducts,
   xctestrunReferencesProjectRoot,
 } from '../runner-xctestrun.ts';
+import { xctestrunReferencesExistingProducts } from '../runner-xctestrun-products.ts';
 import { parseRunnerResponse } from '../runner-session.ts';
 
 const iosSimulator: DeviceInfo = {
@@ -181,6 +181,94 @@ ${entries}
 </plist>`,
     'utf8',
   );
+}
+
+async function makeXctestrunProductsFixture(): Promise<{
+  debugDir: string;
+  xctestrunPath: string;
+}> {
+  const tmpDir = await makeTmpDir();
+  const productsDir = path.join(tmpDir, 'Build', 'Products');
+  return {
+    debugDir: path.join(productsDir, 'Debug'),
+    xctestrunPath: path.join(productsDir, 'AgentDeviceRunner.xctestrun'),
+  };
+}
+
+function writeProductReferenceXctestrun(xctestrunPath: string, entries: string[]): void {
+  fs.writeFileSync(
+    xctestrunPath,
+    ['<plist><dict>', ...entries, '</dict></plist>'].join(''),
+    'utf8',
+  );
+}
+
+async function makeBasicProductReferenceXctestrun(options: {
+  includeRunnerHostBundle: boolean;
+}): Promise<string> {
+  const { debugDir, xctestrunPath } = await makeXctestrunProductsFixture();
+  await fs.promises.mkdir(path.join(debugDir, 'AgentDeviceRunner.app'), { recursive: true });
+  if (options.includeRunnerHostBundle) {
+    await fs.promises.mkdir(
+      path.join(
+        debugDir,
+        'AgentDeviceRunnerUITests-Runner.app',
+        'Contents',
+        'PlugIns',
+        'AgentDeviceRunnerUITests.xctest',
+      ),
+      { recursive: true },
+    );
+  }
+  writeProductReferenceXctestrun(xctestrunPath, [
+    '<key>ProductPaths</key><array>',
+    '<string>__TESTROOT__/Debug/AgentDeviceRunner.app</string>',
+    '<string>__TESTROOT__/Debug/AgentDeviceRunnerUITests-Runner.app</string>',
+    '</array>',
+    '<key>TestHostPath</key><string>__TESTROOT__/Debug/AgentDeviceRunnerUITests-Runner.app</string>',
+    '<key>TestBundlePath</key><string>__TESTHOST__/Contents/PlugIns/AgentDeviceRunnerUITests.xctest</string>',
+  ]);
+  return xctestrunPath;
+}
+
+function withRunnerDerivedPathEnv(
+  derivedPath: string,
+  options: { allowOverrideClean?: boolean } = {},
+): void {
+  const previousDerivedPath = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
+  const previousAllowCleanup = process.env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN;
+  process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = derivedPath;
+  if (options.allowOverrideClean) {
+    process.env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN = '1';
+  }
+  onTestFinished(() => {
+    restoreEnvVar('AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH', previousDerivedPath);
+    restoreEnvVar('AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN', previousAllowCleanup);
+  });
+}
+
+function restoreEnvVar(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+  process.env[name] = value;
+}
+
+async function makeCachedRunnerXctestrun(): Promise<{
+  derivedPath: string;
+  existingXctestrunPath: string;
+}> {
+  const tmpDir = await makeTmpDir();
+  const derivedPath = path.join(tmpDir, 'custom-derived');
+  const existingXctestrunPath = path.join(derivedPath, 'existing.xctestrun');
+  await fs.promises.mkdir(derivedPath, { recursive: true });
+  await fs.promises.mkdir(path.join(derivedPath, 'Runner.app'), { recursive: true });
+  writeXctestrunFixture(existingXctestrunPath, {
+    projectRoot: repoRoot,
+    productRelativePaths: ['Runner.app'],
+  });
+  return { derivedPath, existingXctestrunPath };
 }
 
 beforeEach(() => {
@@ -470,67 +558,23 @@ test('xctestrunReferencesProjectRoot rejects stale worktree artifacts', async ()
 });
 
 test('xctestrunReferencesExistingProducts rejects missing runner host artifacts', async () => {
-  const tmpDir = await makeTmpDir();
-  const productsDir = path.join(tmpDir, 'Build', 'Products');
-  const debugDir = path.join(productsDir, 'Debug');
-  await fs.promises.mkdir(path.join(debugDir, 'AgentDeviceRunner.app'), { recursive: true });
-  const xctestrunPath = path.join(productsDir, 'AgentDeviceRunner.xctestrun');
-  fs.writeFileSync(
-    xctestrunPath,
-    [
-      '<plist><dict>',
-      '<key>ProductPaths</key><array>',
-      '<string>__TESTROOT__/Debug/AgentDeviceRunner.app</string>',
-      '<string>__TESTROOT__/Debug/AgentDeviceRunnerUITests-Runner.app</string>',
-      '</array>',
-      '<key>TestHostPath</key><string>__TESTROOT__/Debug/AgentDeviceRunnerUITests-Runner.app</string>',
-      '<key>TestBundlePath</key><string>__TESTHOST__/Contents/PlugIns/AgentDeviceRunnerUITests.xctest</string>',
-      '</dict></plist>',
-    ].join(''),
-    'utf8',
-  );
+  const xctestrunPath = await makeBasicProductReferenceXctestrun({
+    includeRunnerHostBundle: false,
+  });
 
   assert.equal(xctestrunReferencesExistingProducts(xctestrunPath), false);
 });
 
 test('xctestrunReferencesExistingProducts accepts xctestruns when referenced products exist', async () => {
-  const tmpDir = await makeTmpDir();
-  const productsDir = path.join(tmpDir, 'Build', 'Products');
-  const debugDir = path.join(productsDir, 'Debug');
-  await fs.promises.mkdir(path.join(debugDir, 'AgentDeviceRunner.app'), { recursive: true });
-  await fs.promises.mkdir(
-    path.join(
-      debugDir,
-      'AgentDeviceRunnerUITests-Runner.app',
-      'Contents',
-      'PlugIns',
-      'AgentDeviceRunnerUITests.xctest',
-    ),
-    { recursive: true },
-  );
-  const xctestrunPath = path.join(productsDir, 'AgentDeviceRunner.xctestrun');
-  fs.writeFileSync(
-    xctestrunPath,
-    [
-      '<plist><dict>',
-      '<key>ProductPaths</key><array>',
-      '<string>__TESTROOT__/Debug/AgentDeviceRunner.app</string>',
-      '<string>__TESTROOT__/Debug/AgentDeviceRunnerUITests-Runner.app</string>',
-      '</array>',
-      '<key>TestHostPath</key><string>__TESTROOT__/Debug/AgentDeviceRunnerUITests-Runner.app</string>',
-      '<key>TestBundlePath</key><string>__TESTHOST__/Contents/PlugIns/AgentDeviceRunnerUITests.xctest</string>',
-      '</dict></plist>',
-    ].join(''),
-    'utf8',
-  );
+  const xctestrunPath = await makeBasicProductReferenceXctestrun({
+    includeRunnerHostBundle: true,
+  });
 
   assert.equal(xctestrunReferencesExistingProducts(xctestrunPath), true);
 });
 
 test('xctestrunReferencesExistingProducts parses nested plist fallback values from XML', async () => {
-  const tmpDir = await makeTmpDir();
-  const productsDir = path.join(tmpDir, 'Build', 'Products');
-  const debugDir = path.join(productsDir, 'Debug');
+  const { debugDir, xctestrunPath } = await makeXctestrunProductsFixture();
   await fs.promises.mkdir(path.join(debugDir, 'AgentDeviceRunner.app'), { recursive: true });
   await fs.promises.mkdir(path.join(debugDir, 'Target.app'), { recursive: true });
   await fs.promises.mkdir(path.join(debugDir, 'Frameworks', 'Helper.framework'), {
@@ -546,32 +590,25 @@ test('xctestrunReferencesExistingProducts parses nested plist fallback values fr
     ),
     { recursive: true },
   );
-  const xctestrunPath = path.join(productsDir, 'AgentDeviceRunner.xctestrun');
-  fs.writeFileSync(
-    xctestrunPath,
-    [
-      '<plist><dict>',
-      '<key>TestConfigurations</key><array>',
-      '<dict>',
-      '<key>TestTargets</key><array>',
-      '<dict>',
-      '<key>ProductPaths</key><array>',
-      '<string>__TESTROOT__/Debug/AgentDeviceRunner.app</string>',
-      '</array>',
-      '<key>DependentProductPaths</key><array>',
-      '<string>__TESTROOT__/Debug/Frameworks/Helper.framework</string>',
-      '</array>',
-      '<key>TestHostPath</key><string>__TESTROOT__/Debug/AgentDeviceRunner.app</string>',
-      '<key>TestBundlePath</key><string>__TESTHOST__/Contents/PlugIns/AgentDeviceRunnerUITests.xctest</string>',
-      '<key>UITargetAppPath</key><string>__TESTROOT__/Debug/Target.app</string>',
-      '</dict>',
-      '</array>',
-      '</dict>',
-      '</array>',
-      '</dict></plist>',
-    ].join(''),
-    'utf8',
-  );
+  writeProductReferenceXctestrun(xctestrunPath, [
+    '<key>TestConfigurations</key><array>',
+    '<dict>',
+    '<key>TestTargets</key><array>',
+    '<dict>',
+    '<key>ProductPaths</key><array>',
+    '<string>__TESTROOT__/Debug/AgentDeviceRunner.app</string>',
+    '</array>',
+    '<key>DependentProductPaths</key><array>',
+    '<string>__TESTROOT__/Debug/Frameworks/Helper.framework</string>',
+    '</array>',
+    '<key>TestHostPath</key><string>__TESTROOT__/Debug/AgentDeviceRunner.app</string>',
+    '<key>TestBundlePath</key><string>__TESTHOST__/Contents/PlugIns/AgentDeviceRunnerUITests.xctest</string>',
+    '<key>UITargetAppPath</key><string>__TESTROOT__/Debug/Target.app</string>',
+    '</dict>',
+    '</array>',
+    '</dict>',
+    '</array>',
+  ]);
 
   assert.equal(xctestrunReferencesExistingProducts(xctestrunPath), true);
 });
@@ -579,9 +616,8 @@ test('xctestrunReferencesExistingProducts parses nested plist fallback values fr
 test('ensureXctestrun rebuilds after cached macOS runner repair failure', async () => {
   // Cached runner artifacts can look reusable until ad-hoc repair fails; ensure we clean once,
   // rebuild, and return the repaired rebuilt xctestrun instead of looping on stale cache state.
-  const tmpDir = await makeTmpDir();
   const projectRoot = repoRoot;
-  const derivedPath = path.join(tmpDir, 'custom-derived');
+  const { derivedPath, existingXctestrunPath } = await makeCachedRunnerXctestrun();
   const projectPath = path.join(
     projectRoot,
     'ios-runner',
@@ -589,31 +625,9 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
     'AgentDeviceRunner.xcodeproj',
   );
 
-  const existingXctestrunPath = path.join(derivedPath, 'existing.xctestrun');
   const rebuiltXctestrunPath = path.join(derivedPath, 'rebuilt', 'rebuilt.xctestrun');
-  await fs.promises.mkdir(derivedPath, { recursive: true });
-  await fs.promises.mkdir(path.join(derivedPath, 'Runner.app'), { recursive: true });
-  writeXctestrunFixture(existingXctestrunPath, {
-    projectRoot,
-    productRelativePaths: ['Runner.app'],
-  });
 
-  const previousDerivedPath = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
-  const previousAllowCleanup = process.env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN;
-  process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = derivedPath;
-  process.env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN = '1';
-  onTestFinished(() => {
-    if (previousDerivedPath === undefined) {
-      delete process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
-    } else {
-      process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = previousDerivedPath;
-    }
-    if (previousAllowCleanup === undefined) {
-      delete process.env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN;
-      return;
-    }
-    process.env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN = previousAllowCleanup;
-  });
+  withRunnerDerivedPathEnv(derivedPath, { allowOverrideClean: true });
 
   const repairedPaths: string[] = [];
 
@@ -648,26 +662,9 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
 });
 
 test('ensureXctestrun rethrows unexpected cached macOS runner repair errors', async () => {
-  const tmpDir = await makeTmpDir();
-  const projectRoot = repoRoot;
-  const derivedPath = path.join(tmpDir, 'custom-derived');
-  const existingXctestrunPath = path.join(derivedPath, 'existing.xctestrun');
-  await fs.promises.mkdir(derivedPath, { recursive: true });
-  await fs.promises.mkdir(path.join(derivedPath, 'Runner.app'), { recursive: true });
-  writeXctestrunFixture(existingXctestrunPath, {
-    projectRoot,
-    productRelativePaths: ['Runner.app'],
-  });
+  const { derivedPath, existingXctestrunPath } = await makeCachedRunnerXctestrun();
 
-  const previousDerivedPath = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
-  process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = derivedPath;
-  onTestFinished(() => {
-    if (previousDerivedPath === undefined) {
-      delete process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
-      return;
-    }
-    process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = previousDerivedPath;
-  });
+  withRunnerDerivedPathEnv(derivedPath);
 
   mockRepairMacOsRunnerProductsIfNeeded.mockRejectedValue(new Error('permission denied'));
 
