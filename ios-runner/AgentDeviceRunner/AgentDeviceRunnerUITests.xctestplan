@@ -1,0 +1,26 @@
+{
+  "configurations" : [
+    {
+      "id" : "916C7049-FE79-4C78-B55F-79242F92CB19",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "preferredScreenCaptureFormat" : "screenshots",
+    "systemAttachmentLifetime" : "keepNever",
+    "userAttachmentLifetime" : "keepNever"
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:AgentDeviceRunner.xcodeproj",
+        "identifier" : "20EA2EDC2F2CFC7C001CF0EF",
+        "name" : "AgentDeviceRunnerUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

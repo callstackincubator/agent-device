@@ -28,9 +28,32 @@ const RUNNER_DERIVED_ROOT = path.join(os.homedir(), '.agent-device', 'ios-runner
 const XCTEST_DEVICE_SET_LOCK_TIMEOUT_MS = 30_000;
 const XCTEST_DEVICE_SET_LOCK_POLL_MS = 100;
 const XCTEST_DEVICE_SET_LOCK_OWNER_GRACE_MS = 5_000;
+const RUNNER_XCTESTRUN_CAPTURE_OPTIONS = {
+  PreferredScreenCaptureFormat: 'screenshots',
+  SystemAttachmentLifetime: 'keepNever',
+  UserAttachmentLifetime: 'keepNever',
+} as const;
 
 const runnerXctestrunBuildLocks = new Map<string, Promise<unknown>>();
 export const runnerPrepProcesses = new Set<ExecBackgroundResult['child']>();
+
+type EnvMap = Record<string, string>;
+type XctestrunTarget = {
+  TestBundlePath?: unknown;
+  EnvironmentVariables?: EnvMap;
+  UITestEnvironmentVariables?: EnvMap;
+  UITargetAppEnvironmentVariables?: EnvMap;
+  TestingEnvironmentVariables?: EnvMap;
+  [key: string]: unknown;
+};
+type XctestrunConfig = {
+  TestTargets?: unknown;
+  [key: string]: unknown;
+};
+type XctestrunPlist = {
+  TestConfigurations?: unknown;
+  [key: string]: unknown;
+};
 
 type XcodebuildSimulatorSetRedirectHandle = {
   release: () => Promise<void>;
@@ -652,24 +675,6 @@ export async function prepareXctestrunWithEnv(
     });
   }
 
-  type EnvMap = Record<string, string>;
-  type XctestrunTarget = {
-    TestBundlePath?: unknown;
-    EnvironmentVariables?: EnvMap;
-    UITestEnvironmentVariables?: EnvMap;
-    UITargetAppEnvironmentVariables?: EnvMap;
-    TestingEnvironmentVariables?: EnvMap;
-    [key: string]: unknown;
-  };
-  type XctestrunConfig = {
-    TestTargets?: unknown;
-    [key: string]: unknown;
-  };
-  type XctestrunPlist = {
-    TestConfigurations?: unknown;
-    [key: string]: unknown;
-  };
-
   let parsed: XctestrunPlist;
   try {
     const raw: unknown = JSON.parse(jsonResult.stdout);
@@ -723,6 +728,10 @@ export async function prepareXctestrunWithEnv(
     }
   }
 
+  // Xcode 26.2 can emit attachment lifetime values that differ from the test plan,
+  // so normalize the per-session xctestrun immediately before test-without-building.
+  applyRunnerXctestrunCapturePolicy(parsed);
+
   fs.writeFileSync(tmpJsonPath, JSON.stringify(parsed, null, 2));
   const plistResult = await runCmd(
     'plutil',
@@ -739,6 +748,35 @@ export async function prepareXctestrunWithEnv(
   }
 
   return { xctestrunPath: tmpXctestrunPath, jsonPath: tmpJsonPath };
+}
+
+function applyRunnerXctestrunCapturePolicy(parsed: XctestrunPlist): void {
+  const applyCapturePolicy = (target: XctestrunTarget) => {
+    Object.assign(target, RUNNER_XCTESTRUN_CAPTURE_OPTIONS);
+  };
+
+  const configs = parsed.TestConfigurations;
+  if (Array.isArray(configs)) {
+    for (const config of configs as XctestrunConfig[]) {
+      if (!config || typeof config !== 'object') continue;
+      const targets = config.TestTargets;
+      if (!Array.isArray(targets)) continue;
+      for (const target of targets as XctestrunTarget[]) {
+        if (!target || typeof target !== 'object') continue;
+        if (!target.TestBundlePath) continue;
+        applyCapturePolicy(target);
+      }
+    }
+  }
+
+  for (const value of Object.values(parsed)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const candidate = value as XctestrunTarget;
+      if (candidate.TestBundlePath) {
+        applyCapturePolicy(candidate);
+      }
+    }
+  }
 }
 
 async function buildRunnerXctestrun(

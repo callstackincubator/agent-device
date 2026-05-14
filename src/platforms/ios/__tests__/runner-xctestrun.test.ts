@@ -7,6 +7,7 @@ import type { DeviceInfo } from '../../../utils/device.ts';
 import {
   acquireXcodebuildSimulatorSetRedirect,
   findXctestrun,
+  prepareXctestrunWithEnv,
   resolveXcodebuildSimulatorDeviceSetPath,
   scoreXctestrunCandidate,
 } from '../runner-xctestrun.ts';
@@ -96,6 +97,80 @@ test('scoreXctestrunCandidate penalizes macos and env xctestrun files for simula
   );
 
   assert.ok(simulatorScore > macosEnvScore);
+});
+
+test('prepareXctestrunWithEnv avoids XCTest screen recordings for nested and legacy targets', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-xctestrun-policy-'));
+  try {
+    const xctestrunPath = path.join(root, 'AgentDeviceRunner.xctestrun');
+    fs.writeFileSync(
+      xctestrunPath,
+      JSON.stringify({
+        AgentDeviceRunnerUITests: {
+          TestBundlePath: '__TESTHOST__/PlugIns/AgentDeviceRunnerUITests.xctest',
+          PreferredScreenCaptureFormat: 'screenRecording',
+        },
+        TestConfigurations: [
+          {
+            TestTargets: [
+              {
+                TestBundlePath: '__TESTHOST__/PlugIns/AgentDeviceRunnerUITests.xctest',
+                PreferredScreenCaptureFormat: 'screenRecording',
+                SystemAttachmentLifetime: 'deleteOnSuccess',
+                UserAttachmentLifetime: 'deleteOnSuccess',
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    const prepared = await prepareXctestrunWithEnv(
+      xctestrunPath,
+      { AGENT_DEVICE_RUNNER_PORT: '12345' },
+      'policy',
+    );
+    const parsed = JSON.parse(fs.readFileSync(prepared.jsonPath, 'utf8'));
+    const target = parsed.TestConfigurations[0]?.TestTargets[0];
+
+    assert.equal(target?.EnvironmentVariables?.AGENT_DEVICE_RUNNER_PORT, '12345');
+    assert.equal(target?.PreferredScreenCaptureFormat, 'screenshots');
+    assert.equal(target?.SystemAttachmentLifetime, 'keepNever');
+    assert.equal(target?.UserAttachmentLifetime, 'keepNever');
+    assert.equal(parsed.AgentDeviceRunnerUITests.PreferredScreenCaptureFormat, 'screenshots');
+    assert.equal(parsed.AgentDeviceRunnerUITests.SystemAttachmentLifetime, 'keepNever');
+    assert.equal(parsed.AgentDeviceRunnerUITests.UserAttachmentLifetime, 'keepNever');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('prepareXctestrunWithEnv leaves unrelated targets without capture policy', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'runner-xctestrun-policy-'));
+  try {
+    const xctestrunPath = path.join(root, 'AgentDeviceRunner.xctestrun');
+    const original = {
+      ContainerInfo: { SchemeName: 'AgentDeviceRunner' },
+      TestConfigurations: [{ TestTargets: [{}] }],
+    };
+    fs.writeFileSync(xctestrunPath, JSON.stringify(original));
+
+    const prepared = await prepareXctestrunWithEnv(
+      xctestrunPath,
+      { AGENT_DEVICE_RUNNER_PORT: '12345' },
+      'policy-no-targets',
+    );
+    const parsed = JSON.parse(fs.readFileSync(prepared.jsonPath, 'utf8'));
+    const target = parsed.TestConfigurations[0]?.TestTargets[0];
+
+    assert.equal(target?.EnvironmentVariables?.AGENT_DEVICE_RUNNER_PORT, '12345');
+    assert.equal(target?.PreferredScreenCaptureFormat, undefined);
+    assert.equal(target?.SystemAttachmentLifetime, undefined);
+    assert.equal(target?.UserAttachmentLifetime, undefined);
+    assert.deepEqual(parsed.ContainerInfo, original.ContainerInfo);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('resolveXcodebuildSimulatorDeviceSetPath uses XCTestDevices under the user home', () => {
