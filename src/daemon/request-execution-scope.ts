@@ -1,0 +1,191 @@
+import type { CommandFlags } from '../core/dispatch.ts';
+import { withKeyedLock } from '../utils/keyed-lock.ts';
+import { emitDiagnostic, getDiagnosticsMeta } from '../utils/diagnostics.ts';
+import type { DaemonCommandContext } from './context.ts';
+import { contextFromFlags as contextFromFlagsWithLog } from './context.ts';
+import { assertSessionSelectorMatches } from './session-selector.ts';
+import { applyRequestLockPolicy } from './request-lock-policy.ts';
+import { resolveEffectiveSessionName } from './session-routing.ts';
+import {
+  assertRequestLeaseAdmission,
+  resolveExecutionLockKey,
+  scopeRequestSession,
+  shouldLockSessionExecution,
+  shouldValidateSessionSelector,
+} from './request-admission.ts';
+import { throwIfRequestCanceled } from './request-cancel.ts';
+import { finalizeDaemonResponse } from './request-finalization.ts';
+import {
+  refreshRecordingHealth,
+  shouldBlockForInvalidRecording,
+} from './request-recording-health.ts';
+import type { LeaseRegistry } from './lease-registry.ts';
+import type { SessionStore } from './session-store.ts';
+import type { DaemonRequest, DaemonResponse, SessionState } from './types.ts';
+
+const leaseRegistryExecutionLocks = new WeakMap<LeaseRegistry, Map<string, Promise<unknown>>>();
+
+export type RequestExecutionScope = {
+  req: DaemonRequest;
+  command: string;
+  sessionName: string;
+  runLocked<T>(task: () => Promise<T>): Promise<T>;
+  throwIfCanceled(): void;
+};
+
+export type LockedRequestScope = {
+  req: DaemonRequest;
+  sessionName: string;
+  existingSession: SessionState | undefined;
+  finalize(response: DaemonResponse): DaemonResponse;
+  contextFromFlags(
+    flags: CommandFlags | undefined,
+    appBundleId?: string,
+    traceLogPath?: string,
+  ): DaemonCommandContext;
+  handlerContextFromFlags(
+    flags: CommandFlags | undefined,
+    appBundleId?: string,
+    traceLogPath?: string,
+  ): DaemonCommandContext;
+};
+
+export type LockedRequestScopeResult =
+  | { type: 'scope'; scope: LockedRequestScope }
+  | { type: 'response'; response: DaemonResponse };
+
+export async function createRequestExecutionScope(params: {
+  req: DaemonRequest;
+  sessionStore: SessionStore;
+  leaseRegistry: LeaseRegistry;
+}): Promise<RequestExecutionScope> {
+  const { sessionStore, leaseRegistry } = params;
+  const scopedReq = scopeRequestSession(params.req);
+  emitDiagnostic({
+    level: 'info',
+    phase: 'request_start',
+    data: {
+      session: scopedReq.session,
+      command: scopedReq.command,
+      tenant: scopedReq.meta?.tenantId,
+      isolation: scopedReq.meta?.sessionIsolation,
+    },
+  });
+
+  const command = scopedReq.command;
+  assertRequestLeaseAdmission(scopedReq, leaseRegistry);
+
+  const sessionName = resolveEffectiveSessionName(scopedReq, sessionStore);
+  const executionLockKey = shouldLockSessionExecution(command)
+    ? await resolveExecutionLockKey({ req: scopedReq, sessionName, sessionStore })
+    : null;
+  const executionLocks = getLeaseRegistryExecutionLocks(leaseRegistry);
+
+  const scope: RequestExecutionScope = {
+    req: scopedReq,
+    command,
+    sessionName,
+    throwIfCanceled: () => throwIfRequestCanceled(scopedReq.meta?.requestId),
+    runLocked: async (task) => {
+      throwIfRequestCanceled(scopedReq.meta?.requestId);
+      if (!executionLockKey) return await task();
+      return await withKeyedLock(executionLocks, executionLockKey, async () => {
+        throwIfRequestCanceled(scopedReq.meta?.requestId);
+        return await task();
+      });
+    },
+  };
+  return scope;
+}
+
+export function prepareLockedRequestScope(params: {
+  scope: RequestExecutionScope;
+  logPath: string;
+  sessionStore: SessionStore;
+  trackDownloadableArtifact: (opts: {
+    artifactPath: string;
+    tenantId?: string;
+    fileName?: string;
+  }) => string;
+}): LockedRequestScopeResult {
+  const { scope, logPath, sessionStore, trackDownloadableArtifact } = params;
+  scope.throwIfCanceled();
+  const existingSession = sessionStore.get(scope.sessionName);
+  if (existingSession) {
+    refreshRecordingHealth(existingSession);
+    sessionStore.set(scope.sessionName, existingSession);
+  }
+  const lockedReq = applyRequestLockPolicy(scope.req, existingSession);
+  const finalize = (response: DaemonResponse): DaemonResponse =>
+    finalizeDaemonResponse(lockedReq, response, trackDownloadableArtifact);
+
+  if (
+    existingSession?.recording?.invalidatedReason &&
+    shouldBlockForInvalidRecording(scope.command)
+  ) {
+    return {
+      type: 'response',
+      response: finalize({
+        ok: false,
+        error: {
+          code: 'COMMAND_FAILED',
+          message: existingSession.recording.invalidatedReason,
+        },
+      }),
+    };
+  }
+
+  if (
+    existingSession &&
+    !lockedReq.meta?.lockPolicy &&
+    shouldValidateSessionSelector(scope.command)
+  ) {
+    assertSessionSelectorMatches(existingSession, lockedReq.flags);
+  }
+
+  const contextFromFlags = (
+    flags: CommandFlags | undefined,
+    appBundleId?: string,
+    traceLogPath?: string,
+  ): DaemonCommandContext => contextFromRequestFlags(logPath, flags, appBundleId, traceLogPath);
+
+  return {
+    type: 'scope',
+    scope: {
+      req: lockedReq,
+      sessionName: scope.sessionName,
+      existingSession,
+      finalize,
+      contextFromFlags,
+      handlerContextFromFlags: (flags, appBundleId, traceLogPath) =>
+        ({
+          ...contextFromFlags(flags, appBundleId, traceLogPath),
+          surface: sessionStore.get(scope.sessionName)?.surface,
+        }) satisfies DaemonCommandContext,
+    },
+  };
+}
+
+function contextFromRequestFlags(
+  logPath: string,
+  flags: CommandFlags | undefined,
+  appBundleId?: string,
+  traceLogPath?: string,
+): DaemonCommandContext {
+  const requestId = getDiagnosticsMeta().requestId;
+  return {
+    ...contextFromFlagsWithLog(logPath, flags, appBundleId, traceLogPath, requestId),
+    requestId,
+  };
+}
+
+function getLeaseRegistryExecutionLocks(
+  leaseRegistry: LeaseRegistry,
+): Map<string, Promise<unknown>> {
+  let locks = leaseRegistryExecutionLocks.get(leaseRegistry);
+  if (!locks) {
+    locks = new Map();
+    leaseRegistryExecutionLocks.set(leaseRegistry, locks);
+  }
+  return locks;
+}

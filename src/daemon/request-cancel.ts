@@ -87,6 +87,12 @@ export function createRequestCanceledError(): AppError {
   });
 }
 
+export function throwIfRequestCanceled(requestId: string | undefined): void {
+  if (isRequestCanceled(requestId)) {
+    throw createRequestCanceledError();
+  }
+}
+
 export function isRequestCanceledError(error: unknown): boolean {
   if (!(error instanceof AppError)) return false;
   if (error.code !== 'COMMAND_FAILED') return false;
