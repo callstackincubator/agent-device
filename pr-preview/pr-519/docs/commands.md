@@ -11,7 +11,7 @@ agent-device help
 agent-device help workflow
 agent-device help debugging
 agent-device help react-devtools
-agent-device help rn-performance
+agent-device help react-native-performance
 agent-device help remote
 agent-device help macos
 agent-device help dogfood
@@ -596,7 +596,7 @@ agent-device react-devtools profile rerenders --limit 5
 - `agent-device` global flags work before or after `react-devtools`. Use `--` before downstream flags only when they intentionally share an `agent-device` global flag name.
 - Use it when a React Native workflow needs component hierarchy, props, state, hooks, render causes, slow components, or re-render counts.
 - Keep using `snapshot`, `press`, `fill`, `logs`, `network`, and `perf` for device/app runtime evidence. Use `react-devtools` for React internals.
-- For slow React Native app flows that need log markers, React profiles, network evidence, and a component performance report, start with `agent-device help rn-performance`.
+- For slow React Native app flows that need log markers, React profiles, network evidence, and a component performance report, start with `agent-device help react-native-performance`.
 - On Android, permission prompts are visible UI; use `snapshot -i` and press visible `Allow`/`Deny` controls instead of `alert wait`.
 - React Native development builds can connect to the DevTools daemon on port 8097. For Android emulators or physical devices, run `adb reverse tcp:8097 tcp:8097` if the app cannot reach the host. If Metro is local, also run `adb reverse tcp:8081 tcp:8081`.
 - For Android and iOS sessions connected through a remote bridge profile, `react-devtools` registers a lease-scoped companion tunnel to the sandbox-local DevTools daemon at `127.0.0.1:8097`. Android bridge profiles use the bridge-owned remote `adb reverse` mapping; iOS bridge profiles use the bridge-owned wildcard Metro host tunnel. The CLI keeps the companion alive until `agent-device react-devtools stop` or `agent-device disconnect`.
