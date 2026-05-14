@@ -10,6 +10,7 @@ import {
   isCommandCodec,
   settingsCommandCodec,
 } from './command-codecs.ts';
+import { typeCommandCodec } from './commands/interactions/definition.ts';
 import { throwDaemonError } from './daemon-error.ts';
 import {
   buildFlags,
@@ -386,7 +387,11 @@ export function createAgentDeviceClient(
           options,
         ),
       type: async (options) =>
-        await executeCommandRequest(PUBLIC_COMMANDS.type, [options.text], options),
+        await executeCommandRequest(
+          PUBLIC_COMMANDS.type,
+          typeCommandCodec.encode(options),
+          options,
+        ),
       fill: async (options) =>
         await executeCommandRequest(
           PUBLIC_COMMANDS.fill,
