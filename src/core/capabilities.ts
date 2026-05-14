@@ -1,5 +1,7 @@
 import { isApplePlatform, type DeviceInfo } from '../utils/device.ts';
+import { CAPTURE_COMMAND_CAPABILITIES } from '../commands/capture-definition.ts';
 import { INTERACTION_COMMAND_CAPABILITIES } from '../commands/interactions/definition.ts';
+import { SELECTOR_COMMAND_CAPABILITIES } from '../commands/selectors-definition.ts';
 
 type KindMatrix = {
   simulator?: boolean;
@@ -99,27 +101,9 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_DEVICE,
   },
-  diff: {
-    apple: { simulator: true, device: true },
-    android: { emulator: true, device: true, unknown: true },
-    linux: LINUX_DEVICE,
-  },
-  find: {
-    apple: { simulator: true, device: true },
-    android: { emulator: true, device: true, unknown: true },
-    linux: LINUX_DEVICE,
-  },
+  ...CAPTURE_COMMAND_CAPABILITIES,
+  ...SELECTOR_COMMAND_CAPABILITIES,
   focus: {
-    apple: { simulator: true, device: true },
-    android: { emulator: true, device: true, unknown: true },
-    linux: LINUX_DEVICE,
-  },
-  get: {
-    apple: { simulator: true, device: true },
-    android: { emulator: true, device: true, unknown: true },
-    linux: LINUX_DEVICE,
-  },
-  is: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_DEVICE,
@@ -196,11 +180,6 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     supports: (device) =>
       device.platform === 'android' || (device.platform === 'ios' && device.target !== 'tv'),
   },
-  screenshot: {
-    apple: { simulator: true, device: true },
-    android: { emulator: true, device: true, unknown: true },
-    linux: LINUX_DEVICE,
-  },
   scroll: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
@@ -218,22 +197,12 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     supports: (device) =>
       device.platform === 'android' || device.platform === 'macos' || device.kind === 'simulator',
   },
-  snapshot: {
-    apple: { simulator: true, device: true },
-    android: { emulator: true, device: true, unknown: true },
-    linux: LINUX_DEVICE,
-  },
   'trigger-app-event': {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,
   },
   ...INTERACTION_COMMAND_CAPABILITIES,
-  wait: {
-    apple: { simulator: true, device: true },
-    android: { emulator: true, device: true, unknown: true },
-    linux: LINUX_DEVICE,
-  },
 };
 
 export function isCommandSupportedOnDevice(command: string, device: DeviceInfo): boolean {

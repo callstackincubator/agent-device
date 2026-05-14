@@ -1,6 +1,22 @@
 import { buildPrimaryEnvVarName } from './utils/source-value.ts';
 
-export type RemoteConfigProfile = {
+export type RemoteConfigMetroOptions = {
+  metroProjectRoot?: string;
+  metroKind?: 'auto' | 'react-native' | 'expo';
+  metroPublicBaseUrl?: string;
+  metroProxyBaseUrl?: string;
+  metroBearerToken?: string;
+  metroPreparePort?: number;
+  metroListenHost?: string;
+  metroStatusHost?: string;
+  metroStartupTimeoutMs?: number;
+  metroProbeTimeoutMs?: number;
+  metroRuntimeFile?: string;
+  metroNoReuseExisting?: boolean;
+  metroNoInstallDeps?: boolean;
+};
+
+export type RemoteConfigProfile = RemoteConfigMetroOptions & {
   stateDir?: string;
   daemonBaseUrl?: string;
   daemonAuthToken?: string;
@@ -19,19 +35,6 @@ export type RemoteConfigProfile = {
   iosSimulatorDeviceSet?: string;
   androidDeviceAllowlist?: string;
   session?: string;
-  metroProjectRoot?: string;
-  metroKind?: 'auto' | 'react-native' | 'expo';
-  metroPublicBaseUrl?: string;
-  metroProxyBaseUrl?: string;
-  metroBearerToken?: string;
-  metroPreparePort?: number;
-  metroListenHost?: string;
-  metroStatusHost?: string;
-  metroStartupTimeoutMs?: number;
-  metroProbeTimeoutMs?: number;
-  metroRuntimeFile?: string;
-  metroNoReuseExisting?: boolean;
-  metroNoInstallDeps?: boolean;
 };
 
 export type RemoteConfigProfileOptions = {

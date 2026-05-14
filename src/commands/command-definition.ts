@@ -1,6 +1,12 @@
 import type { CommandCapability } from '../core/capabilities.ts';
 import type { CommandSchema } from '../utils/command-schema.ts';
 
+export const ALL_DEVICE_COMMAND_CAPABILITY = {
+  apple: { simulator: true, device: true },
+  android: { emulator: true, device: true, unknown: true },
+  linux: { device: true },
+} as const satisfies CommandCapability;
+
 export type CommandDefinition<TName extends string = string> = {
   name: TName;
   schema: CommandSchema;
