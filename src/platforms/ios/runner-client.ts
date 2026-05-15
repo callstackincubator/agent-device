@@ -2,11 +2,7 @@ import { AppError } from '../../utils/errors.ts';
 import { withRetry } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { getRequestSignal } from '../../daemon/request-cancel.ts';
-import {
-  waitForRunner,
-  RUNNER_COMMAND_TIMEOUT_MS,
-  RUNNER_STARTUP_TIMEOUT_MS,
-} from './runner-transport.ts';
+import { RUNNER_COMMAND_TIMEOUT_MS, RUNNER_STARTUP_TIMEOUT_MS } from './runner-transport.ts';
 import {
   type RunnerSession,
   ensureRunnerSession,
@@ -14,7 +10,6 @@ import {
   stopIosRunnerSession,
   validateRunnerDevice,
   executeRunnerCommandWithSession,
-  parseRunnerResponse,
 } from './runner-session.ts';
 import {
   assertRunnerRequestActive,
@@ -82,7 +77,6 @@ async function executeRunnerCommand(
   } catch (err) {
     const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
     if (
-      isReadOnlyRunnerCommand(command.command) &&
       appErr.code === 'COMMAND_FAILED' &&
       typeof appErr.message === 'string' &&
       appErr.message.includes('Runner did not accept connection') &&
@@ -96,16 +90,14 @@ async function executeRunnerCommand(
         await stopIosRunnerSession(device.id);
       }
       session = await ensureRunnerSession(device, options);
-      const response = await waitForRunner(
-        session.device,
-        session.port,
+      return await executeRunnerCommandWithSession(
+        device,
+        session,
         command,
         options.logPath,
         RUNNER_STARTUP_TIMEOUT_MS,
-        undefined,
         signal,
       );
-      return await parseRunnerResponse(response, session, options.logPath);
     }
     throw err;
   }

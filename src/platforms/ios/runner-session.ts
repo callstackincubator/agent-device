@@ -6,6 +6,7 @@ import {
   type ExecBackgroundResult,
 } from '../../utils/exec.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
+import { Deadline } from '../../utils/retry.ts';
 import { isProcessAlive, isProcessGroupAlive } from '../../utils/process-identity.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
@@ -349,17 +350,22 @@ export async function executeRunnerCommandWithSession(
     return await parseRunnerResponse(response, session, logPath);
   }
 
+  const deadline = Deadline.fromTimeoutMs(timeoutMs);
   const readinessResponse = await waitForRunner(
     device,
     session.port,
     { command: 'uptime' },
     logPath,
-    RUNNER_STARTUP_TIMEOUT_MS,
+    Math.min(RUNNER_STARTUP_TIMEOUT_MS, deadline.remainingMs()),
     session,
     signal,
   );
   await parseRunnerResponse(readinessResponse, session, logPath);
-  const response = await sendRunnerCommandOnce(device, session.port, command, timeoutMs, signal);
+  const remainingMs = deadline.remainingMs();
+  if (remainingMs <= 0) {
+    throw new AppError('COMMAND_FAILED', 'Runner command deadline exceeded', { timeoutMs });
+  }
+  const response = await sendRunnerCommandOnce(device, session.port, command, remainingMs, signal);
   return await parseRunnerResponse(response, session, logPath);
 }
 

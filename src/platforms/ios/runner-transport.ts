@@ -183,14 +183,19 @@ export async function sendRunnerCommandOnce(
   if (signal?.aborted) {
     throw createRequestCanceledError();
   }
+  const deadline = Deadline.fromTimeoutMs(timeoutMs);
   const { getEndpoints } = createRunnerEndpointResolver(device, port);
-  const { endpoints } = await getEndpoints(timeoutMs);
+  const { endpoints } = await getEndpoints(deadline.remainingMs());
   const endpoint = endpoints[0];
   if (!endpoint) {
     throw new AppError('COMMAND_FAILED', 'Runner command endpoint not available', {
       port,
       endpoints,
     });
+  }
+  const remainingMs = deadline.remainingMs();
+  if (remainingMs <= 0) {
+    throw new AppError('COMMAND_FAILED', 'Runner command deadline exceeded', { timeoutMs });
   }
   return await fetchWithTimeout(
     endpoint,
@@ -199,7 +204,7 @@ export async function sendRunnerCommandOnce(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(command),
     },
-    timeoutMs,
+    remainingMs,
     signal,
   );
 }
