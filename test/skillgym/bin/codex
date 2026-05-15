@@ -1,6 +1,0 @@
-#!/bin/sh
-if [ "$1" = "codex" ]; then
-  shift
-fi
-
-exec "${CODEX_CLI:-/Applications/Codex.app/Contents/Resources/codex}" "$@"
