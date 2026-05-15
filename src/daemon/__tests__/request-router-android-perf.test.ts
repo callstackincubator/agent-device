@@ -37,43 +37,6 @@ function makeHandler(sessionStore: SessionStore, androidAdbProvider: () => Andro
   });
 }
 
-test('request handler routes Android perf through injected adb executor', async () => {
-  const sessionStore = makeAndroidSessionStore('agent-device-request-router-perf-test');
-  const adbCalls: string[][] = [];
-  const adb: AndroidAdbExecutor = async (args) => {
-    adbCalls.push(args);
-    if (args.includes('meminfo')) {
-      return { stdout: 'TOTAL PSS: 100 TOTAL RSS: 200', stderr: '', exitCode: 0 };
-    }
-    if (args.includes('cpuinfo')) {
-      return {
-        stdout: '3.0% 1234/com.example.app: 2.0% user + 1.0% kernel',
-        stderr: '',
-        exitCode: 0,
-      };
-    }
-    return {
-      stdout: ['Total frames rendered: 4', 'Janky frames: 1 (25.00%)'].join('\n'),
-      stderr: '',
-      exitCode: 0,
-    };
-  };
-  const handler = makeHandler(sessionStore, () => ({ exec: adb }));
-
-  const response = await handler({
-    token: 'token',
-    session: 'default',
-    command: 'perf',
-    positionals: [],
-    flags: {},
-  });
-
-  expect(response.ok).toBe(true);
-  if (!response.ok) throw new Error('Expected perf response to succeed');
-  expect((response.data?.metrics as Record<string, any>)?.fps?.droppedFramePercent).toBe(25);
-  expect(adbCalls).toContainEqual(['shell', 'dumpsys', 'gfxinfo', 'com.example.app', 'reset']);
-});
-
 test('request handler reports injected Android adb failures per perf metric', async () => {
   const sessionStore = makeAndroidSessionStore('agent-device-request-router-perf-unavailable-test');
   const adb: AndroidAdbExecutor = async () => {
@@ -98,27 +61,4 @@ test('request handler reports injected Android adb failures per perf metric', as
     expect(metric.reason).toBe('Remote Android ADB executor is unavailable');
     expect(metric.error.details.metric).toBe(metricName);
   }
-});
-
-test('request handler scopes generic Android commands through injected adb provider', async () => {
-  const sessionStore = makeAndroidSessionStore('agent-device-request-router-adb-provider-test');
-  const adbCalls: string[][] = [];
-  const adbProvider: AndroidAdbProvider = {
-    exec: async (args) => {
-      adbCalls.push(args);
-      return { stdout: '', stderr: '', exitCode: 0 };
-    },
-  };
-  const handler = makeHandler(sessionStore, () => adbProvider);
-
-  const response = await handler({
-    token: 'token',
-    session: 'default',
-    command: 'press',
-    positionals: ['10', '20'],
-    flags: {},
-  });
-
-  expect(response.ok).toBe(true);
-  expect(adbCalls).toContainEqual(['shell', 'input', 'tap', '10', '20']);
 });

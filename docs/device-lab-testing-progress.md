@@ -19,15 +19,15 @@ Current local snapshot:
 | Measure | Value |
 | --- | ---: |
 | Handler unit test files | 29 |
-| Handler unit test LOC | 13770 |
-| Handler unit tests | 359 |
+| Handler unit test LOC | 13606 |
+| Handler unit tests | 357 |
 | Handler files with `vi.mock` | 18 |
 | Device Lab files | 12 |
-| Device Lab LOC | 2782 |
+| Device Lab LOC | 2847 |
 | Device Lab tests | 15 |
 | Device Lab support files | 7 |
 | Device Lab support LOC | 733 |
-| Device Lab / handler LOC | 20.2% |
+| Device Lab / handler LOC | 20.9% |
 
 Coverage is tracked separately by:
 
@@ -175,7 +175,7 @@ Before deleting a unit test, confirm that a Device Lab scenario covers the succe
 
 ## Next Work
 
-1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest pass moved macOS desktop `wait` helper-backed snapshot polling into Device Lab and deleted the narrower mocked handler success test.
+1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest pass deepened Android lifecycle coverage for perf metrics and diff baseline initialization, then deleted redundant Android perf and diff handler/request-router success units.
 2. Review the top mock-heavy files from `pnpm test:device-lab:progress` before adding new handler unit coverage. Prefer a Device Lab scenario when the behavior is a command workflow.
 3. Reassess Apple raw tool/helper provider pressure when another Adapter or another scenario has to pattern-match the same host command intent.
 4. Use PR #553 as the flag-plumbing baseline: the command-specific codec should be the normal edit path for screenshot-specific flags, with Device Lab proving the daemon/provider behavior.

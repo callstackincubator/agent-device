@@ -208,7 +208,18 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         const perf = await client.observability.perf(selection);
         assert.equal(perf.platform, 'android');
         assert.equal(perf.deviceId, DEVICE_LAB_ANDROID.id);
-        assert.equal(typeof perf.metrics, 'object');
+        const metrics = perf.metrics as Record<string, any>;
+        assert.equal(metrics.memory?.available, true, JSON.stringify(perf));
+        assert.equal(metrics.memory?.totalPssKb, 216524);
+        assert.equal(metrics.memory?.totalRssKb, 340112);
+        assert.equal(metrics.cpu?.available, true, JSON.stringify(perf));
+        assert.equal(metrics.cpu?.usagePercent, 9);
+        assert.deepEqual(metrics.cpu?.matchedProcesses, [
+          'com.example.demo',
+          'com.example.demo:sync',
+        ]);
+        assert.equal(metrics.fps?.available, true, JSON.stringify(perf));
+        assert.equal(metrics.fps?.droppedFramePercent, 25);
 
         const logsStop = await client.observability.logs({ action: 'stop', ...selection });
         assert.equal(logsStop.stopped, true);
@@ -228,6 +239,16 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
 
         const logsDoctor = await client.observability.logs({ action: 'doctor', ...selection });
         assert.equal((logsDoctor.checks as { adbAvailable?: boolean }).adbAvailable, true);
+
+        const baselineDiff = await client.capture.diff({
+          kind: 'snapshot',
+          interactiveOnly: true,
+          ...selection,
+        });
+        assert.equal(baselineDiff.mode, 'snapshot');
+        assert.equal(baselineDiff.baselineInitialized, true);
+        assert.deepEqual(baselineDiff.summary, { additions: 0, removals: 0, unchanged: 3 });
+        assert.deepEqual(baselineDiff.lines, []);
 
         const snapshot = await client.capture.snapshot({ interactiveOnly: true, ...selection });
         const apps = snapshot.nodes.find((node) => node.label === 'Apps');
@@ -404,6 +425,16 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       assertCommandCall(adbCalls, ['shell', 'cmd', 'clipboard', 'set', 'text', 'android otp']);
       assertCommandCall(adbCalls, ['shell', 'dumpsys', 'input_method']);
       assertCommandCall(adbCalls, ['shell', 'pidof', 'com.example.demo']);
+      assertCommandCall(adbCalls, ['shell', 'dumpsys', 'meminfo', 'com.example.demo']);
+      assertCommandCall(adbCalls, ['shell', 'dumpsys', 'cpuinfo']);
+      assertCommandCall(adbCalls, [
+        'shell',
+        'dumpsys',
+        'gfxinfo',
+        'com.example.demo',
+        'framestats',
+      ]);
+      assertCommandCall(adbCalls, ['shell', 'dumpsys', 'gfxinfo', 'com.example.demo', 'reset']);
       assert.ok(
         spawnedLogcat.some((child) => child.killed),
         'Expected logs stop to terminate the scripted logcat stream',
@@ -520,6 +551,40 @@ function androidAdbResult(
   }
   if (args.join(' ') === 'shell pidof com.example.demo') {
     return { stdout: '4242\n', stderr: '', exitCode: 0 };
+  }
+  if (args.join(' ') === 'shell dumpsys cpuinfo') {
+    return {
+      stdout: [
+        'Load: 1.0 / 0.5 / 0.25',
+        '7.5% 1234/com.example.demo: 5.0% user + 2.5% kernel',
+        '1.5% 2345/com.example.demo:sync: 1.0% user + 0.5% kernel',
+        '0.3% 999/system_server: 0.2% user + 0.1% kernel',
+      ].join('\n'),
+      stderr: '',
+      exitCode: 0,
+    };
+  }
+  if (args.join(' ') === 'shell dumpsys meminfo com.example.demo') {
+    return {
+      stdout: [
+        '** MEMINFO in pid 18227 [com.example.demo] **',
+        '                   Pss  Private  Private  Swapped     Heap     Heap     Heap',
+        '                 Total    Dirty    Clean    Dirty     Size    Alloc     Free',
+        '                ------   ------   ------   ------   ------   ------   ------',
+        '          TOTAL   216524   208232     4384        0    82916    68345    14570',
+        'App Summary',
+        '  TOTAL PSS:   216,524            TOTAL RSS:   340,112       TOTAL SWAP PSS:        0',
+      ].join('\n'),
+      stderr: '',
+      exitCode: 0,
+    };
+  }
+  if (args.join(' ') === 'shell dumpsys gfxinfo com.example.demo framestats') {
+    return {
+      stdout: ['Total frames rendered: 4', 'Janky frames: 1 (25.00%)'].join('\n'),
+      stderr: '',
+      exitCode: 0,
+    };
   }
   if (
     args.slice(0, 7).join(' ') ===
