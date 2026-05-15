@@ -64,16 +64,6 @@ export async function runDeviceLabScenario(
   return state;
 }
 
-export function assertScenarioCommands(
-  scenario: DeviceLabScenarioState,
-  expectedCommands: readonly string[],
-): void {
-  assert.deepEqual(
-    scenario.steps.map((step) => step.command),
-    expectedCommands,
-  );
-}
-
 function assertDataContains(
   name: string,
   response: DeviceLabRpcResult,

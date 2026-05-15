@@ -8,7 +8,7 @@ This matrix is the deletion guide for mock-heavy unit tests. A unit test is a go
 | `apps` | Android, iOS, macOS default and `--apps-filter all` flows | parser/default normalization, platform-specific app parser edge cases | Delete remaining handler-level list happy paths once parser/unit edge coverage is confirmed. |
 | `install`, `reinstall` | Android reinstall, iOS simulator install/reinstall, iOS device reinstall | archive/materialization parsing, invalid install source, platform-specific failure mapping | Keep install-source unit tests; delete daemon happy-path reinstall duplicates. |
 | `push` | Android lifecycle broadcast payload with extras | payload parsing and unsupported platform errors | Delete narrow Android push happy-path handler tests; keep invalid payload tests. |
-| `snapshot`, `screenshot` | Android snapshot/screenshot, iOS snapshot, macOS snapshot, Linux snapshot/screenshot | snapshot processing, selector pruning, screenshot scaling/format edge cases | Add scoped snapshot flags to Device Lab before deleting more snapshot handler tests. |
+| `snapshot`, `screenshot` | Android snapshot/screenshot and provider failure normalization, iOS snapshot, macOS snapshot, Linux snapshot/screenshot | snapshot processing, selector pruning, screenshot scaling/format edge cases | Add scoped snapshot flags to Device Lab before deleting more snapshot handler tests. |
 | `press`, `click`, `focus`, `longpress`, `swipe`, `scroll`, `type` | Android press/click/fill; iOS press; tvOS remote scroll/back/home; macOS press; Linux pointer, click buttons, swipe, scroll, type | selector resolution edge cases, platform-specific coordinate translation, invalid flag combinations | Review `interaction.test.ts` for raw happy paths now covered by Linux/Android/macOS scenarios. |
 | `fill`, `get`, `is`, `find`, `wait` | Android fill/get/is/find/wait; iOS get/is/find/wait | selector parser/matcher matrices, replay healing, ambiguous selector/error behavior, Android IME ownership edge cases | Keep selector/IME units; delete handler-level success duplicates. |
 | `clipboard` | Android read/write, iOS read/write, macOS read/write, Linux read/write | physical-device unsupported cases and platform output parsing edge cases | Remaining happy-path clipboard unit tests should be rare deletion candidates. |
@@ -30,4 +30,4 @@ This matrix is the deletion guide for mock-heavy unit tests. A unit test is a go
 - iOS settings location flows.
 - Snapshot scoped output and important snapshot flags.
 - Logs start/stop lifecycle beyond path/mark/doctor.
-- Explicit negative scenarios in Device Lab for provider failures where handler behavior matters.
+- More explicit negative scenarios in Device Lab for provider failures where handler behavior matters.

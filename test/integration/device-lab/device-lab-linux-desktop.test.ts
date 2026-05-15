@@ -7,7 +7,7 @@ import type { LinuxToolProvider } from '../../../src/platforms/linux/tool-provid
 import { assertPngFile, validPng } from './assertions.ts';
 import { DEVICE_LAB_LINUX } from './fixtures.ts';
 import { restoreEnv, createDeviceLabHarness } from './harness.ts';
-import { assertScenarioCommands, runDeviceLabScenario } from './scenario.ts';
+import { runDeviceLabScenario } from './scenario.ts';
 
 test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
   const previousSessionType = process.env.XDG_SESSION_TYPE;
@@ -55,7 +55,7 @@ test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
   });
 
   try {
-    const scenario = await runDeviceLabScenario(daemon, [
+    await runDeviceLabScenario(daemon, [
       {
         name: 'open calculator app',
         command: 'open',
@@ -177,29 +177,6 @@ test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
         command: 'close',
         positionals: ['gnome-calculator'],
       },
-    ]);
-
-    assertScenarioCommands(scenario, [
-      'open',
-      'snapshot',
-      'press',
-      'press',
-      'click',
-      'click',
-      'press',
-      'focus',
-      'longpress',
-      'swipe',
-      'fill',
-      'scroll',
-      'scroll',
-      'type',
-      'clipboard',
-      'clipboard',
-      'screenshot',
-      'back',
-      'home',
-      'close',
     ]);
 
     assert.deepEqual(normalizeToolCalls(toolCalls), [

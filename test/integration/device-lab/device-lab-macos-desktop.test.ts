@@ -4,7 +4,7 @@ import { assertFlatToolCall, assertFlatToolCallStartsWith } from './assertions.t
 import { DEVICE_LAB_MACOS } from './fixtures.ts';
 import { createDeviceLabHarness } from './harness.ts';
 import { createRecordingAppleToolProvider } from './providers.ts';
-import { assertScenarioCommands, runDeviceLabScenario } from './scenario.ts';
+import { runDeviceLabScenario } from './scenario.ts';
 
 test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
   let clipboardText = '';
@@ -50,7 +50,7 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
   });
 
   try {
-    const scenario = await runDeviceLabScenario(daemon, [
+    await runDeviceLabScenario(daemon, [
       {
         name: 'open settings app',
         command: 'open',
@@ -164,22 +164,6 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
           surface: 'desktop',
         },
       },
-    ]);
-
-    assertScenarioCommands(scenario, [
-      'open',
-      'apps',
-      'apps',
-      'appstate',
-      'logs',
-      'clipboard',
-      'clipboard',
-      'settings',
-      'open',
-      'snapshot',
-      'press',
-      'open',
-      'appstate',
     ]);
 
     assertFlatToolCall(appleTool.calls, ['open', '-b', 'com.apple.systempreferences']);

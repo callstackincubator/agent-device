@@ -14,7 +14,7 @@ import {
   createRecordingAppleToolProvider,
   simctlListDevicesJson,
 } from './providers.ts';
-import { assertScenarioCommands, runDeviceLabScenario } from './scenario.ts';
+import { runDeviceLabScenario } from './scenario.ts';
 import { createProviderTranscript } from './transcript.ts';
 
 test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', async () => {
@@ -86,7 +86,7 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
   const { tempRoot, appPath } = createDemoIosApp('agent-device-lab-ios-deploy-');
 
   try {
-    const scenario = await runDeviceLabScenario(daemon, [
+    await runDeviceLabScenario(daemon, [
       {
         name: 'open settings app',
         command: 'open',
@@ -217,28 +217,6 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
           assert.deepEqual(list.json?.result?.data?.sessions, []);
         },
       },
-    ]);
-
-    assertScenarioCommands(scenario, [
-      'open',
-      'appstate',
-      'snapshot',
-      'open',
-      'reinstall',
-      'install',
-      'apps',
-      'apps',
-      'snapshot',
-      'press',
-      'get',
-      'is',
-      'find',
-      'wait',
-      'clipboard',
-      'clipboard',
-      'keyboard',
-      'close',
-      'session_list',
     ]);
 
     runnerTranscript.assertComplete();

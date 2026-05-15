@@ -14,6 +14,8 @@ Move broad command coverage from mock-heavy handler unit tests into Device Lab i
 - [x] Keep HTTP coverage in smoke tests for JSON-RPC transport, auth, and response finalization.
 - [x] Delete the first batch of Device Lab-covered happy-path unit tests.
 - [x] Reassess provider contracts after Device Lab migration; no additional semantic provider method is currently justified.
+- [x] Remove Device Lab assertions that only restated the scenario command list.
+- [x] Add a provider-failure Device Lab scenario that exercises request finalization.
 
 ## Remaining Work
 
