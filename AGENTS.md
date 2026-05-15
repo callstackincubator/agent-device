@@ -141,6 +141,10 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Treat optional optimization calls such as cache/preflight/probe requests as best-effort unless the feature contract says they are required. If an optimization fails, times out, returns non-OK, or returns an unusable shape, prefer falling back to the existing required command path.
 - Keep optimization timeouts shorter than the underlying operation timeout. A preflight should not consume the full budget for a later upload or command.
 
+## React Native Verification
+- After changing runtime code exercised through `bin/agent-device.mjs` or the daemon, run `pnpm build` and `pnpm clean:daemon` before manual device verification so snapshots use current `dist` output.
+- For Android RN/Expo/dev-client apps connected to any local Metro port, `adb reverse tcp:<port> tcp:<port>` is harmless and should be run before opening the app or URL on the emulator/device.
+
 ## Selector System Rules
 - Interaction commands (`click`, `fill`, `get`, `is`) and `wait` accept selectors and `@ref`.
 - Pipeline: **parse -> resolve -> act -> record selectorChain -> heal on replay**.
