@@ -462,7 +462,7 @@ Public subpath API exposed for Node consumers:
   - `resolveAndroidLaunchComponentWithAdb(executor, packageName, categories?)`
   - `listAndroidAppsWithAdb(executor, options?)`
   - `getAndroidAppStateWithAdb(executor)`
-  - types: `AndroidAdbProvider`, `AndroidAdbExecutor`, `AndroidAdbExecutorOptions`, `AndroidAdbExecutorResult`, `AndroidAdbProcess`, `AndroidAdbSpawner`, `AndroidPortReverseProvider`
+  - types: `AndroidAdbProvider`, `AndroidAdbExecutor`, `AndroidAdbExecutorOptions`, `AndroidAdbExecutorResult`, `AndroidAdbProcess`, `AndroidAdbSpawner`, `AndroidPortReverseProvider`, `AndroidTextInjector`
 
 The `contracts`, `selectors`, `finders`, `install-source`, `android-adb`, `artifacts`, `batch`, `metro`, `remote-config`, and `io` subpaths are the supported Node entry points. The former compatibility subpaths `agent-device/android-apps` and `agent-device/daemon`, plus hosted-runtime subpaths `agent-device/commands`, `agent-device/backend`, `agent-device/testing/conformance`, and `agent-device/observability`, are no longer published.
 
@@ -504,6 +504,11 @@ await client.sessions.close();
 Remote Android providers should import `agent-device/android-snapshot-helper` and inject their own
 ADB-shaped executor. The executor receives arguments after `adb`, so local callers may wrap
 `adb -s <serial>`, while cloud providers can route the same operations through an ADB tunnel.
+
+Remote Android providers that expose stronger text entry should attach a provider-native
+`AndroidTextInjector` to their `AndroidAdbProvider`. Agent Device prefers that injector for
+`fill`/`type`; without one, local Android text entry uses chunk-safe ASCII shell input and
+reports unsupported non-ASCII/control text explicitly.
 
 ```ts
 import {
@@ -1057,8 +1062,8 @@ agent-device pinch 0.5 200 400 # zoom out at coordinates (Apple simulator or mac
 `type` accepts text only. Do not pass `@ref` to `type`; use `fill @ref "text"` to target a field directly, or `press @ref` then `type "text"` to append in the focused field.
 Use `--delay-ms` on `type` or `fill` for debounced search fields and search-as-you-type inputs that miss characters when text is injected too quickly.
 Delayed typing prefers paced character entry over clipboard-style fallbacks so the target field still receives incremental updates.
-On Android, `fill` also verifies text and performs one clear-and-retry pass on mismatch.
-Some Android images cannot enter non-ASCII text over shell input. Use `fill`/`type` and let `agent-device` own the safer fallback path; do not switch to clipboard or paste for non-ASCII field entry. If the shell still reports unsupported non-ASCII input, use a trusted ADB keyboard IME and verify APK checksum/signature before install.
+On Android, `fill` also verifies text and treats IME-owned capture as a terminal failure instead of retrying against the wrong field.
+Android text entry is owned by `agent-device`: provider-native injection when available, then chunk-safe ASCII shell input. Do not switch to raw `adb`, clipboard, or paste as an agent fallback. If non-ASCII is unsupported in the current backend, report the tool/device gap.
 `click --button secondary` is the desktop context-menu flow on macOS.
 `click --button middle` is reserved for future runner support and currently returns an explicit unsupported-operation error on macOS.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
