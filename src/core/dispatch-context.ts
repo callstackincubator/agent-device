@@ -1,4 +1,5 @@
 import type { CliFlags } from '../utils/command-schema.ts';
+import type { ScreenshotDispatchFlags } from '../commands/capture-screenshot-options.ts';
 import type { ClickButton } from './click-button.ts';
 import type { SessionSurface } from './session-surface.ts';
 
@@ -13,7 +14,7 @@ export type CommandFlags = Omit<CliFlags, 'json' | 'help' | 'version' | 'batchSt
   batchSteps?: BatchStep[];
 };
 
-export type DispatchContext = {
+export type DispatchContext = ScreenshotDispatchFlags & {
   requestId?: string;
   appBundleId?: string;
   activity?: string;
@@ -25,8 +26,6 @@ export type DispatchContext = {
   snapshotDepth?: number;
   snapshotScope?: string;
   snapshotRaw?: boolean;
-  screenshotFullscreen?: boolean;
-  screenshotNoStabilize?: boolean;
   count?: number;
   intervalMs?: number;
   delayMs?: number;

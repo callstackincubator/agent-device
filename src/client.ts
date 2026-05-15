@@ -2,6 +2,7 @@ import { sendToDaemon } from './daemon-client.ts';
 import { prepareMetroRuntime, reloadMetro } from './client-metro.ts';
 import { INTERNAL_COMMANDS, PUBLIC_COMMANDS } from './command-catalog.ts';
 import { createAgentDeviceCommandClient, type PreparedClientCommand } from './client-commands.ts';
+import { screenshotFlagsFromOptions } from './commands/capture-screenshot-options.ts';
 import {
   elementTargetCodec,
   fillCommandCodec,
@@ -281,9 +282,7 @@ export function createAgentDeviceClient(
         const session = resolveRequestSession(options);
         const data = await execute(PUBLIC_COMMANDS.screenshot, options.path ? [options.path] : [], {
           ...options,
-          screenshotFullscreen: options.fullscreen,
-          screenshotMaxSize: options.maxSize,
-          screenshotNoStabilize: options.stabilize === false ? true : undefined,
+          ...screenshotFlagsFromOptions(options),
         });
         return {
           path: readRequiredString(data, 'path'),

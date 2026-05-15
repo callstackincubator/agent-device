@@ -5,6 +5,10 @@ import type { AgentDeviceBackend, BackendScreenshotResult } from '../backend.ts'
 import type { ArtifactAdapter } from '../io.ts';
 import { createAgentDevice, localCommandPolicy } from '../runtime.ts';
 import { dispatchCommand } from '../core/dispatch.ts';
+import {
+  screenshotFlagsFromOptions,
+  screenshotOptionsFromFlags,
+} from '../commands/capture-screenshot-options.ts';
 import { AppError } from '../utils/errors.ts';
 import type { DaemonCommandContext } from './context.ts';
 import type { SessionState } from './types.ts';
@@ -36,9 +40,7 @@ export async function dispatchScreenshotViaRuntime(params: {
     session: sessionName,
     requestId: dispatchContext.requestId,
     appBundleId: session.appBundleId,
-    fullscreen: dispatchContext.screenshotFullscreen,
-    maxSize: dispatchContext.screenshotMaxSize,
-    stabilize: dispatchContext.screenshotNoStabilize ? false : undefined,
+    ...screenshotOptionsFromFlags(dispatchContext),
     surface: session.surface,
     ...(outPath ? { out: { kind: 'path', path: outPath } } : {}),
   });
@@ -55,9 +57,7 @@ function createDispatchScreenshotBackend(params: {
     captureScreenshot: async (_context, outPath, options) => {
       const context = {
         ...dispatchContext,
-        screenshotFullscreen: options?.fullscreen,
-        overlayRefs: options?.overlayRefs,
-        screenshotNoStabilize: options?.stabilize === false ? true : undefined,
+        ...screenshotFlagsFromOptions(options),
         surface: options?.surface,
       };
       if (outputPlacement === 'out') {

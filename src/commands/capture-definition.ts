@@ -5,6 +5,7 @@ import {
   commandSchemaMap,
   defineCommand,
 } from './command-definition.ts';
+import { SCREENSHOT_COMMAND_FLAG_KEYS } from './capture-screenshot-options.ts';
 
 const SNAPSHOT_FLAGS = [
   'snapshotInteractiveOnly',
@@ -44,13 +45,7 @@ const screenshotCommandDefinition = defineCommand({
     helpDescription:
       'Capture screenshot (macOS app sessions default to the app window; use --fullscreen for full desktop, --max-size to downscale, --overlay-refs to annotate current refs, or --no-stabilize for low-latency Android capture loops)',
     positionalArgs: ['path?'],
-    allowedFlags: [
-      'out',
-      'overlayRefs',
-      'screenshotFullscreen',
-      'screenshotMaxSize',
-      'screenshotNoStabilize',
-    ],
+    allowedFlags: SCREENSHOT_COMMAND_FLAG_KEYS,
   },
   capability: ALL_DEVICE_COMMAND_CAPABILITY,
 });

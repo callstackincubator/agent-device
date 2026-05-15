@@ -5,6 +5,7 @@ import type { AgentDeviceBackend } from '../../backend.ts';
 import type { AgentDeviceClient } from '../../client.ts';
 import { createLocalArtifactAdapter } from '../../io.ts';
 import { createAgentDevice, localCommandPolicy } from '../../runtime.ts';
+import { screenshotOptionsFromFlags } from '../../commands/capture-screenshot-options.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router-types.ts';
@@ -12,10 +13,7 @@ import type { ClientCommandHandler } from './router-types.ts';
 export const screenshotCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
   const result = await client.capture.screenshot({
     path: positionals[0] ?? flags.out,
-    overlayRefs: flags.overlayRefs,
-    maxSize: flags.screenshotMaxSize,
-    ...(flags.screenshotNoStabilize ? { stabilize: false } : {}),
-    ...(flags.screenshotFullscreen !== undefined ? { fullscreen: flags.screenshotFullscreen } : {}),
+    ...screenshotOptionsFromFlags(flags),
   });
   const data = {
     path: result.path,

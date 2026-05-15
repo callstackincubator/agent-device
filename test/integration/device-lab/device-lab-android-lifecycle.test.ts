@@ -60,6 +60,10 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         const client = daemon.client();
         const selection = { platform: 'android' as const, serial: DEVICE_LAB_ANDROID.id };
         const screenshotPath = path.join(os.tmpdir(), `agent-device-lab-android-${Date.now()}.png`);
+        const fastScreenshotPath = path.join(
+          os.tmpdir(),
+          `agent-device-lab-android-fast-${Date.now()}.png`,
+        );
 
         const keyboardDismiss = await client.command.keyboard({ action: 'dismiss', ...selection });
         assert.equal(keyboardDismiss.platform, 'android');
@@ -261,6 +265,14 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assert.equal(screenshot.path, screenshotPath);
         assertPngFile(screenshotPath);
 
+        const fastScreenshot = await client.capture.screenshot({
+          path: fastScreenshotPath,
+          stabilize: false,
+          ...selection,
+        });
+        assert.equal(fastScreenshot.path, fastScreenshotPath);
+        assertPngFile(fastScreenshotPath);
+
         await client.apps.close({});
       }
 
@@ -351,6 +363,16 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       );
       assertCommandCall(adbCalls, ['shell', 'input', 'text', 'Display']);
       assertCommandCall(adbCalls, ['shell', 'input', 'text', 'Network']);
+      assert.equal(
+        adbCalls.filter((call) => arrayEqual(call, ['exec-out', 'screencap', '-p'])).length,
+        2,
+      );
+      assert.equal(
+        adbCalls.filter((call) =>
+          arrayEqual(call, ['shell', 'settings put global sysui_demo_allowed 1']),
+        ).length,
+        1,
+      );
       assert.deepEqual(readHostAdbCalls(hostAdbLogPath), []);
     } finally {
       fs.rmSync(tempRoot, { recursive: true, force: true });

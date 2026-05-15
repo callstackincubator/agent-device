@@ -1,10 +1,12 @@
 import type { CommandFlags, DispatchContext } from '../core/dispatch-context.ts';
 import { resolveClickButton } from '../core/click-button.ts';
+import {
+  screenshotFlagsFromOptions,
+  type ScreenshotRuntimeFlags,
+} from '../commands/capture-screenshot-options.ts';
 import { getDiagnosticsMeta } from '../utils/diagnostics.ts';
 
-export type DaemonCommandContext = DispatchContext & {
-  screenshotMaxSize?: number;
-};
+export type DaemonCommandContext = DispatchContext & ScreenshotRuntimeFlags;
 
 export function contextFromFlags(
   logPath: string,
@@ -26,9 +28,7 @@ export function contextFromFlags(
     snapshotDepth: flags?.snapshotDepth,
     snapshotScope: flags?.snapshotScope,
     snapshotRaw: flags?.snapshotRaw,
-    screenshotFullscreen: flags?.screenshotFullscreen,
-    screenshotNoStabilize: flags?.screenshotNoStabilize,
-    screenshotMaxSize: flags?.screenshotMaxSize,
+    ...screenshotFlagsFromOptions(flags),
     count: flags?.count,
     intervalMs: flags?.intervalMs,
     delayMs: flags?.delayMs,

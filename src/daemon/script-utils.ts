@@ -1,4 +1,5 @@
 import type { SessionAction } from './types.ts';
+import { appendScreenshotScriptFlags } from '../commands/capture-screenshot-options.ts';
 
 const NUMERIC_ARG_RE = /^-?\d+(\.\d+)?$/;
 const BARE_SCRIPT_TOKEN_RE = /^[^\s"\\]+$/;
@@ -154,11 +155,7 @@ export function appendScreenshotActionScriptArgs(parts: string[], action: Sessio
   for (const positional of action.positionals ?? []) {
     parts.push(formatScriptArg(positional));
   }
-  if (action.flags?.screenshotFullscreen) parts.push('--fullscreen');
-  if (typeof action.flags?.screenshotMaxSize === 'number') {
-    parts.push('--max-size', String(action.flags.screenshotMaxSize));
-  }
-  if (action.flags?.screenshotNoStabilize) parts.push('--no-stabilize');
+  appendScreenshotScriptFlags(parts, action.flags);
 }
 
 export function appendRuntimeActionScriptArgs(

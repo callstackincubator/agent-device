@@ -23,6 +23,7 @@ import type {
 } from './client-metro.ts';
 import type { MetroBridgeScope } from './client-companion-tunnel-contract.ts';
 import type { AppsFilter } from './commands/app-inventory-contract.ts';
+import type { ScreenshotRequestFlags } from './commands/capture-screenshot-options.ts';
 
 export type { FindLocator } from './utils/finders.ts';
 export type { CompanionTunnelScope, MetroBridgeScope } from './client-companion-tunnel-contract.ts';
@@ -732,7 +733,7 @@ export type SettingsUpdateOptions =
       mode?: 'full' | 'limited';
     });
 
-type CommandExecutionOptions = {
+type CommandExecutionOptions = Partial<ScreenshotRequestFlags> & {
   positionals?: string[];
   out?: string;
   interactiveOnly?: boolean;
@@ -741,9 +742,6 @@ type CommandExecutionOptions = {
   scope?: string;
   raw?: boolean;
   forceFull?: boolean;
-  screenshotFullscreen?: boolean;
-  screenshotMaxSize?: number;
-  screenshotNoStabilize?: boolean;
   count?: number;
   fps?: number;
   quality?: RecordingQuality;

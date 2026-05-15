@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { AppError } from '../../utils/errors.ts';
+import { readScreenshotScriptFlag } from '../../commands/capture-screenshot-options.ts';
 import type { PlatformSelector } from '../../utils/device.ts';
 import { parseReplayOpenFlags } from '../session-open-script.ts';
 import { formatPortableActionLine } from '../session-script-formatting.ts';
@@ -344,22 +345,9 @@ function parseReplayScriptLine(line: string): SessionAction | null {
     const positionals: string[] = [];
     for (let index = 0; index < args.length; index += 1) {
       const token = args[index];
-      if (token === '--fullscreen') {
-        action.flags.screenshotFullscreen = true;
-        continue;
-      }
-      if (token === '--no-stabilize') {
-        action.flags.screenshotNoStabilize = true;
-        continue;
-      }
-      if (token === '--max-size') {
-        const value = args[index + 1];
-        const maxSize = value === undefined ? NaN : Number(value);
-        if (!Number.isInteger(maxSize) || maxSize < 1) {
-          throw new AppError('INVALID_ARGS', 'screenshot --max-size requires a positive integer');
-        }
-        action.flags.screenshotMaxSize = maxSize;
-        index += 1;
+      const screenshotFlag = readScreenshotScriptFlag({ args, index, flags: action.flags });
+      if (screenshotFlag.handled) {
+        index = screenshotFlag.nextIndex;
         continue;
       }
       positionals.push(token);

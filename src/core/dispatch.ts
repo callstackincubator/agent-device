@@ -16,6 +16,7 @@ import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
 import { readLocationCoordinate } from '../utils/location-coordinates.ts';
 import { successText, withSuccessText } from '../utils/success-text.ts';
+import { screenshotOptionsFromFlags } from '../commands/capture-screenshot-options.ts';
 import type { DispatchContext } from './dispatch-context.ts';
 import {
   handleFillCommand,
@@ -103,10 +104,11 @@ export async function dispatchCommand(
           const positionalPath = positionals[0];
           const screenshotPath = positionalPath ?? outPath ?? `./screenshot-${Date.now()}.png`;
           await fs.mkdir(pathModule.dirname(screenshotPath), { recursive: true });
+          const screenshotOptions = screenshotOptionsFromFlags(context);
           await interactor.screenshot(screenshotPath, {
             appBundleId: context?.appBundleId,
-            fullscreen: context?.screenshotFullscreen,
-            stabilize: context?.screenshotNoStabilize ? false : undefined,
+            fullscreen: screenshotOptions.fullscreen,
+            stabilize: screenshotOptions.stabilize,
             surface: context?.surface,
           });
           return { path: screenshotPath, ...successText(`Saved screenshot: ${screenshotPath}`) };

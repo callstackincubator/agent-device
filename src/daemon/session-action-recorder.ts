@@ -1,4 +1,5 @@
 import type { CommandFlags } from '../core/dispatch.ts';
+import { SCREENSHOT_ACTION_FLAG_KEYS } from '../commands/capture-screenshot-options.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
 import type { SessionAction, SessionRuntimeHints, SessionState } from './types.ts';
 import { expandSessionPath } from './session-paths.ts';
@@ -53,9 +54,7 @@ const SANITIZED_FLAG_KEYS = [
   'snapshotDepth',
   'snapshotScope',
   'snapshotRaw',
-  'screenshotFullscreen',
-  'screenshotMaxSize',
-  'screenshotNoStabilize',
+  ...SCREENSHOT_ACTION_FLAG_KEYS,
   'relaunch',
   'saveScript',
   'noRecord',

@@ -1,4 +1,5 @@
 import type { CommandFlags } from './core/dispatch.ts';
+import { screenshotFlagsFromOptions } from './commands/capture-screenshot-options.ts';
 import type { DaemonRequest, SessionRuntimeHints } from './daemon/types.ts';
 import { AppError } from './utils/errors.ts';
 import type { ScreenshotOverlayRef, SnapshotNode } from './utils/snapshot.ts';
@@ -266,10 +267,7 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     snapshotScope: options.scope,
     snapshotRaw: options.raw,
     snapshotForceFull: options.forceFull,
-    screenshotFullscreen: options.screenshotFullscreen,
-    screenshotMaxSize: options.screenshotMaxSize,
-    screenshotNoStabilize: options.screenshotNoStabilize,
-    overlayRefs: options.overlayRefs,
+    ...screenshotFlagsFromOptions(options),
     appsFilter: options.appsFilter,
     out: options.out,
     count: options.count,
