@@ -59,48 +59,6 @@ test('push requires active session or explicit device selector', async () => {
   expect(response.error.message).toMatch(/active session or an explicit device selector/i);
 });
 
-test('push uses session device and records action', async () => {
-  const sessionStore = makeSessionStore('agent-device-session-push-');
-  const session = makeSession('default', {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel',
-    kind: 'emulator',
-    booted: true,
-  });
-  sessionStore.set('default', session);
-  mockResolveTargetDevice.mockResolvedValue(session.device!);
-  mockDispatch.mockImplementation(async (device, command, positionals) => {
-    expect(device.id).toBe('emulator-5554');
-    expect(command).toBe('push');
-    expect(positionals).toEqual(['com.example.app', '{"action":"com.example.PUSH"}']);
-    return { platform: 'android', package: 'com.example.app', action: 'com.example.PUSH' };
-  });
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'default',
-      command: 'push',
-      positionals: ['com.example.app', '{"action":"com.example.PUSH"}'],
-      flags: {},
-    },
-    sessionName: 'default',
-    logPath: '/tmp/daemon.log',
-    sessionStore,
-    invoke,
-  });
-
-  expect(mockDispatch).toHaveBeenCalled();
-  expect(response).toBeTruthy();
-  if (!response) return;
-  expect(response.ok).toBe(true);
-  if (!response.ok) return;
-  expect(response.data?.platform).toBe('android');
-  expect(session.actions.length).toBe(1);
-  expect(session.actions[0]?.command).toBe('push');
-});
-
 test('push expands payload file path from request cwd', async () => {
   const sessionStore = makeSessionStore('agent-device-session-push-');
   const session = makeSession('default', {

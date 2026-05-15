@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { DeviceInfo } from '../utils/device.ts';
 import { AppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
+import { runXcrun } from '../platforms/ios/tool-provider.ts';
 import { runAndroidAdb } from '../platforms/android/adb.ts';
 import {
   assertAndroidPackageArgSafe,
@@ -411,7 +412,7 @@ export async function runAppLogDoctor(
   }
   if (device.platform === 'ios' && device.kind === 'simulator') {
     try {
-      const simctl = await runCmd('xcrun', ['simctl', 'help'], { allowFailure: true });
+      const simctl = await runXcrun(['simctl', 'help'], { allowFailure: true });
       checks.simctlAvailable = simctl.exitCode === 0;
     } catch {
       checks.simctlAvailable = false;
@@ -419,7 +420,7 @@ export async function runAppLogDoctor(
   }
   if (device.platform === 'ios' && device.kind === 'device') {
     try {
-      const devicectl = await runCmd('xcrun', ['devicectl', '--version'], { allowFailure: true });
+      const devicectl = await runXcrun(['devicectl', '--version'], { allowFailure: true });
       checks.devicectlAvailable = devicectl.exitCode === 0;
     } catch {
       checks.devicectlAvailable = false;

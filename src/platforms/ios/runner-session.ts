@@ -1,15 +1,11 @@
 import { AppError, toAppErrorCode } from '../../utils/errors.ts';
-import {
-  runCmd,
-  runCmdBackground,
-  type ExecResult,
-  type ExecBackgroundResult,
-} from '../../utils/exec.ts';
+import { runCmdBackground, type ExecResult, type ExecBackgroundResult } from '../../utils/exec.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
 import { Deadline } from '../../utils/retry.ts';
 import { isProcessAlive, isProcessGroupAlive } from '../../utils/process-identity.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
+import { runAppleToolCommand, runXcrun } from './tool-provider.ts';
 import {
   waitForRunner,
   sendRunnerCommandOnce,
@@ -129,8 +125,7 @@ async function cleanupStaleSimulatorRunnerBundles(device: DeviceInfo): Promise<v
   }
 
   for (const bundleId of IOS_RUNNER_CONTAINER_BUNDLE_IDS) {
-    const result = await runCmd(
-      'xcrun',
+    const result = await runXcrun(
       buildSimctlArgsForDevice(device, ['uninstall', device.id, bundleId]),
       {
         allowFailure: true,
@@ -296,7 +291,9 @@ async function killRunnerProcessTree(
   } catch {}
   const pkillSignal = signal === 'SIGINT' ? 'INT' : signal === 'SIGTERM' ? 'TERM' : 'KILL';
   try {
-    await runCmd('pkill', [`-${pkillSignal}`, '-P', String(pid)], { allowFailure: true });
+    await runAppleToolCommand('pkill', [`-${pkillSignal}`, '-P', String(pid)], {
+      allowFailure: true,
+    });
   } catch {}
 }
 
@@ -308,7 +305,7 @@ function ensureBootedIfNeeded(device: DeviceInfo): Promise<void> {
 }
 
 async function ensureBooted(device: DeviceInfo): Promise<void> {
-  await runCmd('xcrun', buildSimctlArgsForDevice(device, ['bootstatus', device.id, '-b']), {
+  await runXcrun(buildSimctlArgsForDevice(device, ['bootstatus', device.id, '-b']), {
     timeoutMs: RUNNER_STARTUP_TIMEOUT_MS,
   });
 }

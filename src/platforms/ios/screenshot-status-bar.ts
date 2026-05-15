@@ -1,8 +1,9 @@
 import type { DeviceInfo } from '../../utils/device.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { AppError } from '../../utils/errors.ts';
-import { runCmd } from '../../utils/exec.ts';
+import type { ExecOptions } from '../../utils/exec.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
+import { runXcrun } from './tool-provider.ts';
 
 type RestorableStatusBarOverrides = Partial<
   Record<
@@ -57,8 +58,8 @@ function simctlArgs(device: DeviceInfo, args: string[]): string[] {
   return buildSimctlArgsForDevice(device, args);
 }
 
-function runSimctl(device: DeviceInfo, args: string[], options?: Parameters<typeof runCmd>[2]) {
-  return runCmd('xcrun', simctlArgs(device, args), options);
+function runSimctl(device: DeviceInfo, args: string[], options?: ExecOptions) {
+  return runXcrun(simctlArgs(device, args), options);
 }
 
 export async function prepareSimulatorStatusBarForScreenshot(

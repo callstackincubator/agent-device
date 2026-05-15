@@ -1,5 +1,5 @@
-import { runCmd } from '../../utils/exec.ts';
 import { createLinuxToolResolver } from './tool-resolver.ts';
+import { runLinuxToolCommand } from './tool-provider.ts';
 
 type ClipboardTool = 'wl-clipboard' | 'xclip' | 'xsel';
 
@@ -23,21 +23,21 @@ export async function readLinuxClipboard(): Promise<string> {
 
   switch (tool) {
     case 'wl-clipboard': {
-      const result = await runCmd('wl-paste', ['--no-newline'], {
+      const result = await runLinuxToolCommand('wl-paste', ['--no-newline'], {
         allowFailure: true,
         timeoutMs: 5000,
       });
       return result.stdout;
     }
     case 'xclip': {
-      const result = await runCmd('xclip', ['-selection', 'clipboard', '-o'], {
+      const result = await runLinuxToolCommand('xclip', ['-selection', 'clipboard', '-o'], {
         allowFailure: true,
         timeoutMs: 5000,
       });
       return result.stdout;
     }
     case 'xsel': {
-      const result = await runCmd('xsel', ['--clipboard', '--output'], {
+      const result = await runLinuxToolCommand('xsel', ['--clipboard', '--output'], {
         allowFailure: true,
         timeoutMs: 5000,
       });
@@ -51,17 +51,17 @@ export async function writeLinuxClipboard(text: string): Promise<void> {
 
   switch (tool) {
     case 'wl-clipboard':
-      await runCmd('wl-copy', ['--', text], { allowFailure: false, timeoutMs: 5000 });
+      await runLinuxToolCommand('wl-copy', ['--', text], { allowFailure: false, timeoutMs: 5000 });
       break;
     case 'xclip':
-      await runCmd('xclip', ['-selection', 'clipboard'], {
+      await runLinuxToolCommand('xclip', ['-selection', 'clipboard'], {
         allowFailure: false,
         timeoutMs: 5000,
         stdin: text,
       });
       break;
     case 'xsel':
-      await runCmd('xsel', ['--clipboard', '--input'], {
+      await runLinuxToolCommand('xsel', ['--clipboard', '--input'], {
         allowFailure: false,
         timeoutMs: 5000,
         stdin: text,

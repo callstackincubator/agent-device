@@ -56,10 +56,7 @@ import { handleRecordTraceCommands } from '../record-trace.ts';
 import { deriveRecordingTelemetryPath } from '../../recording-telemetry.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
-import {
-  IOS_RUNNER_CONTAINER_BUNDLE_IDS,
-  runIosRunnerCommand,
-} from '../../../platforms/ios/runner-client.ts';
+import { runIosRunnerCommand } from '../../../platforms/ios/runner-client.ts';
 import {
   getRecordingOverlaySupportWarning,
   resizeRecording,
@@ -67,7 +64,6 @@ import {
   overlayRecordingTouches,
 } from '../../../recording/overlay.ts';
 import { runCmd, runCmdBackground } from '../../../utils/exec.ts';
-import { withAndroidAdbProvider } from '../../../platforms/android/adb-executor.ts';
 
 type RunnerCall = {
   command: string;
@@ -204,90 +200,6 @@ beforeEach(() => {
   mockOverlayRecordingTouches.mockImplementation(async () => {});
 });
 
-test('record start/stop uses iOS runner on physical iOS devices', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-device';
-  const session = makeIosDeviceSession(sessionName, 'com.atebits.Tweetie2');
-  sessionStore.set(sessionName, session);
-
-  const runnerCalls: RunnerCall[] = [];
-  const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
-  setupRunnerRecordingMocks(runnerCalls, runCmdCalls);
-  const finalOut = path.join(os.tmpdir(), `agent-device-test-record-${Date.now()}.mp4`);
-  const responseStart = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['start', finalOut],
-    logPath: '/tmp/daemon.log',
-  });
-
-  expect(responseStart).toBeTruthy();
-  expect(responseStart?.ok).toBe(true);
-  expect(runnerCalls.length).toBe(1);
-  expect(runnerCalls[0]?.command).toBe('recordStart');
-  expect(runnerCalls[0]?.outPath ?? '').toMatch(/^agent-device-recording-\d+\.mp4$/);
-  expect(runnerCalls[0]?.fps).toBeUndefined();
-  expect(runnerCalls[0]?.quality).toBeUndefined();
-  expect(runnerCalls[0]?.appBundleId).toBe('com.atebits.Tweetie2');
-  expect(runnerCalls[0]?.logPath).toBe('/tmp/daemon.log');
-  expect(runnerCalls[0]?.traceLogPath).toBeUndefined();
-  expect(responseStart?.ok).toBe(true);
-  expect((responseStart as any).data?.showTouches).toBe(true);
-  const startedRecording = sessionStore.get(sessionName)?.recording;
-  expect(startedRecording?.platform).toBe('ios-device-runner');
-  const stagedRemotePath =
-    startedRecording && startedRecording.platform === 'ios-device-runner'
-      ? startedRecording.remotePath
-      : undefined;
-  expect(stagedRemotePath ?? '').toMatch(/^tmp\/agent-device-recording-\d+\.mp4$/);
-  if (startedRecording?.platform === 'ios-device-runner') {
-    expect(startedRecording.runnerStartedAtUptimeMs).toBe(12_345);
-    expect(startedRecording.targetAppReadyUptimeMs).toBe(15_678);
-    expect(startedRecording.showTouches).toBe(true);
-  }
-
-  const responseStop = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['stop'],
-    logPath: '/tmp/daemon.log',
-  });
-
-  expect(responseStop).toBeTruthy();
-  expect(responseStop?.ok).toBe(true);
-  expect(runnerCalls.length).toBe(2);
-  expect(runnerCalls[1]?.command).toBe('recordStop');
-  expect(runnerCalls[1]?.appBundleId).toBe('com.atebits.Tweetie2');
-  expect(runCmdCalls.length).toBe(1);
-  expect(runCmdCalls[0]?.cmd).toBe('xcrun');
-  expect(runCmdCalls[0]?.args).toEqual([
-    'devicectl',
-    'device',
-    'copy',
-    'from',
-    '--device',
-    'ios-device-1',
-    '--source',
-    stagedRemotePath ?? '',
-    '--destination',
-    finalOut,
-    '--domain-type',
-    'appDataContainer',
-    '--domain-identifier',
-    IOS_RUNNER_CONTAINER_BUNDLE_IDS[0] ?? '',
-  ]);
-  expect(responseStop?.ok).toBe(true);
-  expect((responseStop as any).data?.telemetryPath).toBe(deriveRecordingTelemetryPath(finalOut));
-  expect((responseStop as any).data?.artifacts?.map((artifact: any) => artifact.field)).toEqual([
-    'outPath',
-    'telemetryPath',
-  ]);
-  expect((responseStop as any).data?.artifacts?.[1]?.path).toBe(
-    deriveRecordingTelemetryPath(finalOut),
-  );
-  expect(sessionStore.get(sessionName)?.recording).toBeUndefined();
-});
-
 test('record start/stop uses runner on macOS desktop sessions', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-runner';
@@ -396,51 +308,6 @@ test('record start resolves relative output path from request cwd', async () => 
     cwd,
   });
   expect(runCmdCalls.length).toBe(1);
-});
-
-test('record start forwards explicit fps to iOS runner', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-device-fps';
-  const session = makeIosDeviceSession(sessionName, 'com.atebits.Tweetie2');
-  sessionStore.set(sessionName, session);
-
-  const runnerCalls: RunnerCall[] = [];
-  const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
-  setupRunnerRecordingMocks(runnerCalls, runCmdCalls);
-  const response = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['start', './device.mp4'],
-    flags: { fps: 30 },
-  });
-
-  expect(response?.ok).toBe(true);
-  expect(runnerCalls[0]?.command).toBe('recordStart');
-  expect(runnerCalls[0]?.fps).toBe(30);
-  expect(runCmdCalls.length).toBe(0);
-});
-
-test('record start forwards explicit quality to iOS runner', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-device-quality';
-  const session = makeIosDeviceSession(sessionName, 'com.atebits.Tweetie2');
-  sessionStore.set(sessionName, session);
-
-  const runnerCalls: RunnerCall[] = [];
-  const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
-  setupRunnerRecordingMocks(runnerCalls, runCmdCalls);
-  const response = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['start', './device.mp4'],
-    flags: { quality: 7 },
-  });
-
-  expect(response?.ok).toBe(true);
-  expect(runnerCalls[0]?.command).toBe('recordStart');
-  expect(runnerCalls[0]?.quality).toBe(7);
-  expect(sessionStore.get(sessionName)?.recording?.quality).toBe(7);
-  expect(runCmdCalls.length).toBe(0);
 });
 
 test('record start rejects invalid fps value', async () => {
@@ -1033,139 +900,6 @@ test('record start/stop overlays Android gestures by default on devices', async 
     ]);
     expect(responseStop.data?.overlayWarning).toBeUndefined();
   }
-});
-
-test('record stop copies Android recording through provider pull capability', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'android-provider-pull';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Android',
-      kind: 'device',
-      booted: true,
-    }),
-  );
-
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    const command = args.join(' ');
-    if (
-      /^-s emulator-5554 shell screenrecord \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
-        command,
-      )
-    ) {
-      return { stdout: '4321\n', stderr: '', exitCode: 0 };
-    }
-    if (
-      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
-    ) {
-      return { stdout: '1024\n', stderr: '', exitCode: 0 };
-    }
-    return { stdout: '', stderr: '', exitCode: 0 };
-  });
-
-  await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['start', './android-provider.mp4'],
-  });
-
-  const pullCalls: Array<{ remotePath: string; localPath: string }> = [];
-  const execCalls: string[][] = [];
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    const command = args.join(' ');
-    if (command === '-s emulator-5554 shell ps -o pid= -p 4321') {
-      return { stdout: '', stderr: '', exitCode: 1 };
-    }
-    if (
-      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
-    ) {
-      return { stdout: '2048\n', stderr: '', exitCode: 0 };
-    }
-    return { stdout: '', stderr: '', exitCode: 0 };
-  });
-
-  const responseStop = await withAndroidAdbProvider(
-    {
-      exec: async (args) => {
-        execCalls.push(args);
-        if (args.join(' ') === 'shell ps -o pid= -p 4321') {
-          return { stdout: '', stderr: '', exitCode: 1 };
-        }
-        if (/^shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(args.join(' '))) {
-          return { stdout: '2048\n', stderr: '', exitCode: 0 };
-        }
-        return { stdout: '', stderr: '', exitCode: 0 };
-      },
-      pull: async (remotePath, localPath) => {
-        pullCalls.push({ remotePath, localPath });
-        return { stdout: '', stderr: '', exitCode: 0 };
-      },
-    },
-    { serial: 'emulator-5554' },
-    async () =>
-      await runRecordCommand({
-        sessionStore,
-        sessionName,
-        positionals: ['stop'],
-      }),
-  );
-
-  expect(responseStop?.ok).toBe(true);
-  expect(pullCalls).toHaveLength(1);
-  expect(pullCalls[0]?.remotePath).toMatch(/^\/sdcard\/agent-device-recording-\d+\.mp4$/);
-  expect(pullCalls[0]?.localPath).toBe(path.resolve('./android-provider.mp4'));
-  expect(execCalls.some((args) => args[0] === 'pull')).toBe(false);
-});
-
-test('record start passes scaled Android screenrecord size when quality is explicit', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'android-quality';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Android',
-      kind: 'device',
-      booted: true,
-    }),
-  );
-
-  const adbCommands: string[] = [];
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    const command = args.join(' ');
-    adbCommands.push(command);
-    if (command === '-s emulator-5554 shell wm size') {
-      return { stdout: 'Physical size: 1080x1920\n', stderr: '', exitCode: 0 };
-    }
-    if (
-      /^-s emulator-5554 shell screenrecord --size 756x1344 \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
-        command,
-      )
-    ) {
-      return { stdout: '4321\n', stderr: '', exitCode: 0 };
-    }
-    if (
-      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
-    ) {
-      return { stdout: '1024\n', stderr: '', exitCode: 0 };
-    }
-    return { stdout: '', stderr: '', exitCode: 0 };
-  });
-
-  const response = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['start', './android.mp4'],
-    flags: { quality: 7 },
-  });
-
-  expect(response?.ok).toBe(true);
-  expect(adbCommands).toContain('-s emulator-5554 shell wm size');
-  expect(sessionStore.get(sessionName)?.recording?.quality).toBe(7);
 });
 
 test('record start rejects Android quality when wm size is unparseable', async () => {

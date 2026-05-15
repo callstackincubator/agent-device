@@ -4,8 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AppError } from '../../utils/errors.ts';
-import { resolveExecutableOverridePath, runCmd } from '../../utils/exec.ts';
+import { resolveExecutableOverridePath } from '../../utils/exec.ts';
 import type { SessionSurface } from '../../core/session-surface.ts';
+import { hasScopedAppleToolProvider, runAppleToolCommand } from './tool-provider.ts';
 
 export type MacOsPermissionTarget = 'accessibility' | 'screen-recording' | 'input-monitoring';
 
@@ -131,7 +132,7 @@ async function computeMacOsHelperFingerprint(packageRoot: string): Promise<strin
     hash.update(await fs.readFile(filePath));
     hash.update('\0');
   }
-  const swiftVersion = await runCmd('swift', ['--version'], {
+  const swiftVersion = await runAppleToolCommand('swift', ['--version'], {
     allowFailure: true,
     cwd: packageRoot,
     timeoutMs: 10_000,
@@ -178,7 +179,7 @@ async function ensureMacOsHelperBinary(): Promise<string> {
 
   const sourceBinary = resolveMacOsHelperSourceBinaryPath();
   process.stderr.write('agent-device: building macOS helper (first run or helper update)\n');
-  await runCmd('swift', ['build', '-c', 'release', '--package-path', packageRoot], {
+  await runAppleToolCommand('swift', ['build', '-c', 'release', '--package-path', packageRoot], {
     cwd: packageRoot,
     timeoutMs: 120_000,
   });
@@ -195,13 +196,27 @@ async function ensureMacOsHelperBinary(): Promise<string> {
   return installedPath;
 }
 
-async function runMacOsHelper<T extends Record<string, unknown>>(args: string[]): Promise<T> {
+async function resolveMacOsHelperCommandPath(): Promise<string> {
   const configuredPath = process.env[MACOS_HELPER_ENV_PATH]?.trim();
-  if (process.platform !== 'darwin' && !configuredPath) {
+  if (configuredPath) {
+    const resolvedPath = await resolveExecutableOverridePath(configuredPath, MACOS_HELPER_ENV_PATH);
+    if (resolvedPath) return resolvedPath;
+  }
+  if (hasScopedAppleToolProvider()) {
+    return MACOS_HELPER_PRODUCT_NAME;
+  }
+  if (process.platform !== 'darwin') {
     throw new AppError('UNSUPPORTED_PLATFORM', 'macOS helper is only available on macOS');
   }
-  const helperPath = await ensureMacOsHelperBinary();
-  const result = await runCmd(helperPath, args, { allowFailure: true, timeoutMs: 30_000 });
+  return await ensureMacOsHelperBinary();
+}
+
+async function runMacOsHelper<T extends Record<string, unknown>>(args: string[]): Promise<T> {
+  const helperPath = await resolveMacOsHelperCommandPath();
+  const result = await runAppleToolCommand(helperPath, args, {
+    allowFailure: true,
+    timeoutMs: 30_000,
+  });
   const stdout = result.stdout.trim();
   let parsed: HelperResult<T> | null = null;
   if (stdout) {

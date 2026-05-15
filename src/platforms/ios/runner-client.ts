@@ -18,6 +18,11 @@ import {
   shouldRetryRunnerConnectError,
   type RunnerCommand,
 } from './runner-contract.ts';
+import {
+  createLocalAppleRunnerProvider,
+  resolveAppleRunnerProvider,
+  type AppleRunnerCommandOptions,
+} from './runner-provider.ts';
 export {
   buildRunnerConnectError,
   buildRunnerEarlyExitError,
@@ -28,21 +33,34 @@ export {
   shouldRetryRunnerConnectError,
   type RunnerCommand,
 } from './runner-contract.ts';
+export {
+  createLocalAppleRunnerProvider,
+  resolveAppleRunnerProvider,
+  withAppleRunnerProvider,
+  type AppleRunnerCommandExecutor,
+  type AppleRunnerCommandOptions,
+  type AppleRunnerProvider,
+  type AppleRunnerProviderScopeOptions,
+} from './runner-provider.ts';
 
 // --- Runner command execution ---
 
 export async function runIosRunnerCommand(
   device: DeviceInfo,
   command: RunnerCommand,
-  options: { verbose?: boolean; logPath?: string; traceLogPath?: string; requestId?: string } = {},
+  options: AppleRunnerCommandOptions = {},
 ): Promise<Record<string, unknown>> {
   validateRunnerDevice(device);
   assertRunnerRequestActive(options.requestId);
+  const provider = resolveAppleRunnerProvider(
+    device,
+    createLocalAppleRunnerProvider(executeRunnerCommand),
+  );
   if (isReadOnlyRunnerCommand(command.command)) {
     return withRetry(
       () => {
         assertRunnerRequestActive(options.requestId);
-        return executeRunnerCommand(device, command, options);
+        return provider.runCommand(device, command, options);
       },
       {
         shouldRetry: (error) => {
@@ -52,13 +70,13 @@ export async function runIosRunnerCommand(
       },
     );
   }
-  return executeRunnerCommand(device, command, options);
+  return provider.runCommand(device, command, options);
 }
 
 async function executeRunnerCommand(
   device: DeviceInfo,
   command: RunnerCommand,
-  options: { verbose?: boolean; logPath?: string; traceLogPath?: string; requestId?: string } = {},
+  options: AppleRunnerCommandOptions,
 ): Promise<Record<string, unknown>> {
   assertRunnerRequestActive(options.requestId);
   const signal = getRequestSignal(options.requestId);

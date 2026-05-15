@@ -4,12 +4,12 @@ import path from 'node:path';
 import net from 'node:net';
 import { createRequestCanceledError, isRequestCanceledError } from '../../daemon/request-cancel.ts';
 import { AppError } from '../../utils/errors.ts';
-import { runCmd } from '../../utils/exec.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { resolveTimeoutMs, resolveTimeoutSeconds } from '../../utils/timeouts.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { classifyBootFailure, bootFailureHint } from '../boot-diagnostics.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
+import { runXcrun } from './tool-provider.ts';
 import {
   buildRunnerConnectError,
   buildRunnerEarlyExitError,
@@ -361,8 +361,7 @@ async function resolveDeviceTunnelIp(
   );
   try {
     const devicectlTimeoutSeconds = Math.max(1, Math.ceil(timeoutMs / 1000));
-    const result = await runCmd(
-      'xcrun',
+    const result = await runXcrun(
       [
         'devicectl',
         'device',
@@ -423,7 +422,7 @@ async function postCommandViaSimulator(
     payload,
     `http://127.0.0.1:${port}/command`,
   ]);
-  const result = await runCmd('xcrun', args, { allowFailure: true, timeoutMs, signal });
+  const result = await runXcrun(args, { allowFailure: true, timeoutMs, signal });
   const body = result.stdout as string;
   if (result.exitCode !== 0) {
     const reason = classifyBootFailure({

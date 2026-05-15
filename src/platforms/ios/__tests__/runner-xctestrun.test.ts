@@ -373,7 +373,10 @@ test('acquireXcodebuildSimulatorSetRedirect preserves the backup when XCTestDevi
         /Failed to redirect XCTest device set path/,
       );
 
-      assert.equal(fs.readFileSync(path.join(paths.backupPath, 'original.txt'), 'utf8'), 'original');
+      assert.equal(
+        fs.readFileSync(path.join(paths.backupPath, 'original.txt'), 'utf8'),
+        'original',
+      );
       assert.equal(
         fs.readFileSync(path.join(paths.xctestDeviceSetPath, 'collision.txt'), 'utf8'),
         'collision',

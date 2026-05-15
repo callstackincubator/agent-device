@@ -212,31 +212,12 @@ test('handleFindCommands click returns deterministic metadata across locator var
 
   const scenarios = [
     {
-      label: 'returns deterministic matched-target metadata',
-      positionals: ['Increment', 'click'],
-      nodes: [INCREMENT_NODE],
-      invoke: async () => ({ platformSpecificRef: 'XCUIElementTypeApplication', x: 0, y: 0 }),
-      expectedKeys: ['locator', 'query', 'ref', 'x', 'y'],
-      expectedLocator: 'any',
-      expectedQuery: 'Increment',
-      expectedCoordinates: { x: 100, y: 50 },
-    },
-    {
       label: 'falls back to deterministic key set when resolved node has no rect',
       positionals: ['Increment', 'click'],
       nodes: [hittableParentNoRect, nonHittableChildWithRect],
       invoke: async () => ({ platformSpecificRef: 'XCUIElementTypeView' }),
       expectedKeys: ['locator', 'query', 'ref', 'x', 'y'],
       expectedLocator: 'any',
-      expectedQuery: 'Increment',
-      expectedCoordinates: { x: 100, y: 50 },
-    },
-    {
-      label: 'keeps explicit label locator in metadata',
-      positionals: ['label', 'Increment', 'click'],
-      nodes: [INCREMENT_NODE],
-      expectedKeys: ['locator', 'query', 'ref', 'x', 'y'],
-      expectedLocator: 'label',
       expectedQuery: 'Increment',
       expectedCoordinates: { x: 100, y: 50 },
     },

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
-import { runCmd, runCmdSync } from '../../utils/exec.ts';
+import { runAppleToolCommand, runAppleToolCommandSync } from './tool-provider.ts';
 
 const RUNNER_PRODUCT_REPAIR_FAILURE_REASONS = new Set([
   'RUNNER_PRODUCT_MISSING',
@@ -39,9 +39,11 @@ export async function repairMacOsRunnerProductsIfNeeded(
     if (hasValidCodeSignature(productPath)) {
       continue;
     }
-    await runCmd('codesign', ['--remove-signature', productPath], { allowFailure: true });
+    await runAppleToolCommand('codesign', ['--remove-signature', productPath], {
+      allowFailure: true,
+    });
     try {
-      await runCmd('codesign', ['--force', '--sign', '-', productPath]);
+      await runAppleToolCommand('codesign', ['--force', '--sign', '-', productPath]);
     } catch (error) {
       const appError =
         error instanceof AppError ? error : new AppError('COMMAND_FAILED', String(error));
@@ -68,8 +70,12 @@ export function isExpectedRunnerRepairFailure(error: unknown): boolean {
 }
 
 function hasValidCodeSignature(productPath: string): boolean {
-  const result = runCmdSync('codesign', ['--verify', '--deep', '--strict', productPath], {
-    allowFailure: true,
-  });
+  const result = runAppleToolCommandSync(
+    'codesign',
+    ['--verify', '--deep', '--strict', productPath],
+    {
+      allowFailure: true,
+    },
+  );
   return result.exitCode === 0;
 }

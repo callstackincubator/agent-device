@@ -5,6 +5,8 @@ import type { DeviceInfo } from '../../utils/device.ts';
 
 vi.mock('../../utils/exec.ts', () => ({
   runCmd: vi.fn(),
+  runCmdSync: vi.fn(),
+  whichCmd: vi.fn(async () => true),
 }));
 vi.mock('../../platforms/ios/index.ts', () => ({
   ensureBootedSimulator: vi.fn(async () => {}),

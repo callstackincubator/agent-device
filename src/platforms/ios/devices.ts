@@ -1,13 +1,15 @@
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { runCmd, whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo, DeviceTarget } from '../../utils/device.ts';
 import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
 import { buildHostMacDevice } from '../macos/devices.ts';
 import { buildSimctlArgs } from './simctl.ts';
+import { resolveAppleToolProvider, runXcrun } from './tool-provider.ts';
+
+export { createLocalAppleToolProvider, withAppleToolProvider } from './tool-provider.ts';
 
 const IOS_DEVICECTL_LIST_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_DEVICECTL_LIST_TIMEOUT_MS,
@@ -147,10 +149,7 @@ export async function findBootableIosSimulator(
 
   let simResult;
   try {
-    simResult = await runCmd(
-      'xcrun',
-      buildSimctlArgs(['list', 'devices', '-j'], { simulatorSetPath }),
-    );
+    simResult = await runXcrun(buildSimctlArgs(['list', 'devices', '-j'], { simulatorSetPath }));
   } catch {
     return null;
   }
@@ -282,8 +281,7 @@ async function listApplePhysicalDevicesFromDevicectl(): Promise<DeviceInfo[]> {
       os.tmpdir(),
       `agent-device-devicectl-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
     );
-    const devicectlResult = await runCmd(
-      'xcrun',
+    const devicectlResult = await runXcrun(
       ['devicectl', 'list', 'devices', '--json-output', jsonPath],
       {
         allowFailure: true,
@@ -308,7 +306,7 @@ async function listApplePhysicalDevicesFromDevicectl(): Promise<DeviceInfo[]> {
 
 async function listApplePhysicalDevicesFromXctrace(): Promise<DeviceInfo[]> {
   try {
-    const result = await runCmd('xcrun', ['xctrace', 'list', 'devices'], { allowFailure: true });
+    const result = await runXcrun(['xctrace', 'list', 'devices'], { allowFailure: true });
     if (result.exitCode !== 0) return [];
     return parseXctracePhysicalAppleDevices(result.stdout);
   } catch {
@@ -325,14 +323,13 @@ export async function listAppleDevices(
     throw new AppError('UNSUPPORTED_PLATFORM', 'Apple tools are only available on macOS');
   }
 
-  if (!(await whichCmd('xcrun'))) {
+  if (!(await resolveAppleToolProvider().whichCommand('xcrun'))) {
     throw new AppError('TOOL_MISSING', 'xcrun not found in PATH');
   }
 
   const simulatorSetPath = resolveIosSimulatorDeviceSetPath(options.simulatorSetPath);
 
-  const simResult = await runCmd(
-    'xcrun',
+  const simResult = await runXcrun(
     buildSimctlArgs(['list', 'devices', '-j'], { simulatorSetPath }),
   );
   let devices: DeviceInfo[] = [];

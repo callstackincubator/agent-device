@@ -5,12 +5,12 @@ import type { AppsFilter } from '../../client-types.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
-import { runCmd } from '../../utils/exec.ts';
 import { parseAppearanceAction } from '../appearance.ts';
 import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';
 import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
 import { quitMacOsApp } from './macos-helper.ts';
 import { readInfoPlistString } from './plist.ts';
+import { runAppleToolCommand } from './tool-provider.ts';
 import type { IosAppInfo } from './devicectl.ts';
 
 const MACOS_ALIASES: Record<string, string> = {
@@ -100,18 +100,18 @@ export async function openMacOsApp(
       throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
     }
     const appId = options?.appBundleId ?? (await resolveMacOsApp(app));
-    await runCmd('open', buildMacOpenArgs(appId, explicitUrl));
+    await runAppleToolCommand('open', buildMacOpenArgs(appId, explicitUrl));
     return;
   }
 
   const target = app.trim();
   if (isDeepLinkTarget(target)) {
-    await runCmd('open', [target]);
+    await runAppleToolCommand('open', [target]);
     return;
   }
 
   const bundleId = options?.appBundleId ?? (await resolveMacOsApp(target));
-  await runCmd('open', buildMacOpenArgs(bundleId));
+  await runAppleToolCommand('open', buildMacOpenArgs(bundleId));
 }
 
 export async function closeMacOsApp(_device: DeviceInfo, app: string): Promise<void> {
@@ -127,7 +127,7 @@ export async function closeMacOsApp(_device: DeviceInfo, app: string): Promise<v
 }
 
 export async function readMacOsClipboardText(): Promise<string> {
-  const result = await runCmd('pbpaste', [], { allowFailure: true });
+  const result = await runAppleToolCommand('pbpaste', [], { allowFailure: true });
   if (result.exitCode !== 0) {
     throw new AppError('COMMAND_FAILED', 'Failed to read macOS clipboard', {
       stdout: result.stdout,
@@ -139,7 +139,7 @@ export async function readMacOsClipboardText(): Promise<string> {
 }
 
 export async function writeMacOsClipboardText(text: string): Promise<void> {
-  const result = await runCmd('pbcopy', [], {
+  const result = await runAppleToolCommand('pbcopy', [], {
     allowFailure: true,
     stdin: text,
   });
@@ -154,7 +154,7 @@ export async function writeMacOsClipboardText(text: string): Promise<void> {
 
 async function getMacOsDarkModeEnabled(): Promise<boolean> {
   const script = 'tell application "System Events" to tell appearance preferences to get dark mode';
-  const result = await runCmd('osascript', ['-e', script], { allowFailure: true });
+  const result = await runAppleToolCommand('osascript', ['-e', script], { allowFailure: true });
   if (result.exitCode !== 0) {
     throw new AppError('COMMAND_FAILED', 'Failed to read macOS appearance', {
       stdout: result.stdout,
@@ -175,7 +175,7 @@ export async function setMacOsAppearance(state: string): Promise<void> {
   const action = parseAppearanceAction(state);
   const darkMode = action === 'toggle' ? !(await getMacOsDarkModeEnabled()) : action === 'dark';
   const script = `tell application "System Events" to tell appearance preferences to set dark mode to ${darkMode ? 'true' : 'false'}`;
-  const result = await runCmd('osascript', ['-e', script], { allowFailure: true });
+  const result = await runAppleToolCommand('osascript', ['-e', script], { allowFailure: true });
   if (result.exitCode !== 0) {
     throw new AppError('COMMAND_FAILED', 'Failed to set macOS appearance', {
       stdout: result.stdout,
@@ -198,9 +198,13 @@ export async function listMacApps(filter: AppsFilter): Promise<IosAppInfo[]> {
   for (const root of appRoots) {
     const stat = await fs.stat(root).catch(() => null);
     if (!stat?.isDirectory()) continue;
-    const result = await runCmd('find', [root, '-maxdepth', '4', '-type', 'd', '-name', '*.app'], {
-      allowFailure: true,
-    });
+    const result = await runAppleToolCommand(
+      'find',
+      [root, '-maxdepth', '4', '-type', 'd', '-name', '*.app'],
+      {
+        allowFailure: true,
+      },
+    );
     if (result.exitCode !== 0) continue;
     for (const line of result.stdout.split('\n')) {
       const candidate = line.trim();

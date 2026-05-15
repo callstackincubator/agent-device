@@ -1,6 +1,6 @@
-import { whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import { isWayland, type DisplayServer } from './linux-env.ts';
+import { resolveLinuxToolProvider, type LinuxToolProvider } from './tool-provider.ts';
 
 type ToolCandidate<T extends string> = {
   tool: T;
@@ -25,16 +25,18 @@ export function createLinuxToolResolver<T extends string>(config: {
   resolve: () => Promise<ResolvedTool<T>>;
   resetCache: () => void;
 } {
-  let cached: ResolvedTool<T> | null = null;
+  let cached: { provider: LinuxToolProvider; resolved: ResolvedTool<T> } | null = null;
 
   async function resolve(): Promise<ResolvedTool<T>> {
-    if (cached) return cached;
+    const provider = resolveLinuxToolProvider();
+    if (cached?.provider === provider) return cached.resolved;
     const display: DisplayServer = isWayland() ? 'wayland' : 'x11';
     const candidates = display === 'wayland' ? config.wayland : config.x11;
     for (const candidate of candidates) {
-      if (await whichCmd(candidate.command)) {
-        cached = { tool: candidate.tool, display };
-        return cached;
+      if (await provider.whichCommand(candidate.command)) {
+        const resolved = { tool: candidate.tool, display };
+        cached = { provider, resolved };
+        return resolved;
       }
     }
     throw new AppError(

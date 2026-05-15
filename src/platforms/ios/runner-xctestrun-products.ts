@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { runCmdSync } from '../../utils/exec.ts';
+import { runAppleToolCommandSync } from './tool-provider.ts';
 import { parseXmlDocumentSync, visitXmlPlistEntries, type XmlNode } from './xml.ts';
 
 const XCTESTRUN_PRODUCT_REFERENCE_KEYS = new Set([
@@ -113,9 +113,13 @@ function resolveXctestrunProductReferences(xctestrunPath: string): string[] | nu
 
 function readXctestrunJson(xctestrunPath: string): Record<string, unknown> | null {
   try {
-    const result = runCmdSync('plutil', ['-convert', 'json', '-o', '-', xctestrunPath], {
-      allowFailure: true,
-    });
+    const result = runAppleToolCommandSync(
+      'plutil',
+      ['-convert', 'json', '-o', '-', xctestrunPath],
+      {
+        allowFailure: true,
+      },
+    );
     if (result.exitCode !== 0 || !result.stdout.trim()) {
       return null;
     }

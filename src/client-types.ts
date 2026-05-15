@@ -437,6 +437,7 @@ export type KeyboardCommandResult = DaemonResponseData & {
   action?: 'status' | 'dismiss';
   visible?: boolean;
   inputType?: string | null;
+  inputMethodPackage?: string | null;
   type?: string | null;
   inputMethodPackage?: string | null;
   focusedPackage?: string | null;

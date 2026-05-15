@@ -1,5 +1,5 @@
-import { runCmd } from '../../utils/exec.ts';
 import { createLinuxToolResolver } from './tool-resolver.ts';
+import { runLinuxToolCommand } from './tool-provider.ts';
 
 type ScreenshotTool = 'grim' | 'gnome-screenshot' | 'scrot' | 'import';
 
@@ -31,16 +31,16 @@ export async function screenshotLinux(outPath: string): Promise<void> {
 
   switch (tool) {
     case 'grim':
-      await runCmd('grim', [outPath]);
+      await runLinuxToolCommand('grim', [outPath]);
       break;
     case 'scrot':
-      await runCmd('scrot', [outPath]);
+      await runLinuxToolCommand('scrot', [outPath]);
       break;
     case 'import':
-      await runCmd('import', ['-window', 'root', outPath]);
+      await runLinuxToolCommand('import', ['-window', 'root', outPath]);
       break;
     case 'gnome-screenshot':
-      await runCmd('gnome-screenshot', ['-f', outPath]);
+      await runLinuxToolCommand('gnome-screenshot', ['-f', outPath]);
       break;
   }
 }

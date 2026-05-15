@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { AppError } from '../../utils/errors.ts';
-import { runCmd } from '../../utils/exec.ts';
+import type { ExecOptions } from '../../utils/exec.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 
 import {
@@ -19,13 +19,14 @@ import { runIosRunnerCommand, IOS_RUNNER_CONTAINER_BUNDLE_IDS } from './runner-c
 import { prepareSimulatorStatusBarForScreenshot } from './screenshot-status-bar.ts';
 import { ensureBootedSimulator } from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
+import { runXcrun } from './tool-provider.ts';
 
 function simctlArgs(device: DeviceInfo, args: string[]): string[] {
   return buildSimctlArgsForDevice(device, args);
 }
 
-function runSimctl(device: DeviceInfo, args: string[], options?: Parameters<typeof runCmd>[2]) {
-  return runCmd('xcrun', simctlArgs(device, args), options);
+function runSimctl(device: DeviceInfo, args: string[], options?: ExecOptions) {
+  return runXcrun(simctlArgs(device, args), options);
 }
 
 type SimulatorScreenshotFlowDeps = {
@@ -194,8 +195,7 @@ async function copyRunnerScreenshotFromDevice(
   const deadline = Deadline.fromTimeoutMs(IOS_RUNNER_SCREENSHOT_COPY_TIMEOUT_MS);
   let copyResult = { exitCode: 1, stdout: '', stderr: '' };
   for (const bundleId of IOS_RUNNER_CONTAINER_BUNDLE_IDS) {
-    copyResult = await runCmd(
-      'xcrun',
+    copyResult = await runXcrun(
       [
         'devicectl',
         'device',

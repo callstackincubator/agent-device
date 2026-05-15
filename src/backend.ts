@@ -99,6 +99,7 @@ export type BackendKeyboardResult = {
   action?: BackendKeyboardOptions['action'];
   visible?: boolean;
   inputType?: string | null;
+  inputMethodPackage?: string | null;
   type?: string | null;
   wasVisible?: boolean;
   dismissed?: boolean;

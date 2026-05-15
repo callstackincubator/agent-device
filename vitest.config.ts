@@ -2,6 +2,28 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'test/device-lab/**/*.test.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      include: ['src/**/*.ts'],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/__tests__/**',
+        'src/**/*-types.ts',
+        'src/**/types.ts',
+        'src/android-adb.ts',
+        'src/artifacts.ts',
+        'src/batch.ts',
+        'src/bin.ts',
+        'src/client-types.ts',
+        'src/core/interactor-types.ts',
+        'src/index.ts',
+        'src/install-source.ts',
+        'src/mcp/**',
+        'src/remote-config.ts',
+        'src/selectors.ts',
+      ],
+    },
   },
 });

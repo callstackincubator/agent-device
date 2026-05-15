@@ -8,7 +8,7 @@ import {
   isSensitiveFillDiagnosticNode,
 } from '../fill-diagnostics.ts';
 import { sleep } from './adb.ts';
-import { isAndroidInputMethodOwned } from './input-ownership.ts';
+import { isAndroidInputMethodOwnedNode } from './input-ownership.ts';
 import { dumpUiHierarchy } from './snapshot.ts';
 import { androidUiNodes, type AndroidUiNodeMetadata } from './ui-hierarchy.ts';
 
@@ -256,7 +256,10 @@ function androidFillCandidateFromNode(
     rect: node.rect,
     focused: node.focused ?? false,
     password: node.password === true,
-    inputMethodOwned: isAndroidInputMethodOwned(node.packageName, node.resourceId),
+    inputMethodOwned: isAndroidInputMethodOwnedNode({
+      packageName: node.packageName,
+      resourceId: node.resourceId,
+    }),
     area,
     editText: isEditTextClass(node.className ?? ''),
   };

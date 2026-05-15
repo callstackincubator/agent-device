@@ -8,18 +8,7 @@ vi.mock('../../../utils/exec.ts', async (importOriginal) => {
 
 import { runCmd, whichCmd } from '../../../utils/exec.ts';
 import { resetInputToolCache } from '../linux-env.ts';
-import {
-  pressLinux,
-  rightClickLinux,
-  middleClickLinux,
-  doubleClickLinux,
-  focusLinux,
-  swipeLinux,
-  scrollLinux,
-  typeLinux,
-  fillLinux,
-  sendKey,
-} from '../input-actions.ts';
+import { pressLinux, scrollLinux, typeLinux, sendKey } from '../input-actions.ts';
 
 const mockRunCmd = vi.mocked(runCmd);
 const mockWhichCmd = vi.mocked(whichCmd);
@@ -62,51 +51,6 @@ afterAll(() => {
 });
 
 // ── xdotool tests ────────────────────────────────────────────────────────
-
-test('pressLinux uses xdotool mousemove + click on X11', async () => {
-  setupXdotool();
-  await pressLinux(100, 200);
-  const c = calls();
-  assert.ok(
-    c.some(
-      ([cmd, args]) =>
-        cmd === 'xdotool' &&
-        args.includes('mousemove') &&
-        args.includes('100') &&
-        args.includes('200'),
-    ),
-  );
-  assert.ok(
-    c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('click') && args.includes('1')),
-  );
-});
-
-test('rightClickLinux sends button 3 via xdotool', async () => {
-  setupXdotool();
-  await rightClickLinux(50, 60);
-  const c = calls();
-  assert.ok(
-    c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('click') && args.includes('3')),
-  );
-});
-
-test('middleClickLinux sends button 2 via xdotool', async () => {
-  setupXdotool();
-  await middleClickLinux(50, 60);
-  const c = calls();
-  assert.ok(
-    c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('click') && args.includes('2')),
-  );
-});
-
-test('doubleClickLinux sends --repeat 2 via xdotool', async () => {
-  setupXdotool();
-  await doubleClickLinux(10, 20);
-  const c = calls();
-  assert.ok(
-    c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('--repeat') && args.includes('2')),
-  );
-});
 
 test('sendKey uses xdotool key with combo', async () => {
   setupXdotool();
@@ -170,37 +114,6 @@ test('scrollLinux converts pixels to click count', async () => {
   );
 });
 
-test('swipeLinux performs mousedown, mousemove, mouseup via xdotool', async () => {
-  setupXdotool();
-  await swipeLinux(0, 0, 100, 100, 10);
-  const c = calls();
-  assert.ok(c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('mousedown')));
-  assert.ok(
-    c.some(
-      ([cmd, args]) => cmd === 'xdotool' && args.includes('mousemove') && args.includes('100'),
-    ),
-  );
-  assert.ok(c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('mouseup')));
-});
-
-test('focusLinux delegates to pressLinux', async () => {
-  setupXdotool();
-  await focusLinux(30, 40);
-  const c = calls();
-  assert.ok(
-    c.some(
-      ([cmd, args]) =>
-        cmd === 'xdotool' &&
-        args.includes('mousemove') &&
-        args.includes('30') &&
-        args.includes('40'),
-    ),
-  );
-  assert.ok(
-    c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('click') && args.includes('1')),
-  );
-});
-
 // ── ydotool tests ────────────────────────────────────────────────────────
 
 test('pressLinux uses ydotool mousemove + click on Wayland', async () => {
@@ -247,26 +160,6 @@ test('scrollLinux uses ydotool mousemove --wheel for vertical scroll', async () 
         args.includes('mousemove') &&
         args.includes('--wheel') &&
         args.includes('-y'),
-    ),
-  );
-});
-
-// ── fillLinux tests ──────────────────────────────────────────────────────
-
-test('fillLinux clicks, selects all, then types on X11', async () => {
-  setupXdotool();
-  await fillLinux(50, 50, 'new text', 0);
-  const c = calls();
-  // Should click, then ctrl+a, then type
-  assert.ok(
-    c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('click') && args.includes('1')),
-  );
-  assert.ok(
-    c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('key') && args.includes('ctrl+a')),
-  );
-  assert.ok(
-    c.some(
-      ([cmd, args]) => cmd === 'xdotool' && args.includes('type') && args.includes('new text'),
     ),
   );
 });

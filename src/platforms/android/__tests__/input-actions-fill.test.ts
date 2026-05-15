@@ -242,6 +242,20 @@ test('verifyAndroidFilledTextInHierarchy rejects near-complete prefixes', () => 
   assert.equal(verification.actual, 'filed the expens');
 });
 
+test('verifyAndroidFilledTextInHierarchy does not treat inputmethod substring as IME ownership', () => {
+  const verification = verifyAndroidFilledTextInHierarchy(
+    appPackageWithInputMethodSubstringHierarchy(),
+    10,
+    10,
+    'chips',
+  );
+
+  assert.equal(verification.ok, true);
+  assert.notEqual(verification.reason, 'ime_capture');
+  assert.equal(verification.actualInput?.packageName, 'com.example.inputmethod.demo');
+  assert.equal(verification.actualInput?.inputMethodOwned, false);
+});
+
 test('verifyAndroidFilledTextInHierarchy rejects reverse sentence autocapitalization mismatch', () => {
   const verification = verifyAndroidFilledTextInHierarchy(
     androidInputXml({ text: 'john' }),
@@ -372,6 +386,13 @@ function focusedEditHierarchy(): string {
   return `<?xml version="1.0" encoding="UTF-8"?><hierarchy>
 <node package="com.example" class="android.widget.TextView" text="point fallback" focused="false" bounds="[0,0][200,100]"/>
 <node package="com.example" class="android.widget.EditText" text="focused value" focused="true" bounds="[300,300][500,400]"/>
+</hierarchy>`;
+}
+
+function appPackageWithInputMethodSubstringHierarchy(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?><hierarchy>
+<node package="com.example.shop" class="android.widget.EditText" text="Search Products" resource-id="com.example.shop:id/search" focused="false" bounds="[0,0][300,100]"/>
+<node package="com.example.inputmethod.demo" class="android.widget.EditText" text="chips" resource-id="com.example.inputmethod.demo:id/search" focused="true" bounds="[0,700][300,800]"/>
 </hierarchy>`;
 }
 

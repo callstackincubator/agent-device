@@ -20,15 +20,6 @@ const iosSimulator: DeviceInfo = {
   booted: true,
 };
 
-const tvosSimulator: DeviceInfo = {
-  platform: 'ios',
-  id: 'tv-sim-1',
-  name: 'Apple TV',
-  kind: 'simulator',
-  target: 'tv',
-  booted: true,
-};
-
 const mockRunIosRunnerCommand = vi.mocked(runIosRunnerCommand);
 
 beforeEach(() => {
@@ -73,21 +64,6 @@ test('ios scroll reports planned pixels without recomputing from runner coordina
   const pixels =
     result && typeof result === 'object' && 'pixels' in result ? result.pixels : undefined;
   assert.equal(pixels, 120);
-});
-
-test('tvos scroll preserves remote focus direction', async () => {
-  const commands: RunnerCommand[] = [];
-  mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
-    commands.push(command);
-    return {};
-  });
-  const interactor = getInteractor(tvosSimulator, { appBundleId: 'com.example.app' });
-
-  await interactor.scroll('down');
-
-  assert.deepEqual(commands, [
-    { command: 'remotePress', remoteButton: 'down', appBundleId: 'com.example.app' },
-  ]);
 });
 
 test('ios fill clears the focused field after tapping the target coordinates', async () => {

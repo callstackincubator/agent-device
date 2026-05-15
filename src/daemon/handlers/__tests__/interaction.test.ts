@@ -228,75 +228,6 @@ test('get text uses backend read expansion when the resolved node has a rect', a
   }
 });
 
-test('press coordinates dispatches press and records as press', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  const storedSession = makeSession(sessionName);
-  sessionStore.set(sessionName, storedSession);
-
-  mockDispatch.mockResolvedValue({ ok: true });
-
-  const response = await handleInteractionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'press',
-      positionals: ['100', '200'],
-      flags: { count: 3, intervalMs: 1, doubleTap: true },
-    },
-    sessionName,
-    sessionStore,
-    contextFromFlags,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  expect(mockDispatch).toHaveBeenCalledTimes(1);
-  expect(mockDispatch.mock.calls[0]?.[1]).toBe('press');
-  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['100', '200']);
-  const context = mockDispatch.mock.calls[0]?.[4] as Record<string, unknown> | undefined;
-  expect(context?.count).toBe(3);
-  expect(context?.intervalMs).toBe(1);
-  expect(context?.doubleTap).toBe(true);
-
-  const session = sessionStore.get(sessionName);
-  expect(session).toBeTruthy();
-  expect(session?.actions.length).toBe(1);
-  expect(session?.actions[0]?.command).toBe('press');
-  expect(session?.actions[0]?.positionals).toEqual(['100', '200']);
-});
-
-test('type dispatches through runtime and records as type', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  sessionStore.set(sessionName, makeSession(sessionName));
-
-  mockDispatch.mockResolvedValue({ ok: true, message: 'Typed 5 chars' });
-
-  const response = await handleInteractionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'type',
-      positionals: ['hello'],
-      flags: { delayMs: 3 },
-    },
-    sessionName,
-    sessionStore,
-    contextFromFlags,
-  });
-
-  expect(response?.ok).toBe(true);
-  expect(mockDispatch).toHaveBeenCalledTimes(1);
-  expect(mockDispatch.mock.calls[0]?.[1]).toBe('type');
-  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['hello']);
-  const context = mockDispatch.mock.calls[0]?.[4] as Record<string, unknown> | undefined;
-  expect(context?.delayMs).toBe(3);
-  const session = sessionStore.get(sessionName);
-  expect(session?.actions.at(-1)?.command).toBe('type');
-  expect(session?.actions.at(-1)?.positionals).toEqual(['hello']);
-});
-
 test('click rejects macOS desktop surface interactions until helper routing exists', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-desktop-click';
@@ -724,62 +655,6 @@ test('press @ref preserves native timing in recorded result and touch visualizat
   expect(result.gestureStartUptimeMs).toBe(5_100);
   expect(result.gestureEndUptimeMs).toBe(5_180);
   expect(stored?.recording?.gestureEvents[0]?.tMs).toBe(570);
-});
-
-test('press @ref resolves snapshot node and records press action', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  const session = makeSession(sessionName);
-  session.snapshot = {
-    nodes: attachRefs([
-      {
-        index: 0,
-        type: 'XCUIElementTypeButton',
-        label: 'Continue',
-        identifier: 'auth_continue',
-        rect: { x: 10, y: 20, width: 100, height: 40 },
-        enabled: true,
-        hittable: true,
-      },
-    ]),
-    createdAt: Date.now(),
-    backend: 'xctest',
-  };
-  sessionStore.set(sessionName, session);
-
-  mockDispatch.mockResolvedValue({ pressed: true });
-
-  const response = await handleInteractionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'press',
-      positionals: ['@e1'],
-      flags: {},
-    },
-    sessionName,
-    sessionStore,
-    contextFromFlags,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response?.ok) {
-    expect(response.data?.ref).toBe('e1');
-    expect(response.data?.x).toBe(60);
-    expect(response.data?.y).toBe(40);
-  }
-  expect(mockDispatch).toHaveBeenCalledTimes(1);
-  expect(mockDispatch.mock.calls[0]?.[1]).toBe('press');
-  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['60', '40']);
-
-  const stored = sessionStore.get(sessionName);
-  expect(stored).toBeTruthy();
-  expect(stored?.actions.length).toBe(1);
-  expect(stored?.actions[0]?.command).toBe('press');
-  const result = (stored?.actions[0]?.result ?? {}) as Record<string, unknown>;
-  expect(result.ref).toBe('e1');
-  expect(Array.isArray(result.selectorChain)).toBe(true);
 });
 
 test('press @ref refreshes stale stored refs and syncs the daemon session snapshot', async () => {
@@ -1794,56 +1669,6 @@ test('press coordinates does not treat extra trailing args as selector', async (
   expect(mockDispatch.mock.calls[0]?.[1]).toBe('press');
   expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['100', '200']);
   expect(sessionStore.get(sessionName)?.actions.length).toBe(1);
-});
-
-test('is visible captures one snapshot before evaluating selector predicate', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  sessionStore.set(sessionName, makeSession(sessionName));
-
-  mockDispatch.mockImplementation(async (_device, command) => {
-    if (command === 'snapshot') {
-      return {
-        nodes: [
-          {
-            index: 0,
-            type: 'XCUIElementTypeButton',
-            label: 'Continue',
-            identifier: 'auth_continue',
-            rect: { x: 10, y: 20, width: 100, height: 40 },
-            enabled: true,
-            hittable: true,
-            visible: true,
-          },
-        ],
-        backend: 'xctest',
-      };
-    }
-    throw new Error(`unexpected command: ${command}`);
-  });
-
-  const response = await handleInteractionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'is',
-      positionals: ['visible', 'id=auth_continue'],
-      flags: {},
-    },
-    sessionName,
-    sessionStore,
-    contextFromFlags,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  const snapshotCalls = mockDispatch.mock.calls.filter((c) => c[1] === 'snapshot');
-  expect(snapshotCalls.length).toBe(1);
-  if (response?.ok) {
-    expect(response.data?.predicate).toBe('visible');
-    expect(response.data?.pass).toBe(true);
-    expect(response.data?.selector).toBe('id=auth_continue');
-  }
 });
 
 test('is visible preserves CLI snapshot flags during runtime snapshot capture', async () => {

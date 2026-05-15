@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { buildSimctlArgs } from '../platforms/ios/simctl.ts';
-import { runCmd, runCmdBackground } from '../utils/exec.ts';
+import { runCmdBackground } from '../utils/exec.ts';
+import { runXcrun } from '../platforms/ios/tool-provider.ts';
 import { clearPidFile, writePidFile, type AppLogResult } from './app-log-process.ts';
 import { attachChildToStream, createLineWriter, waitForChildExit } from './app-log-stream.ts';
 
@@ -65,7 +66,7 @@ export async function readRecentIosSimulatorLogShowForBundle(params: {
   } else {
     args.push('--last', '5m');
   }
-  const result = await runCmd('xcrun', args, { allowFailure: true, timeoutMs: 4_000 });
+  const result = await runXcrun(args, { allowFailure: true, timeoutMs: 4_000 });
   if (result.exitCode !== 0 || result.stdout.trim().length === 0) {
     return null;
   }

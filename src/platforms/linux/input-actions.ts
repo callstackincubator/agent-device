@@ -1,5 +1,5 @@
-import { runCmd } from '../../utils/exec.ts';
 import { ensureInputTool } from './linux-env.ts';
+import { resolveLinuxToolProvider } from './tool-provider.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import type { ScrollDirection } from '../../core/scroll-gesture.ts';
 
@@ -9,11 +9,17 @@ import type { ScrollDirection } from '../../core/scroll-gesture.ts';
 const INPUT_TIMEOUT_MS = 10_000;
 
 async function xdotool(...args: string[]): Promise<void> {
-  await runCmd('xdotool', args, { allowFailure: false, timeoutMs: INPUT_TIMEOUT_MS });
+  await resolveLinuxToolProvider().runCommand('xdotool', args, {
+    allowFailure: false,
+    timeoutMs: INPUT_TIMEOUT_MS,
+  });
 }
 
 async function ydotool(...args: string[]): Promise<void> {
-  await runCmd('ydotool', args, { allowFailure: false, timeoutMs: INPUT_TIMEOUT_MS });
+  await resolveLinuxToolProvider().runCommand('ydotool', args, {
+    allowFailure: false,
+    timeoutMs: INPUT_TIMEOUT_MS,
+  });
 }
 
 /** Move the pointer to (x, y) using the detected input tool. */

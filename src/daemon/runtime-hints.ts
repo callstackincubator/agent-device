@@ -1,6 +1,5 @@
 import type { DeviceInfo } from '../utils/device.ts';
 import { AppError, asAppError } from '../utils/errors.ts';
-import { runCmd } from '../utils/exec.ts';
 import type { SessionRuntimeHints } from './types.ts';
 import {
   resolveRuntimeTransportHints,
@@ -12,6 +11,7 @@ import {
   formatAndroidInstalledPackageRequiredMessage,
 } from '../platforms/android/open-target.ts';
 import { buildSimctlArgsForDevice } from '../platforms/ios/simctl.ts';
+import { runXcrun } from '../platforms/ios/tool-provider.ts';
 
 const ANDROID_DEV_PREFS_PATH = 'shared_prefs/ReactNativeDevPrefs.xml';
 const ANDROID_DEBUG_HOST_KEY = 'debug_http_host';
@@ -168,8 +168,7 @@ async function applyIosSimulatorRuntimeHints(
   bundleId: string,
   transport: ResolvedRuntimeTransport,
 ): Promise<void> {
-  await runCmd(
-    'xcrun',
+  await runXcrun(
     buildSimctlArgsForDevice(device, [
       'spawn',
       device.id,
@@ -181,8 +180,7 @@ async function applyIosSimulatorRuntimeHints(
       `${transport.host}:${transport.port}`,
     ]),
   );
-  await runCmd(
-    'xcrun',
+  await runXcrun(
     buildSimctlArgsForDevice(device, [
       'spawn',
       device.id,
@@ -197,8 +195,7 @@ async function applyIosSimulatorRuntimeHints(
 }
 
 async function clearIosSimulatorRuntimeHints(device: DeviceInfo, bundleId: string): Promise<void> {
-  await runCmd(
-    'xcrun',
+  await runXcrun(
     buildSimctlArgsForDevice(device, [
       'spawn',
       device.id,
@@ -209,8 +206,7 @@ async function clearIosSimulatorRuntimeHints(device: DeviceInfo, bundleId: strin
     ]),
     { allowFailure: true },
   );
-  await runCmd(
-    'xcrun',
+  await runXcrun(
     buildSimctlArgsForDevice(device, [
       'spawn',
       device.id,

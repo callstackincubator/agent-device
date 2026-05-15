@@ -10,6 +10,7 @@ import { runCmd, runCmdBackground } from '../../utils/exec.ts';
 import { isPlayableVideo, waitForStableFile } from '../../utils/video.ts';
 import { deriveRecordingTelemetryPath } from '../recording-telemetry.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
+import { runAppleToolCommand } from '../../platforms/ios/tool-provider.ts';
 import {
   overlayRecordingTouches,
   resizeRecording,
@@ -42,7 +43,10 @@ export type { RecordTraceDeps, RecordingBase } from './record-trace-types.ts';
 
 function buildRecordTraceDeps(): RecordTraceDeps {
   return {
-    runCmd,
+    runCmd: async (cmd, args, options) =>
+      cmd === 'xcrun'
+        ? await runAppleToolCommand(cmd, args, options)
+        : await runCmd(cmd, args, options),
     runCmdBackground,
     runIosRunnerCommand,
     waitForStableFile,

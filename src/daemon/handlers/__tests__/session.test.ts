@@ -99,7 +99,7 @@ import {
   ensureAndroidEmulatorBooted,
 } from '../../../platforms/android/devices.ts';
 import { listAppleDevices } from '../../../platforms/ios/devices.ts';
-import { listIosApps, resolveIosApp } from '../../../platforms/ios/index.ts';
+import { resolveIosApp } from '../../../platforms/ios/index.ts';
 import { startAppLog, stopAppLog } from '../../app-log.ts';
 import { defaultInstallOps, defaultReinstallOps } from '../session-deploy.ts';
 import { clearRequestCanceled, markRequestCanceled } from '../../request-cancel.ts';
@@ -117,7 +117,6 @@ const mockCleanupRetainedMaterializedPaths = vi.mocked(cleanupRetainedMaterializ
 const mockRunCmd = vi.mocked(runCmd);
 const mockListAndroidDevices = vi.mocked(listAndroidDevices);
 const mockListAppleDevices = vi.mocked(listAppleDevices);
-const mockListIosApps = vi.mocked(listIosApps);
 const mockResolveIosApp = vi.mocked(resolveIosApp);
 const mockEnsureAndroidEmulatorBooted = vi.mocked(ensureAndroidEmulatorBooted);
 const mockStartAppLog = vi.mocked(startAppLog);
@@ -154,8 +153,6 @@ beforeEach(() => {
   mockListAndroidDevices.mockResolvedValue([]);
   mockListAppleDevices.mockReset();
   mockListAppleDevices.mockResolvedValue([]);
-  mockListIosApps.mockReset();
-  mockListIosApps.mockResolvedValue([]);
   mockResolveIosApp.mockReset();
   mockResolveIosApp.mockImplementation(async (device, app) => {
     const normalizedApp = app.toLowerCase();
@@ -276,46 +273,6 @@ test('devices filters Apple-family platform selectors', async () => {
   if (appleDesktopResponse?.ok) {
     const devices = appleDesktopResponse.data?.devices as Array<{ platform: string }> | undefined;
     expect(devices?.map((device) => device.platform)).toEqual(['macos']);
-  }
-});
-
-test('batch executes steps sequentially and returns structured results', async () => {
-  const sessionStore = makeSessionStore();
-  const seenCommands: string[] = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'default',
-      command: 'batch',
-      positionals: [],
-      flags: {
-        platform: 'ios',
-        udid: 'sim-1',
-        out: '/tmp/batch-artifact.json',
-        batchSteps: [
-          { command: 'open', positionals: ['settings'] },
-          { command: 'wait', positionals: ['100'] },
-        ],
-      },
-    },
-    sessionName: 'default',
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: async (stepReq) => {
-      seenCommands.push(stepReq.command);
-      expect(stepReq.flags?.platform).toBe('ios');
-      expect(stepReq.flags?.udid).toBe('sim-1');
-      expect(stepReq.flags?.out).toBe('/tmp/batch-artifact.json');
-      return { ok: true, data: { command: stepReq.command } };
-    },
-  });
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  expect(seenCommands).toEqual(['open', 'wait']);
-  if (response && response.ok) {
-    expect(response.data?.total).toBe(2);
-    expect(response.data?.executed).toBe(2);
-    expect(Array.isArray(response.data?.results)).toBeTruthy();
   }
 });
 
@@ -1186,57 +1143,6 @@ test('appstate on iOS requires active session on selected device', async () => {
   }
 });
 
-test('appstate with explicit selector matching session returns session state', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'sim';
-  sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'ios',
-      id: 'sim-1',
-      name: 'iPhone 17 Pro',
-      kind: 'simulator',
-      booted: true,
-    }),
-    appBundleId: 'com.apple.Maps',
-    appName: 'Maps',
-  });
-
-  const selectedDevice: SessionState['device'] = {
-    platform: 'ios',
-    id: 'sim-1',
-    name: 'iPhone 17 Pro',
-    kind: 'simulator',
-    booted: true,
-  };
-  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
-  mockDispatch.mockRejectedValue(new Error('snapshot dispatch should not run'));
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'appstate',
-      positionals: [],
-      flags: { platform: 'ios', device: 'iPhone 17 Pro' },
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response && response.ok) {
-    expect(response.data?.platform).toBe('ios');
-    expect(response.data?.appName).toBe('Maps');
-    expect(response.data?.appBundleId).toBe('com.apple.Maps');
-    expect(response.data?.source).toBe('session');
-    expect(response.data?.device_udid).toBe('sim-1');
-    expect(response.data?.ios_simulator_device_set).toBe(null);
-  }
-});
-
 test('appstate returns session appName when bundle id is unavailable', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'sim';
@@ -1287,51 +1193,6 @@ test('appstate returns session appName when bundle id is unavailable', async () 
   }
 });
 
-test('appstate on macOS session returns session state', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'macos';
-  sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'macos',
-      id: 'host-macos-local',
-      name: 'Host Mac',
-      kind: 'device',
-      target: 'desktop',
-      booted: true,
-    }),
-    appBundleId: 'com.apple.systempreferences',
-    appName: 'System Settings',
-  });
-
-  mockDispatch.mockRejectedValue(new Error('dispatch should not run'));
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'appstate',
-      positionals: [],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response && response.ok) {
-    expect(response.data?.platform).toBe('macos');
-    expect(response.data?.appName).toBe('System Settings');
-    expect(response.data?.appBundleId).toBe('com.apple.systempreferences');
-    expect(response.data?.source).toBe('session');
-    expect(response.data?.surface).toBe('app');
-    expect(response.data?.device_udid).toBe(undefined);
-    expect(response.data?.ios_simulator_device_set).toBe(undefined);
-  }
-});
-
 test('appstate on macOS desktop surface returns surface state without app bundle id', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-desktop';
@@ -1370,47 +1231,6 @@ test('appstate on macOS desktop surface returns surface state without app bundle
     expect(response.data?.appBundleId).toBe(undefined);
     expect(response.data?.surface).toBe('desktop');
     expect(response.data?.source).toBe('session');
-  }
-});
-
-test('apps on macOS uses Apple app listing path', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'macos-apps';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'macos',
-      id: 'host-macos-local',
-      name: 'Host Mac',
-      kind: 'device',
-      target: 'desktop',
-      booted: true,
-    }),
-  );
-
-  mockListIosApps.mockImplementation(async (device, filter) => {
-    expect(device.platform).toBe('macos');
-    expect(filter).toBe('user-installed');
-    return [{ bundleId: 'com.apple.systempreferences', name: 'System Settings' }];
-  });
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'apps',
-      positionals: [],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response?.ok).toBe(true);
-  expect(mockListIosApps).toHaveBeenCalledTimes(1);
-  if (response && response.ok) {
-    expect(response.data?.apps).toEqual(['System Settings (com.apple.systempreferences)']);
   }
 });
 
@@ -1631,149 +1451,6 @@ test('keyboard dismiss requires active iOS session for explicit selectors', asyn
   if (response && !response.ok) {
     expect(response.error.code).toBe('SESSION_NOT_FOUND');
     expect(response.error.message).toMatch(/requires an active session/i);
-  }
-});
-
-test('keyboard dismiss uses active iOS session device', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-sim-session';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'ios',
-      id: 'sim-1',
-      name: 'iPhone 17 Pro',
-      kind: 'simulator',
-      booted: true,
-    }),
-  );
-
-  mockResolveTargetDevice.mockResolvedValue({
-    platform: 'ios',
-    id: 'sim-1',
-    name: 'iPhone 17 Pro',
-    kind: 'simulator',
-    booted: true,
-  });
-  mockDispatch.mockResolvedValue({
-    platform: 'ios',
-    action: 'dismiss',
-    dismissed: true,
-    visible: false,
-  });
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'keyboard',
-      positionals: ['dismiss'],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response && response.ok) {
-    expect(response.data?.platform).toBe('ios');
-    expect(response.data?.action).toBe('dismiss');
-    expect(response.data?.dismissed).toBe(true);
-    expect(response.data?.visible).toBe(false);
-  }
-});
-
-test('clipboard read uses active session device', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-sim-session';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'ios',
-      id: 'sim-1',
-      name: 'iPhone 17 Pro',
-      kind: 'simulator',
-      booted: true,
-    }),
-  );
-
-  mockResolveTargetDevice.mockResolvedValue({
-    platform: 'ios',
-    id: 'sim-1',
-    name: 'iPhone 17 Pro',
-    kind: 'simulator',
-    booted: true,
-  });
-  mockDispatch.mockImplementation(async (device, command, positionals) => {
-    expect(device.id).toBe('sim-1');
-    expect(command).toBe('clipboard');
-    expect(positionals).toEqual(['read']);
-    return { action: 'read', text: 'otp-123456' };
-  });
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'clipboard',
-      positionals: ['read'],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response && response.ok) {
-    expect(response.data?.platform).toBe('ios');
-    expect(response.data?.action).toBe('read');
-    expect(response.data?.text).toBe('otp-123456');
-  }
-});
-
-test('clipboard write supports explicit selector without active session', async () => {
-  const sessionStore = makeSessionStore();
-  const selectedDevice: SessionState['device'] = {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel Emulator',
-    kind: 'emulator',
-    booted: true,
-  };
-  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
-  mockDispatch.mockImplementation(async (device, command, positionals) => {
-    expect(device.id).toBe('emulator-5554');
-    expect(command).toBe('clipboard');
-    expect(positionals).toEqual(['write', 'hello', 'clipboard']);
-    return { action: 'write', textLength: 15 };
-  });
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'default',
-      command: 'clipboard',
-      positionals: ['write', 'hello', 'clipboard'],
-      flags: { platform: 'android', serial: 'emulator-5554' },
-    },
-    sessionName: 'default',
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response && response.ok) {
-    expect(response.data?.platform).toBe('android');
-    expect(response.data?.action).toBe('write');
-    expect(response.data?.textLength).toBe(15);
   }
 });
 
@@ -2576,60 +2253,6 @@ test('open app and URL on existing iOS device session keeps app context', async 
   expect(updated?.appName).toBe('Settings');
   expect(dispatchedPositionals).toEqual(['Settings', 'myapp://screen/to']);
   expect(dispatchedContext?.appBundleId).toBe('com.apple.Preferences');
-});
-
-test('open app on existing iOS session resolves and stores bundle id', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-session';
-  sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'ios',
-      id: 'sim-1',
-      name: 'iPhone 15',
-      kind: 'simulator',
-      booted: true,
-    }),
-    appBundleId: 'com.example.old',
-    appName: 'Old App',
-  });
-
-  mockResolveTargetDevice.mockResolvedValue({
-    platform: 'ios',
-    id: 'sim-1',
-    name: 'iPhone 15',
-    kind: 'simulator',
-    booted: true,
-  });
-  let dispatchedContext: Record<string, unknown> | undefined;
-  mockDispatch.mockImplementation(async (_device, _command, _positionals, _out, context) => {
-    dispatchedContext = context as Record<string, unknown> | undefined;
-    return {};
-  });
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'open',
-      positionals: ['settings'],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  const updated = sessionStore.get(sessionName);
-  expect(updated?.appBundleId).toBe('com.apple.Preferences');
-  expect(updated?.appName).toBe('settings');
-  expect(dispatchedContext?.appBundleId).toBe('com.apple.Preferences');
-  if (response && response.ok) {
-    expect(response.data?.device_udid).toBe('sim-1');
-    expect(response.data?.ios_simulator_device_set).toBe(null);
-  }
 });
 
 test('open app on existing macOS session resolves and stores bundle id', async () => {
@@ -3896,45 +3519,6 @@ test('replay resolves relative script path against request cwd', async () => {
   expect(invoked[0]?.positionals).toEqual(['Settings']);
 });
 
-test('replay parses press series flags and passes them to invoke', async () => {
-  const sessionStore = makeSessionStore();
-  const replayRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-press-series-'));
-  const replayPath = path.join(replayRoot, 'press-series.ad');
-  fs.writeFileSync(
-    replayPath,
-    'press 201 545 --count 5 --interval-ms 1 --hold-ms 2 --jitter-px 3 --double-tap\n',
-  );
-
-  const invoked: DaemonRequest[] = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'default',
-      command: 'replay',
-      positionals: [replayPath],
-      flags: {},
-    },
-    sessionName: 'default',
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: async (req) => {
-      invoked.push(req);
-      return { ok: true, data: {} };
-    },
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  expect(invoked.length).toBe(1);
-  expect(invoked[0]?.command).toBe('press');
-  expect(invoked[0]?.positionals).toEqual(['201', '545']);
-  expect(invoked[0]?.flags?.count).toBe(5);
-  expect(invoked[0]?.flags?.intervalMs).toBe(1);
-  expect(invoked[0]?.flags?.holdMs).toBe(2);
-  expect(invoked[0]?.flags?.jitterPx).toBe(3);
-  expect(invoked[0]?.flags?.doubleTap).toBe(true);
-});
-
 test('replay inherits parent device selectors for each invoked step', async () => {
   const sessionStore = makeSessionStore();
   const replayRoot = fs.mkdtempSync(
@@ -3992,78 +3576,6 @@ test('logs requires an active session', async () => {
   expect(response?.ok).toBe(false);
   if (response && !response.ok) {
     expect(response.error.code).toBe('SESSION_NOT_FOUND');
-  }
-});
-
-test('logs path returns path and active flag when session exists', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'ios',
-      id: 'sim-1',
-      name: 'iPhone Simulator',
-      kind: 'simulator',
-      booted: true,
-    }),
-  );
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'logs',
-      positionals: [],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response && response.ok && response.data) {
-    expect(typeof response.data.path).toBe('string');
-    expect((response.data.path as string).endsWith('app.log')).toBeTruthy();
-    expect(response.data.active).toBe(false);
-    expect(response.data.backend).toBe('ios-simulator');
-    expect(typeof response.data.hint).toBe('string');
-  }
-});
-
-test('logs path supports macOS desktop sessions', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'macos-default';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'macos',
-      id: 'host-macos-local',
-      name: 'Host Mac',
-      kind: 'device',
-      target: 'desktop',
-      booted: true,
-    }),
-  );
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'logs',
-      positionals: [],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-  expect(response?.ok).toBe(true);
-  if (response && response.ok) {
-    expect(response.data?.active).toBe(false);
-    expect(response.data?.backend).toBe('macos');
-    expect(typeof response.data?.path).toBe('string');
   }
 });
 
@@ -4292,41 +3804,6 @@ test('close auto-stops active app log stream', async () => {
   expect(sessionStore.get(sessionName)).toBe(undefined);
 });
 
-test('logs mark appends marker and returns path', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'ios',
-      id: 'sim-1',
-      name: 'iPhone Simulator',
-      kind: 'simulator',
-      booted: true,
-    }),
-    appBundleId: 'com.example.app',
-  });
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'logs',
-      positionals: ['mark', 'checkpoint'],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response && response.ok) {
-    expect(response.data?.marked).toBe(true);
-    const outPath = String(response.data?.path ?? '');
-    expect(fs.readFileSync(outPath, 'utf8')).toMatch(/checkpoint/);
-  }
-});
-
 test('logs clear truncates log file and removes rotated files', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
@@ -4542,40 +4019,6 @@ test('logs clear --restart requires app session bundle id', async () => {
   if (response && !response.ok) {
     expect(response.error.code).toBe('INVALID_ARGS');
     expect(response.error.message).toMatch(/app session|open <app>/i);
-  }
-});
-
-test('logs doctor returns check payload', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'ios',
-      id: 'sim-1',
-      name: 'iPhone Simulator',
-      kind: 'simulator',
-      booted: true,
-    }),
-    appBundleId: 'com.example.app',
-  });
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'logs',
-      positionals: ['doctor'],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response && response.ok) {
-    expect(typeof response.data?.checks).toBe('object');
-    expect(Array.isArray(response.data?.notes)).toBe(true);
   }
 });
 

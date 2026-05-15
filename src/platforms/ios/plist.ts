@@ -1,5 +1,5 @@
 import { promises as fs } from 'node:fs';
-import { runCmd } from '../../utils/exec.ts';
+import { runAppleToolCommand } from './tool-provider.ts';
 import { parseXmlDocumentSync, visitXmlPlistEntries } from './xml.ts';
 
 export async function readInfoPlistString(
@@ -7,9 +7,13 @@ export async function readInfoPlistString(
   key: string,
 ): Promise<string | undefined> {
   try {
-    const result = await runCmd('plutil', ['-extract', key, 'raw', '-o', '-', infoPlistPath], {
-      allowFailure: true,
-    });
+    const result = await runAppleToolCommand(
+      'plutil',
+      ['-extract', key, 'raw', '-o', '-', infoPlistPath],
+      {
+        allowFailure: true,
+      },
+    );
     if (result.exitCode === 0) {
       const value = String(result.stdout ?? '').trim();
       if (value.length > 0) {

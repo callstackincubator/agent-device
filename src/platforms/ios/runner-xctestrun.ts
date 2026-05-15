@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { AppError } from '../../utils/errors.ts';
 import { sleep } from '../../utils/timeouts.ts';
-import { runCmd, runCmdStreaming, type ExecBackgroundResult } from '../../utils/exec.ts';
+import { runCmdStreaming, type ExecBackgroundResult } from '../../utils/exec.ts';
 import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
 import { isProcessAlive, readProcessStartTime } from '../../utils/process-identity.ts';
 import { isEnvTruthy } from '../../utils/retry.ts';
@@ -13,6 +13,7 @@ import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { findProjectRoot } from '../../utils/version.ts';
 import { resolveSigningFailureHint } from './runner-contract.ts';
 import { logChunk } from './runner-transport.ts';
+import { runAppleToolCommand } from './tool-provider.ts';
 import {
   repairMacOsRunnerProductsIfNeeded,
   isExpectedRunnerRepairFailure,
@@ -679,9 +680,13 @@ export async function prepareXctestrunWithEnv(
 }
 
 async function readXctestrunPlist(xctestrunPath: string): Promise<XctestrunPlist> {
-  const jsonResult = await runCmd('plutil', ['-convert', 'json', '-o', '-', xctestrunPath], {
-    allowFailure: true,
-  });
+  const jsonResult = await runAppleToolCommand(
+    'plutil',
+    ['-convert', 'json', '-o', '-', xctestrunPath],
+    {
+      allowFailure: true,
+    },
+  );
   if (jsonResult.exitCode !== 0 || !jsonResult.stdout.trim()) {
     throw new AppError('COMMAND_FAILED', 'Failed to read xctestrun plist', {
       xctestrunPath,
@@ -709,7 +714,7 @@ async function writeXctestrunPlist(
   tmpXctestrunPath: string,
 ): Promise<void> {
   fs.writeFileSync(tmpJsonPath, JSON.stringify(parsed, null, 2));
-  const plistResult = await runCmd(
+  const plistResult = await runAppleToolCommand(
     'plutil',
     ['-convert', 'xml1', '-o', tmpXctestrunPath, tmpJsonPath],
     {

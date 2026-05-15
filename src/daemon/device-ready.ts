@@ -2,10 +2,10 @@ import type { DeviceInfo } from '../utils/device.ts';
 import os from 'node:os';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
-import { runCmd } from '../utils/exec.ts';
 import { AppError } from '../utils/errors.ts';
 import { resolveTimeoutMs } from '../utils/timeouts.ts';
 import { resolveIosDevicectlHint, IOS_DEVICECTL_DEFAULT_HINT } from '../platforms/ios/devicectl.ts';
+import { runXcrun } from '../platforms/ios/tool-provider.ts';
 
 const IOS_DEVICE_READY_TIMEOUT_MS = resolveTimeoutMs(
   process.env.AGENT_DEVICE_IOS_DEVICE_READY_TIMEOUT_MS,
@@ -76,8 +76,7 @@ async function ensureIosDeviceReady(deviceId: string): Promise<void> {
   );
   const timeoutSeconds = Math.max(1, Math.ceil(IOS_DEVICE_READY_TIMEOUT_MS / 1000));
   try {
-    const result = await runCmd(
-      'xcrun',
+    const result = await runXcrun(
       [
         'devicectl',
         'device',

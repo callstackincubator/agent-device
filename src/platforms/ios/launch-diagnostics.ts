@@ -1,7 +1,7 @@
 import { AppError } from '../../utils/errors.ts';
-import { runCmd } from '../../utils/exec.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
+import { runAppleToolCommand, runXcrun } from './tool-provider.ts';
 
 export type LaunchFailureReason =
   | 'ARCH_MISMATCH'
@@ -32,8 +32,7 @@ export async function probeSimulatorLaunchContext(
   device: DeviceInfo,
   bundleId: string,
 ): Promise<LaunchProbeResult> {
-  const containerResult = await runCmd(
-    'xcrun',
+  const containerResult = await runXcrun(
     buildSimctlArgsForDevice(device, ['get_app_container', device.id, bundleId]),
     { allowFailure: true },
   );
@@ -48,7 +47,7 @@ export async function probeSimulatorLaunchContext(
   }
 
   // Read the Info.plist to find the executable name
-  const plistResult = await runCmd(
+  const plistResult = await runAppleToolCommand(
     'plutil',
     ['-extract', 'CFBundleExecutable', 'raw', '-o', '-', `${containerPath}/Info.plist`],
     { allowFailure: true },
@@ -64,7 +63,9 @@ export async function probeSimulatorLaunchContext(
   // Use otool to inspect LC_BUILD_VERSION for the platform marker.
   // This is reliable on both Intel and Apple Silicon, where `file` output
   // looks identical for device and simulator arm64 binaries.
-  const otoolResult = await runCmd('otool', ['-l', binaryPath], { allowFailure: true });
+  const otoolResult = await runAppleToolCommand('otool', ['-l', binaryPath], {
+    allowFailure: true,
+  });
   if (otoolResult.exitCode !== 0) {
     return { installed: true };
   }

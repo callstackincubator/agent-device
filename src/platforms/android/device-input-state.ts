@@ -1,12 +1,13 @@
-import { AppError } from '../../utils/errors.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import { AppError } from '../../utils/errors.ts';
 import { isClipboardShellUnsupported, sleep } from './adb.ts';
 import { resolveAndroidAdbExecutor, type AndroidAdbExecutor } from './adb-executor.ts';
 import {
   classifyAndroidInputOwner,
   isFallbackAndroidInputMethodPackage,
   isFallbackAndroidInputMethodResource,
+  readAndroidActiveInputMethodPackage,
   type AndroidInputOwner,
 } from './input-ownership.ts';
 
@@ -142,7 +143,7 @@ function parseAndroidKeyboardState(stdout: string): AndroidKeyboardState {
     stdout,
     /\b(?:resourceId|resource-id)=([^\s,}]+)/g,
   );
-  const inputMethodPackage = parseAndroidInputMethodPackage(stdout);
+  const inputMethodPackage = readAndroidActiveInputMethodPackage(stdout);
   const inputOwner = classifyAndroidInputOwner(
     focusedPackage,
     focusedResourceId,
@@ -172,14 +173,6 @@ function parseAndroidKeyboardState(stdout: string): AndroidKeyboardState {
     focusedResourceId,
     inputOwner,
   };
-}
-
-function parseAndroidInputMethodPackage(stdout: string): string | undefined {
-  const methodId = parseLastDumpsysValue(
-    stdout,
-    /\b(?:mCurMethodId|mCurId|mCurrentInputMethodId)=([^\s]+)/g,
-  );
-  return methodId?.split('/')[0];
 }
 
 function parseLastDumpsysValue(stdout: string, pattern: RegExp): string | undefined {

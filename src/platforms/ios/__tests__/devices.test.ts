@@ -1,28 +1,26 @@
-import { beforeEach, test, vi } from 'vitest';
+import { beforeEach, test } from 'vitest';
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import {
+  createLocalAppleToolProvider,
   isAppleProductType,
   isAppleTvProductType,
   isSupportedAppleDevicectlDevice,
   listAppleDevices,
   parseXctracePhysicalAppleDevices,
   resolveAppleTargetFromDevicectlDevice,
+  withAppleToolProvider,
 } from '../devices.ts';
-import { runCmd, whichCmd } from '../../../utils/exec.ts';
+import type { ExecResult } from '../../../utils/exec.ts';
 
-vi.mock('../../../utils/exec.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../utils/exec.ts')>();
-  return { ...actual, runCmd: vi.fn(), whichCmd: vi.fn() };
-});
-
-const mockRunCmd = vi.mocked(runCmd);
-const mockWhichCmd = vi.mocked(whichCmd);
+const toolCalls: Array<[string, string[]]> = [];
+let mockRunCommand: (cmd: string, args: string[]) => Promise<ExecResult>;
+let mockWhichCommand: (cmd: string) => Promise<boolean>;
 
 beforeEach(() => {
-  mockRunCmd.mockReset();
-  mockWhichCmd.mockReset();
-  mockWhichCmd.mockResolvedValue(true);
+  toolCalls.length = 0;
+  mockRunCommand = async () => ({ stdout: '', stderr: '', exitCode: 0 });
+  mockWhichCommand = async () => true;
 });
 
 async function withMockedPlatform<T>(platform: NodeJS.Platform, fn: () => Promise<T>): Promise<T> {
@@ -121,7 +119,7 @@ test('parseXctracePhysicalAppleDevices parses only physical devices from the Dev
 });
 
 test('listAppleDevices supplements unsupported devicectl entries with xctrace physical devices', async () => {
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
+  mockRunCommand = async (_cmd, args) => {
     if (args.join(' ') === 'simctl list devices -j') {
       return { stdout: createSimctlDevicesPayload(), stderr: '', exitCode: 0 };
     }
@@ -155,9 +153,12 @@ test('listAppleDevices supplements unsupported devicectl entries with xctrace ph
     }
 
     throw new Error(`unexpected xcrun args: ${args.join(' ')}`);
-  });
+  };
 
-  const devices = await withMockedPlatform('darwin', async () => await listAppleDevices());
+  const devices = await withMockedPlatform(
+    'darwin',
+    async () => await withMockedAppleTools(async () => await listAppleDevices()),
+  );
 
   assert.equal(
     devices.some((device) => device.kind === 'device' && device.id === '00008020-001C2D2234567890'),
@@ -174,7 +175,7 @@ test('listAppleDevices supplements unsupported devicectl entries with xctrace ph
 });
 
 test('listAppleDevices prefers devicectl metadata when xctrace reports the same physical device', async () => {
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
+  mockRunCommand = async (_cmd, args) => {
     if (args.join(' ') === 'simctl list devices -j') {
       return { stdout: createSimctlDevicesPayload(), stderr: '', exitCode: 0 };
     }
@@ -211,9 +212,12 @@ test('listAppleDevices prefers devicectl metadata when xctrace reports the same 
     }
 
     throw new Error(`unexpected xcrun args: ${args.join(' ')}`);
-  });
+  };
 
-  const devices = await withMockedPlatform('darwin', async () => await listAppleDevices());
+  const devices = await withMockedPlatform(
+    'darwin',
+    async () => await withMockedAppleTools(async () => await listAppleDevices()),
+  );
   const physicalDevices = devices.filter(
     (device) => device.kind === 'device' && device.platform === 'ios',
   );
@@ -223,17 +227,20 @@ test('listAppleDevices prefers devicectl metadata when xctrace reports the same 
 });
 
 test('listAppleDevices keeps physical discovery disabled for simulator-set scoped runs', async () => {
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
+  mockRunCommand = async (_cmd, args) => {
     if (args.includes('simctl') && args.includes('list') && args.includes('devices')) {
       return { stdout: createSimctlDevicesPayload(), stderr: '', exitCode: 0 };
     }
 
     throw new Error(`unexpected xcrun args: ${args.join(' ')}`);
-  });
+  };
 
   const devices = await withMockedPlatform(
     'darwin',
-    async () => await listAppleDevices({ simulatorSetPath: '/tmp/agent-device-sim-set' }),
+    async () =>
+      await withMockedAppleTools(
+        async () => await listAppleDevices({ simulatorSetPath: '/tmp/agent-device-sim-set' }),
+      ),
   );
 
   assert.equal(
@@ -245,9 +252,20 @@ test('listAppleDevices keeps physical discovery disabled for simulator-set scope
     false,
   );
   assert.equal(
-    mockRunCmd.mock.calls.some(
-      ([, args]) => args.includes('devicectl') || args.includes('xctrace'),
-    ),
+    toolCalls.some(([, args]) => args.includes('devicectl') || args.includes('xctrace')),
     false,
   );
 });
+
+async function withMockedAppleTools<T>(fn: () => Promise<T>): Promise<T> {
+  return await withAppleToolProvider(
+    createLocalAppleToolProvider({
+      whichCommand: async (cmd) => await mockWhichCommand(cmd),
+      runCommand: async (cmd, args) => {
+        toolCalls.push([cmd, args]);
+        return await mockRunCommand(cmd, args);
+      },
+    }),
+    fn,
+  );
+}

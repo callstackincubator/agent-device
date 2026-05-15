@@ -5,8 +5,8 @@
  * (press, type, scroll…) does not re-run `which` on every call.
  */
 
-import { whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
+import { resolveLinuxToolProvider, type LinuxToolProvider } from './tool-provider.ts';
 
 export type DisplayServer = 'wayland' | 'x11';
 export type InputTool = 'xdotool' | 'ydotool';
@@ -23,19 +23,24 @@ export function isWayland(): boolean {
 
 // ── Cached input tool resolution ───────────────────────────────────────
 
-let cachedInputTool: { tool: InputTool; display: DisplayServer } | null = null;
+let cachedInputTool: {
+  tool: InputTool;
+  display: DisplayServer;
+  provider: LinuxToolProvider;
+} | null = null;
 
 export async function ensureInputTool(): Promise<{
   tool: InputTool;
   display: DisplayServer;
 }> {
-  if (cachedInputTool) return cachedInputTool;
+  const provider = resolveLinuxToolProvider();
+  if (cachedInputTool?.provider === provider) return cachedInputTool;
 
   const display = detectDisplayServer();
 
   if (display === 'wayland') {
-    if (await whichCmd('ydotool')) {
-      cachedInputTool = { tool: 'ydotool', display };
+    if (await provider.whichCommand('ydotool')) {
+      cachedInputTool = { tool: 'ydotool', display, provider };
       return cachedInputTool;
     }
     throw new AppError(
@@ -44,8 +49,8 @@ export async function ensureInputTool(): Promise<{
     );
   }
 
-  if (await whichCmd('xdotool')) {
-    cachedInputTool = { tool: 'xdotool', display };
+  if (await provider.whichCommand('xdotool')) {
+    cachedInputTool = { tool: 'xdotool', display, provider };
     return cachedInputTool;
   }
   throw new AppError(
