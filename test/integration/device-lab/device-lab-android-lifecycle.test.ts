@@ -9,6 +9,7 @@ import type {
   AndroidAdbProcess,
   AndroidAdbProvider,
 } from '../../../src/platforms/android/adb-executor.ts';
+import { runCmd } from '../../../src/utils/exec.ts';
 import { arrayEqual, assertCommandCall, assertPngFile, validPng } from './assertions.ts';
 import { DEVICE_LAB_ANDROID } from './fixtures.ts';
 import { restoreEnv, createDeviceLabHarness } from './harness.ts';
@@ -24,6 +25,10 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-lab-android-deploy-'));
     const apkPath = path.join(tempRoot, 'Demo.apk');
     fs.writeFileSync(apkPath, 'placeholder apk');
+    const manifestApkPath = await createAndroidManifestApk(tempRoot, {
+      fileName: 'ManifestDemo.apk',
+      packageName: 'io.example.demo_manifest',
+    });
     const adbProvider: AndroidAdbProvider = {
       exec: async (args) => {
         adbCalls.push([...args]);
@@ -85,6 +90,23 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assert.equal(reinstall.platform, 'android');
         assert.equal(reinstall.appId, 'com.example.demo');
         assert.equal(path.basename(reinstall.appPath), 'Demo.apk');
+
+        const installFromManifest = await client.apps.installFromSource({
+          source: { kind: 'path', path: manifestApkPath },
+          retainPaths: true,
+          retentionMs: 60_000,
+          ...selection,
+        });
+        assert.equal(installFromManifest.packageName, 'io.example.demo_manifest');
+        assert.equal(installFromManifest.appName, 'Manifest');
+        assert.equal(installFromManifest.launchTarget, 'io.example.demo_manifest');
+        assert.ok(installFromManifest.installablePath?.endsWith('ManifestDemo.apk'));
+        assert.equal(typeof installFromManifest.materializationId, 'string');
+        const releaseManifestInstall = await client.materializations.release({
+          materializationId: String(installFromManifest.materializationId),
+          ...selection,
+        });
+        assert.equal(releaseManifestInstall.released, true);
 
         const push = await client.apps.push({
           app: 'com.example.demo',
@@ -331,9 +353,11 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         'android.settings.SETTINGS',
       ]);
       assertCommandCall(adbCalls, ['uninstall', 'com.example.demo']);
-      assert.equal(installCalls.length, 1);
+      assert.equal(installCalls.length, 2);
       assert.equal(path.basename(installCalls[0]?.apkPath ?? ''), 'Demo.apk');
       assert.equal(installCalls[0]?.replace, true);
+      assert.equal(path.basename(installCalls[1]?.apkPath ?? ''), 'ManifestDemo.apk');
+      assert.equal(installCalls[1]?.replace, true);
       assertCommandCall(adbCalls, [
         'shell',
         'am',
@@ -417,6 +441,26 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
     }
   });
 });
+
+async function createAndroidManifestApk(
+  tempRoot: string,
+  options: { fileName: string; packageName: string },
+): Promise<string> {
+  const manifestDir = path.join(tempRoot, `${options.fileName}-payload`);
+  await fs.promises.mkdir(manifestDir, { recursive: true });
+  await fs.promises.writeFile(
+    path.join(manifestDir, 'AndroidManifest.xml'),
+    `<manifest package="${options.packageName}" xmlns:android="http://schemas.android.com/apk/res/android" />`,
+    'utf8',
+  );
+  const apkPath = path.join(tempRoot, options.fileName);
+  const result = await runCmd('zip', ['-q', apkPath, 'AndroidManifest.xml'], {
+    cwd: manifestDir,
+    allowFailure: true,
+  });
+  assert.equal(result.exitCode, 0, `zip failed creating ${options.fileName}: ${result.stderr}`);
+  return apkPath;
+}
 
 function androidAdbResult(
   args: string[],

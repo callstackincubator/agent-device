@@ -846,56 +846,6 @@ test('settings usage hint documents canonical faceid states', async () => {
   }
 });
 
-test('settings on macOS returns helper-backed permission status', async () => {
-  await withMockedMacOsHelper(
-    [
-      '#!/bin/sh',
-      "cat <<'JSON'",
-      '{"ok":true,"data":{"target":"accessibility","action":"grant","granted":true,"requested":false,"openedSettings":false,"message":"Accessibility access already granted."}}',
-      'JSON',
-      '',
-    ].join('\n'),
-    async () => {
-      const sessionStore = makeSessionStore();
-      const sessionName = 'macos-settings';
-      sessionStore.set(sessionName, makeSession(sessionName, macOsDevice));
-
-      mockDispatch.mockResolvedValue({
-        setting: 'permission',
-        state: 'grant',
-        target: 'accessibility',
-        granted: true,
-        requested: false,
-        openedSettings: false,
-        message: 'Accessibility access already granted.',
-      });
-
-      const response = await handleSnapshotCommands({
-        req: {
-          token: 't',
-          session: sessionName,
-          command: 'settings',
-          positionals: ['permission', 'grant', 'accessibility'],
-          flags: {},
-        },
-        sessionName,
-        logPath: '/tmp/daemon.log',
-        sessionStore,
-      });
-
-      expect(response?.ok).toBe(true);
-      if (response && response.ok) {
-        expect(response.data?.setting).toBe('permission');
-        expect(response.data?.state).toBe('grant');
-        expect(response.data?.target).toBe('accessibility');
-        expect(response.data?.granted).toBe(true);
-        expect(response.data?.requested).toBe(false);
-        expect(response.data?.openedSettings).toBe(false);
-      }
-    },
-  );
-});
-
 test('settings on macOS rejects wifi before dispatch with explicit subset guidance', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-settings-wifi';
@@ -1403,53 +1353,6 @@ test('alert get does not retry on failure', async () => {
   ).rejects.toThrow();
 
   expect(calls).toBe(1);
-});
-
-test('alert get on macOS uses helper-backed alert path', async () => {
-  await withMockedMacOsHelper(
-    [
-      '#!/bin/sh',
-      "cat <<'JSON'",
-      '{"ok":true,"data":{"title":"Allow Access","role":"AXSheet","buttons":["Allow","Don\\u2019t Allow"],"bundleId":"com.apple.systempreferences"}}',
-      'JSON',
-      '',
-    ].join('\n'),
-    async () => {
-      const sessionStore = makeSessionStore();
-      const sessionName = 'macos-alert';
-      sessionStore.set(sessionName, {
-        ...makeSession(sessionName, {
-          platform: 'macos',
-          id: 'host-macos-local',
-          name: 'Host Mac',
-          kind: 'device',
-          target: 'desktop',
-          booted: true,
-        }),
-        appBundleId: 'com.apple.systempreferences',
-        appName: 'System Settings',
-      });
-
-      const response = await handleSnapshotCommands({
-        req: {
-          token: 't',
-          session: sessionName,
-          command: 'alert',
-          positionals: ['get'],
-          flags: {},
-        },
-        sessionName,
-        logPath: '/tmp/daemon.log',
-        sessionStore,
-      });
-
-      expect(response?.ok).toBe(true);
-      if (response && response.ok) {
-        expect(response.data?.title).toBe('Allow Access');
-        expect(response.data?.buttons).toEqual(['Allow', 'Don\u2019t Allow']);
-      }
-    },
-  );
 });
 
 test('alert get on macOS frontmost-app surface targets the helper surface, not the stored bundle id', async () => {

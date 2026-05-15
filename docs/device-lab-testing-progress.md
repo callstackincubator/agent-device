@@ -19,13 +19,13 @@ Current local snapshot:
 | Measure | Value |
 | --- | ---: |
 | Handler unit test files | 29 |
-| Handler unit test LOC | 14110 |
-| Handler unit tests | 400 |
+| Handler unit test LOC | 13950 |
+| Handler unit tests | 397 |
 | Handler files with `vi.mock` | 18 |
 | Device Lab files | 10 |
-| Device Lab LOC | 2294 |
+| Device Lab LOC | 2491 |
 | Device Lab tests | 16 |
-| Device Lab / handler LOC | 16.3% |
+| Device Lab / handler LOC | 17.9% |
 
 Coverage is tracked separately by:
 
@@ -33,7 +33,7 @@ Coverage is tracked separately by:
 pnpm test:coverage:check
 ```
 
-Current local coverage: 78.37% statements, 68.39% branches, 86.04% functions, 80.36% lines.
+Current local coverage: 78.62% statements, 68.72% branches, 86.27% functions, 80.62% lines.
 
 Gates:
 
@@ -42,6 +42,17 @@ Gates:
 - Near-term statement target: 80%.
 
 Do not raise floors by adding tests that only execute code. Added coverage must assert user-visible behavior, provider contracts, parser contracts, or important edge/error handling.
+
+## Coverage Accounting
+
+Not every red file should become a Device Lab target:
+
+- `src/daemon.ts`, `src/daemon/transport.ts`, and `src/daemon/server-lifecycle.ts` are entrypoint/transport lifecycle code. Cover them with smoke or packaging tests, not command-scenario Device Lab tests.
+- `src/client-companion-tunnel-worker.ts` is subprocess code. Existing worker tests exercise real child-process behavior, but V8 coverage attribution is weak. Do not replace those with in-process tests unless the contract itself moves in-process.
+- `src/daemon/http-server.ts` is covered by HTTP smoke tests. Device Lab scenarios should keep using the in-process request-handler harness except for one transport wiring smoke test.
+- `src/platforms/ios/ensure-simulator.ts` is tracked for removal in issue #549. Do not add new coverage for command surface we intend to delete.
+
+Use Device Lab for command workflows and provider contracts. Use focused unit/protocol tests for parsers, state machines, subprocess lifecycle, transport entrypoints, and malformed inputs.
 
 ## Coverage Leverage Backlog
 
@@ -52,9 +63,9 @@ Latest `pnpm test:coverage` snapshot shows the biggest low-coverage implementati
 | `src/daemon-client.ts` | 44.38% | 272 | Partial | Keep one transport smoke flow; do not duplicate every client startup branch in Device Lab. Prefer direct request-handler tests for provider behavior and a small CLI/daemon smoke check for daemon discovery. |
 | `src/client-companion-tunnel-worker.ts` | 1.11% | 266 | Poor | Existing child-process tests cover real tunnel behavior but V8 does not attribute subprocess execution here. Do not chase this with synthetic coverage; improve subprocess coverage separately if needed. |
 | `src/daemon/http-server.ts` | 56.13% | 118 | Partial | Existing HTTP smoke tests cover lease/auth/upload paths, but they are outside the coverage command. Keep one HTTP transport integration path; Device Lab should invoke the request handler directly for command/provider behavior. |
-| `src/platforms/ios/runner-session.ts` | 17.64% | 112 | Medium | Add runner-provider scenarios for start, retry, reconnect, and crashed runner responses when the behavior is visible through iOS command execution. Keep fine-grained runner state-machine units. |
+| `src/platforms/ios/runner-session.ts` | 27.94% | 98 | Medium | Protocol-level session tests now cover read-only execution, mutating readiness probes, and structured runner failures. Keep deeper xcodebuild startup/cleanup as focused state-machine tests. |
 | `src/daemon.ts` | 0% | 89 | Poor | Entrypoint wiring belongs in one smoke/packaging test, not Device Lab. |
-| `src/platforms/android/manifest.ts` | 35.16% | 83 | Medium | Cover APK install/reinstall with a realistic manifest fixture and semantic Android provider assertions. Keep parser edge cases as units. |
+| `src/platforms/android/manifest.ts` | 35.16% | 83 | Medium | APK manifest install is covered through Device Lab. Keep AAB/binary/malformed manifest coverage as parser/platform units because bundletool and binary XML are not Device Lab concerns. |
 | `src/daemon/transport.ts` | 0% | 80 | Poor | Transport selection is better covered by CLI/client smoke tests than command Device Lab tests. |
 | `src/daemon/handlers/find.ts` | 43.47% | 78 | Good | Add a real multi-step `find` scenario: snapshot list, selector query, first/all behavior, and follow-up command using the found ref. This can replace handler success-path units. |
 | `src/platforms/ios/macos-helper.ts` | 46.82% | 67 | Good | Add macOS helper-backed alert and permission scenarios that assert user-visible status and provider calls. |
@@ -64,9 +75,9 @@ Priority order:
 
 1. `find` Device Lab expansion: broad handler/selector/session value and strong unit-deletion potential.
 2. macOS helper alert/permission Device Lab: covers desktop modality without real devices and exercises the helper seam.
-3. Android manifest install scenario: good leverage, but keep parser units for malformed manifests.
-4. Runner session resilience: valuable, but more state-machine-oriented; add only behavior visible through user commands.
-5. Coverage accounting: avoid synthetic tests for subprocess and entrypoint files; document or measure those through smoke/packaging tests instead.
+3. Coverage accounting: avoid synthetic tests for subprocess and entrypoint files; document or measure those through smoke/packaging tests instead.
+4. Android manifest follow-up only if AAB install becomes provider-backed; until then keep AAB parser coverage as unit tests.
+5. Runner startup cleanup follow-up only when we can model xcodebuild lifecycle without hard-coding implementation order.
 
 ## Command Matrix
 
@@ -74,7 +85,7 @@ Priority order:
 | --- | --- | --- | --- |
 | `open`, `close`, `session_list`, `appstate` | Android lifecycle, active/closed iOS session listing, tvOS remote, macOS app/frontmost/desktop surfaces, Linux desktop | invalid open args, session conflict/lock behavior, runtime hint edge cases, close shutdown edge cases, scoped simulator set field shaping | Keep remaining session units unless they assert a plain success path with no policy or field-shaping edge. |
 | `apps` | Android, iOS, macOS default and `--apps-filter all` flows | parser/default normalization, typed client flag forwarding, platform-specific app parser edge cases | Broad Device Lab and parser/client coverage are in place; no handler-level list happy path remains to delete. |
-| `install`, `reinstall` | Android reinstall, iOS simulator install/reinstall, iOS device reinstall | archive/materialization parsing, invalid install source, platform-specific failure mapping | Keep install-source unit tests; delete daemon happy-path reinstall duplicates. |
+| `install`, `reinstall` | Android reinstall, Android install-from-source APK manifest identity, iOS simulator install/reinstall, iOS device reinstall | archive/materialization parsing, invalid install source, platform-specific failure mapping, AAB/binary manifest parser edge cases | Keep install-source units that prove error/fallback behavior; delete daemon happy-path deploy duplicates. |
 | `push` | Android lifecycle broadcast payload with extras | payload parsing and unsupported platform errors | Delete narrow Android push happy-path handler tests; keep invalid payload tests. |
 | `snapshot`, `screenshot` | Android snapshot/screenshot and provider failure normalization, iOS snapshot, macOS frontmost and desktop surface snapshots, Linux snapshot/screenshot, scoped Linux `@ref`/depth snapshots | snapshot processing, selector pruning, screenshot scaling/format edge cases, Android freshness retries, macOS scoped/menubar edge cases | Delete only broad snapshot handler duplicates; keep narrow processing and freshness units. |
 | `press`, `click`, `focus`, `longpress`, `swipe`, `scroll`, `type` | Android press/click/fill; iOS press; tvOS remote scroll/back/home; macOS press; Linux pointer, click buttons, swipe, scroll, type, and session action recording | selector resolution edge cases, platform-specific coordinate translation, invalid flag combinations | Remaining interaction units mostly protect edge behavior; delete only newly duplicated plain successes. |
@@ -109,7 +120,7 @@ Before deleting a unit test, confirm that a Device Lab scenario covers the succe
 
 ## Next Work
 
-1. Add Android manifest install/reinstall Device Lab coverage with realistic APK metadata fixture and semantic provider assertions.
-2. Review `src/daemon/handlers/__tests__/record-trace.test.ts` for pure lifecycle success duplicates. Keep timing, artifact, cancellation, cleanup, and telemetry units.
-3. Review `src/daemon/handlers/__tests__/snapshot-handler.test.ts` for broad success duplicates now covered by scoped and macOS helper snapshots. Keep freshness and snapshot processing units.
+1. Review `src/daemon/handlers/__tests__/record-trace.test.ts` for pure lifecycle success duplicates. Keep timing, artifact, cancellation, cleanup, and telemetry units.
+2. Review `src/daemon/handlers/__tests__/snapshot-handler.test.ts` for broad success duplicates now covered by scoped and macOS helper snapshots. Keep freshness and snapshot processing units.
+3. Decide whether `ensure-simulator` removal in issue #549 should happen in this PR or immediately after merge.
 4. Promote more generic provider operations to semantic contracts only when a second Adapter or Device Lab scenario would otherwise have to pattern-match host commands.
