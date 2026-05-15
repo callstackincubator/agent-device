@@ -7,6 +7,7 @@ const ROOT = process.cwd();
 const HANDLER_TEST_DIR = path.join(ROOT, 'src/daemon/handlers/__tests__');
 const DEVICE_LAB_DIR = path.join(ROOT, 'test/integration/device-lab');
 const COVERAGE_SUMMARY = path.join(ROOT, 'coverage/coverage-summary.json');
+const COMMAND_CATALOG = path.join(ROOT, 'src/command-catalog.ts');
 
 const handlerTests = listFiles(HANDLER_TEST_DIR, (file) => file.endsWith('.test.ts'));
 const deviceLabTests = listFiles(DEVICE_LAB_DIR, (file) => file.endsWith('.test.ts'));
@@ -20,6 +21,8 @@ const mockHeavyHandlerFiles = handlerTests.filter((file) =>
 );
 const mockHeavyHandlerRows = summarizeMockHeavyHandlerFiles(mockHeavyHandlerFiles);
 const providerPressureRows = summarizeProviderPressure(deviceLabSources);
+const publicCommandRows = summarizePublicCommandCoverage(deviceLabTests);
+const missingPublicCommands = publicCommandRows.filter((command) => command.references === 0);
 const commandFamilyRows = summarizeCommandFamilyOwnership(deviceLabTests);
 const coverage = readCoverageSummary();
 const lowCoverageFiles = readLowCoverageFiles();
@@ -35,6 +38,11 @@ const rows = [
   ['Device Lab support files', String(deviceLabSupportStats.files)],
   ['Device Lab support LOC', String(deviceLabSupportStats.lines)],
   ['Device Lab / handler LOC', ratio(deviceLabStats.lines, handlerStats.lines)],
+  [
+    'Public commands covered by Device Lab',
+    `${publicCommandRows.length - missingPublicCommands.length}/${publicCommandRows.length}`,
+  ],
+  ['Public commands missing Device Lab coverage', String(missingPublicCommands.length)],
 ];
 
 if (coverage) {
@@ -48,7 +56,7 @@ if (coverage) {
   rows.push(['Coverage summary', 'not available; run pnpm test:coverage first']);
 }
 
-console.log('Device Lab migration progress');
+console.log('Device Lab architecture status');
 console.log('');
 console.log('| Measure | Value |');
 console.log('| --- | ---: |');
@@ -75,6 +83,17 @@ if (commandFamilyRows.length > 0) {
   console.log('| --- | ---: | ---: |');
   for (const family of commandFamilyRows) {
     console.log(`| ${family.name} | ${family.references} | ${family.files} |`);
+  }
+}
+
+if (missingPublicCommands.length > 0) {
+  console.log('');
+  console.log('Public command coverage gaps');
+  console.log('');
+  console.log('| Command |');
+  console.log('| --- |');
+  for (const command of missingPublicCommands) {
+    console.log(`| ${command.command} |`);
   }
 }
 
@@ -254,6 +273,38 @@ function summarizeCommandFamilyOwnership(files) {
       };
     })
     .filter((family) => family.references > 0);
+}
+
+function summarizePublicCommandCoverage(files) {
+  const publicCommands = readPublicCommands();
+  const commandRefsByFile = files.map((file) => ({
+    file,
+    commands: extractDeviceLabCommandReferences(fs.readFileSync(file, 'utf8')),
+  }));
+
+  return publicCommands.map((command) => {
+    let references = 0;
+    let filesWithReferences = 0;
+    for (const file of commandRefsByFile) {
+      const count = file.commands.filter((candidate) => candidate === command).length;
+      references += count;
+      if (count > 0) filesWithReferences += 1;
+    }
+    return { command, references, files: filesWithReferences };
+  });
+}
+
+function readPublicCommands() {
+  const text = fs.readFileSync(COMMAND_CATALOG, 'utf8');
+  const match = text.match(/export const PUBLIC_COMMANDS = \{([\s\S]*?)\} as const;/);
+  if (!match) {
+    throw new Error('Unable to find PUBLIC_COMMANDS in src/command-catalog.ts');
+  }
+  const commands = [];
+  for (const command of match[1].matchAll(/:\s*'([^']+)'/g)) {
+    commands.push(command[1]);
+  }
+  return commands.sort();
 }
 
 function extractDeviceLabCommandReferences(text) {
