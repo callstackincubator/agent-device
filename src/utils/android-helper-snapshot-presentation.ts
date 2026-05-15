@@ -1,5 +1,4 @@
 import type { Rect, SnapshotNode } from './snapshot.ts';
-import { formatRole } from './snapshot-lines.ts';
 import { displayNodeLabel } from './snapshot-tree.ts';
 
 export type AndroidHelperPresentationInput = {
@@ -131,7 +130,7 @@ function markAdjacentDuplicateStructuralNodesForRemoval(
     ) {
       const survivor = chooseStructuralRepresentative(previous, node);
       const collapsed = survivor.index === previous.index ? node : previous;
-      const collapsedHint = collapsedNodeHint(collapsed);
+      const collapsedHint = imagePresentationHint(collapsed);
       addPresentationHints(replacements, survivor, [
         ...readPresentationHints(replacements.get(collapsed.index) ?? collapsed),
         ...(collapsedHint ? [collapsedHint] : []),
@@ -175,7 +174,7 @@ function addPresentationHints(
   hints: string[],
 ): void {
   const existing = replacements.get(node.index) ?? node;
-  const merged = uniqueStrings([...readPresentationHints(existing), ...hints.filter(Boolean)]);
+  const merged = [...new Set([...readPresentationHints(existing), ...hints.filter(Boolean)])];
   replacements.set(node.index, {
     ...existing,
     presentationHints: merged,
@@ -184,10 +183,6 @@ function addPresentationHints(
 
 function readPresentationHints(node: SnapshotNode): string[] {
   return Array.isArray(node.presentationHints) ? node.presentationHints : [];
-}
-
-function uniqueStrings(values: readonly string[]): string[] {
-  return [...new Set(values)];
 }
 
 function hasRenderableArea(rect: Rect): boolean {
@@ -350,13 +345,8 @@ function structuralRepresentativeScore(node: SnapshotNode): number {
   return score;
 }
 
-function collapsedNodeHint(node: SnapshotNode): string | null {
-  const role = formatRole(node.type ?? 'element');
-  if (role === 'image') return 'has image';
-  if (role === 'button' || role === 'link' || role === 'switch' || role === 'checkbox') {
-    return `also ${role}`;
-  }
-  return null;
+function imagePresentationHint(node: SnapshotNode): string | null {
+  return (node.type ?? '').toLowerCase().includes('image') ? 'has image' : null;
 }
 
 function areStructurallyAdjacentForCollapse(left: SnapshotNode, right: SnapshotNode): boolean {
