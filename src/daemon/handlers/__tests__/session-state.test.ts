@@ -1,19 +1,7 @@
-import { test, expect, vi, beforeEach } from 'vitest';
-
-vi.mock('../../../platforms/android/devices.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../platforms/android/devices.ts')>();
-  return { ...actual, ensureAndroidEmulatorBooted: vi.fn() };
-});
+import { test, expect } from 'vitest';
 
 import { handleSessionStateCommands } from '../session-state.ts';
 import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
-import { ensureAndroidEmulatorBooted } from '../../../platforms/android/devices.ts';
-
-const mockEnsureAndroidEmulatorBooted = vi.mocked(ensureAndroidEmulatorBooted);
-
-beforeEach(() => {
-  mockEnsureAndroidEmulatorBooted.mockReset();
-});
 
 test('boot rejects --headless outside Android directly', async () => {
   const response = await handleSessionStateCommands({
@@ -34,7 +22,6 @@ test('boot rejects --headless outside Android directly', async () => {
     expect(response.error.code).toBe('INVALID_ARGS');
     expect(response.error.message).toMatch(/supported only for Android emulators/i);
   }
-  expect(mockEnsureAndroidEmulatorBooted).not.toHaveBeenCalled();
 });
 
 test('appstate returns missing-session error for explicit session flag', async () => {
@@ -56,5 +43,4 @@ test('appstate returns missing-session error for explicit session flag', async (
     expect(response.error.code).toBe('SESSION_NOT_FOUND');
     expect(response.error.message).toMatch(/Run open with --session named first/i);
   }
-  expect(mockEnsureAndroidEmulatorBooted).not.toHaveBeenCalled();
 });

@@ -1,10 +1,4 @@
-import { test, expect, vi, beforeEach } from 'vitest';
-
-vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
-  return { ...actual, dispatchCommand: vi.fn(async () => ({})), resolveTargetDevice: vi.fn() };
-});
-vi.mock('../../device-ready.ts', () => ({ ensureDeviceReady: vi.fn(async () => {}) }));
+import { test, expect } from 'vitest';
 
 import { handleSessionCommands } from '../session.ts';
 import type { DaemonRequest, DaemonResponse } from '../../types.ts';
@@ -16,10 +10,6 @@ const invoke = async (_req: DaemonRequest): Promise<DaemonResponse> => {
     error: { code: 'INVALID_ARGS', message: 'invoke should not be called in trigger tests' },
   };
 };
-
-beforeEach(() => {
-  vi.clearAllMocks();
-});
 
 test('trigger-app-event requires active session or explicit device selector', async () => {
   const sessionStore = makeSessionStore('agent-device-session-trigger-');

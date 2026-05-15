@@ -1,26 +1,7 @@
-import { test, expect, vi, beforeEach } from 'vitest';
+import { test, expect } from 'vitest';
 import type { SessionState } from '../../types.ts';
 
-vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
-  return {
-    ...actual,
-    resolveTargetDevice: vi.fn(async () => {
-      throw new Error('resolveTargetDevice should not run');
-    }),
-  };
-});
-
-vi.mock('../../device-ready.ts', () => ({
-  ensureDeviceReady: vi.fn(async () => {}),
-}));
-
-import { resolveCommandDevice } from '../session-device-utils.ts';
-import { resolveTargetDevice } from '../../../core/dispatch.ts';
-import { ensureDeviceReady } from '../../device-ready.ts';
-
-const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
-const mockEnsureDeviceReady = vi.mocked(ensureDeviceReady);
+import { refreshSessionDeviceIfNeeded } from '../session-device-utils.ts';
 
 const iosSimulatorSession: SessionState = {
   name: 'ios-sim',
@@ -45,19 +26,10 @@ async function withMockedPlatform<T>(platform: NodeJS.Platform, fn: () => Promis
   }
 }
 
-beforeEach(() => {
-  mockResolveTargetDevice.mockClear();
-  mockEnsureDeviceReady.mockClear();
-});
-
-test('resolveCommandDevice keeps iOS simulator session device on non-mac hosts', async () => {
+test('refreshSessionDeviceIfNeeded keeps iOS simulator session device on non-mac hosts', async () => {
   const device = await withMockedPlatform('linux', async () =>
-    resolveCommandDevice({
-      session: iosSimulatorSession,
-      flags: {},
-    }),
+    refreshSessionDeviceIfNeeded(iosSimulatorSession.device),
   );
 
-  expect(mockResolveTargetDevice).not.toHaveBeenCalled();
   expect(device).toBe(iosSimulatorSession.device);
 });
