@@ -1,11 +1,11 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import type { DeviceInfo } from '../../../utils/device.ts';
 
-vi.mock('../../../platforms/android/index.ts', () => ({
+vi.mock('../../../platforms/android/app-lifecycle.ts', () => ({
   getAndroidAppState: vi.fn(),
 }));
 
-import { getAndroidAppState } from '../../../platforms/android/index.ts';
+import { getAndroidAppState } from '../../../platforms/android/app-lifecycle.ts';
 import { inferAndroidPackageAfterOpen } from '../session-open-target.ts';
 
 const mockGetAndroidAppState = vi.mocked(getAndroidAppState);

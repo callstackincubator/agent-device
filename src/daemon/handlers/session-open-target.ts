@@ -36,7 +36,7 @@ export async function resolveAndroidPackageForOpen(
   if (device.platform !== 'android' || !openTarget || isDeepLinkTarget(openTarget))
     return undefined;
   try {
-    const { resolveAndroidApp } = await import('../../platforms/android/index.ts');
+    const { resolveAndroidApp } = await import('../../platforms/android/app-lifecycle.ts');
     const resolved = await resolveAndroidApp(device, openTarget);
     return resolved.type === 'package' ? resolved.value : undefined;
   } catch {
@@ -54,7 +54,7 @@ export async function inferAndroidPackageAfterOpen(
     return currentAppBundleId;
   }
   try {
-    const { getAndroidAppState } = await import('../../platforms/android/index.ts');
+    const { getAndroidAppState } = await import('../../platforms/android/app-lifecycle.ts');
     const foreground = await getAndroidAppState(device);
     return foreground.package?.trim() || currentAppBundleId;
   } catch {

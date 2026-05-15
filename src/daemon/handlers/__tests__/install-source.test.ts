@@ -28,7 +28,7 @@ vi.mock('../../../platforms/android/install-artifact.ts', () => ({
   })),
 }));
 
-vi.mock('../../../platforms/android/index.ts', () => ({
+vi.mock('../../../platforms/android/app-lifecycle.ts', () => ({
   installAndroidInstallablePathAndResolvePackageName: vi.fn(async () => 'com.example.app'),
   inferAndroidAppName: vi.fn(() => 'App'),
 }));
@@ -160,7 +160,7 @@ test('install_from_source returns Android package identity resolved after instal
 
 test('install_from_source returns an error when Android package identity cannot be resolved', async () => {
   const { installAndroidInstallablePathAndResolvePackageName } =
-    await import('../../../platforms/android/index.ts');
+    await import('../../../platforms/android/app-lifecycle.ts');
   vi.mocked(installAndroidInstallablePathAndResolvePackageName).mockResolvedValueOnce(undefined);
 
   const sessionStore = makeSessionStore();

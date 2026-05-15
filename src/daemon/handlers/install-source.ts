@@ -145,7 +145,7 @@ export async function handleInstallFromSourceCommand(params: {
     const { prepareAndroidInstallArtifact } =
       await import('../../platforms/android/install-artifact.ts');
     const { installAndroidInstallablePathAndResolvePackageName } =
-      await import('../../platforms/android/index.ts');
+      await import('../../platforms/android/app-lifecycle.ts');
     const prepared = await prepareAndroidInstallArtifact(resolvedSource.source, {
       signal: requestSignal,
     });
@@ -171,7 +171,7 @@ export async function handleInstallFromSourceCommand(params: {
           'Installed Android app identity could not be resolved from the artifact or device state',
         );
       }
-      const { inferAndroidAppName } = await import('../../platforms/android/index.ts');
+      const { inferAndroidAppName } = await import('../../platforms/android/app-lifecycle.ts');
       const appName = inferAndroidAppName(packageName);
       const result = {
         ...(retained?.archivePath ? { archivePath: retained.archivePath } : {}),

@@ -118,7 +118,7 @@ async function handleAppStateCommand(params: {
     return errorResponse('SESSION_NOT_FOUND', MACOS_APPSTATE_SESSION_REQUIRED_MESSAGE);
   }
 
-  const { getAndroidAppState } = await import('../../platforms/android/index.ts');
+  const { getAndroidAppState } = await import('../../platforms/android/app-lifecycle.ts');
   const state = await getAndroidAppState(device);
   return {
     ok: true,

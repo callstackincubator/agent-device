@@ -236,15 +236,22 @@ async function listenNotFoundServer(): Promise<number> {
 }
 
 async function stopChild(child: ReturnType<typeof spawn>): Promise<void> {
-  if (child.exitCode !== null || child.killed) return;
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  const waitForClose = () =>
+    new Promise<boolean>((resolve) => {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        resolve(true);
+        return;
+      }
+      child.once('close', () => resolve(true));
+    });
+  const closePromise = waitForClose();
   child.kill('SIGTERM');
-  const exited = await Promise.race([
-    new Promise<boolean>((resolve) => child.once('close', () => resolve(true))),
-    delay(2_000).then(() => false),
-  ]);
+  const exited = await Promise.race([closePromise, delay(2_000).then(() => false)]);
   if (exited) return;
+  const killClosePromise = waitForClose();
   child.kill('SIGKILL');
-  await new Promise<void>((resolve) => child.once('close', () => resolve()));
+  await killClosePromise;
 }
 
 function spawnMetroCompanionWorker(options: {

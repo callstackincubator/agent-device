@@ -58,7 +58,7 @@ export const defaultReinstallOps: ReinstallOps = {
     return await reinstallIosApp(device, app, appPath);
   },
   android: async (device, app, appPath) => {
-    const { reinstallAndroidApp } = await import('../../platforms/android/index.ts');
+    const { reinstallAndroidApp } = await import('../../platforms/android/app-lifecycle.ts');
     return await reinstallAndroidApp(device, app, appPath);
   },
 };
@@ -74,7 +74,7 @@ export const defaultInstallOps: InstallOps = {
     };
   },
   android: async (device, _app, appPath) => {
-    const { installAndroidApp } = await import('../../platforms/android/index.ts');
+    const { installAndroidApp } = await import('../../platforms/android/app-lifecycle.ts');
     const result = await installAndroidApp(device, appPath);
     return {
       package: result.packageName,

@@ -75,6 +75,38 @@ test('cli does not tail local daemon log when remote daemon base URL is set', as
   }
 });
 
+test('cli debug log tail starts at the current daemon log end', async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-cli-tail-'));
+  const daemonPaths = resolveDaemonPaths(stateDir);
+  fs.mkdirSync(path.dirname(daemonPaths.logPath), { recursive: true });
+  fs.writeFileSync(daemonPaths.logPath, 'OLD_TAIL_SENTINEL\n', 'utf8');
+
+  try {
+    const result = await captureCli(
+      ['clipboard', 'write', 'hello', '--debug', '--state-dir', stateDir],
+      async () => {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        fs.appendFileSync(daemonPaths.logPath, 'NEW_TAIL_SENTINEL\n', 'utf8');
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        return {
+          ok: true,
+          data: { action: 'write', message: 'Clipboard updated' },
+        };
+      },
+      {
+        stateDirPrefix: 'agent-device-cli-diagnostics-',
+      },
+    );
+
+    assert.equal(result.code, null);
+    assert.equal(result.stdout.includes('OLD_TAIL_SENTINEL'), false);
+    assert.equal(result.stdout.includes('NEW_TAIL_SENTINEL'), true);
+    assert.match(result.stdout, /Clipboard updated/);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
 test('cli returns normalized JSON failures with diagnostics fields', async () => {
   const result = await runCliCapture(['open', 'settings', '--json'], async () => ({
     ok: false,

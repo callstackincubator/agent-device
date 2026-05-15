@@ -506,7 +506,7 @@ if (isDirectRun) {
 
 function startDaemonLogTail(logPath: string): (() => void) | null {
   try {
-    let offset = 0;
+    let offset = fs.existsSync(logPath) ? fs.statSync(logPath).size : 0;
     let stopped = false;
     const interval = setInterval(() => {
       if (stopped) return;
