@@ -141,6 +141,29 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
         positionals: ['@e2'],
         expectData: { x: 116, y: 80 },
       },
+      {
+        name: 'switch to desktop surface',
+        command: 'open',
+        flags: {
+          platform: 'macos',
+          surface: 'desktop',
+        },
+        expectData: {
+          surface: 'desktop',
+          appBundleId: undefined,
+        },
+      },
+      {
+        name: 'read desktop surface state',
+        command: 'appstate',
+        expectData: {
+          platform: 'macos',
+          appName: 'desktop',
+          appBundleId: undefined,
+          source: 'session',
+          surface: 'desktop',
+        },
+      },
     ]);
 
     assertScenarioCommands(scenario, [
@@ -155,6 +178,8 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       'open',
       'snapshot',
       'press',
+      'open',
+      'appstate',
     ]);
 
     assertFlatToolCall(appleTool.calls, ['open', '-b', 'com.apple.systempreferences']);

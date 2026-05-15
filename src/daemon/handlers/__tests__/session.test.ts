@@ -1193,47 +1193,6 @@ test('appstate returns session appName when bundle id is unavailable', async () 
   }
 });
 
-test('appstate on macOS desktop surface returns surface state without app bundle id', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'macos-desktop';
-  sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'macos',
-      id: 'host-macos-local',
-      name: 'Host Mac',
-      kind: 'device',
-      target: 'desktop',
-      booted: true,
-    }),
-    surface: 'desktop',
-  });
-
-  mockDispatch.mockRejectedValue(new Error('dispatch should not run'));
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'appstate',
-      positionals: [],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response?.ok).toBe(true);
-  if (response && response.ok) {
-    expect(response.data?.platform).toBe('macos');
-    expect(response.data?.appName).toBe('desktop');
-    expect(response.data?.appBundleId).toBe(undefined);
-    expect(response.data?.surface).toBe('desktop');
-    expect(response.data?.source).toBe('session');
-  }
-});
-
 test('appstate fails when iOS session has no tracked app', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'sim';
@@ -1385,47 +1344,6 @@ test('keyboard requires an active session or explicit device selector', async ()
     expect(response.error.message).toMatch(
       /keyboard requires an active session or an explicit device selector/i,
     );
-  }
-});
-
-test('keyboard dismiss supports explicit selector without active session', async () => {
-  const sessionStore = makeSessionStore();
-  const selectedDevice: SessionState['device'] = {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel Emulator',
-    kind: 'emulator',
-    booted: true,
-  };
-  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
-  mockDispatch.mockResolvedValue({
-    platform: 'android',
-    action: 'dismiss',
-    dismissed: true,
-    visible: false,
-  });
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'default',
-      command: 'keyboard',
-      positionals: ['dismiss'],
-      flags: { platform: 'android', serial: 'emulator-5554' },
-    },
-    sessionName: 'default',
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response && response.ok) {
-    expect(response.data?.platform).toBe('android');
-    expect(response.data?.action).toBe('dismiss');
-    expect(response.data?.dismissed).toBe(true);
-    expect(response.data?.visible).toBe(false);
   }
 });
 
@@ -2445,46 +2363,6 @@ test('open on existing macOS frontmost-app session preserves surface without --s
   } finally {
     if (prevHelper === undefined) delete process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
     else process.env.AGENT_DEVICE_MACOS_HELPER_BIN = prevHelper;
-  }
-});
-
-test('open on macOS stores desktop surface without app context', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'macos-desktop-surface';
-  mockResolveTargetDevice.mockResolvedValue({
-    platform: 'macos',
-    id: 'host-macos-local',
-    name: 'Host Mac',
-    kind: 'device',
-    target: 'desktop',
-    booted: true,
-  });
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'open',
-      positionals: [],
-      flags: {
-        platform: 'macos',
-        surface: 'desktop' as any,
-      },
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response?.ok).toBe(true);
-  const session = sessionStore.get(sessionName);
-  expect(session?.surface).toBe('desktop');
-  expect(session?.appBundleId).toBe(undefined);
-  expect(session?.appName).toBe(undefined);
-  if (response && response.ok) {
-    expect(response.data?.surface).toBe('desktop');
-    expect(response.data?.appBundleId).toBe(undefined);
   }
 });
 

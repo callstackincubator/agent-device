@@ -44,6 +44,12 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         const selection = { platform: 'android' as const, serial: DEVICE_LAB_ANDROID.id };
         const screenshotPath = path.join(os.tmpdir(), `agent-device-lab-android-${Date.now()}.png`);
 
+        const keyboardDismiss = await client.command.keyboard({ action: 'dismiss', ...selection });
+        assert.equal(keyboardDismiss.platform, 'android');
+        assert.equal(keyboardDismiss.action, 'dismiss');
+        assert.equal(keyboardDismiss.visible, false);
+        assert.equal(keyboardDismiss.dismissed, false);
+
         const open = await client.apps.open({ app: 'settings', ...selection });
         assert.equal(open.device?.id, DEVICE_LAB_ANDROID.id);
 
