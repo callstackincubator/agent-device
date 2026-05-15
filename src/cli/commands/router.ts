@@ -1,4 +1,4 @@
-import type { CliFlags } from '../../utils/command-schema.ts';
+import { applyCommandDefaults, type CliFlags } from '../../utils/command-schema.ts';
 import type { AgentDeviceClient } from '../../client.ts';
 import { sessionCommand } from './session.ts';
 import { devicesCommand } from './devices.ts';
@@ -52,5 +52,8 @@ export async function tryRunClientBackedCommand(params: {
   client: AgentDeviceClient;
 }): Promise<boolean> {
   const handler = clientCommandHandlers[params.command as keyof typeof clientCommandHandlers];
-  return handler ? await handler(params) : false;
+  if (!handler) return false;
+  const flags = { ...params.flags };
+  applyCommandDefaults(params.command, flags);
+  return await handler({ ...params, flags });
 }

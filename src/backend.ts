@@ -1,5 +1,5 @@
 import type { AndroidSnapshotBackendMetadata } from './platforms/android/snapshot-types.ts';
-import type { AppsFilter } from './client-types.ts';
+import type { AppsFilter } from './commands/app-inventory-contract.ts';
 import type {
   Point,
   ScreenshotOverlayRef,

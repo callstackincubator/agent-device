@@ -1,6 +1,6 @@
 import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
 import type { CommandCapability } from '../../core/capabilities.ts';
-import { DEFAULT_APPS_FILTER } from '../../client-types.ts';
+import { DEFAULT_APPS_FILTER } from '../app-inventory-contract.ts';
 import { commandCapabilityMap, commandSchemaMap, defineCommand } from '../command-definition.ts';
 
 const APP_RUNTIME_CAPABILITY = {

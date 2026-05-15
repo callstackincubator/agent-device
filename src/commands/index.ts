@@ -118,6 +118,7 @@ import {
   type TriggerAppEventCommandOptions,
   type TriggerAppEventCommandResult,
 } from './apps.ts';
+import { resolveAppsFilter } from './app-inventory-contract.ts';
 import {
   bootCommand,
   devicesCommand,
@@ -575,7 +576,11 @@ export function bindCommands(runtime: AgentDeviceRuntime): BoundAgentDeviceComma
     apps: {
       open: (options) => commands.apps.open(runtime, options),
       close: (options) => commands.apps.close(runtime, options),
-      list: (options) => commands.apps.list(runtime, options),
+      list: (options = {}) =>
+        commands.apps.list(runtime, {
+          ...options,
+          filter: resolveAppsFilter(options.filter),
+        }),
       state: (options) => commands.apps.state(runtime, options),
       push: (options) => commands.apps.push(runtime, options),
       triggerEvent: (options) => commands.apps.triggerEvent(runtime, options),

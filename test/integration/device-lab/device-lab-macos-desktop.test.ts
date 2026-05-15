@@ -15,18 +15,24 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       toolCalls.push([cmd, args]);
       if (cmd === 'find') {
         return {
-          stdout: '/Applications/System Settings.app\n',
+          stdout: '/Applications/System Settings.app\n/Applications/Demo.app\n',
           stderr: '',
           exitCode: 0,
         };
       }
       if (cmd === 'plutil') {
         const key = args[1];
+        const plistPath = args[5] ?? '';
+        const isDemo = plistPath.includes('/Demo.app/');
         if (key === 'CFBundleIdentifier') {
-          return { stdout: 'com.apple.systempreferences\n', stderr: '', exitCode: 0 };
+          return {
+            stdout: isDemo ? 'com.example.demo\n' : 'com.apple.systempreferences\n',
+            stderr: '',
+            exitCode: 0,
+          };
         }
         if (key === 'CFBundleName') {
-          return { stdout: 'System Settings\n', stderr: '', exitCode: 0 };
+          return { stdout: isDemo ? 'Demo\n' : 'System Settings\n', stderr: '', exitCode: 0 };
         }
         return { stdout: '', stderr: '', exitCode: 1 };
       }
@@ -57,10 +63,19 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
         flags: { platform: 'macos' },
       },
       {
-        name: 'list installed apps',
+        name: 'list user apps by default',
         command: 'apps',
         assert: (apps) => {
+          assert.deepEqual(apps.json?.result?.data?.apps, ['Demo (com.example.demo)']);
+        },
+      },
+      {
+        name: 'list all apps with flag',
+        command: 'apps',
+        flags: { appsFilter: 'all' },
+        assert: (apps) => {
           assert.deepEqual(apps.json?.result?.data?.apps, [
+            'Demo (com.example.demo)',
             'System Settings (com.apple.systempreferences)',
           ]);
         },
@@ -137,6 +152,7 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       scenario.steps.map((step) => step.command),
       [
         'open',
+        'apps',
         'apps',
         'appstate',
         'logs',

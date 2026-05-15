@@ -1,9 +1,9 @@
 import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
-import { DEFAULT_APPS_FILTER } from '../../client-types.ts';
+import { assertResolvedAppsFilter } from '../../commands/app-inventory-contract.ts';
 import type { ClientCommandHandler } from './router-types.ts';
 
 export const appsCommand: ClientCommandHandler = async ({ flags, client }) => {
-  const appsFilter = flags.appsFilter ?? DEFAULT_APPS_FILTER;
+  const appsFilter = assertResolvedAppsFilter(flags.appsFilter);
   const apps = await client.apps.list({
     ...buildSelectionOptions(flags),
     appsFilter,

@@ -1,6 +1,7 @@
 import { AppError } from './errors.ts';
 import { mergeDefinedFlags } from './merge-flags.ts';
 import {
+  applyCommandDefaults,
   buildCommandUsageText,
   buildUsageText,
   getCommandSchema,
@@ -122,7 +123,6 @@ export function finalizeParsedArgs(
     options?.defaultFlags ?? {},
   );
   mergeDefinedFlags(flags, parsed.flags);
-  const commandSchema = getCommandSchema(parsed.command);
   const disallowed = parsed.providedFlags.filter(
     (entry) => !isFlagSupportedForCommand(entry.key, parsed.command),
   );
@@ -144,15 +144,7 @@ export function finalizeParsedArgs(
     }
   }
   assertNoConflictingBackModeFlags(parsed);
-  if (commandSchema?.defaults) {
-    for (const [key, value] of Object.entries(commandSchema.defaults) as Array<
-      [FlagKey, unknown]
-    >) {
-      if ((flags as Record<string, unknown>)[key] === undefined) {
-        (flags as Record<string, unknown>)[key] = value;
-      }
-    }
-  }
+  applyCommandDefaults(parsed.command, flags);
   if (parsed.command === 'batch') {
     const stepSourceCount = (flags.steps ? 1 : 0) + (flags.stepsFile ? 1 : 0);
     if (stepSourceCount !== 1) {

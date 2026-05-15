@@ -1,6 +1,7 @@
 import type { CommandFlags } from '../core/dispatch.ts';
 import { withKeyedLock } from '../utils/keyed-lock.ts';
 import { emitDiagnostic, getDiagnosticsMeta } from '../utils/diagnostics.ts';
+import { applyCommandDefaults } from '../utils/command-schema.ts';
 import type { DaemonCommandContext } from './context.ts';
 import { contextFromFlags as contextFromFlagsWithLog } from './context.ts';
 import { assertSessionSelectorMatches } from './session-selector.ts';
@@ -62,7 +63,7 @@ export async function createRequestExecutionScope(params: {
   leaseRegistry: LeaseRegistry;
 }): Promise<RequestExecutionScope> {
   const { sessionStore, leaseRegistry } = params;
-  const scopedReq = scopeRequestSession(params.req);
+  const scopedReq = applyRequestCommandDefaults(scopeRequestSession(params.req));
   emitDiagnostic({
     level: 'info',
     phase: 'request_start',
@@ -98,6 +99,17 @@ export async function createRequestExecutionScope(params: {
     },
   };
   return scope;
+}
+
+function applyRequestCommandDefaults(req: DaemonRequest): DaemonRequest {
+  const flags = { ...(req.flags ?? {}) };
+  const changed = applyCommandDefaults(req.command, flags);
+  if (!changed && req.flags) return req;
+  if (!changed) return req;
+  return {
+    ...req,
+    flags: flags as CommandFlags,
+  };
 }
 
 export function prepareLockedRequestScope(params: {

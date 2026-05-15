@@ -22,12 +22,12 @@ import type {
   ReloadMetroResult,
 } from './client-metro.ts';
 import type { MetroBridgeScope } from './client-companion-tunnel-contract.ts';
+import type { AppsFilter } from './commands/app-inventory-contract.ts';
 
 export type { FindLocator } from './utils/finders.ts';
 export type { CompanionTunnelScope, MetroBridgeScope } from './client-companion-tunnel-contract.ts';
-
-export type AppsFilter = 'user-installed' | 'all';
-export const DEFAULT_APPS_FILTER: AppsFilter = 'user-installed';
+export type { AppsFilter } from './commands/app-inventory-contract.ts';
+export { DEFAULT_APPS_FILTER } from './commands/app-inventory-contract.ts';
 
 type DaemonTransportMode = 'auto' | 'socket' | 'http';
 type DaemonServerMode = 'socket' | 'http' | 'dual';

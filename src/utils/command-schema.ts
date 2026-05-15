@@ -1829,6 +1829,22 @@ export function getCommandSchema(command: string | null): CommandSchema | undefi
   return COMMAND_SCHEMAS[command];
 }
 
+export function applyCommandDefaults(
+  command: string | null,
+  flags: Record<string, unknown>,
+): boolean {
+  const commandSchema = getCommandSchema(command);
+  if (!commandSchema?.defaults) return false;
+  let changed = false;
+  for (const [key, value] of Object.entries(commandSchema.defaults) as Array<[FlagKey, unknown]>) {
+    if (flags[key] === undefined) {
+      flags[key] = value;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 export function getCliCommandNames(): string[] {
   return Object.keys(COMMAND_SCHEMAS);
 }

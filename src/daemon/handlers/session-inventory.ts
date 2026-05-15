@@ -1,5 +1,5 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { DEFAULT_APPS_FILTER } from '../../client-types.ts';
+import { assertResolvedAppsFilter } from '../../commands/app-inventory-contract.ts';
 import { asAppError } from '../../utils/errors.ts';
 import {
   isApplePlatform,
@@ -118,7 +118,7 @@ export async function handleSessionInventoryCommands(params: {
       return errorResponse('UNSUPPORTED_OPERATION', 'apps is not supported on this device');
     }
 
-    const appsFilter = req.flags?.appsFilter ?? DEFAULT_APPS_FILTER;
+    const appsFilter = assertResolvedAppsFilter(req.flags?.appsFilter);
     if (isApplePlatform(device.platform)) {
       const apps = await listIosApps(device, appsFilter);
       return {

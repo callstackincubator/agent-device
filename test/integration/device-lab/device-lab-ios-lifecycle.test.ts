@@ -71,6 +71,14 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
           exitCode: 0,
         };
       }
+      if (cmd === 'xcrun' && args.join(' ') === 'simctl listapps sim-1') {
+        return {
+          stdout:
+            '{"com.apple.Maps":{"CFBundleDisplayName":"Maps"},"com.example.demo":{"CFBundleDisplayName":"Demo"}}\n',
+          stderr: '',
+          exitCode: 0,
+        };
+      }
       return { stdout: '', stderr: '', exitCode: 0 };
     },
   };
@@ -132,6 +140,24 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
         command: 'install',
         positionals: ['com.example.demo', appPath],
         expectData: { platform: 'ios', bundleId: 'com.example.demo', appPath },
+      },
+      {
+        name: 'list user apps by default',
+        command: 'apps',
+        assert: (apps) => {
+          assert.deepEqual(apps.json?.result?.data?.apps, ['Demo (com.example.demo)']);
+        },
+      },
+      {
+        name: 'list all apps with flag',
+        command: 'apps',
+        flags: { appsFilter: 'all' },
+        assert: (apps) => {
+          assert.deepEqual(apps.json?.result?.data?.apps, [
+            'Maps (com.apple.Maps)',
+            'Demo (com.example.demo)',
+          ]);
+        },
       },
       {
         name: 'refresh snapshot after install',
@@ -207,6 +233,8 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
         'open',
         'reinstall',
         'install',
+        'apps',
+        'apps',
         'snapshot',
         'press',
         'get',

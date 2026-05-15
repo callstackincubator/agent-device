@@ -9,7 +9,7 @@ import type {
 } from '../backend.ts';
 import type { FileInputRef } from '../io.ts';
 import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
-import { DEFAULT_APPS_FILTER } from '../client-types.ts';
+import { assertResolvedAppsFilter } from './app-inventory-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
 import { resolveCommandInput } from './io-policy.ts';
@@ -152,7 +152,7 @@ export const listAppsCommand: RuntimeCommand<
 
   const apps = await runtime.backend.listApps(
     toAppBackendContext(runtime, options),
-    options.filter ?? DEFAULT_APPS_FILTER,
+    assertResolvedAppsFilter(options.filter),
   );
   return {
     kind: 'appsList',

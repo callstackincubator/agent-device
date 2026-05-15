@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { resolveFileOverridePath, runCmd, whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
-import type { AppsFilter } from '../../client-types.ts';
+import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';

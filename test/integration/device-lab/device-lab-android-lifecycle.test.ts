@@ -45,10 +45,10 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assert.equal(open.device?.id, DEVICE_LAB_ANDROID.id);
 
         const listedApps = await client.apps.list(selection);
-        assert.deepEqual(listedApps, [
-          'Settings (com.android.settings)',
-          'Demo (com.example.demo)',
-        ]);
+        assert.deepEqual(listedApps, ['Demo (com.example.demo)']);
+
+        const allApps = await client.apps.list({ ...selection, appsFilter: 'all' });
+        assert.deepEqual(allApps, ['Settings (com.android.settings)', 'Demo (com.example.demo)']);
 
         const appstate = await client.command.appState(selection);
         assert.equal(appstate.platform, 'android');
@@ -251,6 +251,9 @@ function androidAdbResult(
       stderr: '',
       exitCode: 0,
     };
+  }
+  if (args.join(' ') === 'shell pm list packages -3') {
+    return { stdout: 'package:com.example.demo\n', stderr: '', exitCode: 0 };
   }
   if (args.join(' ') === 'shell dumpsys window windows') {
     return {

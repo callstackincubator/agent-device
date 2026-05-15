@@ -1,5 +1,5 @@
 import { AppError } from '../../utils/errors.ts';
-import { DEFAULT_APPS_FILTER, type AppsFilter } from '../../client-types.ts';
+import { resolveAppsFilter, type AppsFilter } from '../../commands/app-inventory-contract.ts';
 import type { AndroidAdbExecutor } from './adb-executor.ts';
 import {
   parseAndroidForegroundApp,
@@ -25,7 +25,7 @@ export async function listAndroidAppsWithAdb(
   options: AndroidAppListOptions = {},
 ): Promise<Array<{ package: string; name: string }>> {
   const launchable = await listAndroidLaunchablePackagesWithAdb(adb, options.target ?? 'auto');
-  const filter = options.filter ?? DEFAULT_APPS_FILTER;
+  const filter = resolveAppsFilter(options.filter);
   const packageIds =
     filter === 'user-installed'
       ? (await listAndroidUserInstalledPackagesWithAdb(adb)).filter((pkg) => launchable.has(pkg))
