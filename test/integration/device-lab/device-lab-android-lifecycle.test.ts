@@ -156,18 +156,6 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       assert.equal(braceFilePush.json.result.data.action, 'com.example.demo.BRACE_PUSH');
       assert.equal(braceFilePush.json.result.data.extrasCount, 1);
 
-      const triggeredEvent = await client.apps.triggerEvent({
-        event: 'screenshot_taken',
-        payload: { source: 'device-lab', foreground: true },
-        ...selection,
-      });
-      assert.equal(triggeredEvent.event, 'screenshot_taken');
-      assert.equal(triggeredEvent.transport, 'deep-link');
-      assert.equal(
-        triggeredEvent.eventUrl,
-        'demo://agent-device/event?name=screenshot_taken&payload=%7B%22source%22%3A%22device-lab%22%2C%22foreground%22%3Atrue%7D&platform=android',
-      );
-
       const clipboard = await client.command.clipboard({ action: 'read', ...selection });
       assert.equal(clipboard.text, 'hello');
 
@@ -198,6 +186,26 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       await client.settings.update({ setting: 'fingerprint', state: 'match', ...selection });
       const demoOpen = await client.apps.open({ app: 'com.example.demo', ...selection });
       assert.equal(demoOpen.appBundleId, 'com.example.demo');
+      const triggeredEvent = await client.apps.triggerEvent({
+        event: 'screenshot_taken',
+        payload: { source: 'device-lab', foreground: true },
+        ...selection,
+      });
+      assert.equal(triggeredEvent.event, 'screenshot_taken');
+      assert.equal(triggeredEvent.transport, 'deep-link');
+      assert.equal(
+        triggeredEvent.eventUrl,
+        'demo://agent-device/event?name=screenshot_taken&payload=%7B%22source%22%3A%22device-lab%22%2C%22foreground%22%3Atrue%7D&platform=android',
+      );
+      const sessionAfterTriggeredEvent = daemon.session();
+      assert.equal(sessionAfterTriggeredEvent?.appBundleId, 'com.example.demo');
+      assert.ok(
+        sessionAfterTriggeredEvent?.actions.some(
+          (action) =>
+            action.command === 'trigger-app-event' && action.positionals[0] === 'screenshot_taken',
+        ),
+        JSON.stringify(sessionAfterTriggeredEvent?.actions),
+      );
       await client.settings.update({
         setting: 'permission',
         state: 'grant',
@@ -272,6 +280,16 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       ]);
       assert.equal(metrics.fps?.available, true, JSON.stringify(perf));
       assert.equal(metrics.fps?.droppedFramePercent, 25);
+      const relatedActions = Array.isArray(metrics.fps?.relatedActions)
+        ? metrics.fps.relatedActions
+        : [];
+      assert.ok(
+        relatedActions.some(
+          (action: Record<string, unknown>) =>
+            action.command === 'open' && action.target === 'com.example.demo',
+        ),
+        JSON.stringify(metrics.fps),
+      );
 
       const logsStop = await client.observability.logs({ action: 'stop', ...selection });
       assert.equal(logsStop.stopped, true);

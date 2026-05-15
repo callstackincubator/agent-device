@@ -1,5 +1,5 @@
 import { test, expect, vi, beforeEach } from 'vitest';
-import { handleInteractionCommands, unsupportedRefSnapshotFlags } from '../interaction.ts';
+import { handleInteractionCommands } from '../interaction.ts';
 import type { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import type { CommandFlags } from '../../../core/dispatch.ts';
@@ -113,24 +113,6 @@ beforeEach(() => {
   mockGetAndroidScreenSize.mockResolvedValue({ width: 1344, height: 2992 });
   mockCaptureSnapshotForSession.mockReset();
   mockCaptureSnapshotForSession.mockImplementation(emulateCaptureSnapshotForSession);
-});
-
-test('unsupportedRefSnapshotFlags returns unsupported snapshot flags for @ref flows', () => {
-  const unsupported = unsupportedRefSnapshotFlags({
-    snapshotDepth: 2,
-    snapshotScope: 'Login',
-    snapshotRaw: true,
-  });
-  expect(unsupported).toEqual(['--depth', '--scope', '--raw']);
-});
-
-test('unsupportedRefSnapshotFlags returns empty when no ref-unsupported flags are present', () => {
-  const unsupported = unsupportedRefSnapshotFlags({
-    platform: 'ios',
-    session: 'default',
-    verbose: true,
-  });
-  expect(unsupported).toEqual([]);
 });
 
 test('get text prefers underlying value for text surfaces and avoids recording giant ref labels', async () => {

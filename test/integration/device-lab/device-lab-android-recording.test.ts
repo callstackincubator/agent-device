@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
-import { assertCommandCall } from './assertions.ts';
+import { assertCommandCall, assertRpcOk } from './assertions.ts';
 import { DEVICE_LAB_ANDROID } from './fixtures.ts';
 import { restoreEnv, createDeviceLabHarness } from './harness.ts';
 
@@ -40,22 +40,27 @@ test('Device Lab Android recording flow uses scripted ADB provider pull capabili
       platform: 'android',
       serial: DEVICE_LAB_ANDROID.id,
     });
-    assert.equal(open.statusCode, 200, JSON.stringify(open.json));
+    assertRpcOk(open);
 
     const recordStart = await daemon.callCommand('record', ['start', recordingPath], {
       hideTouches: true,
       quality: 7,
     });
-    assert.equal(recordStart.statusCode, 200, JSON.stringify(recordStart.json));
-    assert.equal(recordStart.json?.result?.data?.recording, 'started');
-    assert.equal(recordStart.json?.result?.data?.showTouches, false);
+    const recordStartData = assertRpcOk(recordStart);
+    assert.equal(recordStartData.recording, 'started');
+    assert.equal(recordStartData.showTouches, false);
 
     const recordStop = await daemon.callCommand('record', ['stop']);
-    assert.equal(recordStop.statusCode, 200, JSON.stringify(recordStop.json));
-    assert.equal(recordStop.json?.result?.data?.recording, 'stopped');
-    assert.equal(recordStop.json?.result?.data?.outPath, recordingPath);
-    assert.equal(recordStop.json?.result?.data?.showTouches, false);
-    assert.equal(recordStop.json?.result?.data?.artifacts?.[0]?.path, recordingPath);
+    const recordStopData = assertRpcOk<{
+      recording?: unknown;
+      outPath?: unknown;
+      showTouches?: unknown;
+      artifacts?: Array<{ path?: unknown }>;
+    }>(recordStop);
+    assert.equal(recordStopData.recording, 'stopped');
+    assert.equal(recordStopData.outPath, recordingPath);
+    assert.equal(recordStopData.showTouches, false);
+    assert.equal(recordStopData.artifacts?.[0]?.path, recordingPath);
     assert.equal(fs.existsSync(recordingPath), true);
 
     assertCommandCall(adbCalls, ['shell', 'wm', 'size']);

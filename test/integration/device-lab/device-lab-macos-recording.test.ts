@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
+import { assertRpcOk } from './assertions.ts';
 import { DEVICE_LAB_MACOS } from './fixtures.ts';
 import { createMacOsDesktopWorld } from './macos-world.ts';
 import { createAppleRunnerProviderFromTranscript } from './providers.ts';
@@ -39,23 +40,27 @@ test('Device Lab macOS recording flow uses runner provider through daemon path',
 
   try {
     const open = await daemon.callCommand('open', ['settings'], { platform: 'macos' });
-    assert.equal(open.statusCode, 200, JSON.stringify(open.json));
-    assert.equal(open.json?.result?.data?.appBundleId, 'com.apple.systempreferences');
+    assert.equal(assertRpcOk(open).appBundleId, 'com.apple.systempreferences');
 
     const recordStart = await daemon.callCommand('record', ['start', recordingPath], {
       hideTouches: true,
     });
-    assert.equal(recordStart.statusCode, 200, JSON.stringify(recordStart.json));
-    assert.equal(recordStart.json?.result?.data?.recording, 'started');
-    assert.equal(recordStart.json?.result?.data?.outPath, recordingPath);
-    assert.equal(recordStart.json?.result?.data?.showTouches, false);
+    const recordStartData = assertRpcOk(recordStart);
+    assert.equal(recordStartData.recording, 'started');
+    assert.equal(recordStartData.outPath, recordingPath);
+    assert.equal(recordStartData.showTouches, false);
 
     const recordStop = await daemon.callCommand('record', ['stop']);
-    assert.equal(recordStop.statusCode, 200, JSON.stringify(recordStop.json));
-    assert.equal(recordStop.json?.result?.data?.recording, 'stopped');
-    assert.equal(recordStop.json?.result?.data?.outPath, recordingPath);
-    assert.equal(recordStop.json?.result?.data?.showTouches, false);
-    assert.equal(recordStop.json?.result?.data?.artifacts?.[0]?.path, recordingPath);
+    const recordStopData = assertRpcOk<{
+      recording?: unknown;
+      outPath?: unknown;
+      showTouches?: unknown;
+      artifacts?: Array<{ path?: unknown }>;
+    }>(recordStop);
+    assert.equal(recordStopData.recording, 'stopped');
+    assert.equal(recordStopData.outPath, recordingPath);
+    assert.equal(recordStopData.showTouches, false);
+    assert.equal(recordStopData.artifacts?.[0]?.path, recordingPath);
 
     runnerTranscript.assertComplete();
   } finally {

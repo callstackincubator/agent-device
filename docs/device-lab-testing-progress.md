@@ -18,16 +18,16 @@ Current local snapshot:
 
 | Measure | Value |
 | --- | ---: |
-| Handler unit test files | 30 |
-| Handler unit test LOC | 13129 |
-| Handler unit tests | 347 |
-| Handler files with `vi.mock` | 17 |
+| Handler unit test files | 31 |
+| Handler unit test LOC | 12956 |
+| Handler unit tests | 345 |
+| Handler files with `vi.mock` | 16 |
 | Device Lab files | 12 |
-| Device Lab LOC | 2635 |
+| Device Lab LOC | 2663 |
 | Device Lab tests | 15 |
 | Device Lab support files | 9 |
-| Device Lab support LOC | 1244 |
-| Device Lab / handler LOC | 20.1% |
+| Device Lab support LOC | 1250 |
+| Device Lab / handler LOC | 20.6% |
 
 Coverage is tracked separately by:
 
@@ -35,7 +35,7 @@ Coverage is tracked separately by:
 pnpm test:coverage:check
 ```
 
-Current local coverage: 79.17% statements, 69.18% branches, 86.81% functions, 81.20% lines.
+Current local coverage: 79.15% statements, 69.14% branches, 86.78% functions, 81.20% lines.
 
 Gates:
 
@@ -177,8 +177,9 @@ Before deleting a unit test, confirm that a Device Lab scenario covers the succe
 
 ## Next Work
 
-1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest pass split pure snapshot state/visibility tests into `snapshot-capture.test.ts`, leaving `snapshot-handler.test.ts` focused on handler behavior, freshness, retry, and error policy.
-2. Keep extracting platform worlds only when they make scenario files read as workflows. Android and iOS now own provider setup in `android-world.ts` and `ios-world.ts`; avoid adding another layer above `createDeviceLabHarness`.
-3. Review the top mock-heavy files from `pnpm test:device-lab:progress` before adding new handler unit coverage. Prefer a Device Lab scenario when the behavior is a command workflow.
-4. Reassess Apple raw tool/helper provider pressure when another Adapter or another scenario has to pattern-match the same host command intent.
+1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest pass moved Android perf related-actions and trigger-event session recording/context into Device Lab, deleted the redundant perf unit, and narrowed `session-trigger.test.ts` to admission coverage.
+2. Keep pure parser/helper tests out of mock-heavy handler files. `snapshot-capture.test.ts`, `interaction-flags.test.ts`, and `find-args.test.ts` now carry no-mock coverage that used to run through broad handler fixtures.
+3. Keep extracting platform worlds or shared assertions only when they make scenario files read as workflows. `assertRpcOk` is the current shared direct-RPC assertion; avoid adding another layer above `createDeviceLabHarness`.
+4. Review the top mock-heavy files from `pnpm test:device-lab:progress` before adding new handler unit coverage. Prefer a Device Lab scenario when the behavior is a command workflow.
+5. Reassess Apple raw tool/helper provider pressure when another Adapter or another scenario has to pattern-match the same host command intent.
 5. Use PR #553 as the flag-plumbing baseline: the command-specific codec should be the normal edit path for screenshot-specific flags, with Device Lab proving the daemon/provider behavior.

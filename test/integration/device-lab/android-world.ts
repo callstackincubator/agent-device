@@ -178,7 +178,12 @@ function androidAdbResult(
   }
   if (args.join(' ') === 'shell dumpsys gfxinfo com.example.demo framestats') {
     return {
-      stdout: ['Total frames rendered: 4', 'Janky frames: 1 (25.00%)'].join('\n'),
+      stdout: [
+        'Uptime: 10000',
+        'Stats since: 9000000000',
+        'Total frames rendered: 4',
+        'Janky frames: 1 (25.00%)',
+      ].join('\n'),
       stderr: '',
       exitCode: 0,
     };

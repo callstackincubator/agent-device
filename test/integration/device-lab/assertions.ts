@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import type { DeviceLabRpcResult } from './harness.ts';
 
 export function assertCommandCall(calls: readonly string[][], expected: readonly string[]): void {
   assert.ok(
@@ -36,6 +37,14 @@ export function assertFlatToolCallStartsWith(
     calls.some((call) => arrayStartsWith(call, expected)),
     `Expected tool call starting with ${JSON.stringify(expected)} in ${JSON.stringify(calls)}`,
   );
+}
+
+export function assertRpcOk<TData extends Record<string, unknown> = Record<string, unknown>>(
+  response: DeviceLabRpcResult,
+): TData {
+  assert.equal(response.statusCode, 200, JSON.stringify(response.json));
+  assert.equal(response.json?.error, undefined, JSON.stringify(response.json));
+  return (response.json?.result?.data ?? {}) as TData;
 }
 
 export function arrayEqual(left: readonly string[], right: readonly string[]): boolean {

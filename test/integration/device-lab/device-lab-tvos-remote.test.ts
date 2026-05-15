@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
+import { assertRpcOk } from './assertions.ts';
 import { DEVICE_LAB_TVOS } from './fixtures.ts';
 import { createDeviceLabHarness } from './harness.ts';
 import {
@@ -70,20 +71,19 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
       target: 'tv',
       udid: DEVICE_LAB_TVOS.id,
     });
-    assert.equal(open.statusCode, 200, JSON.stringify(open.json));
+    assertRpcOk(open);
 
     const scroll = await daemon.callCommand('scroll', ['down']);
-    assert.equal(scroll.statusCode, 200, JSON.stringify(scroll.json));
-    assert.equal(scroll.json?.result?.data?.direction, 'down');
+    assert.equal(assertRpcOk(scroll).direction, 'down');
 
     const back = await daemon.callCommand('back');
-    assert.equal(back.statusCode, 200, JSON.stringify(back.json));
+    assertRpcOk(back);
 
     const home = await daemon.callCommand('home');
-    assert.equal(home.statusCode, 200, JSON.stringify(home.json));
+    assertRpcOk(home);
 
     const close = await daemon.callCommand('close', ['com.example.tv']);
-    assert.equal(close.statusCode, 200, JSON.stringify(close.json));
+    assertRpcOk(close);
 
     runnerTranscript.assertComplete();
     assert.deepEqual(appleTool.calls, [
