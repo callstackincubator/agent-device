@@ -24,7 +24,6 @@ import {
   normalizeRuntimeHints,
   normalizeSession,
   normalizeStartupSample,
-  readNullableString,
   readOptionalString,
   readRequiredString,
   readSnapshotNodes,
@@ -45,7 +44,6 @@ import type {
   CaptureSnapshotOptions,
   CaptureSnapshotResult,
   CommandRequestResult,
-  EnsureSimulatorOptions,
   InternalRequestOptions,
   Lease,
   MaterializationReleaseOptions,
@@ -121,30 +119,6 @@ export function createAgentDeviceClient(
               ? (shutdown as Record<string, unknown>)
               : undefined,
           identifiers: { session },
-        };
-      },
-    },
-    simulators: {
-      ensure: async (options: EnsureSimulatorOptions) => {
-        const { runtime, ...rest } = options;
-        const data = await execute(INTERNAL_COMMANDS.ensureSimulator, [], {
-          ...rest,
-          simulatorRuntimeId: runtime,
-        });
-        const udid = readRequiredString(data, 'udid');
-        const device = readRequiredString(data, 'device');
-        return {
-          udid,
-          device,
-          runtime: readRequiredString(data, 'runtime'),
-          created: data.created === true,
-          booted: data.booted === true,
-          iosSimulatorDeviceSet: readNullableString(data, 'ios_simulator_device_set'),
-          identifiers: {
-            deviceId: udid,
-            deviceName: device,
-            udid,
-          },
         };
       },
     },

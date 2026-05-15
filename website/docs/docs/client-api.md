@@ -97,15 +97,15 @@ const client = createAgentDeviceClient({
 
 const devices = await client.devices.list({ platform: 'ios' });
 const apps = await client.apps.list({ platform: 'ios' });
-const ensured = await client.simulators.ensure({
-  device: 'iPhone 16',
-  boot: true,
-});
+const device = devices.find((candidate) => candidate.name === 'iPhone 16') ?? devices[0];
+if (!device) {
+  throw new Error('No iOS device available');
+}
 
 await client.apps.open({
   app: 'com.apple.Preferences',
   platform: 'ios',
-  udid: ensured.udid,
+  udid: device.id,
   runtime: {
     metroHost: '127.0.0.1',
     metroPort: 8081,

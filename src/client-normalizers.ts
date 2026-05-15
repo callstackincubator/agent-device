@@ -28,7 +28,7 @@ import {
   stripUndefined,
 } from './utils/parsing.ts';
 
-export { readNullableString, readOptionalString, readRequiredString } from './utils/parsing.ts';
+export { readOptionalString, readRequiredString } from './utils/parsing.ts';
 
 const DEFAULT_SESSION_NAME = 'default';
 
@@ -249,9 +249,6 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     serial: options.serial,
     iosSimulatorDeviceSet: options.iosSimulatorDeviceSet,
     androidDeviceAllowlist: options.androidDeviceAllowlist,
-    runtime: options.simulatorRuntimeId,
-    boot: options.boot,
-    reuseExisting: options.reuseExisting,
     surface: options.surface,
     activity: options.activity,
     relaunch: options.relaunch,

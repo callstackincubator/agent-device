@@ -22,7 +22,6 @@ const leaseDeferredCommands = new Set([
   'connection',
   'close',
   'disconnect',
-  'ensure-simulator',
   'metro',
   'session',
 ]);

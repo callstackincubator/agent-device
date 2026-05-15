@@ -38,13 +38,10 @@ export type CliFlags = RemoteConfigMetroOptions & {
   androidDeviceAllowlist?: string;
   out?: string;
   session?: string;
-  runtime?: string;
   metroHost?: string;
   metroPort?: number;
   bundleUrl?: string;
   launchUrl?: string;
-  boot?: boolean;
-  reuseExisting?: boolean;
   verbose?: boolean;
   snapshotInteractiveOnly?: boolean;
   snapshotDiff?: boolean;
@@ -819,14 +816,6 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Boot: launch Android emulator without a GUI window',
   },
   {
-    key: 'runtime',
-    names: ['--runtime'],
-    type: 'string',
-    usageLabel: '--runtime <id>',
-    usageDescription:
-      'ensure-simulator: CoreSimulator runtime identifier (e.g. com.apple.CoreSimulator.SimRuntime.iOS-18-0)',
-  },
-  {
     key: 'metroHost',
     names: ['--metro-host'],
     type: 'string',
@@ -952,20 +941,6 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--launch-url <url>',
     usageDescription: 'Session-scoped deep link / launch URL hint',
-  },
-  {
-    key: 'boot',
-    names: ['--boot'],
-    type: 'boolean',
-    usageLabel: '--boot',
-    usageDescription: 'ensure-simulator: boot the simulator after ensuring it exists',
-  },
-  {
-    key: 'reuseExisting',
-    names: ['--reuse-existing'],
-    type: 'boolean',
-    usageLabel: '--reuse-existing',
-    usageDescription: 'ensure-simulator: reuse an existing simulator (default: true)',
   },
   {
     key: 'iosSimulatorDeviceSet',
@@ -1538,13 +1513,6 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   ...CAPTURE_COMMAND_SCHEMAS,
-  'ensure-simulator': {
-    helpDescription: 'Ensure an iOS simulator exists in a device set (create if missing)',
-    summary: 'Ensure iOS simulator exists',
-    positionalArgs: [],
-    allowedFlags: ['runtime', 'boot', 'reuseExisting'],
-    skipCapabilityCheck: true,
-  },
   devices: {
     helpDescription: 'List available devices',
     positionalArgs: [],

@@ -958,20 +958,6 @@ function createStubClient(params: {
       list: async () => [],
       close: async () => ({ session: 'default', identifiers: { session: 'default' } }),
     },
-    simulators: {
-      ensure: async () => ({
-        udid: 'sim-1',
-        device: 'iPhone 16',
-        runtime: 'iOS-18-0',
-        created: false,
-        booted: true,
-        identifiers: {
-          deviceId: 'sim-1',
-          deviceName: 'iPhone 16',
-          udid: 'sim-1',
-        },
-      }),
-    },
     apps: {
       install: async () => ({
         app: 'Demo',

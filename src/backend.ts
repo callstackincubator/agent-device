@@ -257,22 +257,6 @@ export type BackendDeviceTarget = {
   headless?: boolean;
 };
 
-export type BackendEnsureSimulatorOptions = {
-  device: string;
-  runtime?: string;
-  boot?: boolean;
-  reuseExisting?: boolean;
-};
-
-export type BackendEnsureSimulatorResult = {
-  udid: string;
-  device: string;
-  runtime: string;
-  created: boolean;
-  booted: boolean;
-  simulatorSetPath?: string | null;
-};
-
 export type BackendInstallSource =
   | {
       kind: 'path';
@@ -548,10 +532,6 @@ export type AgentDeviceBackend = {
     context: BackendCommandContext,
     target?: BackendDeviceTarget,
   ): Promise<BackendActionResult>;
-  ensureSimulator?(
-    context: BackendCommandContext,
-    options: BackendEnsureSimulatorOptions,
-  ): Promise<BackendEnsureSimulatorResult>;
   resolveInstallSource?(
     context: BackendCommandContext,
     source: BackendInstallSource,

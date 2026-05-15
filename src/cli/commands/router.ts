@@ -2,7 +2,6 @@ import type { CliFlags } from '../../utils/command-schema.ts';
 import type { AgentDeviceClient } from '../../client.ts';
 import { sessionCommand } from './session.ts';
 import { devicesCommand } from './devices.ts';
-import { ensureSimulatorCommand } from './ensure-simulator.ts';
 import { metroCommand } from './metro.ts';
 import { appsCommand } from './apps.ts';
 import { installCommand, reinstallCommand, installFromSourceCommand } from './install.ts';
@@ -25,7 +24,6 @@ const dedicatedCliCommandHandlers = {
   session: sessionCommand,
   devices: devicesCommand,
   apps: appsCommand,
-  'ensure-simulator': ensureSimulatorCommand,
   metro: metroCommand,
   install: installCommand,
   reinstall: reinstallCommand,
