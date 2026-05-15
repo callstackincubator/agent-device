@@ -84,6 +84,125 @@ beforeEach(() => {
   mockRunnerCommand.mockResolvedValue({});
 });
 
+async function runWaitCommand(
+  sessionName: string,
+  device: SessionState['device'],
+  positionals: string[],
+) {
+  const sessionStore = makeSessionStore();
+  sessionStore.set(sessionName, makeSession(sessionName, device));
+  return await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'wait',
+      positionals,
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+}
+
+const locationPermissionNodes = [
+  {
+    index: 0,
+    depth: 0,
+    type: 'android.widget.FrameLayout',
+    label: 'Location permission',
+    rect: { x: 0, y: 0, width: 390, height: 844 },
+  },
+  {
+    index: 1,
+    depth: 1,
+    parentIndex: 0,
+    type: 'android.widget.TextView',
+    label: 'Allow location access?',
+    rect: { x: 24, y: 210, width: 342, height: 40 },
+  },
+  {
+    index: 2,
+    depth: 1,
+    parentIndex: 0,
+    type: 'android.widget.Button',
+    label: 'Not now',
+    rect: { x: 24, y: 320, width: 140, height: 48 },
+    hittable: true,
+  },
+  {
+    index: 3,
+    depth: 1,
+    parentIndex: 0,
+    type: 'android.widget.Button',
+    label: 'Continue',
+    rect: { x: 180, y: 320, width: 160, height: 48 },
+    hittable: true,
+  },
+];
+
+const locationRequiredNodes = [
+  {
+    index: 0,
+    depth: 0,
+    type: 'android.widget.TextView',
+    label: 'Location required',
+    rect: { x: 24, y: 180, width: 342, height: 40 },
+  },
+  {
+    index: 1,
+    depth: 0,
+    type: 'android.widget.Button',
+    label: 'Dismiss',
+    rect: { x: 24, y: 260, width: 342, height: 48 },
+  },
+];
+
+const iosSurfaceSummaryNodes = [
+  {
+    index: 0,
+    depth: 0,
+    type: 'XCUIElementTypeApplication',
+    label: 'Expo Go',
+    rect: { x: 0, y: 0, width: 393, height: 852 },
+  },
+  {
+    index: 1,
+    depth: 1,
+    type: 'XCUIElementTypeImage',
+    label: 'gearshape.fill',
+    rect: { x: 12, y: 54, width: 24, height: 24 },
+  },
+  {
+    index: 2,
+    depth: 1,
+    type: 'XCUIElementTypeOther',
+    label: 'Tab Bar',
+    rect: { x: 0, y: 760, width: 393, height: 92 },
+  },
+  {
+    index: 3,
+    depth: 1,
+    type: 'XCUIElementTypeStaticText',
+    label: 'Confirm catalog refresh',
+    rect: { x: 48, y: 280, width: 297, height: 36 },
+  },
+  {
+    index: 4,
+    depth: 1,
+    type: 'XCUIElementTypeButton',
+    label: 'Keep browsing',
+    rect: { x: 48, y: 360, width: 297, height: 48 },
+  },
+  {
+    index: 5,
+    depth: 1,
+    type: 'XCUIElementTypeButton',
+    identifier: 'host.exp.exponent:id/reload_button',
+    rect: { x: 260, y: 54, width: 48, height: 48 },
+  },
+];
+
 test('snapshot rejects @ref scope without existing session snapshot', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim';
@@ -572,6 +691,98 @@ test('wait text on Android uses freshness-aware capture instead of one-shot snap
   expect(sessionStore.get(sessionName)?.snapshot?.nodes).toEqual(
     expect.arrayContaining([expect.objectContaining({ label: 'Create document' })]),
   );
+});
+
+test('wait text timeout includes compact current-surface labels and buttons', async () => {
+  const sessionName = 'android-wait-timeout-surface';
+  mockDispatch.mockResolvedValue({
+    nodes: locationPermissionNodes,
+    truncated: false,
+    backend: 'android',
+    analysis: { rawNodeCount: 4, maxDepth: 1 },
+  });
+
+  const response = await runWaitCommand(sessionName, androidDevice, ['Receipt uploaded', '0']);
+
+  expect(response?.ok).toBe(false);
+  if (response && !response.ok) {
+    expect(response.error.message).toBe(
+      'wait timed out for text: Receipt uploaded. Current surface: Location permission, Allow location access?, Not now, Continue.',
+    );
+    expect(response.error.details?.currentSurface).toEqual({
+      labels: ['Location permission', 'Allow location access?', 'Not now', 'Continue'],
+      buttons: ['Not now', 'Continue'],
+    });
+  }
+});
+
+test('wait selector timeout includes compact current-surface details', async () => {
+  const sessionName = 'android-wait-selector-timeout-surface';
+  mockDispatch.mockResolvedValue({
+    nodes: locationRequiredNodes,
+    truncated: false,
+    backend: 'android',
+    analysis: { rawNodeCount: 2, maxDepth: 0 },
+  });
+
+  const response = await runWaitCommand(sessionName, androidDevice, ['id=receipt-uploaded', '0']);
+
+  expect(response?.ok).toBe(false);
+  if (response && !response.ok) {
+    expect(response.error.message).toBe(
+      'wait timed out for selector: id=receipt-uploaded. Current surface: Location required, Dismiss.',
+    );
+    expect(response.error.details?.currentSurface).toEqual({
+      labels: ['Location required', 'Dismiss'],
+      buttons: ['Dismiss'],
+    });
+  }
+});
+
+test('wait timeout summary prefers content labels over chrome and identifier noise', async () => {
+  const sessionName = 'ios-wait-timeout-surface-summary';
+  mockRunnerCommand.mockResolvedValue({ found: false });
+  mockDispatch.mockResolvedValue({
+    nodes: iosSurfaceSummaryNodes,
+    truncated: false,
+    backend: 'xctest',
+  });
+
+  const response = await runWaitCommand(sessionName, iosSimulatorDevice, [
+    'Impossible success text',
+    '0',
+  ]);
+
+  expect(response?.ok).toBe(false);
+  if (response && !response.ok) {
+    expect(response.error.message).toBe(
+      'wait timed out for text: Impossible success text. Current surface: Confirm catalog refresh, Keep browsing.',
+    );
+    expect(response.error.details?.currentSurface).toEqual({
+      labels: [
+        'Confirm catalog refresh',
+        'Keep browsing',
+        'host.exp.exponent:id/reload_button',
+        'Expo Go',
+        'gearshape.fill',
+        'Tab Bar',
+      ],
+      buttons: ['Keep browsing', 'host.exp.exponent:id/reload_button'],
+    });
+  }
+});
+
+test('wait timeout preserves current behavior when current-surface inspection fails', async () => {
+  const sessionName = 'android-wait-timeout-surface-fails';
+  mockDispatch.mockRejectedValue(new Error('snapshot unavailable'));
+
+  const response = await runWaitCommand(sessionName, androidDevice, ['Receipt uploaded', '0']);
+
+  expect(response?.ok).toBe(false);
+  if (response && !response.ok) {
+    expect(response.error.message).toBe('wait timed out for text: Receipt uploaded');
+    expect(response.error.details).toBeUndefined();
+  }
 });
 
 test('settings rejects unsupported iOS physical devices', async () => {

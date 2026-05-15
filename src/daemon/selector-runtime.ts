@@ -43,6 +43,7 @@ import {
 } from './selector-recording.ts';
 import { createDaemonRuntimePolicy } from './runtime-policy.ts';
 import { createDaemonRuntimeSessionStore } from './runtime-session.ts';
+import { maybeWaitTimeoutSurfaceResponse } from './wait-current-surface.ts';
 
 type SelectorRuntimeParams = {
   req: DaemonRequest;
@@ -208,7 +209,12 @@ export async function dispatchWaitViaRuntime(
       recordIfSession(sessionStore, sessionName, req, result);
       return toDaemonWaitData(result);
     });
-    return await maybeAndroidForegroundBlockerResponse(params, response, 'wait');
+    const enrichedResponse = await maybeWaitTimeoutSurfaceResponse(
+      { req, logPath: params.logPath, session, device },
+      response,
+    );
+    // Keep generic wait-surface details first so Android blocker detection can own the top-level message.
+    return await maybeAndroidForegroundBlockerResponse(params, enrichedResponse, 'wait');
   };
   if (parsed.kind === 'sleep') return await execute();
   return await withSessionlessRunnerCleanup(session, device, execute);
