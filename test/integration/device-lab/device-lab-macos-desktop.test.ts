@@ -221,10 +221,48 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
         },
       },
       {
+        name: 'capture menubar surface snapshot',
+        command: 'snapshot',
+        assert: (snapshot) => {
+          assert.deepEqual(
+            snapshot.json?.result?.data?.nodes?.map((node: { label?: string }) => node.label),
+            ['Menu Bar', 'File'],
+          );
+          assert.equal(daemon.session()?.snapshot?.backend, 'macos-helper');
+          assert.equal(daemon.session()?.snapshot?.nodes[0]?.surface, 'menubar');
+        },
+      },
+      {
         name: 'click menubar coordinates through helper-backed press path',
         command: 'click',
         positionals: ['100', '200'],
         expectData: { x: 100, y: 200 },
+      },
+      {
+        name: 'switch to Demo menubar app surface',
+        command: 'open',
+        positionals: ['Demo'],
+        flags: {
+          platform: 'macos',
+          surface: 'menubar',
+        },
+        expectData: {
+          surface: 'menubar',
+          appName: 'Demo',
+          appBundleId: 'com.example.demo',
+        },
+      },
+      {
+        name: 'capture targeted menubar surface snapshot',
+        command: 'snapshot',
+        assert: (snapshot) => {
+          assert.deepEqual(
+            snapshot.json?.result?.data?.nodes?.map((node: { label?: string }) => node.label),
+            ['Menu Bar', 'Demo'],
+          );
+          assert.equal(daemon.session()?.snapshot?.backend, 'macos-helper');
+          assert.equal(daemon.session()?.snapshot?.nodes[1]?.bundleId, 'com.example.demo');
+        },
       },
     ]);
 
@@ -303,6 +341,12 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
     ]);
     assertFlatToolCall(appleTool.calls, [
       'agent-device-macos-helper',
+      'snapshot',
+      '--surface',
+      'menubar',
+    ]);
+    assertFlatToolCall(appleTool.calls, [
+      'agent-device-macos-helper',
       'read',
       '--x',
       '116',
@@ -334,6 +378,15 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       '200',
       '--surface',
       'menubar',
+    ]);
+    assertFlatToolCall(appleTool.calls, ['open', '-b', 'com.example.demo']);
+    assertFlatToolCall(appleTool.calls, [
+      'agent-device-macos-helper',
+      'snapshot',
+      '--surface',
+      'menubar',
+      '--bundle-id',
+      'com.example.demo',
     ]);
   } finally {
     await close();

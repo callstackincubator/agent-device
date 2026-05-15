@@ -81,6 +81,9 @@ function runScriptedMacOsHelper(args: string[]): {
   }
   if (args[0] === 'snapshot') {
     const surface = args[args.indexOf('--surface') + 1] ?? 'frontmost-app';
+    const bundleId = args.includes('--bundle-id')
+      ? args[args.indexOf('--bundle-id') + 1]
+      : undefined;
     const nodes =
       surface === 'desktop'
         ? [
@@ -123,28 +126,47 @@ function runScriptedMacOsHelper(args: string[]): {
               rect: { x: 40, y: 60, width: 80, height: 24 },
             },
           ]
-        : [
-            {
-              index: 0,
-              depth: 0,
-              type: 'Application',
-              label: 'System Settings',
-              surface,
-              bundleId: 'com.apple.systempreferences',
-              appName: 'System Settings',
-            },
-            {
-              index: 1,
-              depth: 1,
-              parentIndex: 0,
-              type: 'Button',
-              label: 'General',
-              surface,
-              rect: { x: 80, y: 56, width: 72, height: 48 },
-              enabled: true,
-              hittable: true,
-            },
-          ];
+        : surface === 'menubar'
+          ? [
+              {
+                index: 0,
+                depth: 0,
+                type: 'MenuBarSurface',
+                label: 'Menu Bar',
+                surface,
+              },
+              {
+                index: 1,
+                depth: 1,
+                parentIndex: 0,
+                type: 'MenuBarItem',
+                label: bundleId ? 'Demo' : 'File',
+                surface,
+                ...(bundleId ? { bundleId, appName: 'Demo' } : {}),
+              },
+            ]
+          : [
+              {
+                index: 0,
+                depth: 0,
+                type: 'Application',
+                label: 'System Settings',
+                surface,
+                bundleId: 'com.apple.systempreferences',
+                appName: 'System Settings',
+              },
+              {
+                index: 1,
+                depth: 1,
+                parentIndex: 0,
+                type: 'Button',
+                label: 'General',
+                surface,
+                rect: { x: 80, y: 56, width: 72, height: 48 },
+                enabled: true,
+                hittable: true,
+              },
+            ];
     return helperOk({
       surface,
       nodes,

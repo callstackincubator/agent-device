@@ -19,15 +19,15 @@ Current local snapshot:
 | Measure | Value |
 | --- | ---: |
 | Handler unit test files | 29 |
-| Handler unit test LOC | 13908 |
-| Handler unit tests | 362 |
+| Handler unit test LOC | 13808 |
+| Handler unit tests | 360 |
 | Handler files with `vi.mock` | 18 |
 | Device Lab files | 12 |
-| Device Lab LOC | 2573 |
+| Device Lab LOC | 2626 |
 | Device Lab tests | 15 |
 | Device Lab support files | 7 |
-| Device Lab support LOC | 711 |
-| Device Lab / handler LOC | 18.5% |
+| Device Lab support LOC | 733 |
+| Device Lab / handler LOC | 19.0% |
 
 Coverage is tracked separately by:
 
@@ -91,7 +91,7 @@ Priority order:
 | `apps` | Android, iOS, macOS default and `--apps-filter all` flows | parser/default normalization, typed client flag forwarding, platform-specific app parser edge cases | Broad Device Lab and parser/client coverage are in place; no handler-level list happy path remains to delete. |
 | `install`, `reinstall` | Android reinstall, Android install-from-source APK manifest identity, iOS simulator install/reinstall, iOS device reinstall | archive/materialization parsing, invalid install source, platform-specific failure mapping, AAB/binary manifest parser edge cases | Keep install-source units that prove error/fallback behavior; delete daemon happy-path deploy duplicates. |
 | `push` | Android lifecycle broadcast payload with extras | payload parsing and unsupported platform errors | Delete narrow Android push happy-path handler tests; keep invalid payload tests. |
-| `snapshot`, `screenshot` | Android snapshot/screenshot and provider failure normalization, iOS snapshot, macOS frontmost and desktop surface snapshots, Linux snapshot/screenshot, scoped Linux `@ref`/depth snapshots | snapshot processing, selector pruning, screenshot scaling/format edge cases, Android freshness retries, macOS scoped/menubar edge cases | Delete only broad snapshot handler duplicates; keep narrow processing and freshness units. |
+| `snapshot`, `screenshot` | Android snapshot/screenshot and provider failure normalization, iOS snapshot, macOS frontmost, desktop, untargeted menubar, and targeted menubar surface snapshots, Linux snapshot/screenshot, scoped Linux `@ref`/depth snapshots | snapshot processing, selector pruning, screenshot scaling/format edge cases, Android freshness retries, macOS scoped edge cases | Delete only broad snapshot handler duplicates; keep narrow processing and freshness units. |
 | `press`, `click`, `focus`, `longpress`, `swipe`, `scroll`, `type` | Android press/click/fill; iOS press; tvOS remote scroll/back/home; macOS press; Linux pointer, click buttons, swipe, scroll, type, and session action recording | selector resolution edge cases, platform-specific coordinate translation, invalid flag combinations | Remaining interaction units mostly protect edge behavior; delete only newly duplicated plain successes. |
 | `fill`, `get`, `is`, `find`, `wait` | Android fill/get/is/find/wait plus dedicated Android `find` scenario for refs, get attrs/text, type, wait, invalid first/last flags, ambiguous matches, and first/last selection; iOS get/is/find/wait; macOS helper-backed `get text @ref` read expansion | selector parser/matcher matrices, replay healing, ambiguous selector/error behavior, fallback text extraction, Android IME ownership edge cases | Keep selector/IME units; delete handler-level success duplicates. |
 | `clipboard` | Android read/write, iOS read/write, macOS read/write, Linux read/write | physical-device unsupported cases and platform output parsing edge cases | Remaining happy-path clipboard unit tests should be rare deletion candidates. |
@@ -124,7 +124,7 @@ Before deleting a unit test, confirm that a Device Lab scenario covers the succe
 
 ## Next Work
 
-1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest pass deleted a macOS menubar coordinate `click` routing unit after adding the equivalent menubar click and helper-call assertions to Device Lab.
+1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest pass deleted two macOS menubar snapshot helper mocks after adding untargeted and targeted menubar snapshot assertions to Device Lab.
 2. Review the top mock-heavy files from `pnpm test:device-lab:progress` before adding new handler unit coverage. Prefer a Device Lab scenario when the behavior is a command workflow.
 3. Reassess Apple raw tool/helper provider pressure when another Adapter or another scenario has to pattern-match the same host command intent.
 4. Keep `ensure-simulator` removal out of this stream; issue #549 owns that cleanup.

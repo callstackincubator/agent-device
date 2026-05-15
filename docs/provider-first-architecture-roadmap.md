@@ -33,15 +33,16 @@ Milestone 6 progress:
 - Done: moved macOS desktop scoped snapshot coverage into Device Lab and deleted the narrower handler mock.
 - Done: deleted the macOS `open --surface frontmost-app` happy-path unit after Device Lab covered the frontmost-app session state and helper provider call.
 - Done: deleted the macOS menubar coordinate `click` routing unit after Device Lab covered the helper-backed press path.
-- Still retained: Android freshness/collapse warnings, macOS menubar ref promotion, wait routing, alert retry/error policy, diff baseline behavior, recording touch visualization, off-screen failures, and pure snapshot state/visibility shaping.
-- Next checkpoint: continue `interaction.test.ts` only where Device Lab can cover a plain success workflow; otherwise move to the next mock-heavy file from the progress report.
+- Done: moved untargeted and targeted macOS menubar snapshot coverage into Device Lab and deleted the two handler helper mocks.
+- Still retained: Android freshness/collapse warnings, macOS menubar interaction guard/ref-promotion edges, wait routing, alert retry/error policy, diff baseline behavior, recording touch visualization, off-screen failures, and pure snapshot state/visibility shaping.
+- Next checkpoint: continue only where Device Lab can cover a plain success workflow; otherwise move to the next mock-heavy file from the progress report and leave edge/state-machine tests in unit coverage.
 
 ## Current Assessment
 
 - Provider placement remains sound: Device Lab replaces platform Providers below handlers and dispatch, so request admission, locking, session state, command routing, platform translation, and provider contracts stay under test.
 - Scenario worlds are useful when they remove fixture noise from workflow tests. They should stay thin and platform-specific; they must not become an alternate framework above the daemon request path.
 - Apple raw tool/helper pressure is visible but not yet a mandate for more semantic sub-providers. The macOS helper calls are still one host-helper contract, while iOS simulator/device operations already have semantic `simctl` and `devicectl` runners.
-- Snapshot unit deletion should remain conservative. The first safe deletion was a macOS alert happy path now covered by Device Lab. The remaining snapshot units mostly protect freshness, scoped refs, menubar targeting, retry behavior, and snapshot shaping.
+- Snapshot unit deletion should remain conservative. The safe deletions so far were macOS alert, desktop scoped snapshot, and menubar snapshot happy paths now covered by Device Lab. The remaining snapshot units mostly protect freshness, scoped refs, retry behavior, and snapshot shaping.
 
 ## Operating Rules
 
