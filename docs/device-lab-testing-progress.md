@@ -19,13 +19,13 @@ Current local snapshot:
 | Measure | Value |
 | --- | ---: |
 | Handler unit test files | 29 |
-| Handler unit test LOC | 13950 |
-| Handler unit tests | 397 |
+| Handler unit test LOC | 13928 |
+| Handler unit tests | 396 |
 | Handler files with `vi.mock` | 18 |
-| Device Lab files | 10 |
-| Device Lab LOC | 2491 |
-| Device Lab tests | 16 |
-| Device Lab / handler LOC | 17.9% |
+| Device Lab files | 11 |
+| Device Lab LOC | 2604 |
+| Device Lab tests | 17 |
+| Device Lab / handler LOC | 18.7% |
 
 Coverage is tracked separately by:
 
@@ -67,14 +67,14 @@ Latest `pnpm test:coverage` snapshot shows the biggest low-coverage implementati
 | `src/daemon.ts` | 0% | 89 | Poor | Entrypoint wiring belongs in one smoke/packaging test, not Device Lab. |
 | `src/platforms/android/manifest.ts` | 35.16% | 83 | Medium | APK manifest install is covered through Device Lab. Keep AAB/binary/malformed manifest coverage as parser/platform units because bundletool and binary XML are not Device Lab concerns. |
 | `src/daemon/transport.ts` | 0% | 80 | Poor | Transport selection is better covered by CLI/client smoke tests than command Device Lab tests. |
-| `src/daemon/handlers/find.ts` | 43.47% | 78 | Good | Add a real multi-step `find` scenario: snapshot list, selector query, first/all behavior, and follow-up command using the found ref. This can replace handler success-path units. |
+| `src/daemon/handlers/find.ts` | 43.47% | 78 | Good | Android Device Lab now covers broad `find` behavior: snapshot refs, get attrs/text, type, wait, invalid `--first`/`--last`, ambiguous matches, first/last selection, and follow-up interaction using a found ref. Next coverage should target remaining edge behavior only. |
 | `src/platforms/ios/macos-helper.ts` | 46.82% | 67 | Good | Add macOS helper-backed alert and permission scenarios that assert user-visible status and provider calls. |
 | `src/platforms/ios/ensure-simulator.ts` | 0% | 61 | Omit | Track removal separately instead of adding coverage. The command was demo-driven lifecycle policy and should not anchor this provider refactor. See issue #549. |
 
 Priority order:
 
-1. `find` Device Lab expansion: broad handler/selector/session value and strong unit-deletion potential.
-2. macOS helper alert/permission Device Lab: covers desktop modality without real devices and exercises the helper seam.
+1. macOS helper alert/permission Device Lab: covers desktop modality without real devices and exercises the helper seam.
+2. Review `record-trace` success-path units now that simulator/device recording scenarios exist.
 3. Coverage accounting: avoid synthetic tests for subprocess and entrypoint files; document or measure those through smoke/packaging tests instead.
 4. Android manifest follow-up only if AAB install becomes provider-backed; until then keep AAB parser coverage as unit tests.
 5. Runner startup cleanup follow-up only when we can model xcodebuild lifecycle without hard-coding implementation order.
@@ -89,7 +89,7 @@ Priority order:
 | `push` | Android lifecycle broadcast payload with extras | payload parsing and unsupported platform errors | Delete narrow Android push happy-path handler tests; keep invalid payload tests. |
 | `snapshot`, `screenshot` | Android snapshot/screenshot and provider failure normalization, iOS snapshot, macOS frontmost and desktop surface snapshots, Linux snapshot/screenshot, scoped Linux `@ref`/depth snapshots | snapshot processing, selector pruning, screenshot scaling/format edge cases, Android freshness retries, macOS scoped/menubar edge cases | Delete only broad snapshot handler duplicates; keep narrow processing and freshness units. |
 | `press`, `click`, `focus`, `longpress`, `swipe`, `scroll`, `type` | Android press/click/fill; iOS press; tvOS remote scroll/back/home; macOS press; Linux pointer, click buttons, swipe, scroll, type, and session action recording | selector resolution edge cases, platform-specific coordinate translation, invalid flag combinations | Remaining interaction units mostly protect edge behavior; delete only newly duplicated plain successes. |
-| `fill`, `get`, `is`, `find`, `wait` | Android fill/get/is/find/wait; iOS get/is/find/wait; macOS helper-backed `get text @ref` read expansion | selector parser/matcher matrices, replay healing, ambiguous selector/error behavior, fallback text extraction, Android IME ownership edge cases | Keep selector/IME units; delete handler-level success duplicates. |
+| `fill`, `get`, `is`, `find`, `wait` | Android fill/get/is/find/wait plus dedicated Android `find` scenario for refs, get attrs/text, type, wait, invalid first/last flags, ambiguous matches, and first/last selection; iOS get/is/find/wait; macOS helper-backed `get text @ref` read expansion | selector parser/matcher matrices, replay healing, ambiguous selector/error behavior, fallback text extraction, Android IME ownership edge cases | Keep selector/IME units; delete handler-level success duplicates. |
 | `clipboard` | Android read/write, iOS read/write, macOS read/write, Linux read/write | physical-device unsupported cases and platform output parsing edge cases | Remaining happy-path clipboard unit tests should be rare deletion candidates. |
 | `keyboard` | Android status/dismiss, iOS dismiss | keyboard state parsing, duplicate dumpsys fields, unsupported dismiss flows | Keep Android keyboard parser/dismiss edge tests. |
 | `settings` | Android appearance/location/fingerprint/permission/animations; iOS appearance/location/permission; macOS appearance | invalid states, permission target mapping, location coordinate parsing, biometric fallbacks | Delete handler dispatch-shape duplicates only after platform/provider assertions cover the command. |

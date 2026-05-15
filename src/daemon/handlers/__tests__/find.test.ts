@@ -27,14 +27,6 @@ beforeEach(() => {
   });
 });
 
-const INCREMENT_NODE = {
-  type: 'Button',
-  label: 'Increment',
-  hittable: true,
-  rect: { x: 50, y: 0, width: 100, height: 100 },
-  depth: 0,
-};
-
 async function runFindClickScenario(options: {
   positionals: string[];
   nodes?: Array<Record<string, unknown>>;
@@ -172,20 +164,6 @@ test('parseFindArgs with bare locator yields empty query', () => {
   expect(parsed.locator).toBe('text');
   expect(parsed.query).toBe('');
   expect(parsed.action).toBe('click');
-});
-
-test('handleFindCommands rejects --first with --last', async () => {
-  const { response } = await runFindClickScenario({
-    positionals: ['Increment', 'click'],
-    nodes: [INCREMENT_NODE],
-    flags: { findFirst: true, findLast: true },
-  });
-
-  expect(response.ok).toBe(false);
-  if (!response.ok) {
-    expect(response.error.code).toBe('INVALID_ARGS');
-    expect(response.error.message).toContain('only one of --first or --last');
-  }
 });
 
 test('handleFindCommands click returns deterministic metadata across locator variants', async () => {
