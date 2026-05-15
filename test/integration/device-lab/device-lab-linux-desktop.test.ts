@@ -5,8 +5,8 @@ import path from 'node:path';
 import { test } from 'vitest';
 import type { LinuxToolProvider } from '../../../src/platforms/linux/tool-provider.ts';
 import type { DeviceInfo } from '../../../src/utils/device.ts';
-import { restoreEnv, startDeviceLabDaemon } from '../http-harness.ts';
-import { runDeviceLabScenario } from '../scenario.ts';
+import { restoreEnv, startDeviceLabDaemon } from './http-harness.ts';
+import { runDeviceLabScenario } from './scenario.ts';
 
 const linuxDevice: DeviceInfo = {
   platform: 'linux',

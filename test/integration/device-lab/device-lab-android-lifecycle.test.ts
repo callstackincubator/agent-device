@@ -6,7 +6,7 @@ import { test } from 'vitest';
 import { createAgentDeviceClient } from '../../../src/client.ts';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
 import type { DeviceInfo } from '../../../src/utils/device.ts';
-import { restoreEnv, startDeviceLabDaemon, withDeviceLabRemoteEnv } from '../http-harness.ts';
+import { restoreEnv, startDeviceLabDaemon, withDeviceLabRemoteEnv } from './http-harness.ts';
 
 const androidDevice: DeviceInfo = {
   platform: 'android',

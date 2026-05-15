@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import type { AppleToolProvider } from '../../../src/platforms/ios/tool-provider.ts';
 import type { DeviceInfo } from '../../../src/utils/device.ts';
-import { startDeviceLabDaemon } from '../http-harness.ts';
-import { runDeviceLabScenario } from '../scenario.ts';
+import { startDeviceLabDaemon } from './http-harness.ts';
+import { runDeviceLabScenario } from './scenario.ts';
 
 const macOsDevice: DeviceInfo = {
   platform: 'macos',

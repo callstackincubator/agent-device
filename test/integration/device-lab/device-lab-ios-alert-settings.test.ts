@@ -5,8 +5,8 @@ import { createAgentDeviceClient } from '../../../src/client.ts';
 import type { AppleRunnerProvider } from '../../../src/platforms/ios/runner-provider.ts';
 import type { AppleToolProvider } from '../../../src/platforms/ios/tool-provider.ts';
 import type { DeviceInfo } from '../../../src/utils/device.ts';
-import { startDeviceLabDaemon, withDeviceLabRemoteEnv } from '../http-harness.ts';
-import { createProviderTranscript } from '../transcript.ts';
+import { startDeviceLabDaemon, withDeviceLabRemoteEnv } from './http-harness.ts';
+import { createProviderTranscript } from './transcript.ts';
 
 const iosSimulator: DeviceInfo = {
   platform: 'ios',

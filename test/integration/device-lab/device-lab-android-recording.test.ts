@@ -5,7 +5,7 @@ import path from 'node:path';
 import { test } from 'vitest';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
 import type { DeviceInfo } from '../../../src/utils/device.ts';
-import { restoreEnv, startDeviceLabDaemon } from '../http-harness.ts';
+import { restoreEnv, startDeviceLabDaemon } from './http-harness.ts';
 
 const androidDevice: DeviceInfo = {
   platform: 'android',

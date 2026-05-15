@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'test/device-lab/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'test/integration/device-lab/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],

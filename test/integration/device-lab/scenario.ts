@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import type { DaemonRequest } from '../../src/daemon/types.ts';
+import type { DaemonRequest } from '../../../src/daemon/types.ts';
 import type { DeviceLabDaemon, DeviceLabRpcResult } from './http-harness.ts';
 
 export type DeviceLabScenarioState = {

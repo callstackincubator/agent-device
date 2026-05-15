@@ -3,8 +3,8 @@ import { test } from 'vitest';
 import type { AppleRunnerProvider } from '../../../src/platforms/ios/runner-provider.ts';
 import type { AppleToolProvider } from '../../../src/platforms/ios/tool-provider.ts';
 import type { DeviceInfo } from '../../../src/utils/device.ts';
-import { startDeviceLabDaemon } from '../http-harness.ts';
-import { createProviderTranscript } from '../transcript.ts';
+import { startDeviceLabDaemon } from './http-harness.ts';
+import { createProviderTranscript } from './transcript.ts';
 
 const tvosDevice: DeviceInfo = {
   platform: 'ios',

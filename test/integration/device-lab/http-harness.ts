@@ -2,12 +2,15 @@ import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { createDaemonHttpServer } from '../../src/daemon/http-server.ts';
-import { createRequestHandler, type RequestRouterDeps } from '../../src/daemon/request-router.ts';
-import { trackDownloadableArtifact } from '../../src/daemon/artifact-tracking.ts';
-import { LeaseRegistry } from '../../src/daemon/lease-registry.ts';
-import { SessionStore } from '../../src/daemon/session-store.ts';
-import type { DaemonRequest } from '../../src/daemon/types.ts';
+import { createDaemonHttpServer } from '../../../src/daemon/http-server.ts';
+import {
+  createRequestHandler,
+  type RequestRouterDeps,
+} from '../../../src/daemon/request-router.ts';
+import { trackDownloadableArtifact } from '../../../src/daemon/artifact-tracking.ts';
+import { LeaseRegistry } from '../../../src/daemon/lease-registry.ts';
+import { SessionStore } from '../../../src/daemon/session-store.ts';
+import type { DaemonRequest } from '../../../src/daemon/types.ts';
 
 export const DEVICE_LAB_TOKEN = 'device-lab-token';
 
