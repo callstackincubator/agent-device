@@ -342,16 +342,6 @@ React Native dev loop:
   If apps lookup misses the project but shows Expo Go/dev-client and a project URL is available, open the URL/host shell; if no URL is available, ask instead of inventing an app id.
   Expo Dev Client/development builds: open the installed dev-client app id/name; if a dev-client URL is provided, open that URL next. For Metro setup use metro prepare --kind expo.
 
-React DevTools minimum loop:
-  Keep the agent-device react-devtools prefix on every React DevTools command:
-    agent-device react-devtools status
-    agent-device react-devtools wait --connected
-    agent-device react-devtools profile start
-    interact with normal agent-device commands
-    agent-device react-devtools profile stop
-    agent-device react-devtools profile slow --limit 5
-    agent-device react-devtools profile rerenders --limit 5
-
 Escalate:
   help debugging       logs, network, alerts, traces, flaky runtime failures
   help react-devtools  React Native performance, profiling, props/state/hooks, slow renders, rerenders
@@ -443,8 +433,8 @@ Profiling loop:
   3. Start profiling immediately before the interaction.
   4. Drive the interaction with normal agent-device commands and mark before/after the repro when timing matters.
   5. Stop profiling.
-  6. Inspect slow components and rerenders.
-  7. Use profile report @cN for render causes and changed props/state/hooks; use get component @cN for current props/state/hooks.
+  6. Make one bounded first-pass survey: profile stop for the summary, profile slow --limit 5 once, profile rerenders --limit 5 once, and profile timeline --limit 20 only when commit timing matters.
+  7. Use profile report @cN for targeted render causes and changed props/state/hooks; use get component @cN for current props/state/hooks.
 
 Rules:
   Every React DevTools command is an agent-device subcommand: agent-device react-devtools ...
@@ -452,6 +442,7 @@ Rules:
   Start with get tree --depth 3 or find <name>; use find --exact when fuzzy results are noisy.
   @c refs reset after reload/remount. After reload, wait --connected and inspect again.
   Keep the profile window narrow; unrelated navigation makes render data noisy.
+  Do not repeatedly raise broad profile slow limits such as --limit 50, --limit 200, or --limit 500. Drill into a specific @c ref with profile report unless you have a specific target that needs more rows.
   For network evidence, use agent-device network dump --include headers; headers is not a positional argument.
   For cross-platform validation with explicit device selectors, prefer isolated --state-dir and restart react-devtools between platforms.
   Remote Android and iOS bridge runs normally through agent-device react-devtools; the CLI keeps the needed local service tunnel alive until agent-device react-devtools stop or disconnect. Expo support depends on the SDK's bundled React Native runtime.
@@ -468,6 +459,7 @@ Example:
   agent-device react-devtools profile stop
   agent-device react-devtools profile slow --limit 5
   agent-device react-devtools profile rerenders --limit 5
+  agent-device react-devtools profile timeline --limit 20
   agent-device react-devtools profile report @c5
   agent-device network dump --include headers
 

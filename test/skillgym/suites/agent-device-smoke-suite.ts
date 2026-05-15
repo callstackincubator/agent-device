@@ -203,6 +203,13 @@ const RAW_COORDINATE_TARGET =
   /(?:^|\n)(?:agent-device\s+)?(?:click|fill|press)\s+-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?/i;
 const PSEUDO_ASSERTION_COMMAND = /(?:^|\n)\s*(?:assert|assertVisible|waitFor|waitForText)\b/i;
 const COMPACT_RECT_SNAPSHOT = /snapshot\b(?=[^\n]*(?:-c\b|--compact\b))(?=[^\n]*(?:--json|--raw))/i;
+const BOUNDED_PROFILE_SLOW = /react-devtools\s+profile\s+slow\b[^\n]*--limit\s+(?:5|10)\b/i;
+const BOUNDED_PROFILE_RERENDERS =
+  /react-devtools\s+profile\s+rerenders\b[^\n]*--limit\s+(?:5|10)\b/i;
+const BOUNDED_PROFILE_TIMELINE =
+  /react-devtools\s+profile\s+timeline\b[^\n]*--limit\s+(?:10|20)\b/i;
+const BROAD_PROFILE_SLOW_LIMIT =
+  /react-devtools\s+profile\s+slow\b[^\n]*--limit\s+(?:[5-9]\d|[1-9]\d{2,})\b/i;
 const IOS_EXPO_GO_OPEN =
   /(?:^|\n)(?:agent-device\s+)?open\s+["']Expo Go["']\s+["']?exp:\/\/127\.0\.0\.1:8081["']?/i;
 
@@ -1098,10 +1105,36 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       plannedCommand('react-devtools profile start'),
       /catalog-search/i,
       plannedCommand('react-devtools profile stop'),
-      plannedCommand('react-devtools profile slow'),
-      plannedCommand('react-devtools profile rerenders'),
+      BOUNDED_PROFILE_SLOW,
+      BOUNDED_PROFILE_RERENDERS,
     ],
-    forbiddenOutputs: [plannedCommand('snapshot'), plannedCommand('perf')],
+    forbiddenOutputs: [
+      plannedCommand('snapshot'),
+      plannedCommand('perf'),
+      BROAD_PROFILE_SLOW_LIMIT,
+    ],
+  }),
+  makeCase({
+    id: 'react-devtools-bounded-profile-survey',
+    contract: [
+      'App name: Agent Device Tester',
+      'React Native DevTools is connected',
+      'Interaction to profile: expand the checkout totals panel',
+      'Totals panel selector: id="checkout-totals"',
+      'Need a compact performance report with initial summary, slow components, rerender counts, and commit timing',
+      'Do not over-fetch broad profile tables while looking for offenders',
+    ],
+    task: 'Plan a bounded first-pass React DevTools profile workflow for the checkout totals interaction.',
+    outputs: [
+      plannedCommand('react-devtools wait'),
+      plannedCommand('react-devtools profile start'),
+      /checkout-totals/i,
+      plannedCommand('react-devtools profile stop'),
+      BOUNDED_PROFILE_SLOW,
+      BOUNDED_PROFILE_RERENDERS,
+      BOUNDED_PROFILE_TIMELINE,
+    ],
+    forbiddenOutputs: [BROAD_PROFILE_SLOW_LIMIT],
   }),
   makeCase({
     id: 'react-devtools-exact-component-inspect',
@@ -1166,11 +1199,17 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       /(?:5000|10000|12000|15000|20000)/i,
       /logs mark\b[^\n]*(?:after|end|verified|diagnostics|loaded)/i,
       plannedCommand('react-devtools profile stop'),
-      plannedCommand('react-devtools profile slow'),
-      plannedCommand('react-devtools profile rerenders'),
+      BOUNDED_PROFILE_SLOW,
+      BOUNDED_PROFILE_RERENDERS,
       /network dump\b[^\n]*(?:--include headers|\bheaders\b|\ball\b)/i,
     ],
-    forbiddenOutputs: [RAW_COORDINATE_TARGET, /cat .*log/i, /alert wait/i, /agent-devtools/i],
+    forbiddenOutputs: [
+      RAW_COORDINATE_TARGET,
+      /cat .*log/i,
+      /alert wait/i,
+      /agent-devtools/i,
+      BROAD_PROFILE_SLOW_LIMIT,
+    ],
   }),
   makeCase({
     id: 'gesture-swipe-carousel',
