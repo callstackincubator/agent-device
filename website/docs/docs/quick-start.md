@@ -149,4 +149,4 @@ agent-device snapshot --json
 agent-device get text @e1 --json
 ```
 
-Note: The default text output is more compact and preferred for AI agents.
+Note: The default snapshot text is an agent-facing, token-efficient view for planning and targeting actions. Use `--raw` or `--json` when you need the full provider tree.

@@ -793,6 +793,7 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Default loop: devices\/apps -> open -> snapshot -i/);
   assert.match(usageText, /Use selectors or refs as positional targets/);
   assert.match(usageText, /Plain snapshot reads state; snapshot -i is required/);
+  assert.match(usageText, /agent-facing, token-efficient view for planning and targeting actions/);
   assert.match(usageText, /Truncated text\/input preview: expand first with snapshot -s @e12/);
   assert.match(usageText, /React Native apps: read help react-native/);
   assert.match(usageText, /Expo Go\/dev clients: use the provided URL when given/);

@@ -456,7 +456,7 @@ test('formatSnapshotText collapses Android helper nodes in human output', () => 
   );
 
   assert.match(text, /Snapshot: 4 visible nodes \(15 total\)/);
-  assert.match(text, /Collapsed 11 Android helper nodes from text output/);
+  assert.match(text, /Collapsed 11 Android helper nodes from the agent-facing text snapshot/);
   assert.match(text, /@e3 \[button\] "alice@example\.com"/);
   assert.doesNotMatch(text, /@e4 \[button\] "alice@example\.com"/);
   assert.doesNotMatch(text, /Invisible stale action/);
@@ -587,7 +587,7 @@ test('formatSnapshotText collapses adjacent React Native row noise in Android he
   );
 
   assert.match(text, /Snapshot: 8 visible nodes \(10 total\)/);
-  assert.match(text, /Collapsed 2 Android helper nodes from text output/);
+  assert.match(text, /Collapsed 2 Android helper nodes from the agent-facing text snapshot/);
   assert.match(text, /@e4 \[image\] "Adam"/);
   assert.match(text, /@e6 \[text\] "Hello from Adam"/);
   assert.match(text, /@e8 \[text-field\] "Write a message\.\.\." \[editable\]/);

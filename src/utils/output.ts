@@ -564,7 +564,7 @@ function buildSnapshotNotices(
   const notices = readSnapshotWarnings(data);
   if (!options.raw && helperPresentation.filteredCount > 0) {
     notices.push(
-      `Collapsed ${helperPresentation.filteredCount} Android helper node${helperPresentation.filteredCount === 1 ? '' : 's'} from text output; use --raw or --json for the full hierarchy.`,
+      `Collapsed ${helperPresentation.filteredCount} Android helper node${helperPresentation.filteredCount === 1 ? '' : 's'} from the agent-facing text snapshot; use --raw or --json for the full hierarchy.`,
     );
   }
   const repeatedNavNodes = helperPresentation.filteredCount > 0 ? helperPresentation.nodes : nodes;
