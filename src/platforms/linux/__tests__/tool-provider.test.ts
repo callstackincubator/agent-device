@@ -71,6 +71,42 @@ test('Linux tool provider scopes do not share cached input tool resolution', asy
   ]);
 });
 
+test('local Linux desktop provider translates semantic lifecycle calls to host tools', async () => {
+  const commands: Array<[string, string[], boolean | undefined]> = [];
+  const provider = createLocalLinuxToolProvider({
+    whichCommand: async (cmd) => cmd === 'wmctrl',
+    runCommand: async (cmd, args, options) => {
+      commands.push([cmd, args, options?.allowFailure]);
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  await provider.desktop.openTarget('https://example.test');
+  await provider.desktop.openTarget('demo.desktop');
+  await provider.desktop.closeApp('Demo');
+
+  assert.deepEqual(commands, [
+    ['xdg-open', ['https://example.test'], undefined],
+    ['xdg-open', ['demo.desktop'], true],
+    ['wmctrl', ['-c', 'Demo'], true],
+  ]);
+});
+
+test('local Linux desktop provider falls back to pkill when wmctrl is unavailable', async () => {
+  const commands: Array<[string, string[], boolean | undefined]> = [];
+  const provider = createLocalLinuxToolProvider({
+    whichCommand: async () => false,
+    runCommand: async (cmd, args, options) => {
+      commands.push([cmd, args, options?.allowFailure]);
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  await provider.desktop.closeApp('Demo');
+
+  assert.deepEqual(commands, [['pkill', ['-x', 'Demo'], true]]);
+});
+
 afterAll(() => {
   Object.defineProperty(process, 'platform', { value: originalPlatform });
   for (const key of Object.keys(process.env)) {

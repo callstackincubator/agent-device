@@ -5,6 +5,7 @@ import { AppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
 import { runXcrun } from '../platforms/ios/tool-provider.ts';
 import { runAndroidAdb } from '../platforms/android/adb.ts';
+import { createScopedProvider } from '../utils/scoped-provider.ts';
 import {
   assertAndroidPackageArgSafe,
   readTrackedAndroidLogcatPid,
@@ -63,8 +64,43 @@ type IosSimulatorNetworkRecovery = {
   recoveredLineCount: number;
 };
 
+export type AppLogStartRequest = {
+  device: DeviceInfo;
+  appBundleId: string;
+  outPath: string;
+  pidPath?: string;
+};
+
+export type AppLogProvider = {
+  start(request: AppLogStartRequest): Promise<AppLogResult>;
+};
+
 const DEFAULT_MAX_APP_LOG_BYTES = 5 * 1024 * 1024;
 const DEFAULT_MAX_ROTATED_FILES = 1;
+
+const localAppLogProvider: AppLogProvider = {
+  start: async (request) => await startLocalAppLog(request),
+};
+
+const appLogProviderScope = createScopedProvider(localAppLogProvider, createLocalAppLogProvider);
+
+export function createLocalAppLogProvider(provider: Partial<AppLogProvider> = {}): AppLogProvider {
+  return {
+    ...localAppLogProvider,
+    ...provider,
+  };
+}
+
+export function resolveAppLogProvider(provider?: AppLogProvider): AppLogProvider {
+  return appLogProviderScope.resolve(provider);
+}
+
+export async function withAppLogProvider<T>(
+  provider: AppLogProvider | undefined,
+  fn: () => Promise<T>,
+): Promise<T> {
+  return await appLogProviderScope.run(provider, fn);
+}
 
 function parsePositiveIntEnv(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -302,6 +338,15 @@ export async function startAppLog(
   outPath: string,
   pidPath?: string,
 ): Promise<AppLogResult> {
+  return await resolveAppLogProvider().start({ device, appBundleId, outPath, pidPath });
+}
+
+async function startLocalAppLog({
+  device,
+  appBundleId,
+  outPath,
+  pidPath,
+}: AppLogStartRequest): Promise<AppLogResult> {
   ensureLogPath(outPath);
   const stream = fs.createWriteStream(outPath, { flags: 'a' });
   const redactionPatterns = getAppLogRedactionPatterns();

@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { PassThrough } from 'node:stream';
 import { test } from 'vitest';
-import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
+import type {
+  AndroidAdbProcess,
+  AndroidAdbProvider,
+} from '../../../src/platforms/android/adb-executor.ts';
 import { arrayEqual, assertCommandCall, assertPngFile, validPng } from './assertions.ts';
 import { DEVICE_LAB_ANDROID } from './fixtures.ts';
 import { restoreEnv, createDeviceLabHarness } from './harness.ts';
@@ -14,6 +19,7 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
     const installCalls: Array<{ apkPath: string; replace?: boolean }> = [];
     let searchText = '';
     let clipboardText = 'hello';
+    const spawnedLogcat: AndroidAdbProcess[] = [];
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-lab-android-deploy-'));
     const apkPath = path.join(tempRoot, 'Demo.apk');
     fs.writeFileSync(apkPath, 'placeholder apk');
@@ -31,6 +37,12 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       install: async (apk, options) => {
         installCalls.push({ apkPath: apk, replace: options?.replace });
         return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      spawn: (args) => {
+        const child = makeMockAdbProcess();
+        spawnedLogcat.push(child);
+        child.stdout?.push(`I/AgentDevice(4242): ${args.join(' ')}\n`);
+        return child;
       },
     };
     const daemon = await createDeviceLabHarness({
@@ -121,6 +133,17 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
           permission: 'camera',
           ...selection,
         });
+
+        const logsStart = await client.observability.logs({ action: 'start', ...selection });
+        assert.equal(logsStart.started, true);
+
+        const logsPath = await client.observability.logs({ action: 'path', ...selection });
+        assert.equal(logsPath.active, true);
+        assert.equal(logsPath.backend, 'android');
+
+        const logsStop = await client.observability.logs({ action: 'stop', ...selection });
+        assert.equal(logsStop.stopped, true);
+
         const animations = await client.settings.update({
           setting: 'animations',
           state: 'off',
@@ -260,6 +283,11 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       assertCommandCall(adbCalls, ['shell', 'cmd', 'clipboard', 'get', 'text']);
       assertCommandCall(adbCalls, ['shell', 'cmd', 'clipboard', 'set', 'text', 'android otp']);
       assertCommandCall(adbCalls, ['shell', 'dumpsys', 'input_method']);
+      assertCommandCall(adbCalls, ['shell', 'pidof', 'com.example.demo']);
+      assert.ok(
+        spawnedLogcat.some((child) => child.killed),
+        'Expected logs stop to terminate the scripted logcat stream',
+      );
       assertCommandCall(adbCalls, ['shell', 'cmd', 'uimode', 'night', 'yes']);
       assertCommandCall(adbCalls, ['emu', 'geo', 'fix', '-122.009', '37.3349']);
       assertCommandCall(adbCalls, ['shell', 'cmd', 'fingerprint', 'touch', '1']);
@@ -328,6 +356,9 @@ function androidAdbResult(
   }
   if (args.join(' ') === 'shell dumpsys input_method') {
     return { stdout: 'mInputShown=false inputType=0x1\n', stderr: '', exitCode: 0 };
+  }
+  if (args.join(' ') === 'shell pidof com.example.demo') {
+    return { stdout: '4242\n', stderr: '', exitCode: 0 };
   }
   if (
     args.slice(0, 7).join(' ') ===
@@ -423,4 +454,21 @@ function escapeXml(value: string): string {
     .replaceAll('"', '&quot;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;');
+}
+
+function makeMockAdbProcess(): AndroidAdbProcess {
+  const child = new EventEmitter() as EventEmitter & AndroidAdbProcess;
+  child.stdin = null;
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  child.killed = false;
+  child.kill = () => {
+    if (child.killed) return false;
+    child.killed = true;
+    child.stdout?.push(null);
+    child.stderr?.push(null);
+    queueMicrotask(() => child.emit('close', 0, null));
+    return true;
+  };
+  return child;
 }

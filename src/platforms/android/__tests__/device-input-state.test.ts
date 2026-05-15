@@ -21,6 +21,9 @@ test('getAndroidKeyboardStatusWithAdb exposes active input method package', asyn
       inputType: '0x1',
       type: 'text',
       inputMethodPackage: 'com.google.android.inputmethod.latin',
+      focusedPackage: undefined,
+      focusedResourceId: undefined,
+      inputOwner: 'unknown',
     });
   });
 });

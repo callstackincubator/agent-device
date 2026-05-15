@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 import { test } from 'vitest';
+import type { AppLogProvider } from '../../../src/daemon/app-log.ts';
 import { assertFlatToolCall } from './assertions.ts';
 import { DEVICE_LAB_IOS_SIMULATOR } from './fixtures.ts';
 import { createDeviceLabHarness } from './harness.ts';
@@ -55,7 +57,26 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
     }
     return { stdout: '', stderr: '', exitCode: 0 };
   });
+  let appLogStopped = false;
+  const appLogStarts: Array<{ appBundleId: string; outPath: string }> = [];
+  const appLogProvider: AppLogProvider = {
+    start: async ({ appBundleId, outPath }) => {
+      appLogStarts.push({ appBundleId, outPath });
+      fs.mkdirSync(path.dirname(outPath), { recursive: true });
+      fs.appendFileSync(outPath, 'Settings log stream started\n', 'utf8');
+      return {
+        backend: 'ios-simulator',
+        startedAt: Date.now(),
+        getState: () => 'active',
+        stop: async () => {
+          appLogStopped = true;
+        },
+        wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+      };
+    },
+  };
   const daemon = await createDeviceLabHarness({
+    appLogProvider: () => appLogProvider,
     appleRunnerProvider: () => appleRunnerProvider,
     appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async () => [DEVICE_LAB_IOS_SIMULATOR],
@@ -72,6 +93,16 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
       const logsPath = await client.observability.logs({ action: 'path', ...selection });
       assert.equal(logsPath.active, false);
 
+      const logsStart = await client.observability.logs({ action: 'start', ...selection });
+      assert.equal(logsStart.started, true);
+
+      const activeLogsPath = await client.observability.logs({ action: 'path', ...selection });
+      assert.equal(activeLogsPath.active, true);
+      assert.equal(activeLogsPath.backend, 'ios-simulator');
+
+      const logsStop = await client.observability.logs({ action: 'stop', ...selection });
+      assert.equal(logsStop.stopped, true);
+
       const logsMark = await client.observability.logs({
         action: 'mark',
         message: 'before-camera-permission',
@@ -84,6 +115,14 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
       assert.equal((logsDoctor.checks as { simctlAvailable?: boolean }).simctlAvailable, true);
 
       await client.settings.update({ setting: 'appearance', state: 'dark', ...selection });
+
+      await client.settings.update({
+        setting: 'location',
+        state: 'set',
+        latitude: 37.3349,
+        longitude: -122.009,
+        ...selection,
+      });
 
       await client.settings.update({
         setting: 'permission',
@@ -100,7 +139,20 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
     }
 
     runnerTranscript.assertComplete();
+    assert.deepEqual(
+      appLogStarts.map((start) => start.appBundleId),
+      ['com.apple.Preferences'],
+    );
+    assert.equal(appLogStopped, true);
     assertFlatToolCall(appleTool.calls, ['xcrun', 'simctl', 'ui', 'sim-1', 'appearance', 'dark']);
+    assertFlatToolCall(appleTool.calls, [
+      'xcrun',
+      'simctl',
+      'location',
+      'sim-1',
+      'set',
+      '37.3349,-122.009',
+    ]);
     assertFlatToolCall(appleTool.calls, [
       'xcrun',
       'simctl',

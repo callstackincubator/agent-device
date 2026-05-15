@@ -439,7 +439,6 @@ export type KeyboardCommandResult = DaemonResponseData & {
   inputType?: string | null;
   inputMethodPackage?: string | null;
   type?: string | null;
-  inputMethodPackage?: string | null;
   focusedPackage?: string | null;
   focusedResourceId?: string | null;
   inputOwner?: 'app' | 'ime' | 'unknown';

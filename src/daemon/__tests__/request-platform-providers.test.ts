@@ -7,6 +7,7 @@ import {
   makeIosSession,
 } from '../../__tests__/test-utils/index.ts';
 import { createLocalAppleToolProvider, runXcrun } from '../../platforms/ios/tool-provider.ts';
+import { startAppLog } from '../app-log.ts';
 import { withRequestPlatformProviderScope } from '../request-platform-providers.ts';
 import type { DaemonRequest } from '../types.ts';
 
@@ -37,6 +38,39 @@ test('request platform provider scope exposes Android executor for Android sessi
 
   assert.equal(response.stdout, 'ok');
   assert.deepEqual(calls, [['shell', 'echo', 'ok']]);
+});
+
+test('request platform provider scope applies app log provider for session logs', async () => {
+  const started: string[] = [];
+
+  const result = await withRequestPlatformProviderScope(
+    {
+      req: request('logs'),
+      existingSession: makeIosSession('default'),
+      providers: {
+        appLogProvider: ({ device, session }) => {
+          assert.equal(device.id, IOS_SIMULATOR.id);
+          assert.equal(session?.name, 'default');
+          return {
+            start: async ({ appBundleId }) => {
+              started.push(appBundleId);
+              return {
+                backend: 'ios-simulator',
+                startedAt: 123,
+                getState: () => 'active',
+                stop: async () => {},
+                wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+              };
+            },
+          };
+        },
+      },
+    },
+    async () => await startAppLog(IOS_SIMULATOR, 'com.example.app', '/tmp/app.log'),
+  );
+
+  assert.equal(result.backend, 'ios-simulator');
+  assert.deepEqual(started, ['com.example.app']);
 });
 
 test('request platform provider scope applies Apple tool provider only for Apple sessions', async () => {

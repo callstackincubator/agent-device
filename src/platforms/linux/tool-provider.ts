@@ -1,5 +1,7 @@
 import { runCmd, whichCmd, type ExecOptions, type ExecResult } from '../../utils/exec.ts';
+import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { createScopedProvider } from '../../utils/scoped-provider.ts';
+import { sleep } from '../../utils/timeouts.ts';
 
 export type LinuxToolCommandExecutor = (
   cmd: string,
@@ -9,24 +11,39 @@ export type LinuxToolCommandExecutor = (
 
 export type LinuxToolAvailabilityChecker = (cmd: string) => Promise<boolean>;
 
+export type LinuxDesktopProvider = {
+  openTarget(target: string): Promise<void>;
+  closeApp(app: string): Promise<void>;
+};
+
 export type LinuxToolProvider = {
   runCommand: LinuxToolCommandExecutor;
   whichCommand: LinuxToolAvailabilityChecker;
+  desktop: LinuxDesktopProvider;
 };
 
 const localLinuxToolProvider: LinuxToolProvider = {
   runCommand: runCmd,
   whichCommand: whichCmd,
+  desktop: createLocalLinuxDesktopProvider(runCmd, whichCmd),
 };
 
-const linuxToolProviderScope = createScopedProvider(localLinuxToolProvider);
+const linuxToolProviderScope = createScopedProvider(
+  localLinuxToolProvider,
+  createLocalLinuxToolProvider,
+);
 
 export function createLocalLinuxToolProvider(
   provider: Partial<LinuxToolProvider> = {},
 ): LinuxToolProvider {
-  return {
+  const merged = {
     ...localLinuxToolProvider,
     ...provider,
+  };
+  return {
+    ...merged,
+    desktop:
+      provider.desktop ?? createLocalLinuxDesktopProvider(merged.runCommand, merged.whichCommand),
   };
 }
 
@@ -47,4 +64,40 @@ export async function runLinuxToolCommand(
   options?: ExecOptions,
 ): Promise<ExecResult> {
   return await resolveLinuxToolProvider().runCommand(cmd, args, options);
+}
+
+function createLocalLinuxDesktopProvider(
+  runCommand: LinuxToolCommandExecutor,
+  whichCommand: LinuxToolAvailabilityChecker,
+): LinuxDesktopProvider {
+  return {
+    async openTarget(target) {
+      if (target.includes('://') || target.startsWith('/')) {
+        await runCommand('xdg-open', [target]);
+        return;
+      }
+
+      if (await whichCommand(target)) {
+        runCommand(target, [], { allowFailure: true }).catch((err) => {
+          emitDiagnostic({
+            level: 'warn',
+            phase: 'linux_app_launch',
+            data: { app: target, error: String(err) },
+          });
+        });
+        await sleep(500);
+        return;
+      }
+
+      await runCommand('xdg-open', [target], { allowFailure: true });
+    },
+    async closeApp(app) {
+      if (await whichCommand('wmctrl')) {
+        await runCommand('wmctrl', ['-c', app], { allowFailure: true });
+        return;
+      }
+
+      await runCommand('pkill', ['-x', app], { allowFailure: true });
+    },
+  };
 }

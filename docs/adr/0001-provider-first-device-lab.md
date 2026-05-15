@@ -19,9 +19,10 @@ Add request-scoped provider seams below platform modules:
 - Android ADB provider
 - Apple tool provider
 - Apple runner provider
-- Linux tool provider
+- Linux tool provider, with a semantic desktop lifecycle sub-provider for open/close
+- App-log provider for semantic app log stream start/stop
 
-Provider contracts should expose semantic operations when the platform intent is stable enough to name. Android already does this for install, pull, and port-reverse behavior. Apple tool execution has started moving in that direction with semantic `simctl` and `devicectl` runners; generic command execution remains as a local compatibility fallback for host-tool paths that have not been classified yet. Linux still uses a generic tool provider because the current desktop surface is smaller and less cloud-adapter-shaped; split it when a second backend forces clearer language.
+Provider contracts should expose semantic operations when the platform intent is stable enough to name. Android already does this for install, pull, and port-reverse behavior. Apple tool execution has started moving in that direction with semantic `simctl` and `devicectl` runners; generic command execution remains as a local compatibility fallback for host-tool paths that have not been classified yet. Linux desktop lifecycle now exposes semantic `openTarget` and `closeApp` operations because Device Lab covers those user workflows and remote desktop providers should not need to infer intent from `xdg-open`, binary launch, `wmctrl`, or `pkill`. App-log stream start/stop is semantic observability behavior rather than generic host process execution, so Device Lab injects an app-log provider instead of spawning `log stream` or `logcat`. Linux input, clipboard, screenshot, and accessibility snapshot remain generic until another backend creates clearer naming pressure.
 
 Device Lab tests run the real daemon request path and replace only those providers. Tests may use provider transcripts for platform command contracts and scenario transcripts for broader user workflows. Provider transcripts match calls as an unordered contract by default; use ordered transcripts only when ordering is the behavior under test.
 
@@ -42,7 +43,7 @@ Platform command translation remains covered by integration tests without requir
 
 The request router owns a provider registry seam, but platform-specific provider applicability remains localized in that registry. The registry composes provider scopes linearly so adding a platform does not require another nested wrapper chain.
 
-New remote or cloud-backed adapters can implement neutral provider contracts without changing daemon, dispatch, or session contracts. Generic tool-provider fallbacks are an interim compatibility layer, not the target contract for cloud adapters.
+New remote or cloud-backed adapters can implement neutral provider contracts without changing daemon, dispatch, or session contracts. Generic tool-provider fallbacks are an interim compatibility layer, not the target contract for cloud adapters. When a Device Lab scenario still scripts raw host commands, that is a signal to reassess whether the platform intent has become stable enough for a semantic provider method.
 
 Mock-heavy handler unit tests should be deleted only after equivalent Device Lab scenario coverage exists. Unit tests remain appropriate for pure logic, parser matrices, selector matching, capability maps, and edge/error cases that integration tests would express poorly.
 

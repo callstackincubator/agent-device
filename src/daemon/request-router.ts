@@ -9,6 +9,7 @@ import type { AndroidAdbProviderResolver } from './request-android-adb.ts';
 import {
   type AppleRunnerProviderResolver,
   type AppleToolProviderResolver,
+  type AppLogProviderResolver,
   type LinuxToolProviderResolver,
   withRequestPlatformProviderScope,
 } from './request-platform-providers.ts';
@@ -39,6 +40,7 @@ export type RequestRouterDeps = {
   appleRunnerProvider?: AppleRunnerProviderResolver;
   appleToolProvider?: AppleToolProviderResolver;
   linuxToolProvider?: LinuxToolProviderResolver;
+  appLogProvider?: AppLogProviderResolver;
   deviceInventoryProvider?: DeviceInventoryProvider;
   trackDownloadableArtifact: (opts: {
     artifactPath: string;
@@ -57,6 +59,7 @@ export function createRequestHandler(
     appleRunnerProvider,
     appleToolProvider,
     linuxToolProvider,
+    appLogProvider,
     deviceInventoryProvider,
     trackDownloadableArtifact,
   } = deps;
@@ -105,6 +108,7 @@ export function createRequestHandler(
                     appleRunnerProvider,
                     appleToolProvider,
                     linuxToolProvider,
+                    appLogProvider,
                   },
                 },
                 async (providerScope) => {

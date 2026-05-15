@@ -16,6 +16,7 @@ import {
 } from '../platforms/ios/tool-provider.ts';
 import { type LinuxToolProvider, withLinuxToolProvider } from '../platforms/linux/tool-provider.ts';
 import { isApplePlatform, type DeviceInfo } from '../utils/device.ts';
+import { type AppLogProvider, withAppLogProvider } from './app-log.ts';
 import { hasExplicitDeviceSelector } from './handlers/session-device-utils.ts';
 import type { DaemonRequest, SessionState } from './types.ts';
 
@@ -48,11 +49,18 @@ export type LinuxToolProviderResolver = (params: {
   session?: PlatformProviderRequestSession;
 }) => LinuxToolProvider | undefined;
 
+export type AppLogProviderResolver = (params: {
+  req: DaemonRequest;
+  device: DeviceInfo;
+  session?: PlatformProviderRequestSession;
+}) => AppLogProvider | undefined;
+
 export type PlatformProviderResolvers = {
   androidAdbProvider?: AndroidAdbProviderResolver;
   appleRunnerProvider?: AppleRunnerProviderResolver;
   appleToolProvider?: AppleToolProviderResolver;
   linuxToolProvider?: LinuxToolProviderResolver;
+  appLogProvider?: AppLogProviderResolver;
 };
 
 export type RequestPlatformProviderScope = {
@@ -81,6 +89,9 @@ type ResolvedRequestPlatformProviders = {
   };
   linuxTool?: {
     provider?: LinuxToolProvider;
+  };
+  appLog?: {
+    provider?: AppLogProvider;
   };
 };
 
@@ -111,6 +122,7 @@ async function resolveRequestPlatformProviders(
     appleRunner: resolveAppleRunnerProvider(params, device),
     appleTool: resolveAppleToolProvider(params, device),
     linuxTool: resolveLinuxToolProvider(params, device),
+    appLog: resolveAppLogProvider(params, device),
   };
 }
 
@@ -119,7 +131,8 @@ function hasPlatformProviderResolvers(providers: PlatformProviderResolvers): boo
     providers.androidAdbProvider ||
     providers.appleRunnerProvider ||
     providers.appleToolProvider ||
-    providers.linuxToolProvider,
+    providers.linuxToolProvider ||
+    providers.appLogProvider,
   );
 }
 
@@ -180,6 +193,20 @@ function resolveLinuxToolProvider(
   return { provider };
 }
 
+function resolveAppLogProvider(
+  params: RequestPlatformProviderParams,
+  device: DeviceInfo,
+): ResolvedRequestPlatformProviders['appLog'] {
+  const appLogProvider = params.providers.appLogProvider;
+  if (!appLogProvider) return undefined;
+  const provider = appLogProvider({
+    req: params.req,
+    device,
+    session: params.existingSession,
+  });
+  return { provider };
+}
+
 async function resolveScopedProviderDevice(
   req: DaemonRequest,
   existingSession: SessionState | undefined,
@@ -229,6 +256,10 @@ function requestPlatformProviderScopeWrappers(
     wrappers.push(
       async (task) => await withLinuxToolProvider(scopedProviders.linuxTool?.provider, task),
     );
+  }
+
+  if (scopedProviders.appLog?.provider) {
+    wrappers.push(async (task) => await withAppLogProvider(scopedProviders.appLog?.provider, task));
   }
 
   return wrappers;

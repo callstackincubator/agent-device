@@ -1381,7 +1381,7 @@ test('typeAndroid reports clear error when unicode input is unsupported', async 
         (error: unknown) => {
           assert.equal(error instanceof AppError, true);
           assert.equal((error as AppError).code, 'COMMAND_FAILED');
-          assert.match((error as AppError).message, /non-ascii text input is not supported/i);
+          assert.match((error as AppError).message, /provider-native text injection/i);
           return true;
         },
       );

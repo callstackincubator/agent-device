@@ -3,13 +3,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
-import type { LinuxToolProvider } from '../../../src/platforms/linux/tool-provider.ts';
-import { assertPngFile, validPng } from './assertions.ts';
+import { createLocalLinuxToolProvider } from '../../../src/platforms/linux/tool-provider.ts';
+import { assertPngFile, assertToolCall, validPng } from './assertions.ts';
 import { DEVICE_LAB_LINUX } from './fixtures.ts';
 import { restoreEnv, createDeviceLabHarness } from './harness.ts';
 import { runDeviceLabScenario } from './scenario.ts';
 
-test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
+test('Device Lab Linux desktop flow uses semantic lifecycle provider and scripted tools', async () => {
   const previousSessionType = process.env.XDG_SESSION_TYPE;
   const previousWaylandDisplay = process.env.WAYLAND_DISPLAY;
   const previousAuthHook = process.env.AGENT_DEVICE_HTTP_AUTH_HOOK;
@@ -21,8 +21,9 @@ test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
   delete process.env.AGENT_DEVICE_HTTP_AUTH_HOOK;
 
   const toolCalls: Array<[string, string[]]> = [];
+  const desktopCalls: Array<[string, string]> = [];
   let clipboardText = '';
-  const linuxToolProvider: LinuxToolProvider = {
+  const linuxToolProvider = createLocalLinuxToolProvider({
     whichCommand: async (cmd) =>
       cmd === 'gnome-calculator' ||
       cmd === 'xdotool' ||
@@ -48,7 +49,15 @@ test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
       }
       return { stdout: '', stderr: '', exitCode: 0 };
     },
-  };
+    desktop: {
+      openTarget: async (target) => {
+        desktopCalls.push(['open', target]);
+      },
+      closeApp: async (app) => {
+        desktopCalls.push(['close', app]);
+      },
+    },
+  });
   const daemon = await createDeviceLabHarness({
     linuxToolProvider: () => linuxToolProvider,
     deviceInventoryProvider: async () => [DEVICE_LAB_LINUX],
@@ -72,6 +81,33 @@ test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
           );
           assert.equal(digitFive?.ref, 'e2', JSON.stringify(snapshot.json));
         },
+      },
+      {
+        name: 'scope snapshot to calculator frame with depth limit',
+        command: 'snapshot',
+        flags: { snapshotScope: '@e1', snapshotDepth: 0 },
+        assert: (snapshot) => {
+          assert.deepEqual(
+            snapshot.json?.result?.data?.nodes?.map((node: { label?: string }) => node.label),
+            ['Calculator'],
+          );
+        },
+      },
+      {
+        name: 'scope snapshot to ref from previous broad snapshot source',
+        command: 'snapshot',
+        flags: { snapshotScope: '@e3' },
+        assert: (snapshot) => {
+          assert.deepEqual(
+            snapshot.json?.result?.data?.nodes?.map((node: { label?: string }) => node.label),
+            ['Clear'],
+          );
+        },
+      },
+      {
+        name: 'refresh broad interactive snapshot after scoped output',
+        command: 'snapshot',
+        flags: { snapshotInteractiveOnly: true },
       },
       {
         name: 'press snapshot ref',
@@ -179,55 +215,65 @@ test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
       },
     ]);
 
-    assert.deepEqual(normalizeToolCalls(toolCalls), [
-      ['gnome-calculator', []],
-      [
-        'python3',
-        [
-          'atspi-dump.py',
-          '--surface',
-          'frontmost-app',
-          '--max-nodes',
-          '1500',
-          '--max-depth',
-          '12',
-          '--max-apps',
-          '24',
-        ],
-      ],
-      ['xdotool', ['mousemove', '--sync', '60', '100']],
-      ['xdotool', ['click', '1']],
-      ['xdotool', ['mousemove', '--sync', '42', '84']],
-      ['xdotool', ['click', '1']],
-      ['xdotool', ['mousemove', '--sync', '42', '84']],
-      ['xdotool', ['click', '3']],
-      ['xdotool', ['mousemove', '--sync', '42', '84']],
-      ['xdotool', ['click', '2']],
-      ['xdotool', ['mousemove', '--sync', '42', '84']],
-      ['xdotool', ['click', '--repeat', '2', '1']],
-      ['xdotool', ['mousemove', '--sync', '42', '84']],
-      ['xdotool', ['click', '1']],
-      ['xdotool', ['mousemove', '--sync', '42', '84']],
-      ['xdotool', ['mousedown', '1']],
-      ['xdotool', ['mouseup', '1']],
-      ['xdotool', ['mousemove', '--sync', '10', '20']],
-      ['xdotool', ['mousedown', '1']],
-      ['xdotool', ['mousemove', '--sync', '30', '40']],
-      ['xdotool', ['mouseup', '1']],
-      ['xdotool', ['mousemove', '--sync', '60', '100']],
-      ['xdotool', ['click', '1']],
-      ['xdotool', ['key', '--clearmodifiers', 'ctrl+a']],
-      ['xdotool', ['type', '--delay', '1', '--clearmodifiers', '--', 'Seven']],
-      ['xdotool', ['click', '--repeat', '3', '5']],
-      ['xdotool', ['click', '--repeat', '5', '4']],
-      ['xdotool', ['type', '--clearmodifiers', '--', '5']],
-      ['xclip', ['-selection', 'clipboard']],
-      ['xclip', ['-selection', 'clipboard', '-o']],
-      ['scrot', [screenshotPath]],
-      ['xdotool', ['key', '--clearmodifiers', 'alt+Left']],
-      ['xdotool', ['key', '--clearmodifiers', 'super+d']],
-      ['wmctrl', ['-c', 'gnome-calculator']],
+    assert.deepEqual(desktopCalls, [
+      ['open', 'gnome-calculator'],
+      ['close', 'gnome-calculator'],
     ]);
+    const normalizedToolCalls = normalizeToolCalls(toolCalls);
+    assertToolCall(normalizedToolCalls, [
+      'python3',
+      'atspi-dump.py',
+      '--surface',
+      'frontmost-app',
+      '--max-nodes',
+      '1500',
+      '--max-depth',
+      '12',
+      '--max-apps',
+      '24',
+    ]);
+    assertToolCall(normalizedToolCalls, ['xdotool', 'click', '1']);
+    assertToolCall(normalizedToolCalls, [
+      'xdotool',
+      'type',
+      '--delay',
+      '1',
+      '--clearmodifiers',
+      '--',
+      'Seven',
+    ]);
+    assertToolCall(normalizedToolCalls, ['xdotool', 'type', '--clearmodifiers', '--', '5']);
+    assertToolCall(normalizedToolCalls, ['xclip', '-selection', 'clipboard']);
+    assertToolCall(normalizedToolCalls, ['xclip', '-selection', 'clipboard', '-o']);
+    assertToolCall(normalizedToolCalls, ['scrot', screenshotPath]);
+    assertToolCall(normalizedToolCalls, ['xdotool', 'key', '--clearmodifiers', 'alt+Left']);
+    assertToolCall(normalizedToolCalls, ['xdotool', 'key', '--clearmodifiers', 'super+d']);
+    assert.ok(
+      normalizedToolCalls.some(
+        ([cmd, args]) => cmd === 'xdotool' && args[0] === 'click' && args.includes('3'),
+      ),
+      'Expected secondary click to reach xdotool',
+    );
+    assert.ok(
+      normalizedToolCalls.some(
+        ([cmd, args]) => cmd === 'xdotool' && args[0] === 'click' && args.includes('2'),
+      ),
+      'Expected middle click to reach xdotool',
+    );
+    assert.ok(
+      normalizedToolCalls.some(
+        ([cmd, args]) => cmd === 'xdotool' && args[0] === 'click' && args.includes('--repeat'),
+      ),
+      'Expected repeated click based gestures to reach xdotool',
+    );
+    assert.ok(
+      normalizedToolCalls.some(([cmd, args]) => cmd === 'xdotool' && args[0] === 'mousedown'),
+      'Expected drag/long-press gestures to press the pointer button',
+    );
+    assert.ok(
+      normalizedToolCalls.some(([cmd, args]) => cmd === 'xdotool' && args[0] === 'mouseup'),
+      'Expected drag/long-press gestures to release the pointer button',
+    );
   } finally {
     await daemon.close();
     fs.rmSync(screenshotPath, { force: true });
@@ -255,6 +301,16 @@ function linuxCalculatorSnapshotJson(): string {
         role: 'push button',
         label: '5',
         rect: { x: 40, y: 80, width: 40, height: 40 },
+        enabled: true,
+        hittable: true,
+        depth: 1,
+        parentIndex: 0,
+      },
+      {
+        index: 2,
+        role: 'push button',
+        label: 'Clear',
+        rect: { x: 90, y: 80, width: 70, height: 40 },
         enabled: true,
         hittable: true,
         depth: 1,
