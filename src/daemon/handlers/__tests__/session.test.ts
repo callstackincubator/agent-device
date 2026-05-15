@@ -3698,62 +3698,6 @@ test('network requires an active session', async () => {
   }
 });
 
-test('network dump returns recent parsed HTTP entries', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel',
-      kind: 'emulator',
-      booted: true,
-    }),
-    appBundleId: 'com.example.app',
-  });
-  const appLogPath = sessionStore.resolveAppLogPath(sessionName);
-  fs.mkdirSync(path.dirname(appLogPath), { recursive: true });
-  fs.writeFileSync(
-    appLogPath,
-    [
-      '2026-02-24T10:00:00Z GET https://api.example.com/v1/profile status=200',
-      '2026-02-24T10:00:01Z POST https://api.example.com/v1/login statusCode=401 headers={"x-id":"abc"} requestBody={"email":"test@example.com"} responseBody={"error":"bad_credentials"}',
-    ].join('\n'),
-    'utf8',
-  );
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'network',
-      positionals: ['dump', '10', 'all'],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response && response.ok) {
-    expect(response.data?.path).toBe(appLogPath);
-    expect(response.data?.include).toBe('all');
-    expect(response.data?.active).toBe(false);
-    expect(response.data?.backend).toBe('android');
-    const entries = Array.isArray(response.data?.entries) ? response.data.entries : [];
-    expect(entries.length).toBe(2);
-    const latest = entries[0] as Record<string, unknown>;
-    expect(latest.method).toBe('POST');
-    expect(latest.url).toBe('https://api.example.com/v1/login');
-    expect(latest.status).toBe(401);
-    expect(typeof latest.headers).toBe('string');
-    expect(typeof latest.requestBody).toBe('string');
-    expect(typeof latest.responseBody).toBe('string');
-  }
-});
-
 test('network dump adds a targeted note when the session app log stream is inactive', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-network-inactive';

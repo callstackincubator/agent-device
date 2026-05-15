@@ -49,7 +49,25 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       spawn: (args) => {
         const child = makeMockAdbProcess();
         spawnedLogcat.push(child);
-        child.stdout?.push(`I/AgentDevice(4242): ${args.join(' ')}\n`);
+        queueMicrotask(() => {
+          child.stdout?.push(`I/AgentDevice(4242): ${args.join(' ')}\n`);
+          if (args.includes('logcat')) {
+            child.stdout?.push(
+              [
+                '04-01 10:00:15.000 D/Network(4242):',
+                JSON.stringify({
+                  method: 'POST',
+                  url: 'https://api.example.com/v1/login',
+                  status: 401,
+                  headers: { 'x-id': 'abc' },
+                  requestBody: { email: 'test@example.com' },
+                  responseBody: { error: 'bad_credentials' },
+                }),
+                '\n',
+              ].join(' '),
+            );
+          }
+        });
         return child;
       },
     };
@@ -245,16 +263,27 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         const logsPath = await client.observability.logs({ action: 'path', ...selection });
         assert.equal(logsPath.active, true);
         assert.equal(logsPath.backend, 'android');
+        assert.equal(typeof logsPath.path, 'string');
+        await waitForFileContent(logsPath.path as string, 'https://api.example.com/v1/login');
 
         const network = await client.observability.network({
           action: 'dump',
           limit: 5,
-          include: 'headers',
+          include: 'all',
           ...selection,
         });
         assert.equal(network.active, true);
         assert.equal(network.backend, 'android');
-        assert.ok(Array.isArray(network.entries), JSON.stringify(network));
+        assert.equal(network.include, 'all');
+        const networkEntries = Array.isArray(network.entries) ? network.entries : [];
+        assert.equal(networkEntries.length, 1, JSON.stringify(network));
+        const latestNetworkEntry = networkEntries[0] as Record<string, unknown>;
+        assert.equal(latestNetworkEntry.method, 'POST');
+        assert.equal(latestNetworkEntry.url, 'https://api.example.com/v1/login');
+        assert.equal(latestNetworkEntry.status, 401);
+        assert.equal(latestNetworkEntry.headers, '{"x-id":"abc"}');
+        assert.equal(latestNetworkEntry.requestBody, '{"email":"test@example.com"}');
+        assert.equal(latestNetworkEntry.responseBody, '{"error":"bad_credentials"}');
 
         const perf = await client.observability.perf(selection);
         assert.equal(perf.platform, 'android');
@@ -786,4 +815,15 @@ function makeMockAdbProcess(): AndroidAdbProcess {
     return true;
   };
   return child;
+}
+
+async function waitForFileContent(filePath: string, expected: string): Promise<void> {
+  const deadline = Date.now() + 1_000;
+  while (Date.now() < deadline) {
+    if (fs.existsSync(filePath) && fs.readFileSync(filePath, 'utf8').includes(expected)) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.fail(`Timed out waiting for ${expected} in ${filePath}`);
 }
