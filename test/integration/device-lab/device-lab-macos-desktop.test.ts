@@ -196,6 +196,12 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
         },
       },
       {
+        name: 'wait for desktop surface text through helper snapshot polling',
+        command: 'wait',
+        positionals: ['text', 'Notes', '100'],
+        expectData: { text: 'Notes' },
+      },
+      {
         name: 'scope desktop snapshot after helper capture',
         command: 'snapshot',
         flags: { snapshotScope: 'Notes', snapshotDepth: 0 },
@@ -339,6 +345,12 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       '--surface',
       'desktop',
     ]);
+    assert.ok(
+      appleTool.calls.filter(
+        (call) => call.join('\0') === 'agent-device-macos-helper\0snapshot\0--surface\0desktop',
+      ).length >= 2,
+      'Expected desktop snapshot to be used by both snapshot and wait workflows',
+    );
     assertFlatToolCall(appleTool.calls, [
       'agent-device-macos-helper',
       'snapshot',

@@ -11,7 +11,6 @@ import {
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import { AppError } from '../../../utils/errors.ts';
-import { withMockedMacOsHelper } from '../../../platforms/ios/__tests__/macos-helper-test-utils.ts';
 import { buildSnapshotSignatures } from '../../android-snapshot-freshness.ts';
 
 vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
@@ -878,44 +877,6 @@ test('settings on macOS rejects wifi before dispatch with explicit subset guidan
       /wifi\|airplane\|location\|animations remain unsupported on macOS/i,
     );
   }
-});
-
-test('wait text on macOS desktop surface polls helper-backed snapshots instead of runner text search', async () => {
-  await withMockedMacOsHelper(
-    [
-      '#!/bin/sh',
-      "cat <<'JSON'",
-      '{"ok":true,"data":{"surface":"desktop","nodes":[{"index":0,"depth":0,"type":"DesktopSurface","label":"Desktop","surface":"desktop"},{"index":1,"depth":1,"parentIndex":0,"type":"StaticText","label":"Accessibility","surface":"desktop"}],"truncated":false,"backend":"macos-helper"}}',
-      'JSON',
-      '',
-    ].join('\n'),
-    async () => {
-      const sessionStore = makeSessionStore();
-      const sessionName = 'macos-desktop-wait';
-      sessionStore.set(sessionName, {
-        ...makeSession(sessionName, macOsDevice),
-        surface: 'desktop',
-      });
-
-      const response = await handleSnapshotCommands({
-        req: {
-          token: 't',
-          session: sessionName,
-          command: 'wait',
-          positionals: ['Accessibility', '10'],
-          flags: {},
-        },
-        sessionName,
-        logPath: '/tmp/daemon.log',
-        sessionStore,
-      });
-
-      expect(response?.ok).toBe(true);
-      expect(mockRunnerCommand).not.toHaveBeenCalled();
-      const updated = sessionStore.get(sessionName);
-      expect(updated?.snapshot?.backend).toBe('macos-helper');
-    },
-  );
 });
 
 test('diff rejects unsupported kind', async () => {

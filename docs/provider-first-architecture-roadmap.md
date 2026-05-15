@@ -36,6 +36,7 @@ Milestone 6 progress:
 - Done: deleted the macOS menubar coordinate `click` routing unit after Device Lab covered the helper-backed press path.
 - Done: moved untargeted and targeted macOS menubar snapshot coverage into Device Lab and deleted the two handler helper mocks.
 - Done: after PR #553, centralized screenshot flag/request/runtime/script translation in `capture-screenshot-options.ts` and covered Android `stabilize: false` through Device Lab.
+- Done: moved macOS desktop `wait` helper-backed snapshot polling into Device Lab and deleted the narrower mocked handler success test.
 - Still retained: Android freshness/collapse warnings, macOS menubar interaction guard/ref-promotion edges, wait routing, alert retry/error policy, diff baseline behavior, recording touch visualization, off-screen failures, and pure snapshot state/visibility shaping.
 - Next checkpoint: continue only where Device Lab can cover a plain success workflow; otherwise move to the next mock-heavy file from the progress report and leave edge/state-machine tests in unit coverage.
 
