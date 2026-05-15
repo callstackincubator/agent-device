@@ -170,7 +170,7 @@ Run:
 - Capture a baseline `snapshot -i`, screenshot, and `perf --json` sample.
 - Exercise Home, Catalog, product detail, Checkout, and Settings. Re-snapshot after each mutation and use refs/selectors from fresh snapshots.
 - Capture at least one overlay-ref screenshot, one normal screenshot, one short video recording for a meaningful flow, logs marks around any issue, and trace output if a runtime symptom needs diagnostics.
-- Run focused performance checks: compare `perf --json` before and after a navigation or form flow; if React DevTools connects, capture profile slow/rerender output. If it cannot connect, include the status and continue.
+- Run focused performance checks: compare `perf --json` before and after a navigation or form flow; if React DevTools connects, use one bounded first-pass profile survey (`slow --limit 5`, `rerenders --limit 5`, and `timeline --limit 20` only when timing matters), then drill into a specific `@c` ref with `profile report`. If it cannot connect, include the status and continue.
 - Close the session so the `.ad` replay is written.
 
 Report:

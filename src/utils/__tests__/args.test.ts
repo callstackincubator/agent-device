@@ -897,6 +897,7 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /metro prepare --kind expo/);
   assert.match(help, /help react-devtools/);
   assert.match(help, /help react-native/);
+  assert.doesNotMatch(help, /agent-device react-devtools profile/);
 });
 
 test('workflow help keeps common copyable command forms', () => {
@@ -975,7 +976,14 @@ test('usageForCommand resolves react-devtools help topic', () => {
   );
   assert.match(help, /render causes and changed props\/state\/hooks/);
   assert.match(help, /logs clear --restart before the first logs mark/);
+  assert.match(help, /one bounded first-pass survey/);
+  assert.match(help, /profile slow --limit 5 once/);
+  assert.match(help, /profile rerenders --limit 5 once/);
+  assert.match(help, /profile timeline --limit 20 only when commit timing matters/);
+  assert.match(help, /Do not repeatedly raise broad profile slow limits/);
+  assert.match(help, /profile report unless you have a specific target/);
   assert.match(help, /agent-device logs mark "before catalog search"/);
+  assert.match(help, /agent-device react-devtools profile timeline --limit 20/);
   assert.match(help, /Do not write agent-devtools/);
   assert.match(help, /agent-device network dump --include headers/);
   assert.match(help, /@c refs reset after reload\/remount/);
