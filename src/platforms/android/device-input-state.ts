@@ -1,8 +1,14 @@
 import { AppError } from '../../utils/errors.ts';
+import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { isClipboardShellUnsupported, sleep } from './adb.ts';
 import { resolveAndroidAdbExecutor, type AndroidAdbExecutor } from './adb-executor.ts';
-import { classifyAndroidInputOwner, type AndroidInputOwner } from './input-ownership.ts';
+import {
+  classifyAndroidInputOwner,
+  isFallbackAndroidInputMethodPackage,
+  isFallbackAndroidInputMethodResource,
+  type AndroidInputOwner,
+} from './input-ownership.ts';
 
 const ANDROID_INPUT_TYPE_CLASS_MASK = 0x0000000f;
 const ANDROID_INPUT_TYPE_CLASS_TEXT = 0x00000001;
@@ -142,6 +148,20 @@ function parseAndroidKeyboardState(stdout: string): AndroidKeyboardState {
     focusedResourceId,
     inputMethodPackage,
   );
+  if (
+    !inputMethodPackage &&
+    (isFallbackAndroidInputMethodPackage(focusedPackage) ||
+      isFallbackAndroidInputMethodResource(focusedResourceId))
+  ) {
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'android_input_ownership_fallback',
+      data: {
+        focusedPackage,
+        focusedResourceId,
+      },
+    });
+  }
 
   return {
     visible,

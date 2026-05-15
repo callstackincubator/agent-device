@@ -26,7 +26,9 @@ import {
   writeAndroidClipboardText,
 } from '../index.ts';
 import { withAndroidAdbProvider } from '../adb-executor.ts';
+import { parseAndroidLaunchablePackages } from '../app-parsers.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
+import { flushDiagnosticsToSessionFile, withDiagnosticsScope } from '../../../utils/diagnostics.ts';
 import { AppError } from '../../../utils/errors.ts';
 import { androidUiNodes, parseUiHierarchy } from '../ui-hierarchy.ts';
 
@@ -273,6 +275,21 @@ test('listAndroidApps returns launchable apps with inferred names', async () => 
     process.env.PATH = previousPath;
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
+});
+
+test('parseAndroidLaunchablePackages ignores cmd package query metadata lines', () => {
+  assert.deepEqual(
+    parseAndroidLaunchablePackages(
+      [
+        '25',
+        'priority=0 preferredOrder=0 match=0x108000 specificIndex=-1 isDefault=true',
+        'com.google.android.apps.maps/.MainActivity',
+        'service-without-component',
+        'org.mozilla.firefox/.App',
+      ].join('\n'),
+    ),
+    ['com.google.android.apps.maps', 'org.mozilla.firefox'],
+  );
 });
 
 test('listAndroidApps user-installed excludes non-launchable packages', async () => {
@@ -1578,6 +1595,74 @@ test('getAndroidKeyboardState reports active IME ownership from dumpsys', async 
       assert.equal(state.focusedPackage, 'com.samsung.android.honeyboard');
       assert.equal(state.focusedResourceId, 'com.samsung.android.honeyboard:id/handwriting');
       assert.equal(state.inputOwner, 'ime');
+    },
+  );
+});
+
+test('getAndroidKeyboardState diagnoses fallback IME ownership classification', async () => {
+  await withMockedAdb(
+    'agent-device-android-keyboard-ime-fallback-',
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "input_method" ]; then',
+      '  echo "mInputShown=true mIsInputViewShown=true"',
+      '  echo "mCurAttribute=EditorInfo{packageName=com.google.android.inputmethod.latin inputType=0x1 resourceId=com.google.android.inputmethod.latin:id/handwriting}"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-diagnostics-home-'));
+      const previousHome = process.env.HOME;
+      let diagnosticsPath: string | null = null;
+      try {
+        process.env.HOME = homeDir;
+        const state = await withDiagnosticsScope({ session: 'keyboard-ime-fallback' }, async () => {
+          const keyboardState = await getAndroidKeyboardState(device);
+          diagnosticsPath = flushDiagnosticsToSessionFile({ force: true });
+          return keyboardState;
+        });
+
+        assert.equal(state.inputOwner, 'ime');
+        assert.ok(diagnosticsPath);
+        const diagnostics = await fs.readFile(diagnosticsPath, 'utf8');
+        assert.match(diagnostics, /android_input_ownership_fallback/);
+        assert.match(diagnostics, /com\.google\.android\.inputmethod\.latin/);
+      } finally {
+        process.env.HOME = previousHome;
+      }
+    },
+  );
+});
+
+test('getAndroidKeyboardState does not treat inputmethod substring as IME ownership', async () => {
+  await withMockedAdb(
+    'agent-device-android-keyboard-inputmethod-substring-',
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "input_method" ]; then',
+      '  echo "mInputShown=true mIsInputViewShown=true"',
+      '  echo "mCurAttribute=EditorInfo{packageName=com.example.inputmethodnotes inputType=0x1 resourceId=com.example.inputmethodnotes:id/editor}"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      const state = await getAndroidKeyboardState(device);
+      assert.equal(state.focusedPackage, 'com.example.inputmethodnotes');
+      assert.equal(state.inputOwner, 'app');
     },
   );
 });

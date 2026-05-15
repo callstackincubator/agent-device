@@ -247,7 +247,15 @@ async function assertAndroidShellInputIsAppOwned(
   let state: AndroidKeyboardState;
   try {
     state = await getAndroidKeyboardState(device);
-  } catch {
+  } catch (error) {
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'android_input_ownership_probe_failed',
+      data: {
+        action,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
     return;
   }
   if (state.inputOwner !== 'ime') return;
