@@ -3,11 +3,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
-import type { AppleToolProvider } from '../../../src/platforms/ios/tool-provider.ts';
 import { assertFlatToolCallStartsWith } from './assertions.ts';
 import { DEVICE_LAB_IOS_DEVICE } from './fixtures.ts';
 import { startDeviceLabDaemon } from './http-harness.ts';
-import { createAppleRunnerProviderFromTranscript } from './providers.ts';
+import {
+  createAppleRunnerProviderFromTranscript,
+  createRecordingAppleToolProvider,
+} from './providers.ts';
 import { createProviderTranscript } from './transcript.ts';
 
 test('Device Lab iOS physical recording flow uses runner and devicectl providers', async () => {
@@ -34,19 +36,14 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
     runnerTranscript,
     'ios.runner',
   );
-  const appleToolCalls: Array<[string, ...string[]]> = [];
-  const appleToolProvider: AppleToolProvider = {
-    whichCommand: async () => true,
-    runCommand: async (cmd, args) => {
-      appleToolCalls.push([cmd, ...args]);
-      writeJsonOutputIfRequested(args);
-      writeCopiedRecordingIfRequested(args);
-      return { stdout: '', stderr: '', exitCode: 0 };
-    },
-  };
+  const appleTool = createRecordingAppleToolProvider(async (_cmd, args) => {
+    writeJsonOutputIfRequested(args);
+    writeCopiedRecordingIfRequested(args);
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
   const daemon = await startDeviceLabDaemon({
     appleRunnerProvider: () => appleRunnerProvider,
-    appleToolProvider: () => appleToolProvider,
+    appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async () => [DEVICE_LAB_IOS_DEVICE],
   });
 
@@ -108,7 +105,7 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
     );
     assert.equal(fs.existsSync(recordingPath), true);
     assert.equal(fs.existsSync(finalTracePath), true);
-    assertFlatToolCallStartsWith(appleToolCalls, [
+    assertFlatToolCallStartsWith(appleTool.calls, [
       'xcrun',
       'devicectl',
       'device',
@@ -117,7 +114,7 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
       '--device',
       DEVICE_LAB_IOS_DEVICE.id,
     ]);
-    assertFlatToolCallStartsWith(appleToolCalls, [
+    assertFlatToolCallStartsWith(appleTool.calls, [
       'xcrun',
       'devicectl',
       'device',
@@ -127,7 +124,7 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
       DEVICE_LAB_IOS_DEVICE.id,
       'com.apple.Preferences',
     ]);
-    assertFlatToolCallStartsWith(appleToolCalls, [
+    assertFlatToolCallStartsWith(appleTool.calls, [
       'xcrun',
       'devicectl',
       'device',

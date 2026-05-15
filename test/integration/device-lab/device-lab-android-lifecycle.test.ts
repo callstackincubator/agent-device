@@ -5,7 +5,7 @@ import path from 'node:path';
 import { test } from 'vitest';
 import { createAgentDeviceClient } from '../../../src/client.ts';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
-import { arrayEqual, assertCommandCall, pngSignature, validPng } from './assertions.ts';
+import { arrayEqual, assertCommandCall, assertPngFile, validPng } from './assertions.ts';
 import { DEVICE_LAB_ANDROID } from './fixtures.ts';
 import { restoreEnv, startDeviceLabDaemon, withDeviceLabRemoteEnv } from './http-harness.ts';
 
@@ -209,7 +209,7 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
           ...selection,
         });
         assert.equal(screenshot.path, screenshotPath);
-        assert.deepEqual(fs.readFileSync(screenshotPath).subarray(0, 8), pngSignature());
+        assertPngFile(screenshotPath);
 
         await client.apps.close({});
       });

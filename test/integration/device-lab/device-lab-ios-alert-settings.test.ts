@@ -2,11 +2,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'vitest';
 import { createAgentDeviceClient } from '../../../src/client.ts';
-import type { AppleToolProvider } from '../../../src/platforms/ios/tool-provider.ts';
 import { assertFlatToolCall } from './assertions.ts';
 import { DEVICE_LAB_IOS_SIMULATOR } from './fixtures.ts';
 import { startDeviceLabDaemon, withDeviceLabRemoteEnv } from './http-harness.ts';
-import { createAppleRunnerProviderFromTranscript } from './providers.ts';
+import {
+  createAppleRunnerProviderFromTranscript,
+  createRecordingAppleToolProvider,
+  simctlListDevicesJson,
+} from './providers.ts';
 import { createProviderTranscript } from './transcript.ts';
 
 test('Device Lab iOS Settings permission and alert flow uses provider seams', async () => {
@@ -30,40 +33,32 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
     runnerTranscript,
     'ios.runner',
   );
-  const appleToolCalls: Array<[string, ...string[]]> = [];
-  const appleToolProvider: AppleToolProvider = {
-    whichCommand: async () => true,
-    runCommand: async (cmd, args) => {
-      appleToolCalls.push([cmd, ...args]);
-      if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
-        return {
-          stdout:
-            '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"name":"iPhone 15","udid":"sim-1","state":"Booted","isAvailable":true}]}}\n',
-          stderr: '',
-          exitCode: 0,
-        };
-      }
-      if (cmd === 'xcrun' && args.join(' ') === 'simctl privacy help') {
-        return {
-          stdout: [
-            'service',
-            '  camera - Camera',
-            '  microphone - Microphone',
-            'bundle identifier',
-          ].join('\n'),
-          stderr: '',
-          exitCode: 0,
-        };
-      }
-      if (cmd === 'xcrun' && args.join(' ') === 'simctl help') {
-        return { stdout: 'simctl help\n', stderr: '', exitCode: 0 };
-      }
-      return { stdout: '', stderr: '', exitCode: 0 };
-    },
-  };
+  const appleTool = createRecordingAppleToolProvider(async (cmd, args) => {
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
+      return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.iOS-18-0', [
+        { name: 'iPhone 15', udid: 'sim-1' },
+      ]);
+    }
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl privacy help') {
+      return {
+        stdout: [
+          'service',
+          '  camera - Camera',
+          '  microphone - Microphone',
+          'bundle identifier',
+        ].join('\n'),
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl help') {
+      return { stdout: 'simctl help\n', stderr: '', exitCode: 0 };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
   const daemon = await startDeviceLabDaemon({
     appleRunnerProvider: () => appleRunnerProvider,
-    appleToolProvider: () => appleToolProvider,
+    appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async () => [DEVICE_LAB_IOS_SIMULATOR],
   });
 
@@ -104,7 +99,7 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
     });
 
     runnerTranscript.assertComplete();
-    assertFlatToolCall(appleToolCalls, [
+    assertFlatToolCall(appleTool.calls, [
       'xcrun',
       'simctl',
       'privacy',

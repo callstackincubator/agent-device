@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 export function assertCommandCall(calls: readonly string[][], expected: readonly string[]): void {
   assert.ok(
@@ -64,4 +65,8 @@ export function validPng(): Buffer {
 
 export function pngSignature(): Buffer {
   return Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+}
+
+export function assertPngFile(filePath: string): void {
+  assert.deepEqual(fs.readFileSync(filePath).subarray(0, 8), pngSignature());
 }

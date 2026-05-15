@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'vitest';
-import type { AppleToolProvider } from '../../../src/platforms/ios/tool-provider.ts';
 import { assertFlatToolCall } from './assertions.ts';
 import {
   createDemoIosApp,
@@ -10,8 +9,12 @@ import {
   DEVICE_LAB_IOS_SIMULATOR,
 } from './fixtures.ts';
 import { startDeviceLabDaemon } from './http-harness.ts';
-import { createAppleRunnerProviderFromTranscript } from './providers.ts';
-import { runDeviceLabScenario } from './scenario.ts';
+import {
+  createAppleRunnerProviderFromTranscript,
+  createRecordingAppleToolProvider,
+  simctlListDevicesJson,
+} from './providers.ts';
+import { assertScenarioCommands, runDeviceLabScenario } from './scenario.ts';
 import { createProviderTranscript } from './transcript.ts';
 
 test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', async () => {
@@ -50,42 +53,34 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
     runnerTranscript,
     'ios.runner',
   );
-  const appleToolCalls: Array<[string, ...string[]]> = [];
   let clipboardText = '';
-  const appleToolProvider: AppleToolProvider = {
-    whichCommand: async () => true,
-    runCommand: async (cmd, args, options) => {
-      appleToolCalls.push([cmd, ...args]);
-      if (cmd === 'xcrun' && args.join(' ') === 'simctl pbcopy sim-1') {
-        clipboardText = String(options?.stdin ?? '');
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'xcrun' && args.join(' ') === 'simctl pbpaste sim-1') {
-        return { stdout: `${clipboardText}\n`, stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
-        return {
-          stdout:
-            '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"name":"iPhone 15","udid":"sim-1","state":"Booted","isAvailable":true}]}}\n',
-          stderr: '',
-          exitCode: 0,
-        };
-      }
-      if (cmd === 'xcrun' && args.join(' ') === 'simctl listapps sim-1') {
-        return {
-          stdout:
-            '{"com.apple.Maps":{"CFBundleDisplayName":"Maps"},"com.example.demo":{"CFBundleDisplayName":"Demo"}}\n',
-          stderr: '',
-          exitCode: 0,
-        };
-      }
+  const appleTool = createRecordingAppleToolProvider(async (cmd, args, options) => {
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl pbcopy sim-1') {
+      clipboardText = String(options?.stdin ?? '');
       return { stdout: '', stderr: '', exitCode: 0 };
-    },
-  };
+    }
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl pbpaste sim-1') {
+      return { stdout: `${clipboardText}\n`, stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
+      return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.iOS-18-0', [
+        { name: 'iPhone 15', udid: 'sim-1' },
+      ]);
+    }
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl listapps sim-1') {
+      return {
+        stdout:
+          '{"com.apple.Maps":{"CFBundleDisplayName":"Maps"},"com.example.demo":{"CFBundleDisplayName":"Demo"}}\n',
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
 
   const daemon = await startDeviceLabDaemon({
     appleRunnerProvider: () => appleRunnerProvider,
-    appleToolProvider: () => appleToolProvider,
+    appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async () => [DEVICE_LAB_IOS_SIMULATOR],
   });
   const { tempRoot, appPath } = createDemoIosApp('agent-device-lab-ios-deploy-');
@@ -224,47 +219,44 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
       },
     ]);
 
-    assert.deepEqual(
-      scenario.steps.map((step) => step.command),
-      [
-        'open',
-        'appstate',
-        'snapshot',
-        'open',
-        'reinstall',
-        'install',
-        'apps',
-        'apps',
-        'snapshot',
-        'press',
-        'get',
-        'is',
-        'find',
-        'wait',
-        'clipboard',
-        'clipboard',
-        'keyboard',
-        'close',
-        'session_list',
-      ],
-    );
+    assertScenarioCommands(scenario, [
+      'open',
+      'appstate',
+      'snapshot',
+      'open',
+      'reinstall',
+      'install',
+      'apps',
+      'apps',
+      'snapshot',
+      'press',
+      'get',
+      'is',
+      'find',
+      'wait',
+      'clipboard',
+      'clipboard',
+      'keyboard',
+      'close',
+      'session_list',
+    ]);
 
     runnerTranscript.assertComplete();
-    assertFlatToolCall(appleToolCalls, [
+    assertFlatToolCall(appleTool.calls, [
       'xcrun',
       'simctl',
       'launch',
       'sim-1',
       'com.apple.Preferences',
     ]);
-    assertFlatToolCall(appleToolCalls, [
+    assertFlatToolCall(appleTool.calls, [
       'xcrun',
       'simctl',
       'uninstall',
       'sim-1',
       'com.example.demo',
     ]);
-    assertFlatToolCall(appleToolCalls, [
+    assertFlatToolCall(appleTool.calls, [
       'plutil',
       '-extract',
       'CFBundleIdentifier',
@@ -273,7 +265,7 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
       '-',
       path.join(appPath, 'Info.plist'),
     ]);
-    assertFlatToolCall(appleToolCalls, [
+    assertFlatToolCall(appleTool.calls, [
       'plutil',
       '-extract',
       'CFBundleDisplayName',
@@ -282,7 +274,7 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
       '-',
       path.join(appPath, 'Info.plist'),
     ]);
-    assertFlatToolCall(appleToolCalls, [
+    assertFlatToolCall(appleTool.calls, [
       'plutil',
       '-extract',
       'CFBundleName',
@@ -291,9 +283,9 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
       '-',
       path.join(appPath, 'Info.plist'),
     ]);
-    assertFlatToolCall(appleToolCalls, ['xcrun', 'simctl', 'install', 'sim-1', appPath]);
-    assertFlatToolCall(appleToolCalls, ['xcrun', 'simctl', 'pbcopy', 'sim-1']);
-    assertFlatToolCall(appleToolCalls, ['xcrun', 'simctl', 'pbpaste', 'sim-1']);
+    assertFlatToolCall(appleTool.calls, ['xcrun', 'simctl', 'install', 'sim-1', appPath]);
+    assertFlatToolCall(appleTool.calls, ['xcrun', 'simctl', 'pbcopy', 'sim-1']);
+    assertFlatToolCall(appleTool.calls, ['xcrun', 'simctl', 'pbpaste', 'sim-1']);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
     await daemon.close();
@@ -301,16 +293,11 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
 });
 
 test('Device Lab iOS physical reinstall uses scripted devicectl provider', async () => {
-  const appleToolCalls: Array<[string, ...string[]]> = [];
-  const appleToolProvider: AppleToolProvider = {
-    whichCommand: async () => true,
-    runCommand: async (cmd, args) => {
-      appleToolCalls.push([cmd, ...args]);
-      return { stdout: '', stderr: '', exitCode: 0 };
-    },
-  };
+  const appleTool = createRecordingAppleToolProvider(async () => {
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
   const daemon = await startDeviceLabDaemon({
-    appleToolProvider: () => appleToolProvider,
+    appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async () => [DEVICE_LAB_IOS_REINSTALL_DEVICE],
   });
   const { tempRoot, appPath } = createDemoIosApp('agent-device-lab-ios-physical-deploy-');
@@ -324,7 +311,7 @@ test('Device Lab iOS physical reinstall uses scripted devicectl provider', async
     assert.equal(reinstall.json?.result?.data?.platform, 'ios');
     assert.equal(reinstall.json?.result?.data?.bundleId, 'com.example.demo');
     assert.equal(reinstall.json?.result?.data?.appPath, appPath);
-    assertFlatToolCall(appleToolCalls, [
+    assertFlatToolCall(appleTool.calls, [
       'xcrun',
       'devicectl',
       'device',
@@ -334,7 +321,7 @@ test('Device Lab iOS physical reinstall uses scripted devicectl provider', async
       DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
       'com.example.demo',
     ]);
-    assertFlatToolCall(appleToolCalls, [
+    assertFlatToolCall(appleTool.calls, [
       'xcrun',
       'devicectl',
       'device',

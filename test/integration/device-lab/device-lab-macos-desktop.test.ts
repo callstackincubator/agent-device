@@ -1,56 +1,51 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import type { AppleToolProvider } from '../../../src/platforms/ios/tool-provider.ts';
-import { assertToolCall, assertToolCallStartsWith } from './assertions.ts';
+import { assertFlatToolCall, assertFlatToolCallStartsWith } from './assertions.ts';
 import { DEVICE_LAB_MACOS } from './fixtures.ts';
 import { startDeviceLabDaemon } from './http-harness.ts';
-import { runDeviceLabScenario } from './scenario.ts';
+import { createRecordingAppleToolProvider } from './providers.ts';
+import { assertScenarioCommands, runDeviceLabScenario } from './scenario.ts';
 
 test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
   let clipboardText = '';
-  const toolCalls: Array<[string, string[]]> = [];
-  const appleToolProvider: AppleToolProvider = {
-    whichCommand: async () => true,
-    runCommand: async (cmd, args, options) => {
-      toolCalls.push([cmd, args]);
-      if (cmd === 'find') {
+  const appleTool = createRecordingAppleToolProvider(async (cmd, args, options) => {
+    if (cmd === 'find') {
+      return {
+        stdout: '/Applications/System Settings.app\n/Applications/Demo.app\n',
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    if (cmd === 'plutil') {
+      const key = args[1];
+      const plistPath = args[5] ?? '';
+      const isDemo = plistPath.includes('/Demo.app/');
+      if (key === 'CFBundleIdentifier') {
         return {
-          stdout: '/Applications/System Settings.app\n/Applications/Demo.app\n',
+          stdout: isDemo ? 'com.example.demo\n' : 'com.apple.systempreferences\n',
           stderr: '',
           exitCode: 0,
         };
       }
-      if (cmd === 'plutil') {
-        const key = args[1];
-        const plistPath = args[5] ?? '';
-        const isDemo = plistPath.includes('/Demo.app/');
-        if (key === 'CFBundleIdentifier') {
-          return {
-            stdout: isDemo ? 'com.example.demo\n' : 'com.apple.systempreferences\n',
-            stderr: '',
-            exitCode: 0,
-          };
-        }
-        if (key === 'CFBundleName') {
-          return { stdout: isDemo ? 'Demo\n' : 'System Settings\n', stderr: '', exitCode: 0 };
-        }
-        return { stdout: '', stderr: '', exitCode: 1 };
+      if (key === 'CFBundleName') {
+        return { stdout: isDemo ? 'Demo\n' : 'System Settings\n', stderr: '', exitCode: 0 };
       }
-      if (cmd === 'pbcopy') {
-        clipboardText = String(options?.stdin ?? '');
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'pbpaste') {
-        return { stdout: `${clipboardText}\n`, stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'agent-device-macos-helper') {
-        return runScriptedMacOsHelper(args);
-      }
+      return { stdout: '', stderr: '', exitCode: 1 };
+    }
+    if (cmd === 'pbcopy') {
+      clipboardText = String(options?.stdin ?? '');
       return { stdout: '', stderr: '', exitCode: 0 };
-    },
-  };
+    }
+    if (cmd === 'pbpaste') {
+      return { stdout: `${clipboardText}\n`, stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'agent-device-macos-helper') {
+      return runScriptedMacOsHelper(args);
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
   const daemon = await startDeviceLabDaemon({
-    appleToolProvider: () => appleToolProvider,
+    appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async () => [DEVICE_LAB_MACOS],
   });
 
@@ -148,25 +143,22 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       },
     ]);
 
-    assert.deepEqual(
-      scenario.steps.map((step) => step.command),
-      [
-        'open',
-        'apps',
-        'apps',
-        'appstate',
-        'logs',
-        'clipboard',
-        'clipboard',
-        'settings',
-        'open',
-        'snapshot',
-        'press',
-      ],
-    );
+    assertScenarioCommands(scenario, [
+      'open',
+      'apps',
+      'apps',
+      'appstate',
+      'logs',
+      'clipboard',
+      'clipboard',
+      'settings',
+      'open',
+      'snapshot',
+      'press',
+    ]);
 
-    assertToolCall(toolCalls, ['open', '-b', 'com.apple.systempreferences']);
-    assertToolCall(toolCalls, [
+    assertFlatToolCall(appleTool.calls, ['open', '-b', 'com.apple.systempreferences']);
+    assertFlatToolCall(appleTool.calls, [
       'find',
       '/Applications',
       '-maxdepth',
@@ -176,7 +168,7 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       '-name',
       '*.app',
     ]);
-    assertToolCall(toolCalls, [
+    assertFlatToolCall(appleTool.calls, [
       'plutil',
       '-extract',
       'CFBundleIdentifier',
@@ -185,15 +177,19 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       '-',
       '/Applications/System Settings.app/Contents/Info.plist',
     ]);
-    assertToolCall(toolCalls, ['pbcopy']);
-    assertToolCall(toolCalls, ['pbpaste']);
-    assertToolCall(toolCalls, [
+    assertFlatToolCall(appleTool.calls, ['pbcopy']);
+    assertFlatToolCall(appleTool.calls, ['pbpaste']);
+    assertFlatToolCall(appleTool.calls, [
       'osascript',
       '-e',
       'tell application "System Events" to tell appearance preferences to set dark mode to true',
     ]);
-    assertToolCallStartsWith(toolCalls, ['agent-device-macos-helper', 'snapshot', '--surface']);
-    assertToolCall(toolCalls, [
+    assertFlatToolCallStartsWith(appleTool.calls, [
+      'agent-device-macos-helper',
+      'snapshot',
+      '--surface',
+    ]);
+    assertFlatToolCall(appleTool.calls, [
       'agent-device-macos-helper',
       'press',
       '--x',

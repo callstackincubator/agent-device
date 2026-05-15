@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import type { AppleToolProvider } from '../../../src/platforms/ios/tool-provider.ts';
 import { DEVICE_LAB_TVOS } from './fixtures.ts';
 import { startDeviceLabDaemon } from './http-harness.ts';
-import { createAppleRunnerProviderFromTranscript } from './providers.ts';
+import {
+  createAppleRunnerProviderFromTranscript,
+  createRecordingAppleToolProvider,
+  simctlListDevicesJson,
+} from './providers.ts';
 import { createProviderTranscript } from './transcript.ts';
 
 test('Device Lab tvOS remote flow maps navigation commands to runner remote presses', async () => {
@@ -46,26 +49,18 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
     runnerTranscript,
     'tvos.runner',
   );
-  const appleToolCalls: Array<[string, ...string[]]> = [];
-  const appleToolProvider: AppleToolProvider = {
-    whichCommand: async () => true,
-    runCommand: async (cmd, args) => {
-      appleToolCalls.push([cmd, ...args]);
-      if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
-        return {
-          stdout:
-            '{"devices":{"com.apple.CoreSimulator.SimRuntime.tvOS-18-0":[{"name":"Apple TV","udid":"tv-sim-1","state":"Booted","isAvailable":true}]}}\n',
-          stderr: '',
-          exitCode: 0,
-        };
-      }
-      return { stdout: '', stderr: '', exitCode: 0 };
-    },
-  };
+  const appleTool = createRecordingAppleToolProvider(async (cmd, args) => {
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
+      return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.tvOS-18-0', [
+        { name: 'Apple TV', udid: 'tv-sim-1' },
+      ]);
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
 
   const daemon = await startDeviceLabDaemon({
     appleRunnerProvider: () => appleRunnerProvider,
-    appleToolProvider: () => appleToolProvider,
+    appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async () => [DEVICE_LAB_TVOS],
   });
 
@@ -91,7 +86,7 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
     assert.equal(close.statusCode, 200, JSON.stringify(close.json));
 
     runnerTranscript.assertComplete();
-    assert.deepEqual(appleToolCalls, [
+    assert.deepEqual(appleTool.calls, [
       ['xcrun', 'simctl', 'list', 'devices', '-j'],
       ['xcrun', 'simctl', 'list', 'devices', '-j'],
       ['xcrun', 'simctl', 'launch', 'tv-sim-1', 'com.example.tv'],

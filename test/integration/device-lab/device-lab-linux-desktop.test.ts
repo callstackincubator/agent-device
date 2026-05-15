@@ -4,10 +4,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import type { LinuxToolProvider } from '../../../src/platforms/linux/tool-provider.ts';
-import { pngSignature, validPng } from './assertions.ts';
+import { assertPngFile, validPng } from './assertions.ts';
 import { DEVICE_LAB_LINUX } from './fixtures.ts';
 import { restoreEnv, startDeviceLabDaemon } from './http-harness.ts';
-import { runDeviceLabScenario } from './scenario.ts';
+import { assertScenarioCommands, runDeviceLabScenario } from './scenario.ts';
 
 test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
   const previousSessionType = process.env.XDG_SESSION_TYPE;
@@ -167,7 +167,7 @@ test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
         positionals: [screenshotPath],
         expectData: { path: screenshotPath },
         assert: () => {
-          assert.deepEqual(fs.readFileSync(screenshotPath).subarray(0, 8), pngSignature());
+          assertPngFile(screenshotPath);
         },
       },
       { name: 'navigate back', command: 'back' },
@@ -179,31 +179,28 @@ test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
       },
     ]);
 
-    assert.deepEqual(
-      scenario.steps.map((step) => step.command),
-      [
-        'open',
-        'snapshot',
-        'press',
-        'press',
-        'click',
-        'click',
-        'press',
-        'focus',
-        'longpress',
-        'swipe',
-        'fill',
-        'scroll',
-        'scroll',
-        'type',
-        'clipboard',
-        'clipboard',
-        'screenshot',
-        'back',
-        'home',
-        'close',
-      ],
-    );
+    assertScenarioCommands(scenario, [
+      'open',
+      'snapshot',
+      'press',
+      'press',
+      'click',
+      'click',
+      'press',
+      'focus',
+      'longpress',
+      'swipe',
+      'fill',
+      'scroll',
+      'scroll',
+      'type',
+      'clipboard',
+      'clipboard',
+      'screenshot',
+      'back',
+      'home',
+      'close',
+    ]);
 
     assert.deepEqual(normalizeToolCalls(toolCalls), [
       ['gnome-calculator', []],
