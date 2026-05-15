@@ -4,18 +4,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import type { LinuxToolProvider } from '../../../src/platforms/linux/tool-provider.ts';
-import type { DeviceInfo } from '../../../src/utils/device.ts';
+import { pngSignature, validPng } from './assertions.ts';
+import { DEVICE_LAB_LINUX } from './fixtures.ts';
 import { restoreEnv, startDeviceLabDaemon } from './http-harness.ts';
 import { runDeviceLabScenario } from './scenario.ts';
-
-const linuxDevice: DeviceInfo = {
-  platform: 'linux',
-  id: 'local',
-  name: 'Linux desktop',
-  kind: 'device',
-  target: 'desktop',
-  booted: true,
-};
 
 test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
   const previousSessionType = process.env.XDG_SESSION_TYPE;
@@ -59,7 +51,7 @@ test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
   };
   const daemon = await startDeviceLabDaemon({
     linuxToolProvider: () => linuxToolProvider,
-    deviceInventoryProvider: async () => [linuxDevice],
+    deviceInventoryProvider: async () => [DEVICE_LAB_LINUX],
   });
 
   try {
@@ -296,15 +288,4 @@ function normalizeToolCalls(calls: Array<[string, string[]]>): Array<[string, st
     cmd,
     cmd === 'python3' && args[0] ? [args[0].split('/').at(-1) ?? args[0], ...args.slice(1)] : args,
   ]);
-}
-
-function validPng(): Buffer {
-  return Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+b9xkAAAAASUVORK5CYII=',
-    'base64',
-  );
-}
-
-function pngSignature(): Buffer {
-  return Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 }

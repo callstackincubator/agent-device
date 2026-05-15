@@ -4,17 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
-import type { DeviceInfo } from '../../../src/utils/device.ts';
+import { assertCommandCall } from './assertions.ts';
+import { DEVICE_LAB_ANDROID } from './fixtures.ts';
 import { restoreEnv, startDeviceLabDaemon } from './http-harness.ts';
-
-const androidDevice: DeviceInfo = {
-  platform: 'android',
-  id: 'emulator-5554',
-  name: 'Pixel 8',
-  kind: 'emulator',
-  target: 'mobile',
-  booted: true,
-};
 
 test('Device Lab Android recording flow uses scripted ADB provider pull capability', async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-lab-android-record-'));
@@ -34,7 +26,7 @@ test('Device Lab Android recording flow uses scripted ADB provider pull capabili
   };
   const daemon = await startDeviceLabDaemon({
     androidAdbProvider: () => adbProvider,
-    deviceInventoryProvider: async () => [androidDevice],
+    deviceInventoryProvider: async () => [DEVICE_LAB_ANDROID],
   });
 
   const previousPath = process.env.PATH;
@@ -46,7 +38,7 @@ test('Device Lab Android recording flow uses scripted ADB provider pull capabili
   try {
     const open = await daemon.callCommand('open', ['settings'], {
       platform: 'android',
-      serial: androidDevice.id,
+      serial: DEVICE_LAB_ANDROID.id,
     });
     assert.equal(open.statusCode, 200, JSON.stringify(open.json));
 
@@ -66,7 +58,7 @@ test('Device Lab Android recording flow uses scripted ADB provider pull capabili
     assert.equal(recordStop.json?.result?.data?.artifacts?.[0]?.path, recordingPath);
     assert.equal(fs.existsSync(recordingPath), true);
 
-    assertAdbCall(adbCalls, ['shell', 'wm', 'size']);
+    assertCommandCall(adbCalls, ['shell', 'wm', 'size']);
     assert.ok(
       adbCalls.some((args) =>
         /^shell screenrecord --size 756x1344 \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
@@ -75,7 +67,7 @@ test('Device Lab Android recording flow uses scripted ADB provider pull capabili
       ),
       JSON.stringify(adbCalls),
     );
-    assertAdbCall(adbCalls, ['shell', 'kill', '-2', '4321']);
+    assertCommandCall(adbCalls, ['shell', 'kill', '-2', '4321']);
     assert.equal(pullCalls.length, 1);
     assert.match(pullCalls[0]?.remotePath ?? '', /^\/sdcard\/agent-device-recording-\d+\.mp4$/);
     assert.equal(pullCalls[0]?.localPath, recordingPath);
@@ -118,17 +110,6 @@ function androidAdbResult(args: string[]): {
     return { stdout: '', stderr: '', exitCode: 1 };
   }
   return { stdout: '', stderr: '', exitCode: 0 };
-}
-
-function assertAdbCall(calls: string[][], expected: string[]): void {
-  assert.ok(
-    calls.some((call) => arrayEqual(call, expected)),
-    `Expected ADB call ${JSON.stringify(expected)} in ${JSON.stringify(calls)}`,
-  );
-}
-
-function arrayEqual(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function likelyPlayableMp4Container(): Buffer {

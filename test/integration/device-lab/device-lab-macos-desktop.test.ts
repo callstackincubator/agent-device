@@ -1,18 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import type { AppleToolProvider } from '../../../src/platforms/ios/tool-provider.ts';
-import type { DeviceInfo } from '../../../src/utils/device.ts';
+import { assertToolCall, assertToolCallStartsWith } from './assertions.ts';
+import { DEVICE_LAB_MACOS } from './fixtures.ts';
 import { startDeviceLabDaemon } from './http-harness.ts';
 import { runDeviceLabScenario } from './scenario.ts';
-
-const macOsDevice: DeviceInfo = {
-  platform: 'macos',
-  id: 'host-macos',
-  name: 'Mac desktop',
-  kind: 'device',
-  target: 'desktop',
-  booted: true,
-};
 
 test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
   let clipboardText = '';
@@ -53,7 +45,7 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
   };
   const daemon = await startDeviceLabDaemon({
     appleToolProvider: () => appleToolProvider,
-    deviceInventoryProvider: async () => [macOsDevice],
+    deviceInventoryProvider: async () => [DEVICE_LAB_MACOS],
   });
 
   try {
@@ -278,29 +270,4 @@ function runScriptedMacOsHelper(args: string[]): {
     stderr: '',
     exitCode: 1,
   };
-}
-
-function assertToolCall(calls: Array<[string, string[]]>, expected: [string, ...string[]]): void {
-  assert.ok(
-    calls.some(([cmd, args]) => arrayEqual([cmd, ...args], expected)),
-    `Expected Apple tool call ${JSON.stringify(expected)} in ${JSON.stringify(calls)}`,
-  );
-}
-
-function assertToolCallStartsWith(
-  calls: Array<[string, string[]]>,
-  expected: [string, ...string[]],
-): void {
-  assert.ok(
-    calls.some(([cmd, args]) => arrayStartsWith([cmd, ...args], expected)),
-    `Expected Apple tool call starting with ${JSON.stringify(expected)} in ${JSON.stringify(calls)}`,
-  );
-}
-
-function arrayEqual(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-function arrayStartsWith(left: readonly string[], right: readonly string[]): boolean {
-  return right.every((value, index) => left[index] === value);
 }

@@ -1,25 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import type { AppleRunnerProvider } from '../../../src/platforms/ios/runner-provider.ts';
 import type { AppleToolProvider } from '../../../src/platforms/ios/tool-provider.ts';
-import type { DeviceInfo } from '../../../src/utils/device.ts';
+import { DEVICE_LAB_TVOS } from './fixtures.ts';
 import { startDeviceLabDaemon } from './http-harness.ts';
+import { createAppleRunnerProviderFromTranscript } from './providers.ts';
 import { createProviderTranscript } from './transcript.ts';
-
-const tvosDevice: DeviceInfo = {
-  platform: 'ios',
-  id: 'tv-sim-1',
-  name: 'Apple TV',
-  kind: 'simulator',
-  target: 'tv',
-  booted: true,
-};
 
 test('Device Lab tvOS remote flow maps navigation commands to runner remote presses', async () => {
   const runnerTranscript = createProviderTranscript([
     {
       command: 'tvos.runner.remotePress',
-      deviceId: tvosDevice.id,
+      deviceId: DEVICE_LAB_TVOS.id,
       platform: 'ios',
       request: {
         command: 'remotePress',
@@ -30,7 +21,7 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
     },
     {
       command: 'tvos.runner.remotePress',
-      deviceId: tvosDevice.id,
+      deviceId: DEVICE_LAB_TVOS.id,
       platform: 'ios',
       request: {
         command: 'remotePress',
@@ -41,7 +32,7 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
     },
     {
       command: 'tvos.runner.remotePress',
-      deviceId: tvosDevice.id,
+      deviceId: DEVICE_LAB_TVOS.id,
       platform: 'ios',
       request: {
         command: 'remotePress',
@@ -51,13 +42,10 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
       result: { remoteButton: 'home' },
     },
   ]);
-  const appleRunnerProvider: AppleRunnerProvider = {
-    runCommand: async (device, command) =>
-      runnerTranscript.next(`tvos.runner.${command.command}`, command, {
-        deviceId: device.id,
-        platform: device.platform,
-      }) as Record<string, unknown>,
-  };
+  const appleRunnerProvider = createAppleRunnerProviderFromTranscript(
+    runnerTranscript,
+    'tvos.runner',
+  );
   const appleToolCalls: Array<[string, ...string[]]> = [];
   const appleToolProvider: AppleToolProvider = {
     whichCommand: async () => true,
@@ -78,14 +66,14 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
   const daemon = await startDeviceLabDaemon({
     appleRunnerProvider: () => appleRunnerProvider,
     appleToolProvider: () => appleToolProvider,
-    deviceInventoryProvider: async () => [tvosDevice],
+    deviceInventoryProvider: async () => [DEVICE_LAB_TVOS],
   });
 
   try {
     const open = await daemon.callCommand('open', ['com.example.tv'], {
       platform: 'ios',
       target: 'tv',
-      udid: tvosDevice.id,
+      udid: DEVICE_LAB_TVOS.id,
     });
     assert.equal(open.statusCode, 200, JSON.stringify(open.json));
 

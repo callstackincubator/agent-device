@@ -1,0 +1,85 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import type { DeviceInfo } from '../../../src/utils/device.ts';
+
+export const DEVICE_LAB_ANDROID: DeviceInfo = {
+  platform: 'android',
+  id: 'emulator-5554',
+  name: 'Pixel 8',
+  kind: 'emulator',
+  target: 'mobile',
+  booted: true,
+};
+
+export const DEVICE_LAB_IOS_SIMULATOR: DeviceInfo = {
+  platform: 'ios',
+  id: 'sim-1',
+  name: 'iPhone 15',
+  kind: 'simulator',
+  target: 'mobile',
+  booted: true,
+};
+
+export const DEVICE_LAB_IOS_DEVICE: DeviceInfo = {
+  platform: 'ios',
+  id: 'ios-device-1',
+  name: 'QA iPhone',
+  kind: 'device',
+  target: 'mobile',
+  booted: true,
+};
+
+export const DEVICE_LAB_IOS_REINSTALL_DEVICE: DeviceInfo = {
+  platform: 'ios',
+  id: 'device-1',
+  name: 'iPhone Device',
+  kind: 'device',
+  target: 'mobile',
+  booted: true,
+};
+
+export const DEVICE_LAB_TVOS: DeviceInfo = {
+  platform: 'ios',
+  id: 'tv-sim-1',
+  name: 'Apple TV',
+  kind: 'simulator',
+  target: 'tv',
+  booted: true,
+};
+
+export const DEVICE_LAB_MACOS: DeviceInfo = {
+  platform: 'macos',
+  id: 'host-macos',
+  name: 'Mac desktop',
+  kind: 'device',
+  target: 'desktop',
+  booted: true,
+};
+
+export const DEVICE_LAB_LINUX: DeviceInfo = {
+  platform: 'linux',
+  id: 'local',
+  name: 'Linux desktop',
+  kind: 'device',
+  target: 'desktop',
+  booted: true,
+};
+
+export function createDemoIosApp(prefix: string): { tempRoot: string; appPath: string } {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const appPath = path.join(tempRoot, 'Demo.app');
+  fs.mkdirSync(appPath, { recursive: true });
+  fs.writeFileSync(
+    path.join(appPath, 'Info.plist'),
+    [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<plist version="1.0"><dict>',
+      '<key>CFBundleIdentifier</key><string>com.example.demo</string>',
+      '<key>CFBundleName</key><string>Demo</string>',
+      '</dict></plist>',
+    ].join(''),
+    'utf8',
+  );
+  return { tempRoot, appPath };
+}

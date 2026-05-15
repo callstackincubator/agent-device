@@ -2,45 +2,34 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'vitest';
 import { createAgentDeviceClient } from '../../../src/client.ts';
-import type { AppleRunnerProvider } from '../../../src/platforms/ios/runner-provider.ts';
 import type { AppleToolProvider } from '../../../src/platforms/ios/tool-provider.ts';
-import type { DeviceInfo } from '../../../src/utils/device.ts';
+import { assertFlatToolCall } from './assertions.ts';
+import { DEVICE_LAB_IOS_SIMULATOR } from './fixtures.ts';
 import { startDeviceLabDaemon, withDeviceLabRemoteEnv } from './http-harness.ts';
+import { createAppleRunnerProviderFromTranscript } from './providers.ts';
 import { createProviderTranscript } from './transcript.ts';
-
-const iosSimulator: DeviceInfo = {
-  platform: 'ios',
-  id: 'sim-1',
-  name: 'iPhone 15',
-  kind: 'simulator',
-  target: 'mobile',
-  booted: true,
-};
 
 test('Device Lab iOS Settings permission and alert flow uses provider seams', async () => {
   const runnerTranscript = createProviderTranscript([
     {
       command: 'ios.runner.alert',
-      deviceId: iosSimulator.id,
+      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
       platform: 'ios',
       request: { command: 'alert', action: 'get', appBundleId: 'com.apple.Preferences' },
       result: { title: 'Camera Access', message: 'Allow Settings to access Camera?' },
     },
     {
       command: 'ios.runner.alert',
-      deviceId: iosSimulator.id,
+      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
       platform: 'ios',
       request: { command: 'alert', action: 'accept', appBundleId: 'com.apple.Preferences' },
       result: { action: 'accept', accepted: true },
     },
   ]);
-  const appleRunnerProvider: AppleRunnerProvider = {
-    runCommand: async (device, command) =>
-      runnerTranscript.next(`ios.runner.${command.command}`, command, {
-        deviceId: device.id,
-        platform: device.platform,
-      }) as Record<string, unknown>,
-  };
+  const appleRunnerProvider = createAppleRunnerProviderFromTranscript(
+    runnerTranscript,
+    'ios.runner',
+  );
   const appleToolCalls: Array<[string, ...string[]]> = [];
   const appleToolProvider: AppleToolProvider = {
     whichCommand: async () => true,
@@ -75,16 +64,16 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
   const daemon = await startDeviceLabDaemon({
     appleRunnerProvider: () => appleRunnerProvider,
     appleToolProvider: () => appleToolProvider,
-    deviceInventoryProvider: async () => [iosSimulator],
+    deviceInventoryProvider: async () => [DEVICE_LAB_IOS_SIMULATOR],
   });
 
   try {
     await withDeviceLabRemoteEnv(daemon, async () => {
       const client = createAgentDeviceClient();
-      const selection = { platform: 'ios' as const, udid: iosSimulator.id };
+      const selection = { platform: 'ios' as const, udid: DEVICE_LAB_IOS_SIMULATOR.id };
 
       const open = await client.apps.open({ app: 'com.apple.Preferences', ...selection });
-      assert.equal(open.device?.id, iosSimulator.id);
+      assert.equal(open.device?.id, DEVICE_LAB_IOS_SIMULATOR.id);
 
       const logsPath = await client.observability.logs({ action: 'path', ...selection });
       assert.equal(logsPath.active, false);
@@ -115,25 +104,16 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
     });
 
     runnerTranscript.assertComplete();
-    assert.ok(
-      appleToolCalls.some((call) =>
-        arrayEqual(call, [
-          'xcrun',
-          'simctl',
-          'privacy',
-          'sim-1',
-          'grant',
-          'camera',
-          'com.apple.Preferences',
-        ]),
-      ),
-      JSON.stringify(appleToolCalls),
-    );
+    assertFlatToolCall(appleToolCalls, [
+      'xcrun',
+      'simctl',
+      'privacy',
+      'sim-1',
+      'grant',
+      'camera',
+      'com.apple.Preferences',
+    ]);
   } finally {
     await daemon.close();
   }
 });
-
-function arrayEqual(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
-}

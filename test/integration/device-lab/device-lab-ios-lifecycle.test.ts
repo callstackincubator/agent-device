@@ -1,32 +1,18 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
-import type { AppleRunnerProvider } from '../../../src/platforms/ios/runner-provider.ts';
 import type { AppleToolProvider } from '../../../src/platforms/ios/tool-provider.ts';
-import type { DeviceInfo } from '../../../src/utils/device.ts';
+import { assertFlatToolCall } from './assertions.ts';
+import {
+  createDemoIosApp,
+  DEVICE_LAB_IOS_REINSTALL_DEVICE,
+  DEVICE_LAB_IOS_SIMULATOR,
+} from './fixtures.ts';
 import { startDeviceLabDaemon } from './http-harness.ts';
+import { createAppleRunnerProviderFromTranscript } from './providers.ts';
 import { runDeviceLabScenario } from './scenario.ts';
 import { createProviderTranscript } from './transcript.ts';
-
-const iosDevice: DeviceInfo = {
-  platform: 'ios',
-  id: 'sim-1',
-  name: 'iPhone 15',
-  kind: 'simulator',
-  target: 'mobile',
-  booted: true,
-};
-
-const iosPhysicalDevice: DeviceInfo = {
-  platform: 'ios',
-  id: 'device-1',
-  name: 'iPhone Device',
-  kind: 'device',
-  target: 'mobile',
-  booted: true,
-};
 
 test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', async () => {
   const runnerTranscript = createProviderTranscript([
@@ -34,7 +20,7 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
     runnerSnapshot(),
     {
       command: 'ios.runner.tap',
-      deviceId: iosDevice.id,
+      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
       platform: 'ios',
       request: { command: 'tap', x: 196, y: 122, appBundleId: 'com.apple.Preferences' },
       result: { tapped: true },
@@ -43,7 +29,7 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
     runnerSnapshot(),
     {
       command: 'ios.runner.findText',
-      deviceId: iosDevice.id,
+      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
       platform: 'ios',
       request: {
         command: 'findText',
@@ -54,19 +40,16 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
     },
     {
       command: 'ios.runner.keyboardDismiss',
-      deviceId: iosDevice.id,
+      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
       platform: 'ios',
       request: { command: 'keyboardDismiss', appBundleId: 'com.apple.Preferences' },
       result: { dismissed: true },
     },
   ]);
-  const appleRunnerProvider: AppleRunnerProvider = {
-    runCommand: async (device, command) =>
-      runnerTranscript.next(`ios.runner.${command.command}`, command, {
-        deviceId: device.id,
-        platform: device.platform,
-      }) as Record<string, unknown>,
-  };
+  const appleRunnerProvider = createAppleRunnerProviderFromTranscript(
+    runnerTranscript,
+    'ios.runner',
+  );
   const appleToolCalls: Array<[string, ...string[]]> = [];
   let clipboardText = '';
   const appleToolProvider: AppleToolProvider = {
@@ -95,9 +78,9 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
   const daemon = await startDeviceLabDaemon({
     appleRunnerProvider: () => appleRunnerProvider,
     appleToolProvider: () => appleToolProvider,
-    deviceInventoryProvider: async () => [iosDevice],
+    deviceInventoryProvider: async () => [DEVICE_LAB_IOS_SIMULATOR],
   });
-  const { tempRoot, appPath } = createDemoApp('agent-device-lab-ios-deploy-');
+  const { tempRoot, appPath } = createDemoIosApp('agent-device-lab-ios-deploy-');
 
   try {
     const scenario = await runDeviceLabScenario(daemon, [
@@ -105,18 +88,21 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
         name: 'open settings app',
         command: 'open',
         positionals: ['com.apple.Preferences'],
-        flags: { platform: 'ios', udid: iosDevice.id },
-        expectData: { appBundleId: 'com.apple.Preferences', device_udid: iosDevice.id },
+        flags: { platform: 'ios', udid: DEVICE_LAB_IOS_SIMULATOR.id },
+        expectData: {
+          appBundleId: 'com.apple.Preferences',
+          device_udid: DEVICE_LAB_IOS_SIMULATOR.id,
+        },
       },
       {
         name: 'read app session state',
         command: 'appstate',
-        flags: { platform: 'ios', udid: iosDevice.id },
+        flags: { platform: 'ios', udid: DEVICE_LAB_IOS_SIMULATOR.id },
         expectData: {
           platform: 'ios',
           appBundleId: 'com.apple.Preferences',
           source: 'session',
-          device_udid: iosDevice.id,
+          device_udid: DEVICE_LAB_IOS_SIMULATOR.id,
           ios_simulator_device_set: null,
         },
       },
@@ -236,21 +222,21 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
     );
 
     runnerTranscript.assertComplete();
-    assertAppleToolCall(appleToolCalls, [
+    assertFlatToolCall(appleToolCalls, [
       'xcrun',
       'simctl',
       'launch',
       'sim-1',
       'com.apple.Preferences',
     ]);
-    assertAppleToolCall(appleToolCalls, [
+    assertFlatToolCall(appleToolCalls, [
       'xcrun',
       'simctl',
       'uninstall',
       'sim-1',
       'com.example.demo',
     ]);
-    assertAppleToolCall(appleToolCalls, [
+    assertFlatToolCall(appleToolCalls, [
       'plutil',
       '-extract',
       'CFBundleIdentifier',
@@ -259,7 +245,7 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
       '-',
       path.join(appPath, 'Info.plist'),
     ]);
-    assertAppleToolCall(appleToolCalls, [
+    assertFlatToolCall(appleToolCalls, [
       'plutil',
       '-extract',
       'CFBundleDisplayName',
@@ -268,7 +254,7 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
       '-',
       path.join(appPath, 'Info.plist'),
     ]);
-    assertAppleToolCall(appleToolCalls, [
+    assertFlatToolCall(appleToolCalls, [
       'plutil',
       '-extract',
       'CFBundleName',
@@ -277,9 +263,9 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
       '-',
       path.join(appPath, 'Info.plist'),
     ]);
-    assertAppleToolCall(appleToolCalls, ['xcrun', 'simctl', 'install', 'sim-1', appPath]);
-    assertAppleToolCall(appleToolCalls, ['xcrun', 'simctl', 'pbcopy', 'sim-1']);
-    assertAppleToolCall(appleToolCalls, ['xcrun', 'simctl', 'pbpaste', 'sim-1']);
+    assertFlatToolCall(appleToolCalls, ['xcrun', 'simctl', 'install', 'sim-1', appPath]);
+    assertFlatToolCall(appleToolCalls, ['xcrun', 'simctl', 'pbcopy', 'sim-1']);
+    assertFlatToolCall(appleToolCalls, ['xcrun', 'simctl', 'pbpaste', 'sim-1']);
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
     await daemon.close();
@@ -297,37 +283,37 @@ test('Device Lab iOS physical reinstall uses scripted devicectl provider', async
   };
   const daemon = await startDeviceLabDaemon({
     appleToolProvider: () => appleToolProvider,
-    deviceInventoryProvider: async () => [iosPhysicalDevice],
+    deviceInventoryProvider: async () => [DEVICE_LAB_IOS_REINSTALL_DEVICE],
   });
-  const { tempRoot, appPath } = createDemoApp('agent-device-lab-ios-physical-deploy-');
+  const { tempRoot, appPath } = createDemoIosApp('agent-device-lab-ios-physical-deploy-');
 
   try {
     const reinstall = await daemon.callCommand('reinstall', ['com.example.demo', appPath], {
       platform: 'ios',
-      udid: iosPhysicalDevice.id,
+      udid: DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
     });
     assert.equal(reinstall.statusCode, 200, JSON.stringify(reinstall.json));
     assert.equal(reinstall.json?.result?.data?.platform, 'ios');
     assert.equal(reinstall.json?.result?.data?.bundleId, 'com.example.demo');
     assert.equal(reinstall.json?.result?.data?.appPath, appPath);
-    assertAppleToolCall(appleToolCalls, [
+    assertFlatToolCall(appleToolCalls, [
       'xcrun',
       'devicectl',
       'device',
       'uninstall',
       'app',
       '--device',
-      iosPhysicalDevice.id,
+      DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
       'com.example.demo',
     ]);
-    assertAppleToolCall(appleToolCalls, [
+    assertFlatToolCall(appleToolCalls, [
       'xcrun',
       'devicectl',
       'device',
       'install',
       'app',
       '--device',
-      iosPhysicalDevice.id,
+      DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
       appPath,
     ]);
   } finally {
@@ -339,7 +325,7 @@ test('Device Lab iOS physical reinstall uses scripted devicectl provider', async
 function runnerSnapshot() {
   return {
     command: 'ios.runner.snapshot',
-    deviceId: iosDevice.id,
+    deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
     platform: 'ios' as const,
     result: {
       nodes: [
@@ -356,36 +342,4 @@ function runnerSnapshot() {
       truncated: false,
     },
   };
-}
-
-function createDemoApp(prefix: string): { tempRoot: string; appPath: string } {
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-  const appPath = path.join(tempRoot, 'Demo.app');
-  fs.mkdirSync(appPath, { recursive: true });
-  fs.writeFileSync(
-    path.join(appPath, 'Info.plist'),
-    [
-      '<?xml version="1.0" encoding="UTF-8"?>',
-      '<plist version="1.0"><dict>',
-      '<key>CFBundleIdentifier</key><string>com.example.demo</string>',
-      '<key>CFBundleName</key><string>Demo</string>',
-      '</dict></plist>',
-    ].join(''),
-    'utf8',
-  );
-  return { tempRoot, appPath };
-}
-
-function assertAppleToolCall(
-  calls: Array<[string, ...string[]]>,
-  expected: [string, ...string[]],
-): void {
-  assert.ok(
-    calls.some((call) => arrayEqual(call, expected)),
-    `Expected Apple tool call ${JSON.stringify(expected)} in ${JSON.stringify(calls)}`,
-  );
-}
-
-function arrayEqual(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
 }

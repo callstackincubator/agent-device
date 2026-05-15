@@ -5,17 +5,9 @@ import path from 'node:path';
 import { test } from 'vitest';
 import { createAgentDeviceClient } from '../../../src/client.ts';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
-import type { DeviceInfo } from '../../../src/utils/device.ts';
+import { arrayEqual, assertCommandCall, pngSignature, validPng } from './assertions.ts';
+import { DEVICE_LAB_ANDROID } from './fixtures.ts';
 import { restoreEnv, startDeviceLabDaemon, withDeviceLabRemoteEnv } from './http-harness.ts';
-
-const androidDevice: DeviceInfo = {
-  platform: 'android',
-  id: 'emulator-5554',
-  name: 'Pixel 8',
-  kind: 'emulator',
-  target: 'mobile',
-  booted: true,
-};
 
 test('Device Lab Android Settings flow uses scripted ADB provider', async () => {
   await withFakeHostAdbGuard(async (hostAdbLogPath) => {
@@ -40,17 +32,17 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
     };
     const daemon = await startDeviceLabDaemon({
       androidAdbProvider: () => adbProvider,
-      deviceInventoryProvider: async () => [androidDevice],
+      deviceInventoryProvider: async () => [DEVICE_LAB_ANDROID],
     });
 
     try {
       await withDeviceLabRemoteEnv(daemon, async () => {
         const client = createAgentDeviceClient();
-        const selection = { platform: 'android' as const, serial: androidDevice.id };
+        const selection = { platform: 'android' as const, serial: DEVICE_LAB_ANDROID.id };
         const screenshotPath = path.join(os.tmpdir(), `agent-device-lab-android-${Date.now()}.png`);
 
         const open = await client.apps.open({ app: 'settings', ...selection });
-        assert.equal(open.device?.id, androidDevice.id);
+        assert.equal(open.device?.id, DEVICE_LAB_ANDROID.id);
 
         const listedApps = await client.apps.list(selection);
         assert.deepEqual(listedApps, [
@@ -183,13 +175,20 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         await client.apps.close({});
       });
 
-      assertAdbCall(adbCalls, ['shell', 'am', 'start', '-W', '-a', 'android.settings.SETTINGS']);
-      assertAdbCall(adbCalls, ['uninstall', 'com.example.demo']);
+      assertCommandCall(adbCalls, [
+        'shell',
+        'am',
+        'start',
+        '-W',
+        '-a',
+        'android.settings.SETTINGS',
+      ]);
+      assertCommandCall(adbCalls, ['uninstall', 'com.example.demo']);
       assert.equal(installCalls.length, 1);
       assert.equal(path.basename(installCalls[0]?.apkPath ?? ''), 'Demo.apk');
       assert.notEqual(installCalls[0]?.apkPath, apkPath);
       assert.equal(installCalls[0]?.replace, true);
-      assertAdbCall(adbCalls, [
+      assertCommandCall(adbCalls, [
         'shell',
         'am',
         'broadcast',
@@ -207,11 +206,11 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         'foreground',
         'true',
       ]);
-      assertAdbCall(adbCalls, ['shell', 'cmd', 'clipboard', 'get', 'text']);
-      assertAdbCall(adbCalls, ['shell', 'dumpsys', 'input_method']);
-      assertAdbCall(adbCalls, ['shell', 'echo', 'ok']);
-      assertAdbCall(adbCalls, ['exec-out', 'uiautomator', 'dump', '/dev/tty']);
-      assertAdbCall(adbCalls, ['shell', 'input', 'tap', '88', '151']);
+      assertCommandCall(adbCalls, ['shell', 'cmd', 'clipboard', 'get', 'text']);
+      assertCommandCall(adbCalls, ['shell', 'dumpsys', 'input_method']);
+      assertCommandCall(adbCalls, ['shell', 'echo', 'ok']);
+      assertCommandCall(adbCalls, ['exec-out', 'uiautomator', 'dump', '/dev/tty']);
+      assertCommandCall(adbCalls, ['shell', 'input', 'tap', '88', '151']);
       assert.equal(
         adbCalls.filter((call) => arrayEqual(call, ['shell', 'input', 'tap', '10', '20'])).length,
         2,
@@ -220,8 +219,8 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         adbCalls.filter((call) => arrayEqual(call, ['shell', 'input', 'tap', '88', '151'])).length,
         4,
       );
-      assertAdbCall(adbCalls, ['shell', 'input', 'text', 'Display']);
-      assertAdbCall(adbCalls, ['shell', 'input', 'text', 'Network']);
+      assertCommandCall(adbCalls, ['shell', 'input', 'text', 'Display']);
+      assertCommandCall(adbCalls, ['shell', 'input', 'text', 'Network']);
       assert.deepEqual(readHostAdbCalls(hostAdbLogPath), []);
     } finally {
       fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -330,26 +329,4 @@ function escapeXml(value: string): string {
     .replaceAll('"', '&quot;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;');
-}
-
-function assertAdbCall(calls: string[][], expected: string[]): void {
-  assert.ok(
-    calls.some((call) => arrayEqual(call, expected)),
-    `Expected ADB call ${JSON.stringify(expected)} in ${JSON.stringify(calls)}`,
-  );
-}
-
-function arrayEqual(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-function validPng(): Buffer {
-  return Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+b9xkAAAAASUVORK5CYII=',
-    'base64',
-  );
-}
-
-function pngSignature(): Buffer {
-  return Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 }

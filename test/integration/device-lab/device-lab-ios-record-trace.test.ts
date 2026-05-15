@@ -3,20 +3,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
-import type { AppleRunnerProvider } from '../../../src/platforms/ios/runner-provider.ts';
 import type { AppleToolProvider } from '../../../src/platforms/ios/tool-provider.ts';
-import type { DeviceInfo } from '../../../src/utils/device.ts';
+import { assertFlatToolCallStartsWith } from './assertions.ts';
+import { DEVICE_LAB_IOS_DEVICE } from './fixtures.ts';
 import { startDeviceLabDaemon } from './http-harness.ts';
+import { createAppleRunnerProviderFromTranscript } from './providers.ts';
 import { createProviderTranscript } from './transcript.ts';
-
-const iosDevice: DeviceInfo = {
-  platform: 'ios',
-  id: 'ios-device-1',
-  name: 'QA iPhone',
-  kind: 'device',
-  target: 'mobile',
-  booted: true,
-};
 
 test('Device Lab iOS physical recording flow uses runner and devicectl providers', async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-lab-ios-record-'));
@@ -26,25 +18,22 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
   const runnerTranscript = createProviderTranscript([
     {
       command: 'ios.runner.recordStart',
-      deviceId: iosDevice.id,
+      deviceId: DEVICE_LAB_IOS_DEVICE.id,
       platform: 'ios',
       result: {},
     },
     {
       command: 'ios.runner.recordStop',
-      deviceId: iosDevice.id,
+      deviceId: DEVICE_LAB_IOS_DEVICE.id,
       platform: 'ios',
       request: { command: 'recordStop', appBundleId: 'com.apple.Preferences' },
       result: {},
     },
   ]);
-  const appleRunnerProvider: AppleRunnerProvider = {
-    runCommand: async (device, command) =>
-      runnerTranscript.next(`ios.runner.${command.command}`, command, {
-        deviceId: device.id,
-        platform: device.platform,
-      }) as Record<string, unknown>,
-  };
+  const appleRunnerProvider = createAppleRunnerProviderFromTranscript(
+    runnerTranscript,
+    'ios.runner',
+  );
   const appleToolCalls: Array<[string, ...string[]]> = [];
   const appleToolProvider: AppleToolProvider = {
     whichCommand: async () => true,
@@ -58,16 +47,16 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
   const daemon = await startDeviceLabDaemon({
     appleRunnerProvider: () => appleRunnerProvider,
     appleToolProvider: () => appleToolProvider,
-    deviceInventoryProvider: async () => [iosDevice],
+    deviceInventoryProvider: async () => [DEVICE_LAB_IOS_DEVICE],
   });
 
   try {
     const open = await daemon.callCommand('open', ['com.apple.Preferences'], {
       platform: 'ios',
-      udid: iosDevice.id,
+      udid: DEVICE_LAB_IOS_DEVICE.id,
     });
     assert.equal(open.statusCode, 200, JSON.stringify(open.json));
-    assert.equal(open.json?.result?.data?.device_udid, iosDevice.id);
+    assert.equal(open.json?.result?.data?.device_udid, DEVICE_LAB_IOS_DEVICE.id);
 
     const traceStart = await daemon.callCommand('trace', ['start', tracePath]);
     assert.equal(traceStart.statusCode, 200, JSON.stringify(traceStart.json));
@@ -119,49 +108,34 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
     );
     assert.equal(fs.existsSync(recordingPath), true);
     assert.equal(fs.existsSync(finalTracePath), true);
-    assert.ok(
-      appleToolCalls.some((call) =>
-        arrayStartsWith(call, [
-          'xcrun',
-          'devicectl',
-          'device',
-          'info',
-          'details',
-          '--device',
-          iosDevice.id,
-        ]),
-      ),
-      JSON.stringify(appleToolCalls),
-    );
-    assert.ok(
-      appleToolCalls.some((call) =>
-        arrayStartsWith(call, [
-          'xcrun',
-          'devicectl',
-          'device',
-          'process',
-          'launch',
-          '--device',
-          iosDevice.id,
-          'com.apple.Preferences',
-        ]),
-      ),
-      JSON.stringify(appleToolCalls),
-    );
-    assert.ok(
-      appleToolCalls.some((call) =>
-        arrayStartsWith(call, [
-          'xcrun',
-          'devicectl',
-          'device',
-          'copy',
-          'from',
-          '--device',
-          iosDevice.id,
-        ]),
-      ),
-      JSON.stringify(appleToolCalls),
-    );
+    assertFlatToolCallStartsWith(appleToolCalls, [
+      'xcrun',
+      'devicectl',
+      'device',
+      'info',
+      'details',
+      '--device',
+      DEVICE_LAB_IOS_DEVICE.id,
+    ]);
+    assertFlatToolCallStartsWith(appleToolCalls, [
+      'xcrun',
+      'devicectl',
+      'device',
+      'process',
+      'launch',
+      '--device',
+      DEVICE_LAB_IOS_DEVICE.id,
+      'com.apple.Preferences',
+    ]);
+    assertFlatToolCallStartsWith(appleToolCalls, [
+      'xcrun',
+      'devicectl',
+      'device',
+      'copy',
+      'from',
+      '--device',
+      DEVICE_LAB_IOS_DEVICE.id,
+    ]);
   } finally {
     await daemon.close();
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -188,8 +162,4 @@ function writeCopiedRecordingIfRequested(args: string[]): void {
   const destination = destinationIndex >= 0 ? args[destinationIndex + 1] : undefined;
   if (!destination) return;
   fs.writeFileSync(destination, 'device-lab-recording');
-}
-
-function arrayStartsWith(actual: readonly string[], expected: readonly string[]): boolean {
-  return expected.every((value, index) => actual[index] === value);
 }
