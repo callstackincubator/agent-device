@@ -25,6 +25,8 @@ Provider contracts should expose semantic operations when the platform intent is
 
 Device Lab tests run the real daemon request path and replace only those providers. Tests may use provider transcripts for platform command contracts and scenario transcripts for broader user workflows. Provider transcripts match calls as an unordered contract by default; use ordered transcripts only when ordering is the behavior under test.
 
+Prefer an in-process Device Lab harness for broad scenarios: it should invoke the daemon request handler directly, preserving admission, locking, session state, handler routing, dispatch, platform modules, and provider seams without binding a TCP listener. Keep HTTP coverage as a narrow contract suite for JSON-RPC transport, auth, and response finalization.
+
 Synchronous host-tool calls are intentionally not part of the provider seam. Any remaining sync Apple helper is local-only and must be converted before a remote/cloud provider can own that path.
 
 ## Alternatives Considered
@@ -32,6 +34,7 @@ Synchronous host-tool calls are intentionally not part of the provider seam. Any
 - Mock handlers or `dispatchCommand`: cheaper to write, but it skips request admission, locking, session state, and platform command translation, which were the main sources of test blind spots.
 - Put the seam at `Interactor`: simpler and more uniform, but it bypasses platform modules and would not catch the iOS/Linux host-tool wiring issues that motivated this change.
 - Start with a full semantic provider per platform operation: cleaner end state, but too much surface to name correctly in one pass. The migration starts where contracts already exist or where tests create pressure.
+- Run every Device Lab scenario through HTTP: maximum end-to-end coverage, but it makes most scenarios pay for TCP setup, sandbox permissions, and transport timeouts even when transport behavior is not under test.
 
 ## Consequences
 
