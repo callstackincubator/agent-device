@@ -312,6 +312,14 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assert.equal(perf.platform, 'android');
         assert.equal(perf.deviceId, DEVICE_LAB_ANDROID.id);
         const metrics = perf.metrics as Record<string, any>;
+        assert.equal(metrics.startup?.available, true, JSON.stringify(perf));
+        assert.equal(metrics.startup?.method, 'open-command-roundtrip');
+        assert.ok(metrics.startup?.sampleCount >= 2, JSON.stringify(metrics.startup));
+        const startupSamples = Array.isArray(metrics.startup?.samples)
+          ? metrics.startup.samples
+          : [];
+        assert.equal(startupSamples.at(-1)?.appTarget, 'com.example.demo');
+        assert.equal(startupSamples.at(-1)?.appBundleId, 'com.example.demo');
         assert.equal(metrics.memory?.available, true, JSON.stringify(perf));
         assert.equal(metrics.memory?.totalPssKb, 216524);
         assert.equal(metrics.memory?.totalRssKb, 340112);

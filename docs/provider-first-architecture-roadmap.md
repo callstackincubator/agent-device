@@ -44,6 +44,7 @@ Milestone 6 progress:
 - Done: moved Android logs clear and close auto-stop coverage into the live app-log Device Lab flow; deleted the mocked handler success units while retaining invalid/restart/error log lifecycle units.
 - Done: moved Android `logs clear --restart` and session-backed `boot` success paths into Device Lab; deleted the mocked handler success units while retaining restart validation and selector-precedence units.
 - Done: moved iOS physical `boot` readiness into Device Lab using the scripted devicectl provider; deleted the mocked handler success unit while retaining selector-precedence and readiness policy tests.
+- Done: moved Android `perf` startup metric coverage into Device Lab by asserting samples generated from real `open` actions; deleted the synthetic handler unit that hand-built an action record.
 - Still retained: Android freshness/collapse warnings, macOS menubar interaction guard/ref-promotion edges, wait routing, alert retry/error policy, diff invalid-kind/client-backed boundaries, recording touch visualization, off-screen failures, and pure snapshot state/visibility shaping.
 - Next checkpoint: continue only where Device Lab can cover a plain success workflow; otherwise move to the next mock-heavy file from the progress report and leave edge/state-machine tests in unit coverage.
 

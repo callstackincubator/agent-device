@@ -1362,60 +1362,6 @@ test('perf requires an active session', async () => {
   }
 });
 
-test('perf returns startup samples captured from open actions', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'perf-session';
-  const measuredAt = new Date('2026-02-24T10:00:00.000Z').toISOString();
-  const session = makeSession(sessionName, {
-    platform: 'ios',
-    id: 'sim-1',
-    name: 'iPhone 16',
-    kind: 'simulator',
-    booted: true,
-  });
-  session.actions.push({
-    ts: Date.now(),
-    command: 'open',
-    positionals: ['Settings'],
-    flags: {},
-    result: {
-      startup: {
-        durationMs: 184,
-        measuredAt,
-        method: 'open-command-roundtrip',
-        appTarget: 'Settings',
-        appBundleId: 'com.apple.Preferences',
-      },
-    },
-  });
-  sessionStore.set(sessionName, session);
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'perf',
-      positionals: [],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response && response.ok) {
-    const startup = (response.data?.metrics as any)?.startup;
-    expect(startup?.available).toBe(true);
-    expect(startup?.lastDurationMs).toBe(184);
-    expect(startup?.lastMeasuredAt).toBe(measuredAt);
-    expect(startup?.method).toBe('open-command-roundtrip');
-    expect(startup?.sampleCount).toBe(1);
-    expect(Array.isArray(startup?.samples)).toBe(true);
-  }
-});
-
 test('perf reports startup metric as unavailable when no sample exists', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'perf-session-empty';
