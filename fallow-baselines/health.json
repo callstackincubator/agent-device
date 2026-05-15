@@ -51,6 +51,11 @@
         "count": 1
       }
     },
+    "src/cli/commands/client-command.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
     "src/cli/commands/connection-runtime.ts": {
       "complexity_high": {
         "count": 1
@@ -73,20 +78,6 @@
         "count": 1
       }
     },
-    "src/cli/commands/generic.ts": {
-      "complexity_critical": {
-        "count": 1
-      },
-      "crap_critical": {
-        "count": 1
-      },
-      "crap_high": {
-        "count": 1
-      },
-      "crap_moderate": {
-        "count": 1
-      }
-    },
     "src/cli/commands/output.ts": {
       "complexity_moderate": {
         "count": 1
@@ -96,11 +87,6 @@
       }
     },
     "src/cli/commands/react-devtools.ts": {
-      "crap_moderate": {
-        "count": 1
-      }
-    },
-    "src/client-commands.ts": {
       "crap_moderate": {
         "count": 1
       }
@@ -139,11 +125,6 @@
       }
     },
     "src/client-shared.ts": {
-      "crap_moderate": {
-        "count": 1
-      }
-    },
-    "src/client.ts": {
       "crap_moderate": {
         "count": 1
       }
@@ -212,16 +193,13 @@
     },
     "src/core/dispatch.ts": {
       "complexity_critical": {
-        "count": 2
+        "count": 1
       },
       "crap_critical": {
-        "count": 2
-      },
-      "crap_high": {
-        "count": 4
+        "count": 1
       },
       "crap_moderate": {
-        "count": 5
+        "count": 3
       }
     },
     "src/daemon-client.ts": {
@@ -459,15 +437,12 @@
     },
     "src/daemon/handlers/session-replay-script.ts": {
       "complexity_critical": {
-        "count": 2
+        "count": 1
       },
       "complexity_high": {
-        "count": 2
+        "count": 1
       },
       "crap_critical": {
-        "count": 2
-      },
-      "crap_high": {
         "count": 1
       }
     },
@@ -558,14 +533,6 @@
         "count": 1
       }
     },
-    "src/daemon/request-router.ts": {
-      "crap_high": {
-        "count": 2
-      },
-      "crap_moderate": {
-        "count": 3
-      }
-    },
     "src/daemon/runtime-hints.ts": {
       "complexity_moderate": {
         "count": 1
@@ -623,14 +590,6 @@
         "count": 1
       }
     },
-    "src/daemon/session-store.ts": {
-      "complexity_critical": {
-        "count": 2
-      },
-      "crap_critical": {
-        "count": 2
-      }
-    },
     "src/platforms/android/app-lifecycle.ts": {
       "complexity_moderate": {
         "count": 1
@@ -647,9 +606,6 @@
       }
     },
     "src/platforms/android/input-actions.ts": {
-      "complexity_high": {
-        "count": 1
-      },
       "complexity_moderate": {
         "count": 1
       }
@@ -771,14 +727,11 @@
       }
     },
     "src/platforms/ios/runner-xctestrun.ts": {
-      "complexity_high": {
-        "count": 1
-      },
       "complexity_moderate": {
-        "count": 4
+        "count": 2
       },
       "crap_moderate": {
-        "count": 4
+        "count": 2
       }
     },
     "src/platforms/ios/screenshot-status-bar.ts": {
@@ -1002,44 +955,42 @@
   "runtime_coverage_findings": [],
   "target_keys": [
     "src/daemon/handlers/snapshot-capture.ts:high impact",
-    "src/daemon/handlers/session.ts:complexity",
     "src/daemon/handlers/session-device-utils.ts:high impact",
+    "src/utils/process-identity.ts:high impact",
+    "src/daemon/handlers/session.ts:complexity",
     "src/client-shared.ts:high impact",
+    "src/daemon/context.ts:high impact",
+    "src/daemon/handlers/session-replay-heal.ts:complexity",
+    "src/cli/commands/connection-runtime.ts:complexity",
     "src/daemon/handlers/session-replay-script.ts:complexity",
     "src/commands/selector-read-utils.ts:high impact",
-    "src/daemon/config.ts:high impact",
-    "src/daemon/handlers/session-replay-heal.ts:complexity",
     "src/daemon/android-snapshot-freshness.ts:high impact",
-    "src/cli/commands/connection-runtime.ts:complexity",
-    "src/platforms/boot-diagnostics.ts:complexity",
-    "src/utils/args.ts:high impact",
-    "src/daemon/session-store.ts:complexity",
+    "src/daemon/config.ts:high impact",
     "src/daemon/handlers/session-open-target.ts:high impact",
     "src/daemon/handlers/snapshot-alert.ts:complexity",
-    "src/utils/success-text.ts:high impact",
+    "src/daemon/script-utils.ts:high impact",
+    "src/platforms/boot-diagnostics.ts:complexity",
     "src/daemon/handlers/session-inventory.ts:complexity",
+    "src/utils/success-text.ts:high impact",
+    "src/cli/commands/output.ts:untested risk",
     "src/daemon/handlers/install-source.ts:complexity",
     "src/utils/snapshot-processing.ts:high impact",
-    "src/cli/commands/output.ts:untested risk",
-    "src/daemon/script-utils.ts:high impact",
-    "src/utils/process-identity.ts:high impact",
-    "src/utils/output.ts:high impact",
-    "src/cli.ts:complexity",
-    "src/platforms/ios/xml.ts:high impact",
     "src/daemon/handlers/session-state.ts:complexity",
     "src/daemon/handlers/session-open.ts:complexity",
-    "src/daemon/request-cancel.ts:high impact",
-    "src/utils/device.ts:high impact",
     "src/utils/snapshot-lines.ts:high impact",
+    "src/utils/output.ts:high impact",
+    "src/platforms/ios/xml.ts:high impact",
+    "src/daemon/request-cancel.ts:high impact",
+    "src/utils/args.ts:high impact",
+    "src/cli.ts:complexity",
+    "src/client-metro.ts:complexity",
+    "src/utils/device.ts:high impact",
     "src/daemon/app-log-process.ts:high impact",
     "src/utils/selector-build.ts:high impact",
-    "src/client-metro.ts:complexity",
-    "src/platforms/android/input-actions.ts:complexity",
     "src/utils/text-surface.ts:high impact",
     "src/cli-test.ts:untested risk",
     "src/utils/keyed-lock.ts:high impact",
     "src/core/batch.ts:complexity",
-    "src/platforms/ios/runner-xctestrun.ts:complexity",
     "src/daemon/app-log-stream.ts:high impact",
     "src/platforms/android/sdk.ts:high impact",
     "src/utils/source-value.ts:high impact",
