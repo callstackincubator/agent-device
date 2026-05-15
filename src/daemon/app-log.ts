@@ -84,14 +84,14 @@ const localAppLogProvider: AppLogProvider = {
 
 const appLogProviderScope = createScopedProvider(localAppLogProvider, createLocalAppLogProvider);
 
-export function createLocalAppLogProvider(provider: Partial<AppLogProvider> = {}): AppLogProvider {
+function createLocalAppLogProvider(provider: Partial<AppLogProvider> = {}): AppLogProvider {
   return {
     ...localAppLogProvider,
     ...provider,
   };
 }
 
-export function resolveAppLogProvider(provider?: AppLogProvider): AppLogProvider {
+function resolveAppLogProvider(provider?: AppLogProvider): AppLogProvider {
   return appLogProviderScope.resolve(provider);
 }
 

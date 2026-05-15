@@ -12,7 +12,7 @@ import { LeaseRegistry } from '../../../src/daemon/lease-registry.ts';
 import { SessionStore } from '../../../src/daemon/session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../../src/daemon/types.ts';
 
-export const DEVICE_LAB_TOKEN = 'device-lab-token';
+const DEVICE_LAB_TOKEN = 'device-lab-token';
 
 export type DeviceLabRpcResult = { statusCode: number; json: any };
 

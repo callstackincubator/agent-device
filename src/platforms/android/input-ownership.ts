@@ -44,7 +44,7 @@ export function classifyAndroidInputOwnership(options: {
   return { inputMethodOwned: false, source: 'app' };
 }
 
-export function isAndroidInputMethodOwned(
+function isAndroidInputMethodOwned(
   packageName: string | null | undefined,
   resourceId?: string | null | undefined,
   activeInputMethodPackage?: string | null | undefined,

@@ -248,54 +248,35 @@ function requestPlatformProviderScopeWrappers(
 ): RequestPlatformProviderScopeWrapper[] {
   const wrappers: RequestPlatformProviderScopeWrapper[] = [];
 
-  if (scopedProviders.androidAdb?.provider && scopedProviders.androidAdb.serial) {
-    wrappers.push(
-      async (task) =>
-        await withAndroidAdbProvider(
-          scopedProviders.androidAdb?.provider,
-          { serial: scopedProviders.androidAdb?.serial ?? '' },
-          task,
-        ),
-    );
-  }
-
-  if (scopedProviders.appleRunner?.provider && scopedProviders.appleRunner.deviceId) {
-    wrappers.push(
-      async (task) =>
-        await withAppleRunnerProvider(
-          scopedProviders.appleRunner?.provider,
-          {
-            deviceId: scopedProviders.appleRunner?.deviceId ?? '',
-            requestId: scopedProviders.appleRunner?.requestId,
-          },
-          task,
-        ),
-    );
-  }
-
-  if (scopedProviders.appleTool?.provider) {
-    wrappers.push(
-      async (task) => await withAppleToolProvider(scopedProviders.appleTool?.provider, task),
-    );
-  }
-
-  if (scopedProviders.linuxTool?.provider) {
-    wrappers.push(
-      async (task) => await withLinuxToolProvider(scopedProviders.linuxTool?.provider, task),
-    );
-  }
-
-  if (scopedProviders.appLog?.provider) {
-    wrappers.push(async (task) => await withAppLogProvider(scopedProviders.appLog?.provider, task));
-  }
-
-  if (scopedProviders.recording?.provider) {
-    wrappers.push(
-      async (task) => await withRecordingProvider(scopedProviders.recording?.provider, task),
-    );
-  }
+  appendRequestProviderWrapper(wrappers, scopedProviders.androidAdb, (provider, task) =>
+    withAndroidAdbProvider(provider, { serial: scopedProviders.androidAdb?.serial ?? '' }, task),
+  );
+  appendRequestProviderWrapper(wrappers, scopedProviders.appleRunner, (provider, task) =>
+    withAppleRunnerProvider(
+      provider,
+      {
+        deviceId: scopedProviders.appleRunner?.deviceId ?? '',
+        requestId: scopedProviders.appleRunner?.requestId,
+      },
+      task,
+    ),
+  );
+  appendRequestProviderWrapper(wrappers, scopedProviders.appleTool, withAppleToolProvider);
+  appendRequestProviderWrapper(wrappers, scopedProviders.linuxTool, withLinuxToolProvider);
+  appendRequestProviderWrapper(wrappers, scopedProviders.appLog, withAppLogProvider);
+  appendRequestProviderWrapper(wrappers, scopedProviders.recording, withRecordingProvider);
 
   return wrappers;
+}
+
+function appendRequestProviderWrapper<TProvider>(
+  wrappers: RequestPlatformProviderScopeWrapper[],
+  resolved: { provider?: TProvider } | undefined,
+  withProvider: <T>(provider: TProvider, task: () => Promise<T>) => Promise<T>,
+): void {
+  const provider = resolved?.provider;
+  if (!provider) return;
+  wrappers.push(async (task) => await withProvider(provider, task));
 }
 
 async function runRequestPlatformProviderScopes<T>(

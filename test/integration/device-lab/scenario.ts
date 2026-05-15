@@ -4,14 +4,7 @@ import type { DeviceLabHarness, DeviceLabRpcResult } from './harness.ts';
 
 export type DeviceLabScenarioState = {
   readonly responses: ReadonlyMap<string, DeviceLabRpcResult>;
-  readonly steps: readonly DeviceLabScenarioResult[];
   response(name: string): DeviceLabRpcResult;
-};
-
-export type DeviceLabScenarioResult = {
-  name: string;
-  command: string;
-  response: DeviceLabRpcResult;
 };
 
 export type DeviceLabScenarioStep = {
@@ -29,14 +22,10 @@ export async function runDeviceLabScenario(
   steps: readonly DeviceLabScenarioStep[],
 ): Promise<DeviceLabScenarioState> {
   const responses = new Map<string, DeviceLabRpcResult>();
-  const results: DeviceLabScenarioResult[] = [];
 
   const state: DeviceLabScenarioState = {
     get responses() {
       return new Map(responses);
-    },
-    get steps() {
-      return [...results];
     },
     response(name) {
       const response = responses.get(name);
@@ -57,7 +46,6 @@ export async function runDeviceLabScenario(
       assertDataContains(step.name, response, step.expectData);
     }
     responses.set(step.name, response);
-    results.push({ name: step.name, command: step.command, response });
     await step.assert?.(response, state);
   }
 

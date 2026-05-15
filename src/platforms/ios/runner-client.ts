@@ -33,15 +33,6 @@ export {
   shouldRetryRunnerConnectError,
   type RunnerCommand,
 } from './runner-contract.ts';
-export {
-  createLocalAppleRunnerProvider,
-  resolveAppleRunnerProvider,
-  withAppleRunnerProvider,
-  type AppleRunnerCommandExecutor,
-  type AppleRunnerCommandOptions,
-  type AppleRunnerProvider,
-  type AppleRunnerProviderScopeOptions,
-} from './runner-provider.ts';
 
 // --- Runner command execution ---
 
