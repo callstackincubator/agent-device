@@ -230,6 +230,18 @@ test('verifyAndroidFilledTextInHierarchy accepts Android sentence autocapitaliza
   assert.equal(verification.ok, true);
 });
 
+test('verifyAndroidFilledTextInHierarchy rejects near-complete prefixes', () => {
+  const verification = verifyAndroidFilledTextInHierarchy(
+    androidInputXml({ text: 'filed the expens' }),
+    10,
+    10,
+    'filed the expense',
+  );
+
+  assert.equal(verification.ok, false);
+  assert.equal(verification.actual, 'filed the expens');
+});
+
 test('verifyAndroidFilledTextInHierarchy rejects reverse sentence autocapitalization mismatch', () => {
   const verification = verifyAndroidFilledTextInHierarchy(
     androidInputXml({ text: 'john' }),
