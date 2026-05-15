@@ -181,53 +181,6 @@ test('get text prefers underlying value for text surfaces and avoids recording g
   expect(recorded?.result?.refLabel).toBeUndefined();
 });
 
-test('get text uses backend read expansion when the resolved node has a rect', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'get-text-backend-read';
-  const session = makeSession(sessionName);
-  session.snapshot = {
-    nodes: attachRefs([
-      {
-        index: 0,
-        depth: 0,
-        type: 'TextView',
-        label: 'Editor for MainActivity.kt',
-        value: 'preview only',
-        rect: { x: 20, y: 40, width: 120, height: 80 },
-      },
-    ]),
-    createdAt: Date.now(),
-    backend: 'xctest',
-  };
-  sessionStore.set(sessionName, session);
-
-  mockDispatch.mockResolvedValue({
-    action: 'read',
-    text: 'package com.example.app\nclass MainActivity {}',
-  });
-
-  const response = await handleInteractionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'get',
-      positionals: ['text', '@e1'],
-      flags: {},
-    },
-    sessionName,
-    sessionStore,
-    contextFromFlags,
-  });
-
-  expect(mockDispatch).toHaveBeenCalledTimes(1);
-  expect(mockDispatch.mock.calls[0]?.[1]).toBe('read');
-  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['80', '80']);
-  expect(response?.ok).toBe(true);
-  if (response?.ok) {
-    expect(response.data?.text).toBe('package com.example.app\nclass MainActivity {}');
-  }
-});
-
 test('click rejects macOS desktop surface interactions until helper routing exists', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-desktop-click';
@@ -1121,43 +1074,6 @@ test('fill @ref preserves fallback coordinates for recording when platform resul
   expect(event?.kind).toBe('tap');
   expect(event?.x).toBe(60);
   expect(event?.y).toBe(40);
-});
-
-test('fill coordinates dispatches point fill and records the action', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  sessionStore.set(sessionName, makeSession(sessionName));
-
-  mockDispatch.mockResolvedValue({ filled: true });
-
-  const response = await handleInteractionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'fill',
-      positionals: ['25', '75', 'hello world'],
-      flags: { delayMs: 40 },
-    },
-    sessionName,
-    sessionStore,
-    contextFromFlags,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response?.ok) {
-    expect(response.data?.filled).toBe(true);
-    expect(response.data?.x).toBe(25);
-    expect(response.data?.y).toBe(75);
-    expect(response.data?.text).toBe('hello world');
-  }
-  expect(mockDispatch).toHaveBeenCalledTimes(1);
-  expect(mockDispatch.mock.calls[0]?.[1]).toBe('fill');
-  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['25', '75', 'hello world']);
-  expect((mockDispatch.mock.calls[0]?.[4] as Record<string, unknown> | undefined)?.delayMs).toBe(
-    40,
-  );
-  expect(sessionStore.get(sessionName)?.actions.length).toBe(1);
 });
 
 test('fill @ref keeps the original editable node when its parent is the hittable ancestor', async () => {

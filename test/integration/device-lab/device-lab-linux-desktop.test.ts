@@ -167,6 +167,13 @@ test('Device Lab Linux desktop flow uses semantic lifecycle provider and scripte
         expectData: { text: 'Seven' },
       },
       {
+        name: 'fill coordinates',
+        command: 'fill',
+        positionals: ['42', '84', 'Eight'],
+        flags: { delayMs: 1 },
+        expectData: { x: 42, y: 84, text: 'Eight' },
+      },
+      {
         name: 'scroll by pixels',
         command: 'scroll',
         positionals: ['down'],
@@ -208,13 +215,30 @@ test('Device Lab Linux desktop flow uses semantic lifecycle provider and scripte
       },
       { name: 'navigate back', command: 'back' },
       { name: 'show desktop', command: 'home' },
-      {
-        name: 'close calculator app',
-        command: 'close',
-        positionals: ['gnome-calculator'],
-      },
     ]);
 
+    const actions = daemon.session()?.actions ?? [];
+    assert.ok(
+      actions.some(
+        (action) =>
+          action.command === 'fill' &&
+          action.positionals.join(' ') === '@e2 Seven' &&
+          action.flags.delayMs === 1,
+      ),
+      'Expected ref fill action to be recorded on the session',
+    );
+    assert.ok(
+      actions.some(
+        (action) =>
+          action.command === 'fill' &&
+          action.positionals.join(' ') === '42 84 Eight' &&
+          action.flags.delayMs === 1,
+      ),
+      'Expected coordinate fill action to be recorded on the session',
+    );
+
+    const close = await daemon.callCommand('close', ['gnome-calculator']);
+    assert.equal(close.statusCode, 200, JSON.stringify(close.json));
     assert.deepEqual(desktopCalls, [
       ['open', 'gnome-calculator'],
       ['close', 'gnome-calculator'],
@@ -241,6 +265,15 @@ test('Device Lab Linux desktop flow uses semantic lifecycle provider and scripte
       '--clearmodifiers',
       '--',
       'Seven',
+    ]);
+    assertToolCall(normalizedToolCalls, [
+      'xdotool',
+      'type',
+      '--delay',
+      '1',
+      '--clearmodifiers',
+      '--',
+      'Eight',
     ]);
     assertToolCall(normalizedToolCalls, ['xdotool', 'type', '--clearmodifiers', '--', '5']);
     assertToolCall(normalizedToolCalls, ['xclip', '-selection', 'clipboard']);

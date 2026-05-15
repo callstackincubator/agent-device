@@ -209,6 +209,18 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
         positionals: ['dismiss'],
         expectData: { platform: 'ios', action: 'dismiss', dismissed: true },
       },
+      {
+        name: 'list active iOS session',
+        command: 'session_list',
+        assert: (list) => {
+          const sessions = list.json?.result?.data?.sessions;
+          assert.equal(sessions?.length, 1);
+          assert.equal(sessions?.[0]?.name, 'default');
+          assert.equal(sessions?.[0]?.platform, 'ios');
+          assert.equal(sessions?.[0]?.device_udid, DEVICE_LAB_IOS_SIMULATOR.id);
+          assert.equal(sessions?.[0]?.ios_simulator_device_set, null);
+        },
+      },
       { name: 'close settings session', command: 'close' },
       {
         name: 'list sessions after close',

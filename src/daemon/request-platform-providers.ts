@@ -18,6 +18,7 @@ import { type LinuxToolProvider, withLinuxToolProvider } from '../platforms/linu
 import { isApplePlatform, type DeviceInfo } from '../utils/device.ts';
 import { type AppLogProvider, withAppLogProvider } from './app-log.ts';
 import { hasExplicitDeviceSelector } from './handlers/session-device-utils.ts';
+import { type RecordingProvider, withRecordingProvider } from './recording-provider.ts';
 import type { DaemonRequest, SessionState } from './types.ts';
 
 export type PlatformProviderRequestSession = Pick<
@@ -55,12 +56,19 @@ export type AppLogProviderResolver = (params: {
   session?: PlatformProviderRequestSession;
 }) => AppLogProvider | undefined;
 
+export type RecordingProviderResolver = (params: {
+  req: DaemonRequest;
+  device: DeviceInfo;
+  session?: PlatformProviderRequestSession;
+}) => RecordingProvider | undefined;
+
 export type PlatformProviderResolvers = {
   androidAdbProvider?: AndroidAdbProviderResolver;
   appleRunnerProvider?: AppleRunnerProviderResolver;
   appleToolProvider?: AppleToolProviderResolver;
   linuxToolProvider?: LinuxToolProviderResolver;
   appLogProvider?: AppLogProviderResolver;
+  recordingProvider?: RecordingProviderResolver;
 };
 
 export type RequestPlatformProviderScope = {
@@ -93,6 +101,9 @@ type ResolvedRequestPlatformProviders = {
   appLog?: {
     provider?: AppLogProvider;
   };
+  recording?: {
+    provider?: RecordingProvider;
+  };
 };
 
 type RequestPlatformProviderScopeWrapper = <T>(task: () => Promise<T>) => Promise<T>;
@@ -123,6 +134,7 @@ async function resolveRequestPlatformProviders(
     appleTool: resolveAppleToolProvider(params, device),
     linuxTool: resolveLinuxToolProvider(params, device),
     appLog: resolveAppLogProvider(params, device),
+    recording: resolveRequestRecordingProvider(params, device),
   };
 }
 
@@ -132,7 +144,8 @@ function hasPlatformProviderResolvers(providers: PlatformProviderResolvers): boo
     providers.appleRunnerProvider ||
     providers.appleToolProvider ||
     providers.linuxToolProvider ||
-    providers.appLogProvider,
+    providers.appLogProvider ||
+    providers.recordingProvider,
   );
 }
 
@@ -207,6 +220,20 @@ function resolveAppLogProvider(
   return { provider };
 }
 
+function resolveRequestRecordingProvider(
+  params: RequestPlatformProviderParams,
+  device: DeviceInfo,
+): ResolvedRequestPlatformProviders['recording'] {
+  const recordingProvider = params.providers.recordingProvider;
+  if (!recordingProvider) return undefined;
+  const provider = recordingProvider({
+    req: params.req,
+    device,
+    session: params.existingSession,
+  });
+  return { provider };
+}
+
 async function resolveScopedProviderDevice(
   req: DaemonRequest,
   existingSession: SessionState | undefined,
@@ -260,6 +287,12 @@ function requestPlatformProviderScopeWrappers(
 
   if (scopedProviders.appLog?.provider) {
     wrappers.push(async (task) => await withAppLogProvider(scopedProviders.appLog?.provider, task));
+  }
+
+  if (scopedProviders.recording?.provider) {
+    wrappers.push(
+      async (task) => await withRecordingProvider(scopedProviders.recording?.provider, task),
+    );
   }
 
   return wrappers;

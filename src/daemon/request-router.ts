@@ -5,12 +5,13 @@ import {
 import { AppError, normalizeError } from '../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse } from './types.ts';
 import { SessionStore } from './session-store.ts';
-import type { AndroidAdbProviderResolver } from './request-android-adb.ts';
 import {
+  type AndroidAdbProviderResolver,
   type AppleRunnerProviderResolver,
   type AppleToolProviderResolver,
   type AppLogProviderResolver,
   type LinuxToolProviderResolver,
+  type RecordingProviderResolver,
   withRequestPlatformProviderScope,
 } from './request-platform-providers.ts';
 import {
@@ -41,6 +42,7 @@ export type RequestRouterDeps = {
   appleToolProvider?: AppleToolProviderResolver;
   linuxToolProvider?: LinuxToolProviderResolver;
   appLogProvider?: AppLogProviderResolver;
+  recordingProvider?: RecordingProviderResolver;
   deviceInventoryProvider?: DeviceInventoryProvider;
   trackDownloadableArtifact: (opts: {
     artifactPath: string;
@@ -60,6 +62,7 @@ export function createRequestHandler(
     appleToolProvider,
     linuxToolProvider,
     appLogProvider,
+    recordingProvider,
     deviceInventoryProvider,
     trackDownloadableArtifact,
   } = deps;
@@ -109,6 +112,7 @@ export function createRequestHandler(
                     appleToolProvider,
                     linuxToolProvider,
                     appLogProvider,
+                    recordingProvider,
                   },
                 },
                 async (providerScope) => {

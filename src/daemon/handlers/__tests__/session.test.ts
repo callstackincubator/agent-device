@@ -4480,16 +4480,6 @@ test('network dump validates include mode and limit', async () => {
 test('session_list includes device_udid and ios_simulator_device_set for iOS sessions', async () => {
   const sessionStore = makeSessionStore();
   sessionStore.set(
-    'ios-default',
-    makeSession('ios-default', {
-      platform: 'ios',
-      id: 'ABC-123',
-      name: 'iPhone 16',
-      kind: 'simulator',
-      booted: true,
-    }),
-  );
-  sessionStore.set(
     'ios-scoped',
     makeSession('ios-scoped', {
       platform: 'ios',
@@ -4535,9 +4525,6 @@ test('session_list includes device_udid and ios_simulator_device_set for iOS ses
   if (response && response.ok) {
     const sessions = response.data?.sessions as Array<Record<string, unknown>>;
     expect(Array.isArray(sessions)).toBeTruthy();
-    const iosDefault = sessions.find((s) => s.name === 'ios-default');
-    expect(iosDefault?.device_udid).toBe('ABC-123');
-    expect(iosDefault?.ios_simulator_device_set).toBe(null);
     const iosScoped = sessions.find((s) => s.name === 'ios-scoped');
     expect(iosScoped?.device_udid).toBe('DEF-456');
     expect(iosScoped?.ios_simulator_device_set).toBe('/tmp/tenant-a/simulators');

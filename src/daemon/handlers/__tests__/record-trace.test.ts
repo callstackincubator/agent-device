@@ -571,57 +571,6 @@ test('record stop trims iOS device recordings from target app readiness before o
   expect((response as any).data?.overlayWarning).toBe(overlaySupportWarning);
 });
 
-test('record uses simctl recordVideo for iOS simulators', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-sim';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'ios',
-      id: 'sim-1',
-      name: 'Simulator',
-      kind: 'simulator',
-      booted: true,
-    }),
-  );
-
-  let started = false;
-  let stopped = false;
-  mockRunCmdBackground.mockImplementation((cmd, args) => {
-    expect(cmd).toBe('xcrun');
-    expect(args.slice(0, 4)).toEqual(['simctl', 'io', 'sim-1', 'recordVideo']);
-    expect(args[4]).toBe(path.resolve('./sim.mp4'));
-    started = true;
-    return {
-      child: {
-        kill: () => {
-          stopped = true;
-        },
-      } as any,
-      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-    };
-  });
-
-  const responseStart = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['start', './sim.mp4'],
-  });
-
-  expect(responseStart?.ok).toBe(true);
-  expect(started).toBe(true);
-
-  const responseStop = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['stop'],
-  });
-
-  expect(responseStop?.ok).toBe(true);
-  expect(stopped).toBe(true);
-  expect(mockResizeRecording).not.toHaveBeenCalled();
-});
-
 test('record stop resizes iOS simulator recording when quality is explicit', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim-quality';

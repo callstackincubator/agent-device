@@ -6,7 +6,7 @@ import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { SessionStore } from '../session-store.ts';
 import type { DaemonArtifact, DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
-import { runCmd, runCmdBackground } from '../../utils/exec.ts';
+import { runCmd } from '../../utils/exec.ts';
 import { isPlayableVideo, waitForStableFile } from '../../utils/video.ts';
 import { deriveRecordingTelemetryPath } from '../recording-telemetry.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
@@ -16,8 +16,8 @@ import {
   resizeRecording,
   trimRecordingStart,
 } from '../../recording/overlay.ts';
-import { buildSimctlArgsForDevice } from '../../platforms/ios/simctl.ts';
 import { formatRecordTraceError, formatRecordTraceExecFailure } from '../record-trace-errors.ts';
+import { resolveRecordingProvider } from '../recording-provider.ts';
 import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
 import { errorResponse } from './response.ts';
 import { startAndroidRecording, stopAndroidRecording } from './record-trace-android.ts';
@@ -47,7 +47,8 @@ function buildRecordTraceDeps(): RecordTraceDeps {
       cmd === 'xcrun'
         ? await runAppleToolCommand(cmd, args, options)
         : await runCmd(cmd, args, options),
-    runCmdBackground,
+    startIosSimulatorRecording: (request) =>
+      resolveRecordingProvider().startIosSimulatorRecording(request),
     runIosRunnerCommand,
     waitForStableFile,
     isPlayableVideo,
@@ -112,13 +113,7 @@ async function startIosSimulatorRecording(params: {
     logPath,
     deps,
   });
-  const { child, wait } = deps.runCmdBackground(
-    'xcrun',
-    buildSimctlArgsForDevice(device, ['io', device.id, 'recordVideo', resolvedOut]),
-    {
-      allowFailure: true,
-    },
-  );
+  const { child, wait } = deps.startIosSimulatorRecording({ device, outPath: resolvedOut });
   const readyAt = await waitForLocalRecordingSettleWindow(resolvedOut);
   let gestureClockOriginAtMs: number | undefined;
   let gestureClockOriginUptimeMs: number | undefined;

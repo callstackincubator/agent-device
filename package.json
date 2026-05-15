@@ -109,6 +109,7 @@
     "test:unit": "vitest run src",
     "test:coverage": "vitest run --coverage src test/integration/device-lab",
     "test:coverage:check": "pnpm test:coverage && node scripts/check-coverage-trend.mjs",
+    "test:device-lab:progress": "node scripts/device-lab-progress.mjs",
     "test:skillgym": "pnpm build && skillgym run ./test/skillgym/suites/agent-device-smoke-suite.ts --config ./test/skillgym/skillgym.config.ts",
     "test:smoke": "node --test test/integration/smoke-*.test.ts",
     "test:integration": "node --test test/integration/*.test.ts && pnpm exec vitest run test/integration/device-lab",

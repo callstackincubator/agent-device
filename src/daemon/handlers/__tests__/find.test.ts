@@ -1,15 +1,9 @@
 import { test, expect, vi, beforeEach } from 'vitest';
-import fs from 'node:fs';
-import path from 'node:path';
 import { parseFindArgs, handleFindCommands } from '../find.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
-import { withMockedMacOsHelper } from '../../../platforms/ios/__tests__/macos-helper-test-utils.ts';
 import { buildSnapshotSignatures } from '../../android-snapshot-freshness.ts';
 import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
-import {
-  makeIosSession as makeSession,
-  makeMacOsSession as makeBaseMacOsSession,
-} from '../../../__tests__/test-utils/session-factories.ts';
+import { makeIosSession as makeSession } from '../../../__tests__/test-utils/session-factories.ts';
 
 vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
@@ -32,10 +26,6 @@ beforeEach(() => {
     return command === 'snapshot' ? { nodes: [] } : {};
   });
 });
-
-function makeMacOsSession(name: string) {
-  return makeBaseMacOsSession(name, { surface: 'desktop' });
-}
 
 const INCREMENT_NODE = {
   type: 'Button',
@@ -327,57 +317,4 @@ test('handleFindCommands wait reuses rapid selector snapshots', async () => {
     expect(response.error.message).toContain('find wait timed out');
   }
   expect(mockDispatch).toHaveBeenCalledTimes(1);
-});
-
-test('handleFindCommands uses helper-backed snapshots for macOS desktop sessions', async () => {
-  await withMockedMacOsHelper(
-    [
-      '#!/bin/sh',
-      'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
-      "cat <<'JSON'",
-      '{"ok":true,"data":{"surface":"desktop","nodes":[{"index":0,"depth":0,"type":"DesktopSurface","label":"Desktop","surface":"desktop"},{"index":1,"depth":1,"parentIndex":0,"type":"Window","label":"Notes","surface":"desktop","rect":{"x":32,"y":48,"width":640,"height":480}}],"truncated":false,"backend":"macos-helper"}}',
-      'JSON',
-      '',
-    ].join('\n'),
-    async ({ tmpDir }) => {
-      const argsLogPath = path.join(tmpDir, 'args.log');
-      const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-      process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
-      const sessionStore = makeSessionStore();
-      const sessionName = 'macos-desktop-find';
-      sessionStore.set(sessionName, makeMacOsSession(sessionName));
-      let snapshotDispatchCalls = 0;
-
-      mockDispatch.mockImplementation(async (_device, command) => {
-        if (command === 'snapshot') {
-          snapshotDispatchCalls += 1;
-        }
-        return {};
-      });
-
-      try {
-        const response = await handleFindCommands({
-          req: {
-            token: 't',
-            session: sessionName,
-            command: 'find',
-            positionals: ['label', 'Notes', 'get', 'attrs'],
-            flags: {},
-          },
-          sessionName,
-          logPath: '/tmp/test.log',
-          sessionStore,
-          invoke: async () => ({ ok: true }) as DaemonResponse,
-        });
-
-        expect(response?.ok).toBe(true);
-        expect(snapshotDispatchCalls).toBe(0);
-        const logged = await fs.promises.readFile(argsLogPath, 'utf8');
-        expect(logged).toBe('snapshot\n--surface\ndesktop\n');
-      } finally {
-        if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-        else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
-      }
-    },
-  );
 });

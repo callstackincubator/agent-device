@@ -10,7 +10,7 @@ import {
 import { trackDownloadableArtifact } from '../../../src/daemon/artifact-tracking.ts';
 import { LeaseRegistry } from '../../../src/daemon/lease-registry.ts';
 import { SessionStore } from '../../../src/daemon/session-store.ts';
-import type { DaemonRequest, DaemonResponse } from '../../../src/daemon/types.ts';
+import type { DaemonRequest, DaemonResponse, SessionState } from '../../../src/daemon/types.ts';
 
 export const DEVICE_LAB_TOKEN = 'device-lab-token';
 
@@ -23,6 +23,7 @@ export type DeviceLabHarness = {
     flags?: DaemonRequest['flags'],
   ) => Promise<DeviceLabRpcResult>;
   client: () => AgentDeviceClient;
+  session: (name?: string) => SessionState | undefined;
   close: () => Promise<void>;
 };
 
@@ -30,10 +31,11 @@ export async function createDeviceLabHarness(
   deps: Partial<RequestRouterDeps> & Pick<RequestRouterDeps, 'deviceInventoryProvider'>,
 ): Promise<DeviceLabHarness> {
   const sessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-lab-session-'));
+  const sessionStore = new SessionStore(sessionDir);
   const handleRequest = createRequestHandler({
     logPath: path.join(os.tmpdir(), 'agent-device-lab-daemon.log'),
     token: DEVICE_LAB_TOKEN,
-    sessionStore: new SessionStore(sessionDir),
+    sessionStore,
     leaseRegistry: new LeaseRegistry(),
     trackDownloadableArtifact,
     ...deps,
@@ -57,6 +59,7 @@ export async function createDeviceLabHarness(
         `direct-${command}-${Date.now()}`,
       ),
     client: () => createAgentDeviceClient({}, { transport }),
+    session: (name = 'default') => sessionStore.get(name),
     close: async () => {
       fs.rmSync(sessionDir, { recursive: true, force: true });
     },
