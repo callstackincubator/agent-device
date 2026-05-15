@@ -4,8 +4,6 @@ import type {
   BackendDeviceFilter,
   BackendDeviceInfo,
   BackendDeviceTarget,
-  BackendEnsureSimulatorOptions,
-  BackendEnsureSimulatorResult,
   BackendInstallResult,
   BackendInstallSource,
 } from '../backend.ts';
@@ -35,12 +33,6 @@ export type AdminBootCommandResult = {
   backendResult?: Record<string, unknown>;
   message?: string;
 };
-
-export type AdminEnsureSimulatorCommandOptions = CommandContext & BackendEnsureSimulatorOptions;
-
-export type AdminEnsureSimulatorCommandResult = {
-  kind: 'simulatorEnsured';
-} & BackendEnsureSimulatorResult;
 
 export type AdminInstallCommandOptions = CommandContext & {
   app: string;
@@ -100,29 +92,6 @@ export const bootCommand: RuntimeCommand<
     ...(target ? { target } : {}),
     ...(formattedBackendResult ? { backendResult: formattedBackendResult } : {}),
     ...successText('Booted device'),
-  };
-};
-
-export const ensureSimulatorCommand: RuntimeCommand<
-  AdminEnsureSimulatorCommandOptions,
-  AdminEnsureSimulatorCommandResult
-> = async (runtime, options): Promise<AdminEnsureSimulatorCommandResult> => {
-  if (!runtime.backend.ensureSimulator) {
-    throw new AppError(
-      'UNSUPPORTED_OPERATION',
-      'admin.ensureSimulator is not supported by this backend',
-    );
-  }
-  const device = requireText(options.device, 'device');
-  const result = await runtime.backend.ensureSimulator(toBackendContext(runtime, options), {
-    device,
-    ...(options.runtime ? { runtime: requireText(options.runtime, 'runtime') } : {}),
-    ...(options.boot !== undefined ? { boot: options.boot } : {}),
-    ...(options.reuseExisting !== undefined ? { reuseExisting: options.reuseExisting } : {}),
-  });
-  return {
-    kind: 'simulatorEnsured',
-    ...result,
   };
 };
 

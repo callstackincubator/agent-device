@@ -13,8 +13,6 @@ import {
 } from '../../utils/device-isolation.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
-import { ensureDeviceReady } from '../device-ready.ts';
-import { ensureSimulatorExists } from '../../platforms/ios/ensure-simulator.ts';
 import { listAndroidApps } from '../../platforms/android/index.ts';
 import { listIosApps } from '../../platforms/ios/index.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
@@ -47,41 +45,6 @@ export async function handleSessionInventoryCommands(params: {
         })),
       },
     };
-  }
-
-  if (req.command === 'ensure-simulator') {
-    try {
-      const flags = req.flags ?? {};
-      const deviceName = flags.device;
-      const runtime = flags.runtime;
-      const iosSimulatorSetPath = resolveIosSimulatorDeviceSetPath(flags.iosSimulatorDeviceSet);
-      if (!deviceName) {
-        return errorResponse('INVALID_ARGS', 'ensure-simulator requires --device <name>');
-      }
-
-      const result = await ensureSimulatorExists({
-        deviceName,
-        runtime,
-        simulatorSetPath: iosSimulatorSetPath,
-        reuseExisting: flags.reuseExisting !== false,
-        boot: flags.boot === true,
-        ensureReady: ensureDeviceReady,
-      });
-      return {
-        ok: true,
-        data: {
-          udid: result.udid,
-          device: result.device,
-          runtime: result.runtime,
-          ios_simulator_device_set: iosSimulatorSetPath ?? null,
-          created: result.created,
-          booted: result.booted,
-        },
-      };
-    } catch (err) {
-      const appErr = asAppError(err);
-      return errorResponse(appErr.code, appErr.message, appErr.details);
-    }
   }
 
   if (req.command === 'devices') {

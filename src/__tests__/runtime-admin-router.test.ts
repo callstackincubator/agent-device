@@ -39,13 +39,6 @@ test('admin runtime commands call typed backend primitives', async () => {
   const boot = await device.admin.boot({ target: { id: 'SIM-1' } });
   assert.equal(boot.kind, 'deviceBooted');
 
-  const simulator = await device.admin.ensureSimulator({
-    device: 'iPhone 16',
-    runtime: 'iOS 18',
-    boot: true,
-  });
-  assert.equal(simulator.udid, 'SIM-1');
-
   const installed = await device.admin.install({
     app: 'com.example.app',
     source: { kind: 'path', path: '/tmp/Example.app' },
@@ -67,7 +60,6 @@ test('admin runtime commands call typed backend primitives', async () => {
   assert.deepEqual(calls, [
     'listDevices',
     'bootDevice',
-    'ensureSimulator',
     'installApp',
     'reinstallApp',
     'installApp',
@@ -251,16 +243,6 @@ function createAdminBackend(
     },
     bootDevice: async () => {
       calls.push('bootDevice');
-    },
-    ensureSimulator: async (_context, options) => {
-      calls.push('ensureSimulator');
-      return {
-        udid: 'SIM-1',
-        device: options.device,
-        runtime: options.runtime ?? 'iOS 18',
-        created: false,
-        booted: true,
-      };
     },
     installApp: async (_context, target) => {
       calls.push('installApp');

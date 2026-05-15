@@ -121,7 +121,6 @@ import {
 import {
   bootCommand,
   devicesCommand,
-  ensureSimulatorCommand,
   installCommand,
   installFromSourceCommand,
   reinstallCommand,
@@ -129,8 +128,6 @@ import {
   type AdminBootCommandResult,
   type AdminDevicesCommandOptions,
   type AdminDevicesCommandResult,
-  type AdminEnsureSimulatorCommandOptions,
-  type AdminEnsureSimulatorCommandResult,
   type AdminInstallCommandOptions,
   type AdminInstallCommandResult,
   type AdminInstallFromSourceCommandOptions,
@@ -249,8 +246,6 @@ export type {
   AdminBootCommandResult,
   AdminDevicesCommandOptions,
   AdminDevicesCommandResult,
-  AdminEnsureSimulatorCommandOptions,
-  AdminEnsureSimulatorCommandResult,
   AdminInstallCommandOptions,
   AdminInstallCommandResult,
   AdminInstallFromSourceCommandOptions,
@@ -337,10 +332,6 @@ export type AgentDeviceCommands = {
   admin: {
     devices: RuntimeCommand<AdminDevicesCommandOptions | undefined, AdminDevicesCommandResult>;
     boot: RuntimeCommand<AdminBootCommandOptions | undefined, AdminBootCommandResult>;
-    ensureSimulator: RuntimeCommand<
-      AdminEnsureSimulatorCommandOptions,
-      AdminEnsureSimulatorCommandResult
-    >;
     install: RuntimeCommand<AdminInstallCommandOptions, AdminInstallCommandResult>;
     reinstall: RuntimeCommand<AdminReinstallCommandOptions, AdminInstallCommandResult>;
     installFromSource: RuntimeCommand<
@@ -448,10 +439,6 @@ export type BoundAgentDeviceCommands = {
   admin: {
     devices: (options?: AdminDevicesCommandOptions) => Promise<AdminDevicesCommandResult>;
     boot: (options?: AdminBootCommandOptions) => Promise<AdminBootCommandResult>;
-    ensureSimulator: BoundRuntimeCommand<
-      AdminEnsureSimulatorCommandOptions,
-      AdminEnsureSimulatorCommandResult
-    >;
     install: BoundRuntimeCommand<AdminInstallCommandOptions, AdminInstallCommandResult>;
     reinstall: BoundRuntimeCommand<AdminReinstallCommandOptions, AdminInstallCommandResult>;
     installFromSource: BoundRuntimeCommand<
@@ -522,7 +509,6 @@ export const commands: AgentDeviceCommands = {
   admin: {
     devices: devicesCommand,
     boot: bootCommand,
-    ensureSimulator: ensureSimulatorCommand,
     install: installCommand,
     reinstall: reinstallCommand,
     installFromSource: installFromSourceCommand,
@@ -597,7 +583,6 @@ export function bindCommands(runtime: AgentDeviceRuntime): BoundAgentDeviceComma
     admin: {
       devices: (options) => commands.admin.devices(runtime, options),
       boot: (options) => commands.admin.boot(runtime, options),
-      ensureSimulator: (options) => commands.admin.ensureSimulator(runtime, options),
       install: (options) => commands.admin.install(runtime, options),
       reinstall: (options) => commands.admin.reinstall(runtime, options),
       installFromSource: (options) => commands.admin.installFromSource(runtime, options),

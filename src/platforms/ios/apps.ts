@@ -33,7 +33,7 @@ import {
   classifyLaunchFailure,
   launchFailureHint,
 } from './launch-diagnostics.ts';
-import { ensureBootedSimulator, ensureSimulator, getSimulatorState } from './simulator.ts';
+import { ensureBootedSimulator, getSimulatorState, requireSimulatorDevice } from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 import { prepareIosInstallArtifact } from './install-artifact.ts';
 import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
@@ -325,7 +325,7 @@ export async function readIosClipboardText(device: DeviceInfo): Promise<string> 
   if (device.platform === 'macos') {
     return await readMacOsClipboardText();
   }
-  ensureSimulator(device, 'clipboard');
+  requireSimulatorDevice(device, 'clipboard');
   await ensureBootedSimulator(device);
   const result = await runSimctl(device, ['pbpaste', device.id], { allowFailure: true });
   if (result.exitCode !== 0) {
@@ -343,7 +343,7 @@ export async function writeIosClipboardText(device: DeviceInfo, text: string): P
     await writeMacOsClipboardText(text);
     return;
   }
-  ensureSimulator(device, 'clipboard');
+  requireSimulatorDevice(device, 'clipboard');
   await ensureBootedSimulator(device);
   const result = await runSimctl(device, ['pbcopy', device.id], {
     allowFailure: true,
@@ -363,7 +363,7 @@ export async function pushIosNotification(
   bundleId: string,
   payload: Record<string, unknown>,
 ): Promise<void> {
-  ensureSimulator(device, 'push');
+  requireSimulatorDevice(device, 'push');
   await ensureBootedSimulator(device);
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-push-'));
   const payloadPath = path.join(tempDir, 'payload.apns');
@@ -398,7 +398,7 @@ export async function setIosSetting(
     }
     throw new AppError('INVALID_ARGS', getUnsupportedMacOsSettingMessage(setting));
   }
-  ensureSimulator(device, 'settings');
+  requireSimulatorDevice(device, 'settings');
   await ensureBootedSimulator(device);
   const normalized = setting.toLowerCase();
 

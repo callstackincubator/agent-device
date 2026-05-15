@@ -687,14 +687,6 @@
         "count": 1
       }
     },
-    "src/platforms/ios/ensure-simulator.ts": {
-      "complexity_moderate": {
-        "count": 1
-      },
-      "crap_moderate": {
-        "count": 1
-      }
-    },
     "src/platforms/ios/interactions.ts": {
       "complexity_critical": {
         "count": 1

@@ -63,7 +63,6 @@ function createTestClient(
           identifiers: { session: 'adc-android' },
         })),
     }),
-    simulators: createThrowingMethodGroup<AgentDeviceClient['simulators']>(),
     apps: createThrowingMethodGroup<AgentDeviceClient['apps']>(),
     materializations: createThrowingMethodGroup<AgentDeviceClient['materializations']>(),
     leases: createThrowingMethodGroup<AgentDeviceClient['leases']>({

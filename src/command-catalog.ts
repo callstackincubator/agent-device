@@ -45,7 +45,6 @@ export const PUBLIC_COMMANDS = {
 } as const;
 
 export const INTERNAL_COMMANDS = {
-  ensureSimulator: 'ensure-simulator',
   installSource: 'install_source',
   leaseAllocate: 'lease_allocate',
   leaseHeartbeat: 'lease_heartbeat',
@@ -61,14 +60,12 @@ export type CliCommandName =
   | 'connect'
   | 'connection'
   | 'disconnect'
-  | 'ensure-simulator'
   | 'metro'
   | 'session';
 
 export const DAEMON_COMMAND_GROUPS = {
   inventory: commandSet(
     INTERNAL_COMMANDS.sessionList,
-    INTERNAL_COMMANDS.ensureSimulator,
     PUBLIC_COMMANDS.devices,
     PUBLIC_COMMANDS.apps,
   ),
@@ -85,13 +82,11 @@ export const DAEMON_COMMAND_GROUPS = {
   selectorValidationExempt: commandSet(
     INTERNAL_COMMANDS.sessionList,
     PUBLIC_COMMANDS.devices,
-    INTERNAL_COMMANDS.ensureSimulator,
     INTERNAL_COMMANDS.releaseMaterializedPaths,
   ),
   leaseAdmissionExempt: commandSet(
     INTERNAL_COMMANDS.sessionList,
     PUBLIC_COMMANDS.devices,
-    INTERNAL_COMMANDS.ensureSimulator,
     INTERNAL_COMMANDS.releaseMaterializedPaths,
     INTERNAL_COMMANDS.leaseAllocate,
     INTERNAL_COMMANDS.leaseHeartbeat,

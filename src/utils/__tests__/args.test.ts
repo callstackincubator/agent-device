@@ -1324,3 +1324,9 @@ test('removed trigger aliases are no longer documented as commands', () => {
   const help = usageForCommand('trigger-screenshot-notification');
   assert.equal(help, null);
 });
+
+test('removed ensure-simulator command is no longer documented', () => {
+  const help = usageForCommand('ensure-simulator');
+  assert.equal(help, null);
+  assert.doesNotMatch(usage(), /ensure-simulator/);
+});

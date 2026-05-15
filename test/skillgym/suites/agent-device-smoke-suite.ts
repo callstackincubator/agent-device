@@ -688,6 +688,27 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     ],
   }),
   makeCase({
+    id: 'ios-simulator-selection-does-not-provision',
+    contract: [
+      'App name: Agent Device Tester',
+      'Platform: iOS simulator',
+      'Preferred simulator name: iPhone 16',
+      'Simulator set scope: /tmp/tenant-a/simulators',
+      'Simulator lifecycle provisioning is not an agent-device command',
+      'Use normal device selection and session opening',
+    ],
+    task: 'Plan commands to inspect the scoped iOS simulator inventory, open the app on the named simulator, and capture fresh interactive refs. Do not create or ensure a simulator.',
+    outputs: [
+      plannedCommand('devices'),
+      /--platform ios/i,
+      /--ios-simulator-device-set\s+\/tmp\/tenant-a\/simulators/i,
+      plannedCommand('open'),
+      /--device\s+["']?iPhone 16["']?/i,
+      /snapshot -i/i,
+    ],
+    forbiddenOutputs: [/ensure-simulator/i, /\bsimctl\b/i, /\bxcrun\b/i, /\bcreate\b/i],
+  }),
+  makeCase({
     id: 'android-non-ascii-text-stays-in-fill',
     contract: [
       'Platform: Android',

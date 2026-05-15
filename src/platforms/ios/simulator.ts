@@ -11,7 +11,7 @@ import {
 } from './config.ts';
 import { buildSimctlArgs, buildSimctlArgsForDevice } from './simctl.ts';
 
-export function ensureSimulator(device: DeviceInfo, command: string): void {
+export function requireSimulatorDevice(device: DeviceInfo, command: string): void {
   if (device.kind !== 'simulator') {
     throw new AppError('UNSUPPORTED_OPERATION', `${command} is only supported on iOS simulators`);
   }

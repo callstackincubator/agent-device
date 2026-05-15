@@ -63,8 +63,6 @@ export type {
   CommandRequestResult,
   DeviceBootOptions,
   ElementTarget,
-  EnsureSimulatorOptions,
-  EnsureSimulatorResult,
   FillOptions,
   FindLocator,
   FindOptions,

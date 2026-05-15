@@ -123,22 +123,6 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
 - Use `--platform` to narrow discovery to Apple-family (`ios`, `tvOS`, `macOS`) or Android targets.
 - Use `--ios-simulator-device-set` and `--android-device-allowlist` when you need tenant- or lab-scoped discovery.
 
-## Simulator provisioning
-
-```bash
-agent-device ensure-simulator --device "iPhone 16" --platform ios
-agent-device ensure-simulator --device "iPhone 16" --runtime com.apple.CoreSimulator.SimRuntime.iOS-18-4 --ios-simulator-device-set /tmp/tenant-a/simulators
-agent-device ensure-simulator --device "iPhone 16" --ios-simulator-device-set /tmp/tenant-a/simulators --boot
-```
-
-- `ensure-simulator` ensures a named iOS simulator exists inside a device set, creating it via `simctl create` if missing.
-- Requires `--device <name>` (the simulator name / device type, e.g. `"iPhone 16 Pro"`).
-- `--runtime <id>` pins a specific CoreSimulator runtime (e.g. `com.apple.CoreSimulator.SimRuntime.iOS-18-4`). Omit to use the newest compatible runtime.
-- `--boot` boots the simulator after ensuring it exists.
-- Reuse of an existing matching simulator is the default; the command is idempotent.
-- JSON output includes `udid`, `device`, `runtime`, `ios_simulator_device_set`, `created`, and `booted`.
-- Does not require an active session — safe to call before `open`.
-
 ## TV targets
 
 ```bash

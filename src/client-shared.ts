@@ -8,7 +8,6 @@ import type {
   AppInstallFromSourceResult,
   AppOpenResult,
   CaptureSnapshotResult,
-  EnsureSimulatorResult,
   SessionCloseResult,
 } from './client-types.ts';
 import type { Platform } from './utils/device.ts';
@@ -82,24 +81,6 @@ export function serializeDevice(device: AgentDeviceDevice): Record<string, unkno
     target: device.target,
     ...(typeof device.booted === 'boolean' ? { booted: device.booted } : {}),
   };
-}
-
-export function serializeEnsureSimulatorResult(
-  result: EnsureSimulatorResult,
-): Record<string, unknown> {
-  const action = result.created ? 'Created' : 'Reused';
-  const bootedSuffix = result.booted ? ' (booted)' : '';
-  return withSuccessText(
-    {
-      udid: result.udid,
-      device: result.device,
-      runtime: result.runtime,
-      ios_simulator_device_set: result.iosSimulatorDeviceSet ?? null,
-      created: result.created,
-      booted: result.booted,
-    },
-    `${action}: ${result.device} ${result.udid}${bootedSuffix}`,
-  );
 }
 
 export function resolveDeployResultTarget(result: {
