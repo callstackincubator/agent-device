@@ -1,33 +1,8 @@
-import { test, expect, vi, beforeEach } from 'vitest';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-
-vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
-  return { ...actual, dispatchCommand: vi.fn(async () => ({})), resolveTargetDevice: vi.fn() };
-});
-vi.mock('../../device-ready.ts', () => ({ ensureDeviceReady: vi.fn(async () => {}) }));
+import { test, expect } from 'vitest';
 
 import { handleSessionCommands } from '../session.ts';
-import type { DaemonRequest, DaemonResponse, SessionState } from '../../types.ts';
-import type { CommandFlags } from '../../../core/dispatch.ts';
-import { dispatchCommand, resolveTargetDevice } from '../../../core/dispatch.ts';
+import type { DaemonRequest, DaemonResponse } from '../../types.ts';
 import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
-import { makeSession as makeBaseSession } from '../../../__tests__/test-utils/session-factories.ts';
-
-const mockDispatch = vi.mocked(dispatchCommand);
-const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
-
-beforeEach(() => {
-  mockDispatch.mockReset();
-  mockDispatch.mockResolvedValue({});
-  mockResolveTargetDevice.mockReset();
-});
-
-function makeSession(name: string, device: SessionState['device']): SessionState {
-  return makeBaseSession(name, { device, appBundleId: 'com.example.active' });
-}
 
 const invoke = async (_req: DaemonRequest): Promise<DaemonResponse> => {
   return {
@@ -57,84 +32,4 @@ test('push requires active session or explicit device selector', async () => {
   if (response.ok) return;
   expect(response.error.code).toBe('INVALID_ARGS');
   expect(response.error.message).toMatch(/active session or an explicit device selector/i);
-});
-
-test('push expands payload file path from request cwd', async () => {
-  const sessionStore = makeSessionStore('agent-device-session-push-');
-  const session = makeSession('default', {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel',
-    kind: 'emulator',
-    booted: true,
-  });
-  sessionStore.set('default', session);
-  mockResolveTargetDevice.mockResolvedValue(session.device!);
-
-  let pushedPath = '';
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-push-payload-'));
-  const payloadPath = path.join(tempRoot, 'payload.json');
-  fs.writeFileSync(payloadPath, '{"action":"com.example.PUSH"}\n', 'utf8');
-
-  mockDispatch.mockImplementation(async (_device, _command, positionals) => {
-    pushedPath = positionals[1] ?? '';
-    return {};
-  });
-
-  await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'default',
-      command: 'push',
-      positionals: ['com.example.app', './payload.json'],
-      flags: {} as CommandFlags,
-      meta: { cwd: tempRoot },
-    },
-    sessionName: 'default',
-    logPath: '/tmp/daemon.log',
-    sessionStore,
-    invoke,
-  });
-
-  expect(pushedPath).toBe(payloadPath);
-});
-
-test('push treats brace-prefixed existing payload path as file', async () => {
-  const sessionStore = makeSessionStore('agent-device-session-push-');
-  const session = makeSession('default', {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel',
-    kind: 'emulator',
-    booted: true,
-  });
-  sessionStore.set('default', session);
-  mockResolveTargetDevice.mockResolvedValue(session.device!);
-
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-push-brace-file-'));
-  const payloadPath = path.join(tempRoot, '{payload}.json');
-  fs.writeFileSync(payloadPath, '{"action":"com.example.PUSH"}\n', 'utf8');
-
-  let pushedPath = '';
-  mockDispatch.mockImplementation(async (_device, _command, positionals) => {
-    pushedPath = positionals[1] ?? '';
-    return {};
-  });
-
-  await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'default',
-      command: 'push',
-      positionals: ['com.example.app', './{payload}.json'],
-      flags: {} as CommandFlags,
-      meta: { cwd: tempRoot },
-    },
-    sessionName: 'default',
-    logPath: '/tmp/daemon.log',
-    sessionStore,
-    invoke,
-  });
-
-  expect(pushedPath).toBe(payloadPath);
 });

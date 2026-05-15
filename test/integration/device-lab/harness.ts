@@ -21,6 +21,7 @@ export type DeviceLabHarness = {
     command: string,
     positionals?: string[],
     flags?: DaemonRequest['flags'],
+    options?: { meta?: DaemonRequest['meta'] },
   ) => Promise<DeviceLabRpcResult>;
   client: () => AgentDeviceClient;
   session: (name?: string) => SessionState | undefined;
@@ -53,9 +54,9 @@ export async function createDeviceLabHarness(
     });
 
   return {
-    callCommand: async (command, positionals = [], flags = {}) =>
+    callCommand: async (command, positionals = [], flags = {}, options = {}) =>
       responseToRpcResult(
-        await handleRequest(commandRequest(command, positionals, flags)),
+        await handleRequest(commandRequest(command, positionals, flags, options.meta)),
         `direct-${command}-${Date.now()}`,
       ),
     client: () => createAgentDeviceClient({}, { transport }),
@@ -75,6 +76,7 @@ function commandRequest(
   command: string,
   positionals: string[] = [],
   flags: DaemonRequest['flags'] = {},
+  meta?: DaemonRequest['meta'],
 ): DaemonRequest {
   return {
     token: DEVICE_LAB_TOKEN,
@@ -82,6 +84,7 @@ function commandRequest(
     command,
     positionals,
     flags,
+    meta,
   };
 }
 

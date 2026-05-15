@@ -67,45 +67,6 @@ test('trigger-app-event requires active session or explicit device selector', as
   expect(response.error.message).toMatch(/active session or an explicit device selector/i);
 });
 
-test('trigger-app-event supports explicit selector without active session', async () => {
-  const sessionStore = makeSessionStore('agent-device-session-trigger-');
-  mockResolveTargetDevice.mockResolvedValue({
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel',
-    kind: 'emulator',
-    booted: true,
-  });
-  mockDispatch.mockImplementation(async (device, command, positionals) => {
-    expect(device.platform).toBe('android');
-    expect(command).toBe('trigger-app-event');
-    expect(positionals).toEqual(['screenshot_taken']);
-    return {
-      event: 'screenshot_taken',
-      eventUrl: 'myapp://agent-device/event?name=screenshot_taken',
-    };
-  });
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'default',
-      command: 'trigger-app-event',
-      positionals: ['screenshot_taken'],
-      flags: { platform: 'android' },
-    },
-    sessionName: 'default',
-    logPath: '/tmp/daemon.log',
-    sessionStore,
-    invoke,
-  });
-
-  expect(mockDispatch).toHaveBeenCalled();
-  expect(response).toBeTruthy();
-  if (!response) return;
-  expect(response.ok).toBe(true);
-});
-
 test('trigger-app-event records action and refreshes session app bundle context', async () => {
   const sessionStore = makeSessionStore('agent-device-session-trigger-');
   const session = makeSession('default', {

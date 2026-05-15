@@ -81,6 +81,19 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assert.equal(boot.id, DEVICE_LAB_ANDROID.id);
         assert.equal(boot.booted, true);
 
+        const selectorTriggeredEvent = await client.apps.triggerEvent({
+          event: 'pre_open_ping',
+          payload: { stage: 'explicit-selector' },
+          ...selection,
+        });
+        assert.equal(selectorTriggeredEvent.event, 'pre_open_ping');
+        assert.equal(selectorTriggeredEvent.transport, 'deep-link');
+        assert.equal(
+          selectorTriggeredEvent.eventUrl,
+          'demo://agent-device/event?name=pre_open_ping&payload=%7B%22stage%22%3A%22explicit-selector%22%7D&platform=android',
+        );
+        assert.equal(daemon.session(), undefined);
+
         const keyboardDismiss = await client.command.keyboard({ action: 'dismiss', ...selection });
         assert.equal(keyboardDismiss.platform, 'android');
         assert.equal(keyboardDismiss.action, 'dismiss');
@@ -138,6 +151,44 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assert.equal(push.package, 'com.example.demo');
         assert.equal(push.action, 'com.example.demo.PUSH');
         assert.equal(push.extrasCount, 3);
+
+        const pushPayloadPath = path.join(tempRoot, 'payload.json');
+        fs.writeFileSync(
+          pushPayloadPath,
+          JSON.stringify({
+            action: 'com.example.demo.FILE_PUSH',
+            extras: { source: 'relative-file' },
+          }),
+          'utf8',
+        );
+        const filePush = await daemon.callCommand(
+          'push',
+          ['com.example.demo', './payload.json'],
+          selection,
+          { meta: { cwd: tempRoot } },
+        );
+        assert.equal(filePush.json.result.data.package, 'com.example.demo');
+        assert.equal(filePush.json.result.data.action, 'com.example.demo.FILE_PUSH');
+        assert.equal(filePush.json.result.data.extrasCount, 1);
+
+        const bracePayloadPath = path.join(tempRoot, '{payload}.json');
+        fs.writeFileSync(
+          bracePayloadPath,
+          JSON.stringify({
+            action: 'com.example.demo.BRACE_PUSH',
+            extras: { source: 'brace-file' },
+          }),
+          'utf8',
+        );
+        const braceFilePush = await daemon.callCommand(
+          'push',
+          ['com.example.demo', './{payload}.json'],
+          selection,
+          { meta: { cwd: tempRoot } },
+        );
+        assert.equal(braceFilePush.json.result.data.package, 'com.example.demo');
+        assert.equal(braceFilePush.json.result.data.action, 'com.example.demo.BRACE_PUSH');
+        assert.equal(braceFilePush.json.result.data.extrasCount, 1);
 
         const triggeredEvent = await client.apps.triggerEvent({
           event: 'screenshot_taken',
@@ -410,6 +461,40 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         '--ez',
         'foreground',
         'true',
+      ]);
+      assertCommandCall(adbCalls, [
+        'shell',
+        'am',
+        'broadcast',
+        '-a',
+        'com.example.demo.FILE_PUSH',
+        '-p',
+        'com.example.demo',
+        '--es',
+        'source',
+        'relative-file',
+      ]);
+      assertCommandCall(adbCalls, [
+        'shell',
+        'am',
+        'broadcast',
+        '-a',
+        'com.example.demo.BRACE_PUSH',
+        '-p',
+        'com.example.demo',
+        '--es',
+        'source',
+        'brace-file',
+      ]);
+      assertCommandCall(adbCalls, [
+        'shell',
+        'am',
+        'start',
+        '-W',
+        '-a',
+        'android.intent.action.VIEW',
+        '-d',
+        'demo://agent-device/event?name=pre_open_ping&payload=%7B%22stage%22%3A%22explicit-selector%22%7D&platform=android',
       ]);
       assertCommandCall(adbCalls, [
         'shell',
