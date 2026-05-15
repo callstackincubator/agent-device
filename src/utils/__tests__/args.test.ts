@@ -793,8 +793,10 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Default loop: devices\/apps -> open -> snapshot -i/);
   assert.match(usageText, /Use selectors or refs as positional targets/);
   assert.match(usageText, /Plain snapshot reads state; snapshot -i is required/);
+  assert.match(usageText, /agent-facing, token-efficient view for planning and targeting actions/);
   assert.match(usageText, /Truncated text\/input preview: expand first with snapshot -s @e12/);
   assert.match(usageText, /React Native apps: read help react-native/);
+  assert.match(usageText, /adb reverse tcp:<port> tcp:<port> is harmless/);
   assert.match(usageText, /Expo Go\/dev clients: use the provided URL when given/);
   assert.match(usageText, /on iOS prefer open "Expo Go" <url>/);
   assert.match(usageText, /Install flows: install\/install-from-source first/);
@@ -882,6 +884,7 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /provider-native text injection when available/);
   assert.match(help, /Do not switch to raw adb, clipboard, or paste as an agent fallback/);
   assert.match(help, /if no URL is provided but a target\/app name is provided, open that target/);
+  assert.match(help, /adb reverse tcp:<port> tcp:<port> before opening the app or URL/);
   assert.match(help, /do not split clear\/restart/);
   assert.match(help, /do not write network log headers/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform ios/);
@@ -947,6 +950,7 @@ test('usageForCommand resolves dogfood help topic', () => {
   assert.match(help, /Static\/on-load issues can use one screenshot/);
   assert.match(help, /React Native warning\/error overlays can be real findings/);
   assert.match(help, /Expo Go\/dev-client shells/);
+  assert.match(help, /adb reverse tcp:<port> tcp:<port> before opening the app or URL/);
   assert.match(help, /Keep stateful commands serial within the same session/);
   assert.match(help, /prefer agent-device open "Expo Go" <url>/);
   assert.match(help, /dogfood-output\/report\.md/);

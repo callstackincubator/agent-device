@@ -1,6 +1,9 @@
 import type { Rect, SnapshotNode } from './snapshot.ts';
 import { displayNodeLabel } from './snapshot-tree.ts';
 
+const ACTIONABLE_STRUCTURAL_TYPE_TOKENS = ['button', 'switch', 'checkbox', 'radio'];
+const STRUCTURAL_NOISE_TYPE_TOKENS = ['button', 'image', 'textview', 'view'];
+
 export type AndroidHelperPresentationInput = {
   nodes: SnapshotNode[];
   filteredCount: number;
@@ -52,11 +55,15 @@ function filterAndroidHelperTextOutputNodes(nodes: SnapshotNode[]): SnapshotNode
   if (nodes.length === 0) return nodes;
 
   const removed = new Set<number>();
+  const replacements = new Map<number, SnapshotNode>();
   markZeroAreaNodesForRemoval(nodes, removed);
-  markBottomNavNodesNearComposerForRemoval(nodes, removed);
+  markBottomNavNodesNearComposerForRemoval(nodes, removed, replacements);
   markDuplicateEmailButtonsForRemoval(nodes, removed);
+  markAdjacentDuplicateStructuralNodesForRemoval(nodes, removed, replacements);
 
-  return nodes.filter((node) => !removed.has(node.index));
+  return nodes
+    .filter((node) => !removed.has(node.index))
+    .map((node) => replacements.get(node.index) ?? node);
 }
 
 function markZeroAreaNodesForRemoval(nodes: SnapshotNode[], removed: Set<number>): void {
@@ -71,13 +78,15 @@ function markZeroAreaNodesForRemoval(nodes: SnapshotNode[], removed: Set<number>
 function markBottomNavNodesNearComposerForRemoval(
   nodes: SnapshotNode[],
   removed: Set<number>,
+  replacements: Map<number, SnapshotNode>,
 ): void {
   const composer = findBottomEditableNode(nodes);
   if (!composer?.rect) return;
 
   const navNodes = findBottomNavigationLikeNodes(nodes, composer.rect);
   for (const node of navNodes) {
-    markNodeAndDescendantsForRemoval(nodes, node.index, removed);
+    addPresentationHints(replacements, node, ['likely navigation']);
+    markDescendantsForRemoval(nodes, node.index, removed);
   }
 }
 
@@ -100,12 +109,81 @@ function markDuplicateEmailButtonsForRemoval(nodes: SnapshotNode[], removed: Set
   }
 }
 
+function markAdjacentDuplicateStructuralNodesForRemoval(
+  nodes: SnapshotNode[],
+  removed: Set<number>,
+  replacements: Map<number, SnapshotNode>,
+): void {
+  const lastByLabel = new Map<string, SnapshotNode>();
+  for (const node of nodes) {
+    if (removed.has(node.index) || !isStructuralNoiseCandidate(node)) {
+      continue;
+    }
+    const label = normalizeStructuralNodeLabel(displayNodeLabel(node));
+    if (!label) continue;
+
+    // RN can expose the same visible row content through parallel typed siblings
+    // such as ImageView + Button or TextView + Button, so label is the signature.
+    const previous = lastByLabel.get(label);
+    if (previous && shouldCollapseAdjacentStructuralDuplicate(previous, node, removed)) {
+      const survivor = collapseAdjacentStructuralDuplicate(
+        nodes,
+        previous,
+        node,
+        removed,
+        replacements,
+      );
+      lastByLabel.set(label, survivor);
+      continue;
+    }
+    lastByLabel.set(label, node);
+  }
+}
+
+function shouldCollapseAdjacentStructuralDuplicate(
+  previous: SnapshotNode,
+  node: SnapshotNode,
+  removed: Set<number>,
+): boolean {
+  return (
+    !removed.has(previous.index) &&
+    areSameVisualRow(previous.rect, node.rect) &&
+    areStructurallyAdjacentForCollapse(previous, node)
+  );
+}
+
+function collapseAdjacentStructuralDuplicate(
+  nodes: SnapshotNode[],
+  previous: SnapshotNode,
+  node: SnapshotNode,
+  removed: Set<number>,
+  replacements: Map<number, SnapshotNode>,
+): SnapshotNode {
+  const survivor = chooseStructuralRepresentative(previous, node);
+  const collapsed = survivor.index === previous.index ? node : previous;
+  const collapsedHint = imagePresentationHint(collapsed);
+  addPresentationHints(replacements, survivor, [
+    ...readPresentationHints(replacements.get(collapsed.index) ?? collapsed),
+    ...(collapsedHint ? [collapsedHint] : []),
+  ]);
+  markNodeAndDescendantsForRemoval(nodes, collapsed.index, removed);
+  return replacements.get(survivor.index) ?? survivor;
+}
+
 function markNodeAndDescendantsForRemoval(
   nodes: SnapshotNode[],
   rootIndex: number,
   removed: Set<number>,
 ): void {
   removed.add(rootIndex);
+  markDescendantsForRemoval(nodes, rootIndex, removed);
+}
+
+function markDescendantsForRemoval(
+  nodes: SnapshotNode[],
+  rootIndex: number,
+  removed: Set<number>,
+): void {
   const pending = [rootIndex];
   while (pending.length > 0) {
     const current = pending.pop();
@@ -115,6 +193,23 @@ function markNodeAndDescendantsForRemoval(
       pending.push(node.index);
     }
   }
+}
+
+function addPresentationHints(
+  replacements: Map<number, SnapshotNode>,
+  node: SnapshotNode,
+  hints: string[],
+): void {
+  const existing = replacements.get(node.index) ?? node;
+  const merged = [...new Set([...readPresentationHints(existing), ...hints.filter(Boolean)])];
+  replacements.set(node.index, {
+    ...existing,
+    presentationHints: merged,
+  });
+}
+
+function readPresentationHints(node: SnapshotNode): string[] {
+  return Array.isArray(node.presentationHints) ? node.presentationHints : [];
 }
 
 function hasRenderableArea(rect: Rect): boolean {
@@ -235,6 +330,67 @@ function isTextOnlyNode(node: SnapshotNode): boolean {
   return type.includes('textview') || type === 'text';
 }
 
+function isStructuralNoiseCandidate(node: SnapshotNode): boolean {
+  if (!node.rect || !hasRenderableArea(node.rect) || isRootNode(node) || isEditableNode(node)) {
+    return false;
+  }
+  const type = (node.type ?? '').toLowerCase();
+  return type === 'text' || hasAnyTypeToken(type, STRUCTURAL_NOISE_TYPE_TOKENS);
+}
+
+function chooseStructuralRepresentative(left: SnapshotNode, right: SnapshotNode): SnapshotNode {
+  const leftScore = structuralRepresentativeScore(left);
+  const rightScore = structuralRepresentativeScore(right);
+  return rightScore > leftScore ? right : left;
+}
+
+function structuralRepresentativeScore(node: SnapshotNode): number {
+  const type = (node.type ?? '').toLowerCase();
+  let score = 0;
+  if (hasAnyTypeToken(type, ACTIONABLE_STRUCTURAL_TYPE_TOKENS)) {
+    score += 100;
+  } else if (type.includes('image')) {
+    score += 30;
+  } else if (type.includes('textview') || type === 'text') {
+    score += 20;
+  } else if (type.includes('view')) {
+    score += 10;
+  }
+  if (node.hittable === true) score += 20;
+  if (node.enabled !== false) score += 5;
+  return score;
+}
+
+function hasAnyTypeToken(type: string, tokens: string[]): boolean {
+  return tokens.some((token) => type.includes(token));
+}
+
+function imagePresentationHint(node: SnapshotNode): string | null {
+  return (node.type ?? '').toLowerCase().includes('image') ? 'has image' : null;
+}
+
+function areStructurallyAdjacentForCollapse(left: SnapshotNode, right: SnapshotNode): boolean {
+  if (areStructurallyAdjacent(left, right)) {
+    return true;
+  }
+  return isPassiveChildOfActionableDuplicate(left, right);
+}
+
+function isPassiveChildOfActionableDuplicate(left: SnapshotNode, right: SnapshotNode): boolean {
+  const parent =
+    left.parentIndex === right.index ? right : right.parentIndex === left.index ? left : null;
+  const child = parent?.index === left.index ? right : parent?.index === right.index ? left : null;
+  if (!parent || !child) return false;
+  return chooseStructuralRepresentative(parent, child).index === parent.index;
+}
+
+function normalizeStructuralNodeLabel(label: string): string | null {
+  const normalized = label.trim().replace(/\s+/g, ' ').toLowerCase();
+  if (!normalized) return null;
+  if (/^(true|false|\d+)$/.test(normalized)) return null;
+  return normalized;
+}
+
 function getNodeOrDescendantLabel(node: SnapshotNode, nodes: SnapshotNode[]): string {
   const label = displayNodeLabel(node);
   if (label.trim()) return label;
@@ -270,4 +426,16 @@ function areSameVisualRow(left: Rect | undefined, right: Rect | undefined): bool
   const leftCenterY = left.y + left.height / 2;
   const rightCenterY = right.y + right.height / 2;
   return Math.abs(leftCenterY - rightCenterY) <= Math.max(left.height, right.height, 1);
+}
+
+function areStructurallyAdjacent(left: SnapshotNode, right: SnapshotNode): boolean {
+  if (left.parentIndex === right.parentIndex) {
+    return Math.abs(left.index - right.index) <= 3;
+  }
+  if (left.parentIndex === right.index || right.parentIndex === left.index) {
+    return false;
+  }
+  return (
+    Math.abs((left.depth ?? 0) - (right.depth ?? 0)) <= 1 && Math.abs(left.index - right.index) <= 2
+  );
 }

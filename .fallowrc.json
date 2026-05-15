@@ -26,7 +26,7 @@
     "examples/test-app/**",
     "ios-runner/AgentDeviceRunner/AgentDeviceRunnerUITests.xctestplan"
   ],
-  "ignoreDependencies": ["@theme"],
+  "ignoreDependencies": ["@microsoft/api-extractor", "@theme"],
   "ignoreExports": [
     {
       "file": "src/__tests__/test-utils/index.ts",

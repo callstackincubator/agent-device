@@ -23,7 +23,7 @@ Do not inspect examples/test-app, src/, README.md, or website/docs.
 Do not browse the web.
 Use only this prompt plus local CLI help as private reference.
 For local CLI help in this repo, use node bin/agent-device.mjs help or --help; final commands still use agent-device.
-Final output: only agent-device commands, one per line. Any prose or Markdown fails.
+Final output: only commands, one per line. Use agent-device for app/device automation; shell setup commands are allowed only when this prompt explicitly requires them. Any prose or Markdown fails.
 `.trim();
 
 function workspacePathPattern(relativePath: string, kind: 'directory' | 'file') {
@@ -984,6 +984,32 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       /open\s+(?:"Expo Go"|Expo\s+Go)\s+exp:\/\//i,
       /--activity/i,
       /host\.exp\.exponent/i,
+    ],
+  }),
+  makeCase({
+    id: 'android-local-metro-reverse-before-url-open',
+    contract: [
+      'Platform: Android',
+      'Launch context: Expo Go because the user provided an exp:// project URL',
+      'Local Metro port: 8082',
+      'Project URL after emulator port reverse: exp://127.0.0.1:8082',
+      'Android Metro reachability should use adb reverse for any local Metro port',
+      'Do not assume every React Native app is Expo; this one is Expo only because an exp:// URL was provided',
+    ],
+    task: 'Plan the commands to make the Android emulator reach local Metro on port 8082, open the project URL, and verify the app UI with an interactive snapshot.',
+    outputs: [
+      plannedCommand('adb reverse'),
+      /tcp:8082\s+tcp:8082/i,
+      plannedCommand('open'),
+      /exp:\/\/127\.0\.0\.1:8082/i,
+      /--platform android/i,
+      /snapshot -i/i,
+    ],
+    forbiddenOutputs: [
+      /exp:\/\/10\.0\.2\.2:8082/i,
+      /open\s+(?:"Expo Go"|Expo\s+Go)\s+exp:\/\//i,
+      /com\.(?:expensify|agent|example)/i,
+      /--activity/i,
     ],
   }),
   makeCase({

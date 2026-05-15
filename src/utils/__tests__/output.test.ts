@@ -301,7 +301,7 @@ test('formatSnapshotText keeps zero-height visible nodes out of off-screen summa
   assert.match(text, /\[off-screen below\] 1 interactive item: "Later"/);
 });
 
-test('formatSnapshotText collapses inactive Android helper nodes in human output', () => {
+test('formatSnapshotText collapses Android helper nodes in agent-facing output', () => {
   const nodes = [
     {
       ref: 'e1',
@@ -455,15 +455,15 @@ test('formatSnapshotText collapses inactive Android helper nodes in human output
     }),
   );
 
-  assert.match(text, /Snapshot: 4 visible nodes \(15 total\)/);
-  assert.match(text, /Collapsed 11 inactive Android helper nodes from text output/);
+  assert.match(text, /Snapshot: 8 visible nodes \(15 total\)/);
+  assert.match(text, /Collapsed 7 Android helper nodes from the agent-facing text snapshot/);
   assert.match(text, /@e3 \[button\] "alice@example\.com"/);
   assert.doesNotMatch(text, /@e4 \[button\] "alice@example\.com"/);
   assert.doesNotMatch(text, /Invisible stale action/);
-  assert.doesNotMatch(text, /\[group\] "Dashboard"/);
-  assert.doesNotMatch(text, /\[group\] "Messages/);
-  assert.doesNotMatch(text, /\[group\] "Billing"/);
-  assert.doesNotMatch(text, /\[group\] "Profile/);
+  assert.match(text, /@e8 \[group\] "Dashboard" \[likely navigation\]/);
+  assert.match(text, /@e10 \[group\] "Messages\. Your review is required" \[likely navigation\]/);
+  assert.match(text, /@e12 \[group\] "Billing" \[likely navigation\]/);
+  assert.match(text, /@e14 \[group\] "Profile, My settings\." \[likely navigation\]/);
   assert.doesNotMatch(text, /possible repeated nav subtree/);
 
   const raw = withNoColor(() =>
@@ -478,6 +478,172 @@ test('formatSnapshotText collapses inactive Android helper nodes in human output
   );
   assert.match(raw, /"Invisible stale action"/);
   assert.match(raw, /"Messages\. Your review is required"/);
+});
+
+test('formatSnapshotText collapses adjacent React Native row noise in Android helper output', () => {
+  const nodes = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'android.widget.FrameLayout',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'androidx.recyclerview.widget.RecyclerView',
+      label: 'Messages',
+      rect: { x: 0, y: 80, width: 390, height: 580 },
+    },
+    {
+      ref: 'e3',
+      index: 2,
+      depth: 2,
+      parentIndex: 1,
+      type: 'android.widget.Button',
+      label: 'Adam, 9:41 AM, Hello from Adam',
+      rect: { x: 12, y: 120, width: 366, height: 96 },
+      hittable: true,
+    },
+    {
+      ref: 'e4',
+      index: 3,
+      depth: 3,
+      parentIndex: 2,
+      type: 'android.widget.ImageView',
+      label: 'Adam',
+      rect: { x: 20, y: 132, width: 40, height: 40 },
+    },
+    {
+      ref: 'e5',
+      index: 4,
+      depth: 3,
+      parentIndex: 2,
+      type: 'android.widget.Button',
+      label: 'Adam',
+      rect: { x: 20, y: 132, width: 40, height: 40 },
+      hittable: true,
+    },
+    {
+      ref: 'e6',
+      index: 5,
+      depth: 3,
+      parentIndex: 2,
+      type: 'android.widget.TextView',
+      label: 'Hello from Adam',
+      rect: { x: 72, y: 160, width: 250, height: 32 },
+    },
+    {
+      ref: 'e7',
+      index: 6,
+      depth: 3,
+      parentIndex: 2,
+      type: 'android.widget.Button',
+      label: 'Hello from Adam',
+      rect: { x: 72, y: 160, width: 250, height: 32 },
+      hittable: true,
+    },
+    {
+      ref: 'e8',
+      index: 7,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.widget.EditText',
+      label: 'Write a message...',
+      identifier: 'composer',
+      rect: { x: 64, y: 716, width: 248, height: 48 },
+      hittable: true,
+    },
+    {
+      ref: 'e9',
+      index: 8,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.widget.Button',
+      label: 'Send',
+      rect: { x: 320, y: 716, width: 48, height: 48 },
+      hittable: true,
+    },
+    {
+      ref: 'e10',
+      index: 9,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.widget.Button',
+      label: 'Create expense',
+      rect: { x: 20, y: 660, width: 160, height: 40 },
+      hittable: true,
+    },
+  ];
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes,
+      truncated: false,
+      androidSnapshot: { backend: 'android-helper' },
+    }),
+  );
+
+  assert.match(text, /Snapshot: 8 visible nodes \(10 total\)/);
+  assert.match(text, /Collapsed 2 Android helper nodes from the agent-facing text snapshot/);
+  assert.match(text, /@e5 \[button\] "Adam" \[has image\]/);
+  assert.match(text, /@e7 \[button\] "Hello from Adam"/);
+  assert.doesNotMatch(text, /\[also text\]/);
+  assert.doesNotMatch(text, /@e4 \[image\] "Adam"/);
+  assert.doesNotMatch(text, /@e6 \[text\] "Hello from Adam"/);
+  assert.match(text, /@e8 \[text-field\] "Write a message\.\.\." \[editable\]/);
+  assert.match(text, /@e9 \[button\] "Send"/);
+  assert.match(text, /@e10 \[button\] "Create expense"/);
+
+  const raw = withNoColor(() =>
+    formatSnapshotText(
+      {
+        nodes,
+        truncated: false,
+        androidSnapshot: { backend: 'android-helper' },
+      },
+      { raw: true },
+    ),
+  );
+  assert.match(raw, /"ref":"e5"/);
+  assert.match(raw, /"ref":"e7"/);
+});
+
+test('formatSnapshotText keeps ordinary repeated labels on separate rows', () => {
+  const nodes = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'android.widget.FrameLayout',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    ...Array.from({ length: 3 }, (_, index) => ({
+      ref: `e${index + 2}`,
+      index: index + 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.widget.Button',
+      label: 'Save',
+      rect: { x: 24, y: 120 + index * 80, width: 120, height: 44 },
+      hittable: true,
+    })),
+  ];
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes,
+      truncated: false,
+      androidSnapshot: { backend: 'android-helper' },
+    }),
+  );
+
+  assert.match(text, /Snapshot: 4 nodes/);
+  assert.doesNotMatch(text, /Collapsed \d+ Android helper node/);
+  assert.match(text, /@e2 \[button\] "Save"/);
+  assert.match(text, /@e3 \[button\] "Save"/);
+  assert.match(text, /@e4 \[button\] "Save"/);
 });
 
 test('formatSnapshotText renders explicit hidden scroll-area content hints', () => {

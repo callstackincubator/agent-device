@@ -228,6 +228,7 @@ agent-device get attrs @e1
   `androidSnapshot.windowCount` describe the capture.
 - `diff snapshot` compares the current snapshot with the previous session baseline and then updates baseline.
 - `snapshot --diff` is an alias for `diff snapshot`.
+- Default snapshot text is an agent-facing, token-efficient view for planning and targeting actions. It may collapse helper/accessibility noise; use `--raw` or `--json` when you need the full provider tree.
 
 ## Wait and alerts
 

@@ -160,9 +160,11 @@ const AGENT_QUICKSTART_LINES = [
   'Default loop: devices/apps -> open -> snapshot -i -> press/fill/get/is/wait/find -> verify -> close.',
   'Use selectors or refs as positional targets: id="submit", label="Allow", or @e12 from snapshot -i.',
   'Plain snapshot reads state; snapshot -i is required to refresh interactive refs.',
+  'Default snapshot text is an agent-facing, token-efficient view for planning and targeting actions.',
   'Read-only visible/state question: use snapshot/get/is/find; use snapshot -i only when refs are needed.',
   'Truncated text/input preview: expand first with snapshot -s @e12, not get text.',
   'React Native apps: read help react-native for Metro, LogBox/RedBox overlays, DevTools routing, and RN-specific blockers.',
+  'Android RN/Expo Metro: adb reverse tcp:<port> tcp:<port> is harmless and helps the device reach any local Metro port.',
   'Expo Go/dev clients: use the provided URL when given; on iOS prefer open "Expo Go" <url>; Android URL opens infer the foreground package for logs/perf when possible.',
   'Install flows: install/install-from-source first, then open the installed id with --relaunch.',
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
@@ -246,6 +248,7 @@ Bootstrap:
 
 Snapshots and refs:
   snapshot reads visible state. snapshot -i gets current interactive refs.
+  Default snapshot text is an agent-facing, token-efficient view for planning and targeting actions; use --raw or --json only when you need the full provider tree.
   Snapshot legend:
     @e12 [button] label="Add to cart" id="add-cart" enabled hittable -> press @e12 or press 'id="add-cart"'.
     @e13 [textinput] label="Notes" preview="Leave at side..." truncated -> snapshot -s @e13 before reading.
@@ -330,6 +333,7 @@ React Native dev loop:
     agent-device find "Home"
   Do not use agent-device reload. Use open --relaunch for native startup reset.
   React Native apps: use help react-native for Metro/Fast Refresh, LogBox/RedBox overlays, DevTools routing, and RN-specific blockers.
+  Android RN/Expo Metro: run adb reverse tcp:<port> tcp:<port> before opening the app or URL; it is harmless even if already configured.
   Expo Go is a host shell. Use a provided project URL instead of inventing a bundle id; if no URL is provided but a target/app name is provided, open that target and do not inspect project files to find one. On iOS, prefer host + URL when the host shell is known because direct URL open can report success while leaving the runner/shell focused; verify with snapshot -i after opening:
     agent-device open "Expo Go" exp://127.0.0.1:8081 --platform ios
     agent-device snapshot -i --platform ios
@@ -492,6 +496,7 @@ React Native dev loop:
     agent-device metro reload
     agent-device find "Home"
   Do not use agent-device reload. Use open --relaunch for native startup reset.
+  Android RN/Expo Metro: run adb reverse tcp:<port> tcp:<port> before opening the app or URL; it is harmless even if already configured.
   Expo Go/dev clients are host shells. Use provided project URLs, verify with snapshot -i after opening, and ask instead of inventing app ids or URLs. Help workflow owns the full Expo URL command shapes.
 
 Overlays and busy RN UIs:
@@ -598,6 +603,7 @@ Coverage:
   Navigation, forms, empty/error/loading states, offline or retry behavior, permissions, settings, accessibility labels, orientation/keyboard, and obvious performance stalls.
   React Native warning/error overlays can be real findings or test blockers. Capture them, dismiss if unrelated, re-snapshot, and report them.
   Expo Go/dev-client shells: use the provided exp:// or dev-client URL and record whether the shell, project load, or app UI is being tested. On iOS dogfood, prefer agent-device open "Expo Go" <url> when Expo Go is the known shell, then snapshot -i to confirm the project UI rather than the runner splash.
+  Android RN/Expo Metro: run adb reverse tcp:<port> tcp:<port> before opening the app or URL; it is harmless even if already configured.
   Categories: visual, functional, UX, content, performance, diagnostics, permissions, accessibility.
   Severity: critical blocks a core flow/data/crashes; high breaks a major feature; medium has friction or workaround; low is polish.
 

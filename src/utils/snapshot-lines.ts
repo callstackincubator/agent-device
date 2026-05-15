@@ -203,8 +203,9 @@ function buildLineMetadata(
   if (node.focused === true) metadata.push('focused');
   if (isEditableRole(type)) metadata.push('editable');
   if (looksScrollable(node, type)) metadata.push('scrollable');
+  metadata.push(...(node.presentationHints ?? []));
   if (!textSurface.shouldSummarize) {
-    return metadata;
+    return uniqueMetadata(metadata);
   }
   metadata.push(`preview:"${escapePreviewText(buildTextPreview(textSurface.text))}"`);
   metadata.push('truncated');
