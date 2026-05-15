@@ -12,7 +12,6 @@ import {
   installAndroidApp,
   installAndroidInstallablePath,
   isAmStartError,
-  listAndroidApps,
   openAndroidApp,
   parseAndroidLaunchComponent,
   resolveAndroidApp,
@@ -220,63 +219,6 @@ test('inferAndroidAppName derives readable names from package ids', () => {
   assert.equal(inferAndroidAppName('com.android.app.services'), 'Services');
 });
 
-test('listAndroidApps returns launchable apps with inferred names', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-apps-all-'));
-  const adbPath = path.join(tmpDir, 'adb');
-  await fs.writeFile(
-    adbPath,
-    [
-      '#!/bin/sh',
-      'if [ "$1" = "-s" ]; then',
-      '  shift',
-      '  shift',
-      'fi',
-      'if [ "$1" = "shell" ] && [ "$2" = "cmd" ] && [ "$3" = "package" ] && [ "$4" = "query-activities" ]; then',
-      '  echo "25"',
-      '  echo "com.google.android.apps.maps/.MainActivity"',
-      '  echo "priority=0"',
-      '  echo "org.mozilla.firefox/.App"',
-      '  echo "com.android.settings/.Settings"',
-      '  exit 0',
-      'fi',
-      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ] && [ "$4" = "packages" ] && [ "$5" = "-3" ]; then',
-      '  echo "package:com.google.android.apps.maps"',
-      '  echo "package:com.example.serviceonly"',
-      '  echo "package:org.mozilla.firefox"',
-      '  exit 0',
-      'fi',
-      'echo "unexpected args: $@" >&2',
-      'exit 1',
-      '',
-    ].join('\n'),
-    'utf8',
-  );
-  await fs.chmod(adbPath, 0o755);
-
-  const previousPath = process.env.PATH;
-  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
-
-  const device: DeviceInfo = {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel',
-    kind: 'emulator',
-    booted: true,
-  };
-
-  try {
-    const apps = await listAndroidApps(device, 'all');
-    assert.deepEqual(apps, [
-      { package: 'com.android.settings', name: 'Settings' },
-      { package: 'com.google.android.apps.maps', name: 'Maps' },
-      { package: 'org.mozilla.firefox', name: 'Firefox' },
-    ]);
-  } finally {
-    process.env.PATH = previousPath;
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
-});
-
 test('parseAndroidLaunchablePackages ignores cmd package query metadata lines', () => {
   assert.deepEqual(
     parseAndroidLaunchablePackages(
@@ -290,59 +232,6 @@ test('parseAndroidLaunchablePackages ignores cmd package query metadata lines', 
     ),
     ['com.google.android.apps.maps', 'org.mozilla.firefox'],
   );
-});
-
-test('listAndroidApps user-installed excludes non-launchable packages', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-apps-user-'));
-  const adbPath = path.join(tmpDir, 'adb');
-  await fs.writeFile(
-    adbPath,
-    [
-      '#!/bin/sh',
-      'if [ "$1" = "-s" ]; then',
-      '  shift',
-      '  shift',
-      'fi',
-      'if [ "$1" = "shell" ] && [ "$2" = "cmd" ] && [ "$3" = "package" ] && [ "$4" = "query-activities" ]; then',
-      '  echo "com.google.android.apps.maps/.MainActivity"',
-      '  echo "org.mozilla.firefox/.App"',
-      '  exit 0',
-      'fi',
-      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ] && [ "$4" = "packages" ] && [ "$5" = "-3" ]; then',
-      '  echo "package:com.google.android.apps.maps"',
-      '  echo "package:com.example.serviceonly"',
-      '  echo "package:org.mozilla.firefox"',
-      '  exit 0',
-      'fi',
-      'echo "unexpected args: $@" >&2',
-      'exit 1',
-      '',
-    ].join('\n'),
-    'utf8',
-  );
-  await fs.chmod(adbPath, 0o755);
-
-  const previousPath = process.env.PATH;
-  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
-
-  const device: DeviceInfo = {
-    platform: 'android',
-    id: 'emulator-5554',
-    name: 'Pixel',
-    kind: 'emulator',
-    booted: true,
-  };
-
-  try {
-    const apps = await listAndroidApps(device, 'user-installed');
-    assert.deepEqual(apps, [
-      { package: 'com.google.android.apps.maps', name: 'Maps' },
-      { package: 'org.mozilla.firefox', name: 'Firefox' },
-    ]);
-  } finally {
-    process.env.PATH = previousPath;
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  }
 });
 
 test('installAndroidApp installs .apk via adb install -r', async () => {

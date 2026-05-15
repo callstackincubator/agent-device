@@ -54,10 +54,10 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
   let clipboardText = '';
   const appleToolProvider: AppleToolProvider = {
     whichCommand: async () => true,
-    runCommand: async (cmd, args) => {
+    runCommand: async (cmd, args, options) => {
       appleToolCalls.push([cmd, ...args]);
       if (cmd === 'xcrun' && args.join(' ') === 'simctl pbcopy sim-1') {
-        clipboardText = 'runner otp 246810';
+        clipboardText = String(options?.stdin ?? '');
         return { stdout: '', stderr: '', exitCode: 0 };
       }
       if (cmd === 'xcrun' && args.join(' ') === 'simctl pbpaste sim-1') {

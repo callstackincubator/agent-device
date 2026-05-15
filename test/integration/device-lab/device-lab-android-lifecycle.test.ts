@@ -253,7 +253,11 @@ function androidAdbResult(
     };
   }
   if (args.join(' ') === 'shell pm list packages -3') {
-    return { stdout: 'package:com.example.demo\n', stderr: '', exitCode: 0 };
+    return {
+      stdout: 'package:com.example.demo\npackage:com.example.serviceonly\n',
+      stderr: '',
+      exitCode: 0,
+    };
   }
   if (args.join(' ') === 'shell dumpsys window windows') {
     return {

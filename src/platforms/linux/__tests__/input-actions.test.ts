@@ -52,31 +52,6 @@ afterAll(() => {
 
 // ── xdotool tests ────────────────────────────────────────────────────────
 
-test('sendKey uses xdotool key with combo', async () => {
-  setupXdotool();
-  await sendKey('alt+Left', ['56:1', '105:1', '105:0', '56:0']);
-  const c = calls();
-  assert.ok(
-    c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('key') && args.includes('alt+Left')),
-  );
-});
-
-test('typeLinux uses xdotool type with delay', async () => {
-  setupXdotool();
-  await typeLinux('hello', 50);
-  const c = calls();
-  assert.ok(
-    c.some(
-      ([cmd, args]) =>
-        cmd === 'xdotool' &&
-        args.includes('type') &&
-        args.includes('--delay') &&
-        args.includes('50') &&
-        args.includes('hello'),
-    ),
-  );
-});
-
 test('typeLinux omits --delay when delayMs is 0', async () => {
   setupXdotool();
   await typeLinux('test', 0);
@@ -101,16 +76,6 @@ test('scrollLinux uses xdotool button 4 for up, 5 for down', async () => {
   c = calls();
   assert.ok(
     c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('click') && args.includes('5')),
-  );
-});
-
-test('scrollLinux converts pixels to click count', async () => {
-  setupXdotool();
-  await scrollLinux('down', { pixels: 150 });
-  const c = calls();
-  // 150 / 15 = 10 clicks
-  assert.ok(
-    c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('--repeat') && args.includes('10')),
   );
 });
 

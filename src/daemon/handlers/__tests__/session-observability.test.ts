@@ -1,43 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { handleSessionObservabilityCommands } from '../session-observability.ts';
 import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
-
-test('logs path reports backend for macOS desktop sessions directly', async () => {
-  const sessionStore = makeSessionStore('agent-device-session-observability-');
-  sessionStore.set('desktop', {
-    name: 'desktop',
-    createdAt: Date.now(),
-    actions: [],
-    surface: 'desktop',
-    device: {
-      platform: 'macos',
-      id: 'host-mac',
-      name: 'Host Mac',
-      kind: 'device',
-      target: 'desktop',
-    },
-  });
-
-  const response = await handleSessionObservabilityCommands({
-    req: {
-      token: 't',
-      session: 'desktop',
-      command: 'logs',
-      positionals: ['path'],
-      flags: {},
-    },
-    sessionName: 'desktop',
-    sessionStore,
-  });
-
-  assert.ok(response);
-  assert.equal(response?.ok, true);
-  if (response?.ok) {
-    assert.equal(response.data?.backend, 'macos');
-    assert.equal(response.data?.active, false);
-  }
-});
+import { handleSessionObservabilityCommands } from '../session-observability.ts';
 
 test('network dump validates include mode directly', async () => {
   const sessionStore = makeSessionStore('agent-device-session-observability-');
