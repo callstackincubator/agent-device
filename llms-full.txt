@@ -1376,12 +1376,16 @@ agent-device react-devtools profile start
 agent-device react-devtools profile stop
 agent-device react-devtools profile slow --limit 5
 agent-device react-devtools profile rerenders --limit 5
+agent-device react-devtools profile timeline --limit 20
+agent-device react-devtools profile report @c5
 ```
 
 - `react-devtools` dynamically runs pinned `agent-react-devtools@0.4.0` through npm and passes arguments through 1:1.
 - The first run may download the pinned package from npm; later runs can reuse the npm cache.
 - `agent-device` global flags work before or after `react-devtools`. Use `--` before downstream flags only when they intentionally share an `agent-device` global flag name.
 - Use it when a React Native workflow needs component hierarchy, props, state, hooks, render causes, slow components, or re-render counts.
+- For profiling, keep the window narrow and make one bounded first-pass survey: use the `profile stop` summary, run `profile slow --limit 5` and `profile rerenders --limit 5` once, add `profile timeline --limit 20` only when commit timing matters, then drill into a specific `@c` ref with `profile report`.
+- Do not repeatedly raise broad `profile slow` limits such as `--limit 50`, `--limit 200`, or `--limit 500` unless you have a specific target that needs more rows.
 - Keep using `snapshot`, `press`, `fill`, `logs`, `network`, and `perf` for device/app runtime evidence. Use `react-devtools` for React internals.
 - For React Native apps, overlays, Metro/Fast Refresh blockers, and routing to React DevTools or debugging evidence, start with `agent-device help react-native`.
 - On Android, permission prompts are visible UI; use `snapshot -i` and press visible `Allow`/`Deny` controls instead of `alert wait`. Do not use `settings permission` to answer a dialog already on screen; reserve it for setup or resetting permission state before a flow.
@@ -1763,12 +1767,13 @@ agent-device react-devtools profile start
 agent-device react-devtools profile stop
 agent-device react-devtools profile slow --limit 5
 agent-device react-devtools profile rerenders --limit 5
+agent-device react-devtools profile timeline --limit 20
 agent-device react-devtools profile report @c5
 ```
 
 `agent-device` remains centered on the device and app runtime layer. The `react-devtools` command dynamically runs pinned `agent-react-devtools` commands for React internals.
 
-For React Native apps, overlays, Metro/Fast Refresh blockers, and routing to React DevTools or debugging evidence, start with `agent-device help react-native`. For slow-flow investigations, combine `help react-devtools` for the narrow React profile window with `help debugging` for log markers, network evidence, traces, and perf samples.
+For React Native apps, overlays, Metro/Fast Refresh blockers, and routing to React DevTools or debugging evidence, start with `agent-device help react-native`. For slow-flow investigations, combine `help react-devtools` for the narrow React profile window with `help debugging` for log markers, network evidence, traces, and perf samples. Make one bounded first-pass survey with the `profile stop` summary, bounded `slow` and `rerenders` tables, and `timeline` only when commit timing matters; then drill into a specific `@c` ref with `profile report` instead of repeatedly raising broad `profile slow` limits.
 
 React Native warning/error overlays belong to the app run. Treat them as findings or blockers: capture them, check `react-devtools errors` when connected, dismiss visible `Dismiss`/`Close` controls only when unrelated, then re-snapshot and report the overlay.
 
