@@ -264,7 +264,8 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assert.equal(logsPath.active, true);
         assert.equal(logsPath.backend, 'android');
         assert.equal(typeof logsPath.path, 'string');
-        await waitForFileContent(logsPath.path as string, 'https://api.example.com/v1/login');
+        const appLogPath = logsPath.path as string;
+        await waitForFileContent(appLogPath, 'https://api.example.com/v1/login');
 
         const network = await client.observability.network({
           action: 'dump',
@@ -303,6 +304,14 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
 
         const logsStop = await client.observability.logs({ action: 'stop', ...selection });
         assert.equal(logsStop.stopped, true);
+
+        fs.writeFileSync(appLogPath, 'before-clear', 'utf8');
+        fs.writeFileSync(`${appLogPath}.1`, 'older', 'utf8');
+        const logsClear = await client.observability.logs({ action: 'clear', ...selection });
+        assert.equal(logsClear.path, appLogPath);
+        assert.equal(logsClear.cleared, true);
+        assert.equal(fs.readFileSync(appLogPath, 'utf8'), '');
+        assert.equal(fs.existsSync(`${appLogPath}.1`), false);
 
         const animations = await client.settings.update({
           setting: 'animations',
@@ -436,7 +445,12 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assert.equal(fastScreenshot.path, fastScreenshotPath);
         assertPngFile(fastScreenshotPath);
 
+        const beforeCloseOpen = await client.apps.open({ app: 'com.example.demo', ...selection });
+        assert.equal(beforeCloseOpen.appBundleId, 'com.example.demo');
+        const logsBeforeClose = await client.observability.logs({ action: 'start', ...selection });
+        assert.equal(logsBeforeClose.started, true);
         await client.apps.close({});
+        assert.equal(daemon.session(), undefined);
 
         const testReplayPath = path.join(tempRoot, 'settings-smoke.ad');
         fs.writeFileSync(
@@ -552,6 +566,10 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       assert.ok(
         spawnedLogcat.some((child) => child.killed),
         'Expected logs stop to terminate the scripted logcat stream',
+      );
+      assert.ok(
+        spawnedLogcat.filter((child) => child.killed).length >= 2,
+        'Expected close to auto-stop the active scripted logcat stream',
       );
       assertCommandCall(adbCalls, ['shell', 'cmd', 'uimode', 'night', 'yes']);
       assertCommandCall(adbCalls, ['emu', 'geo', 'fix', '-122.009', '37.3349']);
