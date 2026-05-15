@@ -55,6 +55,7 @@ function filterAndroidHelperTextOutputNodes(nodes: SnapshotNode[]): SnapshotNode
   markZeroAreaNodesForRemoval(nodes, removed);
   markBottomNavNodesNearComposerForRemoval(nodes, removed);
   markDuplicateEmailButtonsForRemoval(nodes, removed);
+  markAdjacentDuplicateStructuralNodesForRemoval(nodes, removed);
 
   return nodes.filter((node) => !removed.has(node.index));
 }
@@ -97,6 +98,34 @@ function markDuplicateEmailButtonsForRemoval(nodes: SnapshotNode[], removed: Set
     if (areSameVisualRow(previous.rect, node.rect)) {
       markNodeAndDescendantsForRemoval(nodes, node.index, removed);
     }
+  }
+}
+
+function markAdjacentDuplicateStructuralNodesForRemoval(
+  nodes: SnapshotNode[],
+  removed: Set<number>,
+): void {
+  const lastByLabel = new Map<string, SnapshotNode>();
+  for (const node of nodes) {
+    if (removed.has(node.index) || !isStructuralNoiseCandidate(node)) {
+      continue;
+    }
+    const label = normalizeStructuralNodeLabel(displayNodeLabel(node));
+    if (!label) continue;
+
+    // RN can expose the same visible row content through parallel typed siblings
+    // such as ImageView + Button or TextView + Button, so label is the signature.
+    const previous = lastByLabel.get(label);
+    if (
+      previous &&
+      !removed.has(previous.index) &&
+      areSameVisualRow(previous.rect, node.rect) &&
+      areStructurallyAdjacent(previous, node)
+    ) {
+      markNodeAndDescendantsForRemoval(nodes, node.index, removed);
+      continue;
+    }
+    lastByLabel.set(label, node);
   }
 }
 
@@ -235,6 +264,27 @@ function isTextOnlyNode(node: SnapshotNode): boolean {
   return type.includes('textview') || type === 'text';
 }
 
+function isStructuralNoiseCandidate(node: SnapshotNode): boolean {
+  if (!node.rect || !hasRenderableArea(node.rect) || isRootNode(node) || isEditableNode(node)) {
+    return false;
+  }
+  const type = (node.type ?? '').toLowerCase();
+  return (
+    type.includes('button') ||
+    type.includes('image') ||
+    type.includes('textview') ||
+    type === 'text' ||
+    type.includes('view')
+  );
+}
+
+function normalizeStructuralNodeLabel(label: string): string | null {
+  const normalized = label.trim().replace(/\s+/g, ' ').toLowerCase();
+  if (!normalized) return null;
+  if (/^(true|false|\d+)$/.test(normalized)) return null;
+  return normalized;
+}
+
 function getNodeOrDescendantLabel(node: SnapshotNode, nodes: SnapshotNode[]): string {
   const label = displayNodeLabel(node);
   if (label.trim()) return label;
@@ -270,4 +320,16 @@ function areSameVisualRow(left: Rect | undefined, right: Rect | undefined): bool
   const leftCenterY = left.y + left.height / 2;
   const rightCenterY = right.y + right.height / 2;
   return Math.abs(leftCenterY - rightCenterY) <= Math.max(left.height, right.height, 1);
+}
+
+function areStructurallyAdjacent(left: SnapshotNode, right: SnapshotNode): boolean {
+  if (left.parentIndex === right.parentIndex) {
+    return Math.abs(left.index - right.index) <= 3;
+  }
+  if (left.parentIndex === right.index || right.parentIndex === left.index) {
+    return true;
+  }
+  return (
+    Math.abs((left.depth ?? 0) - (right.depth ?? 0)) <= 1 && Math.abs(left.index - right.index) <= 2
+  );
 }
