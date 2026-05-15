@@ -71,6 +71,15 @@ export type PlatformProviderResolvers = {
   recordingProvider?: RecordingProviderResolver;
 };
 
+const PLATFORM_PROVIDER_RESOLVER_KEYS = [
+  'androidAdbProvider',
+  'appleRunnerProvider',
+  'appleToolProvider',
+  'linuxToolProvider',
+  'appLogProvider',
+  'recordingProvider',
+] satisfies Array<keyof PlatformProviderResolvers>;
+
 export type RequestPlatformProviderScope = {
   androidAdbExecutor?: AndroidAdbExecutor;
 };
@@ -79,6 +88,12 @@ type RequestPlatformProviderParams = {
   req: DaemonRequest;
   existingSession: SessionState | undefined;
   providers: PlatformProviderResolvers;
+};
+
+type RequestPlatformProviderResolverContext = {
+  req: DaemonRequest;
+  device: DeviceInfo;
+  session?: PlatformProviderRequestSession;
 };
 
 type ResolvedRequestPlatformProviders = {
@@ -127,111 +142,92 @@ async function resolveRequestPlatformProviders(
   if (!hasPlatformProviderResolvers(params.providers)) return {};
   const device = await resolveScopedProviderDevice(params.req, params.existingSession);
   if (!device) return {};
+  const context = requestProviderResolverContext(params, device);
 
   return {
-    androidAdb: resolveAndroidAdbProvider(params, device),
-    appleRunner: resolveAppleRunnerProvider(params, device),
-    appleTool: resolveAppleToolProvider(params, device),
-    linuxTool: resolveLinuxToolProvider(params, device),
-    appLog: resolveAppLogProvider(params, device),
-    recording: resolveRequestRecordingProvider(params, device),
+    androidAdb: resolveAndroidAdbProvider(params.providers, context),
+    appleRunner: resolveAppleRunnerProvider(params.providers, context),
+    appleTool: resolveAppleToolProvider(params.providers, context),
+    linuxTool: resolveLinuxToolProvider(params.providers, context),
+    appLog: resolveAppLogProvider(params.providers, context),
+    recording: resolveRequestRecordingProvider(params.providers, context),
   };
 }
 
 function hasPlatformProviderResolvers(providers: PlatformProviderResolvers): boolean {
-  return Boolean(
-    providers.androidAdbProvider ||
-    providers.appleRunnerProvider ||
-    providers.appleToolProvider ||
-    providers.linuxToolProvider ||
-    providers.appLogProvider ||
-    providers.recordingProvider,
-  );
+  return PLATFORM_PROVIDER_RESOLVER_KEYS.some((key) => Boolean(providers[key]));
 }
 
 function resolveAndroidAdbProvider(
-  params: RequestPlatformProviderParams,
-  device: DeviceInfo,
+  providers: PlatformProviderResolvers,
+  context: RequestPlatformProviderResolverContext,
 ): ResolvedRequestPlatformProviders['androidAdb'] {
-  const androidAdbProvider = params.providers.androidAdbProvider;
-  if (!androidAdbProvider || device.platform !== 'android') return undefined;
-  const provider = androidAdbProvider({
-    req: params.req,
-    device,
-    session: params.existingSession,
-  });
+  const androidAdbProvider = providers.androidAdbProvider;
+  if (!androidAdbProvider || context.device.platform !== 'android') return undefined;
+  const provider = androidAdbProvider(context);
   const executor = typeof provider === 'function' ? provider : provider?.exec;
-  return { provider, executor, serial: device.id };
+  return { provider, executor, serial: context.device.id };
 }
 
 function resolveAppleRunnerProvider(
-  params: RequestPlatformProviderParams,
-  device: DeviceInfo,
+  providers: PlatformProviderResolvers,
+  context: RequestPlatformProviderResolverContext,
 ): ResolvedRequestPlatformProviders['appleRunner'] {
-  const appleRunnerProvider = params.providers.appleRunnerProvider;
-  if (!appleRunnerProvider || !isApplePlatform(device.platform)) return undefined;
-  const provider = appleRunnerProvider({
-    req: params.req,
-    device,
-    session: params.existingSession,
-  });
-  return { provider, deviceId: device.id, requestId: params.req.meta?.requestId };
+  const appleRunnerProvider = providers.appleRunnerProvider;
+  if (!appleRunnerProvider || !isApplePlatform(context.device.platform)) return undefined;
+  const provider = appleRunnerProvider(context);
+  return { provider, deviceId: context.device.id, requestId: context.req.meta?.requestId };
 }
 
 function resolveAppleToolProvider(
-  params: RequestPlatformProviderParams,
-  device: DeviceInfo,
+  providers: PlatformProviderResolvers,
+  context: RequestPlatformProviderResolverContext,
 ): ResolvedRequestPlatformProviders['appleTool'] {
-  const appleToolProvider = params.providers.appleToolProvider;
-  if (!appleToolProvider || !isApplePlatform(device.platform)) return undefined;
-  const provider = appleToolProvider({
-    req: params.req,
-    device,
-    session: params.existingSession,
-  });
+  const appleToolProvider = providers.appleToolProvider;
+  if (!appleToolProvider || !isApplePlatform(context.device.platform)) return undefined;
+  const provider = appleToolProvider(context);
   return { provider };
 }
 
 function resolveLinuxToolProvider(
-  params: RequestPlatformProviderParams,
-  device: DeviceInfo,
+  providers: PlatformProviderResolvers,
+  context: RequestPlatformProviderResolverContext,
 ): ResolvedRequestPlatformProviders['linuxTool'] {
-  const linuxToolProvider = params.providers.linuxToolProvider;
-  if (!linuxToolProvider || device.platform !== 'linux') return undefined;
-  const provider = linuxToolProvider({
-    req: params.req,
-    device,
-    session: params.existingSession,
-  });
+  const linuxToolProvider = providers.linuxToolProvider;
+  if (!linuxToolProvider || context.device.platform !== 'linux') return undefined;
+  const provider = linuxToolProvider(context);
   return { provider };
 }
 
 function resolveAppLogProvider(
-  params: RequestPlatformProviderParams,
-  device: DeviceInfo,
+  providers: PlatformProviderResolvers,
+  context: RequestPlatformProviderResolverContext,
 ): ResolvedRequestPlatformProviders['appLog'] {
-  const appLogProvider = params.providers.appLogProvider;
+  const appLogProvider = providers.appLogProvider;
   if (!appLogProvider) return undefined;
-  const provider = appLogProvider({
-    req: params.req,
-    device,
-    session: params.existingSession,
-  });
+  const provider = appLogProvider(context);
   return { provider };
 }
 
 function resolveRequestRecordingProvider(
+  providers: PlatformProviderResolvers,
+  context: RequestPlatformProviderResolverContext,
+): ResolvedRequestPlatformProviders['recording'] {
+  const recordingProvider = providers.recordingProvider;
+  if (!recordingProvider) return undefined;
+  const provider = recordingProvider(context);
+  return { provider };
+}
+
+function requestProviderResolverContext(
   params: RequestPlatformProviderParams,
   device: DeviceInfo,
-): ResolvedRequestPlatformProviders['recording'] {
-  const recordingProvider = params.providers.recordingProvider;
-  if (!recordingProvider) return undefined;
-  const provider = recordingProvider({
+): RequestPlatformProviderResolverContext {
+  return {
     req: params.req,
     device,
     session: params.existingSession,
-  });
-  return { provider };
+  };
 }
 
 async function resolveScopedProviderDevice(

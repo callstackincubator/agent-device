@@ -1,53 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { assertFlatToolCall } from './assertions.ts';
-import { DEVICE_LAB_MACOS } from './fixtures.ts';
-import { createDeviceLabHarness } from './harness.ts';
-import { createRecordingAppleToolProvider } from './providers.ts';
+import { createMacOsDesktopWorld } from './macos-world.ts';
 import { runDeviceLabScenario } from './scenario.ts';
 
 test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
-  let clipboardText = '';
-  const appleTool = createRecordingAppleToolProvider(async (cmd, args, options) => {
-    if (cmd === 'find') {
-      return {
-        stdout: '/Applications/System Settings.app\n/Applications/Demo.app\n',
-        stderr: '',
-        exitCode: 0,
-      };
-    }
-    if (cmd === 'plutil') {
-      const key = args[1];
-      const plistPath = args[5] ?? '';
-      const isDemo = plistPath.includes('/Demo.app/');
-      if (key === 'CFBundleIdentifier') {
-        return {
-          stdout: isDemo ? 'com.example.demo\n' : 'com.apple.systempreferences\n',
-          stderr: '',
-          exitCode: 0,
-        };
-      }
-      if (key === 'CFBundleName') {
-        return { stdout: isDemo ? 'Demo\n' : 'System Settings\n', stderr: '', exitCode: 0 };
-      }
-      return { stdout: '', stderr: '', exitCode: 1 };
-    }
-    if (cmd === 'pbcopy') {
-      clipboardText = String(options?.stdin ?? '');
-      return { stdout: '', stderr: '', exitCode: 0 };
-    }
-    if (cmd === 'pbpaste') {
-      return { stdout: `${clipboardText}\n`, stderr: '', exitCode: 0 };
-    }
-    if (cmd === 'agent-device-macos-helper') {
-      return runScriptedMacOsHelper(args);
-    }
-    return { stdout: '', stderr: '', exitCode: 0 };
-  });
-  const daemon = await createDeviceLabHarness({
-    appleToolProvider: () => appleTool.provider,
-    deviceInventoryProvider: async () => [DEVICE_LAB_MACOS],
-  });
+  const { daemon, appleTool, close } = await createMacOsDesktopWorld();
 
   try {
     await runDeviceLabScenario(daemon, [
@@ -125,6 +83,18 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
         },
       },
       {
+        name: 'reset screen recording permission through helper',
+        command: 'settings',
+        positionals: ['permission', 'reset', 'screen-recording'],
+        expectData: {
+          action: 'reset',
+          target: 'screen-recording',
+          granted: false,
+          requested: true,
+          openedSettings: false,
+        },
+      },
+      {
         name: 'switch to frontmost desktop surface',
         command: 'open',
         flags: {
@@ -144,6 +114,24 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
           title: 'System Events Wants to Control System Settings',
           role: 'AXSheet',
           action: 'get',
+          bundleId: 'com.apple.systempreferences',
+        },
+      },
+      {
+        name: 'accept frontmost automation alert through helper',
+        command: 'alert',
+        positionals: ['accept'],
+        expectData: {
+          action: 'accept',
+          bundleId: 'com.apple.systempreferences',
+        },
+      },
+      {
+        name: 'dismiss frontmost automation alert through helper',
+        command: 'alert',
+        positionals: ['dismiss'],
+        expectData: {
+          action: 'dismiss',
           bundleId: 'com.apple.systempreferences',
         },
       },
@@ -244,8 +232,28 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
     ]);
     assertFlatToolCall(appleTool.calls, [
       'agent-device-macos-helper',
+      'permission',
+      'reset',
+      'screen-recording',
+    ]);
+    assertFlatToolCall(appleTool.calls, [
+      'agent-device-macos-helper',
       'alert',
       'get',
+      '--surface',
+      'frontmost-app',
+    ]);
+    assertFlatToolCall(appleTool.calls, [
+      'agent-device-macos-helper',
+      'alert',
+      'accept',
+      '--surface',
+      'frontmost-app',
+    ]);
+    assertFlatToolCall(appleTool.calls, [
+      'agent-device-macos-helper',
+      'alert',
+      'dismiss',
       '--surface',
       'frontmost-app',
     ]);
@@ -286,152 +294,6 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       'frontmost-app',
     ]);
   } finally {
-    await daemon.close();
+    await close();
   }
 });
-
-function runScriptedMacOsHelper(args: string[]): {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-} {
-  if (args[0] === 'app' && args[1] === 'frontmost') {
-    return {
-      stdout: `${JSON.stringify({
-        ok: true,
-        data: {
-          bundleId: 'com.apple.systempreferences',
-          appName: 'System Settings',
-          pid: 42,
-        },
-      })}\n`,
-      stderr: '',
-      exitCode: 0,
-    };
-  }
-  if (args[0] === 'snapshot') {
-    const surface = args[args.indexOf('--surface') + 1] ?? 'frontmost-app';
-    const nodes =
-      surface === 'desktop'
-        ? [
-            {
-              index: 0,
-              depth: 0,
-              type: 'DesktopSurface',
-              label: 'Desktop',
-              surface,
-            },
-            {
-              index: 1,
-              depth: 1,
-              parentIndex: 0,
-              type: 'Window',
-              label: 'Notes',
-              surface,
-              bundleId: 'com.apple.Notes',
-              appName: 'Notes',
-              windowTitle: 'Notes',
-              rect: { x: 32, y: 48, width: 640, height: 480 },
-            },
-          ]
-        : [
-            {
-              index: 0,
-              depth: 0,
-              type: 'Application',
-              label: 'System Settings',
-              surface,
-              bundleId: 'com.apple.systempreferences',
-              appName: 'System Settings',
-            },
-            {
-              index: 1,
-              depth: 1,
-              parentIndex: 0,
-              type: 'Button',
-              label: 'General',
-              surface,
-              rect: { x: 80, y: 56, width: 72, height: 48 },
-              enabled: true,
-              hittable: true,
-            },
-          ];
-    return {
-      stdout: `${JSON.stringify({
-        ok: true,
-        data: {
-          surface,
-          nodes,
-          truncated: false,
-          backend: 'macos-helper',
-        },
-      })}\n`,
-      stderr: '',
-      exitCode: 0,
-    };
-  }
-  if (args[0] === 'press') {
-    return {
-      stdout: `${JSON.stringify({
-        ok: true,
-        data: {
-          x: Number(args[args.indexOf('--x') + 1]),
-          y: Number(args[args.indexOf('--y') + 1]),
-          bundleId: 'com.apple.systempreferences',
-          surface: 'frontmost-app',
-        },
-      })}\n`,
-      stderr: '',
-      exitCode: 0,
-    };
-  }
-  if (args[0] === 'permission') {
-    return {
-      stdout: `${JSON.stringify({
-        ok: true,
-        data: {
-          action: args[1],
-          target: args[2],
-          granted: args[1] === 'grant',
-          requested: true,
-          openedSettings: false,
-        },
-      })}\n`,
-      stderr: '',
-      exitCode: 0,
-    };
-  }
-  if (args[0] === 'alert') {
-    return {
-      stdout: `${JSON.stringify({
-        ok: true,
-        data: {
-          title: 'System Events Wants to Control System Settings',
-          role: 'AXSheet',
-          buttons: ['OK', 'Cancel'],
-          action: args[1],
-          bundleId: 'com.apple.systempreferences',
-        },
-      })}\n`,
-      stderr: '',
-      exitCode: 0,
-    };
-  }
-  if (args[0] === 'read') {
-    return {
-      stdout: `${JSON.stringify({
-        ok: true,
-        data: {
-          text: 'System Settings General pane',
-        },
-      })}\n`,
-      stderr: '',
-      exitCode: 0,
-    };
-  }
-  return {
-    stdout: `${JSON.stringify({ ok: false, error: { message: 'Unexpected helper command' } })}\n`,
-    stderr: '',
-    exitCode: 1,
-  };
-}

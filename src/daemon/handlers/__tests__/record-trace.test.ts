@@ -112,21 +112,6 @@ function makeIosDeviceSession(name: string, appBundleId?: string): SessionState 
   return session;
 }
 
-function makeMacOsSession(name: string, appBundleId?: string): SessionState {
-  const session = makeSession(name, {
-    platform: 'macos',
-    id: 'host-macos-local',
-    name: 'Host Mac',
-    kind: 'device',
-    target: 'desktop',
-    booted: true,
-  });
-  if (appBundleId) {
-    session.appBundleId = appBundleId;
-  }
-  return session;
-}
-
 async function runRecordCommand(params: {
   sessionStore: SessionStore;
   sessionName: string;
@@ -198,48 +183,6 @@ beforeEach(() => {
   mockResizeRecording.mockImplementation(async () => {});
   mockTrimRecordingStart.mockImplementation(async () => {});
   mockOverlayRecordingTouches.mockImplementation(async () => {});
-});
-
-test('record start/stop uses runner on macOS desktop sessions', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'macos-runner';
-  sessionStore.set(sessionName, makeMacOsSession(sessionName, 'com.apple.systempreferences'));
-
-  const runnerCalls: RunnerCall[] = [];
-  const runCmdCalls: Array<{ cmd: string; args: string[] }> = [];
-  setupRunnerRecordingMocks(runnerCalls, runCmdCalls);
-  const finalOut = path.join(os.tmpdir(), `agent-device-test-macos-record-${Date.now()}.mp4`);
-  const responseStart = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['start', finalOut],
-    logPath: '/tmp/daemon.log',
-  });
-
-  expect(responseStart?.ok).toBe(true);
-  expect(runnerCalls.length).toBe(1);
-  expect(runnerCalls[0]).toEqual({
-    command: 'recordStart',
-    outPath: finalOut,
-    fps: undefined,
-    appBundleId: 'com.apple.systempreferences',
-    logPath: '/tmp/daemon.log',
-    traceLogPath: undefined,
-  });
-  expect(sessionStore.get(sessionName)?.recording?.platform).toBe('macos-runner');
-  const responseStop = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['stop'],
-    logPath: '/tmp/daemon.log',
-  });
-
-  expect(responseStop?.ok).toBe(true);
-  expect(runnerCalls.length).toBe(2);
-  expect(runnerCalls[1]?.command).toBe('recordStop');
-  expect(runnerCalls[1]?.appBundleId).toBe('com.apple.systempreferences');
-  expect(runCmdCalls.length).toBe(0);
-  expect(sessionStore.get(sessionName)?.recording).toBeUndefined();
 });
 
 test('record stop derives telemetry artifact local path from client outPath', async () => {

@@ -10,11 +10,17 @@ const COVERAGE_SUMMARY = path.join(ROOT, 'coverage/coverage-summary.json');
 
 const handlerTests = listFiles(HANDLER_TEST_DIR, (file) => file.endsWith('.test.ts'));
 const deviceLabTests = listFiles(DEVICE_LAB_DIR, (file) => file.endsWith('.test.ts'));
+const deviceLabSources = listFiles(DEVICE_LAB_DIR, (file) => file.endsWith('.ts'));
+const deviceLabSupportSources = deviceLabSources.filter((file) => !file.endsWith('.test.ts'));
 const handlerStats = summarizeFiles(handlerTests);
 const deviceLabStats = summarizeFiles(deviceLabTests);
+const deviceLabSupportStats = summarizeFiles(deviceLabSupportSources);
 const mockHeavyHandlerFiles = handlerTests.filter((file) =>
   fs.readFileSync(file, 'utf8').includes('vi.mock('),
 );
+const mockHeavyHandlerRows = summarizeMockHeavyHandlerFiles(mockHeavyHandlerFiles);
+const providerPressureRows = summarizeProviderPressure(deviceLabSources);
+const commandFamilyRows = summarizeCommandFamilyOwnership(deviceLabTests);
 const coverage = readCoverageSummary();
 const lowCoverageFiles = readLowCoverageFiles();
 
@@ -26,6 +32,8 @@ const rows = [
   ['Device Lab files', String(deviceLabStats.files)],
   ['Device Lab LOC', String(deviceLabStats.lines)],
   ['Device Lab tests', String(deviceLabStats.tests)],
+  ['Device Lab support files', String(deviceLabSupportStats.files)],
+  ['Device Lab support LOC', String(deviceLabSupportStats.lines)],
   ['Device Lab / handler LOC', ratio(deviceLabStats.lines, handlerStats.lines)],
 ];
 
@@ -46,6 +54,39 @@ console.log('| Measure | Value |');
 console.log('| --- | ---: |');
 for (const [name, value] of rows) {
   console.log(`| ${name} | ${value} |`);
+}
+
+if (mockHeavyHandlerRows.length > 0) {
+  console.log('');
+  console.log('Mock-heavy handler unit tests');
+  console.log('');
+  console.log('| Tests | LOC | File |');
+  console.log('| ---: | ---: | --- |');
+  for (const file of mockHeavyHandlerRows) {
+    console.log(`| ${file.tests} | ${file.lines} | ${file.file} |`);
+  }
+}
+
+if (commandFamilyRows.length > 0) {
+  console.log('');
+  console.log('Command family ownership in Device Lab');
+  console.log('');
+  console.log('| Command family | Command references | Files |');
+  console.log('| --- | ---: | ---: |');
+  for (const family of commandFamilyRows) {
+    console.log(`| ${family.name} | ${family.references} | ${family.files} |`);
+  }
+}
+
+if (providerPressureRows.length > 0) {
+  console.log('');
+  console.log('Provider transcript pressure');
+  console.log('');
+  console.log('| Contract surface | References | Files |');
+  console.log('| --- | ---: | ---: |');
+  for (const pressure of providerPressureRows) {
+    console.log(`| ${pressure.name} | ${pressure.references} | ${pressure.files} |`);
+  }
 }
 
 if (lowCoverageFiles.length > 0) {
@@ -77,9 +118,140 @@ function summarizeFiles(files) {
   for (const file of files) {
     const text = fs.readFileSync(file, 'utf8');
     lines += text.split('\n').length;
-    tests += [...text.matchAll(/\btest\(/g)].length;
+    tests += countTestDeclarations(text);
   }
   return { files: files.length, lines, tests };
+}
+
+function summarizeMockHeavyHandlerFiles(files) {
+  return files
+    .map((file) => {
+      const text = fs.readFileSync(file, 'utf8');
+      return {
+        file: path.relative(ROOT, file),
+        lines: text.split('\n').length,
+        tests: countTestDeclarations(text),
+      };
+    })
+    .sort((a, b) => b.lines - a.lines)
+    .slice(0, 12);
+}
+
+function summarizeProviderPressure(files) {
+  const surfaces = [
+    {
+      name: 'Android ADB provider',
+      pattern: /\bAndroidAdbProvider\b|\bandroidAdbProvider\b|\badbProvider\b|\badb\.(?:exec|installer|puller|portReverse)\b/g,
+    },
+    {
+      name: 'Apple runner provider',
+      pattern: /\bAppleRunnerProvider\b|\bappleRunnerProvider\b|\b(?:ios|macos|tvos)\.runner\b/g,
+    },
+    {
+      name: 'Apple raw tool/helper provider',
+      pattern:
+        /\bAppleToolProvider\b|\bappleToolProvider\b|\bcreateRecordingAppleToolProvider\b|\bagent-device-macos-helper\b|\bxcrun\b|\bsimctl\b|\bdevicectl\b|\bplutil\b|\bosascript\b/g,
+    },
+    {
+      name: 'Linux raw tool provider',
+      pattern:
+        /\bLinuxToolProvider\b|\blinuxToolProvider\b|\bxdotool\b|\bydotool\b|\bxclip\b|\bscrot\b|\bgrim\b|\bwmctrl\b|\bpkill\b/g,
+    },
+    {
+      name: 'Recording provider',
+      pattern: /\bRecordingProvider\b|\brecordingProvider\b|\bstartRecording\b/g,
+    },
+  ];
+
+  return surfaces
+    .map((surface) => {
+      let references = 0;
+      let filesWithReferences = 0;
+      for (const file of files) {
+        const text = fs.readFileSync(file, 'utf8');
+        const matches = text.match(surface.pattern)?.length ?? 0;
+        references += matches;
+        if (matches > 0) filesWithReferences += 1;
+      }
+      return {
+        name: surface.name,
+        references,
+        files: filesWithReferences,
+      };
+    })
+    .filter((surface) => surface.references > 0);
+}
+
+function summarizeCommandFamilyOwnership(files) {
+  const commandFamilies = [
+    {
+      name: 'open/close/session/appstate',
+      commands: ['open', 'close', 'session_list', 'appstate'],
+    },
+    {
+      name: 'apps',
+      commands: ['apps'],
+    },
+    {
+      name: 'install/reinstall/push',
+      commands: ['install', 'reinstall', 'push'],
+    },
+    {
+      name: 'snapshot/screenshot',
+      commands: ['snapshot', 'screenshot'],
+    },
+    {
+      name: 'press/click/fill/type/scroll/swipe',
+      commands: ['press', 'click', 'focus', 'longpress', 'swipe', 'scroll', 'type', 'fill'],
+    },
+    {
+      name: 'get/is/find/wait',
+      commands: ['get', 'is', 'find', 'wait'],
+    },
+    {
+      name: 'clipboard/keyboard/settings/alert',
+      commands: ['clipboard', 'keyboard', 'settings', 'alert'],
+    },
+    {
+      name: 'record/trace/logs/replay/batch',
+      commands: ['record', 'trace', 'logs', 'replay', 'batch'],
+    },
+  ];
+
+  const commandRefsByFile = files.map((file) => ({
+    file,
+    commands: extractDeviceLabCommandReferences(fs.readFileSync(file, 'utf8')),
+  }));
+
+  return commandFamilies
+    .map((family) => {
+      const commands = new Set(family.commands);
+      let references = 0;
+      let filesWithReferences = 0;
+      for (const file of commandRefsByFile) {
+        const count = file.commands.filter((command) => commands.has(command)).length;
+        references += count;
+        if (count > 0) filesWithReferences += 1;
+      }
+      return {
+        name: family.name,
+        references,
+        files: filesWithReferences,
+      };
+    })
+    .filter((family) => family.references > 0);
+}
+
+function extractDeviceLabCommandReferences(text) {
+  const commands = [];
+  for (const match of text.matchAll(/\bcommand:\s*['"]([^'"]+)['"]|\.callCommand\(\s*['"]([^'"]+)['"]/g)) {
+    commands.push(match[1] ?? match[2]);
+  }
+  return commands;
+}
+
+function countTestDeclarations(text) {
+  return [...text.matchAll(/(?:^|[^\w.])test\(/g)].length;
 }
 
 function readCoverageSummary() {

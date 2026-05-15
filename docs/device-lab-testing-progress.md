@@ -19,13 +19,15 @@ Current local snapshot:
 | Measure | Value |
 | --- | ---: |
 | Handler unit test files | 29 |
-| Handler unit test LOC | 13928 |
-| Handler unit tests | 396 |
+| Handler unit test LOC | 13821 |
+| Handler unit tests | 361 |
 | Handler files with `vi.mock` | 18 |
-| Device Lab files | 11 |
-| Device Lab LOC | 2604 |
-| Device Lab tests | 17 |
-| Device Lab / handler LOC | 18.7% |
+| Device Lab files | 12 |
+| Device Lab LOC | 2531 |
+| Device Lab tests | 15 |
+| Device Lab support files | 7 |
+| Device Lab support LOC | 691 |
+| Device Lab / handler LOC | 18.3% |
 
 Coverage is tracked separately by:
 
@@ -33,7 +35,7 @@ Coverage is tracked separately by:
 pnpm test:coverage:check
 ```
 
-Current local coverage: 78.62% statements, 68.72% branches, 86.27% functions, 80.62% lines.
+Current local coverage: 78.66% statements, 68.69% branches, 86.27% functions, 80.66% lines.
 
 Gates:
 
@@ -42,6 +44,8 @@ Gates:
 - Near-term statement target: 80%.
 
 Do not raise floors by adding tests that only execute code. Added coverage must assert user-visible behavior, provider contracts, parser contracts, or important edge/error handling.
+
+The progress script also prints the largest mock-heavy handler test files and Provider transcript pressure by contract surface. Use those tables to pick deletion candidates and to decide when raw provider scripting has enough repeated intent to justify a semantic Provider method.
 
 ## Coverage Accounting
 
@@ -68,16 +72,16 @@ Latest `pnpm test:coverage` snapshot shows the biggest low-coverage implementati
 | `src/platforms/android/manifest.ts` | 35.16% | 83 | Medium | APK manifest install is covered through Device Lab. Keep AAB/binary/malformed manifest coverage as parser/platform units because bundletool and binary XML are not Device Lab concerns. |
 | `src/daemon/transport.ts` | 0% | 80 | Poor | Transport selection is better covered by CLI/client smoke tests than command Device Lab tests. |
 | `src/daemon/handlers/find.ts` | 43.47% | 78 | Good | Android Device Lab now covers broad `find` behavior: snapshot refs, get attrs/text, type, wait, invalid `--first`/`--last`, ambiguous matches, first/last selection, and follow-up interaction using a found ref. Next coverage should target remaining edge behavior only. |
-| `src/platforms/ios/macos-helper.ts` | 46.82% | 67 | Good | Add macOS helper-backed alert and permission scenarios that assert user-visible status and provider calls. |
+| `src/platforms/ios/macos-helper.ts` | 46.03% | 68 | Good | macOS Device Lab now covers permission grant/reset and alert get/accept/dismiss through helper-backed provider calls. Next coverage should target helper errors or install/diagnostic paths only if they are product-critical. |
 | `src/platforms/ios/ensure-simulator.ts` | 0% | 61 | Omit | Track removal separately instead of adding coverage. The command was demo-driven lifecycle policy and should not anchor this provider refactor. See issue #549. |
 
 Priority order:
 
-1. macOS helper alert/permission Device Lab: covers desktop modality without real devices and exercises the helper seam.
-2. Review `record-trace` success-path units now that simulator/device recording scenarios exist.
-3. Coverage accounting: avoid synthetic tests for subprocess and entrypoint files; document or measure those through smoke/packaging tests instead.
-4. Android manifest follow-up only if AAB install becomes provider-backed; until then keep AAB parser coverage as unit tests.
-5. Runner startup cleanup follow-up only when we can model xcodebuild lifecycle without hard-coding implementation order.
+1. Continue reducing `session.test.ts`, `interaction.test.ts`, `snapshot-handler.test.ts`, and `record-trace.test.ts` only where Device Lab already proves the same successful workflow through provider seams.
+2. Coverage accounting: avoid synthetic tests for subprocess and entrypoint files; document or measure those through smoke/packaging tests instead.
+3. Android manifest follow-up only if AAB install becomes provider-backed; until then keep AAB parser coverage as unit tests.
+4. Runner startup cleanup follow-up only when we can model xcodebuild lifecycle without hard-coding implementation order.
+5. Reassess Apple raw tool/helper provider pressure when another Adapter would need to recover stable intent from host commands.
 
 ## Command Matrix
 
@@ -93,7 +97,7 @@ Priority order:
 | `clipboard` | Android read/write, iOS read/write, macOS read/write, Linux read/write | physical-device unsupported cases and platform output parsing edge cases | Remaining happy-path clipboard unit tests should be rare deletion candidates. |
 | `keyboard` | Android status/dismiss, iOS dismiss | keyboard state parsing, duplicate dumpsys fields, unsupported dismiss flows | Keep Android keyboard parser/dismiss edge tests. |
 | `settings` | Android appearance/location/fingerprint/permission/animations; iOS appearance/location/permission; macOS appearance | invalid states, permission target mapping, location coordinate parsing, biometric fallbacks | Delete handler dispatch-shape duplicates only after platform/provider assertions cover the command. |
-| `record`, `trace` | Android recording start/stop/pull; iOS simulator recording start/stop; iOS device recording and trace start/stop | telemetry timing, overlay generation, failure cleanup, artifact finalization | Delete successful lifecycle duplicates only when Device Lab proves equivalent artifact/telemetry coverage. |
+| `record`, `trace` | Android recording start/stop/pull; iOS simulator recording start/stop; iOS device recording and trace start/stop; macOS recording start/stop | telemetry timing, overlay generation, failure cleanup, artifact finalization | Device Lab owns broad successful lifecycle coverage; keep unit coverage for cleanup, telemetry, and failure state. |
 | `logs` | iOS logs path/start/stop/mark/doctor, macOS logs path, Android logs doctor/start/stop | process lifecycle edge cases, tail/grep contracts, unavailable backend errors, clear/restart failure cleanup | Keep backend unit tests; delete handler orchestration happy paths covered by Device Lab. |
 | `batch`, `replay` | Android batch and replay through a script | replay parser vars/env, healing, failure attribution | Keep replay parser/healing units; delete simple replay execution happy paths only. |
 
@@ -120,7 +124,7 @@ Before deleting a unit test, confirm that a Device Lab scenario covers the succe
 
 ## Next Work
 
-1. Review `src/daemon/handlers/__tests__/record-trace.test.ts` for pure lifecycle success duplicates. Keep timing, artifact, cancellation, cleanup, and telemetry units.
-2. Review `src/daemon/handlers/__tests__/snapshot-handler.test.ts` for broad success duplicates now covered by scoped and macOS helper snapshots. Keep freshness and snapshot processing units.
-3. Decide whether `ensure-simulator` removal in issue #549 should happen in this PR or immediately after merge.
-4. Promote more generic provider operations to semantic contracts only when a second Adapter or Device Lab scenario would otherwise have to pattern-match host commands.
+1. Review the top mock-heavy files from `pnpm test:device-lab:progress` before adding new handler unit coverage. Prefer a Device Lab scenario when the behavior is a command workflow.
+2. Continue the snapshot audit, but delete only plain success duplicates. Keep freshness, scoped refs, menubar targeting, retry, and snapshot shaping units.
+3. Reassess Apple raw tool/helper provider pressure when another Adapter or another scenario has to pattern-match the same host command intent.
+4. Keep `ensure-simulator` removal out of this stream; issue #549 owns that cleanup.

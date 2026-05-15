@@ -1355,56 +1355,6 @@ test('alert get does not retry on failure', async () => {
   expect(calls).toBe(1);
 });
 
-test('alert get on macOS frontmost-app surface targets the helper surface, not the stored bundle id', async () => {
-  await withMockedMacOsHelper(
-    [
-      '#!/bin/sh',
-      'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
-      "cat <<'JSON'",
-      '{"ok":true,"data":{"title":"Allow Access","role":"AXSheet","buttons":["Allow"],"bundleId":"com.apple.TextEdit"}}',
-      'JSON',
-      '',
-    ].join('\n'),
-    async () => {
-      const sessionStore = makeSessionStore();
-      const sessionName = 'macos-alert-frontmost';
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-alert-frontmost-'));
-      const argsLogPath = path.join(tmpDir, 'args.log');
-      const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-      process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
-      sessionStore.set(sessionName, {
-        ...makeSession(sessionName, macOsDevice),
-        surface: 'frontmost-app',
-        appBundleId: 'com.apple.systempreferences',
-        appName: 'System Settings',
-      });
-
-      try {
-        const response = await handleSnapshotCommands({
-          req: {
-            token: 't',
-            session: sessionName,
-            command: 'alert',
-            positionals: ['get'],
-            flags: {},
-          },
-          sessionName,
-          logPath: '/tmp/daemon.log',
-          sessionStore,
-        });
-
-        expect(response?.ok).toBe(true);
-        const logged = await fs.promises.readFile(argsLogPath, 'utf8');
-        expect(logged).toBe('alert\nget\n--surface\nfrontmost-app\n');
-      } finally {
-        if (previousArgsFile === undefined) delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
-        else process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
-        fs.rmSync(tmpDir, { recursive: true, force: true });
-      }
-    },
-  );
-});
-
 test('wait sleep bypasses sessionless runner cleanup wrapper', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim';

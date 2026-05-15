@@ -10,7 +10,7 @@ export type FlatToolCall = [string, ...string[]];
 
 export function createAppleRunnerProviderFromTranscript(
   transcript: DeviceLabTranscript,
-  commandPrefix: 'ios.runner' | 'tvos.runner',
+  commandPrefix: 'ios.runner' | 'macos.runner' | 'tvos.runner',
 ): AppleRunnerProvider {
   return {
     runCommand: async (device, command) =>
