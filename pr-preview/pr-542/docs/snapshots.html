@@ -5,11 +5,11 @@
 <title>Snapshots - agent-device</title>
 <script>{;const saved = localStorage.getItem('rspress-theme-appearance');const preferDark = window.matchMedia('(prefers-color-scheme: dark)').matches;const isDark = !saved || saved === 'auto' ? preferDark : saved === 'dark';document.documentElement.classList.toggle('dark', isDark);document.documentElement.classList.toggle('rp-dark', isDark);document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';}</script>
 <link href="/agent-device/pr-preview/pr-542/static/css/styles.945fbb1f06.css" rel="stylesheet">
-<script defer src="/agent-device/pr-preview/pr-542/static/js/styles.2af47e8544.js"></script>
-<script defer src="/agent-device/pr-preview/pr-542/static/js/lib-react.f4adab48fc.js"></script>
+<script defer src="/agent-device/pr-preview/pr-542/static/js/styles.62e565aa4f.js"></script>
+<script defer src="/agent-device/pr-preview/pr-542/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/pr-preview/pr-542/static/js/lib-router.b86c200df3.js"></script>
-<script defer src="/agent-device/pr-preview/pr-542/static/js/757.695a0ec7a3.js"></script>
-<script defer src="/agent-device/pr-preview/pr-542/static/js/index.02c3d67a0b.js"></script>
+<script defer src="/agent-device/pr-preview/pr-542/static/js/649.63df3d8087.js"></script>
+<script defer src="/agent-device/pr-preview/pr-542/static/js/index.2ef8e318d5.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -63,7 +63,8 @@ It does not automatically switch to AX.</p>
 <ul>
 <li>iOS and Android share the same mobile snapshot contract: visible-first output, actionable-now refs, and hidden list content communicated via discovery hints.</li>
 <li>Default to <code>snapshot -i</code> for agent loops.</li>
-<li>Default human-readable snapshot output is visible-first. Off-screen interactive content is collapsed into compact discovery summaries such as <code>[off-screen below] 3 interactive items: &quot;Privacy&quot;, &quot;Battery&quot;, &quot;About&quot;</code>.</li>
+<li>Default snapshot text is an agent-facing, token-efficient view for planning and targeting actions. It is visible-first and may collapse helper/accessibility noise; use <code>--raw</code> or <code>--json</code> when you need the full provider tree.</li>
+<li>Off-screen interactive content is collapsed into compact discovery summaries such as <code>[off-screen below] 3 interactive items: &quot;Privacy&quot;, &quot;Battery&quot;, &quot;About&quot;</code>.</li>
 <li>If a target only appears in an off-screen summary, use <code>scroll &lt;direction&gt;</code> and re-snapshot until the target becomes visible.</li>
 <li>When container ownership is known, hidden content is shown inline under the visible scroll/list container, for example <code>[content above scroll-area hidden]</code> or <code>[content below list hidden]</code>.</li>
 <li>Those summaries intentionally show only a few labels for token efficiency. Use <code>snapshot --raw</code> when you need the full off-screen tree instead of the compact summary.</li>
