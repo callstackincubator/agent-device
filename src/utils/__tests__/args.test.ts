@@ -644,14 +644,25 @@ test('parseArgs recognizes record --hide-touches flag', () => {
   assert.equal(parsed.flags.hideTouches, true);
 });
 
-test('parseArgs recognizes screenshot --fullscreen flag', () => {
-  const parsed = parseArgs(['screenshot', 'page.png', '--fullscreen', '--max-size', '1024'], {
-    strictFlags: true,
-  });
+test('parseArgs recognizes screenshot flags', () => {
+  const parsed = parseArgs(
+    ['screenshot', 'page.png', '--fullscreen', '--max-size', '1024', '--no-stabilize'],
+    {
+      strictFlags: true,
+    },
+  );
   assert.equal(parsed.command, 'screenshot');
   assert.deepEqual(parsed.positionals, ['page.png']);
   assert.equal(parsed.flags.screenshotFullscreen, true);
   assert.equal(parsed.flags.screenshotMaxSize, 1024);
+  assert.equal(parsed.flags.screenshotNoStabilize, true);
+});
+
+test('usageForCommand documents screenshot stabilization tradeoff', () => {
+  const help = usageForCommand('screenshot');
+  if (help === null) throw new Error('Expected screenshot help text');
+  assert.match(help, /--no-stabilize/);
+  assert.match(help, /low-latency Android capture loops/);
 });
 
 test('parseArgs rejects invalid record --fps range', () => {

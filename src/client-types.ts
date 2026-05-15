@@ -331,6 +331,7 @@ export type CaptureScreenshotOptions = AgentDeviceRequestOverrides & {
   overlayRefs?: boolean;
   fullscreen?: boolean;
   maxSize?: number;
+  stabilize?: boolean;
   surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
 };
 
@@ -753,6 +754,7 @@ type CommandExecutionOptions = {
   raw?: boolean;
   screenshotFullscreen?: boolean;
   screenshotMaxSize?: number;
+  screenshotNoStabilize?: boolean;
   count?: number;
   fps?: number;
   quality?: RecordingQuality;

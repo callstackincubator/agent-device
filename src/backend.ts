@@ -69,6 +69,7 @@ export type BackendFindTextResult = {
 export type BackendScreenshotOptions = {
   fullscreen?: boolean;
   overlayRefs?: boolean;
+  stabilize?: boolean;
   surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
 };
 

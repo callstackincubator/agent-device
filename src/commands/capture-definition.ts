@@ -42,9 +42,15 @@ const screenshotCommandDefinition = defineCommand({
   name: PUBLIC_COMMANDS.screenshot,
   schema: {
     helpDescription:
-      'Capture screenshot (macOS app sessions default to the app window; use --fullscreen for full desktop, --max-size to downscale, or --overlay-refs to annotate the image with current refs)',
+      'Capture screenshot (macOS app sessions default to the app window; use --fullscreen for full desktop, --max-size to downscale, --overlay-refs to annotate current refs, or --no-stabilize for low-latency Android capture loops)',
     positionalArgs: ['path?'],
-    allowedFlags: ['out', 'overlayRefs', 'screenshotFullscreen', 'screenshotMaxSize'],
+    allowedFlags: [
+      'out',
+      'overlayRefs',
+      'screenshotFullscreen',
+      'screenshotMaxSize',
+      'screenshotNoStabilize',
+    ],
   },
   capability: ALL_DEVICE_COMMAND_CAPABILITY,
 });

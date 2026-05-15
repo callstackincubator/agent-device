@@ -98,6 +98,28 @@ test('screenshotAndroid waits for transient UI to settle before capture', async 
   assert.deepEqual(relevantEvents, ['enable', 'settle:1000', 'capture', 'disable']);
 });
 
+test('screenshotAndroid skips stabilization when requested', async () => {
+  const events: string[] = [];
+  const outPath = path.join(os.tmpdir(), `agent-device-android-screenshot-${Date.now()}.png`);
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      events.push('capture');
+      return { exitCode: 0, stdout: '', stderr: '', stdoutBuffer: VALID_PNG };
+    }
+    events.push(args.some((arg) => arg.includes('exit')) ? 'disable' : 'enable');
+    return { exitCode: 0, stdout: '', stderr: '' };
+  });
+  mockSleep.mockImplementation(async (ms) => {
+    events.push(`settle:${ms}`);
+  });
+
+  await screenshotAndroid(device, outPath, { stabilize: false });
+
+  assert.deepEqual(events, ['capture']);
+  assert.equal(mockSleep.mock.calls.length, 0);
+});
+
 test('screenshotAndroid writes a valid PNG when output is clean', async () => {
   await withTempScreenshot('screenshot-clean-', async (outPath) => {
     await screenshotAndroid(device, outPath);

@@ -22,6 +22,7 @@ export type BackMode = 'in-app' | 'system';
 export type ScreenshotOptions = {
   appBundleId?: string;
   fullscreen?: boolean;
+  stabilize?: boolean;
   surface?: SessionSurface;
 };
 

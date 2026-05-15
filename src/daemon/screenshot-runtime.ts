@@ -38,6 +38,7 @@ export async function dispatchScreenshotViaRuntime(params: {
     appBundleId: session.appBundleId,
     fullscreen: dispatchContext.screenshotFullscreen,
     maxSize: dispatchContext.screenshotMaxSize,
+    stabilize: dispatchContext.screenshotNoStabilize ? false : undefined,
     surface: session.surface,
     ...(outPath ? { out: { kind: 'path', path: outPath } } : {}),
   });
@@ -56,6 +57,7 @@ function createDispatchScreenshotBackend(params: {
         ...dispatchContext,
         screenshotFullscreen: options?.fullscreen,
         overlayRefs: options?.overlayRefs,
+        screenshotNoStabilize: options?.stabilize === false ? true : undefined,
         surface: options?.surface,
       };
       if (outputPlacement === 'out') {

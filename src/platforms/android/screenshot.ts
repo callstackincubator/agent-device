@@ -7,7 +7,20 @@ import { runAndroidAdb, sleep } from './adb.ts';
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const ANDROID_SCREENSHOT_SETTLE_DELAY_MS = 1_000;
 
-export async function screenshotAndroid(device: DeviceInfo, outPath: string): Promise<void> {
+export type AndroidScreenshotOptions = {
+  stabilize?: boolean;
+};
+
+export async function screenshotAndroid(
+  device: DeviceInfo,
+  outPath: string,
+  options: AndroidScreenshotOptions = {},
+): Promise<void> {
+  if (options.stabilize === false) {
+    await captureAndroidScreenshot(device, outPath);
+    return;
+  }
+
   await enableAndroidDemoMode(device);
   try {
     // Allow transient UI affordances like scrollbars to fade before capture.

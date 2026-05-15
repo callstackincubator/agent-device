@@ -158,6 +158,7 @@ export function appendScreenshotActionScriptArgs(parts: string[], action: Sessio
   if (typeof action.flags?.screenshotMaxSize === 'number') {
     parts.push('--max-size', String(action.flags.screenshotMaxSize));
   }
+  if (action.flags?.screenshotNoStabilize) parts.push('--no-stabilize');
 }
 
 export function appendRuntimeActionScriptArgs(

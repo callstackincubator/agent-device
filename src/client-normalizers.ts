@@ -270,6 +270,7 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     snapshotRaw: options.raw,
     screenshotFullscreen: options.screenshotFullscreen,
     screenshotMaxSize: options.screenshotMaxSize,
+    screenshotNoStabilize: options.screenshotNoStabilize,
     overlayRefs: options.overlayRefs,
     appsFilter: options.appsFilter,
     out: options.out,

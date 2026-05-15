@@ -348,6 +348,10 @@ function parseReplayScriptLine(line: string): SessionAction | null {
         action.flags.screenshotFullscreen = true;
         continue;
       }
+      if (token === '--no-stabilize') {
+        action.flags.screenshotNoStabilize = true;
+        continue;
+      }
       if (token === '--max-size') {
         const value = args[index + 1];
         const maxSize = value === undefined ? NaN : Number(value);

@@ -333,6 +333,7 @@ export function createAgentDeviceClient(
           ...options,
           screenshotFullscreen: options.fullscreen,
           screenshotMaxSize: options.maxSize,
+          screenshotNoStabilize: options.stabilize === false ? true : undefined,
         });
         return {
           path: readRequiredString(data, 'path'),

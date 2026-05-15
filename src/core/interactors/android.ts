@@ -39,7 +39,7 @@ export function createAndroidInteractor(device: DeviceInfo): Interactor {
     type: (text, delayMs) => typeAndroid(device, text, delayMs),
     fill: (x, y, text, delayMs) => fillAndroid(device, x, y, text, delayMs),
     scroll: (direction, options) => scrollAndroid(device, direction, options),
-    screenshot: (outPath) => screenshotAndroid(device, outPath),
+    screenshot: (outPath, options) => screenshotAndroid(device, outPath, options),
     snapshot: async (options) => {
       const result = await withDiagnosticTimer(
         'snapshot_capture',

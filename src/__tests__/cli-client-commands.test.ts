@@ -384,6 +384,7 @@ test('screenshot forwards --overlay-refs to the client capture API', async () =>
         path?: string;
         overlayRefs?: boolean;
         maxSize?: number;
+        stabilize?: boolean;
       }
     | undefined;
   const client = createStubClient({
@@ -408,6 +409,7 @@ test('screenshot forwards --overlay-refs to the client capture API', async () =>
       version: false,
       overlayRefs: true,
       screenshotMaxSize: 1024,
+      screenshotNoStabilize: true,
     },
     client,
   });
@@ -417,6 +419,7 @@ test('screenshot forwards --overlay-refs to the client capture API', async () =>
     path: '/tmp/screenshot.png',
     overlayRefs: true,
     maxSize: 1024,
+    stabilize: false,
   });
 });
 

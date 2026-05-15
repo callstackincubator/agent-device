@@ -14,6 +14,7 @@ export const screenshotCommand: ClientCommandHandler = async ({ positionals, fla
     path: positionals[0] ?? flags.out,
     overlayRefs: flags.overlayRefs,
     maxSize: flags.screenshotMaxSize,
+    ...(flags.screenshotNoStabilize ? { stabilize: false } : {}),
     ...(flags.screenshotFullscreen !== undefined ? { fullscreen: flags.screenshotFullscreen } : {}),
   });
   const data = {
@@ -97,6 +98,7 @@ function createClientScreenshotBackend(
         session: context.session,
         overlayRefs: options?.overlayRefs,
         fullscreen: options?.fullscreen,
+        stabilize: options?.stabilize,
         surface: options?.surface,
       });
       return {

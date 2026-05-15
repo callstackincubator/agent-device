@@ -56,6 +56,7 @@ export type CliFlags = RemoteConfigMetroOptions & {
   overlayRefs?: boolean;
   screenshotFullscreen?: boolean;
   screenshotMaxSize?: number;
+  screenshotNoStabilize?: boolean;
   baseline?: string;
   threshold?: string;
   appsFilter?: 'user-installed' | 'all';
@@ -1414,6 +1415,14 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     min: 1,
     usageLabel: '--max-size <px>',
     usageDescription: 'Screenshot: downscale so the longest edge is at most <px>',
+  },
+  {
+    key: 'screenshotNoStabilize',
+    names: ['--no-stabilize'],
+    type: 'boolean',
+    usageLabel: '--no-stabilize',
+    usageDescription:
+      'Screenshot: skip Android demo-mode/status-bar stabilization and settle delay for low-latency capture loops',
   },
   {
     key: 'baseline',

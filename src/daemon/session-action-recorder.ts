@@ -55,6 +55,7 @@ const SANITIZED_FLAG_KEYS = [
   'snapshotRaw',
   'screenshotFullscreen',
   'screenshotMaxSize',
+  'screenshotNoStabilize',
   'relaunch',
   'saveScript',
   'noRecord',

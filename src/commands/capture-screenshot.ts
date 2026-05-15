@@ -39,6 +39,7 @@ export const screenshotCommand: RuntimeCommand<
       {
         fullscreen: options.fullscreen,
         overlayRefs: options.overlayRefs,
+        stabilize: options.stabilize,
         surface: options.surface,
       },
     );

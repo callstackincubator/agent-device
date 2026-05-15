@@ -27,6 +27,7 @@ export function contextFromFlags(
     snapshotScope: flags?.snapshotScope,
     snapshotRaw: flags?.snapshotRaw,
     screenshotFullscreen: flags?.screenshotFullscreen,
+    screenshotNoStabilize: flags?.screenshotNoStabilize,
     screenshotMaxSize: flags?.screenshotMaxSize,
     count: flags?.count,
     intervalMs: flags?.intervalMs,

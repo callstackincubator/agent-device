@@ -26,6 +26,7 @@ export type DispatchContext = {
   snapshotScope?: string;
   snapshotRaw?: boolean;
   screenshotFullscreen?: boolean;
+  screenshotNoStabilize?: boolean;
   count?: number;
   intervalMs?: number;
   delayMs?: number;

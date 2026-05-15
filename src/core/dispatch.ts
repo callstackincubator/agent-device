@@ -106,6 +106,7 @@ export async function dispatchCommand(
           await interactor.screenshot(screenshotPath, {
             appBundleId: context?.appBundleId,
             fullscreen: context?.screenshotFullscreen,
+            stabilize: context?.screenshotNoStabilize ? false : undefined,
             surface: context?.surface,
           });
           return { path: screenshotPath, ...successText(`Saved screenshot: ${screenshotPath}`) };
