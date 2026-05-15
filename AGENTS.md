@@ -3,7 +3,6 @@
 Minimal operating guide for AI coding agents in this repo.
 
 ## First 60 Seconds
-
 - Classify task type:
   - Info-only (triage/review/questions/docs guidance): no code edits and no test runs unless explicitly requested.
   - Code change: make minimal scoped edits and run only required checks from **Testing Matrix**.
@@ -22,7 +21,6 @@ Minimal operating guide for AI coding agents in this repo.
 - Decide docs/skills impact up front.
 
 ## Scope
-
 - Solve issues with the smallest context read.
 - Keep changes scoped to one command family or module group.
 - Preserve daemon session semantics and platform behavior.
@@ -31,7 +29,6 @@ Minimal operating guide for AI coding agents in this repo.
 - If requested fix expands beyond one command family/module group, stop and confirm before broadening scope.
 
 ## Code Changes
-
 - Minimum code that solves the problem. No speculative features.
 - No abstractions for single-use code.
 - Surgical edits only.
@@ -44,7 +41,6 @@ Minimal operating guide for AI coding agents in this repo.
   - exception: generated files, schema/fixture snapshots, and integration test aggregations.
 
 ## Routing
-
 - Keep `src/daemon.ts` as a thin router.
 - Keep command names and daemon routing groups centralized in `src/command-catalog.ts`; do not re-create command string sets in handlers or request policy modules.
 - Keep CLI/client positional grammar in `src/command-codecs.ts` and its `src/command-codecs/*` command-family modules. CLI commands, typed client methods, and daemon interaction adapters should reuse these codecs instead of duplicating selector/ref/positionals parsing.
@@ -64,7 +60,6 @@ Minimal operating guide for AI coding agents in this repo.
 - Generic passthrough (press/scroll/type) is daemon fallback only after handlers return null.
 
 ## Toolchain Snapshot
-
 - Package manager: `pnpm` only. Do not add or restore `package-lock.json`.
 - Runtime baseline is Node >= 22. Prefer built-in Node APIs such as global `fetch`, Web Streams, and `AbortSignal.timeout` over compatibility wrappers unless the surrounding code needs a lower-level transport.
 - Lint/format stack is OXC:
@@ -76,7 +71,6 @@ Minimal operating guide for AI coding agents in this repo.
 - Use the aggregate scripts in `package.json` when possible; they encode the expected validation bundles better than ad hoc command lists.
 
 ## Cheap Exploration
-
 - Prefer these first-pass commands over broader reads:
   - `rg -n "<symbol|command|flag>" src test`
   - `rg --files src/daemon/handlers src/platforms/ios src/platforms/android`
@@ -86,7 +80,6 @@ Minimal operating guide for AI coding agents in this repo.
 - If lint failures appear after toolchain edits, check whether the rule is from `eslint/*`, `typescript/*`, `import/*`, or `node/*` in `.oxlintrc.json` before assuming source bugs.
 
 ## Command Family Lookup
-
 - `logs`: `src/daemon/handlers/session.ts` -> `src/daemon/app-log.ts` -> `src/daemon/handlers/__tests__/session.test.ts`
 - `open/close/replay/apps/appstate`: `src/daemon/handlers/session.ts` -> `src/daemon/session-store.ts` -> `src/daemon/handlers/__tests__/session.test.ts`
 - `click/fill/get/is`: `src/daemon/handlers/interaction.ts` -> `src/daemon/selectors.ts` -> `src/daemon/handlers/__tests__/interaction.test.ts`
@@ -94,7 +87,6 @@ Minimal operating guide for AI coding agents in this repo.
 - `record/trace`: `src/daemon/handlers/record-trace.ts` -> `src/platforms/ios/runner-client.ts` -> `src/daemon/handlers/__tests__/record-trace.test.ts`
 
 ## iOS Runner Seams
-
 - Keep dependency direction clean:
   - `runner-client.ts`: command execution + retry behavior
   - `runner-transport.ts`: connection/probing/HTTP transport
@@ -119,7 +111,6 @@ A new snapshot/command flag touches up to 7 files in a fixed order. Follow this 
 Command-only flags (like `find --first`) that don't flow to the platform layer only need steps 1 and the handler file.
 
 ## Hard Rules
-
 - Use process helpers from `src/utils/exec.ts` for TypeScript process execution: `runCmd`, `runCmdStreaming`, `runCmdSync`, `runCmdBackground`, and `runCmdDetached`. Do not import raw `spawn`/`spawnSync` outside `src/utils/exec.ts`; add or extend an exec helper instead. Plain `.mjs` packaging fixtures that cannot import TypeScript helpers should keep child-process usage local and prefer `execFile`/`execFileSync` over spawn.
 - Use daemon session flow for interactions (`open` before interactions, `close` after).
 - Use `keyboard dismiss` for iOS keyboard dismissal; it may tap safe native controls such as `Done` but must not fall back to system back navigation.
@@ -132,13 +123,11 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Use `evaluateIsPredicate` from `src/daemon/is-predicates.ts` for assertion logic.
 
 ## Logs Contract
-
 - Logs backend/source of truth is `src/daemon/app-log.ts`.
 - `session.ts` should orchestrate only (start/stop/path/doctor/mark), not duplicate backend logic.
 - Preserve external grep/tail workflow in docs/skills.
 
 ## Diagnostics & Errors
-
 - Diagnostics source of truth: `src/utils/diagnostics.ts`
   - `withDiagnosticsScope`, `emitDiagnostic`, `withDiagnosticTimer`, `flushDiagnosticsToSessionFile`
 - Do not add ad-hoc stderr/file logging where diagnostics helpers apply.
@@ -149,7 +138,6 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Keep redaction centralized in diagnostics helpers.
 
 ## Optional Optimizations
-
 - Treat optional optimization calls such as cache/preflight/probe requests as best-effort unless the feature contract says they are required. If an optimization fails, times out, returns non-OK, or returns an unusable shape, prefer falling back to the existing required command path.
 - Keep optimization timeouts shorter than the underlying operation timeout. A preflight should not consume the full budget for a later upload or command.
 
@@ -158,7 +146,6 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - For Android RN/Expo/dev-client apps connected to any local Metro port, `adb reverse tcp:<port> tcp:<port>` is harmless and should be run before opening the app or URL on the emulator/device.
 
 ## Selector System Rules
-
 - Interaction commands (`click`, `fill`, `get`, `is`) and `wait` accept selectors and `@ref`.
 - Pipeline: **parse -> resolve -> act -> record selectorChain -> heal on replay**.
 - Keep selector parsing/matching in `src/daemon/selectors.ts`.
@@ -170,7 +157,6 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Prefer selector or `@ref` interactions over raw x/y commands in tests and docs, especially on macOS where window position can vary across runs.
 
 ## Shared Test Utilities
-
 - Before writing a new test, check `src/__tests__/test-utils/` for existing helpers:
   - `device-fixtures.ts`: canonical `DeviceInfo` constants (`ANDROID_EMULATOR`, `IOS_SIMULATOR`, `IOS_DEVICE`, `MACOS_DEVICE`, `LINUX_DEVICE`, etc.)
   - `session-factories.ts`: `makeSession`, `makeIosSession`, `makeAndroidSession`, `makeMacOsSession`
@@ -182,7 +168,6 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Do not duplicate `makeSessionStore`, `makeSession`, or device constants when a shared helper already exists.
 
 ## Testing Matrix
-
 - Docs/skills only: no tests required unless a more specific rule below applies.
 - CLI help/guidance changes in `src/utils/command-schema.ts`: run `pnpm exec vitest run src/utils/__tests__/args.test.ts`.
 - SkillGym prompt/assertion changes: run the touched `--case` checks. For broad validation, use `pnpm test:skillgym`; use `--tag fixture-smoke` or `--tag skill-guidance` when validating one suite group.
@@ -197,7 +182,6 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Any change in: `src/`, `test/`, `skills/`: `pnpm format`.
 
 ## Token Guardrails
-
 - Do not read unrelated files once owning module is identified.
 - Do not run integration tests by default.
 - Do not inspect both iOS and Android codepaths unless task requires both.
@@ -206,7 +190,6 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Keep PR summaries short and scoped.
 
 ## Common Mistakes
-
 - Adding command logic to `src/daemon.ts` instead of handlers.
 - Adding capability checks outside `src/core/capabilities.ts`.
 - Inlining `is` predicate logic in handlers.
@@ -217,7 +200,6 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Changing `tsconfig.lib.json`/build tooling without running `pnpm check:tooling`; declaration generation is stricter than `tsc --noEmit`.
 
 ## Docs & Skills
-
 - Versioned CLI help is the agent-facing source of truth. Put workflow guidance in `src/utils/command-schema.ts` help topics and assert important copy in `src/utils/__tests__/args.test.ts`.
 - Skills are thin routers. Keep `skills/**/SKILL.md` focused on when to use the skill, version gating, which `agent-device help <topic>` page to read, and a short default loop. Do not duplicate full CLI manuals in skills.
 - For behavior/CLI surface changes, update the versioned help instructions in `src/utils/command-schema.ts` and assert important help copy in `src/utils/__tests__/args.test.ts`. Also update `README.md` and relevant `website/docs/**` when user-facing docs need it.
@@ -234,14 +216,12 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - In final summaries, state whether docs/skills were updated; if not, explain why.
 
 ## When Blocked
-
 - If blocked by network/device/auth/permissions, stop and report:
   - blocker
   - why it blocks completion
   - exact next command/action needed to unblock
 
 ## Key Files
-
 - CLI parse + formatting: `src/bin.ts`, `src/cli.ts`, `src/utils/args.ts`
 - Daemon client transport: `src/daemon-client.ts`
 - Daemon state/store: `src/daemon/session-store.ts`
@@ -256,7 +236,6 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Platform backends: `src/platforms/ios/*`, `ios-runner/*`, `src/platforms/android/*`
 
 ## Pull Requests
-
 - Before opening PR: ensure no conflict markers/unmerged paths.
 - Commit messages and PR titles should use conventional prefixes such as `feat:`, `fix:`, `chore:`, `perf:`, `refactor:`, `docs:`, `test:`, `build:`, or `ci:` as appropriate.
 - Do not use bracketed automation prefixes such as `[codex]` or similar bot tags in commit messages or PR titles.
@@ -268,20 +247,5 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Call out known gaps/follow-ups explicitly.
 - Include touched-file count and note if scope expanded beyond initial command family.
 
-## Agent skills
-
-### Issue tracker
-
-Issues are tracked in GitHub Issues for `callstackincubator/agent-device`. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Use the default triage label vocabulary. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Use a single-context domain-doc layout. See `docs/agents/domain.md`.
-
 ## Priority Order
-
 - When guidance conflicts, apply in this order: **Hard Rules -> Scope -> Testing Matrix -> style/preferences**.
