@@ -18,8 +18,8 @@ Current local snapshot:
 
 | Measure | Value |
 | --- | ---: |
-| Handler unit test files | 29 |
-| Handler unit test LOC | 13136 |
+| Handler unit test files | 30 |
+| Handler unit test LOC | 13129 |
 | Handler unit tests | 347 |
 | Handler files with `vi.mock` | 17 |
 | Device Lab files | 12 |
@@ -177,7 +177,7 @@ Before deleting a unit test, confirm that a Device Lab scenario covers the succe
 
 ## Next Work
 
-1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest deletion pass moved Android `perf` startup metric coverage into Device Lab, after moving iOS physical boot readiness there in the previous pass.
+1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest pass split pure snapshot state/visibility tests into `snapshot-capture.test.ts`, leaving `snapshot-handler.test.ts` focused on handler behavior, freshness, retry, and error policy.
 2. Keep extracting platform worlds only when they make scenario files read as workflows. Android and iOS now own provider setup in `android-world.ts` and `ios-world.ts`; avoid adding another layer above `createDeviceLabHarness`.
 3. Review the top mock-heavy files from `pnpm test:device-lab:progress` before adding new handler unit coverage. Prefer a Device Lab scenario when the behavior is a command workflow.
 4. Reassess Apple raw tool/helper provider pressure when another Adapter or another scenario has to pattern-match the same host command intent.
