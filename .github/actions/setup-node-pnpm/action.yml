@@ -9,7 +9,7 @@ inputs:
   pnpm-version:
     description: 'pnpm version'
     required: false
-    default: '10.33.2'
+    default: '11.1.2'
   install-deps:
     description: 'Whether to install dependencies with pnpm install --frozen-lockfile'
     required: false

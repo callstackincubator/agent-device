@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const localBinDir = fileURLToPath(new URL('./bin', import.meta.url));
+const codexRunner = fileURLToPath(new URL('./bin/codex', import.meta.url));
 const runnerEnv = {
   PATH: [localBinDir, process.env.PATH].filter(Boolean).join(path.delimiter),
 };
@@ -22,6 +23,7 @@ const config: SkillGymConfig = {
     'codex-mini': {
       agent: {
         type: 'codex',
+        command: codexRunner,
         model: 'gpt-5.4-mini',
         env: runnerEnv,
       },
