@@ -149,15 +149,8 @@ test('runtime snapshot warns on collapsed Android React Native warning banners',
         ref: 'e1',
         index: 0,
         depth: 0,
-        type: 'android.view.ViewGroup',
-        label: '!, Open debugger to view warnings.',
-      },
-      {
-        ref: 'e2',
-        index: 1,
-        depth: 1,
         type: 'android.widget.TextView',
-        label: 'Open debugger to view warnings.',
+        label: 'Warning: Each child in a list should have a unique "key" prop.',
       },
     ],
     truncated: false,
@@ -167,6 +160,38 @@ test('runtime snapshot warns on collapsed Android React Native warning banners',
   const result = await device.capture.snapshot({ session: 'default', interactiveOnly: true });
 
   assertReactNativeOverlayWarning(result.warnings);
+  assert.match(result.warnings?.[0] ?? '', /Press @e1/);
+});
+
+test('runtime snapshot prefers TextView Minimize over Dismiss on Android React Native stack overlays', async () => {
+  const result = await createSnapshotOnlyDevice({
+    nodes: [
+      { ref: 'e1', index: 0, depth: 0, type: 'android.widget.TextView', label: 'useOnyx.ts:80:43' },
+      { ref: 'e2', index: 1, depth: 1, type: 'android.widget.Button', label: 'Dismiss' },
+      { ref: 'e3', index: 2, depth: 1, type: 'android.widget.TextView', label: 'Minimize' },
+    ],
+    truncated: false,
+    backend: 'android',
+  }).capture.snapshot({ session: 'default', interactiveOnly: true });
+
+  assertReactNativeOverlayWarning(result.warnings);
+  assert.match(result.warnings?.[0] ?? '', /press @e3/);
+  assert.match(result.warnings?.[0] ?? '', /Prefer Minimize over Dismiss/);
+});
+
+test('runtime snapshot does not suggest Dismiss for Android RedBox stacks without Minimize', async () => {
+  const result = await createSnapshotOnlyDevice({
+    nodes: [
+      { ref: 'e1', index: 0, depth: 0, type: 'android.widget.TextView', label: 'useOnyx.ts:80:43' },
+      { ref: 'e2', index: 1, depth: 1, type: 'android.widget.Button', label: 'Dismiss' },
+    ],
+    truncated: false,
+    backend: 'android',
+  }).capture.snapshot({ session: 'default', interactiveOnly: true });
+
+  assertReactNativeOverlayWarning(result.warnings);
+  assert.match(result.warnings?.[0] ?? '', /RedBox stack overlay/);
+  assert.doesNotMatch(result.warnings?.[0] ?? '', /Dismiss before continuing|press @e2/);
 });
 
 test('runtime snapshot warns when iOS hierarchy looks like a React Native overlay', async () => {

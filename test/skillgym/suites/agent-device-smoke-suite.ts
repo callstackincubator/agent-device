@@ -901,6 +901,26 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     ],
   }),
   makeCase({
+    id: 'rn-collapsed-warning-banner-expand-dismiss',
+    contract: [
+      'App name: Agent Device Tester',
+      'Current screen has a collapsed React Native warning banner',
+      'Fresh interactive snapshot shows @e12 label="!, Open debugger to view warnings."',
+      'Dismiss is not visible until the warning banner is pressed',
+      'Target selector after dismissing overlay: id="submit-order"',
+    ],
+    task: 'Plan commands to press the collapsed warning banner, re-snapshot to find Dismiss or Close, dismiss the overlay, re-snapshot, then continue to id="submit-order".',
+    outputs: [
+      /(?:snapshot -i[\s\S]*)?(?:press|click)\s+@e12[\s\S]*snapshot -i[\s\S]*(?:(?:press|click)\b[^\n]*(?:Dismiss|Close)|find\b[^\n]*(?:Dismiss|Close)[^\n]*(?:press|click))[\s\S]*snapshot -i[\s\S]*submit-order/i,
+    ],
+    forbiddenOutputs: [
+      plannedCommand('screenshot'),
+      RAW_COORDINATE_TARGET,
+      /(?:^|\n)(?:agent-device\s+)?(?:press|click)\b[^\n]*submit-order[\s\S]*(?:@e12|Dismiss|Close)/i,
+      /alert accept/i,
+    ],
+  }),
+  makeCase({
     id: 'rn-error-overlay-human-flag',
     contract: [
       'App name: Agent Device Tester',
@@ -922,6 +942,28 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       /submit-order/i,
     ],
     forbiddenOutputs: [RAW_COORDINATE_TARGET, /alert accept/i, /ignore/i],
+  }),
+  makeCase({
+    id: 'rn-redbox-stack-minimize-before-continuing',
+    contract: [
+      'App name: Agent Device Tester',
+      'Platform: Android',
+      'Fresh interactive snapshot shows a full-screen React Native RedBox stack trace',
+      'Stack includes useOnyx.ts:80:43 and LHNOptionsList.tsx:77',
+      'Overlay controls include Dismiss and Minimize',
+      'The RedBox may be caused by an infinite render loop',
+      'Target selector after minimizing overlay: id="submit-order"',
+    ],
+    task: 'Plan commands to recognize the RedBox stack trace, press Minimize instead of Dismiss, re-snapshot, then continue to id="submit-order" while reporting the RedBox later.',
+    outputs: [
+      /snapshot -i[\s\S]*(?:press|click)\b[^\n]*Minimize[\s\S]*snapshot -i[\s\S]*submit-order/i,
+    ],
+    forbiddenOutputs: [
+      RAW_COORDINATE_TARGET,
+      /(?:press|click)\b[^\n]*Dismiss/i,
+      /alert accept/i,
+      /failed nav|navigation failed/i,
+    ],
   }),
   makeCase({
     id: 'expo-go-ios-project-url',

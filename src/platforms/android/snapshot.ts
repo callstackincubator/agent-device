@@ -40,9 +40,8 @@ import {
 
 const UI_HIERARCHY_DUMP_TIMEOUT_MS = 8_000;
 const HELPER_INSTALL_TIMEOUT_MS = 30_000;
-// Large React Native trees can legitimately exceed the stock dump timeout while
-// the helper is still making progress; keep this below the full fallback path.
-const HELPER_COMMAND_TIMEOUT_MS = 30_000;
+const HELPER_CAPTURE_TIMEOUT_MS = 5_000;
+const HELPER_COMMAND_TIMEOUT_MS = 8_000;
 
 type AndroidSnapshotOptions = SnapshotOptions & {
   helperArtifact?: AndroidSnapshotHelperArtifact;
@@ -135,13 +134,13 @@ async function captureAndroidUiHierarchy(
             packageName: helper.artifact!.manifest.packageName,
             instrumentationRunner: helper.artifact!.manifest.instrumentationRunner,
             waitForIdleTimeoutMs: ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
-            timeoutMs: UI_HIERARCHY_DUMP_TIMEOUT_MS,
+            timeoutMs: HELPER_CAPTURE_TIMEOUT_MS,
             commandTimeoutMs: HELPER_COMMAND_TIMEOUT_MS,
           }),
         {
           packageName: helper.artifact.manifest.packageName,
           version: helper.artifact.manifest.version,
-          timeoutMs: UI_HIERARCHY_DUMP_TIMEOUT_MS,
+          timeoutMs: HELPER_CAPTURE_TIMEOUT_MS,
           commandTimeoutMs: HELPER_COMMAND_TIMEOUT_MS,
         },
       );
@@ -165,6 +164,8 @@ async function captureAndroidUiHierarchy(
         },
       };
     } catch (error) {
+      const busyError = formatAndroidSnapshotHelperBusyError(error);
+      if (busyError) throw busyError;
       const fallbackReason = formatAndroidSnapshotHelperFallbackReason(error);
       emitDiagnostic({
         level: 'warn',
@@ -190,11 +191,45 @@ async function captureAndroidUiHierarchy(
 
 function formatAndroidSnapshotHelperFallbackReason(error: unknown): string {
   const normalized = normalizeError(error);
+  const helperMessage = readHelperMessage(normalized.details?.helper);
+  if (helperMessage && helperMessage !== normalized.message) {
+    return `${normalized.message}: ${helperMessage}`;
+  }
+  if (helperMessage) return helperMessage;
   const stderr =
     typeof normalized.details?.stderr === 'string' ? normalized.details.stderr.trim() : '';
-  if (!stderr) return normalized.message;
-  const firstLine = stderr.split(/\r?\n/).find((line) => line.trim().length > 0);
+  const firstLine = stderr.split(/\r?\n/).find((line) => line.trim());
   return firstLine ? `${normalized.message}: ${firstLine}` : normalized.message;
+}
+
+function formatAndroidSnapshotHelperBusyError(error: unknown): AppError | undefined {
+  const normalized = normalizeError(error);
+  if (!isStructuredHelperTimeout(normalized.details?.helper, normalized.message)) return undefined;
+  const reason = formatAndroidSnapshotHelperFallbackReason(error);
+  const hint =
+    'Android accessibility snapshots can be blocked by busy or continuously changing app UI. Use screenshot as visual truth after this timeout and report the busy UI if it persists.';
+  return new AppError(
+    toAppErrorCode(normalized.code),
+    `${reason}. Stock UIAutomator fallback was skipped because this usually means the Android accessibility tree is busy or stalled.`,
+    {
+      ...normalized.details,
+      hint,
+    },
+    error,
+  );
+}
+
+function readHelperMessage(helper: unknown): string | undefined {
+  if (!helper || typeof helper !== 'object' || !('message' in helper)) return undefined;
+  const message = String(helper.message).trim();
+  return message && message !== 'null' ? message : undefined;
+}
+
+function isStructuredHelperTimeout(helper: unknown, fallbackMessage: string): boolean {
+  if (!helper || typeof helper !== 'object') return false;
+  const errorType = 'errorType' in helper ? String(helper.errorType) : '';
+  const message = readHelperMessage(helper) ?? fallbackMessage;
+  return /TimeoutException/.test(errorType) || /timed out/i.test(message);
 }
 
 async function resolveAndroidSnapshotHelperArtifact(
@@ -311,7 +346,7 @@ export async function dumpUiHierarchy(
   } catch (error) {
     if (isUiHierarchyDumpTimeout(error)) {
       const hint =
-        'If the app has looping animations, use screenshot as visual truth, try settings animations off, then retry snapshot. Stock Android UIAutomator may still time out on app-owned infinite animations.';
+        'Android accessibility snapshots can be blocked by busy or continuously changing app UI. Use screenshot as visual truth after this timeout. Stock Android UIAutomator may still time out on app-owned infinite animations.';
       throw new AppError(
         'COMMAND_FAILED',
         `Android UI hierarchy dump timed out while waiting for the UI to become idle. ${hint}`,

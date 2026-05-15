@@ -70,6 +70,7 @@ export async function captureAndroidSnapshotWithHelper(
     // The helper can report structured ok=false details even when am exits non-zero.
     output = parseAndroidSnapshotHelperOutput(`${result.stdout}\n${result.stderr}`);
   } catch (error) {
+    if (error instanceof AppError && result.exitCode !== 0 && error.details?.helper) throw error;
     throw new AppError(
       'COMMAND_FAILED',
       result.exitCode === 0

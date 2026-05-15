@@ -487,6 +487,7 @@ Choose the next help topic:
   Remote/cloud config, leases, and local service tunnels: help remote.
 
 React Native dev loop:
+  For "start from screen X" flows, prefer open --relaunch before the first snapshot so the app does not reuse a prior in-progress navigation state.
   JS-only change with Metro connected:
     agent-device metro reload
     agent-device find "Home"
@@ -495,8 +496,9 @@ React Native dev loop:
   Expo Go/dev clients are host shells. Use provided project URLs, verify with snapshot -i after opening, and ask instead of inventing app ids or URLs. Help workflow owns the full Expo URL command shapes.
 
 Overlays and busy RN UIs:
-  React Native warning/error overlays belong to the app run. Treat them as findings or blockers: capture screenshot --overlay-refs, run react-devtools errors when connected, dismiss visible Dismiss/Close only if unrelated, re-snapshot, and report the overlay.
-  If snapshot times out because the UI never becomes idle, use screenshot as visual truth, try settings animations off for Android, or wait briefly and retry; report the busy UI as the blocker if it persists.
+  React Native warning/error overlays belong to the app run. Treat them as blockers before normal app work: press visible Dismiss/Close immediately when unrelated, or press the collapsed warning banner first if only a warning chip is visible; then re-snapshot and report the overlay in the final summary. Use screenshot --overlay-refs only if visual evidence is required.
+  Full-screen RedBox stack traces are app errors, not failed navigation. If Minimize is visible, prefer Minimize over Dismiss; Dismiss can re-trigger infinite-loop render errors such as getSnapshot/useOnyx stack paths.
+  If snapshot times out because the UI never becomes idle, Android accessibility may be blocked by busy or continuously changing app UI. After that timeout, use screenshot as visual truth instead of repeatedly retrying snapshots.
   Android runtime permission dialogs are visible UI: inspect snapshot -i and press Allow/Deny by visible label/ref. Use alert wait/accept/dismiss only where the platform supports native alerts.
 
 React DevTools routing:

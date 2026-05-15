@@ -215,46 +215,67 @@ function buildSnapshotWarnings(params: {
   runtimeNow: number;
 }): string[] {
   const warnings = [...(params.result.warnings ?? [])];
-  const interactiveOnly = params.options.interactiveOnly === true;
-  const analysis = params.result.analysis;
-  const androidSnapshot = params.result.androidSnapshot;
+  warnings.push(...buildEmptyAndroidInteractiveWarnings(params));
 
+  const helperFallbackWarning = formatAndroidHelperFallbackWarning(params.result.androidSnapshot);
+  if (helperFallbackWarning) warnings.push(helperFallbackWarning);
+
+  const reactNativeOverlayWarning = formatReactNativeOverlayWarning(params.snapshot.nodes);
+  if (reactNativeOverlayWarning) warnings.push(reactNativeOverlayWarning);
+
+  const recentDropWarning = formatRecentSnapshotDropWarning(params);
+  if (recentDropWarning) warnings.push(recentDropWarning);
+
+  warnings.push(...formatFreshnessWarnings(params.result.freshness, params.snapshot.backend));
+  return Array.from(new Set(warnings));
+}
+
+function buildEmptyAndroidInteractiveWarnings(params: {
+  result: BackendSnapshotResult;
+  snapshot: SnapshotState;
+  options: SnapshotCommandOptions;
+}): string[] {
+  const analysis = params.result.analysis;
   if (
-    params.snapshot.backend === 'android' &&
-    interactiveOnly &&
-    params.snapshot.nodes.length === 0 &&
-    analysis &&
-    (analysis.rawNodeCount ?? 0) >= 12
+    params.snapshot.backend !== 'android' ||
+    params.options.interactiveOnly !== true ||
+    params.snapshot.nodes.length > 0 ||
+    !analysis ||
+    (analysis.rawNodeCount ?? 0) < 12
+  ) {
+    return [];
+  }
+
+  const warnings = [
+    `Interactive snapshot is empty after filtering ${analysis.rawNodeCount} raw Android nodes. Likely causes: the app content is not accessibility-visible yet, a transient route change, or depth/filter options hid the target.`,
+  ];
+  if (
+    typeof params.options.depth === 'number' &&
+    typeof analysis.maxDepth === 'number' &&
+    analysis.maxDepth >= params.options.depth + 2
   ) {
     warnings.push(
-      `Interactive snapshot is empty after filtering ${analysis.rawNodeCount} raw Android nodes. Likely causes: the app content is not accessibility-visible yet, a transient route change, or depth/filter options hid the target.`,
-    );
-    if (
-      typeof params.options.depth === 'number' &&
-      typeof analysis.maxDepth === 'number' &&
-      analysis.maxDepth >= params.options.depth + 2
-    ) {
-      warnings.push(
-        `Interactive output is empty at depth ${params.options.depth}; retry without -d.`,
-      );
-    }
-  }
-
-  if (androidSnapshot?.backend === 'uiautomator-dump') {
-    const reason = androidSnapshot.fallbackReason
-      ? ` Reason: ${androidSnapshot.fallbackReason}`
-      : '';
-    warnings.push(
-      `Android snapshot helper unavailable; using stock UIAutomator dump, which can time out on busy React Native UIs.${reason}`,
+      `Interactive output is empty at depth ${params.options.depth}; retry without -d.`,
     );
   }
+  return warnings;
+}
 
-  if (hasReactNativeOverlay(params.snapshot.nodes)) {
-    warnings.push(
-      'Possible React Native warning/error overlay detected. Capture screenshot --overlay-refs, check react-devtools errors if connected, dismiss Dismiss/Close only if unrelated, re-snapshot, and report it.',
-    );
-  }
+function formatAndroidHelperFallbackWarning(
+  androidSnapshot: AndroidSnapshotBackendMetadata | undefined,
+): string | undefined {
+  if (androidSnapshot?.backend !== 'uiautomator-dump') return undefined;
+  const reason = androidSnapshot.fallbackReason ? ` Reason: ${androidSnapshot.fallbackReason}` : '';
+  return `Android snapshot helper unavailable; using stock UIAutomator dump, which can time out on busy React Native UIs.${reason}`;
+}
 
+function formatRecentSnapshotDropWarning(params: {
+  result: BackendSnapshotResult;
+  snapshot: SnapshotState;
+  session: CommandSessionRecord | undefined;
+  capturedAt: number;
+  runtimeNow: number;
+}): string | undefined {
   const previousSnapshot = params.session?.snapshot;
   const isRecentSnapshot = previousSnapshot
     ? [params.capturedAt, params.runtimeNow].some((timestamp) => {
@@ -268,25 +289,25 @@ function buildSnapshotWarnings(params: {
     isRecentSnapshot &&
     isLikelyStaleSnapshotDrop(previousSnapshot.nodes.length, params.snapshot.nodes.length)
   ) {
-    warnings.push(
-      'Recent snapshots dropped sharply in node count, which suggests stale or mid-transition UI. Use screenshot as visual truth, wait briefly, then re-snapshot once.',
-    );
+    return STALE_SNAPSHOT_DROP_WARNING;
   }
+  return undefined;
+}
 
-  const freshness = params.result.freshness;
-  if (freshness?.staleAfterRetries && params.snapshot.backend === 'android') {
-    if (freshness.reason === 'stuck-route') {
-      warnings.push(
-        `Recent ${freshness.action} was followed by a nearly identical snapshot after ${freshness.retryCount} automatic retr${freshness.retryCount === 1 ? 'y' : 'ies'}. If you expected navigation or submit, the tree may still be stale. Use screenshot as visual truth, wait briefly, then re-snapshot once.`,
-      );
-    } else if (freshness.reason === 'sharp-drop') {
-      warnings.push(
-        'Recent snapshots dropped sharply in node count, which suggests stale or mid-transition UI. Use screenshot as visual truth, wait briefly, then re-snapshot once.',
-      );
-    }
+const STALE_SNAPSHOT_DROP_WARNING =
+  'Recent snapshots dropped sharply in node count, which suggests stale or mid-transition UI. Use screenshot as visual truth, wait briefly, then re-snapshot once.';
+
+function formatFreshnessWarnings(
+  freshness: BackendSnapshotResult['freshness'],
+  backend: SnapshotState['backend'],
+): string[] {
+  if (!freshness?.staleAfterRetries || backend !== 'android') return [];
+  if (freshness.reason === 'stuck-route') {
+    return [
+      `Recent ${freshness.action} was followed by a nearly identical snapshot after ${freshness.retryCount} automatic retr${freshness.retryCount === 1 ? 'y' : 'ies'}. If you expected navigation or submit, the tree may still be stale. Use screenshot as visual truth, wait briefly, then re-snapshot once.`,
+    ];
   }
-
-  return Array.from(new Set(warnings));
+  return freshness.reason === 'sharp-drop' ? [STALE_SNAPSHOT_DROP_WARNING] : [];
 }
 
 function isLikelyStaleSnapshotDrop(previousCount: number, currentCount: number): boolean {
@@ -294,7 +315,32 @@ function isLikelyStaleSnapshotDrop(previousCount: number, currentCount: number):
   return currentCount <= Math.floor(previousCount * 0.2);
 }
 
-function hasReactNativeOverlay(nodes: SnapshotNode[]): boolean {
+function formatReactNativeOverlayWarning(nodes: SnapshotNode[]): string | undefined {
+  const overlay = detectReactNativeOverlay(nodes);
+  if (!overlay.detected) return undefined;
+  if (overlay.redBox) return formatRedBoxOverlayWarning(overlay.minimizeRefs);
+  if (overlay.dismissRefs.length > 0) {
+    return `Possible React Native warning/error overlay detected. Dismiss before continuing: press ${formatRefList(
+      overlay.dismissRefs,
+    )}, then snapshot -i and report the warning/error in the final summary. Use screenshot --overlay-refs only if visual evidence is required.`;
+  }
+  if (overlay.collapsedRefs.length > 0) {
+    return `Possible React Native warning/error overlay detected. Warning banner detected. Press ${formatRefList(
+      overlay.collapsedRefs,
+    )} to expand or clear it; if Dismiss/Close appears, press it, then snapshot -i and report the warning/error in the final summary.`;
+  }
+  return 'Possible React Native warning/error overlay detected. Dismiss visible Dismiss/Close before continuing, then snapshot -i and report the warning/error in the final summary. Use screenshot --overlay-refs only if visual evidence is required.';
+}
+
+type ReactNativeOverlayState = {
+  detected: boolean;
+  redBox: boolean;
+  dismissRefs: string[];
+  minimizeRefs: string[];
+  collapsedRefs: string[];
+};
+
+function detectReactNativeOverlay(nodes: SnapshotNode[]): ReactNativeOverlayState {
   const text = nodes
     .map((node) =>
       [node.label, node.value, node.identifier, node.type, node.role].filter(Boolean).join(' '),
@@ -302,7 +348,79 @@ function hasReactNativeOverlay(nodes: SnapshotNode[]): boolean {
     .join('\n')
     .toLowerCase();
 
+  const dismissRefs = collectOverlayRefs(nodes, isDismissLabel);
+  const minimizeRefs = collectOverlayRefs(nodes, isMinimizeLabel);
+  const collapsedRefs = collectOverlayRefs(nodes, isCollapsedReactNativeWarningLabel);
+  const hasReactNativeStackFrame = isReactNativeStackFrame(text);
+  const hasOverlayControl = dismissRefs.length > 0 || minimizeRefs.length > 0;
+  const redBox =
+    /\b(redbox|runtime error|reload js|copy stack|component stack|call stack)\b/.test(text) ||
+    (hasReactNativeStackFrame && hasOverlayControl);
+  const detected =
+    hasKnownReactNativeOverlayText(text) ||
+    collapsedRefs.length > 0 ||
+    (hasReactNativeStackFrame && hasOverlayControl);
+  return { detected, redBox, dismissRefs, minimizeRefs, collapsedRefs };
+}
+
+function formatRedBoxOverlayWarning(minimizeRefs: string[]): string {
+  if (minimizeRefs.length > 0) {
+    return `Possible React Native warning/error overlay detected. React Native RedBox stack overlay detected. Minimize before continuing: press ${formatRefList(
+      minimizeRefs,
+    )}, then snapshot -i and report the error in the final summary. Prefer Minimize over Dismiss when the error may re-render immediately.`;
+  }
+  return 'Possible React Native warning/error overlay detected. React Native RedBox stack overlay detected. Do not press Dismiss if the error may re-render immediately; use screenshot --overlay-refs if visual evidence is required and report the error in the final summary.';
+}
+
+function hasKnownReactNativeOverlayText(text: string): boolean {
   return /\b(logbox|redbox|reload js|copy stack|component stack|call stack|runtime error|open debugger to view warnings)\b/.test(
     text,
   );
+}
+
+function isReactNativeStackFrame(text: string): boolean {
+  return (
+    /\b[\w.$<>/-]+\.(?:tsx?|jsx?):\d+(?::\d+)?\b/.test(text) ||
+    /\b[\w.$<>/-]+\.(?:tsx?|jsx?)\s+\(\d+:\d+\)/.test(text)
+  );
+}
+
+function isDismissLabel(label: string): boolean {
+  return label === 'dismiss' || label === 'close';
+}
+
+function isMinimizeLabel(label: string): boolean {
+  return /^minimi[sz]e$/.test(label);
+}
+
+function isCollapsedReactNativeWarningLabel(label: string): boolean {
+  return (
+    label.includes('open debugger to view warnings') ||
+    /^!,\s+/.test(label) ||
+    /^(warn|warning|error):\s+/.test(label) ||
+    /\b(?:possible\s+)?unhandled (?:promise )?rejection\b/.test(label) ||
+    label.includes('getsnapshot should be cached to avoid an infinite loop') ||
+    label.includes('unique "key" prop') ||
+    label.includes("unique 'key' prop") ||
+    label.includes('virtualizedlists should never be nested') ||
+    label.includes('failed prop type')
+  );
+}
+
+function collectOverlayRefs(nodes: SnapshotNode[], matches: (label: string) => boolean): string[] {
+  const refs: string[] = [];
+  for (const node of nodes) {
+    if (!node.ref) continue;
+    const label = (node.label ?? '').trim().toLowerCase();
+    if (!matches(label)) continue;
+    refs.push(node.ref);
+  }
+  return refs;
+}
+
+function formatRefList(refs: string[]): string {
+  return refs
+    .slice(0, 3)
+    .map((ref) => `@${ref}`)
+    .join(', ');
 }

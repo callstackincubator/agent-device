@@ -58,6 +58,38 @@ const helperManifest: AndroidSnapshotHelperManifest = {
   installArgs: ['install', '-r', '-t'],
 };
 
+const helperArtifact = {
+  apkPath: '/tmp/helper.apk',
+  manifest: helperManifest,
+};
+const installedHelperProbe = {
+  exitCode: 0,
+  stdout: 'package:com.callstack.agentdevice.snapshothelper versionCode:13003',
+  stderr: '',
+};
+
+function snapshotAndroidWithHelper(helperAdb: AndroidAdbExecutor) {
+  return snapshotAndroid(device, {
+    helperAdb,
+    helperArtifact,
+  });
+}
+
+function createHelperAdb(
+  handlers: Partial<Record<'instrument' | 'stock', AndroidAdbExecutor>>,
+): AndroidAdbExecutor {
+  return async (args, options) => {
+    if (args.includes('--show-versioncode')) return installedHelperProbe;
+    if (args.includes('instrument') && handlers.instrument) {
+      return await handlers.instrument(args, options);
+    }
+    if (args.includes('exec-out') && handlers.stock) {
+      return await handlers.stock(args, options);
+    }
+    throw new Error(`unexpected helper adb args: ${args.join(' ')}`);
+  };
+}
+
 beforeEach(() => {
   resetAndroidSnapshotHelperInstallCache();
   mockRunCmd.mockReset();
@@ -75,17 +107,7 @@ test('screenshotAndroid waits for transient UI to settle before capture', async 
   const events: string[] = [];
   const outPath = path.join(os.tmpdir(), `agent-device-android-screenshot-${Date.now()}.png`);
 
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    if (args.includes('exec-out')) {
-      events.push('capture');
-      return { exitCode: 0, stdout: '', stderr: '', stdoutBuffer: VALID_PNG };
-    }
-    events.push(args.some((arg) => arg.includes('exit')) ? 'disable' : 'enable');
-    return { exitCode: 0, stdout: '', stderr: '' };
-  });
-  mockSleep.mockImplementation(async (ms) => {
-    events.push(`settle:${ms}`);
-  });
+  mockScreenshotEvents(events);
 
   await screenshotAndroid(device, outPath);
 
@@ -102,17 +124,7 @@ test('screenshotAndroid skips stabilization when requested', async () => {
   const events: string[] = [];
   const outPath = path.join(os.tmpdir(), `agent-device-android-screenshot-${Date.now()}.png`);
 
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    if (args.includes('exec-out')) {
-      events.push('capture');
-      return { exitCode: 0, stdout: '', stderr: '', stdoutBuffer: VALID_PNG };
-    }
-    events.push(args.some((arg) => arg.includes('exit')) ? 'disable' : 'enable');
-    return { exitCode: 0, stdout: '', stderr: '' };
-  });
-  mockSleep.mockImplementation(async (ms) => {
-    events.push(`settle:${ms}`);
-  });
+  mockScreenshotEvents(events);
 
   await screenshotAndroid(device, outPath, { stabilize: false });
 
@@ -197,6 +209,20 @@ function helperOutput(xml: string): string {
   ].join('\n');
 }
 
+function mockScreenshotEvents(events: string[]): void {
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      events.push('capture');
+      return { exitCode: 0, stdout: '', stderr: '', stdoutBuffer: VALID_PNG };
+    }
+    events.push(args.some((arg) => arg.includes('exit')) ? 'disable' : 'enable');
+    return { exitCode: 0, stdout: '', stderr: '' };
+  });
+  mockSleep.mockImplementation(async (ms) => {
+    events.push(`settle:${ms}`);
+  });
+}
+
 function mockScreenshotPayload(payload: Buffer): void {
   mockRunCmd.mockImplementation(async (_cmd, args) => {
     if (args.includes('exec-out')) {
@@ -228,6 +254,29 @@ function mockAndroidSnapshotXml(xml: string, activityDump = ''): void {
     }
     throw new Error(`unexpected args: ${args.join(' ')}`);
   });
+}
+
+function adbTimeout(args: string[]): AppError {
+  return new AppError('COMMAND_FAILED', 'adb timed out after 8000ms', {
+    cmd: 'adb',
+    args,
+    timeoutMs: 8000,
+  });
+}
+
+async function captureDiagnostics(
+  scope: Parameters<typeof withDiagnosticsScope>[0],
+  callback: () => Promise<string | null>,
+): Promise<string> {
+  const previousHome = process.env.HOME;
+  process.env.HOME = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-android-diag-'));
+  try {
+    const diagnosticsPath = await withDiagnosticsScope(scope, callback);
+    assert.ok(diagnosticsPath);
+    return await fs.readFile(diagnosticsPath, 'utf8');
+  } finally {
+    process.env.HOME = previousHome;
+  }
 }
 
 test('dumpUiHierarchy returns streamed XML even when exec-out exits non-zero', async () => {
@@ -271,10 +320,7 @@ test('snapshotAndroid uses injected helper artifact before stock uiautomator', a
 
   const result = await snapshotAndroid(device, {
     helperAdb,
-    helperArtifact: {
-      apkPath: '/tmp/helper.apk',
-      manifest: helperManifest,
-    },
+    helperArtifact,
   });
 
   assert.equal(result.nodes[0]?.label, 'helper');
@@ -283,7 +329,7 @@ test('snapshotAndroid uses injected helper artifact before stock uiautomator', a
   assert.equal(result.androidSnapshot.installReason, 'current');
   assert.equal(result.androidSnapshot.captureMode, 'interactive-windows');
   assert.equal(result.androidSnapshot.windowCount, 1);
-  assert.deepEqual(timeouts, [30000, 30000]);
+  assert.deepEqual(timeouts, [30000, 8000]);
   assert.equal(mockRunCmd.mock.calls.length, 0);
 });
 
@@ -308,22 +354,17 @@ test('snapshotAndroid emits helper phase diagnostics', async () => {
     throw new Error(`unexpected helper adb args: ${args.join(' ')}`);
   };
 
-  const diagnosticsPath = await withDiagnosticsScope(
+  const diagnostics = await captureDiagnostics(
     { session: 'snapshot-helper', requestId: 'req-1', command: 'snapshot', debug: true },
     async () => {
       await snapshotAndroid(device, {
         helperAdb,
-        helperArtifact: {
-          apkPath: '/tmp/helper.apk',
-          manifest: helperManifest,
-        },
+        helperArtifact,
       });
       return flushDiagnosticsToSessionFile({ force: true });
     },
   );
 
-  assert.ok(diagnosticsPath);
-  const diagnostics = await fs.readFile(diagnosticsPath, 'utf8');
   assert.match(diagnostics, /android_snapshot_helper_artifact_resolution/);
   assert.match(diagnostics, /android_snapshot_helper_install/);
   assert.match(diagnostics, /android_snapshot_helper_install_decision/);
@@ -357,10 +398,7 @@ test('snapshotAndroid resolves helper adb through scoped provider', async () => 
 
   const result = await withAndroidAdbProvider(provider, { serial: device.id }, async () =>
     snapshotAndroid(device, {
-      helperArtifact: {
-        apkPath: '/tmp/helper.apk',
-        manifest: helperManifest,
-      },
+      helperArtifact,
     }),
   );
 
@@ -394,10 +432,7 @@ test('snapshotAndroid falls back to stock uiautomator when helper fails', async 
 
   const result = await snapshotAndroid(device, {
     helperAdb,
-    helperArtifact: {
-      apkPath: '/tmp/helper.apk',
-      manifest: helperManifest,
-    },
+    helperArtifact,
   });
 
   assert.equal(result.nodes[0]?.label, 'stock');
@@ -430,22 +465,17 @@ test('snapshotAndroid emits fallback and stock capture diagnostics', async () =>
     return { exitCode: 1, stdout: '', stderr: 'helper unavailable' };
   };
 
-  const diagnosticsPath = await withDiagnosticsScope(
+  const diagnostics = await captureDiagnostics(
     { session: 'snapshot-fallback', requestId: 'req-2', command: 'snapshot', debug: true },
     async () => {
       await snapshotAndroid(device, {
         helperAdb,
-        helperArtifact: {
-          apkPath: '/tmp/helper.apk',
-          manifest: helperManifest,
-        },
+        helperArtifact,
       });
       return flushDiagnosticsToSessionFile({ force: true });
     },
   );
 
-  assert.ok(diagnosticsPath);
-  const diagnostics = await fs.readFile(diagnosticsPath, 'utf8');
   assert.match(diagnostics, /android_snapshot_helper_fallback/);
   assert.match(diagnostics, /android_snapshot_stock_capture/);
   assert.match(diagnostics, /helper unavailable/);
@@ -463,7 +493,7 @@ test('snapshotAndroid emits unavailable diagnostics when helper artifact is miss
   const accessSpy = vi.spyOn(fs, 'access').mockRejectedValueOnce(new Error('helper missing'));
 
   try {
-    const diagnosticsPath = await withDiagnosticsScope(
+    const diagnostics = await captureDiagnostics(
       {
         session: 'snapshot-helper-missing',
         requestId: 'req-missing',
@@ -478,8 +508,6 @@ test('snapshotAndroid emits unavailable diagnostics when helper artifact is miss
       },
     );
 
-    assert.ok(diagnosticsPath);
-    const diagnostics = await fs.readFile(diagnosticsPath, 'utf8');
     assert.match(diagnostics, /android_snapshot_helper_artifact_resolution/);
     assert.match(diagnostics, /android_snapshot_helper_unavailable/);
     assert.match(diagnostics, /artifact_not_found/);
@@ -492,21 +520,14 @@ test('snapshotAndroid emits unavailable diagnostics when helper artifact is miss
 test('snapshotAndroid emits timeout fallback diagnostics when helper capture times out', async () => {
   const stockXml =
     '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="stock" bounds="[0,0][10,10]" /></hierarchy>';
-  const helperAdb: AndroidAdbExecutor = async (args) => {
-    if (args.includes('--show-versioncode')) {
-      return {
-        exitCode: 0,
-        stdout: 'package:com.callstack.agentdevice.snapshothelper versionCode:13003',
-        stderr: '',
-      };
-    }
-    if (args.includes('exec-out')) {
-      return { exitCode: 0, stdout: stockXml, stderr: '' };
-    }
-    throw new AppError('COMMAND_FAILED', 'helper capture timed out');
-  };
+  const helperAdb = createHelperAdb({
+    instrument: async () => {
+      throw new AppError('COMMAND_FAILED', 'helper capture timed out');
+    },
+    stock: async () => ({ exitCode: 0, stdout: stockXml, stderr: '' }),
+  });
 
-  const diagnosticsPath = await withDiagnosticsScope(
+  const diagnostics = await captureDiagnostics(
     {
       session: 'snapshot-helper-timeout',
       requestId: 'req-timeout',
@@ -514,24 +535,72 @@ test('snapshotAndroid emits timeout fallback diagnostics when helper capture tim
       debug: true,
     },
     async () => {
-      const result = await snapshotAndroid(device, {
-        helperAdb,
-        helperArtifact: {
-          apkPath: '/tmp/helper.apk',
-          manifest: helperManifest,
-        },
-      });
+      const result = await snapshotAndroidWithHelper(helperAdb);
       assert.equal(result.androidSnapshot.backend, 'uiautomator-dump');
       assert.match(result.androidSnapshot.fallbackReason ?? '', /helper capture timed out/);
       return flushDiagnosticsToSessionFile({ force: true });
     },
   );
 
-  assert.ok(diagnosticsPath);
-  const diagnostics = await fs.readFile(diagnosticsPath, 'utf8');
   assert.match(diagnostics, /android_snapshot_helper_fallback/);
   assert.match(diagnostics, /helper capture timed out/);
   assert.match(diagnostics, /android_snapshot_stock_capture/);
+});
+
+test('snapshotAndroid skips stock fallback after structured helper timeout', async () => {
+  let stockAttempted = false;
+  const helperAdb = createHelperAdb({
+    instrument: async () => ({
+      exitCode: 1,
+      stdout: [
+        'INSTRUMENTATION_RESULT: agentDeviceProtocol=android-snapshot-helper-v1',
+        'INSTRUMENTATION_RESULT: helperApiVersion=1',
+        'INSTRUMENTATION_RESULT: ok=false',
+        'INSTRUMENTATION_RESULT: outputFormat=uiautomator-xml',
+        'INSTRUMENTATION_RESULT: errorType=java.util.concurrent.TimeoutException',
+        'INSTRUMENTATION_RESULT: message=Timed out waiting for accessibility root',
+        'INSTRUMENTATION_CODE: 1',
+      ].join('\n'),
+      stderr: '',
+    }),
+    stock: async () => {
+      stockAttempted = true;
+      throw new Error('stock fallback should not run');
+    },
+  });
+
+  await assert.rejects(
+    () => snapshotAndroidWithHelper(helperAdb),
+    (error) => {
+      assert.match((error as Error).message, /Timed out waiting for accessibility root/);
+      assert.match((error as Error).message, /Stock UIAutomator fallback was skipped/);
+      assert.equal(
+        (error as { details?: Record<string, unknown> }).details?.hint,
+        'Android accessibility snapshots can be blocked by busy or continuously changing app UI. Use screenshot as visual truth after this timeout and report the busy UI if it persists.',
+      );
+      return true;
+    },
+  );
+  assert.equal(stockAttempted, false);
+});
+
+test('snapshotAndroid falls back to stock dump after helper adb timeout', async () => {
+  const stockXml =
+    '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="stock" bounds="[0,0][10,10]" /></hierarchy>';
+  const helperAdb = createHelperAdb({
+    instrument: async (args) => {
+      throw new AppError('COMMAND_FAILED', 'adb timed out after 8000ms', {
+        args,
+        timeoutMs: 8000,
+      });
+    },
+    stock: async () => ({ exitCode: 0, stdout: stockXml, stderr: '' }),
+  });
+
+  const result = await snapshotAndroidWithHelper(helperAdb);
+
+  assert.equal(result.androidSnapshot.backend, 'uiautomator-dump');
+  assert.match(result.androidSnapshot.fallbackReason ?? '', /adb timed out after 8000ms/);
 });
 
 test('snapshotAndroid preserves helper failure reason when stock fallback fails', async () => {
@@ -553,10 +622,7 @@ test('snapshotAndroid preserves helper failure reason when stock fallback fails'
     () =>
       snapshotAndroid(device, {
         helperAdb,
-        helperArtifact: {
-          apkPath: '/tmp/helper.apk',
-          manifest: helperManifest,
-        },
+        helperArtifact,
       }),
     (error) => {
       assert.ok(error instanceof AppError);
@@ -605,10 +671,7 @@ test('snapshotAndroid re-probes helper install after helper capture failure', as
     '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="stock" bounds="[0,0][10,10]" /></hierarchy>';
   const helperOptions = {
     helperAdb,
-    helperArtifact: {
-      apkPath: '/tmp/helper.apk',
-      manifest: helperManifest,
-    },
+    helperArtifact,
   };
 
   const fallback = await snapshotAndroid(device, helperOptions);
@@ -709,11 +772,7 @@ test('dumpUiHierarchy retries when fallback dump file is temporarily missing', a
 test('dumpUiHierarchy explains timeout on looping Android animations', async () => {
   mockRunCmd.mockImplementation(async (_cmd, args) => {
     if (args.includes('uiautomator')) {
-      throw new AppError('COMMAND_FAILED', 'adb timed out after 8000ms', {
-        cmd: 'adb',
-        args,
-        timeoutMs: 8000,
-      });
+      throw adbTimeout(args);
     }
     throw new Error(`unexpected args: ${args.join(' ')}`);
   });
@@ -724,7 +783,8 @@ test('dumpUiHierarchy explains timeout on looping Android animations', async () 
       error instanceof AppError &&
       error.message.includes('Android UI hierarchy dump timed out') &&
       typeof error.details?.hint === 'string' &&
-      error.details.hint.includes('settings animations off'),
+      error.details.hint.includes('Android accessibility snapshots can be blocked') &&
+      error.details.hint.includes('Use screenshot as visual truth after this timeout'),
   );
 });
 
@@ -737,11 +797,7 @@ test('dumpUiHierarchy does not attach animation hint to non-dump timeouts', asyn
       return { exitCode: 0, stdout: 'UI hierarchy dumped to: /sdcard/window_dump.xml', stderr: '' };
     }
     if (args.includes('cat')) {
-      throw new AppError('COMMAND_FAILED', 'adb timed out after 8000ms', {
-        cmd: 'adb',
-        args,
-        timeoutMs: 8000,
-      });
+      throw adbTimeout(args);
     }
     throw new Error(`unexpected args: ${args.join(' ')}`);
   });
