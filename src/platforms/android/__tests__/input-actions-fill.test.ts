@@ -180,6 +180,33 @@ test('fillAndroid delegates target replacement to provider-native text injection
   ]);
 });
 
+test('fillAndroid waits for settled app text before reporting success', async () => {
+  let typed = '';
+  let dumpCount = 0;
+  let inputCount = 0;
+  await withFillAdb(
+    async (args) => {
+      if (isDeleteKey(args)) typed = '';
+      if (isTextInput(args)) {
+        inputCount += 1;
+        typed += args[3] ?? '';
+      }
+      if (args[0] === 'exec-out') {
+        dumpCount += 1;
+        const visibleText = dumpCount <= 1 ? typed : dumpCount <= 3 ? 'file' : 'filed';
+        return adbResult(androidInputXml({ text: visibleText }));
+      }
+      return adbResult('');
+    },
+    async () => {
+      await fillAndroid(ANDROID_EMULATOR, 10, 10, 'filed');
+    },
+  );
+
+  assert.ok(inputCount > 1);
+  assert.ok(dumpCount >= 4);
+});
+
 test('verifyAndroidFilledTextInHierarchy accepts matching-length masked password verification', () => {
   const verification = verifyAndroidFilledTextInHierarchy(
     passwordHierarchy(maskBullets('Test@123')),

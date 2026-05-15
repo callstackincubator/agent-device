@@ -48,6 +48,7 @@ export async function verifyAndroidFilledText(
 ): Promise<AndroidFillVerification> {
   const verificationDelaysMs = [0, 150, 350];
   let lastVerification: AndroidFillVerification | null = null;
+  let stableVerification: AndroidFillVerification | null = null;
 
   for (const delayMs of verificationDelaysMs) {
     if (delayMs > 0) {
@@ -55,15 +56,18 @@ export async function verifyAndroidFilledText(
     }
     const verification = await inspectAndroidFilledText(device, x, y, expected);
     lastVerification = verification;
-    if (verification.ok) {
-      return verification;
-    }
     if (verification.reason === 'ime_capture') {
       return verification;
+    }
+    if (verification.ok) {
+      stableVerification = verification;
+    } else {
+      stableVerification = null;
     }
   }
 
   return (
+    stableVerification ??
     lastVerification ?? {
       ok: false,
       actual: null,
@@ -220,13 +224,7 @@ function isAcceptableAndroidFillMatch(actual: string | null, expected: string): 
   if (isSentenceAutocapitalizeMatch(normalizedActual, normalizedExpected)) {
     return true;
   }
-  if (normalizedActual.includes(normalizedExpected)) {
-    return true;
-  }
-  return (
-    normalizedExpected.includes(normalizedActual) &&
-    normalizedActual.length >= Math.max(4, Math.floor(normalizedExpected.length * 0.8))
-  );
+  return false;
 }
 
 function normalizeFillVerificationText(value: string | null): string {
