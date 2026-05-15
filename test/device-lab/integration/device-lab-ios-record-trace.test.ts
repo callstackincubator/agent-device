@@ -48,9 +48,6 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
   const appleToolCalls: Array<[string, ...string[]]> = [];
   const appleToolProvider: AppleToolProvider = {
     whichCommand: async () => true,
-    runCommandSync: (cmd, args) => {
-      throw new Error(`Unexpected sync Apple tool command: ${cmd} ${args.join(' ')}`);
-    },
     runCommand: async (cmd, args) => {
       appleToolCalls.push([cmd, ...args]);
       writeJsonOutputIfRequested(args);

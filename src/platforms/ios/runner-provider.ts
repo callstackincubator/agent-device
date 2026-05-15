@@ -25,11 +25,13 @@ export type AppleRunnerProvider = {
 
 export type AppleRunnerProviderScopeOptions = {
   deviceId: string;
+  requestId?: string;
 };
 
 type AppleRunnerProviderScope = {
   provider: AppleRunnerProvider;
   deviceId: string;
+  requestId?: string;
 };
 
 const appleRunnerProviderScope = new AsyncLocalStorage<AppleRunnerProviderScope>();
@@ -44,10 +46,15 @@ export function resolveAppleRunnerProvider(
   device: DeviceInfo,
   fallback: AppleRunnerProvider | AppleRunnerCommandExecutor,
   provider?: AppleRunnerProvider | AppleRunnerCommandExecutor,
+  options: { requestId?: string } = {},
 ): AppleRunnerProvider {
   if (provider) return normalizeAppleRunnerProvider(provider);
   const scoped = appleRunnerProviderScope.getStore();
-  return scoped?.deviceId === device.id
+  // Some legacy runner call sites still omit requestId; keep those scoped by device
+  // while request-id threading is completed across the runner surface.
+  return scoped &&
+    scoped.deviceId === device.id &&
+    (!options.requestId || !scoped.requestId || scoped.requestId === options.requestId)
     ? normalizeAppleRunnerProvider(scoped.provider)
     : normalizeAppleRunnerProvider(fallback);
 }
@@ -61,6 +68,7 @@ export async function withAppleRunnerProvider<T>(
   const scope = {
     provider: normalizeAppleRunnerProvider(provider),
     deviceId: options.deviceId,
+    requestId: options.requestId,
   };
   return await appleRunnerProviderScope.run(scope, fn);
 }

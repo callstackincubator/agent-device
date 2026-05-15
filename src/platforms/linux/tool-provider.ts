@@ -1,5 +1,5 @@
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { runCmd, whichCmd, type ExecOptions, type ExecResult } from '../../utils/exec.ts';
+import { createScopedProvider } from '../../utils/scoped-provider.ts';
 
 export type LinuxToolCommandExecutor = (
   cmd: string,
@@ -19,7 +19,7 @@ const localLinuxToolProvider: LinuxToolProvider = {
   whichCommand: whichCmd,
 };
 
-const linuxToolProviderScope = new AsyncLocalStorage<LinuxToolProvider>();
+const linuxToolProviderScope = createScopedProvider(localLinuxToolProvider);
 
 export function createLocalLinuxToolProvider(
   provider: Partial<LinuxToolProvider> = {},
@@ -31,14 +31,13 @@ export function createLocalLinuxToolProvider(
 }
 
 export function resolveLinuxToolProvider(provider?: LinuxToolProvider): LinuxToolProvider {
-  return provider ?? linuxToolProviderScope.getStore() ?? localLinuxToolProvider;
+  return linuxToolProviderScope.resolve(provider);
 }
 
 export async function withLinuxToolProvider<T>(
   provider: LinuxToolProvider | undefined,
   fn: () => Promise<T>,
 ): Promise<T> {
-  if (!provider) return await fn();
   return await linuxToolProviderScope.run(provider, fn);
 }
 

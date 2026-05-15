@@ -71,9 +71,6 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
   let clipboardText = '';
   const appleToolProvider: AppleToolProvider = {
     whichCommand: async () => true,
-    runCommandSync: (cmd, args) => {
-      throw new Error(`Unexpected sync Apple tool command: ${cmd} ${args.join(' ')}`);
-    },
     runCommand: async (cmd, args) => {
       appleToolCalls.push([cmd, ...args]);
       if (cmd === 'xcrun' && args.join(' ') === 'simctl pbcopy sim-1') {
@@ -293,9 +290,6 @@ test('Device Lab iOS physical reinstall uses scripted devicectl provider', async
   const appleToolCalls: Array<[string, ...string[]]> = [];
   const appleToolProvider: AppleToolProvider = {
     whichCommand: async () => true,
-    runCommandSync: (cmd, args) => {
-      throw new Error(`Unexpected sync Apple tool command: ${cmd} ${args.join(' ')}`);
-    },
     runCommand: async (cmd, args) => {
       appleToolCalls.push([cmd, ...args]);
       return { stdout: '', stderr: '', exitCode: 0 };

@@ -430,7 +430,7 @@ export async function ensureXctestrun(
       assertSafeDerivedCleanup(derived);
       cleanRunnerDerivedArtifacts(derived);
     }
-    const existing = evaluateExistingXctestrun({
+    const existing = await evaluateExistingXctestrun({
       derived,
       projectRoot,
       findXctestrun: (root) => findXctestrun(root, device),
@@ -487,7 +487,7 @@ export async function ensureXctestrun(
     if (!built) {
       throw new AppError('COMMAND_FAILED', 'Failed to locate .xctestrun after build');
     }
-    const builtProductPaths = resolveExistingXctestrunProductPaths(built);
+    const builtProductPaths = await resolveExistingXctestrunProductPaths(built);
     if (!builtProductPaths) {
       throw new AppError('COMMAND_FAILED', 'Runner build is missing expected products', {
         xctestrunPath: built,
@@ -1006,18 +1006,18 @@ type ExistingXctestrunState =
       productPaths: string[];
     };
 
-function evaluateExistingXctestrun(options: {
+async function evaluateExistingXctestrun(options: {
   derived: string;
   projectRoot: string;
   findXctestrun: (root: string) => string | null;
   xctestrunReferencesProjectRoot: (xctestrunPath: string, projectRoot: string) => boolean;
-  resolveExistingXctestrunProductPaths: (xctestrunPath: string) => string[] | null;
-}): ExistingXctestrunState {
+  resolveExistingXctestrunProductPaths: (xctestrunPath: string) => Promise<string[] | null>;
+}): Promise<ExistingXctestrunState> {
   const xctestrunPath = options.findXctestrun(options.derived);
   if (!xctestrunPath) {
     return { reason: 'missing_xctestrun', xctestrunPath: null };
   }
-  const productPaths = options.resolveExistingXctestrunProductPaths(xctestrunPath);
+  const productPaths = await options.resolveExistingXctestrunProductPaths(xctestrunPath);
   if (!productPaths) {
     return { reason: 'missing_products', xctestrunPath, productPaths: [] };
   }

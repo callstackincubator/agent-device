@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { isDeepStrictEqual } from 'node:util';
 import type { Platform } from '../../src/utils/device.ts';
 
 export interface DeviceLabProviderScope {
@@ -32,6 +33,7 @@ export interface DeviceLabTranscript {
 
 export function createProviderTranscript(
   entries: readonly DeviceLabProviderEntry[],
+  options: { ordered?: boolean } = {},
 ): DeviceLabTranscript {
   const pending = [...entries];
   const calls: DeviceLabProviderCall[] = [];
@@ -48,7 +50,12 @@ export function createProviderTranscript(
       request?: unknown,
       scope: DeviceLabProviderScope = {},
     ): TResult {
-      const entry = pending.shift();
+      const entryIndex = options.ordered
+        ? 0
+        : pending.findIndex((candidate) =>
+            providerEntryMatches(candidate, command, request, scope),
+          );
+      const entry = entryIndex >= 0 ? pending.splice(entryIndex, 1)[0] : undefined;
       assert.ok(entry, `Unexpected provider call: ${formatCall(command, scope)}`);
       assert.equal(command, entry.command, 'Provider command mismatch');
       assertScope(scope, entry);
@@ -79,6 +86,24 @@ export function createProviderTranscript(
       );
     },
   };
+}
+
+export function createOrderedProviderTranscript(
+  entries: readonly DeviceLabProviderEntry[],
+): DeviceLabTranscript {
+  return createProviderTranscript(entries, { ordered: true });
+}
+
+function providerEntryMatches(
+  entry: DeviceLabProviderEntry,
+  command: string,
+  request: unknown,
+  scope: DeviceLabProviderScope,
+): boolean {
+  if (entry.command !== command) return false;
+  if (entry.deviceId && entry.deviceId !== scope.deviceId) return false;
+  if (entry.platform && entry.platform !== scope.platform) return false;
+  return !Object.hasOwn(entry, 'request') || isDeepStrictEqual(request, entry.request);
 }
 
 function assertScope(actual: DeviceLabProviderScope, expected: DeviceLabProviderEntry): void {

@@ -61,9 +61,6 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
   const appleToolCalls: Array<[string, ...string[]]> = [];
   const appleToolProvider: AppleToolProvider = {
     whichCommand: async () => true,
-    runCommandSync: (cmd, args) => {
-      throw new Error(`Unexpected sync Apple tool command: ${cmd} ${args.join(' ')}`);
-    },
     runCommand: async (cmd, args) => {
       appleToolCalls.push([cmd, ...args]);
       if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {

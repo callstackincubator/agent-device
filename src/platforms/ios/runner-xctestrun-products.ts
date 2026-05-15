@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { runAppleToolCommandSync } from './tool-provider.ts';
+import { readApplePlistJson } from './tool-provider.ts';
 import { parseXmlDocumentSync, visitXmlPlistEntries, type XmlNode } from './xml.ts';
 
 const XCTESTRUN_PRODUCT_REFERENCE_KEYS = new Set([
@@ -11,16 +11,18 @@ const XCTESTRUN_PRODUCT_REFERENCE_KEYS = new Set([
   'UITargetAppPath',
 ]);
 
-export function xctestrunReferencesExistingProducts(xctestrunPath: string): boolean {
+export async function xctestrunReferencesExistingProducts(xctestrunPath: string): Promise<boolean> {
   try {
-    return resolveExistingXctestrunProductPaths(xctestrunPath) !== null;
+    return (await resolveExistingXctestrunProductPaths(xctestrunPath)) !== null;
   } catch {
     return false;
   }
 }
 
-export function resolveExistingXctestrunProductPaths(xctestrunPath: string): string[] | null {
-  const values = resolveXctestrunProductReferences(xctestrunPath);
+export async function resolveExistingXctestrunProductPaths(
+  xctestrunPath: string,
+): Promise<string[] | null> {
+  const values = await resolveXctestrunProductReferences(xctestrunPath);
   if (!values || values.length === 0) {
     return null;
   }
@@ -92,8 +94,8 @@ function resolveTestHostRelativePaths(products: {
   });
 }
 
-function resolveXctestrunProductReferences(xctestrunPath: string): string[] | null {
-  const parsed = readXctestrunJson(xctestrunPath);
+async function resolveXctestrunProductReferences(xctestrunPath: string): Promise<string[] | null> {
+  const parsed = await readApplePlistJson(xctestrunPath);
   if (parsed) {
     return resolveXctestrunProductReferencesFromJson(parsed);
   }
@@ -106,24 +108,6 @@ function resolveXctestrunProductReferences(xctestrunPath: string): string[] | nu
   try {
     // Keep a simple XML fallback only for non-macOS test environments where plutil is absent.
     return resolveXctestrunProductReferencesFromXml(fs.readFileSync(xctestrunPath, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-function readXctestrunJson(xctestrunPath: string): Record<string, unknown> | null {
-  try {
-    const result = runAppleToolCommandSync(
-      'plutil',
-      ['-convert', 'json', '-o', '-', xctestrunPath],
-      {
-        allowFailure: true,
-      },
-    );
-    if (result.exitCode !== 0 || !result.stdout.trim()) {
-      return null;
-    }
-    return JSON.parse(result.stdout) as Record<string, unknown>;
   } catch {
     return null;
   }

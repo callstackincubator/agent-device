@@ -21,14 +21,28 @@ Add request-scoped provider seams below platform modules:
 - Apple runner provider
 - Linux tool provider
 
-Device Lab tests run the real daemon request path and replace only those providers. Tests may use provider transcripts for exact platform command contracts and scenario transcripts for broader user workflows.
+Provider contracts should expose semantic operations when the platform intent is stable enough to name. Android already does this for install, pull, and port-reverse behavior. Apple tool execution has started moving in that direction with semantic `simctl` and `devicectl` runners; generic command execution remains as a local compatibility fallback for host-tool paths that have not been classified yet. Linux still uses a generic tool provider because the current desktop surface is smaller and less cloud-adapter-shaped; split it when a second backend forces clearer language.
+
+Device Lab tests run the real daemon request path and replace only those providers. Tests may use provider transcripts for platform command contracts and scenario transcripts for broader user workflows. Provider transcripts match calls as an unordered contract by default; use ordered transcripts only when ordering is the behavior under test.
+
+Synchronous host-tool calls are intentionally not part of the provider seam. Any remaining sync Apple helper is local-only and must be converted before a remote/cloud provider can own that path.
+
+## Alternatives Considered
+
+- Mock handlers or `dispatchCommand`: cheaper to write, but it skips request admission, locking, session state, and platform command translation, which were the main sources of test blind spots.
+- Put the seam at `Interactor`: simpler and more uniform, but it bypasses platform modules and would not catch the iOS/Linux host-tool wiring issues that motivated this change.
+- Start with a full semantic provider per platform operation: cleaner end state, but too much surface to name correctly in one pass. The migration starts where contracts already exist or where tests create pressure.
 
 ## Consequences
 
 Platform command translation remains covered by integration tests without requiring real devices.
 
-The request router owns a provider registry seam, but platform-specific provider applicability remains localized in that registry.
+The request router owns a provider registry seam, but platform-specific provider applicability remains localized in that registry. The registry composes provider scopes linearly so adding a platform does not require another nested wrapper chain.
 
-New remote or cloud-backed adapters can implement neutral provider contracts without changing daemon, dispatch, or session contracts.
+New remote or cloud-backed adapters can implement neutral provider contracts without changing daemon, dispatch, or session contracts. Generic tool-provider fallbacks are an interim compatibility layer, not the target contract for cloud adapters.
 
 Mock-heavy handler unit tests should be deleted only after equivalent Device Lab scenario coverage exists. Unit tests remain appropriate for pure logic, parser matrices, selector matching, capability maps, and edge/error cases that integration tests would express poorly.
+
+The trade-off is coarser failure localization: a Device Lab scenario catches more of the real request path but may require more diagnosis than a narrow unit test. Scenario names and provider transcript entries should stay rooted in user workflows and real e2e examples so failures remain actionable.
+
+Coverage is expected to improve over the old handler-heavy unit suite, but the first migration does not meet the original 90% target. The current coverage denominator also excludes some entrypoint and MCP/config files, so coverage should be treated as a trend signal rather than proof that every public surface is exercised.

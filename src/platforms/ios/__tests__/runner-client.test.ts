@@ -562,7 +562,7 @@ test('xctestrunReferencesExistingProducts rejects missing runner host artifacts'
     includeRunnerHostBundle: false,
   });
 
-  assert.equal(xctestrunReferencesExistingProducts(xctestrunPath), false);
+  assert.equal(await xctestrunReferencesExistingProducts(xctestrunPath), false);
 });
 
 test('xctestrunReferencesExistingProducts accepts xctestruns when referenced products exist', async () => {
@@ -570,7 +570,7 @@ test('xctestrunReferencesExistingProducts accepts xctestruns when referenced pro
     includeRunnerHostBundle: true,
   });
 
-  assert.equal(xctestrunReferencesExistingProducts(xctestrunPath), true);
+  assert.equal(await xctestrunReferencesExistingProducts(xctestrunPath), true);
 });
 
 test('xctestrunReferencesExistingProducts parses nested plist fallback values from XML', async () => {
@@ -610,7 +610,7 @@ test('xctestrunReferencesExistingProducts parses nested plist fallback values fr
     '</array>',
   ]);
 
-  assert.equal(xctestrunReferencesExistingProducts(xctestrunPath), true);
+  assert.equal(await xctestrunReferencesExistingProducts(xctestrunPath), true);
 });
 
 test('ensureXctestrun rebuilds after cached macOS runner repair failure', async () => {

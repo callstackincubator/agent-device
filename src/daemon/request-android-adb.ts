@@ -10,6 +10,10 @@ export type {
   PlatformProviderRequestSession as AndroidAdbProviderRequestSession,
 } from './request-platform-providers.ts';
 
+/**
+ * @deprecated Use withRequestPlatformProviderScope for new request-scoped platform providers.
+ * This shim preserves the old Android-only seam while callers migrate to the unified registry.
+ */
 export async function withRequestAndroidAdbScope<T>(
   params: {
     req: DaemonRequest;

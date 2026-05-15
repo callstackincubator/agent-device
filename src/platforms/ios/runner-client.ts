@@ -55,6 +55,8 @@ export async function runIosRunnerCommand(
   const provider = resolveAppleRunnerProvider(
     device,
     createLocalAppleRunnerProvider(executeRunnerCommand),
+    undefined,
+    { requestId: options.requestId },
   );
   if (isReadOnlyRunnerCommand(command.command)) {
     return withRetry(

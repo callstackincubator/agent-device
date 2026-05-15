@@ -74,6 +74,7 @@ type ResolvedRequestPlatformProviders = {
   appleRunner?: {
     provider?: AppleRunnerProvider | AppleRunnerCommandExecutor;
     deviceId?: string;
+    requestId?: string;
   };
   appleTool?: {
     provider?: AppleToolProvider | AppleToolCommandExecutor;
@@ -83,31 +84,19 @@ type ResolvedRequestPlatformProviders = {
   };
 };
 
+type RequestPlatformProviderScopeWrapper = <T>(task: () => Promise<T>) => Promise<T>;
+
 export async function withRequestPlatformProviderScope<T>(
   params: RequestPlatformProviderParams,
   task: (scope: RequestPlatformProviderScope) => Promise<T>,
 ): Promise<T> {
   const scopedProviders = await resolveRequestPlatformProviders(params);
+  const scope: RequestPlatformProviderScope = {
+    androidAdbExecutor: scopedProviders.androidAdb?.executor,
+  };
+  const wrappers = requestPlatformProviderScopeWrappers(scopedProviders);
 
-  return await withAndroidAdbProvider(
-    scopedProviders.androidAdb?.provider,
-    { serial: scopedProviders.androidAdb?.serial ?? '' },
-    async () =>
-      await withAppleRunnerProvider(
-        scopedProviders.appleRunner?.provider,
-        { deviceId: scopedProviders.appleRunner?.deviceId ?? '' },
-        async () =>
-          await withAppleToolProvider(
-            scopedProviders.appleTool?.provider,
-            async () =>
-              await withLinuxToolProvider(
-                scopedProviders.linuxTool?.provider,
-                async () =>
-                  await task({ androidAdbExecutor: scopedProviders.androidAdb?.executor }),
-              ),
-          ),
-      ),
-  );
+  return await runRequestPlatformProviderScopes(wrappers, async () => await task(scope));
 }
 
 async function resolveRequestPlatformProviders(
@@ -160,7 +149,7 @@ function resolveAppleRunnerProvider(
     device,
     session: params.existingSession,
   });
-  return { provider, deviceId: device.id };
+  return { provider, deviceId: device.id, requestId: params.req.meta?.requestId };
 }
 
 function resolveAppleToolProvider(
@@ -198,4 +187,61 @@ async function resolveScopedProviderDevice(
   if (existingSession) return existingSession.device;
   if (req.command !== 'open' && !hasExplicitDeviceSelector(req.flags)) return undefined;
   return await resolveTargetDevice(req.flags ?? {});
+}
+
+function requestPlatformProviderScopeWrappers(
+  scopedProviders: ResolvedRequestPlatformProviders,
+): RequestPlatformProviderScopeWrapper[] {
+  const wrappers: RequestPlatformProviderScopeWrapper[] = [];
+
+  if (scopedProviders.androidAdb?.provider && scopedProviders.androidAdb.serial) {
+    wrappers.push(
+      async (task) =>
+        await withAndroidAdbProvider(
+          scopedProviders.androidAdb?.provider,
+          { serial: scopedProviders.androidAdb?.serial ?? '' },
+          task,
+        ),
+    );
+  }
+
+  if (scopedProviders.appleRunner?.provider && scopedProviders.appleRunner.deviceId) {
+    wrappers.push(
+      async (task) =>
+        await withAppleRunnerProvider(
+          scopedProviders.appleRunner?.provider,
+          {
+            deviceId: scopedProviders.appleRunner?.deviceId ?? '',
+            requestId: scopedProviders.appleRunner?.requestId,
+          },
+          task,
+        ),
+    );
+  }
+
+  if (scopedProviders.appleTool?.provider) {
+    wrappers.push(
+      async (task) => await withAppleToolProvider(scopedProviders.appleTool?.provider, task),
+    );
+  }
+
+  if (scopedProviders.linuxTool?.provider) {
+    wrappers.push(
+      async (task) => await withLinuxToolProvider(scopedProviders.linuxTool?.provider, task),
+    );
+  }
+
+  return wrappers;
+}
+
+async function runRequestPlatformProviderScopes<T>(
+  wrappers: RequestPlatformProviderScopeWrapper[],
+  task: () => Promise<T>,
+): Promise<T> {
+  let run = task;
+  for (const wrapper of [...wrappers].reverse()) {
+    const next = run;
+    run = async () => await wrapper(next);
+  }
+  return await run();
 }
