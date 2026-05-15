@@ -127,7 +127,7 @@ function markAdjacentDuplicateStructuralNodesForRemoval(
       previous &&
       !removed.has(previous.index) &&
       areSameVisualRow(previous.rect, node.rect) &&
-      areStructurallyAdjacent(previous, node)
+      areStructurallyAdjacentForCollapse(previous, node)
     ) {
       const survivor = chooseStructuralRepresentative(previous, node);
       const collapsed = survivor.index === previous.index ? node : previous;
@@ -357,6 +357,21 @@ function collapsedNodeHint(node: SnapshotNode): string | null {
     return `also ${role}`;
   }
   return null;
+}
+
+function areStructurallyAdjacentForCollapse(left: SnapshotNode, right: SnapshotNode): boolean {
+  if (areStructurallyAdjacent(left, right)) {
+    return true;
+  }
+  return isPassiveChildOfActionableDuplicate(left, right);
+}
+
+function isPassiveChildOfActionableDuplicate(left: SnapshotNode, right: SnapshotNode): boolean {
+  const parent =
+    left.parentIndex === right.index ? right : right.parentIndex === left.index ? left : null;
+  const child = parent?.index === left.index ? right : parent?.index === right.index ? left : null;
+  if (!parent || !child) return false;
+  return chooseStructuralRepresentative(parent, child).index === parent.index;
 }
 
 function normalizeStructuralNodeLabel(label: string): string | null {

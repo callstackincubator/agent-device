@@ -591,11 +591,11 @@ test('formatSnapshotText collapses adjacent React Native row noise in Android he
   assert.match(text, /@e5 \[button\] "Adam" \[has image\]/);
   assert.match(text, /@e7 \[button\] "Hello from Adam"/);
   assert.doesNotMatch(text, /\[also text\]/);
+  assert.doesNotMatch(text, /@e4 \[image\] "Adam"/);
+  assert.doesNotMatch(text, /@e6 \[text\] "Hello from Adam"/);
   assert.match(text, /@e8 \[text-field\] "Write a message\.\.\." \[editable\]/);
   assert.match(text, /@e9 \[button\] "Send"/);
   assert.match(text, /@e10 \[button\] "Create expense"/);
-  assert.doesNotMatch(text, /@e4 \[image\] "Adam"/);
-  assert.doesNotMatch(text, /@e6 \[text\] "Hello from Adam"/);
 
   const raw = withNoColor(() =>
     formatSnapshotText(
