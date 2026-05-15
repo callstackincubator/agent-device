@@ -42,6 +42,7 @@ Milestone 6 progress:
 - Done: moved explicit-selector `trigger-app-event` and cwd-relative `push` payload-file success paths into Android Device Lab; deleted the mocked handler success units and simplified `session-push.test.ts` to the remaining admission edge.
 - Done: deepened Android Device Lab network assertions to parse headers and request/response bodies from the live app-log stream; deleted the mocked handler parsed-network-entry success test.
 - Done: moved Android logs clear and close auto-stop coverage into the live app-log Device Lab flow; deleted the mocked handler success units while retaining invalid/restart/error log lifecycle units.
+- Done: moved Android `logs clear --restart` and session-backed `boot` success paths into Device Lab; deleted the mocked handler success units while retaining restart validation and selector-precedence units.
 - Still retained: Android freshness/collapse warnings, macOS menubar interaction guard/ref-promotion edges, wait routing, alert retry/error policy, diff invalid-kind/client-backed boundaries, recording touch visualization, off-screen failures, and pure snapshot state/visibility shaping.
 - Next checkpoint: continue only where Device Lab can cover a plain success workflow; otherwise move to the next mock-heavy file from the progress report and leave edge/state-machine tests in unit coverage.
 

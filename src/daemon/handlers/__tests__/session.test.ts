@@ -845,41 +845,6 @@ test('boot succeeds for iOS physical devices', async () => {
   }
 });
 
-test('boot succeeds for supported device in session', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'android-session';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel Emulator',
-      kind: 'emulator',
-      booted: true,
-    }),
-  );
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'boot',
-      positionals: [],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  expect(mockEnsureDeviceReady).toHaveBeenCalledTimes(0);
-  if (response && response.ok) {
-    expect(response.data?.platform).toBe('android');
-    expect(response.data?.booted).toBe(true);
-  }
-});
-
 test('boot prefers explicit device selector over active session device', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
@@ -3494,69 +3459,6 @@ test('logs --restart is only supported with logs clear', async () => {
     expect(response.error.code).toBe('INVALID_ARGS');
     expect(response.error.message).toMatch(/only supported with logs clear/i);
   }
-});
-
-test('logs clear --restart stops active stream, clears logs, and restarts stream', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  const outPath = sessionStore.resolveAppLogPath(sessionName);
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, 'before-restart');
-  fs.writeFileSync(`${outPath}.1`, 'older');
-  sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel',
-      kind: 'emulator',
-      booted: true,
-    }),
-    appBundleId: 'com.example.app',
-    appLog: {
-      platform: 'android',
-      backend: 'android',
-      outPath,
-      startedAt: Date.now(),
-      getState: () => 'active',
-      stop: async () => {},
-      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-    },
-  });
-  mockStartAppLog.mockResolvedValue({
-    backend: 'android',
-    startedAt: 321,
-    getState: () => 'active' as const,
-    stop: async () => {},
-    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-  });
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'logs',
-      positionals: ['clear'],
-      flags: { restart: true },
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response && response.ok) {
-    expect(response.data?.path).toBe(outPath);
-    expect(response.data?.cleared).toBe(true);
-    expect(response.data?.restarted).toBe(true);
-  }
-  expect(mockStopAppLog).toHaveBeenCalledTimes(1);
-  expect(mockStartAppLog).toHaveBeenCalledTimes(1);
-  expect(fs.readFileSync(outPath, 'utf8')).toBe('');
-  expect(fs.existsSync(`${outPath}.1`)).toBe(false);
-  const session = sessionStore.get(sessionName);
-  expect(session?.appLog).toBeTruthy();
-  expect(session?.appLog?.startedAt).toBe(321);
 });
 
 test('logs clear --restart requires app session bundle id', async () => {

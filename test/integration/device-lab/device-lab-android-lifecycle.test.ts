@@ -121,6 +121,11 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         const open = await client.apps.open({ app: 'settings', ...selection });
         assert.equal(open.device?.id, DEVICE_LAB_ANDROID.id);
 
+        const sessionBoot = await client.devices.boot();
+        assert.equal(sessionBoot.platform, 'android');
+        assert.equal(sessionBoot.id, DEVICE_LAB_ANDROID.id);
+        assert.equal(sessionBoot.booted, true);
+
         const listedApps = await client.apps.list(selection);
         assert.deepEqual(listedApps, ['Demo (com.example.demo)']);
 
@@ -265,6 +270,23 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assert.equal(logsPath.backend, 'android');
         assert.equal(typeof logsPath.path, 'string');
         const appLogPath = logsPath.path as string;
+        await waitForFileContent(appLogPath, 'https://api.example.com/v1/login');
+
+        fs.writeFileSync(appLogPath, 'before-restart', 'utf8');
+        fs.writeFileSync(`${appLogPath}.1`, 'older', 'utf8');
+        const logsRestart = await client.observability.logs({
+          action: 'clear',
+          restart: true,
+          ...selection,
+        });
+        assert.equal(logsRestart.path, appLogPath);
+        assert.equal(logsRestart.cleared, true);
+        assert.equal(logsRestart.restarted, true);
+        assert.equal(fs.existsSync(`${appLogPath}.1`), false);
+        assert.ok(
+          spawnedLogcat.some((child) => child.killed),
+          'Expected logs clear --restart to stop the first scripted logcat stream',
+        );
         await waitForFileContent(appLogPath, 'https://api.example.com/v1/login');
 
         const network = await client.observability.network({

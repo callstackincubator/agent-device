@@ -19,15 +19,15 @@ Current local snapshot:
 | Measure | Value |
 | --- | ---: |
 | Handler unit test files | 29 |
-| Handler unit test LOC | 13323 |
-| Handler unit tests | 351 |
+| Handler unit test LOC | 13225 |
+| Handler unit tests | 349 |
 | Handler files with `vi.mock` | 17 |
 | Device Lab files | 12 |
-| Device Lab LOC | 2990 |
+| Device Lab LOC | 3012 |
 | Device Lab tests | 15 |
 | Device Lab support files | 7 |
 | Device Lab support LOC | 736 |
-| Device Lab / handler LOC | 22.4% |
+| Device Lab / handler LOC | 22.8% |
 
 Coverage is tracked separately by:
 
@@ -137,7 +137,7 @@ Every command in `PUBLIC_COMMANDS` now has at least one Device Lab scenario runn
 
 | Command family | Device Lab coverage | Keep unit coverage for | Next action |
 | --- | --- | --- | --- |
-| `devices`, `boot`, `open`, `close`, `session_list`, `appstate` | Android inventory and boot through injected providers, Android lifecycle, active/closed iOS session listing, tvOS remote, macOS app/frontmost/desktop surfaces, Linux desktop | invalid open args, host discovery parser failures, session conflict/lock behavior, runtime hint edge cases, close shutdown edge cases, scoped simulator set field shaping | Keep remaining session units unless they assert a plain success path with no policy or field-shaping edge. |
+| `devices`, `boot`, `open`, `close`, `session_list`, `appstate` | Android inventory, explicit-selector boot, and session-backed boot through injected providers; Android lifecycle, active/closed iOS session listing, tvOS remote, macOS app/frontmost/desktop surfaces, Linux desktop | invalid open args, host discovery parser failures, session conflict/lock behavior, runtime hint edge cases, close shutdown edge cases, scoped simulator set field shaping | Keep remaining session units unless they assert a plain success path with no policy or field-shaping edge. |
 | `apps` | Android, iOS, macOS default and `--apps-filter all` flows | parser/default normalization, typed client flag forwarding, platform-specific app parser edge cases | Broad Device Lab and parser/client coverage are in place; no handler-level list happy path remains to delete. |
 | `install`, `reinstall` | Android reinstall, Android install-from-source APK manifest identity, iOS simulator install/reinstall, iOS device reinstall | archive/materialization parsing, invalid install source, platform-specific failure mapping, AAB/binary manifest parser edge cases | Keep install-source units that prove error/fallback behavior; delete daemon happy-path deploy duplicates. |
 | `push` | Android lifecycle broadcast payload with extras, relative payload files, and brace-prefixed payload files resolved from request cwd | payload parsing and unsupported platform errors | Keep the active-session-or-selector admission unit and core payload parser tests. |
@@ -148,7 +148,7 @@ Every command in `PUBLIC_COMMANDS` now has at least one Device Lab scenario runn
 | `keyboard` | Android status/dismiss, iOS dismiss | keyboard state parsing, duplicate dumpsys fields, unsupported dismiss flows | Keep Android keyboard parser/dismiss edge tests. |
 | `settings` | Android appearance/location/fingerprint/permission/animations; iOS appearance/location/permission; macOS appearance | invalid states, permission target mapping, location coordinate parsing, biometric fallbacks | Delete handler dispatch-shape duplicates only after platform/provider assertions cover the command. |
 | `record`, `trace` | Android recording start/stop/pull; iOS simulator recording start/stop; iOS device recording and trace start/stop; macOS recording start/stop | telemetry timing, overlay generation, failure cleanup, artifact finalization | Device Lab owns broad successful lifecycle coverage; keep unit coverage for cleanup, telemetry, and failure state. |
-| `logs`, `network`, `perf` | iOS logs path/start/stop/mark/doctor, macOS logs path, Android logs doctor/start/stop/clear, Android close auto-stopping active logs, Android network dump with parsed headers/body from a live app-log stream, Android perf sampling response | process lifecycle edge cases, tail/grep contracts, network parser/recovery notes, unavailable backend errors, clear/restart failure cleanup | Keep backend unit tests; delete handler orchestration happy paths covered by Device Lab. |
+| `logs`, `network`, `perf` | iOS logs path/start/stop/mark/doctor, macOS logs path, Android logs doctor/start/stop/clear/restart, Android close auto-stopping active logs, Android network dump with parsed headers/body from a restarted live app-log stream, Android perf sampling response | process lifecycle edge cases, tail/grep contracts, network parser/recovery notes, unavailable backend errors, clear/restart failure cleanup | Keep backend unit tests; delete handler orchestration happy paths covered by Device Lab. |
 | `batch`, `replay`, `test` | Android batch, replay through a script, and replay test suite execution through provider-backed Android commands | replay parser vars/env, healing, failure attribution, artifact materialization failures | Keep replay parser/healing units; delete simple replay execution happy paths only. |
 | `trigger-app-event` | Android lifecycle deep-link event dispatch with encoded payload and provider assertion | template resolution, invalid payloads, URL length limits, platform-specific template precedence | Keep app-event parser/validation units; delete dispatch happy-path duplicates only after checking edge coverage. |
 
@@ -175,7 +175,7 @@ Before deleting a unit test, confirm that a Device Lab scenario covers the succe
 
 ## Next Work
 
-1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest pass moved Android logs clear and close auto-stop coverage into Device Lab's live app-log workflow, after moving parsed network entries there in the previous pass.
+1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest pass moved Android logs clear --restart and session-backed boot coverage into Device Lab, after moving logs clear/close auto-stop in the previous pass.
 2. Review the top mock-heavy files from `pnpm test:device-lab:progress` before adding new handler unit coverage. Prefer a Device Lab scenario when the behavior is a command workflow.
 3. Reassess Apple raw tool/helper provider pressure when another Adapter or another scenario has to pattern-match the same host command intent.
 4. Use PR #553 as the flag-plumbing baseline: the command-specific codec should be the normal edit path for screenshot-specific flags, with Device Lab proving the daemon/provider behavior.
