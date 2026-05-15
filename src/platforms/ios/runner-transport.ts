@@ -77,22 +77,7 @@ export async function waitForRunner(
   signal?: AbortSignal,
 ): Promise<Response> {
   const deadline = Deadline.fromTimeoutMs(timeoutMs);
-  let requestTunnelIp: string | null | undefined;
-  const getEndpoints = async (timeoutBudgetMs?: number, forceRefresh = false) => {
-    const tunnelIp = await getDeviceTunnelIpForRequest({
-      device,
-      timeoutBudgetMs,
-      forceRefresh,
-      requestTunnelIp,
-      setRequestTunnelIp: (ip) => {
-        requestTunnelIp = ip;
-      },
-    });
-    return {
-      endpoints: resolveRunnerCommandEndpoints(device, port, tunnelIp.ip),
-      cached: tunnelIp.sharedCacheHit,
-    };
-  };
+  const { getEndpoints } = createRunnerEndpointResolver(device, port);
   let { endpoints } = await getEndpoints(deadline.remainingMs());
   let lastError: unknown = null;
   const maxAttempts = Math.max(1, Math.ceil(timeoutMs / RUNNER_CONNECT_ATTEMPT_INTERVAL_MS));
@@ -186,6 +171,63 @@ export async function waitForRunner(
   }
 
   throw buildRunnerConnectError({ port, endpoints, logPath, lastError });
+}
+
+export async function sendRunnerCommandOnce(
+  device: DeviceInfo,
+  port: number,
+  command: RunnerCommand,
+  timeoutMs: number = RUNNER_COMMAND_TIMEOUT_MS,
+  signal?: AbortSignal,
+): Promise<Response> {
+  if (signal?.aborted) {
+    throw createRequestCanceledError();
+  }
+  const deadline = Deadline.fromTimeoutMs(timeoutMs);
+  const { getEndpoints } = createRunnerEndpointResolver(device, port);
+  const { endpoints } = await getEndpoints(deadline.remainingMs());
+  const endpoint = endpoints[0];
+  if (!endpoint) {
+    throw new AppError('COMMAND_FAILED', 'Runner command endpoint not available', {
+      port,
+      endpoints,
+    });
+  }
+  const remainingMs = deadline.remainingMs();
+  if (remainingMs <= 0) {
+    throw new AppError('COMMAND_FAILED', 'Runner command deadline exceeded', { timeoutMs });
+  }
+  return await fetchWithTimeout(
+    endpoint,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(command),
+    },
+    remainingMs,
+    signal,
+  );
+}
+
+function createRunnerEndpointResolver(device: DeviceInfo, port: number) {
+  let requestTunnelIp: string | null | undefined;
+  return {
+    getEndpoints: async (timeoutBudgetMs?: number, forceRefresh = false) => {
+      const tunnelIp = await getDeviceTunnelIpForRequest({
+        device,
+        timeoutBudgetMs,
+        forceRefresh,
+        requestTunnelIp,
+        setRequestTunnelIp: (ip) => {
+          requestTunnelIp = ip;
+        },
+      });
+      return {
+        endpoints: resolveRunnerCommandEndpoints(device, port, tunnelIp.ip),
+        cached: tunnelIp.sharedCacheHit,
+      };
+    },
+  };
 }
 
 async function tryRunnerEndpoints(
