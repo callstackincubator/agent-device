@@ -14,6 +14,43 @@ export const SCREENSHOT_ACTION_FLAG_KEYS = [
   'screenshotNoStabilize',
 ] as const;
 
+type ScreenshotSpecificFlagKey = (typeof SCREENSHOT_ACTION_FLAG_KEYS)[number];
+
+type ScreenshotSpecificFlagDefinition = {
+  key: ScreenshotSpecificFlagKey;
+  names: readonly string[];
+  type: 'boolean' | 'int';
+  min?: number;
+  usageLabel: string;
+  usageDescription: string;
+};
+
+export const SCREENSHOT_SPECIFIC_FLAG_DEFINITIONS: readonly ScreenshotSpecificFlagDefinition[] = [
+  {
+    key: 'screenshotFullscreen',
+    names: ['--fullscreen'],
+    type: 'boolean',
+    usageLabel: '--fullscreen',
+    usageDescription: 'Screenshot: capture the full screen instead of the app window',
+  },
+  {
+    key: 'screenshotMaxSize',
+    names: ['--max-size'],
+    type: 'int',
+    min: 1,
+    usageLabel: '--max-size <px>',
+    usageDescription: 'Screenshot: downscale so the longest edge is at most <px>',
+  },
+  {
+    key: 'screenshotNoStabilize',
+    names: ['--no-stabilize'],
+    type: 'boolean',
+    usageLabel: '--no-stabilize',
+    usageDescription:
+      'Screenshot: skip Android demo-mode/status-bar stabilization and settle delay for low-latency capture loops',
+  },
+];
+
 export type ScreenshotRequestFlags = {
   out?: string;
   overlayRefs?: boolean;

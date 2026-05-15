@@ -9,7 +9,10 @@ import {
   SELECTOR_SNAPSHOT_FLAGS,
 } from '../commands/selectors-definition.ts';
 import { SESSION_LIFECYCLE_COMMAND_SCHEMAS } from '../commands/session-lifecycle/definition.ts';
-import type { ScreenshotRequestFlags } from '../commands/capture-screenshot-options.ts';
+import {
+  SCREENSHOT_SPECIFIC_FLAG_DEFINITIONS,
+  type ScreenshotRequestFlags,
+} from '../commands/capture-screenshot-options.ts';
 
 export type CliFlags = RemoteConfigMetroOptions &
   ScreenshotRequestFlags & {
@@ -1385,29 +1388,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription:
       'Screenshot: draw current snapshot refs and target rectangles onto the saved PNG; diff screenshot: also write a separate current-screen overlay guide',
   },
-  {
-    key: 'screenshotFullscreen',
-    names: ['--fullscreen'],
-    type: 'boolean',
-    usageLabel: '--fullscreen',
-    usageDescription: 'Screenshot: capture the full screen instead of the app window',
-  },
-  {
-    key: 'screenshotMaxSize',
-    names: ['--max-size'],
-    type: 'int',
-    min: 1,
-    usageLabel: '--max-size <px>',
-    usageDescription: 'Screenshot: downscale so the longest edge is at most <px>',
-  },
-  {
-    key: 'screenshotNoStabilize',
-    names: ['--no-stabilize'],
-    type: 'boolean',
-    usageLabel: '--no-stabilize',
-    usageDescription:
-      'Screenshot: skip Android demo-mode/status-bar stabilization and settle delay for low-latency capture loops',
-  },
+  ...SCREENSHOT_SPECIFIC_FLAG_DEFINITIONS,
   {
     key: 'baseline',
     names: ['--baseline', '-b'],

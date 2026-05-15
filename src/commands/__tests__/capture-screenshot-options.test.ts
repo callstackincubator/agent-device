@@ -4,6 +4,7 @@ import {
   appendScreenshotScriptFlags,
   SCREENSHOT_ACTION_FLAG_KEYS,
   SCREENSHOT_COMMAND_FLAG_KEYS,
+  SCREENSHOT_SPECIFIC_FLAG_DEFINITIONS,
   readScreenshotScriptFlag,
   screenshotFlagsFromOptions,
   screenshotOptionsFromFlags,
@@ -62,6 +63,10 @@ test('screenshot script flags use the shared recorded flag contract', () => {
     'screenshotMaxSize',
     'screenshotNoStabilize',
   ]);
+  assert.deepEqual(
+    SCREENSHOT_SPECIFIC_FLAG_DEFINITIONS.map((definition) => definition.key),
+    SCREENSHOT_ACTION_FLAG_KEYS,
+  );
   assert.deepEqual(SCREENSHOT_COMMAND_FLAG_KEYS, [
     'out',
     'overlayRefs',

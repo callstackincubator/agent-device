@@ -127,4 +127,4 @@ Before deleting a unit test, confirm that a Device Lab scenario covers the succe
 1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest pass deleted two macOS menubar snapshot helper mocks after adding untargeted and targeted menubar snapshot assertions to Device Lab.
 2. Review the top mock-heavy files from `pnpm test:device-lab:progress` before adding new handler unit coverage. Prefer a Device Lab scenario when the behavior is a command workflow.
 3. Reassess Apple raw tool/helper provider pressure when another Adapter or another scenario has to pattern-match the same host command intent.
-4. Use PR #553 as the flag-plumbing baseline: command schema/help plus the command-specific codec should be the normal edit path for screenshot flags, with Device Lab proving the daemon/provider behavior.
+4. Use PR #553 as the flag-plumbing baseline: the command-specific codec should be the normal edit path for screenshot-specific flags, with Device Lab proving the daemon/provider behavior.
