@@ -189,10 +189,23 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
         assert: (snapshot) => {
           assert.deepEqual(
             snapshot.json?.result?.data?.nodes?.map((node: { label?: string }) => node.label),
-            ['Desktop', 'Notes'],
+            ['Desktop', 'Notes', 'Notes', 'Pinned'],
           );
           assert.equal(daemon.session()?.snapshot?.backend, 'macos-helper');
           assert.equal(daemon.session()?.snapshot?.nodes[0]?.surface, 'desktop');
+        },
+      },
+      {
+        name: 'scope desktop snapshot after helper capture',
+        command: 'snapshot',
+        flags: { snapshotScope: 'Notes', snapshotDepth: 0 },
+        assert: (snapshot) => {
+          const nodes = snapshot.json?.result?.data?.nodes ?? [];
+          assert.equal(nodes.length, 1, JSON.stringify(snapshot.json));
+          assert.equal(nodes[0]?.label, 'Notes', JSON.stringify(snapshot.json));
+          assert.equal(nodes[0]?.depth, 0, JSON.stringify(snapshot.json));
+          assert.equal(nodes[0]?.parentIndex, undefined, JSON.stringify(snapshot.json));
+          assert.equal(daemon.session()?.snapshot?.backend, 'macos-helper');
         },
       },
     ]);

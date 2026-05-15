@@ -95,6 +95,16 @@ function runScriptedMacOsHelper(args: string[]): {
               index: 1,
               depth: 1,
               parentIndex: 0,
+              type: 'Application',
+              label: 'Notes',
+              surface,
+              bundleId: 'com.apple.Notes',
+              appName: 'Notes',
+            },
+            {
+              index: 2,
+              depth: 2,
+              parentIndex: 1,
               type: 'Window',
               label: 'Notes',
               surface,
@@ -102,6 +112,15 @@ function runScriptedMacOsHelper(args: string[]): {
               appName: 'Notes',
               windowTitle: 'Notes',
               rect: { x: 32, y: 48, width: 640, height: 480 },
+            },
+            {
+              index: 3,
+              depth: 3,
+              parentIndex: 2,
+              type: 'StaticText',
+              label: 'Pinned',
+              surface,
+              rect: { x: 40, y: 60, width: 80, height: 24 },
             },
           ]
         : [

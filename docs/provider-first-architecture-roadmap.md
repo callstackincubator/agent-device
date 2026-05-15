@@ -6,15 +6,33 @@ This tracks the remaining architecture work after ADR 0001. The aim is to keep t
 
 ## Milestones
 
+Status meanings:
+
+- `Done`: implemented and verified on this branch.
+- `Watch`: no new abstraction is justified yet; keep measuring pressure before changing code.
+- `Active`: current implementation lane.
+- `Queued`: intentionally not started yet.
+
 | # | Milestone | Status | Done means |
 | ---: | --- | --- | --- |
 | 1 | macOS helper permission and alert coverage | Done | Device Lab covers helper-backed permission grant/reset and alert get/accept/dismiss through the daemon request path. Redundant mocked happy-path units are removed when they no longer protect edge behavior. |
 | 2 | Device Lab scenario world modules | Done | Repeated scripted device worlds move behind small test modules so scenarios read as workflows, not fixture construction. |
 | 3 | Recording lifecycle locality | Done | Record/trace start-stop success paths are owned by Device Lab; unit tests focus on lifecycle edge cases, cleanup, telemetry, overlay, and fallback state machines. |
 | 4 | Provider registry applicability | Done | Adding a Provider requires localized registration of applicability, resolution, and scope application instead of edits across several parallel type/function lists. |
-| 5 | Apple tool semantic pressure | Tracked | Generic Apple tool scripting is reduced only where Device Lab or a second Adapter proves a stable semantic Provider operation. |
-| 6 | Snapshot unit-test split and deletion | Started | Snapshot handler unit tests are grouped by retained reason, and broad success paths covered by Device Lab are deleted. |
+| 5 | Apple tool semantic pressure | Watch | Generic Apple tool scripting is reduced only where Device Lab or a second Adapter proves a stable semantic Provider operation. |
+| 6 | Snapshot unit-test split and deletion | Active | Snapshot handler unit tests are grouped by retained reason, and broad success paths covered by Device Lab are deleted. |
 | 7 | Progress metrics quality dimensions | Done | Progress reporting includes command-family ownership, mock-heavy handler tests by family, and raw Provider transcript usage by platform. |
+
+## Current Checkpoint
+
+We are in milestone 6. Milestones 1-4 and 7 are implemented. Milestone 5 is deliberately a watch item: the metrics show Apple raw tool/helper pressure, but the current repeated intent is still the macOS helper contract and does not justify another semantic Provider yet.
+
+Milestone 6 progress:
+
+- Done: deleted the macOS alert `get` happy-path unit after Device Lab covered alert get/accept/dismiss through the daemon path.
+- Done: moved macOS desktop scoped snapshot coverage into Device Lab and deleted the narrower handler mock.
+- Still retained: Android freshness/collapse warnings, macOS menubar targeting, wait routing, alert retry/error policy, diff baseline behavior, and pure snapshot state/visibility shaping.
+- Next checkpoint: audit `session.test.ts` and `interaction.test.ts` for the same pattern, but only after Device Lab owns the equivalent command workflow.
 
 ## Current Assessment
 

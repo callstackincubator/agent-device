@@ -880,47 +880,6 @@ test('settings on macOS rejects wifi before dispatch with explicit subset guidan
   }
 });
 
-test('snapshot on macOS desktop surface applies scope and depth after helper capture', async () => {
-  await withMockedMacOsHelper(
-    [
-      '#!/bin/sh',
-      "cat <<'JSON'",
-      '{"ok":true,"data":{"surface":"desktop","nodes":[{"index":0,"depth":0,"type":"DesktopSurface","label":"Desktop","surface":"desktop"},{"index":1,"depth":1,"parentIndex":0,"type":"Application","label":"Notes","surface":"desktop","bundleId":"com.apple.Notes","appName":"Notes"},{"index":2,"depth":2,"parentIndex":1,"type":"Window","label":"Notes","surface":"desktop","windowTitle":"Notes","rect":{"x":32,"y":48,"width":640,"height":480}},{"index":3,"depth":3,"parentIndex":2,"type":"StaticText","label":"Pinned","surface":"desktop","rect":{"x":40,"y":60,"width":80,"height":24}}],"truncated":false,"backend":"macos-helper"}}',
-      'JSON',
-      '',
-    ].join('\n'),
-    async () => {
-      const sessionStore = makeSessionStore();
-      const sessionName = 'macos-desktop-scoped-snapshot';
-      sessionStore.set(sessionName, {
-        ...makeSession(sessionName, macOsDevice),
-        surface: 'desktop',
-      });
-
-      const response = await handleSnapshotCommands({
-        req: {
-          token: 't',
-          session: sessionName,
-          command: 'snapshot',
-          positionals: [],
-          flags: { snapshotScope: 'Notes', snapshotDepth: 0 },
-        },
-        sessionName,
-        logPath: '/tmp/daemon.log',
-        sessionStore,
-      });
-
-      expect(response?.ok).toBe(true);
-      const updated = sessionStore.get(sessionName);
-      expect(updated?.snapshot?.backend).toBe('macos-helper');
-      expect(updated?.snapshot?.nodes.length).toBe(1);
-      expect(updated?.snapshot?.nodes[0]?.label).toBe('Notes');
-      expect(updated?.snapshot?.nodes[0]?.depth).toBe(0);
-      expect(updated?.snapshot?.nodes[0]?.parentIndex).toBeUndefined();
-    },
-  );
-});
-
 test('snapshot on macOS menubar surface uses helper-backed surface snapshot', async () => {
   await withMockedMacOsHelper(
     [
