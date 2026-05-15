@@ -243,7 +243,8 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Run required checks for touched scope from **Testing Matrix**.
 - PR body must be short and include:
   - `## Summary`
-  - `## Validation` with exact commands run
+  - `## Validation` written as evidence of what was checked and what passed; prefer concise prose such as "Unit tests covered X", "SkillGym confirmed Y planning", "Manual Android run showed Z before/after". Avoid dumping raw command lists unless a specific command is the useful evidence.
+- In the summary, describe behavior changes as before/after when that makes the fix easier to review.
 - Call out known gaps/follow-ups explicitly.
 - Include touched-file count and note if scope expanded beyond initial command family.
 
