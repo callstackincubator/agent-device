@@ -1,102 +1,13 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'vitest';
 import { assertFlatToolCall } from './assertions.ts';
-import {
-  createDemoIosApp,
-  DEVICE_LAB_IOS_REINSTALL_DEVICE,
-  DEVICE_LAB_IOS_SIMULATOR,
-} from './fixtures.ts';
-import { createDeviceLabHarness } from './harness.ts';
-import {
-  createAppleRunnerProviderFromTranscript,
-  createRecordingAppleToolProvider,
-  simctlListDevicesJson,
-} from './providers.ts';
+import { createIosPhysicalReinstallWorld, createIosSettingsWorld } from './ios-world.ts';
 import { runDeviceLabScenario } from './scenario.ts';
-import { createProviderTranscript } from './transcript.ts';
+import { DEVICE_LAB_IOS_REINSTALL_DEVICE, DEVICE_LAB_IOS_SIMULATOR } from './fixtures.ts';
 
 test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', async () => {
-  const runnerTranscript = createProviderTranscript([
-    runnerSnapshot(),
-    runnerSnapshot(),
-    {
-      command: 'ios.runner.tap',
-      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
-      platform: 'ios',
-      request: { command: 'tap', x: 196, y: 122, appBundleId: 'com.apple.Preferences' },
-      result: { tapped: true },
-    },
-    {
-      command: 'ios.runner.pinch',
-      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
-      platform: 'ios',
-      request: {
-        command: 'pinch',
-        scale: 0.8,
-        x: 196,
-        y: 122,
-        appBundleId: 'com.apple.Preferences',
-      },
-      result: { pinched: true },
-    },
-    runnerSnapshot(),
-    runnerSnapshot(),
-    {
-      command: 'ios.runner.findText',
-      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
-      platform: 'ios',
-      request: {
-        command: 'findText',
-        text: 'General',
-        appBundleId: 'com.apple.Preferences',
-      },
-      result: { found: true },
-    },
-    {
-      command: 'ios.runner.keyboardDismiss',
-      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
-      platform: 'ios',
-      request: { command: 'keyboardDismiss', appBundleId: 'com.apple.Preferences' },
-      result: { dismissed: true },
-    },
-  ]);
-  const appleRunnerProvider = createAppleRunnerProviderFromTranscript(
-    runnerTranscript,
-    'ios.runner',
-  );
-  let clipboardText = '';
-  const appleTool = createRecordingAppleToolProvider(async (cmd, args, options) => {
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl pbcopy sim-1') {
-      clipboardText = String(options?.stdin ?? '');
-      return { stdout: '', stderr: '', exitCode: 0 };
-    }
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl pbpaste sim-1') {
-      return { stdout: `${clipboardText}\n`, stderr: '', exitCode: 0 };
-    }
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
-      return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.iOS-18-0', [
-        { name: 'iPhone 15', udid: 'sim-1' },
-      ]);
-    }
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl listapps sim-1') {
-      return {
-        stdout:
-          '{"com.apple.Maps":{"CFBundleDisplayName":"Maps"},"com.example.demo":{"CFBundleDisplayName":"Demo"}}\n',
-        stderr: '',
-        exitCode: 0,
-      };
-    }
-    return { stdout: '', stderr: '', exitCode: 0 };
-  });
-
-  const daemon = await createDeviceLabHarness({
-    appleRunnerProvider: () => appleRunnerProvider,
-    appleToolProvider: () => appleTool.provider,
-    deviceInventoryProvider: async () => [DEVICE_LAB_IOS_SIMULATOR],
-  });
-  const { tempRoot, appPath } = createDemoIosApp('agent-device-lab-ios-deploy-');
+  const { appPath, appleTool, close, daemon, runnerTranscript } = await createIosSettingsWorld();
 
   try {
     await runDeviceLabScenario(daemon, [
@@ -296,35 +207,12 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
     assertFlatToolCall(appleTool.calls, ['xcrun', 'simctl', 'pbcopy', 'sim-1']);
     assertFlatToolCall(appleTool.calls, ['xcrun', 'simctl', 'pbpaste', 'sim-1']);
   } finally {
-    fs.rmSync(tempRoot, { recursive: true, force: true });
-    await daemon.close();
+    await close();
   }
 });
 
 test('Device Lab iOS physical reinstall uses scripted devicectl provider', async () => {
-  const appleTool = createRecordingAppleToolProvider(async (_cmd, args) => {
-    if (args.includes('info') && args.includes('details')) {
-      const jsonOutputIndex = args.indexOf('--json-output');
-      const jsonPath = jsonOutputIndex >= 0 ? args[jsonOutputIndex + 1] : undefined;
-      if (jsonPath) {
-        fs.writeFileSync(
-          jsonPath,
-          JSON.stringify({
-            result: {
-              device: { connectionProperties: { tunnelState: 'connected' } },
-            },
-          }),
-          'utf8',
-        );
-      }
-    }
-    return { stdout: '', stderr: '', exitCode: 0 };
-  });
-  const daemon = await createDeviceLabHarness({
-    appleToolProvider: () => appleTool.provider,
-    deviceInventoryProvider: async () => [DEVICE_LAB_IOS_REINSTALL_DEVICE],
-  });
-  const { tempRoot, appPath } = createDemoIosApp('agent-device-lab-ios-physical-deploy-');
+  const { appPath, appleTool, close, daemon } = await createIosPhysicalReinstallWorld();
 
   try {
     const boot = await daemon.callCommand('boot', [], {
@@ -365,29 +253,6 @@ test('Device Lab iOS physical reinstall uses scripted devicectl provider', async
       appPath,
     ]);
   } finally {
-    fs.rmSync(tempRoot, { recursive: true, force: true });
-    await daemon.close();
+    await close();
   }
 });
-
-function runnerSnapshot() {
-  return {
-    command: 'ios.runner.snapshot',
-    deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
-    platform: 'ios' as const,
-    result: {
-      nodes: [
-        {
-          index: 0,
-          type: 'XCUIElementTypeCell',
-          label: 'General',
-          identifier: 'General',
-          rect: { x: 16, y: 100, width: 360, height: 44 },
-          enabled: true,
-          hittable: true,
-        },
-      ],
-      truncated: false,
-    },
-  };
-}

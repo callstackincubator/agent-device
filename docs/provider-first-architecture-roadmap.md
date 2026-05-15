@@ -23,10 +23,11 @@ Status meanings:
 | 6 | Snapshot unit-test split and deletion | Active | Snapshot handler unit tests are grouped by retained reason, and broad success paths covered by Device Lab are deleted. |
 | 7 | Progress metrics quality dimensions | Done | Progress reporting includes command-family ownership, mock-heavy handler tests by family, and raw Provider transcript usage by platform. |
 | 8 | Screenshot flag plumbing locality | Done | Screenshot-specific flag translation is owned by one codec module and broad screenshot behavior is covered through Device Lab instead of repeated hand-plumbing assertions. |
+| 9 | Android and iOS scenario world locality | Done | Android and iOS lifecycle scenarios consume platform worlds for provider setup, fixture state, host-tool guards, and cleanup while preserving the same daemon request path. |
 
 ## Current Checkpoint
 
-We are in milestone 6. Milestones 1-4, 7, and 8 are implemented. Milestone 5 is deliberately a watch item: the metrics show Apple raw tool/helper pressure, but the current repeated intent is still the macOS helper contract and does not justify another semantic Provider yet.
+We are in milestone 6 for unit deletion, with milestone 9 completed as a scenario-quality pass. Milestones 1-4, 7, 8, and 9 are implemented. Milestone 5 is deliberately a watch item: the metrics show Apple raw tool/helper pressure, but the current repeated intent is still the macOS helper contract and does not justify another semantic Provider yet.
 
 Milestone 6 progress:
 
@@ -45,6 +46,7 @@ Milestone 6 progress:
 - Done: moved Android `logs clear --restart` and session-backed `boot` success paths into Device Lab; deleted the mocked handler success units while retaining restart validation and selector-precedence units.
 - Done: moved iOS physical `boot` readiness into Device Lab using the scripted devicectl provider; deleted the mocked handler success unit while retaining selector-precedence and readiness policy tests.
 - Done: moved Android `perf` startup metric coverage into Device Lab by asserting samples generated from real `open` actions; deleted the synthetic handler unit that hand-built an action record.
+- Done: extracted Android and iOS Device Lab worlds so lifecycle scenarios read as workflows while provider scripts, host-tool guards, temporary app fixtures, and cleanup stay local to platform support modules.
 - Still retained: Android freshness/collapse warnings, macOS menubar interaction guard/ref-promotion edges, wait routing, alert retry/error policy, diff invalid-kind/client-backed boundaries, recording touch visualization, off-screen failures, and pure snapshot state/visibility shaping.
 - Next checkpoint: continue only where Device Lab can cover a plain success workflow; otherwise move to the next mock-heavy file from the progress report and leave edge/state-machine tests in unit coverage.
 

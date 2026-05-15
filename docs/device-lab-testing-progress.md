@@ -23,11 +23,11 @@ Current local snapshot:
 | Handler unit tests | 347 |
 | Handler files with `vi.mock` | 17 |
 | Device Lab files | 12 |
-| Device Lab LOC | 3044 |
+| Device Lab LOC | 2635 |
 | Device Lab tests | 15 |
-| Device Lab support files | 7 |
-| Device Lab support LOC | 736 |
-| Device Lab / handler LOC | 23.2% |
+| Device Lab support files | 9 |
+| Device Lab support LOC | 1244 |
+| Device Lab / handler LOC | 20.1% |
 
 Coverage is tracked separately by:
 
@@ -35,7 +35,7 @@ Coverage is tracked separately by:
 pnpm test:coverage:check
 ```
 
-Current local coverage: 79.18% statements, 69.18% branches, 86.81% functions, 81.20% lines.
+Current local coverage: 79.17% statements, 69.18% branches, 86.81% functions, 81.20% lines.
 
 Gates:
 
@@ -46,6 +46,8 @@ Gates:
 Do not raise floors by adding tests that only execute code. Added coverage must assert user-visible behavior, provider contracts, parser contracts, or important edge/error handling.
 
 The progress script also prints the largest mock-heavy handler test files and Provider transcript pressure by contract surface. Use those tables to pick deletion candidates and to decide when raw provider scripting has enough repeated intent to justify a semantic Provider method.
+
+Scenario LOC should trend down as platform worlds absorb provider setup. Support LOC can rise when it removes scripted host/tool noise from broad command workflows; that is acceptable when the world keeps the daemon request path intact and stays platform-specific.
 
 ## Coverage Accounting
 
@@ -175,7 +177,8 @@ Before deleting a unit test, confirm that a Device Lab scenario covers the succe
 
 ## Next Work
 
-1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest pass moved Android `perf` startup metric coverage into Device Lab, after moving iOS physical boot readiness there in the previous pass.
-2. Review the top mock-heavy files from `pnpm test:device-lab:progress` before adding new handler unit coverage. Prefer a Device Lab scenario when the behavior is a command workflow.
-3. Reassess Apple raw tool/helper provider pressure when another Adapter or another scenario has to pattern-match the same host command intent.
-4. Use PR #553 as the flag-plumbing baseline: the command-specific codec should be the normal edit path for screenshot-specific flags, with Device Lab proving the daemon/provider behavior.
+1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest deletion pass moved Android `perf` startup metric coverage into Device Lab, after moving iOS physical boot readiness there in the previous pass.
+2. Keep extracting platform worlds only when they make scenario files read as workflows. Android and iOS now own provider setup in `android-world.ts` and `ios-world.ts`; avoid adding another layer above `createDeviceLabHarness`.
+3. Review the top mock-heavy files from `pnpm test:device-lab:progress` before adding new handler unit coverage. Prefer a Device Lab scenario when the behavior is a command workflow.
+4. Reassess Apple raw tool/helper provider pressure when another Adapter or another scenario has to pattern-match the same host command intent.
+5. Use PR #553 as the flag-plumbing baseline: the command-specific codec should be the normal edit path for screenshot-specific flags, with Device Lab proving the daemon/provider behavior.
