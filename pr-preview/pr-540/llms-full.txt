@@ -478,7 +478,7 @@ const client = createAgentDeviceClient({
 });
 
 const devices = await client.devices.list({ platform: 'ios' });
-const apps = await client.apps.list({ platform: 'ios', appsFilter: 'user-installed' });
+const apps = await client.apps.list({ platform: 'ios' });
 const ensured = await client.simulators.ensure({
   device: 'iPhone 16',
   boot: true,
@@ -575,7 +575,7 @@ const provider = {
   exec: async (args, options) => await runAdbThroughRemoteTunnel(args, options),
 };
 
-const apps = await listAndroidAppsWithAdb(provider.exec, { filter: 'user-installed' });
+const apps = await listAndroidAppsWithAdb(provider.exec); // user-installed apps by default
 const foreground = await getAndroidAppStateWithAdb(provider.exec);
 ```
 
@@ -1301,7 +1301,7 @@ agent-device apps --platform android --all
 
 - Android `appstate` reports live foreground package/activity.
 - iOS `appstate` is session-scoped and reports the app tracked by the active session on the target device.
-- `apps` lists user-installed apps by default. Use `--all` to include default/system apps.
+- `apps` shows user-installed apps by default. Use `--all` when you need the full inventory, including system/OEM apps.
 
 ## Clipboard
 
@@ -1642,11 +1642,11 @@ Environment variables follow the same fields using `AGENT_DEVICE_*` uppercase sn
 - `iosSimulatorDeviceSet` -> `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET`
 - `androidDeviceAllowlist` -> `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST`
 
-When a CLI option has multiple flag aliases, config and environment sources use the canonical option value rather than a flag alias. Example:
+Config and environment sources use canonical option values rather than CLI flag names. Example:
 
 - config: `"appsFilter": "user-installed"`
 - env: `AGENT_DEVICE_APPS_FILTER=user-installed`
-- not: `--user-installed`
+- CLI equivalent: omit `--all`
 
 Legacy compatibility env vars are still accepted for device scoping:
 

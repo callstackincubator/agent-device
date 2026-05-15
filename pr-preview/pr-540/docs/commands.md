@@ -515,7 +515,7 @@ agent-device apps --platform android --all
 
 - Android `appstate` reports live foreground package/activity.
 - iOS `appstate` is session-scoped and reports the app tracked by the active session on the target device.
-- `apps` lists user-installed apps by default. Use `--all` to include default/system apps.
+- `apps` shows user-installed apps by default. Use `--all` when you need the full inventory, including system/OEM apps.
 
 ## Clipboard
 
