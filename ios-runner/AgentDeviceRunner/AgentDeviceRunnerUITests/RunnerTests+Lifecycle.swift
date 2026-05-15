@@ -109,18 +109,53 @@ extension RunnerTests {
     operation: () -> Void
   ) {
     let setter = NSSelectorFromString("setWaitForIdleTimeout:")
-    guard target.responds(to: setter) else {
-      operation()
-      return
+    let supportsWaitForIdleTimeout = target.responds(to: setter)
+    let previous = supportsWaitForIdleTimeout
+      ? (target.value(forKey: "waitForIdleTimeout") as? NSNumber)
+      : nil
+    if supportsWaitForIdleTimeout {
+      target.setValue(resolveScrollInteractionIdleTimeout(), forKey: "waitForIdleTimeout")
     }
-    let previous = target.value(forKey: "waitForIdleTimeout") as? NSNumber
-    target.setValue(resolveScrollInteractionIdleTimeout(), forKey: "waitForIdleTimeout")
     defer {
       if let previous {
         target.setValue(previous.doubleValue, forKey: "waitForIdleTimeout")
       }
     }
-    operation()
+    performWithQuiescenceSkippedIfSupported(target, operation: operation)
+  }
+
+  // Some apps never report post-gesture quiescence, even after XCTest has synthesized the event.
+  private func performWithQuiescenceSkippedIfSupported(
+    _ target: XCUIApplication,
+    operation: () -> Void
+  ) {
+    let selector = NSSelectorFromString("_performWithInteractionOptions:block:")
+    guard target.responds(to: selector) else {
+      operation()
+      return
+    }
+    typealias PerformWithInteractionOptions = @convention(c) (
+      NSObject,
+      Selector,
+      UInt,
+      @convention(block) () -> Void
+    ) -> Void
+    let implementation = target.method(for: selector)
+    let performWithOptions = unsafeBitCast(
+      implementation,
+      to: PerformWithInteractionOptions.self
+    )
+    let skipPreEventQuiescence = UInt(1)
+    let skipPostEventQuiescence = UInt(2)
+    withoutActuallyEscaping(operation) { escapableOperation in
+      let block: @convention(block) () -> Void = escapableOperation
+      performWithOptions(
+        target,
+        selector,
+        skipPreEventQuiescence | skipPostEventQuiescence,
+        block
+      )
+    }
   }
 
   private func resolveScrollInteractionIdleTimeout() -> TimeInterval {

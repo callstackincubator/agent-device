@@ -17,7 +17,11 @@ vi.mock('../../../utils/exec.ts', async () => {
   };
 });
 
-import { clearDeviceTunnelIpCache, waitForRunner } from '../runner-transport.ts';
+import {
+  clearDeviceTunnelIpCache,
+  sendRunnerCommandOnce,
+  waitForRunner,
+} from '../runner-transport.ts';
 
 const iosSimulator: DeviceInfo = {
   platform: 'ios',
@@ -142,6 +146,22 @@ test('waitForRunner invalidates cached tunnel IP when localhost fallback succeed
     'http://127.0.0.1:8100/command',
     'http://[fd00::456]:8100/command',
   ]);
+});
+
+test('sendRunnerCommandOnce does not retry or simulator fallback after request failure', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      throw new Error('request timed out after reaching runner');
+    }),
+  );
+
+  await assert.rejects(() =>
+    sendRunnerCommandOnce(iosSimulator, 8100, { command: 'tap', x: 120, y: 240 }, 5_000),
+  );
+
+  assert.equal(vi.mocked(fetch).mock.calls.length, 1);
+  assert.equal(mockRunCmd.mock.calls.length, 0);
 });
 
 function stubSuccessfulFetch(): void {

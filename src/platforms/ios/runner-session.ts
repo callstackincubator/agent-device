@@ -11,6 +11,7 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
 import {
   waitForRunner,
+  sendRunnerCommandOnce,
   getFreePort,
   logChunk,
   cleanupTempFile,
@@ -26,7 +27,7 @@ import {
   resolveRunnerMaxConcurrentDestinationsFlag,
   runnerPrepProcesses,
 } from './runner-xctestrun.ts';
-import type { RunnerCommand } from './runner-contract.ts';
+import { isReadOnlyRunnerCommand, type RunnerCommand } from './runner-contract.ts';
 import type { RunnerSession } from './runner-session-types.ts';
 
 export type { RunnerSession } from './runner-session-types.ts';
@@ -334,15 +335,31 @@ export async function executeRunnerCommandWithSession(
   timeoutMs: number,
   signal?: AbortSignal,
 ): Promise<Record<string, unknown>> {
-  const response = await waitForRunner(
+  const readOnlyCommand = isReadOnlyRunnerCommand(command.command);
+  if (readOnlyCommand) {
+    const response = await waitForRunner(
+      device,
+      session.port,
+      command,
+      logPath,
+      timeoutMs,
+      session,
+      signal,
+    );
+    return await parseRunnerResponse(response, session, logPath);
+  }
+
+  const readinessResponse = await waitForRunner(
     device,
     session.port,
-    command,
+    { command: 'uptime' },
     logPath,
-    timeoutMs,
+    RUNNER_STARTUP_TIMEOUT_MS,
     session,
     signal,
   );
+  await parseRunnerResponse(readinessResponse, session, logPath);
+  const response = await sendRunnerCommandOnce(device, session.port, command, timeoutMs, signal);
   return await parseRunnerResponse(response, session, logPath);
 }
 

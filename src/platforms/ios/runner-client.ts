@@ -82,6 +82,7 @@ async function executeRunnerCommand(
   } catch (err) {
     const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
     if (
+      isReadOnlyRunnerCommand(command.command) &&
       appErr.code === 'COMMAND_FAILED' &&
       typeof appErr.message === 'string' &&
       appErr.message.includes('Runner did not accept connection') &&
