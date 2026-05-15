@@ -268,6 +268,7 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     snapshotDepth: options.depth,
     snapshotScope: options.scope,
     snapshotRaw: options.raw,
+    snapshotForceFull: options.forceFull,
     screenshotFullscreen: options.screenshotFullscreen,
     screenshotMaxSize: options.screenshotMaxSize,
     overlayRefs: options.overlayRefs,

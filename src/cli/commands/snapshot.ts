@@ -11,13 +11,21 @@ export const snapshotCommand: ClientCommandHandler = async ({ flags, client }) =
     depth: flags.snapshotDepth,
     scope: flags.snapshotScope,
     raw: flags.snapshotRaw,
+    forceFull: flags.snapshotForceFull,
   });
   const data = serializeSnapshotResult(result);
-  writeCommandOutput(flags, data, () =>
-    formatSnapshotText(data, {
+  // Programmatic SDK callers can see `unchanged`; CLI --json hides it for schema compatibility.
+  const outputData = flags.json ? withoutUnchanged(data) : data;
+  writeCommandOutput(flags, outputData, () =>
+    formatSnapshotText(outputData, {
       raw: flags.snapshotRaw,
       flatten: flags.snapshotInteractiveOnly,
     }),
   );
   return true;
 };
+
+function withoutUnchanged(data: Record<string, unknown>): Record<string, unknown> {
+  const { unchanged: _unchanged, ...outputData } = data;
+  return outputData;
+}

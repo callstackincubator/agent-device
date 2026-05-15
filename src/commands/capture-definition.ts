@@ -17,10 +17,10 @@ const SNAPSHOT_FLAGS = [
 const snapshotCommandDefinition = defineCommand({
   name: PUBLIC_COMMANDS.snapshot,
   schema: {
-    usageOverride: 'snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw]',
+    usageOverride: 'snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--force-full]',
     helpDescription: 'Capture accessibility tree or diff against the previous session baseline',
     positionalArgs: [],
-    allowedFlags: ['snapshotDiff', ...SNAPSHOT_FLAGS],
+    allowedFlags: ['snapshotDiff', ...SNAPSHOT_FLAGS, 'snapshotForceFull'],
   },
   capability: ALL_DEVICE_COMMAND_CAPABILITY,
 });

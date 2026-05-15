@@ -52,6 +52,7 @@ export type CliFlags = RemoteConfigMetroOptions & {
   snapshotDepth?: number;
   snapshotScope?: string;
   snapshotRaw?: boolean;
+  snapshotForceFull?: boolean;
   networkInclude?: 'summary' | 'headers' | 'body' | 'all';
   overlayRefs?: boolean;
   screenshotFullscreen?: boolean;
@@ -161,6 +162,7 @@ const AGENT_QUICKSTART_LINES = [
   'Use selectors or refs as positional targets: id="submit", label="Allow", or @e12 from snapshot -i.',
   'Plain snapshot reads state; snapshot -i is required to refresh interactive refs.',
   'Read-only visible/state question: use snapshot/get/is/find; use snapshot -i only when refs are needed.',
+  'Anti-pattern: snapshot -i followed by snapshot -i | grep ...; prior refs stay valid until app state changes, and --force-full is the explicit full re-read.',
   'Truncated text/input preview: expand first with snapshot -s @e12, not get text.',
   'React Native apps: read help react-native for Metro, LogBox/RedBox overlays, DevTools routing, and RN-specific blockers.',
   'Expo Go/dev clients: use the provided URL when given; on iOS prefer open "Expo Go" <url>; Android URL opens infer the foreground package for logs/perf when possible.',
@@ -252,6 +254,9 @@ Snapshots and refs:
     @e14 [cell] label="Profiles" focused -> tvOS focus is currently on this row.
     [off-screen below] 4 items: "Privacy", "About" -> scroll down, then snapshot -i; those are hints, not refs.
   Re-snapshot after navigation, submit, modal/list/reload/dynamic changes.
+  Anti-pattern: snapshot -i followed by snapshot -i | grep ...
+  Refs from the first snapshot remain valid until you press, fill, scroll, go back, wait for async UI, or otherwise change app state.
+  For a targeted query, use find/get/is. If you truly need the full tree again, pass --force-full.
   Off-screen summaries are scroll hints; use scroll, not swipe, then snapshot -i.
   Missing target in a long list: use a short manual scroll + snapshot loop with a max attempt count; do not rely on unbounded scrollintoview.
   Truncated text/input previews: do not use get text first; expand with snapshot -s @ref (for example snapshot -s @e7), then read the scoped output.
@@ -1370,6 +1375,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '--raw',
     usageDescription: 'Snapshot: raw node output',
+  },
+  {
+    key: 'snapshotForceFull',
+    names: ['--force-full'],
+    type: 'boolean',
+    usageLabel: '--force-full',
+    usageDescription: 'Snapshot: re-emit the full tree even when unchanged',
   },
   {
     key: 'findFirst',

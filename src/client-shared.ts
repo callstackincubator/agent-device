@@ -188,5 +188,6 @@ export function serializeSnapshotResult(result: CaptureSnapshotResult): Record<s
     ...(result.visibility ? { visibility: result.visibility } : {}),
     ...(result.androidSnapshot ? { androidSnapshot: result.androidSnapshot } : {}),
     ...(result.warnings && result.warnings.length > 0 ? { warnings: result.warnings } : {}),
+    ...(result.unchanged ? { unchanged: result.unchanged } : {}),
   };
 }

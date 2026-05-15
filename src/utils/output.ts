@@ -6,7 +6,7 @@ import {
 } from './android-helper-snapshot-presentation.ts';
 import { AppError, normalizeError, type NormalizedError } from './errors.ts';
 import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.ts';
-import type { SnapshotNode, SnapshotVisibility } from './snapshot.ts';
+import type { SnapshotNode, SnapshotUnchanged, SnapshotVisibility } from './snapshot.ts';
 import type { ScreenshotDiffResult } from './screenshot-diff.ts';
 import type { ScreenshotDiffRegion } from './screenshot-diff-regions.ts';
 import { styleText } from 'node:util';
@@ -63,6 +63,13 @@ export function formatSnapshotText(
   const nodes = Array.isArray(rawNodes) ? (rawNodes as SnapshotNode[]) : [];
   const backend = typeof data.backend === 'string' ? data.backend : undefined;
   const helperPresentation = buildAndroidHelperPresentationInput(data, nodes, options);
+  const prefix = formatSnapshotMetaPrefix(data);
+  const notices = buildSnapshotNotices(data, nodes, options, helperPresentation);
+  const noticesBlock = notices.length > 0 ? `${notices.join('\n')}\n` : '';
+  const unchanged = options.raw ? null : readUnchangedSnapshot(data);
+  if (unchanged) {
+    return `${prefix}${noticesBlock}${formatUnchangedSnapshotText(unchanged)}\n`;
+  }
   const visiblePresentation =
     options.raw || backend === 'macos-helper'
       ? null
@@ -80,9 +87,6 @@ export function formatSnapshotText(
           helperPresentation.filteredCount,
         );
   const header = formatSnapshotHeader(nodes.length, visibility, truncated);
-  const prefix = formatSnapshotMetaPrefix(data);
-  const notices = buildSnapshotNotices(data, nodes, options, helperPresentation);
-  const noticesBlock = notices.length > 0 ? `${notices.join('\n')}\n` : '';
   if (nodes.length === 0) {
     return `${prefix}${header}\n${noticesBlock}`;
   }
@@ -93,6 +97,50 @@ export function formatSnapshotText(
     return `${prefix}${header}\n${noticesBlock}${formatFlattenedSnapshotLines(displayedNodes)}${formatSnapshotSummaryBlock(visiblePresentation)}\n`;
   }
   return `${prefix}${header}\n${noticesBlock}${formatStructuredSnapshotLines(displayedNodes)}${formatSnapshotSummaryBlock(visiblePresentation)}\n`;
+}
+
+function readUnchangedSnapshot(data: Record<string, unknown>): SnapshotUnchanged | null {
+  const raw = data.unchanged;
+  if (!raw || typeof raw !== 'object') return null;
+  const unchanged = raw as Record<string, unknown>;
+  if (typeof unchanged.ageMs !== 'number' || typeof unchanged.nodeCount !== 'number') {
+    return null;
+  }
+  return {
+    ageMs: unchanged.ageMs,
+    nodeCount: unchanged.nodeCount,
+    interactiveOnly: unchanged.interactiveOnly === true ? true : undefined,
+    scope: typeof unchanged.scope === 'string' ? unchanged.scope : undefined,
+  };
+}
+
+function formatUnchangedSnapshotText(unchanged: SnapshotUnchanged): string {
+  const age = formatSnapshotAge(unchanged.ageMs);
+  if (unchanged.scope) {
+    return [
+      `Scoped snapshot unchanged for scope "${unchanged.scope}" since previous read ${age} ago.`,
+      'Previous refs in this scope remain valid. Use find/get/is for a targeted query, or --force-full to re-emit.',
+    ].join('\n');
+  }
+  if (unchanged.interactiveOnly) {
+    return [
+      `Interactive snapshot unchanged since previous read ${age} ago.`,
+      `${unchanged.nodeCount} visible nodes are unchanged. Previous @e refs are still valid. Use find/get/is for a targeted query, or --force-full to re-emit.`,
+    ].join('\n');
+  }
+  return [
+    `Snapshot unchanged since previous read ${age} ago.`,
+    'Refs from the previous snapshot are still valid. Use --force-full to re-emit the tree, or use find/get/is for a targeted query.',
+  ].join('\n');
+}
+
+function formatSnapshotAge(ageMs: number): string {
+  if (ageMs < 1000) return `${Math.round(ageMs)}ms`;
+  if (ageMs < 60_000) return `${(Math.round(ageMs / 100) / 10).toFixed(1)}s`;
+  const minutes = ageMs / 60_000;
+  if (minutes < 60) return `${(Math.round(minutes * 10) / 10).toFixed(1)}m`;
+  const hours = minutes / 60;
+  return `${(Math.round(hours * 10) / 10).toFixed(1)}h`;
 }
 
 function formatSnapshotMetaPrefix(data: Record<string, unknown>): string {

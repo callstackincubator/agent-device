@@ -28,6 +28,7 @@ export type SnapshotCommandOptions = CommandContext & {
   depth?: number;
   scope?: string;
   raw?: boolean;
+  forceFull?: boolean;
 };
 
 export type DiffSnapshotCommandOptions = SnapshotCommandOptions;

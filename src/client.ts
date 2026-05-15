@@ -301,31 +301,7 @@ export function createAgentDeviceClient(
       snapshot: async (options: CaptureSnapshotOptions = {}) => {
         const session = resolveRequestSession(options);
         const data = await execute(PUBLIC_COMMANDS.snapshot, [], options);
-        const appBundleId = readOptionalString(data, 'appBundleId');
-        const visibility =
-          typeof data.visibility === 'object' && data.visibility !== null
-            ? (data.visibility as CaptureSnapshotResult['visibility'])
-            : undefined;
-        const androidSnapshot =
-          typeof data.androidSnapshot === 'object' && data.androidSnapshot !== null
-            ? (data.androidSnapshot as CaptureSnapshotResult['androidSnapshot'])
-            : undefined;
-        return {
-          nodes: readSnapshotNodes(data.nodes),
-          truncated: data.truncated === true,
-          appName: readOptionalString(data, 'appName'),
-          appBundleId,
-          ...(visibility ? { visibility } : {}),
-          ...(androidSnapshot ? { androidSnapshot } : {}),
-          warnings: Array.isArray(data.warnings)
-            ? data.warnings.filter((entry): entry is string => typeof entry === 'string')
-            : undefined,
-          identifiers: {
-            session,
-            appId: appBundleId,
-            appBundleId,
-          },
-        };
+        return normalizeSnapshotResult(data, session);
       },
       screenshot: async (options: CaptureScreenshotOptions = {}) => {
         const session = resolveRequestSession(options);
@@ -483,6 +459,52 @@ export function createAgentDeviceClient(
         ),
     },
   };
+}
+
+function normalizeSnapshotResult(
+  data: Record<string, unknown>,
+  session: string | undefined,
+): CaptureSnapshotResult {
+  const appBundleId = readOptionalString(data, 'appBundleId');
+  return {
+    nodes: readSnapshotNodes(data.nodes),
+    truncated: data.truncated === true,
+    appName: readOptionalString(data, 'appName'),
+    appBundleId,
+    ...optionalSnapshotResponseFields(data),
+    identifiers: {
+      session,
+      appId: appBundleId,
+      appBundleId,
+    },
+  };
+}
+
+function optionalSnapshotResponseFields(
+  data: Record<string, unknown>,
+): Partial<
+  Pick<CaptureSnapshotResult, 'androidSnapshot' | 'unchanged' | 'visibility' | 'warnings'>
+> {
+  const visibility = readObject(data.visibility);
+  const androidSnapshot = readObject(data.androidSnapshot);
+  const unchanged = readObject(data.unchanged);
+  const warnings = Array.isArray(data.warnings)
+    ? data.warnings.filter((entry): entry is string => typeof entry === 'string')
+    : undefined;
+  return {
+    ...(visibility ? { visibility: visibility as CaptureSnapshotResult['visibility'] } : {}),
+    ...(androidSnapshot
+      ? { androidSnapshot: androidSnapshot as CaptureSnapshotResult['androidSnapshot'] }
+      : {}),
+    ...(unchanged ? { unchanged: unchanged as CaptureSnapshotResult['unchanged'] } : {}),
+    ...(warnings ? { warnings } : {}),
+  };
+}
+
+function readObject(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
 }
 
 function stringifyPayload(payload: AppPushOptions['payload']): string {

@@ -4,8 +4,17 @@ import type { AgentDeviceRuntime, CommandSessionRecord } from '../runtime-contra
 import { AppError } from '../utils/errors.ts';
 import { buildSnapshotDiff, countSnapshotComparableLines } from '../utils/snapshot-diff.ts';
 import type { SnapshotDiffLine, SnapshotDiffSummary } from '../utils/snapshot-diff.ts';
-import type { SnapshotNode, SnapshotState, SnapshotVisibility } from '../utils/snapshot.ts';
+import type {
+  SnapshotNode,
+  SnapshotState,
+  SnapshotUnchanged,
+  SnapshotVisibility,
+} from '../utils/snapshot.ts';
 import { buildSnapshotVisibility } from '../utils/snapshot-visibility.ts';
+import {
+  buildUnchangedSnapshotMetadata,
+  ensureSnapshotPresentationKey,
+} from './snapshot-unchanged.ts';
 import type {
   DiffSnapshotCommandOptions,
   RuntimeCommand,
@@ -23,6 +32,7 @@ export type SnapshotCommandResult = {
   visibility?: SnapshotVisibility;
   androidSnapshot?: AndroidSnapshotBackendMetadata;
   warnings?: string[];
+  unchanged?: SnapshotUnchanged;
 };
 
 export type DiffSnapshotCommandResult = {
@@ -45,6 +55,15 @@ export const snapshotCommand: RuntimeCommand<
   SnapshotCommandResult
 > = async (runtime, options): Promise<SnapshotCommandResult> => {
   const capture = await captureRuntimeSnapshot(runtime, options);
+  const unchanged = buildUnchangedSnapshotMetadata({
+    previous: capture.session?.snapshot,
+    current: capture.snapshot,
+    options,
+    identity: {
+      previousAppBundleId: capture.session?.appBundleId,
+      currentAppBundleId: capture.result.appBundleId ?? capture.session?.appBundleId,
+    },
+  });
   await runtime.sessions.set(nextSnapshotSession(options.session, capture));
   return {
     nodes: capture.snapshot.nodes,
@@ -56,6 +75,7 @@ export const snapshotCommand: RuntimeCommand<
     }),
     ...(capture.result.androidSnapshot ? { androidSnapshot: capture.result.androidSnapshot } : {}),
     ...(capture.warnings.length > 0 ? { warnings: capture.warnings } : {}),
+    ...(unchanged ? { unchanged } : {}),
     ...snapshotAppFields(capture),
   };
 };
@@ -127,7 +147,10 @@ async function captureRuntimeSnapshot(
       raw: options.raw,
     },
   );
-  const snapshot = normalizeBackendSnapshot(result, runtime);
+  const snapshot = ensureSnapshotPresentationKey(
+    normalizeBackendSnapshot(result, runtime),
+    options,
+  );
   const warningTime = now(runtime);
   return {
     snapshot,

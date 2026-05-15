@@ -526,3 +526,16 @@ test('client capture.snapshot preserves visibility metadata from daemon response
     reasons: ['offscreen-nodes'],
   });
 });
+
+test('client capture.snapshot forwards force-full as snapshotForceFull flag', async () => {
+  const setup = createTransport(async () => ({
+    ok: true,
+    data: { nodes: [], truncated: false },
+  }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await client.capture.snapshot({ forceFull: true });
+
+  assert.equal(setup.calls[0]?.command, 'snapshot');
+  assert.equal(setup.calls[0]?.flags?.snapshotForceFull, true);
+});

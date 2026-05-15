@@ -34,6 +34,7 @@ export async function dispatchSnapshotViaRuntime(params: {
         depth: req.flags?.snapshotDepth,
         scope: snapshotScope,
         raw: req.flags?.snapshotRaw,
+        forceFull: req.flags?.snapshotForceFull,
       });
       return {
         data: result,

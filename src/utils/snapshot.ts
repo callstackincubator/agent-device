@@ -59,6 +59,14 @@ export type SnapshotState = {
   truncated?: boolean;
   backend?: SnapshotBackend;
   comparisonSafe?: boolean;
+  presentationKey?: string;
+};
+
+export type SnapshotUnchanged = {
+  ageMs: number;
+  nodeCount: number;
+  interactiveOnly?: boolean;
+  scope?: string;
 };
 
 export type SnapshotVisibilityReason =
@@ -97,6 +105,16 @@ export function normalizeRef(input: string): string | null {
 
 export function findNodeByRef(nodes: SnapshotNode[], ref: string): SnapshotNode | null {
   return nodes.find((node) => node.ref === ref) ?? null;
+}
+
+export function buildSnapshotPresentationKey(flags: SnapshotOptions | undefined): string {
+  return JSON.stringify({
+    interactiveOnly: flags?.interactiveOnly === true,
+    compact: flags?.compact === true,
+    depth: typeof flags?.depth === 'number' ? flags.depth : null,
+    scope: flags?.scope?.trim() || null,
+    raw: flags?.raw === true,
+  });
 }
 
 export function centerOfRect(rect: Rect): Point {
