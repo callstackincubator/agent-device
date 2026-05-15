@@ -31,8 +31,9 @@ Milestone 6 progress:
 
 - Done: deleted the macOS alert `get` happy-path unit after Device Lab covered alert get/accept/dismiss through the daemon path.
 - Done: moved macOS desktop scoped snapshot coverage into Device Lab and deleted the narrower handler mock.
+- Done: deleted the macOS `open --surface frontmost-app` happy-path unit after Device Lab covered the frontmost-app session state and helper provider call.
 - Still retained: Android freshness/collapse warnings, macOS menubar targeting, wait routing, alert retry/error policy, diff baseline behavior, and pure snapshot state/visibility shaping.
-- Next checkpoint: audit `session.test.ts` and `interaction.test.ts` for the same pattern, but only after Device Lab owns the equivalent command workflow.
+- Next checkpoint: audit `interaction.test.ts` for the same pattern, but only after Device Lab owns the equivalent command workflow.
 
 ## Current Assessment
 

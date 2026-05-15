@@ -2217,65 +2217,6 @@ test('open app on existing macOS session resolves and stores bundle id', async (
   expect(dispatchedContext?.appBundleId).toBe('com.apple.systempreferences');
 });
 
-test('open on macOS with --surface frontmost-app stores frontmost app state', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'macos-frontmost';
-  mockResolveTargetDevice.mockResolvedValue({
-    platform: 'macos',
-    id: 'host-macos-local',
-    name: 'Host Mac',
-    kind: 'device',
-    target: 'desktop',
-    booted: true,
-  });
-  const prevHelper = process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
-  process.env.AGENT_DEVICE_MACOS_HELPER_BIN = '/usr/bin/true';
-  mockRunCmd.mockResolvedValue({
-    stdout: '{"ok":true,"data":{"bundleId":"com.apple.TextEdit","appName":"TextEdit","pid":123}}',
-    stderr: '',
-    exitCode: 0,
-  });
-  let dispatchedPositionals: string[] | undefined;
-  mockDispatch.mockImplementation(async (_device, _command, positionals) => {
-    dispatchedPositionals = positionals;
-    return {};
-  });
-
-  try {
-    const response = await handleSessionCommands({
-      req: {
-        token: 't',
-        session: sessionName,
-        command: 'open',
-        positionals: [],
-        flags: {
-          platform: 'macos',
-          surface: 'frontmost-app',
-        },
-      },
-      sessionName,
-      logPath: path.join(os.tmpdir(), 'daemon.log'),
-      sessionStore,
-      invoke: noopInvoke,
-    });
-
-    expect(response?.ok).toBe(true);
-    expect(dispatchedPositionals).toEqual([]);
-    const session = sessionStore.get(sessionName);
-    expect(session?.surface).toBe('frontmost-app');
-    expect(session?.appBundleId).toBe('com.apple.TextEdit');
-    expect(session?.appName).toBe('TextEdit');
-    if (response && response.ok) {
-      expect(response.data?.surface).toBe('frontmost-app');
-      expect(response.data?.appBundleId).toBe('com.apple.TextEdit');
-      expect(response.data?.appName).toBe('TextEdit');
-    }
-  } finally {
-    if (prevHelper === undefined) delete process.env.AGENT_DEVICE_MACOS_HELPER_BIN;
-    else process.env.AGENT_DEVICE_MACOS_HELPER_BIN = prevHelper;
-  }
-});
-
 test('open rejects --surface on non-macOS devices', async () => {
   const sessionStore = makeSessionStore();
   mockResolveTargetDevice.mockResolvedValue({

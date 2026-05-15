@@ -249,6 +249,7 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       'reset',
       'screen-recording',
     ]);
+    assertFlatToolCall(appleTool.calls, ['agent-device-macos-helper', 'app', 'frontmost']);
     assertFlatToolCall(appleTool.calls, [
       'agent-device-macos-helper',
       'alert',
