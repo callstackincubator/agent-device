@@ -13,7 +13,7 @@ import { validPng } from './assertions.ts';
 import { DEVICE_LAB_ANDROID } from './fixtures.ts';
 import { createDeviceLabHarness, restoreEnv, type DeviceLabHarness } from './harness.ts';
 
-export type AndroidSettingsWorld = {
+type AndroidSettingsWorld = {
   daemon: DeviceLabHarness;
   adbCalls: string[][];
   installCalls: Array<{ apkPath: string; replace?: boolean }>;

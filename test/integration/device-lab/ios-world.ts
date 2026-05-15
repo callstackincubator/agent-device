@@ -14,13 +14,11 @@ import {
 } from './providers.ts';
 import { createProviderTranscript } from './transcript.ts';
 
-export type IosSettingsWorld = {
+type IosSettingsWorld = {
   daemon: DeviceLabHarness;
   appleTool: { calls: FlatToolCall[] };
   runnerTranscript: DeviceLabTranscript;
-  tempRoot: string;
   appPath: string;
-  selection: { platform: 'ios'; udid: string };
   close: () => Promise<void>;
 };
 
@@ -109,9 +107,7 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
     daemon,
     appleTool,
     runnerTranscript,
-    tempRoot,
     appPath,
-    selection: { platform: 'ios', udid: DEVICE_LAB_IOS_SIMULATOR.id },
     close: async () => {
       if (closed) return;
       closed = true;
@@ -121,12 +117,10 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
   };
 }
 
-export type IosPhysicalReinstallWorld = {
+type IosPhysicalReinstallWorld = {
   daemon: DeviceLabHarness;
   appleTool: { calls: FlatToolCall[] };
-  tempRoot: string;
   appPath: string;
-  selection: { platform: 'ios'; udid: string };
   close: () => Promise<void>;
 };
 
@@ -158,9 +152,7 @@ export async function createIosPhysicalReinstallWorld(): Promise<IosPhysicalRein
   return {
     daemon,
     appleTool,
-    tempRoot,
     appPath,
-    selection: { platform: 'ios', udid: DEVICE_LAB_IOS_REINSTALL_DEVICE.id },
     close: async () => {
       if (closed) return;
       closed = true;
