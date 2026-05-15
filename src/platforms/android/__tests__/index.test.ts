@@ -16,13 +16,11 @@ import {
   parseAndroidLaunchComponent,
   resolveAndroidApp,
   pushAndroidNotification,
-  readAndroidClipboardText,
   rotateAndroid,
   setAndroidSetting,
   scrollAndroid,
   swipeAndroid,
   typeAndroid,
-  writeAndroidClipboardText,
 } from '../index.ts';
 import { withAndroidAdbProvider } from '../adb-executor.ts';
 import { parseAndroidLaunchablePackages } from '../app-parsers.ts';
@@ -615,19 +613,6 @@ test('openAndroidApp rejects activity override for deep link URLs', async () => 
       assert.equal(error instanceof AppError, true);
       assert.equal((error as AppError).code, 'INVALID_ARGS');
       return true;
-    },
-  );
-});
-
-test('setAndroidSetting appearance dark uses cmd uimode night yes', async () => {
-  await withMockedAdb(
-    'agent-device-android-appearance-dark-',
-    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
-    async ({ argsLogPath, device }) => {
-      await setAndroidSetting(device, 'appearance', 'dark');
-      const lines = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
-      const logged = lines.join(' ');
-      assert.match(logged, /shell cmd uimode night yes/);
     },
   );
 });
@@ -1395,38 +1380,38 @@ test('fillAndroid tolerates delayed React Native text verification', async () =>
   );
 });
 
-test('writeAndroidClipboardText uses adb cmd clipboard set text', async () => {
+test('typeAndroid reports clear error when unicode input is unsupported', async () => {
   await withMockedAdb(
-    'agent-device-android-clipboard-write-',
-    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
-    async ({ argsLogPath, device }) => {
-      await writeAndroidClipboardText(device, 'hello otp');
-      const logged = await fs.readFile(argsLogPath, 'utf8');
-      assert.match(logged, /shell\ncmd\nclipboard\nset\ntext\nhello otp/);
-    },
-  );
-});
-
-test('readAndroidClipboardText uses adb cmd clipboard get text', async () => {
-  await withMockedAdb(
-    'agent-device-android-clipboard-read-',
+    'agent-device-android-type-unicode-unsupported-',
     [
       '#!/bin/sh',
       'if [ "$1" = "-s" ]; then',
       '  shift',
       '  shift',
       'fi',
-      'if [ "$1" = "shell" ] && [ "$2" = "cmd" ] && [ "$3" = "clipboard" ] && [ "$4" = "get" ] && [ "$5" = "text" ]; then',
-      '  echo "copied-value"',
+      'if [ "$1" = "shell" ] && [ "$2" = "cmd" ] && [ "$3" = "clipboard" ] && [ "$4" = "set" ] && [ "$5" = "text" ]; then',
+      '  echo "No shell command implementation."',
       '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "text" ]; then',
+      '  echo "Exception occurred while executing \'text\':" >&2',
+      '  echo "java.lang.NullPointerException" >&2',
+      '  exit 255',
       'fi',
       'echo "unexpected args: $@" >&2',
       'exit 1',
       '',
     ].join('\n'),
     async ({ device }) => {
-      const text = await readAndroidClipboardText(device);
-      assert.equal(text, 'copied-value');
+      await assert.rejects(
+        () => typeAndroid(device, '很'),
+        (error: unknown) => {
+          assert.equal(error instanceof AppError, true);
+          assert.equal((error as AppError).code, 'COMMAND_FAILED');
+          assert.match((error as AppError).message, /non-ascii text input is not supported/i);
+          return true;
+        },
+      );
     },
   );
 });
@@ -1727,38 +1712,6 @@ test('dismissAndroidKeyboard fails explicitly when non-navigation dismiss does n
       const logged = await fs.readFile(argsLogPath, 'utf8');
       assert.match(logged, /shell\ninput\nkeyevent\n111/);
       assert.doesNotMatch(logged, /shell\ninput\nkeyevent\n4/);
-    },
-  );
-});
-
-test('setAndroidSetting permission grant camera uses pm grant', async () => {
-  await withMockedAdb(
-    'agent-device-android-permission-camera-',
-    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
-    async ({ argsLogPath, device }) => {
-      await setAndroidSetting(device, 'permission', 'grant', 'com.example.app', {
-        permissionTarget: 'camera',
-      });
-      const logged = await fs.readFile(argsLogPath, 'utf8');
-      assert.match(logged, /shell\npm\ngrant\ncom\.example\.app\nandroid\.permission\.CAMERA/);
-    },
-  );
-});
-
-test('setAndroidSetting animations off disables global animation scales', async () => {
-  await withMockedAdb(
-    'agent-device-android-animations-',
-    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
-    async ({ argsLogPath, device }) => {
-      const result = await setAndroidSetting(device, 'animations', 'off');
-      const logged = await fs.readFile(argsLogPath, 'utf8');
-      assert.match(logged, /shell\nsettings\nput\nglobal\nwindow_animation_scale\n0/);
-      assert.match(logged, /shell\nsettings\nput\nglobal\ntransition_animation_scale\n0/);
-      assert.match(logged, /shell\nsettings\nput\nglobal\nanimator_duration_scale\n0/);
-      assert.deepEqual(result, {
-        scale: '0',
-        keys: ['window_animation_scale', 'transition_animation_scale', 'animator_duration_scale'],
-      });
     },
   );
 });

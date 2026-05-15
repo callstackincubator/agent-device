@@ -14,6 +14,7 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
     const adbCalls: string[][] = [];
     const installCalls: Array<{ apkPath: string; replace?: boolean }> = [];
     let searchText = '';
+    let clipboardText = 'hello';
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-lab-android-deploy-'));
     const apkPath = path.join(tempRoot, 'Demo.apk');
     fs.writeFileSync(apkPath, 'placeholder apk');
@@ -23,7 +24,10 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         if (args[0] === 'shell' && args[1] === 'input' && args[2] === 'text') {
           searchText = String(args[3] ?? '').replaceAll('%s', ' ');
         }
-        return androidAdbResult(args, searchText);
+        if (args.join(' ') === 'shell cmd clipboard set text android otp') {
+          clipboardText = 'android otp';
+        }
+        return androidAdbResult(args, searchText, clipboardText);
       },
       install: async (apk, options) => {
         installCalls.push({ apkPath: apk, replace: options?.replace });
@@ -79,8 +83,43 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         const clipboard = await client.command.clipboard({ action: 'read', ...selection });
         assert.equal(clipboard.text, 'hello');
 
+        const clipboardWrite = await client.command.clipboard({
+          action: 'write',
+          text: 'android otp',
+          ...selection,
+        });
+        assert.equal(clipboardWrite.textLength, 11);
+
+        const clipboardAfterWrite = await client.command.clipboard({
+          action: 'read',
+          ...selection,
+        });
+        assert.equal(clipboardAfterWrite.text, 'android otp');
+
         const keyboard = await client.command.keyboard({ action: 'status', ...selection });
         assert.equal(keyboard.visible, false);
+
+        await client.settings.update({ setting: 'appearance', state: 'dark', ...selection });
+        const demoOpen = await client.apps.open({ app: 'com.example.demo', ...selection });
+        assert.equal(demoOpen.appBundleId, 'com.example.demo');
+        await client.settings.update({
+          setting: 'permission',
+          state: 'grant',
+          permission: 'camera',
+          ...selection,
+        });
+        const animations = await client.settings.update({
+          setting: 'animations',
+          state: 'off',
+          ...selection,
+        });
+        assert.equal(animations.scale, '0');
+        assert.deepEqual(animations.keys, [
+          'window_animation_scale',
+          'transition_animation_scale',
+          'animator_duration_scale',
+        ]);
+        await client.apps.open({ app: 'settings', ...selection });
 
         const logsDoctor = await client.observability.logs({ action: 'doctor', ...selection });
         assert.equal((logsDoctor.checks as { adbAvailable?: boolean }).adbAvailable, true);
@@ -207,7 +246,40 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         'true',
       ]);
       assertCommandCall(adbCalls, ['shell', 'cmd', 'clipboard', 'get', 'text']);
+      assertCommandCall(adbCalls, ['shell', 'cmd', 'clipboard', 'set', 'text', 'android otp']);
       assertCommandCall(adbCalls, ['shell', 'dumpsys', 'input_method']);
+      assertCommandCall(adbCalls, ['shell', 'cmd', 'uimode', 'night', 'yes']);
+      assertCommandCall(adbCalls, [
+        'shell',
+        'pm',
+        'grant',
+        'com.example.demo',
+        'android.permission.CAMERA',
+      ]);
+      assertCommandCall(adbCalls, [
+        'shell',
+        'settings',
+        'put',
+        'global',
+        'window_animation_scale',
+        '0',
+      ]);
+      assertCommandCall(adbCalls, [
+        'shell',
+        'settings',
+        'put',
+        'global',
+        'transition_animation_scale',
+        '0',
+      ]);
+      assertCommandCall(adbCalls, [
+        'shell',
+        'settings',
+        'put',
+        'global',
+        'animator_duration_scale',
+        '0',
+      ]);
       assertCommandCall(adbCalls, ['shell', 'echo', 'ok']);
       assertCommandCall(adbCalls, ['exec-out', 'uiautomator', 'dump', '/dev/tty']);
       assertCommandCall(adbCalls, ['shell', 'input', 'tap', '88', '151']);
@@ -232,12 +304,13 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
 function androidAdbResult(
   args: string[],
   searchText: string,
+  clipboardText: string,
 ): { stdout: string; stderr: string; exitCode: number; stdoutBuffer?: Buffer } {
   if (args.join(' ') === 'shell getprop sys.boot_completed') {
     return { stdout: '1\n', stderr: '', exitCode: 0 };
   }
   if (args.join(' ') === 'shell cmd clipboard get text') {
-    return { stdout: 'clipboard text: hello\n', stderr: '', exitCode: 0 };
+    return { stdout: `clipboard text: ${clipboardText}\n`, stderr: '', exitCode: 0 };
   }
   if (args.join(' ') === 'shell dumpsys input_method') {
     return { stdout: 'mInputShown=false inputType=0x1\n', stderr: '', exitCode: 0 };

@@ -138,6 +138,12 @@ test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
         expectData: { pixels: 45 },
       },
       {
+        name: 'scroll up',
+        command: 'scroll',
+        positionals: ['up'],
+        expectData: { direction: 'up' },
+      },
+      {
         name: 'type text',
         command: 'type',
         positionals: ['5'],
@@ -187,6 +193,7 @@ test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
         'longpress',
         'swipe',
         'fill',
+        'scroll',
         'scroll',
         'type',
         'clipboard',
@@ -238,6 +245,7 @@ test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
       ['xdotool', ['key', '--clearmodifiers', 'ctrl+a']],
       ['xdotool', ['type', '--delay', '1', '--clearmodifiers', '--', 'Seven']],
       ['xdotool', ['click', '--repeat', '3', '5']],
+      ['xdotool', ['click', '--repeat', '5', '4']],
       ['xdotool', ['type', '--clearmodifiers', '--', '5']],
       ['xclip', ['-selection', 'clipboard']],
       ['xclip', ['-selection', 'clipboard', '-o']],

@@ -61,24 +61,6 @@ test('typeLinux omits --delay when delayMs is 0', async () => {
   assert.ok(!typeCall[1].includes('--delay'));
 });
 
-test('scrollLinux uses xdotool button 4 for up, 5 for down', async () => {
-  setupXdotool();
-  await scrollLinux('up');
-  let c = calls();
-  assert.ok(
-    c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('click') && args.includes('4')),
-  );
-
-  mockRunCmd.mockClear();
-  resetInputToolCache();
-  setupXdotool();
-  await scrollLinux('down');
-  c = calls();
-  assert.ok(
-    c.some(([cmd, args]) => cmd === 'xdotool' && args.includes('click') && args.includes('5')),
-  );
-});
-
 // ── ydotool tests ────────────────────────────────────────────────────────
 
 test('pressLinux uses ydotool mousemove + click on Wayland', async () => {
