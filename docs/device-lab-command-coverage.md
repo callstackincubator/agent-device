@@ -2,6 +2,8 @@
 
 This matrix is the deletion guide for mock-heavy unit tests. A unit test is a good deletion candidate when its happy path is covered by a Device Lab scenario and it does not assert a narrow parser, edge, or error contract.
 
+Use `docs/unit-test-retention-policy.md` as the companion retention guide before deleting tests from this matrix.
+
 | Command family | Device Lab coverage | Keep unit coverage for | Next action |
 | --- | --- | --- | --- |
 | `open`, `close`, `session_list`, `appstate` | Android lifecycle, iOS lifecycle, tvOS remote, macOS app/frontmost/desktop surfaces, Linux desktop | invalid open args, session conflict/lock behavior, runtime hint edge cases, close shutdown edge cases | Review remaining happy paths in `session.test.ts` and `session-close-shutdown.test.ts`. |

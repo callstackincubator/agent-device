@@ -16,18 +16,19 @@ Move broad command coverage from mock-heavy handler unit tests into Device Lab i
 - [x] Reassess provider contracts after Device Lab migration; no additional semantic provider method is currently justified.
 - [x] Remove Device Lab assertions that only restated the scenario command list.
 - [x] Add a provider-failure Device Lab scenario that exercises request finalization.
+- [x] Document which unit tests should stay after the Device Lab migration.
 
 ## Remaining Work
 
 - [x] Build a command coverage matrix mapping each command/flag family to Device Lab coverage, unit edge coverage, or intentional gap.
 - [x] Use that matrix for another deletion pass over mock-heavy handler tests.
-- [ ] Keep unit tests for pure logic, parser matrices, selector matching, capability maps, and edge/error branches.
+- [x] Keep unit tests for pure logic, parser matrices, selector matching, capability maps, and edge/error branches.
 - [ ] Promote additional generic provider operations to semantic contracts only when Device Lab scenarios or remote-provider needs create pressure.
 - [ ] Track coverage as a trend signal, with a near-term target of roughly 80-82% statements from valuable tests before considering a larger 90% push.
 
 ## Current Known Gaps
 
-- Remaining handler tests still contain large mocked suites, especially interaction, snapshot, and record/trace coverage.
+- Remaining handler tests still contain large mocked suites, especially interaction, snapshot, and record/trace coverage. Use `docs/unit-test-retention-policy.md` before deleting more.
 - Apple and Linux providers still keep generic command fallbacks for host-tool paths that have not earned semantic contracts yet.
 - Coverage is around 78% statements / 80% lines, not the original 90% goal. The coverage run counts Vitest suites, so HTTP smoke coverage from `node --test` does not contribute to the percentage.
 
