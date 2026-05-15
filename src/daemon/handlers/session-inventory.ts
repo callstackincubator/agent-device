@@ -1,4 +1,5 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import { readScopedDeviceInventory } from '../../core/dispatch-resolve.ts';
 import { assertResolvedAppsFilter } from '../../commands/app-inventory-contract.ts';
 import { asAppError } from '../../utils/errors.ts';
 import {
@@ -60,7 +61,21 @@ export async function handleSessionInventoryCommands(params: {
         target: req.flags?.target,
       });
 
-      if (requestedPlatform === 'android') {
+      const injectedDevices = await readScopedDeviceInventory({
+        platform: requestedPlatform,
+        target: req.flags?.target,
+        deviceName: req.flags?.device,
+        udid: req.flags?.udid,
+        serial: req.flags?.serial,
+        iosSimulatorSetPath,
+        androidSerialAllowlist: androidSerialAllowlist
+          ? Array.from(androidSerialAllowlist).sort()
+          : undefined,
+      });
+
+      if (injectedDevices) {
+        devices.push(...injectedDevices);
+      } else if (requestedPlatform === 'android') {
         const { listAndroidDevices } = await import('../../platforms/android/devices.ts');
         devices.push(...(await listAndroidDevices({ serialAllowlist: androidSerialAllowlist })));
       } else if (requestedPlatform === 'ios' || requestedPlatform === 'macos') {
@@ -86,10 +101,9 @@ export async function handleSessionInventoryCommands(params: {
         }
       }
 
-      const platformFiltered =
-        requestedPlatform === 'ios' || requestedPlatform === 'macos'
-          ? devices.filter((device) => device.platform === requestedPlatform)
-          : devices;
+      const platformFiltered = requestedPlatform
+        ? devices.filter((device) => matchesRequestedPlatform(device, requestedPlatform))
+        : devices;
       const filtered = req.flags?.target
         ? platformFiltered.filter((device) => (device.target ?? 'mobile') === req.flags?.target)
         : platformFiltered;
@@ -143,4 +157,13 @@ export async function handleSessionInventoryCommands(params: {
   }
 
   return null;
+}
+
+function matchesRequestedPlatform(
+  device: DeviceInfo,
+  requestedPlatform: ReturnType<typeof normalizePlatformSelector>,
+): boolean {
+  if (!requestedPlatform) return true;
+  if (requestedPlatform === 'apple') return isApplePlatform(device.platform);
+  return device.platform === requestedPlatform;
 }

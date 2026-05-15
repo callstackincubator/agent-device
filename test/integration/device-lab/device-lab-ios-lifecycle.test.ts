@@ -28,6 +28,19 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
       request: { command: 'tap', x: 196, y: 122, appBundleId: 'com.apple.Preferences' },
       result: { tapped: true },
     },
+    {
+      command: 'ios.runner.pinch',
+      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
+      platform: 'ios',
+      request: {
+        command: 'pinch',
+        scale: 0.8,
+        x: 196,
+        y: 122,
+        appBundleId: 'com.apple.Preferences',
+      },
+      result: { pinched: true },
+    },
     runnerSnapshot(),
     runnerSnapshot(),
     {
@@ -164,6 +177,12 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
         command: 'press',
         positionals: ['@e1'],
         expectData: { x: 196, y: 122 },
+      },
+      {
+        name: 'pinch current app',
+        command: 'pinch',
+        positionals: ['0.8', '196', '122'],
+        expectData: { scale: 0.8, x: 196, y: 122 },
       },
       {
         name: 'get ref attrs',

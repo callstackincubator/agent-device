@@ -244,6 +244,12 @@ export async function withTargetDeviceResolutionScope<T>(
   );
 }
 
+export async function readScopedDeviceInventory(
+  request: DeviceInventoryRequest,
+): Promise<DeviceInfo[] | null> {
+  return await readInjectedDeviceInventory(request);
+}
+
 async function readInjectedDeviceInventory(
   request: DeviceInventoryRequest,
 ): Promise<DeviceInfo[] | null> {

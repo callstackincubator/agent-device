@@ -23,6 +23,9 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
     const spawnedLogcat: AndroidAdbProcess[] = [];
     const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-lab-android-deploy-'));
     const apkPath = path.join(tempRoot, 'Demo.apk');
+    const previousAppEventTemplate = process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
+    process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE =
+      'demo://agent-device/event?name={event}&payload={payload}&platform={platform}';
     fs.writeFileSync(apkPath, 'placeholder apk');
     const manifestApkPath = await createAndroidManifestApk(tempRoot, {
       fileName: 'ManifestDemo.apk',
@@ -64,6 +67,19 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
           os.tmpdir(),
           `agent-device-lab-android-fast-${Date.now()}.png`,
         );
+
+        const devices = await client.devices.list({ platform: 'android' });
+        assert.equal(devices.length, 1);
+        assert.equal(devices[0]?.platform, 'android');
+        assert.equal(devices[0]?.id, DEVICE_LAB_ANDROID.id);
+        assert.equal(devices[0]?.name, DEVICE_LAB_ANDROID.name);
+        assert.equal(devices[0]?.target, DEVICE_LAB_ANDROID.target);
+        assert.equal(devices[0]?.booted, true);
+
+        const boot = await client.devices.boot(selection);
+        assert.equal(boot.platform, 'android');
+        assert.equal(boot.id, DEVICE_LAB_ANDROID.id);
+        assert.equal(boot.booted, true);
 
         const keyboardDismiss = await client.command.keyboard({ action: 'dismiss', ...selection });
         assert.equal(keyboardDismiss.platform, 'android');
@@ -123,6 +139,18 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assert.equal(push.action, 'com.example.demo.PUSH');
         assert.equal(push.extrasCount, 3);
 
+        const triggeredEvent = await client.apps.triggerEvent({
+          event: 'screenshot_taken',
+          payload: { source: 'device-lab', foreground: true },
+          ...selection,
+        });
+        assert.equal(triggeredEvent.event, 'screenshot_taken');
+        assert.equal(triggeredEvent.transport, 'deep-link');
+        assert.equal(
+          triggeredEvent.eventUrl,
+          'demo://agent-device/event?name=screenshot_taken&payload=%7B%22source%22%3A%22device-lab%22%2C%22foreground%22%3Atrue%7D&platform=android',
+        );
+
         const clipboard = await client.command.clipboard({ action: 'read', ...selection });
         assert.equal(clipboard.text, 'hello');
 
@@ -167,6 +195,21 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assert.equal(logsPath.active, true);
         assert.equal(logsPath.backend, 'android');
 
+        const network = await client.observability.network({
+          action: 'dump',
+          limit: 5,
+          include: 'headers',
+          ...selection,
+        });
+        assert.equal(network.active, true);
+        assert.equal(network.backend, 'android');
+        assert.ok(Array.isArray(network.entries), JSON.stringify(network));
+
+        const perf = await client.observability.perf(selection);
+        assert.equal(perf.platform, 'android');
+        assert.equal(perf.deviceId, DEVICE_LAB_ANDROID.id);
+        assert.equal(typeof perf.metrics, 'object');
+
         const logsStop = await client.observability.logs({ action: 'stop', ...selection });
         assert.equal(logsStop.stopped, true);
 
@@ -193,6 +236,25 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assert.ok(search, JSON.stringify(snapshot.nodes));
         assert.equal(apps.ref, 'e2', JSON.stringify(snapshot.nodes));
         assert.equal(search.ref, 'e3', JSON.stringify(snapshot.nodes));
+
+        const diff = await client.capture.diff({
+          kind: 'snapshot',
+          interactiveOnly: true,
+          ...selection,
+        });
+        assert.equal(diff.mode, 'snapshot');
+        assert.equal(diff.baselineInitialized, false);
+        assert.deepEqual(diff.summary, { additions: 0, removals: 0, unchanged: 3 });
+
+        const rotate = await client.command.rotate({
+          orientation: 'landscape-left',
+          ...selection,
+        });
+        assert.equal(rotate.action, 'rotate');
+        assert.equal(rotate.orientation, 'landscape-left');
+
+        const appSwitcher = await client.command.appSwitcher(selection);
+        assert.equal(appSwitcher.action, 'app-switcher');
 
         const press = await client.interactions.press({ ref: `@${apps.ref}`, ...selection });
         assert.equal(press.x, 88);
@@ -274,6 +336,26 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assertPngFile(fastScreenshotPath);
 
         await client.apps.close({});
+
+        const testReplayPath = path.join(tempRoot, 'settings-smoke.ad');
+        fs.writeFileSync(
+          testReplayPath,
+          [
+            'context platform=android',
+            'open settings',
+            'snapshot -i',
+            'is visible label=Apps',
+            '',
+          ].join('\n'),
+        );
+        const testSuite = await client.replay.test({
+          paths: [testReplayPath],
+          artifactsDir: path.join(tempRoot, 'artifacts'),
+          ...selection,
+        });
+        assert.equal(testSuite.total, 1);
+        assert.equal(testSuite.passed, 1, JSON.stringify(testSuite));
+        assert.equal(testSuite.failed, 0, JSON.stringify(testSuite));
       }
 
       assertCommandCall(adbCalls, [
@@ -307,6 +389,16 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         '--ez',
         'foreground',
         'true',
+      ]);
+      assertCommandCall(adbCalls, [
+        'shell',
+        'am',
+        'start',
+        '-W',
+        '-a',
+        'android.intent.action.VIEW',
+        '-d',
+        'demo://agent-device/event?name=screenshot_taken&payload=%7B%22source%22%3A%22device-lab%22%2C%22foreground%22%3Atrue%7D&platform=android',
       ]);
       assertCommandCall(adbCalls, ['shell', 'cmd', 'clipboard', 'get', 'text']);
       assertCommandCall(adbCalls, ['shell', 'cmd', 'clipboard', 'set', 'text', 'android otp']);
@@ -353,6 +445,16 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       assertCommandCall(adbCalls, ['shell', 'echo', 'ok']);
       assertCommandCall(adbCalls, ['exec-out', 'uiautomator', 'dump', '/dev/tty']);
       assertCommandCall(adbCalls, ['shell', 'input', 'tap', '88', '151']);
+      assertCommandCall(adbCalls, [
+        'shell',
+        'settings',
+        'put',
+        'system',
+        'accelerometer_rotation',
+        '0',
+      ]);
+      assertCommandCall(adbCalls, ['shell', 'settings', 'put', 'system', 'user_rotation', '1']);
+      assertCommandCall(adbCalls, ['shell', 'input', 'keyevent', '187']);
       assert.equal(
         adbCalls.filter((call) => arrayEqual(call, ['shell', 'input', 'tap', '10', '20'])).length,
         2,
@@ -375,6 +477,7 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       );
       assert.deepEqual(readHostAdbCalls(hostAdbLogPath), []);
     } finally {
+      restoreEnv('AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE', previousAppEventTemplate);
       fs.rmSync(tempRoot, { recursive: true, force: true });
       await daemon.close();
     }

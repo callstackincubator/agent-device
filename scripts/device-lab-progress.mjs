@@ -185,24 +185,38 @@ function summarizeProviderPressure(files) {
 function summarizeCommandFamilyOwnership(files) {
   const commandFamilies = [
     {
-      name: 'open/close/session/appstate',
-      commands: ['open', 'close', 'session_list', 'appstate'],
+      name: 'devices/boot/open/close/session/appstate',
+      commands: ['devices', 'boot', 'open', 'close', 'session_list', 'appstate'],
     },
     {
       name: 'apps',
       commands: ['apps'],
     },
     {
-      name: 'install/reinstall/push',
-      commands: ['install', 'reinstall', 'push'],
+      name: 'install/reinstall/install-source/push/trigger-event',
+      commands: ['install', 'reinstall', 'install-from-source', 'push', 'trigger-app-event'],
     },
     {
-      name: 'snapshot/screenshot',
-      commands: ['snapshot', 'screenshot'],
+      name: 'snapshot/diff/screenshot',
+      commands: ['snapshot', 'diff', 'screenshot'],
     },
     {
-      name: 'press/click/fill/type/scroll/swipe',
-      commands: ['press', 'click', 'focus', 'longpress', 'swipe', 'scroll', 'type', 'fill'],
+      name: 'press/click/fill/type/scroll/swipe/pinch/rotate/app-switcher',
+      commands: [
+        'press',
+        'click',
+        'focus',
+        'longpress',
+        'swipe',
+        'scroll',
+        'type',
+        'fill',
+        'pinch',
+        'rotate',
+        'app-switcher',
+        'back',
+        'home',
+      ],
     },
     {
       name: 'get/is/find/wait',
@@ -213,8 +227,8 @@ function summarizeCommandFamilyOwnership(files) {
       commands: ['clipboard', 'keyboard', 'settings', 'alert'],
     },
     {
-      name: 'record/trace/logs/replay/batch',
-      commands: ['record', 'trace', 'logs', 'replay', 'batch'],
+      name: 'record/trace/logs/network/perf/replay/test/batch',
+      commands: ['record', 'trace', 'logs', 'network', 'perf', 'replay', 'test', 'batch'],
     },
   ];
 
@@ -246,6 +260,55 @@ function extractDeviceLabCommandReferences(text) {
   const commands = [];
   for (const match of text.matchAll(/\bcommand:\s*['"]([^'"]+)['"]|\.callCommand\(\s*['"]([^'"]+)['"]/g)) {
     commands.push(match[1] ?? match[2]);
+  }
+  const typedClientCommands = new Map([
+    ['devices.list', 'devices'],
+    ['devices.boot', 'boot'],
+    ['apps.open', 'open'],
+    ['apps.close', 'close'],
+    ['apps.list', 'apps'],
+    ['apps.install', 'install'],
+    ['apps.reinstall', 'reinstall'],
+    ['apps.installFromSource', 'install-from-source'],
+    ['apps.push', 'push'],
+    ['apps.triggerEvent', 'trigger-app-event'],
+    ['command.appState', 'appstate'],
+    ['command.appSwitcher', 'app-switcher'],
+    ['command.back', 'back'],
+    ['command.clipboard', 'clipboard'],
+    ['command.home', 'home'],
+    ['command.keyboard', 'keyboard'],
+    ['command.rotate', 'rotate'],
+    ['command.wait', 'wait'],
+    ['capture.diff', 'diff'],
+    ['capture.screenshot', 'screenshot'],
+    ['capture.snapshot', 'snapshot'],
+    ['interactions.click', 'click'],
+    ['interactions.fill', 'fill'],
+    ['interactions.find', 'find'],
+    ['interactions.focus', 'focus'],
+    ['interactions.get', 'get'],
+    ['interactions.is', 'is'],
+    ['interactions.longPress', 'longpress'],
+    ['interactions.pinch', 'pinch'],
+    ['interactions.press', 'press'],
+    ['interactions.scroll', 'scroll'],
+    ['interactions.swipe', 'swipe'],
+    ['interactions.type', 'type'],
+    ['observability.logs', 'logs'],
+    ['observability.network', 'network'],
+    ['observability.perf', 'perf'],
+    ['recording.record', 'record'],
+    ['recording.trace', 'trace'],
+    ['replay.run', 'replay'],
+    ['replay.test', 'test'],
+    ['batch.run', 'batch'],
+    ['settings.update', 'settings'],
+  ]);
+  for (const [method, command] of typedClientCommands) {
+    const escapedMethod = method.replace('.', '\\.');
+    const matches = text.match(new RegExp(`\\.${escapedMethod}\\s*\\(`, 'g'))?.length ?? 0;
+    for (let index = 0; index < matches; index += 1) commands.push(command);
   }
   return commands;
 }
