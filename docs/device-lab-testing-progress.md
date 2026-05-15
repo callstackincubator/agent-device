@@ -19,15 +19,15 @@ Current local snapshot:
 | Measure | Value |
 | --- | ---: |
 | Handler unit test files | 29 |
-| Handler unit test LOC | 13932 |
-| Handler unit tests | 363 |
+| Handler unit test LOC | 13908 |
+| Handler unit tests | 362 |
 | Handler files with `vi.mock` | 18 |
 | Device Lab files | 12 |
-| Device Lab LOC | 2545 |
+| Device Lab LOC | 2573 |
 | Device Lab tests | 15 |
 | Device Lab support files | 7 |
-| Device Lab support LOC | 710 |
-| Device Lab / handler LOC | 18.3% |
+| Device Lab support LOC | 711 |
+| Device Lab / handler LOC | 18.5% |
 
 Coverage is tracked separately by:
 
@@ -124,7 +124,7 @@ Before deleting a unit test, confirm that a Device Lab scenario covers the succe
 
 ## Next Work
 
-1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest pass deleted a macOS `open --surface frontmost-app` handler unit after adding the missing provider-call assertion to the macOS Device Lab workflow.
+1. Continue the mock-heavy handler audit only when Device Lab already owns the equivalent workflow. The latest pass deleted a macOS menubar coordinate `click` routing unit after adding the equivalent menubar click and helper-call assertions to Device Lab.
 2. Review the top mock-heavy files from `pnpm test:device-lab:progress` before adding new handler unit coverage. Prefer a Device Lab scenario when the behavior is a command workflow.
 3. Reassess Apple raw tool/helper provider pressure when another Adapter or another scenario has to pattern-match the same host command intent.
 4. Keep `ensure-simulator` removal out of this stream; issue #549 owns that cleanup.

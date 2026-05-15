@@ -208,6 +208,24 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
           assert.equal(daemon.session()?.snapshot?.backend, 'macos-helper');
         },
       },
+      {
+        name: 'switch to menubar surface',
+        command: 'open',
+        flags: {
+          platform: 'macos',
+          surface: 'menubar',
+        },
+        expectData: {
+          surface: 'menubar',
+          appBundleId: undefined,
+        },
+      },
+      {
+        name: 'click menubar coordinates through helper-backed press path',
+        command: 'click',
+        positionals: ['100', '200'],
+        expectData: { x: 100, y: 200 },
+      },
     ]);
 
     assertFlatToolCall(appleTool.calls, ['open', '-b', 'com.apple.systempreferences']);
@@ -306,6 +324,16 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       'com.apple.systempreferences',
       '--surface',
       'frontmost-app',
+    ]);
+    assertFlatToolCall(appleTool.calls, [
+      'agent-device-macos-helper',
+      'press',
+      '--x',
+      '100',
+      '--y',
+      '200',
+      '--surface',
+      'menubar',
     ]);
   } finally {
     await close();

@@ -153,11 +153,12 @@ function runScriptedMacOsHelper(args: string[]): {
     });
   }
   if (args[0] === 'press') {
+    const surface = args[args.indexOf('--surface') + 1] ?? 'frontmost-app';
     return helperOk({
       x: Number(args[args.indexOf('--x') + 1]),
       y: Number(args[args.indexOf('--y') + 1]),
       bundleId: 'com.apple.systempreferences',
-      surface: 'frontmost-app',
+      surface,
     });
   }
   if (args[0] === 'permission') {

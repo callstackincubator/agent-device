@@ -208,30 +208,6 @@ test('click rejects macOS desktop surface interactions until helper routing exis
   }
 });
 
-test('click on macOS menubar sessions dispatches press through the helper-backed path', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'macos-menubar-click';
-  sessionStore.set(sessionName, makeMacOsMenubarSession(sessionName));
-
-  const response = await handleInteractionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'click',
-      positionals: ['100', '200'],
-      flags: {},
-    },
-    sessionName,
-    sessionStore,
-    contextFromFlags,
-  });
-
-  expect(response?.ok).toBe(true);
-  expect(mockDispatch).toHaveBeenCalledTimes(1);
-  expect(mockDispatch.mock.calls[0]?.[1]).toBe('press');
-  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['100', '200']);
-});
-
 test('click on a macOS menubar wrapper ref promotes to the same-rect menu bar item', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-menubar-wrapper-ref-click';
