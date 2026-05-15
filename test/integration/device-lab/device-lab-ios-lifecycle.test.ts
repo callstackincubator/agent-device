@@ -302,7 +302,22 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
 });
 
 test('Device Lab iOS physical reinstall uses scripted devicectl provider', async () => {
-  const appleTool = createRecordingAppleToolProvider(async () => {
+  const appleTool = createRecordingAppleToolProvider(async (_cmd, args) => {
+    if (args.includes('info') && args.includes('details')) {
+      const jsonOutputIndex = args.indexOf('--json-output');
+      const jsonPath = jsonOutputIndex >= 0 ? args[jsonOutputIndex + 1] : undefined;
+      if (jsonPath) {
+        fs.writeFileSync(
+          jsonPath,
+          JSON.stringify({
+            result: {
+              device: { connectionProperties: { tunnelState: 'connected' } },
+            },
+          }),
+          'utf8',
+        );
+      }
+    }
     return { stdout: '', stderr: '', exitCode: 0 };
   });
   const daemon = await createDeviceLabHarness({
@@ -312,6 +327,15 @@ test('Device Lab iOS physical reinstall uses scripted devicectl provider', async
   const { tempRoot, appPath } = createDemoIosApp('agent-device-lab-ios-physical-deploy-');
 
   try {
+    const boot = await daemon.callCommand('boot', [], {
+      platform: 'ios',
+      udid: DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
+    });
+    assert.equal(boot.statusCode, 200, JSON.stringify(boot.json));
+    assert.equal(boot.json?.result?.data?.platform, 'ios');
+    assert.equal(boot.json?.result?.data?.id, DEVICE_LAB_IOS_REINSTALL_DEVICE.id);
+    assert.equal(boot.json?.result?.data?.booted, true);
+
     const reinstall = await daemon.callCommand('reinstall', ['com.example.demo', appPath], {
       platform: 'ios',
       udid: DEVICE_LAB_IOS_REINSTALL_DEVICE.id,

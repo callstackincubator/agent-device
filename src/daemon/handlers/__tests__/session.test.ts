@@ -810,41 +810,6 @@ test('boot requires session or explicit selector', async () => {
   }
 });
 
-test('boot succeeds for iOS physical devices', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-device-session';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'ios',
-      id: 'ios-device-1',
-      name: 'iPhone Device',
-      kind: 'device',
-      booted: true,
-    }),
-  );
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'boot',
-      positionals: [],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  expect(mockEnsureDeviceReady).toHaveBeenCalledTimes(1);
-  if (response && response.ok) {
-    expect(response.data?.platform).toBe('ios');
-    expect(response.data?.booted).toBe(true);
-  }
-});
-
 test('boot prefers explicit device selector over active session device', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
