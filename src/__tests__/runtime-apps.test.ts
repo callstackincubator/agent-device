@@ -33,7 +33,7 @@ test('runtime app commands call typed backend lifecycle primitives', async () =>
   const closed = await device.apps.close({ app: 'com.example.app' });
   assert.equal(closed.kind, 'appClosed');
 
-  const listed = await device.apps.list({ filter: 'user-installed' });
+  const listed = await device.apps.list();
   assert.deepEqual(listed.apps, [
     {
       id: 'com.example.app',

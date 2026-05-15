@@ -1328,19 +1328,12 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
   },
   {
     key: 'appsFilter',
-    names: ['--user-installed'],
-    type: 'enum',
-    setValue: 'user-installed',
-    usageLabel: '--user-installed',
-    usageDescription: 'Apps: list user-installed apps',
-  },
-  {
-    key: 'appsFilter',
     names: ['--all'],
     type: 'enum',
+    enumValues: ['user-installed', 'all'],
     setValue: 'all',
     usageLabel: '--all',
-    usageDescription: 'Apps: list all apps (include system/default apps)',
+    usageDescription: 'Apps: include system/OEM apps',
   },
   {
     key: 'snapshotInteractiveOnly',

@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { resolveFileOverridePath, runCmd, whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
+import type { AppsFilter } from '../../client-types.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';
@@ -88,7 +89,7 @@ export async function resolveAndroidApp(
 
 export async function listAndroidApps(
   device: DeviceInfo,
-  filter: 'user-installed' | 'all' = 'all',
+  filter: AppsFilter,
 ): Promise<Array<{ package: string; name: string }>> {
   const launchable = await listAndroidLaunchablePackages(device);
   const packageIds =

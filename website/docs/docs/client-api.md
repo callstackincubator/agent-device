@@ -96,7 +96,7 @@ const client = createAgentDeviceClient({
 });
 
 const devices = await client.devices.list({ platform: 'ios' });
-const apps = await client.apps.list({ platform: 'ios', appsFilter: 'user-installed' });
+const apps = await client.apps.list({ platform: 'ios' });
 const ensured = await client.simulators.ensure({
   device: 'iPhone 16',
   boot: true,
@@ -188,7 +188,7 @@ const provider = {
   exec: async (args, options) => await runAdbThroughRemoteTunnel(args, options),
 };
 
-const apps = await listAndroidAppsWithAdb(provider.exec, { filter: 'user-installed' });
+const apps = await listAndroidAppsWithAdb(provider.exec); // user-installed apps by default
 const foreground = await getAndroidAppStateWithAdb(provider.exec);
 ```
 

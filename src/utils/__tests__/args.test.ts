@@ -1000,14 +1000,19 @@ test('usageForCommand resolves react-native help topic', () => {
   assert.match(help, /Report React render offenders separately/);
 });
 
-test('apps defaults to --all filter and allows overrides', () => {
+test('apps defaults to user-installed filter and allows overrides', () => {
   const defaultFilter = parseArgs(['apps'], { strictFlags: true });
   assert.equal(defaultFilter.command, 'apps');
-  assert.equal(defaultFilter.flags.appsFilter, 'all');
+  assert.equal(defaultFilter.flags.appsFilter, 'user-installed');
 
-  const userInstalled = parseArgs(['apps', '--user-installed'], { strictFlags: true });
-  assert.equal(userInstalled.command, 'apps');
-  assert.equal(userInstalled.flags.appsFilter, 'user-installed');
+  const allApps = parseArgs(['apps', '--all'], { strictFlags: true });
+  assert.equal(allApps.command, 'apps');
+  assert.equal(allApps.flags.appsFilter, 'all');
+
+  assert.throws(
+    () => parseArgs(['apps', '--user-installed'], { strictFlags: true }),
+    /Unknown flag: --user-installed/,
+  );
 });
 
 test('every capability command has a parser schema entry', () => {

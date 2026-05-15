@@ -1,6 +1,7 @@
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import type { AppsFilter } from '../../client-types.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
@@ -184,7 +185,8 @@ export async function setMacOsAppearance(state: string): Promise<void> {
   }
 }
 
-export async function listMacApps(filter: 'user-installed' | 'all' = 'all'): Promise<IosAppInfo[]> {
+export async function listMacApps(filter: AppsFilter): Promise<IosAppInfo[]> {
+  // On macOS, user-installed means non-Apple bundle identifiers.
   const appRoots = [
     '/Applications',
     '/System/Applications',

@@ -31,10 +31,10 @@ Environment variables follow the same fields using `AGENT_DEVICE_*` uppercase sn
 - `iosSimulatorDeviceSet` -> `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET`
 - `androidDeviceAllowlist` -> `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST`
 
-When a CLI option has multiple flag aliases, config and environment sources use the canonical option value rather than a flag alias. Example:
+Config and environment sources use canonical option values rather than CLI flag names. Example:
 - config: `"appsFilter": "user-installed"`
 - env: `AGENT_DEVICE_APPS_FILTER=user-installed`
-- not: `--user-installed`
+- CLI equivalent: omit `--all`
 
 Legacy compatibility env vars are still accepted for device scoping:
 - `IOS_SIMULATOR_DEVICE_SET`

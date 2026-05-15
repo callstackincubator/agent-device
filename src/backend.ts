@@ -1,4 +1,5 @@
 import type { AndroidSnapshotBackendMetadata } from './platforms/android/snapshot-types.ts';
+import type { AppsFilter } from './client-types.ts';
 import type {
   Point,
   ScreenshotOverlayRef,
@@ -198,7 +199,7 @@ export type BackendOpenOptions = {
   relaunch?: boolean;
 };
 
-export type BackendAppListFilter = 'all' | 'user-installed';
+export type BackendAppListFilter = AppsFilter;
 
 export type BackendAppInfo = {
   id: string;
@@ -527,7 +528,7 @@ export type AgentDeviceBackend = {
   closeApp?(context: BackendCommandContext, app?: string): Promise<BackendActionResult>;
   listApps?(
     context: BackendCommandContext,
-    filter?: BackendAppListFilter,
+    filter: BackendAppListFilter,
   ): Promise<readonly BackendAppInfo[]>;
   getAppState?(context: BackendCommandContext, app: string): Promise<BackendAppState>;
   pushFile?(

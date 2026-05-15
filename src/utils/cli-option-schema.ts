@@ -128,9 +128,11 @@ export function resolveSourceValueDefinition(spec: OptionSpec): FlagDefinition {
 
   const baseDefinition = primaryFlagDefinition(spec);
   if (baseDefinition.type === 'enum') {
-    const enumValues = spec.flagDefinitions
-      .map((definition) => definition.setValue)
-      .filter((value): value is NonNullable<typeof value> => value !== undefined);
+    const enumValues =
+      baseDefinition.enumValues ??
+      spec.flagDefinitions
+        .map((definition) => definition.setValue)
+        .filter((value): value is NonNullable<typeof value> => value !== undefined);
     return {
       ...baseDefinition,
       setValue: undefined,

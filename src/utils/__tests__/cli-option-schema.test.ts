@@ -90,7 +90,7 @@ test('isFlagSupportedForCommand consults option schema support map', () => {
   assert.equal(isFlagSupportedForCommand('delayMs', 'press'), false);
 });
 
-test('option schema parses enum options with multiple CLI aliases from env/config sources', () => {
+test('option schema parses enum options from env/config sources', () => {
   const spec = getOptionSpec('appsFilter');
   assert.ok(spec);
   assert.equal(

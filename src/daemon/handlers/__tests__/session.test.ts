@@ -1390,7 +1390,7 @@ test('apps on macOS uses Apple app listing path', async () => {
 
   mockListIosApps.mockImplementation(async (device, filter) => {
     expect(device.platform).toBe('macos');
-    expect(filter).toBe('all');
+    expect(filter).toBe('user-installed');
     return [{ bundleId: 'com.apple.systempreferences', name: 'System Settings' }];
   });
   const response = await handleSessionCommands({

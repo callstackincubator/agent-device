@@ -21,6 +21,9 @@ import type { MetroBridgeScope } from './client-companion-tunnel-contract.ts';
 export type { FindLocator } from './utils/finders.ts';
 export type { CompanionTunnelScope, MetroBridgeScope } from './client-companion-tunnel-contract.ts';
 
+export type AppsFilter = 'user-installed' | 'all';
+export const DEFAULT_APPS_FILTER: AppsFilter = 'user-installed';
+
 type DaemonTransportMode = 'auto' | 'socket' | 'http';
 type DaemonServerMode = 'socket' | 'http' | 'dual';
 type SessionIsolationMode = 'none' | 'tenant';
@@ -232,7 +235,7 @@ export type AppInstallFromSourceResult = {
 
 export type AppListOptions = AgentDeviceRequestOverrides &
   AgentDeviceSelectionOptions & {
-    appsFilter?: 'all' | 'user-installed';
+    appsFilter?: AppsFilter;
   };
 
 export type MaterializationReleaseOptions = AgentDeviceRequestOverrides & {
@@ -800,7 +803,7 @@ export type InternalRequestOptions = AgentDeviceClientConfig &
     metroPort?: number;
     bundleUrl?: string;
     launchUrl?: string;
-    appsFilter?: 'all' | 'user-installed';
+    appsFilter?: AppsFilter;
     installSource?: DaemonInstallSource;
     retainMaterializedPaths?: boolean;
     materializedPathRetentionMs?: number;

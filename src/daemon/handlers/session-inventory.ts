@@ -1,4 +1,5 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import { DEFAULT_APPS_FILTER } from '../../client-types.ts';
 import { asAppError } from '../../utils/errors.ts';
 import {
   isApplePlatform,
@@ -14,6 +15,8 @@ import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { ensureSimulatorExists } from '../../platforms/ios/ensure-simulator.ts';
+import { listAndroidApps } from '../../platforms/android/index.ts';
+import { listIosApps } from '../../platforms/ios/index.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
 import { errorResponse } from './response.ts';
 
@@ -152,9 +155,8 @@ export async function handleSessionInventoryCommands(params: {
       return errorResponse('UNSUPPORTED_OPERATION', 'apps is not supported on this device');
     }
 
-    const appsFilter = req.flags?.appsFilter ?? 'all';
+    const appsFilter = req.flags?.appsFilter ?? DEFAULT_APPS_FILTER;
     if (isApplePlatform(device.platform)) {
-      const { listIosApps } = await import('../../platforms/ios/index.ts');
       const apps = await listIosApps(device, appsFilter);
       return {
         ok: true,
@@ -166,7 +168,6 @@ export async function handleSessionInventoryCommands(params: {
       };
     }
 
-    const { listAndroidApps } = await import('../../platforms/android/index.ts');
     const apps = await listAndroidApps(device, appsFilter);
     return {
       ok: true,

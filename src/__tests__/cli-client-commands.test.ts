@@ -508,6 +508,39 @@ test('open forwards macOS surface to the client apps API', async () => {
   assert.equal(observed?.surface, 'menubar');
 });
 
+test('apps command defaults to user-installed and prints discovery hint', async () => {
+  let observedAppsFilter: string | undefined;
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+    listApps: async (options) => {
+      observedAppsFilter = options?.appsFilter;
+      return ['Demo (com.example.demo)'];
+    },
+  });
+
+  const output = await captureOutput(async () => {
+    const handled = await tryRunClientBackedCommand({
+      command: 'apps',
+      positionals: [],
+      flags: {
+        json: false,
+        help: false,
+        version: false,
+        platform: 'android',
+      },
+      client,
+    });
+    assert.equal(handled, true);
+  });
+
+  assert.equal(observedAppsFilter, 'user-installed');
+  assert.equal(output.stdout, 'Demo (com.example.demo)\n');
+  assert.match(output.stderr, /user-installed apps/i);
+  assert.match(output.stderr, /--all/);
+});
+
 test('screenshot reports annotated ref count in non-json mode', async () => {
   const client = createStubClient({
     installFromSource: async () => {
@@ -834,8 +867,35 @@ async function captureStdout(run: () => Promise<void>): Promise<string> {
   return stdout;
 }
 
+async function captureOutput(
+  run: () => Promise<void>,
+): Promise<{ stdout: string; stderr: string }> {
+  let stdout = '';
+  let stderr = '';
+  const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+  const originalStderrWrite = process.stderr.write.bind(process.stderr);
+  (process.stdout as any).write = ((chunk: unknown) => {
+    stdout += String(chunk);
+    return true;
+  }) as typeof process.stdout.write;
+  (process.stderr as any).write = ((chunk: unknown) => {
+    stderr += String(chunk);
+    return true;
+  }) as typeof process.stderr.write;
+
+  try {
+    await run();
+  } finally {
+    process.stdout.write = originalStdoutWrite;
+    process.stderr.write = originalStderrWrite;
+  }
+
+  return { stdout, stderr };
+}
+
 function createStubClient(params: {
   installFromSource: AgentDeviceClient['apps']['installFromSource'];
+  listApps?: AgentDeviceClient['apps']['list'];
   prepareMetro?: AgentDeviceClient['metro']['prepare'];
   reloadMetro?: AgentDeviceClient['metro']['reload'];
   open?: AgentDeviceClient['apps']['open'];
@@ -884,7 +944,7 @@ function createStubClient(params: {
         identifiers: { appId: 'com.example.demo' },
       }),
       installFromSource: params.installFromSource,
-      list: async () => [],
+      list: params.listApps ?? (async () => []),
       open:
         params.open ??
         (async () => ({

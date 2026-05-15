@@ -1,5 +1,6 @@
 import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
 import type { CommandCapability } from '../../core/capabilities.ts';
+import { DEFAULT_APPS_FILTER } from '../../client-types.ts';
 import { commandCapabilityMap, commandSchemaMap, defineCommand } from '../command-definition.ts';
 
 const APP_RUNTIME_CAPABILITY = {
@@ -89,11 +90,11 @@ const installFromSourceCommandDefinition = defineCommand({
 const appsCommandDefinition = defineCommand({
   name: PUBLIC_COMMANDS.apps,
   schema: {
-    helpDescription: 'List installed apps (includes default/system apps by default)',
+    helpDescription: 'List user-installed apps; use --all to include system/OEM apps',
     summary: 'List installed apps',
     positionalArgs: [],
     allowedFlags: ['appsFilter'],
-    defaults: { appsFilter: 'all' },
+    defaults: { appsFilter: DEFAULT_APPS_FILTER },
   },
   capability: APP_INVENTORY_CAPABILITY,
 });

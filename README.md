@@ -114,6 +114,7 @@ Try the loop.
 ```bash
 # Find the app.
 agent-device apps --platform ios
+agent-device apps --platform android
 
 # Start a session.
 agent-device open SampleApp --platform ios
