@@ -1,6 +1,9 @@
 import type { Rect, SnapshotNode } from './snapshot.ts';
 import { displayNodeLabel } from './snapshot-tree.ts';
 
+const ACTIONABLE_STRUCTURAL_TYPE_TOKENS = ['button', 'switch', 'checkbox', 'radio'];
+const STRUCTURAL_NOISE_TYPE_TOKENS = ['button', 'image', 'textview', 'view'];
+
 export type AndroidHelperPresentationInput = {
   nodes: SnapshotNode[];
   filteredCount: number;
@@ -122,25 +125,49 @@ function markAdjacentDuplicateStructuralNodesForRemoval(
     // RN can expose the same visible row content through parallel typed siblings
     // such as ImageView + Button or TextView + Button, so label is the signature.
     const previous = lastByLabel.get(label);
-    if (
-      previous &&
-      !removed.has(previous.index) &&
-      areSameVisualRow(previous.rect, node.rect) &&
-      areStructurallyAdjacentForCollapse(previous, node)
-    ) {
-      const survivor = chooseStructuralRepresentative(previous, node);
-      const collapsed = survivor.index === previous.index ? node : previous;
-      const collapsedHint = imagePresentationHint(collapsed);
-      addPresentationHints(replacements, survivor, [
-        ...readPresentationHints(replacements.get(collapsed.index) ?? collapsed),
-        ...(collapsedHint ? [collapsedHint] : []),
-      ]);
-      markNodeAndDescendantsForRemoval(nodes, collapsed.index, removed);
-      lastByLabel.set(label, replacements.get(survivor.index) ?? survivor);
+    if (previous && shouldCollapseAdjacentStructuralDuplicate(previous, node, removed)) {
+      const survivor = collapseAdjacentStructuralDuplicate(
+        nodes,
+        previous,
+        node,
+        removed,
+        replacements,
+      );
+      lastByLabel.set(label, survivor);
       continue;
     }
     lastByLabel.set(label, node);
   }
+}
+
+function shouldCollapseAdjacentStructuralDuplicate(
+  previous: SnapshotNode,
+  node: SnapshotNode,
+  removed: Set<number>,
+): boolean {
+  return (
+    !removed.has(previous.index) &&
+    areSameVisualRow(previous.rect, node.rect) &&
+    areStructurallyAdjacentForCollapse(previous, node)
+  );
+}
+
+function collapseAdjacentStructuralDuplicate(
+  nodes: SnapshotNode[],
+  previous: SnapshotNode,
+  node: SnapshotNode,
+  removed: Set<number>,
+  replacements: Map<number, SnapshotNode>,
+): SnapshotNode {
+  const survivor = chooseStructuralRepresentative(previous, node);
+  const collapsed = survivor.index === previous.index ? node : previous;
+  const collapsedHint = imagePresentationHint(collapsed);
+  addPresentationHints(replacements, survivor, [
+    ...readPresentationHints(replacements.get(collapsed.index) ?? collapsed),
+    ...(collapsedHint ? [collapsedHint] : []),
+  ]);
+  markNodeAndDescendantsForRemoval(nodes, collapsed.index, removed);
+  return replacements.get(survivor.index) ?? survivor;
 }
 
 function markNodeAndDescendantsForRemoval(
@@ -308,13 +335,7 @@ function isStructuralNoiseCandidate(node: SnapshotNode): boolean {
     return false;
   }
   const type = (node.type ?? '').toLowerCase();
-  return (
-    type.includes('button') ||
-    type.includes('image') ||
-    type.includes('textview') ||
-    type === 'text' ||
-    type.includes('view')
-  );
+  return type === 'text' || hasAnyTypeToken(type, STRUCTURAL_NOISE_TYPE_TOKENS);
 }
 
 function chooseStructuralRepresentative(left: SnapshotNode, right: SnapshotNode): SnapshotNode {
@@ -326,12 +347,7 @@ function chooseStructuralRepresentative(left: SnapshotNode, right: SnapshotNode)
 function structuralRepresentativeScore(node: SnapshotNode): number {
   const type = (node.type ?? '').toLowerCase();
   let score = 0;
-  if (
-    type.includes('button') ||
-    type.includes('switch') ||
-    type.includes('checkbox') ||
-    type.includes('radio')
-  ) {
+  if (hasAnyTypeToken(type, ACTIONABLE_STRUCTURAL_TYPE_TOKENS)) {
     score += 100;
   } else if (type.includes('image')) {
     score += 30;
@@ -343,6 +359,10 @@ function structuralRepresentativeScore(node: SnapshotNode): number {
   if (node.hittable === true) score += 20;
   if (node.enabled !== false) score += 5;
   return score;
+}
+
+function hasAnyTypeToken(type: string, tokens: string[]): boolean {
+  return tokens.some((token) => type.includes(token));
 }
 
 function imagePresentationHint(node: SnapshotNode): string | null {
