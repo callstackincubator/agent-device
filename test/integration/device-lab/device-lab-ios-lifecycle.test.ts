@@ -8,7 +8,7 @@ import {
   DEVICE_LAB_IOS_REINSTALL_DEVICE,
   DEVICE_LAB_IOS_SIMULATOR,
 } from './fixtures.ts';
-import { startDeviceLabDaemon } from './http-harness.ts';
+import { createDeviceLabHarness } from './harness.ts';
 import {
   createAppleRunnerProviderFromTranscript,
   createRecordingAppleToolProvider,
@@ -78,7 +78,7 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
     return { stdout: '', stderr: '', exitCode: 0 };
   });
 
-  const daemon = await startDeviceLabDaemon({
+  const daemon = await createDeviceLabHarness({
     appleRunnerProvider: () => appleRunnerProvider,
     appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async () => [DEVICE_LAB_IOS_SIMULATOR],
@@ -296,7 +296,7 @@ test('Device Lab iOS physical reinstall uses scripted devicectl provider', async
   const appleTool = createRecordingAppleToolProvider(async () => {
     return { stdout: '', stderr: '', exitCode: 0 };
   });
-  const daemon = await startDeviceLabDaemon({
+  const daemon = await createDeviceLabHarness({
     appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async () => [DEVICE_LAB_IOS_REINSTALL_DEVICE],
   });

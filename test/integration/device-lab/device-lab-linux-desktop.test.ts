@@ -6,7 +6,7 @@ import { test } from 'vitest';
 import type { LinuxToolProvider } from '../../../src/platforms/linux/tool-provider.ts';
 import { assertPngFile, validPng } from './assertions.ts';
 import { DEVICE_LAB_LINUX } from './fixtures.ts';
-import { restoreEnv, startDeviceLabDaemon } from './http-harness.ts';
+import { restoreEnv, createDeviceLabHarness } from './harness.ts';
 import { assertScenarioCommands, runDeviceLabScenario } from './scenario.ts';
 
 test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
@@ -49,7 +49,7 @@ test('Device Lab Linux desktop flow uses scripted desktop tools', async () => {
       return { stdout: '', stderr: '', exitCode: 0 };
     },
   };
-  const daemon = await startDeviceLabDaemon({
+  const daemon = await createDeviceLabHarness({
     linuxToolProvider: () => linuxToolProvider,
     deviceInventoryProvider: async () => [DEVICE_LAB_LINUX],
   });

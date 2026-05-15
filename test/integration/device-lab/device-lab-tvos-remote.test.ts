@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { DEVICE_LAB_TVOS } from './fixtures.ts';
-import { startDeviceLabDaemon } from './http-harness.ts';
+import { createDeviceLabHarness } from './harness.ts';
 import {
   createAppleRunnerProviderFromTranscript,
   createRecordingAppleToolProvider,
@@ -58,7 +58,7 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
     return { stdout: '', stderr: '', exitCode: 0 };
   });
 
-  const daemon = await startDeviceLabDaemon({
+  const daemon = await createDeviceLabHarness({
     appleRunnerProvider: () => appleRunnerProvider,
     appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async () => [DEVICE_LAB_TVOS],

@@ -6,7 +6,7 @@ import { test } from 'vitest';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
 import { assertCommandCall } from './assertions.ts';
 import { DEVICE_LAB_ANDROID } from './fixtures.ts';
-import { restoreEnv, startDeviceLabDaemon } from './http-harness.ts';
+import { restoreEnv, createDeviceLabHarness } from './harness.ts';
 
 test('Device Lab Android recording flow uses scripted ADB provider pull capability', async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-lab-android-record-'));
@@ -24,7 +24,7 @@ test('Device Lab Android recording flow uses scripted ADB provider pull capabili
       return { stdout: '', stderr: '', exitCode: 0 };
     },
   };
-  const daemon = await startDeviceLabDaemon({
+  const daemon = await createDeviceLabHarness({
     androidAdbProvider: () => adbProvider,
     deviceInventoryProvider: async () => [DEVICE_LAB_ANDROID],
   });

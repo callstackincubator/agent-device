@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { DaemonRequest } from '../../../src/daemon/types.ts';
-import type { DeviceLabDaemon, DeviceLabRpcResult } from './http-harness.ts';
+import type { DeviceLabHarness, DeviceLabRpcResult } from './harness.ts';
 
 export type DeviceLabScenarioState = {
   readonly responses: ReadonlyMap<string, DeviceLabRpcResult>;
@@ -25,7 +25,7 @@ export type DeviceLabScenarioStep = {
 };
 
 export async function runDeviceLabScenario(
-  daemon: Pick<DeviceLabDaemon, 'callCommand'>,
+  daemon: Pick<DeviceLabHarness, 'callCommand'>,
   steps: readonly DeviceLabScenarioStep[],
 ): Promise<DeviceLabScenarioState> {
   const responses = new Map<string, DeviceLabRpcResult>();
@@ -51,7 +51,7 @@ export async function runDeviceLabScenario(
     assert.equal(
       response.statusCode,
       expectedStatus,
-      `${step.name} expected HTTP ${expectedStatus}: ${JSON.stringify(response.json)}`,
+      `${step.name} expected status ${expectedStatus}: ${JSON.stringify(response.json)}`,
     );
     if (step.expectData) {
       assertDataContains(step.name, response, step.expectData);

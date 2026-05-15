@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'vitest';
-import { createAgentDeviceClient } from '../../../src/client.ts';
 import { assertFlatToolCall } from './assertions.ts';
 import { DEVICE_LAB_IOS_SIMULATOR } from './fixtures.ts';
-import { startDeviceLabDaemon, withDeviceLabRemoteEnv } from './http-harness.ts';
+import { createDeviceLabHarness } from './harness.ts';
 import {
   createAppleRunnerProviderFromTranscript,
   createRecordingAppleToolProvider,
@@ -56,15 +55,15 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
     }
     return { stdout: '', stderr: '', exitCode: 0 };
   });
-  const daemon = await startDeviceLabDaemon({
+  const daemon = await createDeviceLabHarness({
     appleRunnerProvider: () => appleRunnerProvider,
     appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async () => [DEVICE_LAB_IOS_SIMULATOR],
   });
 
   try {
-    await withDeviceLabRemoteEnv(daemon, async () => {
-      const client = createAgentDeviceClient();
+    {
+      const client = daemon.client();
       const selection = { platform: 'ios' as const, udid: DEVICE_LAB_IOS_SIMULATOR.id };
 
       const open = await client.apps.open({ app: 'com.apple.Preferences', ...selection });
@@ -84,6 +83,8 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
       const logsDoctor = await client.observability.logs({ action: 'doctor', ...selection });
       assert.equal((logsDoctor.checks as { simctlAvailable?: boolean }).simctlAvailable, true);
 
+      await client.settings.update({ setting: 'appearance', state: 'dark', ...selection });
+
       await client.settings.update({
         setting: 'permission',
         state: 'grant',
@@ -96,9 +97,10 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
 
       const alertAccept = await client.command.alert({ action: 'accept', ...selection });
       assert.equal(alertAccept.accepted, true);
-    });
+    }
 
     runnerTranscript.assertComplete();
+    assertFlatToolCall(appleTool.calls, ['xcrun', 'simctl', 'ui', 'sim-1', 'appearance', 'dark']);
     assertFlatToolCall(appleTool.calls, [
       'xcrun',
       'simctl',

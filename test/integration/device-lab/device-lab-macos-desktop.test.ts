@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { assertFlatToolCall, assertFlatToolCallStartsWith } from './assertions.ts';
 import { DEVICE_LAB_MACOS } from './fixtures.ts';
-import { startDeviceLabDaemon } from './http-harness.ts';
+import { createDeviceLabHarness } from './harness.ts';
 import { createRecordingAppleToolProvider } from './providers.ts';
 import { assertScenarioCommands, runDeviceLabScenario } from './scenario.ts';
 
@@ -44,7 +44,7 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
     }
     return { stdout: '', stderr: '', exitCode: 0 };
   });
-  const daemon = await startDeviceLabDaemon({
+  const daemon = await createDeviceLabHarness({
     appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async () => [DEVICE_LAB_MACOS],
   });

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { test } from 'vitest';
 import { assertFlatToolCallStartsWith } from './assertions.ts';
 import { DEVICE_LAB_IOS_DEVICE } from './fixtures.ts';
-import { startDeviceLabDaemon } from './http-harness.ts';
+import { createDeviceLabHarness } from './harness.ts';
 import {
   createAppleRunnerProviderFromTranscript,
   createRecordingAppleToolProvider,
@@ -41,7 +41,7 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
     writeCopiedRecordingIfRequested(args);
     return { stdout: '', stderr: '', exitCode: 0 };
   });
-  const daemon = await startDeviceLabDaemon({
+  const daemon = await createDeviceLabHarness({
     appleRunnerProvider: () => appleRunnerProvider,
     appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async () => [DEVICE_LAB_IOS_DEVICE],

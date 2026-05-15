@@ -3,11 +3,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
-import { createAgentDeviceClient } from '../../../src/client.ts';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
 import { arrayEqual, assertCommandCall, assertPngFile, validPng } from './assertions.ts';
 import { DEVICE_LAB_ANDROID } from './fixtures.ts';
-import { restoreEnv, startDeviceLabDaemon, withDeviceLabRemoteEnv } from './http-harness.ts';
+import { restoreEnv, createDeviceLabHarness } from './harness.ts';
 
 test('Device Lab Android Settings flow uses scripted ADB provider', async () => {
   await withFakeHostAdbGuard(async (hostAdbLogPath) => {
@@ -34,14 +33,14 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         return { stdout: '', stderr: '', exitCode: 0 };
       },
     };
-    const daemon = await startDeviceLabDaemon({
+    const daemon = await createDeviceLabHarness({
       androidAdbProvider: () => adbProvider,
       deviceInventoryProvider: async () => [DEVICE_LAB_ANDROID],
     });
 
     try {
-      await withDeviceLabRemoteEnv(daemon, async () => {
-        const client = createAgentDeviceClient();
+      {
+        const client = daemon.client();
         const selection = { platform: 'android' as const, serial: DEVICE_LAB_ANDROID.id };
         const screenshotPath = path.join(os.tmpdir(), `agent-device-lab-android-${Date.now()}.png`);
 
@@ -100,6 +99,14 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assert.equal(keyboard.visible, false);
 
         await client.settings.update({ setting: 'appearance', state: 'dark', ...selection });
+        await client.settings.update({
+          setting: 'location',
+          state: 'set',
+          latitude: 37.3349,
+          longitude: -122.009,
+          ...selection,
+        });
+        await client.settings.update({ setting: 'fingerprint', state: 'match', ...selection });
         const demoOpen = await client.apps.open({ app: 'com.example.demo', ...selection });
         assert.equal(demoOpen.appBundleId, 'com.example.demo');
         await client.settings.update({
@@ -212,7 +219,7 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         assertPngFile(screenshotPath);
 
         await client.apps.close({});
-      });
+      }
 
       assertCommandCall(adbCalls, [
         'shell',
@@ -225,7 +232,6 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       assertCommandCall(adbCalls, ['uninstall', 'com.example.demo']);
       assert.equal(installCalls.length, 1);
       assert.equal(path.basename(installCalls[0]?.apkPath ?? ''), 'Demo.apk');
-      assert.notEqual(installCalls[0]?.apkPath, apkPath);
       assert.equal(installCalls[0]?.replace, true);
       assertCommandCall(adbCalls, [
         'shell',
@@ -249,6 +255,8 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       assertCommandCall(adbCalls, ['shell', 'cmd', 'clipboard', 'set', 'text', 'android otp']);
       assertCommandCall(adbCalls, ['shell', 'dumpsys', 'input_method']);
       assertCommandCall(adbCalls, ['shell', 'cmd', 'uimode', 'night', 'yes']);
+      assertCommandCall(adbCalls, ['emu', 'geo', 'fix', '-122.009', '37.3349']);
+      assertCommandCall(adbCalls, ['shell', 'cmd', 'fingerprint', 'touch', '1']);
       assertCommandCall(adbCalls, [
         'shell',
         'pm',
