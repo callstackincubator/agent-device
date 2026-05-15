@@ -57,7 +57,7 @@ test('typeAndroid rejects unicode text without provider-native injection', async
     (error: unknown) => {
       assert.ok(error instanceof AppError);
       assert.equal(error.code, 'COMMAND_FAILED');
-      assert.match(error.message, /provider-native or helper text injection/i);
+      assert.match(error.message, /provider-native text injection/i);
       assert.equal(error.details?.backend, 'adb-shell');
       return true;
     },
@@ -137,7 +137,6 @@ test('typeAndroid prefers provider-native text injection when available', async 
       },
       text: async (request) => {
         calls.push(request);
-        return { backend: 'provider-native', textLength: Array.from(request.text).length };
       },
     },
     { serial: ANDROID_EMULATOR.id },
@@ -163,7 +162,6 @@ test('fillAndroid delegates target replacement to provider-native text injection
       text: async (request) => {
         calls.push(request);
         value = request.text;
-        return { backend: 'provider-native', textLength: Array.from(request.text).length };
       },
     },
     { serial: ANDROID_EMULATOR.id },

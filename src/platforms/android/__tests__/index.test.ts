@@ -1289,19 +1289,6 @@ test('typeAndroid chunks ASCII input text for shell fallback', async () => {
   );
 });
 
-test('typeAndroid uses chunk-safe adb input text for ascii text', async () => {
-  await withMockedAdb(
-    'agent-device-android-type-ascii-',
-    '#!/bin/sh\nprintf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nprintf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
-    async ({ argsLogPath, device }) => {
-      await typeAndroid(device, 'hello world');
-      const logged = await fs.readFile(argsLogPath, 'utf8');
-      assert.match(logged, /shell\ninput\ntext\nhello%swo/);
-      assert.match(logged, /shell\ninput\ntext\nrld/);
-    },
-  );
-});
-
 test('typeAndroid passes shell-sensitive ascii text to adb input text', async () => {
   await withMockedAdb(
     'agent-device-android-type-ascii-special-',
@@ -1352,7 +1339,7 @@ test('typeAndroid sends one character at a time when delay is requested', async 
   );
 });
 
-test('fillAndroid retries with chunked shell input when first shell input truncates', async () => {
+test('fillAndroid uses chunk-safe shell input and retries when verification still fails', async () => {
   await withMockedAdb(
     'agent-device-android-fill-fallback-',
     [
@@ -1591,7 +1578,6 @@ test('getAndroidKeyboardState reports active IME ownership from dumpsys', async 
       assert.equal(state.focusedPackage, 'com.samsung.android.honeyboard');
       assert.equal(state.focusedResourceId, 'com.samsung.android.honeyboard:id/handwriting');
       assert.equal(state.inputOwner, 'ime');
-      assert.match(state.nextAction, /owned by the keyboard\/IME/i);
     },
   );
 });

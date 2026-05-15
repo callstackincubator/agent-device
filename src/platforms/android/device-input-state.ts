@@ -36,7 +36,6 @@ export type AndroidKeyboardState = {
   focusedPackage?: string;
   focusedResourceId?: string;
   inputOwner: AndroidInputOwner;
-  nextAction: string;
 };
 
 export type AndroidKeyboardDismissResult = AndroidKeyboardState & {
@@ -97,7 +96,6 @@ export async function dismissAndroidKeyboardWithAdb(
         focusedPackage: state.focusedPackage,
         focusedResourceId: state.focusedResourceId,
         inputOwner: state.inputOwner,
-        nextAction: state.nextAction,
       },
     );
   }
@@ -113,7 +111,6 @@ export async function dismissAndroidKeyboardWithAdb(
     focusedPackage: state.focusedPackage,
     focusedResourceId: state.focusedResourceId,
     inputOwner: state.inputOwner,
-    nextAction: state.nextAction,
   };
 }
 
@@ -154,7 +151,6 @@ function parseAndroidKeyboardState(stdout: string): AndroidKeyboardState {
     focusedPackage,
     focusedResourceId,
     inputOwner,
-    nextAction: androidKeyboardNextAction(visible, inputOwner),
   };
 }
 
@@ -172,16 +168,6 @@ function parseLastDumpsysValue(stdout: string, pattern: RegExp): string | undefi
     value = match[1];
   }
   return value;
-}
-
-function androidKeyboardNextAction(visible: boolean, inputOwner: AndroidInputOwner): string {
-  if (inputOwner === 'ime') {
-    return 'Focused input appears to be owned by the keyboard/IME; dismiss or change the IME before retrying text entry.';
-  }
-  if (visible) {
-    return 'Keyboard is visible and focused input appears app-owned; fill/type can proceed.';
-  }
-  return 'Keyboard is hidden; focus an app field before type, or use fill with a concrete target.';
 }
 
 function parseAndroidKeyboardVisibility(stdout: string): boolean | null {

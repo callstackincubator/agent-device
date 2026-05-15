@@ -98,8 +98,6 @@ export type AndroidAdbInstaller = (
   options?: AndroidAdbInstallOptions,
 ) => Promise<AndroidAdbExecutorResult>;
 
-export type AndroidTextInjectionBackend = 'provider-native' | 'helper' | 'adb-shell';
-
 export type AndroidTextInjectionRequest = {
   action: 'type' | 'fill';
   text: string;
@@ -114,14 +112,7 @@ export type AndroidTextInjectionRequest = {
   };
 };
 
-export type AndroidTextInjectionResult = {
-  backend: AndroidTextInjectionBackend;
-  textLength: number;
-};
-
-export type AndroidTextInjector = (
-  request: AndroidTextInjectionRequest,
-) => Promise<AndroidTextInjectionResult>;
+export type AndroidTextInjector = (request: AndroidTextInjectionRequest) => Promise<void>;
 
 export type AndroidAdbProvider = {
   /**

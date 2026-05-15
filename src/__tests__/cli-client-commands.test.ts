@@ -652,7 +652,6 @@ test('keyboard status prints Android input ownership in human output', async () 
     focusedPackage: 'com.google.android.inputmethod.latin',
     focusedResourceId: 'com.google.android.inputmethod.latin:id/handwriting',
     inputOwner: 'ime',
-    nextAction: 'Focused input appears to be owned by the keyboard/IME.',
   });
 
   const stdout = await captureStdout(async () => {
@@ -677,7 +676,7 @@ test('keyboard status prints Android input ownership in human output', async () 
     stdout,
     /Focused resource: com\.google\.android\.inputmethod\.latin:id\/handwriting/,
   );
-  assert.match(stdout, /Next action: Focused input appears to be owned by the keyboard\/IME\./);
+  assert.match(stdout, /Next action: Focused input appears to be owned by the keyboard\/IME/);
 });
 
 test('metro prepare wraps output in the standard success envelope for --json', async () => {

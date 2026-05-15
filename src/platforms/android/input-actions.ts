@@ -4,7 +4,7 @@ import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import type { DeviceRotation } from '../../core/device-rotation.ts';
 import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
 import { runAndroidAdb, sleep } from './adb.ts';
-import { resolveAndroidTextInjector, type AndroidTextInjectionBackend } from './adb-executor.ts';
+import { resolveAndroidTextInjector } from './adb-executor.ts';
 import { getAndroidKeyboardState, type AndroidKeyboardState } from './device-input-state.ts';
 import {
   androidFillFailureDetails,
@@ -95,18 +95,19 @@ export async function longPressAndroid(
 export async function typeAndroid(device: DeviceInfo, text: string, delayMs = 0): Promise<void> {
   const providerText = resolveAndroidTextInjector(device);
   if (providerText) {
-    const result = await providerText({ action: 'type', text, delayMs });
-    emitAndroidTextDiagnostic('type', result.backend, text);
+    await providerText({ action: 'type', text, delayMs });
+    emitAndroidTextDiagnostic('type', 'provider-native', text);
     return;
   }
   assertAndroidShellTextSupported(text);
   await assertAndroidShellInputIsAppOwned(device, 'type');
   if (delayMs > 0 && Array.from(text).length > 1) {
-    await typeAndroidShell(device, text, { action: 'type', chunkSize: 1, delayMs });
+    await typeAndroidShell(device, { action: 'type', text, chunkSize: 1, delayMs });
     return;
   }
-  await typeAndroidShell(device, text, {
+  await typeAndroidShell(device, {
     action: 'type',
+    text,
     chunkSize: ANDROID_INPUT_TEXT_CHUNK_SIZE,
     delayMs: 0,
   });
@@ -125,8 +126,8 @@ export async function fillAndroid(
 ): Promise<void> {
   const providerText = resolveAndroidTextInjector(device);
   if (providerText) {
-    const result = await providerText({ action: 'fill', target: { x, y }, text, delayMs });
-    emitAndroidTextDiagnostic('fill', result.backend, text);
+    await providerText({ action: 'fill', target: { x, y }, text, delayMs });
+    emitAndroidTextDiagnostic('fill', 'provider-native', text);
     const verification = await verifyAndroidFilledText(device, x, y, text);
     if (verification.ok) return;
     throwAndroidFillFailure(text, verification);
@@ -135,12 +136,27 @@ export async function fillAndroid(
 
   const textCodePointLength = Array.from(text).length;
   const attempts: Array<{
-    strategy: 'input_text' | 'chunked_input';
     clearPadding: number;
     minClear: number;
     maxClear: number;
-  }> = [{ strategy: 'input_text', clearPadding: 12, minClear: 8, maxClear: 48 }];
-  attempts.push({ strategy: 'chunked_input', clearPadding: 24, minClear: 16, maxClear: 96 });
+    chunkSize: number;
+    inputDelayMs: number;
+  }> = [
+    {
+      clearPadding: 12,
+      minClear: 8,
+      maxClear: 48,
+      chunkSize: delayMs > 0 ? 1 : ANDROID_INPUT_TEXT_CHUNK_SIZE,
+      inputDelayMs: delayMs,
+    },
+    {
+      clearPadding: 24,
+      minClear: 16,
+      maxClear: 96,
+      chunkSize: delayMs > 0 ? 1 : 4,
+      inputDelayMs: delayMs > 0 ? delayMs : 15,
+    },
+  ];
 
   let lastVerification: AndroidFillVerification | null = null;
 
@@ -153,23 +169,12 @@ export async function fillAndroid(
       attempt.maxClear,
     );
     await clearFocusedText(device, clearCount);
-    if (attempt.strategy === 'input_text') {
-      if (delayMs > 0) {
-        await typeAndroid(device, text, delayMs);
-      } else {
-        await typeAndroidShell(device, text, {
-          action: 'fill',
-          chunkSize: Array.from(text).length || 1,
-          delayMs: 0,
-        });
-      }
-    } else {
-      await typeAndroidShell(device, text, {
-        action: 'fill',
-        chunkSize: delayMs > 0 ? 1 : 4,
-        delayMs: delayMs > 0 ? delayMs : 15,
-      });
-    }
+    await typeAndroidShell(device, {
+      action: 'fill',
+      text,
+      chunkSize: attempt.chunkSize,
+      delayMs: attempt.inputDelayMs,
+    });
     const verification = await verifyAndroidFilledText(device, x, y, text);
     lastVerification = verification;
     if (verification.ok) return;
@@ -258,7 +263,8 @@ async function assertAndroidShellInputIsAppOwned(
       inputMethodPackage: state.inputMethodPackage,
       focusedPackage: state.focusedPackage,
       focusedResourceId: state.focusedResourceId,
-      nextAction: state.nextAction,
+      nextAction:
+        'Focused input appears to be owned by the keyboard/IME; dismiss or change the IME before retrying text entry.',
     },
   );
 }
@@ -276,11 +282,9 @@ const ANDROID_INPUT_TEXT_CHUNK_SIZE = 8;
 
 async function typeAndroidShell(
   device: DeviceInfo,
-  text: string,
-  options: { action: 'type' | 'fill'; chunkSize: number; delayMs: number },
+  options: { action: 'type' | 'fill'; text: string; chunkSize: number; delayMs: number },
 ): Promise<void> {
-  assertAndroidShellTextSupported(text);
-  const parts = text.split('\n');
+  const parts = options.text.split('\n');
   for (const [partIndex, part] of parts.entries()) {
     const chunks = chunkAndroidInputText(part, options.chunkSize);
     for (const [chunkIndex, chunk] of chunks.entries()) {
@@ -293,7 +297,7 @@ async function typeAndroidShell(
       await runAndroidAdb(device, ['shell', 'input', 'keyevent', 'ENTER']);
     }
   }
-  emitAndroidTextDiagnostic(options.action, 'adb-shell', text);
+  emitAndroidTextDiagnostic(options.action, 'adb-shell', options.text);
 }
 
 async function typeAndroidShellChunk(device: DeviceInfo, text: string): Promise<void> {
@@ -344,7 +348,7 @@ function isAndroidInputTextUnsupported(error: unknown): boolean {
 function unsupportedAndroidShellTextError(text: string, cause?: unknown): AppError {
   return new AppError(
     'COMMAND_FAILED',
-    'Android text input requires provider-native or helper text injection for non-ASCII/control characters; the current adb-shell fallback supports ASCII text only.',
+    'Android text input requires provider-native text injection for non-ASCII/control characters; the current adb-shell fallback supports ASCII text only.',
     {
       backend: 'adb-shell',
       textLength: Array.from(text).length,
@@ -366,7 +370,7 @@ function chunkAndroidInputText(text: string, chunkSize: number): string[] {
 
 function emitAndroidTextDiagnostic(
   action: 'type' | 'fill',
-  backend: AndroidTextInjectionBackend,
+  backend: 'provider-native' | 'adb-shell',
   text: string,
 ): void {
   emitDiagnostic({

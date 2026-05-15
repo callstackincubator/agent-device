@@ -452,7 +452,6 @@ export type KeyboardCommandResult = DaemonResponseData & {
   focusedPackage?: string | null;
   focusedResourceId?: string | null;
   inputOwner?: 'app' | 'ime' | 'unknown';
-  nextAction?: string;
   wasVisible?: boolean;
   dismissed?: boolean;
   attempts?: number;

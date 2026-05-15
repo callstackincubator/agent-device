@@ -112,11 +112,24 @@ function writeKeyboardOutput(flags: CliFlags, result: KeyboardCommandResult): vo
       if (result.inputMethodPackage) lines.push(`Input method: ${result.inputMethodPackage}`);
       if (result.focusedPackage) lines.push(`Focused package: ${result.focusedPackage}`);
       if (result.focusedResourceId) lines.push(`Focused resource: ${result.focusedResourceId}`);
-      if (result.nextAction) lines.push(`Next action: ${result.nextAction}`);
+      lines.push(`Next action: ${androidKeyboardNextAction(result.visible, result.inputOwner)}`);
       return lines.join('\n');
     }
     return readCommandMessage(result);
   });
+}
+
+function androidKeyboardNextAction(
+  visible: boolean | undefined,
+  inputOwner: KeyboardCommandResult['inputOwner'],
+): string {
+  if (inputOwner === 'ime') {
+    return 'Focused input appears to be owned by the keyboard/IME; dismiss or change the IME before retrying text entry.';
+  }
+  if (visible === true) {
+    return 'Keyboard is visible and focused input appears app-owned; fill/type can proceed.';
+  }
+  return 'Keyboard is hidden; focus an app field before type, or use fill with a concrete target.';
 }
 
 function readClipboardOptions(positionals: string[], flags: CliFlags): ClipboardCommandOptions {
