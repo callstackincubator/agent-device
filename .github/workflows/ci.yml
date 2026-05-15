@@ -123,8 +123,8 @@ jobs:
       - name: Package npm-bundled Android snapshot helper
         run: pnpm package:android-snapshot-helper:npm
 
-  integration-smoke:
-    name: Integration Smoke
+  integration:
+    name: Integration Tests
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -134,8 +134,8 @@ jobs:
       - name: Setup toolchain
         uses: ./.github/actions/setup-node-pnpm
 
-      - name: Run smoke integration tests
+      - name: Run integration tests
         run: |
           # Smoke tests execute src/bin.ts directly and do not rely on prebuilt JS or XCTest artifacts.
           pnpm clean:daemon
-          pnpm test:smoke
+          pnpm test:integration
