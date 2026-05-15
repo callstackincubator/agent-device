@@ -588,8 +588,9 @@ test('formatSnapshotText collapses adjacent React Native row noise in Android he
 
   assert.match(text, /Snapshot: 8 visible nodes \(10 total\)/);
   assert.match(text, /Collapsed 2 Android helper nodes from the agent-facing text snapshot/);
-  assert.match(text, /@e5 \[button\] "Adam" \[also image\]/);
-  assert.match(text, /@e7 \[button\] "Hello from Adam" \[also text\]/);
+  assert.match(text, /@e5 \[button\] "Adam" \[has image\]/);
+  assert.match(text, /@e7 \[button\] "Hello from Adam"/);
+  assert.doesNotMatch(text, /\[also text\]/);
   assert.match(text, /@e8 \[text-field\] "Write a message\.\.\." \[editable\]/);
   assert.match(text, /@e9 \[button\] "Send"/);
   assert.match(text, /@e10 \[button\] "Create expense"/);

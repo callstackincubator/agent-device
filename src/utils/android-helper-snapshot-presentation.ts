@@ -131,9 +131,10 @@ function markAdjacentDuplicateStructuralNodesForRemoval(
     ) {
       const survivor = chooseStructuralRepresentative(previous, node);
       const collapsed = survivor.index === previous.index ? node : previous;
+      const collapsedHint = collapsedNodeHint(collapsed);
       addPresentationHints(replacements, survivor, [
         ...readPresentationHints(replacements.get(collapsed.index) ?? collapsed),
-        collapsedNodeHint(collapsed),
+        ...(collapsedHint ? [collapsedHint] : []),
       ]);
       markNodeAndDescendantsForRemoval(nodes, collapsed.index, removed);
       lastByLabel.set(label, replacements.get(survivor.index) ?? survivor);
@@ -349,8 +350,13 @@ function structuralRepresentativeScore(node: SnapshotNode): number {
   return score;
 }
 
-function collapsedNodeHint(node: SnapshotNode): string {
-  return `also ${formatRole(node.type ?? 'element')}`;
+function collapsedNodeHint(node: SnapshotNode): string | null {
+  const role = formatRole(node.type ?? 'element');
+  if (role === 'image') return 'has image';
+  if (role === 'button' || role === 'link' || role === 'switch' || role === 'checkbox') {
+    return `also ${role}`;
+  }
+  return null;
 }
 
 function normalizeStructuralNodeLabel(label: string): string | null {
