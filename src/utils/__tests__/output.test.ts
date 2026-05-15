@@ -301,7 +301,7 @@ test('formatSnapshotText keeps zero-height visible nodes out of off-screen summa
   assert.match(text, /\[off-screen below\] 1 interactive item: "Later"/);
 });
 
-test('formatSnapshotText collapses Android helper nodes in human output', () => {
+test('formatSnapshotText collapses Android helper nodes in agent-facing output', () => {
   const nodes = [
     {
       ref: 'e1',
@@ -455,15 +455,15 @@ test('formatSnapshotText collapses Android helper nodes in human output', () => 
     }),
   );
 
-  assert.match(text, /Snapshot: 4 visible nodes \(15 total\)/);
-  assert.match(text, /Collapsed 11 Android helper nodes from the agent-facing text snapshot/);
+  assert.match(text, /Snapshot: 8 visible nodes \(15 total\)/);
+  assert.match(text, /Collapsed 7 Android helper nodes from the agent-facing text snapshot/);
   assert.match(text, /@e3 \[button\] "alice@example\.com"/);
   assert.doesNotMatch(text, /@e4 \[button\] "alice@example\.com"/);
   assert.doesNotMatch(text, /Invisible stale action/);
-  assert.doesNotMatch(text, /\[group\] "Dashboard"/);
-  assert.doesNotMatch(text, /\[group\] "Messages/);
-  assert.doesNotMatch(text, /\[group\] "Billing"/);
-  assert.doesNotMatch(text, /\[group\] "Profile/);
+  assert.match(text, /@e8 \[group\] "Dashboard" \[likely navigation\]/);
+  assert.match(text, /@e10 \[group\] "Messages\. Your review is required" \[likely navigation\]/);
+  assert.match(text, /@e12 \[group\] "Billing" \[likely navigation\]/);
+  assert.match(text, /@e14 \[group\] "Profile, My settings\." \[likely navigation\]/);
   assert.doesNotMatch(text, /possible repeated nav subtree/);
 
   const raw = withNoColor(() =>
@@ -588,13 +588,13 @@ test('formatSnapshotText collapses adjacent React Native row noise in Android he
 
   assert.match(text, /Snapshot: 8 visible nodes \(10 total\)/);
   assert.match(text, /Collapsed 2 Android helper nodes from the agent-facing text snapshot/);
-  assert.match(text, /@e4 \[image\] "Adam"/);
-  assert.match(text, /@e6 \[text\] "Hello from Adam"/);
+  assert.match(text, /@e5 \[button\] "Adam" \[also image\]/);
+  assert.match(text, /@e7 \[button\] "Hello from Adam" \[also text\]/);
   assert.match(text, /@e8 \[text-field\] "Write a message\.\.\." \[editable\]/);
   assert.match(text, /@e9 \[button\] "Send"/);
   assert.match(text, /@e10 \[button\] "Create expense"/);
-  assert.doesNotMatch(text, /@e5 \[button\] "Adam"/);
-  assert.doesNotMatch(text, /@e7 \[button\] "Hello from Adam"/);
+  assert.doesNotMatch(text, /@e4 \[image\] "Adam"/);
+  assert.doesNotMatch(text, /@e6 \[text\] "Hello from Adam"/);
 
   const raw = withNoColor(() =>
     formatSnapshotText(

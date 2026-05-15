@@ -40,6 +40,7 @@ export type RawSnapshotNode = {
   surface?: string;
   hiddenContentAbove?: boolean;
   hiddenContentBelow?: boolean;
+  presentationHints?: string[];
 };
 
 export type HiddenContentHint = {

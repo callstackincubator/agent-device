@@ -1,4 +1,5 @@
 import type { Rect, SnapshotNode } from './snapshot.ts';
+import { formatRole } from './snapshot-lines.ts';
 import { displayNodeLabel } from './snapshot-tree.ts';
 
 export type AndroidHelperPresentationInput = {
@@ -52,12 +53,15 @@ function filterAndroidHelperTextOutputNodes(nodes: SnapshotNode[]): SnapshotNode
   if (nodes.length === 0) return nodes;
 
   const removed = new Set<number>();
+  const replacements = new Map<number, SnapshotNode>();
   markZeroAreaNodesForRemoval(nodes, removed);
-  markBottomNavNodesNearComposerForRemoval(nodes, removed);
+  markBottomNavNodesNearComposerForRemoval(nodes, removed, replacements);
   markDuplicateEmailButtonsForRemoval(nodes, removed);
-  markAdjacentDuplicateStructuralNodesForRemoval(nodes, removed);
+  markAdjacentDuplicateStructuralNodesForRemoval(nodes, removed, replacements);
 
-  return nodes.filter((node) => !removed.has(node.index));
+  return nodes
+    .filter((node) => !removed.has(node.index))
+    .map((node) => replacements.get(node.index) ?? node);
 }
 
 function markZeroAreaNodesForRemoval(nodes: SnapshotNode[], removed: Set<number>): void {
@@ -72,13 +76,15 @@ function markZeroAreaNodesForRemoval(nodes: SnapshotNode[], removed: Set<number>
 function markBottomNavNodesNearComposerForRemoval(
   nodes: SnapshotNode[],
   removed: Set<number>,
+  replacements: Map<number, SnapshotNode>,
 ): void {
   const composer = findBottomEditableNode(nodes);
   if (!composer?.rect) return;
 
   const navNodes = findBottomNavigationLikeNodes(nodes, composer.rect);
   for (const node of navNodes) {
-    markNodeAndDescendantsForRemoval(nodes, node.index, removed);
+    addPresentationHints(replacements, node, ['likely navigation']);
+    markDescendantsForRemoval(nodes, node.index, removed);
   }
 }
 
@@ -104,6 +110,7 @@ function markDuplicateEmailButtonsForRemoval(nodes: SnapshotNode[], removed: Set
 function markAdjacentDuplicateStructuralNodesForRemoval(
   nodes: SnapshotNode[],
   removed: Set<number>,
+  replacements: Map<number, SnapshotNode>,
 ): void {
   const lastByLabel = new Map<string, SnapshotNode>();
   for (const node of nodes) {
@@ -122,7 +129,14 @@ function markAdjacentDuplicateStructuralNodesForRemoval(
       areSameVisualRow(previous.rect, node.rect) &&
       areStructurallyAdjacent(previous, node)
     ) {
-      markNodeAndDescendantsForRemoval(nodes, node.index, removed);
+      const survivor = chooseStructuralRepresentative(previous, node);
+      const collapsed = survivor.index === previous.index ? node : previous;
+      addPresentationHints(replacements, survivor, [
+        ...readPresentationHints(replacements.get(collapsed.index) ?? collapsed),
+        collapsedNodeHint(collapsed),
+      ]);
+      markNodeAndDescendantsForRemoval(nodes, collapsed.index, removed);
+      lastByLabel.set(label, replacements.get(survivor.index) ?? survivor);
       continue;
     }
     lastByLabel.set(label, node);
@@ -135,6 +149,14 @@ function markNodeAndDescendantsForRemoval(
   removed: Set<number>,
 ): void {
   removed.add(rootIndex);
+  markDescendantsForRemoval(nodes, rootIndex, removed);
+}
+
+function markDescendantsForRemoval(
+  nodes: SnapshotNode[],
+  rootIndex: number,
+  removed: Set<number>,
+): void {
   const pending = [rootIndex];
   while (pending.length > 0) {
     const current = pending.pop();
@@ -144,6 +166,27 @@ function markNodeAndDescendantsForRemoval(
       pending.push(node.index);
     }
   }
+}
+
+function addPresentationHints(
+  replacements: Map<number, SnapshotNode>,
+  node: SnapshotNode,
+  hints: string[],
+): void {
+  const existing = replacements.get(node.index) ?? node;
+  const merged = uniqueStrings([...readPresentationHints(existing), ...hints.filter(Boolean)]);
+  replacements.set(node.index, {
+    ...existing,
+    presentationHints: merged,
+  });
+}
+
+function readPresentationHints(node: SnapshotNode): string[] {
+  return Array.isArray(node.presentationHints) ? node.presentationHints : [];
+}
+
+function uniqueStrings(values: readonly string[]): string[] {
+  return [...new Set(values)];
 }
 
 function hasRenderableArea(rect: Rect): boolean {
@@ -278,6 +321,38 @@ function isStructuralNoiseCandidate(node: SnapshotNode): boolean {
   );
 }
 
+function chooseStructuralRepresentative(left: SnapshotNode, right: SnapshotNode): SnapshotNode {
+  const leftScore = structuralRepresentativeScore(left);
+  const rightScore = structuralRepresentativeScore(right);
+  return rightScore > leftScore ? right : left;
+}
+
+function structuralRepresentativeScore(node: SnapshotNode): number {
+  const type = (node.type ?? '').toLowerCase();
+  let score = 0;
+  if (
+    type.includes('button') ||
+    type.includes('switch') ||
+    type.includes('checkbox') ||
+    type.includes('radio')
+  ) {
+    score += 100;
+  } else if (type.includes('image')) {
+    score += 30;
+  } else if (type.includes('textview') || type === 'text') {
+    score += 20;
+  } else if (type.includes('view')) {
+    score += 10;
+  }
+  if (node.hittable === true) score += 20;
+  if (node.enabled !== false) score += 5;
+  return score;
+}
+
+function collapsedNodeHint(node: SnapshotNode): string {
+  return `also ${formatRole(node.type ?? 'element')}`;
+}
+
 function normalizeStructuralNodeLabel(label: string): string | null {
   const normalized = label.trim().replace(/\s+/g, ' ').toLowerCase();
   if (!normalized) return null;
@@ -327,7 +402,7 @@ function areStructurallyAdjacent(left: SnapshotNode, right: SnapshotNode): boole
     return Math.abs(left.index - right.index) <= 3;
   }
   if (left.parentIndex === right.index || right.parentIndex === left.index) {
-    return true;
+    return false;
   }
   return (
     Math.abs((left.depth ?? 0) - (right.depth ?? 0)) <= 1 && Math.abs(left.index - right.index) <= 2
