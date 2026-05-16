@@ -67,6 +67,16 @@ function packInstalledPackage(tempRoot: string): string {
   return path.join(packDir, tarballName);
 }
 
+function ensureBuiltPackage(): void {
+  const distMetroPath = path.join(repoRoot, 'dist', 'src', 'metro.js');
+  if (fs.existsSync(distMetroPath)) return;
+
+  runCmdSync('pnpm', ['build'], {
+    cwd: repoRoot,
+    timeoutMs: SUBPROCESS_TIMEOUT_MS,
+  });
+}
+
 function extractInstalledPackage(tarballPath: string, consumerRoot: string): string {
   const nodeModulesRoot = path.join(consumerRoot, 'node_modules');
   fs.mkdirSync(nodeModulesRoot, { recursive: true });
@@ -119,12 +129,6 @@ function acceptWebSocket(socket: Duplex, key: string): void {
 }
 
 test('installed package exposes Node APIs and packaged companion tunnel entrypoint', async (t) => {
-  const distMetroPath = path.join(repoRoot, 'dist', 'src', 'metro.js');
-  if (!fs.existsSync(distMetroPath)) {
-    t.skip('run pnpm build before executing installed-package integration tests');
-    return;
-  }
-
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-installed-package-'));
   const consumerRoot = path.join(root, 'consumer');
   const projectRoot = path.join(root, 'project');
@@ -229,6 +233,7 @@ test('installed package exposes Node APIs and packaged companion tunnel entrypoi
   });
   let metroPort = 0;
   try {
+    ensureBuiltPackage();
     const tarballPath = packInstalledPackage(root);
     installedPackageRoot = extractInstalledPackage(tarballPath, consumerRoot);
     linkRuntimeDependencies(installedPackageRoot, consumerRoot);

@@ -941,14 +941,6 @@
       "crap_moderate": {
         "count": 4
       }
-    },
-    "test/scripts/metro-prepare-packaged-smoke.mjs": {
-      "crap_critical": {
-        "count": 1
-      },
-      "crap_moderate": {
-        "count": 1
-      }
     }
   },
   "runtime_coverage_findings": [],
@@ -960,27 +952,27 @@
     "src/daemon/handlers/session-replay-script.ts:complexity",
     "src/commands/selector-read-utils.ts:high impact",
     "src/daemon/handlers/session-replay-heal.ts:complexity",
-    "src/daemon/context.ts:high impact",
     "src/cli/commands/connection-runtime.ts:complexity",
     "src/daemon/android-snapshot-freshness.ts:high impact",
+    "src/daemon/context.ts:high impact",
     "src/daemon/config.ts:high impact",
     "src/daemon/script-utils.ts:high impact",
     "src/platforms/boot-diagnostics.ts:complexity",
     "src/daemon/handlers/snapshot-alert.ts:complexity",
     "src/daemon/handlers/session-open-target.ts:high impact",
     "src/utils/success-text.ts:high impact",
-    "src/cli/commands/output.ts:untested risk",
     "src/daemon/handlers/install-source.ts:complexity",
+    "src/cli/commands/output.ts:untested risk",
     "src/utils/snapshot-processing.ts:high impact",
     "src/utils/process-identity.ts:high impact",
     "src/utils/output.ts:high impact",
     "src/utils/snapshot-lines.ts:high impact",
     "src/platforms/ios/xml.ts:high impact",
     "src/daemon/handlers/session-state.ts:complexity",
+    "src/platforms/linux/snapshot.ts:high impact",
     "src/daemon/handlers/session-open.ts:complexity",
     "src/utils/args.ts:high impact",
     "src/daemon/request-cancel.ts:high impact",
-    "src/platforms/linux/snapshot.ts:high impact",
     "src/cli.ts:complexity",
     "src/client-metro.ts:complexity",
     "src/utils/selector-build.ts:high impact",

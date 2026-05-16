@@ -61,7 +61,6 @@
     "src/__tests__/client-companion-tunnel-worker.test.ts:196-207|test/integration/installed-package-metro.test.ts:13-18",
     "src/__tests__/client-companion-tunnel-worker.test.ts:205-212|test/integration/device-lab/device-lab-android-lifecycle.test.ts:901-908",
     "src/__tests__/client-companion-tunnel-worker.test.ts:209-220|test/integration/installed-package-metro.test.ts:18-28",
-    "src/__tests__/client-companion-tunnel-worker.test.ts:397-401|test/scripts/metro-prepare-packaged-smoke.mjs:89-93",
     "src/__tests__/client-companion-tunnel-worker.test.ts:403-416|src/__tests__/client-companion-tunnel-worker.test.ts:622-635|src/__tests__/client-companion-tunnel-worker.test.ts:673-686",
     "src/__tests__/client-companion-tunnel-worker.test.ts:512-533|src/__tests__/client-companion-tunnel-worker.test.ts:662-683",
     "src/__tests__/client-companion-tunnel-worker.test.ts:512-526|src/__tests__/client-companion-tunnel-worker.test.ts:600-625|src/__tests__/client-companion-tunnel-worker.test.ts:662-676",
@@ -502,8 +501,7 @@
     "src/utils/__tests__/device.test.ts:76-83|src/utils/__tests__/device.test.ts:85-94",
     "src/utils/__tests__/device.test.ts:161-170|src/utils/__tests__/device.test.ts:214-223",
     "src/utils/__tests__/device.test.ts:173-189|src/utils/__tests__/device.test.ts:195-210",
-    "src/utils/__tests__/exec.test.ts:77-90|test/scripts/metro-prepare-packaged-smoke.mjs:124-145",
-    "src/utils/__tests__/exec.test.ts:81-88|src/utils/exec.ts:336-344|test/scripts/metro-prepare-packaged-smoke.mjs:130-137",
+    "src/utils/__tests__/exec.test.ts:81-88|src/utils/exec.ts:336-344",
     "src/utils/__tests__/mobile-snapshot-semantics.test.ts:338-353|src/utils/__tests__/mobile-snapshot-semantics.test.ts:86-101",
     "src/utils/__tests__/mobile-snapshot-semantics.test.ts:153-172|src/utils/__tests__/mobile-snapshot-semantics.test.ts:179-197",
     "src/utils/__tests__/mobile-snapshot-semantics.test.ts:284-309|src/utils/__tests__/mobile-snapshot-semantics.test.ts:320-345",
@@ -552,13 +550,9 @@
     "test/integration/device-lab/device-lab-ios-lifecycle.test.ts:69-86|test/integration/device-lab/device-lab-macos-desktop.test.ts:20-37",
     "test/integration/device-lab/device-lab-ios-record-trace.test.ts:217-228|test/integration/device-lab/device-lab-ios-record-trace.test.ts:69-80",
     "test/integration/device-lab/loopback.ts:6-19|test/integration/smoke-daemon-http.test.ts:184-197|test/integration/smoke-open-remote-config.test.ts:86-99",
-    "test/integration/device-lab/loopback.ts:10-18|test/integration/smoke-daemon-http.test.ts:188-196|test/integration/smoke-open-remote-config.test.ts:90-98|test/scripts/metro-prepare-packaged-smoke.mjs:56-62",
     "test/integration/installed-package-metro.test.ts:15-22|test/integration/smoke-open-remote-config.test.ts:102-109",
     "test/integration/installed-package-metro.test.ts:29-36|test/integration/smoke-open-remote-config.test.ts:115-122",
     "test/integration/smoke-daemon-http.test.ts:173-197|test/integration/smoke-open-remote-config.test.ts:78-99",
-    "test/integration/smoke-daemon-http.test.ts:208-216|test/integration/smoke-daemon-http.test.ts:292-300",
-    "test/integration/smoke-open-remote-config.test.ts:103-111|test/scripts/metro-prepare-packaged-smoke.mjs:66-74",
-    "test/integration/smoke-open-remote-config.test.ts:146-170|test/scripts/metro-prepare-packaged-smoke.mjs:200-214",
-    "test/scripts/metro-prepare-packaged-smoke.mjs:217-226|test/scripts/metro-prepare-packaged-smoke.mjs:245-254"
+    "test/integration/smoke-daemon-http.test.ts:208-216|test/integration/smoke-daemon-http.test.ts:292-300"
   ]
 }
