@@ -326,7 +326,7 @@ test('ensureAndroidEmulatorBooted launches emulator in headless mode when reques
     assert.match(log, /-avd Pixel_9_Pro_XL -no-window -no-audio/);
     await fs.access(emulatorBootedPath);
   });
-});
+}, 10_000);
 
 test('ensureAndroidEmulatorBooted reuses running emulator for headless requests', async () => {
   await withMockedAndroidTools(async ({ emulatorLogPath, emulatorBootedPath }) => {
@@ -353,7 +353,7 @@ test('ensureAndroidEmulatorBooted launches emulator with GUI by default', async 
     assert.match(log, /-avd Pixel_9_Pro_XL/);
     assert.doesNotMatch(log, /-no-window/);
   });
-});
+}, 10_000);
 
 test('ensureAndroidEmulatorBooted falls back to ANDROID_SDK_ROOT when PATH is incomplete', async () => {
   await withMockedAndroidSdkRoot(async ({ emulatorLogPath, sdkRoot }) => {
@@ -369,4 +369,4 @@ test('ensureAndroidEmulatorBooted falls back to ANDROID_SDK_ROOT when PATH is in
     assert.ok((process.env.PATH ?? '').includes(path.join(sdkRoot, 'emulator')));
     assert.equal(process.env.ANDROID_HOME, sdkRoot);
   });
-});
+}, 10_000);

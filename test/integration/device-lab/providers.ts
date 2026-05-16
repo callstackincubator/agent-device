@@ -39,14 +39,18 @@ export function createRecordingAppleToolProvider(
 } {
   const calls: FlatToolCall[] = [];
   const handlers = typeof handler === 'function' ? { runCommand: handler } : (handler ?? {});
-  const fallbackResult: ExecResult = { stdout: '', stderr: '', exitCode: 0 };
+  const missingHandler = async (label: string): Promise<ExecResult> => {
+    throw new Error(`Unscripted Apple Device Lab provider call: ${label}`);
+  };
   return {
     calls,
     provider: {
       whichCommand: async () => true,
       runCommand: async (cmd, args, options) => {
         calls.push([cmd, ...args]);
-        return handlers.runCommand ? await handlers.runCommand(cmd, args, options) : fallbackResult;
+        return handlers.runCommand
+          ? await handlers.runCommand(cmd, args, options)
+          : await missingHandler([cmd, ...args].join(' '));
       },
       simctl: {
         run: async (args, options) => {
@@ -54,7 +58,7 @@ export function createRecordingAppleToolProvider(
           return handlers.simctl
             ? await handlers.simctl(args, options)
             : await (handlers.runCommand?.('xcrun', ['simctl', ...args], options) ??
-                Promise.resolve(fallbackResult));
+                missingHandler(['simctl', ...args].join(' ')));
         },
       },
       devicectl: {
@@ -63,7 +67,7 @@ export function createRecordingAppleToolProvider(
           return handlers.devicectl
             ? await handlers.devicectl(args, options)
             : await (handlers.runCommand?.('xcrun', ['devicectl', ...args], options) ??
-                Promise.resolve(fallbackResult));
+                missingHandler(['devicectl', ...args].join(' ')));
         },
       },
       macosHelper: {
@@ -72,7 +76,7 @@ export function createRecordingAppleToolProvider(
           return handlers.macosHelper
             ? await handlers.macosHelper(args, options)
             : await (handlers.runCommand?.('agent-device-macos-helper', args, options) ??
-                Promise.resolve(fallbackResult));
+                missingHandler(['macos-helper', ...args].join(' ')));
         },
       },
       macosHost: createRecordingMacOsHostProvider(calls, handlers.macosHost),

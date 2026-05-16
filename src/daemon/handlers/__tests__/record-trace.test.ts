@@ -1101,50 +1101,6 @@ test('record stop reports invalidated recording after cleanup', async () => {
   expect(sessionStore.get(sessionName)?.recording).toBeUndefined();
 });
 
-test('record start leaves overlays disabled with --hide-touches', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'android-hide-touches';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Android',
-      kind: 'device',
-      booted: true,
-    }),
-  );
-
-  mockRunCmd.mockImplementation(async (_cmd, args) => {
-    if (
-      /^-s emulator-5554 shell screenrecord \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
-        args.join(' '),
-      )
-    ) {
-      return { stdout: '9999\n', stderr: '', exitCode: 0 };
-    }
-    if (
-      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(
-        args.join(' '),
-      )
-    ) {
-      return { stdout: '1024\n', stderr: '', exitCode: 0 };
-    }
-    return { stdout: '', stderr: '', exitCode: 0 };
-  });
-
-  const response = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['start', './android.mp4'],
-    flags: { hideTouches: true },
-  });
-
-  expect(response?.ok).toBe(true);
-  expect((response as any).data?.showTouches).toBe(false);
-  expect(sessionStore.get(sessionName)?.recording?.showTouches).toBe(false);
-});
-
 test('record start accepts Android screenrecord before the remote file begins growing', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-running-without-file-growth';

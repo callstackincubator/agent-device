@@ -60,6 +60,13 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
       result: { found: true },
     },
     {
+      command: 'ios.runner.backSystem',
+      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
+      platform: 'ios',
+      request: { command: 'backSystem', appBundleId: 'com.apple.Preferences' },
+      result: { backed: true },
+    },
+    {
       command: 'ios.runner.keyboardDismiss',
       deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
       platform: 'ios',

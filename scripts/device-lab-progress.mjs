@@ -24,6 +24,8 @@ const providerPressureRows = summarizeProviderPressure(deviceLabSources);
 const publicCommandRows = summarizePublicCommandCoverage(deviceLabTests);
 const missingPublicCommands = publicCommandRows.filter((command) => command.references === 0);
 const commandFamilyRows = summarizeCommandFamilyOwnership(deviceLabTests);
+const flagCoverageRows = summarizeDeviceLabFlagCoverage(deviceLabSources);
+const missingFlagRows = flagCoverageRows.filter((flag) => flag.references === 0);
 const coverage = readCoverageSummary();
 const lowCoverageFiles = readLowCoverageFiles();
 
@@ -43,6 +45,11 @@ const rows = [
     `${publicCommandRows.length - missingPublicCommands.length}/${publicCommandRows.length}`,
   ],
   ['Public commands missing Device Lab coverage', String(missingPublicCommands.length)],
+  [
+    'Workflow flags covered by Device Lab',
+    `${flagCoverageRows.length - missingFlagRows.length}/${flagCoverageRows.length}`,
+  ],
+  ['Workflow flags missing Device Lab coverage', String(missingFlagRows.length)],
 ];
 
 if (coverage) {
@@ -97,6 +104,17 @@ if (missingPublicCommands.length > 0) {
   }
 }
 
+if (missingFlagRows.length > 0) {
+  console.log('');
+  console.log('Workflow flag coverage gaps');
+  console.log('');
+  console.log('| Flag | Intended integration coverage |');
+  console.log('| --- | --- |');
+  for (const flag of missingFlagRows) {
+    console.log(`| ${flag.key} | ${flag.reason} |`);
+  }
+}
+
 if (providerPressureRows.length > 0) {
   console.log('');
   console.log('Provider transcript pressure');
@@ -106,6 +124,71 @@ if (providerPressureRows.length > 0) {
   for (const pressure of providerPressureRows) {
     console.log(`| ${pressure.name} | ${pressure.references} | ${pressure.files} |`);
   }
+}
+
+function summarizeDeviceLabFlagCoverage(files) {
+  const flagTargets = [
+    ['platform', 'selection across platform-specific Device Lab flows'],
+    ['target', 'target-class routing such as tv/mobile/desktop'],
+    ['device', 'human-readable device selection'],
+    ['udid', 'Apple device selection'],
+    ['serial', 'Android device selection'],
+    ['session', 'named session routing'],
+    ['surface', 'macOS app/frontmost/desktop/menubar surfaces'],
+    ['activity', 'Android explicit launch activity'],
+    ['saveScript', 'open/close replay recording output'],
+    ['relaunch', 'open terminates before launch'],
+    ['shutdown', 'close/disconnect shutdown behavior'],
+    ['appsFilter', 'apps --all vs default filtering'],
+    ['header', 'install-from-source URL headers', ['headers']],
+    ['retainPaths', 'retained install-source materialization'],
+    ['retentionMs', 'install-source materialization TTL'],
+    ['count', 'repeated press/click/swipe input'],
+    ['fps', 'recording frame-rate request'],
+    ['quality', 'recording quality scaling'],
+    ['hideTouches', 'recording without touch overlays'],
+    ['intervalMs', 'repeated press interval'],
+    ['delayMs', 'typing/fill delay'],
+    ['holdMs', 'press hold duration'],
+    ['jitterPx', 'press jitter'],
+    ['pixels', 'scroll distance'],
+    ['doubleTap', 'double tap gesture'],
+    ['clickButton', 'desktop mouse button selection', ['button']],
+    ['backMode', 'explicit app/system back behavior', ['mode']],
+    ['pauseMs', 'swipe repeat pause'],
+    ['pattern', 'swipe repeat pattern'],
+    ['snapshotInteractiveOnly', 'interactive snapshot/ref refresh', ['interactiveOnly']],
+    ['snapshotCompact', 'compact snapshot output', ['compact']],
+    ['snapshotDepth', 'scoped snapshot depth', ['depth']],
+    ['snapshotScope', 'scoped snapshot capture', ['scope']],
+    ['snapshotRaw', 'raw snapshot node output', ['raw']],
+    ['out', 'artifact output path plumbing'],
+    ['restart', 'logs clear --restart workflow'],
+    ['networkInclude', 'network dump include modes', ['include']],
+    ['noRecord', 'action recording suppression'],
+    ['replayUpdate', 'selector-healing replay update', ['update']],
+    ['replayEnv', 'replay/test variable injection', ['env']],
+    ['timeoutMs', 'wait/test timeout flags'],
+    ['artifactsDir', 'test artifact root'],
+    ['steps', 'batch inline steps'],
+    ['batchOnError', 'batch stop-on-error policy', ['onError']],
+    ['batchMaxSteps', 'batch max-step guard', ['maxSteps']],
+    ['findFirst', 'find first disambiguation'],
+    ['findLast', 'find last disambiguation'],
+  ];
+  const sources = files.map((file) => fs.readFileSync(file, 'utf8')).join('\n');
+  return flagTargets.map(([key, reason, aliases = []]) => {
+    const references = [key, ...aliases].reduce(
+      (count, candidate) => count + countFlagReferences(sources, candidate),
+      0,
+    );
+    return { key, reason, references };
+  });
+}
+
+function countFlagReferences(text, key) {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.match(new RegExp(`\\b${escaped}\\s*:`, 'g'))?.length ?? 0;
 }
 
 if (lowCoverageFiles.length > 0) {

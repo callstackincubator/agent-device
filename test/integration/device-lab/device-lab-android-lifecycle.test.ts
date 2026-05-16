@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
@@ -106,6 +107,33 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       });
       assert.equal(releaseManifestInstall.released, true);
 
+      const artifactServer = await createLocalArtifactServer(manifestApkPath);
+      const previousPrivateSourceUrls = process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
+      process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = '1';
+      try {
+        const installFromUrl = await client.apps.installFromSource({
+          source: {
+            kind: 'url',
+            url: artifactServer.url,
+            headers: {
+              authorization: 'Bearer device-lab',
+              'x-build': '42',
+            },
+          },
+          ...selection,
+        });
+        assert.equal(installFromUrl.packageName, 'io.example.demo_manifest');
+        assert.equal(artifactServer.lastHeaders.authorization, 'Bearer device-lab');
+        assert.equal(artifactServer.lastHeaders['x-build'], '42');
+      } finally {
+        if (previousPrivateSourceUrls === undefined) {
+          delete process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
+        } else {
+          process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = previousPrivateSourceUrls;
+        }
+        await artifactServer.close();
+      }
+
       const push = await client.apps.push({
         app: 'com.example.demo',
         payload: {
@@ -184,7 +212,12 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
         ...selection,
       });
       await client.settings.update({ setting: 'fingerprint', state: 'match', ...selection });
-      const demoOpen = await client.apps.open({ app: 'com.example.demo', ...selection });
+      const demoOpen = await client.apps.open({
+        app: 'com.example.demo',
+        activity: 'com.example.demo/.MainActivity',
+        relaunch: true,
+        ...selection,
+      });
       assert.equal(demoOpen.appBundleId, 'com.example.demo');
       const triggeredEvent = await client.apps.triggerEvent({
         event: 'screenshot_taken',
@@ -336,6 +369,13 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       assert.equal(apps.ref, 'e2', JSON.stringify(snapshot.nodes));
       assert.equal(search.ref, 'e3', JSON.stringify(snapshot.nodes));
 
+      const rawSnapshot = await daemon.callCommand('snapshot', [], {
+        snapshotRaw: true,
+        ...selection,
+      });
+      assert.equal(rawSnapshot.statusCode, 200, JSON.stringify(rawSnapshot.json));
+      assert.equal(rawSnapshot.json?.result?.data?.nodes?.[0]?.type, 'android.widget.ScrollView');
+
       const diff = await client.capture.diff({
         kind: 'snapshot',
         interactiveOnly: true,
@@ -359,9 +399,38 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       assert.equal(press.x, 88);
       assert.equal(press.y, 151);
 
+      const heldPress = await client.interactions.press({
+        x: 30,
+        y: 40,
+        count: 2,
+        holdMs: 5,
+        jitterPx: 1,
+        ...selection,
+      });
+      assert.equal(heldPress.count, 2);
+      assert.equal(heldPress.holdMs, 5);
+      assert.equal(heldPress.jitterPx, 1);
+
       const click = await client.interactions.click({ ref: `@${apps.ref}`, ...selection });
       assert.equal(click.x, 88);
       assert.equal(click.y, 151);
+
+      const unrecordedPress = await daemon.callCommand('press', ['50', '60'], {
+        ...selection,
+        noRecord: true,
+      });
+      assert.equal(unrecordedPress.json?.result?.data?.x, 50);
+      assert.equal(
+        daemon
+          .session()
+          ?.actions.some(
+            (action) =>
+              action.command === 'press' &&
+              action.positionals[0] === '50' &&
+              action.positionals[1] === '60',
+          ),
+        false,
+      );
 
       const fill = await client.interactions.fill({
         ref: `@${search.ref}`,
@@ -387,6 +456,18 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       const waitText = await client.command.wait({ text: 'Apps', timeoutMs: 100, ...selection });
       assert.equal(waitText.text, 'Apps');
 
+      const swipe = await client.interactions.swipe({
+        from: { x: 20, y: 200 },
+        to: { x: 20, y: 100 },
+        count: 2,
+        pauseMs: 1,
+        pattern: 'ping-pong',
+        ...selection,
+      });
+      assert.equal(swipe.count, 2);
+      assert.equal(swipe.pauseMs, 1);
+      assert.equal(swipe.pattern, 'ping-pong');
+
       const batch = await client.batch.run({
         steps: [
           {
@@ -395,6 +476,8 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
             flags: { count: 2, intervalMs: 1 },
           },
         ],
+        onError: 'stop',
+        maxSteps: 1,
         ...selection,
       });
       assert.equal(batch.executed, 1);
@@ -414,10 +497,25 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
           '',
         ].join('\n'),
       );
-      const replay = await daemon.callCommand('replay', [replayPath], selection);
-      assert.equal(replay.statusCode, 200, JSON.stringify(replay.json));
-      assert.equal(replay.json?.result?.data?.replayed, 4);
-      assert.equal(replay.json?.result?.data?.healed, 0);
+      const updateReplay = await client.replay.run({
+        path: replayPath,
+        update: true,
+        ...selection,
+      });
+      assert.equal(updateReplay.replayed, 4);
+      assert.equal(updateReplay.healed, 0);
+
+      const replayEnvPath = path.join(tempRoot, 'settings-env.ad');
+      fs.writeFileSync(
+        replayEnvPath,
+        ['snapshot -i', 'press @e2 "${APP_LABEL}"', 'get text @e3 Search', ''].join('\n'),
+      );
+      const replayEnv = await client.replay.run({
+        path: replayEnvPath,
+        env: ['APP_LABEL=Apps'],
+        ...selection,
+      });
+      assert.equal(replayEnv.replayed, 3);
 
       const screenshot = await client.capture.screenshot({
         path: screenshotPath,
@@ -434,11 +532,26 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       assert.equal(fastScreenshot.path, fastScreenshotPath);
       assertPngFile(fastScreenshotPath);
 
+      const screenshotOutPath = path.join(tempRoot, 'screenshot-out-flag.png');
+      const screenshotWithOut = await daemon.callCommand('screenshot', [], {
+        out: screenshotOutPath,
+        ...selection,
+      });
+      assert.equal(screenshotWithOut.statusCode, 200, JSON.stringify(screenshotWithOut.json));
+      assert.equal(screenshotWithOut.json?.result?.data?.path, screenshotOutPath);
+      assertPngFile(screenshotOutPath);
+
       const beforeCloseOpen = await client.apps.open({ app: 'com.example.demo', ...selection });
       assert.equal(beforeCloseOpen.appBundleId, 'com.example.demo');
       const logsBeforeClose = await client.observability.logs({ action: 'start', ...selection });
       assert.equal(logsBeforeClose.started, true);
-      await client.apps.close({});
+      const savedReplayPath = path.join(tempRoot, 'saved-session.ad');
+      const close = await daemon.callCommand('close', [], {
+        saveScript: savedReplayPath,
+        shutdown: true,
+      });
+      assert.equal(close.json?.result?.data?.shutdown?.success, true);
+      assert.equal(fs.existsSync(savedReplayPath), true);
       assert.equal(daemon.session(), undefined);
 
       const testReplayPath = path.join(tempRoot, 'settings-smoke.ad');
@@ -463,11 +576,27 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
     }
 
     assertCommandCall(adbCalls, ['shell', 'am', 'start', '-W', '-a', 'android.settings.SETTINGS']);
+    assertCommandCall(adbCalls, ['shell', 'am', 'force-stop', 'com.example.demo']);
+    assertCommandCall(adbCalls, [
+      'shell',
+      'am',
+      'start',
+      '-W',
+      '-a',
+      'android.intent.action.MAIN',
+      '-c',
+      'android.intent.category.DEFAULT',
+      '-c',
+      'android.intent.category.LAUNCHER',
+      '-n',
+      'com.example.demo/.MainActivity',
+    ]);
     assertCommandCall(adbCalls, ['uninstall', 'com.example.demo']);
-    assert.equal(installCalls.length, 2);
+    assert.equal(installCalls.length, 3);
     assert.equal(path.basename(installCalls[0]?.apkPath ?? ''), 'Demo.apk');
     assert.equal(installCalls[0]?.replace, true);
     assert.equal(path.basename(installCalls[1]?.apkPath ?? ''), 'ManifestDemo.apk');
+    assert.equal(path.basename(installCalls[2]?.apkPath ?? ''), 'ManifestDemo.apk');
     assert.equal(installCalls[1]?.replace, true);
     assertCommandCall(adbCalls, [
       'shell',
@@ -598,24 +727,71 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
       adbCalls.filter((call) => arrayEqual(call, ['shell', 'input', 'tap', '10', '20'])).length,
       2,
     );
+    assertCommandCall(adbCalls, ['shell', 'input', 'tap', '50', '60']);
+    assertCommandCall(adbCalls, ['shell', 'input', 'swipe', '30', '40', '30', '40', '5']);
+    assertCommandCall(adbCalls, ['shell', 'input', 'swipe', '31', '40', '31', '40', '5']);
+    assertCommandCall(adbCalls, ['shell', 'input', 'swipe', '20', '200', '20', '100', '250']);
+    assertCommandCall(adbCalls, ['shell', 'input', 'swipe', '20', '100', '20', '200', '250']);
     assert.equal(
       adbCalls.filter((call) => arrayEqual(call, ['shell', 'input', 'tap', '88', '151'])).length,
-      4,
+      5,
     );
     assertCommandCall(adbCalls, ['shell', 'input', 'text', 'Display']);
     assertCommandCall(adbCalls, ['shell', 'input', 'text', 'Network']);
     assert.equal(
       adbCalls.filter((call) => arrayEqual(call, ['exec-out', 'screencap', '-p'])).length,
-      2,
+      3,
     );
     assert.equal(
       adbCalls.filter((call) =>
         arrayEqual(call, ['shell', 'settings put global sysui_demo_allowed 1']),
       ).length,
-      1,
+      2,
     );
+    assertCommandCall(adbCalls, ['emu', 'kill']);
     world.assertNoHostAdbCalls();
   } finally {
     await world.close();
   }
 });
+
+async function createLocalArtifactServer(filePath: string): Promise<{
+  url: string;
+  readonly lastHeaders: http.IncomingHttpHeaders;
+  close: () => Promise<void>;
+}> {
+  let lastHeaders: http.IncomingHttpHeaders = {};
+  const server = http.createServer((req, res) => {
+    lastHeaders = req.headers;
+    res.writeHead(200, {
+      'content-type': 'application/vnd.android.package-archive',
+      'content-disposition': 'attachment; filename="ManifestDemo.apk"',
+    });
+    fs.createReadStream(filePath).pipe(res);
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
+  const address = server.address();
+  assert.ok(address && typeof address === 'object');
+
+  return {
+    url: `http://127.0.0.1:${address.port}/ManifestDemo.apk`,
+    get lastHeaders() {
+      return lastHeaders;
+    },
+    close: async () => {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+    },
+  };
+}

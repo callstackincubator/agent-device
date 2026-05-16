@@ -122,6 +122,12 @@ test('Device Lab iOS Settings flow uses scripted simctl and runner providers', a
         expectData: { text: 'General' },
       },
       {
+        name: 'navigate with explicit system back mode',
+        command: 'back',
+        flags: { backMode: 'system' },
+        expectData: { mode: 'system' },
+      },
+      {
         name: 'write clipboard',
         command: 'clipboard',
         positionals: ['write', 'runner otp 246810'],
