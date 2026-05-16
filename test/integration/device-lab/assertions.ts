@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { PNG } from 'pngjs';
 import type { DeviceLabRpcResult } from './harness.ts';
 
 export function assertCommandCall(calls: readonly string[][], expected: readonly string[]): void {
@@ -56,10 +57,9 @@ function arrayStartsWith(left: readonly string[], right: readonly string[]): boo
 }
 
 export function validPng(): Buffer {
-  return Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+b9xkAAAAASUVORK5CYII=',
-    'base64',
-  );
+  const png = new PNG({ width: 64, height: 64 });
+  png.data.fill(255);
+  return PNG.sync.write(png);
 }
 
 function pngSignature(): Buffer {

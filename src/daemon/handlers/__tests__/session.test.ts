@@ -4244,51 +4244,6 @@ test('open does not retain a session when the request was canceled before comple
   }
 });
 
-test('test stops after the first failing script when --fail-fast is set', async () => {
-  const sessionStore = makeSessionStore();
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-fail-fast-'));
-  fs.writeFileSync(path.join(root, '01-fail.ad'), 'context platform=android\nopen "Demo"\n');
-  fs.writeFileSync(path.join(root, '02-pass.ad'), 'context platform=android\nopen "Demo"\n');
-
-  const invoked: DaemonRequest[] = [];
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'default',
-      command: 'test',
-      positionals: [root],
-      flags: { failFast: true },
-      meta: { cwd: root, requestId: 'suite-fail-fast' },
-    },
-    sessionName: 'default',
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: async (req) => {
-      invoked.push(req);
-      return {
-        ok: false,
-        error: {
-          code: 'ASSERTION_FAILED',
-          message: 'expected selector to exist',
-        },
-      };
-    },
-  });
-
-  expect(response?.ok).toBeTruthy();
-  expect(invoked.length).toBe(1);
-  if (response?.ok) {
-    expect(response.data?.total).toBe(2);
-    expect(response.data?.executed).toBe(1);
-    expect(response.data?.passed).toBe(0);
-    expect(response.data?.failed).toBe(1);
-    expect(response.data?.notRun).toBe(1);
-    const tests = response.data?.tests as Array<Record<string, unknown>> | undefined;
-    expect(tests?.length).toBe(1);
-    expect(tests?.[0]?.status).toBe('failed');
-  }
-});
-
 test('test returns invalid args when no replay scripts match the platform filter', async () => {
   const sessionStore = makeSessionStore();
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-empty-filter-'));

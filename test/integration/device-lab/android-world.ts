@@ -8,6 +8,7 @@ import type {
   AndroidAdbProcess,
   AndroidAdbProvider,
 } from '../../../src/platforms/android/adb-executor.ts';
+import type { DeviceInventoryRequest } from '../../../src/core/dispatch-resolve.ts';
 import { runCmd } from '../../../src/utils/exec.ts';
 import { validPng } from './assertions.ts';
 import { DEVICE_LAB_ANDROID } from './fixtures.ts';
@@ -16,6 +17,7 @@ import { createDeviceLabHarness, restoreEnv, type DeviceLabHarness } from './har
 type AndroidSettingsWorld = {
   daemon: DeviceLabHarness;
   adbCalls: string[][];
+  inventoryRequests: DeviceInventoryRequest[];
   installCalls: Array<{ apkPath: string; replace?: boolean }>;
   spawnedLogcat: AndroidAdbProcess[];
   tempRoot: string;
@@ -29,6 +31,7 @@ type AndroidSettingsWorld = {
 export async function createAndroidSettingsWorld(): Promise<AndroidSettingsWorld> {
   const hostAdbGuard = installFakeHostAdbGuard();
   const adbCalls: string[][] = [];
+  const inventoryRequests: DeviceInventoryRequest[] = [];
   const installCalls: Array<{ apkPath: string; replace?: boolean }> = [];
   let searchText = '';
   let clipboardText = 'hello';
@@ -85,13 +88,17 @@ export async function createAndroidSettingsWorld(): Promise<AndroidSettingsWorld
   };
   const daemon = await createDeviceLabHarness({
     androidAdbProvider: () => adbProvider,
-    deviceInventoryProvider: async () => [DEVICE_LAB_ANDROID],
+    deviceInventoryProvider: async (request) => {
+      inventoryRequests.push({ ...request });
+      return [DEVICE_LAB_ANDROID];
+    },
   });
 
   let closed = false;
   return {
     daemon,
     adbCalls,
+    inventoryRequests,
     installCalls,
     spawnedLogcat,
     tempRoot,

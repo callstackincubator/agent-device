@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { test } from 'vitest';
-import { assertFlatToolCall } from './assertions.ts';
+import { assertFlatToolCall, assertPngFile } from './assertions.ts';
 import { createMacOsDesktopWorld } from './macos-world.ts';
 import { runDeviceLabScenario } from './scenario.ts';
 
 test('Device Lab macOS desktop flow uses semantic host and helper providers', async () => {
   const { daemon, appleTool, close } = await createMacOsDesktopWorld();
+  const screenshotPath = path.join(os.tmpdir(), `agent-device-lab-macos-${Date.now()}.png`);
 
   try {
     await runDeviceLabScenario(daemon, [
@@ -184,6 +188,19 @@ test('Device Lab macOS desktop flow uses semantic host and helper providers', as
         },
       },
       {
+        name: 'capture fullscreen desktop screenshot with max-size',
+        command: 'screenshot',
+        flags: {
+          out: screenshotPath,
+          screenshotFullscreen: true,
+          screenshotMaxSize: 1,
+        },
+        expectData: { path: screenshotPath },
+        assert: () => {
+          assertPngFile(screenshotPath);
+        },
+      },
+      {
         name: 'capture desktop surface snapshot',
         command: 'snapshot',
         assert: (snapshot) => {
@@ -321,6 +338,15 @@ test('Device Lab macOS desktop flow uses semantic host and helper providers', as
     assertFlatToolCall(appleTool.calls, ['macos-helper', 'snapshot', '--surface', 'menubar']);
     assertFlatToolCall(appleTool.calls, [
       'macos-helper',
+      'screenshot',
+      '--out',
+      screenshotPath,
+      '--surface',
+      'desktop',
+      '--fullscreen',
+    ]);
+    assertFlatToolCall(appleTool.calls, [
+      'macos-helper',
       'read',
       '--x',
       '116',
@@ -364,5 +390,6 @@ test('Device Lab macOS desktop flow uses semantic host and helper providers', as
     ]);
   } finally {
     await close();
+    fs.rmSync(screenshotPath, { force: true });
   }
 });

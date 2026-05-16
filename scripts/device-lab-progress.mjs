@@ -26,6 +26,13 @@ const missingPublicCommands = publicCommandRows.filter((command) => command.refe
 const commandFamilyRows = summarizeCommandFamilyOwnership(deviceLabTests);
 const flagCoverageRows = summarizeDeviceLabFlagCoverage(deviceLabSources);
 const missingFlagRows = flagCoverageRows.filter((flag) => flag.references === 0);
+const excludedFlagRows = summarizeDeviceLabFlagExclusions();
+const publicCliFlagKeys = readPublicCliFlagKeys();
+const classifiedFlagKeys = new Set([
+  ...flagCoverageRows.map((flag) => flag.key),
+  ...excludedFlagRows.flatMap((group) => group.keys),
+]);
+const unclassifiedFlagKeys = [...publicCliFlagKeys].filter((key) => !classifiedFlagKeys.has(key));
 const coverage = readCoverageSummary();
 const lowCoverageFiles = readLowCoverageFiles();
 
@@ -46,10 +53,15 @@ const rows = [
   ],
   ['Public commands missing Device Lab coverage', String(missingPublicCommands.length)],
   [
-    'Workflow flags covered by Device Lab',
+    'Device-observable workflow flags covered by Device Lab',
     `${flagCoverageRows.length - missingFlagRows.length}/${flagCoverageRows.length}`,
   ],
-  ['Workflow flags missing Device Lab coverage', String(missingFlagRows.length)],
+  ['Device-observable workflow flags missing Device Lab coverage', String(missingFlagRows.length)],
+  [
+    'Public CLI flags intentionally outside Device Lab',
+    String(excludedFlagRows.reduce((sum, group) => sum + group.keys.length, 0)),
+  ],
+  ['Public CLI flags unclassified by progress script', String(unclassifiedFlagKeys.length)],
 ];
 
 if (coverage) {
@@ -106,12 +118,34 @@ if (missingPublicCommands.length > 0) {
 
 if (missingFlagRows.length > 0) {
   console.log('');
-  console.log('Workflow flag coverage gaps');
+  console.log('Device-observable workflow flag coverage gaps');
   console.log('');
   console.log('| Flag | Intended integration coverage |');
   console.log('| --- | --- |');
   for (const flag of missingFlagRows) {
     console.log(`| ${flag.key} | ${flag.reason} |`);
+  }
+}
+
+if (excludedFlagRows.length > 0) {
+  console.log('');
+  console.log('Public CLI flag coverage outside Device Lab');
+  console.log('');
+  console.log('| Bucket | Flags | Coverage owner |');
+  console.log('| --- | --- | --- |');
+  for (const group of excludedFlagRows) {
+    console.log(`| ${group.name} | ${group.keys.join(', ')} | ${group.owner} |`);
+  }
+}
+
+if (unclassifiedFlagKeys.length > 0) {
+  console.log('');
+  console.log('Unclassified public CLI flags');
+  console.log('');
+  console.log('| Flag |');
+  console.log('| --- |');
+  for (const key of unclassifiedFlagKeys) {
+    console.log(`| ${key} |`);
   }
 }
 
@@ -133,6 +167,8 @@ function summarizeDeviceLabFlagCoverage(files) {
     ['device', 'human-readable device selection'],
     ['udid', 'Apple device selection'],
     ['serial', 'Android device selection'],
+    ['iosSimulatorDeviceSet', 'iOS simulator-set scoping reaches inventory resolution'],
+    ['androidDeviceAllowlist', 'Android serial allowlist reaches inventory resolution'],
     ['session', 'named session routing'],
     ['surface', 'macOS app/frontmost/desktop/menubar surfaces'],
     ['activity', 'Android explicit launch activity'],
@@ -163,12 +199,18 @@ function summarizeDeviceLabFlagCoverage(files) {
     ['snapshotScope', 'scoped snapshot capture', ['scope']],
     ['snapshotRaw', 'raw snapshot node output', ['raw']],
     ['out', 'artifact output path plumbing'],
+    ['overlayRefs', 'screenshot ref overlay annotation'],
+    ['screenshotFullscreen', 'screenshot full-screen capture mode'],
+    ['screenshotMaxSize', 'screenshot max-size post-processing'],
+    ['screenshotNoStabilize', 'screenshot stabilization opt-out', ['stabilize']],
     ['restart', 'logs clear --restart workflow'],
     ['networkInclude', 'network dump include modes', ['include']],
     ['noRecord', 'action recording suppression'],
     ['replayUpdate', 'selector-healing replay update', ['update']],
     ['replayEnv', 'replay/test variable injection', ['env']],
+    ['failFast', 'test suite stops after first failure'],
     ['timeoutMs', 'wait/test timeout flags'],
+    ['retries', 'test suite retry budget flows through request path'],
     ['artifactsDir', 'test artifact root'],
     ['steps', 'batch inline steps'],
     ['batchOnError', 'batch stop-on-error policy', ['onError']],
@@ -189,6 +231,97 @@ function summarizeDeviceLabFlagCoverage(files) {
 function countFlagReferences(text, key) {
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return text.match(new RegExp(`\\b${escaped}\\s*:`, 'g'))?.length ?? 0;
+}
+
+function summarizeDeviceLabFlagExclusions() {
+  return [
+    {
+      name: 'config, output, diagnostics, and transport',
+      owner: 'args/CLI transport/auth tests',
+      keys: [
+        'config',
+        'remoteConfig',
+        'stateDir',
+        'daemonBaseUrl',
+        'daemonAuthToken',
+        'daemonTransport',
+        'daemonServerMode',
+        'tenant',
+        'sessionIsolation',
+        'runId',
+        'leaseId',
+        'leaseBackend',
+        'json',
+        'help',
+        'version',
+        'verbose',
+      ],
+    },
+    {
+      name: 'remote connection and session-lock policy',
+      owner: 'connection/runtime/request policy tests',
+      keys: ['force', 'noLogin', 'sessionLock', 'sessionLocked', 'sessionLockConflicts'],
+    },
+    {
+      name: 'Metro and React Native runtime preparation',
+      owner: 'Metro companion integration and parser tests',
+      keys: [
+        'metroHost',
+        'metroPort',
+        'metroProjectRoot',
+        'metroKind',
+        'metroPublicBaseUrl',
+        'metroProxyBaseUrl',
+        'metroBearerToken',
+        'metroPreparePort',
+        'metroListenHost',
+        'metroStatusHost',
+        'metroStartupTimeoutMs',
+        'metroProbeTimeoutMs',
+        'metroRuntimeFile',
+        'metroNoReuseExisting',
+        'metroNoInstallDeps',
+        'bundleUrl',
+        'launchUrl',
+      ],
+    },
+    {
+      name: 'parser/client-only command flags',
+      owner: 'args, CLI, screenshot-diff, and batch tests',
+      keys: [
+        'githubActionsArtifact',
+        'snapshotDiff',
+        'baseline',
+        'threshold',
+        'reportJunit',
+        'stepsFile',
+      ],
+    },
+    {
+      name: 'platform boot fallback without provider seam',
+      owner: 'handler and Android platform unit tests',
+      keys: ['headless'],
+    },
+  ];
+}
+
+function readPublicCliFlagKeys() {
+  const sources = [
+    path.join(ROOT, 'src/utils/command-schema.ts'),
+    path.join(ROOT, 'src/commands/capture-screenshot-options.ts'),
+  ];
+  const keys = new Set();
+  for (const source of sources) {
+    const text = fs.readFileSync(source, 'utf8');
+    for (const match of text.matchAll(/\{\s*key: '([^']+)'[\s\S]*?names:\s*\[([^\]]*)\]/g)) {
+      const key = match[1];
+      const names = match[2] ?? '';
+      if (names.includes("'--") || names.includes("'-")) {
+        keys.add(key);
+      }
+    }
+  }
+  return keys;
 }
 
 if (lowCoverageFiles.length > 0) {

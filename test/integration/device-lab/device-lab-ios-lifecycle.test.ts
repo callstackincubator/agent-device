@@ -7,9 +7,17 @@ import { runDeviceLabScenario } from './scenario.ts';
 import { DEVICE_LAB_IOS_REINSTALL_DEVICE, DEVICE_LAB_IOS_SIMULATOR } from './fixtures.ts';
 
 test('Device Lab iOS Settings flow uses scripted simctl and runner providers', async () => {
-  const { appPath, appleTool, close, daemon, runnerTranscript } = await createIosSettingsWorld();
+  const { appPath, appleTool, close, daemon, inventoryRequests, runnerTranscript } =
+    await createIosSettingsWorld();
 
   try {
+    const scopedDevices = await daemon.client().devices.list({
+      platform: 'ios',
+      iosSimulatorDeviceSet: '/tmp/device-lab-simulators',
+    });
+    assert.equal(scopedDevices.length, 1);
+    assert.equal(scopedDevices[0]?.id, DEVICE_LAB_IOS_SIMULATOR.id);
+
     await runDeviceLabScenario(daemon, [
       {
         name: 'open settings app',
@@ -200,6 +208,12 @@ test('Device Lab iOS Settings flow uses scripted simctl and runner providers', a
     assertFlatToolCall(appleTool.calls, ['simctl', 'install', 'sim-1', appPath]);
     assertFlatToolCall(appleTool.calls, ['simctl', 'pbcopy', 'sim-1']);
     assertFlatToolCall(appleTool.calls, ['simctl', 'pbpaste', 'sim-1']);
+    assert.ok(
+      inventoryRequests.some(
+        (request) => request.iosSimulatorSetPath === '/tmp/device-lab-simulators',
+      ),
+      JSON.stringify(inventoryRequests),
+    );
   } finally {
     await close();
   }

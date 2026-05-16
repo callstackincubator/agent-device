@@ -1,7 +1,9 @@
+import fs from 'node:fs';
 import type { AppleRunnerProvider } from '../../../src/platforms/ios/runner-provider.ts';
 import { DEVICE_LAB_MACOS } from './fixtures.ts';
 import { createDeviceLabHarness, type DeviceLabHarness } from './harness.ts';
 import { createRecordingAppleToolProvider, type FlatToolCall } from './providers.ts';
+import { validPng } from './assertions.ts';
 
 export type MacOsDesktopWorld = {
   daemon: DeviceLabHarness;
@@ -169,6 +171,17 @@ function runScriptedMacOsHelper(args: string[]): {
       nodes,
       truncated: false,
       backend: 'macos-helper',
+    });
+  }
+  if (args[0] === 'screenshot') {
+    const outPath = args[args.indexOf('--out') + 1];
+    if (outPath) {
+      fs.writeFileSync(outPath, validPng());
+    }
+    return helperOk({
+      path: outPath,
+      surface: args.includes('--surface') ? args[args.indexOf('--surface') + 1] : 'frontmost-app',
+      fullscreen: args.includes('--fullscreen'),
     });
   }
   if (args[0] === 'press') {

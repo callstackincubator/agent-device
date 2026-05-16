@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import type { DeviceInventoryRequest } from '../../../src/core/dispatch-resolve.ts';
 import type { DeviceLabTranscript } from './transcript.ts';
 import {
   createDemoIosApp,
@@ -18,11 +19,13 @@ type IosSettingsWorld = {
   daemon: DeviceLabHarness;
   appleTool: { calls: FlatToolCall[] };
   runnerTranscript: DeviceLabTranscript;
+  inventoryRequests: DeviceInventoryRequest[];
   appPath: string;
   close: () => Promise<void>;
 };
 
 export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
+  const inventoryRequests: DeviceInventoryRequest[] = [];
   const runnerTranscript = createProviderTranscript([
     runnerSnapshot(),
     runnerSnapshot(),
@@ -108,7 +111,10 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
   const daemon = await createDeviceLabHarness({
     appleRunnerProvider: () => appleRunnerProvider,
     appleToolProvider: () => appleTool.provider,
-    deviceInventoryProvider: async () => [DEVICE_LAB_IOS_SIMULATOR],
+    deviceInventoryProvider: async (request) => {
+      inventoryRequests.push({ ...request });
+      return [DEVICE_LAB_IOS_SIMULATOR];
+    },
   });
   const { tempRoot, appPath } = createDemoIosApp('agent-device-lab-ios-deploy-');
   let closed = false;
@@ -116,6 +122,7 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
     daemon,
     appleTool,
     runnerTranscript,
+    inventoryRequests,
     appPath,
     close: async () => {
       if (closed) return;

@@ -39,6 +39,13 @@ async function runAndroidSetupAndInstallWorkflow(
   assert.equal(devices[0]?.target, DEVICE_LAB_ANDROID.target);
   assert.equal(devices[0]?.booted, true);
 
+  const allowlistedDevices = await client.devices.list({
+    platform: 'android',
+    androidDeviceAllowlist: DEVICE_LAB_ANDROID.id,
+  });
+  assert.equal(allowlistedDevices.length, 1);
+  assert.equal(allowlistedDevices[0]?.id, DEVICE_LAB_ANDROID.id);
+
   const boot = await client.devices.boot(selection);
   assert.equal(boot.platform, 'android');
   assert.equal(boot.id, DEVICE_LAB_ANDROID.id);
@@ -545,10 +552,15 @@ async function runAndroidCaptureInteractionAndReplayWorkflow(
 
   const fastScreenshot = await client.capture.screenshot({
     path: fastScreenshotPath,
+    overlayRefs: true,
     stabilize: false,
     ...selection,
   });
   assert.equal(fastScreenshot.path, fastScreenshotPath);
+  assert.ok(
+    Array.isArray(fastScreenshot.overlayRefs) && fastScreenshot.overlayRefs.length > 0,
+    JSON.stringify(fastScreenshot),
+  );
   assertPngFile(fastScreenshotPath);
 
   const screenshotOutPath = path.join(tempRoot, 'screenshot-out-flag.png');
@@ -591,12 +603,22 @@ async function runAndroidCaptureInteractionAndReplayWorkflow(
 }
 
 function assertAndroidProviderContract(world: AndroidSettingsWorld): void {
+  assertAndroidInventoryContract(world);
   assertAndroidInstallAndLaunchContract(world);
   assertAndroidPushAndEventContract(world);
   assertAndroidObservabilityContract(world);
   assertAndroidSettingsContract(world);
   assertAndroidInteractionContract(world);
   assertAndroidShutdownContract(world);
+}
+
+function assertAndroidInventoryContract(world: AndroidSettingsWorld): void {
+  assert.ok(
+    world.inventoryRequests.some((request) =>
+      request.androidSerialAllowlist?.includes(DEVICE_LAB_ANDROID.id),
+    ),
+    JSON.stringify(world.inventoryRequests),
+  );
 }
 
 function assertAndroidInstallAndLaunchContract(world: AndroidSettingsWorld): void {
