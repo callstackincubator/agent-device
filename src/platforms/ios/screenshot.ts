@@ -16,6 +16,7 @@ import {
 } from './config.ts';
 import { runIosDevicectl } from './devicectl.ts';
 import { runIosRunnerCommand, IOS_RUNNER_CONTAINER_BUNDLE_IDS } from './runner-client.ts';
+import type { AppleRunnerCommandOptions } from './runner-provider.ts';
 import { prepareSimulatorStatusBarForScreenshot } from './screenshot-status-bar.ts';
 import { ensureBootedSimulator } from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
@@ -39,6 +40,7 @@ type SimulatorScreenshotFlowDeps = {
     outPath: string,
     appBundleId?: string,
     fullscreen?: boolean,
+    runnerOptions?: AppleRunnerCommandOptions,
   ) => Promise<void>;
   shouldFallbackToRunner: (error: unknown) => boolean;
 };
@@ -56,13 +58,21 @@ export async function screenshotIos(
   outPath: string,
   appBundleId?: string,
   fullscreen?: boolean,
+  runnerOptions?: AppleRunnerCommandOptions,
 ): Promise<void> {
   if (device.platform === 'macos') {
-    await captureScreenshotViaRunner(device, outPath, appBundleId, fullscreen);
+    await captureScreenshotViaRunner(device, outPath, appBundleId, fullscreen, runnerOptions);
     return;
   }
   if (device.kind === 'simulator') {
-    await captureSimulatorScreenshotWithFallback(device, outPath, appBundleId, fullscreen);
+    await captureSimulatorScreenshotWithFallback(
+      device,
+      outPath,
+      appBundleId,
+      fullscreen,
+      undefined,
+      runnerOptions,
+    );
     return;
   }
 
@@ -79,7 +89,7 @@ export async function screenshotIos(
     emitScreenshotFallbackDiagnostic(device, 'devicectl_screenshot', error);
   }
 
-  await captureScreenshotViaRunner(device, outPath, appBundleId, fullscreen);
+  await captureScreenshotViaRunner(device, outPath, appBundleId, fullscreen, runnerOptions);
 }
 
 export async function captureSimulatorScreenshotWithFallback(
@@ -88,6 +98,7 @@ export async function captureSimulatorScreenshotWithFallback(
   appBundleId?: string,
   fullscreenOrDeps?: boolean | SimulatorScreenshotFlowDeps,
   deps: SimulatorScreenshotFlowDeps = defaultSimulatorScreenshotFlowDeps,
+  runnerOptions?: AppleRunnerCommandOptions,
 ): Promise<void> {
   if (device.kind !== 'simulator') {
     throw new AppError(
@@ -121,7 +132,7 @@ export async function captureSimulatorScreenshotWithFallback(
       }
       emitScreenshotFallbackDiagnostic(device, 'simctl_screenshot', error);
     }
-    await effectiveDeps.captureWithRunner(device, outPath, appBundleId, fullscreen);
+    await effectiveDeps.captureWithRunner(device, outPath, appBundleId, fullscreen, runnerOptions);
   } finally {
     await restoreStatusBar().catch((error) =>
       emitStatusBarDiagnostic(device, 'restore_failed', error),
@@ -159,14 +170,19 @@ export async function captureScreenshotViaRunner(
   outPath: string,
   appBundleId?: string,
   fullscreen?: boolean,
+  runnerOptions?: AppleRunnerCommandOptions,
 ): Promise<void> {
   // Capture with the XCTest runner, then pull from the runner container.
   // Devices use `devicectl ... copy from`; simulators use `simctl get_app_container`.
-  const result = await runIosRunnerCommand(device, {
-    command: 'screenshot',
-    appBundleId,
-    fullscreen,
-  });
+  const result = await runIosRunnerCommand(
+    device,
+    {
+      command: 'screenshot',
+      appBundleId,
+      fullscreen,
+    },
+    runnerOptions,
+  );
   const remoteFileName = result['message'] as string;
   if (!remoteFileName) {
     throw new AppError(

@@ -29,6 +29,8 @@ Device Lab tests run the real daemon request path and replace only those provide
 
 Prefer an in-process Device Lab harness for broad scenarios: it should invoke the daemon request handler directly, preserving admission, locking, session state, handler routing, dispatch, platform modules, and provider seams without binding a TCP listener. Keep HTTP coverage as a narrow contract suite for JSON-RPC transport, auth, and response finalization.
 
+Request provider scoping is descriptor-driven inside the request router layer. A provider entry declares how it applies to the resolved device, how it installs its scoped provider, and what request-local data it exposes to handlers. Apple runner providers are request-id scoped when a request id exists; fallback by device alone is only allowed for unscoped local runner calls.
+
 Synchronous host-tool calls are intentionally not part of the provider seam. Any remaining sync Apple helper is local-only and must be converted before a remote/cloud provider can own that path.
 
 ## Alternatives Considered

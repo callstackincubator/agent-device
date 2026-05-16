@@ -50,11 +50,9 @@ export function resolveAppleRunnerProvider(
 ): AppleRunnerProvider {
   if (provider) return normalizeAppleRunnerProvider(provider);
   const scoped = appleRunnerProviderScope.getStore();
-  // Some legacy runner call sites still omit requestId; keep those scoped by device
-  // while request-id threading is completed across the runner surface.
   return scoped &&
     scoped.deviceId === device.id &&
-    (!options.requestId || !scoped.requestId || scoped.requestId === options.requestId)
+    (scoped.requestId ? scoped.requestId === options.requestId : !options.requestId)
     ? normalizeAppleRunnerProvider(scoped.provider)
     : normalizeAppleRunnerProvider(fallback);
 }
