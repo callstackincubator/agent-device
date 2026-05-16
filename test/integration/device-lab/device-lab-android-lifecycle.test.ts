@@ -134,6 +134,9 @@ async function runAndroidSetupAndInstallWorkflow(
   const listedApps = await client.apps.list(selection);
   assert.deepEqual(listedApps, ['Demo (com.example.demo)']);
 
+  const rawListedApps = await world.daemon.callCommand('apps', [], selection);
+  assert.deepEqual(rawListedApps.json.result.data.apps, ['Demo (com.example.demo)']);
+
   const allApps = await client.apps.list({ ...selection, appsFilter: 'all' });
   assert.deepEqual(allApps, ['Settings (com.android.settings)', 'Demo (com.example.demo)']);
 

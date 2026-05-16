@@ -8,8 +8,25 @@ test('package exports only supported public subpaths', () => {
     exports: Record<string, unknown>;
   };
 
+  const supportedSubpaths = [
+    '.',
+    './io',
+    './artifacts',
+    './metro',
+    './batch',
+    './remote-config',
+    './install-source',
+    './android-adb',
+    './android-snapshot-helper',
+    './contracts',
+    './selectors',
+    './finders',
+  ];
+
+  for (const subpath of supportedSubpaths) {
+    assert.equal(pkg.exports[subpath] !== undefined, true, `${subpath} should be exported`);
+  }
+
   assert.equal(pkg.exports['./android-apps'], undefined);
   assert.equal(pkg.exports['./daemon'], undefined);
-  assert.equal(pkg.exports['./android-adb'] !== undefined, true);
-  assert.equal(pkg.exports['./contracts'] !== undefined, true);
 });

@@ -142,6 +142,75 @@ test('request platform provider scope applies Apple tool provider only for Apple
   assert.deepEqual(calls, [['list', 'devices', '-j']]);
 });
 
+test('request platform provider scopes stay isolated across concurrent requests', async () => {
+  const androidCalls: string[] = [];
+  const appleCalls: string[] = [];
+  let androidEntered!: () => void;
+  let appleEntered!: () => void;
+  const androidInProvider = new Promise<void>((resolve) => {
+    androidEntered = resolve;
+  });
+  const appleInProvider = new Promise<void>((resolve) => {
+    appleEntered = resolve;
+  });
+  const bothProvidersEntered = Promise.all([androidInProvider, appleInProvider]);
+
+  const androidTask = withRequestPlatformProviderScope(
+    {
+      req: { ...request('snapshot'), meta: { requestId: 'req-android' } },
+      existingSession: makeAndroidSession('android-session'),
+      providers: {
+        androidAdbProvider: ({ device, session }) => ({
+          exec: async (args) => {
+            androidCalls.push(`${session?.name}:${device.id}:${args.join(' ')}`);
+            androidEntered();
+            await bothProvidersEntered;
+            return { exitCode: 0, stdout: 'android-ok', stderr: '' };
+          },
+        }),
+        appleToolProvider: () => {
+          throw new Error('Apple provider should not apply to an Android request');
+        },
+      },
+    },
+    async (scope) => {
+      assert.ok(scope.androidAdbExecutor);
+      return (await scope.androidAdbExecutor(['shell', 'echo', 'android'])).stdout;
+    },
+  );
+
+  const appleTask = withRequestPlatformProviderScope(
+    {
+      req: { ...request('snapshot'), meta: { requestId: 'req-apple' } },
+      existingSession: makeIosSession('ios-session'),
+      providers: {
+        androidAdbProvider: () => {
+          throw new Error('Android provider should not apply to an Apple request');
+        },
+        appleToolProvider: ({ device, session }) =>
+          createLocalAppleToolProvider({
+            runCommand: async (cmd, args) => {
+              throw new Error(`unexpected generic command: ${cmd} ${args.join(' ')}`);
+            },
+            simctl: {
+              run: async (args) => {
+                appleCalls.push(`${session?.name}:${device.id}:${args.join(' ')}`);
+                appleEntered();
+                await bothProvidersEntered;
+                return { exitCode: 0, stdout: 'apple-ok', stderr: '' };
+              },
+            },
+          }),
+      },
+    },
+    async () => (await runXcrun(['simctl', 'list', 'devices', '-j'])).stdout,
+  );
+
+  assert.deepEqual(await Promise.all([androidTask, appleTask]), ['android-ok', 'apple-ok']);
+  assert.deepEqual(androidCalls, [`android-session:${ANDROID_EMULATOR.id}:shell echo android`]);
+  assert.deepEqual(appleCalls, [`ios-session:${IOS_SIMULATOR.id}:list devices -j`]);
+});
+
 function request(command: string): DaemonRequest {
   return {
     token: 'test-token',
