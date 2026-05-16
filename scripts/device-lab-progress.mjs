@@ -278,9 +278,13 @@ function summarizeProviderPressure(files) {
         /\baccessibility\b|\bcaptureTree\b|\bclipboard\b|\breadText\b|\bwriteText\b|\bscreenshot\b|\bcapture\s*:/g,
     },
     {
-      name: 'Linux generic input/tool provider',
+      name: 'Linux semantic input provider',
+      pattern: /\bLinuxInputProvider\b|\bprovider\.input\b|\binput\s*:|\['input'/g,
+    },
+    {
+      name: 'Linux generic tool provider',
       pattern:
-        /\bLinuxToolProvider\b|\blinuxToolProvider\b|\bxdotool\b|\bydotool\b|\bxclip\b|\bscrot\b|\bgrim\b|\bwmctrl\b|\bpkill\b/g,
+        /\bLinuxToolProvider\b|\blinuxToolProvider\b|\brunCommand\b|\bwhichCommand\b|\bxdotool\b|\bydotool\b|\bxclip\b|\bscrot\b|\bgrim\b|\bwmctrl\b|\bpkill\b/g,
     },
     {
       name: 'Recording provider',

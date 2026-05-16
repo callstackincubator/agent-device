@@ -4,12 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import { createLocalLinuxToolProvider } from '../../../src/platforms/linux/tool-provider.ts';
-import { assertFlatToolCall, assertPngFile, assertToolCall, validPng } from './assertions.ts';
+import { assertFlatToolCall, assertPngFile, validPng } from './assertions.ts';
 import { DEVICE_LAB_LINUX } from './fixtures.ts';
 import { restoreEnv, createDeviceLabHarness } from './harness.ts';
 import { runDeviceLabScenario } from './scenario.ts';
 
-test('Device Lab Linux desktop flow uses semantic lifecycle provider and scripted tools', async () => {
+test('Device Lab Linux desktop flow uses semantic desktop and input providers', async () => {
   const previousSessionType = process.env.XDG_SESSION_TYPE;
   const previousWaylandDisplay = process.env.WAYLAND_DISPLAY;
   const previousAuthHook = process.env.AGENT_DEVICE_HTTP_AUTH_HOOK;
@@ -63,6 +63,43 @@ test('Device Lab Linux desktop flow uses semantic lifecycle provider and scripte
       capture: async (outPath) => {
         semanticCalls.push(['screenshot', outPath]);
         fs.writeFileSync(outPath, validPng());
+      },
+    },
+    input: {
+      click: async (x, y, button) => {
+        semanticCalls.push(['input', 'click', String(x), String(y), button]);
+      },
+      doubleClick: async (x, y) => {
+        semanticCalls.push(['input', 'double-click', String(x), String(y)]);
+      },
+      longPress: async (x, y, durationMs) => {
+        semanticCalls.push(['input', 'long-press', String(x), String(y), String(durationMs)]);
+      },
+      drag: async (x1, y1, x2, y2, durationMs) => {
+        semanticCalls.push([
+          'input',
+          'drag',
+          String(x1),
+          String(y1),
+          String(x2),
+          String(y2),
+          String(durationMs),
+        ]);
+      },
+      scroll: async (direction, options) => {
+        semanticCalls.push([
+          'input',
+          'scroll',
+          direction,
+          String(options?.amount ?? ''),
+          String(options?.pixels ?? ''),
+        ]);
+      },
+      typeText: async (text, options) => {
+        semanticCalls.push(['input', 'type', text, String(options?.delayMs ?? 0)]);
+      },
+      key: async (combo) => {
+        semanticCalls.push(['input', 'key', combo]);
       },
     },
   });
@@ -261,55 +298,22 @@ test('Device Lab Linux desktop flow uses semantic lifecycle provider and scripte
     assertFlatToolCall(semanticCalls, ['clipboard', 'write', 'linux otp 314159']);
     assertFlatToolCall(semanticCalls, ['clipboard', 'read']);
     assertFlatToolCall(semanticCalls, ['screenshot', screenshotPath]);
-    const normalizedToolCalls = normalizeToolCalls(toolCalls);
-    assertToolCall(normalizedToolCalls, ['xdotool', 'click', '1']);
-    assertToolCall(normalizedToolCalls, [
-      'xdotool',
-      'type',
-      '--delay',
-      '1',
-      '--clearmodifiers',
-      '--',
-      'Seven',
-    ]);
-    assertToolCall(normalizedToolCalls, [
-      'xdotool',
-      'type',
-      '--delay',
-      '1',
-      '--clearmodifiers',
-      '--',
-      'Eight',
-    ]);
-    assertToolCall(normalizedToolCalls, ['xdotool', 'type', '--clearmodifiers', '--', '5']);
-    assertToolCall(normalizedToolCalls, ['xdotool', 'key', '--clearmodifiers', 'alt+Left']);
-    assertToolCall(normalizedToolCalls, ['xdotool', 'key', '--clearmodifiers', 'super+d']);
-    assert.ok(
-      normalizedToolCalls.some(
-        ([cmd, args]) => cmd === 'xdotool' && args[0] === 'click' && args.includes('3'),
-      ),
-      'Expected secondary click to reach xdotool',
-    );
-    assert.ok(
-      normalizedToolCalls.some(
-        ([cmd, args]) => cmd === 'xdotool' && args[0] === 'click' && args.includes('2'),
-      ),
-      'Expected middle click to reach xdotool',
-    );
-    assert.ok(
-      normalizedToolCalls.some(
-        ([cmd, args]) => cmd === 'xdotool' && args[0] === 'click' && args.includes('--repeat'),
-      ),
-      'Expected repeated click based gestures to reach xdotool',
-    );
-    assert.ok(
-      normalizedToolCalls.some(([cmd, args]) => cmd === 'xdotool' && args[0] === 'mousedown'),
-      'Expected drag/long-press gestures to press the pointer button',
-    );
-    assert.ok(
-      normalizedToolCalls.some(([cmd, args]) => cmd === 'xdotool' && args[0] === 'mouseup'),
-      'Expected drag/long-press gestures to release the pointer button',
-    );
+    assertFlatToolCall(semanticCalls, ['input', 'click', '60', '100', 'primary']);
+    assertFlatToolCall(semanticCalls, ['input', 'click', '42', '84', 'primary']);
+    assertFlatToolCall(semanticCalls, ['input', 'click', '42', '84', 'secondary']);
+    assertFlatToolCall(semanticCalls, ['input', 'click', '42', '84', 'middle']);
+    assertFlatToolCall(semanticCalls, ['input', 'double-click', '42', '84']);
+    assertFlatToolCall(semanticCalls, ['input', 'long-press', '42', '84', '1']);
+    assertFlatToolCall(semanticCalls, ['input', 'drag', '10', '20', '30', '40', '16']);
+    assertFlatToolCall(semanticCalls, ['input', 'type', 'Seven', '1']);
+    assertFlatToolCall(semanticCalls, ['input', 'type', 'Eight', '1']);
+    assertFlatToolCall(semanticCalls, ['input', 'type', '5', '0']);
+    assertFlatToolCall(semanticCalls, ['input', 'key', 'ctrl+a']);
+    assertFlatToolCall(semanticCalls, ['input', 'key', 'alt+Left']);
+    assertFlatToolCall(semanticCalls, ['input', 'key', 'super+d']);
+    assertFlatToolCall(semanticCalls, ['input', 'scroll', 'down', '', '45']);
+    assertFlatToolCall(semanticCalls, ['input', 'scroll', 'up', '', '']);
+    assert.deepEqual(toolCalls, [], 'Expected Linux Device Lab input to stay semantic');
   } finally {
     await daemon.close();
     fs.rmSync(screenshotPath, { force: true });
@@ -361,11 +365,4 @@ function linuxCalculatorSnapshotNodes(): Array<{
       parentIndex: 0,
     },
   ];
-}
-
-function normalizeToolCalls(calls: Array<[string, string[]]>): Array<[string, string[]]> {
-  return calls.map(([cmd, args]) => [
-    cmd,
-    cmd === 'python3' && args[0] ? [args[0].split('/').at(-1) ?? args[0], ...args.slice(1)] : args,
-  ]);
 }

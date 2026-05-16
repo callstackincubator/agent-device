@@ -7,6 +7,7 @@ import type {
   LinuxSnapshotSurface,
   LinuxTraversalOptions,
 } from './accessibility-types.ts';
+import type { ScrollDirection } from '../../core/scroll-gesture.ts';
 
 export type LinuxToolCommandExecutor = (
   cmd: string,
@@ -37,6 +38,18 @@ export type LinuxAccessibilityProvider = {
   ): Promise<LinuxAccessibilityTree>;
 };
 
+export type LinuxPointerButton = 'primary' | 'secondary' | 'middle';
+
+export type LinuxInputProvider = {
+  click(x: number, y: number, button: LinuxPointerButton): Promise<void>;
+  doubleClick(x: number, y: number): Promise<void>;
+  longPress(x: number, y: number, durationMs: number): Promise<void>;
+  drag(x1: number, y1: number, x2: number, y2: number, durationMs: number): Promise<void>;
+  scroll(direction: ScrollDirection, options?: { amount?: number; pixels?: number }): Promise<void>;
+  typeText(text: string, options?: { delayMs?: number }): Promise<void>;
+  key(combo: string, scancodes: string[]): Promise<void>;
+};
+
 export type LinuxToolProvider = {
   runCommand: LinuxToolCommandExecutor;
   whichCommand: LinuxToolAvailabilityChecker;
@@ -44,6 +57,7 @@ export type LinuxToolProvider = {
   clipboard?: LinuxClipboardProvider;
   screenshot?: LinuxScreenshotProvider;
   accessibility?: LinuxAccessibilityProvider;
+  input?: LinuxInputProvider;
 };
 
 const localLinuxToolProvider: LinuxToolProvider = {

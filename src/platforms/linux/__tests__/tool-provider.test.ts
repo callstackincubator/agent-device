@@ -34,6 +34,35 @@ test('scoped Linux tool provider handles input discovery and command execution',
   ]);
 });
 
+test('scoped Linux input provider handles semantic input without host tool discovery', async () => {
+  const inputCalls: Array<[string, string, string, string]> = [];
+  const provider = createLocalLinuxToolProvider({
+    whichCommand: async (cmd) => {
+      throw new Error(`unexpected input discovery: ${cmd}`);
+    },
+    runCommand: async (cmd) => {
+      throw new Error(`unexpected host input command: ${cmd}`);
+    },
+    input: {
+      click: async (x, y, button) => {
+        inputCalls.push(['click', String(x), String(y), button]);
+      },
+      doubleClick: async () => {},
+      longPress: async () => {},
+      drag: async () => {},
+      scroll: async () => {},
+      typeText: async () => {},
+      key: async () => {},
+    },
+  });
+
+  await withLinuxToolProvider(provider, async () => {
+    await pressLinux(100, 200);
+  });
+
+  assert.deepEqual(inputCalls, [['click', '100', '200', 'primary']]);
+});
+
 test('Linux tool provider scopes do not share cached input tool resolution', async () => {
   const providerA = createLocalLinuxToolProvider({
     whichCommand: async (cmd) => cmd === 'xdotool',
