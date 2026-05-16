@@ -640,7 +640,6 @@ Rules:
 } as const satisfies Record<string, { summary: string; body: string }>;
 
 export type HelpTopicName = keyof typeof HELP_TOPICS;
-export const HELP_TOPIC_NAMES = Object.keys(HELP_TOPICS) as readonly HelpTopicName[];
 
 const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
   {
@@ -1184,7 +1183,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--shutdown'],
     type: 'boolean',
     usageLabel: '--shutdown',
-    usageDescription: 'close: shutdown associated iOS simulator after ending session',
+    usageDescription: 'close: shutdown associated simulator/emulator after ending session',
   },
   {
     key: 'relaunch',
@@ -1469,14 +1468,6 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
       'metroNoInstallDeps',
       'launchUrl',
     ],
-    skipCapabilityCheck: true,
-  },
-  mcp: {
-    helpDescription:
-      'Start the official stdio MCP router for status, install guidance, version-matched CLI help, workflow prompts, and help resources. The MCP router does not expose device automation or shell execution tools.',
-    summary: 'Start MCP discovery router',
-    positionalArgs: [],
-    allowedFlags: [],
     skipCapabilityCheck: true,
   },
   disconnect: {

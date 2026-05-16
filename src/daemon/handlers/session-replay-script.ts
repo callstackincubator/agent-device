@@ -206,6 +206,10 @@ function parseReplayScriptLine(line: string): SessionAction | null {
         action.flags.snapshotRaw = true;
         continue;
       }
+      if (token === '--force-full') {
+        action.flags.snapshotForceFull = true;
+        continue;
+      }
       if ((token === '-d' || token === '--depth') && index + 1 < args.length) {
         const parsedDepth = Number(args[index + 1]);
         if (Number.isFinite(parsedDepth) && parsedDepth >= 0) {

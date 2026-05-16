@@ -18,8 +18,8 @@ test('Device Lab macOS recording flow uses runner provider through daemon path',
       request: {
         command: 'recordStart',
         outPath: recordingPath,
-        fps: undefined,
-        quality: undefined,
+        fps: 30,
+        quality: 7,
         appBundleId: 'com.apple.systempreferences',
       },
       result: {},
@@ -44,6 +44,8 @@ test('Device Lab macOS recording flow uses runner provider through daemon path',
 
     const recordStart = await daemon.callCommand('record', ['start', recordingPath], {
       hideTouches: true,
+      fps: 30,
+      quality: 7,
     });
     const recordStartData = assertRpcOk(recordStart);
     assert.equal(recordStartData.recording, 'started');

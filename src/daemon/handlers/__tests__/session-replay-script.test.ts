@@ -99,6 +99,18 @@ test('screenshot replay script round-trips screenshot flags', () => {
   assert.equal(parsed[0]?.flags.screenshotNoStabilize, true);
 });
 
+test('snapshot replay script parses full refresh flags', () => {
+  const parsed = parseReplayScript('snapshot -i -c --raw --force-full -d 2 -s "@e1"\n');
+
+  assert.deepEqual(parsed[0]?.positionals, []);
+  assert.equal(parsed[0]?.flags.snapshotInteractiveOnly, true);
+  assert.equal(parsed[0]?.flags.snapshotCompact, true);
+  assert.equal(parsed[0]?.flags.snapshotRaw, true);
+  assert.equal(parsed[0]?.flags.snapshotForceFull, true);
+  assert.equal(parsed[0]?.flags.snapshotDepth, 2);
+  assert.equal(parsed[0]?.flags.snapshotScope, '@e1');
+});
+
 test('type and fill replay scripts round-trip typing delay flags', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-script-typing-'));
   const replayPath = path.join(root, 'flow.ad');

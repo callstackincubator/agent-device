@@ -25,7 +25,7 @@ agent-device help react-devtools
 
 Some agent clients run commands in an environment that differs from the user's normal install shell. If `agent-device` is missing in the agent terminal but was installed globally elsewhere, resolve the command the same way the user would from a normal terminal session, then use the absolute binary path for agent commands. This may require inspecting shell startup behavior or package-manager/global bin locations; do not assume the agent process `PATH` is the user's `PATH`.
 
-For Cursor, Codex, Claude Code, Windsurf, Cline, Goose, skills, project rules, and MCP configuration, see [AI Agent Setup](/docs/agent-setup). For the first app automation commands, see [Quick Start](/docs/quick-start).
+For Cursor, Codex, Claude Code, Windsurf, Cline, Goose, skills, and project rules, see [AI Agent Setup](/docs/agent-setup). For the first app automation commands, see [Quick Start](/docs/quick-start).
 
 Interactive CLI runs periodically check for a newer published `agent-device` package in the background. When an upgrade is available, the CLI suggests reinstalling the package globally:
 
@@ -35,16 +35,6 @@ agent-device --version
 ```
 
 Set `AGENT_DEVICE_NO_UPDATE_NOTIFIER=1` to disable the notice.
-
-## Agent clients and MCP
-
-The official MCP router is intentionally thin. It helps clients discover install/status/help, while app and device automation remains explicit CLI activity in the terminal.
-
-```bash
-agent-device mcp
-```
-
-Use [AI Agent Setup](/docs/agent-setup#mcp-router) for copy-paste MCP client configuration.
 
 ## Without installing
 

@@ -98,6 +98,11 @@ export type AndroidAdbInstaller = (
   options?: AndroidAdbInstallOptions,
 ) => Promise<AndroidAdbExecutorResult>;
 
+export type AndroidBundleInstaller = (
+  bundlePath: string,
+  options: { mode: string },
+) => Promise<void>;
+
 export type AndroidTextInjectionRequest = {
   action: 'type' | 'fill';
   text: string;
@@ -124,6 +129,7 @@ export type AndroidAdbProvider = {
   reverse?: AndroidPortReverseProvider;
   pull?: AndroidAdbPuller;
   install?: AndroidAdbInstaller;
+  installBundle?: AndroidBundleInstaller;
   text?: AndroidTextInjector;
 };
 

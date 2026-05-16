@@ -34,7 +34,7 @@ export function createLinuxInteractor(): Interactor {
     type: (text, delayMs) => typeLinux(text, delayMs),
     fill: (x, y, text, delayMs) => fillLinux(x, y, text, delayMs),
     scroll: (direction, options) => scrollLinux(direction, options),
-    screenshot: (outPath) => screenshotLinux(outPath),
+    screenshot: (outPath, options) => screenshotLinux(outPath, options),
     snapshot: async (options) => {
       const result = await withDiagnosticTimer(
         'snapshot_capture',

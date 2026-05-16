@@ -23,14 +23,6 @@ agent-device help dogfood
 
 Skills are recommended for auto-routing when your agent runtime supports them, but they are not required. The CLI help topics are the version-matched operating contract.
 
-For MCP-aware clients that need discovery instead of direct device control, run:
-
-```bash
-agent-device mcp
-```
-
-The MCP router exposes `status`, `install`, and `help` tools plus workflow prompts/resources. It does not expose device automation or generic shell execution over MCP.
-
 ## Navigation
 
 ```bash

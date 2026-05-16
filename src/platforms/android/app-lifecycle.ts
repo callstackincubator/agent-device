@@ -9,7 +9,7 @@ import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';
 import { waitForAndroidBoot } from './devices.ts';
 import { runAndroidAdb } from './adb.ts';
-import { installAndroidAdbPackage } from './adb-executor.ts';
+import { installAndroidAdbPackage, resolveAndroidAdbProvider } from './adb-executor.ts';
 import { classifyAndroidAppTarget } from './open-target.ts';
 import { prepareAndroidInstallArtifact } from './install-artifact.ts';
 import {
@@ -526,9 +526,15 @@ function resolveBundletoolBuildMode(): string {
 }
 
 async function installAndroidAppBundle(device: DeviceInfo, appPath: string): Promise<void> {
+  const provider = resolveAndroidAdbProvider(device);
+  const mode = resolveBundletoolBuildMode();
+  if (provider.installBundle) {
+    await provider.installBundle(appPath, { mode });
+    return;
+  }
+
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-aab-'));
   const apksPath = path.join(tempDir, 'bundle.apks');
-  const mode = resolveBundletoolBuildMode();
   try {
     await runBundletool(['build-apks', '--bundle', appPath, '--output', apksPath, '--mode', mode]);
     await runBundletool(['install-apks', '--apks', apksPath, '--device-id', device.id]);

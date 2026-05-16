@@ -27,8 +27,14 @@ export type LinuxClipboardProvider = {
   writeText(text: string): Promise<void>;
 };
 
+export type LinuxScreenshotOptions = {
+  fullscreen?: boolean;
+  stabilize?: boolean;
+  surface?: string;
+};
+
 export type LinuxScreenshotProvider = {
-  capture(outPath: string): Promise<void>;
+  capture(outPath: string, options?: LinuxScreenshotOptions): Promise<void>;
 };
 
 export type LinuxAccessibilityProvider = {

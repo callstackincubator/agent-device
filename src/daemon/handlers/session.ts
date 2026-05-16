@@ -1,6 +1,10 @@
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { DAEMON_COMMAND_GROUPS, INTERNAL_COMMANDS } from '../../command-catalog.ts';
+import {
+  DAEMON_COMMAND_GROUPS,
+  INTERNAL_COMMANDS,
+  PUBLIC_COMMANDS,
+} from '../../command-catalog.ts';
 import { resolvePayloadInput } from '../../utils/payload-input.ts';
 import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
@@ -104,7 +108,7 @@ async function handleClipboardCommand(params: {
   const { req, sessionName, logPath, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   const flags = req.flags ?? {};
-  const guard = requireSessionOrExplicitSelector('clipboard', session, flags);
+  const guard = requireSessionOrExplicitSelector(PUBLIC_COMMANDS.clipboard, session, flags);
   if (guard) return guard;
 
   const action = (req.positionals?.[0] ?? '').toLowerCase();
@@ -117,13 +121,19 @@ async function handleClipboardCommand(params: {
     flags,
     ensureReady: true,
   });
-  if (!isCommandSupportedOnDevice('clipboard', device)) {
+  if (!isCommandSupportedOnDevice(PUBLIC_COMMANDS.clipboard, device)) {
     return errorResponse('UNSUPPORTED_OPERATION', 'clipboard is not supported on this device');
   }
 
-  const result = await dispatchCommand(device, 'clipboard', req.positionals ?? [], req.flags?.out, {
-    ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
-  });
+  const result = await dispatchCommand(
+    device,
+    PUBLIC_COMMANDS.clipboard,
+    req.positionals ?? [],
+    req.flags?.out,
+    {
+      ...contextFromFlags(logPath, req.flags, session?.appBundleId, session?.trace?.outPath),
+    },
+  );
   if (session) {
     sessionStore.recordAction(session, {
       command: req.command,
@@ -169,7 +179,7 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  if (req.command === 'clipboard') {
+  if (req.command === PUBLIC_COMMANDS.clipboard) {
     return await handleClipboardCommand({
       req,
       sessionName,
@@ -178,7 +188,7 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  if (req.command === 'keyboard') {
+  if (req.command === PUBLIC_COMMANDS.keyboard) {
     const session = sessionStore.get(sessionName);
     const keyboardAction = req.positionals?.[0]?.trim().toLowerCase();
     if (!session && keyboardAction === 'dismiss') {
@@ -196,7 +206,7 @@ export async function handleSessionCommands(params: {
       sessionName,
       logPath,
       sessionStore,
-      command: 'keyboard',
+      command: PUBLIC_COMMANDS.keyboard,
       positionals: req.positionals ?? [],
     });
   }
@@ -210,13 +220,13 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  if (req.command === 'install' || req.command === 'reinstall') {
+  if (req.command === PUBLIC_COMMANDS.install || req.command === PUBLIC_COMMANDS.reinstall) {
     return await handleAppDeployCommand({
       req,
       command: req.command,
       sessionName,
       sessionStore,
-      deployOps: req.command === 'install' ? defaultInstallOps : defaultReinstallOps,
+      deployOps: req.command === PUBLIC_COMMANDS.install ? defaultInstallOps : defaultReinstallOps,
     });
   }
 
@@ -228,11 +238,11 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  if (req.command === 'release_materialized_paths') {
+  if (req.command === INTERNAL_COMMANDS.releaseMaterializedPaths) {
     return await handleReleaseMaterializedPathsCommand({ req });
   }
 
-  if (req.command === 'push') {
+  if (req.command === PUBLIC_COMMANDS.push) {
     const appId = req.positionals?.[0]?.trim();
     const payloadArg = req.positionals?.[1]?.trim();
     if (!appId || !payloadArg) {
@@ -247,19 +257,19 @@ export async function handleSessionCommands(params: {
       sessionName,
       logPath,
       sessionStore,
-      command: 'push',
+      command: PUBLIC_COMMANDS.push,
       positionals: [appId, maybeResolvePushPayloadPath(payloadArg, req.meta?.cwd)],
       recordPositionals: [appId, payloadArg],
     });
   }
 
-  if (req.command === 'trigger-app-event') {
+  if (req.command === PUBLIC_COMMANDS.triggerAppEvent) {
     return await runSessionOrSelectorDispatch({
       req,
       sessionName,
       logPath,
       sessionStore,
-      command: 'trigger-app-event',
+      command: PUBLIC_COMMANDS.triggerAppEvent,
       positionals: req.positionals ?? [],
       deriveNextSession: async (session, result) => {
         const eventUrl = typeof result?.eventUrl === 'string' ? result.eventUrl : undefined;
@@ -279,7 +289,7 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  if (req.command === 'open') {
+  if (req.command === PUBLIC_COMMANDS.open) {
     return await handleOpenCommand({
       req,
       sessionName,
@@ -298,11 +308,11 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  if (req.command === 'batch') {
+  if (req.command === PUBLIC_COMMANDS.batch) {
     return await runBatchCommands(req, sessionName, invoke);
   }
 
-  if (req.command === 'close') {
+  if (req.command === PUBLIC_COMMANDS.close) {
     return await handleCloseCommand({
       req,
       sessionName,

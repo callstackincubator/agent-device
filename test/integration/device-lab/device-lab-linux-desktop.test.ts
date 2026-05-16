@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
+import { listLinuxDevices } from '../../../src/platforms/linux/devices.ts';
 import { createLocalLinuxToolProvider } from '../../../src/platforms/linux/tool-provider.ts';
 import { assertFlatToolCall, assertPngFile, validPng } from './assertions.ts';
 import { DEVICE_LAB_LINUX } from './fixtures.ts';
@@ -15,10 +16,16 @@ test('Device Lab Linux desktop flow uses semantic desktop and input providers', 
   const previousAuthHook = process.env.AGENT_DEVICE_HTTP_AUTH_HOOK;
   const previousPlatform = process.platform;
   const screenshotPath = path.join(os.tmpdir(), `agent-device-lab-linux-${Date.now()}.png`);
+  Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
+  assert.deepEqual(await listLinuxDevices(), []);
   Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
   process.env.XDG_SESSION_TYPE = 'x11';
   delete process.env.WAYLAND_DISPLAY;
   delete process.env.AGENT_DEVICE_HTTP_AUTH_HOOK;
+
+  const localLinuxDevices = await listLinuxDevices();
+  assert.equal(localLinuxDevices[0]?.platform, 'linux');
+  assert.equal(localLinuxDevices[0]?.target, 'desktop');
 
   const toolCalls: Array<[string, string[]]> = [];
   const desktopCalls: Array<[string, string]> = [];
@@ -60,8 +67,14 @@ test('Device Lab Linux desktop flow uses semantic desktop and input providers', 
       },
     },
     screenshot: {
-      capture: async (outPath) => {
-        semanticCalls.push(['screenshot', outPath]);
+      capture: async (outPath, options) => {
+        semanticCalls.push([
+          'screenshot',
+          outPath,
+          String(options?.fullscreen ?? ''),
+          String(options?.stabilize ?? ''),
+          String(options?.surface ?? ''),
+        ]);
         fs.writeFileSync(outPath, validPng());
       },
     },
@@ -167,6 +180,12 @@ test('Device Lab Linux desktop flow uses semantic desktop and input providers', 
         expectData: { x: 60, y: 100 },
       },
       {
+        name: 'read snapshot ref text through Linux accessibility',
+        command: 'get',
+        positionals: ['text', '@e2'],
+        expectData: { text: '5' },
+      },
+      {
         name: 'press coordinates',
         command: 'press',
         positionals: ['42', '84'],
@@ -259,6 +278,10 @@ test('Device Lab Linux desktop flow uses semantic desktop and input providers', 
         name: 'capture screenshot artifact',
         command: 'screenshot',
         positionals: [screenshotPath],
+        flags: {
+          screenshotFullscreen: true,
+          screenshotNoStabilize: true,
+        },
         expectData: { path: screenshotPath },
         assert: () => {
           assertPngFile(screenshotPath);
@@ -297,7 +320,7 @@ test('Device Lab Linux desktop flow uses semantic desktop and input providers', 
     assertFlatToolCall(semanticCalls, ['accessibility', 'frontmost-app']);
     assertFlatToolCall(semanticCalls, ['clipboard', 'write', 'linux otp 314159']);
     assertFlatToolCall(semanticCalls, ['clipboard', 'read']);
-    assertFlatToolCall(semanticCalls, ['screenshot', screenshotPath]);
+    assertFlatToolCall(semanticCalls, ['screenshot', screenshotPath, 'true', 'false', 'app']);
     assertFlatToolCall(semanticCalls, ['input', 'click', '60', '100', 'primary']);
     assertFlatToolCall(semanticCalls, ['input', 'click', '42', '84', 'primary']);
     assertFlatToolCall(semanticCalls, ['input', 'click', '42', '84', 'secondary']);

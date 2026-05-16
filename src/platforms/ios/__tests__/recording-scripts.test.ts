@@ -11,6 +11,7 @@ const recordingScriptsDir = path.resolve(
   '../../../../ios-runner/AgentDeviceRunner/RecordingScripts',
 );
 const recordingTestSupportDir = path.resolve(__dirname, '../../../../test/integration/support');
+const SWIFT_TYPECHECK_TIMEOUT_MS = 30_000;
 
 async function assertSwiftScriptTypechecks(scriptPath: string): Promise<void> {
   const result = await runCmd('xcrun', ['swiftc', '-typecheck', scriptPath], {
@@ -19,37 +20,55 @@ async function assertSwiftScriptTypechecks(scriptPath: string): Promise<void> {
   assert.equal(result.exitCode, 0, `${path.basename(scriptPath)} should typecheck`);
 }
 
-test('recording overlay Swift script typechecks', async (t) => {
-  if (process.platform !== 'darwin') {
-    t.skip('Swift recording scripts are only validated on macOS');
-  }
+test(
+  'recording overlay Swift script typechecks',
+  async (t) => {
+    if (process.platform !== 'darwin') {
+      t.skip('Swift recording scripts are only validated on macOS');
+    }
 
-  await assertSwiftScriptTypechecks(path.join(recordingScriptsDir, 'recording-overlay.swift'));
-});
+    await assertSwiftScriptTypechecks(path.join(recordingScriptsDir, 'recording-overlay.swift'));
+  },
+  SWIFT_TYPECHECK_TIMEOUT_MS,
+);
 
-test('recording trim Swift script typechecks', async (t) => {
-  if (process.platform !== 'darwin') {
-    t.skip('Swift recording scripts are only validated on macOS');
-  }
+test(
+  'recording trim Swift script typechecks',
+  async (t) => {
+    if (process.platform !== 'darwin') {
+      t.skip('Swift recording scripts are only validated on macOS');
+    }
 
-  await assertSwiftScriptTypechecks(path.join(recordingScriptsDir, 'recording-trim.swift'));
-});
+    await assertSwiftScriptTypechecks(path.join(recordingScriptsDir, 'recording-trim.swift'));
+  },
+  SWIFT_TYPECHECK_TIMEOUT_MS,
+);
 
-test('recording resize Swift script typechecks', async (t) => {
-  if (process.platform !== 'darwin') {
-    t.skip('Swift recording scripts are only validated on macOS');
-  }
+test(
+  'recording resize Swift script typechecks',
+  async (t) => {
+    if (process.platform !== 'darwin') {
+      t.skip('Swift recording scripts are only validated on macOS');
+    }
 
-  await assertSwiftScriptTypechecks(path.join(recordingScriptsDir, 'recording-resize.swift'));
-});
+    await assertSwiftScriptTypechecks(path.join(recordingScriptsDir, 'recording-resize.swift'));
+  },
+  SWIFT_TYPECHECK_TIMEOUT_MS,
+);
 
-test('recording inspect Swift script typechecks', async (t) => {
-  if (process.platform !== 'darwin') {
-    t.skip('Swift recording scripts are only validated on macOS');
-  }
+test(
+  'recording inspect Swift script typechecks',
+  async (t) => {
+    if (process.platform !== 'darwin') {
+      t.skip('Swift recording scripts are only validated on macOS');
+    }
 
-  await assertSwiftScriptTypechecks(path.join(recordingTestSupportDir, 'recording-inspect.swift'));
-});
+    await assertSwiftScriptTypechecks(
+      path.join(recordingTestSupportDir, 'recording-inspect.swift'),
+    );
+  },
+  SWIFT_TYPECHECK_TIMEOUT_MS,
+);
 
 test('recording overlays are explicitly unsupported on non-macOS hosts', () => {
   assert.equal(

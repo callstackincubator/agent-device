@@ -25,11 +25,64 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
   }
 });
 
+test('Device Lab Android text provider handles Unicode without shell input text', async () => {
+  const world = await createAndroidSettingsWorld({ nativeTextInjection: true });
+
+  try {
+    const client = world.daemon.client();
+    await client.apps.open({ app: 'settings', ...world.selection });
+    const snapshot = await client.capture.snapshot({
+      interactiveOnly: true,
+      ...world.selection,
+    });
+    const search = snapshot.nodes.find((node) => node.label === 'Search');
+    assert.ok(search, JSON.stringify(snapshot.nodes));
+
+    const fill = await client.interactions.fill({
+      ref: `@${search.ref}`,
+      text: 'Łódź café',
+      delayMs: 2,
+      ...world.selection,
+    });
+    assert.equal(fill.text, 'Łódź café');
+
+    const typed = await client.interactions.type({
+      text: 'naïve résumé',
+      delayMs: 3,
+      ...world.selection,
+    });
+    assert.equal(typed.text, 'naïve résumé');
+
+    assert.deepEqual(world.textInjectionCalls, [
+      {
+        action: 'fill',
+        target: { x: 195, y: 52 },
+        text: 'Łódź café',
+        delayMs: 2,
+      },
+      {
+        action: 'type',
+        text: 'naïve résumé',
+        delayMs: 3,
+      },
+    ]);
+    assert.equal(
+      world.adbCalls.some(
+        (call) => call[0] === 'shell' && call[1] === 'input' && call[2] === 'text',
+      ),
+      false,
+      JSON.stringify(world.adbCalls),
+    );
+  } finally {
+    await world.close();
+  }
+});
+
 async function runAndroidSetupAndInstallWorkflow(
   world: AndroidSettingsWorld,
   client: AgentDeviceClient,
 ): Promise<void> {
-  const { daemon, apkPath, manifestApkPath, selection, tempRoot } = world;
+  const { daemon, apkPath, aabPath, manifestApkPath, selection, tempRoot } = world;
 
   const devices = await client.devices.list({ platform: 'android' });
   assert.equal(devices.length, 1);
@@ -97,6 +150,15 @@ async function runAndroidSetupAndInstallWorkflow(
   assert.equal(reinstall.platform, 'android');
   assert.equal(reinstall.appId, 'com.example.demo');
   assert.equal(path.basename(reinstall.appPath), 'Demo.apk');
+
+  const reinstallBundle = await client.apps.reinstall({
+    app: 'com.example.demo',
+    appPath: aabPath,
+    ...selection,
+  });
+  assert.equal(reinstallBundle.platform, 'android');
+  assert.equal(reinstallBundle.appId, 'com.example.demo');
+  assert.equal(path.basename(reinstallBundle.appPath), 'Demo.aab');
 
   const installFromManifest = await client.apps.installFromSource({
     source: { kind: 'path', path: manifestApkPath },
@@ -622,7 +684,7 @@ function assertAndroidInventoryContract(world: AndroidSettingsWorld): void {
 }
 
 function assertAndroidInstallAndLaunchContract(world: AndroidSettingsWorld): void {
-  const { adbCalls, installCalls } = world;
+  const { adbCalls, installCalls, bundleInstallCalls } = world;
   assertCommandCall(adbCalls, ['shell', 'am', 'start', '-W', '-a', 'android.settings.SETTINGS']);
   assertCommandCall(adbCalls, ['shell', 'am', 'force-stop', 'com.example.demo']);
   assertCommandCall(adbCalls, [
@@ -646,6 +708,7 @@ function assertAndroidInstallAndLaunchContract(world: AndroidSettingsWorld): voi
   assert.equal(path.basename(installCalls[1]?.apkPath ?? ''), 'ManifestDemo.apk');
   assert.equal(path.basename(installCalls[2]?.apkPath ?? ''), 'ManifestDemo.apk');
   assert.equal(installCalls[1]?.replace, true);
+  assert.deepEqual(bundleInstallCalls, [{ bundlePath: world.aabPath, mode: 'universal' }]);
 }
 
 function assertAndroidPushAndEventContract(world: AndroidSettingsWorld): void {

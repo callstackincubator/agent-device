@@ -10,16 +10,6 @@ export function assertCommandCall(calls: readonly string[][], expected: readonly
   );
 }
 
-export function assertToolCall(
-  calls: Array<[string, string[]]>,
-  expected: [string, ...string[]],
-): void {
-  assert.ok(
-    calls.some(([cmd, args]) => arrayEqual([cmd, ...args], expected)),
-    `Expected tool call ${JSON.stringify(expected)} in ${JSON.stringify(calls)}`,
-  );
-}
-
 export function assertFlatToolCall(
   calls: Array<[string, ...string[]]>,
   expected: [string, ...string[]],

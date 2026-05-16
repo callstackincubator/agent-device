@@ -17,31 +17,45 @@ import { createDeviceLabHarness, restoreEnv, type DeviceLabHarness } from './har
 type AndroidSettingsWorld = {
   daemon: DeviceLabHarness;
   adbCalls: string[][];
+  textInjectionCalls: Array<{
+    action: 'type' | 'fill';
+    text: string;
+    delayMs?: number;
+    target?: { x: number; y: number };
+  }>;
   inventoryRequests: DeviceInventoryRequest[];
   installCalls: Array<{ apkPath: string; replace?: boolean }>;
+  bundleInstallCalls: Array<{ bundlePath: string; mode: string }>;
   spawnedLogcat: AndroidAdbProcess[];
   tempRoot: string;
   apkPath: string;
+  aabPath: string;
   manifestApkPath: string;
   selection: { platform: 'android'; serial: string };
   assertNoHostAdbCalls: () => void;
   close: () => Promise<void>;
 };
 
-export async function createAndroidSettingsWorld(): Promise<AndroidSettingsWorld> {
+export async function createAndroidSettingsWorld(options?: {
+  nativeTextInjection?: boolean;
+}): Promise<AndroidSettingsWorld> {
   const hostAdbGuard = installFakeHostAdbGuard();
   const adbCalls: string[][] = [];
+  const textInjectionCalls: AndroidSettingsWorld['textInjectionCalls'] = [];
   const inventoryRequests: DeviceInventoryRequest[] = [];
   const installCalls: Array<{ apkPath: string; replace?: boolean }> = [];
+  const bundleInstallCalls: Array<{ bundlePath: string; mode: string }> = [];
   let searchText = '';
   let clipboardText = 'hello';
   const spawnedLogcat: AndroidAdbProcess[] = [];
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-lab-android-deploy-'));
   const apkPath = path.join(tempRoot, 'Demo.apk');
+  const aabPath = path.join(tempRoot, 'Demo.aab');
   const previousAppEventTemplate = process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
   process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE =
     'demo://agent-device/event?name={event}&payload={payload}&platform={platform}';
   fs.writeFileSync(apkPath, 'placeholder apk');
+  fs.writeFileSync(aabPath, 'placeholder aab');
   const manifestApkPath = await createAndroidManifestApk(tempRoot, {
     fileName: 'ManifestDemo.apk',
     packageName: 'io.example.demo_manifest',
@@ -60,6 +74,9 @@ export async function createAndroidSettingsWorld(): Promise<AndroidSettingsWorld
     install: async (apk, options) => {
       installCalls.push({ apkPath: apk, replace: options?.replace });
       return { stdout: '', stderr: '', exitCode: 0 };
+    },
+    installBundle: async (bundlePath, bundleOptions) => {
+      bundleInstallCalls.push({ bundlePath, mode: bundleOptions.mode });
     },
     spawn: (args) => {
       const child = makeMockAdbProcess();
@@ -86,6 +103,12 @@ export async function createAndroidSettingsWorld(): Promise<AndroidSettingsWorld
       return child;
     },
   };
+  if (options?.nativeTextInjection) {
+    adbProvider.text = async (request) => {
+      textInjectionCalls.push({ ...request });
+      searchText = request.text;
+    };
+  }
   const daemon = await createDeviceLabHarness({
     androidAdbProvider: () => adbProvider,
     deviceInventoryProvider: async (request) => {
@@ -98,11 +121,14 @@ export async function createAndroidSettingsWorld(): Promise<AndroidSettingsWorld
   return {
     daemon,
     adbCalls,
+    textInjectionCalls,
     inventoryRequests,
     installCalls,
+    bundleInstallCalls,
     spawnedLogcat,
     tempRoot,
     apkPath,
+    aabPath,
     manifestApkPath,
     selection: { platform: 'android', serial: DEVICE_LAB_ANDROID.id },
     assertNoHostAdbCalls: () => {
