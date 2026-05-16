@@ -153,3 +153,6 @@ jobs:
           # Smoke tests execute src/bin.ts directly and do not rely on prebuilt JS or XCTest artifacts.
           pnpm clean:daemon
           pnpm test:integration
+
+      - name: Check Device Lab architecture progress
+        run: pnpm test:device-lab:progress:check

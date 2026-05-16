@@ -178,33 +178,7 @@ test('Device Lab iOS Settings flow uses scripted simctl and runner providers', a
     runnerTranscript.assertComplete();
     assertFlatToolCall(appleTool.calls, ['simctl', 'launch', 'sim-1', 'com.apple.Preferences']);
     assertFlatToolCall(appleTool.calls, ['simctl', 'uninstall', 'sim-1', 'com.example.demo']);
-    assertFlatToolCall(appleTool.calls, [
-      'plutil',
-      '-extract',
-      'CFBundleIdentifier',
-      'raw',
-      '-o',
-      '-',
-      path.join(appPath, 'Info.plist'),
-    ]);
-    assertFlatToolCall(appleTool.calls, [
-      'plutil',
-      '-extract',
-      'CFBundleDisplayName',
-      'raw',
-      '-o',
-      '-',
-      path.join(appPath, 'Info.plist'),
-    ]);
-    assertFlatToolCall(appleTool.calls, [
-      'plutil',
-      '-extract',
-      'CFBundleName',
-      'raw',
-      '-o',
-      '-',
-      path.join(appPath, 'Info.plist'),
-    ]);
+    assertFlatToolCall(appleTool.calls, ['plist', 'readJson', path.join(appPath, 'Info.plist')]);
     assertFlatToolCall(appleTool.calls, ['simctl', 'install', 'sim-1', appPath]);
     assertFlatToolCall(appleTool.calls, ['simctl', 'pbcopy', 'sim-1']);
     assertFlatToolCall(appleTool.calls, ['simctl', 'pbpaste', 'sim-1']);

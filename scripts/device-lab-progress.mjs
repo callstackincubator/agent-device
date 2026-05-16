@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
+const CHECK_MODE = process.argv.includes('--check');
 const HANDLER_TEST_DIR = path.join(ROOT, 'src/daemon/handlers/__tests__');
 const DEVICE_LAB_DIR = path.join(ROOT, 'test/integration/device-lab');
 const COVERAGE_SUMMARY = path.join(ROOT, 'coverage/coverage-summary.json');
@@ -157,6 +158,28 @@ if (providerPressureRows.length > 0) {
   console.log('| --- | ---: | ---: |');
   for (const pressure of providerPressureRows) {
     console.log(`| ${pressure.name} | ${pressure.references} | ${pressure.files} |`);
+  }
+}
+
+if (CHECK_MODE) {
+  const failures = [];
+  if (missingPublicCommands.length > 0) {
+    failures.push(
+      `missing Device Lab command coverage: ${missingPublicCommands.map((row) => row.command).join(', ')}`,
+    );
+  }
+  if (missingFlagRows.length > 0) {
+    failures.push(
+      `missing Device Lab workflow flag coverage: ${missingFlagRows.map((row) => row.key).join(', ')}`,
+    );
+  }
+  if (unclassifiedFlagKeys.length > 0) {
+    failures.push(`unclassified public CLI flags: ${unclassifiedFlagKeys.join(', ')}`);
+  }
+  if (failures.length > 0) {
+    console.error('');
+    console.error(`Device Lab progress check failed: ${failures.join('; ')}`);
+    process.exit(1);
   }
 }
 

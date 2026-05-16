@@ -1,11 +1,21 @@
 import { promises as fs } from 'node:fs';
-import { runAppleToolCommand } from './tool-provider.ts';
+import { readApplePlistJson, runAppleToolCommand } from './tool-provider.ts';
 import { parseXmlDocumentSync, visitXmlPlistEntries } from './xml.ts';
 
 export async function readInfoPlistString(
   infoPlistPath: string,
   key: string,
 ): Promise<string | undefined> {
+  try {
+    const plist = await readApplePlistJson(infoPlistPath);
+    const value = plist?.[key];
+    if (typeof value === 'string' && value.length > 0) {
+      return value;
+    }
+  } catch {
+    // Fall through to XML parsing for non-Darwin environments without plist tooling.
+  }
+
   try {
     const result = await runAppleToolCommand(
       'plutil',

@@ -1,6 +1,7 @@
 import type { AppleRunnerProvider } from '../../../src/platforms/ios/runner-provider.ts';
 import type {
   AppleMacOsHostProvider,
+  ApplePlistProvider,
   AppleToolCommandExecutor,
   AppleToolProvider,
   AppleToolSubcommandExecutor,
@@ -16,6 +17,7 @@ type RecordingAppleToolHandlers = {
   devicectl?: AppleToolSubcommandExecutor;
   macosHelper?: AppleToolSubcommandExecutor;
   macosHost?: AppleMacOsHostProvider;
+  plist?: ApplePlistProvider;
 };
 
 export function createAppleRunnerProviderFromTranscript(
@@ -39,6 +41,7 @@ export function createRecordingAppleToolProvider(
 } {
   const calls: FlatToolCall[] = [];
   const handlers = typeof handler === 'function' ? { runCommand: handler } : (handler ?? {});
+  const plistHandler = handlers.plist;
   const missingHandler = async (label: string): Promise<ExecResult> => {
     throw new Error(`Unscripted Apple Device Lab provider call: ${label}`);
   };
@@ -80,6 +83,14 @@ export function createRecordingAppleToolProvider(
         },
       },
       macosHost: createRecordingMacOsHostProvider(calls, handlers.macosHost),
+      plist: plistHandler
+        ? {
+            readJson: async (plistPath) => {
+              calls.push(['plist', 'readJson', plistPath]);
+              return await plistHandler.readJson(plistPath);
+            },
+          }
+        : undefined,
     },
   };
 }

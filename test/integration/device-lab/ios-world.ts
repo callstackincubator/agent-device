@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import type { DeviceInventoryRequest } from '../../../src/core/dispatch-resolve.ts';
 import type { DeviceLabTranscript } from './transcript.ts';
 import {
@@ -25,6 +26,7 @@ type IosSettingsWorld = {
 };
 
 export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
+  const { tempRoot, appPath } = createDemoIosApp('agent-device-lab-ios-deploy-');
   const inventoryRequests: DeviceInventoryRequest[] = [];
   const runnerTranscript = createProviderTranscript([
     runnerSnapshot(),
@@ -83,6 +85,18 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
   );
   let clipboardText = '';
   const appleTool = createRecordingAppleToolProvider({
+    plist: {
+      readJson: async (plistPath) => {
+        if (plistPath === path.join(appPath, 'Info.plist')) {
+          return {
+            CFBundleIdentifier: 'com.example.demo',
+            CFBundleDisplayName: 'Demo',
+            CFBundleName: 'Demo',
+          };
+        }
+        return null;
+      },
+    },
     simctl: async (args, options) => {
       if (args.join(' ') === 'pbcopy sim-1') {
         clipboardText = String(options?.stdin ?? '');
@@ -116,7 +130,6 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
       return [DEVICE_LAB_IOS_SIMULATOR];
     },
   });
-  const { tempRoot, appPath } = createDemoIosApp('agent-device-lab-ios-deploy-');
   let closed = false;
   return {
     daemon,
