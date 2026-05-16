@@ -43,15 +43,13 @@ agent-device help react-devtools
 agent-device help dogfood
 ```
 
-Use [AI Agent Setup](/agent-device/pr-preview/pr-542/docs/agent-setup.md) for Cursor, Codex, Claude Code, Windsurf, Cline, Goose, skills, and MCP setup. Use [Commands](/agent-device/pr-preview/pr-542/docs/commands.md) for detailed command groups and platform behavior.
+Use [AI Agent Setup](/agent-device/pr-preview/pr-542/docs/agent-setup.md) for Cursor, Codex, Claude Code, Windsurf, Cline, Goose, skills, and project rules. Use [Commands](/agent-device/pr-preview/pr-542/docs/commands.md) for detailed command groups and platform behavior.
 
 ## Where it fits
 
 `agent-device` is for agents, but humans still install it, grant permissions, review artifacts, and decide what ships.
 
 It complements scripted test frameworks such as Appium, Maestro, Detox, XCTest, and Espresso. Keep those for stable human-authored coverage. Use `agent-device` when an agent needs to explore, reproduce, debug, profile, collect evidence, or record a replay from live app behavior.
-
-MCP support is intentionally a thin discovery router for install/status/help. App and device automation remains explicit CLI activity in the terminal.
 
 ## Next steps
 
