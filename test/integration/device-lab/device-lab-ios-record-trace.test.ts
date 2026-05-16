@@ -38,10 +38,12 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
     runnerTranscript,
     'ios.runner',
   );
-  const appleTool = createRecordingAppleToolProvider(async (_cmd, args) => {
-    writeJsonOutputIfRequested(args);
-    writeCopiedRecordingIfRequested(args);
-    return { stdout: '', stderr: '', exitCode: 0 };
+  const appleTool = createRecordingAppleToolProvider({
+    devicectl: async (args) => {
+      writeJsonOutputIfRequested(args);
+      writeCopiedRecordingIfRequested(args);
+      return { stdout: '', stderr: '', exitCode: 0 };
+    },
   });
   const daemon = await createDeviceLabHarness({
     appleRunnerProvider: () => appleRunnerProvider,
@@ -108,7 +110,6 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
     assert.equal(fs.existsSync(recordingPath), true);
     assert.equal(fs.existsSync(finalTracePath), true);
     assertFlatToolCallStartsWith(appleTool.calls, [
-      'xcrun',
       'devicectl',
       'device',
       'info',
@@ -117,7 +118,6 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
       DEVICE_LAB_IOS_DEVICE.id,
     ]);
     assertFlatToolCallStartsWith(appleTool.calls, [
-      'xcrun',
       'devicectl',
       'device',
       'process',
@@ -127,7 +127,6 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
       'com.apple.Preferences',
     ]);
     assertFlatToolCallStartsWith(appleTool.calls, [
-      'xcrun',
       'devicectl',
       'device',
       'copy',
@@ -170,13 +169,15 @@ test('Device Lab iOS simulator recording flow uses semantic recording provider',
     runnerTranscript,
     'ios.runner',
   );
-  const appleTool = createRecordingAppleToolProvider(async (cmd, args) => {
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
-      return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.iOS-18-0', [
-        { name: 'iPhone 15', udid: DEVICE_LAB_IOS_SIMULATOR.id },
-      ]);
-    }
-    return { stdout: '', stderr: '', exitCode: 0 };
+  const appleTool = createRecordingAppleToolProvider({
+    simctl: async (args) => {
+      if (args.join(' ') === 'list devices -j') {
+        return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.iOS-18-0', [
+          { name: 'iPhone 15', udid: DEVICE_LAB_IOS_SIMULATOR.id },
+        ]);
+      }
+      return { stdout: '', stderr: '', exitCode: 0 };
+    },
   });
   const recordingStarts: string[] = [];
   let stopped = false;
@@ -230,7 +231,6 @@ test('Device Lab iOS simulator recording flow uses semantic recording provider',
     assert.deepEqual(recordingStarts, [recordingPath]);
     assert.equal(stopped, true);
     assertFlatToolCallStartsWith(appleTool.calls, [
-      'xcrun',
       'simctl',
       'launch',
       DEVICE_LAB_IOS_SIMULATOR.id,

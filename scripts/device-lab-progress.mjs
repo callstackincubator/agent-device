@@ -167,9 +167,18 @@ function summarizeProviderPressure(files) {
       pattern: /\bAppleRunnerProvider\b|\bappleRunnerProvider\b|\b(?:ios|macos|tvos)\.runner\b/g,
     },
     {
-      name: 'Apple raw tool/helper provider',
+      name: 'Apple simctl/devicectl provider',
       pattern:
-        /\bAppleToolProvider\b|\bappleToolProvider\b|\bcreateRecordingAppleToolProvider\b|\bagent-device-macos-helper\b|\bxcrun\b|\bsimctl\b|\bdevicectl\b|\bplutil\b|\bosascript\b/g,
+        /\bsimctl\b|\bdevicectl\b|\brunXcrun\b|\bsimctl\s*:|\bdevicectl\s*:/g,
+    },
+    {
+      name: 'Apple macOS helper provider',
+      pattern: /\bmacos-helper\b|\bagent-device-macos-helper\b|\bmacosHelper\s*:/g,
+    },
+    {
+      name: 'Apple generic host-tool provider',
+      pattern:
+        /\bxcrun\b|['"](?:open|pbcopy|pbpaste|plutil|osascript|swift|codesign|mdfind|ps|pkill)['"]/g,
     },
     {
       name: 'Linux raw tool provider',

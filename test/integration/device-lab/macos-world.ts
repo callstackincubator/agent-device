@@ -17,41 +17,43 @@ export async function createMacOsDesktopWorld(
   } = {},
 ): Promise<MacOsDesktopWorld> {
   let clipboardText = '';
-  const appleTool = createRecordingAppleToolProvider(async (cmd, args, options) => {
-    if (cmd === 'find') {
-      return {
-        stdout: '/Applications/System Settings.app\n/Applications/Demo.app\n',
-        stderr: '',
-        exitCode: 0,
-      };
-    }
-    if (cmd === 'plutil') {
-      const key = args[1];
-      const plistPath = args[5] ?? '';
-      const isDemo = plistPath.includes('/Demo.app/');
-      if (key === 'CFBundleIdentifier') {
+  const appleTool = createRecordingAppleToolProvider({
+    runCommand: async (cmd, args, commandOptions) => {
+      if (cmd === 'find') {
         return {
-          stdout: isDemo ? 'com.example.demo\n' : 'com.apple.systempreferences\n',
+          stdout: '/Applications/System Settings.app\n/Applications/Demo.app\n',
           stderr: '',
           exitCode: 0,
         };
       }
-      if (key === 'CFBundleName') {
-        return { stdout: isDemo ? 'Demo\n' : 'System Settings\n', stderr: '', exitCode: 0 };
+      if (cmd === 'plutil') {
+        const key = args[1];
+        const plistPath = args[5] ?? '';
+        const isDemo = plistPath.includes('/Demo.app/');
+        if (key === 'CFBundleIdentifier') {
+          return {
+            stdout: isDemo ? 'com.example.demo\n' : 'com.apple.systempreferences\n',
+            stderr: '',
+            exitCode: 0,
+          };
+        }
+        if (key === 'CFBundleName') {
+          return { stdout: isDemo ? 'Demo\n' : 'System Settings\n', stderr: '', exitCode: 0 };
+        }
+        return { stdout: '', stderr: '', exitCode: 1 };
       }
-      return { stdout: '', stderr: '', exitCode: 1 };
-    }
-    if (cmd === 'pbcopy') {
-      clipboardText = String(options?.stdin ?? '');
+      if (cmd === 'pbcopy') {
+        clipboardText = String(commandOptions?.stdin ?? '');
+        return { stdout: '', stderr: '', exitCode: 0 };
+      }
+      if (cmd === 'pbpaste') {
+        return { stdout: `${clipboardText}\n`, stderr: '', exitCode: 0 };
+      }
       return { stdout: '', stderr: '', exitCode: 0 };
-    }
-    if (cmd === 'pbpaste') {
-      return { stdout: `${clipboardText}\n`, stderr: '', exitCode: 0 };
-    }
-    if (cmd === 'agent-device-macos-helper') {
+    },
+    macosHelper: async (args) => {
       return runScriptedMacOsHelper(args);
-    }
-    return { stdout: '', stderr: '', exitCode: 0 };
+    },
   });
   const daemon = await createDeviceLabHarness({
     appleRunnerProvider: options.appleRunnerProvider

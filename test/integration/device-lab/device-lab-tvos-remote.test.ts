@@ -50,13 +50,15 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
     runnerTranscript,
     'tvos.runner',
   );
-  const appleTool = createRecordingAppleToolProvider(async (cmd, args) => {
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
-      return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.tvOS-18-0', [
-        { name: 'Apple TV', udid: 'tv-sim-1' },
-      ]);
-    }
-    return { stdout: '', stderr: '', exitCode: 0 };
+  const appleTool = createRecordingAppleToolProvider({
+    simctl: async (args) => {
+      if (args.join(' ') === 'list devices -j') {
+        return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.tvOS-18-0', [
+          { name: 'Apple TV', udid: 'tv-sim-1' },
+        ]);
+      }
+      return { stdout: '', stderr: '', exitCode: 0 };
+    },
   });
 
   const daemon = await createDeviceLabHarness({
@@ -87,11 +89,11 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
 
     runnerTranscript.assertComplete();
     assert.deepEqual(appleTool.calls, [
-      ['xcrun', 'simctl', 'list', 'devices', '-j'],
-      ['xcrun', 'simctl', 'list', 'devices', '-j'],
-      ['xcrun', 'simctl', 'launch', 'tv-sim-1', 'com.example.tv'],
-      ['xcrun', 'simctl', 'list', 'devices', '-j'],
-      ['xcrun', 'simctl', 'terminate', 'tv-sim-1', 'com.example.tv'],
+      ['simctl', 'list', 'devices', '-j'],
+      ['simctl', 'list', 'devices', '-j'],
+      ['simctl', 'launch', 'tv-sim-1', 'com.example.tv'],
+      ['simctl', 'list', 'devices', '-j'],
+      ['simctl', 'terminate', 'tv-sim-1', 'com.example.tv'],
     ]);
   } finally {
     await daemon.close();

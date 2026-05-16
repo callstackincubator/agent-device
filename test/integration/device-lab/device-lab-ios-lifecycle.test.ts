@@ -6,7 +6,7 @@ import { createIosPhysicalReinstallWorld, createIosSettingsWorld } from './ios-w
 import { runDeviceLabScenario } from './scenario.ts';
 import { DEVICE_LAB_IOS_REINSTALL_DEVICE, DEVICE_LAB_IOS_SIMULATOR } from './fixtures.ts';
 
-test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', async () => {
+test('Device Lab iOS Settings flow uses scripted simctl and runner providers', async () => {
   const { appPath, appleTool, close, daemon, runnerTranscript } = await createIosSettingsWorld();
 
   try {
@@ -162,20 +162,8 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
     ]);
 
     runnerTranscript.assertComplete();
-    assertFlatToolCall(appleTool.calls, [
-      'xcrun',
-      'simctl',
-      'launch',
-      'sim-1',
-      'com.apple.Preferences',
-    ]);
-    assertFlatToolCall(appleTool.calls, [
-      'xcrun',
-      'simctl',
-      'uninstall',
-      'sim-1',
-      'com.example.demo',
-    ]);
+    assertFlatToolCall(appleTool.calls, ['simctl', 'launch', 'sim-1', 'com.apple.Preferences']);
+    assertFlatToolCall(appleTool.calls, ['simctl', 'uninstall', 'sim-1', 'com.example.demo']);
     assertFlatToolCall(appleTool.calls, [
       'plutil',
       '-extract',
@@ -203,9 +191,9 @@ test('Device Lab iOS Settings flow uses scripted xcrun and runner providers', as
       '-',
       path.join(appPath, 'Info.plist'),
     ]);
-    assertFlatToolCall(appleTool.calls, ['xcrun', 'simctl', 'install', 'sim-1', appPath]);
-    assertFlatToolCall(appleTool.calls, ['xcrun', 'simctl', 'pbcopy', 'sim-1']);
-    assertFlatToolCall(appleTool.calls, ['xcrun', 'simctl', 'pbpaste', 'sim-1']);
+    assertFlatToolCall(appleTool.calls, ['simctl', 'install', 'sim-1', appPath]);
+    assertFlatToolCall(appleTool.calls, ['simctl', 'pbcopy', 'sim-1']);
+    assertFlatToolCall(appleTool.calls, ['simctl', 'pbpaste', 'sim-1']);
   } finally {
     await close();
   }
@@ -233,7 +221,6 @@ test('Device Lab iOS physical reinstall uses scripted devicectl provider', async
     assert.equal(reinstall.json?.result?.data?.bundleId, 'com.example.demo');
     assert.equal(reinstall.json?.result?.data?.appPath, appPath);
     assertFlatToolCall(appleTool.calls, [
-      'xcrun',
       'devicectl',
       'device',
       'uninstall',
@@ -243,7 +230,6 @@ test('Device Lab iOS physical reinstall uses scripted devicectl provider', async
       'com.example.demo',
     ]);
     assertFlatToolCall(appleTool.calls, [
-      'xcrun',
       'devicectl',
       'device',
       'install',

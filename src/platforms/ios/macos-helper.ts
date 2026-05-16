@@ -6,7 +6,11 @@ import { fileURLToPath } from 'node:url';
 import { AppError } from '../../utils/errors.ts';
 import { resolveExecutableOverridePath } from '../../utils/exec.ts';
 import type { SessionSurface } from '../../core/session-surface.ts';
-import { hasScopedAppleToolProvider, runAppleToolCommand } from './tool-provider.ts';
+import {
+  hasScopedAppleToolProvider,
+  resolveAppleToolProvider,
+  runAppleToolCommand,
+} from './tool-provider.ts';
 
 export type MacOsPermissionTarget = 'accessibility' | 'screen-recording' | 'input-monitoring';
 
@@ -212,11 +216,17 @@ async function resolveMacOsHelperCommandPath(): Promise<string> {
 }
 
 async function runMacOsHelper<T extends Record<string, unknown>>(args: string[]): Promise<T> {
-  const helperPath = await resolveMacOsHelperCommandPath();
-  const result = await runAppleToolCommand(helperPath, args, {
+  const helperOptions = {
     allowFailure: true,
     timeoutMs: 30_000,
-  });
+  };
+  const helperProvider = resolveAppleToolProvider().macosHelper;
+  const helperPath = helperProvider
+    ? MACOS_HELPER_PRODUCT_NAME
+    : await resolveMacOsHelperCommandPath();
+  const result = helperProvider
+    ? await helperProvider.run(args, helperOptions)
+    : await runAppleToolCommand(helperPath, args, helperOptions);
   const stdout = result.stdout.trim();
   let parsed: HelperResult<T> | null = null;
   if (stdout) {

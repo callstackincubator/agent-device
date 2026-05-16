@@ -299,66 +299,46 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       '-e',
       'tell application "System Events" to tell appearance preferences to set dark mode to true',
     ]);
+    assertFlatToolCall(appleTool.calls, ['macos-helper', 'permission', 'grant', 'accessibility']);
     assertFlatToolCall(appleTool.calls, [
-      'agent-device-macos-helper',
-      'permission',
-      'grant',
-      'accessibility',
-    ]);
-    assertFlatToolCall(appleTool.calls, [
-      'agent-device-macos-helper',
+      'macos-helper',
       'permission',
       'reset',
       'screen-recording',
     ]);
-    assertFlatToolCall(appleTool.calls, ['agent-device-macos-helper', 'app', 'frontmost']);
+    assertFlatToolCall(appleTool.calls, ['macos-helper', 'app', 'frontmost']);
     assertFlatToolCall(appleTool.calls, [
-      'agent-device-macos-helper',
+      'macos-helper',
       'alert',
       'get',
       '--surface',
       'frontmost-app',
     ]);
     assertFlatToolCall(appleTool.calls, [
-      'agent-device-macos-helper',
+      'macos-helper',
       'alert',
       'accept',
       '--surface',
       'frontmost-app',
     ]);
     assertFlatToolCall(appleTool.calls, [
-      'agent-device-macos-helper',
+      'macos-helper',
       'alert',
       'dismiss',
       '--surface',
       'frontmost-app',
     ]);
-    assertFlatToolCall(appleTool.calls, [
-      'agent-device-macos-helper',
-      'snapshot',
-      '--surface',
-      'frontmost-app',
-    ]);
-    assertFlatToolCall(appleTool.calls, [
-      'agent-device-macos-helper',
-      'snapshot',
-      '--surface',
-      'desktop',
-    ]);
+    assertFlatToolCall(appleTool.calls, ['macos-helper', 'snapshot', '--surface', 'frontmost-app']);
+    assertFlatToolCall(appleTool.calls, ['macos-helper', 'snapshot', '--surface', 'desktop']);
     assert.ok(
       appleTool.calls.filter(
-        (call) => call.join('\0') === 'agent-device-macos-helper\0snapshot\0--surface\0desktop',
+        (call) => call.join('\0') === 'macos-helper\0snapshot\0--surface\0desktop',
       ).length >= 2,
       'Expected desktop snapshot to be used by both snapshot and wait workflows',
     );
+    assertFlatToolCall(appleTool.calls, ['macos-helper', 'snapshot', '--surface', 'menubar']);
     assertFlatToolCall(appleTool.calls, [
-      'agent-device-macos-helper',
-      'snapshot',
-      '--surface',
-      'menubar',
-    ]);
-    assertFlatToolCall(appleTool.calls, [
-      'agent-device-macos-helper',
+      'macos-helper',
       'read',
       '--x',
       '116',
@@ -370,7 +350,7 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       'frontmost-app',
     ]);
     assertFlatToolCall(appleTool.calls, [
-      'agent-device-macos-helper',
+      'macos-helper',
       'press',
       '--x',
       '116',
@@ -382,7 +362,7 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       'frontmost-app',
     ]);
     assertFlatToolCall(appleTool.calls, [
-      'agent-device-macos-helper',
+      'macos-helper',
       'press',
       '--x',
       '100',
@@ -393,7 +373,7 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
     ]);
     assertFlatToolCall(appleTool.calls, ['open', '-b', 'com.example.demo']);
     assertFlatToolCall(appleTool.calls, [
-      'agent-device-macos-helper',
+      'macos-helper',
       'snapshot',
       '--surface',
       'menubar',

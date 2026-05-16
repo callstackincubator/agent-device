@@ -72,28 +72,30 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
     'ios.runner',
   );
   let clipboardText = '';
-  const appleTool = createRecordingAppleToolProvider(async (cmd, args, options) => {
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl pbcopy sim-1') {
-      clipboardText = String(options?.stdin ?? '');
+  const appleTool = createRecordingAppleToolProvider({
+    simctl: async (args, options) => {
+      if (args.join(' ') === 'pbcopy sim-1') {
+        clipboardText = String(options?.stdin ?? '');
+        return { stdout: '', stderr: '', exitCode: 0 };
+      }
+      if (args.join(' ') === 'pbpaste sim-1') {
+        return { stdout: `${clipboardText}\n`, stderr: '', exitCode: 0 };
+      }
+      if (args.join(' ') === 'list devices -j') {
+        return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.iOS-18-0', [
+          { name: 'iPhone 15', udid: 'sim-1' },
+        ]);
+      }
+      if (args.join(' ') === 'listapps sim-1') {
+        return {
+          stdout:
+            '{"com.apple.Maps":{"CFBundleDisplayName":"Maps"},"com.example.demo":{"CFBundleDisplayName":"Demo"}}\n',
+          stderr: '',
+          exitCode: 0,
+        };
+      }
       return { stdout: '', stderr: '', exitCode: 0 };
-    }
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl pbpaste sim-1') {
-      return { stdout: `${clipboardText}\n`, stderr: '', exitCode: 0 };
-    }
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
-      return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.iOS-18-0', [
-        { name: 'iPhone 15', udid: 'sim-1' },
-      ]);
-    }
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl listapps sim-1') {
-      return {
-        stdout:
-          '{"com.apple.Maps":{"CFBundleDisplayName":"Maps"},"com.example.demo":{"CFBundleDisplayName":"Demo"}}\n',
-        stderr: '',
-        exitCode: 0,
-      };
-    }
-    return { stdout: '', stderr: '', exitCode: 0 };
+    },
   });
 
   const daemon = await createDeviceLabHarness({
@@ -125,23 +127,25 @@ type IosPhysicalReinstallWorld = {
 };
 
 export async function createIosPhysicalReinstallWorld(): Promise<IosPhysicalReinstallWorld> {
-  const appleTool = createRecordingAppleToolProvider(async (_cmd, args) => {
-    if (args.includes('info') && args.includes('details')) {
-      const jsonOutputIndex = args.indexOf('--json-output');
-      const jsonPath = jsonOutputIndex >= 0 ? args[jsonOutputIndex + 1] : undefined;
-      if (jsonPath) {
-        fs.writeFileSync(
-          jsonPath,
-          JSON.stringify({
-            result: {
-              device: { connectionProperties: { tunnelState: 'connected' } },
-            },
-          }),
-          'utf8',
-        );
+  const appleTool = createRecordingAppleToolProvider({
+    devicectl: async (args) => {
+      if (args.includes('info') && args.includes('details')) {
+        const jsonOutputIndex = args.indexOf('--json-output');
+        const jsonPath = jsonOutputIndex >= 0 ? args[jsonOutputIndex + 1] : undefined;
+        if (jsonPath) {
+          fs.writeFileSync(
+            jsonPath,
+            JSON.stringify({
+              result: {
+                device: { connectionProperties: { tunnelState: 'connected' } },
+              },
+            }),
+            'utf8',
+          );
+        }
       }
-    }
-    return { stdout: '', stderr: '', exitCode: 0 };
+      return { stdout: '', stderr: '', exitCode: 0 };
+    },
   });
   const daemon = await createDeviceLabHarness({
     appleToolProvider: () => appleTool.provider,

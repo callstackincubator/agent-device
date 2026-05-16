@@ -24,6 +24,10 @@ export type AppleXcrunToolProvider = {
   run: AppleToolSubcommandExecutor;
 };
 
+export type AppleMacOsHelperProvider = {
+  run: AppleToolSubcommandExecutor;
+};
+
 export type ApplePlistProvider = {
   readJson(path: string): Promise<Record<string, unknown> | null>;
 };
@@ -32,6 +36,7 @@ export type AppleToolProvider = {
   runCommand: AppleToolCommandExecutor;
   simctl?: AppleXcrunToolProvider;
   devicectl?: AppleXcrunToolProvider;
+  macosHelper?: AppleMacOsHelperProvider;
   plist?: ApplePlistProvider;
   whichCommand: AppleToolAvailabilityChecker;
 };

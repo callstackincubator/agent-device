@@ -34,28 +34,30 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
     runnerTranscript,
     'ios.runner',
   );
-  const appleTool = createRecordingAppleToolProvider(async (cmd, args) => {
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
-      return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.iOS-18-0', [
-        { name: 'iPhone 15', udid: 'sim-1' },
-      ]);
-    }
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl privacy help') {
-      return {
-        stdout: [
-          'service',
-          '  camera - Camera',
-          '  microphone - Microphone',
-          'bundle identifier',
-        ].join('\n'),
-        stderr: '',
-        exitCode: 0,
-      };
-    }
-    if (cmd === 'xcrun' && args.join(' ') === 'simctl help') {
-      return { stdout: 'simctl help\n', stderr: '', exitCode: 0 };
-    }
-    return { stdout: '', stderr: '', exitCode: 0 };
+  const appleTool = createRecordingAppleToolProvider({
+    simctl: async (args) => {
+      if (args.join(' ') === 'list devices -j') {
+        return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.iOS-18-0', [
+          { name: 'iPhone 15', udid: 'sim-1' },
+        ]);
+      }
+      if (args.join(' ') === 'privacy help') {
+        return {
+          stdout: [
+            'service',
+            '  camera - Camera',
+            '  microphone - Microphone',
+            'bundle identifier',
+          ].join('\n'),
+          stderr: '',
+          exitCode: 0,
+        };
+      }
+      if (args.join(' ') === 'help') {
+        return { stdout: 'simctl help\n', stderr: '', exitCode: 0 };
+      }
+      return { stdout: '', stderr: '', exitCode: 0 };
+    },
   });
   let appLogStopped = false;
   const appLogStarts: Array<{ appBundleId: string; outPath: string }> = [];
@@ -144,17 +146,9 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
       ['com.apple.Preferences'],
     );
     assert.equal(appLogStopped, true);
-    assertFlatToolCall(appleTool.calls, ['xcrun', 'simctl', 'ui', 'sim-1', 'appearance', 'dark']);
+    assertFlatToolCall(appleTool.calls, ['simctl', 'ui', 'sim-1', 'appearance', 'dark']);
+    assertFlatToolCall(appleTool.calls, ['simctl', 'location', 'sim-1', 'set', '37.3349,-122.009']);
     assertFlatToolCall(appleTool.calls, [
-      'xcrun',
-      'simctl',
-      'location',
-      'sim-1',
-      'set',
-      '37.3349,-122.009',
-    ]);
-    assertFlatToolCall(appleTool.calls, [
-      'xcrun',
       'simctl',
       'privacy',
       'sim-1',
