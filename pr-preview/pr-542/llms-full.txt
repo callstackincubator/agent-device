@@ -479,15 +479,15 @@ const client = createAgentDeviceClient({
 
 const devices = await client.devices.list({ platform: 'ios' });
 const apps = await client.apps.list({ platform: 'ios' });
-const ensured = await client.simulators.ensure({
-  device: 'iPhone 16',
-  boot: true,
-});
+const device = devices.find((candidate) => candidate.name === 'iPhone 16') ?? devices[0];
+if (!device) {
+  throw new Error('No iOS device available');
+}
 
 await client.apps.open({
   app: 'com.apple.Preferences',
   platform: 'ios',
-  udid: ensured.udid,
+  udid: device.id,
   runtime: {
     metroHost: '127.0.0.1',
     metroPort: 8081,
@@ -904,22 +904,6 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
 - `devices` lists available targets after applying any platform selector or isolation scope flags.
 - Use `--platform` to narrow discovery to Apple-family (`ios`, `tvOS`, `macOS`) or Android targets.
 - Use `--ios-simulator-device-set` and `--android-device-allowlist` when you need tenant- or lab-scoped discovery.
-
-## Simulator provisioning
-
-```bash
-agent-device ensure-simulator --device "iPhone 16" --platform ios
-agent-device ensure-simulator --device "iPhone 16" --runtime com.apple.CoreSimulator.SimRuntime.iOS-18-4 --ios-simulator-device-set /tmp/tenant-a/simulators
-agent-device ensure-simulator --device "iPhone 16" --ios-simulator-device-set /tmp/tenant-a/simulators --boot
-```
-
-- `ensure-simulator` ensures a named iOS simulator exists inside a device set, creating it via `simctl create` if missing.
-- Requires `--device <name>` (the simulator name / device type, e.g. `"iPhone 16 Pro"`).
-- `--runtime <id>` pins a specific CoreSimulator runtime (e.g. `com.apple.CoreSimulator.SimRuntime.iOS-18-4`). Omit to use the newest compatible runtime.
-- `--boot` boots the simulator after ensuring it exists.
-- Reuse of an existing matching simulator is the default; the command is idempotent.
-- JSON output includes `udid`, `device`, `runtime`, `ios_simulator_device_set`, `created`, and `booted`.
-- Does not require an active session — safe to call before `open`.
 
 ## TV targets
 
