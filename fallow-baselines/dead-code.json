@@ -1,10 +1,6 @@
 {
   "unused_files": [],
-  "unused_exports": [
-    "src/daemon/handlers/interaction.ts:unsupportedRefSnapshotFlags",
-    "src/platforms/android/index.ts:installAndroidInstallablePathAndResolvePackageName",
-    "src/platforms/android/index.ts:reinstallAndroidApp"
-  ],
+  "unused_exports": [],
   "unused_types": [],
   "unused_dependencies": [],
   "unused_dev_dependencies": [],

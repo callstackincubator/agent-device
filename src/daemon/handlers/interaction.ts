@@ -13,8 +13,6 @@ import { normalizeError } from '../../utils/errors.ts';
 import { successText } from '../../utils/success-text.ts';
 import { recoverAndroidBlockingSystemDialog } from '../android-system-dialog.ts';
 
-export { unsupportedRefSnapshotFlags } from './interaction-flags.ts';
-
 export async function handleInteractionCommands(
   params: InteractionHandlerParams,
 ): Promise<DaemonResponse | null> {
