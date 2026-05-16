@@ -291,6 +291,7 @@ function summarizeDeviceLabFlagExclusions() {
       keys: [
         'githubActionsArtifact',
         'snapshotDiff',
+        'snapshotForceFull',
         'baseline',
         'threshold',
         'reportJunit',
