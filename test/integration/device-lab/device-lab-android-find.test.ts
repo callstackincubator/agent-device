@@ -45,9 +45,26 @@ test('Device Lab Android find flow covers refs, wait, ambiguity, and first/last 
     assert.match(attrsRef, /^@e\d+$/);
     assert.equal((attrs.node as { label?: string } | undefined)?.label, 'Apps');
 
+    const exists = await client.interactions.find({
+      locator: 'label',
+      query: 'Apps',
+      action: 'exists',
+      ...selection,
+    });
+    assert.equal(exists.found, true);
+
     const pressFoundRef = await client.interactions.press({ ref: attrsRef, ...selection });
     assert.equal(pressFoundRef.x, 88);
     assert.equal(pressFoundRef.y, 151);
+
+    const focusedSearch = await client.interactions.find({
+      locator: 'id',
+      query: 'search',
+      action: 'focus',
+      ...selection,
+    });
+    assert.equal(focusedSearch.x, 195);
+    assert.equal(focusedSearch.y, 52);
 
     const typed = await client.interactions.find({
       locator: 'id',
@@ -68,6 +85,15 @@ test('Device Lab Android find flow covers refs, wait, ambiguity, and first/last 
     assertString(searchTextRef, 'find text ref');
     assert.match(searchTextRef, /^@e\d+$/);
     assert.equal(searchTextResult.text, 'Display');
+
+    const filled = await client.interactions.find({
+      locator: 'id',
+      query: 'search',
+      action: 'fill',
+      value: 'Network',
+      ...selection,
+    });
+    assert.equal(filled.text, 'Network');
 
     const waitForApps = await client.interactions.find({
       locator: 'label',
@@ -136,7 +162,9 @@ test('Device Lab Android find flow covers refs, wait, ambiguity, and first/last 
     assertCommandCall(adbCalls, ['exec-out', 'uiautomator', 'dump', '/dev/tty']);
     assertCommandCall(adbCalls, ['shell', 'input', 'tap', '88', '151']);
     assertCommandCall(adbCalls, ['shell', 'input', 'tap', '122', '217']);
+    assertCommandCall(adbCalls, ['shell', 'input', 'tap', '195', '52']);
     assertCommandCall(adbCalls, ['shell', 'input', 'text', 'Display']);
+    assertCommandCall(adbCalls, ['shell', 'input', 'text', 'Network']);
     assert.equal(
       adbCalls.filter((call) => arrayEqual(call, ['shell', 'input', 'tap', '88', '151'])).length,
       2,
