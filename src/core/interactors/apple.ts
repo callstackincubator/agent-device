@@ -6,7 +6,7 @@ import {
   screenshotIos,
   setIosSetting,
   writeIosClipboardText,
-} from '../../platforms/ios/index.ts';
+} from '../../platforms/ios/apps.ts';
 import {
   appleRemotePressCommand,
   iosRunnerOverrides,

@@ -82,7 +82,7 @@ export async function handleInstallFromSourceCommand(params: {
 
     const requestSignal = getRequestSignal(req.meta?.requestId);
     if (device.platform === 'ios') {
-      const { installIosInstallablePath } = await import('../../platforms/ios/index.ts');
+      const { installIosInstallablePath } = await import('../../platforms/ios/apps.ts');
       const { prepareIosInstallArtifact } = await import('../../platforms/ios/install-artifact.ts');
       const prepared = await prepareIosInstallArtifact(resolvedSource.source, {
         signal: requestSignal,

@@ -21,8 +21,8 @@ import type { SessionState } from '../types.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
 import { makeSessionStore } from '../../__tests__/test-utils/store-factory.ts';
 
-vi.mock('../../platforms/android/index.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../platforms/android/index.ts')>();
+vi.mock('../../platforms/android/snapshot.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../platforms/android/snapshot.ts')>();
   return {
     ...actual,
     snapshotAndroid: vi.fn(async () => {
@@ -47,6 +47,13 @@ vi.mock('../../platforms/android/index.ts', async (importOriginal) => {
       }
       return { nodes: [] };
     }),
+  };
+});
+
+vi.mock('../../platforms/android/app-lifecycle.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../platforms/android/app-lifecycle.ts')>();
+  return {
+    ...actual,
     openAndroidApp: vi.fn(async () => {}),
     getAndroidAppState: vi.fn(async () => ({ package: 'com.android.settings' })),
   };
@@ -99,7 +106,7 @@ test('generic Android gesture commands dismiss blocking system dialogs during re
   const sessionStore = makeSessionStore('agent-device-router-android-modal-');
   sessionStore.set('default', makeAndroidSession('default'));
 
-  const { openAndroidApp } = await import('../../platforms/android/index.ts');
+  const { openAndroidApp } = await import('../../platforms/android/app-lifecycle.ts');
 
   const handler = createRequestHandler({
     logPath: path.join(os.tmpdir(), 'daemon.log'),

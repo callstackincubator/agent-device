@@ -1,4 +1,5 @@
-import { openAndroidApp, snapshotAndroid, getAndroidAppState } from '../platforms/android/index.ts';
+import { getAndroidAppState, openAndroidApp } from '../platforms/android/app-lifecycle.ts';
+import { snapshotAndroid } from '../platforms/android/snapshot.ts';
 import { runAndroidAdb } from '../platforms/android/adb.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
 import { centerOfRect, attachRefs, type SnapshotNode } from '../utils/snapshot.ts';

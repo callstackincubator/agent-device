@@ -14,8 +14,8 @@ import {
 } from '../../utils/device-isolation.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
-import { listAndroidApps } from '../../platforms/android/index.ts';
-import { listIosApps } from '../../platforms/ios/index.ts';
+import { listAndroidApps } from '../../platforms/android/app-lifecycle.ts';
+import { listIosApps } from '../../platforms/ios/apps.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
 import { errorResponse } from './response.ts';
 

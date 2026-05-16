@@ -53,8 +53,8 @@ vi.mock('../../../platforms/ios/devices.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/devices.ts')>();
   return { ...actual, listAppleDevices: vi.fn(async () => []) };
 });
-vi.mock('../../../platforms/ios/index.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../platforms/ios/index.ts')>();
+vi.mock('../../../platforms/ios/apps.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/ios/apps.ts')>();
   return {
     ...actual,
     listIosApps: vi.fn(async () => []),
@@ -99,7 +99,7 @@ import {
   ensureAndroidEmulatorBooted,
 } from '../../../platforms/android/devices.ts';
 import { listAppleDevices } from '../../../platforms/ios/devices.ts';
-import { resolveIosApp } from '../../../platforms/ios/index.ts';
+import { resolveIosApp } from '../../../platforms/ios/apps.ts';
 import { startAppLog, stopAppLog } from '../../app-log.ts';
 import { defaultInstallOps, defaultReinstallOps } from '../session-deploy.ts';
 import { clearRequestCanceled, markRequestCanceled } from '../../request-cancel.ts';

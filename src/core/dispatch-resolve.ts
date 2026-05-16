@@ -9,7 +9,7 @@ import {
   type PlatformSelector,
 } from '../utils/device.ts';
 import { listAndroidDevices } from '../platforms/android/devices.ts';
-import { ensureAdb } from '../platforms/android/index.ts';
+import { ensureAdb } from '../platforms/android/adb.ts';
 import { findBootableIosSimulator, listAppleDevices } from '../platforms/ios/devices.ts';
 import { listLinuxDevices } from '../platforms/linux/devices.ts';
 import { listMacosDevices } from '../platforms/macos/devices.ts';

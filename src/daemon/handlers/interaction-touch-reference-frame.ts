@@ -1,6 +1,6 @@
 import type { CommandFlags } from '../../core/dispatch.ts';
 import type { SnapshotNode } from '../../utils/snapshot.ts';
-import { getAndroidScreenSize } from '../../platforms/android/index.ts';
+import { getAndroidScreenSize } from '../../platforms/android/input-actions.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import type { SessionStore } from '../session-store.ts';
 import { getSnapshotReferenceFrame } from '../touch-reference-frame.ts';

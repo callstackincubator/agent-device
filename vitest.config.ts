@@ -20,7 +20,6 @@ export default defineConfig({
         'src/core/interactor-types.ts',
         'src/index.ts',
         'src/install-source.ts',
-        'src/mcp/**',
         'src/remote-config.ts',
         'src/selectors.ts',
       ],

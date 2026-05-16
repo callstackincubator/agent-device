@@ -5,9 +5,6 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  dismissAndroidKeyboard,
-  fillAndroid,
-  getAndroidKeyboardState,
   inferAndroidAppName,
   installAndroidApp,
   installAndroidInstallablePath,
@@ -15,13 +12,17 @@ import {
   openAndroidApp,
   parseAndroidLaunchComponent,
   resolveAndroidApp,
-  pushAndroidNotification,
+} from '../app-lifecycle.ts';
+import { dismissAndroidKeyboard, getAndroidKeyboardState } from '../device-input-state.ts';
+import {
+  fillAndroid,
   rotateAndroid,
-  setAndroidSetting,
   scrollAndroid,
   swipeAndroid,
   typeAndroid,
-} from '../index.ts';
+} from '../input-actions.ts';
+import { pushAndroidNotification } from '../notifications.ts';
+import { setAndroidSetting } from '../settings.ts';
 import { withAndroidAdbProvider } from '../adb-executor.ts';
 import { parseAndroidLaunchablePackages } from '../app-parsers.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';

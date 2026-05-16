@@ -20,11 +20,20 @@ vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   };
 });
 
-vi.mock('../../../platforms/android/index.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../platforms/android/index.ts')>();
+vi.mock('../../../platforms/android/input-actions.ts', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../platforms/android/input-actions.ts')>();
   return {
     ...actual,
     getAndroidScreenSize: vi.fn(async () => ({ width: 1344, height: 2992 })),
+  };
+});
+
+vi.mock('../../../platforms/android/app-lifecycle.ts', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../platforms/android/app-lifecycle.ts')>();
+  return {
+    ...actual,
     getAndroidAppState: vi.fn(async () => ({})),
   };
 });
@@ -42,7 +51,8 @@ vi.mock('../interaction-snapshot.ts', async (importOriginal) => {
 });
 
 import { dispatchCommand } from '../../../core/dispatch.ts';
-import { getAndroidAppState, getAndroidScreenSize } from '../../../platforms/android/index.ts';
+import { getAndroidAppState } from '../../../platforms/android/app-lifecycle.ts';
+import { getAndroidScreenSize } from '../../../platforms/android/input-actions.ts';
 import { captureSnapshotForSession } from '../interaction-snapshot.ts';
 const mockDispatch = vi.mocked(dispatchCommand);
 const mockGetAndroidAppState = vi.mocked(getAndroidAppState);

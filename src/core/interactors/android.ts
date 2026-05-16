@@ -1,24 +1,28 @@
 import {
+  closeAndroidApp,
+  openAndroidApp,
+  openAndroidDevice,
+} from '../../platforms/android/app-lifecycle.ts';
+import {
   appSwitcherAndroid,
   backAndroid,
-  closeAndroidApp,
   fillAndroid,
   focusAndroid,
   homeAndroid,
   longPressAndroid,
-  openAndroidApp,
-  openAndroidDevice,
   pressAndroid,
-  readAndroidClipboardText,
   rotateAndroid,
   scrollAndroid,
-  screenshotAndroid,
-  setAndroidSetting,
-  snapshotAndroid,
   swipeAndroid,
   typeAndroid,
+} from '../../platforms/android/input-actions.ts';
+import {
+  readAndroidClipboardText,
   writeAndroidClipboardText,
-} from '../../platforms/android/index.ts';
+} from '../../platforms/android/device-input-state.ts';
+import { setAndroidSetting } from '../../platforms/android/settings.ts';
+import { snapshotAndroid } from '../../platforms/android/snapshot.ts';
+import { screenshotAndroid } from '../../platforms/android/screenshot.ts';
 import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { Interactor } from '../interactor-types.ts';

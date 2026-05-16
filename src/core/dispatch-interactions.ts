@@ -1,6 +1,6 @@
 import { AppError } from '../utils/errors.ts';
 import type { DeviceInfo } from '../utils/device.ts';
-import { readAndroidTextAtPoint } from '../platforms/android/index.ts';
+import { readAndroidTextAtPoint } from '../platforms/android/input-actions.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { runMacOsPressAction, runMacOsReadTextAction } from '../platforms/ios/macos-helper.ts';
 import { rightClickLinux, middleClickLinux } from '../platforms/linux/input-actions.ts';

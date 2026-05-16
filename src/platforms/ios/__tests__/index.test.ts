@@ -48,15 +48,12 @@ import {
   installIosApp,
   installIosInstallablePath,
   openIosApp,
-  parseIosDeviceAppsPayload,
   pushIosNotification,
   readIosClipboardText,
   reinstallIosApp,
   resolveIosApp,
   screenshotIos,
   setIosSetting,
-} from '../index.ts';
-import {
   shouldFallbackToRunnerForIosScreenshot,
   shouldRetryIosSimulatorScreenshot,
 } from '../apps.ts';
@@ -77,7 +74,7 @@ import { withDiagnosticsScope } from '../../../utils/diagnostics.ts';
 import { AppError } from '../../../utils/errors.ts';
 import { runCmd } from '../../../utils/exec.ts';
 import { retryWithPolicy } from '../../../utils/retry.ts';
-import { parseIosDeviceProcessesPayload } from '../devicectl.ts';
+import { parseIosDeviceAppsPayload, parseIosDeviceProcessesPayload } from '../devicectl.ts';
 
 const IOS_TEST_DEVICE: DeviceInfo = {
   platform: 'ios',

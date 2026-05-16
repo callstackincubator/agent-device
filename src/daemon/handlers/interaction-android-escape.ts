@@ -1,4 +1,4 @@
-import { getAndroidAppState } from '../../platforms/android/index.ts';
+import { getAndroidAppState } from '../../platforms/android/app-lifecycle.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { SessionState } from '../types.ts';
 

@@ -22,7 +22,7 @@ async function tryResolveIosAppBundleId(
   openTarget: string,
 ): Promise<string | undefined> {
   try {
-    const { resolveIosApp } = await import('../../platforms/ios/index.ts');
+    const { resolveIosApp } = await import('../../platforms/ios/apps.ts');
     return await resolveIosApp(device, openTarget);
   } catch {
     return undefined;

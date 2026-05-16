@@ -54,7 +54,7 @@ type DeployCommandResult = IosDeployCommandResult | AndroidDeployCommandResult;
 
 export const defaultReinstallOps: ReinstallOps = {
   ios: async (device, app, appPath) => {
-    const { reinstallIosApp } = await import('../../platforms/ios/index.ts');
+    const { reinstallIosApp } = await import('../../platforms/ios/apps.ts');
     return await reinstallIosApp(device, app, appPath);
   },
   android: async (device, app, appPath) => {
@@ -65,7 +65,7 @@ export const defaultReinstallOps: ReinstallOps = {
 
 export const defaultInstallOps: InstallOps = {
   ios: async (device, app, appPath) => {
-    const { installIosApp } = await import('../../platforms/ios/index.ts');
+    const { installIosApp } = await import('../../platforms/ios/apps.ts');
     const result = await installIosApp(device, appPath, { appIdentifierHint: app });
     return {
       bundleId: result.bundleId,
