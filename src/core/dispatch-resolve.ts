@@ -164,24 +164,19 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
         );
       }
 
-      if (shouldUseHostMacFastPath(selector)) {
-        const devices = await listMacosDevices();
-        return cacheResolvedTargetDevice(cacheKey, await resolveDevice(devices, selector));
-      }
-
-      if (selector.platform === 'linux') {
-        const devices = await listLinuxDevices();
-        return cacheResolvedTargetDevice(cacheKey, await resolveDevice(devices, selector));
-      }
-
       if (selector.platform === 'android') {
         await ensureAdb();
-        const devices = await listAndroidDevices({ serialAllowlist: androidSerialAllowlist });
-        return cacheResolvedTargetDevice(cacheKey, await resolveDevice(devices, selector));
       }
 
-      if (selector.platform) {
-        const devices = await listAppleDevices({ simulatorSetPath: iosSimulatorSetPath });
+      const devices = await listLocalDeviceInventory({
+        ...selector,
+        iosSimulatorSetPath,
+        androidSerialAllowlist: androidSerialAllowlist
+          ? Array.from(androidSerialAllowlist).sort()
+          : undefined,
+      });
+
+      if (isAppleResolutionSelector(selector)) {
         return cacheResolvedTargetDevice(
           cacheKey,
           await resolveAppleDevice(devices, selector as AppleDeviceSelector, {
@@ -190,18 +185,6 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
         );
       }
 
-      const devices: DeviceInfo[] = [];
-      try {
-        devices.push(...(await listAndroidDevices({ serialAllowlist: androidSerialAllowlist })));
-      } catch {}
-      try {
-        devices.push(...(await listAppleDevices({ simulatorSetPath: iosSimulatorSetPath })));
-      } catch {}
-      // Linux local device is appended last so it does not displace
-      // connected Android/Apple devices in implicit auto-selection.
-      try {
-        devices.push(...(await listLinuxDevices()));
-      } catch {}
       return cacheResolvedTargetDevice(
         cacheKey,
         await resolveDevice(devices, selector, { simulatorSetPath: iosSimulatorSetPath }),
@@ -244,10 +227,8 @@ export async function withTargetDeviceResolutionScope<T>(
   );
 }
 
-export async function readScopedDeviceInventory(
-  request: DeviceInventoryRequest,
-): Promise<DeviceInfo[] | null> {
-  return await readInjectedDeviceInventory(request);
+export async function listDeviceInventory(request: DeviceInventoryRequest): Promise<DeviceInfo[]> {
+  return (await readInjectedDeviceInventory(request)) ?? (await listLocalDeviceInventory(request));
 }
 
 async function readInjectedDeviceInventory(
@@ -258,6 +239,55 @@ async function readInjectedDeviceInventory(
   const devices = await provider(request);
   if (devices === undefined || devices === null) return null;
   return devices.map((device) => ({ ...device }));
+}
+
+async function listLocalDeviceInventory(request: DeviceInventoryRequest): Promise<DeviceInfo[]> {
+  if (shouldUseHostMacFastPath(request)) {
+    return await listMacosDevices();
+  }
+
+  if (request.platform === 'linux') {
+    return await listLinuxDevices();
+  }
+
+  if (request.platform === 'android') {
+    return await listAndroidDevices({
+      serialAllowlist: request.androidSerialAllowlist
+        ? new Set(request.androidSerialAllowlist)
+        : undefined,
+    });
+  }
+
+  if (request.platform) {
+    return await listAppleDevices({ simulatorSetPath: request.iosSimulatorSetPath });
+  }
+
+  const devices: DeviceInfo[] = [];
+  try {
+    devices.push(
+      ...(await listAndroidDevices({
+        serialAllowlist: request.androidSerialAllowlist
+          ? new Set(request.androidSerialAllowlist)
+          : undefined,
+      })),
+    );
+  } catch {}
+  try {
+    devices.push(...(await listAppleDevices({ simulatorSetPath: request.iosSimulatorSetPath })));
+  } catch {}
+  // Linux local device is appended last so it does not displace
+  // connected Android/Apple devices in implicit auto-selection.
+  try {
+    devices.push(...(await listLinuxDevices()));
+  } catch {}
+  return devices;
+}
+
+function isAppleResolutionSelector(selector: {
+  platform?: PlatformSelector;
+  target?: DeviceTarget;
+}): boolean {
+  return !!selector.platform && selector.platform !== 'android' && selector.platform !== 'linux';
 }
 
 function readResolveTargetDeviceCache(cacheKey: string): DeviceInfo | undefined {

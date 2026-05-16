@@ -181,7 +181,16 @@ function summarizeProviderPressure(files) {
         /\bxcrun\b|['"](?:open|pbcopy|pbpaste|plutil|osascript|swift|codesign|mdfind|ps|pkill)['"]/g,
     },
     {
-      name: 'Linux raw tool provider',
+      name: 'Linux semantic desktop provider',
+      pattern: /\bdesktop\b|\bopenTarget\b|\bcloseApp\b/g,
+    },
+    {
+      name: 'Linux semantic accessibility/clipboard/screenshot provider',
+      pattern:
+        /\baccessibility\b|\bcaptureTree\b|\bclipboard\b|\breadText\b|\bwriteText\b|\bscreenshot\b|\bcapture\s*:/g,
+    },
+    {
+      name: 'Linux generic input/tool provider',
       pattern:
         /\bLinuxToolProvider\b|\blinuxToolProvider\b|\bxdotool\b|\bydotool\b|\bxclip\b|\bscrot\b|\bgrim\b|\bwmctrl\b|\bpkill\b/g,
     },

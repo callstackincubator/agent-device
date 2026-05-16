@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import { createLocalLinuxToolProvider } from '../../../src/platforms/linux/tool-provider.ts';
-import { assertPngFile, assertToolCall, validPng } from './assertions.ts';
+import { assertFlatToolCall, assertPngFile, assertToolCall, validPng } from './assertions.ts';
 import { DEVICE_LAB_LINUX } from './fixtures.ts';
 import { restoreEnv, createDeviceLabHarness } from './harness.ts';
 import { runDeviceLabScenario } from './scenario.ts';
@@ -22,31 +22,13 @@ test('Device Lab Linux desktop flow uses semantic lifecycle provider and scripte
 
   const toolCalls: Array<[string, string[]]> = [];
   const desktopCalls: Array<[string, string]> = [];
+  const semanticCalls: Array<[string, ...string[]]> = [];
   let clipboardText = '';
   const linuxToolProvider = createLocalLinuxToolProvider({
     whichCommand: async (cmd) =>
-      cmd === 'gnome-calculator' ||
-      cmd === 'xdotool' ||
-      cmd === 'wmctrl' ||
-      cmd === 'python3' ||
-      cmd === 'scrot' ||
-      cmd === 'xclip',
-    runCommand: async (cmd, args, options) => {
+      cmd === 'gnome-calculator' || cmd === 'xdotool' || cmd === 'wmctrl',
+    runCommand: async (cmd, args) => {
       toolCalls.push([cmd, args]);
-      if (cmd === 'python3') {
-        return { stdout: linuxCalculatorSnapshotJson(), stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'scrot') {
-        fs.writeFileSync(String(args[0]), validPng());
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'xclip' && args.includes('-o')) {
-        return { stdout: clipboardText, stderr: '', exitCode: 0 };
-      }
-      if (cmd === 'xclip') {
-        clipboardText = String(options?.stdin ?? '');
-        return { stdout: '', stderr: '', exitCode: 0 };
-      }
       return { stdout: '', stderr: '', exitCode: 0 };
     },
     desktop: {
@@ -57,6 +39,32 @@ test('Device Lab Linux desktop flow uses semantic lifecycle provider and scripte
         desktopCalls.push(['close', app]);
       },
     },
+    accessibility: {
+      captureTree: async (surface) => {
+        semanticCalls.push(['accessibility', surface]);
+        return {
+          nodes: linuxCalculatorSnapshotNodes(),
+          truncated: false,
+          surface,
+        };
+      },
+    },
+    clipboard: {
+      readText: async () => {
+        semanticCalls.push(['clipboard', 'read']);
+        return clipboardText;
+      },
+      writeText: async (text) => {
+        semanticCalls.push(['clipboard', 'write', text]);
+        clipboardText = text;
+      },
+    },
+    screenshot: {
+      capture: async (outPath) => {
+        semanticCalls.push(['screenshot', outPath]);
+        fs.writeFileSync(outPath, validPng());
+      },
+    },
   });
   const daemon = await createDeviceLabHarness({
     linuxToolProvider: () => linuxToolProvider,
@@ -64,6 +72,12 @@ test('Device Lab Linux desktop flow uses semantic lifecycle provider and scripte
   });
 
   try {
+    const devices = await daemon.client().devices.list({ platform: 'linux' });
+    assert.equal(devices.length, 1);
+    assert.equal(devices[0]?.platform, 'linux');
+    assert.equal(devices[0]?.id, DEVICE_LAB_LINUX.id);
+    assert.equal(devices[0]?.target, 'desktop');
+
     await runDeviceLabScenario(daemon, [
       {
         name: 'open calculator app',
@@ -243,19 +257,11 @@ test('Device Lab Linux desktop flow uses semantic lifecycle provider and scripte
       ['open', 'gnome-calculator'],
       ['close', 'gnome-calculator'],
     ]);
+    assertFlatToolCall(semanticCalls, ['accessibility', 'frontmost-app']);
+    assertFlatToolCall(semanticCalls, ['clipboard', 'write', 'linux otp 314159']);
+    assertFlatToolCall(semanticCalls, ['clipboard', 'read']);
+    assertFlatToolCall(semanticCalls, ['screenshot', screenshotPath]);
     const normalizedToolCalls = normalizeToolCalls(toolCalls);
-    assertToolCall(normalizedToolCalls, [
-      'python3',
-      'atspi-dump.py',
-      '--surface',
-      'frontmost-app',
-      '--max-nodes',
-      '1500',
-      '--max-depth',
-      '12',
-      '--max-apps',
-      '24',
-    ]);
     assertToolCall(normalizedToolCalls, ['xdotool', 'click', '1']);
     assertToolCall(normalizedToolCalls, [
       'xdotool',
@@ -276,9 +282,6 @@ test('Device Lab Linux desktop flow uses semantic lifecycle provider and scripte
       'Eight',
     ]);
     assertToolCall(normalizedToolCalls, ['xdotool', 'type', '--clearmodifiers', '--', '5']);
-    assertToolCall(normalizedToolCalls, ['xclip', '-selection', 'clipboard']);
-    assertToolCall(normalizedToolCalls, ['xclip', '-selection', 'clipboard', '-o']);
-    assertToolCall(normalizedToolCalls, ['scrot', screenshotPath]);
     assertToolCall(normalizedToolCalls, ['xdotool', 'key', '--clearmodifiers', 'alt+Left']);
     assertToolCall(normalizedToolCalls, ['xdotool', 'key', '--clearmodifiers', 'super+d']);
     assert.ok(
@@ -317,41 +320,47 @@ test('Device Lab Linux desktop flow uses semantic lifecycle provider and scripte
   }
 });
 
-function linuxCalculatorSnapshotJson(): string {
-  return JSON.stringify({
-    nodes: [
-      {
-        index: 0,
-        role: 'frame',
-        label: 'Calculator',
-        rect: { x: 0, y: 0, width: 320, height: 480 },
-        enabled: true,
-        hittable: true,
-        depth: 0,
-      },
-      {
-        index: 1,
-        role: 'push button',
-        label: '5',
-        rect: { x: 40, y: 80, width: 40, height: 40 },
-        enabled: true,
-        hittable: true,
-        depth: 1,
-        parentIndex: 0,
-      },
-      {
-        index: 2,
-        role: 'push button',
-        label: 'Clear',
-        rect: { x: 90, y: 80, width: 70, height: 40 },
-        enabled: true,
-        hittable: true,
-        depth: 1,
-        parentIndex: 0,
-      },
-    ],
-    truncated: false,
-  });
+function linuxCalculatorSnapshotNodes(): Array<{
+  index: number;
+  role: string;
+  label: string;
+  rect: { x: number; y: number; width: number; height: number };
+  enabled: boolean;
+  hittable: boolean;
+  depth: number;
+  parentIndex?: number;
+}> {
+  return [
+    {
+      index: 0,
+      role: 'frame',
+      label: 'Calculator',
+      rect: { x: 0, y: 0, width: 320, height: 480 },
+      enabled: true,
+      hittable: true,
+      depth: 0,
+    },
+    {
+      index: 1,
+      role: 'push button',
+      label: '5',
+      rect: { x: 40, y: 80, width: 40, height: 40 },
+      enabled: true,
+      hittable: true,
+      depth: 1,
+      parentIndex: 0,
+    },
+    {
+      index: 2,
+      role: 'push button',
+      label: 'Clear',
+      rect: { x: 90, y: 80, width: 70, height: 40 },
+      enabled: true,
+      hittable: true,
+      depth: 1,
+      parentIndex: 0,
+    },
+  ];
 }
 
 function normalizeToolCalls(calls: Array<[string, string[]]>): Array<[string, string[]]> {

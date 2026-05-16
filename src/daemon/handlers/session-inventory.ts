@@ -1,5 +1,5 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { readScopedDeviceInventory } from '../../core/dispatch-resolve.ts';
+import { listDeviceInventory } from '../../core/dispatch-resolve.ts';
 import { assertResolvedAppsFilter } from '../../commands/app-inventory-contract.ts';
 import { asAppError } from '../../utils/errors.ts';
 import {
@@ -50,7 +50,6 @@ export async function handleSessionInventoryCommands(params: {
 
   if (req.command === 'devices') {
     try {
-      const devices: DeviceInfo[] = [];
       const androidSerialAllowlist = resolveAndroidSerialAllowlist(
         req.flags?.androidDeviceAllowlist,
       );
@@ -61,7 +60,7 @@ export async function handleSessionInventoryCommands(params: {
         target: req.flags?.target,
       });
 
-      const injectedDevices = await readScopedDeviceInventory({
+      const devices = await listDeviceInventory({
         platform: requestedPlatform,
         target: req.flags?.target,
         deviceName: req.flags?.device,
@@ -72,34 +71,6 @@ export async function handleSessionInventoryCommands(params: {
           ? Array.from(androidSerialAllowlist).sort()
           : undefined,
       });
-
-      if (injectedDevices) {
-        devices.push(...injectedDevices);
-      } else if (requestedPlatform === 'android') {
-        const { listAndroidDevices } = await import('../../platforms/android/devices.ts');
-        devices.push(...(await listAndroidDevices({ serialAllowlist: androidSerialAllowlist })));
-      } else if (requestedPlatform === 'ios' || requestedPlatform === 'macos') {
-        const { listAppleDevices } = await import('../../platforms/ios/devices.ts');
-        devices.push(...(await listAppleDevices({ simulatorSetPath: iosSimulatorSetPath })));
-      } else {
-        if (requestedPlatform !== 'apple') {
-          const { listAndroidDevices } = await import('../../platforms/android/devices.ts');
-          try {
-            devices.push(
-              ...(await listAndroidDevices({ serialAllowlist: androidSerialAllowlist })),
-            );
-          } catch {
-            // ignore discovery failures so the other platform can still respond
-          }
-        }
-
-        const { listAppleDevices } = await import('../../platforms/ios/devices.ts');
-        try {
-          devices.push(...(await listAppleDevices({ simulatorSetPath: iosSimulatorSetPath })));
-        } catch {
-          // ignore discovery failures so the other platform can still respond
-        }
-      }
 
       const platformFiltered = requestedPlatform
         ? devices.filter((device) => matchesRequestedPlatform(device, requestedPlatform))

@@ -1,5 +1,5 @@
 import { createLinuxToolResolver } from './tool-resolver.ts';
-import { runLinuxToolCommand } from './tool-provider.ts';
+import { resolveLinuxToolProvider, runLinuxToolCommand } from './tool-provider.ts';
 
 type ScreenshotTool = 'grim' | 'gnome-screenshot' | 'scrot' | 'import';
 
@@ -27,6 +27,12 @@ const screenshotResolver = createLinuxToolResolver<ScreenshotTool>({
  * - `scrot` or `import` (ImageMagick) on X11
  */
 export async function screenshotLinux(outPath: string): Promise<void> {
+  const provider = resolveLinuxToolProvider().screenshot;
+  if (provider) {
+    await provider.capture(outPath);
+    return;
+  }
+
   const { tool } = await screenshotResolver.resolve();
 
   switch (tool) {

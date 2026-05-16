@@ -1,5 +1,5 @@
 import { createLinuxToolResolver } from './tool-resolver.ts';
-import { runLinuxToolCommand } from './tool-provider.ts';
+import { resolveLinuxToolProvider, runLinuxToolCommand } from './tool-provider.ts';
 
 type ClipboardTool = 'wl-clipboard' | 'xclip' | 'xsel';
 
@@ -19,6 +19,9 @@ const clipboardResolver = createLinuxToolResolver<ClipboardTool>({
 export const resetClipboardToolCache = clipboardResolver.resetCache;
 
 export async function readLinuxClipboard(): Promise<string> {
+  const provider = resolveLinuxToolProvider().clipboard;
+  if (provider) return await provider.readText();
+
   const { tool } = await clipboardResolver.resolve();
 
   switch (tool) {
@@ -47,6 +50,12 @@ export async function readLinuxClipboard(): Promise<string> {
 }
 
 export async function writeLinuxClipboard(text: string): Promise<void> {
+  const provider = resolveLinuxToolProvider().clipboard;
+  if (provider) {
+    await provider.writeText(text);
+    return;
+  }
+
   const { tool } = await clipboardResolver.resolve();
 
   switch (tool) {

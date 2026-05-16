@@ -161,7 +161,14 @@ export function normalizeOpenDevice(
   const platform = value.platform;
   const id = readOptionalString(value, 'id');
   const name = readOptionalString(value, 'device');
-  if ((platform !== 'ios' && platform !== 'macos' && platform !== 'android') || !id || !name) {
+  if (
+    (platform !== 'ios' &&
+      platform !== 'macos' &&
+      platform !== 'android' &&
+      platform !== 'linux') ||
+    !id ||
+    !name
+  ) {
     return undefined;
   }
   const target = readDeviceTarget(value, 'target');

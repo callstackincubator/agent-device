@@ -2,6 +2,11 @@ import { runCmd, whichCmd, type ExecOptions, type ExecResult } from '../../utils
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { createScopedProvider } from '../../utils/scoped-provider.ts';
 import { sleep } from '../../utils/timeouts.ts';
+import type {
+  LinuxAccessibilityTree,
+  LinuxSnapshotSurface,
+  LinuxTraversalOptions,
+} from './accessibility-types.ts';
 
 export type LinuxToolCommandExecutor = (
   cmd: string,
@@ -16,10 +21,29 @@ export type LinuxDesktopProvider = {
   closeApp(app: string): Promise<void>;
 };
 
+export type LinuxClipboardProvider = {
+  readText(): Promise<string>;
+  writeText(text: string): Promise<void>;
+};
+
+export type LinuxScreenshotProvider = {
+  capture(outPath: string): Promise<void>;
+};
+
+export type LinuxAccessibilityProvider = {
+  captureTree(
+    surface: LinuxSnapshotSurface,
+    options?: LinuxTraversalOptions,
+  ): Promise<LinuxAccessibilityTree>;
+};
+
 export type LinuxToolProvider = {
   runCommand: LinuxToolCommandExecutor;
   whichCommand: LinuxToolAvailabilityChecker;
   desktop: LinuxDesktopProvider;
+  clipboard?: LinuxClipboardProvider;
+  screenshot?: LinuxScreenshotProvider;
+  accessibility?: LinuxAccessibilityProvider;
 };
 
 const localLinuxToolProvider: LinuxToolProvider = {

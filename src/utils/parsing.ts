@@ -107,7 +107,9 @@ function parseFiniteNumber(value: unknown): number | undefined {
 }
 
 function parsePlatform(value: unknown): Platform | undefined {
-  return value === 'ios' || value === 'macos' || value === 'android' ? value : undefined;
+  return value === 'ios' || value === 'macos' || value === 'android' || value === 'linux'
+    ? value
+    : undefined;
 }
 
 function parseDeviceKind(value: unknown): DeviceKind | undefined {

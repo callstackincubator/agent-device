@@ -15,6 +15,11 @@ import { AppError } from '../../utils/errors.ts';
 import type { RawSnapshotNode } from '../../utils/snapshot.ts';
 import { normalizeAtspiRole } from './role-map.ts';
 import { resolveLinuxToolProvider, runLinuxToolCommand } from './tool-provider.ts';
+import type {
+  LinuxAccessibilityTree,
+  LinuxSnapshotSurface,
+  LinuxTraversalOptions,
+} from './accessibility-types.ts';
 
 // ── Limits (matching macOS helper's SnapshotTraversalLimits) ────────────
 const MAX_DESKTOP_APPS = 24;
@@ -59,13 +64,8 @@ function resolveScriptPath(): string {
 
 // ── Public types ────────────────────────────────────────────────────────
 
-export type TraversalOptions = {
-  maxNodes?: number;
-  maxDepth?: number;
-  maxApps?: number;
-};
-
-export type SnapshotSurface = 'desktop' | 'frontmost-app';
+export type TraversalOptions = LinuxTraversalOptions;
+export type SnapshotSurface = LinuxSnapshotSurface;
 
 type PythonNode = {
   index: number;
@@ -95,11 +95,10 @@ type PythonResult = {
 export async function captureAccessibilityTree(
   surface: SnapshotSurface,
   options: TraversalOptions = {},
-): Promise<{
-  nodes: RawSnapshotNode[];
-  truncated: boolean;
-  surface: SnapshotSurface;
-}> {
+): Promise<LinuxAccessibilityTree> {
+  const provider = resolveLinuxToolProvider().accessibility;
+  if (provider) return await provider.captureTree(surface, options);
+
   if (process.platform !== 'linux') {
     throw new AppError('UNSUPPORTED_PLATFORM', 'AT-SPI2 bridge is only available on Linux');
   }
