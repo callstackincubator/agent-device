@@ -176,6 +176,11 @@ function summarizeProviderPressure(files) {
       pattern: /\bmacos-helper\b|\bagent-device-macos-helper\b|\bmacosHelper\s*:/g,
     },
     {
+      name: 'Apple macOS host provider',
+      pattern:
+        /\bmacos-host\b|\bmacosHost\s*:|\bAppleMacOsHostProvider\b|\bopenBundle\b|\bopenTarget\b|\breadClipboard\b|\bwriteClipboard\b|\breadDarkMode\b|\bsetDarkMode\b|\blistApps\b/g,
+    },
+    {
       name: 'Apple generic host-tool provider',
       pattern:
         /\bxcrun\b|['"](?:open|pbcopy|pbpaste|plutil|osascript|swift|codesign|mdfind|ps|pkill)['"]/g,

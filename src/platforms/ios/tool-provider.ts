@@ -6,6 +6,8 @@ import {
   type ExecResult,
 } from '../../utils/exec.ts';
 import { createScopedProvider } from '../../utils/scoped-provider.ts';
+import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
+import type { IosAppInfo } from './devicectl.ts';
 
 export type AppleToolCommandExecutor = (
   cmd: string,
@@ -32,11 +34,22 @@ export type ApplePlistProvider = {
   readJson(path: string): Promise<Record<string, unknown> | null>;
 };
 
+export type AppleMacOsHostProvider = {
+  openBundle?(bundleId: string, url?: string): Promise<void>;
+  openTarget?(target: string): Promise<void>;
+  readClipboard?(): Promise<string>;
+  writeClipboard?(text: string): Promise<void>;
+  readDarkMode?(): Promise<boolean>;
+  setDarkMode?(enabled: boolean): Promise<void>;
+  listApps?(filter: AppsFilter): Promise<IosAppInfo[]>;
+};
+
 export type AppleToolProvider = {
   runCommand: AppleToolCommandExecutor;
   simctl?: AppleXcrunToolProvider;
   devicectl?: AppleXcrunToolProvider;
   macosHelper?: AppleMacOsHelperProvider;
+  macosHost?: AppleMacOsHostProvider;
   plist?: ApplePlistProvider;
   whichCommand: AppleToolAvailabilityChecker;
 };

@@ -4,7 +4,7 @@ import { assertFlatToolCall } from './assertions.ts';
 import { createMacOsDesktopWorld } from './macos-world.ts';
 import { runDeviceLabScenario } from './scenario.ts';
 
-test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
+test('Device Lab macOS desktop flow uses semantic host and helper providers', async () => {
   const { daemon, appleTool, close } = await createMacOsDesktopWorld();
 
   try {
@@ -272,33 +272,15 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       },
     ]);
 
-    assertFlatToolCall(appleTool.calls, ['open', '-b', 'com.apple.systempreferences']);
     assertFlatToolCall(appleTool.calls, [
-      'find',
-      '/Applications',
-      '-maxdepth',
-      '4',
-      '-type',
-      'd',
-      '-name',
-      '*.app',
+      'macos-host',
+      'openBundle',
+      'com.apple.systempreferences',
     ]);
-    assertFlatToolCall(appleTool.calls, [
-      'plutil',
-      '-extract',
-      'CFBundleIdentifier',
-      'raw',
-      '-o',
-      '-',
-      '/Applications/System Settings.app/Contents/Info.plist',
-    ]);
-    assertFlatToolCall(appleTool.calls, ['pbcopy']);
-    assertFlatToolCall(appleTool.calls, ['pbpaste']);
-    assertFlatToolCall(appleTool.calls, [
-      'osascript',
-      '-e',
-      'tell application "System Events" to tell appearance preferences to set dark mode to true',
-    ]);
+    assertFlatToolCall(appleTool.calls, ['macos-host', 'listApps', 'all']);
+    assertFlatToolCall(appleTool.calls, ['macos-host', 'writeClipboard', 'desktop otp 123456']);
+    assertFlatToolCall(appleTool.calls, ['macos-host', 'readClipboard']);
+    assertFlatToolCall(appleTool.calls, ['macos-host', 'setDarkMode', 'true']);
     assertFlatToolCall(appleTool.calls, ['macos-helper', 'permission', 'grant', 'accessibility']);
     assertFlatToolCall(appleTool.calls, [
       'macos-helper',
@@ -371,7 +353,7 @@ test('Device Lab macOS desktop flow uses scripted Apple tools', async () => {
       '--surface',
       'menubar',
     ]);
-    assertFlatToolCall(appleTool.calls, ['open', '-b', 'com.example.demo']);
+    assertFlatToolCall(appleTool.calls, ['macos-host', 'openBundle', 'com.example.demo']);
     assertFlatToolCall(appleTool.calls, [
       'macos-helper',
       'snapshot',

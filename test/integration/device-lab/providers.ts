@@ -1,5 +1,6 @@
 import type { AppleRunnerProvider } from '../../../src/platforms/ios/runner-provider.ts';
 import type {
+  AppleMacOsHostProvider,
   AppleToolCommandExecutor,
   AppleToolProvider,
   AppleToolSubcommandExecutor,
@@ -14,6 +15,7 @@ type RecordingAppleToolHandlers = {
   simctl?: AppleToolSubcommandExecutor;
   devicectl?: AppleToolSubcommandExecutor;
   macosHelper?: AppleToolSubcommandExecutor;
+  macosHost?: AppleMacOsHostProvider;
 };
 
 export function createAppleRunnerProviderFromTranscript(
@@ -73,6 +75,43 @@ export function createRecordingAppleToolProvider(
                 Promise.resolve(fallbackResult));
         },
       },
+      macosHost: createRecordingMacOsHostProvider(calls, handlers.macosHost),
+    },
+  };
+}
+
+function createRecordingMacOsHostProvider(
+  calls: FlatToolCall[],
+  host: AppleMacOsHostProvider | undefined,
+): AppleMacOsHostProvider {
+  return {
+    openBundle: async (bundleId, url) => {
+      calls.push(['macos-host', 'openBundle', bundleId, ...(url ? [url] : [])]);
+      await host?.openBundle?.(bundleId, url);
+    },
+    openTarget: async (target) => {
+      calls.push(['macos-host', 'openTarget', target]);
+      await host?.openTarget?.(target);
+    },
+    readClipboard: async () => {
+      calls.push(['macos-host', 'readClipboard']);
+      return (await host?.readClipboard?.()) ?? '';
+    },
+    writeClipboard: async (text) => {
+      calls.push(['macos-host', 'writeClipboard', text]);
+      await host?.writeClipboard?.(text);
+    },
+    readDarkMode: async () => {
+      calls.push(['macos-host', 'readDarkMode']);
+      return (await host?.readDarkMode?.()) ?? false;
+    },
+    setDarkMode: async (enabled) => {
+      calls.push(['macos-host', 'setDarkMode', String(enabled)]);
+      await host?.setDarkMode?.(enabled);
+    },
+    listApps: async (filter) => {
+      calls.push(['macos-host', 'listApps', filter]);
+      return (await host?.listApps?.(filter)) ?? [];
     },
   };
 }

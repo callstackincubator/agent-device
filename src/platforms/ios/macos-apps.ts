@@ -10,7 +10,7 @@ import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-r
 import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
 import { quitMacOsApp } from './macos-helper.ts';
 import { readInfoPlistString } from './plist.ts';
-import { runAppleToolCommand } from './tool-provider.ts';
+import { resolveAppleToolProvider, runAppleToolCommand } from './tool-provider.ts';
 import type { IosAppInfo } from './devicectl.ts';
 
 const MACOS_ALIASES: Record<string, string> = {
@@ -94,23 +94,36 @@ export async function openMacOsApp(
   app: string,
   options?: { appBundleId?: string; url?: string },
 ): Promise<void> {
+  const macosHost = resolveAppleToolProvider().macosHost;
   const explicitUrl = options?.url?.trim();
   if (explicitUrl) {
     if (!isDeepLinkTarget(explicitUrl)) {
       throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
     }
     const appId = options?.appBundleId ?? (await resolveMacOsApp(app));
+    if (macosHost?.openBundle) {
+      await macosHost.openBundle(appId, explicitUrl);
+      return;
+    }
     await runAppleToolCommand('open', buildMacOpenArgs(appId, explicitUrl));
     return;
   }
 
   const target = app.trim();
   if (isDeepLinkTarget(target)) {
+    if (macosHost?.openTarget) {
+      await macosHost.openTarget(target);
+      return;
+    }
     await runAppleToolCommand('open', [target]);
     return;
   }
 
   const bundleId = options?.appBundleId ?? (await resolveMacOsApp(target));
+  if (macosHost?.openBundle) {
+    await macosHost.openBundle(bundleId);
+    return;
+  }
   await runAppleToolCommand('open', buildMacOpenArgs(bundleId));
 }
 
@@ -127,6 +140,11 @@ export async function closeMacOsApp(_device: DeviceInfo, app: string): Promise<v
 }
 
 export async function readMacOsClipboardText(): Promise<string> {
+  const macosHost = resolveAppleToolProvider().macosHost;
+  if (macosHost?.readClipboard) {
+    return await macosHost.readClipboard();
+  }
+
   const result = await runAppleToolCommand('pbpaste', [], { allowFailure: true });
   if (result.exitCode !== 0) {
     throw new AppError('COMMAND_FAILED', 'Failed to read macOS clipboard', {
@@ -139,6 +157,12 @@ export async function readMacOsClipboardText(): Promise<string> {
 }
 
 export async function writeMacOsClipboardText(text: string): Promise<void> {
+  const macosHost = resolveAppleToolProvider().macosHost;
+  if (macosHost?.writeClipboard) {
+    await macosHost.writeClipboard(text);
+    return;
+  }
+
   const result = await runAppleToolCommand('pbcopy', [], {
     allowFailure: true,
     stdin: text,
@@ -153,6 +177,11 @@ export async function writeMacOsClipboardText(text: string): Promise<void> {
 }
 
 async function getMacOsDarkModeEnabled(): Promise<boolean> {
+  const macosHost = resolveAppleToolProvider().macosHost;
+  if (macosHost?.readDarkMode) {
+    return await macosHost.readDarkMode();
+  }
+
   const script = 'tell application "System Events" to tell appearance preferences to get dark mode';
   const result = await runAppleToolCommand('osascript', ['-e', script], { allowFailure: true });
   if (result.exitCode !== 0) {
@@ -174,6 +203,12 @@ async function getMacOsDarkModeEnabled(): Promise<boolean> {
 export async function setMacOsAppearance(state: string): Promise<void> {
   const action = parseAppearanceAction(state);
   const darkMode = action === 'toggle' ? !(await getMacOsDarkModeEnabled()) : action === 'dark';
+  const macosHost = resolveAppleToolProvider().macosHost;
+  if (macosHost?.setDarkMode) {
+    await macosHost.setDarkMode(darkMode);
+    return;
+  }
+
   const script = `tell application "System Events" to tell appearance preferences to set dark mode to ${darkMode ? 'true' : 'false'}`;
   const result = await runAppleToolCommand('osascript', ['-e', script], { allowFailure: true });
   if (result.exitCode !== 0) {
@@ -186,6 +221,11 @@ export async function setMacOsAppearance(state: string): Promise<void> {
 }
 
 export async function listMacApps(filter: AppsFilter): Promise<IosAppInfo[]> {
+  const macosHost = resolveAppleToolProvider().macosHost;
+  if (macosHost?.listApps) {
+    return await macosHost.listApps(filter);
+  }
+
   // On macOS, user-installed means non-Apple bundle identifiers.
   const appRoots = [
     '/Applications',
