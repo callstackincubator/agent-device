@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { assertRpcOk } from './assertions.ts';
+import { assertRecordingStarted, assertRecordingStopped, assertRpcOk } from './assertions.ts';
 import { DEVICE_LAB_MACOS } from './fixtures.ts';
 import { createDeviceLabTempPath, withDeviceLabResource } from './harness.ts';
 import { createMacOsDesktopWorld } from './macos-world.ts';
@@ -46,22 +46,10 @@ test('Device Lab macOS recording flow uses runner provider through daemon path',
         fps: 30,
         quality: 7,
       });
-      const recordStartData = assertRpcOk(recordStart);
-      assert.equal(recordStartData.recording, 'started');
-      assert.equal(recordStartData.outPath, recordingPath);
-      assert.equal(recordStartData.showTouches, false);
+      assertRecordingStarted(recordStart, { outPath: recordingPath, showTouches: false });
 
       const recordStop = await daemon.callCommand('record', ['stop']);
-      const recordStopData = assertRpcOk<{
-        recording?: unknown;
-        outPath?: unknown;
-        showTouches?: unknown;
-        artifacts?: Array<{ path?: unknown }>;
-      }>(recordStop);
-      assert.equal(recordStopData.recording, 'stopped');
-      assert.equal(recordStopData.outPath, recordingPath);
-      assert.equal(recordStopData.showTouches, false);
-      assert.equal(recordStopData.artifacts?.[0]?.path, recordingPath);
+      assertRecordingStopped(recordStop, recordingPath, { showTouches: false });
 
       runnerTranscript.assertComplete();
     },

@@ -121,7 +121,7 @@ function createRecordingMacOsHostProvider(
   };
 }
 
-export function simctlListDevicesJson(
+function simctlListDevicesJson(
   runtime: string,
   devices: Array<{ name: string; udid: string; state?: string; isAvailable?: boolean }>,
 ): ExecResult {
@@ -138,4 +138,26 @@ export function simctlListDevicesJson(
     stderr: '',
     exitCode: 0,
   };
+}
+
+export function simctlListDevicesHandler(
+  runtime: string,
+  devices: Array<{ name: string; udid: string; state?: string; isAvailable?: boolean }>,
+): AppleToolSubcommandExecutor {
+  return async (args) => {
+    return (
+      simctlListDevicesResult(args, runtime, devices) ?? { stdout: '', stderr: '', exitCode: 0 }
+    );
+  };
+}
+
+export function simctlListDevicesResult(
+  args: string[],
+  runtime: string,
+  devices: Array<{ name: string; udid: string; state?: string; isAvailable?: boolean }>,
+): ExecResult | undefined {
+  if (args.join(' ') !== 'list devices -j') {
+    return undefined;
+  }
+  return simctlListDevicesJson(runtime, devices);
 }

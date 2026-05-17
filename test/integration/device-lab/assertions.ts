@@ -38,6 +38,43 @@ export function assertRpcOk<TData extends Record<string, unknown> = Record<strin
   return (response.json?.result?.data ?? {}) as TData;
 }
 
+export function assertRecordingStarted(
+  response: DeviceLabRpcResult,
+  options: { outPath?: string; showTouches?: boolean } = {},
+): void {
+  const data = assertRpcOk<{
+    recording?: unknown;
+    outPath?: unknown;
+    showTouches?: unknown;
+  }>(response);
+  assert.equal(data.recording, 'started');
+  if (options.outPath !== undefined) {
+    assert.equal(data.outPath, options.outPath);
+  }
+  if ('showTouches' in options) {
+    assert.equal(data.showTouches, options.showTouches);
+  }
+}
+
+export function assertRecordingStopped(
+  response: DeviceLabRpcResult,
+  outPath: string,
+  options: { showTouches?: boolean } = {},
+): void {
+  const data = assertRpcOk<{
+    recording?: unknown;
+    outPath?: unknown;
+    showTouches?: unknown;
+    artifacts?: Array<{ path?: unknown }>;
+  }>(response);
+  assert.equal(data.recording, 'stopped');
+  assert.equal(data.outPath, outPath);
+  if ('showTouches' in options) {
+    assert.equal(data.showTouches, options.showTouches);
+  }
+  assert.equal(data.artifacts?.[0]?.path, outPath);
+}
+
 export function arrayEqual(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }

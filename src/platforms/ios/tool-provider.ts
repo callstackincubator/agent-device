@@ -1,10 +1,4 @@
-import {
-  runCmd,
-  runCmdSync,
-  whichCmd,
-  type ExecOptions,
-  type ExecResult,
-} from '../../utils/exec.ts';
+import { runCmd, whichCmd, type ExecOptions, type ExecResult } from '../../utils/exec.ts';
 import { createScopedProvider } from '../../utils/scoped-provider.ts';
 import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
 import type { IosAppInfo } from './devicectl.ts';
@@ -131,17 +125,6 @@ export async function runAppleToolCommand(
   options?: ExecOptions,
 ): Promise<ExecResult> {
   return await resolveAppleToolProvider().runCommand(cmd, args, options);
-}
-
-export function runAppleToolCommandSync(
-  cmd: string,
-  args: string[],
-  options?: ExecOptions,
-): ExecResult {
-  // Synchronous Apple tool calls are intentionally local-only. Remote/cloud providers
-  // cannot implement sync process execution; convert callers before moving them behind
-  // the provider seam.
-  return runCmdSync(cmd, args, options);
 }
 
 export async function runXcrun(args: string[], options?: ExecOptions): Promise<ExecResult> {

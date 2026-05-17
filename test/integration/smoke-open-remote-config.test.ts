@@ -4,7 +4,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
-import net from 'node:net';
+import {
+  closeLoopbackServer,
+  listenOnLoopback,
+  supportsLoopbackBind,
+} from '../../src/__tests__/test-utils/loopback.ts';
 import { runCli } from '../../src/cli.ts';
 
 // Smoke coverage for the repo-local remote host flow: connect to a remote profile,
@@ -25,8 +29,6 @@ type CliJsonResult = {
   stdout: string;
   stderr: string;
 };
-
-let loopbackBindSupportPromise: Promise<boolean> | null = null;
 
 async function runCliJson(args: string[], env?: NodeJS.ProcessEnv): Promise<CliJsonResult> {
   let code: number | null = null;
@@ -83,43 +85,10 @@ async function runCliJson(args: string[], env?: NodeJS.ProcessEnv): Promise<CliJ
   };
 }
 
-async function supportsLoopbackBind(): Promise<boolean> {
-  if (loopbackBindSupportPromise) {
-    return await loopbackBindSupportPromise;
-  }
-  loopbackBindSupportPromise = new Promise<boolean>((resolve) => {
-    const server = net.createServer();
-    server.once('error', () => {
-      resolve(false);
-    });
-    server.listen(0, '127.0.0.1', () => {
-      server.close(() => resolve(true));
-    });
-  });
-  return await loopbackBindSupportPromise;
-}
-
-async function listen(server: http.Server): Promise<number> {
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => resolve());
-  });
-  const address = server.address();
-  if (!address || typeof address === 'string') {
-    throw new Error('Expected TCP server address');
-  }
-  return address.port;
-}
-
 async function closeServer(server: http.Server): Promise<void> {
   server.closeAllConnections();
   server.closeIdleConnections();
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) reject(error);
-      else resolve();
-    });
-  });
+  await closeLoopbackServer(server);
 }
 
 async function readJsonBody(req: http.IncomingMessage): Promise<any> {
@@ -167,7 +136,7 @@ test('connect prepares Metro and open reuses bridged runtime for remote daemon',
     res.writeHead(404);
     res.end();
   });
-  const metroPort = await listen(metroServer);
+  const metroPort = await listenOnLoopback(metroServer);
   t.after(async () => {
     await closeServer(metroServer);
   });
@@ -301,7 +270,7 @@ test('connect prepares Metro and open reuses bridged runtime for remote daemon',
     res.writeHead(404);
     res.end();
   });
-  hostPort = await listen(hostServer);
+  hostPort = await listenOnLoopback(hostServer);
   t.after(async () => {
     await closeServer(hostServer);
     fs.rmSync(root, { recursive: true, force: true });

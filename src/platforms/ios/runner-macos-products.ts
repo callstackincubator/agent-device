@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
-import { runAppleToolCommand, runAppleToolCommandSync } from './tool-provider.ts';
+import { runAppleToolCommand } from './tool-provider.ts';
 
 const RUNNER_PRODUCT_REPAIR_FAILURE_REASONS = new Set([
   'RUNNER_PRODUCT_MISSING',
@@ -36,7 +36,7 @@ export async function repairMacOsRunnerProductsIfNeeded(
   }
 
   for (const productPath of sortedProductPaths) {
-    if (hasValidCodeSignature(productPath)) {
+    if (await hasValidCodeSignature(productPath)) {
       continue;
     }
     await runAppleToolCommand('codesign', ['--remove-signature', productPath], {
@@ -69,8 +69,8 @@ export function isExpectedRunnerRepairFailure(error: unknown): boolean {
   return typeof reason === 'string' && RUNNER_PRODUCT_REPAIR_FAILURE_REASONS.has(reason);
 }
 
-function hasValidCodeSignature(productPath: string): boolean {
-  const result = runAppleToolCommandSync(
+async function hasValidCodeSignature(productPath: string): Promise<boolean> {
+  const result = await runAppleToolCommand(
     'codesign',
     ['--verify', '--deep', '--strict', productPath],
     {

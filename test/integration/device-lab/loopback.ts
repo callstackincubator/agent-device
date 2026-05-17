@@ -1,53 +1,33 @@
-import http from 'node:http';
-import net from 'node:net';
+import {
+  closeLoopbackServer,
+  listenOnLoopback,
+  supportsLoopbackBind,
+} from '../../../src/__tests__/test-utils/loopback.ts';
 
-let loopbackBindSupportPromise: Promise<boolean> | null = null;
+type SkippableTestContext = {
+  skip(reason?: string): void;
+};
 
-export async function supportsLoopbackBind(): Promise<boolean> {
-  if (loopbackBindSupportPromise) {
-    return await loopbackBindSupportPromise;
-  }
-  loopbackBindSupportPromise = new Promise<boolean>((resolve) => {
-    const server = net.createServer();
-    server.once('error', () => {
-      resolve(false);
-    });
-    server.listen(0, '127.0.0.1', () => {
-      server.close(() => resolve(true));
-    });
-  });
-  return await loopbackBindSupportPromise;
-}
-
-export function requiresLoopbackCoverage(): boolean {
+function requiresLoopbackCoverage(): boolean {
   return ['1', 'true', 'yes', 'on'].includes(
     (process.env.AGENT_DEVICE_REQUIRE_LOOPBACK_TESTS ?? '').toLowerCase(),
   );
 }
 
-export async function listenHttpOnLoopback(server: http.Server): Promise<number> {
-  return await new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      server.off('error', reject);
-      const address = server.address();
-      if (typeof address === 'object' && address?.port) {
-        resolve(address.port);
-        return;
-      }
-      reject(new Error('Failed to bind test server'));
-    });
-  });
+export async function skipWhenLoopbackUnavailable(
+  t: SkippableTestContext,
+  coverageLabel = 'loopback integration coverage',
+): Promise<boolean> {
+  if (await supportsLoopbackBind()) {
+    return false;
+  }
+  if (requiresLoopbackCoverage()) {
+    throw new Error(`loopback listeners are required for ${coverageLabel}`);
+  }
+  t.skip('loopback listeners are not permitted in this environment');
+  return true;
 }
 
-export async function closeHttpServer(server: http.Server): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
-}
+export const listenHttpOnLoopback = listenOnLoopback;
+export const closeServer = closeLoopbackServer;
+export const closeHttpServer = closeLoopbackServer;

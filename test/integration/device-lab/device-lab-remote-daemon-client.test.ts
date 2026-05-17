@@ -6,12 +6,7 @@ import path from 'node:path';
 import { test } from 'vitest';
 import { createAgentDeviceClient } from '../../../src/client.ts';
 import { normalizeAgentDeviceError } from '../../../src/utils/errors.ts';
-import {
-  closeHttpServer,
-  listenHttpOnLoopback,
-  requiresLoopbackCoverage,
-  supportsLoopbackBind,
-} from './loopback.ts';
+import { closeHttpServer, listenHttpOnLoopback, skipWhenLoopbackUnavailable } from './loopback.ts';
 
 type RemoteRpcRequest = {
   id: unknown;
@@ -375,11 +370,7 @@ async function assertRemoteRpcErrorNormalization(client: RemoteClient): Promise<
 }
 
 test('Device Lab remote daemon client materializes artifacts and normalizes RPC errors', async (t) => {
-  if (!(await supportsLoopbackBind())) {
-    if (requiresLoopbackCoverage()) {
-      assert.fail('loopback listeners are required for remote daemon client integration coverage');
-    }
-    t.skip('loopback listeners are not permitted in this environment');
+  if (await skipWhenLoopbackUnavailable(t, 'remote daemon client integration coverage')) {
     return;
   }
 

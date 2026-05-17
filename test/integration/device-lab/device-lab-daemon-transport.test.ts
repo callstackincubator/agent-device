@@ -8,11 +8,10 @@ import {
   listenHttpServer,
   listenNetServer,
 } from '../../../src/daemon/transport.ts';
-import { supportsLoopbackBind } from './loopback.ts';
+import { closeServer, skipWhenLoopbackUnavailable } from './loopback.ts';
 
 test('Device Lab daemon socket transport frames requests and normalizes malformed input', async (t) => {
-  if (!(await supportsLoopbackBind())) {
-    t.skip('loopback listeners are not permitted in this environment');
+  if (await skipWhenLoopbackUnavailable(t)) {
     return;
   }
 
@@ -66,25 +65,9 @@ test('Device Lab daemon socket transport frames requests and normalizes malforme
     });
     const httpPort = await listenHttpServer(httpServer);
     assert.equal(typeof httpPort, 'number');
-    await new Promise<void>((resolve, reject) => {
-      httpServer.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
+    await closeServer(httpServer);
   } finally {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
+    await closeServer(server);
   }
 });
 

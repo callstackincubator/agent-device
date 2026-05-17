@@ -6,7 +6,7 @@ import { createDeviceLabHarness, withDeviceLabResource } from './harness.ts';
 import {
   createAppleRunnerProviderFromTranscript,
   createRecordingAppleToolProvider,
-  simctlListDevicesJson,
+  simctlListDevicesHandler,
 } from './providers.ts';
 import { createProviderTranscript } from './transcript.ts';
 
@@ -51,14 +51,9 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
     'tvos.runner',
   );
   const appleTool = createRecordingAppleToolProvider({
-    simctl: async (args) => {
-      if (args.join(' ') === 'list devices -j') {
-        return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.tvOS-18-0', [
-          { name: 'Apple TV', udid: 'tv-sim-1' },
-        ]);
-      }
-      return { stdout: '', stderr: '', exitCode: 0 };
-    },
+    simctl: simctlListDevicesHandler('com.apple.CoreSimulator.SimRuntime.tvOS-18-0', [
+      { name: 'Apple TV', udid: 'tv-sim-1' },
+    ]),
   });
 
   await withDeviceLabResource(

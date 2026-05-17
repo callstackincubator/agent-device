@@ -8,12 +8,8 @@ import { trackDownloadableArtifact } from '../../../src/daemon/artifact-tracking
 import { createDaemonHttpServer } from '../../../src/daemon/http-server.ts';
 import { isRequestCanceled } from '../../../src/daemon/request-cancel.ts';
 import type { DaemonRequest, DaemonResponse } from '../../../src/daemon/types.ts';
-import {
-  closeHttpServer,
-  listenHttpOnLoopback,
-  requiresLoopbackCoverage,
-  supportsLoopbackBind,
-} from './loopback.ts';
+import { closeHttpServer, listenHttpOnLoopback, skipWhenLoopbackUnavailable } from './loopback.ts';
+import { restoreEnv } from './harness.ts';
 
 type RpcResponse = {
   status: number;
@@ -28,11 +24,7 @@ type RpcResponse = {
 };
 
 test('Device Lab daemon HTTP server maps RPC methods, auth, and request cancellation through the real transport', async (t) => {
-  if (!(await supportsLoopbackBind())) {
-    if (requiresLoopbackCoverage()) {
-      assert.fail('loopback listeners are required for daemon HTTP integration coverage');
-    }
-    t.skip('loopback listeners are not permitted in this environment');
+  if (await skipWhenLoopbackUnavailable(t, 'daemon HTTP integration coverage')) {
     return;
   }
 
@@ -212,11 +204,7 @@ test('Device Lab daemon HTTP server maps RPC methods, auth, and request cancella
 });
 
 test('Device Lab daemon HTTP server accepts uploads and streams downloadable artifacts', async (t) => {
-  if (!(await supportsLoopbackBind())) {
-    if (requiresLoopbackCoverage()) {
-      assert.fail('loopback listeners are required for daemon HTTP integration coverage');
-    }
-    t.skip('loopback listeners are not permitted in this environment');
+  if (await skipWhenLoopbackUnavailable(t, 'daemon HTTP integration coverage')) {
     return;
   }
 
@@ -274,11 +262,7 @@ test('Device Lab daemon HTTP server accepts uploads and streams downloadable art
 });
 
 test('Device Lab daemon HTTP auth hook can scope tenants and reject requests', async (t) => {
-  if (!(await supportsLoopbackBind())) {
-    if (requiresLoopbackCoverage()) {
-      assert.fail('loopback listeners are required for daemon HTTP integration coverage');
-    }
-    t.skip('loopback listeners are not permitted in this environment');
+  if (await skipWhenLoopbackUnavailable(t, 'daemon HTTP integration coverage')) {
     return;
   }
 
@@ -340,11 +324,7 @@ test('Device Lab daemon HTTP auth hook can scope tenants and reject requests', a
     if (server) {
       await closeHttpServer(server);
     }
-    if (previousHook === undefined) {
-      delete process.env.AGENT_DEVICE_HTTP_AUTH_HOOK;
-    } else {
-      process.env.AGENT_DEVICE_HTTP_AUTH_HOOK = previousHook;
-    }
+    restoreEnv('AGENT_DEVICE_HTTP_AUTH_HOOK', previousHook);
     fs.rmSync(root, { recursive: true, force: true });
   }
 });

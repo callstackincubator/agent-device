@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
 import { arrayEqual, assertCommandCall } from './assertions.ts';
+import { androidSettingsXml } from './android-world.ts';
 import { DEVICE_LAB_ANDROID } from './fixtures.ts';
 import { createDeviceLabHarness } from './harness.ts';
 
@@ -191,37 +192,12 @@ function androidFindAdbResult(
   }
   if (args.join(' ') === 'exec-out uiautomator dump /dev/tty') {
     return {
-      stdout: androidFindSettingsXml(searchText, includeDuplicateAppsRow),
+      stdout: androidSettingsXml(searchText, { duplicateAppsRow: includeDuplicateAppsRow }),
       stderr: '',
       exitCode: 0,
     };
   }
   return { stdout: '', stderr: '', exitCode: 0 };
-}
-
-function androidFindSettingsXml(searchText: string, includeDuplicateAppsRow: boolean): string {
-  return [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    '<hierarchy rotation="0">',
-    '  <node index="0" text="" resource-id="com.android.settings:id/main_content_scrollable_container" class="android.widget.ScrollView" package="com.android.settings" content-desc="" bounds="[0,0][390,600]" clickable="false" enabled="true">',
-    '    <node index="0" text="Apps" resource-id="android:id/title" class="android.widget.TextView" package="com.android.settings" content-desc="" bounds="[24,124][152,178]" clickable="true" enabled="true" focusable="true" focused="false" />',
-    `    <node index="1" text="${escapeXml(searchText)}" resource-id="com.android.settings:id/search" class="android.widget.EditText" package="com.android.settings" content-desc="Search" bounds="[16,24][374,80]" clickable="true" enabled="true" focusable="true" focused="true" password="false" />`,
-    ...(includeDuplicateAppsRow
-      ? [
-          '    <node index="2" text="Apps" resource-id="android:id/title" class="android.widget.TextView" package="com.android.settings" content-desc="Search result Apps" bounds="[24,190][220,244]" clickable="true" enabled="true" focusable="true" focused="false" />',
-        ]
-      : []),
-    '  </node>',
-    '</hierarchy>',
-  ].join('\n');
-}
-
-function escapeXml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('"', '&quot;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
 }
 
 function assertString(value: unknown, label: string): asserts value is string {

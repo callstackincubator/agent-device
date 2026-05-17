@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
-import net from 'node:net';
+import { supportsLoopbackBind } from '../../src/__tests__/test-utils/loopback.ts';
 import { runCmdSync } from '../../src/utils/exec.ts';
 import { stopProcessForTakeover } from '../../src/utils/process-identity.ts';
 
@@ -23,7 +23,9 @@ type DaemonInfo = {
   httpPort?: number;
 };
 
-let loopbackBindSupportPromise: Promise<boolean> | null = null;
+type SkippableTestContext = {
+  skip(reason?: string): void;
+};
 
 function runCliJson(args: string[], env?: NodeJS.ProcessEnv): CliJsonResult {
   const result = runCmdSync(
@@ -181,22 +183,6 @@ function leaseRpcPayload(
   };
 }
 
-async function supportsLoopbackBind(): Promise<boolean> {
-  if (loopbackBindSupportPromise) {
-    return await loopbackBindSupportPromise;
-  }
-  loopbackBindSupportPromise = new Promise<boolean>((resolve) => {
-    const server = net.createServer();
-    server.once('error', () => {
-      resolve(false);
-    });
-    server.listen(0, '127.0.0.1', () => {
-      server.close(() => resolve(true));
-    });
-  });
-  return await loopbackBindSupportPromise;
-}
-
 function isTruthy(raw: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes((raw ?? '').toLowerCase());
 }
@@ -205,12 +191,19 @@ function shouldRequireLoopbackCoverage(): boolean {
   return isTruthy(process.env.AGENT_DEVICE_REQUIRE_LOOPBACK_TESTS);
 }
 
+async function skipWhenLoopbackUnavailable(t: SkippableTestContext): Promise<boolean> {
+  if (await supportsLoopbackBind()) {
+    return false;
+  }
+  if (shouldRequireLoopbackCoverage()) {
+    assert.fail('loopback listeners are required for daemon HTTP integration coverage');
+  }
+  t.skip('loopback listeners are not permitted in this environment');
+  return true;
+}
+
 test('daemon HTTP JSON-RPC flow honors custom state dir and tenant isolation controls', async (t) => {
-  if (!(await supportsLoopbackBind())) {
-    if (shouldRequireLoopbackCoverage()) {
-      assert.fail('loopback listeners are required for daemon HTTP integration coverage');
-    }
-    t.skip('loopback listeners are not permitted in this environment');
+  if (await skipWhenLoopbackUnavailable(t)) {
     return;
   }
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-http-flow-'));
@@ -290,11 +283,7 @@ test('daemon HTTP JSON-RPC flow honors custom state dir and tenant isolation con
 });
 
 test('daemon HTTP auth hook can reject and inject tenant context', async (t) => {
-  if (!(await supportsLoopbackBind())) {
-    if (shouldRequireLoopbackCoverage()) {
-      assert.fail('loopback listeners are required for daemon HTTP integration coverage');
-    }
-    t.skip('loopback listeners are not permitted in this environment');
+  if (await skipWhenLoopbackUnavailable(t)) {
     return;
   }
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-http-auth-'));

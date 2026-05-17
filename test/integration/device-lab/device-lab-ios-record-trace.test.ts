@@ -3,13 +3,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'vitest';
 import type { RecordingProvider } from '../../../src/daemon/recording-provider.ts';
-import { assertFlatToolCallStartsWith } from './assertions.ts';
+import {
+  assertFlatToolCallStartsWith,
+  assertRecordingStarted,
+  assertRecordingStopped,
+} from './assertions.ts';
 import { DEVICE_LAB_IOS_DEVICE, DEVICE_LAB_IOS_SIMULATOR } from './fixtures.ts';
 import { createDeviceLabHarness, withDeviceLabTempDir } from './harness.ts';
 import {
   createAppleRunnerProviderFromTranscript,
   createRecordingAppleToolProvider,
-  simctlListDevicesJson,
+  simctlListDevicesHandler,
 } from './providers.ts';
 import { createProviderTranscript } from './transcript.ts';
 
@@ -67,16 +71,10 @@ test('Device Lab iOS physical recording flow uses runner and devicectl providers
         quality: 8,
         hideTouches: true,
       });
-      assert.equal(recordStart.statusCode, 200, JSON.stringify(recordStart.json));
-      assert.equal(recordStart.json?.result?.data?.recording, 'started');
-      assert.equal(recordStart.json?.result?.data?.showTouches, false);
+      assertRecordingStarted(recordStart, { showTouches: false });
 
       const recordStop = await daemon.callCommand('record', ['stop']);
-      assert.equal(recordStop.statusCode, 200, JSON.stringify(recordStop.json));
-      assert.equal(recordStop.json?.result?.data?.recording, 'stopped');
-      assert.equal(recordStop.json?.result?.data?.outPath, recordingPath);
-      assert.equal(recordStop.json?.result?.data?.showTouches, false);
-      assert.equal(recordStop.json?.result?.data?.artifacts?.[0]?.path, recordingPath);
+      assertRecordingStopped(recordStop, recordingPath, { showTouches: false });
 
       const traceStop = await daemon.callCommand('trace', ['stop', finalTracePath]);
       assert.equal(traceStop.statusCode, 200, JSON.stringify(traceStop.json));
@@ -169,14 +167,9 @@ test('Device Lab iOS simulator recording flow uses semantic recording provider',
       'ios.runner',
     );
     const appleTool = createRecordingAppleToolProvider({
-      simctl: async (args) => {
-        if (args.join(' ') === 'list devices -j') {
-          return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.iOS-18-0', [
-            { name: 'iPhone 15', udid: DEVICE_LAB_IOS_SIMULATOR.id },
-          ]);
-        }
-        return { stdout: '', stderr: '', exitCode: 0 };
-      },
+      simctl: simctlListDevicesHandler('com.apple.CoreSimulator.SimRuntime.iOS-18-0', [
+        { name: 'iPhone 15', udid: DEVICE_LAB_IOS_SIMULATOR.id },
+      ]),
     });
     const recordingStarts: string[] = [];
     let stopped = false;
@@ -215,16 +208,10 @@ test('Device Lab iOS simulator recording flow uses semantic recording provider',
       const recordStart = await daemon.callCommand('record', ['start', recordingPath], {
         hideTouches: true,
       });
-      assert.equal(recordStart.statusCode, 200, JSON.stringify(recordStart.json));
-      assert.equal(recordStart.json?.result?.data?.recording, 'started');
-      assert.equal(recordStart.json?.result?.data?.showTouches, false);
+      assertRecordingStarted(recordStart, { showTouches: false });
 
       const recordStop = await daemon.callCommand('record', ['stop']);
-      assert.equal(recordStop.statusCode, 200, JSON.stringify(recordStop.json));
-      assert.equal(recordStop.json?.result?.data?.recording, 'stopped');
-      assert.equal(recordStop.json?.result?.data?.outPath, recordingPath);
-      assert.equal(recordStop.json?.result?.data?.showTouches, false);
-      assert.equal(recordStop.json?.result?.data?.artifacts?.[0]?.path, recordingPath);
+      assertRecordingStopped(recordStop, recordingPath, { showTouches: false });
 
       runnerTranscript.assertComplete();
       assert.deepEqual(recordingStarts, [recordingPath]);

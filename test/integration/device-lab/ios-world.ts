@@ -11,8 +11,8 @@ import { createDeviceLabHarness, type DeviceLabHarness } from './harness.ts';
 import {
   createAppleRunnerProviderFromTranscript,
   createRecordingAppleToolProvider,
+  simctlListDevicesResult,
   type FlatToolCall,
-  simctlListDevicesJson,
 } from './providers.ts';
 import { createProviderTranscript } from './transcript.ts';
 
@@ -105,10 +105,13 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
       if (args.join(' ') === 'pbpaste sim-1') {
         return { stdout: `${clipboardText}\n`, stderr: '', exitCode: 0 };
       }
-      if (args.join(' ') === 'list devices -j') {
-        return simctlListDevicesJson('com.apple.CoreSimulator.SimRuntime.iOS-18-0', [
-          { name: 'iPhone 15', udid: 'sim-1' },
-        ]);
+      const listDevices = simctlListDevicesResult(
+        args,
+        'com.apple.CoreSimulator.SimRuntime.iOS-18-0',
+        [{ name: 'iPhone 15', udid: 'sim-1' }],
+      );
+      if (listDevices) {
+        return listDevices;
       }
       if (args.join(' ') === 'listapps sim-1') {
         return {

@@ -3,7 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'vitest';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
-import { assertCommandCall, assertRpcOk } from './assertions.ts';
+import {
+  assertCommandCall,
+  assertRecordingStarted,
+  assertRecordingStopped,
+  assertRpcOk,
+} from './assertions.ts';
 import { DEVICE_LAB_ANDROID } from './fixtures.ts';
 import { restoreEnv, createDeviceLabHarness, withDeviceLabTempDir } from './harness.ts';
 
@@ -45,21 +50,10 @@ test('Device Lab Android recording flow uses scripted ADB provider pull capabili
         hideTouches: true,
         quality: 7,
       });
-      const recordStartData = assertRpcOk(recordStart);
-      assert.equal(recordStartData.recording, 'started');
-      assert.equal(recordStartData.showTouches, false);
+      assertRecordingStarted(recordStart, { showTouches: false });
 
       const recordStop = await daemon.callCommand('record', ['stop']);
-      const recordStopData = assertRpcOk<{
-        recording?: unknown;
-        outPath?: unknown;
-        showTouches?: unknown;
-        artifacts?: Array<{ path?: unknown }>;
-      }>(recordStop);
-      assert.equal(recordStopData.recording, 'stopped');
-      assert.equal(recordStopData.outPath, recordingPath);
-      assert.equal(recordStopData.showTouches, false);
-      assert.equal(recordStopData.artifacts?.[0]?.path, recordingPath);
+      assertRecordingStopped(recordStop, recordingPath, { showTouches: false });
       assert.equal(fs.existsSync(recordingPath), true);
 
       assertCommandCall(adbCalls, ['shell', 'wm', 'size']);

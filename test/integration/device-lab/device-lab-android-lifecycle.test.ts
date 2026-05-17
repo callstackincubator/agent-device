@@ -7,7 +7,8 @@ import type { AgentDeviceClient } from '../../../src/client-types.ts';
 import { arrayEqual, assertCommandCall, assertPngFile } from './assertions.ts';
 import { createAndroidSettingsWorld, waitForFileContent } from './android-world.ts';
 import { DEVICE_LAB_ANDROID } from './fixtures.ts';
-import { createDeviceLabTempPath, withDeviceLabResource } from './harness.ts';
+import { createDeviceLabTempPath, restoreEnv, withDeviceLabResource } from './harness.ts';
+import { closeHttpServer, listenHttpOnLoopback } from './loopback.ts';
 
 type AndroidSettingsWorld = Awaited<ReturnType<typeof createAndroidSettingsWorld>>;
 
@@ -194,11 +195,7 @@ async function runAndroidSetupAndInstallWorkflow(
     assert.equal(artifactServer.lastHeaders.authorization, 'Bearer device-lab');
     assert.equal(artifactServer.lastHeaders['x-build'], '42');
   } finally {
-    if (previousPrivateSourceUrls === undefined) {
-      delete process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
-    } else {
-      process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = previousPrivateSourceUrls;
-    }
+    restoreEnv('AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS', previousPrivateSourceUrls);
     await artifactServer.close();
   }
 
@@ -893,28 +890,13 @@ async function createLocalArtifactServer(filePath: string): Promise<{
     fs.createReadStream(filePath).pipe(res);
   });
 
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      server.off('error', reject);
-      resolve();
-    });
-  });
-  const address = server.address();
-  assert.ok(address && typeof address === 'object');
+  const port = await listenHttpOnLoopback(server);
 
   return {
-    url: `http://127.0.0.1:${address.port}/ManifestDemo.apk`,
+    url: `http://127.0.0.1:${port}/ManifestDemo.apk`,
     get lastHeaders() {
       return lastHeaders;
     },
-    close: async () => {
-      await new Promise<void>((resolve, reject) => {
-        server.close((error) => {
-          if (error) reject(error);
-          else resolve();
-        });
-      });
-    },
+    close: async () => await closeHttpServer(server),
   };
 }
