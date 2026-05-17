@@ -7,7 +7,7 @@ vi.mock('../../../utils/exec.ts', async (importOriginal) => {
 });
 
 import { runCmd, whichCmd } from '../../../utils/exec.ts';
-import { readLinuxClipboard, writeLinuxClipboard, resetClipboardToolCache } from '../clipboard.ts';
+import { readLinuxClipboard, writeLinuxClipboard } from '../clipboard.ts';
 import { AppError } from '../../../utils/errors.ts';
 
 const mockRunCmd = vi.mocked(runCmd);
@@ -28,7 +28,6 @@ function setupWayland(): void {
 beforeEach(() => {
   mockRunCmd.mockReset();
   mockWhichCmd.mockReset();
-  resetClipboardToolCache();
 });
 
 afterAll(() => {

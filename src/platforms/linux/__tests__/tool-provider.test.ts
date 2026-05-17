@@ -136,6 +136,21 @@ test('local Linux desktop provider falls back to pkill when wmctrl is unavailabl
   assert.deepEqual(commands, [['pkill', ['-x', 'Demo'], true]]);
 });
 
+test('local Linux screenshot provider translates capture to available host tool', async () => {
+  const commands: Array<[string, string[]]> = [];
+  const provider = createLocalLinuxToolProvider({
+    whichCommand: async (cmd) => cmd === 'scrot',
+    runCommand: async (cmd, args) => {
+      commands.push([cmd, args]);
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  await provider.screenshot!.capture('/tmp/screen.png');
+
+  assert.deepEqual(commands, [['scrot', ['/tmp/screen.png']]]);
+});
+
 afterAll(() => {
   Object.defineProperty(process, 'platform', { value: originalPlatform });
   for (const key of Object.keys(process.env)) {
