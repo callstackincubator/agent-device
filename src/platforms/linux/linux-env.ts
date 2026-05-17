@@ -17,10 +17,6 @@ function detectDisplayServer(): DisplayServer {
   return 'x11';
 }
 
-export function isWayland(): boolean {
-  return detectDisplayServer() === 'wayland';
-}
-
 // ── Cached input tool resolution ───────────────────────────────────────
 
 let cachedInputTool: {

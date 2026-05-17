@@ -111,9 +111,6 @@
       "complexity_high": {
         "count": 1
       },
-      "crap_high": {
-        "count": 1
-      },
       "crap_moderate": {
         "count": 3
       }
@@ -407,7 +404,7 @@
         "count": 1
       },
       "crap_high": {
-        "count": 1
+        "count": 2
       },
       "crap_moderate": {
         "count": 1
@@ -948,18 +945,19 @@
     "src/daemon/handlers/snapshot-capture.ts:high impact",
     "src/daemon/handlers/session-device-utils.ts:high impact",
     "src/daemon/handlers/session.ts:complexity",
-    "src/client-shared.ts:high impact",
     "src/daemon/handlers/session-replay-script.ts:complexity",
+    "src/client-shared.ts:high impact",
+    "src/daemon/config.ts:high impact",
     "src/commands/selector-read-utils.ts:high impact",
     "src/daemon/handlers/session-replay-heal.ts:complexity",
     "src/cli/commands/connection-runtime.ts:complexity",
     "src/daemon/android-snapshot-freshness.ts:high impact",
     "src/daemon/context.ts:high impact",
-    "src/daemon/config.ts:high impact",
+    "src/daemon/handlers/session-replay-runtime.ts:high impact",
     "src/daemon/script-utils.ts:high impact",
     "src/platforms/boot-diagnostics.ts:complexity",
-    "src/daemon/handlers/snapshot-alert.ts:complexity",
     "src/daemon/handlers/session-open-target.ts:high impact",
+    "src/daemon/handlers/snapshot-alert.ts:complexity",
     "src/utils/success-text.ts:high impact",
     "src/daemon/handlers/install-source.ts:complexity",
     "src/cli/commands/output.ts:untested risk",
