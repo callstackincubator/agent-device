@@ -28,6 +28,10 @@ export type DeviceLabHarness = {
   close: () => Promise<void>;
 };
 
+export type ClosableDeviceLabResource = {
+  close: () => Promise<void> | void;
+};
+
 export async function createDeviceLabHarness(
   deps: Partial<RequestRouterDeps> & Pick<RequestRouterDeps, 'deviceInventoryProvider'>,
 ): Promise<DeviceLabHarness> {
@@ -65,6 +69,36 @@ export async function createDeviceLabHarness(
       fs.rmSync(sessionDir, { recursive: true, force: true });
     },
   };
+}
+
+export async function withDeviceLabResource<TResource extends ClosableDeviceLabResource, TResult>(
+  create: () => Promise<TResource>,
+  run: (resource: TResource) => Promise<TResult> | TResult,
+): Promise<TResult> {
+  const resource = await create();
+  try {
+    return await run(resource);
+  } finally {
+    await resource.close();
+  }
+}
+
+export function createDeviceLabTempPath(prefix: string, extension: string): string {
+  const suffix = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const normalizedExtension = extension.startsWith('.') ? extension : `.${extension}`;
+  return path.join(os.tmpdir(), `${prefix}-${suffix}${normalizedExtension}`);
+}
+
+export async function withDeviceLabTempDir<TResult>(
+  prefix: string,
+  run: (dir: string) => Promise<TResult> | TResult,
+): Promise<TResult> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  try {
+    return await run(dir);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 export function restoreEnv(key: string, previous: string | undefined): void {

@@ -1,81 +1,76 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
-import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import type { AgentDeviceClient } from '../../../src/client-types.ts';
 import { arrayEqual, assertCommandCall, assertPngFile } from './assertions.ts';
 import { createAndroidSettingsWorld, waitForFileContent } from './android-world.ts';
 import { DEVICE_LAB_ANDROID } from './fixtures.ts';
+import { createDeviceLabTempPath, withDeviceLabResource } from './harness.ts';
 
 type AndroidSettingsWorld = Awaited<ReturnType<typeof createAndroidSettingsWorld>>;
 
 test('Device Lab Android Settings flow uses scripted ADB provider', async () => {
-  const world = await createAndroidSettingsWorld();
-
-  try {
+  await withDeviceLabResource(createAndroidSettingsWorld, async (world) => {
     const client = world.daemon.client();
     await runAndroidSetupAndInstallWorkflow(world, client);
     await runAndroidAppControlAndObservabilityWorkflow(world, client);
     await runAndroidCaptureInteractionAndReplayWorkflow(world, client);
     assertAndroidProviderContract(world);
-  } finally {
-    await world.close();
-  }
+  });
 });
 
 test('Device Lab Android text provider handles Unicode without shell input text', async () => {
-  const world = await createAndroidSettingsWorld({ nativeTextInjection: true });
+  await withDeviceLabResource(
+    async () => await createAndroidSettingsWorld({ nativeTextInjection: true }),
+    async (world) => {
+      const client = world.daemon.client();
+      await client.apps.open({ app: 'settings', ...world.selection });
+      const snapshot = await client.capture.snapshot({
+        interactiveOnly: true,
+        ...world.selection,
+      });
+      const search = snapshot.nodes.find((node) => node.label === 'Search');
+      assert.ok(search, JSON.stringify(snapshot.nodes));
 
-  try {
-    const client = world.daemon.client();
-    await client.apps.open({ app: 'settings', ...world.selection });
-    const snapshot = await client.capture.snapshot({
-      interactiveOnly: true,
-      ...world.selection,
-    });
-    const search = snapshot.nodes.find((node) => node.label === 'Search');
-    assert.ok(search, JSON.stringify(snapshot.nodes));
-
-    const fill = await client.interactions.fill({
-      ref: `@${search.ref}`,
-      text: 'Łódź café',
-      delayMs: 2,
-      ...world.selection,
-    });
-    assert.equal(fill.text, 'Łódź café');
-
-    const typed = await client.interactions.type({
-      text: 'naïve résumé',
-      delayMs: 3,
-      ...world.selection,
-    });
-    assert.equal(typed.text, 'naïve résumé');
-
-    assert.deepEqual(world.textInjectionCalls, [
-      {
-        action: 'fill',
-        target: { x: 195, y: 52 },
+      const fill = await client.interactions.fill({
+        ref: `@${search.ref}`,
         text: 'Łódź café',
         delayMs: 2,
-      },
-      {
-        action: 'type',
+        ...world.selection,
+      });
+      assert.equal(fill.text, 'Łódź café');
+
+      const typed = await client.interactions.type({
         text: 'naïve résumé',
         delayMs: 3,
-      },
-    ]);
-    assert.equal(
-      world.adbCalls.some(
-        (call) => call[0] === 'shell' && call[1] === 'input' && call[2] === 'text',
-      ),
-      false,
-      JSON.stringify(world.adbCalls),
-    );
-  } finally {
-    await world.close();
-  }
+        ...world.selection,
+      });
+      assert.equal(typed.text, 'naïve résumé');
+
+      assert.deepEqual(world.textInjectionCalls, [
+        {
+          action: 'fill',
+          target: { x: 195, y: 52 },
+          text: 'Łódź café',
+          delayMs: 2,
+        },
+        {
+          action: 'type',
+          text: 'naïve résumé',
+          delayMs: 3,
+        },
+      ]);
+      assert.equal(
+        world.adbCalls.some(
+          (call) => call[0] === 'shell' && call[1] === 'input' && call[2] === 'text',
+        ),
+        false,
+        JSON.stringify(world.adbCalls),
+      );
+    },
+  );
 });
 
 async function runAndroidSetupAndInstallWorkflow(
@@ -436,11 +431,8 @@ async function runAndroidCaptureInteractionAndReplayWorkflow(
   client: AgentDeviceClient,
 ): Promise<void> {
   const { daemon, selection, tempRoot } = world;
-  const screenshotPath = path.join(os.tmpdir(), `agent-device-lab-android-${Date.now()}.png`);
-  const fastScreenshotPath = path.join(
-    os.tmpdir(),
-    `agent-device-lab-android-fast-${Date.now()}.png`,
-  );
+  const screenshotPath = createDeviceLabTempPath('agent-device-lab-android', 'png');
+  const fastScreenshotPath = createDeviceLabTempPath('agent-device-lab-android-fast', 'png');
 
   const baselineDiff = await client.capture.diff({
     kind: 'snapshot',

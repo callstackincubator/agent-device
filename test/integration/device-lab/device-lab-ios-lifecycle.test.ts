@@ -5,234 +5,232 @@ import { assertFlatToolCall } from './assertions.ts';
 import { createIosPhysicalReinstallWorld, createIosSettingsWorld } from './ios-world.ts';
 import { runDeviceLabScenario } from './scenario.ts';
 import { DEVICE_LAB_IOS_REINSTALL_DEVICE, DEVICE_LAB_IOS_SIMULATOR } from './fixtures.ts';
+import { withDeviceLabResource } from './harness.ts';
 
 test('Device Lab iOS Settings flow uses scripted simctl and runner providers', async () => {
-  const { appPath, appleTool, close, daemon, inventoryRequests, runnerTranscript } =
-    await createIosSettingsWorld();
+  await withDeviceLabResource(
+    createIosSettingsWorld,
+    async ({ appPath, appleTool, daemon, inventoryRequests, runnerTranscript }) => {
+      const scopedDevices = await daemon.client().devices.list({
+        platform: 'ios',
+        iosSimulatorDeviceSet: '/tmp/device-lab-simulators',
+      });
+      assert.equal(scopedDevices.length, 1);
+      assert.equal(scopedDevices[0]?.id, DEVICE_LAB_IOS_SIMULATOR.id);
 
-  try {
-    const scopedDevices = await daemon.client().devices.list({
-      platform: 'ios',
-      iosSimulatorDeviceSet: '/tmp/device-lab-simulators',
-    });
-    assert.equal(scopedDevices.length, 1);
-    assert.equal(scopedDevices[0]?.id, DEVICE_LAB_IOS_SIMULATOR.id);
+      await runDeviceLabScenario(daemon, [
+        {
+          name: 'open settings app',
+          command: 'open',
+          positionals: ['com.apple.Preferences'],
+          flags: { platform: 'ios', udid: DEVICE_LAB_IOS_SIMULATOR.id },
+          expectData: {
+            appBundleId: 'com.apple.Preferences',
+            device_udid: DEVICE_LAB_IOS_SIMULATOR.id,
+          },
+        },
+        {
+          name: 'read app session state',
+          command: 'appstate',
+          flags: { platform: 'ios', udid: DEVICE_LAB_IOS_SIMULATOR.id },
+          expectData: {
+            platform: 'ios',
+            appBundleId: 'com.apple.Preferences',
+            source: 'session',
+            device_udid: DEVICE_LAB_IOS_SIMULATOR.id,
+            ios_simulator_device_set: null,
+          },
+        },
+        {
+          name: 'capture settings snapshot',
+          command: 'snapshot',
+          flags: { snapshotInteractiveOnly: true },
+          assert: (firstSnapshot) => {
+            assert.equal(firstSnapshot.json?.result?.data?.nodes?.[0]?.label, 'General');
+            assert.equal(firstSnapshot.json?.result?.data?.nodes?.[0]?.ref, 'e1');
+          },
+        },
+        {
+          name: 'reopen existing session app',
+          command: 'open',
+          positionals: ['com.apple.Preferences'],
+          expectData: { appBundleId: 'com.apple.Preferences' },
+        },
+        {
+          name: 'reinstall demo app',
+          command: 'reinstall',
+          positionals: ['com.example.demo', appPath],
+          expectData: { platform: 'ios', bundleId: 'com.example.demo', appPath },
+        },
+        {
+          name: 'install demo app',
+          command: 'install',
+          positionals: ['com.example.demo', appPath],
+          expectData: { platform: 'ios', bundleId: 'com.example.demo', appPath },
+        },
+        {
+          name: 'list user apps by default',
+          command: 'apps',
+          assert: (apps) => {
+            assert.deepEqual(apps.json?.result?.data?.apps, ['Demo (com.example.demo)']);
+          },
+        },
+        {
+          name: 'list all apps with flag',
+          command: 'apps',
+          flags: { appsFilter: 'all' },
+          assert: (apps) => {
+            assert.deepEqual(apps.json?.result?.data?.apps, [
+              'Maps (com.apple.Maps)',
+              'Demo (com.example.demo)',
+            ]);
+          },
+        },
+        {
+          name: 'refresh snapshot after install',
+          command: 'snapshot',
+          flags: { snapshotInteractiveOnly: true },
+        },
+        {
+          name: 'press snapshot ref',
+          command: 'press',
+          positionals: ['@e1'],
+          expectData: { x: 196, y: 122 },
+        },
+        {
+          name: 'pinch current app',
+          command: 'pinch',
+          positionals: ['0.8', '196', '122'],
+          expectData: { scale: 0.8, x: 196, y: 122 },
+        },
+        {
+          name: 'get ref attrs',
+          command: 'get',
+          positionals: ['attrs', '@e1'],
+          assert: (getAttrs) => {
+            assert.equal(getAttrs.json?.result?.data?.node?.label, 'General');
+          },
+        },
+        {
+          name: 'assert visible selector',
+          command: 'is',
+          positionals: ['visible', 'label=General'],
+          expectData: { pass: true },
+        },
+        {
+          name: 'find attrs by label',
+          command: 'find',
+          positionals: ['label', 'General', 'get', 'attrs'],
+          expectData: { ref: '@e1' },
+        },
+        {
+          name: 'wait for text',
+          command: 'wait',
+          positionals: ['text', 'General', '100'],
+          expectData: { text: 'General' },
+        },
+        {
+          name: 'navigate with explicit system back mode',
+          command: 'back',
+          flags: { backMode: 'system' },
+          expectData: { mode: 'system' },
+        },
+        {
+          name: 'write clipboard',
+          command: 'clipboard',
+          positionals: ['write', 'runner otp 246810'],
+          expectData: { textLength: 17 },
+        },
+        {
+          name: 'read clipboard',
+          command: 'clipboard',
+          positionals: ['read'],
+          expectData: { text: 'runner otp 246810' },
+        },
+        {
+          name: 'dismiss keyboard',
+          command: 'keyboard',
+          positionals: ['dismiss'],
+          expectData: { platform: 'ios', action: 'dismiss', dismissed: true },
+        },
+        {
+          name: 'list active iOS session',
+          command: 'session_list',
+          assert: (list) => {
+            const sessions = list.json?.result?.data?.sessions;
+            assert.equal(sessions?.length, 1);
+            assert.equal(sessions?.[0]?.name, 'default');
+            assert.equal(sessions?.[0]?.platform, 'ios');
+            assert.equal(sessions?.[0]?.device_udid, DEVICE_LAB_IOS_SIMULATOR.id);
+            assert.equal(sessions?.[0]?.ios_simulator_device_set, null);
+          },
+        },
+        { name: 'close settings session', command: 'close' },
+        {
+          name: 'list sessions after close',
+          command: 'session_list',
+          assert: (list) => {
+            assert.deepEqual(list.json?.result?.data?.sessions, []);
+          },
+        },
+      ]);
 
-    await runDeviceLabScenario(daemon, [
-      {
-        name: 'open settings app',
-        command: 'open',
-        positionals: ['com.apple.Preferences'],
-        flags: { platform: 'ios', udid: DEVICE_LAB_IOS_SIMULATOR.id },
-        expectData: {
-          appBundleId: 'com.apple.Preferences',
-          device_udid: DEVICE_LAB_IOS_SIMULATOR.id,
-        },
-      },
-      {
-        name: 'read app session state',
-        command: 'appstate',
-        flags: { platform: 'ios', udid: DEVICE_LAB_IOS_SIMULATOR.id },
-        expectData: {
-          platform: 'ios',
-          appBundleId: 'com.apple.Preferences',
-          source: 'session',
-          device_udid: DEVICE_LAB_IOS_SIMULATOR.id,
-          ios_simulator_device_set: null,
-        },
-      },
-      {
-        name: 'capture settings snapshot',
-        command: 'snapshot',
-        flags: { snapshotInteractiveOnly: true },
-        assert: (firstSnapshot) => {
-          assert.equal(firstSnapshot.json?.result?.data?.nodes?.[0]?.label, 'General');
-          assert.equal(firstSnapshot.json?.result?.data?.nodes?.[0]?.ref, 'e1');
-        },
-      },
-      {
-        name: 'reopen existing session app',
-        command: 'open',
-        positionals: ['com.apple.Preferences'],
-        expectData: { appBundleId: 'com.apple.Preferences' },
-      },
-      {
-        name: 'reinstall demo app',
-        command: 'reinstall',
-        positionals: ['com.example.demo', appPath],
-        expectData: { platform: 'ios', bundleId: 'com.example.demo', appPath },
-      },
-      {
-        name: 'install demo app',
-        command: 'install',
-        positionals: ['com.example.demo', appPath],
-        expectData: { platform: 'ios', bundleId: 'com.example.demo', appPath },
-      },
-      {
-        name: 'list user apps by default',
-        command: 'apps',
-        assert: (apps) => {
-          assert.deepEqual(apps.json?.result?.data?.apps, ['Demo (com.example.demo)']);
-        },
-      },
-      {
-        name: 'list all apps with flag',
-        command: 'apps',
-        flags: { appsFilter: 'all' },
-        assert: (apps) => {
-          assert.deepEqual(apps.json?.result?.data?.apps, [
-            'Maps (com.apple.Maps)',
-            'Demo (com.example.demo)',
-          ]);
-        },
-      },
-      {
-        name: 'refresh snapshot after install',
-        command: 'snapshot',
-        flags: { snapshotInteractiveOnly: true },
-      },
-      {
-        name: 'press snapshot ref',
-        command: 'press',
-        positionals: ['@e1'],
-        expectData: { x: 196, y: 122 },
-      },
-      {
-        name: 'pinch current app',
-        command: 'pinch',
-        positionals: ['0.8', '196', '122'],
-        expectData: { scale: 0.8, x: 196, y: 122 },
-      },
-      {
-        name: 'get ref attrs',
-        command: 'get',
-        positionals: ['attrs', '@e1'],
-        assert: (getAttrs) => {
-          assert.equal(getAttrs.json?.result?.data?.node?.label, 'General');
-        },
-      },
-      {
-        name: 'assert visible selector',
-        command: 'is',
-        positionals: ['visible', 'label=General'],
-        expectData: { pass: true },
-      },
-      {
-        name: 'find attrs by label',
-        command: 'find',
-        positionals: ['label', 'General', 'get', 'attrs'],
-        expectData: { ref: '@e1' },
-      },
-      {
-        name: 'wait for text',
-        command: 'wait',
-        positionals: ['text', 'General', '100'],
-        expectData: { text: 'General' },
-      },
-      {
-        name: 'navigate with explicit system back mode',
-        command: 'back',
-        flags: { backMode: 'system' },
-        expectData: { mode: 'system' },
-      },
-      {
-        name: 'write clipboard',
-        command: 'clipboard',
-        positionals: ['write', 'runner otp 246810'],
-        expectData: { textLength: 17 },
-      },
-      {
-        name: 'read clipboard',
-        command: 'clipboard',
-        positionals: ['read'],
-        expectData: { text: 'runner otp 246810' },
-      },
-      {
-        name: 'dismiss keyboard',
-        command: 'keyboard',
-        positionals: ['dismiss'],
-        expectData: { platform: 'ios', action: 'dismiss', dismissed: true },
-      },
-      {
-        name: 'list active iOS session',
-        command: 'session_list',
-        assert: (list) => {
-          const sessions = list.json?.result?.data?.sessions;
-          assert.equal(sessions?.length, 1);
-          assert.equal(sessions?.[0]?.name, 'default');
-          assert.equal(sessions?.[0]?.platform, 'ios');
-          assert.equal(sessions?.[0]?.device_udid, DEVICE_LAB_IOS_SIMULATOR.id);
-          assert.equal(sessions?.[0]?.ios_simulator_device_set, null);
-        },
-      },
-      { name: 'close settings session', command: 'close' },
-      {
-        name: 'list sessions after close',
-        command: 'session_list',
-        assert: (list) => {
-          assert.deepEqual(list.json?.result?.data?.sessions, []);
-        },
-      },
-    ]);
-
-    runnerTranscript.assertComplete();
-    assertFlatToolCall(appleTool.calls, ['simctl', 'launch', 'sim-1', 'com.apple.Preferences']);
-    assertFlatToolCall(appleTool.calls, ['simctl', 'uninstall', 'sim-1', 'com.example.demo']);
-    assertFlatToolCall(appleTool.calls, ['plist', 'readJson', path.join(appPath, 'Info.plist')]);
-    assertFlatToolCall(appleTool.calls, ['simctl', 'install', 'sim-1', appPath]);
-    assertFlatToolCall(appleTool.calls, ['simctl', 'pbcopy', 'sim-1']);
-    assertFlatToolCall(appleTool.calls, ['simctl', 'pbpaste', 'sim-1']);
-    assert.ok(
-      inventoryRequests.some(
-        (request) => request.iosSimulatorSetPath === '/tmp/device-lab-simulators',
-      ),
-      JSON.stringify(inventoryRequests),
-    );
-  } finally {
-    await close();
-  }
+      runnerTranscript.assertComplete();
+      assertFlatToolCall(appleTool.calls, ['simctl', 'launch', 'sim-1', 'com.apple.Preferences']);
+      assertFlatToolCall(appleTool.calls, ['simctl', 'uninstall', 'sim-1', 'com.example.demo']);
+      assertFlatToolCall(appleTool.calls, ['plist', 'readJson', path.join(appPath, 'Info.plist')]);
+      assertFlatToolCall(appleTool.calls, ['simctl', 'install', 'sim-1', appPath]);
+      assertFlatToolCall(appleTool.calls, ['simctl', 'pbcopy', 'sim-1']);
+      assertFlatToolCall(appleTool.calls, ['simctl', 'pbpaste', 'sim-1']);
+      assert.ok(
+        inventoryRequests.some(
+          (request) => request.iosSimulatorSetPath === '/tmp/device-lab-simulators',
+        ),
+        JSON.stringify(inventoryRequests),
+      );
+    },
+  );
 });
 
 test('Device Lab iOS physical reinstall uses scripted devicectl provider', async () => {
-  const { appPath, appleTool, close, daemon } = await createIosPhysicalReinstallWorld();
+  await withDeviceLabResource(
+    createIosPhysicalReinstallWorld,
+    async ({ appPath, appleTool, daemon }) => {
+      const boot = await daemon.callCommand('boot', [], {
+        platform: 'ios',
+        udid: DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
+      });
+      assert.equal(boot.statusCode, 200, JSON.stringify(boot.json));
+      assert.equal(boot.json?.result?.data?.platform, 'ios');
+      assert.equal(boot.json?.result?.data?.id, DEVICE_LAB_IOS_REINSTALL_DEVICE.id);
+      assert.equal(boot.json?.result?.data?.booted, true);
 
-  try {
-    const boot = await daemon.callCommand('boot', [], {
-      platform: 'ios',
-      udid: DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
-    });
-    assert.equal(boot.statusCode, 200, JSON.stringify(boot.json));
-    assert.equal(boot.json?.result?.data?.platform, 'ios');
-    assert.equal(boot.json?.result?.data?.id, DEVICE_LAB_IOS_REINSTALL_DEVICE.id);
-    assert.equal(boot.json?.result?.data?.booted, true);
-
-    const reinstall = await daemon.callCommand('reinstall', ['com.example.demo', appPath], {
-      platform: 'ios',
-      udid: DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
-    });
-    assert.equal(reinstall.statusCode, 200, JSON.stringify(reinstall.json));
-    assert.equal(reinstall.json?.result?.data?.platform, 'ios');
-    assert.equal(reinstall.json?.result?.data?.bundleId, 'com.example.demo');
-    assert.equal(reinstall.json?.result?.data?.appPath, appPath);
-    assertFlatToolCall(appleTool.calls, [
-      'devicectl',
-      'device',
-      'uninstall',
-      'app',
-      '--device',
-      DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
-      'com.example.demo',
-    ]);
-    assertFlatToolCall(appleTool.calls, [
-      'devicectl',
-      'device',
-      'install',
-      'app',
-      '--device',
-      DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
-      appPath,
-    ]);
-  } finally {
-    await close();
-  }
+      const reinstall = await daemon.callCommand('reinstall', ['com.example.demo', appPath], {
+        platform: 'ios',
+        udid: DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
+      });
+      assert.equal(reinstall.statusCode, 200, JSON.stringify(reinstall.json));
+      assert.equal(reinstall.json?.result?.data?.platform, 'ios');
+      assert.equal(reinstall.json?.result?.data?.bundleId, 'com.example.demo');
+      assert.equal(reinstall.json?.result?.data?.appPath, appPath);
+      assertFlatToolCall(appleTool.calls, [
+        'devicectl',
+        'device',
+        'uninstall',
+        'app',
+        '--device',
+        DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
+        'com.example.demo',
+      ]);
+      assertFlatToolCall(appleTool.calls, [
+        'devicectl',
+        'device',
+        'install',
+        'app',
+        '--device',
+        DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
+        appPath,
+      ]);
+    },
+  );
 });

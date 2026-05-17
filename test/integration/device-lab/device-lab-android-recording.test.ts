@@ -1,91 +1,90 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
 import { assertCommandCall, assertRpcOk } from './assertions.ts';
 import { DEVICE_LAB_ANDROID } from './fixtures.ts';
-import { restoreEnv, createDeviceLabHarness } from './harness.ts';
+import { restoreEnv, createDeviceLabHarness, withDeviceLabTempDir } from './harness.ts';
 
 test('Device Lab Android recording flow uses scripted ADB provider pull capability', async () => {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-lab-android-record-'));
-  const recordingPath = path.join(tmpDir, 'recording.mp4');
-  const adbCalls: string[][] = [];
-  const pullCalls: Array<{ remotePath: string; localPath: string }> = [];
-  const adbProvider: AndroidAdbProvider = {
-    exec: async (args) => {
-      adbCalls.push([...args]);
-      return androidAdbResult(args);
-    },
-    pull: async (remotePath, localPath) => {
-      pullCalls.push({ remotePath, localPath });
-      fs.writeFileSync(localPath, likelyPlayableMp4Container());
-      return { stdout: '', stderr: '', exitCode: 0 };
-    },
-  };
-  const daemon = await createDeviceLabHarness({
-    androidAdbProvider: () => adbProvider,
-    deviceInventoryProvider: async () => [DEVICE_LAB_ANDROID],
-  });
-
-  const previousPath = process.env.PATH;
-  const swiftPath = path.join(tmpDir, 'swift');
-  fs.writeFileSync(swiftPath, '#!/bin/sh\nexit 0\n', 'utf8');
-  fs.chmodSync(swiftPath, 0o755);
-  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
-
-  try {
-    const open = await daemon.callCommand('open', ['settings'], {
-      platform: 'android',
-      serial: DEVICE_LAB_ANDROID.id,
+  await withDeviceLabTempDir('agent-device-lab-android-record-', async (tmpDir) => {
+    const recordingPath = path.join(tmpDir, 'recording.mp4');
+    const adbCalls: string[][] = [];
+    const pullCalls: Array<{ remotePath: string; localPath: string }> = [];
+    const adbProvider: AndroidAdbProvider = {
+      exec: async (args) => {
+        adbCalls.push([...args]);
+        return androidAdbResult(args);
+      },
+      pull: async (remotePath, localPath) => {
+        pullCalls.push({ remotePath, localPath });
+        fs.writeFileSync(localPath, likelyPlayableMp4Container());
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+    };
+    const daemon = await createDeviceLabHarness({
+      androidAdbProvider: () => adbProvider,
+      deviceInventoryProvider: async () => [DEVICE_LAB_ANDROID],
     });
-    assertRpcOk(open);
 
-    const recordStart = await daemon.callCommand('record', ['start', recordingPath], {
-      hideTouches: true,
-      quality: 7,
-    });
-    const recordStartData = assertRpcOk(recordStart);
-    assert.equal(recordStartData.recording, 'started');
-    assert.equal(recordStartData.showTouches, false);
+    const previousPath = process.env.PATH;
+    const swiftPath = path.join(tmpDir, 'swift');
+    fs.writeFileSync(swiftPath, '#!/bin/sh\nexit 0\n', 'utf8');
+    fs.chmodSync(swiftPath, 0o755);
+    process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
 
-    const recordStop = await daemon.callCommand('record', ['stop']);
-    const recordStopData = assertRpcOk<{
-      recording?: unknown;
-      outPath?: unknown;
-      showTouches?: unknown;
-      artifacts?: Array<{ path?: unknown }>;
-    }>(recordStop);
-    assert.equal(recordStopData.recording, 'stopped');
-    assert.equal(recordStopData.outPath, recordingPath);
-    assert.equal(recordStopData.showTouches, false);
-    assert.equal(recordStopData.artifacts?.[0]?.path, recordingPath);
-    assert.equal(fs.existsSync(recordingPath), true);
+    try {
+      const open = await daemon.callCommand('open', ['settings'], {
+        platform: 'android',
+        serial: DEVICE_LAB_ANDROID.id,
+      });
+      assertRpcOk(open);
 
-    assertCommandCall(adbCalls, ['shell', 'wm', 'size']);
-    assert.ok(
-      adbCalls.some((args) =>
-        /^shell screenrecord --size 756x1344 \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
-          args.join(' '),
+      const recordStart = await daemon.callCommand('record', ['start', recordingPath], {
+        hideTouches: true,
+        quality: 7,
+      });
+      const recordStartData = assertRpcOk(recordStart);
+      assert.equal(recordStartData.recording, 'started');
+      assert.equal(recordStartData.showTouches, false);
+
+      const recordStop = await daemon.callCommand('record', ['stop']);
+      const recordStopData = assertRpcOk<{
+        recording?: unknown;
+        outPath?: unknown;
+        showTouches?: unknown;
+        artifacts?: Array<{ path?: unknown }>;
+      }>(recordStop);
+      assert.equal(recordStopData.recording, 'stopped');
+      assert.equal(recordStopData.outPath, recordingPath);
+      assert.equal(recordStopData.showTouches, false);
+      assert.equal(recordStopData.artifacts?.[0]?.path, recordingPath);
+      assert.equal(fs.existsSync(recordingPath), true);
+
+      assertCommandCall(adbCalls, ['shell', 'wm', 'size']);
+      assert.ok(
+        adbCalls.some((args) =>
+          /^shell screenrecord --size 756x1344 \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
+            args.join(' '),
+          ),
         ),
-      ),
-      JSON.stringify(adbCalls),
-    );
-    assertCommandCall(adbCalls, ['shell', 'kill', '-2', '4321']);
-    assert.equal(pullCalls.length, 1);
-    assert.match(pullCalls[0]?.remotePath ?? '', /^\/sdcard\/agent-device-recording-\d+\.mp4$/);
-    assert.equal(pullCalls[0]?.localPath, recordingPath);
-    assert.ok(adbCalls.some((args) => args[0] === 'shell' && args[1] === 'rm'));
-    assert.equal(
-      adbCalls.some((args) => args[0] === 'pull'),
-      false,
-    );
-  } finally {
-    await daemon.close();
-    restoreEnv('PATH', previousPath);
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  }
+        JSON.stringify(adbCalls),
+      );
+      assertCommandCall(adbCalls, ['shell', 'kill', '-2', '4321']);
+      assert.equal(pullCalls.length, 1);
+      assert.match(pullCalls[0]?.remotePath ?? '', /^\/sdcard\/agent-device-recording-\d+\.mp4$/);
+      assert.equal(pullCalls[0]?.localPath, recordingPath);
+      assert.ok(adbCalls.some((args) => args[0] === 'shell' && args[1] === 'rm'));
+      assert.equal(
+        adbCalls.some((args) => args[0] === 'pull'),
+        false,
+      );
+    } finally {
+      await daemon.close();
+      restoreEnv('PATH', previousPath);
+    }
+  });
 });
 
 function androidAdbResult(args: string[]): {

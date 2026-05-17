@@ -3,14 +3,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'vitest';
 import { createAndroidSettingsWorld } from './android-world.ts';
+import { withDeviceLabResource } from './harness.ts';
 
 test('Device Lab Android replay test suite covers retries and fail-fast flags', async () => {
-  const world = await createAndroidSettingsWorld();
-  const client = world.daemon.client();
-  const suiteRoot = path.join(world.tempRoot, 'suite-flags');
-  fs.mkdirSync(suiteRoot, { recursive: true });
+  await withDeviceLabResource(createAndroidSettingsWorld, async (world) => {
+    const client = world.daemon.client();
+    const suiteRoot = path.join(world.tempRoot, 'suite-flags');
+    fs.mkdirSync(suiteRoot, { recursive: true });
 
-  try {
     const passingScript = path.join(suiteRoot, '01-pass.ad');
     fs.writeFileSync(
       passingScript,
@@ -66,7 +66,5 @@ test('Device Lab Android replay test suite covers retries and fail-fast flags', 
     assert.equal(failFastSuite.executed, 1, JSON.stringify(failFastSuite));
     assert.equal(failFastSuite.failed, 1, JSON.stringify(failFastSuite));
     assert.equal(failFastSuite.notRun, 1, JSON.stringify(failFastSuite));
-  } finally {
-    await world.close();
-  }
+  });
 });
