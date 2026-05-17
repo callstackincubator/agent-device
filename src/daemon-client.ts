@@ -1274,6 +1274,10 @@ function resolveMaterializedArtifactPath(artifact: DaemonArtifact, req: DaemonRe
   if (artifact.localPath && artifact.localPath.trim().length > 0) {
     return artifact.localPath;
   }
+  const requestedPath = req.meta?.clientArtifactPaths?.[artifact.field];
+  if (requestedPath && requestedPath.trim().length > 0) {
+    return requestedPath;
+  }
   const fallbackName = artifact.fileName?.trim() || `${artifact.field}-${Date.now()}`;
   return path.resolve(req.meta?.cwd ?? process.cwd(), fallbackName);
 }

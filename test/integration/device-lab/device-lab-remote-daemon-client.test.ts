@@ -24,10 +24,12 @@ test('Device Lab remote daemon client materializes artifacts and normalizes RPC 
 
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-remote-client-'));
   const screenshotPath = path.join(stateDir, 'remote-shot.png');
+  const recordingPath = path.join(stateDir, 'remote-recording.mp4');
   const pngBytes = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
     'base64',
   );
+  const recordingBytes = Buffer.from('remote-recording-bytes');
   const localApkPath = path.join(stateDir, 'demo.apk');
   const localInstallSourcePath = path.join(stateDir, 'source.apk');
   fs.writeFileSync(localApkPath, 'fake-apk');
@@ -51,6 +53,14 @@ test('Device Lab remote daemon client materializes artifacts and normalizes RPC 
       assert.equal(req.headers['x-agent-device-token'], 'remote-token');
       res.writeHead(200, { 'content-type': 'image/png' });
       res.end(pngBytes);
+      return;
+    }
+
+    if (req.method === 'GET' && (req.url ?? '').startsWith('/artifacts/recording-1')) {
+      assert.equal(req.headers.authorization, 'Bearer remote-token');
+      assert.equal(req.headers['x-agent-device-token'], 'remote-token');
+      res.writeHead(200, { 'content-type': 'video/mp4' });
+      res.end(recordingBytes);
       return;
     }
 
@@ -144,6 +154,30 @@ test('Device Lab remote daemon client materializes artifacts and normalizes RPC 
           );
           return;
         }
+        if (payload.params?.command === 'record') {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: payload.id,
+              result: {
+                ok: true,
+                data: {
+                  recording: 'started',
+                  outPath: payload.params.positionals[1],
+                  artifacts: [
+                    {
+                      artifactId: 'recording-1',
+                      field: 'outPath',
+                      fileName: 'remote-recording.mp4',
+                    },
+                  ],
+                },
+              },
+            }),
+          );
+          return;
+        }
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(
           JSON.stringify({
@@ -226,6 +260,19 @@ test('Device Lab remote daemon client materializes artifacts and normalizes RPC 
       path: localInstallSourcePath,
     });
     assert.equal(installSourceRpc?.params?.meta?.uploadedArtifactId, 'upload-source.apk');
+
+    const recording = await client.recording.record({
+      action: 'start',
+      path: recordingPath,
+    });
+    assert.equal(recording.outPath, recordingPath);
+    assert.deepEqual(fs.readFileSync(recordingPath), recordingBytes);
+
+    const recordingRpc = rpcRequests.at(-1);
+    assert.equal(recordingRpc?.params?.command, 'record');
+    assert.equal(recordingRpc?.params?.positionals?.[0], 'start');
+    assert.match(recordingRpc?.params?.positionals?.[1] ?? '', /^\/tmp\/agent-device-recording-/);
+    assert.equal(recordingRpc?.params?.meta?.clientArtifactPaths?.outPath, recordingPath);
 
     rpcMode = 'error';
     await assert.rejects(
