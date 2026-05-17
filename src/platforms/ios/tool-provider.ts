@@ -8,6 +8,7 @@ import {
 import { createScopedProvider } from '../../utils/scoped-provider.ts';
 import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
 import type { IosAppInfo } from './devicectl.ts';
+import { createLocalAppleMacOsHostProvider } from './macos-host-provider.ts';
 
 export type AppleToolCommandExecutor = (
   cmd: string,
@@ -35,13 +36,13 @@ export type ApplePlistProvider = {
 };
 
 export type AppleMacOsHostProvider = {
-  openBundle?(bundleId: string, url?: string): Promise<void>;
-  openTarget?(target: string): Promise<void>;
-  readClipboard?(): Promise<string>;
-  writeClipboard?(text: string): Promise<void>;
-  readDarkMode?(): Promise<boolean>;
-  setDarkMode?(enabled: boolean): Promise<void>;
-  listApps?(filter: AppsFilter): Promise<IosAppInfo[]>;
+  openBundle(bundleId: string, url?: string): Promise<void>;
+  openTarget(target: string): Promise<void>;
+  readClipboard(): Promise<string>;
+  writeClipboard(text: string): Promise<void>;
+  readDarkMode(): Promise<boolean>;
+  setDarkMode(enabled: boolean): Promise<void>;
+  listApps(filter: AppsFilter): Promise<IosAppInfo[]>;
 };
 
 export type AppleToolProvider = {
@@ -65,6 +66,10 @@ const localAppleToolProvider: AppleToolProvider = {
   plist: {
     readJson: async (plistPath) => await readPlistJsonWithCommand(runCmd, plistPath),
   },
+  macosHost: createLocalAppleMacOsHostProvider(
+    runCmd,
+    async (plistPath) => await readPlistJsonWithCommand(runCmd, plistPath),
+  ),
   whichCommand: whichCmd,
 };
 
@@ -82,6 +87,10 @@ export function createLocalAppleToolProvider(
     ...localAppleToolProvider,
     ...provider,
   };
+  const plist = provider.plist ?? {
+    readJson: async (plistPath: string) =>
+      await readPlistJsonWithCommand(merged.runCommand, plistPath),
+  };
   return {
     ...merged,
     simctl: provider.simctl ?? {
@@ -91,9 +100,13 @@ export function createLocalAppleToolProvider(
       run: async (args, options) =>
         await merged.runCommand('xcrun', ['devicectl', ...args], options),
     },
-    plist: provider.plist ?? {
-      readJson: async (plistPath) => await readPlistJsonWithCommand(merged.runCommand, plistPath),
-    },
+    plist,
+    macosHost:
+      provider.macosHost ??
+      createLocalAppleMacOsHostProvider(
+        merged.runCommand,
+        async (plistPath) => await plist.readJson(plistPath),
+      ),
   };
 }
 

@@ -1,16 +1,11 @@
-import { promises as fs } from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { parseAppearanceAction } from '../appearance.ts';
 import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';
-import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
 import { quitMacOsApp } from './macos-helper.ts';
-import { readInfoPlistString } from './plist.ts';
-import { resolveAppleToolProvider, runAppleToolCommand } from './tool-provider.ts';
+import { resolveAppleToolProvider, type AppleMacOsHostProvider } from './tool-provider.ts';
 import type { IosAppInfo } from './devicectl.ts';
 
 const MACOS_ALIASES: Record<string, string> = {
@@ -29,36 +24,6 @@ const macOsAppResolutionCache = createAppResolutionCache<string>();
 
 function isMacOsBundleId(value: string): boolean {
   return MACOS_BUNDLE_ID_PATTERN.test(value);
-}
-
-function buildMacOpenArgs(bundleId: string, url?: string): string[] {
-  const openArgs = ['-b', bundleId];
-  if (url) {
-    openArgs.push(url);
-  }
-  return openArgs;
-}
-
-async function readMacOsBundleInfo(
-  appBundlePath: string,
-): Promise<{ bundleId?: string; appName?: string }> {
-  for (const infoPlistPath of [
-    path.join(appBundlePath, 'Contents', 'Info.plist'),
-    path.join(appBundlePath, 'Info.plist'),
-  ]) {
-    const [bundleId, displayName, bundleName] = await Promise.all([
-      readInfoPlistString(infoPlistPath, 'CFBundleIdentifier'),
-      readInfoPlistString(infoPlistPath, 'CFBundleDisplayName'),
-      readInfoPlistString(infoPlistPath, 'CFBundleName'),
-    ]);
-    if (bundleId || displayName || bundleName) {
-      return {
-        bundleId,
-        appName: displayName ?? bundleName,
-      };
-    }
-  }
-  return {};
 }
 
 export async function resolveMacOsApp(app: string): Promise<string> {
@@ -94,37 +59,24 @@ export async function openMacOsApp(
   app: string,
   options?: { appBundleId?: string; url?: string },
 ): Promise<void> {
-  const macosHost = resolveAppleToolProvider().macosHost;
   const explicitUrl = options?.url?.trim();
   if (explicitUrl) {
     if (!isDeepLinkTarget(explicitUrl)) {
       throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
     }
     const appId = options?.appBundleId ?? (await resolveMacOsApp(app));
-    if (macosHost?.openBundle) {
-      await macosHost.openBundle(appId, explicitUrl);
-      return;
-    }
-    await runAppleToolCommand('open', buildMacOpenArgs(appId, explicitUrl));
+    await resolveMacOsHostProvider().openBundle(appId, explicitUrl);
     return;
   }
 
   const target = app.trim();
   if (isDeepLinkTarget(target)) {
-    if (macosHost?.openTarget) {
-      await macosHost.openTarget(target);
-      return;
-    }
-    await runAppleToolCommand('open', [target]);
+    await resolveMacOsHostProvider().openTarget(target);
     return;
   }
 
   const bundleId = options?.appBundleId ?? (await resolveMacOsApp(target));
-  if (macosHost?.openBundle) {
-    await macosHost.openBundle(bundleId);
-    return;
-  }
-  await runAppleToolCommand('open', buildMacOpenArgs(bundleId));
+  await resolveMacOsHostProvider().openBundle(bundleId);
 }
 
 export async function closeMacOsApp(_device: DeviceInfo, app: string): Promise<void> {
@@ -140,140 +92,31 @@ export async function closeMacOsApp(_device: DeviceInfo, app: string): Promise<v
 }
 
 export async function readMacOsClipboardText(): Promise<string> {
-  const macosHost = resolveAppleToolProvider().macosHost;
-  if (macosHost?.readClipboard) {
-    return await macosHost.readClipboard();
-  }
-
-  const result = await runAppleToolCommand('pbpaste', [], { allowFailure: true });
-  if (result.exitCode !== 0) {
-    throw new AppError('COMMAND_FAILED', 'Failed to read macOS clipboard', {
-      stdout: result.stdout,
-      stderr: result.stderr,
-      exitCode: result.exitCode,
-    });
-  }
-  return result.stdout.replace(/\r\n/g, '\n').replace(/\n$/, '');
+  return await resolveMacOsHostProvider().readClipboard();
 }
 
 export async function writeMacOsClipboardText(text: string): Promise<void> {
-  const macosHost = resolveAppleToolProvider().macosHost;
-  if (macosHost?.writeClipboard) {
-    await macosHost.writeClipboard(text);
-    return;
-  }
-
-  const result = await runAppleToolCommand('pbcopy', [], {
-    allowFailure: true,
-    stdin: text,
-  });
-  if (result.exitCode !== 0) {
-    throw new AppError('COMMAND_FAILED', 'Failed to write macOS clipboard', {
-      stdout: result.stdout,
-      stderr: result.stderr,
-      exitCode: result.exitCode,
-    });
-  }
+  await resolveMacOsHostProvider().writeClipboard(text);
 }
 
 async function getMacOsDarkModeEnabled(): Promise<boolean> {
-  const macosHost = resolveAppleToolProvider().macosHost;
-  if (macosHost?.readDarkMode) {
-    return await macosHost.readDarkMode();
-  }
-
-  const script = 'tell application "System Events" to tell appearance preferences to get dark mode';
-  const result = await runAppleToolCommand('osascript', ['-e', script], { allowFailure: true });
-  if (result.exitCode !== 0) {
-    throw new AppError('COMMAND_FAILED', 'Failed to read macOS appearance', {
-      stdout: result.stdout,
-      stderr: result.stderr,
-      exitCode: result.exitCode,
-    });
-  }
-  const normalized = result.stdout.trim().toLowerCase();
-  if (normalized === 'true') return true;
-  if (normalized === 'false') return false;
-  throw new AppError(
-    'COMMAND_FAILED',
-    `Unable to determine current macOS appearance from osascript output: ${result.stdout.trim()}`,
-  );
+  return await resolveMacOsHostProvider().readDarkMode();
 }
 
 export async function setMacOsAppearance(state: string): Promise<void> {
   const action = parseAppearanceAction(state);
   const darkMode = action === 'toggle' ? !(await getMacOsDarkModeEnabled()) : action === 'dark';
-  const macosHost = resolveAppleToolProvider().macosHost;
-  if (macosHost?.setDarkMode) {
-    await macosHost.setDarkMode(darkMode);
-    return;
-  }
-
-  const script = `tell application "System Events" to tell appearance preferences to set dark mode to ${darkMode ? 'true' : 'false'}`;
-  const result = await runAppleToolCommand('osascript', ['-e', script], { allowFailure: true });
-  if (result.exitCode !== 0) {
-    throw new AppError('COMMAND_FAILED', 'Failed to set macOS appearance', {
-      stdout: result.stdout,
-      stderr: result.stderr,
-      exitCode: result.exitCode,
-    });
-  }
+  await resolveMacOsHostProvider().setDarkMode(darkMode);
 }
 
 export async function listMacApps(filter: AppsFilter): Promise<IosAppInfo[]> {
-  const macosHost = resolveAppleToolProvider().macosHost;
-  if (macosHost?.listApps) {
-    return await macosHost.listApps(filter);
+  return await resolveMacOsHostProvider().listApps(filter);
+}
+
+function resolveMacOsHostProvider(): AppleMacOsHostProvider {
+  const host = resolveAppleToolProvider().macosHost;
+  if (!host) {
+    throw new AppError('UNSUPPORTED_OPERATION', 'macOS host provider is not available');
   }
-
-  // On macOS, user-installed means non-Apple bundle identifiers.
-  const appRoots = [
-    '/Applications',
-    '/System/Applications',
-    path.join(os.homedir(), 'Applications'),
-  ];
-  const appPaths = new Set<string>();
-
-  // TODO: Cache this inventory or switch to LaunchServices lookups if macOS app discovery becomes hot.
-  for (const root of appRoots) {
-    const stat = await fs.stat(root).catch(() => null);
-    if (!stat?.isDirectory()) continue;
-    const result = await runAppleToolCommand(
-      'find',
-      [root, '-maxdepth', '4', '-type', 'd', '-name', '*.app'],
-      {
-        allowFailure: true,
-      },
-    );
-    if (result.exitCode !== 0) continue;
-    for (const line of result.stdout.split('\n')) {
-      const candidate = line.trim();
-      if (candidate) appPaths.add(candidate);
-    }
-  }
-
-  const apps = await Promise.all(
-    Array.from(appPaths).map(async (appPath) => {
-      const bundleInfo = await readMacOsBundleInfo(appPath).catch(
-        () =>
-          ({}) as {
-            bundleId?: string;
-            appName?: string;
-          },
-      );
-      const bundleId = bundleInfo.bundleId;
-      if (!bundleId) return null;
-      return {
-        bundleId,
-        name: bundleInfo.appName ?? path.basename(appPath, '.app'),
-      } satisfies IosAppInfo;
-    }),
-  );
-
-  return filterAppleAppsByBundlePrefix(
-    apps
-      .filter((app): app is IosAppInfo => app !== null)
-      .sort((a, b) => a.name.localeCompare(b.name)),
-    filter,
-  );
+  return host;
 }
