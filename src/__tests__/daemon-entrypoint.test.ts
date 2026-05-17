@@ -4,12 +4,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import { resolveDaemonPaths } from '../daemon/config.ts';
+import { startDaemonRuntime } from '../daemon-runtime.ts';
 import { runCmdBackground } from '../utils/exec.ts';
 import { isProcessAlive, waitForProcessExit } from '../utils/process-identity.ts';
 import { waitForHttpOk } from './test-utils/index.ts';
 
 type DaemonInfoFile = {
   httpPort?: number;
+  transport?: string;
   token?: string;
   pid?: number;
 };
@@ -52,6 +54,93 @@ function waitForStdoutLine(
     stream.on('error', onError);
   });
 }
+
+test('daemon runtime starts HTTP transport in-process and shuts down cleanly', async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-daemon-runtime-'));
+  const paths = resolveDaemonPaths(stateDir);
+  const stdout: string[] = [];
+  const stderr: string[] = [];
+  let exitCode: number | undefined;
+
+  try {
+    const runtime = await startDaemonRuntime({
+      env: {
+        ...process.env,
+        AGENT_DEVICE_STATE_DIR: stateDir,
+        AGENT_DEVICE_DAEMON_SERVER_MODE: 'http',
+      },
+      exit: (code) => {
+        exitCode = code;
+      },
+      registerProcessHandlers: false,
+      stderr: { write: (chunk) => stderr.push(chunk) },
+      stdout: { write: (chunk) => stdout.push(chunk) },
+    });
+
+    assert.notEqual(runtime, null);
+    assert.equal(typeof runtime?.httpPort, 'number');
+    assert.equal(runtime?.socketPort, undefined);
+    assert.match(stdout.join(''), /^AGENT_DEVICE_DAEMON_HTTP_PORT=\d+\n$/);
+    assert.deepEqual(stderr, []);
+
+    const info = JSON.parse(fs.readFileSync(paths.infoPath, 'utf8')) as DaemonInfoFile;
+    assert.equal(info.httpPort, runtime?.httpPort);
+    assert.equal(info.transport, 'http');
+    assert.equal(info.token, runtime?.token);
+    assert.ok(fs.existsSync(paths.lockPath), 'daemon lock should be held while runtime is active');
+
+    await waitForHttpOk(`http://127.0.0.1:${runtime?.httpPort}/health`, 2_000);
+    await runtime?.shutdown();
+
+    assert.equal(exitCode, 0);
+    assert.equal(fs.existsSync(paths.infoPath), false);
+    assert.equal(fs.existsSync(paths.lockPath), false);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('daemon runtime publishes dual transport metadata', async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-daemon-runtime-dual-'));
+  const paths = resolveDaemonPaths(stateDir);
+  const stdout: string[] = [];
+  let exitCode: number | undefined;
+
+  try {
+    const runtime = await startDaemonRuntime({
+      env: {
+        ...process.env,
+        AGENT_DEVICE_STATE_DIR: stateDir,
+        AGENT_DEVICE_DAEMON_SERVER_MODE: 'dual',
+      },
+      exit: (code) => {
+        exitCode = code;
+      },
+      registerProcessHandlers: false,
+      stderr: { write: () => {} },
+      stdout: { write: (chunk) => stdout.push(chunk) },
+    });
+
+    assert.notEqual(runtime, null);
+    assert.equal(typeof runtime?.httpPort, 'number');
+    assert.equal(typeof runtime?.socketPort, 'number');
+    assert.match(stdout.join(''), /AGENT_DEVICE_DAEMON_PORT=\d+/);
+    assert.match(stdout.join(''), /AGENT_DEVICE_DAEMON_HTTP_PORT=\d+/);
+
+    const info = JSON.parse(fs.readFileSync(paths.infoPath, 'utf8')) as DaemonInfoFile;
+    assert.equal(info.httpPort, runtime?.httpPort);
+    assert.equal(info.transport, 'dual');
+
+    await waitForHttpOk(`http://127.0.0.1:${runtime?.httpPort}/health`, 2_000);
+    await runtime?.shutdown();
+
+    assert.equal(exitCode, 0);
+    assert.equal(fs.existsSync(paths.infoPath), false);
+    assert.equal(fs.existsSync(paths.lockPath), false);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
 
 test('daemon entrypoint publishes HTTP metadata and cleans up on shutdown', async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-daemon-entrypoint-'));
