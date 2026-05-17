@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import { resolveDaemonPaths } from '../daemon/config.ts';
 import { runCmdBackground } from '../utils/exec.ts';
 import { isProcessAlive, waitForProcessExit } from '../utils/process-identity.ts';
+import { waitForHttpOk } from './test-utils/index.ts';
 
 type DaemonInfoFile = {
   httpPort?: number;
@@ -50,31 +50,6 @@ function waitForStdoutLine(
     };
     stream.on('data', onData);
     stream.on('error', onError);
-  });
-}
-
-function waitForHttpOk(url: string, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  return new Promise((resolve, reject) => {
-    const attempt = () => {
-      const req = http.get(url, (res) => {
-        res.resume();
-        if ((res.statusCode ?? 500) < 500) {
-          resolve();
-          return;
-        }
-        retry();
-      });
-      req.on('error', retry);
-    };
-    const retry = () => {
-      if (Date.now() >= deadline) {
-        reject(new Error(`Timed out waiting for ${url}.`));
-        return;
-      }
-      setTimeout(attempt, 25);
-    };
-    attempt();
   });
 }
 

@@ -442,12 +442,17 @@ export async function runCompanionTunnelWorker(
   let activeBridgeSocket: WebSocket | null = null;
   let activeRegistrationComplete = false;
   const runtimeDelay = runtime.delay ?? delay;
+  let resolveShutdownRequested!: () => void;
+  const shutdownRequestedPromise = new Promise<void>((resolve) => {
+    resolveShutdownRequested = resolve;
+  });
   const exitWorker = () => {
     runtime.exit?.(0);
   };
   const requestShutdown = () => {
     if (shutdownRequested) return;
     shutdownRequested = true;
+    resolveShutdownRequested();
     if (activeRegistrationComplete) {
       void unregisterCompanion(options).finally(exitWorker);
     }
@@ -502,7 +507,7 @@ export async function runCompanionTunnelWorker(
               console.error(error instanceof Error ? error.message : String(error));
             });
           });
-          await waitForSocketShutdown(bridgeSocket);
+          await Promise.race([waitForSocketShutdown(bridgeSocket), shutdownRequestedPromise]);
         } finally {
           activeBridgeSocket = null;
           activeRegistrationComplete = false;

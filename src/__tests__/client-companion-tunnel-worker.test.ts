@@ -12,6 +12,7 @@ import {
   buildCompanionPayload,
   runCompanionTunnelWorker,
 } from '../client-companion-tunnel-worker.ts';
+import { closeLoopbackServer, listenOnLoopback } from './test-utils/index.ts';
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -204,38 +205,10 @@ function writeSuccessfulRegistration(res: http.ServerResponse, bridgePort: numbe
   );
 }
 
-async function listen(server: http.Server): Promise<number> {
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      server.off('error', reject);
-      resolve();
-    });
-  });
-  const address = server.address();
-  if (!address || typeof address === 'string') {
-    throw new Error('Expected TCP server address.');
-  }
-  return address.port;
-}
-
-async function closeServer(server: http.Server): Promise<void> {
-  if (!server.listening) return;
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
-}
-
 async function listenNotFoundServer(): Promise<number> {
   const server = http.createServer((_, res) => writeNotFound(res));
-  cleanupTasks.push(() => closeServer(server));
-  return listen(server);
+  cleanupTasks.push(() => closeLoopbackServer(server));
+  return listenOnLoopback(server);
 }
 
 async function stopChild(child: ReturnType<typeof spawn>): Promise<void> {
@@ -367,7 +340,7 @@ function startMetroCompanionWorker(options: {
       fs.rmSync(tempRoot, { recursive: true, force: true });
     }
   };
-  cleanupTasks.unshift(stop);
+  cleanupTasks.push(stop);
 
   return {
     get earlyExit() {
@@ -459,11 +432,11 @@ test('metro companion worker proxies websocket frames to the local upstream serv
       },
     );
   });
-  cleanupTasks.push(() => closeServer(upstreamServer));
+  cleanupTasks.push(() => closeLoopbackServer(upstreamServer));
   cleanupTasks.push(async () => {
     upstreamSocketRef?.destroy();
   });
-  const upstreamPort = await listen(upstreamServer);
+  const upstreamPort = await listenOnLoopback(upstreamServer);
 
   const bridgeServer = http.createServer((req, res) => {
     const url = new URL(req.url || '/', 'http://127.0.0.1');
@@ -524,11 +497,11 @@ test('metro companion worker proxies websocket frames to the local upstream serv
       ),
     );
   });
-  cleanupTasks.push(() => closeServer(bridgeServer));
+  cleanupTasks.push(() => closeLoopbackServer(bridgeServer));
   cleanupTasks.push(async () => {
     bridgeSocketRef?.destroy();
   });
-  const bridgePort = await listen(bridgeServer);
+  const bridgePort = await listenOnLoopback(bridgeServer);
 
   const { earlyExit } = startMetroCompanionWorker({
     bridgePort,
@@ -617,11 +590,11 @@ test('metro companion worker reconnects after the bridge closes immediately afte
     }
     bridgeReconnect.resolve();
   });
-  cleanupTasks.push(() => closeServer(bridgeServer));
+  cleanupTasks.push(() => closeLoopbackServer(bridgeServer));
   cleanupTasks.push(async () => {
     bridgeSocketRef?.destroy();
   });
-  const listenedBridgePort = await listen(bridgeServer);
+  const listenedBridgePort = await listenOnLoopback(bridgeServer);
   bridgePort = listenedBridgePort;
 
   const { earlyExit } = startMetroCompanionWorker({ bridgePort, localPort });
@@ -654,8 +627,8 @@ test('metro companion worker exits after non-retryable registration failure', as
     }
     writeNotFound(res);
   });
-  cleanupTasks.push(() => closeServer(bridgeServer));
-  const bridgePort = await listen(bridgeServer);
+  cleanupTasks.push(() => closeLoopbackServer(bridgeServer));
+  const bridgePort = await listenOnLoopback(bridgeServer);
 
   const companion = startMetroCompanionWorker({
     bearerToken: 'bad-token',
@@ -708,11 +681,11 @@ test('metro companion worker retries registration failures with retry-after dela
     if (!acceptWebSocketUpgrade(req, socket)) return;
     bridgeSocketReady.resolve();
   });
-  cleanupTasks.push(() => closeServer(bridgeServer));
+  cleanupTasks.push(() => closeLoopbackServer(bridgeServer));
   cleanupTasks.push(async () => {
     bridgeSocketRef?.destroy();
   });
-  bridgePort = await listen(bridgeServer);
+  bridgePort = await listenOnLoopback(bridgeServer);
 
   const { earlyExit } = startMetroCompanionWorker({ bridgePort, localPort });
 
@@ -759,11 +732,11 @@ test('metro companion worker exits after its state file is removed', async () =>
     if (!acceptWebSocketUpgrade(req, socket)) return;
     bridgeSocketReady.resolve();
   });
-  cleanupTasks.push(() => closeServer(bridgeServer));
+  cleanupTasks.push(() => closeLoopbackServer(bridgeServer));
   cleanupTasks.push(async () => {
     bridgeSocketRef?.destroy();
   });
-  bridgePort = await listen(bridgeServer);
+  bridgePort = await listenOnLoopback(bridgeServer);
 
   const companion = startMetroCompanionWorker({ bridgePort, localPort, statePath });
 

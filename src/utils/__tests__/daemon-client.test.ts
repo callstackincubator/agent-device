@@ -6,6 +6,11 @@ import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {
+  closeLoopbackServer,
+  listenOnLoopback,
+  supportsLoopbackBind,
+} from '../../__tests__/test-utils/index.ts';
 import { runCmdBackground } from '../exec.ts';
 import {
   computeDaemonCodeSignature,
@@ -27,24 +32,6 @@ import {
   waitForProcessExit,
 } from '../process-identity.ts';
 import { findProjectRoot, readVersion } from '../version.ts';
-
-let loopbackBindSupportPromise: Promise<boolean> | null = null;
-
-async function supportsLoopbackBind(): Promise<boolean> {
-  if (loopbackBindSupportPromise) {
-    return await loopbackBindSupportPromise;
-  }
-  loopbackBindSupportPromise = new Promise<boolean>((resolve) => {
-    const server = http.createServer();
-    server.once('error', () => {
-      resolve(false);
-    });
-    server.listen(0, '127.0.0.1', () => {
-      server.close(() => resolve(true));
-    });
-  });
-  return await loopbackBindSupportPromise;
-}
 
 type MockHttpResponse = EventEmitter & {
   statusCode?: number;
@@ -126,32 +113,6 @@ function resolveCurrentDaemonCodeSignature(): string {
       ? sourcePath
       : distPath;
   return computeDaemonCodeSignature(entryPath, root);
-}
-
-async function listenTcp(server: net.Server | http.Server): Promise<number> {
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      server.off('error', reject);
-      resolve();
-    });
-  });
-  const address = server.address();
-  assert.equal(typeof address, 'object');
-  return typeof address === 'object' && address ? address.port : 0;
-}
-
-async function closeServer(server: net.Server | http.Server): Promise<void> {
-  if (!server.listening) return;
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve();
-    });
-  });
 }
 
 function writeCurrentDaemonInfo(
@@ -268,7 +229,7 @@ test('sendToDaemon reuses reachable local socket daemon metadata', async (t) => 
   });
 
   try {
-    const port = await listenTcp(server);
+    const port = await listenOnLoopback(server);
     writeCurrentDaemonInfo(stateDir, { port, transport: 'socket' });
 
     const response = await sendToDaemon({
@@ -281,7 +242,7 @@ test('sendToDaemon reuses reachable local socket daemon metadata', async (t) => 
 
     assert.deepEqual(response, { ok: true, data: { via: 'socket' } });
   } finally {
-    await closeServer(server);
+    await closeLoopbackServer(server);
     fs.rmSync(stateDir, { recursive: true, force: true });
   }
 });
@@ -329,7 +290,7 @@ test('sendToDaemon reuses reachable local HTTP daemon metadata with token params
   });
 
   try {
-    const httpPort = await listenTcp(server);
+    const httpPort = await listenOnLoopback(server);
     writeCurrentDaemonInfo(stateDir, { httpPort, transport: 'http' });
 
     const response = await sendToDaemon({
@@ -350,7 +311,7 @@ test('sendToDaemon reuses reachable local HTTP daemon metadata with token params
     assert.equal(request.params?.command, 'local-http-smoke');
     assert.equal(request.params?.token, 'local-secret');
   } finally {
-    await closeServer(server);
+    await closeLoopbackServer(server);
     fs.rmSync(stateDir, { recursive: true, force: true });
   }
 });
@@ -909,10 +870,7 @@ test('downloadRemoteArtifact times out stalled artifact responses and removes pa
       return;
     }
   });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
-  const address = server.address();
-  assert.equal(typeof address, 'object');
-  const port = typeof address === 'object' && address ? address.port : 0;
+  const port = await listenOnLoopback(server);
 
   try {
     await assert.rejects(
@@ -933,15 +891,7 @@ test('downloadRemoteArtifact times out stalled artifact responses and removes pa
     );
     assert.equal(fs.existsSync(destinationPath), false);
   } finally {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      });
-    });
+    await closeLoopbackServer(server);
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 });
