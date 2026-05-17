@@ -21,12 +21,6 @@ export async function createMacOsDesktopWorld(
   let clipboardText = '';
   let darkMode = false;
   const appleTool = createRecordingAppleToolProvider({
-    runCommand: async (cmd, _args) => {
-      if (cmd === 'find' || cmd === 'plutil' || cmd === 'pbcopy' || cmd === 'pbpaste') {
-        throw new Error(`macOS Device Lab should use semantic host provider for ${cmd}`);
-      }
-      return { stdout: '', stderr: '', exitCode: 0 };
-    },
     macosHelper: async (args) => {
       return runScriptedMacOsHelper(args);
     },

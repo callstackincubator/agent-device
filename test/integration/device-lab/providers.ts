@@ -2,7 +2,6 @@ import type { AppleRunnerProvider } from '../../../src/platforms/ios/runner-prov
 import type {
   AppleMacOsHostProvider,
   ApplePlistProvider,
-  AppleToolCommandExecutor,
   AppleToolProvider,
   AppleToolSubcommandExecutor,
 } from '../../../src/platforms/ios/tool-provider.ts';
@@ -12,7 +11,6 @@ import type { DeviceLabTranscript } from './transcript.ts';
 export type FlatToolCall = [string, ...string[]];
 
 type RecordingAppleToolHandlers = {
-  runCommand?: AppleToolCommandExecutor;
   simctl?: AppleToolSubcommandExecutor;
   devicectl?: AppleToolSubcommandExecutor;
   macosHelper?: AppleToolSubcommandExecutor;
@@ -33,14 +31,11 @@ export function createAppleRunnerProviderFromTranscript(
   };
 }
 
-export function createRecordingAppleToolProvider(
-  handler?: AppleToolCommandExecutor | RecordingAppleToolHandlers,
-): {
+export function createRecordingAppleToolProvider(handlers: RecordingAppleToolHandlers = {}): {
   provider: AppleToolProvider;
   calls: FlatToolCall[];
 } {
   const calls: FlatToolCall[] = [];
-  const handlers = typeof handler === 'function' ? { runCommand: handler } : (handler ?? {});
   const plistHandler = handlers.plist;
   const missingHandler = async (label: string): Promise<ExecResult> => {
     throw new Error(`Unscripted Apple Device Lab provider call: ${label}`);
@@ -49,19 +44,16 @@ export function createRecordingAppleToolProvider(
     calls,
     provider: {
       whichCommand: async () => true,
-      runCommand: async (cmd, args, options) => {
+      runCommand: async (cmd, args) => {
         calls.push([cmd, ...args]);
-        return handlers.runCommand
-          ? await handlers.runCommand(cmd, args, options)
-          : await missingHandler([cmd, ...args].join(' '));
+        return await missingHandler([cmd, ...args].join(' '));
       },
       simctl: {
         run: async (args, options) => {
           calls.push(['simctl', ...args]);
           return handlers.simctl
             ? await handlers.simctl(args, options)
-            : await (handlers.runCommand?.('xcrun', ['simctl', ...args], options) ??
-                missingHandler(['simctl', ...args].join(' ')));
+            : await missingHandler(['simctl', ...args].join(' '));
         },
       },
       devicectl: {
@@ -69,8 +61,7 @@ export function createRecordingAppleToolProvider(
           calls.push(['devicectl', ...args]);
           return handlers.devicectl
             ? await handlers.devicectl(args, options)
-            : await (handlers.runCommand?.('xcrun', ['devicectl', ...args], options) ??
-                missingHandler(['devicectl', ...args].join(' ')));
+            : await missingHandler(['devicectl', ...args].join(' '));
         },
       },
       macosHelper: {
@@ -78,8 +69,7 @@ export function createRecordingAppleToolProvider(
           calls.push(['macos-helper', ...args]);
           return handlers.macosHelper
             ? await handlers.macosHelper(args, options)
-            : await (handlers.runCommand?.('agent-device-macos-helper', args, options) ??
-                missingHandler(['macos-helper', ...args].join(' ')));
+            : await missingHandler(['macos-helper', ...args].join(' '));
         },
       },
       macosHost: createRecordingMacOsHostProvider(calls, handlers.macosHost),
