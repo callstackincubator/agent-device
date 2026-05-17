@@ -1,6 +1,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import net from 'node:net';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -21,9 +22,11 @@ import { resolveDaemonPaths } from '../../daemon/config.ts';
 import {
   isProcessAlive,
   readProcessCommand,
+  readProcessStartTime,
   stopProcessForTakeover,
   waitForProcessExit,
 } from '../process-identity.ts';
+import { findProjectRoot, readVersion } from '../version.ts';
 
 let loopbackBindSupportPromise: Promise<boolean> | null = null;
 
@@ -114,6 +117,63 @@ function respondToHealthcheck(options: Record<string, any>, res: MockHttpRespons
   return true;
 }
 
+function resolveCurrentDaemonCodeSignature(): string {
+  const root = findProjectRoot();
+  const distPath = path.join(root, 'dist', 'src', 'internal', 'daemon.js');
+  const sourcePath = path.join(root, 'src', 'daemon.ts');
+  const entryPath =
+    process.execArgv.includes('--experimental-strip-types') || !fs.existsSync(distPath)
+      ? sourcePath
+      : distPath;
+  return computeDaemonCodeSignature(entryPath, root);
+}
+
+async function listenTcp(server: net.Server | http.Server): Promise<number> {
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
+  const address = server.address();
+  assert.equal(typeof address, 'object');
+  return typeof address === 'object' && address ? address.port : 0;
+}
+
+async function closeServer(server: net.Server | http.Server): Promise<void> {
+  if (!server.listening) return;
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function writeCurrentDaemonInfo(
+  stateDir: string,
+  info: { port?: number; httpPort?: number; transport: 'socket' | 'http' | 'dual' },
+): void {
+  const paths = resolveDaemonPaths(stateDir);
+  fs.mkdirSync(paths.baseDir, { recursive: true });
+  fs.writeFileSync(
+    paths.infoPath,
+    `${JSON.stringify({
+      ...info,
+      token: 'local-secret',
+      pid: process.pid,
+      version: readVersion(),
+      codeSignature: resolveCurrentDaemonCodeSignature(),
+      processStartTime: readProcessStartTime(process.pid) ?? undefined,
+    })}\n`,
+    'utf8',
+  );
+}
+
 test('daemon timeout and retry helpers normalize configured values', () => {
   const scenarios: Array<{
     resolve: (value: string | undefined) => number;
@@ -184,6 +244,115 @@ test('resolveDaemonStartupHint includes configured state directory paths', () =>
   const hint = resolveDaemonStartupHint({ hasInfo: false, hasLock: true }, paths);
   assert.match(hint, /\/tmp\/ad-custom-state\/daemon\.lock/);
   assert.match(hint, /\/tmp\/ad-custom-state\/daemon\.json/);
+});
+
+test('sendToDaemon reuses reachable local socket daemon metadata', async (t) => {
+  if (!(await supportsLoopbackBind())) {
+    t.skip('loopback listeners are not permitted in this environment');
+    return;
+  }
+
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-local-socket-daemon-'));
+  let requestBody = '';
+  const server = net.createServer((socket) => {
+    socket.setEncoding('utf8');
+    socket.on('data', (chunk) => {
+      requestBody += chunk;
+      if (!requestBody.includes('\n')) return;
+      const request = JSON.parse(requestBody.trim()) as Record<string, any>;
+      assert.equal(request.command, 'local-socket-smoke');
+      assert.equal(request.token, 'local-secret');
+      assert.equal(request.meta?.requestId, 'req-local-socket');
+      socket.end(`${JSON.stringify({ ok: true, data: { via: 'socket' } })}\n`);
+    });
+  });
+
+  try {
+    const port = await listenTcp(server);
+    writeCurrentDaemonInfo(stateDir, { port, transport: 'socket' });
+
+    const response = await sendToDaemon({
+      session: 'default',
+      command: 'local-socket-smoke',
+      positionals: ['ping'],
+      flags: { stateDir, daemonTransport: 'socket' },
+      meta: { requestId: 'req-local-socket' },
+    });
+
+    assert.deepEqual(response, { ok: true, data: { via: 'socket' } });
+  } finally {
+    await closeServer(server);
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('sendToDaemon reuses reachable local HTTP daemon metadata with token params', async (t) => {
+  if (!(await supportsLoopbackBind())) {
+    t.skip('loopback listeners are not permitted in this environment');
+    return;
+  }
+
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-local-http-daemon-'));
+  const seenPaths: string[] = [];
+  const observed: { rpcRequest?: Record<string, any> } = {};
+  const server = http.createServer((req, res) => {
+    const url = new URL(req.url || '/', 'http://127.0.0.1');
+    seenPaths.push(`${req.method ?? 'GET'} ${url.pathname}`);
+    if (req.method === 'GET' && url.pathname === '/health') {
+      res.writeHead(200);
+      res.end('ok');
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/rpc') {
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk) => {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      });
+      req.on('end', () => {
+        observed.rpcRequest = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<
+          string,
+          any
+        >;
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: observed.rpcRequest.id,
+            result: { ok: true, data: { via: 'http' } },
+          }),
+        );
+      });
+      return;
+    }
+    res.writeHead(404);
+    res.end('not found');
+  });
+
+  try {
+    const httpPort = await listenTcp(server);
+    writeCurrentDaemonInfo(stateDir, { httpPort, transport: 'http' });
+
+    const response = await sendToDaemon({
+      session: 'default',
+      command: 'local-http-smoke',
+      positionals: ['ping'],
+      flags: { stateDir, daemonTransport: 'http' },
+      meta: { requestId: 'req-local-http' },
+    });
+
+    assert.deepEqual(response, { ok: true, data: { via: 'http' } });
+    assert.deepEqual(seenPaths, ['GET /health', 'POST /rpc']);
+    const request = observed.rpcRequest;
+    if (!request) {
+      throw new Error('Expected local HTTP daemon RPC request.');
+    }
+    assert.equal(request.method, 'agent_device.command');
+    assert.equal(request.params?.command, 'local-http-smoke');
+    assert.equal(request.params?.token, 'local-secret');
+  } finally {
+    await closeServer(server);
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
 });
 
 test('sendToDaemon uses explicit remote daemon base URL and auth token', async () => {

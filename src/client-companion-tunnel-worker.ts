@@ -30,6 +30,14 @@ import { normalizeBaseUrl } from './utils/url.ts';
 const COMPANION_REGISTER_TIMEOUT_MS = 5_000;
 const COMPANION_REGISTER_MAX_RETRY_DELAY_MS = 60_000;
 
+export type CompanionTunnelWorkerRuntime = {
+  delay?: (ms: number) => Promise<void>;
+  exit?: (code: number) => void;
+  leaseCheckIntervalMs?: number;
+  reconnectDelayMs?: number;
+  registerProcessSignals?: boolean;
+};
+
 class CompanionRegistrationError extends Error {
   readonly retryable: boolean;
   readonly retryAfterMs: number | undefined;
@@ -425,102 +433,121 @@ async function handleBridgeMessage(
   }
 }
 
-async function runCompanionTunnelWorker(options: CompanionTunnelWorkerOptions): Promise<void> {
+export async function runCompanionTunnelWorker(
+  options: CompanionTunnelWorkerOptions,
+  runtime: CompanionTunnelWorkerRuntime = {},
+): Promise<void> {
   const upstreamSockets = new Map<string, WebSocket>();
   let shutdownRequested = false;
   let activeBridgeSocket: WebSocket | null = null;
   let activeRegistrationComplete = false;
+  const runtimeDelay = runtime.delay ?? delay;
+  const exitWorker = () => {
+    runtime.exit?.(0);
+  };
   const requestShutdown = () => {
     if (shutdownRequested) return;
     shutdownRequested = true;
     if (activeRegistrationComplete) {
-      void unregisterCompanion(options).finally(() => process.exit(0));
+      void unregisterCompanion(options).finally(exitWorker);
     }
     if (activeBridgeSocket) {
       closeSocketQuietly(activeBridgeSocket, 1000, 'companion stopping');
     }
-    setTimeout(() => process.exit(0), 900).unref();
+    if (runtime.exit) {
+      setTimeout(exitWorker, 900).unref();
+    }
   };
-  process.once('SIGTERM', requestShutdown);
-  process.once('SIGINT', requestShutdown);
+  if (runtime.registerProcessSignals) {
+    process.once('SIGTERM', requestShutdown);
+    process.once('SIGINT', requestShutdown);
+  }
   const lifetimeHandle = setInterval(() => {
     if (!shouldKeepWorkerRunning(options)) {
       // Node's built-in WebSocket client does not expose a force-close API. If the peer never
       // answers the close handshake, a detached worker can linger indefinitely, so lease expiry
       // uses a hard exit to guarantee teardown.
-      process.exit(0);
+      requestShutdown();
+      exitWorker();
     }
-  }, COMPANION_TUNNEL_LEASE_CHECK_INTERVAL_MS);
+  }, runtime.leaseCheckIntervalMs ?? COMPANION_TUNNEL_LEASE_CHECK_INTERVAL_MS);
   lifetimeHandle.unref();
-  let registerRetryDelayMs = COMPANION_TUNNEL_RECONNECT_DELAY_MS;
-  while (!shutdownRequested && shouldKeepWorkerRunning(options)) {
-    let registered = false;
-    let retryDelayOverrideMs: number | undefined;
-    try {
-      activeRegistrationComplete = false;
-      const registration = await registerCompanion(options);
-      registerRetryDelayMs = COMPANION_TUNNEL_RECONNECT_DELAY_MS;
-      registered = true;
-      activeRegistrationComplete = true;
-      if (shutdownRequested || !shouldKeepWorkerRunning(options)) {
-        await unregisterCompanion(options);
-        registered = false;
-        activeRegistrationComplete = false;
-        break;
-      }
-      const bridgeSocket = new WebSocket(registration.wsUrl);
-      activeBridgeSocket = bridgeSocket;
-      bridgeSocket.binaryType = 'arraybuffer';
+  let registerRetryDelayMs = runtime.reconnectDelayMs ?? COMPANION_TUNNEL_RECONNECT_DELAY_MS;
+  try {
+    while (!shutdownRequested && shouldKeepWorkerRunning(options)) {
+      let registered = false;
+      let retryDelayOverrideMs: number | undefined;
       try {
-        await waitForSocketOpen(bridgeSocket, 'Bridge');
-        bridgeSocket.addEventListener('message', (event) => {
-          void (async () => {
-            const message = await parseBridgeMessage(event);
-            await handleBridgeMessage(bridgeSocket, message, options, upstreamSockets);
-          })().catch((error) => {
-            console.error(error instanceof Error ? error.message : String(error));
+        activeRegistrationComplete = false;
+        const registration = await registerCompanion(options);
+        registerRetryDelayMs = runtime.reconnectDelayMs ?? COMPANION_TUNNEL_RECONNECT_DELAY_MS;
+        registered = true;
+        activeRegistrationComplete = true;
+        if (shutdownRequested || !shouldKeepWorkerRunning(options)) {
+          await unregisterCompanion(options);
+          registered = false;
+          activeRegistrationComplete = false;
+          break;
+        }
+        const bridgeSocket = new WebSocket(registration.wsUrl);
+        activeBridgeSocket = bridgeSocket;
+        bridgeSocket.binaryType = 'arraybuffer';
+        try {
+          await waitForSocketOpen(bridgeSocket, 'Bridge');
+          bridgeSocket.addEventListener('message', (event) => {
+            void (async () => {
+              const message = await parseBridgeMessage(event);
+              await handleBridgeMessage(bridgeSocket, message, options, upstreamSockets);
+            })().catch((error) => {
+              console.error(error instanceof Error ? error.message : String(error));
+            });
           });
-        });
-        await waitForSocketShutdown(bridgeSocket);
-      } finally {
+          await waitForSocketShutdown(bridgeSocket);
+        } finally {
+          activeBridgeSocket = null;
+          activeRegistrationComplete = false;
+          upstreamSockets.forEach((socket) =>
+            closeSocketQuietly(socket, 1012, 'bridge disconnected'),
+          );
+          upstreamSockets.clear();
+          if (registered) {
+            await unregisterCompanion(options);
+            registered = false;
+          }
+        }
+      } catch (error) {
         activeBridgeSocket = null;
         activeRegistrationComplete = false;
-        upstreamSockets.forEach((socket) =>
-          closeSocketQuietly(socket, 1012, 'bridge disconnected'),
-        );
-        upstreamSockets.clear();
         if (registered) {
           await unregisterCompanion(options);
           registered = false;
         }
-      }
-    } catch (error) {
-      activeBridgeSocket = null;
-      activeRegistrationComplete = false;
-      if (registered) {
-        await unregisterCompanion(options);
-        registered = false;
+        if (shutdownRequested || !shouldKeepWorkerRunning(options)) {
+          break;
+        }
+        console.error(error instanceof Error ? error.message : String(error));
+        if (error instanceof CompanionRegistrationError && !error.retryable) {
+          break;
+        }
+        retryDelayOverrideMs =
+          error instanceof CompanionRegistrationError ? error.retryAfterMs : undefined;
       }
       if (shutdownRequested || !shouldKeepWorkerRunning(options)) {
         break;
       }
-      console.error(error instanceof Error ? error.message : String(error));
-      if (error instanceof CompanionRegistrationError && !error.retryable) {
-        break;
+      const delayMs = retryDelayOverrideMs ?? registerRetryDelayMs;
+      if (retryDelayOverrideMs === undefined) {
+        registerRetryDelayMs = nextRetryDelay(registerRetryDelayMs);
       }
-      retryDelayOverrideMs =
-        error instanceof CompanionRegistrationError ? error.retryAfterMs : undefined;
+      await runtimeDelay(delayMs);
     }
-    if (shutdownRequested || !shouldKeepWorkerRunning(options)) {
-      break;
+  } finally {
+    clearInterval(lifetimeHandle);
+    if (runtime.registerProcessSignals) {
+      process.off('SIGTERM', requestShutdown);
+      process.off('SIGINT', requestShutdown);
     }
-    const delayMs = retryDelayOverrideMs ?? registerRetryDelayMs;
-    if (retryDelayOverrideMs === undefined) {
-      registerRetryDelayMs = nextRetryDelay(registerRetryDelayMs);
-    }
-    await delay(delayMs);
   }
-  clearInterval(lifetimeHandle);
 }
 
 function parseDevicePort(value: string | undefined): number | undefined {
@@ -586,6 +613,9 @@ export async function runCompanionTunnelProcessFromEnv(
 ): Promise<boolean> {
   const options = readWorkerOptions(argv, env);
   if (!options) return false;
-  await runCompanionTunnelWorker(options);
+  await runCompanionTunnelWorker(options, {
+    exit: (code) => process.exit(code),
+    registerProcessSignals: true,
+  });
   return true;
 }

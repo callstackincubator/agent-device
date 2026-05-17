@@ -8,7 +8,10 @@ import path from 'node:path';
 import type { Duplex } from 'node:stream';
 import { setTimeout as delay } from 'node:timers/promises';
 import { afterEach, test } from 'vitest';
-import { buildCompanionPayload } from '../client-companion-tunnel-worker.ts';
+import {
+  buildCompanionPayload,
+  runCompanionTunnelWorker,
+} from '../client-companion-tunnel-worker.ts';
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -28,9 +31,9 @@ type ParsedWebSocketFrame = {
 };
 
 type CompanionWorkerProcess = {
-  companion: ReturnType<typeof spawn>;
   earlyExit: Promise<never>;
   readStderr: () => string;
+  stop: () => Promise<void>;
   waitForExit: (
     label: string,
     timeoutMs?: number,
@@ -293,7 +296,6 @@ function spawnMetroCompanionWorker(options: {
   });
 
   return {
-    companion,
     get earlyExit() {
       return new Promise<never>((_, reject) => {
         companion.once('exit', (code, signal) => {
@@ -306,11 +308,83 @@ function spawnMetroCompanionWorker(options: {
       });
     },
     readStderr: () => stderr,
+    stop: async () => await stopChild(companion),
     waitForExit: (label, timeoutMs = 5_000) =>
       waitFor(
         new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => {
           companion.once('exit', (code, signal) => resolve({ code, signal }));
         }),
+        timeoutMs,
+        label,
+      ),
+  };
+}
+
+function startMetroCompanionWorker(options: {
+  bearerToken?: string;
+  bridgePort: number;
+  localPort: number;
+  serverBaseUrl?: string;
+  localBaseUrl?: string;
+  statePath?: string;
+}): CompanionWorkerProcess {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-metro-companion-worker-'));
+  const statePath = options.statePath ?? path.join(tempRoot, 'metro-companion.json');
+  fs.mkdirSync(path.dirname(statePath), { recursive: true });
+  if (!fs.existsSync(statePath)) {
+    fs.writeFileSync(statePath, '{}', 'utf8');
+  }
+
+  const serverBaseUrl = options.serverBaseUrl ?? `http://127.0.0.1:${options.bridgePort}`;
+  const localBaseUrl = options.localBaseUrl ?? `http://127.0.0.1:${options.localPort}`;
+  const done = runCompanionTunnelWorker(
+    {
+      serverBaseUrl,
+      bearerToken: options.bearerToken ?? 'test-token',
+      localBaseUrl,
+      registerPath: '/api/metro/companion/register',
+      bridgeScope: {
+        tenantId: 'tenant-1',
+        runId: 'run-1',
+        leaseId: 'lease-1',
+      },
+      statePath,
+    },
+    {
+      leaseCheckIntervalMs: 25,
+      reconnectDelayMs: 25,
+    },
+  );
+  const stop = async () => {
+    fs.rmSync(statePath, { force: true });
+    try {
+      await waitFor(
+        done.then(() => undefined),
+        2_000,
+        'in-process companion worker stop',
+      );
+    } finally {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  };
+  cleanupTasks.unshift(stop);
+
+  return {
+    get earlyExit() {
+      return done.then(
+        () => {
+          throw new Error('Metro companion worker exited unexpectedly.');
+        },
+        (error) => {
+          throw error instanceof Error ? error : new Error(String(error));
+        },
+      );
+    },
+    readStderr: () => '',
+    stop,
+    waitForExit: (label, timeoutMs = 5_000) =>
+      waitFor(
+        done.then(() => ({ code: 0, signal: null })),
         timeoutMs,
         label,
       ),
@@ -456,7 +530,7 @@ test('metro companion worker proxies websocket frames to the local upstream serv
   });
   const bridgePort = await listen(bridgeServer);
 
-  const { earlyExit } = spawnMetroCompanionWorker({
+  const { earlyExit } = startMetroCompanionWorker({
     bridgePort,
     localPort: upstreamPort,
   });
@@ -550,7 +624,7 @@ test('metro companion worker reconnects after the bridge closes immediately afte
   const listenedBridgePort = await listen(bridgeServer);
   bridgePort = listenedBridgePort;
 
-  const { earlyExit } = spawnMetroCompanionWorker({ bridgePort, localPort });
+  const { earlyExit } = startMetroCompanionWorker({ bridgePort, localPort });
 
   await Promise.race([waitFor(bridgeReconnect.promise, 5_000, 'bridge reconnect'), earlyExit]);
 
@@ -583,7 +657,7 @@ test('metro companion worker exits after non-retryable registration failure', as
   cleanupTasks.push(() => closeServer(bridgeServer));
   const bridgePort = await listen(bridgeServer);
 
-  const companion = spawnMetroCompanionWorker({
+  const companion = startMetroCompanionWorker({
     bearerToken: 'bad-token',
     bridgePort,
     localPort,
@@ -640,7 +714,7 @@ test('metro companion worker retries registration failures with retry-after dela
   });
   bridgePort = await listen(bridgeServer);
 
-  const { earlyExit } = spawnMetroCompanionWorker({ bridgePort, localPort });
+  const { earlyExit } = startMetroCompanionWorker({ bridgePort, localPort });
 
   await Promise.race([
     waitFor(bridgeSocketReady.promise, 5_000, 'bridge websocket connection after retry'),
@@ -691,10 +765,11 @@ test('metro companion worker exits after its state file is removed', async () =>
   });
   bridgePort = await listen(bridgeServer);
 
-  const companion = spawnMetroCompanionWorker({ bridgePort, localPort, statePath });
+  const companion = startMetroCompanionWorker({ bridgePort, localPort, statePath });
 
   await waitFor(bridgeSocketReady.promise, 5_000, 'bridge websocket connection');
   fs.unlinkSync(statePath);
+  (bridgeSocketRef as Duplex | null)?.destroy();
 
   const exit = await companion.waitForExit('worker exit after state cleanup');
 
