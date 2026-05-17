@@ -55,22 +55,25 @@ test('buildNestedReplayFlags returns parent flags untouched when neither overrid
   const result = buildNestedReplayFlags({
     parentFlags: parent,
     platform: undefined,
+    target: undefined,
     artifactsDir: undefined,
   });
   assert.strictEqual(result, parent);
 });
 
-test('buildNestedReplayFlags merges platform and artifactsDir into parent flags', () => {
+test('buildNestedReplayFlags merges platform, target, and artifactsDir into parent flags', () => {
   const parent = { timeoutMs: 5000, retries: 1 };
   const result = buildNestedReplayFlags({
     parentFlags: parent,
     platform: 'ios',
+    target: 'mobile',
     artifactsDir: '/tmp/attempt-1',
   });
   assert.deepEqual(result, {
     timeoutMs: 5000,
     retries: 1,
     platform: 'ios',
+    target: 'mobile',
     artifactsDir: '/tmp/attempt-1',
   });
   // Parent object must not be mutated.
@@ -81,6 +84,7 @@ test('buildNestedReplayFlags threads artifactsDir through even when parent lacks
   const result = buildNestedReplayFlags({
     parentFlags: undefined,
     platform: undefined,
+    target: undefined,
     artifactsDir: '/tmp/attempt-1',
   });
   assert.deepEqual(result, { artifactsDir: '/tmp/attempt-1' });
@@ -90,6 +94,7 @@ test('buildNestedReplayFlags overrides a parent artifactsDir with the attempt-le
   const result = buildNestedReplayFlags({
     parentFlags: { artifactsDir: '/suite-root' },
     platform: undefined,
+    target: undefined,
     artifactsDir: '/suite-root/flow/attempt-2',
   });
   assert.equal(result?.artifactsDir, '/suite-root/flow/attempt-2');

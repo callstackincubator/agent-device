@@ -32,6 +32,7 @@ export async function runReplayTestSuite(params: {
     filePath: string;
     sessionName: string;
     platform?: ReplayScriptMetadata['platform'];
+    target?: ReplayScriptMetadata['target'];
     requestId?: string;
     artifactsDir?: string;
     artifactPaths?: Set<string>;
@@ -118,6 +119,7 @@ async function runReplayTestCase(params: {
     filePath: string;
     sessionName: string;
     platform?: ReplayScriptMetadata['platform'];
+    target?: ReplayScriptMetadata['target'];
     requestId?: string;
     artifactsDir?: string;
     artifactPaths?: Set<string>;
@@ -171,6 +173,7 @@ async function runReplayTestCase(params: {
       requestId: attemptRequestId,
       timeoutMs,
       platform: entry.metadata.platform,
+      target: entry.metadata.target,
       artifactsDir: attemptArtifactsDir,
       runReplay,
       cleanupSession,

@@ -1,5 +1,5 @@
 # Deep navigation.
-context platform=ios
+context platform=ios target=mobile
 
 open com.apple.Preferences --relaunch
 click "role=cell label=General"

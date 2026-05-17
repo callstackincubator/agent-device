@@ -1,5 +1,5 @@
 # Text input.
-context platform=ios
+context platform=ios target=mobile
 
 open com.apple.Preferences --relaunch
 click "role=searchField || label=Search || label=\"Search\""

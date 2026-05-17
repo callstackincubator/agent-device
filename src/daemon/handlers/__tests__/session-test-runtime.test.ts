@@ -48,18 +48,19 @@ test('runReplayTestAttempt keeps cancellation active until a timed-out replay se
   expect(isRequestCanceled('req-timeout-open')).toBe(false);
 });
 
-test('runReplayTestAttempt forwards artifactsDir to the runReplay callback', async () => {
+test('runReplayTestAttempt forwards target metadata and artifactsDir to the runReplay callback', async () => {
   const runReplay = vi.fn(async (): Promise<DaemonResponse> => ({ ok: true, data: {} }));
   const cleanupSession = vi.fn(async () => {});
   await runReplayTestAttempt({
     filePath: 'flow.ad',
     sessionName: 's',
     requestId: 'req-artifacts',
+    target: 'mobile',
     artifactsDir: '/tmp/attempt-1',
     runReplay,
     cleanupSession,
   });
   expect(runReplay).toHaveBeenCalledWith(
-    expect.objectContaining({ artifactsDir: '/tmp/attempt-1' }),
+    expect.objectContaining({ artifactsDir: '/tmp/attempt-1', target: 'mobile' }),
   );
 });

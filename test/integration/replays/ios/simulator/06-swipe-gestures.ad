@@ -1,5 +1,5 @@
 # Swipe gestures.
-context platform=ios
+context platform=ios target=mobile
 
 open com.apple.Preferences --relaunch
 

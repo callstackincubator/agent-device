@@ -224,8 +224,11 @@ test('readReplayScriptMetadata parses env KEY=VALUE directives', () => {
 });
 
 test('readReplayScriptMetadata accepts env before context', () => {
-  const metadata = readReplayScriptMetadata('env APP=settings\ncontext platform=android\n');
-  assert.equal(metadata.platform, 'android');
+  const metadata = readReplayScriptMetadata(
+    'env APP=settings\ncontext platform=ios target=mobile\n',
+  );
+  assert.equal(metadata.platform, 'ios');
+  assert.equal(metadata.target, 'mobile');
   assert.equal(metadata.env?.APP, 'settings');
 });
 

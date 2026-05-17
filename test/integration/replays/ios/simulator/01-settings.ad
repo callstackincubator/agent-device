@@ -1,5 +1,5 @@
 # Dogfood iOS Settings flow through the replay suite runner.
-context platform=ios
+context platform=ios target=mobile
 open com.apple.Preferences --relaunch
 screenshot "./test/screenshots/replays/ios-settings.png"
 snapshot -i

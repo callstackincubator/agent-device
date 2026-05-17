@@ -48,6 +48,10 @@ export async function runReplayScriptFile(params: {
     }
 
     const metadata = readReplayScriptMetadata(script);
+    const replayReq =
+      metadata.platform || metadata.target
+        ? { ...req, flags: buildReplayMetadataFlags(req.flags, metadata) }
+        : req;
     const parsed = parseReplayScriptDetailed(script);
     const actions = parsed.actions;
     const actionLines = parsed.actionLines;
@@ -65,7 +69,7 @@ export async function runReplayScriptFile(params: {
     }
     const scope = buildReplayVarScope({
       builtins: buildReplayBuiltinVars({
-        req,
+        req: replayReq,
         sessionName,
         metadata,
         resolvedPath: resolved,
@@ -81,7 +85,7 @@ export async function runReplayScriptFile(params: {
       if (!action || action.command === 'replay') continue;
 
       let response = await invokeReplayAction({
-        req,
+        req: replayReq,
         sessionName,
         action,
         scope,
@@ -109,7 +113,7 @@ export async function runReplayScriptFile(params: {
 
       actions[index] = nextAction;
       response = await invokeReplayAction({
-        req,
+        req: replayReq,
         sessionName,
         action: nextAction,
         scope,
@@ -184,6 +188,8 @@ function buildReplayBuiltinVars(params: {
   };
   const platform = (flags.platform as string | undefined) ?? metadata.platform;
   if (platform) builtins.AD_PLATFORM = platform;
+  const target = (flags.target as string | undefined) ?? metadata.target;
+  if (target) builtins.AD_TARGET = target;
   const device = flags.device;
   if (typeof device === 'string' && device.length > 0) builtins.AD_DEVICE = device;
   const artifactsDir = flags.artifactsDir;
@@ -191,6 +197,21 @@ function buildReplayBuiltinVars(params: {
     builtins.AD_ARTIFACTS = artifactsDir;
   }
   return builtins;
+}
+
+function buildReplayMetadataFlags(
+  flags: CommandFlags | undefined,
+  metadata: ReturnType<typeof readReplayScriptMetadata>,
+): CommandFlags {
+  return {
+    ...(flags ?? {}),
+    ...(metadata.platform !== undefined && flags?.platform === undefined
+      ? { platform: metadata.platform }
+      : {}),
+    ...(metadata.target !== undefined && flags?.target === undefined
+      ? { target: metadata.target }
+      : {}),
+  };
 }
 
 function readCliEnvEntries(req: DaemonRequest): string[] {

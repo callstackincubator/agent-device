@@ -1,5 +1,5 @@
 # App lifecycle.
-context platform=ios
+context platform=ios target=mobile
 
 open com.apple.Preferences --relaunch
 appstate

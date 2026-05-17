@@ -9,13 +9,17 @@ import type { ReplayScriptMetadata } from './session-replay-script.ts';
 export function buildNestedReplayFlags(params: {
   parentFlags: CommandFlags | undefined;
   platform: ReplayScriptMetadata['platform'] | undefined;
+  target: ReplayScriptMetadata['target'] | undefined;
   artifactsDir: string | undefined;
 }): CommandFlags | undefined {
-  const { parentFlags, platform, artifactsDir } = params;
-  if (platform === undefined && artifactsDir === undefined) return parentFlags;
+  const { parentFlags, platform, target, artifactsDir } = params;
+  if (platform === undefined && target === undefined && artifactsDir === undefined) {
+    return parentFlags;
+  }
   return {
     ...(parentFlags ?? {}),
     ...(platform !== undefined ? { platform } : {}),
+    ...(target !== undefined ? { target } : {}),
     ...(artifactsDir !== undefined ? { artifactsDir } : {}),
   };
 }
@@ -47,6 +51,7 @@ export async function handleSessionReplayCommands(params: {
         filePath,
         sessionName: testSessionName,
         platform,
+        target,
         requestId,
         artifactsDir,
         artifactPaths,
@@ -60,6 +65,7 @@ export async function handleSessionReplayCommands(params: {
         const nestedFlags = buildNestedReplayFlags({
           parentFlags: req.flags,
           platform,
+          target,
           artifactsDir,
         });
 

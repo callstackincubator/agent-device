@@ -1,5 +1,5 @@
 # Dogfood iOS physical device lifecycle through the replay suite runner.
-context platform=ios
+context platform=ios target=mobile
 open com.apple.Preferences --relaunch
 snapshot
 click "role=cell label=General"

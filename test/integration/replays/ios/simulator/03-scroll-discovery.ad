@@ -1,5 +1,5 @@
 # Scroll discovery.
-context platform=ios
+context platform=ios target=mobile
 
 open com.apple.Preferences --relaunch
 scroll down 3
