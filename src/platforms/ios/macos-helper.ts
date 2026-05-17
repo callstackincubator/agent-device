@@ -80,6 +80,18 @@ function assertMacOsBundleId(bundleId: string): string {
   return normalized;
 }
 
+function appendMacOsHelperContextArgs(
+  args: string[],
+  options: { bundleId?: string; surface?: SessionSurface },
+): void {
+  if (options.bundleId) {
+    args.push('--bundle-id', assertMacOsBundleId(options.bundleId));
+  }
+  if (options.surface) {
+    args.push('--surface', options.surface);
+  }
+}
+
 export function resolveMacOsHelperPackageRootFrom(modulePath: string): string {
   let currentDir = path.dirname(modulePath);
   while (true) {
@@ -297,12 +309,7 @@ export async function runMacOsAlertAction(
   bundleId?: string;
 }> {
   const args = ['alert', action];
-  if (options.bundleId) {
-    args.push('--bundle-id', assertMacOsBundleId(options.bundleId));
-  }
-  if (options.surface) {
-    args.push('--surface', options.surface);
-  }
+  appendMacOsHelperContextArgs(args, options);
   return await runMacOsHelper(args);
 }
 
@@ -316,9 +323,7 @@ export async function runMacOsSnapshotAction(
   backend: 'macos-helper';
 }> {
   const args = ['snapshot', '--surface', surface];
-  if (options.bundleId) {
-    args.push('--bundle-id', assertMacOsBundleId(options.bundleId));
-  }
+  appendMacOsHelperContextArgs(args, options);
   return await runMacOsHelper(args);
 }
 
@@ -330,12 +335,7 @@ export async function runMacOsReadTextAction(
   text: string;
 }> {
   const args = ['read', '--x', String(x), '--y', String(y)];
-  if (options.bundleId) {
-    args.push('--bundle-id', assertMacOsBundleId(options.bundleId));
-  }
-  if (options.surface) {
-    args.push('--surface', options.surface);
-  }
+  appendMacOsHelperContextArgs(args, options);
   return await runMacOsHelper(args);
 }
 
@@ -350,12 +350,7 @@ export async function runMacOsPressAction(
   surface?: SessionSurface;
 }> {
   const args = ['press', '--x', String(x), '--y', String(y)];
-  if (options.bundleId) {
-    args.push('--bundle-id', assertMacOsBundleId(options.bundleId));
-  }
-  if (options.surface) {
-    args.push('--surface', options.surface);
-  }
+  appendMacOsHelperContextArgs(args, options);
   return await runMacOsHelper(args);
 }
 
@@ -368,9 +363,7 @@ export async function runMacOsScreenshotAction(
   fullscreen: boolean;
 }> {
   const args = ['screenshot', '--out', outPath];
-  if (options.surface) {
-    args.push('--surface', options.surface);
-  }
+  appendMacOsHelperContextArgs(args, options);
   if (options.fullscreen) {
     args.push('--fullscreen');
   }

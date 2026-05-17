@@ -20,6 +20,7 @@ import type { AppleRunnerCommandOptions } from './runner-provider.ts';
 import { prepareSimulatorStatusBarForScreenshot } from './screenshot-status-bar.ts';
 import { ensureBootedSimulator } from './simulator.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
+import { extractAppleToolErrorMeta } from './tool-diagnostics.ts';
 import { runXcrun } from './tool-provider.ts';
 
 function simctlArgs(device: DeviceInfo, args: string[]): string[] {
@@ -310,7 +311,7 @@ function emitScreenshotFallbackDiagnostic(
   from: 'simctl_screenshot' | 'devicectl_screenshot',
   error: unknown,
 ): void {
-  const errorMeta = extractScreenshotFallbackErrorMeta(error);
+  const errorMeta = extractAppleToolErrorMeta(error);
   emitDiagnostic({
     level: 'warn',
     phase: 'ios_screenshot_fallback',
@@ -326,7 +327,7 @@ function emitScreenshotFallbackDiagnostic(
 }
 
 function emitScreenshotFallbackSkippedDiagnostic(device: DeviceInfo, error: unknown): void {
-  const errorMeta = extractScreenshotFallbackErrorMeta(error);
+  const errorMeta = extractAppleToolErrorMeta(error);
   emitDiagnostic({
     level: 'warn',
     phase: 'ios_screenshot_fallback_skipped',
@@ -379,37 +380,9 @@ function emitStatusBarDiagnostic(
       platform: device.platform,
       deviceKind: device.kind,
       deviceId: device.id,
-      ...extractScreenshotFallbackErrorMeta(error),
+      ...extractAppleToolErrorMeta(error),
     },
   });
-}
-
-function extractScreenshotFallbackErrorMeta(error: unknown): Record<string, unknown> {
-  if (!(error instanceof AppError)) {
-    return { reason: error instanceof Error ? error.message : String(error) };
-  }
-  const details = (error.details ?? {}) as {
-    args?: unknown;
-    exitCode?: unknown;
-    stderr?: unknown;
-    stdout?: unknown;
-    timeoutMs?: unknown;
-  };
-  const args = Array.isArray(details.args)
-    ? details.args.filter((value): value is string => typeof value === 'string').join(' ')
-    : undefined;
-
-  return {
-    errorCode: error.code,
-    reason: error.message,
-    timeoutMs: typeof details.timeoutMs === 'number' ? details.timeoutMs : undefined,
-    exitCode: typeof details.exitCode === 'number' ? details.exitCode : undefined,
-    stderr:
-      typeof details.stderr === 'string' && details.stderr.trim() ? details.stderr : undefined,
-    stdout:
-      typeof details.stdout === 'string' && details.stdout.trim() ? details.stdout : undefined,
-    commandArgs: args,
-  };
 }
 
 export function resolveSimulatorRunnerScreenshotCandidatePaths(
