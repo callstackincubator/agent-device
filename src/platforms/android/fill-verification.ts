@@ -1,4 +1,5 @@
 import type { DeviceInfo } from '../../utils/device.ts';
+import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import type { Rect } from '../../utils/snapshot.ts';
 import {
   buildFillFailureDetails,
@@ -8,6 +9,7 @@ import {
   isSensitiveFillDiagnosticNode,
 } from '../fill-diagnostics.ts';
 import { sleep } from './adb.ts';
+import { getAndroidKeyboardState } from './device-input-state.ts';
 import { isAndroidInputMethodOwnedNode } from './input-ownership.ts';
 import { dumpUiHierarchy } from './snapshot.ts';
 import { androidUiNodes, type AndroidUiNodeMetadata } from './ui-hierarchy.ts';
@@ -40,6 +42,10 @@ type AndroidTextAtPointScan = {
   anyAtPoint: AndroidFillVerificationCandidate | null;
 };
 
+type AndroidFillVerificationContext = {
+  activeInputMethodPackage?: string | null;
+};
+
 export async function verifyAndroidFilledText(
   device: DeviceInfo,
   x: number,
@@ -49,12 +55,13 @@ export async function verifyAndroidFilledText(
   const verificationDelaysMs = [0, 150, 350];
   let lastVerification: AndroidFillVerification | null = null;
   let stableVerification: AndroidFillVerification | null = null;
+  const context = await readAndroidFillVerificationContext(device);
 
   for (const delayMs of verificationDelaysMs) {
     if (delayMs > 0) {
       await sleep(delayMs);
     }
-    const verification = await inspectAndroidFilledText(device, x, y, expected);
+    const verification = await inspectAndroidFilledText(device, x, y, expected, context);
     lastVerification = verification;
     if (verification.reason === 'ime_capture') {
       return verification;
@@ -91,8 +98,9 @@ export function verifyAndroidFilledTextInHierarchy(
   x: number,
   y: number,
   expected: string,
+  context: AndroidFillVerificationContext = {},
 ): AndroidFillVerification {
-  const inspection = inspectAndroidTextAtPointInHierarchy(xml, x, y);
+  const inspection = inspectAndroidTextAtPointInHierarchy(xml, x, y, context);
   if (isAndroidImeCapture(inspection)) {
     return {
       ok: false,
@@ -144,14 +152,16 @@ async function inspectAndroidFilledText(
   x: number,
   y: number,
   expected: string,
+  context: AndroidFillVerificationContext,
 ): Promise<AndroidFillVerification> {
-  return verifyAndroidFilledTextInHierarchy(await dumpUiHierarchy(device), x, y, expected);
+  return verifyAndroidFilledTextInHierarchy(await dumpUiHierarchy(device), x, y, expected, context);
 }
 
 function inspectAndroidTextAtPointInHierarchy(
   xml: string,
   x: number,
   y: number,
+  context: AndroidFillVerificationContext = {},
 ): AndroidTextAtPointInspection {
   const scan: AndroidTextAtPointScan = {
     focusedEdit: null,
@@ -160,7 +170,7 @@ function inspectAndroidTextAtPointInHierarchy(
   };
 
   for (const node of androidUiNodes(xml)) {
-    const candidate = androidFillCandidateFromNode(node);
+    const candidate = androidFillCandidateFromNode(node, context);
     if (candidate) updateAndroidTextAtPointScan(scan, candidate, x, y);
   }
 
@@ -244,6 +254,7 @@ function isSentenceAutocapitalizeMatch(actual: string, expected: string): boolea
 
 function androidFillCandidateFromNode(
   node: AndroidUiNodeMetadata,
+  context: AndroidFillVerificationContext,
 ): AndroidFillVerificationCandidate | null {
   if (!node.rect) return null;
   const text = node.text ?? '';
@@ -259,10 +270,29 @@ function androidFillCandidateFromNode(
     inputMethodOwned: isAndroidInputMethodOwnedNode({
       packageName: node.packageName,
       resourceId: node.resourceId,
+      activeInputMethodPackage: context.activeInputMethodPackage,
     }),
     area,
     editText: isEditTextClass(node.className ?? ''),
   };
+}
+
+async function readAndroidFillVerificationContext(
+  device: DeviceInfo,
+): Promise<AndroidFillVerificationContext> {
+  try {
+    const state = await getAndroidKeyboardState(device);
+    return { activeInputMethodPackage: state.inputMethodPackage };
+  } catch (error) {
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'android_fill_verification_input_method_probe_failed',
+      data: {
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+    return {};
+  }
 }
 
 function updateAndroidTextAtPointScan(
