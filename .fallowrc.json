@@ -79,10 +79,12 @@
     "unused-types": "off",
     "duplicate-exports": "off"
   },
+  "production": {
+    "dupes": true
+  },
   "publicPackages": ["agent-device"],
   "audit": {
     "deadCodeBaseline": "fallow-baselines/dead-code.json",
-    "healthBaseline": "fallow-baselines/health.json",
-    "dupesBaseline": "fallow-baselines/dupes.json"
+    "healthBaseline": "fallow-baselines/health.json"
   }
 }

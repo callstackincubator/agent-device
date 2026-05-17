@@ -5,6 +5,7 @@ import { getRequestSignal } from '../request-cancel.ts';
 import {
   cleanupRetainedMaterializedPaths,
   retainMaterializedPaths,
+  type RetainedMaterializedPaths,
 } from '../materialized-path-registry.ts';
 import { resolveInstallSource } from '../install-source-resolution.ts';
 import { SessionStore } from '../session-store.ts';
@@ -14,6 +15,23 @@ import { resolveInstallFromSourceResultTarget } from '../../client-shared.ts';
 import { AppError, normalizeError } from '../../utils/errors.ts';
 import { withSuccessText } from '../../utils/success-text.ts';
 import { errorResponse } from './response.ts';
+
+type PreparedInstallArtifact = {
+  archivePath?: string;
+  installablePath: string;
+  cleanup(): Promise<void>;
+};
+
+type InstallFromSourceResult = {
+  appName?: string;
+  bundleId?: string;
+  packageName?: string;
+  launchTarget: string;
+  archivePath?: string;
+  installablePath?: string;
+  materializationId?: string;
+  materializationExpiresAt?: string;
+};
 
 function normalizePlatform(platform: CommandFlags['platform']): 'ios' | 'android' | undefined {
   return platform === 'ios' || platform === 'android' ? platform : undefined;
@@ -59,6 +77,61 @@ async function resolveInstallDevice(params: {
   return device;
 }
 
+async function maybeRetainInstallArtifact(params: {
+  prepared: PreparedInstallArtifact;
+  retention: ReturnType<typeof resolveRetainMaterializedPaths>;
+  req: DaemonRequest;
+  session: SessionState | undefined;
+  sessionName: string;
+}): Promise<RetainedMaterializedPaths | undefined> {
+  const { prepared, retention, req, session, sessionName } = params;
+  if (!retention.enabled) {
+    return undefined;
+  }
+  return await retainMaterializedPaths({
+    archivePath: prepared.archivePath,
+    installablePath: prepared.installablePath,
+    tenantId: req.meta?.tenantId,
+    sessionName: session ? sessionName : undefined,
+    ttlMs: retention.ttlMs,
+  });
+}
+
+function retainedInstallResultFields(retained: RetainedMaterializedPaths | undefined): {
+  archivePath?: string;
+  installablePath?: string;
+  materializationId?: string;
+  materializationExpiresAt?: string;
+} {
+  if (!retained) {
+    return {};
+  }
+  return {
+    ...(retained.archivePath ? { archivePath: retained.archivePath } : {}),
+    installablePath: retained.installablePath,
+    materializationId: retained.materializationId,
+    materializationExpiresAt: retained.expiresAt,
+  };
+}
+
+function recordInstallFromSourceAction(params: {
+  session: SessionState | undefined;
+  sessionStore: SessionStore;
+  req: DaemonRequest;
+  data: InstallFromSourceResult & Record<string, unknown>;
+}): void {
+  const { session, sessionStore, req, data } = params;
+  if (!session) {
+    return;
+  }
+  sessionStore.recordAction(session, {
+    command: 'install_source',
+    positionals: [],
+    flags: req.flags ?? {},
+    result: data,
+  });
+}
+
 export async function handleInstallFromSourceCommand(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -81,52 +154,24 @@ export async function handleInstallFromSourceCommand(params: {
     }
 
     const requestSignal = getRequestSignal(req.meta?.requestId);
-    if (device.platform === 'ios') {
-      const { installIosInstallablePath } = await import('../../platforms/ios/apps.ts');
-      const { prepareIosInstallArtifact } = await import('../../platforms/ios/install-artifact.ts');
-      const prepared = await prepareIosInstallArtifact(resolvedSource.source, {
-        signal: requestSignal,
-      });
-      let retained: Awaited<ReturnType<typeof retainMaterializedPaths>> | undefined;
+    const completeInstall = async (
+      prepared: PreparedInstallArtifact,
+      buildResult: (
+        retained: RetainedMaterializedPaths | undefined,
+      ) => Promise<InstallFromSourceResult>,
+    ): Promise<DaemonResponse> => {
+      let retained: RetainedMaterializedPaths | undefined;
       try {
-        if (retention.enabled) {
-          retained = await retainMaterializedPaths({
-            archivePath: prepared.archivePath,
-            installablePath: prepared.installablePath,
-            tenantId: req.meta?.tenantId,
-            sessionName: session ? sessionName : undefined,
-            ttlMs: retention.ttlMs,
-          });
-        }
-        await installIosInstallablePath(device, prepared.installablePath);
-        if (!prepared.bundleId) {
-          throw new AppError(
-            'COMMAND_FAILED',
-            'Installed iOS app identity could not be resolved from the artifact',
-          );
-        }
-        const result = {
-          ...(retained?.archivePath ? { archivePath: retained.archivePath } : {}),
-          ...(retained ? { installablePath: retained.installablePath } : {}),
-          bundleId: prepared.bundleId,
-          ...(prepared.appName ? { appName: prepared.appName } : {}),
-          launchTarget: prepared.bundleId,
-          ...(retained
-            ? {
-                materializationId: retained.materializationId,
-                materializationExpiresAt: retained.expiresAt,
-              }
-            : {}),
-        };
+        retained = await maybeRetainInstallArtifact({
+          prepared,
+          retention,
+          req,
+          session,
+          sessionName,
+        });
+        const result = await buildResult(retained);
         const data = withSuccessText(result, buildInstallFromSourceMessage(result));
-        if (session) {
-          sessionStore.recordAction(session, {
-            command: 'install_source',
-            positionals: [],
-            flags: req.flags ?? {},
-            result: data,
-          });
-        }
+        recordInstallFromSourceAction({ session, sessionStore, req, data });
         return { ok: true, data };
       } catch (error) {
         if (retained) {
@@ -140,6 +185,29 @@ export async function handleInstallFromSourceCommand(params: {
         await prepared.cleanup();
         resolvedSource.cleanup();
       }
+    };
+
+    if (device.platform === 'ios') {
+      const { installIosInstallablePath } = await import('../../platforms/ios/apps.ts');
+      const { prepareIosInstallArtifact } = await import('../../platforms/ios/install-artifact.ts');
+      const prepared = await prepareIosInstallArtifact(resolvedSource.source, {
+        signal: requestSignal,
+      });
+      return await completeInstall(prepared, async (retained) => {
+        await installIosInstallablePath(device, prepared.installablePath);
+        if (!prepared.bundleId) {
+          throw new AppError(
+            'COMMAND_FAILED',
+            'Installed iOS app identity could not be resolved from the artifact',
+          );
+        }
+        return {
+          ...retainedInstallResultFields(retained),
+          bundleId: prepared.bundleId,
+          ...(prepared.appName ? { appName: prepared.appName } : {}),
+          launchTarget: prepared.bundleId,
+        };
+      });
     }
 
     const { prepareAndroidInstallArtifact } =
@@ -149,17 +217,7 @@ export async function handleInstallFromSourceCommand(params: {
     const prepared = await prepareAndroidInstallArtifact(resolvedSource.source, {
       signal: requestSignal,
     });
-    let retained: Awaited<ReturnType<typeof retainMaterializedPaths>> | undefined;
-    try {
-      if (retention.enabled) {
-        retained = await retainMaterializedPaths({
-          archivePath: prepared.archivePath,
-          installablePath: prepared.installablePath,
-          tenantId: req.meta?.tenantId,
-          sessionName: session ? sessionName : undefined,
-          ttlMs: retention.ttlMs,
-        });
-      }
+    return await completeInstall(prepared, async (retained) => {
       const packageName = await installAndroidInstallablePathAndResolvePackageName(
         device,
         prepared.installablePath,
@@ -173,41 +231,13 @@ export async function handleInstallFromSourceCommand(params: {
       }
       const { inferAndroidAppName } = await import('../../platforms/android/app-lifecycle.ts');
       const appName = inferAndroidAppName(packageName);
-      const result = {
-        ...(retained?.archivePath ? { archivePath: retained.archivePath } : {}),
-        ...(retained ? { installablePath: retained.installablePath } : {}),
+      return {
+        ...retainedInstallResultFields(retained),
         packageName,
         ...(appName ? { appName } : {}),
         launchTarget: packageName,
-        ...(retained
-          ? {
-              materializationId: retained.materializationId,
-              materializationExpiresAt: retained.expiresAt,
-            }
-          : {}),
       };
-      const data = withSuccessText(result, buildInstallFromSourceMessage(result));
-      if (session) {
-        sessionStore.recordAction(session, {
-          command: 'install_source',
-          positionals: [],
-          flags: req.flags ?? {},
-          result: data,
-        });
-      }
-      return { ok: true, data };
-    } catch (error) {
-      if (retained) {
-        await cleanupRetainedMaterializedPaths(
-          retained.materializationId,
-          req.meta?.tenantId,
-        ).catch(() => {});
-      }
-      throw error;
-    } finally {
-      await prepared.cleanup();
-      resolvedSource.cleanup();
-    }
+    });
   } catch (error) {
     const normalized = normalizeError(error);
     return { ok: false, error: normalized };
