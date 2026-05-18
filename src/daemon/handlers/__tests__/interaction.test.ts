@@ -407,7 +407,6 @@ test('click simple iOS id selector uses direct runner selector tap without snaps
   });
   if (response?.ok) {
     expect(response.data?.selector).toBe('id="submit"');
-    expect(response.data?.directSelector).toBe(true);
   }
 });
 
@@ -2086,7 +2085,6 @@ test('is selected simple iOS id selector uses runner query without snapshot', as
   if (response?.ok) {
     expect(response.data?.predicate).toBe('selected');
     expect(response.data?.pass).toBe(true);
-    expect(response.data?.directSelector).toBe(true);
   }
   const recorded = sessionStore.get(sessionName)?.actions.at(-1);
   expect(recorded?.result?.selectorChain).toEqual(['id="shipping-pickup"']);
@@ -2129,7 +2127,6 @@ test('is simple iOS selector returns false directly when runner predicate fails'
   if (response?.ok) {
     expect(response.data?.predicate).toBe('selected');
     expect(response.data?.pass).toBe(false);
-    expect(response.data?.directSelector).toBe(true);
   }
 });
 

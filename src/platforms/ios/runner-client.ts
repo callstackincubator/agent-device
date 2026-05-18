@@ -28,13 +28,10 @@ import {
 } from './runner-provider.ts';
 import { ensureXctestrun } from './runner-xctestrun.ts';
 export {
-  buildRunnerConnectError,
-  buildRunnerEarlyExitError,
   isReadOnlyRunnerCommand,
   isRetryableRunnerError,
   resolveRunnerEarlyExitHint,
   resolveRunnerBuildFailureHint,
-  resolveSigningFailureHint,
   shouldRetryRunnerConnectError,
   type RunnerCommand,
 } from './runner-contract.ts';
@@ -199,7 +196,6 @@ export {
 
 export {
   getRunnerSessionSnapshot,
-  invalidateRunnerSession,
   stopIosRunnerSession,
   abortAllIosRunnerSessions,
   stopAllIosRunnerSessions,

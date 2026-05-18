@@ -65,19 +65,6 @@
     {
       "file": "src/platforms/ios/index.ts",
       "exports": ["listSimulatorApps", "uninstallIosApp"]
-    },
-    {
-      "file": "src/platforms/ios/runner-client.ts",
-      "exports": [
-        "buildRunnerConnectError",
-        "buildRunnerEarlyExitError",
-        "invalidateRunnerSession",
-        "resolveSigningFailureHint"
-      ]
-    },
-    {
-      "file": "src/platforms/ios/runner-contract.ts",
-      "exports": ["RUNNER_CACHE_RECOVERY_HINT", "resolveSigningFailureHint"]
     }
   ],
   "usedClassMembers": ["name", "listActiveLeases", "delete", "values", "elapsedMs", "isExpired"],

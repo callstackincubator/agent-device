@@ -5,7 +5,7 @@ import { createRequestCanceledError, isRequestCanceled } from '../../daemon/requ
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import type { RunnerSession } from './runner-session-types.ts';
 
-export const RUNNER_CACHE_RECOVERY_HINT =
+const RUNNER_CACHE_RECOVERY_HINT =
   'If runner build products look stale or corrupted, run `pnpm clean:xcuitest` in a local checkout, or remove ~/.agent-device/ios-runner/derived, then retry.';
 
 export type RunnerCommand = {
@@ -157,7 +157,7 @@ export async function buildRunnerEarlyExitError(params: {
   });
 }
 
-export function resolveSigningFailureHint(error: AppError): string | undefined {
+function resolveSigningFailureHint(error: AppError): string | undefined {
   const details = error.details ? JSON.stringify(error.details) : '';
   const combined = `${error.message}\n${details}`.toLowerCase();
   if (

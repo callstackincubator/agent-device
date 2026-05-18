@@ -309,7 +309,6 @@ async function dispatchDirectIosSelectorIs(
           selector: directQuery.selector.raw,
           matches: 1,
           selectorChain: [directQuery.selector.raw],
-          directSelector: true,
         }
       : buildDirectIosIsResult(
           predicate,
@@ -345,7 +344,6 @@ async function dispatchDirectIosSelectorWait(
     selector: selector.raw,
     waitedMs: Date.now() - startedAt,
     selectorChain: [selector.raw],
-    directSelector: true,
   };
   recordIfSession(params.sessionStore, params.sessionName, params.req, payload);
   const response: DaemonResponse = { ok: true, data: payload };
@@ -426,7 +424,6 @@ function buildDirectIosGetResult(
     target: { kind: 'selector' as const, selector },
     node: result.node,
     selectorChain: [selector],
-    directSelector: true,
   };
   if (property === 'attrs') return { kind: 'attrs', ...base };
   if (typeof result.text !== 'string') return null;
@@ -453,7 +450,6 @@ function buildDirectIosIsResult(
     selector,
     ...(predicate === 'text' ? { text: result.actualText } : {}),
     selectorChain: [selector],
-    directSelector: true,
   };
 }
 

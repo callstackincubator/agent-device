@@ -215,7 +215,6 @@ async function dispatchDirectIosSelectorTap(
       referenceFrame: readReferenceFrameFromDirectSelectorTapResult(data),
       extra: {
         selector: selector.raw,
-        directSelector: true,
       },
     });
     return finalizeTouchInteraction({
