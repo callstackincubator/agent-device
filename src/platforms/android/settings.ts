@@ -1,10 +1,10 @@
 import { AppError } from '../../utils/errors.ts';
+import type { DeviceInfo } from '../../utils/device.ts';
+import { requireLocationCoordinates } from '../../utils/location-coordinates.ts';
 import {
   summarizeCommandAttemptFailures,
   type CommandAttemptFailure,
-} from '../../utils/command-attempts.ts';
-import type { DeviceInfo } from '../../utils/device.ts';
-import { requireLocationCoordinates } from '../../utils/location-coordinates.ts';
+} from '../command-attempts.ts';
 import {
   parsePermissionAction,
   parsePermissionTarget,

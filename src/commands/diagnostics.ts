@@ -18,6 +18,7 @@ import type {
 } from './diagnostics-types.ts';
 import type { RuntimeCommand } from './runtime-types.ts';
 import { toBackendContext } from './selector-read-utils.ts';
+import { requireText } from './text.ts';
 
 export type DiagnosticsPageOptions = CommandContext & {
   appId?: string;
@@ -217,10 +218,4 @@ function normalizeStringList(
     throw new AppError('INVALID_ARGS', `${field} must contain at most ${maxItems} entries`);
   }
   return values.map((value, index) => requireText(value, `${field}[${index}]`));
-}
-
-function requireText(value: string, field: string): string {
-  const text = value.trim();
-  if (!text) throw new AppError('INVALID_ARGS', `${field} must be a non-empty string`);
-  return text;
 }

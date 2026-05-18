@@ -3,10 +3,6 @@ import os from 'node:os';
 import path from 'node:path';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
-import {
-  summarizeCommandAttemptFailures,
-  type CommandAttemptFailure,
-} from '../../utils/command-attempts.ts';
 import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
 import { requireLocationCoordinates } from '../../utils/location-coordinates.ts';
 import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
@@ -21,6 +17,10 @@ import {
 import { parseAppearanceAction } from '../appearance.ts';
 import { parseSettingState } from '../setting-state.ts';
 import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';
+import {
+  summarizeCommandAttemptFailures,
+  type CommandAttemptFailure,
+} from '../command-attempts.ts';
 
 import { IOS_APP_LAUNCH_TIMEOUT_MS, IOS_DEVICECTL_TIMEOUT_MS } from './config.ts';
 import {

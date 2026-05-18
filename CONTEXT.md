@@ -2,11 +2,11 @@
 
 ## Terms
 
-- Device Lab: device-free integration tests that run the real daemon request path and replace only external device or host tool execution.
+- Provider-backed integration scenario: device-free integration test that runs the real daemon request path and replaces only external device or host tool execution.
 - Provider: request-scoped adapter interface for external device, runner, or host tool execution.
 - Provider transcript: exact record of provider calls used when a test must verify platform command translation.
-- Scenario transcript: command-level Device Lab flow that describes user-visible behavior through daemon commands.
-- In-process Device Lab harness: Device Lab runner that invokes the daemon request handler directly without opening an HTTP listener.
+- Scenario transcript: command-level integration flow that describes user-visible behavior through daemon commands.
+- In-process provider scenario harness: integration runner that invokes the daemon request handler directly without opening an HTTP listener.
 - HTTP contract test: narrow test that verifies JSON-RPC transport, auth, and response finalization over the daemon HTTP boundary.
 - Interactor: semantic interface between command dispatch and platform behavior.
 - Platform module: platform-specific implementation behind the Interactor.
@@ -16,8 +16,8 @@
 
 ## Testing Principles
 
-- Device Lab tests should exercise the public daemon path whenever practical.
-- Prefer the in-process Device Lab harness for broad scenarios; keep HTTP contract tests narrow and transport-specific.
+- Provider-backed integration scenarios should exercise the public daemon path whenever practical.
+- Prefer the in-process provider scenario harness for broad scenarios; keep HTTP contract tests narrow and transport-specific.
 - Provider seams sit below platform modules so integration tests still cover platform command translation.
 - Provider transcripts are for exact external command contracts.
 - Scenario transcripts are for broad, user-rooted workflows that should replace mocked handler unit tests.

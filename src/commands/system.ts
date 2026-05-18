@@ -11,6 +11,7 @@ import { successText } from '../utils/success-text.ts';
 import { requireIntInRange } from '../utils/validation.ts';
 import type { RuntimeCommand } from './runtime-types.ts';
 import { toBackendContext } from './selector-read-utils.ts';
+import { normalizeOptionalText } from './text.ts';
 
 export type SystemBackCommandOptions = CommandContext & {
   mode?: 'in-app' | 'system';
@@ -380,13 +381,6 @@ function normalizeAlertResult(
     ...(result.button ? { button: result.button } : {}),
     ...successText(result.handled ? `Alert ${action}ed` : 'No alert handled'),
   };
-}
-
-function normalizeOptionalText(value: string | undefined, field: string): string | undefined {
-  if (value === undefined) return undefined;
-  const text = value.trim();
-  if (!text) throw new AppError('INVALID_ARGS', `${field} must be a non-empty string`);
-  return text;
 }
 
 function isKeyboardResult(value: unknown): value is BackendKeyboardResult {
