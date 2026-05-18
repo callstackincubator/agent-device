@@ -30,7 +30,15 @@ type NormalizedScrollOptions = {
 
 type IosRunnerOverrides = Pick<
   Interactor,
-  'tap' | 'doubleTap' | 'swipe' | 'longPress' | 'focus' | 'type' | 'fill' | 'scroll'
+  | 'tap'
+  | 'tapElementSelector'
+  | 'doubleTap'
+  | 'swipe'
+  | 'longPress'
+  | 'focus'
+  | 'type'
+  | 'fill'
+  | 'scroll'
 >;
 
 export function resolveAppleBackRunnerCommand(mode?: BackMode): AppleBackRunnerCommand {
@@ -58,6 +66,18 @@ export function iosRunnerOverrides(
         return await runIosRunnerCommand(
           device,
           { command: 'tap', x, y, appBundleId: ctx.appBundleId },
+          runnerOpts,
+        );
+      },
+      tapElementSelector: async (selector) => {
+        return await runIosRunnerCommand(
+          device,
+          {
+            command: 'tap',
+            selectorKey: selector.key,
+            selectorValue: selector.value,
+            appBundleId: ctx.appBundleId,
+          },
           runnerOpts,
         );
       },
@@ -100,28 +120,29 @@ export function iosRunnerOverrides(
       type: async (text, delayMs) => {
         await runIosRunnerCommand(
           device,
-          { command: 'type', text, delayMs, appBundleId: ctx.appBundleId },
-          runnerOpts,
-        );
-      },
-      fill: async (x, y, text, delayMs) => {
-        const tapResult = await runIosRunnerCommand(
-          device,
-          { command: 'tap', x, y, appBundleId: ctx.appBundleId },
-          runnerOpts,
-        );
-        await runIosRunnerCommand(
-          device,
           {
             command: 'type',
             text,
-            clearFirst: true,
             delayMs,
             appBundleId: ctx.appBundleId,
           },
           runnerOpts,
         );
-        return tapResult;
+      },
+      fill: async (x, y, text, delayMs) => {
+        return await runIosRunnerCommand(
+          device,
+          {
+            command: 'type',
+            x,
+            y,
+            text,
+            delayMs,
+            textEntryMode: 'replace',
+            appBundleId: ctx.appBundleId,
+          },
+          runnerOpts,
+        );
       },
       scroll: async (direction, options) => {
         return await runAppleScroll(

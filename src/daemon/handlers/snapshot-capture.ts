@@ -6,8 +6,10 @@ import type { AndroidSnapshotBackendMetadata } from '../../platforms/android/sna
 import type { AndroidSnapshotAnalysis } from '../../platforms/android/ui-hierarchy.ts';
 import {
   attachRefs,
+  buildSnapshotPresentationKey,
   findNodeByRef,
   normalizeRef,
+  snapshotPresentationOptionsFromFlags,
   type RawSnapshotNode,
   type SnapshotBackend,
   type SnapshotState,
@@ -26,6 +28,7 @@ import {
   type AndroidFreshnessCaptureMeta,
 } from '../android-snapshot-freshness.ts';
 import { contextFromFlags } from '../context.ts';
+import { capturePostGestureStabilizedSnapshot } from '../post-gesture-stabilization.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
 
@@ -56,6 +59,14 @@ export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
   androidSnapshot?: AndroidSnapshotBackendMetadata;
   freshness?: AndroidFreshnessCaptureMeta;
 }> {
+  if (params.device.platform === 'ios' && params.session?.postGestureStabilization) {
+    return {
+      snapshot: await capturePostGestureStabilizedSnapshot({
+        session: params.session,
+        capture: async () => (await captureSnapshotAttempt(params)).snapshot,
+      }),
+    };
+  }
   const freshness = getActiveAndroidSnapshotFreshness(params.session);
   if (freshness && params.device.platform === 'android') {
     return await captureAndroidFreshnessAwareSnapshot(params, freshness);
@@ -240,6 +251,7 @@ export function buildSnapshotState(
     truncated: data?.truncated,
     createdAt: Date.now(),
     backend: data?.backend,
+    presentationKey: buildSnapshotPresentationKey(snapshotPresentationOptionsFromFlags(flags)),
     // Only broad Android snapshots become freshness baselines. If the user asked for a scoped
     // or filtered view, preserve that output contract but avoid pretending it is safe for
     // route-level comparisons on the next capture.

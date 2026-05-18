@@ -624,6 +624,7 @@ export type FindOptions =
 export type ReplayRunOptions = AgentDeviceRequestOverrides & {
   path: string;
   update?: boolean;
+  maestro?: boolean;
   env?: string[];
 };
 
@@ -758,6 +759,7 @@ type CommandExecutionOptions = Partial<ScreenshotRequestFlags> & {
   headless?: boolean;
   restart?: boolean;
   replayUpdate?: boolean;
+  replayMaestro?: boolean;
   replayEnv?: string[];
   replayShellEnv?: Record<string, string>;
   failFast?: boolean;

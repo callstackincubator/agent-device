@@ -12,6 +12,10 @@ import {
   makeMacOsSession as makeBaseMacOsSession,
 } from '../../../__tests__/test-utils/session-factories.ts';
 
+const { mockRunIosRunnerCommand } = vi.hoisted(() => ({
+  mockRunIosRunnerCommand: vi.fn(),
+}));
+
 vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
   return {
@@ -47,6 +51,14 @@ vi.mock('../interaction-snapshot.ts', async (importOriginal) => {
       createdAt: 0,
       backend: 'xctest' as const,
     })),
+  };
+});
+
+vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/ios/runner-client.ts')>();
+  return {
+    ...actual,
+    runIosRunnerCommand: mockRunIosRunnerCommand,
   };
 });
 
@@ -123,6 +135,8 @@ beforeEach(() => {
   mockGetAndroidScreenSize.mockResolvedValue({ width: 1344, height: 2992 });
   mockCaptureSnapshotForSession.mockReset();
   mockCaptureSnapshotForSession.mockImplementation(emulateCaptureSnapshotForSession);
+  mockRunIosRunnerCommand.mockReset();
+  mockRunIosRunnerCommand.mockResolvedValue({});
 });
 
 test('get text prefers underlying value for text surfaces and avoids recording giant ref labels', async () => {
@@ -171,6 +185,340 @@ test('get text prefers underlying value for text surfaces and avoids recording g
   const recorded = sessionStore.get(sessionName)?.actions.at(-1);
   expect(recorded?.result?.text).toBe('package com.example.app\nclass MainActivity {}');
   expect(recorded?.result?.refLabel).toBeUndefined();
+});
+
+test('get text uses backend read expansion when the resolved node has a rect', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'get-text-backend-read';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        depth: 0,
+        type: 'TextView',
+        label: 'Editor for MainActivity.kt',
+        value: 'preview only',
+        rect: { x: 20, y: 40, width: 120, height: 80 },
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockResolvedValue({
+    action: 'read',
+    text: 'package com.example.app\nclass MainActivity {}',
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'get',
+      positionals: ['text', '@e1'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  expect(mockDispatch.mock.calls[0]?.[1]).toBe('read');
+  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['80', '80']);
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.text).toBe('package com.example.app\nclass MainActivity {}');
+  }
+});
+
+test('get text simple iOS id selector uses runner query without snapshot', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'get-text-ios-direct-selector';
+  sessionStore.set(sessionName, makeIosSession(sessionName, { appBundleId: 'com.example.app' }));
+  mockRunIosRunnerCommand.mockResolvedValue({
+    found: true,
+    text: 'Ada Lovelace',
+    nodes: [
+      {
+        index: 0,
+        depth: 0,
+        type: 'TextField',
+        label: 'Name',
+        identifier: 'field-name',
+        value: 'Ada Lovelace',
+        rect: { x: 24, y: 220, width: 320, height: 48 },
+        enabled: true,
+        hittable: true,
+      },
+    ],
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'get',
+      positionals: ['text', 'id="field-name"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockRunIosRunnerCommand).toHaveBeenCalledWith(
+    expect.anything(),
+    {
+      command: 'querySelector',
+      selectorKey: 'id',
+      selectorValue: 'field-name',
+      appBundleId: 'com.example.app',
+    },
+    expect.anything(),
+  );
+  expect(mockDispatch).not.toHaveBeenCalledWith(
+    expect.anything(),
+    'snapshot',
+    expect.anything(),
+    expect.anything(),
+    expect.anything(),
+  );
+  if (response?.ok) {
+    expect(response.data?.text).toBe('Ada Lovelace');
+    expect(response.data?.selector).toBe('id="field-name"');
+  }
+  const recorded = sessionStore.get(sessionName)?.actions.at(-1);
+  expect(recorded?.result?.selectorChain).toEqual(['id="field-name"']);
+});
+
+test('press coordinates dispatches press and records as press', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  const storedSession = makeSession(sessionName);
+  sessionStore.set(sessionName, storedSession);
+
+  mockDispatch.mockResolvedValue({ ok: true });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['100', '200'],
+      flags: { count: 3, intervalMs: 1, doubleTap: true },
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  expect(mockDispatch.mock.calls[0]?.[1]).toBe('press');
+  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['100', '200']);
+  const context = mockDispatch.mock.calls[0]?.[4] as Record<string, unknown> | undefined;
+  expect(context?.count).toBe(3);
+  expect(context?.intervalMs).toBe(1);
+  expect(context?.doubleTap).toBe(true);
+
+  const session = sessionStore.get(sessionName);
+  expect(session).toBeTruthy();
+  expect(session?.actions.length).toBe(1);
+  expect(session?.actions[0]?.command).toBe('press');
+  expect(session?.actions[0]?.positionals).toEqual(['100', '200']);
+});
+
+test('click simple iOS id selector uses direct runner selector tap without snapshot', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-direct-selector';
+  sessionStore.set(sessionName, makeIosSession(sessionName, { appBundleId: 'com.example.app' }));
+
+  mockDispatch.mockResolvedValue({
+    message: 'tapped',
+    x: 80,
+    y: 100,
+    referenceWidth: 390,
+    referenceHeight: 844,
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'click',
+      positionals: ['id="submit"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockRunIosRunnerCommand).not.toHaveBeenCalled();
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  const pressCalls = mockDispatch.mock.calls.filter((call) => call[1] === 'press');
+  expect(pressCalls.length).toBe(1);
+  expect(pressCalls[0]?.[2]).toEqual([]);
+  expect((pressCalls[0]?.[4] as Record<string, unknown>)?.directElementSelector).toEqual({
+    key: 'id',
+    value: 'submit',
+    raw: 'id="submit"',
+  });
+  if (response?.ok) {
+    expect(response.data?.selector).toBe('id="submit"');
+    expect(response.data?.directSelector).toBe(true);
+  }
+});
+
+test('click simple iOS id selector falls back to snapshot coordinates when direct tap fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-direct-selector-fallback';
+  sessionStore.set(sessionName, makeIosSession(sessionName, { appBundleId: 'com.example.app' }));
+
+  mockDispatch.mockImplementation(async (_device, command, positionals, _out, context) => {
+    if (command === 'press' && (context as Record<string, unknown>)?.directElementSelector) {
+      throw new Error('element not found');
+    }
+    if (command === 'snapshot') {
+      return {
+        nodes: attachRefs([
+          {
+            index: 0,
+            type: 'Window',
+            rect: { x: 0, y: 0, width: 390, height: 844 },
+          },
+          {
+            index: 1,
+            parentIndex: 0,
+            type: 'XCUIElementTypeButton',
+            identifier: 'submit',
+            rect: { x: 20, y: 80, width: 120, height: 40 },
+            enabled: true,
+            hittable: true,
+          },
+        ]),
+        backend: 'xctest',
+      };
+    }
+    if (command === 'press') {
+      return { x: Number(positionals[0]), y: Number(positionals[1]), pressed: true };
+    }
+    return {};
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'click',
+      positionals: ['id="submit"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  const pressCalls = mockDispatch.mock.calls.filter((call) => call[1] === 'press');
+  expect(pressCalls.length).toBe(2);
+  expect(pressCalls[0]?.[2]).toEqual([]);
+  expect(pressCalls[1]?.[2]).toEqual(['80', '100']);
+  if (response?.ok) {
+    expect(response.data?.selectorChain).toContain('id="submit"');
+  }
+});
+
+test('click simple iOS id selector waits for snapshot path after pending gesture stabilization', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-direct-selector-after-swipe';
+  const session = makeIosSession(sessionName, { appBundleId: 'com.example.app' });
+  session.postGestureStabilization = { action: 'swipe', markedAt: Date.now() };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockImplementation(async (_device, command, positionals) => {
+    if (command === 'snapshot') {
+      return {
+        nodes: attachRefs([
+          {
+            index: 0,
+            type: 'Window',
+            rect: { x: 0, y: 0, width: 390, height: 844 },
+          },
+          {
+            index: 1,
+            parentIndex: 0,
+            type: 'XCUIElementTypeButton',
+            identifier: 'shipping-pickup',
+            rect: { x: 126, y: 555, width: 75, height: 38 },
+            enabled: true,
+            hittable: true,
+          },
+        ]),
+        backend: 'xctest',
+      };
+    }
+    if (command === 'press') {
+      return { x: Number(positionals[0]), y: Number(positionals[1]), pressed: true };
+    }
+    return {};
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'click',
+      positionals: ['id="shipping-pickup"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  const pressCalls = mockDispatch.mock.calls.filter((call) => call[1] === 'press');
+  expect(pressCalls.length).toBe(1);
+  expect((pressCalls[0]?.[4] as Record<string, unknown>)?.directElementSelector).toBeUndefined();
+  expect(pressCalls[0]?.[2]).toEqual(['164', '574']);
+});
+
+test('type dispatches through runtime and records as type', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'default';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  mockDispatch.mockResolvedValue({ ok: true, message: 'Typed 5 chars' });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'type',
+      positionals: ['hello'],
+      flags: { delayMs: 3 },
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  expect(mockDispatch.mock.calls[0]?.[1]).toBe('type');
+  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['hello']);
+  const context = mockDispatch.mock.calls[0]?.[4] as Record<string, unknown> | undefined;
+  expect(context?.delayMs).toBe(3);
+  const session = sessionStore.get(sessionName);
+  expect(session?.actions.at(-1)?.command).toBe('type');
+  expect(session?.actions.at(-1)?.positionals).toEqual(['hello']);
 });
 
 test('click rejects macOS desktop surface interactions until helper routing exists', async () => {
@@ -1609,6 +1957,120 @@ test('is visible preserves CLI snapshot flags during runtime snapshot capture', 
     snapshotInteractiveOnly: false,
     snapshotCompact: false,
   });
+});
+
+test('is selected simple iOS id selector uses runner query without snapshot', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'is-selected-ios-direct-selector';
+  sessionStore.set(sessionName, makeIosSession(sessionName, { appBundleId: 'com.example.app' }));
+  mockRunIosRunnerCommand.mockResolvedValue({
+    found: true,
+    text: 'Pickup',
+    nodes: [
+      {
+        index: 0,
+        depth: 0,
+        type: 'Button',
+        label: 'Pickup',
+        identifier: 'shipping-pickup',
+        selected: true,
+        rect: { x: 126, y: 555, width: 75, height: 38 },
+        enabled: true,
+        hittable: true,
+      },
+    ],
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'is',
+      positionals: ['selected', 'id="shipping-pickup"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockRunIosRunnerCommand).toHaveBeenCalledWith(
+    expect.anything(),
+    {
+      command: 'querySelector',
+      selectorKey: 'id',
+      selectorValue: 'shipping-pickup',
+      appBundleId: 'com.example.app',
+    },
+    expect.anything(),
+  );
+  expect(mockDispatch).not.toHaveBeenCalledWith(
+    expect.anything(),
+    'snapshot',
+    expect.anything(),
+    expect.anything(),
+    expect.anything(),
+  );
+  if (response?.ok) {
+    expect(response.data?.predicate).toBe('selected');
+    expect(response.data?.pass).toBe(true);
+    expect(response.data?.directSelector).toBe(true);
+  }
+  const recorded = sessionStore.get(sessionName)?.actions.at(-1);
+  expect(recorded?.result?.selectorChain).toEqual(['id="shipping-pickup"']);
+});
+
+test('is simple iOS selector falls back to snapshot while gesture stabilization is pending', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'is-selected-ios-stabilizing';
+  const session = makeIosSession(sessionName, { appBundleId: 'com.example.app' });
+  session.postGestureStabilization = { action: 'swipe', markedAt: Date.now() };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command !== 'snapshot') throw new Error(`unexpected command: ${command}`);
+    return {
+      nodes: [
+        {
+          index: 0,
+          depth: 0,
+          type: 'Window',
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'Button',
+          label: 'Pickup',
+          identifier: 'shipping-pickup',
+          selected: true,
+          rect: { x: 126, y: 555, width: 75, height: 38 },
+          enabled: true,
+          hittable: true,
+        },
+      ],
+      backend: 'xctest',
+    };
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'is',
+      positionals: ['selected', 'id="shipping-pickup"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockRunIosRunnerCommand).not.toHaveBeenCalled();
+  expect(mockDispatch.mock.calls.some((call) => call[1] === 'snapshot')).toBe(true);
 });
 
 test('is visible passes for list text that inherits viewport visibility from an ancestor', async () => {

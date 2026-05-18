@@ -49,12 +49,29 @@ export function resolveAppleRunnerProvider(
   options: { requestId?: string } = {},
 ): AppleRunnerProvider {
   if (provider) return normalizeAppleRunnerProvider(provider);
+  const scoped = resolveScopedAppleRunnerProvider(device, options);
+  return scoped
+    ? normalizeAppleRunnerProvider(scoped.provider)
+    : normalizeAppleRunnerProvider(fallback);
+}
+
+export function hasScopedAppleRunnerProvider(
+  device: DeviceInfo,
+  options: { requestId?: string } = {},
+): boolean {
+  return resolveScopedAppleRunnerProvider(device, options) !== undefined;
+}
+
+function resolveScopedAppleRunnerProvider(
+  device: DeviceInfo,
+  options: { requestId?: string } = {},
+): AppleRunnerProviderScope | undefined {
   const scoped = appleRunnerProviderScope.getStore();
   return scoped &&
     scoped.deviceId === device.id &&
     (scoped.requestId ? scoped.requestId === options.requestId : !options.requestId)
-    ? normalizeAppleRunnerProvider(scoped.provider)
-    : normalizeAppleRunnerProvider(fallback);
+    ? scoped
+    : undefined;
 }
 
 export async function withAppleRunnerProvider<T>(

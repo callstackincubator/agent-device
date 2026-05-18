@@ -19,6 +19,7 @@ import {
   augmentScrollVisualizationResult,
   recordTouchVisualizationEvent,
 } from './recording-gestures.ts';
+import { markPostGestureStabilization } from './post-gesture-stabilization.ts';
 
 export async function dispatchGenericCommand(params: {
   req: DaemonRequest;
@@ -100,6 +101,7 @@ export async function dispatchGenericCommand(params: {
   if (isNavigationSensitiveAction(command)) {
     markAndroidSnapshotFreshness(session, command);
   }
+  markPostGestureStabilization(session, command);
 
   return { ok: true, data: data ?? {} };
 }

@@ -13,6 +13,9 @@ export type RecordTraceDeps = {
   runCmd: typeof runCmd;
   startIosSimulatorRecording: RecordingProvider['startIosSimulatorRecording'];
   runIosRunnerCommand: typeof runIosRunnerCommand;
+  waitForRecordingTail: (
+    recording: RecordingBase & { platform: 'ios' | 'android' },
+  ) => Promise<void>;
   waitForStableFile: typeof waitForStableFile;
   isPlayableVideo: typeof isPlayableVideo;
   trimRecordingStart: typeof trimRecordingStart;

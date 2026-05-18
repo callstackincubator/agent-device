@@ -12,6 +12,7 @@ enum CommandType: String, Codable {
   case type
   case swipe
   case findText
+  case querySelector
   case readText
   case snapshot
   case screenshot
@@ -34,7 +35,10 @@ struct Command: Codable {
   let command: CommandType
   let appBundleId: String?
   let text: String?
+  let selectorKey: String?
+  let selectorValue: String?
   let delayMs: Int?
+  let textEntryMode: String?
   let clearFirst: Bool?
   let action: String?
   let x: Double?
@@ -165,6 +169,7 @@ struct SnapshotNode: Codable {
   let rect: SnapshotRect
   let enabled: Bool
   let focused: Bool?
+  let selected: Bool?
   let hittable: Bool
   let depth: Int
   let parentIndex: Int?

@@ -4,6 +4,7 @@ set -eu
 PLATFORM="${AGENT_DEVICE_XCUITEST_PLATFORM:-}"
 PROJECT_PATH="ios-runner/AgentDeviceRunner/AgentDeviceRunner.xcodeproj"
 SCHEME="AgentDeviceRunner"
+DEFAULT_IOS_RUNNER_APP_BUNDLE_ID="com.callstack.agentdevice.runner"
 
 if [ -z "$PLATFORM" ]; then
   echo "AGENT_DEVICE_XCUITEST_PLATFORM is required (ios, macos, tvos)" >&2
@@ -77,28 +78,18 @@ resolve_clean_path() {
   esac
 }
 
-should_clean_by_default() {
-  case "$PLATFORM" in
-    ios|tvos)
-      return 0
-      ;;
-    macos)
-      return 1
-      ;;
-    *)
-      echo "Unsupported AGENT_DEVICE_XCUITEST_PLATFORM: $PLATFORM" >&2
-      exit 1
-      ;;
-  esac
-}
-
 DESTINATION="${AGENT_DEVICE_XCUITEST_DESTINATION:-$(resolve_default_destination)}"
 DERIVED_PATH="${AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH:-$(resolve_default_derived_path)}"
 CLEAN_PATH="$(resolve_clean_path)"
+RUNNER_APP_BUNDLE_ID="${AGENT_DEVICE_IOS_BUNDLE_ID:-${AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID:-$DEFAULT_IOS_RUNNER_APP_BUNDLE_ID}}"
+RUNNER_TEST_BUNDLE_ID="${AGENT_DEVICE_IOS_RUNNER_TEST_BUNDLE_ID:-$RUNNER_APP_BUNDLE_ID.uitests}"
+SIGNING_BUILD_SETTINGS=""
+
+if [ "$PLATFORM" = "macos" ]; then
+  SIGNING_BUILD_SETTINGS="CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM="
+fi
 
 if is_truthy "${AGENT_DEVICE_IOS_CLEAN_DERIVED:-}"; then
-  rm -rf "$CLEAN_PATH"
-elif should_clean_by_default; then
   rm -rf "$CLEAN_PATH"
 fi
 
@@ -107,9 +98,10 @@ xcodebuild build-for-testing \
   -scheme "$SCHEME" \
   -destination "$DESTINATION" \
   -derivedDataPath "$DERIVED_PATH" \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGN_IDENTITY="" \
-  DEVELOPMENT_TEAM="" \
+  AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID="$RUNNER_APP_BUNDLE_ID" \
+  AGENT_DEVICE_IOS_RUNNER_TEST_BUNDLE_ID="$RUNNER_TEST_BUNDLE_ID" \
   COMPILER_INDEX_STORE_ENABLE=NO \
-  ENABLE_CODE_COVERAGE=NO
+  ENABLE_CODE_COVERAGE=NO \
+  $SIGNING_BUILD_SETTINGS
+
+node scripts/write-xcuitest-cache-metadata.mjs "$PLATFORM" "$DERIVED_PATH" "$DESTINATION"

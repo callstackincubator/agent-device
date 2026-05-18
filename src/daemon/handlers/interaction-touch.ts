@@ -4,7 +4,11 @@ import {
   getClickButtonValidationError,
   resolveClickButton,
 } from '../../core/click-button.ts';
-import type { FillCommandResult, PressCommandResult } from '../../commands/index.ts';
+import type {
+  FillCommandResult,
+  InteractionTarget,
+  PressCommandResult,
+} from '../../commands/index.ts';
 import { asAppError, normalizeError } from '../../utils/errors.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
 import {
@@ -34,6 +38,11 @@ import {
 } from './interaction-touch-targets.ts';
 import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
+import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
+import {
+  readSimpleIosSelectorTarget,
+  type DirectIosSelectorTarget,
+} from '../direct-ios-selector.ts';
 
 export async function handleTouchInteractionCommands(
   params: InteractionHandlerParams & {
@@ -98,6 +107,16 @@ async function dispatchPressViaRuntime(
     if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
     androidFreshnessBaseline = await refreshAndroidRefSnapshotIfFreshnessActive(params, session);
   }
+  const directSelector = readDirectIosSelectorTapTarget({
+    session,
+    commandLabel,
+    target: parsedTarget.target,
+    flags: req.flags,
+  });
+  if (directSelector) {
+    const directResponse = await dispatchDirectIosSelectorTap(params, session, directSelector);
+    if (directResponse) return directResponse;
+  }
 
   return await dispatchRuntimeInteraction(params, {
     androidFreshnessBaseline,
@@ -146,6 +165,99 @@ async function dispatchPressViaRuntime(
       return { result: responseData, responseData };
     },
   });
+}
+
+function readDirectIosSelectorTapTarget(params: {
+  session: SessionState;
+  commandLabel: string;
+  target: InteractionTarget;
+  flags: CommandFlags | undefined;
+}): DirectIosSelectorTarget | null {
+  const { session, commandLabel, target, flags } = params;
+  if (commandLabel !== 'click') return null;
+  if (target.kind !== 'selector') return null;
+  if (hasNonDefaultClickOptions(flags)) return null;
+  return readSimpleIosSelectorTarget({ session, selectorExpression: target.selector });
+}
+
+function hasNonDefaultClickOptions(flags: CommandFlags | undefined): boolean {
+  return Boolean(
+    flags?.count !== undefined ||
+    flags?.intervalMs !== undefined ||
+    flags?.holdMs !== undefined ||
+    flags?.jitterPx !== undefined ||
+    flags?.doubleTap !== undefined ||
+    (flags?.clickButton !== undefined && flags.clickButton !== 'primary'),
+  );
+}
+
+async function dispatchDirectIosSelectorTap(
+  params: InteractionHandlerParams,
+  session: SessionState,
+  selector: DirectIosSelectorTarget,
+): Promise<DaemonResponse | null> {
+  const actionStartedAt = Date.now();
+  try {
+    const data =
+      (await dispatchCommand(session.device, 'press', [], params.req.flags?.out, {
+        ...params.contextFromFlags(params.req.flags, session.appBundleId, session.trace?.outPath),
+        directElementSelector: selector,
+        surface: session.surface,
+      })) ?? {};
+    const actionFinishedAt = Date.now();
+    const point = readPointFromDirectSelectorTapResult(data);
+    const responseData = buildTouchVisualizationResult({
+      data,
+      fallbackX: point.x,
+      fallbackY: point.y,
+      referenceFrame: readReferenceFrameFromDirectSelectorTapResult(data),
+      extra: {
+        selector: selector.raw,
+        directSelector: true,
+      },
+    });
+    return finalizeTouchInteraction({
+      session,
+      sessionStore: params.sessionStore,
+      command: params.req.command,
+      positionals: params.req.positionals ?? [],
+      flags: params.req.flags,
+      result: responseData,
+      responseData,
+      actionStartedAt,
+      actionFinishedAt,
+    });
+  } catch (error) {
+    emitDiagnostic({
+      level: 'debug',
+      phase: 'ios_direct_selector_tap_fallback',
+      data: {
+        selector: selector.raw,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+    return null;
+  }
+}
+
+function readPointFromDirectSelectorTapResult(data: Record<string, unknown>): {
+  x: number;
+  y: number;
+} {
+  const x = typeof data.x === 'number' ? data.x : undefined;
+  const y = typeof data.y === 'number' ? data.y : undefined;
+  if (x !== undefined && y !== undefined) {
+    return { x, y };
+  }
+  return { x: 0, y: 0 };
+}
+
+function readReferenceFrameFromDirectSelectorTapResult(
+  data: Record<string, unknown>,
+): { referenceWidth: number; referenceHeight: number } | undefined {
+  return typeof data.referenceWidth === 'number' && typeof data.referenceHeight === 'number'
+    ? { referenceWidth: data.referenceWidth, referenceHeight: data.referenceHeight }
+    : undefined;
 }
 
 async function dispatchFillViaRuntime(

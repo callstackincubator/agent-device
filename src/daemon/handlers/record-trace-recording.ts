@@ -37,6 +37,7 @@ const RECORDING_MIN_QUALITY = 5;
 const RECORDING_MAX_QUALITY = 10;
 const LOCAL_RECORDING_READY_POLL_MS = 250;
 const LOCAL_RECORDING_READY_SETTLE_POLLS = 2;
+const IOS_SIMULATOR_RECORDING_TAIL_SETTLE_MS = 350;
 
 import type { RecordTraceDeps, RecordingBase } from './record-trace-types.ts';
 
@@ -49,12 +50,21 @@ function buildRecordTraceDeps(): RecordTraceDeps {
     startIosSimulatorRecording: (request) =>
       resolveRecordingProvider().startIosSimulatorRecording(request),
     runIosRunnerCommand,
+    waitForRecordingTail,
     waitForStableFile,
     isPlayableVideo,
     trimRecordingStart,
     resizeRecording,
     overlayRecordingTouches,
   };
+}
+
+async function waitForRecordingTail(
+  recording: RecordingBase & { platform: 'ios' | 'android' },
+): Promise<void> {
+  if (recording.platform !== 'ios') return;
+  if (recording.gestureEvents.length === 0) return;
+  await sleep(IOS_SIMULATOR_RECORDING_TAIL_SETTLE_MS);
 }
 
 function buildRecordingBase(req: DaemonRequest, outPath: string): RecordingBase {
@@ -284,6 +294,7 @@ async function stopNonRunnerRecording(params: {
     return await stopAndroidRecording({ deps, device, recording });
   }
 
+  await deps.waitForRecordingTail(recording);
   recording.child.kill('SIGINT');
 
   const stopResult = await recording.wait;

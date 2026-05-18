@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { AppError } from '../../utils/errors.ts';
@@ -10,8 +11,8 @@ import { isEnvTruthy } from '../../utils/retry.ts';
 import { resolveApplePlatformName, type DeviceInfo } from '../../utils/device.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
-import { findProjectRoot } from '../../utils/version.ts';
-import { resolveSigningFailureHint } from './runner-contract.ts';
+import { findProjectRoot, readVersion } from '../../utils/version.ts';
+import { resolveRunnerBuildFailureHint } from './runner-contract.ts';
 import { logChunk } from './runner-transport.ts';
 import { runAppleToolCommand } from './tool-provider.ts';
 import {
@@ -26,6 +27,8 @@ const XCTEST_DEVICE_SET_BACKUP_SUFFIX = '.agent-device-backup';
 const XCTEST_DEVICE_SET_LEGACY_BACKUP_PREFIX = '.agent-device-xctestdevices-backup-';
 
 const RUNNER_DERIVED_ROOT = path.join(os.homedir(), '.agent-device', 'ios-runner');
+const RUNNER_CACHE_METADATA_FILE = '.agent-device-runner-cache.json';
+const RUNNER_CACHE_SCHEMA_VERSION = 1;
 const XCTEST_DEVICE_SET_LOCK_TIMEOUT_MS = 30_000;
 const XCTEST_DEVICE_SET_LOCK_POLL_MS = 100;
 const XCTEST_DEVICE_SET_LOCK_OWNER_GRACE_MS = 5_000;
@@ -76,6 +79,31 @@ type XcodebuildSimulatorSetLockOwner = {
   pid: number;
   startTime: string | null;
   acquiredAtMs: number;
+};
+
+export type RunnerXctestrunCacheMetadata = {
+  schemaVersion: number;
+  packageVersion: string;
+  runnerSourceFingerprint: string;
+  platformName: string;
+  deviceKind: DeviceInfo['kind'];
+  target: DeviceInfo['target'] | 'phone';
+  buildDestinationFamily: string;
+  runnerBundleBuildSettings: string[];
+  runnerSigningBuildSettings: string[];
+  runnerPerformanceBuildSettings: string[];
+  artifacts?: RunnerXctestrunCacheArtifacts;
+};
+
+type RunnerXctestrunCacheArtifacts = {
+  xctestrunPath: string;
+  xctestrunMtimeMs: number;
+  productPaths: RunnerXctestrunCacheProductArtifact[];
+};
+
+type RunnerXctestrunCacheProductArtifact = {
+  path: string;
+  mtimeMs: number;
 };
 
 function normalizeBundleId(value: string | undefined): string {
@@ -425,6 +453,7 @@ export async function ensureXctestrun(
   const derived = resolveRunnerDerivedPath(device);
   const projectRoot = findProjectRoot();
   return await withKeyedLock(runnerXctestrunBuildLocks, derived, async () => {
+    const expectedCacheMetadata = resolveExpectedRunnerCacheMetadata(device, projectRoot);
     if (shouldCleanDerived()) {
       emitRunnerXctestrunDecision('clean', 'forced_clean', { derived });
       assertSafeDerivedCleanup(derived);
@@ -433,6 +462,7 @@ export async function ensureXctestrun(
     const existing = await evaluateExistingXctestrun({
       derived,
       projectRoot,
+      expectedCacheMetadata,
       findXctestrun: (root) => findXctestrun(root, device),
       xctestrunReferencesProjectRoot,
       resolveExistingXctestrunProductPaths,
@@ -454,6 +484,14 @@ export async function ensureXctestrun(
           derived,
           xctestrunPath: existing.xctestrunPath,
         });
+        writeRunnerCacheMetadata(
+          derived,
+          withRunnerCacheArtifacts(
+            expectedCacheMetadata,
+            existing.xctestrunPath,
+            existing.productPaths,
+          ),
+        );
         return existing.xctestrunPath;
       } catch (error) {
         if (!isExpectedRunnerRepairFailure(error)) {
@@ -494,6 +532,10 @@ export async function ensureXctestrun(
       });
     }
     await repairMacOsRunnerProductsIfNeeded(device, builtProductPaths, built);
+    writeRunnerCacheMetadata(
+      derived,
+      withRunnerCacheArtifacts(expectedCacheMetadata, built, builtProductPaths),
+    );
     emitRunnerXctestrunDecision('build', 'built_new', {
       derived,
       xctestrunPath: built,
@@ -517,6 +559,7 @@ function cleanRunnerDerivedArtifacts(derived: string): void {
 }
 
 const RUNNER_ROOT_TRANSIENT_ENTRY_NAMES = new Set([
+  RUNNER_CACHE_METADATA_FILE,
   'Build',
   'BuildCache.noindex',
   'Index.noindex',
@@ -530,6 +573,251 @@ const RUNNER_ROOT_TRANSIENT_ENTRY_NAMES = new Set([
 
 export function shouldDeleteRunnerDerivedRootEntry(entryName: string): boolean {
   return RUNNER_ROOT_TRANSIENT_ENTRY_NAMES.has(entryName);
+}
+
+export function resolveRunnerCacheMetadataPath(derived: string): string {
+  return path.join(derived, RUNNER_CACHE_METADATA_FILE);
+}
+
+export function resolveExpectedRunnerCacheMetadata(
+  device: DeviceInfo,
+  projectRoot: string = findProjectRoot(),
+): RunnerXctestrunCacheMetadata {
+  return {
+    schemaVersion: RUNNER_CACHE_SCHEMA_VERSION,
+    packageVersion: readVersion(),
+    runnerSourceFingerprint: computeRunnerSourceFingerprint(projectRoot),
+    platformName: resolveRunnerPlatformName(device),
+    deviceKind: device.kind,
+    target: device.target ?? 'phone',
+    buildDestinationFamily: resolveRunnerBuildDestinationFamily(device),
+    runnerBundleBuildSettings: resolveRunnerBundleBuildSettings(process.env),
+    runnerSigningBuildSettings: resolveRunnerSigningBuildSettings(
+      process.env,
+      device.kind === 'device',
+      device.platform,
+    ),
+    runnerPerformanceBuildSettings: resolveRunnerPerformanceBuildSettings(),
+  };
+}
+
+export function writeRunnerCacheMetadata(
+  derived: string,
+  metadata: RunnerXctestrunCacheMetadata,
+): void {
+  fs.mkdirSync(derived, { recursive: true });
+  fs.writeFileSync(
+    resolveRunnerCacheMetadataPath(derived),
+    `${JSON.stringify(metadata, null, 2)}\n`,
+  );
+}
+
+function readRunnerCacheMetadata(derived: string): RunnerXctestrunCacheMetadata | null {
+  try {
+    const raw: unknown = JSON.parse(
+      fs.readFileSync(resolveRunnerCacheMetadataPath(derived), 'utf8'),
+    );
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return null;
+    }
+    return raw as RunnerXctestrunCacheMetadata;
+  } catch {
+    return null;
+  }
+}
+
+function evaluateRunnerCacheMetadata(
+  derived: string,
+  expected: RunnerXctestrunCacheMetadata,
+):
+  | { ok: true; metadata: RunnerXctestrunCacheMetadata }
+  | { ok: false; reason: 'cache_metadata_missing' | 'cache_metadata_mismatch' } {
+  const actual = readRunnerCacheMetadata(derived);
+  if (!actual) {
+    return { ok: false, reason: 'cache_metadata_missing' };
+  }
+  if (
+    JSON.stringify(comparableRunnerCacheMetadata(actual)) !==
+    JSON.stringify(comparableRunnerCacheMetadata(expected))
+  ) {
+    return { ok: false, reason: 'cache_metadata_mismatch' };
+  }
+  return { ok: true, metadata: actual };
+}
+
+function comparableRunnerCacheMetadata(
+  metadata: RunnerXctestrunCacheMetadata,
+): RunnerXctestrunCacheMetadata {
+  const { artifacts: _artifacts, ...comparable } = metadata;
+  return comparable;
+}
+
+function withRunnerCacheArtifacts(
+  metadata: RunnerXctestrunCacheMetadata,
+  xctestrunPath: string,
+  productPaths: readonly string[],
+): RunnerXctestrunCacheMetadata {
+  const artifacts = buildRunnerCacheArtifacts(xctestrunPath, productPaths);
+  return artifacts ? { ...metadata, artifacts } : metadata;
+}
+
+function buildRunnerCacheArtifacts(
+  xctestrunPath: string,
+  productPaths: readonly string[],
+): RunnerXctestrunCacheArtifacts | null {
+  const xctestrunMtimeMs = readFileMtimeMs(xctestrunPath);
+  if (xctestrunMtimeMs === null || productPaths.length === 0) {
+    return null;
+  }
+  const productArtifacts: RunnerXctestrunCacheProductArtifact[] = [];
+  for (const productPath of productPaths) {
+    const mtimeMs = readFileMtimeMs(productPath);
+    if (mtimeMs === null) {
+      return null;
+    }
+    productArtifacts.push({ path: productPath, mtimeMs });
+  }
+  return {
+    xctestrunPath,
+    xctestrunMtimeMs,
+    productPaths: productArtifacts,
+  };
+}
+
+function readValidatedRunnerCacheArtifacts(
+  metadata: RunnerXctestrunCacheMetadata | null,
+): { xctestrunPath: string; productPaths: string[] } | null {
+  const artifacts = metadata?.artifacts;
+  if (!isRunnerCacheArtifacts(artifacts)) {
+    return null;
+  }
+  if (readFileMtimeMs(artifacts.xctestrunPath) !== artifacts.xctestrunMtimeMs) {
+    return null;
+  }
+  const productPaths: string[] = [];
+  for (const product of artifacts.productPaths) {
+    if (readFileMtimeMs(product.path) !== product.mtimeMs) {
+      return null;
+    }
+    productPaths.push(product.path);
+  }
+  return { xctestrunPath: artifacts.xctestrunPath, productPaths };
+}
+
+function isRunnerCacheArtifacts(value: unknown): value is RunnerXctestrunCacheArtifacts {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const artifacts = value as Partial<RunnerXctestrunCacheArtifacts>;
+  return (
+    typeof artifacts.xctestrunPath === 'string' &&
+    Number.isInteger(artifacts.xctestrunMtimeMs) &&
+    Array.isArray(artifacts.productPaths) &&
+    artifacts.productPaths.length > 0 &&
+    artifacts.productPaths.every(isRunnerCacheProductArtifact)
+  );
+}
+
+function isRunnerCacheProductArtifact(
+  value: unknown,
+): value is RunnerXctestrunCacheProductArtifact {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const product = value as Partial<RunnerXctestrunCacheProductArtifact>;
+  return typeof product.path === 'string' && Number.isInteger(product.mtimeMs);
+}
+
+function readFileMtimeMs(filePath: string): number | null {
+  try {
+    return Math.trunc(fs.statSync(filePath).mtimeMs);
+  } catch {
+    return null;
+  }
+}
+
+type RunnerSourceFingerprintCacheEntry = {
+  fileStatsFingerprint: string;
+  sourceFingerprint: string;
+};
+
+const runnerSourceFingerprintCache = new Map<string, RunnerSourceFingerprintCacheEntry>();
+
+function computeRunnerSourceFingerprint(projectRoot: string): string {
+  const runnerRoot = path.join(projectRoot, 'ios-runner', 'AgentDeviceRunner');
+  const files = collectRunnerSourceFiles(runnerRoot);
+  const fileStatsFingerprint = computeRunnerSourceFileStatsFingerprint(runnerRoot, files);
+  const cached = runnerSourceFingerprintCache.get(runnerRoot);
+  if (cached?.fileStatsFingerprint === fileStatsFingerprint) {
+    return cached.sourceFingerprint;
+  }
+  const hash = crypto.createHash('sha256');
+  for (const file of files) {
+    const relativePath = path.relative(runnerRoot, file);
+    hash.update(relativePath);
+    hash.update('\0');
+    hash.update(fs.readFileSync(file));
+    hash.update('\0');
+  }
+  const sourceFingerprint = hash.digest('hex');
+  runnerSourceFingerprintCache.set(runnerRoot, { fileStatsFingerprint, sourceFingerprint });
+  return sourceFingerprint;
+}
+
+function computeRunnerSourceFileStatsFingerprint(
+  runnerRoot: string,
+  files: readonly string[],
+): string {
+  const hash = crypto.createHash('sha256');
+  for (const file of files) {
+    const relativePath = path.relative(runnerRoot, file);
+    const stat = fs.statSync(file);
+    hash.update(relativePath);
+    hash.update('\0');
+    hash.update(String(stat.size));
+    hash.update('\0');
+    hash.update(String(Math.trunc(stat.mtimeMs)));
+    hash.update('\0');
+  }
+  return hash.digest('hex');
+}
+
+function collectRunnerSourceFiles(root: string): string[] {
+  if (!fs.existsSync(root)) {
+    return [];
+  }
+  const files: string[] = [];
+  const stack = [root];
+  while (stack.length > 0) {
+    const current = stack.pop() as string;
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === 'xcuserdata') continue;
+        stack.push(fullPath);
+        continue;
+      }
+      if (entry.isFile() && isRunnerSourceFile(entry.name, fullPath)) {
+        files.push(fullPath);
+      }
+    }
+  }
+  return files.sort((a, b) => a.localeCompare(b));
+}
+
+function isRunnerSourceFile(fileName: string, filePath: string): boolean {
+  if (fileName === 'project.pbxproj') {
+    return filePath.includes(`${path.sep}.xcodeproj${path.sep}`);
+  }
+  return [
+    '.swift',
+    '.plist',
+    '.entitlements',
+    '.xctestplan',
+    '.xcconfig',
+    '.storyboard',
+    '.xib',
+  ].includes(path.extname(fileName));
 }
 
 type XctestrunCandidate = {
@@ -849,7 +1137,7 @@ async function buildRunnerXctestrun(
     );
   } catch (err) {
     const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
-    const hint = resolveSigningFailureHint(appErr);
+    const hint = resolveRunnerBuildFailureHint(appErr);
     throw new AppError('COMMAND_FAILED', 'xcodebuild build-for-testing failed', {
       error: appErr.message,
       details: appErr.details,
@@ -893,6 +1181,17 @@ export function resolveRunnerBuildDestination(device: DeviceInfo): string {
   }
   if (device.kind === 'simulator') {
     return `platform=${platformName} Simulator,id=${device.id}`;
+  }
+  return `generic/platform=${platformName}`;
+}
+
+function resolveRunnerBuildDestinationFamily(device: DeviceInfo): string {
+  const platformName = resolveRunnerPlatformName(device);
+  if (platformName === 'macOS') {
+    return `platform=macOS,arch=${resolveMacRunnerArch()}`;
+  }
+  if (device.kind === 'simulator') {
+    return `generic/platform=${platformName} Simulator`;
   }
   return `generic/platform=${platformName}`;
 }
@@ -1001,7 +1300,12 @@ type ExistingXctestrunState =
       xctestrunPath: null;
     }
   | {
-      reason: 'project_root_mismatch' | 'missing_products' | 'reuse_ready';
+      reason:
+        | 'project_root_mismatch'
+        | 'missing_products'
+        | 'cache_metadata_missing'
+        | 'cache_metadata_mismatch'
+        | 'reuse_ready';
       xctestrunPath: string;
       productPaths: string[];
     };
@@ -1009,20 +1313,31 @@ type ExistingXctestrunState =
 async function evaluateExistingXctestrun(options: {
   derived: string;
   projectRoot: string;
+  expectedCacheMetadata: RunnerXctestrunCacheMetadata;
   findXctestrun: (root: string) => string | null;
   xctestrunReferencesProjectRoot: (xctestrunPath: string, projectRoot: string) => boolean;
   resolveExistingXctestrunProductPaths: (xctestrunPath: string) => Promise<string[] | null>;
 }): Promise<ExistingXctestrunState> {
-  const xctestrunPath = options.findXctestrun(options.derived);
+  const cacheMetadata = evaluateRunnerCacheMetadata(options.derived, options.expectedCacheMetadata);
+  const manifest = cacheMetadata.ok
+    ? readValidatedRunnerCacheArtifacts(cacheMetadata.metadata)
+    : null;
+  const xctestrunPath = manifest?.xctestrunPath ?? options.findXctestrun(options.derived);
   if (!xctestrunPath) {
     return { reason: 'missing_xctestrun', xctestrunPath: null };
   }
-  const productPaths = await options.resolveExistingXctestrunProductPaths(xctestrunPath);
+  const productPaths =
+    manifest?.xctestrunPath === xctestrunPath
+      ? manifest.productPaths
+      : await options.resolveExistingXctestrunProductPaths(xctestrunPath);
   if (!productPaths) {
     return { reason: 'missing_products', xctestrunPath, productPaths: [] };
   }
   if (!options.xctestrunReferencesProjectRoot(xctestrunPath, options.projectRoot)) {
     return { reason: 'project_root_mismatch', xctestrunPath, productPaths };
+  }
+  if (!cacheMetadata.ok) {
+    return { reason: cacheMetadata.reason, xctestrunPath, productPaths };
   }
   return { reason: 'reuse_ready', xctestrunPath, productPaths };
 }
@@ -1034,6 +1349,8 @@ function emitRunnerXctestrunDecision(
     | 'missing_xctestrun'
     | 'project_root_mismatch'
     | 'missing_products'
+    | 'cache_metadata_missing'
+    | 'cache_metadata_mismatch'
     | 'repair_failed'
     | 'reuse_ready'
     | 'built_new',

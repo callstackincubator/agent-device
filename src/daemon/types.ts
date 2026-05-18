@@ -137,6 +137,11 @@ export type AndroidSnapshotFreshness = {
   routeComparable: boolean;
 };
 
+export type PostGestureStabilization = {
+  action: string;
+  markedAt: number;
+};
+
 type SessionRecordingBase = {
   outPath: string;
   clientOutPath?: string;
@@ -169,6 +174,7 @@ export type SessionState = {
   /** Source snapshot used to resolve repeated `snapshot -s @ref` after scoped output replaces refs. */
   snapshotScopeSource?: SnapshotState;
   androidSnapshotFreshness?: AndroidSnapshotFreshness;
+  postGestureStabilization?: PostGestureStabilization;
   trace?: {
     outPath: string;
     startedAt: number;

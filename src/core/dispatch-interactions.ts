@@ -94,6 +94,10 @@ export async function handlePressCommand(
   positionals: string[],
   context: DispatchContext | undefined,
 ): Promise<Record<string, unknown>> {
+  if (context?.directElementSelector && device.platform === 'ios') {
+    return await handleDirectElementSelectorPress(interactor, context.directElementSelector);
+  }
+
   const { x, y } = readPoint(positionals, 'press requires x y');
 
   if (device.platform === 'macos' && context?.surface && context.surface !== 'app') {
@@ -113,6 +117,21 @@ export async function handlePressCommand(
   }
 
   return await runDirectPressSeries(interactor, x, y, series);
+}
+
+async function handleDirectElementSelectorPress(
+  interactor: Interactor,
+  selector: NonNullable<DispatchContext['directElementSelector']>,
+): Promise<Record<string, unknown>> {
+  if (!interactor.tapElementSelector) {
+    throw new AppError('UNSUPPORTED_OPERATION', 'direct element selector tap is not supported');
+  }
+  const result = await interactor.tapElementSelector(selector);
+  return {
+    selector: selector.raw,
+    ...(result ?? {}),
+    ...successText(`Tapped ${selector.raw}`),
+  };
 }
 
 type Point = { x: number; y: number };

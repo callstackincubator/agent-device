@@ -5,6 +5,9 @@ import { createRequestCanceledError, isRequestCanceled } from '../../daemon/requ
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import type { RunnerSession } from './runner-session-types.ts';
 
+export const RUNNER_CACHE_RECOVERY_HINT =
+  'If runner build products look stale or corrupted, run `pnpm clean:xcuitest` in a local checkout, or remove ~/.agent-device/ios-runner/derived, then retry.';
+
 export type RunnerCommand = {
   command:
     | 'tap'
@@ -18,6 +21,7 @@ export type RunnerCommand = {
     | 'type'
     | 'swipe'
     | 'findText'
+    | 'querySelector'
     | 'readText'
     | 'snapshot'
     | 'screenshot'
@@ -36,7 +40,10 @@ export type RunnerCommand = {
     | 'shutdown';
   appBundleId?: string;
   text?: string;
+  selectorKey?: 'id' | 'label' | 'text' | 'value';
+  selectorValue?: string;
   delayMs?: number;
+  textEntryMode?: 'append' | 'replace';
   action?: 'get' | 'accept' | 'dismiss';
   x?: number;
   y?: number;
@@ -62,6 +69,9 @@ export type RunnerCommand = {
   scope?: string;
   raw?: boolean;
   fullscreen?: boolean;
+  /**
+   * @deprecated Use textEntryMode: 'replace'. Kept for compatibility with older local runner clients.
+   */
   clearFirst?: boolean;
 };
 
@@ -95,7 +105,7 @@ export function resolveRunnerEarlyExitHint(
   if (haystack.includes('device is busy') && haystack.includes('connecting')) {
     return 'Target iOS device is still connecting. Keep it unlocked, wait for device trust/connection to settle, then retry.';
   }
-  return bootFailureHint('IOS_RUNNER_CONNECT_TIMEOUT');
+  return `${bootFailureHint('IOS_RUNNER_CONNECT_TIMEOUT')} ${RUNNER_CACHE_RECOVERY_HINT}`;
 }
 
 export function buildRunnerConnectError(params: {
@@ -168,12 +178,17 @@ export function resolveSigningFailureHint(error: AppError): string | undefined {
   return undefined;
 }
 
+export function resolveRunnerBuildFailureHint(error: AppError): string {
+  return resolveSigningFailureHint(error) ?? RUNNER_CACHE_RECOVERY_HINT;
+}
+
 export function isReadOnlyRunnerCommand(command: RunnerCommand['command']): boolean {
   return (
     command === 'interactionFrame' ||
     command === 'snapshot' ||
     command === 'screenshot' ||
     command === 'findText' ||
+    command === 'querySelector' ||
     command === 'readText' ||
     command === 'alert' ||
     command === 'uptime'

@@ -9,6 +9,7 @@ import {
   readReplayScriptMetadata,
   writeReplayScript,
 } from './session-replay-script.ts';
+import { parseMaestroReplayFlow } from './session-maestro-replay.ts';
 import { healReplayAction } from './session-replay-heal.ts';
 import { formatScriptActionSummary } from '../script-utils.ts';
 import { mergeParentFlags } from './handler-utils.ts';
@@ -47,14 +48,22 @@ export async function runReplayScriptFile(params: {
       );
     }
 
-    const metadata = readReplayScriptMetadata(script);
+    const maestroReplay = req.flags?.replayMaestro === true;
+    const maestroFlow = maestroReplay ? parseMaestroReplayFlow(script) : null;
+    const metadata = maestroFlow?.metadata ?? readReplayScriptMetadata(script);
     const replayReq =
       metadata.platform || metadata.target
         ? { ...req, flags: buildReplayMetadataFlags(req.flags, metadata) }
         : req;
-    const parsed = parseReplayScriptDetailed(script);
+    const parsed = maestroFlow ?? parseReplayScriptDetailed(script);
     const actions = parsed.actions;
     const actionLines = parsed.actionLines;
+    if (req.flags?.replayUpdate === true && maestroReplay) {
+      return errorResponse(
+        'INVALID_ARGS',
+        'replay -u is not supported for Maestro flow input. Convert to .ad first, then update that replay file.',
+      );
+    }
     if (req.flags?.replayUpdate === true && metadata.env && Object.keys(metadata.env).length > 0) {
       return errorResponse(
         'INVALID_ARGS',
@@ -91,6 +100,8 @@ export async function runReplayScriptFile(params: {
         scope,
         filePath: resolved,
         line: actionLines[index] ?? 0,
+        step: index + 1,
+        tracePath: sessionStore.get(sessionName)?.trace?.outPath,
         invoke,
       });
       if (response.ok) {
@@ -119,6 +130,8 @@ export async function runReplayScriptFile(params: {
         scope,
         filePath: resolved,
         line: actionLines[index] ?? 0,
+        step: index + 1,
+        tracePath: sessionStore.get(sessionName)?.trace?.outPath,
         invoke,
       });
       if (!response.ok) {
@@ -157,11 +170,23 @@ async function invokeReplayAction(params: {
   scope: ReplayVarScope;
   filePath: string;
   line: number;
+  step: number;
+  tracePath?: string;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
 }): Promise<DaemonResponse> {
-  const { req, sessionName, action, scope, filePath, line, invoke } = params;
+  const { req, sessionName, action, scope, filePath, line, step, tracePath, invoke } = params;
   const resolved = resolveReplayAction(action, scope, { file: filePath, line });
-  return await invoke({
+  const startedAt = Date.now();
+  appendReplayTraceEvent(tracePath, {
+    type: 'replay_action_start',
+    ts: new Date(startedAt).toISOString(),
+    replayPath: filePath,
+    line,
+    step,
+    command: resolved.command,
+    positionals: resolved.positionals ?? [],
+  });
+  const response = await invoke({
     token: req.token,
     session: sessionName,
     command: resolved.command,
@@ -170,6 +195,27 @@ async function invokeReplayAction(params: {
     runtime: resolved.runtime,
     meta: req.meta,
   });
+  const finishedAt = Date.now();
+  appendReplayTraceEvent(tracePath, {
+    type: 'replay_action_stop',
+    ts: new Date(finishedAt).toISOString(),
+    replayPath: filePath,
+    line,
+    step,
+    command: resolved.command,
+    ok: response.ok,
+    durationMs: finishedAt - startedAt,
+    errorCode: response.ok ? undefined : response.error.code,
+  });
+  return response;
+}
+
+function appendReplayTraceEvent(
+  tracePath: string | undefined,
+  event: Record<string, unknown>,
+): void {
+  if (!tracePath) return;
+  fs.appendFileSync(tracePath, `${JSON.stringify(event)}\n`);
 }
 
 function buildReplayBuiltinVars(params: {

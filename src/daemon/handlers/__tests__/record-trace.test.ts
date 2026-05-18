@@ -1,4 +1,4 @@
-import { test, expect, vi, beforeEach } from 'vitest';
+import { test, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -183,6 +183,10 @@ beforeEach(() => {
   mockResizeRecording.mockImplementation(async () => {});
   mockTrimRecordingStart.mockImplementation(async () => {});
   mockOverlayRecordingTouches.mockImplementation(async () => {});
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 test('record stop derives telemetry artifact local path from client outPath', async () => {
@@ -552,6 +556,44 @@ test('record stop resizes iOS simulator recording when quality is explicit', asy
     quality: 6,
     targetLabel: 'iOS recording',
   });
+});
+
+test('record stop leaves a short visual tail after iOS simulator gestures', async () => {
+  vi.useFakeTimers();
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-visual-tail';
+  const kill = vi.fn();
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'Simulator',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.recording = {
+    platform: 'ios',
+    outPath: '/tmp/visual-tail.mp4',
+    startedAt: Date.now(),
+    showTouches: true,
+    gestureEvents: [{ kind: 'tap', tMs: 10, x: 20, y: 30 } as any],
+    child: { kill },
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  };
+  sessionStore.set(sessionName, session);
+
+  const responsePromise = runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  await vi.advanceTimersByTimeAsync(349);
+  expect(kill).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1);
+  const response = await responsePromise;
+
+  expect(response?.ok).toBe(true);
+  expect(kill).toHaveBeenCalledWith('SIGINT');
 });
 
 test('record stop skips iOS simulator resize when quality is 10', async () => {

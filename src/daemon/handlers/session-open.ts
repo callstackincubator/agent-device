@@ -3,7 +3,11 @@ import { isDeepLinkTarget } from '../../core/open-target.ts';
 import type { SessionSurface } from '../../core/session-surface.ts';
 import { contextFromFlags } from '../context.ts';
 import { createRequestCanceledError, isRequestCanceled } from '../request-cancel.ts';
-import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
+import {
+  prewarmIosRunnerSession,
+  prewarmIosRunnerXctestrun,
+  stopIosRunnerSession,
+} from '../../platforms/ios/runner-client.ts';
 import { applyRuntimeHintsToApp } from '../runtime-hints.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionRuntimeHints, SessionState } from '../types.ts';
@@ -136,6 +140,19 @@ async function completeOpenCommand(params: {
     appId: sessionAppBundleId,
     runtime,
   });
+  const shouldPrewarmIosRunner =
+    device.platform === 'ios' && surface === 'app' && openPositionals.length > 0;
+  const runnerPrewarmOptions = {
+    verbose: req.flags?.verbose,
+    logPath,
+    traceLogPath,
+    requestId: req.meta?.requestId,
+  };
+  if (shouldPrewarmIosRunner && sessionAppBundleId) {
+    prewarmIosRunnerSession(device, runnerPrewarmOptions);
+  } else if (shouldPrewarmIosRunner) {
+    prewarmIosRunnerXctestrun(device, runnerPrewarmOptions);
+  }
   const openStartedAtMs = Date.now();
   await dispatchCommand(device, 'open', openPositionals, req.flags?.out, {
     ...contextFromFlags(logPath, req.flags, sessionAppBundleId),

@@ -26,6 +26,11 @@ export type ScreenshotOptions = {
   surface?: SessionSurface;
 };
 
+export type ElementSelectorTapOptions = {
+  key: 'id' | 'label' | 'text' | 'value';
+  value: string;
+};
+
 export type SnapshotOptions = BaseSnapshotOptions & {
   appBundleId?: string;
   surface?: SessionSurface;
@@ -44,6 +49,7 @@ export type Interactor = {
   openDevice(): Promise<void>;
   close(app: string): Promise<void>;
   tap(x: number, y: number): Promise<Record<string, unknown> | void>;
+  tapElementSelector?(selector: ElementSelectorTapOptions): Promise<Record<string, unknown> | void>;
   doubleTap(x: number, y: number): Promise<Record<string, unknown> | void>;
   swipe(
     x1: number,

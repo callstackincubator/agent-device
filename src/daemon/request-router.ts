@@ -11,6 +11,7 @@ import {
   type AppleToolProviderResolver,
   type AppLogProviderResolver,
   type LinuxToolProviderResolver,
+  type RequestPlatformProviderScope,
   type RecordingProviderResolver,
   withRequestPlatformProviderScope,
 } from './request-platform-providers.ts';
@@ -25,8 +26,10 @@ import { dispatchGenericCommand } from './request-generic-dispatch.ts';
 import { runRequestHandlerChain } from './request-handler-chain.ts';
 import {
   createRequestExecutionScope,
+  type LockedRequestScope,
   prepareLockedRequestScope,
 } from './request-execution-scope.ts';
+import { DAEMON_COMMAND_GROUPS } from '../command-catalog.ts';
 
 // ---------------------------------------------------------------------------
 // Request handler API
@@ -126,6 +129,18 @@ export function createRequestHandler(
                     sessionStore,
                     leaseRegistry,
                     invoke: handleRequest,
+                    invokeReplayAction: createReplayScopedActionInvoker({
+                      parentScope: lockedScope,
+                      providerScope,
+                      handleRequest,
+                      deps: {
+                        logPath,
+                        token,
+                        sessionStore,
+                        leaseRegistry,
+                        trackDownloadableArtifact,
+                      },
+                    }),
                     androidAdbExecutor: providerScope.androidAdbExecutor,
                     contextFromFlags: lockedScope.handlerContextFromFlags,
                   });
@@ -158,24 +173,119 @@ export function createRequestHandler(
             });
           });
         } catch (error) {
-          emitDiagnostic({
-            level: 'error',
-            phase: 'request_failed',
-            data: {
-              error: error instanceof Error ? error.message : String(error),
-            },
-          });
-          const details = getDiagnosticsMeta();
-          const logPathOnFailure = flushDiagnosticsToSessionFile({ force: true }) ?? undefined;
-          const normalizedError = normalizeError(error, {
-            diagnosticId: details.diagnosticId,
-            logPath: logPathOnFailure,
-          });
-          return { ok: false, error: normalizedError };
+          return finalizeThrownRequestError(error);
         }
       },
     );
   }
 
   return handleRequest;
+}
+
+type ReplayScopedActionInvokerDeps = {
+  logPath: string;
+  token: string;
+  sessionStore: SessionStore;
+  leaseRegistry: LeaseRegistry;
+  trackDownloadableArtifact: RequestRouterDeps['trackDownloadableArtifact'];
+};
+
+function createReplayScopedActionInvoker(params: {
+  parentScope: LockedRequestScope;
+  providerScope: RequestPlatformProviderScope;
+  handleRequest: (req: DaemonRequest) => Promise<DaemonResponse>;
+  deps: ReplayScopedActionInvokerDeps;
+}): (req: DaemonRequest) => Promise<DaemonResponse> {
+  const { parentScope, providerScope, handleRequest, deps } = params;
+  return async (req) => {
+    if (!canRunReplayActionInCurrentScope(req, parentScope)) {
+      return await handleRequest(req);
+    }
+    if (req.token !== deps.token) {
+      const unauthorizedError = normalizeError(new AppError('UNAUTHORIZED', 'Invalid token'));
+      return { ok: false, error: unauthorizedError };
+    }
+
+    try {
+      const childScope = await createRequestExecutionScope({
+        req,
+        sessionStore: deps.sessionStore,
+        leaseRegistry: deps.leaseRegistry,
+      });
+      if (childScope.sessionName !== parentScope.sessionName) {
+        return await handleRequest(req);
+      }
+
+      const locked = prepareLockedRequestScope({
+        scope: childScope,
+        logPath: deps.logPath,
+        sessionStore: deps.sessionStore,
+        trackDownloadableArtifact: deps.trackDownloadableArtifact,
+      });
+      if (locked.type === 'response') return locked.response;
+      const lockedScope = locked.scope;
+
+      const handlerResponse = await runRequestHandlerChain({
+        req: lockedScope.req,
+        sessionName: lockedScope.sessionName,
+        logPath: deps.logPath,
+        sessionStore: deps.sessionStore,
+        leaseRegistry: deps.leaseRegistry,
+        invoke: handleRequest,
+        androidAdbExecutor: providerScope.androidAdbExecutor,
+        contextFromFlags: lockedScope.handlerContextFromFlags,
+      });
+      if (handlerResponse) return lockedScope.finalize(handlerResponse);
+
+      const session = deps.sessionStore.get(lockedScope.sessionName);
+      if (!session) {
+        return lockedScope.finalize({
+          ok: false,
+          error: {
+            code: 'SESSION_NOT_FOUND',
+            message: 'No active session. Run open first.',
+          },
+        });
+      }
+
+      const dispatchResponse = await dispatchGenericCommand({
+        req: lockedScope.req,
+        session,
+        sessionName: lockedScope.sessionName,
+        logPath: deps.logPath,
+        sessionStore: deps.sessionStore,
+        contextFromFlags: lockedScope.contextFromFlags,
+      });
+      return lockedScope.finalize(dispatchResponse);
+    } catch (error) {
+      return finalizeThrownRequestError(error);
+    }
+  };
+}
+
+function canRunReplayActionInCurrentScope(
+  req: DaemonRequest,
+  parentScope: LockedRequestScope,
+): boolean {
+  return (
+    req.session === parentScope.sessionName &&
+    DAEMON_COMMAND_GROUPS.replayScopedAction.has(req.command)
+  );
+}
+
+function finalizeThrownRequestError(error: unknown): DaemonResponse {
+  emitDiagnostic({
+    level: 'error',
+    phase: 'request_failed',
+    data: {
+      error: error instanceof Error ? error.message : String(error),
+    },
+  });
+  const details = getDiagnosticsMeta();
+  const logPathOnFailure = flushDiagnosticsToSessionFile({ force: true }) ?? undefined;
+  const normalizedError = normalizeError(error, {
+    diagnosticId: details.diagnosticId,
+    logPath: logPathOnFailure,
+  });
+  return { ok: false, error: normalizedError };
 }

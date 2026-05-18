@@ -58,6 +58,7 @@ const genericClientCommandRunners = {
       ...buildSelectionOptions(flags),
       path: required(positionals[0], 'replay requires path'),
       update: flags.replayUpdate,
+      maestro: flags.replayMaestro,
       env: flags.replayEnv,
     }),
   test: ({ client, positionals, flags }) => {

@@ -8,6 +8,7 @@ import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import { AppError } from '../../../utils/errors.ts';
 import { buildSnapshotSignatures } from '../../android-snapshot-freshness.ts';
+import { buildSnapshotPresentationKey } from '../../../utils/snapshot.ts';
 
 vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
@@ -949,6 +950,138 @@ test('wait text uses Apple runner path on macOS desktop sessions', async () => {
   const callArgs = mockRunnerCommand.mock.calls[0];
   expect((callArgs?.[1] as any)?.command).toBe('findText');
   expect((callArgs?.[1] as any)?.text).toBe('Accessibility');
+});
+
+test('wait selector uses direct iOS selector query when possible', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-wait-selector';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, iosSimulatorDevice),
+    appBundleId: 'com.example.app',
+  });
+
+  mockRunnerCommand.mockResolvedValue({
+    found: true,
+    nodes: [
+      {
+        ref: 'e1',
+        type: 'Button',
+        label: 'Continue',
+        rect: { x: 10, y: 20, width: 120, height: 44 },
+      },
+    ],
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'wait',
+      positionals: ['id="continue-button"', '5000'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.selector).toBe('id="continue-button"');
+  }
+  expect(mockRunnerCommand).toHaveBeenCalledTimes(1);
+  const callArgs = mockRunnerCommand.mock.calls[0];
+  expect((callArgs?.[1] as any)?.command).toBe('querySelector');
+  expect((callArgs?.[1] as any)?.selectorKey).toBe('id');
+  expect((callArgs?.[1] as any)?.selectorValue).toBe('continue-button');
+});
+
+test('wait selector falls back to snapshot runtime when direct iOS selector misses', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-wait-selector-fallback';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, iosSimulatorDevice),
+    appBundleId: 'com.example.app',
+  });
+
+  mockRunnerCommand.mockResolvedValue({ found: false });
+  mockDispatch.mockResolvedValue({
+    nodes: [
+      {
+        index: 0,
+        depth: 0,
+        type: 'Window',
+        rect: { x: 0, y: 0, width: 390, height: 844 },
+      },
+      {
+        index: 1,
+        depth: 1,
+        parentIndex: 0,
+        type: 'Button',
+        identifier: 'continue-button',
+        label: 'Continue',
+        rect: { x: 10, y: 20, width: 120, height: 44 },
+      },
+    ],
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'wait',
+      positionals: ['id="continue-button"', '5000'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockRunnerCommand).toHaveBeenCalledTimes(1);
+  expect(mockDispatch).toHaveBeenCalledWith(
+    expect.anything(),
+    'snapshot',
+    [],
+    undefined,
+    expect.anything(),
+  );
+});
+
+test('wait selector reuses a fresh matching session snapshot', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-wait-reuse';
+  const session = makeSession(sessionName, androidDevice);
+  session.snapshot = {
+    createdAt: Date.now(),
+    presentationKey: buildSnapshotPresentationKey({}),
+    nodes: [
+      {
+        ref: 'e1',
+        index: 0,
+        type: 'android.widget.TextView',
+        label: 'Ready',
+      },
+    ],
+  };
+  sessionStore.set(sessionName, session);
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'wait',
+      positionals: ['label="Ready"', '5000'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch).not.toHaveBeenCalled();
 });
 
 test('alert accept retries on "alert not found" and succeeds on second attempt', async () => {

@@ -11,5 +11,7 @@ export type RunnerSession = {
   testPromise: Promise<ExecResult>;
   child: ExecBackgroundResult['child'];
   ready: boolean;
+  startupTimings?: Record<string, number>;
+  startupTimingsReported?: boolean;
   simulatorSetRedirect?: { release: () => Promise<void> };
 };

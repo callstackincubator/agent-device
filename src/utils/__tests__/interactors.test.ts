@@ -66,7 +66,7 @@ test('ios scroll reports planned pixels without recomputing from runner coordina
   assert.equal(pixels, 120);
 });
 
-test('ios fill clears the focused field after tapping the target coordinates', async () => {
+test('ios fill sends one verified replacement text-entry command at the target coordinates', async () => {
   const commands: RunnerCommand[] = [];
   mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
     commands.push(command);
@@ -77,12 +77,33 @@ test('ios fill clears the focused field after tapping the target coordinates', a
   await interactor.fill(120, 240, 'hunter2');
 
   assert.deepEqual(commands, [
-    { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.app' },
     {
       command: 'type',
+      x: 120,
+      y: 240,
       text: 'hunter2',
-      clearFirst: true,
+      textEntryMode: 'replace',
       delayMs: undefined,
+      appBundleId: 'com.example.app',
+    },
+  ]);
+});
+
+test('ios type uses the runner default append text-entry path', async () => {
+  const commands: RunnerCommand[] = [];
+  mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
+    commands.push(command);
+    return {};
+  });
+  const interactor = getInteractor(iosSimulator, { appBundleId: 'com.example.app' });
+
+  await interactor.type('hello', 25);
+
+  assert.deepEqual(commands, [
+    {
+      command: 'type',
+      text: 'hello',
+      delayMs: 25,
       appBundleId: 'com.example.app',
     },
   ]);

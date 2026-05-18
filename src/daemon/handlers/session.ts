@@ -151,9 +151,18 @@ export async function handleSessionCommands(params: {
   logPath: string;
   sessionStore: SessionStore;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invokeReplayAction?: (req: DaemonRequest) => Promise<DaemonResponse>;
   androidAdbExecutor?: AndroidAdbExecutor;
 }): Promise<DaemonResponse | null> {
-  const { req, sessionName, logPath, sessionStore, invoke, androidAdbExecutor } = params;
+  const {
+    req,
+    sessionName,
+    logPath,
+    sessionStore,
+    invoke,
+    invokeReplayAction,
+    androidAdbExecutor,
+  } = params;
 
   if (INVENTORY_COMMANDS.has(req.command)) {
     return await handleSessionInventoryCommands({
@@ -304,7 +313,7 @@ export async function handleSessionCommands(params: {
       sessionName,
       logPath,
       sessionStore,
-      invoke,
+      invoke: invokeReplayAction ?? invoke,
     });
   }
 

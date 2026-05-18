@@ -108,6 +108,17 @@ test('parseArgs recognizes command-specific flag combinations', async () => {
         assert.equal(parsed.flags.artifactsDir, '.agent-device/test-artifacts');
       },
     },
+    {
+      label: 'replay maestro flow',
+      argv: ['replay', './flow.yaml', '--maestro', '--env', 'USER=Ada'],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'replay');
+        assert.deepEqual(parsed.positionals, ['./flow.yaml']);
+        assert.equal(parsed.flags.replayMaestro, true);
+        assert.deepEqual(parsed.flags.replayEnv, ['USER=Ada']);
+      },
+    },
   ];
 
   for (const scenario of scenarios) {
@@ -854,6 +865,12 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /agent-device fill @e3 "test@example\.com"/);
   assert.match(usageText, /agent-device replay \.\/session\.ad/);
   assert.match(usageText, /agent-device test \.\/suite --platform android/);
+});
+
+test('usageForCommand includes Maestro replay flag', () => {
+  const help = usageForCommand('replay');
+  if (help === null) throw new Error('Expected replay help text');
+  assert.match(help, /--maestro/);
 });
 
 test('usageForCommand resolves workflow help topic', () => {

@@ -30,6 +30,7 @@ test('startIosDeviceRecording stops stale runner recording and retries with the 
       }
       return { recorderStartUptimeMs: 100, targetAppReadyUptimeMs: 130 };
     },
+    waitForRecordingTail: async () => {},
     waitForStableFile: async () => {},
     isPlayableVideo: async () => true,
     trimRecordingStart: async () => {},

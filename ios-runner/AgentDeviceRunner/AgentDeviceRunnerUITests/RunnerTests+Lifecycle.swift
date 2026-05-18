@@ -72,6 +72,21 @@ extension RunnerTests {
 
   // MARK: - Target Activation
 
+  func ensureRunnerHostAppActive(reason: String) {
+    NSLog(
+      "AGENT_DEVICE_RUNNER_HOST_ACTIVATE state=%d reason=%@",
+      app.state.rawValue,
+      reason
+    )
+    if app.state == .unknown || app.state == .notRunning {
+      app.launch()
+    } else if app.state != .runningForeground {
+      app.activate()
+    }
+    currentApp = app
+    currentBundleId = nil
+  }
+
   func targetNeedsActivation(_ target: XCUIApplication) -> Bool {
     let state = target.state
 #if os(macOS)
@@ -86,6 +101,24 @@ extension RunnerTests {
     }
 #endif
     return false
+  }
+
+  func canUseFastForegroundAppGuard(
+    activeApp: XCUIApplication,
+    requestedBundleId: String?,
+    command: CommandType
+  ) -> Bool {
+    guard let requestedBundleId, currentBundleId == requestedBundleId, currentApp != nil else {
+      return false
+    }
+    guard activeApp.state == .runningForeground else { return false }
+    NSLog(
+      "AGENT_DEVICE_RUNNER_FAST_APP_GUARD command=%@ bundle=%@ state=%d",
+      String(describing: command),
+      requestedBundleId,
+      activeApp.state.rawValue
+    )
+    return true
   }
 
   func activateTarget(bundleId: String, reason: String) -> XCUIApplication {
@@ -237,7 +270,7 @@ extension RunnerTests {
 
   func isRunnerLifecycleCommand(_ command: CommandType) -> Bool {
     switch command {
-    case .shutdown, .recordStop, .screenshot:
+    case .shutdown, .recordStop, .screenshot, .uptime:
       return true
     default:
       return false
@@ -259,6 +292,24 @@ extension RunnerTests {
 
   func sleepFor(_ delay: TimeInterval) {
     guard delay > 0 else { return }
+    // Keep XCTest/UI sources moving during command-local pauses such as delayed typing.
+    if Thread.isMainThread {
+      let deadline = Date().addingTimeInterval(delay)
+      while Date() < deadline {
+        let slice = min(max(deadline.timeIntervalSinceNow, 0), 0.02)
+        if slice <= 0 {
+          break
+        }
+        let handledSource = RunLoop.current.run(
+          mode: .default,
+          before: Date().addingTimeInterval(slice)
+        )
+        if !handledSource {
+          usleep(useconds_t(slice * 1_000_000))
+        }
+      }
+      return
+    }
     usleep(useconds_t(delay * 1_000_000))
   }
 }

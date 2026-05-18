@@ -91,6 +91,7 @@ import {
   ensureRunnerSession,
   executeRunnerCommandWithSession,
   getRunnerSessionSnapshot,
+  invalidateRunnerSession,
   stopRunnerSession,
   validateRunnerDevice,
 } from '../runner-session.ts';
@@ -160,6 +161,25 @@ test('runner session probes readiness before mutating commands', async () => {
   });
 });
 
+test('runner session probes readiness before mutating commands even when marked ready', async () => {
+  const session = makeRunnerSession({ ready: true });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+
+  const result = await executeRunnerCommandWithSession(
+    IOS_SIMULATOR,
+    session,
+    { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.demo' },
+    '/tmp/runner.log',
+    30_000,
+  );
+
+  assert.deepEqual(result, { tapped: true });
+  assert.equal(mockWaitForRunner.mock.calls.length, 1);
+  assert.deepEqual(mockWaitForRunner.mock.calls[0]?.[2], { command: 'uptime' });
+  assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
+});
+
 test('runner session preserves structured runner failures', async () => {
   const session = makeRunnerSession({ ready: true });
   mockWaitForRunner.mockResolvedValueOnce(
@@ -206,8 +226,14 @@ test('runner session starts xcodebuild through provider seams and reuses an aliv
   assert.deepEqual(mockPrepareXctestrunWithEnv.mock.calls[0]?.[1], {
     AGENT_DEVICE_RUNNER_PORT: '8123',
   });
-  assert.equal(mockRunXcrun.mock.calls[0]?.[0]?.includes('bootstatus'), true);
-  assert.ok(mockRunXcrun.mock.calls.some((call) => call[0]?.includes('uninstall')));
+  assert.equal(
+    mockRunXcrun.mock.calls.some((call) => call[0]?.includes('bootstatus')),
+    false,
+  );
+  assert.equal(
+    mockRunXcrun.mock.calls.some((call) => call[0]?.includes('uninstall')),
+    false,
+  );
   assert.deepEqual(getRunnerSessionSnapshot(device.id), {
     sessionId: session.sessionId,
     alive: true,
@@ -215,6 +241,23 @@ test('runner session starts xcodebuild through provider seams and reuses an aliv
 
   mockIsProcessAlive.mockReturnValue(false);
   await stopRunnerSession(session);
+});
+
+test('runner session keeps boot and stale bundle cleanup available when needed', async () => {
+  const device = { ...IOS_SIMULATOR, id: 'runner-session-clean-sim', booted: false };
+
+  await ensureRunnerSession(device, {
+    cleanStaleBundles: true,
+  });
+
+  assert.equal(
+    mockRunXcrun.mock.calls.some((call) => call[0]?.includes('bootstatus')),
+    true,
+  );
+  assert.equal(
+    mockRunXcrun.mock.calls.some((call) => call[0]?.includes('uninstall')),
+    true,
+  );
 });
 
 test('runner session stop sends shutdown, cleans temporary runner files, and releases simulator scope', async () => {
@@ -225,6 +268,26 @@ test('runner session stop sends shutdown, cleans temporary runner files, and rel
   await stopRunnerSession(session);
 
   assert.deepEqual(mockWaitForRunner.mock.calls.at(-1)?.[2], { command: 'shutdown' });
+  assert.deepEqual(mockCleanupTempFile.mock.calls, [
+    ['/tmp/session-runner.xctestrun'],
+    ['/tmp/session-runner.json'],
+  ]);
+  assert.equal(mockRedirectRelease.mock.calls.length, 1);
+  assert.equal(getRunnerSessionSnapshot(device.id), null);
+});
+
+test('runner session invalidation skips graceful shutdown and removes stale session', async () => {
+  const device = { ...IOS_SIMULATOR, id: 'runner-session-invalidate-sim' };
+  const session = await ensureRunnerSession(device, {});
+
+  mockWaitForRunner.mockClear();
+  await invalidateRunnerSession(session, 'transport_error_after_command_send');
+
+  assert.equal(mockWaitForRunner.mock.calls.length, 0);
+  assert.equal(
+    mockRunAppleToolCommand.mock.calls.some((call) => call[0] === 'pkill'),
+    true,
+  );
   assert.deepEqual(mockCleanupTempFile.mock.calls, [
     ['/tmp/session-runner.xctestrun'],
     ['/tmp/session-runner.json'],

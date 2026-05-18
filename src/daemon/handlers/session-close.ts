@@ -94,6 +94,13 @@ async function stopAppleRunnerForClose(session: SessionState): Promise<void> {
   });
 }
 
+function shouldRetainAppleRunnerAfterClose(req: DaemonRequest, session: SessionState): boolean {
+  const hasCloseTarget = (req.positionals?.length ?? 0) > 0;
+  return (
+    isIosSimulator(session.device) && !hasCloseTarget && !req.flags?.shutdown && !session.recording
+  );
+}
+
 export async function teardownSessionResources(
   session: SessionState,
   sessionName: string,
@@ -130,11 +137,22 @@ export async function handleCloseCommand(params: {
     });
     await settleIosSimulator(session.device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
   }
-  if (isApplePlatform(session.device.platform)) {
+  if (
+    isApplePlatform(session.device.platform) &&
+    !shouldRetainAppleRunnerAfterClose(req, session)
+  ) {
     // The targeted close path stops before dispatch to avoid runner/app races.
-    // Stop again here so both plain and targeted closes end with the runner down.
-    // macOS may no-op the second alert dismiss, but it keeps teardown symmetric with runner stop.
+    // Stop again here for idempotent cleanup, and keep cleanup-sensitive closes explicit.
     await stopAppleRunnerForClose(session);
+  } else if (isApplePlatform(session.device.platform)) {
+    emitDiagnostic({
+      level: 'debug',
+      phase: 'ios_runner_retained_after_close',
+      data: {
+        session: session.name,
+        deviceId: session.device.id,
+      },
+    });
   }
   const runtime = sessionStore.getRuntimeHints(sessionName);
   if (hasRuntimeTransportHints(runtime) && session.appBundleId) {

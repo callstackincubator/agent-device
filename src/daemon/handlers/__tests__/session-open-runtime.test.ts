@@ -21,7 +21,12 @@ vi.mock('../../runtime-hints.ts', async (importOriginal) => {
 });
 vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/runner-client.ts')>();
-  return { ...actual, stopIosRunnerSession: vi.fn(async () => {}) };
+  return {
+    ...actual,
+    prewarmIosRunnerSession: vi.fn(),
+    prewarmIosRunnerXctestrun: vi.fn(),
+    stopIosRunnerSession: vi.fn(async () => {}),
+  };
 });
 vi.mock('../session-device-utils.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../session-device-utils.ts')>();

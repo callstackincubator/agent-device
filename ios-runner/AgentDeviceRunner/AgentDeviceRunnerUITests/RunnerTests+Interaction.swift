@@ -17,6 +17,54 @@ extension RunnerTests {
     let referenceHeight: Double
   }
 
+  struct DragPoints {
+    let x: Double
+    let y: Double
+    let x2: Double
+    let y2: Double
+  }
+
+  struct SelectorElementMatch {
+    let element: XCUIElement?
+    let isAmbiguous: Bool
+  }
+
+  enum TextTypingRepairMode {
+    case none
+    case append
+    case replacement
+  }
+
+  enum TextEntryTiming {
+    static let focusTimeout: TimeInterval = 0.4
+    static let repairReadinessTimeout: TimeInterval = 1.0
+    static let readinessTimeout: TimeInterval = 2.0
+    static let hardwareKeyboardFallbackTimeout: TimeInterval = 0.35
+    static let pollInterval: TimeInterval = 0.02
+    static let verificationStabilityWindow: TimeInterval = 0.2
+  }
+
+  struct TextEntryResult {
+    let verified: Bool?
+    let repaired: Bool
+    let expectedText: String?
+    let observedText: String?
+  }
+
+  struct TextEntryTarget {
+    let element: XCUIElement?
+    let refreshPoint: CGPoint?
+
+    func withElement(_ nextElement: XCUIElement?) -> TextEntryTarget {
+      guard let nextElement else {
+        return self
+      }
+      let frame = nextElement.frame
+      let point = frame.isEmpty ? refreshPoint : CGPoint(x: frame.midX, y: frame.midY)
+      return TextEntryTarget(element: nextElement, refreshPoint: point)
+    }
+  }
+
   // MARK: - Navigation Gestures
 
   func tapInAppBackControl(app: XCUIApplication) -> Bool {
@@ -121,6 +169,78 @@ extension RunnerTests {
     let predicate = NSPredicate(format: "label CONTAINS[c] %@ OR identifier CONTAINS[c] %@ OR value CONTAINS[c] %@", text, text, text)
     let element = app.descendants(matching: .any).matching(predicate).firstMatch
     return element.exists ? element : nil
+  }
+
+  func findElement(app: XCUIApplication, selectorKey: String, selectorValue: String) -> SelectorElementMatch {
+    let value = selectorValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !value.isEmpty else {
+      return SelectorElementMatch(element: nil, isAmbiguous: false)
+    }
+    let predicate: NSPredicate
+    switch selectorKey {
+    case "id":
+      predicate = NSPredicate(format: "identifier ==[c] %@", value)
+    case "label":
+      predicate = NSPredicate(format: "label ==[c] %@", value)
+    case "value":
+      predicate = NSPredicate(format: "value ==[c] %@", value)
+    case "text":
+      predicate = NSPredicate(format: "label ==[c] %@ OR identifier ==[c] %@ OR value ==[c] %@", value, value, value)
+    default:
+      return SelectorElementMatch(element: nil, isAmbiguous: false)
+    }
+
+    var matchedElement: XCUIElement?
+    let matches = app.descendants(matching: .any).matching(predicate).allElementsBoundByIndex
+    for element in matches where element.exists {
+      guard element.isHittable else {
+        continue
+      }
+      guard matchedElement == nil else {
+        return SelectorElementMatch(element: nil, isAmbiguous: true)
+      }
+      matchedElement = element
+    }
+    return SelectorElementMatch(element: matchedElement, isAmbiguous: false)
+  }
+
+  func queryElement(app: XCUIApplication, selectorKey: String, selectorValue: String) -> Response {
+    let match = findElement(app: app, selectorKey: selectorKey, selectorValue: selectorValue)
+    if match.isAmbiguous {
+      return Response(ok: false, error: ErrorPayload(code: "AMBIGUOUS_MATCH", message: "selector matched multiple elements"))
+    }
+    guard let element = match.element else {
+      return Response(ok: true, data: DataPayload(found: false, nodes: []))
+    }
+
+    let label = element.label.trimmingCharacters(in: .whitespacesAndNewlines)
+    let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+    let valueText = String(describing: element.value ?? "")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let node = SnapshotNode(
+      index: 0,
+      type: elementTypeName(element.elementType),
+      label: label.isEmpty ? nil : label,
+      identifier: identifier.isEmpty ? nil : identifier,
+      value: valueText.isEmpty ? nil : valueText,
+      rect: snapshotRect(from: element.frame),
+      enabled: element.isEnabled,
+      focused: nil,
+      selected: element.isSelected ? true : nil,
+      hittable: element.isHittable,
+      depth: 0,
+      parentIndex: nil,
+      hiddenContentAbove: nil,
+      hiddenContentBelow: nil
+    )
+    return Response(
+      ok: true,
+      data: DataPayload(
+        text: readableText(for: element),
+        found: true,
+        nodes: [node]
+      )
+    )
   }
 
   func readTextAt(app: XCUIApplication, x: Double, y: Double) -> String? {
@@ -234,9 +354,361 @@ extension RunnerTests {
     return focused
   }
 
+  func stabilizeTextInputBeforeTyping(app: XCUIApplication, target: XCUIElement?) -> XCUIElement? {
+#if os(tvOS)
+    return target
+#else
+    let latest = target
+    let deadline = Date().addingTimeInterval(TextEntryTiming.focusTimeout)
+    while Date() < deadline {
+      if let focused = focusedTextInput(app: app) {
+        return focused
+      }
+      sleepFor(TextEntryTiming.pollInterval)
+    }
+    return latest
+#endif
+  }
+
+  func focusTextInputForTextEntry(app: XCUIApplication, x: Double?, y: Double?) -> TextEntryTarget {
+    guard let x, let y else {
+      let focused = waitForTextEntryReadiness(
+        app: app,
+        target: TextEntryTarget(element: focusedTextInput(app: app), refreshPoint: nil)
+      )
+      return TextEntryTarget(element: focused, refreshPoint: nil)
+    }
+
+    let target = textInputAt(app: app, x: x, y: y)
+    let requestedPoint = CGPoint(x: x, y: y)
+    if let target {
+      let frame = target.frame
+      if !frame.isEmpty {
+        _ = tapAt(app: app, x: frame.midX, y: frame.midY)
+      } else {
+        _ = tapAt(app: app, x: x, y: y)
+      }
+    } else {
+      _ = tapAt(app: app, x: x, y: y)
+    }
+    let stabilized = stabilizeTextInputBeforeTyping(app: app, target: target)
+    let element = waitForTextEntryReadiness(
+      app: app,
+      target: TextEntryTarget(element: stabilized ?? target, refreshPoint: requestedPoint)
+    ) ?? stabilized ?? target
+    return TextEntryTarget(
+      element: element,
+      refreshPoint: textEntryRefreshPoint(for: element) ?? requestedPoint
+    )
+  }
+
+  func resolveTextEntryMode(_ command: Command) -> TextTypingRepairMode {
+    switch command.textEntryMode {
+    case "append":
+      return .append
+    case "replace":
+      return .replacement
+    default:
+      return command.clearFirst == true ? .replacement : .none
+    }
+  }
+
+  func typeTextReliably(
+    app: XCUIApplication,
+    target: TextEntryTarget,
+    text: String,
+    delaySeconds: Double,
+    repairMode: TextTypingRepairMode = .none
+  ) -> TextEntryResult {
+    guard !text.isEmpty else {
+      return TextEntryResult(verified: true, repaired: false, expectedText: "", observedText: "")
+    }
+    let initialTarget = resolveTextEntryElement(app: app, target: target)
+    let initialText = repairMode == .append
+      ? editableTextValue(for: initialTarget, treatingPlaceholderAsEmpty: true)
+      : nil
+    let expectedText = expectedTextEntryValue(typedText: text, mode: repairMode, initialText: initialText)
+
+    func typeIntoCurrentTarget(_ value: String) -> XCUIElement? {
+      if let currentTarget = resolveTextEntryElement(app: app, target: target) {
+        currentTarget.typeText(value)
+        return currentTarget
+      } else {
+        app.typeText(value)
+        return resolveTextEntryElement(app: app, target: target)
+      }
+    }
+
+    let characters = Array(text)
+    if delaySeconds > 0 && characters.count > 1 {
+      var typedTarget: XCUIElement?
+      for (index, character) in characters.enumerated() {
+        typedTarget = typeIntoCurrentTarget(String(character)) ?? typedTarget
+        if index + 1 < characters.count {
+          sleepFor(delaySeconds)
+        }
+      }
+      if repairMode == .none {
+        return TextEntryResult(verified: nil, repaired: false, expectedText: nil, observedText: nil)
+      }
+      return verifyTextEntry(
+        app: app,
+        target: target.withElement(typedTarget),
+        expectedText: expectedText,
+        repaired: false
+      )
+    }
+
+    let typedTarget = typeIntoCurrentTarget(text)
+    if repairMode == .none {
+      return TextEntryResult(verified: nil, repaired: false, expectedText: nil, observedText: nil)
+    }
+    let repairResult = repairTextEntryIfNeeded(
+      app: app,
+      target: target.withElement(typedTarget),
+      expectedText: expectedText
+    )
+    return verifyTextEntry(
+      app: app,
+      target: target.withElement(typedTarget),
+      expectedText: expectedText,
+      repaired: repairResult.repaired
+    )
+  }
+
+  private func repairTextEntryIfNeeded(
+    app: XCUIApplication,
+    target: TextEntryTarget,
+    expectedText: String?
+  ) -> TextEntryResult {
+#if os(iOS)
+    guard let targetElement = resolveTextEntryElement(app: app, target: target) else {
+      return TextEntryResult(verified: nil, repaired: false, expectedText: expectedText, observedText: nil)
+    }
+    guard let expectedText else {
+      let observedText = editableTextValue(for: targetElement)
+      return TextEntryResult(verified: nil, repaired: false, expectedText: nil, observedText: observedText)
+    }
+    guard shouldRepairTextEntry(app: app, target: target, expectedText: expectedText) else {
+      return verifyTextEntry(app: app, target: target, expectedText: expectedText, repaired: false)
+    }
+
+    guard let repairTarget = resolveTextEntryElement(app: app, target: target) else {
+      return TextEntryResult(verified: nil, repaired: false, expectedText: expectedText, observedText: nil)
+    }
+    let observedText = editableTextValue(for: repairTarget) ?? ""
+    NSLog(
+      "AGENT_DEVICE_RUNNER_REPAIR_TEXT_ENTRY expectedLength=%d observedLength=%d",
+      expectedText.count,
+      observedText.count
+    )
+    clearTextInput(repairTarget)
+    guard let retypeTarget = waitForTextEntryReadiness(
+      app: app,
+      target: target.withElement(repairTarget),
+      timeout: TextEntryTiming.repairReadinessTimeout
+    ) else {
+      return TextEntryResult(verified: nil, repaired: false, expectedText: expectedText, observedText: nil)
+    }
+    for (index, character) in Array(expectedText).enumerated() {
+      retypeTarget.typeText(String(character))
+      if index + 1 < expectedText.count {
+        sleepFor(TextEntryTiming.pollInterval)
+      }
+    }
+    return verifyTextEntry(app: app, target: target, expectedText: expectedText, repaired: true)
+#else
+    return TextEntryResult(verified: nil, repaired: false, expectedText: expectedText, observedText: nil)
+#endif
+  }
+
+  private func verifyTextEntry(
+    app: XCUIApplication,
+    target: TextEntryTarget,
+    expectedText: String?,
+    repaired: Bool
+  ) -> TextEntryResult {
+    let targetElement = resolveTextEntryElement(app: app, target: target)
+    guard let expectedText else {
+      return TextEntryResult(
+        verified: nil,
+        repaired: repaired,
+        expectedText: nil,
+        observedText: editableTextValue(for: targetElement)
+      )
+    }
+    guard let observedText = editableTextValue(for: targetElement) else {
+      return TextEntryResult(verified: nil, repaired: repaired, expectedText: expectedText, observedText: nil)
+    }
+    guard observedText == expectedText else {
+      return TextEntryResult(
+        verified: false,
+        repaired: repaired,
+        expectedText: expectedText,
+        observedText: observedText
+      )
+    }
+    let stableDeadline = Date().addingTimeInterval(TextEntryTiming.verificationStabilityWindow)
+    var latestObservedText = observedText
+    while Date() < stableDeadline {
+      sleepFor(TextEntryTiming.pollInterval)
+      guard let nextObservedText = editableTextValue(for: resolveTextEntryElement(app: app, target: target)) else {
+        return TextEntryResult(verified: nil, repaired: repaired, expectedText: expectedText, observedText: nil)
+      }
+      latestObservedText = nextObservedText
+      guard nextObservedText == expectedText else {
+        return TextEntryResult(
+          verified: false,
+          repaired: repaired,
+          expectedText: expectedText,
+          observedText: nextObservedText
+        )
+      }
+    }
+    return TextEntryResult(
+      verified: true,
+      repaired: repaired,
+      expectedText: expectedText,
+      observedText: latestObservedText
+    )
+  }
+
+  private func expectedTextEntryValue(
+    typedText: String,
+    mode: TextTypingRepairMode,
+    initialText: String?
+  ) -> String? {
+    switch mode {
+    case .none:
+      return nil
+    case .append:
+      guard let initialText else {
+        return nil
+      }
+      return initialText + typedText
+    case .replacement:
+      return typedText
+    }
+  }
+
+  private func shouldRepairTextEntry(
+    app: XCUIApplication,
+    target: TextEntryTarget,
+    expectedText: String
+  ) -> Bool {
+#if os(iOS)
+    var latestObservedText: String?
+    let deadline = Date().addingTimeInterval(TextEntryTiming.verificationStabilityWindow)
+    repeat {
+      guard let observedText = editableTextValue(for: resolveTextEntryElement(app: app, target: target)) else {
+        return false
+      }
+      if observedText == expectedText {
+        return false
+      }
+      latestObservedText = observedText
+      if !isRepairableTextEntryMismatch(observedText: observedText, expectedText: expectedText) {
+        return false
+      }
+      sleepFor(TextEntryTiming.pollInterval)
+    } while Date() < deadline
+
+    guard let latestObservedText else {
+      return false
+    }
+    guard latestObservedText != expectedText else {
+      return false
+    }
+    return isRepairableTextEntryMismatch(observedText: latestObservedText, expectedText: expectedText)
+#else
+    return false
+#endif
+  }
+
+  private func isRepairableTextEntryMismatch(observedText: String, expectedText: String) -> Bool {
+    guard observedText != expectedText else {
+      return false
+    }
+    return observedText.isEmpty || expectedText.hasPrefix(observedText)
+  }
+
+  private func resolveTextEntryElement(app: XCUIApplication, target: TextEntryTarget) -> XCUIElement? {
+    if let focused = focusedTextInput(app: app) {
+      return focused
+    }
+    if let element = target.element, element.exists {
+      return element
+    }
+    if let refreshPoint = target.refreshPoint,
+       let refreshed = textInputAt(app: app, x: refreshPoint.x, y: refreshPoint.y) {
+      return refreshed
+    }
+    return nil
+  }
+
+  private func waitForTextEntryReadiness(
+    app: XCUIApplication,
+    target: TextEntryTarget,
+    timeout: TimeInterval = TextEntryTiming.readinessTimeout
+  ) -> XCUIElement? {
+#if os(iOS)
+    var latest = resolveTextEntryElement(app: app, target: target)
+    let deadline = Date().addingTimeInterval(timeout)
+    let hardwareKeyboardFallback = Date().addingTimeInterval(
+      min(TextEntryTiming.hardwareKeyboardFallbackTimeout, timeout)
+    )
+    var sawSoftwareKeyboard = false
+    while Date() < deadline {
+      if let focused = focusedTextInput(app: app) {
+        latest = focused
+        if isKeyboardVisible(app: app) {
+          return focused
+        }
+      }
+      sawSoftwareKeyboard = sawSoftwareKeyboard || keyboardElementExists(app: app)
+      if !sawSoftwareKeyboard && Date() >= hardwareKeyboardFallback && latest != nil {
+        return latest
+      }
+      sleepFor(TextEntryTiming.pollInterval)
+    }
+    return focusedTextInput(app: app) ?? latest
+#else
+    return resolveTextEntryElement(app: app, target: target)
+#endif
+  }
+
+  private func textEntryRefreshPoint(for element: XCUIElement?) -> CGPoint? {
+    guard let element else {
+      return nil
+    }
+    let frame = element.frame
+    guard !frame.isEmpty else {
+      return nil
+    }
+    return CGPoint(x: frame.midX, y: frame.midY)
+  }
+
   func isKeyboardVisible(app: XCUIApplication) -> Bool {
-    let keyboard = app.keyboards.firstMatch
-    return keyboard.exists && !keyboard.frame.isEmpty
+    return visibleKeyboardFrame(app: app) != nil
+  }
+
+  private func keyboardElementExists(app: XCUIApplication) -> Bool {
+#if os(iOS)
+    var exists = false
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      exists = app.keyboards.firstMatch.exists
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_KEYBOARD_EXISTS_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      return false
+    }
+    return exists
+#else
+    return false
+#endif
   }
 
   func dismissKeyboard(app: XCUIApplication) -> (wasVisible: Bool, dismissed: Bool, visible: Bool) {
@@ -272,7 +744,9 @@ extension RunnerTests {
 #if os(tvOS)
     return false
 #else
-    let keyboardFrame = app.keyboards.firstMatch.frame
+    guard let keyboardFrame = visibleKeyboardFrame(app: app) else {
+      return false
+    }
     for label in ["Hide keyboard", "Dismiss keyboard", "Done"] {
       let candidates = [
         app.keyboards.buttons[label],
@@ -329,10 +803,47 @@ extension RunnerTests {
   }
 
   private func estimatedDeleteCount(for element: XCUIElement) -> Int {
-    let valueText = String(describing: element.value ?? "")
-      .trimmingCharacters(in: .whitespacesAndNewlines)
+    let valueText = normalizedElementText(element.value)
     let base = valueText.isEmpty ? 24 : (valueText.count + 8)
     return max(24, min(120, base))
+  }
+
+  private func normalizedElementText(_ value: Any?) -> String {
+    String(describing: value ?? "")
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  private func editableTextValue(
+    for element: XCUIElement?,
+    treatingPlaceholderAsEmpty: Bool = false
+  ) -> String? {
+    guard let element else {
+      return nil
+    }
+    switch element.elementType {
+    case .textField, .searchField, .textView:
+      let value = String(describing: element.value ?? "")
+      if treatingPlaceholderAsEmpty && isPlaceholderValue(value, for: element) {
+        return ""
+      }
+      return value
+    case .secureTextField:
+      return nil
+    default:
+      return nil
+    }
+  }
+
+  private func isPlaceholderValue(_ value: String, for element: XCUIElement) -> Bool {
+    let normalizedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !normalizedValue.isEmpty else {
+      return false
+    }
+    guard let placeholder = element.placeholderValue?.trimmingCharacters(in: .whitespacesAndNewlines),
+          !placeholder.isEmpty else {
+      return false
+    }
+    return normalizedValue == placeholder
   }
 
   private func readableText(for element: XCUIElement) -> String? {
@@ -451,6 +962,68 @@ extension RunnerTests {
     return performCoordinateDrag(app: app, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
   }
 
+  func keyboardAvoidingDragPoints(
+    app: XCUIApplication,
+    x: Double,
+    y: Double,
+    x2: Double,
+    y2: Double
+  ) -> DragPoints {
+    let original = DragPoints(x: x, y: y, x2: x2, y2: y2)
+#if os(iOS)
+    guard let keyboardFrame = visibleKeyboardFrame(app: app) else {
+      return original
+    }
+    let minX = min(x, x2)
+    let minY = min(y, y2)
+    let gestureBounds = CGRect(
+      x: CGFloat(minX),
+      y: CGFloat(minY),
+      width: CGFloat(max(abs(x2 - x), 1)),
+      height: CGFloat(max(abs(y2 - y), 1))
+    )
+    guard gestureBounds.intersects(keyboardFrame) else {
+      return original
+    }
+
+    let window = app.windows.firstMatch
+    let appFrame = window.exists && !window.frame.isEmpty ? window.frame : app.frame
+    guard !appFrame.isEmpty else {
+      return original
+    }
+
+    let padding: Double = 12
+    let targetMaxY = Double(keyboardFrame.minY) - padding
+    let currentMaxY = max(y, y2)
+    let shift = currentMaxY - targetMaxY
+    guard shift > 0 else {
+      return original
+    }
+
+    let adjustedY = y - shift
+    let adjustedY2 = y2 - shift
+    guard min(adjustedY, adjustedY2) >= Double(appFrame.minY) + padding else {
+      return original
+    }
+
+    NSLog(
+      "AGENT_DEVICE_RUNNER_KEYBOARD_AVOIDING_DRAG from=(%.1f,%.1f)->(%.1f,%.1f) adjusted=(%.1f,%.1f)->(%.1f,%.1f) keyboardMinY=%.1f",
+      x,
+      y,
+      x2,
+      y2,
+      x,
+      adjustedY,
+      x2,
+      adjustedY2,
+      Double(keyboardFrame.minY)
+    )
+    return DragPoints(x: x, y: adjustedY, x2: x2, y2: adjustedY2)
+#else
+    return original
+#endif
+  }
+
   func resolvedTouchVisualizationFrame(app: XCUIApplication, x: Double, y: Double) -> TouchVisualizationFrame {
     let appFrame = app.frame
     let referenceFrame = resolvedTouchReferenceFrame(app: app, appFrame: appFrame)
@@ -485,14 +1058,62 @@ extension RunnerTests {
 
   func resolvedTouchReferenceFrame(app: XCUIApplication, appFrame: CGRect) -> CGRect {
     let window = app.windows.firstMatch
-    let windowFrame = window.frame
-    if window.exists && !windowFrame.isEmpty {
-      return windowFrame
+    if window.exists {
+      let windowFrame = window.frame
+      if !windowFrame.isEmpty {
+        return frameAvoidingKeyboard(app: app, frame: windowFrame)
+      }
     }
     if !appFrame.isEmpty {
-      return appFrame
+      return frameAvoidingKeyboard(app: app, frame: appFrame)
     }
     return CGRect(x: 0, y: 0, width: 0, height: 0)
+  }
+
+  private func frameAvoidingKeyboard(app: XCUIApplication, frame: CGRect) -> CGRect {
+#if os(iOS)
+    guard let keyboardFrame = visibleKeyboardFrame(app: app), !frame.isEmpty else {
+      return frame
+    }
+    let intersection = frame.intersection(keyboardFrame)
+    guard !intersection.isNull && intersection.height > 0 else {
+      return frame
+    }
+    let keyboardCoverage = intersection.width / max(frame.width, 1)
+    guard keyboardCoverage >= 0.5 else {
+      return frame
+    }
+    let safeHeight = keyboardFrame.minY - frame.minY
+    guard safeHeight >= frame.height * 0.25 else {
+      return frame
+    }
+    return CGRect(x: frame.minX, y: frame.minY, width: frame.width, height: safeHeight)
+#else
+    return frame
+#endif
+  }
+
+  private func visibleKeyboardFrame(app: XCUIApplication) -> CGRect? {
+#if os(iOS)
+    var frame: CGRect?
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      let keyboard = app.keyboards.firstMatch
+      guard keyboard.exists else { return }
+      let keyboardFrame = keyboard.frame
+      guard !keyboardFrame.isEmpty else { return }
+      frame = keyboardFrame
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_KEYBOARD_FRAME_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      return nil
+    }
+    return frame
+#else
+    return nil
+#endif
   }
 
   func runSeries(count: Int, pauseMs: Double, operation: (Int) -> Void) {
@@ -501,7 +1122,7 @@ extension RunnerTests {
     for idx in 0..<total {
       operation(idx)
       if idx < total - 1 && pause > 0 {
-        Thread.sleep(forTimeInterval: pause / 1000.0)
+        sleepFor(pause / 1000.0)
       }
     }
   }

@@ -140,11 +140,16 @@ extension RunnerTests {
       if let bundleId = requestedBundleId, targetNeedsActivation(activeApp) {
         activeApp = activateTarget(bundleId: bundleId, reason: "stale_target")
       } else if requestedBundleId == nil, targetNeedsActivation(activeApp) {
-        app.activate()
+        ensureRunnerHostAppActive(reason: "missing_app_bundle")
         activeApp = app
       }
 
-      if !activeApp.waitForExistence(timeout: appExistenceTimeout) {
+      let skipExistenceWait = canUseFastForegroundAppGuard(
+        activeApp: activeApp,
+        requestedBundleId: requestedBundleId,
+        command: command.command
+      )
+      if !skipExistenceWait && !activeApp.waitForExistence(timeout: appExistenceTimeout) {
         if let bundleId = requestedBundleId {
           activeApp = activateTarget(bundleId: bundleId, reason: "missing_after_wait")
           guard activeApp.waitForExistence(timeout: appExistenceTimeout) else {
@@ -159,10 +164,15 @@ extension RunnerTests {
         if let bundleId = requestedBundleId, activeApp.state != .runningForeground {
           activeApp = activateTarget(bundleId: bundleId, reason: "interaction_foreground_guard")
         } else if requestedBundleId == nil, activeApp.state != .runningForeground {
-          app.activate()
+          ensureRunnerHostAppActive(reason: "interaction_missing_app_bundle")
           activeApp = app
         }
-        if !activeApp.waitForExistence(timeout: 2) {
+        let skipInteractionExistenceWait = canUseFastForegroundAppGuard(
+          activeApp: activeApp,
+          requestedBundleId: requestedBundleId,
+          command: command.command
+        )
+        if !skipInteractionExistenceWait && !activeApp.waitForExistence(timeout: 2) {
           if let bundleId = requestedBundleId {
             return Response(ok: false, error: ErrorPayload(message: "app '\(bundleId)' is not available"))
           }
@@ -241,6 +251,40 @@ extension RunnerTests {
         data: DataPayload(currentUptimeMs: currentUptimeMs())
       )
     case .tap:
+      if let selectorKey = command.selectorKey, let selectorValue = command.selectorValue {
+        let match = findElement(app: activeApp, selectorKey: selectorKey, selectorValue: selectorValue)
+        if match.isAmbiguous {
+          return Response(ok: false, error: ErrorPayload(code: "AMBIGUOUS_MATCH", message: "selector matched multiple elements"))
+        }
+        if let element = match.element {
+          let frame = element.frame
+          let touchFrame = frame.isEmpty
+            ? nil
+            : resolvedTouchVisualizationFrame(app: activeApp, x: frame.midX, y: frame.midY)
+          var outcome = RunnerInteractionOutcome.performed
+          let timing = measureGesture {
+            withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+              outcome = activateElement(app: activeApp, element: element, action: "tap by selector")
+            }
+          }
+          if let response = unsupportedResponse(for: outcome) {
+            return response
+          }
+          return Response(
+            ok: true,
+            data: DataPayload(
+              message: "tapped",
+              gestureStartUptimeMs: timing.gestureStartUptimeMs,
+              gestureEndUptimeMs: timing.gestureEndUptimeMs,
+              x: touchFrame?.x,
+              y: touchFrame?.y,
+              referenceWidth: touchFrame?.referenceWidth,
+              referenceHeight: touchFrame?.referenceHeight
+            )
+          )
+        }
+        return Response(ok: false, error: ErrorPayload(code: "ELEMENT_NOT_FOUND", message: "element not found"))
+      }
       if let text = command.text {
         if let element = findElement(app: activeApp, text: text) {
           var outcome = RunnerInteractionOutcome.performed
@@ -412,11 +456,25 @@ extension RunnerTests {
         return Response(ok: false, error: ErrorPayload(message: "drag requires x, y, x2, and y2"))
       }
       let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
-      let dragFrame = resolvedDragVisualizationFrame(app: activeApp, x: x, y: y, x2: x2, y2: y2)
+      let dragPoints = keyboardAvoidingDragPoints(app: activeApp, x: x, y: y, x2: x2, y2: y2)
+      let dragFrame = resolvedDragVisualizationFrame(
+        app: activeApp,
+        x: dragPoints.x,
+        y: dragPoints.y,
+        x2: dragPoints.x2,
+        y2: dragPoints.y2
+      )
       var outcome = RunnerInteractionOutcome.performed
       let timing = measureGesture {
         withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-          outcome = dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+          outcome = dragAt(
+            app: activeApp,
+            x: dragPoints.x,
+            y: dragPoints.y,
+            x2: dragPoints.x2,
+            y2: dragPoints.y2,
+            holdDuration: holdDuration
+          )
         }
       }
       if let response = unsupportedResponse(for: outcome) {
@@ -447,6 +505,7 @@ extension RunnerTests {
         return Response(ok: false, error: ErrorPayload(message: "dragSeries pattern must be one-way or ping-pong"))
       }
       let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
+      let dragPoints = keyboardAvoidingDragPoints(app: activeApp, x: x, y: y, x2: x2, y2: y2)
       var outcome = RunnerInteractionOutcome.performed
       let timing = measureGesture {
         withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
@@ -456,9 +515,23 @@ extension RunnerTests {
             }
             let reverse = pattern == "ping-pong" && (idx % 2 == 1)
             if reverse {
-              outcome = dragAt(app: activeApp, x: x2, y: y2, x2: x, y2: y, holdDuration: holdDuration)
+              outcome = dragAt(
+                app: activeApp,
+                x: dragPoints.x2,
+                y: dragPoints.y2,
+                x2: dragPoints.x,
+                y2: dragPoints.y,
+                holdDuration: holdDuration
+              )
             } else {
-              outcome = dragAt(app: activeApp, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
+              outcome = dragAt(
+                app: activeApp,
+                x: dragPoints.x,
+                y: dragPoints.y,
+                x2: dragPoints.x2,
+                y2: dragPoints.y2,
+                holdDuration: holdDuration
+              )
             }
           }
         }
@@ -487,45 +560,11 @@ extension RunnerTests {
       }
       return Response(ok: true, data: DataPayload(message: "remote pressed"))
     case .type:
-      guard let text = command.text else {
-        return Response(ok: false, error: ErrorPayload(message: "type requires text"))
+      var response: Response?
+      withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
+        response = executeTypeCommand(activeApp: activeApp, command: command)
       }
-      let delaySeconds = Double(max(command.delayMs ?? 0, 0)) / 1000.0
-      let target: XCUIElement?
-      if let x = command.x, let y = command.y {
-        target = textInputAt(app: activeApp, x: x, y: y) ?? focusedTextInput(app: activeApp)
-      } else {
-        target = focusedTextInput(app: activeApp)
-      }
-      func typeIntoTarget(_ value: String) {
-        if let focused = target {
-          focused.typeText(value)
-        } else {
-          activeApp.typeText(value)
-        }
-      }
-      if command.clearFirst == true {
-        guard let focused = target else {
-          let message =
-            (command.x != nil && command.y != nil)
-            ? "no text input found at the provided coordinates to clear"
-            : "no focused text input to clear"
-          return Response(ok: false, error: ErrorPayload(message: message))
-        }
-        clearTextInput(focused)
-      }
-      if delaySeconds > 0 && text.count > 1 {
-        let chunks = Array(text)
-        for (index, character) in chunks.enumerated() {
-          typeIntoTarget(String(character))
-          if index + 1 < chunks.count {
-            Thread.sleep(forTimeInterval: delaySeconds)
-          }
-        }
-      } else {
-        typeIntoTarget(text)
-      }
-      return Response(ok: true, data: DataPayload(message: "typed"))
+      return response ?? Response(ok: false, error: ErrorPayload(message: "type produced no response"))
     case .interactionFrame:
       let frame = resolvedTouchReferenceFrame(app: activeApp, appFrame: activeApp.frame)
       return Response(
@@ -573,6 +612,11 @@ extension RunnerTests {
       }
       let found = findElement(app: activeApp, text: text) != nil
       return Response(ok: true, data: DataPayload(found: found))
+    case .querySelector:
+      guard let selectorKey = command.selectorKey, let selectorValue = command.selectorValue else {
+        return Response(ok: false, error: ErrorPayload(message: "querySelector requires selectorKey and selectorValue"))
+      }
+      return queryElement(app: activeApp, selectorKey: selectorKey, selectorValue: selectorValue)
     case .readText:
       guard let x = command.x, let y = command.y else {
         return Response(ok: false, error: ErrorPayload(message: "readText requires x and y"))
@@ -604,7 +648,7 @@ extension RunnerTests {
         targetApp.activate()
         activeApp = targetApp
         // Brief wait for the app transition animation to complete
-        Thread.sleep(forTimeInterval: 0.5)
+        sleepFor(0.5)
       }
       if command.fullscreen == true {
         screenshot = XCUIScreen.main.screenshot()
@@ -733,5 +777,43 @@ extension RunnerTests {
         )
       )
     }
+  }
+
+  private func executeTypeCommand(activeApp: XCUIApplication, command: Command) -> Response {
+    guard let text = command.text else {
+      return Response(ok: false, error: ErrorPayload(message: "type requires text"))
+    }
+    let delaySeconds = Double(max(command.delayMs ?? 0, 0)) / 1000.0
+    let textEntryMode = resolveTextEntryMode(command)
+    let target = focusTextInputForTextEntry(app: activeApp, x: command.x, y: command.y)
+    if textEntryMode == .replacement {
+      guard let focused = target.element else {
+        let message =
+          (command.x != nil && command.y != nil)
+          ? "no text input found at the provided coordinates to clear"
+          : "no focused text input to clear"
+        return Response(ok: false, error: ErrorPayload(message: message))
+      }
+      clearTextInput(focused)
+    }
+    let textResult = typeTextReliably(
+      app: activeApp,
+      target: target,
+      text: text,
+      delaySeconds: delaySeconds,
+      repairMode: textEntryMode
+    )
+    if textResult.verified == false {
+      let expected = textResult.expectedText ?? ""
+      let observed = textResult.observedText ?? ""
+      return Response(
+        ok: false,
+        error: ErrorPayload(
+          code: "TEXT_ENTRY_MISMATCH",
+          message: "text entry verification failed: expected \"\(expected)\", observed \"\(observed)\""
+        )
+      )
+    }
+    return Response(ok: true, data: DataPayload(message: textResult.repaired ? "typed after repair" : "typed"))
   }
 }

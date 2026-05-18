@@ -257,6 +257,69 @@ test('listAppleDevices keeps physical discovery disabled for simulator-set scope
   );
 });
 
+test('listAppleDevices skips physical discovery when explicit udid matches a simulator', async () => {
+  mockRunCommand = async (_cmd, args) => {
+    if (args.join(' ') === 'simctl list devices -j') {
+      return { stdout: createSimctlDevicesPayload(), stderr: '', exitCode: 0 };
+    }
+
+    throw new Error(`unexpected xcrun args: ${args.join(' ')}`);
+  };
+
+  const devices = await withMockedPlatform(
+    'darwin',
+    async () => await withMockedAppleTools(async () => await listAppleDevices({ udid: 'sim-1' })),
+  );
+
+  assert.equal(
+    devices.some((device) => device.kind === 'simulator' && device.id === 'sim-1'),
+    true,
+  );
+  assert.equal(
+    toolCalls.some(([, args]) => args.includes('devicectl') || args.includes('xctrace')),
+    false,
+  );
+});
+
+test('listAppleDevices keeps physical discovery when explicit udid is not a simulator', async () => {
+  mockRunCommand = async (_cmd, args) => {
+    if (args.join(' ') === 'simctl list devices -j') {
+      return { stdout: createSimctlDevicesPayload(), stderr: '', exitCode: 0 };
+    }
+
+    if (args[0] === 'devicectl' && args[1] === 'list' && args[2] === 'devices') {
+      const jsonPath = String(args[4]);
+      await fs.writeFile(jsonPath, JSON.stringify({ result: { devices: [] } }), 'utf8');
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+
+    if (args.join(' ') === 'xctrace list devices') {
+      return {
+        stdout: ['== Devices ==', 'My iPhone [physical-1]'].join('\n'),
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+
+    throw new Error(`unexpected xcrun args: ${args.join(' ')}`);
+  };
+
+  const devices = await withMockedPlatform(
+    'darwin',
+    async () =>
+      await withMockedAppleTools(async () => await listAppleDevices({ udid: 'physical-1' })),
+  );
+
+  assert.equal(
+    devices.some((device) => device.kind === 'device' && device.id === 'physical-1'),
+    true,
+  );
+  assert.equal(
+    toolCalls.some(([, args]) => args.includes('xctrace')),
+    true,
+  );
+});
+
 async function withMockedAppleTools<T>(fn: () => Promise<T>): Promise<T> {
   return await withAppleToolProvider(
     createLocalAppleToolProvider({

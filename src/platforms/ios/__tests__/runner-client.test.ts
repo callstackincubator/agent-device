@@ -35,6 +35,7 @@ import type { RunnerCommand } from '../runner-client.ts';
 import {
   assertSafeDerivedCleanup,
   isRetryableRunnerError,
+  resolveRunnerBuildFailureHint,
   resolveRunnerEarlyExitHint,
   resolveRunnerBuildDestination,
   resolveRunnerBundleBuildSettings,
@@ -46,8 +47,11 @@ import {
 } from '../runner-client.ts';
 import {
   ensureXctestrun,
+  resolveExpectedRunnerCacheMetadata,
+  resolveRunnerCacheMetadataPath,
   resolveRunnerPerformanceBuildSettings,
   shouldDeleteRunnerDerivedRootEntry,
+  writeRunnerCacheMetadata,
   xctestrunReferencesProjectRoot,
 } from '../runner-xctestrun.ts';
 import { xctestrunReferencesExistingProducts } from '../runner-xctestrun-products.ts';
@@ -114,9 +118,10 @@ const runnerProtocolCommandFixtures: Record<RunnerCommand['command'], RunnerComm
     pattern: 'ping-pong',
   },
   remotePress: { command: 'remotePress', remoteButton: 'down', durationMs: 250 },
-  type: { command: 'type', text: 'hello', delayMs: 20, clearFirst: true },
+  type: { command: 'type', text: 'hello', delayMs: 20, textEntryMode: 'replace' },
   swipe: { command: 'swipe', direction: 'down', durationMs: 250 },
   findText: { command: 'findText', text: 'Settings' },
+  querySelector: { command: 'querySelector', selectorKey: 'id', selectorValue: 'submit' },
   readText: { command: 'readText' },
   snapshot: {
     command: 'snapshot',
@@ -255,6 +260,37 @@ function restoreEnvVar(name: string, value: string | undefined): void {
   process.env[name] = value;
 }
 
+function stripRunnerCacheArtifacts(metadata: Record<string, unknown>): Record<string, unknown> {
+  const { artifacts: _artifacts, ...rest } = metadata;
+  return rest;
+}
+
+function writeRunnerCacheMetadataWithArtifacts(params: {
+  derivedPath: string;
+  device: DeviceInfo;
+  xctestrunPath: string;
+  productPaths: string[];
+}): void {
+  fs.writeFileSync(
+    resolveRunnerCacheMetadataPath(params.derivedPath),
+    JSON.stringify(
+      {
+        ...resolveExpectedRunnerCacheMetadata(params.device, repoRoot),
+        artifacts: {
+          xctestrunPath: params.xctestrunPath,
+          xctestrunMtimeMs: Math.trunc(fs.statSync(params.xctestrunPath).mtimeMs),
+          productPaths: params.productPaths.map((productPath) => ({
+            path: productPath,
+            mtimeMs: Math.trunc(fs.statSync(productPath).mtimeMs),
+          })),
+        },
+      },
+      null,
+      2,
+    ),
+  );
+}
+
 async function makeCachedRunnerXctestrun(): Promise<{
   derivedPath: string;
   existingXctestrunPath: string;
@@ -268,6 +304,7 @@ async function makeCachedRunnerXctestrun(): Promise<{
     projectRoot: repoRoot,
     productRelativePaths: ['Runner.app'],
   });
+  writeRunnerCacheMetadata(derivedPath, resolveExpectedRunnerCacheMetadata(macOsDevice, repoRoot));
   return { derivedPath, existingXctestrunPath };
 }
 
@@ -298,6 +335,7 @@ test('runner protocol fixtures cover every runner command with JSON-safe samples
     'longPress',
     'mouseClick',
     'pinch',
+    'querySelector',
     'readText',
     'recordStart',
     'recordStop',
@@ -485,6 +523,16 @@ test('resolveRunnerEarlyExitHint falls back to runner connect timeout hint', () 
     'xcodebuild failed unexpectedly',
   );
   assert.match(hint, /retry runner startup/i);
+  assert.match(hint, /pnpm clean:xcuitest/i);
+});
+
+test('resolveRunnerBuildFailureHint suggests cache cleanup for non-signing failures', () => {
+  const hint = resolveRunnerBuildFailureHint(
+    new AppError('COMMAND_FAILED', 'xcodebuild build-for-testing failed'),
+  );
+
+  assert.match(hint, /pnpm clean:xcuitest/i);
+  assert.match(hint, /~\/\.agent-device\/ios-runner\/derived/i);
 });
 
 test('shouldRetryRunnerConnectError does not retry xcodebuild early-exit errors', () => {
@@ -659,6 +707,124 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
   assert.equal(mockRunCmdStreaming.mock.calls.length, 1);
   assert.equal(fs.existsSync(existingXctestrunPath), false);
   assert.deepEqual(repairedPaths, [existingXctestrunPath, rebuiltXctestrunPath]);
+});
+
+test('ensureXctestrun prefers validated cache manifest over recursive scan', async () => {
+  const tmpDir = await makeTmpDir();
+  const derivedPath = path.join(tmpDir, 'custom-derived');
+  const manifestProductPath = path.join(derivedPath, 'ManifestRunner.app');
+  const manifestXctestrunPath = path.join(derivedPath, 'manifest.xctestrun');
+  const newerProductPath = path.join(derivedPath, 'NewerRunner.app');
+  const newerXctestrunPath = path.join(derivedPath, 'newer.xctestrun');
+  await fs.promises.mkdir(manifestProductPath, { recursive: true });
+  await fs.promises.mkdir(newerProductPath, { recursive: true });
+  writeXctestrunFixture(manifestXctestrunPath, {
+    projectRoot: repoRoot,
+    productRelativePaths: ['ManifestRunner.app'],
+  });
+  writeXctestrunFixture(newerXctestrunPath, {
+    projectRoot: repoRoot,
+    productRelativePaths: ['NewerRunner.app'],
+  });
+  const now = new Date();
+  fs.utimesSync(manifestXctestrunPath, now, now);
+  fs.utimesSync(
+    newerXctestrunPath,
+    new Date(now.getTime() + 5_000),
+    new Date(now.getTime() + 5_000),
+  );
+  writeRunnerCacheMetadataWithArtifacts({
+    derivedPath,
+    device: macOsDevice,
+    xctestrunPath: manifestXctestrunPath,
+    productPaths: [manifestProductPath],
+  });
+  withRunnerDerivedPathEnv(derivedPath);
+
+  const result = await ensureXctestrun(macOsDevice, {});
+
+  assert.equal(result, manifestXctestrunPath);
+  assert.equal(mockRunCmdStreaming.mock.calls.length, 0);
+  assert.deepEqual(mockRepairMacOsRunnerProductsIfNeeded.mock.calls[0]?.[1], [manifestProductPath]);
+});
+
+test('ensureXctestrun falls back to scan when cache manifest is stale', async () => {
+  const tmpDir = await makeTmpDir();
+  const derivedPath = path.join(tmpDir, 'custom-derived');
+  const manifestProductPath = path.join(derivedPath, 'ManifestRunner.app');
+  const manifestXctestrunPath = path.join(derivedPath, 'manifest.xctestrun');
+  const newerProductPath = path.join(derivedPath, 'NewerRunner.app');
+  const newerXctestrunPath = path.join(derivedPath, 'newer.xctestrun');
+  await fs.promises.mkdir(manifestProductPath, { recursive: true });
+  await fs.promises.mkdir(newerProductPath, { recursive: true });
+  writeXctestrunFixture(manifestXctestrunPath, {
+    projectRoot: repoRoot,
+    productRelativePaths: ['ManifestRunner.app'],
+  });
+  writeXctestrunFixture(newerXctestrunPath, {
+    projectRoot: repoRoot,
+    productRelativePaths: ['NewerRunner.app'],
+  });
+  const now = new Date();
+  fs.utimesSync(manifestXctestrunPath, now, now);
+  fs.utimesSync(
+    newerXctestrunPath,
+    new Date(now.getTime() + 5_000),
+    new Date(now.getTime() + 5_000),
+  );
+  writeRunnerCacheMetadataWithArtifacts({
+    derivedPath,
+    device: macOsDevice,
+    xctestrunPath: manifestXctestrunPath,
+    productPaths: [manifestProductPath],
+  });
+  fs.utimesSync(
+    manifestProductPath,
+    new Date(now.getTime() + 10_000),
+    new Date(now.getTime() + 10_000),
+  );
+  withRunnerDerivedPathEnv(derivedPath);
+
+  const result = await ensureXctestrun(macOsDevice, {});
+
+  assert.equal(result, newerXctestrunPath);
+  assert.equal(mockRunCmdStreaming.mock.calls.length, 0);
+  assert.deepEqual(mockRepairMacOsRunnerProductsIfNeeded.mock.calls[0]?.[1], [newerProductPath]);
+});
+
+test('ensureXctestrun rebuilds cached runner when metadata package version mismatches', async () => {
+  const projectRoot = repoRoot;
+  const { derivedPath, existingXctestrunPath } = await makeCachedRunnerXctestrun();
+  const metadataPath = resolveRunnerCacheMetadataPath(derivedPath);
+  const staleMetadata = {
+    ...resolveExpectedRunnerCacheMetadata(macOsDevice, repoRoot),
+    packageVersion: '0.0.0-stale',
+  };
+  fs.writeFileSync(metadataPath, JSON.stringify(staleMetadata, null, 2));
+
+  const rebuiltXctestrunPath = path.join(derivedPath, 'rebuilt', 'rebuilt.xctestrun');
+
+  withRunnerDerivedPathEnv(derivedPath, { allowOverrideClean: true });
+
+  mockRunCmdStreaming.mockImplementation(async () => {
+    await fs.promises.mkdir(path.join(derivedPath, 'rebuilt', 'Runner.app'), { recursive: true });
+    writeXctestrunFixture(rebuiltXctestrunPath, {
+      projectRoot,
+      productRelativePaths: ['Runner.app'],
+    });
+  });
+
+  const result = await ensureXctestrun(macOsDevice, {});
+
+  assert.equal(result, rebuiltXctestrunPath);
+  assert.equal(mockRunCmdStreaming.mock.calls.length, 1);
+  assert.equal(fs.existsSync(existingXctestrunPath), false);
+  const rebuiltMetadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+  assert.deepEqual(
+    stripRunnerCacheArtifacts(rebuiltMetadata),
+    resolveExpectedRunnerCacheMetadata(macOsDevice, repoRoot),
+  );
+  assert.equal(rebuiltMetadata.artifacts?.xctestrunPath, rebuiltXctestrunPath);
 });
 
 test('ensureXctestrun rethrows unexpected cached macOS runner repair errors', async () => {

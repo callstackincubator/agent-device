@@ -48,6 +48,7 @@ type DevicectlListDevicesPayload = {
 
 type IosDeviceDiscoveryOptions = {
   simulatorSetPath?: string;
+  udid?: string;
 };
 
 const XCTRACE_SECTION_HEADER_PATTERN = /^==\s*(.+?)\s*==$/;
@@ -341,6 +342,12 @@ export async function listAppleDevices(
   }
 
   devices.push(buildHostMacDevice());
+  if (
+    options.udid &&
+    devices.some((device) => device.platform === 'ios' && device.id === options.udid)
+  ) {
+    return devices;
+  }
 
   // When a simulator set is configured, keep iOS discovery strictly scoped to that set.
   // Do not enumerate host-global physical devices, but keep the local Mac available

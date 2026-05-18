@@ -76,11 +76,17 @@
   "scripts": {
     "build": "rslib build",
     "clean:daemon": "rm -f ~/.agent-device/daemon.json && rm -f ~/.agent-device/daemon.lock",
+    "clean:xcuitest": "node scripts/clean-xcuitest-derived.mjs",
+    "clean:xcuitest:ios": "node scripts/clean-xcuitest-derived.mjs ios",
+    "clean:xcuitest:macos": "node scripts/clean-xcuitest-derived.mjs macos",
+    "clean:xcuitest:tvos": "node scripts/clean-xcuitest-derived.mjs tvos",
     "build:node": "pnpm build && pnpm clean:daemon",
     "build:xcuitest": "pnpm build:xcuitest:ios && pnpm build:xcuitest:macos",
-    "build:xcuitest:ios": "AGENT_DEVICE_XCUITEST_PLATFORM=ios AGENT_DEVICE_IOS_CLEAN_DERIVED=1 sh ./scripts/build-xcuitest-apple.sh",
+    "build:xcuitest:ios": "AGENT_DEVICE_XCUITEST_PLATFORM=ios sh ./scripts/build-xcuitest-apple.sh",
+    "build:xcuitest:ios:clean": "pnpm clean:xcuitest:ios && pnpm build:xcuitest:ios",
     "build:xcuitest:macos": "AGENT_DEVICE_XCUITEST_PLATFORM=macos sh ./scripts/build-xcuitest-apple.sh",
-    "build:xcuitest:tvos": "AGENT_DEVICE_XCUITEST_PLATFORM=tvos AGENT_DEVICE_IOS_CLEAN_DERIVED=1 sh ./scripts/build-xcuitest-apple.sh",
+    "build:xcuitest:tvos": "AGENT_DEVICE_XCUITEST_PLATFORM=tvos sh ./scripts/build-xcuitest-apple.sh",
+    "build:xcuitest:tvos:clean": "pnpm clean:xcuitest:tvos && pnpm build:xcuitest:tvos",
     "build:android-snapshot-helper": "sh ./scripts/build-android-snapshot-helper.sh $(node -p \"require('./package.json').version\") .tmp/android-snapshot-helper",
     "package:android-snapshot-helper": "sh ./scripts/package-android-snapshot-helper.sh $(node -p \"require('./package.json').version\") v$(node -p \"require('./package.json').version\") .tmp/android-snapshot-helper",
     "package:android-snapshot-helper:npm": "rm -rf android-snapshot-helper/dist && sh ./scripts/package-android-snapshot-helper.sh $(node -p \"require('./package.json').version\") v$(node -p \"require('./package.json').version\") android-snapshot-helper/dist",
@@ -188,7 +194,8 @@
   ],
   "dependencies": {
     "fast-xml-parser": "^5.7.2",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@microsoft/api-extractor": "^7.58.7",

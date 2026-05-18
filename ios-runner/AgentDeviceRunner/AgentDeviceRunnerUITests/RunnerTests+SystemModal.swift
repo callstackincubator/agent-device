@@ -187,6 +187,7 @@ extension RunnerTests {
       rect: snapshotRect(from: element.frame),
       enabled: element.isEnabled,
       focused: elementHasFocus(element) ? true : nil,
+      selected: element.isSelected ? true : nil,
       hittable: hittableOverride ?? element.isHittable,
       depth: depth,
       parentIndex: nil,

@@ -18,6 +18,7 @@ export async function runRequestHandlerChain(params: {
   sessionStore: SessionStore;
   leaseRegistry: LeaseRegistry;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invokeReplayAction?: (req: DaemonRequest) => Promise<DaemonResponse>;
   androidAdbExecutor?: AndroidAdbExecutor;
   contextFromFlags: (
     flags: CommandFlags | undefined,
@@ -32,6 +33,7 @@ export async function runRequestHandlerChain(params: {
     sessionStore,
     leaseRegistry,
     invoke,
+    invokeReplayAction,
     androidAdbExecutor,
     contextFromFlags,
   } = params;
@@ -45,6 +47,7 @@ export async function runRequestHandlerChain(params: {
     logPath,
     sessionStore,
     invoke,
+    invokeReplayAction,
     androidAdbExecutor,
   });
   if (sessionResponse) return sessionResponse;

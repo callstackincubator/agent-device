@@ -29,6 +29,7 @@ extension RunnerTests {
     let valueText: String?
     let hittable: Bool
     let focused: Bool
+    let selected: Bool
     let visible: Bool
   }
 
@@ -343,6 +344,7 @@ extension RunnerTests {
       valueText: valueText,
       hittable: computedSnapshotHittable(snapshot, viewport: context.viewport, laterNodes: laterNodes),
       focused: snapshotHasFocus(snapshot),
+      selected: snapshotIsSelected(snapshot),
       visible: isVisibleInViewport(snapshot.frame, context.viewport)
     )
   }
@@ -363,6 +365,7 @@ extension RunnerTests {
       rect: snapshotRect(from: snapshot.frame),
       enabled: snapshot.isEnabled,
       focused: evaluation.focused ? true : nil,
+      selected: evaluation.selected ? true : nil,
       hittable: evaluation.hittable,
       depth: depth,
       parentIndex: parentIndex,
@@ -529,6 +532,7 @@ extension RunnerTests {
         rect: node.rect,
         enabled: node.enabled,
         focused: node.focused,
+        selected: node.selected,
         hittable: node.hittable,
         depth: depth,
         parentIndex: parentIndex,
@@ -580,6 +584,7 @@ extension RunnerTests {
         rect: snapshotRect(from: frame),
         enabled: element.isEnabled,
         focused: elementHasFocus(element) ? true : nil,
+        selected: element.isSelected ? true : nil,
         hittable: element.isHittable,
         depth: 0,
         parentIndex: nil,
@@ -605,6 +610,10 @@ extension RunnerTests {
       }
     })
     return focused
+  }
+
+  private func snapshotIsSelected(_ snapshot: XCUIElementSnapshot) -> Bool {
+    return snapshot.isSelected
   }
 
   private func shouldExpandCollapsedTabContainer(_ snapshot: XCUIElementSnapshot) -> Bool {

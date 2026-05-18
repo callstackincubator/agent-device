@@ -18,6 +18,14 @@ export type SnapshotOptions = {
   raw?: boolean;
 };
 
+export type SnapshotPresentationFlagInput = {
+  snapshotInteractiveOnly?: boolean;
+  snapshotCompact?: boolean;
+  snapshotDepth?: number;
+  snapshotScope?: string;
+  snapshotRaw?: boolean;
+};
+
 export type RawSnapshotNode = {
   index: number;
   type?: string;
@@ -116,6 +124,19 @@ export function buildSnapshotPresentationKey(flags: SnapshotOptions | undefined)
     scope: flags?.scope?.trim() || null,
     raw: flags?.raw === true,
   });
+}
+
+export function snapshotPresentationOptionsFromFlags(
+  flags: SnapshotPresentationFlagInput | undefined,
+): SnapshotOptions | undefined {
+  if (!flags) return undefined;
+  return {
+    compact: flags.snapshotCompact,
+    depth: flags.snapshotDepth,
+    interactiveOnly: flags.snapshotInteractiveOnly,
+    raw: flags.snapshotRaw,
+    scope: flags.snapshotScope,
+  };
 }
 
 export function centerOfRect(rect: Rect): Point {

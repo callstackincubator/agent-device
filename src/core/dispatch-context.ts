@@ -38,4 +38,9 @@ export type DispatchContext = ScreenshotDispatchFlags & {
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
   surface?: SessionSurface;
+  directElementSelector?: {
+    key: 'id' | 'label' | 'text' | 'value';
+    value: string;
+    raw: string;
+  };
 };

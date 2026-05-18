@@ -86,6 +86,7 @@ export type CliFlags = RemoteConfigMetroOptions &
     retainPaths?: boolean;
     retentionMs?: number;
     replayUpdate?: boolean;
+    replayMaestro?: boolean;
     replayEnv?: string[];
     replayShellEnv?: Record<string, string>;
     failFast?: boolean;
@@ -1229,6 +1230,14 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Replay: update selectors and rewrite replay file in place',
   },
   {
+    key: 'replayMaestro',
+    names: ['--maestro'],
+    type: 'boolean',
+    usageLabel: '--maestro',
+    usageDescription:
+      'Replay: treat input as a prototype Maestro YAML flow and execute the supported subset through replay',
+  },
+  {
     key: 'replayEnv',
     names: ['-e', '--env'],
     type: 'string',
@@ -1638,7 +1647,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   replay: {
     helpDescription: 'Replay a recorded session',
     positionalArgs: ['path'],
-    allowedFlags: ['replayUpdate', 'replayEnv'],
+    allowedFlags: ['replayUpdate', 'replayMaestro', 'replayEnv'],
     skipCapabilityCheck: true,
   },
   test: {

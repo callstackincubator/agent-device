@@ -15,7 +15,12 @@ vi.mock('../../runtime-hints.ts', async (importOriginal) => {
 });
 vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/runner-client.ts')>();
-  return { ...actual, stopIosRunnerSession: vi.fn(async () => {}) };
+  return {
+    ...actual,
+    prewarmIosRunnerSession: vi.fn(),
+    prewarmIosRunnerXctestrun: vi.fn(),
+    stopIosRunnerSession: vi.fn(async () => {}),
+  };
 });
 vi.mock('../../../platforms/ios/macos-helper.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/macos-helper.ts')>();
@@ -89,7 +94,11 @@ import { AppError } from '../../../utils/errors.ts';
 import { dispatchCommand, resolveTargetDevice } from '../../../core/dispatch.ts';
 import { ensureDeviceReady } from '../../device-ready.ts';
 import { applyRuntimeHintsToApp, clearRuntimeHintsFromApp } from '../../runtime-hints.ts';
-import { stopIosRunnerSession } from '../../../platforms/ios/runner-client.ts';
+import {
+  prewarmIosRunnerSession,
+  prewarmIosRunnerXctestrun,
+  stopIosRunnerSession,
+} from '../../../platforms/ios/runner-client.ts';
 import { runMacOsAlertAction } from '../../../platforms/ios/macos-helper.ts';
 import { settleIosSimulator } from '../session-device-utils.ts';
 import { resolveAndroidPackageForOpen } from '../session-open-target.ts';
@@ -109,6 +118,8 @@ const mockResolveTargetDevice = vi.mocked(resolveTargetDevice);
 const mockEnsureDeviceReady = vi.mocked(ensureDeviceReady);
 const mockApplyRuntimeHints = vi.mocked(applyRuntimeHintsToApp);
 const mockClearRuntimeHints = vi.mocked(clearRuntimeHintsFromApp);
+const mockPrewarmIosRunnerSession = vi.mocked(prewarmIosRunnerSession);
+const mockPrewarmIosRunnerXctestrun = vi.mocked(prewarmIosRunnerXctestrun);
 const mockStopIosRunner = vi.mocked(stopIosRunnerSession);
 const mockDismissMacOsAlert = vi.mocked(runMacOsAlertAction);
 const mockSettleSimulator = vi.mocked(settleIosSimulator);
@@ -137,6 +148,8 @@ beforeEach(() => {
   mockApplyRuntimeHints.mockResolvedValue(undefined);
   mockClearRuntimeHints.mockReset();
   mockClearRuntimeHints.mockResolvedValue(undefined);
+  mockPrewarmIosRunnerSession.mockReset();
+  mockPrewarmIosRunnerXctestrun.mockReset();
   mockStopIosRunner.mockReset();
   mockStopIosRunner.mockResolvedValue(undefined);
   mockDismissMacOsAlert.mockReset();
@@ -1881,6 +1894,79 @@ test('open URL on existing iOS device session preserves app bundle id context', 
   expect(dispatchedContext?.appBundleId).toBe('com.example.app');
 });
 
+test('open iOS app session prewarms runner session when app bundle id is known', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-session';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'iPhone Device',
+      kind: 'device',
+      booted: true,
+    }),
+    appBundleId: 'com.example.previous',
+    appName: 'Previous App',
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['Settings', 'myapp://screen/to'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(mockPrewarmIosRunnerSession).toHaveBeenCalledTimes(1);
+  expect(mockPrewarmIosRunnerSession).toHaveBeenCalledWith(
+    expect.objectContaining({ platform: 'ios', id: 'ios-device-1' }),
+    expect.objectContaining({ logPath: expect.stringMatching(/daemon\.log$/) }),
+  );
+  expect(mockPrewarmIosRunnerXctestrun).not.toHaveBeenCalled();
+});
+
+test('open iOS URL without app bundle id keeps xctestrun-only prewarm', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-device-session';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'iPhone Device',
+      kind: 'device',
+      booted: true,
+    }),
+  );
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['myapp://screen/to'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(mockPrewarmIosRunnerSession).not.toHaveBeenCalled();
+  expect(mockPrewarmIosRunnerXctestrun).toHaveBeenCalledTimes(1);
+});
+
 test('open web URL on iOS device session without active app falls back to Safari', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-session';
@@ -2525,6 +2611,45 @@ test('close on iOS session with recording stops runner session before delete', a
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
   expect(stopCalls).toEqual(['ios-device-1']);
+  expect(sessionStore.get(sessionName)).toBe(undefined);
+});
+
+test('plain close on iOS simulator retains runner for local iteration', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-simulator-close-session';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-sim-1',
+      name: 'iPhone 17',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+  });
+
+  const stopCalls: string[] = [];
+  mockStopIosRunner.mockImplementation(async (deviceId) => {
+    stopCalls.push(deviceId);
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(stopCalls).toEqual([]);
   expect(sessionStore.get(sessionName)).toBe(undefined);
 });
 

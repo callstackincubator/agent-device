@@ -287,7 +287,10 @@ async function listLocalDeviceInventory(request: DeviceInventoryRequest): Promis
   }
 
   if (request.platform) {
-    return await listAppleDevices({ simulatorSetPath: request.iosSimulatorSetPath });
+    return await listAppleDevices({
+      simulatorSetPath: request.iosSimulatorSetPath,
+      udid: request.udid,
+    });
   }
 
   const devices: DeviceInfo[] = [];
@@ -301,7 +304,12 @@ async function listLocalDeviceInventory(request: DeviceInventoryRequest): Promis
     );
   } catch {}
   try {
-    devices.push(...(await listAppleDevices({ simulatorSetPath: request.iosSimulatorSetPath })));
+    devices.push(
+      ...(await listAppleDevices({
+        simulatorSetPath: request.iosSimulatorSetPath,
+        udid: request.udid,
+      })),
+    );
   } catch {}
   // Linux local device is appended last so it does not displace
   // connected Android/Apple devices in implicit auto-selection.

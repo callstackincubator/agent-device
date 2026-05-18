@@ -443,6 +443,61 @@ test('runReplayScriptFile falls back to process.env when request omits replayShe
   }
 });
 
+test('runReplayScriptFile writes per-action timing events to active trace', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-trace-'));
+  const scriptPath = path.join(root, 'flow.ad');
+  const tracePath = path.join(root, 'trace.ndjson');
+  fs.writeFileSync(scriptPath, 'context platform=ios\nclick id="submit"\nwait "Done" 5000\n');
+  fs.writeFileSync(tracePath, '');
+
+  const sessionStore = new SessionStore(path.join(root, 'state'));
+  sessionStore.set('s', {
+    name: 's',
+    device: {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone',
+      kind: 'simulator',
+      booted: true,
+    },
+    createdAt: Date.now(),
+    trace: { outPath: tracePath, startedAt: Date.now() },
+    actions: [],
+  });
+
+  const response = await runReplayScriptFile({
+    req: {
+      token: 't',
+      session: 's',
+      command: 'replay',
+      positionals: [scriptPath],
+      flags: {},
+      meta: { cwd: root },
+    },
+    sessionName: 's',
+    logPath: path.join(root, 'log'),
+    sessionStore,
+    invoke: async () => ({ ok: true, data: {} }),
+  });
+
+  assert.equal(response.ok, true);
+  const events = fs
+    .readFileSync(tracePath, 'utf8')
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+  assert.deepEqual(
+    events.map((event) => [event.type, event.step, event.command]),
+    [
+      ['replay_action_start', 1, 'click'],
+      ['replay_action_stop', 1, 'click'],
+      ['replay_action_start', 2, 'wait'],
+      ['replay_action_stop', 2, 'wait'],
+    ],
+  );
+  assert.equal(typeof events[1]?.durationMs, 'number');
+});
+
 test('AD_ARTIFACTS resolves to per-attempt dir when artifactsDir flag is set by the test runner', async () => {
   const attemptDir = '/tmp/agent-device-replay-artifacts-stub/run-x/flow/attempt-1';
   const { response, calls } = await runReplayFixture({

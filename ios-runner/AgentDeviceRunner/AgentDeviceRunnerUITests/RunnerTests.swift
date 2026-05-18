@@ -90,8 +90,7 @@ final class RunnerTests: XCTestCase {
   @MainActor
   func testCommand() throws {
     doneExpectation = expectation(description: "agent-device command handled")
-    app.launch()
-    currentApp = app
+    NSLog("AGENT_DEVICE_RUNNER_HEADLESS_STARTUP=1")
     let queue = DispatchQueue(label: "agent-device.runner")
     let desiredPort = RunnerEnv.resolvePort()
     NSLog("AGENT_DEVICE_RUNNER_DESIRED_PORT=%d", desiredPort)

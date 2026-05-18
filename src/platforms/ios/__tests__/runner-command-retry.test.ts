@@ -4,12 +4,17 @@ import { IOS_SIMULATOR } from '../../../__tests__/test-utils/index.ts';
 import { AppError } from '../../../utils/errors.ts';
 import type { RunnerSession } from '../runner-session-types.ts';
 
-const { mockEnsureRunnerSession, mockExecuteRunnerCommandWithSession, mockStopRunnerSession } =
-  vi.hoisted(() => ({
-    mockEnsureRunnerSession: vi.fn(),
-    mockExecuteRunnerCommandWithSession: vi.fn(),
-    mockStopRunnerSession: vi.fn(),
-  }));
+const {
+  mockEnsureRunnerSession,
+  mockExecuteRunnerCommandWithSession,
+  mockInvalidateRunnerSession,
+  mockStopRunnerSession,
+} = vi.hoisted(() => ({
+  mockEnsureRunnerSession: vi.fn(),
+  mockExecuteRunnerCommandWithSession: vi.fn(),
+  mockInvalidateRunnerSession: vi.fn(),
+  mockStopRunnerSession: vi.fn(),
+}));
 
 vi.mock('../runner-session.ts', async () => {
   const actual =
@@ -18,6 +23,7 @@ vi.mock('../runner-session.ts', async () => {
     ...actual,
     ensureRunnerSession: mockEnsureRunnerSession,
     executeRunnerCommandWithSession: mockExecuteRunnerCommandWithSession,
+    invalidateRunnerSession: mockInvalidateRunnerSession,
     stopRunnerSession: mockStopRunnerSession,
   };
 });
@@ -41,10 +47,37 @@ test('mutating commands restart stale ready sessions when the preflight probe ne
 
   assert.deepEqual(result, { message: 'tapped' });
   assert.equal(mockEnsureRunnerSession.mock.calls.length, 2);
-  assert.equal(mockStopRunnerSession.mock.calls.length, 1);
-  assert.equal(mockStopRunnerSession.mock.calls[0]?.[0], staleSession);
+  assert.equal(mockEnsureRunnerSession.mock.calls[1]?.[1]?.cleanStaleBundles, true);
+  assert.deepEqual(mockInvalidateRunnerSession.mock.calls[0], [
+    staleSession,
+    'runner_connect_failed_before_command_send',
+  ]);
+  assert.equal(mockStopRunnerSession.mock.calls.length, 0);
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[0]?.[2].command, 'tap');
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[1]?.[1], freshSession);
+});
+
+test('mutating commands retry startup sessions with stale bundle cleanup', async () => {
+  const startupSession = makeRunnerSession({ port: 8100, ready: false });
+  const freshSession = makeRunnerSession({ port: 8101, ready: false });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(startupSession).mockResolvedValueOnce(freshSession);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'Runner did not accept connection'))
+    .mockResolvedValueOnce({ message: 'tapped' });
+
+  const result = await runIosRunnerCommand(IOS_SIMULATOR, { command: 'tap', x: 120, y: 240 });
+
+  assert.deepEqual(result, { message: 'tapped' });
+  assert.equal(mockEnsureRunnerSession.mock.calls.length, 2);
+  assert.equal(mockEnsureRunnerSession.mock.calls[1]?.[1]?.cleanStaleBundles, true);
+  assert.deepEqual(mockInvalidateRunnerSession.mock.calls[0], [
+    startupSession,
+    'runner_connect_failed_before_command_send',
+  ]);
+  assert.equal(mockStopRunnerSession.mock.calls.length, 0);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[1]?.[1], freshSession);
 });
 
@@ -53,7 +86,7 @@ test('mutating commands do not restart or replay after command send failure', as
 
   mockEnsureRunnerSession.mockResolvedValueOnce(session);
   mockExecuteRunnerCommandWithSession.mockRejectedValueOnce(
-    new Error('request timed out after reaching runner'),
+    new AppError('COMMAND_FAILED', 'fetch failed'),
   );
 
   await assert.rejects(() =>
@@ -61,8 +94,34 @@ test('mutating commands do not restart or replay after command send failure', as
   );
 
   assert.equal(mockEnsureRunnerSession.mock.calls.length, 1);
+  assert.equal(mockInvalidateRunnerSession.mock.calls.length, 1);
+  assert.deepEqual(mockInvalidateRunnerSession.mock.calls[0], [
+    session,
+    'transport_error_after_command_send',
+  ]);
   assert.equal(mockStopRunnerSession.mock.calls.length, 0);
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 1);
+});
+
+test('mutating commands invalidate the retry session without replaying again', async () => {
+  const staleSession = makeRunnerSession({ port: 8100, ready: true });
+  const freshSession = makeRunnerSession({ port: 8101, ready: false });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(staleSession).mockResolvedValueOnce(freshSession);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'Runner did not accept connection'))
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'fetch failed'));
+
+  await assert.rejects(() =>
+    runIosRunnerCommand(IOS_SIMULATOR, { command: 'tap', x: 120, y: 240 }),
+  );
+
+  assert.equal(mockEnsureRunnerSession.mock.calls.length, 2);
+  assert.deepEqual(mockInvalidateRunnerSession.mock.calls, [
+    [staleSession, 'runner_connect_failed_before_command_send'],
+    [freshSession, 'transport_error_after_retry_command_send'],
+  ]);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
 });
 
 function makeRunnerSession(overrides: Partial<RunnerSession> = {}): RunnerSession {
