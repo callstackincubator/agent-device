@@ -49,6 +49,8 @@ agent-device help dogfood
 
 Use [AI Agent Setup](/agent-device/pr-preview/pr-542/docs/agent-setup.md) for Cursor, Codex, Claude Code, Windsurf, Cline, Goose, skills, and project rules. Use [Commands](/agent-device/pr-preview/pr-542/docs/commands.md) for detailed command groups and platform behavior.
 
+For MCP-aware discovery, `agent-device` publishes [Model Context Protocol](https://modelcontextprotocol.io/) metadata under `io.github.callstackincubator/agent-device`. The runtime interface remains the CLI.
+
 ## Where it fits
 
 `agent-device` is for agents, but humans still install it, grant permissions, review artifacts, and decide what ships.
@@ -109,6 +111,10 @@ Global install is better for normal agent workflows because repeated commands, s
 Avoid telling agents to choose an npm version or run `npx -y agent-device@latest` autonomously: it fetches and executes a mutable npm package without a human prompt. For unattended agent use, prefer a trusted installed binary, a project-local install, or a version supplied by the user or project config.
 
 For Node, Xcode, Android SDK, macOS, and iOS device prerequisites, see [Installation](/agent-device/pr-preview/pr-542/docs/installation.md).
+
+## MCP discovery
+
+Some agent clients and catalogs search for tools through [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) metadata. `agent-device` publishes MCP discovery metadata as `io.github.callstackincubator/agent-device` for that purpose, but the supported automation interface is the `agent-device` CLI. Configure agents to run CLI commands in a terminal and read installed CLI help before acting.
 
 ## Install the skill
 
