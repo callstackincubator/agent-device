@@ -2,6 +2,20 @@
 
 Minimal operating guide for AI coding agents in this repo.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live in GitHub Issues for `callstackincubator/agent-device`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default Matt Pocock skills triage vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo. Read `CONTEXT.md` for domain language and testing/architecture vocabulary, and `docs/adr/` for accepted architecture decisions. See `docs/agents/domain.md`.
+
 ## First 60 Seconds
 - Classify task type:
   - Info-only (triage/review/questions/docs guidance): no code edits and no test runs unless explicitly requested.
