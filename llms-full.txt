@@ -805,14 +805,6 @@ agent-device help dogfood
 
 Skills are recommended for auto-routing when your agent runtime supports them, but they are not required. The CLI help topics are the version-matched operating contract.
 
-For MCP-aware clients that need discovery instead of direct device control, run:
-
-```bash
-agent-device mcp
-```
-
-The MCP router exposes `status`, `install`, and `help` tools plus workflow prompts/resources. It does not expose device automation or generic shell execution over MCP.
-
 ## Navigation
 
 ```bash
@@ -1852,7 +1844,7 @@ agent-device help react-devtools
 
 Some agent clients run commands in an environment that differs from the user's normal install shell. If `agent-device` is missing in the agent terminal but was installed globally elsewhere, resolve the command the same way the user would from a normal terminal session, then use the absolute binary path for agent commands. This may require inspecting shell startup behavior or package-manager/global bin locations; do not assume the agent process `PATH` is the user's `PATH`.
 
-For Cursor, Codex, Claude Code, Windsurf, Cline, Goose, skills, project rules, and MCP configuration, see [AI Agent Setup](/agent-device/docs/agent-setup.md). For the first app automation commands, see [Quick Start](/agent-device/docs/quick-start.md).
+For Cursor, Codex, Claude Code, Windsurf, Cline, Goose, skills, and project rules, see [AI Agent Setup](/agent-device/docs/agent-setup.md). For the first app automation commands, see [Quick Start](/agent-device/docs/quick-start.md).
 
 Interactive CLI runs periodically check for a newer published `agent-device` package in the background. When an upgrade is available, the CLI suggests reinstalling the package globally:
 
@@ -1862,16 +1854,6 @@ agent-device --version
 ```
 
 Set `AGENT_DEVICE_NO_UPDATE_NOTIFIER=1` to disable the notice.
-
-## Agent clients and MCP
-
-The official MCP router is intentionally thin. It helps clients discover install/status/help, while app and device automation remains explicit CLI activity in the terminal.
-
-```bash
-agent-device mcp
-```
-
-Use [AI Agent Setup](/agent-device/docs/agent-setup.md#mcp-router) for copy-paste MCP client configuration.
 
 ## Without installing
 
@@ -2355,7 +2337,6 @@ url: /agent-device/docs/security-trust.md
 ## Local control
 
 - Device automation runs through the installed CLI and platform tooling such as Xcode, ADB, macOS accessibility APIs, and Linux AT-SPI.
-- The MCP server is a thin discovery router. It exposes status, install guidance, version-matched help, prompts, and resources; it does not expose device automation or generic shell execution over MCP.
 - Mutating commands should run serially against one session. Use separate sessions/devices for parallel work.
 
 ## Sensitive artifacts
