@@ -32,6 +32,10 @@ Avoid telling agents to choose an npm version or run `npx -y agent-device@latest
 
 For Node, Xcode, Android SDK, macOS, and iOS device prerequisites, see [Installation](/docs/installation).
 
+## MCP discovery
+
+Some agent clients and catalogs search for tools through [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) metadata. `agent-device` publishes MCP discovery metadata as `io.github.callstackincubator/agent-device` for that purpose, but the supported automation interface is the `agent-device` CLI. Configure agents to run CLI commands in a terminal and read installed CLI help before acting.
+
 ## Install the skill
 
 Install the skill when your agent runtime supports skills:

@@ -58,6 +58,8 @@ If you install skills separately, keep the CLI on `agent-device >= 0.14.0`. Olde
 
 For client-specific setup, see [AI Agent Setup](https://incubator.callstack.com/agent-device/docs/agent-setup). For agent-readable docs, use [llms-full.txt](https://incubator.callstack.com/agent-device/llms-full.txt).
 
+Discovery note: `agent-device` publishes [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) metadata as `io.github.callstackincubator/agent-device` so agents and MCP-aware catalogs can find the project. The supported automation interface is still the `agent-device` CLI.
+
 ```bash
 npm install -g agent-device@latest
 agent-device --version

@@ -50,6 +50,8 @@ agent-device help dogfood
 
 Use [AI Agent Setup](/docs/agent-setup) for Cursor, Codex, Claude Code, Windsurf, Cline, Goose, skills, and project rules. Use [Commands](/docs/commands) for detailed command groups and platform behavior.
 
+For MCP-aware discovery, `agent-device` publishes [Model Context Protocol](https://modelcontextprotocol.io/) metadata under `io.github.callstackincubator/agent-device`. The runtime interface remains the CLI.
+
 ## Where it fits
 
 `agent-device` is for agents, but humans still install it, grant permissions, review artifacts, and decide what ships.
