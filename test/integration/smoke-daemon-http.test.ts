@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { supportsLoopbackBind } from '../../src/__tests__/test-utils/loopback.ts';
+import { skipWhenLoopbackUnavailable } from '../../src/__tests__/test-utils/loopback.ts';
 import { stopProcessForTakeover } from '../../src/utils/process-identity.ts';
 import { runCliJson } from './test-helpers.ts';
 
@@ -14,18 +14,6 @@ type DaemonInfo = {
   transport?: string;
   httpPort?: number;
 };
-
-type SkippableTestContext = {
-  skip(reason?: string): void;
-};
-
-async function skipWhenLoopbackUnavailable(t: SkippableTestContext): Promise<boolean> {
-  if (await supportsLoopbackBind()) {
-    return false;
-  }
-  t.skip('loopback listeners are not permitted in this environment');
-  return true;
-}
 
 test('daemon HTTP transport starts from CLI and accepts a command RPC', async (t) => {
   if (await skipWhenLoopbackUnavailable(t)) {

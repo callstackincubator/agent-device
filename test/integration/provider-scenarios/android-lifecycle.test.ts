@@ -12,7 +12,10 @@ import {
   restoreEnv,
   withProviderScenarioResource,
 } from './harness.ts';
-import { closeHttpServer, listenHttpOnLoopback } from './loopback.ts';
+import {
+  closeLoopbackServer,
+  listenOnLoopback,
+} from '../../../src/__tests__/test-utils/loopback.ts';
 
 type AndroidSettingsWorld = Awaited<ReturnType<typeof createAndroidSettingsWorld>>;
 
@@ -900,13 +903,13 @@ async function createLocalArtifactServer(filePath: string): Promise<{
     fs.createReadStream(filePath).pipe(res);
   });
 
-  const port = await listenHttpOnLoopback(server);
+  const port = await listenOnLoopback(server);
 
   return {
     url: `http://127.0.0.1:${port}/ManifestDemo.apk`,
     get lastHeaders() {
       return lastHeaders;
     },
-    close: async () => await closeHttpServer(server),
+    close: async () => await closeLoopbackServer(server),
   };
 }

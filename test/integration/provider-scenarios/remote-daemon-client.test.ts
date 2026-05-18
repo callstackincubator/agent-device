@@ -6,7 +6,11 @@ import path from 'node:path';
 import { test } from 'vitest';
 import { createAgentDeviceClient } from '../../../src/client.ts';
 import { normalizeAgentDeviceError } from '../../../src/utils/errors.ts';
-import { closeHttpServer, listenHttpOnLoopback, skipWhenLoopbackUnavailable } from './loopback.ts';
+import {
+  closeLoopbackServer,
+  listenOnLoopback,
+  skipWhenLoopbackUnavailable,
+} from '../../../src/__tests__/test-utils/loopback.ts';
 
 type RemoteRpcRequest = {
   id: unknown;
@@ -477,7 +481,7 @@ test('Provider-backed integration remote daemon client materializes artifacts an
   });
 
   try {
-    const port = await listenHttpOnLoopback(server);
+    const port = await listenOnLoopback(server);
 
     const client = createAgentDeviceClient({
       daemonBaseUrl: `http://127.0.0.1:${port}`,
@@ -492,7 +496,7 @@ test('Provider-backed integration remote daemon client materializes artifacts an
     rejectRpcRequests();
     await assertRemoteRpcErrorNormalization(client);
   } finally {
-    await closeHttpServer(server);
+    await closeLoopbackServer(server);
     fs.rmSync(stateDir, { recursive: true, force: true });
   }
 });
@@ -507,7 +511,7 @@ test('Provider-backed integration remote daemon client normalizes artifact downl
   const { server, rejectArtifactDownloads } = createRemoteDaemonServer({ screenshotPath });
 
   try {
-    const port = await listenHttpOnLoopback(server);
+    const port = await listenOnLoopback(server);
     const client = createAgentDeviceClient({
       daemonBaseUrl: `http://127.0.0.1:${port}`,
       daemonAuthToken: 'remote-token',
@@ -529,7 +533,7 @@ test('Provider-backed integration remote daemon client normalizes artifact downl
       },
     );
   } finally {
-    await closeHttpServer(server);
+    await closeLoopbackServer(server);
     fs.rmSync(stateDir, { recursive: true, force: true });
   }
 });

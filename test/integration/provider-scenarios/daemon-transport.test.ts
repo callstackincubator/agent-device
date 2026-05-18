@@ -8,7 +8,10 @@ import {
   listenHttpServer,
   listenNetServer,
 } from '../../../src/daemon/transport.ts';
-import { closeServer, skipWhenLoopbackUnavailable } from './loopback.ts';
+import {
+  closeLoopbackServer,
+  skipWhenLoopbackUnavailable,
+} from '../../../src/__tests__/test-utils/loopback.ts';
 
 test('Provider-backed integration daemon socket transport frames requests and normalizes malformed input', async (t) => {
   if (await skipWhenLoopbackUnavailable(t)) {
@@ -65,9 +68,9 @@ test('Provider-backed integration daemon socket transport frames requests and no
     });
     const httpPort = await listenHttpServer(httpServer);
     assert.equal(typeof httpPort, 'number');
-    await closeServer(httpServer);
+    await closeLoopbackServer(httpServer);
   } finally {
-    await closeServer(server);
+    await closeLoopbackServer(server);
   }
 });
 

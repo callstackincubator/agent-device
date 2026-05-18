@@ -20,6 +20,7 @@ export { makeSnapshotState } from './snapshot-builders.ts';
 export {
   closeLoopbackServer,
   listenOnLoopback,
+  skipWhenLoopbackUnavailable,
   supportsLoopbackBind,
   waitForHttpOk,
 } from './loopback.ts';

@@ -2,8 +2,17 @@ import http from 'node:http';
 import net from 'node:net';
 
 export type LoopbackServer = http.Server | net.Server;
+export type SkippableTestContext = {
+  skip(reason?: string): void;
+};
 
 let loopbackBindSupportPromise: Promise<boolean> | null = null;
+
+function requiresLoopbackCoverage(): boolean {
+  return ['1', 'true', 'yes', 'on'].includes(
+    (process.env.AGENT_DEVICE_REQUIRE_LOOPBACK_TESTS ?? '').toLowerCase(),
+  );
+}
 
 export async function supportsLoopbackBind(): Promise<boolean> {
   if (loopbackBindSupportPromise) {
@@ -19,6 +28,20 @@ export async function supportsLoopbackBind(): Promise<boolean> {
     });
   });
   return await loopbackBindSupportPromise;
+}
+
+export async function skipWhenLoopbackUnavailable(
+  t: SkippableTestContext,
+  coverageLabel = 'loopback integration coverage',
+): Promise<boolean> {
+  if (await supportsLoopbackBind()) {
+    return false;
+  }
+  if (requiresLoopbackCoverage()) {
+    throw new Error(`loopback listeners are required for ${coverageLabel}`);
+  }
+  t.skip('loopback listeners are not permitted in this environment');
+  return true;
 }
 
 export async function listenOnLoopback(server: LoopbackServer): Promise<number> {
@@ -38,6 +61,7 @@ export async function listenOnLoopback(server: LoopbackServer): Promise<number> 
 
 export async function closeLoopbackServer(server: LoopbackServer): Promise<void> {
   if (!server.listening) return;
+  closeHttpConnections(server);
   await new Promise<void>((resolve, reject) => {
     server.close((error) => {
       if (error) {
@@ -47,6 +71,12 @@ export async function closeLoopbackServer(server: LoopbackServer): Promise<void>
       resolve();
     });
   });
+}
+
+function closeHttpConnections(server: LoopbackServer): void {
+  const maybeHttpServer = server as http.Server;
+  maybeHttpServer.closeAllConnections?.();
+  maybeHttpServer.closeIdleConnections?.();
 }
 
 export function waitForHttpOk(url: string, timeoutMs: number): Promise<void> {

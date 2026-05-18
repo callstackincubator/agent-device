@@ -8,7 +8,11 @@ import { trackDownloadableArtifact } from '../../../src/daemon/artifact-tracking
 import { createDaemonHttpServer } from '../../../src/daemon/http-server.ts';
 import { isRequestCanceled } from '../../../src/daemon/request-cancel.ts';
 import type { DaemonRequest, DaemonResponse } from '../../../src/daemon/types.ts';
-import { closeHttpServer, listenHttpOnLoopback, skipWhenLoopbackUnavailable } from './loopback.ts';
+import {
+  closeLoopbackServer,
+  listenOnLoopback,
+  skipWhenLoopbackUnavailable,
+} from '../../../src/__tests__/test-utils/loopback.ts';
 import { restoreEnv } from './harness.ts';
 
 type RpcResponse = {
@@ -56,7 +60,7 @@ test('Provider-backed integration daemon HTTP server maps RPC methods, auth, and
   });
 
   try {
-    const port = await listenHttpOnLoopback(server);
+    const port = await listenOnLoopback(server);
 
     const health = await fetch(`http://127.0.0.1:${port}/health`);
     assert.equal(health.status, 200);
@@ -199,7 +203,7 @@ test('Provider-backed integration daemon HTTP server maps RPC methods, auth, and
     );
     assert.equal(releaseRequest?.meta?.materializationId, 'materialized-1');
   } finally {
-    await closeHttpServer(server);
+    await closeLoopbackServer(server);
   }
 });
 
@@ -221,7 +225,7 @@ test('Provider-backed integration daemon HTTP server accepts uploads and streams
   });
 
   try {
-    const port = await listenHttpOnLoopback(server);
+    const port = await listenOnLoopback(server);
 
     const upload = await fetch(`http://127.0.0.1:${port}/upload`, {
       method: 'POST',
@@ -256,7 +260,7 @@ test('Provider-backed integration daemon HTTP server accepts uploads and streams
     });
     assert.equal(rejectedUpload.status, 401);
   } finally {
-    await closeHttpServer(server);
+    await closeLoopbackServer(server);
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
@@ -288,7 +292,7 @@ test('Provider-backed integration daemon HTTP auth hook can scope tenants and re
         return { ok: true, data: { meta: req.meta } };
       },
     });
-    const port = await listenHttpOnLoopback(server);
+    const port = await listenOnLoopback(server);
     const accepted = await callRpc(
       port,
       {
@@ -322,7 +326,7 @@ test('Provider-backed integration daemon HTTP auth hook can scope tenants and re
     assert.equal(rejected.body.error?.data?.message, 'tenant rejected');
   } finally {
     if (server) {
-      await closeHttpServer(server);
+      await closeLoopbackServer(server);
     }
     restoreEnv('AGENT_DEVICE_HTTP_AUTH_HOOK', previousHook);
     fs.rmSync(root, { recursive: true, force: true });

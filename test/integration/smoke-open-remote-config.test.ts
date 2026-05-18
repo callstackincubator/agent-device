@@ -7,7 +7,7 @@ import http from 'node:http';
 import {
   closeLoopbackServer,
   listenOnLoopback,
-  supportsLoopbackBind,
+  skipWhenLoopbackUnavailable,
 } from '../../src/__tests__/test-utils/loopback.ts';
 import { runCli } from '../../src/cli.ts';
 
@@ -85,12 +85,6 @@ async function runCliJson(args: string[], env?: NodeJS.ProcessEnv): Promise<CliJ
   };
 }
 
-async function closeServer(server: http.Server): Promise<void> {
-  server.closeAllConnections();
-  server.closeIdleConnections();
-  await closeLoopbackServer(server);
-}
-
 async function readJsonBody(req: http.IncomingMessage): Promise<any> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
@@ -101,8 +95,7 @@ async function readJsonBody(req: http.IncomingMessage): Promise<any> {
 }
 
 test('connect prepares Metro and open reuses bridged runtime for remote daemon', async (t) => {
-  if (!(await supportsLoopbackBind())) {
-    t.skip('loopback listeners are not permitted in this environment');
+  if (await skipWhenLoopbackUnavailable(t, 'remote open smoke coverage')) {
     return;
   }
 
@@ -138,7 +131,7 @@ test('connect prepares Metro and open reuses bridged runtime for remote daemon',
   });
   const metroPort = await listenOnLoopback(metroServer);
   t.after(async () => {
-    await closeServer(metroServer);
+    await closeLoopbackServer(metroServer);
   });
 
   let capturedBridgeRequest: any;
@@ -272,7 +265,7 @@ test('connect prepares Metro and open reuses bridged runtime for remote daemon',
   });
   hostPort = await listenOnLoopback(hostServer);
   t.after(async () => {
-    await closeServer(hostServer);
+    await closeLoopbackServer(hostServer);
     fs.rmSync(root, { recursive: true, force: true });
   });
 
