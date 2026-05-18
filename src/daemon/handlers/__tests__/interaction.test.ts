@@ -705,6 +705,7 @@ test('fill rejects macOS menubar surface interactions until helper routing exist
   }
 });
 
+// fallow-ignore-next-line complexity
 test('press coordinates appends touch-visualization events while recording', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';

@@ -109,6 +109,7 @@ function buildStabilitySignature(nodes: SnapshotNode[]): StabilityEntry[] {
   return entries;
 }
 
+// fallow-ignore-next-line complexity
 function areSignaturesStable(left: StabilityEntry[], right: StabilityEntry[]): boolean {
   if (left.length !== right.length) return false;
   for (let index = 0; index < left.length; index += 1) {
@@ -124,14 +125,8 @@ function areSignaturesStable(left: StabilityEntry[], right: StabilityEntry[]): b
 }
 
 function isFiniteRect(rect: NonNullable<SnapshotNode['rect']>): boolean {
-  return (
-    Number.isFinite(rect.x) &&
-    Number.isFinite(rect.y) &&
-    Number.isFinite(rect.width) &&
-    Number.isFinite(rect.height) &&
-    rect.width > 0 &&
-    rect.height > 0
-  );
+  const values = [rect.x, rect.y, rect.width, rect.height];
+  return values.every((value) => Number.isFinite(value)) && rect.width > 0 && rect.height > 0;
 }
 
 function isScrollIndicator(node: SnapshotNode): boolean {

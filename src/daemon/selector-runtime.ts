@@ -84,6 +84,15 @@ type DirectIosSelectorFallbackResult =
   | { kind: 'error'; response: DaemonResponse }
   | null;
 
+type ResolvedDirectIosSelectorQuery =
+  | {
+      session: SessionState;
+      selector: DirectIosSelectorTarget;
+      result: DirectIosSelectorQueryResult;
+    }
+  | { kind: 'error'; response: DaemonResponse }
+  | null;
+
 export async function dispatchFindReadOnlyViaRuntime(
   params: SelectorRuntimeParams,
 ): Promise<DaemonResponse | null> {
@@ -267,13 +276,10 @@ async function dispatchDirectIosSelectorGet(
   property: 'text' | 'attrs',
   selectorExpression: string,
 ): Promise<DaemonResponse | null> {
-  const session = params.sessionStore.get(params.sessionName);
-  const selector = readSimpleIosSelectorTarget({ session, selectorExpression });
-  if (!session || !selector) return null;
-  const result = await queryDirectIosSelectorOrFallback(params, session, selector);
-  if (isDirectIosSelectorErrorResult(result)) return result.response;
-  if (!result) return null;
-  const payload = buildDirectIosGetResult(property, selector.raw, result);
+  const directQuery = await resolveDirectIosSelectorQuery(params, selectorExpression);
+  if (isDirectIosSelectorErrorResult(directQuery)) return directQuery.response;
+  if (!directQuery) return null;
+  const payload = buildDirectIosGetResult(property, directQuery.selector.raw, directQuery.result);
   if (!payload) return null;
   recordIfSession(
     params.sessionStore,
@@ -291,24 +297,27 @@ async function dispatchDirectIosSelectorIs(
   expectedText: string,
 ): Promise<DaemonResponse | null> {
   if (predicate === 'hidden') return null;
-  const session = params.sessionStore.get(params.sessionName);
-  const selector = readSimpleIosSelectorTarget({ session, selectorExpression });
-  if (!session || !selector) return null;
-  const result = await queryDirectIosSelectorOrFallback(params, session, selector);
-  if (isDirectIosSelectorErrorResult(result)) return result.response;
-  if (!result?.found || !result.node) return null;
+  const directQuery = await resolveDirectIosSelectorQuery(params, selectorExpression);
+  if (isDirectIosSelectorErrorResult(directQuery)) return directQuery.response;
+  if (!directQuery?.result.found || !directQuery.result.node) return null;
 
   const payload =
     predicate === 'exists'
       ? {
           predicate,
           pass: true,
-          selector: selector.raw,
+          selector: directQuery.selector.raw,
           matches: 1,
-          selectorChain: [selector.raw],
+          selectorChain: [directQuery.selector.raw],
           directSelector: true,
         }
-      : buildDirectIosIsResult(predicate, expectedText, selector.raw, session, result.node);
+      : buildDirectIosIsResult(
+          predicate,
+          expectedText,
+          directQuery.selector.raw,
+          directQuery.session,
+          directQuery.result.node,
+        );
   if (!payload) return null;
   recordIfSession(params.sessionStore, params.sessionName, params.req, payload);
   return { ok: true, data: stripSelectorChain(payload) };
@@ -344,6 +353,19 @@ async function dispatchDirectIosSelectorWait(
     { req: params.req, logPath: params.logPath, session: params.session, device: params.device },
     response,
   );
+}
+
+async function resolveDirectIosSelectorQuery(
+  params: SelectorRuntimeParams,
+  selectorExpression: string,
+): Promise<ResolvedDirectIosSelectorQuery> {
+  const session = params.sessionStore.get(params.sessionName);
+  const selector = readSimpleIosSelectorTarget({ session, selectorExpression });
+  if (!session || !selector) return null;
+  const result = await queryDirectIosSelectorOrFallback(params, session, selector);
+  if (isDirectIosSelectorErrorResult(result)) return result;
+  if (!result) return null;
+  return { session, selector, result };
 }
 
 async function queryDirectIosSelector(
@@ -389,7 +411,7 @@ async function queryDirectIosSelectorOrFallback(
 }
 
 function isDirectIosSelectorErrorResult(
-  result: DirectIosSelectorFallbackResult,
+  result: DirectIosSelectorFallbackResult | ResolvedDirectIosSelectorQuery,
 ): result is { kind: 'error'; response: DaemonResponse } {
   return result !== null && 'kind' in result && result.kind === 'error';
 }
@@ -517,6 +539,7 @@ function createSelectorBackend(params: {
   let lastSnapshotResult: BackendSnapshotResult | undefined;
   return {
     platform: device.platform,
+    // fallow-ignore-next-line complexity
     captureSnapshot: async (_context, options): Promise<BackendSnapshotResult> => {
       const flags = {
         ...req.flags,

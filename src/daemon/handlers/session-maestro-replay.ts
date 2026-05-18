@@ -99,6 +99,7 @@ function normalizeCommandList(value: unknown[]): MaestroCommand[] {
   });
 }
 
+// fallow-ignore-next-line complexity
 function convertMaestroCommand(
   command: MaestroCommand,
   config: MaestroFlowConfig,

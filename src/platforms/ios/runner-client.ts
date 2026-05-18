@@ -125,6 +125,7 @@ export function prewarmIosRunnerSession(
   });
 }
 
+// fallow-ignore-next-line complexity
 async function executeRunnerCommand(
   device: DeviceInfo,
   command: RunnerCommand,

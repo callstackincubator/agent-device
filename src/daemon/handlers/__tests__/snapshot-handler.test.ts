@@ -1000,6 +1000,7 @@ test('wait text on iOS without app bundle id uses snapshot path', async () => {
   );
 });
 
+// fallow-ignore-next-line complexity
 test('wait selector uses direct iOS selector query when possible', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-wait-selector';

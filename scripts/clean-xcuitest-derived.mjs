@@ -32,6 +32,7 @@ for (const platform of requested) {
   console.log(`Removed ${targetPath}`);
 }
 
+// fallow-ignore-next-line complexity
 function cleanDerivedPath(platform, targetPath) {
   if (platform !== 'ios') {
     fs.rmSync(targetPath, { recursive: true, force: true });

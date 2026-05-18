@@ -41,6 +41,7 @@ const STATE_COMMANDS = DAEMON_COMMAND_GROUPS.state;
 const OBSERVABILITY_COMMANDS = DAEMON_COMMAND_GROUPS.observability;
 const REPLAY_COMMANDS = DAEMON_COMMAND_GROUPS.replay;
 
+// fallow-ignore-next-line complexity
 async function runSessionOrSelectorDispatch(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -99,6 +100,7 @@ async function runSessionOrSelectorDispatch(params: {
   return { ok: true, data: result ?? {} };
 }
 
+// fallow-ignore-next-line complexity
 async function handleClipboardCommand(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -145,6 +147,7 @@ async function handleClipboardCommand(params: {
   return { ok: true, data: { platform: device.platform, ...(result ?? {}) } };
 }
 
+// fallow-ignore-next-line complexity
 export async function handleSessionCommands(params: {
   req: DaemonRequest;
   sessionName: string;

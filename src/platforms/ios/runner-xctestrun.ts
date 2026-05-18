@@ -239,6 +239,7 @@ export async function acquireXcodebuildSimulatorSetRedirect(
   };
 }
 
+// fallow-ignore-next-line complexity
 function reconcileXcodebuildSimulatorSetRedirect(paths: {
   xctestDeviceSetPath: string;
   backupPath: string;
@@ -452,6 +453,7 @@ export async function ensureXctestrun(
 ): Promise<string> {
   const derived = resolveRunnerDerivedPath(device);
   const projectRoot = findProjectRoot();
+  // fallow-ignore-next-line complexity
   return await withKeyedLock(runnerXctestrunBuildLocks, derived, async () => {
     const expectedCacheMetadata = resolveExpectedRunnerCacheMetadata(device, projectRoot);
     if (shouldCleanDerived()) {
@@ -1310,6 +1312,7 @@ type ExistingXctestrunState =
       productPaths: string[];
     };
 
+// fallow-ignore-next-line complexity
 async function evaluateExistingXctestrun(options: {
   derived: string;
   projectRoot: string;

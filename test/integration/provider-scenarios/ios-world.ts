@@ -52,7 +52,31 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
       result: { pinched: true },
     },
     runnerSnapshot(),
-    runnerSnapshot(),
+    {
+      command: 'ios.runner.querySelector',
+      deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
+      platform: 'ios',
+      request: {
+        command: 'querySelector',
+        selectorKey: 'label',
+        selectorValue: 'General',
+        appBundleId: 'com.apple.Preferences',
+      },
+      result: {
+        found: true,
+        nodes: [
+          {
+            index: 0,
+            type: 'XCUIElementTypeCell',
+            label: 'General',
+            identifier: 'General',
+            rect: { x: 16, y: 100, width: 360, height: 44 },
+            enabled: true,
+            hittable: true,
+          },
+        ],
+      },
+    },
     {
       command: 'ios.runner.findText',
       deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,

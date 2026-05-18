@@ -146,28 +146,11 @@ export function createRequestHandler(
                   });
                   if (handlerResponse) return lockedScope.finalize(handlerResponse);
 
-                  // Phase 2: Require active session for generic dispatch
-                  const session = sessionStore.get(lockedScope.sessionName);
-                  if (!session) {
-                    return lockedScope.finalize({
-                      ok: false,
-                      error: {
-                        code: 'SESSION_NOT_FOUND',
-                        message: 'No active session. Run open first.',
-                      },
-                    });
-                  }
-
-                  // Phase 3: Dispatch command directly to device
-                  const dispatchResponse = await dispatchGenericCommand({
-                    req: lockedScope.req,
-                    session,
-                    sessionName: lockedScope.sessionName,
+                  return await dispatchGenericForLockedScope({
+                    lockedScope,
                     logPath,
                     sessionStore,
-                    contextFromFlags: lockedScope.contextFromFlags,
                   });
-                  return lockedScope.finalize(dispatchResponse);
                 },
               );
             });
@@ -237,30 +220,43 @@ function createReplayScopedActionInvoker(params: {
       });
       if (handlerResponse) return lockedScope.finalize(handlerResponse);
 
-      const session = deps.sessionStore.get(lockedScope.sessionName);
-      if (!session) {
-        return lockedScope.finalize({
-          ok: false,
-          error: {
-            code: 'SESSION_NOT_FOUND',
-            message: 'No active session. Run open first.',
-          },
-        });
-      }
-
-      const dispatchResponse = await dispatchGenericCommand({
-        req: lockedScope.req,
-        session,
-        sessionName: lockedScope.sessionName,
+      return await dispatchGenericForLockedScope({
+        lockedScope,
         logPath: deps.logPath,
         sessionStore: deps.sessionStore,
-        contextFromFlags: lockedScope.contextFromFlags,
       });
-      return lockedScope.finalize(dispatchResponse);
     } catch (error) {
       return finalizeThrownRequestError(error);
     }
   };
+}
+
+async function dispatchGenericForLockedScope(params: {
+  lockedScope: LockedRequestScope;
+  logPath: string;
+  sessionStore: SessionStore;
+}): Promise<DaemonResponse> {
+  const { lockedScope, logPath, sessionStore } = params;
+  const session = sessionStore.get(lockedScope.sessionName);
+  if (!session) {
+    return lockedScope.finalize({
+      ok: false,
+      error: {
+        code: 'SESSION_NOT_FOUND',
+        message: 'No active session. Run open first.',
+      },
+    });
+  }
+
+  const dispatchResponse = await dispatchGenericCommand({
+    req: lockedScope.req,
+    session,
+    sessionName: lockedScope.sessionName,
+    logPath,
+    sessionStore,
+    contextFromFlags: lockedScope.contextFromFlags,
+  });
+  return lockedScope.finalize(dispatchResponse);
 }
 
 function canRunReplayActionInCurrentScope(

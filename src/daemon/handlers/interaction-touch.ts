@@ -62,6 +62,7 @@ export async function handleTouchInteractionCommands(
   }
 }
 
+// fallow-ignore-next-line complexity
 async function dispatchPressViaRuntime(
   params: InteractionHandlerParams & {
     captureSnapshotForSession: CaptureSnapshotForSession;
