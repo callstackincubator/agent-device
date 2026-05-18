@@ -62,7 +62,7 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
 - Put request policies in focused request modules:
   - tenant/lease/selector/lock admission: `src/daemon/request-admission.ts`
   - artifact/error finalization: `src/daemon/request-finalization.ts`
-  - Android ADB provider scoping: `src/daemon/request-android-adb.ts`
+  - request-scoped platform provider scoping: `src/daemon/request-platform-providers.ts`
   - generic fallback dispatch + action recording: `src/daemon/request-generic-dispatch.ts`
   - recording invalidation health: `src/daemon/request-recording-health.ts`
 - Put command logic in handler modules:
