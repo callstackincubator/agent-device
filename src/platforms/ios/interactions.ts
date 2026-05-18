@@ -124,6 +124,7 @@ export function iosRunnerOverrides(
             command: 'type',
             text,
             delayMs,
+            textEntryMode: 'append',
             appBundleId: ctx.appBundleId,
           },
           runnerOpts,

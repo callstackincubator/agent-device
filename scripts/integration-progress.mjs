@@ -318,6 +318,7 @@ function summarizeProviderScenarioFlagExclusions() {
         'baseline',
         'threshold',
         'reportJunit',
+        'replayMaestro',
         'stepsFile',
       ],
     },

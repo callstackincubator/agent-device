@@ -787,14 +787,13 @@ extension RunnerTests {
     let textEntryMode = resolveTextEntryMode(command)
     let target = focusTextInputForTextEntry(app: activeApp, x: command.x, y: command.y)
     if textEntryMode == .replacement {
-      guard let focused = target.element else {
+      guard target.element != nil else {
         let message =
           (command.x != nil && command.y != nil)
           ? "no text input found at the provided coordinates to clear"
           : "no focused text input to clear"
         return Response(ok: false, error: ErrorPayload(message: message))
       }
-      clearTextInput(focused)
     }
     let textResult = typeTextReliably(
       app: activeApp,

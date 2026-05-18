@@ -2,6 +2,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const [platform, derivedPath, destination] = process.argv.slice(2);
 
@@ -157,5 +158,223 @@ const metadata = {
   runnerPerformanceBuildSettings: ['COMPILER_INDEX_STORE_ENABLE=NO', 'ENABLE_CODE_COVERAGE=NO'],
 };
 
+const artifacts = resolveRunnerCacheArtifacts();
+if (artifacts) {
+  metadata.artifacts = artifacts;
+}
+
 fs.mkdirSync(path.dirname(metadataPath), { recursive: true });
 fs.writeFileSync(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);
+
+function resolveRunnerCacheArtifacts() {
+  const xctestrunPath = findXctestrun(derivedPath);
+  if (!xctestrunPath) return null;
+  const productPaths = resolveExistingXctestrunProductPaths(xctestrunPath);
+  if (!productPaths || productPaths.length === 0) return null;
+  const xctestrunMtimeMs = readFileMtimeMs(xctestrunPath);
+  if (xctestrunMtimeMs === null) return null;
+  const productArtifacts = [];
+  for (const productPath of productPaths) {
+    const mtimeMs = readFileMtimeMs(productPath);
+    if (mtimeMs === null) return null;
+    productArtifacts.push({ path: productPath, mtimeMs });
+  }
+  return { xctestrunPath, xctestrunMtimeMs, productPaths: productArtifacts };
+}
+
+function findXctestrun(root) {
+  if (!fs.existsSync(root)) return null;
+  const candidates = [];
+  const stack = [root];
+  while (stack.length > 0) {
+    const current = stack.pop();
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.endsWith('.xctestrun')) {
+        continue;
+      }
+      try {
+        candidates.push({ path: fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs });
+      } catch {}
+    }
+  }
+  if (candidates.length === 0) return null;
+  candidates.sort((left, right) => {
+    const scoreDiff = scoreXctestrunCandidate(right.path) - scoreXctestrunCandidate(left.path);
+    return scoreDiff || right.mtimeMs - left.mtimeMs || left.path.localeCompare(right.path);
+  });
+  return candidates[0]?.path ?? null;
+}
+
+function scoreXctestrunCandidate(candidatePath) {
+  const basename = path.basename(candidatePath);
+  let score = 0;
+  if (basename.includes('.env.')) score -= 50;
+  if (platform === 'ios') {
+    score += destination.includes('Simulator')
+      ? basename.includes('iphonesimulator')
+        ? 100
+        : 0
+      : basename.includes('iphoneos')
+        ? 100
+        : 0;
+  } else if (platform === 'tvos') {
+    score += destination.includes('Simulator')
+      ? basename.includes('appletvsimulator')
+        ? 100
+        : 0
+      : basename.includes('appletvos')
+        ? 100
+        : 0;
+  } else if (platform === 'macos') {
+    score += basename.includes('macos') || candidatePath.includes(`${path.sep}macos${path.sep}`)
+      ? 100
+      : 0;
+  }
+  return score;
+}
+
+function resolveExistingXctestrunProductPaths(xctestrunPath) {
+  const values = resolveXctestrunProductReferences(xctestrunPath);
+  if (!values || values.length === 0) return null;
+  const testRoot = path.dirname(xctestrunPath);
+  const resolvedPaths = new Set();
+  const products = collectResolvedTestHostProducts(values, testRoot);
+
+  for (const resolvedPath of products.testRootPaths) {
+    if (!fs.existsSync(resolvedPath)) return null;
+    resolvedPaths.add(resolvedPath);
+  }
+
+  for (const resolvedPath of resolveTestHostRelativePaths(products)) {
+    if (!resolvedPath) return null;
+    resolvedPaths.add(resolvedPath);
+  }
+
+  return Array.from(resolvedPaths);
+}
+
+function resolveXctestrunProductReferences(xctestrunPath) {
+  let parsed;
+  try {
+    parsed = JSON.parse(
+      execFileSync('plutil', ['-convert', 'json', '-o', '-', xctestrunPath], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }),
+    );
+  } catch {
+    return null;
+  }
+  return resolveXctestrunProductReferencesFromJson(parsed);
+}
+
+function resolveXctestrunProductReferencesFromJson(parsed) {
+  const values = new Set();
+  for (const target of collectXctestrunProductReferenceTargets(parsed)) {
+    for (const value of collectXctestrunProductReferenceValuesFromTarget(target)) {
+      values.add(value);
+    }
+  }
+  return Array.from(values);
+}
+
+function collectXctestrunProductReferenceTargets(parsed) {
+  return [parsed, ...collectConfiguredTestTargets(parsed), ...collectLegacyTestTargets(parsed)];
+}
+
+function collectConfiguredTestTargets(parsed) {
+  const testConfigurations = parsed?.TestConfigurations;
+  if (!Array.isArray(testConfigurations)) return [];
+  const targets = [];
+  for (const config of testConfigurations) {
+    if (!isRecord(config) || !Array.isArray(config.TestTargets)) continue;
+    targets.push(...config.TestTargets.filter(isRecord));
+  }
+  return targets;
+}
+
+function collectLegacyTestTargets(parsed) {
+  if (!isRecord(parsed)) return [];
+  return Object.values(parsed).filter((value) => isRecord(value) && 'TestBundlePath' in value);
+}
+
+function collectXctestrunProductReferenceValuesFromTarget(target) {
+  const values = new Set();
+  const productReferenceKeys = new Set([
+    'ProductPaths',
+    'DependentProductPaths',
+    'TestHostPath',
+    'TestBundlePath',
+    'UITargetAppPath',
+  ]);
+  for (const [key, value] of Object.entries(target)) {
+    if (!productReferenceKeys.has(key)) continue;
+    if (typeof value === 'string') {
+      values.add(value);
+      continue;
+    }
+    if (!Array.isArray(value)) continue;
+    for (const item of value) {
+      if (typeof item === 'string') values.add(item);
+    }
+  }
+  return Array.from(values);
+}
+
+function collectResolvedTestHostProducts(values, testRoot) {
+  const testRootPaths = [];
+  const hostRoots = new Set();
+  const hostRelativePaths = [];
+
+  for (const value of values) {
+    if (value.startsWith('__TESTHOST__/')) {
+      hostRelativePaths.push(value.slice('__TESTHOST__/'.length));
+      continue;
+    }
+    if (!value.startsWith('__TESTROOT__/')) continue;
+    const relativePath = value.slice('__TESTROOT__/'.length);
+    testRootPaths.push(path.join(testRoot, relativePath));
+    const appBundleRoot = extractAppBundleRoot(relativePath);
+    if (appBundleRoot) {
+      hostRoots.add(path.join(testRoot, appBundleRoot));
+    }
+  }
+
+  return {
+    testRootPaths,
+    hostRoots: Array.from(hostRoots),
+    hostRelativePaths,
+  };
+}
+
+function resolveTestHostRelativePaths(products) {
+  return products.hostRelativePaths.map((relativePath) => {
+    const resolvedHostRoot = products.hostRoots.find((hostRoot) =>
+      fs.existsSync(path.join(hostRoot, relativePath)),
+    );
+    return resolvedHostRoot ? path.join(resolvedHostRoot, relativePath) : null;
+  });
+}
+
+function extractAppBundleRoot(relativePath) {
+  const match = /\.app(?:\/|$)/.exec(relativePath);
+  if (!match || match.index === undefined) return null;
+  return relativePath.slice(0, match.index + '.app'.length);
+}
+
+function readFileMtimeMs(filePath) {
+  try {
+    return Math.trunc(fs.statSync(filePath).mtimeMs);
+  } catch {
+    return null;
+  }
+}
+
+function isRecord(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}

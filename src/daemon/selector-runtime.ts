@@ -8,7 +8,7 @@ import { parseWaitPositionals, type WaitParsed } from '../command-codecs/wait.ts
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
 import { resolveTargetDevice, type CommandFlags } from '../core/dispatch.ts';
 import { isApplePlatform } from '../utils/device.ts';
-import { AppError, asAppError } from '../utils/errors.ts';
+import { AppError, asAppError, normalizeError } from '../utils/errors.ts';
 import {
   buildSnapshotPresentationKey,
   snapshotPresentationOptionsFromFlags,
@@ -49,6 +49,7 @@ import { createDaemonRuntimePolicy } from './runtime-policy.ts';
 import { createDaemonRuntimeSessionStore } from './runtime-session.ts';
 import { maybeWaitTimeoutSurfaceResponse } from './wait-current-surface.ts';
 import {
+  isDirectIosSelectorFallbackError,
   readSimpleIosSelectorTarget,
   type DirectIosSelectorTarget,
 } from './direct-ios-selector.ts';
@@ -71,6 +72,17 @@ type SnapshotFlagOverrides = Partial<
     | 'snapshotRaw'
   >
 >;
+
+type DirectIosSelectorQueryResult = {
+  found: boolean;
+  text?: string;
+  node?: SnapshotNode;
+};
+
+type DirectIosSelectorFallbackResult =
+  | DirectIosSelectorQueryResult
+  | { kind: 'error'; response: DaemonResponse }
+  | null;
 
 export async function dispatchFindReadOnlyViaRuntime(
   params: SelectorRuntimeParams,
@@ -258,7 +270,8 @@ async function dispatchDirectIosSelectorGet(
   const session = params.sessionStore.get(params.sessionName);
   const selector = readSimpleIosSelectorTarget({ session, selectorExpression });
   if (!session || !selector) return null;
-  const result = await queryDirectIosSelector(params, session, selector);
+  const result = await queryDirectIosSelectorOrFallback(params, session, selector);
+  if (isDirectIosSelectorErrorResult(result)) return result.response;
   if (!result) return null;
   const payload = buildDirectIosGetResult(property, selector.raw, result);
   if (!payload) return null;
@@ -281,7 +294,8 @@ async function dispatchDirectIosSelectorIs(
   const session = params.sessionStore.get(params.sessionName);
   const selector = readSimpleIosSelectorTarget({ session, selectorExpression });
   if (!session || !selector) return null;
-  const result = await queryDirectIosSelector(params, session, selector);
+  const result = await queryDirectIosSelectorOrFallback(params, session, selector);
+  if (isDirectIosSelectorErrorResult(result)) return result.response;
   if (!result?.found || !result.node) return null;
 
   const payload =
@@ -314,7 +328,8 @@ async function dispatchDirectIosSelectorWait(
   });
   if (!params.session || !selector) return null;
   const startedAt = Date.now();
-  const result = await queryDirectIosSelector(params, params.session, selector);
+  const result = await queryDirectIosSelectorOrFallback(params, params.session, selector);
+  if (isDirectIosSelectorErrorResult(result)) return result.response;
   if (!result?.found) return null;
   const payload = {
     kind: 'selector',
@@ -335,39 +350,54 @@ async function queryDirectIosSelector(
   params: SelectorRuntimeParams,
   session: SessionState,
   selector: DirectIosSelectorTarget,
-): Promise<{ found: boolean; text?: string; node?: SnapshotNode } | null> {
+): Promise<DirectIosSelectorQueryResult> {
+  const data = await runIosRunnerCommand(
+    session.device,
+    {
+      command: 'querySelector',
+      selectorKey: selector.key,
+      selectorValue: selector.value,
+      appBundleId: session.appBundleId,
+    },
+    {
+      verbose: Boolean(params.req.flags?.verbose),
+      logPath: params.logPath,
+      traceLogPath: session.trace?.outPath,
+      requestId: params.req.meta?.requestId,
+    },
+  );
+  const found = data.found === true;
+  const node = readDirectIosSelectorNode(data);
+  return {
+    found,
+    ...(typeof data.text === 'string' ? { text: data.text } : {}),
+    ...(node ? { node } : {}),
+  };
+}
+
+async function queryDirectIosSelectorOrFallback(
+  params: SelectorRuntimeParams,
+  session: SessionState,
+  selector: DirectIosSelectorTarget,
+): Promise<DirectIosSelectorFallbackResult> {
   try {
-    const data = await runIosRunnerCommand(
-      session.device,
-      {
-        command: 'querySelector',
-        selectorKey: selector.key,
-        selectorValue: selector.value,
-        appBundleId: session.appBundleId,
-      },
-      {
-        verbose: Boolean(params.req.flags?.verbose),
-        logPath: params.logPath,
-        traceLogPath: session.trace?.outPath,
-        requestId: params.req.meta?.requestId,
-      },
-    );
-    const found = data.found === true;
-    const node = readDirectIosSelectorNode(data);
-    return {
-      found,
-      ...(typeof data.text === 'string' ? { text: data.text } : {}),
-      ...(node ? { node } : {}),
-    };
-  } catch {
-    return null;
+    return await queryDirectIosSelector(params, session, selector);
+  } catch (error) {
+    if (isDirectIosSelectorFallbackError(error)) return null;
+    return { kind: 'error', response: { ok: false, error: normalizeError(error) } };
   }
+}
+
+function isDirectIosSelectorErrorResult(
+  result: DirectIosSelectorFallbackResult,
+): result is { kind: 'error'; response: DaemonResponse } {
+  return result !== null && 'kind' in result && result.kind === 'error';
 }
 
 function buildDirectIosGetResult(
   property: 'text' | 'attrs',
   selector: string,
-  result: { found: boolean; text?: string; node?: SnapshotNode },
+  result: DirectIosSelectorQueryResult,
 ): Record<string, unknown> | null {
   if (!result.found || !result.node) return null;
   const base = {
@@ -395,10 +425,9 @@ function buildDirectIosIsResult(
     expectedText,
     platform: session.device.platform,
   });
-  if (!result.pass) return null;
   return {
     predicate,
-    pass: true,
+    pass: result.pass,
     selector,
     ...(predicate === 'text' ? { text: result.actualText } : {}),
     selectorChain: [selector],
@@ -498,7 +527,9 @@ function createSelectorBackend(params: {
       const presentationKey = buildSnapshotPresentationKey(
         snapshotPresentationOptionsFromFlags(flags),
       );
+      const needsFreshSnapshot = req.command === 'wait' || req.command === 'find';
       if (
+        !needsFreshSnapshot &&
         lastSnapshotResult &&
         timestamp - lastSnapshotAt < 750 &&
         !getActiveAndroidSnapshotFreshness(session) &&
@@ -507,6 +538,7 @@ function createSelectorBackend(params: {
         return lastSnapshotResult;
       }
       if (
+        !needsFreshSnapshot &&
         session?.snapshot &&
         timestamp - session.snapshot.createdAt < 750 &&
         session.snapshot.presentationKey === presentationKey &&
@@ -581,7 +613,7 @@ async function findText(
     const snapshot = await captureWaitSnapshot(params);
     return Boolean(findNodeByLabel(snapshot.nodes, text));
   }
-  if (isApplePlatform(device.platform)) {
+  if (isApplePlatform(device.platform) && session?.appBundleId) {
     const result = (await runIosRunnerCommand(
       device,
       { command: 'findText', text, appBundleId: session?.appBundleId },

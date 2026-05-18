@@ -89,7 +89,7 @@ test('ios fill sends one verified replacement text-entry command at the target c
   ]);
 });
 
-test('ios type uses the runner default append text-entry path', async () => {
+test('ios type uses verified append text-entry mode', async () => {
   const commands: RunnerCommand[] = [];
   mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
     commands.push(command);
@@ -104,6 +104,7 @@ test('ios type uses the runner default append text-entry path', async () => {
       command: 'type',
       text: 'hello',
       delayMs: 25,
+      textEntryMode: 'append',
       appBundleId: 'com.example.app',
     },
   ]);

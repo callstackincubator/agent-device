@@ -1,5 +1,6 @@
 import type { SessionState } from './types.ts';
 import { tryParseSelectorChain } from './selectors.ts';
+import { asAppError } from '../utils/errors.ts';
 
 export type DirectIosSelectorTarget = {
   key: 'id' | 'label' | 'text' | 'value';
@@ -28,4 +29,17 @@ export function readSimpleIosSelectorTarget(params: {
 
 function isRunnerNativeSelectorKey(key: string): key is DirectIosSelectorTarget['key'] {
   return key === 'id' || key === 'label' || key === 'text' || key === 'value';
+}
+
+export function isDirectIosSelectorFallbackError(error: unknown): boolean {
+  const appError = asAppError(error);
+  if (appError.code !== 'COMMAND_FAILED') return false;
+  const message = appError.message.toLowerCase();
+  return (
+    message.includes('fetch failed') ||
+    message.includes('timed out') ||
+    message.includes('timeout') ||
+    message.includes('runner did not accept connection') ||
+    message.includes('invalid runner response')
+  );
 }

@@ -41,6 +41,7 @@ extension RunnerTests {
     static let readinessTimeout: TimeInterval = 2.0
     static let hardwareKeyboardFallbackTimeout: TimeInterval = 0.35
     static let pollInterval: TimeInterval = 0.02
+    static let warmupValueTimeout: TimeInterval = 0.4
     static let verificationStabilityWindow: TimeInterval = 0.2
   }
 
@@ -54,6 +55,7 @@ extension RunnerTests {
   struct TextEntryTarget {
     let element: XCUIElement?
     let refreshPoint: CGPoint?
+    let prefersFocusedElement: Bool
 
     func withElement(_ nextElement: XCUIElement?) -> TextEntryTarget {
       guard let nextElement else {
@@ -61,7 +63,11 @@ extension RunnerTests {
       }
       let frame = nextElement.frame
       let point = frame.isEmpty ? refreshPoint : CGPoint(x: frame.midX, y: frame.midY)
-      return TextEntryTarget(element: nextElement, refreshPoint: point)
+      return TextEntryTarget(
+        element: nextElement,
+        refreshPoint: point,
+        prefersFocusedElement: prefersFocusedElement
+      )
     }
   }
 
@@ -374,9 +380,13 @@ extension RunnerTests {
     guard let x, let y else {
       let focused = waitForTextEntryReadiness(
         app: app,
-        target: TextEntryTarget(element: focusedTextInput(app: app), refreshPoint: nil)
+        target: TextEntryTarget(
+          element: focusedTextInput(app: app),
+          refreshPoint: nil,
+          prefersFocusedElement: true
+        )
       )
-      return TextEntryTarget(element: focused, refreshPoint: nil)
+      return TextEntryTarget(element: focused, refreshPoint: nil, prefersFocusedElement: true)
     }
 
     let target = textInputAt(app: app, x: x, y: y)
@@ -394,11 +404,16 @@ extension RunnerTests {
     let stabilized = stabilizeTextInputBeforeTyping(app: app, target: target)
     let element = waitForTextEntryReadiness(
       app: app,
-      target: TextEntryTarget(element: stabilized ?? target, refreshPoint: requestedPoint)
+      target: TextEntryTarget(
+        element: stabilized ?? target,
+        refreshPoint: requestedPoint,
+        prefersFocusedElement: false
+      )
     ) ?? stabilized ?? target
     return TextEntryTarget(
       element: element,
-      refreshPoint: textEntryRefreshPoint(for: element) ?? requestedPoint
+      refreshPoint: textEntryRefreshPoint(for: element) ?? requestedPoint,
+      prefersFocusedElement: false
     )
   }
 
@@ -423,19 +438,44 @@ extension RunnerTests {
     guard !text.isEmpty else {
       return TextEntryResult(verified: true, repaired: false, expectedText: "", observedText: "")
     }
-    let initialTarget = resolveTextEntryElement(app: app, target: target)
-    let initialText = repairMode == .append
-      ? editableTextValue(for: initialTarget, treatingPlaceholderAsEmpty: true)
-      : nil
+    var activeTarget = target
+    let initialTarget = resolveTextEntryElement(app: app, target: activeTarget)
+    activeTarget = activeTarget.withElement(initialTarget)
+    let currentText = editableTextValue(for: initialTarget, treatingPlaceholderAsEmpty: true)
+    let initialText = repairMode == .append ? currentText : nil
     let expectedText = expectedTextEntryValue(typedText: text, mode: repairMode, initialText: initialText)
 
+    if repairMode == .replacement {
+      guard let replacementTarget = initialTarget else {
+        return TextEntryResult(verified: nil, repaired: false, expectedText: expectedText, observedText: nil)
+      }
+      if currentText == nil || currentText?.isEmpty == false {
+        clearTextInput(replacementTarget)
+        activeTarget = activeTarget.withElement(replacementTarget)
+      }
+    }
+
     func typeIntoCurrentTarget(_ value: String) -> XCUIElement? {
-      if let currentTarget = resolveTextEntryElement(app: app, target: target) {
-        currentTarget.typeText(value)
+      if let currentTarget = resolveTextEntryElement(app: app, target: activeTarget) {
+        app.typeText(value)
         return currentTarget
       } else {
         app.typeText(value)
-        return resolveTextEntryElement(app: app, target: target)
+        return resolveTextEntryElement(app: app, target: activeTarget)
+      }
+    }
+
+    func waitForWarmupValue(_ expectedValue: String?, target: TextEntryTarget) {
+      guard let expectedValue else {
+        sleepFor(TextEntryTiming.pollInterval)
+        return
+      }
+      let deadline = Date().addingTimeInterval(TextEntryTiming.warmupValueTimeout)
+      while Date() < deadline {
+        if editableTextValue(for: resolveTextEntryElement(app: app, target: target)) == expectedValue {
+          return
+        }
+        sleepFor(TextEntryTiming.pollInterval)
       }
     }
 
@@ -451,26 +491,49 @@ extension RunnerTests {
       if repairMode == .none {
         return TextEntryResult(verified: nil, repaired: false, expectedText: nil, observedText: nil)
       }
+      let repairResult = repairTextEntryIfNeeded(
+        app: app,
+        target: activeTarget.withElement(typedTarget),
+        expectedText: expectedText,
+        repairMode: repairMode
+      )
       return verifyTextEntry(
         app: app,
-        target: target.withElement(typedTarget),
+        target: activeTarget.withElement(typedTarget),
         expectedText: expectedText,
-        repaired: false
+        repaired: repairResult.repaired
       )
     }
 
-    let typedTarget = typeIntoCurrentTarget(text)
+    let typedTarget: XCUIElement?
+    if repairMode != .none && characters.count > 1 {
+      let firstCharacter = String(characters[0])
+      var firstTypedTarget = typeIntoCurrentTarget(firstCharacter)
+      activeTarget = activeTarget.withElement(firstTypedTarget)
+      let warmupExpectedText = expectedTextEntryValue(
+        typedText: firstCharacter,
+        mode: repairMode,
+        initialText: initialText
+      )
+      waitForWarmupValue(warmupExpectedText, target: activeTarget)
+      let remainingText = String(characters.dropFirst())
+      firstTypedTarget = typeIntoCurrentTarget(remainingText) ?? firstTypedTarget
+      typedTarget = firstTypedTarget
+    } else {
+      typedTarget = typeIntoCurrentTarget(text)
+    }
     if repairMode == .none {
       return TextEntryResult(verified: nil, repaired: false, expectedText: nil, observedText: nil)
     }
     let repairResult = repairTextEntryIfNeeded(
       app: app,
-      target: target.withElement(typedTarget),
-      expectedText: expectedText
+      target: activeTarget.withElement(typedTarget),
+      expectedText: expectedText,
+      repairMode: repairMode
     )
     return verifyTextEntry(
       app: app,
-      target: target.withElement(typedTarget),
+      target: activeTarget.withElement(typedTarget),
       expectedText: expectedText,
       repaired: repairResult.repaired
     )
@@ -479,7 +542,8 @@ extension RunnerTests {
   private func repairTextEntryIfNeeded(
     app: XCUIApplication,
     target: TextEntryTarget,
-    expectedText: String?
+    expectedText: String?,
+    repairMode: TextTypingRepairMode
   ) -> TextEntryResult {
 #if os(iOS)
     guard let targetElement = resolveTextEntryElement(app: app, target: target) else {
@@ -489,7 +553,12 @@ extension RunnerTests {
       let observedText = editableTextValue(for: targetElement)
       return TextEntryResult(verified: nil, repaired: false, expectedText: nil, observedText: observedText)
     }
-    guard shouldRepairTextEntry(app: app, target: target, expectedText: expectedText) else {
+    guard shouldRepairTextEntry(
+      app: app,
+      target: target,
+      expectedText: expectedText,
+      repairMode: repairMode
+    ) else {
       return verifyTextEntry(app: app, target: target, expectedText: expectedText, repaired: false)
     }
 
@@ -503,19 +572,7 @@ extension RunnerTests {
       observedText.count
     )
     clearTextInput(repairTarget)
-    guard let retypeTarget = waitForTextEntryReadiness(
-      app: app,
-      target: target.withElement(repairTarget),
-      timeout: TextEntryTiming.repairReadinessTimeout
-    ) else {
-      return TextEntryResult(verified: nil, repaired: false, expectedText: expectedText, observedText: nil)
-    }
-    for (index, character) in Array(expectedText).enumerated() {
-      retypeTarget.typeText(String(character))
-      if index + 1 < expectedText.count {
-        sleepFor(TextEntryTiming.pollInterval)
-      }
-    }
+    app.typeText(expectedText)
     return verifyTextEntry(app: app, target: target, expectedText: expectedText, repaired: true)
 #else
     return TextEntryResult(verified: nil, repaired: false, expectedText: expectedText, observedText: nil)
@@ -594,7 +651,8 @@ extension RunnerTests {
   private func shouldRepairTextEntry(
     app: XCUIApplication,
     target: TextEntryTarget,
-    expectedText: String
+    expectedText: String,
+    repairMode: TextTypingRepairMode
   ) -> Bool {
 #if os(iOS)
     var latestObservedText: String?
@@ -607,7 +665,11 @@ extension RunnerTests {
         return false
       }
       latestObservedText = observedText
-      if !isRepairableTextEntryMismatch(observedText: observedText, expectedText: expectedText) {
+      if !isRepairableTextEntryMismatch(
+        observedText: observedText,
+        expectedText: expectedText,
+        repairMode: repairMode
+      ) {
         return false
       }
       sleepFor(TextEntryTiming.pollInterval)
@@ -619,29 +681,70 @@ extension RunnerTests {
     guard latestObservedText != expectedText else {
       return false
     }
-    return isRepairableTextEntryMismatch(observedText: latestObservedText, expectedText: expectedText)
+    return isRepairableTextEntryMismatch(
+      observedText: latestObservedText,
+      expectedText: expectedText,
+      repairMode: repairMode
+    )
 #else
     return false
 #endif
   }
 
-  private func isRepairableTextEntryMismatch(observedText: String, expectedText: String) -> Bool {
+  private func isRepairableTextEntryMismatch(
+    observedText: String,
+    expectedText: String,
+    repairMode: TextTypingRepairMode
+  ) -> Bool {
     guard observedText != expectedText else {
       return false
     }
-    return observedText.isEmpty || expectedText.hasPrefix(observedText)
+    if repairMode == .replacement {
+      return true
+    }
+    return observedText.isEmpty || isLikelyDroppedCharacterTextEntryMismatch(
+      observedText: observedText,
+      expectedText: expectedText
+    )
+  }
+
+  private func isLikelyDroppedCharacterTextEntryMismatch(observedText: String, expectedText: String) -> Bool {
+    guard observedText.count < expectedText.count else {
+      return false
+    }
+    let missingCharacterCount = expectedText.count - observedText.count
+    guard missingCharacterCount <= max(2, expectedText.count / 4) else {
+      return false
+    }
+    var expectedIndex = expectedText.startIndex
+    for character in observedText {
+      guard let matchIndex = expectedText[expectedIndex...].firstIndex(of: character) else {
+        return false
+      }
+      expectedIndex = expectedText.index(after: matchIndex)
+    }
+    return true
   }
 
   private func resolveTextEntryElement(app: XCUIApplication, target: TextEntryTarget) -> XCUIElement? {
-    if let focused = focusedTextInput(app: app) {
-      return focused
-    }
-    if let element = target.element, element.exists {
-      return element
+    if target.prefersFocusedElement {
+      if let focused = focusedTextInput(app: app) {
+        return focused
+      }
+      if let element = target.element, element.exists {
+        return element
+      }
+    } else {
+      if let element = target.element, element.exists {
+        return element
+      }
     }
     if let refreshPoint = target.refreshPoint,
        let refreshed = textInputAt(app: app, x: refreshPoint.x, y: refreshPoint.y) {
       return refreshed
+    }
+    if let focused = focusedTextInput(app: app) {
+      return focused
     }
     return nil
   }

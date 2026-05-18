@@ -40,6 +40,7 @@ import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
 import {
+  isDirectIosSelectorFallbackError,
   readSimpleIosSelectorTarget,
   type DirectIosSelectorTarget,
 } from '../direct-ios-selector.ts';
@@ -228,6 +229,9 @@ async function dispatchDirectIosSelectorTap(
       actionFinishedAt,
     });
   } catch (error) {
+    if (!isDirectIosSelectorFallbackError(error)) {
+      return { ok: false, error: normalizeError(error) };
+    }
     emitDiagnostic({
       level: 'debug',
       phase: 'ios_direct_selector_tap_fallback',

@@ -4,6 +4,7 @@ import type { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
 import type { CommandFlags } from '../../../core/dispatch.ts';
 import { attachRefs, type SnapshotBackend } from '../../../utils/snapshot.ts';
+import { AppError } from '../../../utils/errors.ts';
 import { buildSnapshotState } from '../snapshot-capture.ts';
 import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
 import {
@@ -295,6 +296,40 @@ test('get text simple iOS id selector uses runner query without snapshot', async
   expect(recorded?.result?.selectorChain).toEqual(['id="field-name"']);
 });
 
+test('get text simple iOS id selector does not snapshot-fallback on ambiguous runner match', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'get-text-ios-direct-selector-ambiguous';
+  sessionStore.set(sessionName, makeIosSession(sessionName, { appBundleId: 'com.example.app' }));
+  mockRunIosRunnerCommand.mockRejectedValue(
+    new AppError('AMBIGUOUS_MATCH', 'selector matched multiple elements'),
+  );
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'get',
+      positionals: ['text', 'id="field-name"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(false);
+  if (response?.ok === false) {
+    expect(response.error.code).toBe('AMBIGUOUS_MATCH');
+  }
+  expect(mockDispatch).not.toHaveBeenCalledWith(
+    expect.anything(),
+    'snapshot',
+    expect.anything(),
+    expect.anything(),
+    expect.anything(),
+  );
+});
+
 test('press coordinates dispatches press and records as press', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
@@ -383,7 +418,7 @@ test('click simple iOS id selector falls back to snapshot coordinates when direc
 
   mockDispatch.mockImplementation(async (_device, command, positionals, _out, context) => {
     if (command === 'press' && (context as Record<string, unknown>)?.directElementSelector) {
-      throw new Error('element not found');
+      throw new AppError('COMMAND_FAILED', 'fetch failed');
     }
     if (command === 'snapshot') {
       return {
@@ -433,6 +468,41 @@ test('click simple iOS id selector falls back to snapshot coordinates when direc
   if (response?.ok) {
     expect(response.data?.selectorChain).toContain('id="submit"');
   }
+});
+
+test('click simple iOS id selector does not snapshot-fallback on ambiguous runner match', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-direct-selector-ambiguous';
+  sessionStore.set(sessionName, makeIosSession(sessionName, { appBundleId: 'com.example.app' }));
+
+  mockDispatch.mockImplementation(async (_device, command, _positionals, _out, context) => {
+    if (command === 'press' && (context as Record<string, unknown>)?.directElementSelector) {
+      throw new AppError('AMBIGUOUS_MATCH', 'Selector matched multiple elements');
+    }
+    if (command === 'snapshot') {
+      throw new Error('snapshot fallback should not run');
+    }
+    return {};
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'click',
+      positionals: ['id="submit"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(false);
+  if (response?.ok === false) {
+    expect(response.error.code).toBe('AMBIGUOUS_MATCH');
+  }
+  expect(mockDispatch.mock.calls.filter((call) => call[1] === 'snapshot')).toHaveLength(0);
 });
 
 test('click simple iOS id selector waits for snapshot path after pending gesture stabilization', async () => {
@@ -2019,6 +2089,47 @@ test('is selected simple iOS id selector uses runner query without snapshot', as
   }
   const recorded = sessionStore.get(sessionName)?.actions.at(-1);
   expect(recorded?.result?.selectorChain).toEqual(['id="shipping-pickup"']);
+});
+
+test('is simple iOS selector returns false directly when runner predicate fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'is-selected-ios-direct-selector-false';
+  sessionStore.set(sessionName, makeIosSession(sessionName, { appBundleId: 'com.example.app' }));
+  mockRunIosRunnerCommand.mockResolvedValue({
+    found: true,
+    nodes: [
+      {
+        index: 0,
+        depth: 0,
+        type: 'Button',
+        label: 'Submit',
+        identifier: 'submit',
+        selected: false,
+        rect: { x: 126, y: 555, width: 75, height: 38 },
+      },
+    ],
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'is',
+      positionals: ['selected', 'id="submit"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch.mock.calls.filter((call) => call[1] === 'snapshot')).toHaveLength(0);
+  if (response?.ok) {
+    expect(response.data?.predicate).toBe('selected');
+    expect(response.data?.pass).toBe(false);
+    expect(response.data?.directSelector).toBe(true);
+  }
 });
 
 test('is simple iOS selector falls back to snapshot while gesture stabilization is pending', async () => {
