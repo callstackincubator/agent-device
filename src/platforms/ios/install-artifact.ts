@@ -50,24 +50,35 @@ export async function prepareIosInstallArtifact(
     signal: options?.signal,
   });
 
-  const resolved = await resolveIosInstallablePath(materialized.installablePath, options);
-  const bundleInfo = await readIosBundleInfo(resolved.installPath);
-  const archivePath =
-    materialized.archivePath ??
-    (materialized.installablePath.toLowerCase().endsWith('.ipa')
-      ? materialized.installablePath
-      : undefined);
+  let resolved: Awaited<ReturnType<typeof resolveIosInstallablePath>> | undefined;
+  try {
+    resolved = await resolveIosInstallablePath(materialized.installablePath, options);
+    const resolvedInstallable = resolved;
+    const bundleInfo = await readIosBundleInfo(resolvedInstallable.installPath);
+    const archivePath =
+      materialized.archivePath ??
+      (materialized.installablePath.toLowerCase().endsWith('.ipa')
+        ? materialized.installablePath
+        : undefined);
 
-  return {
-    archivePath,
-    installablePath: resolved.installPath,
-    bundleId: bundleInfo.bundleId,
-    appName: bundleInfo.appName,
-    cleanup: async () => {
-      await resolved.cleanup();
+    return {
+      archivePath,
+      installablePath: resolvedInstallable.installPath,
+      bundleId: bundleInfo.bundleId,
+      appName: bundleInfo.appName,
+      cleanup: async () => {
+        await resolvedInstallable.cleanup();
+        await materialized.cleanup();
+      },
+    };
+  } catch (error) {
+    try {
+      await resolved?.cleanup();
+    } finally {
       await materialized.cleanup();
-    },
-  };
+    }
+    throw error;
+  }
 }
 
 async function readIosBundleInfo(

@@ -116,8 +116,8 @@ export function createRequestHandler(
                   },
                 },
                 async (providerScope) => {
-                  // The ADB provider is scoped to this single locked request; handlers may re-read
-                  // the session state, but all device-scoped adb calls in this request share it.
+                  // Platform providers are scoped to this single locked request; handlers may
+                  // re-read session state, but all device-scoped calls in this request share them.
                   // Phase 1: Try specialized handler chain
                   const handlerResponse = await runRequestHandlerChain({
                     req: lockedScope.req,

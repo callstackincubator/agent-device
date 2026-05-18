@@ -26,16 +26,21 @@ export async function prepareAndroidInstallArtifact(
     allowArchiveExtraction: source.kind !== 'url' || trustedUrlSource,
     signal: options?.signal,
   });
-  const identity =
-    options?.resolveIdentity === false
-      ? {}
-      : await inspectAndroidArtifactIdentity(materialized.installablePath);
-  return {
-    archivePath: materialized.archivePath,
-    installablePath: materialized.installablePath,
-    packageName: identity.packageName,
-    cleanup: materialized.cleanup,
-  };
+  try {
+    const identity =
+      options?.resolveIdentity === false
+        ? {}
+        : await inspectAndroidArtifactIdentity(materialized.installablePath);
+    return {
+      archivePath: materialized.archivePath,
+      installablePath: materialized.installablePath,
+      packageName: identity.packageName,
+      cleanup: materialized.cleanup,
+    };
+  } catch (error) {
+    await materialized.cleanup();
+    throw error;
+  }
 }
 
 function isAndroidInstallablePath(candidatePath: string): boolean {

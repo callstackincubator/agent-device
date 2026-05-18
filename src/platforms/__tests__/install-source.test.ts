@@ -14,6 +14,7 @@ import {
   materializeInstallablePath,
   validateDownloadSourceUrl,
 } from '../install-source.ts';
+import * as androidManifest from '../android/manifest.ts';
 import { prepareAndroidInstallArtifact } from '../android/install-artifact.ts';
 import { prepareIosInstallArtifact } from '../ios/install-artifact.ts';
 
@@ -200,6 +201,33 @@ test('prepareAndroidInstallArtifact resolves package identity for direct APK URL
   }
 });
 
+test('prepareAndroidInstallArtifact cleans URL materialization when identity inspection fails', async () => {
+  await withIsolatedInstallTempRoot(async (tempRoot) => {
+    const manifestSpy = vi
+      .spyOn(androidManifest, 'resolveAndroidArchivePackageName')
+      .mockRejectedValue(new Error('identity failed'));
+    try {
+      await withMockedInstallSourceFetch(
+        Buffer.from('invalid apk'),
+        async () => {
+          await assert.rejects(
+            async () =>
+              await prepareAndroidInstallArtifact({
+                kind: 'url',
+                url: 'https://example.com/app.apk',
+              }),
+            /identity failed/,
+          );
+        },
+        { filename: 'app.apk', contentType: 'application/vnd.android.package-archive' },
+      );
+      assert.deepEqual(await fs.readdir(tempRoot), []);
+    } finally {
+      manifestSpy.mockRestore();
+    }
+  });
+});
+
 test('prepareAndroidInstallArtifact accepts direct AAB URL sources', async () => {
   const previous = process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
   process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = '1';
@@ -365,6 +393,37 @@ test('prepareIosInstallArtifact extracts trusted GitHub artifact ZIP containing 
   await fs.rm(tempRoot, { recursive: true, force: true });
 });
 
+test('prepareIosInstallArtifact cleans URL materialization when IPA payload resolution fails', async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-multi-ipa-'));
+  const payloadDir = path.join(tempRoot, 'Payload');
+  const oneAppDir = path.join(payloadDir, 'One.app');
+  const twoAppDir = path.join(payloadDir, 'Two.app');
+  const ipaPath = path.join(tempRoot, 'Multi.ipa');
+  const archivePath = path.join(tempRoot, 'artifact.zip');
+  await fs.mkdir(oneAppDir, { recursive: true });
+  await fs.mkdir(twoAppDir, { recursive: true });
+  execFileSync('zip', ['-qr', ipaPath, 'Payload'], { cwd: tempRoot });
+  execFileSync('zip', ['-q', archivePath, 'Multi.ipa'], { cwd: tempRoot });
+
+  try {
+    await withMockedInstallSourceFetch(await fs.readFile(archivePath), async () => {
+      await withIsolatedInstallTempRoot(async (materializeTempRoot) => {
+        await assert.rejects(
+          async () =>
+            await prepareIosInstallArtifact({
+              kind: 'url',
+              url: 'https://api.github.com/repos/acme/app/actions/artifacts/988/zip',
+            }),
+          /found 2 .app bundles/,
+        );
+        assert.deepEqual(await fs.readdir(materializeTempRoot), []);
+      });
+    });
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('prepareAndroidInstallArtifact rejects trusted artifact archives with multiple installables', async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-github-multiple-'));
   const archivePath = path.join(tempRoot, 'artifact.zip');
@@ -441,6 +500,7 @@ function findExecutableInPath(command: string): string | undefined {
 async function withMockedInstallSourceFetch(
   bytes: Buffer,
   run: () => Promise<void>,
+  options?: { filename?: string; contentType?: string },
 ): Promise<void> {
   const previous = process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
   process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = '1';
@@ -448,8 +508,8 @@ async function withMockedInstallSourceFetch(
     new Response(new Uint8Array(bytes), {
       status: 200,
       headers: {
-        'content-disposition': 'attachment; filename="artifact.zip"',
-        'content-type': 'application/zip',
+        'content-disposition': `attachment; filename="${options?.filename ?? 'artifact.zip'}"`,
+        'content-type': options?.contentType ?? 'application/zip',
       },
     }),
   );
@@ -459,6 +519,19 @@ async function withMockedInstallSourceFetch(
     fetchMock.mockRestore();
     if (previous === undefined) delete process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
     else process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = previous;
+  }
+}
+
+async function withIsolatedInstallTempRoot(
+  run: (tempRoot: string) => Promise<void>,
+): Promise<void> {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-install-source-root-'));
+  const tmpdirSpy = vi.spyOn(os, 'tmpdir').mockReturnValue(tempRoot);
+  try {
+    await run(tempRoot);
+  } finally {
+    tmpdirSpy.mockRestore();
+    await fs.rm(tempRoot, { recursive: true, force: true });
   }
 }
 

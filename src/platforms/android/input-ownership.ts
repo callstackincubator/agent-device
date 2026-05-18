@@ -9,6 +9,7 @@ const KNOWN_ANDROID_IME_PACKAGES = new Set([
 
 export type AndroidInputOwnershipSource =
   | 'active-input-method'
+  | 'active-input-method-resource'
   | 'known-ime-package'
   | 'known-ime-resource'
   | 'app';
@@ -29,6 +30,9 @@ export function classifyAndroidInputOwnership(options: {
 
   if (packageName && activeInputMethodPackage && packageName === activeInputMethodPackage) {
     return { inputMethodOwned: true, source: 'active-input-method' };
+  }
+  if (activeInputMethodPackage && resourceId.startsWith(`${activeInputMethodPackage}:id/`)) {
+    return { inputMethodOwned: true, source: 'active-input-method-resource' };
   }
 
   if (packageName && KNOWN_ANDROID_IME_PACKAGES.has(packageName)) {

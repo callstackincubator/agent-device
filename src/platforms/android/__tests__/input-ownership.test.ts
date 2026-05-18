@@ -17,6 +17,17 @@ test('classifies active input method package as IME-owned', () => {
       source: 'active-input-method',
     },
   );
+  assert.deepEqual(
+    classifyAndroidInputOwnership({
+      packageName: 'com.android.systemui',
+      resourceId: 'com.vendor.keyboard:id/handwriting',
+      activeInputMethodPackage: 'com.vendor.keyboard',
+    }),
+    {
+      inputMethodOwned: true,
+      source: 'active-input-method-resource',
+    },
+  );
 });
 
 test('keeps package-name fallbacks narrow to known IMEs', () => {
