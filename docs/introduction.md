@@ -51,7 +51,7 @@ Use [AI Agent Setup](/agent-device/docs/agent-setup.md) for Cursor, Codex, Claud
 
 It complements scripted test frameworks such as Appium, Maestro, Detox, XCTest, and Espresso. Keep those for stable human-authored coverage. Use `agent-device` when an agent needs to explore, reproduce, debug, profile, collect evidence, or record a replay from live app behavior.
 
-MCP support is intentionally a thin discovery router for install/status/help. App and device automation remains explicit CLI activity in the terminal.
+MCP support is discovery-only and returns status handoff metadata for installing, verifying, and starting with the CLI. App and device automation remains explicit CLI activity in the terminal.
 
 ## Next steps
 

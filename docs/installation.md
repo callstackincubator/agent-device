@@ -31,6 +31,16 @@ agent-device --version
 
 Set `AGENT_DEVICE_NO_UPDATE_NOTIFIER=1` to disable the notice.
 
+## Agent clients and MCP
+
+The official MCP router is discovery-only. It exposes a `status` tool with the package name, installed version, CLI command name, install command, verify command, and starting help command, while app and device automation remains explicit CLI activity in the terminal.
+
+```bash
+agent-device mcp
+```
+
+Use [AI Agent Setup](/agent-device/docs/agent-setup.md#mcp-router) for copy-paste MCP client configuration.
+
 ## Without installing
 
 ```bash
