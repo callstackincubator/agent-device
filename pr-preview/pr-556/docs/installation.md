@@ -20,7 +20,7 @@ agent-device help react-devtools
 
 Some agent clients run commands in an environment that differs from the user's normal install shell. If `agent-device` is missing in the agent terminal but was installed globally elsewhere, resolve the command the same way the user would from a normal terminal session, then use the absolute binary path for agent commands. This may require inspecting shell startup behavior or package-manager/global bin locations; do not assume the agent process `PATH` is the user's `PATH`.
 
-For Cursor, Codex, Claude Code, Windsurf, Cline, Goose, skills, project rules, and MCP configuration, see [AI Agent Setup](/agent-device/pr-preview/pr-556/docs/agent-setup.md). For the first app automation commands, see [Quick Start](/agent-device/pr-preview/pr-556/docs/quick-start.md).
+For Cursor, Codex, Claude Code, Windsurf, Cline, Goose, skills, and project rules, see [AI Agent Setup](/agent-device/pr-preview/pr-556/docs/agent-setup.md). For the first app automation commands, see [Quick Start](/agent-device/pr-preview/pr-556/docs/quick-start.md).
 
 Interactive CLI runs periodically check for a newer published `agent-device` package in the background. When an upgrade is available, the CLI suggests reinstalling the package globally:
 
