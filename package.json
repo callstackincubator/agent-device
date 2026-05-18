@@ -100,7 +100,6 @@
     "check": "pnpm check:tooling && pnpm check:fallow && pnpm check:unit",
     "prepack": "pnpm check:mcp-metadata && pnpm build:all && pnpm package:android-snapshot-helper:npm",
     "typecheck": "tsc -p tsconfig.json",
-    "version": "pnpm sync:mcp-metadata",
     "test-app:install": "pnpm install --dir examples/test-app --ignore-workspace",
     "test-app:start": "pnpm --dir examples/test-app start",
     "test-app:ios": "pnpm --dir examples/test-app ios",

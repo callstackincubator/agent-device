@@ -640,6 +640,7 @@ Rules:
 } as const satisfies Record<string, { summary: string; body: string }>;
 
 export type HelpTopicName = keyof typeof HELP_TOPICS;
+export const HELP_TOPIC_NAMES = Object.freeze(Object.keys(HELP_TOPICS) as HelpTopicName[]);
 
 const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
   {

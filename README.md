@@ -55,10 +55,49 @@ If you install skills separately, keep the CLI on `agent-device >= 0.14.0`. Olde
 
 - **Agent + terminal**: in Cursor, Codex, Claude Code, Windsurf, and similar clients, run `agent-device` in the integrated terminal. Start planning with `agent-device help workflow`; CLI help is authoritative.
 - **Skills or rules**: install the skill with `npx skills add callstackincubator/agent-device`, use the bundled [agent-device skill](skills/agent-device/SKILL.md), or mirror it as a thin project rule, so the agent checks the installed version and reads `agent-device help workflow` before acting. Use `agent-device help react-native` for React Native apps, overlays, Metro/Fast Refresh blockers, and routing to React DevTools or debugging evidence.
+- **MCP router**: use `agent-device mcp` when an MCP-aware client needs install, status, and version-matched help discovery. MCP is intentionally a thin router; device automation still runs through CLI commands.
 
 For client-specific setup, see [AI Agent Setup](https://incubator.callstack.com/agent-device/docs/agent-setup). For agent-readable docs, use [llms-full.txt](https://incubator.callstack.com/agent-device/llms-full.txt).
 
-Discovery note: `agent-device` publishes [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) metadata as `io.github.callstackincubator/agent-device` so agents and MCP-aware catalogs can find the project. The supported automation interface is still the `agent-device` CLI.
+### MCP Router
+
+`agent-device` ships an official stdio MCP router for discovery-oriented clients. It exposes only `status`, `install`, and `help` tools plus workflow prompts/resources; it does not expose device automation or generic shell execution over MCP.
+
+Paste one of these into clients that accept `mcpServers`, such as Cursor project `.cursor/mcp.json` or user-level MCP settings.
+
+<details>
+<summary>Global install MCP config</summary>
+
+```json
+{
+  "mcpServers": {
+    "agent-device": {
+      "command": "agent-device",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>No global install MCP config</summary>
+
+```json
+{
+  "mcpServers": {
+    "agent-device": {
+      "command": "npx",
+      "args": ["-y", "agent-device@<reviewed-version>", "mcp"]
+    }
+  }
+}
+```
+
+</details>
+
+Registry metadata uses MCP name `io.github.callstackincubator/agent-device`, npm package `agent-device`, stdio transport, `mcpName` package verification, `server.json`, and `smithery.yaml`.
 
 ```bash
 npm install -g agent-device@latest
@@ -156,6 +195,7 @@ Report:
 - **Capture and debug**: screenshots, video, logs, network traffic, CPU/memory/performance data, crash-related logs, accessibility snapshots, and React render profiles.
 - **Produce**: replayable `.ad` scripts (recorded replay files that run locally or in CI), e2e test runs, snapshot and screenshot diffs, and debugging artifacts.
 - **React Native and Expo**: component tree inspection, props/state/hooks, and render profiling.
+- **MCP boundary**: discovery and help over MCP; app/device control through the CLI for explicit, auditable commands.
 - **License**: MIT. Free to use.
 
 ## How It Works
@@ -183,6 +223,7 @@ Agent integration:
 
 - [agent-device skill](skills/agent-device/SKILL.md)
 - [dogfood skill](skills/dogfood/SKILL.md)
+- MCP router: `agent-device mcp`
 - [agent-device skill on ClawHub](https://clawhub.ai/okwasniewski/agent-device)
 
 ## Contributing
