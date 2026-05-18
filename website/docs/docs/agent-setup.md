@@ -49,12 +49,14 @@ Add this as a project rule, custom instruction, or skill equivalent when your ag
 ```text
 Use agent-device only for app/device automation tasks. Before planning commands, run `agent-device --version` and read `agent-device help workflow`. For exploratory QA, read `agent-device help dogfood`. For logs, network, traces, or runtime failures, read `agent-device help debugging`. For React Native component trees, props/state/hooks, slow renders, or rerenders, read `agent-device help react-devtools`. For React Native apps, overlays, Metro/Fast Refresh blockers, and routing to React DevTools or debugging evidence, read `agent-device help react-native`.
 
-Use the CLI in the integrated terminal. If `agent-device` is not on PATH but the user installed it globally in another shell, resolve the command the same way the user would from a normal terminal session and run that absolute path instead. This may require inspecting shell startup behavior or package-manager/global bin locations; do not assume the agent process `PATH` is the user's `PATH`. Do not silently fall back to `npx -y agent-device@latest`; ask or use an exact version. MCP is only a discovery/help router and does not expose device automation tools. Prefer `open -> snapshot -i -> act -> re-snapshot -> verify -> close`. Use current refs such as `@e3` for exploration and selectors for durable replay. Keep mutating commands against one session serial. Capture screenshots, logs, network, perf, traces, recordings, and `.ad` replay scripts only when they add evidence.
+Use the CLI in the integrated terminal. If `agent-device` is not on PATH but the user installed it globally in another shell, resolve the command the same way the user would from a normal terminal session and run that absolute path instead. This may require inspecting shell startup behavior or package-manager/global bin locations; do not assume the agent process `PATH` is the user's `PATH`. Do not silently fall back to `npx -y agent-device@latest`; ask or use an exact version. MCP is discovery-only, exposes only status handoff metadata, and does not expose device automation tools. Prefer `open -> snapshot -i -> act -> re-snapshot -> verify -> close`. Use current refs such as `@e3` for exploration and selectors for durable replay. Keep mutating commands against one session serial. Capture screenshots, logs, network, perf, traces, recordings, and `.ad` replay scripts only when they add evidence.
 ```
 
 ## MCP router
 
-`agent-device mcp` starts the official stdio MCP router for discovery-oriented clients. It exposes only `status`, `install`, and `help` tools plus workflow prompts/resources. Device automation still runs through the CLI commands returned by version-matched help.
+`agent-device mcp` starts the official stdio MCP router for discovery-oriented clients. It exposes only a `status` tool that returns structured CLI handoff guidance: npm package name, installed version, CLI command name, install command, verify command, starting help command, and an explicit note that automation happens through the CLI.
+
+MCP clients must not use this server as a device automation surface or generic shell runner. If the CLI is missing, agents should ask a human before installing or updating packages, then verify with `agent-device --version` and start with `agent-device help workflow`.
 
 Global install configuration:
 
@@ -123,7 +125,7 @@ agent-device help dogfood
 agent-device help react-native
 ```
 
-If you configure MCP, keep using CLI commands for automation. The MCP router gives Claude install/status/help context only.
+If you configure MCP, keep using CLI commands for automation. The MCP router gives Claude discovery/status handoff metadata only.
 
 ## Windsurf, Cline, Goose, and other MCP clients
 
@@ -133,7 +135,7 @@ If the client has project rules or custom instructions, add the recommended agen
 
 ## Why this setup works
 
-The CLI stays the auditable automation surface, installed help stays version-matched with the commands, skills and rules route agents toward the right help topics, and MCP gives discovery-oriented clients a small install/status/help entry point.
+The CLI stays the auditable automation surface, installed help stays version-matched with the commands, skills and rules route agents toward the right help topics, and MCP gives discovery-oriented clients a small status handoff entry point.
 
 For the broader positioning, supported targets, observability features, and how `agent-device` differs from scripted test frameworks, see [Introduction](/docs/introduction). For exact command groups and platform behavior, see [Commands](/docs/commands).
 

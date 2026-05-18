@@ -55,13 +55,15 @@ If you install skills separately, keep the CLI on `agent-device >= 0.14.0`. Olde
 
 - **Agent + terminal**: in Cursor, Codex, Claude Code, Windsurf, and similar clients, run `agent-device` in the integrated terminal. Start planning with `agent-device help workflow`; CLI help is authoritative.
 - **Skills or rules**: install the skill with `npx skills add callstackincubator/agent-device`, use the bundled [agent-device skill](skills/agent-device/SKILL.md), or mirror it as a thin project rule, so the agent checks the installed version and reads `agent-device help workflow` before acting. Use `agent-device help react-native` for React Native apps, overlays, Metro/Fast Refresh blockers, and routing to React DevTools or debugging evidence.
-- **MCP router**: use `agent-device mcp` when an MCP-aware client needs install, status, and version-matched help discovery. MCP is intentionally a thin router; device automation still runs through CLI commands.
+- **MCP router**: use `agent-device mcp` when an MCP-aware client needs to discover the CLI package, install command, version check, and first help command. MCP is discovery-only; device automation still runs through terminal CLI commands.
 
 For client-specific setup, see [AI Agent Setup](https://incubator.callstack.com/agent-device/docs/agent-setup). For agent-readable docs, use [llms-full.txt](https://incubator.callstack.com/agent-device/llms-full.txt).
 
 ### MCP Router
 
-`agent-device` ships an official stdio MCP router for discovery-oriented clients. It exposes only `status`, `install`, and `help` tools plus workflow prompts/resources; it does not expose device automation or generic shell execution over MCP.
+`agent-device` ships an official stdio MCP router for discovery-oriented clients. It exposes only a `status` tool that returns structured CLI handoff guidance: npm package name, installed version, CLI command name, install command, verify command, starting help command, and an explicit note that automation happens through the CLI.
+
+MCP clients must not use this server as a device automation surface or generic shell runner. If the CLI is missing, agents should ask a human before installing or updating packages, then verify with `agent-device --version` and start with `agent-device help workflow`.
 
 Paste one of these into clients that accept `mcpServers`, such as Cursor project `.cursor/mcp.json` or user-level MCP settings.
 

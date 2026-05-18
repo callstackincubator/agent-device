@@ -640,7 +640,6 @@ Rules:
 } as const satisfies Record<string, { summary: string; body: string }>;
 
 export type HelpTopicName = keyof typeof HELP_TOPICS;
-export const HELP_TOPIC_NAMES = Object.freeze(Object.keys(HELP_TOPICS) as HelpTopicName[]);
 
 const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
   {
@@ -1469,6 +1468,14 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
       'metroNoInstallDeps',
       'launchUrl',
     ],
+    skipCapabilityCheck: true,
+  },
+  mcp: {
+    helpDescription:
+      'Start the official stdio MCP discovery router. It exposes only a status tool with CLI install, verify, and starting-help guidance; device automation still runs through terminal CLI commands.',
+    summary: 'Start MCP discovery router',
+    positionalArgs: [],
+    allowedFlags: [],
     skipCapabilityCheck: true,
   },
   disconnect: {

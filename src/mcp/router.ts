@@ -1,14 +1,4 @@
-import {
-  createHelpText,
-  createInstallText,
-  createStatusText,
-  getPrompt,
-  listPrompts,
-  listResources,
-  listTools,
-  readResource,
-  MCP_SERVER_NAME,
-} from './catalog.ts';
+import { createStatusHandoff, listTools, MCP_SERVER_NAME } from './catalog.ts';
 import { readVersion } from '../utils/version.ts';
 
 type JsonRpcId = string | number | null;
@@ -53,8 +43,6 @@ function handleRequest(method: string, params: unknown): unknown {
         protocolVersion: supportedProtocolVersion(params),
         capabilities: {
           tools: {},
-          resources: {},
-          prompts: {},
         },
         serverInfo: {
           name: MCP_SERVER_NAME,
@@ -67,14 +55,6 @@ function handleRequest(method: string, params: unknown): unknown {
       return { tools: listTools() };
     case 'tools/call':
       return callTool(params);
-    case 'resources/list':
-      return { resources: listResources() };
-    case 'resources/read':
-      return readMcpResource(params);
-    case 'prompts/list':
-      return { prompts: listPrompts() };
-    case 'prompts/get':
-      return readPrompt(params);
     default:
       throw new JsonRpcMethodNotFoundError(`Unsupported MCP method: ${method}`);
   }
@@ -83,33 +63,12 @@ function handleRequest(method: string, params: unknown): unknown {
 function callTool(params: unknown): unknown {
   const record = asRecord(params);
   const name = stringField(record, 'name');
-  const args = optionalRecord(record.arguments);
   try {
-    if (name === 'status') return textToolResult(createStatusText());
-    if (name === 'install') return textToolResult(createInstallText(args));
-    if (name === 'help') return textToolResult(createHelpText(args));
+    if (name === 'status') return statusToolResult();
     throw new Error(`Unknown tool: ${name}`);
   } catch (error) {
     return textToolResult(error instanceof Error ? error.message : String(error), true);
   }
-}
-
-function readMcpResource(params: unknown): unknown {
-  const uri = stringField(asRecord(params), 'uri');
-  return {
-    contents: [
-      {
-        uri,
-        mimeType: uri === 'agent-device://install' ? 'text/markdown' : 'text/plain',
-        text: readResource(uri),
-      },
-    ],
-  };
-}
-
-function readPrompt(params: unknown): unknown {
-  const record = asRecord(params);
-  return getPrompt(stringField(record, 'name'), optionalStringRecord(record.arguments));
 }
 
 function supportedProtocolVersion(_params: unknown): string {
@@ -120,6 +79,15 @@ function textToolResult(text: string, isError = false): unknown {
   return {
     isError,
     content: [{ type: 'text', text }],
+  };
+}
+
+function statusToolResult(): unknown {
+  const handoff = createStatusHandoff();
+  return {
+    isError: false,
+    structuredContent: handoff,
+    content: [{ type: 'text', text: JSON.stringify(handoff, null, 2) }],
   };
 }
 
@@ -136,20 +104,6 @@ function asRecord(value: unknown): Record<string, unknown> {
     throw new Error('Expected object parameters.');
   }
   return value as Record<string, unknown>;
-}
-
-function optionalRecord(value: unknown): Record<string, unknown> {
-  if (value === undefined) return {};
-  return asRecord(value);
-}
-
-function optionalStringRecord(value: unknown): Record<string, string> {
-  const record = optionalRecord(value);
-  return Object.fromEntries(
-    Object.entries(record).filter(
-      (entry): entry is [string, string] => typeof entry[1] === 'string',
-    ),
-  );
 }
 
 function stringField(record: Record<string, unknown>, key: string): string {

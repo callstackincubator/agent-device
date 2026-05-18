@@ -10,6 +10,7 @@ description: Security and trust guidance for agent-device local app automation, 
 ## Local control
 
 - Device automation runs through the installed CLI and platform tooling such as Xcode, ADB, macOS accessibility APIs, and Linux AT-SPI.
+- The MCP server is discovery-only. It exposes a single status tool with CLI handoff metadata; it does not expose device automation or generic shell execution over MCP.
 - Mutating commands should run serially against one session. Use separate sessions/devices for parallel work.
 
 ## Sensitive artifacts
