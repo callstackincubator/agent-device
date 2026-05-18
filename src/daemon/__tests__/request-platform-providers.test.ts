@@ -41,6 +41,43 @@ test('request platform provider scope exposes Android executor for Android sessi
   assert.deepEqual(calls, [['shell', 'echo', 'ok']]);
 });
 
+test('request platform provider scope treats undefined resolver results as no provider', async () => {
+  const response = await withRequestPlatformProviderScope(
+    {
+      req: request('snapshot'),
+      existingSession: makeAndroidSession('default'),
+      providers: {
+        androidAdbProvider: () => undefined,
+      },
+    },
+    async (scope) => {
+      assert.equal(scope.androidAdbExecutor, undefined);
+      return 'local-fallback';
+    },
+  );
+
+  assert.equal(response, 'local-fallback');
+});
+
+test('request platform provider scope surfaces resolver failures instead of falling back local', async () => {
+  await assert.rejects(
+    async () =>
+      await withRequestPlatformProviderScope(
+        {
+          req: request('snapshot'),
+          existingSession: makeAndroidSession('default'),
+          providers: {
+            androidAdbProvider: () => {
+              throw new Error('provider unavailable');
+            },
+          },
+        },
+        async () => 'unexpected',
+      ),
+    /provider unavailable/,
+  );
+});
+
 test('request platform provider scope applies app log provider for session logs', async () => {
   const started: string[] = [];
 

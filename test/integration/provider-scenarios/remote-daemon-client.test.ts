@@ -37,6 +37,7 @@ type RemotePaths = {
 };
 
 type RemoteDaemonState = {
+  artifactMode: 'success' | 'not-found';
   rpcMode: 'success' | 'error';
   rpcRequests: RemoteRpcRequest[];
   uploadRequests: UploadRequest[];
@@ -64,9 +65,11 @@ function createRemoteDaemonServer(paths: { screenshotPath: string }): {
   server: http.Server;
   rpcRequests: RemoteRpcRequest[];
   uploadRequests: UploadRequest[];
+  rejectArtifactDownloads(): void;
   rejectRpcRequests(): void;
 } {
   const state: RemoteDaemonState = {
+    artifactMode: 'success',
     rpcMode: 'success',
     rpcRequests: [],
     uploadRequests: [],
@@ -80,6 +83,9 @@ function createRemoteDaemonServer(paths: { screenshotPath: string }): {
     server,
     rpcRequests: state.rpcRequests,
     uploadRequests: state.uploadRequests,
+    rejectArtifactDownloads() {
+      state.artifactMode = 'not-found';
+    },
     rejectRpcRequests() {
       state.rpcMode = 'error';
     },
@@ -93,14 +99,31 @@ function handleRemoteDaemonRequest(
 ): void {
   const route = remoteRoute(req);
   if (route === 'health') return writeHealth(res);
-  if (route === 'screenshot-artifact') return writeArtifact(req, res, 'image/png', PNG_BYTES);
-  if (route === 'recording-artifact') {
-    return writeArtifact(req, res, 'video/mp4', RECORDING_BYTES);
+  if (route === 'screenshot-artifact' || route === 'recording-artifact') {
+    return writeArtifactResponse(req, res, state, route);
   }
   if (route === 'upload') return handleUpload(req, res, state.uploadRequests);
   if (route === 'rpc') return handleRpc(req, res, state);
   res.writeHead(404);
   res.end('not found');
+}
+
+function writeArtifactResponse(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  state: RemoteDaemonState,
+  route: 'screenshot-artifact' | 'recording-artifact',
+): void {
+  if (state.artifactMode === 'not-found') {
+    assertRemoteAuth(req);
+    res.writeHead(404, { 'content-type': 'text/plain' });
+    res.end('artifact expired');
+    return;
+  }
+  if (route === 'screenshot-artifact') return writeArtifact(req, res, 'image/png', PNG_BYTES);
+  if (route === 'recording-artifact') {
+    return writeArtifact(req, res, 'video/mp4', RECORDING_BYTES);
+  }
 }
 
 function remoteRoute(
@@ -468,6 +491,43 @@ test('Provider-backed integration remote daemon client materializes artifacts an
     await assertRecordingArtifactRoundTrip(client, paths, rpcRequests);
     rejectRpcRequests();
     await assertRemoteRpcErrorNormalization(client);
+  } finally {
+    await closeHttpServer(server);
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('Provider-backed integration remote daemon client normalizes artifact download failures after successful RPC', async (t) => {
+  if (await skipWhenLoopbackUnavailable(t, 'remote daemon artifact failure coverage')) {
+    return;
+  }
+
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-remote-artifact-fail-'));
+  const screenshotPath = path.join(stateDir, 'remote-shot.png');
+  const { server, rejectArtifactDownloads } = createRemoteDaemonServer({ screenshotPath });
+
+  try {
+    const port = await listenHttpOnLoopback(server);
+    const client = createAgentDeviceClient({
+      daemonBaseUrl: `http://127.0.0.1:${port}`,
+      daemonAuthToken: 'remote-token',
+      stateDir,
+    });
+    rejectArtifactDownloads();
+
+    await assert.rejects(
+      async () => await client.capture.screenshot({ path: screenshotPath }),
+      (error) => {
+        const normalized = normalizeAgentDeviceError(error);
+        assert.equal(normalized.code, 'COMMAND_FAILED');
+        assert.equal(normalized.message, 'Failed to download remote artifact');
+        assert.equal(normalized.details?.artifactId, 'shot-1');
+        assert.equal(normalized.details?.statusCode, 404);
+        assert.equal(normalized.details?.body, 'artifact expired');
+        assert.equal(fs.existsSync(screenshotPath), false);
+        return true;
+      },
+    );
   } finally {
     await closeHttpServer(server);
     fs.rmSync(stateDir, { recursive: true, force: true });

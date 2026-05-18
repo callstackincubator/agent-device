@@ -62,7 +62,7 @@ test('Provider-backed integration iOS Settings permission and alert flow uses pr
       return { stdout: '', stderr: '', exitCode: 0 };
     },
   });
-  let appLogStopped = false;
+  let appLogStopCount = 0;
   const appLogStarts: Array<{ appBundleId: string; outPath: string }> = [];
   const appLogProvider: AppLogProvider = {
     start: async ({ appBundleId, outPath }) => {
@@ -74,7 +74,7 @@ test('Provider-backed integration iOS Settings permission and alert flow uses pr
         startedAt: Date.now(),
         getState: () => 'active',
         stop: async () => {
-          appLogStopped = true;
+          appLogStopCount += 1;
         },
         wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
       };
@@ -104,6 +104,14 @@ test('Provider-backed integration iOS Settings permission and alert flow uses pr
       const activeLogsPath = await client.observability.logs({ action: 'path', ...selection });
       assert.equal(activeLogsPath.active, true);
       assert.equal(activeLogsPath.backend, 'ios-simulator');
+
+      const logsClearRestart = await client.observability.logs({
+        action: 'clear',
+        restart: true,
+        ...selection,
+      });
+      assert.equal(logsClearRestart.cleared, true);
+      assert.equal(logsClearRestart.restarted, true);
 
       const logsStop = await client.observability.logs({ action: 'stop', ...selection });
       assert.equal(logsStop.stopped, true);
@@ -146,9 +154,9 @@ test('Provider-backed integration iOS Settings permission and alert flow uses pr
     runnerTranscript.assertComplete();
     assert.deepEqual(
       appLogStarts.map((start) => start.appBundleId),
-      ['com.apple.Preferences'],
+      ['com.apple.Preferences', 'com.apple.Preferences'],
     );
-    assert.equal(appLogStopped, true);
+    assert.equal(appLogStopCount, 2);
     assertFlatToolCall(appleTool.calls, ['simctl', 'ui', 'sim-1', 'appearance', 'dark']);
     assertFlatToolCall(appleTool.calls, ['simctl', 'location', 'sim-1', 'set', '37.3349,-122.009']);
     assertFlatToolCall(appleTool.calls, [
