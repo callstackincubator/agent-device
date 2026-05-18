@@ -12,34 +12,36 @@ import { LeaseRegistry } from '../../../src/daemon/lease-registry.ts';
 import { SessionStore } from '../../../src/daemon/session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../../../src/daemon/types.ts';
 
-const DEVICE_LAB_TOKEN = 'device-lab-token';
+const PROVIDER_SCENARIO_TOKEN = 'provider-scenario-token';
 
-export type DeviceLabRpcResult = { statusCode: number; json: any };
+export type ProviderScenarioRpcResult = { statusCode: number; json: any };
 
-export type DeviceLabHarness = {
+export type ProviderScenarioHarness = {
   callCommand: (
     command: string,
     positionals?: string[],
     flags?: DaemonRequest['flags'],
     options?: { meta?: DaemonRequest['meta'] },
-  ) => Promise<DeviceLabRpcResult>;
+  ) => Promise<ProviderScenarioRpcResult>;
   client: () => AgentDeviceClient;
   session: (name?: string) => SessionState | undefined;
   close: () => Promise<void>;
 };
 
-export type ClosableDeviceLabResource = {
+export type ClosableProviderScenarioResource = {
   close: () => Promise<void> | void;
 };
 
-export async function createDeviceLabHarness(
+export async function createProviderScenarioHarness(
   deps: Partial<RequestRouterDeps> & Pick<RequestRouterDeps, 'deviceInventoryProvider'>,
-): Promise<DeviceLabHarness> {
-  const sessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-lab-session-'));
+): Promise<ProviderScenarioHarness> {
+  const sessionDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'agent-device-provider-scenario-session-'),
+  );
   const sessionStore = new SessionStore(sessionDir);
   const handleRequest = createRequestHandler({
-    logPath: path.join(os.tmpdir(), 'agent-device-lab-daemon.log'),
-    token: DEVICE_LAB_TOKEN,
+    logPath: path.join(os.tmpdir(), 'agent-device-provider-scenario-daemon.log'),
+    token: PROVIDER_SCENARIO_TOKEN,
     sessionStore,
     leaseRegistry: new LeaseRegistry(),
     trackDownloadableArtifact,
@@ -48,7 +50,7 @@ export async function createDeviceLabHarness(
 
   const transport: AgentDeviceDaemonTransport = async (req) =>
     await handleRequest({
-      token: DEVICE_LAB_TOKEN,
+      token: PROVIDER_SCENARIO_TOKEN,
       session: req.session ?? 'default',
       command: req.command,
       positionals: req.positionals,
@@ -71,7 +73,10 @@ export async function createDeviceLabHarness(
   };
 }
 
-export async function withDeviceLabResource<TResource extends ClosableDeviceLabResource, TResult>(
+export async function withProviderScenarioResource<
+  TResource extends ClosableProviderScenarioResource,
+  TResult,
+>(
   create: () => Promise<TResource>,
   run: (resource: TResource) => Promise<TResult> | TResult,
 ): Promise<TResult> {
@@ -83,13 +88,13 @@ export async function withDeviceLabResource<TResource extends ClosableDeviceLabR
   }
 }
 
-export function createDeviceLabTempPath(prefix: string, extension: string): string {
+export function createProviderScenarioTempPath(prefix: string, extension: string): string {
   const suffix = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const normalizedExtension = extension.startsWith('.') ? extension : `.${extension}`;
   return path.join(os.tmpdir(), `${prefix}-${suffix}${normalizedExtension}`);
 }
 
-export async function withDeviceLabTempDir<TResult>(
+export async function withProviderScenarioTempDir<TResult>(
   prefix: string,
   run: (dir: string) => Promise<TResult> | TResult,
 ): Promise<TResult> {
@@ -113,7 +118,7 @@ function commandRequest(
   meta?: DaemonRequest['meta'],
 ): DaemonRequest {
   return {
-    token: DEVICE_LAB_TOKEN,
+    token: PROVIDER_SCENARIO_TOKEN,
     session: 'default',
     command,
     positionals,
@@ -122,7 +127,7 @@ function commandRequest(
   };
 }
 
-function responseToRpcResult(response: DaemonResponse, id: string): DeviceLabRpcResult {
+function responseToRpcResult(response: DaemonResponse, id: string): ProviderScenarioRpcResult {
   return {
     statusCode: 200,
     json: response.ok

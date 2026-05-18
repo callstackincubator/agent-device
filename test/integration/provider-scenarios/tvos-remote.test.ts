@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { assertRpcOk } from './assertions.ts';
-import { DEVICE_LAB_TVOS } from './fixtures.ts';
-import { createDeviceLabHarness, withDeviceLabResource } from './harness.ts';
+import { PROVIDER_SCENARIO_TVOS } from './fixtures.ts';
+import { createProviderScenarioHarness, withProviderScenarioResource } from './harness.ts';
 import {
   createAppleRunnerProviderFromTranscript,
   createRecordingAppleToolProvider,
@@ -10,11 +10,11 @@ import {
 } from './providers.ts';
 import { createProviderTranscript } from './transcript.ts';
 
-test('Device Lab tvOS remote flow maps navigation commands to runner remote presses', async () => {
+test('Provider-backed integration tvOS remote flow maps navigation commands to runner remote presses', async () => {
   const runnerTranscript = createProviderTranscript([
     {
       command: 'tvos.runner.remotePress',
-      deviceId: DEVICE_LAB_TVOS.id,
+      deviceId: PROVIDER_SCENARIO_TVOS.id,
       platform: 'ios',
       request: {
         command: 'remotePress',
@@ -25,7 +25,7 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
     },
     {
       command: 'tvos.runner.remotePress',
-      deviceId: DEVICE_LAB_TVOS.id,
+      deviceId: PROVIDER_SCENARIO_TVOS.id,
       platform: 'ios',
       request: {
         command: 'remotePress',
@@ -36,7 +36,7 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
     },
     {
       command: 'tvos.runner.remotePress',
-      deviceId: DEVICE_LAB_TVOS.id,
+      deviceId: PROVIDER_SCENARIO_TVOS.id,
       platform: 'ios',
       request: {
         command: 'remotePress',
@@ -56,18 +56,18 @@ test('Device Lab tvOS remote flow maps navigation commands to runner remote pres
     ]),
   });
 
-  await withDeviceLabResource(
+  await withProviderScenarioResource(
     async () =>
-      await createDeviceLabHarness({
+      await createProviderScenarioHarness({
         appleRunnerProvider: () => appleRunnerProvider,
         appleToolProvider: () => appleTool.provider,
-        deviceInventoryProvider: async () => [DEVICE_LAB_TVOS],
+        deviceInventoryProvider: async () => [PROVIDER_SCENARIO_TVOS],
       }),
     async (daemon) => {
       const open = await daemon.callCommand('open', ['com.example.tv'], {
         platform: 'ios',
         target: 'tv',
-        udid: DEVICE_LAB_TVOS.id,
+        udid: PROVIDER_SCENARIO_TVOS.id,
       });
       assertRpcOk(open);
 

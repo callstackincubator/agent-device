@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { PNG } from 'pngjs';
-import type { DeviceLabRpcResult } from './harness.ts';
+import type { ProviderScenarioRpcResult } from './harness.ts';
 
 export function assertCommandCall(calls: readonly string[][], expected: readonly string[]): void {
   assert.ok(
@@ -31,7 +31,7 @@ export function assertFlatToolCallStartsWith(
 }
 
 export function assertRpcOk<TData extends Record<string, unknown> = Record<string, unknown>>(
-  response: DeviceLabRpcResult,
+  response: ProviderScenarioRpcResult,
 ): TData {
   assert.equal(response.statusCode, 200, JSON.stringify(response.json));
   assert.equal(response.json?.error, undefined, JSON.stringify(response.json));
@@ -39,7 +39,7 @@ export function assertRpcOk<TData extends Record<string, unknown> = Record<strin
 }
 
 export function assertRecordingStarted(
-  response: DeviceLabRpcResult,
+  response: ProviderScenarioRpcResult,
   options: { outPath?: string; showTouches?: boolean } = {},
 ): void {
   const data = assertRpcOk<{
@@ -57,7 +57,7 @@ export function assertRecordingStarted(
 }
 
 export function assertRecordingStopped(
-  response: DeviceLabRpcResult,
+  response: ProviderScenarioRpcResult,
   outPath: string,
   options: { showTouches?: boolean } = {},
 ): void {

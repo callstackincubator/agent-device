@@ -4,8 +4,8 @@ import path from 'node:path';
 import { test } from 'vitest';
 import type { AppLogProvider } from '../../../src/daemon/app-log.ts';
 import { assertFlatToolCall } from './assertions.ts';
-import { DEVICE_LAB_IOS_SIMULATOR } from './fixtures.ts';
-import { createDeviceLabHarness } from './harness.ts';
+import { PROVIDER_SCENARIO_IOS_SIMULATOR } from './fixtures.ts';
+import { createProviderScenarioHarness } from './harness.ts';
 import {
   createAppleRunnerProviderFromTranscript,
   createRecordingAppleToolProvider,
@@ -13,18 +13,18 @@ import {
 } from './providers.ts';
 import { createProviderTranscript } from './transcript.ts';
 
-test('Device Lab iOS Settings permission and alert flow uses provider seams', async () => {
+test('Provider-backed integration iOS Settings permission and alert flow uses provider seams', async () => {
   const runnerTranscript = createProviderTranscript([
     {
       command: 'ios.runner.alert',
-      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
+      deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
       platform: 'ios',
       request: { command: 'alert', action: 'get', appBundleId: 'com.apple.Preferences' },
       result: { title: 'Camera Access', message: 'Allow Settings to access Camera?' },
     },
     {
       command: 'ios.runner.alert',
-      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
+      deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
       platform: 'ios',
       request: { command: 'alert', action: 'accept', appBundleId: 'com.apple.Preferences' },
       result: { action: 'accept', accepted: true },
@@ -80,20 +80,20 @@ test('Device Lab iOS Settings permission and alert flow uses provider seams', as
       };
     },
   };
-  const daemon = await createDeviceLabHarness({
+  const daemon = await createProviderScenarioHarness({
     appLogProvider: () => appLogProvider,
     appleRunnerProvider: () => appleRunnerProvider,
     appleToolProvider: () => appleTool.provider,
-    deviceInventoryProvider: async () => [DEVICE_LAB_IOS_SIMULATOR],
+    deviceInventoryProvider: async () => [PROVIDER_SCENARIO_IOS_SIMULATOR],
   });
 
   try {
     {
       const client = daemon.client();
-      const selection = { platform: 'ios' as const, udid: DEVICE_LAB_IOS_SIMULATOR.id };
+      const selection = { platform: 'ios' as const, udid: PROVIDER_SCENARIO_IOS_SIMULATOR.id };
 
       const open = await client.apps.open({ app: 'com.apple.Preferences', ...selection });
-      assert.equal(open.device?.id, DEVICE_LAB_IOS_SIMULATOR.id);
+      assert.equal(open.device?.id, PROVIDER_SCENARIO_IOS_SIMULATOR.id);
 
       const logsPath = await client.observability.logs({ action: 'path', ...selection });
       assert.equal(logsPath.active, false);

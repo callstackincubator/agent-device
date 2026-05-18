@@ -23,7 +23,7 @@ type RpcResponse = {
   };
 };
 
-test('Device Lab daemon HTTP server maps RPC methods, auth, and request cancellation through the real transport', async (t) => {
+test('Provider-backed integration daemon HTTP server maps RPC methods, auth, and request cancellation through the real transport', async (t) => {
   if (await skipWhenLoopbackUnavailable(t, 'daemon HTTP integration coverage')) {
     return;
   }
@@ -31,7 +31,7 @@ test('Device Lab daemon HTTP server maps RPC methods, auth, and request cancella
   const observedRequests: DaemonRequest[] = [];
   let observedCanceled: boolean | undefined;
   const server = await createDaemonHttpServer({
-    token: 'device-lab-token',
+    token: 'provider-scenario-token',
     handleRequest: async (req): Promise<DaemonResponse> => {
       observedRequests.push(req);
       if (req.command === 'session_list') {
@@ -203,7 +203,7 @@ test('Device Lab daemon HTTP server maps RPC methods, auth, and request cancella
   }
 });
 
-test('Device Lab daemon HTTP server accepts uploads and streams downloadable artifacts', async (t) => {
+test('Provider-backed integration daemon HTTP server accepts uploads and streams downloadable artifacts', async (t) => {
   if (await skipWhenLoopbackUnavailable(t, 'daemon HTTP integration coverage')) {
     return;
   }
@@ -216,7 +216,7 @@ test('Device Lab daemon HTTP server accepts uploads and streams downloadable art
     fileName: 'screen.png',
   });
   const server = await createDaemonHttpServer({
-    token: 'device-lab-token',
+    token: 'provider-scenario-token',
     handleRequest: async (): Promise<DaemonResponse> => ({ ok: true, data: {} }),
   });
 
@@ -226,7 +226,7 @@ test('Device Lab daemon HTTP server accepts uploads and streams downloadable art
     const upload = await fetch(`http://127.0.0.1:${port}/upload`, {
       method: 'POST',
       headers: {
-        authorization: 'Bearer device-lab-token',
+        authorization: 'Bearer provider-scenario-token',
         'x-artifact-type': 'file',
         'x-artifact-filename': 'demo.apk',
         'content-type': 'application/octet-stream',
@@ -239,7 +239,7 @@ test('Device Lab daemon HTTP server accepts uploads and streams downloadable art
     assert.equal(typeof uploadBody.uploadId, 'string');
 
     const downloaded = await fetch(`http://127.0.0.1:${port}/artifacts/${artifactId}`, {
-      headers: { authorization: 'Bearer device-lab-token' },
+      headers: { authorization: 'Bearer provider-scenario-token' },
     });
     assert.equal(downloaded.status, 200);
     assert.equal(await downloaded.text(), 'png-binary');
@@ -261,7 +261,7 @@ test('Device Lab daemon HTTP server accepts uploads and streams downloadable art
   }
 });
 
-test('Device Lab daemon HTTP auth hook can scope tenants and reject requests', async (t) => {
+test('Provider-backed integration daemon HTTP auth hook can scope tenants and reject requests', async (t) => {
   if (await skipWhenLoopbackUnavailable(t, 'daemon HTTP integration coverage')) {
     return;
   }
@@ -332,7 +332,7 @@ test('Device Lab daemon HTTP auth hook can scope tenants and reject requests', a
 async function callRpc(
   port: number,
   payload: Record<string, unknown>,
-  headers: Record<string, string> = { authorization: 'Bearer device-lab-token' },
+  headers: Record<string, string> = { authorization: 'Bearer provider-scenario-token' },
 ): Promise<RpcResponse> {
   const response = await fetch(`http://127.0.0.1:${port}/rpc`, {
     method: 'POST',

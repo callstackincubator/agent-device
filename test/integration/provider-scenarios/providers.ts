@@ -6,7 +6,7 @@ import type {
   AppleToolSubcommandExecutor,
 } from '../../../src/platforms/ios/tool-provider.ts';
 import type { ExecResult } from '../../../src/utils/exec.ts';
-import type { DeviceLabTranscript } from './transcript.ts';
+import type { ProviderScenarioTranscript } from './transcript.ts';
 
 export type FlatToolCall = [string, ...string[]];
 
@@ -19,7 +19,7 @@ type RecordingAppleToolHandlers = {
 };
 
 export function createAppleRunnerProviderFromTranscript(
-  transcript: DeviceLabTranscript,
+  transcript: ProviderScenarioTranscript,
   commandPrefix: 'ios.runner' | 'macos.runner' | 'tvos.runner',
 ): AppleRunnerProvider {
   return {
@@ -38,7 +38,7 @@ export function createRecordingAppleToolProvider(handlers: RecordingAppleToolHan
   const calls: FlatToolCall[] = [];
   const plistHandler = handlers.plist;
   const missingHandler = async (label: string): Promise<ExecResult> => {
-    throw new Error(`Unscripted Apple Device Lab provider call: ${label}`);
+    throw new Error(`Unscripted Apple Provider-backed integration provider call: ${label}`);
   };
   return {
     calls,

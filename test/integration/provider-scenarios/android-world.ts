@@ -11,11 +11,15 @@ import type {
 import type { DeviceInventoryRequest } from '../../../src/core/dispatch-resolve.ts';
 import { runCmd } from '../../../src/utils/exec.ts';
 import { validPng } from './assertions.ts';
-import { DEVICE_LAB_ANDROID } from './fixtures.ts';
-import { createDeviceLabHarness, restoreEnv, type DeviceLabHarness } from './harness.ts';
+import { PROVIDER_SCENARIO_ANDROID } from './fixtures.ts';
+import {
+  createProviderScenarioHarness,
+  restoreEnv,
+  type ProviderScenarioHarness,
+} from './harness.ts';
 
 type AndroidSettingsWorld = {
-  daemon: DeviceLabHarness;
+  daemon: ProviderScenarioHarness;
   adbCalls: string[][];
   textInjectionCalls: Array<{
     action: 'type' | 'fill';
@@ -48,7 +52,9 @@ export async function createAndroidSettingsWorld(options?: {
   let searchText = '';
   let clipboardText = 'hello';
   const spawnedLogcat: AndroidAdbProcess[] = [];
-  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-lab-android-deploy-'));
+  const tempRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'agent-device-provider-scenario-android-deploy-'),
+  );
   const apkPath = path.join(tempRoot, 'Demo.apk');
   const aabPath = path.join(tempRoot, 'Demo.aab');
   const previousAppEventTemplate = process.env.AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE;
@@ -109,11 +115,11 @@ export async function createAndroidSettingsWorld(options?: {
       searchText = request.text;
     };
   }
-  const daemon = await createDeviceLabHarness({
+  const daemon = await createProviderScenarioHarness({
     androidAdbProvider: () => adbProvider,
     deviceInventoryProvider: async (request) => {
       inventoryRequests.push({ ...request });
-      return [DEVICE_LAB_ANDROID];
+      return [PROVIDER_SCENARIO_ANDROID];
     },
   });
 
@@ -130,7 +136,7 @@ export async function createAndroidSettingsWorld(options?: {
     apkPath,
     aabPath,
     manifestApkPath,
-    selection: { platform: 'android', serial: DEVICE_LAB_ANDROID.id },
+    selection: { platform: 'android', serial: PROVIDER_SCENARIO_ANDROID.id },
     assertNoHostAdbCalls: () => {
       assert.deepEqual(readHostAdbCalls(hostAdbGuard.argsLogPath), []);
     },
@@ -279,7 +285,7 @@ export function androidSettingsXml(
 }
 
 function installFakeHostAdbGuard(): { argsLogPath: string; restore: () => void } {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-lab-adb-'));
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-provider-scenario-adb-'));
   const adbPath = path.join(tmpDir, 'adb');
   const argsLogPath = path.join(tmpDir, 'adb-args.log');
   fs.writeFileSync(
@@ -287,7 +293,7 @@ function installFakeHostAdbGuard(): { argsLogPath: string; restore: () => void }
     [
       '#!/bin/sh',
       'printf "%s\\n" "$*" >> "$AGENT_DEVICE_TEST_ADB_ARGS_FILE"',
-      'printf "host adb must not be used in Device Lab tests\\n" >&2',
+      'printf "host adb must not be used in Provider scenario tests\\n" >&2',
       'exit 99',
       '',
     ].join('\n'),

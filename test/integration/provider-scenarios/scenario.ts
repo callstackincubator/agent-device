@@ -1,35 +1,38 @@
 import assert from 'node:assert/strict';
 import type { DaemonRequest } from '../../../src/daemon/types.ts';
-import type { DeviceLabHarness, DeviceLabRpcResult } from './harness.ts';
+import type { ProviderScenarioHarness, ProviderScenarioRpcResult } from './harness.ts';
 
-export type DeviceLabScenarioState = {
-  readonly responses: ReadonlyMap<string, DeviceLabRpcResult>;
-  response(name: string): DeviceLabRpcResult;
+export type ProviderScenarioState = {
+  readonly responses: ReadonlyMap<string, ProviderScenarioRpcResult>;
+  response(name: string): ProviderScenarioRpcResult;
 };
 
-export type DeviceLabScenarioStep = {
+export type ProviderScenarioStep = {
   name: string;
   command: string;
   positionals?: string[];
   flags?: DaemonRequest['flags'];
   expectStatus?: number;
   expectData?: Record<string, unknown>;
-  assert?: (response: DeviceLabRpcResult, state: DeviceLabScenarioState) => void | Promise<void>;
+  assert?: (
+    response: ProviderScenarioRpcResult,
+    state: ProviderScenarioState,
+  ) => void | Promise<void>;
 };
 
-export async function runDeviceLabScenario(
-  daemon: Pick<DeviceLabHarness, 'callCommand'>,
-  steps: readonly DeviceLabScenarioStep[],
-): Promise<DeviceLabScenarioState> {
-  const responses = new Map<string, DeviceLabRpcResult>();
+export async function runProviderScenario(
+  daemon: Pick<ProviderScenarioHarness, 'callCommand'>,
+  steps: readonly ProviderScenarioStep[],
+): Promise<ProviderScenarioState> {
+  const responses = new Map<string, ProviderScenarioRpcResult>();
 
-  const state: DeviceLabScenarioState = {
+  const state: ProviderScenarioState = {
     get responses() {
       return new Map(responses);
     },
     response(name) {
       const response = responses.get(name);
-      assert.ok(response, `Missing Device Lab scenario response: ${name}`);
+      assert.ok(response, `Missing provider-backed integration scenario response: ${name}`);
       return response;
     },
   };
@@ -54,7 +57,7 @@ export async function runDeviceLabScenario(
 
 function assertDataContains(
   name: string,
-  response: DeviceLabRpcResult,
+  response: ProviderScenarioRpcResult,
   expected: Record<string, unknown>,
 ): void {
   const data = response.json?.result?.data;

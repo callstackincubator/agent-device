@@ -369,7 +369,7 @@ async function assertRemoteRpcErrorNormalization(client: RemoteClient): Promise<
   );
 }
 
-test('Device Lab remote daemon client materializes artifacts and normalizes RPC errors', async (t) => {
+test('Provider-backed integration remote daemon client materializes artifacts and normalizes RPC errors', async (t) => {
   if (await skipWhenLoopbackUnavailable(t, 'remote daemon client integration coverage')) {
     return;
   }

@@ -77,7 +77,7 @@ jobs:
         run: pnpm test:unit
 
   coverage:
-    name: Coverage Trend
+    name: Coverage
     runs-on: macos-26
     timeout-minutes: 30
     steps:
@@ -87,8 +87,8 @@ jobs:
       - name: Setup toolchain
         uses: ./.github/actions/setup-node-pnpm
 
-      - name: Run coverage trend check
-        run: pnpm test:coverage:check
+      - name: Run coverage
+        run: pnpm test:coverage
 
   typecheck:
     name: Typecheck
@@ -150,9 +150,11 @@ jobs:
 
       - name: Run integration tests
         run: |
-          # Smoke tests execute src/bin.ts directly and do not rely on prebuilt JS or XCTest artifacts.
           pnpm clean:daemon
-          pnpm test:integration
+          pnpm test:integration:node
 
-      - name: Check Device Lab architecture progress
-        run: pnpm test:device-lab:progress:check
+      - name: Run provider-backed integration tests
+        run: pnpm test:integration:provider
+
+      - name: Check Provider-backed integration architecture progress
+        run: pnpm test:integration:progress:check

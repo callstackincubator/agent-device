@@ -11,7 +11,7 @@ import {
   writeInfo,
 } from '../../../src/daemon/server-lifecycle.ts';
 
-test('Device Lab daemon lifecycle writes metadata and protects process-owned locks', () => {
+test('Provider-backed integration daemon lifecycle writes metadata and protects process-owned locks', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-daemon-lifecycle-'));
   const infoPath = path.join(root, 'daemon.json');
   const lockPath = path.join(root, 'daemon.lock');
@@ -21,8 +21,8 @@ test('Device Lab daemon lifecycle writes metadata and protects process-owned loc
     writeInfo(root, infoPath, logPath, {
       socketPort: 4210,
       httpPort: 4310,
-      token: 'device-lab-token',
-      version: '0.0.0-device-lab',
+      token: 'provider-scenario-token',
+      version: '0.0.0-provider-scenario',
       codeSignature: 'graph:1:abc',
       processStartTime: 'start-time',
     });
@@ -32,14 +32,14 @@ test('Device Lab daemon lifecycle writes metadata and protects process-owned loc
     assert.equal(info.transport, 'dual');
     assert.equal(info.port, 4210);
     assert.equal(info.httpPort, 4310);
-    assert.equal(info.token, 'device-lab-token');
+    assert.equal(info.token, 'provider-scenario-token');
     assert.equal(info.stateDir, root);
 
     const httpOnlyInfoPath = path.join(root, 'daemon-http.json');
     writeInfo(root, httpOnlyInfoPath, path.join(root, 'daemon-http.log'), {
       httpPort: 4311,
       token: 'http-only-token',
-      version: '0.0.0-device-lab',
+      version: '0.0.0-provider-scenario',
       codeSignature: 'graph:1:http',
       processStartTime: undefined,
     });
@@ -52,7 +52,7 @@ test('Device Lab daemon lifecycle writes metadata and protects process-owned loc
     writeInfo(root, socketOnlyInfoPath, path.join(root, 'daemon-socket.log'), {
       socketPort: 4211,
       token: 'socket-only-token',
-      version: '0.0.0-device-lab',
+      version: '0.0.0-provider-scenario',
       codeSignature: 'graph:1:socket',
       processStartTime: undefined,
     });
@@ -64,7 +64,7 @@ test('Device Lab daemon lifecycle writes metadata and protects process-owned loc
     assert.equal(
       acquireDaemonLock(root, lockPath, {
         pid: process.pid,
-        version: '0.0.0-device-lab',
+        version: '0.0.0-provider-scenario',
         startedAt: 1,
       }),
       true,
@@ -72,7 +72,7 @@ test('Device Lab daemon lifecycle writes metadata and protects process-owned loc
     assert.equal(
       acquireDaemonLock(root, lockPath, {
         pid: process.pid,
-        version: '0.0.0-device-lab',
+        version: '0.0.0-provider-scenario',
         startedAt: 2,
       }),
       true,

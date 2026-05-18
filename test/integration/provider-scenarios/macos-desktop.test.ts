@@ -2,15 +2,18 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'vitest';
 import { assertFlatToolCall, assertPngFile } from './assertions.ts';
-import { createDeviceLabTempPath, withDeviceLabResource } from './harness.ts';
+import { createProviderScenarioTempPath, withProviderScenarioResource } from './harness.ts';
 import { createMacOsDesktopWorld } from './macos-world.ts';
-import { runDeviceLabScenario } from './scenario.ts';
+import { runProviderScenario } from './scenario.ts';
 
-test('Device Lab macOS desktop flow uses semantic host and helper providers', async () => {
-  await withDeviceLabResource(createMacOsDesktopWorld, async ({ daemon, appleTool }) => {
-    const screenshotPath = createDeviceLabTempPath('agent-device-lab-macos', 'png');
+test('Provider-backed integration macOS desktop flow uses semantic host and helper providers', async () => {
+  await withProviderScenarioResource(createMacOsDesktopWorld, async ({ daemon, appleTool }) => {
+    const screenshotPath = createProviderScenarioTempPath(
+      'agent-device-provider-scenario-macos',
+      'png',
+    );
     try {
-      await runDeviceLabScenario(daemon, [
+      await runProviderScenario(daemon, [
         {
           name: 'open settings app',
           command: 'open',

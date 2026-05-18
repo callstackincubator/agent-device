@@ -2,16 +2,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'vitest';
 import { assertFlatToolCall, assertPngFile } from './assertions.ts';
-import { DEVICE_LAB_LINUX } from './fixtures.ts';
-import { createDeviceLabTempPath, withDeviceLabResource } from './harness.ts';
+import { PROVIDER_SCENARIO_LINUX } from './fixtures.ts';
+import { createProviderScenarioTempPath, withProviderScenarioResource } from './harness.ts';
 import { createLinuxDesktopWorld } from './linux-world.ts';
-import { runDeviceLabScenario } from './scenario.ts';
+import { runProviderScenario } from './scenario.ts';
 
-test('Device Lab Linux desktop flow uses semantic desktop and input providers', async () => {
-  await withDeviceLabResource(
+test('Provider-backed integration Linux desktop flow uses semantic desktop and input providers', async () => {
+  await withProviderScenarioResource(
     createLinuxDesktopWorld,
     async ({ daemon, desktopCalls, localLinuxDevices, semanticCalls, toolCalls }) => {
-      const screenshotPath = createDeviceLabTempPath('agent-device-lab-linux', 'png');
+      const screenshotPath = createProviderScenarioTempPath(
+        'agent-device-provider-scenario-linux',
+        'png',
+      );
       assert.equal(localLinuxDevices[0]?.platform, 'linux');
       assert.equal(localLinuxDevices[0]?.target, 'desktop');
 
@@ -19,10 +22,10 @@ test('Device Lab Linux desktop flow uses semantic desktop and input providers', 
         const devices = await daemon.client().devices.list({ platform: 'linux' });
         assert.equal(devices.length, 1);
         assert.equal(devices[0]?.platform, 'linux');
-        assert.equal(devices[0]?.id, DEVICE_LAB_LINUX.id);
+        assert.equal(devices[0]?.id, PROVIDER_SCENARIO_LINUX.id);
         assert.equal(devices[0]?.target, 'desktop');
 
-        await runDeviceLabScenario(daemon, [
+        await runProviderScenario(daemon, [
           {
             name: 'open calculator app',
             command: 'open',
@@ -230,7 +233,11 @@ test('Device Lab Linux desktop flow uses semantic desktop and input providers', 
         assertFlatToolCall(semanticCalls, ['input', 'key', 'super+d']);
         assertFlatToolCall(semanticCalls, ['input', 'scroll', 'down', '', '45']);
         assertFlatToolCall(semanticCalls, ['input', 'scroll', 'up', '', '']);
-        assert.deepEqual(toolCalls, [], 'Expected Linux Device Lab input to stay semantic');
+        assert.deepEqual(
+          toolCalls,
+          [],
+          'Expected Linux Provider-backed integration input to stay semantic',
+        );
       } finally {
         fs.rmSync(screenshotPath, { force: true });
       }

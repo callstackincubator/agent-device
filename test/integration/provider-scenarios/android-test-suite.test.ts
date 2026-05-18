@@ -3,10 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'vitest';
 import { createAndroidSettingsWorld } from './android-world.ts';
-import { withDeviceLabResource } from './harness.ts';
+import { withProviderScenarioResource } from './harness.ts';
 
-test('Device Lab Android replay test suite covers retries and fail-fast flags', async () => {
-  await withDeviceLabResource(createAndroidSettingsWorld, async (world) => {
+test('Provider-backed integration Android replay test suite covers retries and fail-fast flags', async () => {
+  await withProviderScenarioResource(createAndroidSettingsWorld, async (world) => {
     const client = world.daemon.client();
     const suiteRoot = path.join(world.tempRoot, 'suite-flags');
     fs.mkdirSync(suiteRoot, { recursive: true });

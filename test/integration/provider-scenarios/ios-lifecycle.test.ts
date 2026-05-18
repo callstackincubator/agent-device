@@ -3,41 +3,44 @@ import path from 'node:path';
 import { test } from 'vitest';
 import { assertFlatToolCall } from './assertions.ts';
 import { createIosPhysicalReinstallWorld, createIosSettingsWorld } from './ios-world.ts';
-import { runDeviceLabScenario } from './scenario.ts';
-import { DEVICE_LAB_IOS_REINSTALL_DEVICE, DEVICE_LAB_IOS_SIMULATOR } from './fixtures.ts';
-import { withDeviceLabResource } from './harness.ts';
+import { runProviderScenario } from './scenario.ts';
+import {
+  PROVIDER_SCENARIO_IOS_REINSTALL_DEVICE,
+  PROVIDER_SCENARIO_IOS_SIMULATOR,
+} from './fixtures.ts';
+import { withProviderScenarioResource } from './harness.ts';
 
-test('Device Lab iOS Settings flow uses scripted simctl and runner providers', async () => {
-  await withDeviceLabResource(
+test('Provider-backed integration iOS Settings flow uses scripted simctl and runner providers', async () => {
+  await withProviderScenarioResource(
     createIosSettingsWorld,
     async ({ appPath, appleTool, daemon, inventoryRequests, runnerTranscript }) => {
       const scopedDevices = await daemon.client().devices.list({
         platform: 'ios',
-        iosSimulatorDeviceSet: '/tmp/device-lab-simulators',
+        iosSimulatorDeviceSet: '/tmp/provider-scenario-simulators',
       });
       assert.equal(scopedDevices.length, 1);
-      assert.equal(scopedDevices[0]?.id, DEVICE_LAB_IOS_SIMULATOR.id);
+      assert.equal(scopedDevices[0]?.id, PROVIDER_SCENARIO_IOS_SIMULATOR.id);
 
-      await runDeviceLabScenario(daemon, [
+      await runProviderScenario(daemon, [
         {
           name: 'open settings app',
           command: 'open',
           positionals: ['com.apple.Preferences'],
-          flags: { platform: 'ios', udid: DEVICE_LAB_IOS_SIMULATOR.id },
+          flags: { platform: 'ios', udid: PROVIDER_SCENARIO_IOS_SIMULATOR.id },
           expectData: {
             appBundleId: 'com.apple.Preferences',
-            device_udid: DEVICE_LAB_IOS_SIMULATOR.id,
+            device_udid: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
           },
         },
         {
           name: 'read app session state',
           command: 'appstate',
-          flags: { platform: 'ios', udid: DEVICE_LAB_IOS_SIMULATOR.id },
+          flags: { platform: 'ios', udid: PROVIDER_SCENARIO_IOS_SIMULATOR.id },
           expectData: {
             platform: 'ios',
             appBundleId: 'com.apple.Preferences',
             source: 'session',
-            device_udid: DEVICE_LAB_IOS_SIMULATOR.id,
+            device_udid: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
             ios_simulator_device_set: null,
           },
         },
@@ -161,7 +164,7 @@ test('Device Lab iOS Settings flow uses scripted simctl and runner providers', a
             assert.equal(sessions?.length, 1);
             assert.equal(sessions?.[0]?.name, 'default');
             assert.equal(sessions?.[0]?.platform, 'ios');
-            assert.equal(sessions?.[0]?.device_udid, DEVICE_LAB_IOS_SIMULATOR.id);
+            assert.equal(sessions?.[0]?.device_udid, PROVIDER_SCENARIO_IOS_SIMULATOR.id);
             assert.equal(sessions?.[0]?.ios_simulator_device_set, null);
           },
         },
@@ -184,7 +187,7 @@ test('Device Lab iOS Settings flow uses scripted simctl and runner providers', a
       assertFlatToolCall(appleTool.calls, ['simctl', 'pbpaste', 'sim-1']);
       assert.ok(
         inventoryRequests.some(
-          (request) => request.iosSimulatorSetPath === '/tmp/device-lab-simulators',
+          (request) => request.iosSimulatorSetPath === '/tmp/provider-scenario-simulators',
         ),
         JSON.stringify(inventoryRequests),
       );
@@ -192,22 +195,22 @@ test('Device Lab iOS Settings flow uses scripted simctl and runner providers', a
   );
 });
 
-test('Device Lab iOS physical reinstall uses scripted devicectl provider', async () => {
-  await withDeviceLabResource(
+test('Provider-backed integration iOS physical reinstall uses scripted devicectl provider', async () => {
+  await withProviderScenarioResource(
     createIosPhysicalReinstallWorld,
     async ({ appPath, appleTool, daemon }) => {
       const boot = await daemon.callCommand('boot', [], {
         platform: 'ios',
-        udid: DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
+        udid: PROVIDER_SCENARIO_IOS_REINSTALL_DEVICE.id,
       });
       assert.equal(boot.statusCode, 200, JSON.stringify(boot.json));
       assert.equal(boot.json?.result?.data?.platform, 'ios');
-      assert.equal(boot.json?.result?.data?.id, DEVICE_LAB_IOS_REINSTALL_DEVICE.id);
+      assert.equal(boot.json?.result?.data?.id, PROVIDER_SCENARIO_IOS_REINSTALL_DEVICE.id);
       assert.equal(boot.json?.result?.data?.booted, true);
 
       const reinstall = await daemon.callCommand('reinstall', ['com.example.demo', appPath], {
         platform: 'ios',
-        udid: DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
+        udid: PROVIDER_SCENARIO_IOS_REINSTALL_DEVICE.id,
       });
       assert.equal(reinstall.statusCode, 200, JSON.stringify(reinstall.json));
       assert.equal(reinstall.json?.result?.data?.platform, 'ios');
@@ -219,7 +222,7 @@ test('Device Lab iOS physical reinstall uses scripted devicectl provider', async
         'uninstall',
         'app',
         '--device',
-        DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
+        PROVIDER_SCENARIO_IOS_REINSTALL_DEVICE.id,
         'com.example.demo',
       ]);
       assertFlatToolCall(appleTool.calls, [
@@ -228,7 +231,7 @@ test('Device Lab iOS physical reinstall uses scripted devicectl provider', async
         'install',
         'app',
         '--device',
-        DEVICE_LAB_IOS_REINSTALL_DEVICE.id,
+        PROVIDER_SCENARIO_IOS_REINSTALL_DEVICE.id,
         appPath,
       ]);
     },

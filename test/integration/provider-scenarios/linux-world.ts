@@ -4,12 +4,16 @@ import { listLinuxDevices } from '../../../src/platforms/linux/devices.ts';
 import { createLocalLinuxToolProvider } from '../../../src/platforms/linux/tool-provider.ts';
 import type { DeviceInfo } from '../../../src/utils/device.ts';
 import { validPng } from './assertions.ts';
-import { DEVICE_LAB_LINUX } from './fixtures.ts';
-import { createDeviceLabHarness, restoreEnv, type DeviceLabHarness } from './harness.ts';
+import { PROVIDER_SCENARIO_LINUX } from './fixtures.ts';
+import {
+  createProviderScenarioHarness,
+  restoreEnv,
+  type ProviderScenarioHarness,
+} from './harness.ts';
 import type { FlatToolCall } from './providers.ts';
 
 export type LinuxDesktopWorld = {
-  daemon: DeviceLabHarness;
+  daemon: ProviderScenarioHarness;
   localLinuxDevices: DeviceInfo[];
   toolCalls: Array<[string, string[]]>;
   desktopCalls: Array<[string, string]>;
@@ -122,9 +126,9 @@ export async function createLinuxDesktopWorld(): Promise<LinuxDesktopWorld> {
     },
   });
 
-  const daemon = await createDeviceLabHarness({
+  const daemon = await createProviderScenarioHarness({
     linuxToolProvider: () => linuxToolProvider,
-    deviceInventoryProvider: async () => [DEVICE_LAB_LINUX],
+    deviceInventoryProvider: async () => [PROVIDER_SCENARIO_LINUX],
   });
 
   let closed = false;

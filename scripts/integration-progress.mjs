@@ -6,28 +6,28 @@ import path from 'node:path';
 const ROOT = process.cwd();
 const CHECK_MODE = process.argv.includes('--check');
 const HANDLER_TEST_DIR = path.join(ROOT, 'src/daemon/handlers/__tests__');
-const DEVICE_LAB_DIR = path.join(ROOT, 'test/integration/device-lab');
+const PROVIDER_SCENARIO_DIR = path.join(ROOT, 'test/integration/provider-scenarios');
 const COVERAGE_SUMMARY = path.join(ROOT, 'coverage/coverage-summary.json');
 const COMMAND_CATALOG = path.join(ROOT, 'src/command-catalog.ts');
 
 const handlerTests = listFiles(HANDLER_TEST_DIR, (file) => file.endsWith('.test.ts'));
-const deviceLabTests = listFiles(DEVICE_LAB_DIR, (file) => file.endsWith('.test.ts'));
-const deviceLabSources = listFiles(DEVICE_LAB_DIR, (file) => file.endsWith('.ts'));
-const deviceLabSupportSources = deviceLabSources.filter((file) => !file.endsWith('.test.ts'));
+const providerScenarioTests = listFiles(PROVIDER_SCENARIO_DIR, (file) => file.endsWith('.test.ts'));
+const providerScenarioSources = listFiles(PROVIDER_SCENARIO_DIR, (file) => file.endsWith('.ts'));
+const providerScenarioSupportSources = providerScenarioSources.filter((file) => !file.endsWith('.test.ts'));
 const handlerStats = summarizeFiles(handlerTests);
-const deviceLabStats = summarizeFiles(deviceLabTests);
-const deviceLabSupportStats = summarizeFiles(deviceLabSupportSources);
+const providerScenarioStats = summarizeFiles(providerScenarioTests);
+const providerScenarioSupportStats = summarizeFiles(providerScenarioSupportSources);
 const mockHeavyHandlerFiles = handlerTests.filter((file) =>
   fs.readFileSync(file, 'utf8').includes('vi.mock('),
 );
 const mockHeavyHandlerRows = summarizeMockHeavyHandlerFiles(mockHeavyHandlerFiles);
-const providerPressureRows = summarizeProviderPressure(deviceLabSources);
-const publicCommandRows = summarizePublicCommandCoverage(deviceLabTests);
+const providerPressureRows = summarizeProviderPressure(providerScenarioSources);
+const publicCommandRows = summarizePublicCommandCoverage(providerScenarioTests);
 const missingPublicCommands = publicCommandRows.filter((command) => command.references === 0);
-const commandFamilyRows = summarizeCommandFamilyOwnership(deviceLabTests);
-const flagCoverageRows = summarizeDeviceLabFlagCoverage(deviceLabSources);
+const commandFamilyRows = summarizeCommandFamilyOwnership(providerScenarioTests);
+const flagCoverageRows = summarizeProviderScenarioFlagCoverage(providerScenarioSources);
 const missingFlagRows = flagCoverageRows.filter((flag) => flag.references === 0);
-const excludedFlagRows = summarizeDeviceLabFlagExclusions();
+const excludedFlagRows = summarizeProviderScenarioFlagExclusions();
 const publicCliFlagKeys = readPublicCliFlagKeys();
 const classifiedFlagKeys = new Set([
   ...flagCoverageRows.map((flag) => flag.key),
@@ -42,24 +42,24 @@ const rows = [
   ['Handler unit test LOC', String(handlerStats.lines)],
   ['Handler unit tests', String(handlerStats.tests)],
   ['Handler files with vi.mock', String(mockHeavyHandlerFiles.length)],
-  ['Device Lab files', String(deviceLabStats.files)],
-  ['Device Lab LOC', String(deviceLabStats.lines)],
-  ['Device Lab tests', String(deviceLabStats.tests)],
-  ['Device Lab support files', String(deviceLabSupportStats.files)],
-  ['Device Lab support LOC', String(deviceLabSupportStats.lines)],
-  ['Device Lab / handler LOC', ratio(deviceLabStats.lines, handlerStats.lines)],
+  ['Provider scenario files', String(providerScenarioStats.files)],
+  ['Provider scenario LOC', String(providerScenarioStats.lines)],
+  ['Provider scenario tests', String(providerScenarioStats.tests)],
+  ['Provider scenario support files', String(providerScenarioSupportStats.files)],
+  ['Provider scenario support LOC', String(providerScenarioSupportStats.lines)],
+  ['Provider scenario / handler LOC', ratio(providerScenarioStats.lines, handlerStats.lines)],
   [
-    'Public commands covered by Device Lab',
+    'Public commands covered by provider-backed integration',
     `${publicCommandRows.length - missingPublicCommands.length}/${publicCommandRows.length}`,
   ],
-  ['Public commands missing Device Lab coverage', String(missingPublicCommands.length)],
+  ['Public commands missing provider-backed integration coverage', String(missingPublicCommands.length)],
   [
-    'Device-observable workflow flags covered by Device Lab',
+    'Device-observable workflow flags covered by provider-backed integration',
     `${flagCoverageRows.length - missingFlagRows.length}/${flagCoverageRows.length}`,
   ],
-  ['Device-observable workflow flags missing Device Lab coverage', String(missingFlagRows.length)],
+  ['Device-observable workflow flags missing provider-backed integration coverage', String(missingFlagRows.length)],
   [
-    'Public CLI flags intentionally outside Device Lab',
+    'Public CLI flags intentionally outside provider-backed integration',
     String(excludedFlagRows.reduce((sum, group) => sum + group.keys.length, 0)),
   ],
   ['Public CLI flags unclassified by progress script', String(unclassifiedFlagKeys.length)],
@@ -76,7 +76,7 @@ if (coverage) {
   rows.push(['Coverage summary', 'not available; run pnpm test:coverage first']);
 }
 
-console.log('Device Lab architecture status');
+console.log('Provider-backed integration status');
 console.log('');
 console.log('| Measure | Value |');
 console.log('| --- | ---: |');
@@ -97,7 +97,7 @@ if (mockHeavyHandlerRows.length > 0) {
 
 if (commandFamilyRows.length > 0) {
   console.log('');
-  console.log('Command family ownership in Device Lab');
+  console.log('Command family ownership in provider-backed integration');
   console.log('');
   console.log('| Command family | Command references | Files |');
   console.log('| --- | ---: | ---: |');
@@ -130,7 +130,7 @@ if (missingFlagRows.length > 0) {
 
 if (excludedFlagRows.length > 0) {
   console.log('');
-  console.log('Public CLI flag coverage outside Device Lab');
+  console.log('Public CLI flag coverage outside provider-backed integration');
   console.log('');
   console.log('| Bucket | Flags | Coverage owner |');
   console.log('| --- | --- | --- |');
@@ -165,12 +165,12 @@ if (CHECK_MODE) {
   const failures = [];
   if (missingPublicCommands.length > 0) {
     failures.push(
-      `missing Device Lab command coverage: ${missingPublicCommands.map((row) => row.command).join(', ')}`,
+      `missing Provider-backed integration command coverage: ${missingPublicCommands.map((row) => row.command).join(', ')}`,
     );
   }
   if (missingFlagRows.length > 0) {
     failures.push(
-      `missing Device Lab workflow flag coverage: ${missingFlagRows.map((row) => row.key).join(', ')}`,
+      `missing Provider-backed integration workflow flag coverage: ${missingFlagRows.map((row) => row.key).join(', ')}`,
     );
   }
   if (unclassifiedFlagKeys.length > 0) {
@@ -178,14 +178,14 @@ if (CHECK_MODE) {
   }
   if (failures.length > 0) {
     console.error('');
-    console.error(`Device Lab progress check failed: ${failures.join('; ')}`);
+    console.error(`provider-backed integration progress check failed: ${failures.join('; ')}`);
     process.exit(1);
   }
 }
 
-function summarizeDeviceLabFlagCoverage(files) {
+function summarizeProviderScenarioFlagCoverage(files) {
   const flagTargets = [
-    ['platform', 'selection across platform-specific Device Lab flows'],
+    ['platform', 'selection across platform-specific provider-backed integration flows'],
     ['target', 'target-class routing such as tv/mobile/desktop'],
     ['device', 'human-readable device selection'],
     ['udid', 'Apple device selection'],
@@ -256,7 +256,7 @@ function countFlagReferences(text, key) {
   return text.match(new RegExp(`\\b${escaped}\\s*:`, 'g'))?.length ?? 0;
 }
 
-function summarizeDeviceLabFlagExclusions() {
+function summarizeProviderScenarioFlagExclusions() {
   return [
     {
       name: 'config, output, diagnostics, and transport',
@@ -520,7 +520,7 @@ function summarizeCommandFamilyOwnership(files) {
 
   const commandRefsByFile = files.map((file) => ({
     file,
-    commands: extractDeviceLabCommandReferences(fs.readFileSync(file, 'utf8')),
+    commands: extractProviderScenarioCommandReferences(fs.readFileSync(file, 'utf8')),
   }));
 
   return commandFamilies
@@ -546,7 +546,7 @@ function summarizePublicCommandCoverage(files) {
   const publicCommands = readPublicCommands();
   const commandRefsByFile = files.map((file) => ({
     file,
-    commands: extractDeviceLabCommandReferences(fs.readFileSync(file, 'utf8')),
+    commands: extractProviderScenarioCommandReferences(fs.readFileSync(file, 'utf8')),
   }));
 
   return publicCommands.map((command) => {
@@ -574,7 +574,7 @@ function readPublicCommands() {
   return commands.sort();
 }
 
-function extractDeviceLabCommandReferences(text) {
+function extractProviderScenarioCommandReferences(text) {
   const commands = [];
   for (const match of text.matchAll(/\bcommand:\s*['"]([^'"]+)['"]|\.callCommand\(\s*['"]([^'"]+)['"]/g)) {
     commands.push(match[1] ?? match[2]);

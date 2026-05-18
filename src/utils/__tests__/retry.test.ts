@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { Deadline, retryWithPolicy } from '../retry.ts';
+import { Deadline, retryWithPolicy, withRetry } from '../retry.ts';
 import { flushDiagnosticsToSessionFile, withDiagnosticsScope } from '../diagnostics.ts';
 
 test('Deadline tracks remaining and expiration', async () => {
@@ -25,6 +25,22 @@ test('retryWithPolicy retries until success', async () => {
       return 'ok';
     },
     { maxAttempts: 3, baseDelayMs: 1, maxDelayMs: 1, jitter: 0 },
+  );
+  assert.equal(result, 'ok');
+  assert.equal(attempts, 3);
+});
+
+test('withRetry uses the compatibility retry options', async () => {
+  let attempts = 0;
+  const result = await withRetry(
+    async () => {
+      attempts += 1;
+      if (attempts < 3) {
+        throw new Error('transient');
+      }
+      return 'ok';
+    },
+    { attempts: 3, baseDelayMs: 1, maxDelayMs: 1, jitter: 0 },
   );
   assert.equal(result, 'ok');
   assert.equal(attempts, 3);

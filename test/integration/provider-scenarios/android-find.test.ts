@@ -3,10 +3,10 @@ import { test } from 'vitest';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
 import { arrayEqual, assertCommandCall } from './assertions.ts';
 import { androidSettingsXml } from './android-world.ts';
-import { DEVICE_LAB_ANDROID } from './fixtures.ts';
-import { createDeviceLabHarness } from './harness.ts';
+import { PROVIDER_SCENARIO_ANDROID } from './fixtures.ts';
+import { createProviderScenarioHarness } from './harness.ts';
 
-test('Device Lab Android find flow covers refs, wait, ambiguity, and first/last selection', async () => {
+test('Provider-backed integration Android find flow covers refs, wait, ambiguity, and first/last selection', async () => {
   const adbCalls: string[][] = [];
   let searchText = '';
   let includeDuplicateAppsRow = false;
@@ -19,17 +19,17 @@ test('Device Lab Android find flow covers refs, wait, ambiguity, and first/last 
       return androidFindAdbResult(args, searchText, includeDuplicateAppsRow);
     },
   };
-  const daemon = await createDeviceLabHarness({
+  const daemon = await createProviderScenarioHarness({
     androidAdbProvider: () => adbProvider,
-    deviceInventoryProvider: async () => [DEVICE_LAB_ANDROID],
+    deviceInventoryProvider: async () => [PROVIDER_SCENARIO_ANDROID],
   });
 
   try {
     const client = daemon.client();
-    const selection = { platform: 'android' as const, serial: DEVICE_LAB_ANDROID.id };
+    const selection = { platform: 'android' as const, serial: PROVIDER_SCENARIO_ANDROID.id };
 
     const open = await client.apps.open({ app: 'settings', ...selection });
-    assert.equal(open.device?.id, DEVICE_LAB_ANDROID.id);
+    assert.equal(open.device?.id, PROVIDER_SCENARIO_ANDROID.id);
 
     const snapshot = await client.capture.snapshot({ interactiveOnly: true, ...selection });
     assert.equal(snapshot.nodes.find((node) => node.label === 'Apps')?.ref, 'e2');

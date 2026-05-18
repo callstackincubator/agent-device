@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
-import { DEVICE_LAB_ANDROID } from './fixtures.ts';
-import { createDeviceLabHarness, withDeviceLabResource } from './harness.ts';
+import { PROVIDER_SCENARIO_ANDROID } from './fixtures.ts';
+import { createProviderScenarioHarness, withProviderScenarioResource } from './harness.ts';
 
-test('Device Lab normalizes provider failures through the request path', async () => {
+test('Provider-backed integration normalizes provider failures through the request path', async () => {
   const adbCalls: string[][] = [];
   const adbProvider: AndroidAdbProvider = {
     exec: async (args) => {
@@ -15,16 +15,16 @@ test('Device Lab normalizes provider failures through the request path', async (
       return { stdout: '', stderr: 'uiautomator unavailable', exitCode: 1 };
     },
   };
-  await withDeviceLabResource(
+  await withProviderScenarioResource(
     async () =>
-      await createDeviceLabHarness({
+      await createProviderScenarioHarness({
         androidAdbProvider: () => adbProvider,
-        deviceInventoryProvider: async () => [DEVICE_LAB_ANDROID],
+        deviceInventoryProvider: async () => [PROVIDER_SCENARIO_ANDROID],
       }),
     async (daemon) => {
       const response = await daemon.callCommand('snapshot', [], {
         platform: 'android',
-        serial: DEVICE_LAB_ANDROID.id,
+        serial: PROVIDER_SCENARIO_ANDROID.id,
         snapshotInteractiveOnly: true,
       });
 

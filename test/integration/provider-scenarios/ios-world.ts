@@ -1,13 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { DeviceInventoryRequest } from '../../../src/core/dispatch-resolve.ts';
-import type { DeviceLabTranscript } from './transcript.ts';
+import type { ProviderScenarioTranscript } from './transcript.ts';
 import {
   createDemoIosApp,
-  DEVICE_LAB_IOS_REINSTALL_DEVICE,
-  DEVICE_LAB_IOS_SIMULATOR,
+  PROVIDER_SCENARIO_IOS_REINSTALL_DEVICE,
+  PROVIDER_SCENARIO_IOS_SIMULATOR,
 } from './fixtures.ts';
-import { createDeviceLabHarness, type DeviceLabHarness } from './harness.ts';
+import { createProviderScenarioHarness, type ProviderScenarioHarness } from './harness.ts';
 import {
   createAppleRunnerProviderFromTranscript,
   createRecordingAppleToolProvider,
@@ -17,30 +17,30 @@ import {
 import { createProviderTranscript } from './transcript.ts';
 
 type IosSettingsWorld = {
-  daemon: DeviceLabHarness;
+  daemon: ProviderScenarioHarness;
   appleTool: { calls: FlatToolCall[] };
-  runnerTranscript: DeviceLabTranscript;
+  runnerTranscript: ProviderScenarioTranscript;
   inventoryRequests: DeviceInventoryRequest[];
   appPath: string;
   close: () => Promise<void>;
 };
 
 export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
-  const { tempRoot, appPath } = createDemoIosApp('agent-device-lab-ios-deploy-');
+  const { tempRoot, appPath } = createDemoIosApp('agent-device-provider-scenario-ios-deploy-');
   const inventoryRequests: DeviceInventoryRequest[] = [];
   const runnerTranscript = createProviderTranscript([
     runnerSnapshot(),
     runnerSnapshot(),
     {
       command: 'ios.runner.tap',
-      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
+      deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
       platform: 'ios',
       request: { command: 'tap', x: 196, y: 122, appBundleId: 'com.apple.Preferences' },
       result: { tapped: true },
     },
     {
       command: 'ios.runner.pinch',
-      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
+      deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
       platform: 'ios',
       request: {
         command: 'pinch',
@@ -55,7 +55,7 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
     runnerSnapshot(),
     {
       command: 'ios.runner.findText',
-      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
+      deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
       platform: 'ios',
       request: {
         command: 'findText',
@@ -66,14 +66,14 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
     },
     {
       command: 'ios.runner.backSystem',
-      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
+      deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
       platform: 'ios',
       request: { command: 'backSystem', appBundleId: 'com.apple.Preferences' },
       result: { backed: true },
     },
     {
       command: 'ios.runner.keyboardDismiss',
-      deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
+      deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
       platform: 'ios',
       request: { command: 'keyboardDismiss', appBundleId: 'com.apple.Preferences' },
       result: { dismissed: true },
@@ -125,12 +125,12 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
     },
   });
 
-  const daemon = await createDeviceLabHarness({
+  const daemon = await createProviderScenarioHarness({
     appleRunnerProvider: () => appleRunnerProvider,
     appleToolProvider: () => appleTool.provider,
     deviceInventoryProvider: async (request) => {
       inventoryRequests.push({ ...request });
-      return [DEVICE_LAB_IOS_SIMULATOR];
+      return [PROVIDER_SCENARIO_IOS_SIMULATOR];
     },
   });
   let closed = false;
@@ -150,7 +150,7 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
 }
 
 type IosPhysicalReinstallWorld = {
-  daemon: DeviceLabHarness;
+  daemon: ProviderScenarioHarness;
   appleTool: { calls: FlatToolCall[] };
   appPath: string;
   close: () => Promise<void>;
@@ -177,11 +177,13 @@ export async function createIosPhysicalReinstallWorld(): Promise<IosPhysicalRein
       return { stdout: '', stderr: '', exitCode: 0 };
     },
   });
-  const daemon = await createDeviceLabHarness({
+  const daemon = await createProviderScenarioHarness({
     appleToolProvider: () => appleTool.provider,
-    deviceInventoryProvider: async () => [DEVICE_LAB_IOS_REINSTALL_DEVICE],
+    deviceInventoryProvider: async () => [PROVIDER_SCENARIO_IOS_REINSTALL_DEVICE],
   });
-  const { tempRoot, appPath } = createDemoIosApp('agent-device-lab-ios-physical-deploy-');
+  const { tempRoot, appPath } = createDemoIosApp(
+    'agent-device-provider-scenario-ios-physical-deploy-',
+  );
   let closed = false;
   return {
     daemon,
@@ -199,7 +201,7 @@ export async function createIosPhysicalReinstallWorld(): Promise<IosPhysicalRein
 function runnerSnapshot() {
   return {
     command: 'ios.runner.snapshot',
-    deviceId: DEVICE_LAB_IOS_SIMULATOR.id,
+    deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
     platform: 'ios' as const,
     result: {
       nodes: [

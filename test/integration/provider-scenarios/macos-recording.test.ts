@@ -1,18 +1,21 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { assertRecordingStarted, assertRecordingStopped, assertRpcOk } from './assertions.ts';
-import { DEVICE_LAB_MACOS } from './fixtures.ts';
-import { createDeviceLabTempPath, withDeviceLabResource } from './harness.ts';
+import { PROVIDER_SCENARIO_MACOS } from './fixtures.ts';
+import { createProviderScenarioTempPath, withProviderScenarioResource } from './harness.ts';
 import { createMacOsDesktopWorld } from './macos-world.ts';
 import { createAppleRunnerProviderFromTranscript } from './providers.ts';
 import { createProviderTranscript } from './transcript.ts';
 
-test('Device Lab macOS recording flow uses runner provider through daemon path', async () => {
-  const recordingPath = createDeviceLabTempPath('agent-device-lab-macos-record', 'mp4');
+test('Provider-backed integration macOS recording flow uses runner provider through daemon path', async () => {
+  const recordingPath = createProviderScenarioTempPath(
+    'agent-device-provider-scenario-macos-record',
+    'mp4',
+  );
   const runnerTranscript = createProviderTranscript([
     {
       command: 'macos.runner.recordStart',
-      deviceId: DEVICE_LAB_MACOS.id,
+      deviceId: PROVIDER_SCENARIO_MACOS.id,
       platform: 'macos',
       request: {
         command: 'recordStart',
@@ -25,7 +28,7 @@ test('Device Lab macOS recording flow uses runner provider through daemon path',
     },
     {
       command: 'macos.runner.recordStop',
-      deviceId: DEVICE_LAB_MACOS.id,
+      deviceId: PROVIDER_SCENARIO_MACOS.id,
       platform: 'macos',
       request: { command: 'recordStop', appBundleId: 'com.apple.systempreferences' },
       result: {},
@@ -35,7 +38,7 @@ test('Device Lab macOS recording flow uses runner provider through daemon path',
     runnerTranscript,
     'macos.runner',
   );
-  await withDeviceLabResource(
+  await withProviderScenarioResource(
     async () => await createMacOsDesktopWorld({ appleRunnerProvider }),
     async ({ daemon }) => {
       const open = await daemon.callCommand('open', ['settings'], { platform: 'macos' });

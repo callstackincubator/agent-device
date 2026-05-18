@@ -6,14 +6,18 @@ import { test } from 'vitest';
 import type { AgentDeviceClient } from '../../../src/client-types.ts';
 import { arrayEqual, assertCommandCall, assertPngFile } from './assertions.ts';
 import { createAndroidSettingsWorld, waitForFileContent } from './android-world.ts';
-import { DEVICE_LAB_ANDROID } from './fixtures.ts';
-import { createDeviceLabTempPath, restoreEnv, withDeviceLabResource } from './harness.ts';
+import { PROVIDER_SCENARIO_ANDROID } from './fixtures.ts';
+import {
+  createProviderScenarioTempPath,
+  restoreEnv,
+  withProviderScenarioResource,
+} from './harness.ts';
 import { closeHttpServer, listenHttpOnLoopback } from './loopback.ts';
 
 type AndroidSettingsWorld = Awaited<ReturnType<typeof createAndroidSettingsWorld>>;
 
-test('Device Lab Android Settings flow uses scripted ADB provider', async () => {
-  await withDeviceLabResource(createAndroidSettingsWorld, async (world) => {
+test('Provider-backed integration Android Settings flow uses scripted ADB provider', async () => {
+  await withProviderScenarioResource(createAndroidSettingsWorld, async (world) => {
     const client = world.daemon.client();
     await runAndroidSetupAndInstallWorkflow(world, client);
     await runAndroidAppControlAndObservabilityWorkflow(world, client);
@@ -22,8 +26,8 @@ test('Device Lab Android Settings flow uses scripted ADB provider', async () => 
   });
 });
 
-test('Device Lab Android text provider handles Unicode without shell input text', async () => {
-  await withDeviceLabResource(
+test('Provider-backed integration Android text provider handles Unicode without shell input text', async () => {
+  await withProviderScenarioResource(
     async () => await createAndroidSettingsWorld({ nativeTextInjection: true }),
     async (world) => {
       const client = world.daemon.client();
@@ -83,21 +87,21 @@ async function runAndroidSetupAndInstallWorkflow(
   const devices = await client.devices.list({ platform: 'android' });
   assert.equal(devices.length, 1);
   assert.equal(devices[0]?.platform, 'android');
-  assert.equal(devices[0]?.id, DEVICE_LAB_ANDROID.id);
-  assert.equal(devices[0]?.name, DEVICE_LAB_ANDROID.name);
-  assert.equal(devices[0]?.target, DEVICE_LAB_ANDROID.target);
+  assert.equal(devices[0]?.id, PROVIDER_SCENARIO_ANDROID.id);
+  assert.equal(devices[0]?.name, PROVIDER_SCENARIO_ANDROID.name);
+  assert.equal(devices[0]?.target, PROVIDER_SCENARIO_ANDROID.target);
   assert.equal(devices[0]?.booted, true);
 
   const allowlistedDevices = await client.devices.list({
     platform: 'android',
-    androidDeviceAllowlist: DEVICE_LAB_ANDROID.id,
+    androidDeviceAllowlist: PROVIDER_SCENARIO_ANDROID.id,
   });
   assert.equal(allowlistedDevices.length, 1);
-  assert.equal(allowlistedDevices[0]?.id, DEVICE_LAB_ANDROID.id);
+  assert.equal(allowlistedDevices[0]?.id, PROVIDER_SCENARIO_ANDROID.id);
 
   const boot = await client.devices.boot(selection);
   assert.equal(boot.platform, 'android');
-  assert.equal(boot.id, DEVICE_LAB_ANDROID.id);
+  assert.equal(boot.id, PROVIDER_SCENARIO_ANDROID.id);
   assert.equal(boot.booted, true);
 
   const selectorTriggeredEvent = await client.apps.triggerEvent({
@@ -120,11 +124,11 @@ async function runAndroidSetupAndInstallWorkflow(
   assert.equal(keyboardDismiss.dismissed, false);
 
   const open = await client.apps.open({ app: 'settings', ...selection });
-  assert.equal(open.device?.id, DEVICE_LAB_ANDROID.id);
+  assert.equal(open.device?.id, PROVIDER_SCENARIO_ANDROID.id);
 
   const sessionBoot = await client.devices.boot();
   assert.equal(sessionBoot.platform, 'android');
-  assert.equal(sessionBoot.id, DEVICE_LAB_ANDROID.id);
+  assert.equal(sessionBoot.id, PROVIDER_SCENARIO_ANDROID.id);
   assert.equal(sessionBoot.booted, true);
 
   const listedApps = await client.apps.list(selection);
@@ -185,14 +189,14 @@ async function runAndroidSetupAndInstallWorkflow(
         kind: 'url',
         url: artifactServer.url,
         headers: {
-          authorization: 'Bearer device-lab',
+          authorization: 'Bearer provider-scenario',
           'x-build': '42',
         },
       },
       ...selection,
     });
     assert.equal(installFromUrl.packageName, 'io.example.demo_manifest');
-    assert.equal(artifactServer.lastHeaders.authorization, 'Bearer device-lab');
+    assert.equal(artifactServer.lastHeaders.authorization, 'Bearer provider-scenario');
     assert.equal(artifactServer.lastHeaders['x-build'], '42');
   } finally {
     restoreEnv('AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS', previousPrivateSourceUrls);
@@ -295,14 +299,14 @@ async function runAndroidAppControlAndObservabilityWorkflow(
   assert.equal(demoOpen.appBundleId, 'com.example.demo');
   const triggeredEvent = await client.apps.triggerEvent({
     event: 'screenshot_taken',
-    payload: { source: 'device-lab', foreground: true },
+    payload: { source: 'provider-scenario', foreground: true },
     ...selection,
   });
   assert.equal(triggeredEvent.event, 'screenshot_taken');
   assert.equal(triggeredEvent.transport, 'deep-link');
   assert.equal(
     triggeredEvent.eventUrl,
-    'demo://agent-device/event?name=screenshot_taken&payload=%7B%22source%22%3A%22device-lab%22%2C%22foreground%22%3Atrue%7D&platform=android',
+    'demo://agent-device/event?name=screenshot_taken&payload=%7B%22source%22%3A%22provider-scenario%22%2C%22foreground%22%3Atrue%7D&platform=android',
   );
   const sessionAfterTriggeredEvent = daemon.session();
   assert.equal(sessionAfterTriggeredEvent?.appBundleId, 'com.example.demo');
@@ -368,7 +372,7 @@ async function runAndroidAppControlAndObservabilityWorkflow(
 
   const perf = await client.observability.perf(selection);
   assert.equal(perf.platform, 'android');
-  assert.equal(perf.deviceId, DEVICE_LAB_ANDROID.id);
+  assert.equal(perf.deviceId, PROVIDER_SCENARIO_ANDROID.id);
   const metrics = perf.metrics as Record<string, any>;
   assert.equal(metrics.startup?.available, true, JSON.stringify(perf));
   assert.equal(metrics.startup?.method, 'open-command-roundtrip');
@@ -428,8 +432,14 @@ async function runAndroidCaptureInteractionAndReplayWorkflow(
   client: AgentDeviceClient,
 ): Promise<void> {
   const { daemon, selection, tempRoot } = world;
-  const screenshotPath = createDeviceLabTempPath('agent-device-lab-android', 'png');
-  const fastScreenshotPath = createDeviceLabTempPath('agent-device-lab-android-fast', 'png');
+  const screenshotPath = createProviderScenarioTempPath(
+    'agent-device-provider-scenario-android',
+    'png',
+  );
+  const fastScreenshotPath = createProviderScenarioTempPath(
+    'agent-device-provider-scenario-android-fast',
+    'png',
+  );
 
   const baselineDiff = await client.capture.diff({
     kind: 'snapshot',
@@ -669,7 +679,7 @@ function assertAndroidProviderContract(world: AndroidSettingsWorld): void {
 function assertAndroidInventoryContract(world: AndroidSettingsWorld): void {
   assert.ok(
     world.inventoryRequests.some((request) =>
-      request.androidSerialAllowlist?.includes(DEVICE_LAB_ANDROID.id),
+      request.androidSerialAllowlist?.includes(PROVIDER_SCENARIO_ANDROID.id),
     ),
     JSON.stringify(world.inventoryRequests),
   );
@@ -765,7 +775,7 @@ function assertAndroidPushAndEventContract(world: AndroidSettingsWorld): void {
     '-a',
     'android.intent.action.VIEW',
     '-d',
-    'demo://agent-device/event?name=screenshot_taken&payload=%7B%22source%22%3A%22device-lab%22%2C%22foreground%22%3Atrue%7D&platform=android',
+    'demo://agent-device/event?name=screenshot_taken&payload=%7B%22source%22%3A%22provider-scenario%22%2C%22foreground%22%3Atrue%7D&platform=android',
   ]);
   assertCommandCall(adbCalls, ['shell', 'cmd', 'clipboard', 'get', 'text']);
   assertCommandCall(adbCalls, ['shell', 'cmd', 'clipboard', 'set', 'text', 'android otp']);

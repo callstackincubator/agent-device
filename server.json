@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.callstackincubator/agent-device",
+  "title": "agent-device",
+  "description": "Discovery metadata for the agent-device CLI across mobile, TV, and desktop automation.",
+  "repository": {
+    "url": "https://github.com/callstackincubator/agent-device",
+    "source": "github"
+  },
+  "version": "0.14.9",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "agent-device",
+      "version": "0.14.9",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

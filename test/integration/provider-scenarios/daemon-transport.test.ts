@@ -10,7 +10,7 @@ import {
 } from '../../../src/daemon/transport.ts';
 import { closeServer, skipWhenLoopbackUnavailable } from './loopback.ts';
 
-test('Device Lab daemon socket transport frames requests and normalizes malformed input', async (t) => {
+test('Provider-backed integration daemon socket transport frames requests and normalizes malformed input', async (t) => {
   if (await skipWhenLoopbackUnavailable(t)) {
     return;
   }
@@ -34,7 +34,7 @@ test('Device Lab daemon socket transport frames requests and normalizes malforme
     const responses = await writeSocketRequests(client, [
       '',
       JSON.stringify({
-        token: 'device-lab-token',
+        token: 'provider-scenario-token',
         session: 'default',
         command: 'session_list',
         positionals: [],

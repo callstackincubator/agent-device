@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import type { AppleRunnerProvider } from '../../../src/platforms/ios/runner-provider.ts';
-import { DEVICE_LAB_MACOS } from './fixtures.ts';
-import { createDeviceLabHarness, type DeviceLabHarness } from './harness.ts';
+import { PROVIDER_SCENARIO_MACOS } from './fixtures.ts';
+import { createProviderScenarioHarness, type ProviderScenarioHarness } from './harness.ts';
 import { createRecordingAppleToolProvider, type FlatToolCall } from './providers.ts';
 import { validPng } from './assertions.ts';
 
 export type MacOsDesktopWorld = {
-  daemon: DeviceLabHarness;
+  daemon: ProviderScenarioHarness;
   appleTool: {
     calls: FlatToolCall[];
   };
@@ -46,12 +46,12 @@ export async function createMacOsDesktopWorld(
       },
     },
   });
-  const daemon = await createDeviceLabHarness({
+  const daemon = await createProviderScenarioHarness({
     appleRunnerProvider: options.appleRunnerProvider
       ? () => options.appleRunnerProvider
       : undefined,
     appleToolProvider: () => appleTool.provider,
-    deviceInventoryProvider: async () => [DEVICE_LAB_MACOS],
+    deviceInventoryProvider: async () => [PROVIDER_SCENARIO_MACOS],
   });
   return {
     daemon,

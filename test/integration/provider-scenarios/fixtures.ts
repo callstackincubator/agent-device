@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { DeviceInfo } from '../../../src/utils/device.ts';
 
-export const DEVICE_LAB_ANDROID: DeviceInfo = {
+export const PROVIDER_SCENARIO_ANDROID: DeviceInfo = {
   platform: 'android',
   id: 'emulator-5554',
   name: 'Pixel 8',
@@ -12,7 +12,7 @@ export const DEVICE_LAB_ANDROID: DeviceInfo = {
   booted: true,
 };
 
-export const DEVICE_LAB_IOS_SIMULATOR: DeviceInfo = {
+export const PROVIDER_SCENARIO_IOS_SIMULATOR: DeviceInfo = {
   platform: 'ios',
   id: 'sim-1',
   name: 'iPhone 15',
@@ -21,7 +21,7 @@ export const DEVICE_LAB_IOS_SIMULATOR: DeviceInfo = {
   booted: true,
 };
 
-export const DEVICE_LAB_IOS_DEVICE: DeviceInfo = {
+export const PROVIDER_SCENARIO_IOS_DEVICE: DeviceInfo = {
   platform: 'ios',
   id: 'ios-device-1',
   name: 'QA iPhone',
@@ -30,7 +30,7 @@ export const DEVICE_LAB_IOS_DEVICE: DeviceInfo = {
   booted: true,
 };
 
-export const DEVICE_LAB_IOS_REINSTALL_DEVICE: DeviceInfo = {
+export const PROVIDER_SCENARIO_IOS_REINSTALL_DEVICE: DeviceInfo = {
   platform: 'ios',
   id: 'device-1',
   name: 'iPhone Device',
@@ -39,7 +39,7 @@ export const DEVICE_LAB_IOS_REINSTALL_DEVICE: DeviceInfo = {
   booted: true,
 };
 
-export const DEVICE_LAB_TVOS: DeviceInfo = {
+export const PROVIDER_SCENARIO_TVOS: DeviceInfo = {
   platform: 'ios',
   id: 'tv-sim-1',
   name: 'Apple TV',
@@ -48,7 +48,7 @@ export const DEVICE_LAB_TVOS: DeviceInfo = {
   booted: true,
 };
 
-export const DEVICE_LAB_MACOS: DeviceInfo = {
+export const PROVIDER_SCENARIO_MACOS: DeviceInfo = {
   platform: 'macos',
   id: 'host-macos',
   name: 'Mac desktop',
@@ -57,7 +57,7 @@ export const DEVICE_LAB_MACOS: DeviceInfo = {
   booted: true,
 };
 
-export const DEVICE_LAB_LINUX: DeviceInfo = {
+export const PROVIDER_SCENARIO_LINUX: DeviceInfo = {
   platform: 'linux',
   id: 'local',
   name: 'Linux desktop',
