@@ -19,16 +19,12 @@ import { runIosRunnerCommand, IOS_RUNNER_CONTAINER_BUNDLE_IDS } from './runner-c
 import type { AppleRunnerCommandOptions } from './runner-provider.ts';
 import { prepareSimulatorStatusBarForScreenshot } from './screenshot-status-bar.ts';
 import { ensureBootedSimulator } from './simulator.ts';
-import { buildSimctlArgsForDevice } from './simctl.ts';
+import { runSimctlForDevice } from './simctl.ts';
 import { extractAppleToolErrorMeta } from './tool-diagnostics.ts';
 import { runXcrun } from './tool-provider.ts';
 
-function simctlArgs(device: DeviceInfo, args: string[]): string[] {
-  return buildSimctlArgsForDevice(device, args);
-}
-
 function runSimctl(device: DeviceInfo, args: string[], options?: ExecOptions) {
-  return runXcrun(simctlArgs(device, args), options);
+  return runSimctlForDevice(device, args, options);
 }
 
 type SimulatorScreenshotFlowDeps = {

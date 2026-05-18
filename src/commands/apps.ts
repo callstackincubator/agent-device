@@ -14,6 +14,7 @@ import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
 import { resolveCommandInput } from './io-policy.ts';
 import type { RuntimeCommand } from './runtime-types.ts';
+import { normalizeOptionalText, requireText } from './text.ts';
 
 const APP_EVENT_NAME_PATTERN = /^[A-Za-z0-9_.:-]{1,64}$/;
 const MAX_APP_EVENT_PAYLOAD_BYTES = 8 * 1024;
@@ -282,19 +283,6 @@ function formatOpenTarget(target: BackendOpenTarget): string {
     target.activity ??
     'app'
   );
-}
-
-function normalizeOptionalText(value: string | undefined, field: string): string | undefined {
-  if (value === undefined) return undefined;
-  return requireText(value, field);
-}
-
-function requireText(value: string | undefined, field: string): string {
-  const text = value?.trim();
-  if (!text) {
-    throw new AppError('INVALID_ARGS', `${field} must be a non-empty string`);
-  }
-  return text;
 }
 
 async function resolvePushInput(

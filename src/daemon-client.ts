@@ -6,6 +6,7 @@ import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { sleep } from './utils/timeouts.ts';
 import { AppError, toAppErrorCode } from './utils/errors.ts';
+import { readNodeHttpResponseBody } from './utils/node-http.ts';
 import type {
   DaemonArtifact,
   DaemonRequest as SharedDaemonRequest,
@@ -202,13 +203,7 @@ export async function openApp(options: OpenAppOptions = {}): Promise<DaemonRespo
 async function prepareRemoteRequest(
   req: Omit<DaemonRequest, 'token'>,
   info: DaemonInfo,
-): Promise<{
-  positionals: string[];
-  flags?: DaemonRequest['flags'];
-  installSource?: NonNullable<DaemonRequest['meta']>['installSource'];
-  uploadedArtifactId?: string;
-  clientArtifactPaths?: Record<string, string>;
-}> {
+): Promise<PreparedRemoteRequest> {
   const positionals = [...(req.positionals ?? [])];
   let flags = req.flags ? { ...req.flags } : undefined;
   let installSource = req.meta?.installSource;
@@ -235,39 +230,34 @@ async function prepareRemoteRequest(
     }
   }
 
+  const baseResult = (): PreparedRemoteRequest =>
+    createPreparedRemoteRequest({
+      positionals,
+      flags,
+      installSource,
+      uploadedArtifactId,
+      clientArtifactPaths,
+    });
+
   if (
     !isRemoteDaemon(info) ||
     (req.command !== 'install' && req.command !== 'reinstall') ||
     positionals.length < 2
   ) {
-    return {
-      positionals,
-      flags,
-      installSource,
-      uploadedArtifactId,
-      ...(Object.keys(clientArtifactPaths).length > 0 ? { clientArtifactPaths } : {}),
-    };
+    return baseResult();
   }
 
   const rawPath = positionals[1]!;
   if (rawPath.startsWith('remote:')) {
     positionals[1] = rawPath.slice('remote:'.length);
-    return {
-      positionals,
-      flags,
-      ...(Object.keys(clientArtifactPaths).length > 0 ? { clientArtifactPaths } : {}),
-    };
+    return createPreparedRemoteRequest({ positionals, flags, clientArtifactPaths });
   }
 
   const localPath = path.isAbsolute(rawPath)
     ? rawPath
     : path.resolve(req.meta?.cwd ?? process.cwd(), rawPath);
   if (!fs.existsSync(localPath)) {
-    return {
-      positionals,
-      flags,
-      ...(Object.keys(clientArtifactPaths).length > 0 ? { clientArtifactPaths } : {}),
-    };
+    return createPreparedRemoteRequest({ positionals, flags, clientArtifactPaths });
   }
 
   uploadedArtifactId = await uploadArtifact({
@@ -276,12 +266,28 @@ async function prepareRemoteRequest(
     token: info.token,
     platform: req.flags?.platform,
   });
+  return baseResult();
+}
+
+type PreparedRemoteRequest = {
+  positionals: string[];
+  flags?: DaemonRequest['flags'];
+  installSource?: NonNullable<DaemonRequest['meta']>['installSource'];
+  uploadedArtifactId?: string;
+  clientArtifactPaths?: Record<string, string>;
+};
+
+function createPreparedRemoteRequest(
+  result: PreparedRemoteRequest & { clientArtifactPaths: Record<string, string> },
+): PreparedRemoteRequest {
   return {
-    positionals,
-    flags,
-    installSource,
-    uploadedArtifactId,
-    ...(Object.keys(clientArtifactPaths).length > 0 ? { clientArtifactPaths } : {}),
+    positionals: result.positionals,
+    flags: result.flags,
+    installSource: result.installSource,
+    uploadedArtifactId: result.uploadedArtifactId,
+    ...(Object.keys(result.clientArtifactPaths).length > 0
+      ? { clientArtifactPaths: result.clientArtifactPaths }
+      : {}),
   };
 }
 
@@ -963,70 +969,22 @@ async function sendHttpRequest(
         headers,
       },
       (res) => {
-        let body = '';
-        res.setEncoding('utf8');
-        res.on('data', (chunk) => {
-          body += chunk;
-        });
-        res.on('end', () => {
-          if (timeoutHandle) clearTimeout(timeoutHandle);
-          try {
-            const parsed = JSON.parse(body) as {
-              result?: DaemonResponse;
-              error?: {
-                message?: string;
-                data?: Record<string, unknown>;
-              };
-            };
-            if (parsed.error) {
-              const data = parsed.error.data ?? {};
-              reject(
-                new AppError(
-                  toAppErrorCode(
-                    data.code != null ? String(data.code) : undefined,
-                    'COMMAND_FAILED',
-                  ),
-                  String(data.message ?? parsed.error.message ?? 'Daemon RPC request failed'),
-                  {
-                    ...(typeof data.details === 'object' && data.details ? data.details : {}),
-                    hint: typeof data.hint === 'string' ? data.hint : undefined,
-                    diagnosticId:
-                      typeof data.diagnosticId === 'string' ? data.diagnosticId : undefined,
-                    logPath: typeof data.logPath === 'string' ? data.logPath : undefined,
-                    requestId: req.meta?.requestId,
-                  },
-                ),
-              );
-              return;
-            }
-            if (!parsed.result || typeof parsed.result !== 'object') {
-              reject(
-                new AppError('COMMAND_FAILED', 'Invalid daemon RPC response', {
-                  requestId: req.meta?.requestId,
-                }),
-              );
-              return;
-            }
-            if (info.baseUrl && parsed.result.ok) {
-              void materializeRemoteArtifacts(info, req, parsed.result).then(resolve).catch(reject);
-              return;
-            }
-            resolve(parsed.result);
-          } catch (err) {
+        void readNodeHttpResponseBody(res)
+          .then((body) => {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+            handleDaemonHttpResponseBody(body, { info, req, resolve, reject });
+          })
+          .catch((err: unknown) => {
             if (timeoutHandle) clearTimeout(timeoutHandle);
             reject(
               new AppError(
                 'COMMAND_FAILED',
-                'Invalid daemon response',
-                {
-                  requestId: req.meta?.requestId,
-                  line: body,
-                },
+                'Failed to read daemon response',
+                { requestId: req.meta?.requestId },
                 err instanceof Error ? err : undefined,
               ),
             );
-          }
-        });
+          });
       },
     );
 
@@ -1056,6 +1014,69 @@ async function sendHttpRequest(
     request.write(rpcPayload);
     request.end();
   });
+}
+
+function handleDaemonHttpResponseBody(
+  body: string,
+  options: {
+    info: DaemonInfo;
+    req: DaemonRequest;
+    resolve: (response: DaemonResponse | PromiseLike<DaemonResponse>) => void;
+    reject: (error: unknown) => void;
+  },
+): void {
+  const { info, req, resolve, reject } = options;
+  try {
+    const parsed = JSON.parse(body) as {
+      result?: DaemonResponse;
+      error?: {
+        message?: string;
+        data?: Record<string, unknown>;
+      };
+    };
+    if (parsed.error) {
+      const data = parsed.error.data ?? {};
+      reject(
+        new AppError(
+          toAppErrorCode(data.code != null ? String(data.code) : undefined, 'COMMAND_FAILED'),
+          String(data.message ?? parsed.error.message ?? 'Daemon RPC request failed'),
+          {
+            ...(typeof data.details === 'object' && data.details ? data.details : {}),
+            hint: typeof data.hint === 'string' ? data.hint : undefined,
+            diagnosticId: typeof data.diagnosticId === 'string' ? data.diagnosticId : undefined,
+            logPath: typeof data.logPath === 'string' ? data.logPath : undefined,
+            requestId: req.meta?.requestId,
+          },
+        ),
+      );
+      return;
+    }
+    if (!parsed.result || typeof parsed.result !== 'object') {
+      reject(
+        new AppError('COMMAND_FAILED', 'Invalid daemon RPC response', {
+          requestId: req.meta?.requestId,
+        }),
+      );
+      return;
+    }
+    if (info.baseUrl && parsed.result.ok) {
+      void materializeRemoteArtifacts(info, req, parsed.result).then(resolve).catch(reject);
+      return;
+    }
+    resolve(parsed.result);
+  } catch (err) {
+    reject(
+      new AppError(
+        'COMMAND_FAILED',
+        'Invalid daemon response',
+        {
+          requestId: req.meta?.requestId,
+          line: body,
+        },
+        err instanceof Error ? err : undefined,
+      ),
+    );
+  }
 }
 
 function buildHttpRpcPayload(

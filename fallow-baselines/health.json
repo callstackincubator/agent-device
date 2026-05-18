@@ -1,11 +1,6 @@
 {
   "finding_counts": {
-    "scripts/check-coverage-trend.mjs": {
-      "crap_moderate": {
-        "count": 1
-      }
-    },
-    "scripts/device-lab-progress.mjs": {
+    "scripts/integration-progress.mjs": {
       "crap_critical": {
         "count": 1
       },
@@ -310,14 +305,6 @@
         "count": 2
       },
       "crap_moderate": {
-        "count": 1
-      }
-    },
-    "src/daemon/handlers/install-source.ts": {
-      "complexity_high": {
-        "count": 1
-      },
-      "crap_high": {
         "count": 1
       }
     },
@@ -693,14 +680,11 @@
         "count": 1
       },
       "crap_moderate": {
-        "count": 3
+        "count": 2
       }
     },
     "src/platforms/ios/screenshot.ts": {
       "complexity_moderate": {
-        "count": 1
-      },
-      "crap_moderate": {
         "count": 1
       }
     },
@@ -863,12 +847,12 @@
         "count": 1
       }
     },
-    "test/integration/device-lab/android-world.ts": {
+    "test/integration/installed-package-metro.test.ts": {
       "crap_moderate": {
-        "count": 1
+        "count": 2
       }
     },
-    "test/integration/device-lab/device-lab-android-lifecycle.test.ts": {
+    "test/integration/provider-scenarios/android-lifecycle.test.ts": {
       "complexity_critical": {
         "count": 1
       },
@@ -876,28 +860,22 @@
         "count": 1
       }
     },
-    "test/integration/device-lab/device-lab-daemon-http-server.test.ts": {
-      "crap_high": {
-        "count": 1
-      }
-    },
-    "test/integration/device-lab/device-lab-ios-record-trace.test.ts": {
-      "complexity_critical": {
-        "count": 1
-      },
-      "crap_critical": {
-        "count": 1
-      }
-    },
-    "test/integration/device-lab/device-lab-remote-daemon-client.test.ts": {
-      "crap_high": {
-        "count": 1
-      },
+    "test/integration/provider-scenarios/android-world.ts": {
       "crap_moderate": {
         "count": 1
       }
     },
-    "test/integration/device-lab/macos-world.ts": {
+    "test/integration/provider-scenarios/daemon-http-server.test.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "test/integration/provider-scenarios/ios-record-trace.test.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "test/integration/provider-scenarios/macos-world.ts": {
       "complexity_high": {
         "count": 1
       },
@@ -905,9 +883,12 @@
         "count": 1
       }
     },
-    "test/integration/installed-package-metro.test.ts": {
+    "test/integration/provider-scenarios/remote-daemon-client.test.ts": {
+      "crap_high": {
+        "count": 1
+      },
       "crap_moderate": {
-        "count": 2
+        "count": 1
       }
     },
     "test/integration/recording-overlay.test.ts": {
@@ -916,9 +897,6 @@
       }
     },
     "test/integration/smoke-daemon-http.test.ts": {
-      "crap_critical": {
-        "count": 2
-      },
       "crap_moderate": {
         "count": 1
       }
@@ -959,7 +937,6 @@
     "src/daemon/handlers/session-open-target.ts:high impact",
     "src/daemon/handlers/snapshot-alert.ts:complexity",
     "src/utils/success-text.ts:high impact",
-    "src/daemon/handlers/install-source.ts:complexity",
     "src/cli/commands/output.ts:untested risk",
     "src/utils/snapshot-processing.ts:high impact",
     "src/utils/process-identity.ts:high impact",
@@ -973,6 +950,7 @@
     "src/daemon/request-cancel.ts:high impact",
     "src/cli.ts:complexity",
     "src/client-metro.ts:complexity",
+    "src/utils/parsing.ts:high impact",
     "src/utils/selector-build.ts:high impact",
     "src/daemon/app-log-process.ts:high impact",
     "src/utils/device.ts:high impact",
@@ -982,9 +960,9 @@
     "src/utils/keyed-lock.ts:high impact",
     "src/core/batch.ts:complexity",
     "src/daemon/app-log-stream.ts:high impact",
+    "src/__tests__/test-utils/loopback.ts:high impact",
     "src/platforms/android/sdk.ts:high impact",
     "src/utils/source-value.ts:high impact",
-    "test/integration/device-lab/loopback.ts:high impact",
     "src/utils/screenshot-diff-regions.ts:complexity",
     "src/client-companion-tunnel-worker.ts:complexity",
     "src/daemon/screenshot-overlay.ts:untested risk",

@@ -8,7 +8,6 @@ import type {
   ReplaySuiteTestFailed,
   ReplaySuiteTestResult,
 } from '../types.ts';
-import type { ReplayScriptMetadata } from './session-replay-script.ts';
 import {
   buildReplayTestArtifactSlug,
   materializeReplayTestAttemptArtifacts,
@@ -24,21 +23,14 @@ import {
   resolveReplayTestTimeout,
 } from './session-test-discovery.ts';
 import { runReplayTestAttempt } from './session-test-runtime.ts';
+import type { ReplayTestRuntimeDependencies } from './session-test-types.ts';
 
-export async function runReplayTestSuite(params: {
-  req: DaemonRequest;
-  sessionName: string;
-  runReplay: (params: {
-    filePath: string;
+export async function runReplayTestSuite(
+  params: {
+    req: DaemonRequest;
     sessionName: string;
-    platform?: ReplayScriptMetadata['platform'];
-    target?: ReplayScriptMetadata['target'];
-    requestId?: string;
-    artifactsDir?: string;
-    artifactPaths?: Set<string>;
-  }) => Promise<DaemonResponse>;
-  cleanupSession: (sessionName: string) => Promise<void>;
-}): Promise<DaemonResponse> {
+  } & ReplayTestRuntimeDependencies,
+): Promise<DaemonResponse> {
   const { req, sessionName, runReplay, cleanupSession } = params;
   if ((req.positionals?.length ?? 0) === 0) {
     return errorResponse('INVALID_ARGS', 'test requires at least one path or glob');
@@ -100,32 +92,24 @@ export async function runReplayTestSuite(params: {
   }
 }
 
-async function runReplayTestCase(params: {
-  entry: Extract<
-    ReturnType<typeof discoverReplayTestEntries>[number],
-    {
-      kind: 'run';
-    }
-  >;
-  sessionName: string;
-  suiteInvocationId: string;
-  caseIndex: number;
-  cwd?: string;
-  requestId?: string;
-  retries: number;
-  timeoutMs?: number;
-  suiteArtifactsDir: string;
-  runReplay: (params: {
-    filePath: string;
+async function runReplayTestCase(
+  params: {
+    entry: Extract<
+      ReturnType<typeof discoverReplayTestEntries>[number],
+      {
+        kind: 'run';
+      }
+    >;
     sessionName: string;
-    platform?: ReplayScriptMetadata['platform'];
-    target?: ReplayScriptMetadata['target'];
+    suiteInvocationId: string;
+    caseIndex: number;
+    cwd?: string;
     requestId?: string;
-    artifactsDir?: string;
-    artifactPaths?: Set<string>;
-  }) => Promise<DaemonResponse>;
-  cleanupSession: (sessionName: string) => Promise<void>;
-}): Promise<Extract<ReplaySuiteTestResult, { status: 'passed' | 'failed' }>> {
+    retries: number;
+    timeoutMs?: number;
+    suiteArtifactsDir: string;
+  } & ReplayTestRuntimeDependencies,
+): Promise<Extract<ReplaySuiteTestResult, { status: 'passed' | 'failed' }>> {
   const {
     entry,
     sessionName,

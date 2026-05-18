@@ -7,6 +7,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { Writable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { AppError } from './utils/errors.ts';
+import { readNodeHttpResponseBody } from './utils/node-http.ts';
 import { runCmd } from './utils/exec.ts';
 
 const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -332,19 +333,16 @@ async function streamFileToHttpRequest(options: {
         headers: options.headers,
       },
       (res) => {
-        let body = '';
-        res.setEncoding('utf8');
-        res.on('data', (chunk) => {
-          body += chunk;
-        });
-        res.on('end', () => {
-          clearTimeout(timeout);
-          resolve({
-            statusCode: res.statusCode ?? 500,
-            statusMessage: res.statusMessage,
-            body,
-          });
-        });
+        void readNodeHttpResponseBody(res)
+          .then((body) => {
+            clearTimeout(timeout);
+            resolve({
+              statusCode: res.statusCode ?? 500,
+              statusMessage: res.statusMessage,
+              body,
+            });
+          })
+          .catch(reject);
       },
     );
 

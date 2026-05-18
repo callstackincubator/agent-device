@@ -65,69 +65,40 @@ export async function listIosDeviceApps(
   device: DeviceInfo,
   filter: 'user-installed' | 'all',
 ): Promise<IosAppInfo[]> {
-  const jsonPath = path.join(
-    os.tmpdir(),
-    `agent-device-ios-apps-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
-  );
-  const args = [
-    'devicectl',
-    'device',
-    'info',
-    'apps',
-    '--device',
-    device.id,
-    '--include-all-apps',
-    '--json-output',
-    jsonPath,
-  ];
-  const result = await runXcrun(args, {
-    allowFailure: true,
-    timeoutMs: IOS_DEVICECTL_TIMEOUT_MS,
+  const payload = await runIosDevicectlJsonCommand(device, {
+    jsonPrefix: 'agent-device-ios-apps',
+    args: ['devicectl', 'device', 'info', 'apps', '--device', device.id, '--include-all-apps'],
+    failureMessage: 'Failed to list iOS apps',
+    parseFailureMessage: 'Failed to parse iOS apps list',
   });
-
-  try {
-    if (result.exitCode !== 0) {
-      const stdout = String(result.stdout ?? '');
-      const stderr = String(result.stderr ?? '');
-      throw new AppError('COMMAND_FAILED', 'Failed to list iOS apps', {
-        cmd: 'xcrun',
-        args,
-        exitCode: result.exitCode,
-        stdout,
-        stderr,
-        deviceId: device.id,
-        hint: resolveIosDevicectlHint(stdout, stderr) ?? IOS_DEVICECTL_DEFAULT_HINT,
-      });
-    }
-    const jsonText = await fs.readFile(jsonPath, 'utf8');
-    const apps = parseIosDeviceAppsPayload(JSON.parse(jsonText));
-    return filterIosDeviceApps(apps, filter);
-  } catch (error) {
-    if (error instanceof AppError) throw error;
-    throw new AppError('COMMAND_FAILED', 'Failed to parse iOS apps list', {
-      deviceId: device.id,
-      cause: String(error),
-    });
-  } finally {
-    await fs.unlink(jsonPath).catch(() => {});
-  }
+  return filterIosDeviceApps(parseIosDeviceAppsPayload(payload), filter);
 }
 
 export async function listIosDeviceProcesses(device: DeviceInfo): Promise<IosDeviceProcessInfo[]> {
+  return parseIosDeviceProcessesPayload(
+    await runIosDevicectlJsonCommand(device, {
+      jsonPrefix: 'agent-device-ios-processes',
+      args: ['devicectl', 'device', 'info', 'processes', '--device', device.id],
+      failureMessage: 'Failed to list iOS processes',
+      parseFailureMessage: 'Failed to parse iOS process list',
+    }),
+  );
+}
+
+async function runIosDevicectlJsonCommand(
+  device: DeviceInfo,
+  options: {
+    jsonPrefix: string;
+    args: string[];
+    failureMessage: string;
+    parseFailureMessage: string;
+  },
+): Promise<unknown> {
   const jsonPath = path.join(
     os.tmpdir(),
-    `agent-device-ios-processes-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+    `${options.jsonPrefix}-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
   );
-  const args = [
-    'devicectl',
-    'device',
-    'info',
-    'processes',
-    '--device',
-    device.id,
-    '--json-output',
-    jsonPath,
-  ];
+  const args = [...options.args, '--json-output', jsonPath];
   const result = await runXcrun(args, {
     allowFailure: true,
     timeoutMs: IOS_DEVICECTL_TIMEOUT_MS,
@@ -137,7 +108,7 @@ export async function listIosDeviceProcesses(device: DeviceInfo): Promise<IosDev
     if (result.exitCode !== 0) {
       const stdout = String(result.stdout ?? '');
       const stderr = String(result.stderr ?? '');
-      throw new AppError('COMMAND_FAILED', 'Failed to list iOS processes', {
+      throw new AppError('COMMAND_FAILED', options.failureMessage, {
         cmd: 'xcrun',
         args,
         exitCode: result.exitCode,
@@ -147,11 +118,10 @@ export async function listIosDeviceProcesses(device: DeviceInfo): Promise<IosDev
         hint: resolveIosDevicectlHint(stdout, stderr) ?? IOS_DEVICECTL_DEFAULT_HINT,
       });
     }
-    const jsonText = await fs.readFile(jsonPath, 'utf8');
-    return parseIosDeviceProcessesPayload(JSON.parse(jsonText));
+    return JSON.parse(await fs.readFile(jsonPath, 'utf8'));
   } catch (error) {
     if (error instanceof AppError) throw error;
-    throw new AppError('COMMAND_FAILED', 'Failed to parse iOS process list', {
+    throw new AppError('COMMAND_FAILED', options.parseFailureMessage, {
       deviceId: device.id,
       cause: String(error),
     });

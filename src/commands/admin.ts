@@ -13,6 +13,7 @@ import { successText } from '../utils/success-text.ts';
 import type { RuntimeCommand } from './runtime-types.ts';
 import { resolveCommandInput } from './io-policy.ts';
 import { toBackendContext } from './selector-read-utils.ts';
+import { normalizeOptionalText, requireText } from './text.ts';
 
 export type AdminDevicesCommandOptions = CommandContext & {
   filter?: BackendDeviceFilter;
@@ -270,17 +271,6 @@ function formatInstallResult(
       `${mode === 'reinstall' ? 'Reinstalled' : 'Installed'}: ${appName ?? launchTarget ?? app ?? formatSource(source)}`,
     ),
   };
-}
-
-function normalizeOptionalText(value: string | undefined, field: string): string | undefined {
-  if (value === undefined) return undefined;
-  return requireText(value, field);
-}
-
-function requireText(value: string | undefined, field: string): string {
-  const text = value?.trim();
-  if (!text) throw new AppError('INVALID_ARGS', `${field} must be a non-empty string`);
-  return text;
 }
 
 function readOptionalString(record: Record<string, unknown>, field: string): string | undefined {

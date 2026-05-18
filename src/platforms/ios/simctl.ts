@@ -1,5 +1,7 @@
 import type { DeviceInfo } from '../../utils/device.ts';
+import type { ExecOptions, ExecResult } from '../../utils/exec.ts';
 import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
+import { runXcrun } from './tool-provider.ts';
 
 type SimctlArgsOptions = {
   simulatorSetPath?: string;
@@ -16,4 +18,12 @@ export function buildSimctlArgsForDevice(device: DeviceInfo, args: string[]): st
     return ['simctl', ...args];
   }
   return buildSimctlArgs(args, { simulatorSetPath: device.simulatorSetPath });
+}
+
+export function runSimctlForDevice(
+  device: DeviceInfo,
+  args: string[],
+  options?: ExecOptions,
+): Promise<ExecResult> {
+  return runXcrun(buildSimctlArgsForDevice(device, args), options);
 }

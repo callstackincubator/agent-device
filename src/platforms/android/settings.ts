@@ -1,4 +1,8 @@
 import { AppError } from '../../utils/errors.ts';
+import {
+  summarizeCommandAttemptFailures,
+  type CommandAttemptFailure,
+} from '../../utils/command-attempts.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { requireLocationCoordinates } from '../../utils/location-coordinates.ts';
 import {
@@ -132,7 +136,7 @@ async function runAndroidFingerprintCommand(
   action: AndroidFingerprintAction,
 ): Promise<void> {
   const attempts = androidFingerprintCommandAttempts(device, action);
-  const failures: Array<{ args: string[]; stdout: string; stderr: string; exitCode: number }> = [];
+  const failures: CommandAttemptFailure[] = [];
 
   for (const args of attempts) {
     const result = await runAndroidAdb(device, args, { allowFailure: true });
@@ -145,11 +149,7 @@ async function runAndroidFingerprintCommand(
     });
   }
 
-  const attemptsPayload = failures.map((failure) => ({
-    args: failure.args.join(' '),
-    exitCode: failure.exitCode,
-    stderr: failure.stderr.slice(0, 400),
-  }));
+  const attemptsPayload = summarizeCommandAttemptFailures(failures);
   const capabilityMissing =
     failures.length > 0 &&
     failures.every((failure) =>

@@ -2,9 +2,8 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { ExecOptions } from '../../utils/exec.ts';
-import { buildSimctlArgsForDevice } from './simctl.ts';
+import { runSimctlForDevice } from './simctl.ts';
 import { extractAppleToolErrorMeta } from './tool-diagnostics.ts';
-import { runXcrun } from './tool-provider.ts';
 
 type RestorableStatusBarOverrides = Partial<
   Record<
@@ -55,12 +54,8 @@ const CELLULAR_MODE_BY_CODE: Record<number, string> = {
   3: 'active',
 };
 
-function simctlArgs(device: DeviceInfo, args: string[]): string[] {
-  return buildSimctlArgsForDevice(device, args);
-}
-
 function runSimctl(device: DeviceInfo, args: string[], options?: ExecOptions) {
-  return runXcrun(simctlArgs(device, args), options);
+  return runSimctlForDevice(device, args, options);
 }
 
 export async function prepareSimulatorStatusBarForScreenshot(

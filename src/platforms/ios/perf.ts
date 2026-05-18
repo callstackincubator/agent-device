@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { ExecResult } from '../../utils/exec.ts';
+import { splitNonEmptyTrimmedLines } from '../../utils/parsing.ts';
 import { roundPercent } from '../perf-utils.ts';
 import { uniqueStrings } from '../../daemon/action-utils.ts';
 import {
@@ -430,9 +431,7 @@ async function exportOptionalIosDevicePerfTable(
 
 export function parseApplePsOutput(stdout: string): AppleProcessSample[] {
   const rows: AppleProcessSample[] = [];
-  for (const rawLine of stdout.split('\n')) {
-    const line = rawLine.trim();
-    if (line.length === 0) continue;
+  for (const line of splitNonEmptyTrimmedLines(stdout)) {
     const match = line.match(/^(\d+)\s+([0-9]+(?:\.[0-9]+)?)\s+(\d+)\s+(.+)$/);
     if (!match) continue;
     const pid = Number(match[1]);

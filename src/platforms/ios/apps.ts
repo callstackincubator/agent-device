@@ -3,6 +3,10 @@ import os from 'node:os';
 import path from 'node:path';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
+import {
+  summarizeCommandAttemptFailures,
+  type CommandAttemptFailure,
+} from '../../utils/command-attempts.ts';
 import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
 import { requireLocationCoordinates } from '../../utils/location-coordinates.ts';
 import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
@@ -774,7 +778,7 @@ async function runIosBiometricSimctlCommand(
   },
 ): Promise<void> {
   const attempts = biometricCommandAttempts(device.id, action, options.modalityAliases);
-  const failures: Array<{ args: string[]; stderr: string; stdout: string; exitCode: number }> = [];
+  const failures: CommandAttemptFailure[] = [];
 
   for (const args of attempts) {
     const commandArgs = simctlArgs(device, args);
@@ -788,11 +792,7 @@ async function runIosBiometricSimctlCommand(
     });
   }
 
-  const attemptsPayload = failures.map((failure) => ({
-    args: failure.args.join(' '),
-    exitCode: failure.exitCode,
-    stderr: failure.stderr.slice(0, 400),
-  }));
+  const attemptsPayload = summarizeCommandAttemptFailures(failures);
   const capabilityMissing =
     failures.length > 0 &&
     failures.every((failure) => isIosBiometricCapabilityMissing(failure.stdout, failure.stderr));

@@ -1,6 +1,8 @@
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
+import { splitNonEmptyTrimmedLines } from '../../utils/parsing.ts';
 import { resolveAndroidAdbExecutor, type AndroidAdbExecutor } from './adb-executor.ts';
+import { parseNumericToken } from './perf-parsing.ts';
 import { roundPercent } from '../perf-utils.ts';
 export {
   ANDROID_FRAME_SAMPLE_DESCRIPTION,
@@ -79,9 +81,7 @@ export function parseAndroidCpuInfoSample(
   const matchedProcesses = new Set<string>();
   let usagePercent = 0;
 
-  for (const rawLine of stdout.split('\n')) {
-    const line = rawLine.trim();
-    if (line.length === 0) continue;
+  for (const line of splitNonEmptyTrimmedLines(stdout)) {
     const match = line.match(/^([0-9]+(?:\.[0-9]+)?)%\s+\d+\/([^\s]+):\s/);
     if (!match) continue;
 
@@ -194,11 +194,4 @@ function matchTotalRowPss(text: string): number | undefined {
     return parseNumericToken(firstValue) ?? undefined;
   }
   return undefined;
-}
-
-function parseNumericToken(token: string): number | null {
-  const match = token.replaceAll(',', '').match(/^-?\d+(?:\.\d+)?/);
-  if (!match) return null;
-  const value = Number(match[0]);
-  return Number.isFinite(value) ? value : null;
 }

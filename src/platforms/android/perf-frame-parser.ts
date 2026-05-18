@@ -1,5 +1,6 @@
 import { AppError } from '../../utils/errors.ts';
 import { roundPercent } from '../perf-utils.ts';
+import { parseNumericToken } from './perf-parsing.ts';
 import {
   buildWorstFrameDropWindows,
   deriveFrameDeadlineNs,
@@ -365,11 +366,4 @@ function matchSummaryInteger(text: string, label: string): number | undefined {
   const match = text.match(new RegExp(`^\\s*${escapedLabel}:\\s*([0-9][0-9,]*)`, 'im'));
   if (!match) return undefined;
   return parseNumericToken(match[1]) ?? undefined;
-}
-
-function parseNumericToken(token: string): number | null {
-  const match = token.replaceAll(',', '').match(/^-?\d+(?:\.\d+)?/);
-  if (!match) return null;
-  const value = Number(match[0]);
-  return Number.isFinite(value) ? value : null;
 }

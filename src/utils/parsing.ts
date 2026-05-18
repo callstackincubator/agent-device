@@ -77,10 +77,10 @@ export function readRect(
 ): { x: number; y: number; width: number; height: number } | undefined {
   const value = record[key];
   if (!isRecord(value)) return undefined;
-  const x = typeof value.x === 'number' ? value.x : undefined;
-  const y = typeof value.y === 'number' ? value.y : undefined;
-  const width = typeof value.width === 'number' ? value.width : undefined;
-  const height = typeof value.height === 'number' ? value.height : undefined;
+  const x = readNumberField(value, 'x');
+  const y = readNumberField(value, 'y');
+  const width = readNumberField(value, 'width');
+  const height = readNumberField(value, 'height');
   if (x === undefined || y === undefined || width === undefined || height === undefined) {
     return undefined;
   }
@@ -90,12 +90,17 @@ export function readRect(
 export function readPoint(record: Record<string, unknown>, key: string): Point | undefined {
   const value = record[key];
   if (!isRecord(value)) return undefined;
-  const x = typeof value.x === 'number' ? value.x : undefined;
-  const y = typeof value.y === 'number' ? value.y : undefined;
+  const x = readNumberField(value, 'x');
+  const y = readNumberField(value, 'y');
   if (x === undefined || y === undefined) {
     return undefined;
   }
   return { x, y };
+}
+
+function readNumberField(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  return typeof value === 'number' ? value : undefined;
 }
 
 function parseNonEmptyString(value: unknown): string | undefined {
@@ -141,4 +146,11 @@ export function stripUndefined<T extends Record<string, unknown>>(value: T): T {
     }
   }
   return output;
+}
+
+export function splitNonEmptyTrimmedLines(text: string): string[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 }
