@@ -237,6 +237,7 @@ function spawnMetroCompanionWorker(options: {
   serverBaseUrl?: string;
   localBaseUrl?: string;
   statePath?: string;
+  unregisterPath?: string;
 }): CompanionWorkerProcess {
   const serverBaseUrl = options.serverBaseUrl ?? `http://127.0.0.1:${options.bridgePort}`;
   const localBaseUrl = options.localBaseUrl ?? `http://127.0.0.1:${options.localPort}`;
@@ -300,6 +301,7 @@ function startMetroCompanionWorker(options: {
   serverBaseUrl?: string;
   localBaseUrl?: string;
   statePath?: string;
+  unregisterPath?: string;
 }): CompanionWorkerProcess {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-metro-companion-worker-'));
   const statePath = options.statePath ?? path.join(tempRoot, 'metro-companion.json');
@@ -322,6 +324,7 @@ function startMetroCompanionWorker(options: {
         leaseId: 'lease-1',
       },
       statePath,
+      unregisterPath: options.unregisterPath,
     },
     {
       leaseCheckIntervalMs: 25,
@@ -707,6 +710,7 @@ test('metro companion worker exits after its state file is removed', async () =>
   });
 
   const bridgeSocketReady = createDeferred<void>();
+  let unregisterRequests = 0;
   let bridgePort = 0;
   let bridgeSocketRef: Duplex | null = null;
 
@@ -718,6 +722,15 @@ test('metro companion worker exits after its state file is removed', async () =>
       req.resume();
       req.on('end', () => {
         writeSuccessfulRegistration(res, bridgePort);
+      });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/metro/companion/unregister') {
+      unregisterRequests += 1;
+      req.resume();
+      req.on('end', () => {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end('{"ok":true}');
       });
       return;
     }
@@ -738,7 +751,12 @@ test('metro companion worker exits after its state file is removed', async () =>
   });
   bridgePort = await listenOnLoopback(bridgeServer);
 
-  const companion = startMetroCompanionWorker({ bridgePort, localPort, statePath });
+  const companion = startMetroCompanionWorker({
+    bridgePort,
+    localPort,
+    statePath,
+    unregisterPath: '/api/metro/companion/unregister',
+  });
 
   await waitFor(bridgeSocketReady.promise, 5_000, 'bridge websocket connection');
   fs.unlinkSync(statePath);
@@ -748,6 +766,7 @@ test('metro companion worker exits after its state file is removed', async () =>
 
   assert.equal(exit.signal, null, `unexpected worker stderr: ${companion.readStderr()}`);
   assert.equal(exit.code, 0, `unexpected worker stderr: ${companion.readStderr()}`);
+  assert.equal(unregisterRequests, 1);
 });
 
 test('companion tunnel entrypoint reads neutral env and exits when state file is missing', async () => {

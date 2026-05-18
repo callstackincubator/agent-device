@@ -441,6 +441,7 @@ export async function runCompanionTunnelWorker(
   let shutdownRequested = false;
   let activeBridgeSocket: WebSocket | null = null;
   let activeRegistrationComplete = false;
+  let activeUnregister: Promise<void> | null = null;
   const runtimeDelay = runtime.delay ?? delay;
   let resolveShutdownRequested!: () => void;
   const shutdownRequestedPromise = new Promise<void>((resolve) => {
@@ -449,12 +450,20 @@ export async function runCompanionTunnelWorker(
   const exitWorker = () => {
     runtime.exit?.(0);
   };
+  const unregisterActiveRegistration = async () => {
+    if (!activeRegistrationComplete && !activeUnregister) return;
+    activeUnregister ??= unregisterCompanion(options).finally(() => {
+      activeRegistrationComplete = false;
+      activeUnregister = null;
+    });
+    await activeUnregister;
+  };
   const requestShutdown = () => {
     if (shutdownRequested) return;
     shutdownRequested = true;
     resolveShutdownRequested();
     if (activeRegistrationComplete) {
-      void unregisterCompanion(options).finally(exitWorker);
+      void unregisterActiveRegistration().finally(exitWorker);
     }
     if (activeBridgeSocket) {
       closeSocketQuietly(activeBridgeSocket, 1000, 'companion stopping');
@@ -489,9 +498,8 @@ export async function runCompanionTunnelWorker(
         registered = true;
         activeRegistrationComplete = true;
         if (shutdownRequested || !shouldKeepWorkerRunning(options)) {
-          await unregisterCompanion(options);
+          await unregisterActiveRegistration();
           registered = false;
-          activeRegistrationComplete = false;
           break;
         }
         const bridgeSocket = new WebSocket(registration.wsUrl);
@@ -510,21 +518,19 @@ export async function runCompanionTunnelWorker(
           await Promise.race([waitForSocketShutdown(bridgeSocket), shutdownRequestedPromise]);
         } finally {
           activeBridgeSocket = null;
-          activeRegistrationComplete = false;
           upstreamSockets.forEach((socket) =>
             closeSocketQuietly(socket, 1012, 'bridge disconnected'),
           );
           upstreamSockets.clear();
           if (registered) {
-            await unregisterCompanion(options);
+            await unregisterActiveRegistration();
             registered = false;
           }
         }
       } catch (error) {
         activeBridgeSocket = null;
-        activeRegistrationComplete = false;
         if (registered) {
-          await unregisterCompanion(options);
+          await unregisterActiveRegistration();
           registered = false;
         }
         if (shutdownRequested || !shouldKeepWorkerRunning(options)) {

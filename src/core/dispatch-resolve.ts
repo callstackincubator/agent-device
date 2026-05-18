@@ -67,29 +67,9 @@ async function resolveAppleDevice(
   selector: AppleDeviceSelector,
   context: { simulatorSetPath?: string },
 ): Promise<DeviceInfo> {
-  const hasExplicitSelector = !!(selector.udid || selector.serial || selector.deviceName);
+  const selected = await resolveAppleDeviceCandidate(devices, selector, context);
 
-  let selected: DeviceInfo | undefined;
-  try {
-    selected = await resolveDevice(devices, selector, context);
-  } catch (err) {
-    // When resolveDevice throws DEVICE_NOT_FOUND and no explicit device
-    // selector was used, attempt the simulator fallback before giving up.
-    if (hasExplicitSelector || !(err instanceof AppError) || err.code !== 'DEVICE_NOT_FOUND') {
-      throw err;
-    }
-  }
-
-  // When no explicit device selector was used and auto-selection either
-  // picked a physical device or found nothing at all, try to find an
-  // available simulator instead.  Physical devices should only be used
-  // when explicitly targeted.
-  const shouldUseSimulatorFallback =
-    !hasExplicitSelector &&
-    (!selector.platform || selector.platform === 'apple' || selector.platform === 'ios') &&
-    selector.target !== 'desktop';
-
-  if (shouldUseSimulatorFallback && (!selected || selected.kind === 'device')) {
+  if (shouldUseAppleSimulatorFallback(selector, selected)) {
     const simulator = await findBootableIosSimulator({
       simulatorSetPath: context.simulatorSetPath,
       target: selector.target,
@@ -99,6 +79,46 @@ async function resolveAppleDevice(
 
   if (selected) return selected;
   throw new AppError('DEVICE_NOT_FOUND', 'No devices found', { selector });
+}
+
+async function resolveAppleDeviceCandidate(
+  devices: DeviceInfo[],
+  selector: AppleDeviceSelector,
+  context: { simulatorSetPath?: string },
+): Promise<DeviceInfo | undefined> {
+  try {
+    return await resolveDevice(devices, selector, context);
+  } catch (error) {
+    if (canFallbackAfterAppleDeviceNotFound(error, selector)) return undefined;
+    throw error;
+  }
+}
+
+function canFallbackAfterAppleDeviceNotFound(
+  error: unknown,
+  selector: AppleDeviceSelector,
+): boolean {
+  return (
+    !hasExplicitAppleDeviceSelector(selector) &&
+    error instanceof AppError &&
+    error.code === 'DEVICE_NOT_FOUND'
+  );
+}
+
+function shouldUseAppleSimulatorFallback(
+  selector: AppleDeviceSelector,
+  selected: DeviceInfo | undefined,
+): boolean {
+  return (
+    !hasExplicitAppleDeviceSelector(selector) &&
+    (!selector.platform || selector.platform === 'apple' || selector.platform === 'ios') &&
+    selector.target !== 'desktop' &&
+    (!selected || selected.kind === 'device')
+  );
+}
+
+function hasExplicitAppleDeviceSelector(selector: AppleDeviceSelector): boolean {
+  return Boolean(selector.udid || selector.serial || selector.deviceName);
 }
 
 export async function resolveIosDevice(
@@ -158,6 +178,14 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
           : undefined,
       });
       if (injectedDevices) {
+        if (isAppleResolutionSelector(selector)) {
+          return cacheResolvedTargetDevice(
+            cacheKey,
+            await resolveAppleDevice(injectedDevices, selector as AppleDeviceSelector, {
+              simulatorSetPath: iosSimulatorSetPath,
+            }),
+          );
+        }
         return cacheResolvedTargetDevice(
           cacheKey,
           await resolveDevice(injectedDevices, selector, { simulatorSetPath: iosSimulatorSetPath }),

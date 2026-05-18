@@ -189,6 +189,22 @@ test('resolveTargetDevice uses injected device inventory without local discovery
   assert.equal(mockListAppleDevices.mock.calls.length, 0);
 });
 
+test('resolveTargetDevice preserves Apple simulator preference with injected inventory', async () => {
+  mockFindBootableIosSimulator.mockResolvedValue(simulator);
+
+  const result = await withDeviceInventoryProvider(
+    async (request) => {
+      assert.equal(request.platform, 'ios');
+      return [physical];
+    },
+    async () => await resolveTargetDevice({ platform: 'ios' }),
+  );
+
+  assert.equal(result.id, 'sim-1');
+  assert.equal(result.kind, 'simulator');
+  assert.equal(mockListAppleDevices.mock.calls.length, 0);
+});
+
 test('resolveTargetDevice treats empty injected inventory as authoritative', async () => {
   await expectDeviceNotFound(() =>
     withDeviceInventoryProvider(
