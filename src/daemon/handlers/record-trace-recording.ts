@@ -22,6 +22,7 @@ import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
 import { errorResponse } from './response.ts';
 import { startAndroidRecording, stopAndroidRecording } from './record-trace-android.ts';
 import {
+  getIosRunnerOptions,
   normalizeAppBundleId,
   startIosDeviceRecording,
   startMacOsRecording,
@@ -123,11 +124,7 @@ async function startIosSimulatorRecording(params: {
         command: 'uptime',
         appBundleId: normalizeAppBundleId(activeSession),
       },
-      {
-        verbose: req.flags?.verbose,
-        logPath,
-        traceLogPath: activeSession.trace?.outPath,
-      },
+      getIosRunnerOptions(req, logPath, activeSession),
     );
     const uptimeRequestFinishedAtMs = Date.now();
     gestureClockOriginAtMs = Math.round((uptimeRequestStartedAtMs + uptimeRequestFinishedAtMs) / 2);

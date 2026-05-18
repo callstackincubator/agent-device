@@ -68,14 +68,24 @@ test('Provider-backed integration iOS physical recording flow uses runner and de
         assert.equal(traceStart.statusCode, 200, JSON.stringify(traceStart.json));
         assert.equal(traceStart.json?.result?.data?.trace, 'started');
 
-        const recordStart = await daemon.callCommand('record', ['start', recordingPath], {
-          fps: 30,
-          quality: 8,
-          hideTouches: true,
-        });
+        const recordStart = await daemon.callCommand(
+          'record',
+          ['start', recordingPath],
+          {
+            fps: 30,
+            quality: 8,
+            hideTouches: true,
+          },
+          { meta: { requestId: 'ios-physical-record-start' } },
+        );
         assertRecordingStarted(recordStart, { showTouches: false });
 
-        const recordStop = await daemon.callCommand('record', ['stop']);
+        const recordStop = await daemon.callCommand(
+          'record',
+          ['stop'],
+          {},
+          { meta: { requestId: 'ios-physical-record-stop' } },
+        );
         assertRecordingStopped(recordStop, recordingPath, { showTouches: false });
 
         const traceStop = await daemon.callCommand('trace', ['stop', finalTracePath]);
@@ -210,12 +220,22 @@ test('Provider-backed integration iOS simulator recording flow uses semantic rec
         assert.equal(open.statusCode, 200, JSON.stringify(open.json));
         assert.equal(open.json?.error, undefined, JSON.stringify(open.json));
 
-        const recordStart = await daemon.callCommand('record', ['start', recordingPath], {
-          hideTouches: true,
-        });
+        const recordStart = await daemon.callCommand(
+          'record',
+          ['start', recordingPath],
+          {
+            hideTouches: true,
+          },
+          { meta: { requestId: 'ios-simulator-record-start' } },
+        );
         assertRecordingStarted(recordStart, { showTouches: false });
 
-        const recordStop = await daemon.callCommand('record', ['stop']);
+        const recordStop = await daemon.callCommand(
+          'record',
+          ['stop'],
+          {},
+          { meta: { requestId: 'ios-simulator-record-stop' } },
+        );
         assertRecordingStopped(recordStop, recordingPath, { showTouches: false });
 
         runnerTranscript.assertComplete();

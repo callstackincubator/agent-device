@@ -36,6 +36,14 @@ type RemotePaths = {
   localInstallSourcePath: string;
 };
 
+type RemoteDaemonState = {
+  rpcMode: 'success' | 'error';
+  rpcRequests: RemoteRpcRequest[];
+  uploadRequests: UploadRequest[];
+  recordingClientOutPath?: string;
+  screenshotPath: string;
+};
+
 const PNG_BYTES = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
   'base64',
@@ -58,57 +66,72 @@ function createRemoteDaemonServer(paths: { screenshotPath: string }): {
   uploadRequests: UploadRequest[];
   rejectRpcRequests(): void;
 } {
-  const rpcRequests: RemoteRpcRequest[] = [];
-  const uploadRequests: UploadRequest[] = [];
-  let rpcMode: 'success' | 'error' = 'success';
-
+  const state: RemoteDaemonState = {
+    rpcMode: 'success',
+    rpcRequests: [],
+    uploadRequests: [],
+    screenshotPath: paths.screenshotPath,
+  };
   const server = http.createServer((req, res) => {
-    if (req.method === 'GET' && (req.url ?? '').startsWith('/health')) {
-      res.writeHead(200, { 'content-type': 'application/json' });
-      res.end('{"ok":true}');
-      return;
-    }
-
-    if (req.method === 'GET' && (req.url ?? '').startsWith('/artifacts/shot-1')) {
-      assertRemoteAuth(req);
-      res.writeHead(200, { 'content-type': 'image/png' });
-      res.end(PNG_BYTES);
-      return;
-    }
-
-    if (req.method === 'GET' && (req.url ?? '').startsWith('/artifacts/recording-1')) {
-      assertRemoteAuth(req);
-      res.writeHead(200, { 'content-type': 'video/mp4' });
-      res.end(RECORDING_BYTES);
-      return;
-    }
-
-    if (req.method === 'POST' && req.url === '/upload') {
-      handleUpload(req, res, uploadRequests);
-      return;
-    }
-
-    if (req.method === 'POST' && req.url === '/rpc') {
-      handleRpc(req, res, {
-        getRpcMode: () => rpcMode,
-        rpcRequests,
-        screenshotPath: paths.screenshotPath,
-      });
-      return;
-    }
-
-    res.writeHead(404);
-    res.end('not found');
+    handleRemoteDaemonRequest(req, res, state);
   });
 
   return {
     server,
-    rpcRequests,
-    uploadRequests,
+    rpcRequests: state.rpcRequests,
+    uploadRequests: state.uploadRequests,
     rejectRpcRequests() {
-      rpcMode = 'error';
+      state.rpcMode = 'error';
     },
   };
+}
+
+function handleRemoteDaemonRequest(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  state: RemoteDaemonState,
+): void {
+  const route = remoteRoute(req);
+  if (route === 'health') return writeHealth(res);
+  if (route === 'screenshot-artifact') return writeArtifact(req, res, 'image/png', PNG_BYTES);
+  if (route === 'recording-artifact') {
+    return writeArtifact(req, res, 'video/mp4', RECORDING_BYTES);
+  }
+  if (route === 'upload') return handleUpload(req, res, state.uploadRequests);
+  if (route === 'rpc') return handleRpc(req, res, state);
+  res.writeHead(404);
+  res.end('not found');
+}
+
+function remoteRoute(
+  req: http.IncomingMessage,
+): 'health' | 'screenshot-artifact' | 'recording-artifact' | 'upload' | 'rpc' | undefined {
+  const method = req.method;
+  const url = req.url ?? '';
+  if (method === 'GET' && url.startsWith('/health')) return 'health';
+  if (method === 'GET' && url.startsWith('/artifacts/shot-1')) return 'screenshot-artifact';
+  if (method === 'GET' && url.startsWith('/artifacts/recording-1')) {
+    return 'recording-artifact';
+  }
+  if (method === 'POST' && url === '/upload') return 'upload';
+  if (method === 'POST' && url === '/rpc') return 'rpc';
+  return undefined;
+}
+
+function writeHealth(res: http.ServerResponse): void {
+  res.writeHead(200, { 'content-type': 'application/json' });
+  res.end('{"ok":true}');
+}
+
+function writeArtifact(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  contentType: string,
+  body: Buffer,
+): void {
+  assertRemoteAuth(req);
+  res.writeHead(200, { 'content-type': contentType });
+  res.end(body);
 }
 
 function handleUpload(
@@ -134,11 +157,7 @@ function handleUpload(
 function handleRpc(
   req: http.IncomingMessage,
   res: http.ServerResponse,
-  options: {
-    getRpcMode: () => 'success' | 'error';
-    rpcRequests: RemoteRpcRequest[];
-    screenshotPath: string;
-  },
+  state: RemoteDaemonState,
 ): void {
   assertRemoteAuth(req);
   let body = '';
@@ -148,12 +167,12 @@ function handleRpc(
   });
   req.on('end', () => {
     const payload = JSON.parse(body) as RemoteRpcRequest;
-    options.rpcRequests.push(payload);
-    if (options.getRpcMode() === 'error') {
+    state.rpcRequests.push(payload);
+    if (state.rpcMode === 'error') {
       writeRemoteError(res, payload);
       return;
     }
-    writeRemoteSuccess(res, payload, options.screenshotPath);
+    writeRemoteSuccess(res, payload, state);
   });
 }
 
@@ -179,41 +198,54 @@ function writeRemoteError(res: http.ServerResponse, payload: RemoteRpcRequest): 
 function writeRemoteSuccess(
   res: http.ServerResponse,
   payload: RemoteRpcRequest,
-  screenshotPath: string,
+  state: RemoteDaemonState,
 ): void {
-  if (payload.params?.command === 'install') {
-    writeJson(res, 200, {
-      jsonrpc: '2.0',
-      id: payload.id,
-      result: {
-        ok: true,
-        data: {
-          app: payload.params.positionals?.[0],
-          appPath: payload.params.positionals?.[1],
-          platform: 'android',
-          package: 'com.example.demo',
-        },
+  if (payload.params?.command === 'install') return writeInstallSuccess(res, payload);
+  if (payload.params?.command === 'install_source') return writeInstallSourceSuccess(res, payload);
+  if (payload.params?.command === 'record') return writeRecordSuccess(res, payload, state);
+  writeScreenshotSuccess(res, payload, state.screenshotPath);
+}
+
+function writeInstallSuccess(res: http.ServerResponse, payload: RemoteRpcRequest): void {
+  writeJson(res, 200, {
+    jsonrpc: '2.0',
+    id: payload.id,
+    result: {
+      ok: true,
+      data: {
+        app: payload.params?.positionals?.[0],
+        appPath: payload.params?.positionals?.[1],
+        platform: 'android',
+        package: 'com.example.demo',
       },
-    });
-    return;
-  }
-  if (payload.params?.command === 'install_source') {
-    writeJson(res, 200, {
-      jsonrpc: '2.0',
-      id: payload.id,
-      result: {
-        ok: true,
-        data: {
-          appName: 'Demo',
-          packageName: 'com.example.demo',
-          launchTarget: 'com.example.demo',
-          installablePath: resolveInstallSourcePath(payload),
-        },
+    },
+  });
+}
+
+function writeInstallSourceSuccess(res: http.ServerResponse, payload: RemoteRpcRequest): void {
+  writeJson(res, 200, {
+    jsonrpc: '2.0',
+    id: payload.id,
+    result: {
+      ok: true,
+      data: {
+        appName: 'Demo',
+        packageName: 'com.example.demo',
+        launchTarget: 'com.example.demo',
+        installablePath: resolveInstallSourcePath(payload),
       },
-    });
-    return;
-  }
-  if (payload.params?.command === 'record') {
+    },
+  });
+}
+
+function writeRecordSuccess(
+  res: http.ServerResponse,
+  payload: RemoteRpcRequest,
+  state: RemoteDaemonState,
+): void {
+  const action = String(payload.params?.positionals?.[0] ?? '').toLowerCase();
+  if (action === 'start') {
+    state.recordingClientOutPath = payload.params?.meta?.clientArtifactPaths?.outPath;
     writeJson(res, 200, {
       jsonrpc: '2.0',
       id: payload.id,
@@ -221,19 +253,38 @@ function writeRemoteSuccess(
         ok: true,
         data: {
           recording: 'started',
-          outPath: payload.params.positionals?.[1],
-          artifacts: [
-            {
-              artifactId: 'recording-1',
-              field: 'outPath',
-              fileName: 'remote-recording.mp4',
-            },
-          ],
+          outPath: payload.params?.positionals?.[1],
         },
       },
     });
     return;
   }
+  writeJson(res, 200, {
+    jsonrpc: '2.0',
+    id: payload.id,
+    result: {
+      ok: true,
+      data: {
+        recording: 'stopped',
+        outPath: state.recordingClientOutPath,
+        artifacts: [
+          {
+            artifactId: 'recording-1',
+            field: 'outPath',
+            localPath: state.recordingClientOutPath,
+            fileName: 'remote-recording.mp4',
+          },
+        ],
+      },
+    },
+  });
+}
+
+function writeScreenshotSuccess(
+  res: http.ServerResponse,
+  payload: RemoteRpcRequest,
+  screenshotPath: string,
+): void {
   writeJson(res, 200, {
     jsonrpc: '2.0',
     id: payload.id,
@@ -335,21 +386,31 @@ async function assertRecordingArtifactRoundTrip(
   paths: RemotePaths,
   rpcRequests: RemoteRpcRequest[],
 ): Promise<void> {
-  const recording = await client.recording.record({
+  const start = await client.recording.record({
     action: 'start',
     path: paths.recordingPath,
   });
-  assert.equal(recording.outPath, paths.recordingPath);
+  assert.equal(start.recording, 'started');
+  assert.equal(fs.existsSync(paths.recordingPath), false);
+
+  const stop = await client.recording.record({ action: 'stop' });
+  assert.equal(stop.recording, 'stopped');
+  assert.equal(stop.outPath, paths.recordingPath);
   assert.deepEqual(fs.readFileSync(paths.recordingPath), RECORDING_BYTES);
 
-  const recordingRpc = rpcRequests.at(-1);
-  assert.equal(recordingRpc?.params?.command, 'record');
-  assert.equal(recordingRpc?.params?.positionals?.[0], 'start');
+  const recordStartRpc = rpcRequests.at(-2);
+  assert.equal(recordStartRpc?.params?.command, 'record');
+  assert.equal(recordStartRpc?.params?.positionals?.[0], 'start');
   assert.match(
-    String(recordingRpc?.params?.positionals?.[1] ?? ''),
+    String(recordStartRpc?.params?.positionals?.[1] ?? ''),
     /^\/tmp\/agent-device-recording-/,
   );
-  assert.equal(recordingRpc?.params?.meta?.clientArtifactPaths?.outPath, paths.recordingPath);
+  assert.equal(recordStartRpc?.params?.meta?.clientArtifactPaths?.outPath, paths.recordingPath);
+
+  const recordStopRpc = rpcRequests.at(-1);
+  assert.equal(recordStopRpc?.params?.command, 'record');
+  assert.equal(recordStopRpc?.params?.positionals?.[0], 'stop');
+  assert.equal(recordStopRpc?.params?.meta?.clientArtifactPaths, undefined);
 }
 
 async function assertRemoteRpcErrorNormalization(client: RemoteClient): Promise<void> {

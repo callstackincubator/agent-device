@@ -33,11 +33,16 @@ function findOtherActiveIosRunnerRecording(
     );
 }
 
-function getRunnerOptions(req: DaemonRequest, logPath: string | undefined, session: SessionState) {
+export function getIosRunnerOptions(
+  req: DaemonRequest,
+  logPath: string | undefined,
+  session: SessionState,
+) {
   return {
     verbose: req.flags?.verbose,
     logPath,
     traceLogPath: session.trace?.outPath,
+    requestId: req.meta?.requestId,
   };
 }
 
@@ -51,6 +56,37 @@ function resolveIosRecordingTrimStartMs(
     return 0;
   }
   return Math.max(0, recording.targetAppReadyUptimeMs - recording.runnerStartedAtUptimeMs);
+}
+
+async function stopRunnerRecordingBestEffort(params: {
+  req: DaemonRequest;
+  activeSession: SessionState;
+  device: SessionState['device'];
+  logPath?: string;
+  deps: RecordTraceDeps;
+}): Promise<void> {
+  const { req, activeSession, device, logPath, deps } = params;
+  const appBundleId = normalizeAppBundleId(activeSession);
+
+  try {
+    await deps.runIosRunnerCommand(
+      device,
+      { command: 'recordStop', appBundleId },
+      getIosRunnerOptions(req, logPath, activeSession),
+    );
+  } catch (error) {
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'record_stop_runner_failed',
+      data: {
+        platform: device.platform,
+        kind: device.kind,
+        deviceId: device.id,
+        session: activeSession.name,
+        error: formatRecordTraceError(error),
+      },
+    });
+  }
 }
 
 export async function warmIosSimulatorRunner(params: {
@@ -74,7 +110,7 @@ export async function warmIosSimulatorRunner(params: {
         compact: true,
         depth: 1,
       },
-      getRunnerOptions(req, logPath, activeSession),
+      getIosRunnerOptions(req, logPath, activeSession),
     );
   } catch (error) {
     emitDiagnostic({
@@ -114,7 +150,7 @@ export async function startIosDeviceRecording(params: {
   } = params;
   const recordingFileName = `agent-device-recording-${Date.now()}.mp4`;
   const remotePath = `tmp/${recordingFileName}`;
-  const runnerOptions = getRunnerOptions(req, logPath, activeSession);
+  const runnerOptions = getIosRunnerOptions(req, logPath, activeSession);
   let runnerStartedAtUptimeMs: number | undefined;
   let targetAppReadyUptimeMs: number | undefined;
   const startRunnerRecording = async () =>
@@ -227,7 +263,7 @@ export async function startMacOsRecording(params: {
         quality: recordingBase.quality,
         appBundleId,
       },
-      getRunnerOptions(req, logPath, activeSession),
+      getIosRunnerOptions(req, logPath, activeSession),
     );
   } catch (error) {
     return errorResponse(
@@ -251,28 +287,7 @@ export async function stopIosDeviceRecording(params: {
   recording: Extract<NonNullable<SessionState['recording']>, { platform: 'ios-device-runner' }>;
 }): Promise<DaemonResponse | null> {
   const { req, activeSession, device, logPath, deps, recording } = params;
-  const appBundleId = normalizeAppBundleId(activeSession);
-
-  try {
-    await deps.runIosRunnerCommand(
-      device,
-      { command: 'recordStop', appBundleId },
-      getRunnerOptions(req, logPath, activeSession),
-    );
-  } catch (error) {
-    emitDiagnostic({
-      level: 'warn',
-      phase: 'record_stop_runner_failed',
-      data: {
-        platform: device.platform,
-        kind: device.kind,
-        deviceId: device.id,
-        session: activeSession.name,
-        error: formatRecordTraceError(error),
-      },
-    });
-    // best effort: clear runner-backed recording state even if runner stop fails
-  }
+  await stopRunnerRecordingBestEffort({ req, activeSession, device, logPath, deps });
 
   let copyResult = { stdout: '', stderr: '', exitCode: 1 };
   for (const bundleId of IOS_RUNNER_CONTAINER_BUNDLE_IDS) {
@@ -336,27 +351,7 @@ export async function stopMacOsRecording(params: {
   recording: Extract<NonNullable<SessionState['recording']>, { platform: 'macos-runner' }>;
 }): Promise<DaemonResponse | null> {
   const { req, activeSession, device, logPath, deps, recording } = params;
-  const appBundleId = normalizeAppBundleId(activeSession);
-
-  try {
-    await deps.runIosRunnerCommand(
-      device,
-      { command: 'recordStop', appBundleId },
-      getRunnerOptions(req, logPath, activeSession),
-    );
-  } catch (error) {
-    emitDiagnostic({
-      level: 'warn',
-      phase: 'record_stop_runner_failed',
-      data: {
-        platform: device.platform,
-        kind: device.kind,
-        deviceId: device.id,
-        session: activeSession.name,
-        error: formatRecordTraceError(error),
-      },
-    });
-  }
+  await stopRunnerRecordingBestEffort({ req, activeSession, device, logPath, deps });
 
   await finalizeRecordingOverlay({
     recording,

@@ -20,6 +20,7 @@ import { type AppLogProvider, withAppLogProvider } from './app-log.ts';
 import { hasExplicitDeviceSelector } from './handlers/session-device-utils.ts';
 import { type RecordingProvider, withRecordingProvider } from './recording-provider.ts';
 import type { DaemonRequest, SessionState } from './types.ts';
+import { PUBLIC_COMMANDS } from '../command-catalog.ts';
 
 export type PlatformProviderRequestSession = Pick<
   SessionState,
@@ -270,8 +271,20 @@ async function resolveScopedProviderDevice(
   existingSession: SessionState | undefined,
 ): Promise<DeviceInfo | undefined> {
   if (existingSession) return existingSession.device;
-  if (req.command !== 'open' && !hasExplicitDeviceSelector(req.flags)) return undefined;
+  if (
+    req.command !== PUBLIC_COMMANDS.open &&
+    !hasExplicitDeviceSelector(req.flags) &&
+    !usesSessionlessDefaultDevice(req)
+  ) {
+    return undefined;
+  }
   return await resolveTargetDevice(req.flags ?? {});
+}
+
+function usesSessionlessDefaultDevice(req: DaemonRequest): boolean {
+  return (
+    req.command === PUBLIC_COMMANDS.record && (req.positionals?.[0] ?? '').toLowerCase() === 'start'
+  );
 }
 
 function requestPlatformProviderScopeWrappers(

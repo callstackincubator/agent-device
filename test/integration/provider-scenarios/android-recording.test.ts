@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'vitest';
+import { withMockedAdb } from '../../../src/__tests__/test-utils/mocked-binaries.ts';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
 import {
   assertCommandCall,
@@ -88,6 +89,44 @@ test('Provider-backed integration Android recording flow uses scripted ADB provi
   );
 });
 
+test('Provider-backed integration Android record start without a session scopes default-device providers', async () => {
+  await withMockedAdb(
+    'agent-device-provider-scenario-android-sessionless-record-',
+    async (logPath) => {
+      await withProviderScenarioTempDir(
+        'agent-device-provider-scenario-android-sessionless-record-',
+        async (tmpDir) => {
+          const recordingPath = path.join(tmpDir, 'sessionless-recording.mp4');
+          const adbCalls: string[][] = [];
+          const adbProvider: AndroidAdbProvider = {
+            exec: async (args) => {
+              adbCalls.push([...args]);
+              return androidAdbResult(args);
+            },
+          };
+          const daemon = await createProviderScenarioHarness({
+            androidAdbProvider: () => adbProvider,
+            deviceInventoryProvider: async () => [PROVIDER_SCENARIO_ANDROID],
+          });
+
+          try {
+            const recordStart = await daemon.callCommand('record', ['start', recordingPath]);
+
+            assertRecordingStarted(recordStart, { showTouches: true });
+            assert.ok(
+              adbCalls.some((args) => isAndroidScreenrecordStartCommand(args.join(' '))),
+              JSON.stringify(adbCalls),
+            );
+            assert.deepEqual(readLoggedArgs(logPath), []);
+          } finally {
+            await daemon.close();
+          }
+        },
+      );
+    },
+  );
+});
+
 function androidAdbResult(args: string[]): {
   stdout: string;
   stderr: string;
@@ -108,6 +147,9 @@ function androidAdbResult(args: string[]): {
   ) {
     return { stdout: '4321\n', stderr: '', exitCode: 0 };
   }
+  if (isAndroidScreenrecordStartCommand(command)) {
+    return { stdout: '4321\n', stderr: '', exitCode: 0 };
+  }
   if (/^shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)) {
     return { stdout: '2048\n', stderr: '', exitCode: 0 };
   }
@@ -126,4 +168,19 @@ function atom(type: string, payload: Buffer): Buffer {
   header.writeUInt32BE(8 + payload.length, 0);
   header.write(type, 4, 4, 'latin1');
   return Buffer.concat([header, payload]);
+}
+
+function isAndroidScreenrecordStartCommand(command: string): boolean {
+  return /^shell screenrecord (?:--size 756x1344 )?\/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
+    command,
+  );
+}
+
+function readLoggedArgs(logPath: string): string[] {
+  if (!fs.existsSync(logPath)) return [];
+  return fs
+    .readFileSync(logPath, 'utf8')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
 }

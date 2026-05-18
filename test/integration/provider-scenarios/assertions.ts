@@ -38,6 +38,17 @@ export function assertRpcOk<TData extends Record<string, unknown> = Record<strin
   return (response.json?.result?.data ?? {}) as TData;
 }
 
+export function assertRpcError(
+  response: ProviderScenarioRpcResult,
+  code: string,
+  message: RegExp,
+): Record<string, unknown> {
+  assert.equal(response.statusCode, 200, JSON.stringify(response.json));
+  assert.equal(response.json?.error?.data?.code, code, JSON.stringify(response.json));
+  assert.match(response.json?.error?.message ?? '', message);
+  return (response.json?.error?.data ?? {}) as Record<string, unknown>;
+}
+
 export function assertRecordingStarted(
   response: ProviderScenarioRpcResult,
   options: { outPath?: string; showTouches?: boolean } = {},
