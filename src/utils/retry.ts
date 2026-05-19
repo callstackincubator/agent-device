@@ -23,12 +23,6 @@ type RetryAttemptContext = {
   deadline?: Deadline;
 };
 
-type TimeoutProfile = {
-  startupMs: number;
-  operationMs: number;
-  totalMs: number;
-};
-
 type RetryTelemetryEvent = {
   phase?: string;
   event: 'attempt_failed' | 'retry_scheduled' | 'succeeded' | 'exhausted';
@@ -40,17 +34,9 @@ type RetryTelemetryEvent = {
   reason?: string;
 };
 
-const RETRY_LOGS_ENABLED = isEnvTruthy(process.env.AGENT_DEVICE_RETRY_LOGS);
-
 export function isEnvTruthy(value: string | undefined): boolean {
   return ['1', 'true', 'yes', 'on'].includes((value ?? '').trim().toLowerCase());
 }
-
-export const TIMEOUT_PROFILES: Record<string, TimeoutProfile> = {
-  ios_boot: { startupMs: 120_000, operationMs: 20_000, totalMs: 120_000 },
-  ios_runner_connect: { startupMs: 120_000, operationMs: 15_000, totalMs: 120_000 },
-  android_boot: { startupMs: 60_000, operationMs: 10_000, totalMs: 60_000 },
-};
 
 const defaultOptions: Required<
   Pick<RetryOptions, 'attempts' | 'baseDelayMs' | 'maxDelayMs' | 'jitter'>
@@ -237,6 +223,4 @@ function publishRetryEvent(event: RetryTelemetryEvent): void {
       ...event,
     },
   });
-  if (!RETRY_LOGS_ENABLED) return;
-  process.stderr.write(`[agent-device][retry] ${JSON.stringify(event)}\n`);
 }

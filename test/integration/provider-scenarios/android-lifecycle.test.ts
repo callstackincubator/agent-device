@@ -1,21 +1,12 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import http from 'node:http';
 import path from 'node:path';
 import { test } from 'vitest';
 import type { AgentDeviceClient } from '../../../src/client-types.ts';
 import { arrayEqual, assertCommandCall, assertPngFile } from './assertions.ts';
 import { createAndroidSettingsWorld, waitForFileContent } from './android-world.ts';
 import { PROVIDER_SCENARIO_ANDROID } from './fixtures.ts';
-import {
-  createProviderScenarioTempPath,
-  restoreEnv,
-  withProviderScenarioResource,
-} from './harness.ts';
-import {
-  closeLoopbackServer,
-  listenOnLoopback,
-} from '../../../src/__tests__/test-utils/loopback.ts';
+import { createProviderScenarioTempPath, withProviderScenarioResource } from './harness.ts';
 
 type AndroidSettingsWorld = Awaited<ReturnType<typeof createAndroidSettingsWorld>>;
 
@@ -182,29 +173,6 @@ async function runAndroidSetupAndInstallWorkflow(
     ...selection,
   });
   assert.equal(releaseManifestInstall.released, true);
-
-  const artifactServer = await createLocalArtifactServer(manifestApkPath);
-  const previousPrivateSourceUrls = process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
-  process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = '1';
-  try {
-    const installFromUrl = await client.apps.installFromSource({
-      source: {
-        kind: 'url',
-        url: artifactServer.url,
-        headers: {
-          authorization: 'Bearer provider-scenario',
-          'x-build': '42',
-        },
-      },
-      ...selection,
-    });
-    assert.equal(installFromUrl.packageName, 'io.example.demo_manifest');
-    assert.equal(artifactServer.lastHeaders.authorization, 'Bearer provider-scenario');
-    assert.equal(artifactServer.lastHeaders['x-build'], '42');
-  } finally {
-    restoreEnv('AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS', previousPrivateSourceUrls);
-    await artifactServer.close();
-  }
 
   const push = await client.apps.push({
     app: 'com.example.demo',
@@ -689,7 +657,7 @@ function assertAndroidInventoryContract(world: AndroidSettingsWorld): void {
 }
 
 function assertAndroidInstallAndLaunchContract(world: AndroidSettingsWorld): void {
-  const { adbCalls, installCalls, bundleInstallCalls } = world;
+  const { adbCalls, apkInstallCalls, bundleInstallCalls } = world;
   assertCommandCall(adbCalls, ['shell', 'am', 'start', '-W', '-a', 'android.settings.SETTINGS']);
   assertCommandCall(adbCalls, ['shell', 'am', 'force-stop', 'com.example.demo']);
   assertCommandCall(adbCalls, [
@@ -707,12 +675,11 @@ function assertAndroidInstallAndLaunchContract(world: AndroidSettingsWorld): voi
     'com.example.demo/.MainActivity',
   ]);
   assertCommandCall(adbCalls, ['uninstall', 'com.example.demo']);
-  assert.equal(installCalls.length, 3);
-  assert.equal(path.basename(installCalls[0]?.apkPath ?? ''), 'Demo.apk');
-  assert.equal(installCalls[0]?.replace, true);
-  assert.equal(path.basename(installCalls[1]?.apkPath ?? ''), 'ManifestDemo.apk');
-  assert.equal(path.basename(installCalls[2]?.apkPath ?? ''), 'ManifestDemo.apk');
-  assert.equal(installCalls[1]?.replace, true);
+  assert.equal(apkInstallCalls.length, 2);
+  assert.equal(path.basename(apkInstallCalls[0]?.apkPath ?? ''), 'Demo.apk');
+  assert.equal(apkInstallCalls[0]?.replace, true);
+  assert.equal(path.basename(apkInstallCalls[1]?.apkPath ?? ''), 'ManifestDemo.apk');
+  assert.equal(apkInstallCalls[1]?.replace, true);
   assert.deepEqual(bundleInstallCalls, [{ bundlePath: world.aabPath, mode: 'universal' }]);
 }
 
@@ -886,30 +853,4 @@ function assertAndroidShutdownContract(world: AndroidSettingsWorld): void {
   const { adbCalls } = world;
   assertCommandCall(adbCalls, ['emu', 'kill']);
   world.assertNoHostAdbCalls();
-}
-
-async function createLocalArtifactServer(filePath: string): Promise<{
-  url: string;
-  readonly lastHeaders: http.IncomingHttpHeaders;
-  close: () => Promise<void>;
-}> {
-  let lastHeaders: http.IncomingHttpHeaders = {};
-  const server = http.createServer((req, res) => {
-    lastHeaders = req.headers;
-    res.writeHead(200, {
-      'content-type': 'application/vnd.android.package-archive',
-      'content-disposition': 'attachment; filename="ManifestDemo.apk"',
-    });
-    fs.createReadStream(filePath).pipe(res);
-  });
-
-  const port = await listenOnLoopback(server);
-
-  return {
-    url: `http://127.0.0.1:${port}/ManifestDemo.apk`,
-    get lastHeaders() {
-      return lastHeaders;
-    },
-    close: async () => await closeLoopbackServer(server),
-  };
 }

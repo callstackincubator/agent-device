@@ -55,7 +55,7 @@ export type RemoteConfigFieldSpec = {
   min?: number;
   max?: number;
   path?: boolean;
-  legacyEnvNames?: readonly string[];
+  env?: false;
 };
 
 export const REMOTE_CONFIG_FIELD_SPECS = [
@@ -82,23 +82,15 @@ export const REMOTE_CONFIG_FIELD_SPECS = [
     key: 'iosSimulatorDeviceSet',
     type: 'string',
     path: true,
-    legacyEnvNames: ['IOS_SIMULATOR_DEVICE_SET'],
+    env: false,
   },
-  {
-    key: 'androidDeviceAllowlist',
-    type: 'string',
-    legacyEnvNames: ['ANDROID_DEVICE_ALLOWLIST'],
-  },
+  { key: 'androidDeviceAllowlist', type: 'string' },
   { key: 'session', type: 'string' },
   { key: 'metroProjectRoot', type: 'string', path: true },
   { key: 'metroKind', type: 'enum', enumValues: ['auto', 'react-native', 'expo'] },
   { key: 'metroPublicBaseUrl', type: 'string' },
   { key: 'metroProxyBaseUrl', type: 'string' },
-  {
-    key: 'metroBearerToken',
-    type: 'string',
-    legacyEnvNames: ['AGENT_DEVICE_PROXY_TOKEN'],
-  },
+  { key: 'metroBearerToken', type: 'string' },
   { key: 'metroPreparePort', type: 'int', min: 1, max: 65535 },
   { key: 'metroListenHost', type: 'string' },
   { key: 'metroStatusHost', type: 'string' },
@@ -121,5 +113,6 @@ export function getRemoteConfigFieldSpec(
 
 export function getRemoteConfigEnvNames(key: keyof RemoteConfigProfile): string[] {
   const spec = getRemoteConfigFieldSpec(key);
-  return [buildPrimaryEnvVarName(key), ...(spec?.legacyEnvNames ?? [])];
+  if (spec?.env === false) return [];
+  return [buildPrimaryEnvVarName(key)];
 }

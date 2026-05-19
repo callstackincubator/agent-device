@@ -3,7 +3,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo, DeviceTarget } from '../../utils/device.ts';
-import { resolveTimeoutMs } from '../../utils/timeouts.ts';
 import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
 import { buildHostMacDevice } from '../macos/devices.ts';
 import { buildSimctlArgs } from './simctl.ts';
@@ -11,11 +10,7 @@ import { resolveAppleToolProvider, runXcrun } from './tool-provider.ts';
 
 export { createLocalAppleToolProvider, withAppleToolProvider } from './tool-provider.ts';
 
-const IOS_DEVICECTL_LIST_TIMEOUT_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_IOS_DEVICECTL_LIST_TIMEOUT_MS,
-  8_000,
-  500,
-);
+const IOS_DEVICECTL_LIST_TIMEOUT_MS = 8_000;
 const APPLE_PRODUCT_TYPE_PATTERN = /^(iphone|ipad|ipod|appletv)/i;
 const APPLE_MOBILE_LABEL_PATTERN = /\b(iphone|ipad|ipod)\b/i;
 const APPLE_TV_PRODUCT_TYPE_PATTERN = /^appletv/i;

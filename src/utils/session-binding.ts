@@ -1,7 +1,6 @@
 import { AppError } from './errors.ts';
 import type { CliFlags } from './command-schema.ts';
 import type { DaemonLockPolicy } from '../daemon/types.ts';
-import { isEnvTruthy } from './retry.ts';
 
 export type BindingSettings = {
   defaultPlatform?: CliFlags['platform'];
@@ -70,16 +69,11 @@ function resolveLockMode(
   const explicitPolicy =
     overrides?.sessionLock ??
     overrides?.sessionLockConflicts ??
-    readConflictMode(env.AGENT_DEVICE_SESSION_LOCK) ??
-    readConflictMode(env.AGENT_DEVICE_SESSION_LOCK_CONFLICTS);
+    readConflictMode(env.AGENT_DEVICE_SESSION_LOCK);
   if (explicitPolicy) {
     return explicitPolicy;
   }
-  if (
-    overrides?.sessionLocked === true ||
-    isEnvTruthy(env.AGENT_DEVICE_SESSION_LOCKED) ||
-    defaultSessionConfigured
-  ) {
+  if (overrides?.sessionLocked === true || defaultSessionConfigured) {
     return 'reject';
   }
   return undefined;

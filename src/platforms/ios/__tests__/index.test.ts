@@ -367,7 +367,6 @@ test('captureSimulatorScreenshotWithFallback falls back to runner after retry ex
       ensureBooted: ensureBootedSimulator,
       prepareStatusBarForScreenshot: prepareStatusBarForScreenshot,
       captureWithRetry: captureSimulatorScreenshotWithRetry,
-      runnerFallbackEnabled: true,
       captureWithRunner: captureScreenshotViaRunner,
       shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
     });
@@ -409,7 +408,6 @@ test('captureSimulatorScreenshotWithFallback falls back to runner after simctl s
       ensureBooted: ensureBootedSimulator,
       prepareStatusBarForScreenshot: prepareStatusBarForScreenshot,
       captureWithRetry: captureSimulatorScreenshotWithRetry,
-      runnerFallbackEnabled: true,
       captureWithRunner: captureScreenshotViaRunner,
       shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
     });
@@ -493,7 +491,6 @@ test('captureSimulatorScreenshotWithFallback emits fallback diagnostic before us
             ensureBooted: ensureBootedSimulator,
             prepareStatusBarForScreenshot: prepareStatusBarForScreenshot,
             captureWithRetry: captureSimulatorScreenshotWithRetry,
-            runnerFallbackEnabled: true,
             captureWithRunner: captureScreenshotViaRunner,
             shouldFallbackToRunner: shouldRetryIosSimulatorScreenshot,
           },
@@ -513,7 +510,12 @@ test('captureSimulatorScreenshotWithFallback emits fallback diagnostic before us
   }
 });
 
-test('captureSimulatorScreenshotWithFallback keeps simulator runner fallback disabled by default', async () => {
+test('captureSimulatorScreenshotWithFallback uses simulator runner fallback by default', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-default-fallback-'));
+  const containerPath = path.join(tmpDir, 'container');
+  const runnerImage = path.join(containerPath, 'tmp', 'default-fallback.png');
+  await fs.mkdir(path.dirname(runnerImage), { recursive: true });
+  await fs.writeFile(runnerImage, 'default-fallback', 'utf8');
   mockEnsureBootedSimulator.mockResolvedValue(undefined);
   mockOpenIosSimulatorApp.mockResolvedValue(undefined);
   mockPrepareStatusBarForScreenshot.mockResolvedValue(async () => {});
@@ -523,21 +525,22 @@ test('captureSimulatorScreenshotWithFallback keeps simulator runner fallback dis
       timeoutMs: 20_000,
     }),
   );
+  mockRunIosRunnerCommand.mockResolvedValue({ message: 'tmp/default-fallback.png' });
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('get_app_container')) {
+      return { exitCode: 0, stdout: `${containerPath}\n`, stderr: '' };
+    }
+    throw new Error(`Unexpected xcrun args: ${args.join(' ')}`);
+  });
 
-  await assert.rejects(
-    () =>
-      captureSimulatorScreenshotWithFallback(IOS_TEST_SIMULATOR, '/tmp/out.png', 'com.example.app'),
-    (error: unknown) => {
-      assert.equal(error instanceof AppError, true);
-      assert.equal((error as AppError).code, 'COMMAND_FAILED');
-      assert.match(
-        ((error as AppError).details ?? {}).hint as string,
-        /AGENT_DEVICE_IOS_SIMULATOR_SCREENSHOT_RUNNER_FALLBACK=1/,
-      );
-      return true;
-    },
-  );
-  assert.equal(mockRunIosRunnerCommand.mock.calls.length, 0);
+  try {
+    const outPath = path.join(tmpDir, 'out.png');
+    await captureSimulatorScreenshotWithFallback(IOS_TEST_SIMULATOR, outPath, 'com.example.app');
+    assert.equal(mockRunIosRunnerCommand.mock.calls.length, 1);
+    assert.equal(await fs.readFile(outPath, 'utf8'), 'default-fallback');
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
 });
 
 test(

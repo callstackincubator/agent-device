@@ -59,6 +59,7 @@ test('prepareMetroRuntime stops a spawned Metro process when startup readiness t
       installDependenciesIfNeeded: false,
       probeTimeoutMs: 10,
       startupTimeoutMs: 30_000,
+      env: { ...process.env, AGENT_DEVICE_DAEMON_AUTH_TOKEN: 'daemon-token' },
     });
 
     const expectedFailure = assert.rejects(

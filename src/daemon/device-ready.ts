@@ -3,15 +3,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { AppError } from '../utils/errors.ts';
-import { resolveTimeoutMs } from '../utils/timeouts.ts';
 import { resolveIosDevicectlHint, IOS_DEVICECTL_DEFAULT_HINT } from '../platforms/ios/devicectl.ts';
 import { runXcrun } from '../platforms/ios/tool-provider.ts';
 
-const IOS_DEVICE_READY_TIMEOUT_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_IOS_DEVICE_READY_TIMEOUT_MS,
-  15_000,
-  1_000,
-);
+const IOS_DEVICE_READY_TIMEOUT_MS = 15_000;
 const IOS_DEVICE_READY_COMMAND_TIMEOUT_BUFFER_MS = 3_000;
 
 // Exported so unit tests can assert TTL behavior without duplicating the value.

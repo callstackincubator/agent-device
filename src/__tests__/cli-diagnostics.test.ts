@@ -258,9 +258,9 @@ test('cli forwards bound-session lock policy when session defaults are configure
 
 test('cli session lock flag overrides environment for a single invocation', async () => {
   const previousPlatform = process.env.AGENT_DEVICE_PLATFORM;
-  const previousLocked = process.env.AGENT_DEVICE_SESSION_LOCKED;
+  const previousLock = process.env.AGENT_DEVICE_SESSION_LOCK;
   process.env.AGENT_DEVICE_PLATFORM = 'ios';
-  process.env.AGENT_DEVICE_SESSION_LOCKED = '0';
+  process.env.AGENT_DEVICE_SESSION_LOCK = 'strip';
   try {
     const result = await runCliCapture(
       ['snapshot', '--session-lock', 'reject', '--device', 'Pixel 9', '--json'],
@@ -275,7 +275,7 @@ test('cli session lock flag overrides environment for a single invocation', asyn
   } finally {
     if (previousPlatform === undefined) delete process.env.AGENT_DEVICE_PLATFORM;
     else process.env.AGENT_DEVICE_PLATFORM = previousPlatform;
-    if (previousLocked === undefined) delete process.env.AGENT_DEVICE_SESSION_LOCKED;
-    else process.env.AGENT_DEVICE_SESSION_LOCKED = previousLocked;
+    if (previousLock === undefined) delete process.env.AGENT_DEVICE_SESSION_LOCK;
+    else process.env.AGENT_DEVICE_SESSION_LOCK = previousLock;
   }
 });

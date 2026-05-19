@@ -520,14 +520,9 @@ function isAndroidAppBundlePath(appPath: string): boolean {
   return path.extname(appPath).toLowerCase() === '.aab';
 }
 
-function resolveBundletoolBuildMode(): string {
-  const mode = process.env.AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE?.trim();
-  return mode && mode.length > 0 ? mode : 'universal';
-}
-
 async function installAndroidAppBundle(device: DeviceInfo, appPath: string): Promise<void> {
   const provider = resolveAndroidAdbProvider(device);
-  const mode = resolveBundletoolBuildMode();
+  const mode = 'universal';
   if (provider.installBundle) {
     await provider.installBundle(appPath, { mode });
     return;

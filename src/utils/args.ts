@@ -6,7 +6,6 @@ import {
   buildUsageText,
   getCommandSchema,
   getFlagDefinition,
-  isStrictFlagModeEnabled,
   type CliFlags,
   type FlagDefinition,
   type FlagKey,
@@ -115,8 +114,7 @@ export function finalizeParsedArgs(
   parsed: RawParsedArgs,
   options?: FinalizeArgsOptions,
 ): ParsedArgs {
-  const strictFlags =
-    options?.strictFlags ?? isStrictFlagModeEnabled(process.env.AGENT_DEVICE_STRICT_FLAGS);
+  const strictFlags = options?.strictFlags ?? true;
   const warnings = [...parsed.warnings];
   const flags = mergeDefinedFlags(
     { json: false, help: false, version: false } as CliFlags,
@@ -132,7 +130,7 @@ export function finalizeParsedArgs(
     if (strictFlags) {
       throw new AppError('INVALID_ARGS', message);
     }
-    warnings.push(`${message} Enable AGENT_DEVICE_STRICT_FLAGS=1 to fail fast.`);
+    warnings.push(message);
     for (const entry of disallowed) {
       delete (flags as Record<string, unknown>)[entry.key];
     }

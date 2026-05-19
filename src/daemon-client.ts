@@ -82,9 +82,9 @@ type DaemonClientSettings = {
 
 type ResolvedDaemonTransport = 'socket' | 'http';
 
-const REQUEST_TIMEOUT_MS = resolveDaemonRequestTimeoutMs();
-const DAEMON_STARTUP_TIMEOUT_MS = resolveDaemonStartupTimeoutMs();
-const DAEMON_STARTUP_ATTEMPTS = resolveDaemonStartupAttempts();
+const REQUEST_TIMEOUT_MS = 90_000;
+const DAEMON_STARTUP_TIMEOUT_MS = 15_000;
+const DAEMON_STARTUP_ATTEMPTS = 2;
 const DAEMON_TAKEOVER_TERM_TIMEOUT_MS = 3000;
 const DAEMON_TAKEOVER_KILL_TIMEOUT_MS = 1000;
 const LOCAL_DAEMON_HEALTHCHECK_TIMEOUT_MS = 500;
@@ -103,7 +103,7 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
   const requestId = req.meta?.requestId ?? createRequestId();
   const debug = Boolean(req.meta?.debug || req.flags?.verbose);
   const settings = resolveClientSettings(req);
-  const requestTimeoutMs = resolveDaemonRequestTimeoutForCommand(req.command);
+  const requestTimeoutMs = req.command === 'test' ? undefined : REQUEST_TIMEOUT_MS;
   const info = await withDiagnosticTimer(
     'daemon_startup',
     async () => await ensureDaemon(settings),
@@ -1403,41 +1403,6 @@ export async function downloadRemoteArtifact(params: {
     });
     request.end();
   });
-}
-
-export function resolveDaemonRequestTimeoutMs(
-  raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS,
-): number {
-  if (!raw) return 90000;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return 90000;
-  return Math.max(1000, Math.floor(parsed));
-}
-
-export function resolveDaemonRequestTimeoutForCommand(
-  command: string | undefined,
-  raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_TIMEOUT_MS,
-): number | undefined {
-  if (command === 'test') return undefined;
-  return resolveDaemonRequestTimeoutMs(raw);
-}
-
-export function resolveDaemonStartupTimeoutMs(
-  raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_STARTUP_TIMEOUT_MS,
-): number {
-  if (!raw) return 15000;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return 15000;
-  return Math.max(1000, Math.floor(parsed));
-}
-
-export function resolveDaemonStartupAttempts(
-  raw: string | undefined = process.env.AGENT_DEVICE_DAEMON_STARTUP_ATTEMPTS,
-): number {
-  if (!raw) return 2;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return 2;
-  return Math.min(5, Math.max(1, Math.floor(parsed)));
 }
 
 export function resolveDaemonStartupHint(

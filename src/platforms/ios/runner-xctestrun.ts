@@ -1279,7 +1279,7 @@ export function assertSafeDerivedCleanup(
   if (!override) {
     return;
   }
-  if (isCleanupOverrideAllowed(env)) {
+  if (isPathInsideProjectTmp(derivedPath)) {
     return;
   }
   throw new AppError(
@@ -1287,13 +1287,15 @@ export function assertSafeDerivedCleanup(
     'Refusing to clean AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH automatically',
     {
       derivedPath,
-      hint: 'Unset AGENT_DEVICE_IOS_CLEAN_DERIVED, or set AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN=1 if you trust this path.',
+      hint: `Unset AGENT_DEVICE_IOS_CLEAN_DERIVED, or move AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH under a subdirectory of ${path.join(findProjectRoot(), '.tmp')}.`,
     },
   );
 }
 
-function isCleanupOverrideAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
-  return isEnvTruthy(env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN);
+function isPathInsideProjectTmp(targetPath: string): boolean {
+  const projectTmpRoot = path.resolve(findProjectRoot(), '.tmp');
+  const relativePath = path.relative(projectTmpRoot, path.resolve(targetPath));
+  return relativePath !== '' && !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
 }
 
 type ExistingXctestrunState =

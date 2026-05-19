@@ -299,7 +299,6 @@ test('connect prepares Metro and open reuses bridged runtime for remote daemon',
     ],
     {
       AGENT_DEVICE_DAEMON_AUTH_TOKEN: sharedToken,
-      AGENT_DEVICE_PROXY_TOKEN: sharedToken,
     },
   );
 
@@ -308,7 +307,6 @@ test('connect prepares Metro and open reuses bridged runtime for remote daemon',
 
   const result = await runCliJson(['open', 'Demo', '--state-dir', stateDir, '--json'], {
     AGENT_DEVICE_DAEMON_AUTH_TOKEN: sharedToken,
-    AGENT_DEVICE_PROXY_TOKEN: sharedToken,
   });
 
   assert.equal(result.code, null, `${result.stderr}\n${result.stdout}`);

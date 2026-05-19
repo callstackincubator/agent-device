@@ -16,11 +16,7 @@ import {
   computeDaemonCodeSignature,
   downloadRemoteArtifact,
   openApp,
-  resolveDaemonRequestTimeoutForCommand,
-  resolveDaemonRequestTimeoutMs,
-  resolveDaemonStartupAttempts,
   resolveDaemonStartupHint,
-  resolveDaemonStartupTimeoutMs,
   sendToDaemon,
 } from '../../daemon-client.ts';
 import { resolveDaemonPaths } from '../../daemon/config.ts';
@@ -134,54 +130,6 @@ function writeCurrentDaemonInfo(
     'utf8',
   );
 }
-
-test('daemon timeout and retry helpers normalize configured values', () => {
-  const scenarios: Array<{
-    resolve: (value: string | undefined) => number;
-    cases: Array<{ value: string | undefined; expected: number }>;
-  }> = [
-    {
-      resolve: resolveDaemonRequestTimeoutMs,
-      cases: [
-        { value: undefined, expected: 90000 },
-        { value: '100', expected: 1000 },
-        { value: '2500', expected: 2500 },
-        { value: 'invalid', expected: 90000 },
-      ],
-    },
-    {
-      resolve: resolveDaemonStartupTimeoutMs,
-      cases: [
-        { value: undefined, expected: 15000 },
-        { value: '100', expected: 1000 },
-        { value: '20000', expected: 20000 },
-        { value: 'invalid', expected: 15000 },
-      ],
-    },
-    {
-      resolve: resolveDaemonStartupAttempts,
-      cases: [
-        { value: undefined, expected: 2 },
-        { value: '0', expected: 1 },
-        { value: '3', expected: 3 },
-        { value: '999', expected: 5 },
-        { value: 'invalid', expected: 2 },
-      ],
-    },
-  ];
-
-  for (const scenario of scenarios) {
-    for (const testCase of scenario.cases) {
-      assert.equal(scenario.resolve(testCase.value), testCase.expected);
-    }
-  }
-});
-
-test('test command opts out of the daemon request timeout', () => {
-  assert.equal(resolveDaemonRequestTimeoutForCommand('open', '2500'), 2500);
-  assert.equal(resolveDaemonRequestTimeoutForCommand('test', '2500'), undefined);
-  assert.equal(resolveDaemonRequestTimeoutForCommand(undefined, '2500'), 2500);
-});
 
 test('resolveDaemonStartupHint prefers stale lock guidance when lock exists without info', () => {
   const hint = resolveDaemonStartupHint({ hasInfo: false, hasLock: true });

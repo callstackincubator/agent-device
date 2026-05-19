@@ -7,16 +7,11 @@ import { once } from 'node:events';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { AppError } from '../utils/errors.ts';
-import { resolveTimeoutMs } from '../utils/timeouts.ts';
 
 const MAX_ARTIFACT_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
 const MAX_ERROR_BODY_CHARS = 4096;
 const TEMP_PREFIX = 'agent-device-artifact-';
-const REQUEST_IDLE_TIMEOUT_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_ARTIFACT_IDLE_TIMEOUT_MS,
-  60_000,
-  1_000,
-);
+const REQUEST_IDLE_TIMEOUT_MS = 60_000;
 const MAX_REDIRECTS = 5;
 
 export function sanitizeArtifactFilename(raw: string): string {

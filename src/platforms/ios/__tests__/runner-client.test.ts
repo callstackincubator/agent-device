@@ -162,6 +162,16 @@ async function makeTmpDir(): Promise<string> {
   return tmpDir;
 }
 
+async function makeProjectTmpDir(): Promise<string> {
+  const tmpRoot = path.join(repoRoot, '.tmp');
+  await fs.promises.mkdir(tmpRoot, { recursive: true });
+  const tmpDir = await fs.promises.mkdtemp(path.join(tmpRoot, 'agent-device-xctestrun-'));
+  onTestFinished(async () => {
+    await fs.promises.rm(tmpDir, { recursive: true, force: true });
+  });
+  return tmpDir;
+}
+
 function writeXctestrunFixture(
   xctestrunPath: string,
   options: { projectRoot: string; productRelativePaths: string[] },
@@ -236,19 +246,11 @@ async function makeBasicProductReferenceXctestrun(options: {
   return xctestrunPath;
 }
 
-function withRunnerDerivedPathEnv(
-  derivedPath: string,
-  options: { allowOverrideClean?: boolean } = {},
-): void {
+function withRunnerDerivedPathEnv(derivedPath: string): void {
   const previousDerivedPath = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
-  const previousAllowCleanup = process.env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN;
   process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH = derivedPath;
-  if (options.allowOverrideClean) {
-    process.env.AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN = '1';
-  }
   onTestFinished(() => {
     restoreEnvVar('AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH', previousDerivedPath);
-    restoreEnvVar('AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN', previousAllowCleanup);
   });
 }
 
@@ -295,7 +297,7 @@ async function makeCachedRunnerXctestrun(): Promise<{
   derivedPath: string;
   existingXctestrunPath: string;
 }> {
-  const tmpDir = await makeTmpDir();
+  const tmpDir = await makeProjectTmpDir();
   const derivedPath = path.join(tmpDir, 'custom-derived');
   const existingXctestrunPath = path.join(derivedPath, 'existing.xctestrun');
   await fs.promises.mkdir(derivedPath, { recursive: true });
@@ -498,11 +500,11 @@ test('assertSafeDerivedCleanup rejects cleaning override path by default', () =>
   }, /Refusing to clean AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH automatically/);
 });
 
-test('assertSafeDerivedCleanup allows cleaning override path with explicit opt-in', () => {
+test('assertSafeDerivedCleanup allows cleaning override path under project .tmp', () => {
+  const derivedPath = path.join(repoRoot, '.tmp', 'ios-runner-derived');
   assert.doesNotThrow(() => {
-    assertSafeDerivedCleanup('/tmp/custom', {
-      AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: '/tmp/custom',
-      AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN: '1',
+    assertSafeDerivedCleanup(derivedPath, {
+      AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: derivedPath,
     });
   });
 });
@@ -675,7 +677,7 @@ test('ensureXctestrun rebuilds after cached macOS runner repair failure', async 
 
   const rebuiltXctestrunPath = path.join(derivedPath, 'rebuilt', 'rebuilt.xctestrun');
 
-  withRunnerDerivedPathEnv(derivedPath, { allowOverrideClean: true });
+  withRunnerDerivedPathEnv(derivedPath);
 
   const repairedPaths: string[] = [];
 
@@ -804,7 +806,7 @@ test('ensureXctestrun rebuilds cached runner when metadata package version misma
 
   const rebuiltXctestrunPath = path.join(derivedPath, 'rebuilt', 'rebuilt.xctestrun');
 
-  withRunnerDerivedPathEnv(derivedPath, { allowOverrideClean: true });
+  withRunnerDerivedPathEnv(derivedPath);
 
   mockRunCmdStreaming.mockImplementation(async () => {
     await fs.promises.mkdir(path.join(derivedPath, 'rebuilt', 'Runner.app'), { recursive: true });

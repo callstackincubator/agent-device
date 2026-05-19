@@ -175,11 +175,24 @@ test('prepareMetroRuntime rejects incomplete proxy configuration', async () => {
       prepareMetroRuntime({
         publicBaseUrl: 'https://sandbox.example.test',
         proxyBaseUrl: 'https://proxy.example.test',
+        env: {},
       }),
     (error) =>
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
-      error.message.includes('AGENT_DEVICE_PROXY_TOKEN'),
+      error.message.includes('AGENT_DEVICE_METRO_BEARER_TOKEN'),
+  );
+
+  await assert.rejects(
+    () =>
+      prepareMetroRuntime({
+        publicBaseUrl: 'https://sandbox.example.test',
+        env: { AGENT_DEVICE_METRO_BEARER_TOKEN: TEST_TOKEN },
+      }),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message.includes('requires --proxy-base-url'),
   );
 
   await assert.rejects(
@@ -188,6 +201,37 @@ test('prepareMetroRuntime rejects incomplete proxy configuration', async () => {
         publicBaseUrl: 'https://sandbox.example.test',
         proxyBaseUrl: 'https://proxy.example.test',
         proxyBearerToken: TEST_TOKEN,
+        env: {},
+      }),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message.includes('tenantId, runId, and leaseId bridge scope'),
+  );
+});
+
+test('prepareMetroRuntime falls back to daemon auth token for proxy auth', async () => {
+  await assert.rejects(
+    () =>
+      prepareMetroRuntime({
+        publicBaseUrl: 'https://sandbox.example.test',
+        proxyBaseUrl: 'https://proxy.example.test',
+        env: { AGENT_DEVICE_DAEMON_AUTH_TOKEN: TEST_TOKEN },
+      }),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message.includes('tenantId, runId, and leaseId bridge scope'),
+  );
+});
+
+test('prepareMetroRuntime honors metro bearer token env for proxy auth', async () => {
+  await assert.rejects(
+    () =>
+      prepareMetroRuntime({
+        publicBaseUrl: 'https://sandbox.example.test',
+        proxyBaseUrl: 'https://proxy.example.test',
+        env: { AGENT_DEVICE_METRO_BEARER_TOKEN: TEST_TOKEN },
       }),
     (error) =>
       error instanceof AppError &&

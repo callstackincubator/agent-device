@@ -44,6 +44,32 @@ type MetroProcessResult = {
   pid: number;
 };
 
+type ResolvedMetroPrepareSettings = {
+  env: EnvSource;
+  projectRoot: string;
+  kind: ResolvedMetroKind;
+  metroPort: number;
+  listenHost: string;
+  statusHost: string;
+  publicBaseUrl: string;
+  proxyBaseUrl: string;
+  proxyBearerToken: string;
+  bridgeScope: MetroBridgeScope | null;
+  startupTimeoutMs: number;
+  probeTimeoutMs: number;
+  reuseExisting: boolean;
+  installProjectDeps: boolean;
+  runtimeFilePath: string | null;
+  logPath: string;
+};
+
+type MetroProcessState = {
+  started: boolean;
+  reused: boolean;
+  pid: number;
+  statusUrl: string;
+};
+
 export type PrepareMetroRuntimeOptions = {
   projectRoot?: string;
   kind?: MetroPrepareKind;
@@ -289,23 +315,40 @@ function resolveMetroReloadPath(bundleUrl: string | undefined): string {
   return `${bundlePath.slice(0, -'/index.bundle'.length)}/reload`;
 }
 
-function resolveMetroReloadUrl(input: ReloadMetroOptions): string {
-  const bundleUrl = normalizeOptionalString(input.bundleUrl) ?? input.runtime?.bundleUrl;
-  const hasExplicitBundleUrl = Boolean(normalizeOptionalString(input.bundleUrl));
-  const hasBundleUrl = Boolean(normalizeOptionalString(bundleUrl));
-  const metroHost =
+function resolveReloadMetroHost(
+  input: ReloadMetroOptions,
+  hasExplicitBundleUrl: boolean,
+  hasBundleUrl: boolean,
+): string | undefined {
+  return (
     normalizeOptionalString(input.metroHost) ??
     (hasExplicitBundleUrl ? undefined : normalizeOptionalString(input.runtime?.metroHost)) ??
-    (hasBundleUrl ? undefined : DEFAULT_METRO_HOST);
-  const metroPort =
-    input.metroPort !== undefined
-      ? parsePort(input.metroPort, DEFAULT_METRO_PORT)
-      : hasExplicitBundleUrl
-        ? undefined
-        : (input.runtime?.metroPort ?? (hasBundleUrl ? undefined : DEFAULT_METRO_PORT));
+    (hasBundleUrl ? undefined : DEFAULT_METRO_HOST)
+  );
+}
+
+function resolveReloadMetroPort(
+  input: ReloadMetroOptions,
+  hasExplicitBundleUrl: boolean,
+  hasBundleUrl: boolean,
+): number | undefined {
+  if (input.metroPort !== undefined) {
+    return parsePort(input.metroPort, DEFAULT_METRO_PORT);
+  }
+  if (hasExplicitBundleUrl) {
+    return undefined;
+  }
+  return input.runtime?.metroPort ?? (hasBundleUrl ? undefined : DEFAULT_METRO_PORT);
+}
+
+function resolveMetroReloadUrl(input: ReloadMetroOptions): string {
+  const explicitBundleUrl = normalizeOptionalString(input.bundleUrl);
+  const bundleUrl = explicitBundleUrl ?? input.runtime?.bundleUrl;
+  const hasExplicitBundleUrl = Boolean(explicitBundleUrl);
+  const hasBundleUrl = Boolean(normalizeOptionalString(bundleUrl));
   const transport = resolveRuntimeTransportHints({
-    metroHost,
-    metroPort,
+    metroHost: resolveReloadMetroHost(input, hasExplicitBundleUrl, hasBundleUrl),
+    metroPort: resolveReloadMetroPort(input, hasExplicitBundleUrl, hasBundleUrl),
     bundleUrl,
   });
   if (!transport) {
@@ -573,27 +616,33 @@ function requireBridgeRuntimeDescriptor(baseUrl: string, bridge: MetroBridgeResu
 function resolveProxySettings(
   proxyBaseUrl: string,
   proxyBearerToken: string,
+  env: EnvSource,
 ): {
   proxyEnabled: boolean;
   proxyBaseUrl: string;
   proxyBearerToken: string;
 } {
-  if (proxyBaseUrl && !proxyBearerToken) {
+  const proxySpecificBearerToken =
+    proxyBearerToken || normalizeOptionalString(env.AGENT_DEVICE_METRO_BEARER_TOKEN) || '';
+  const resolvedProxyBearerToken =
+    proxySpecificBearerToken ||
+    (proxyBaseUrl ? normalizeOptionalString(env.AGENT_DEVICE_DAEMON_AUTH_TOKEN) || '' : '');
+  if (proxyBaseUrl && !resolvedProxyBearerToken) {
     throw new AppError(
       'INVALID_ARGS',
-      'metro prepare requires proxy auth when --proxy-base-url is provided. Pass --bearer-token or set AGENT_DEVICE_PROXY_TOKEN.',
+      'metro prepare requires proxy auth when --proxy-base-url is provided. Pass --bearer-token or set AGENT_DEVICE_METRO_BEARER_TOKEN or AGENT_DEVICE_DAEMON_AUTH_TOKEN.',
     );
   }
-  if (!proxyBaseUrl && proxyBearerToken) {
+  if (!proxyBaseUrl && proxySpecificBearerToken) {
     throw new AppError(
       'INVALID_ARGS',
       'metro prepare requires --proxy-base-url when proxy auth is provided.',
     );
   }
   return {
-    proxyEnabled: Boolean(proxyBaseUrl && proxyBearerToken),
+    proxyEnabled: Boolean(proxyBaseUrl && resolvedProxyBearerToken),
     proxyBaseUrl,
-    proxyBearerToken,
+    proxyBearerToken: resolvedProxyBearerToken,
   };
 }
 
@@ -605,6 +654,73 @@ function requireBridgeScope(scope: MetroBridgeScope | undefined): MetroBridgeSco
     );
   }
   return scope;
+}
+
+function requireMetroBaseUrl(publicBaseUrl: string, proxyBaseUrl: string): void {
+  if (publicBaseUrl || proxyBaseUrl) {
+    return;
+  }
+  throw new AppError(
+    'INVALID_ARGS',
+    'metro prepare requires --public-base-url <url> or --proxy-base-url <url>.',
+  );
+}
+
+function resolveMetroRuntimeFilePath(
+  input: PrepareMetroRuntimeOptions,
+  env: EnvSource,
+  cwd: string,
+): string | null {
+  return input.runtimeFilePath ? resolvePath(input.runtimeFilePath, env, cwd) : null;
+}
+
+function resolveMetroLogPath(
+  input: PrepareMetroRuntimeOptions,
+  env: EnvSource,
+  cwd: string,
+  projectRoot: string,
+): string {
+  return resolvePath(
+    input.logPath ?? path.join(projectRoot, '.agent-device', 'metro.log'),
+    env,
+    cwd,
+  );
+}
+
+function resolveMetroPrepareSettings(
+  input: PrepareMetroRuntimeOptions,
+): ResolvedMetroPrepareSettings {
+  const env = input.env ?? process.env;
+  const cwd = process.cwd();
+  const projectRoot = resolvePath(input.projectRoot ?? cwd, env, cwd);
+  const publicBaseUrl = normalizeOptionalBaseUrl(input.publicBaseUrl);
+  const proxyBaseUrlInput = normalizeOptionalBaseUrl(input.proxyBaseUrl);
+  requireMetroBaseUrl(publicBaseUrl, proxyBaseUrlInput);
+
+  const { proxyEnabled, proxyBaseUrl, proxyBearerToken } = resolveProxySettings(
+    proxyBaseUrlInput,
+    normalizeOptionalString(input.proxyBearerToken) ?? '',
+    env,
+  );
+
+  return {
+    env,
+    projectRoot,
+    kind: detectMetroKind(projectRoot, input.kind ?? 'auto'),
+    metroPort: parsePort(input.metroPort ?? 8081, 8081),
+    listenHost: normalizeOptionalString(input.listenHost) ?? '0.0.0.0',
+    statusHost: normalizeOptionalString(input.statusHost) ?? '127.0.0.1',
+    publicBaseUrl,
+    proxyBaseUrl,
+    proxyBearerToken,
+    bridgeScope: proxyEnabled ? requireBridgeScope(input.bridgeScope) : null,
+    startupTimeoutMs: parseTimeout(input.startupTimeoutMs, 180_000, 30_000),
+    probeTimeoutMs: parseTimeout(input.probeTimeoutMs, 10_000, 1_000),
+    reuseExisting: input.reuseExisting ?? true,
+    installProjectDeps: input.installDependenciesIfNeeded ?? true,
+    runtimeFilePath: resolveMetroRuntimeFilePath(input, env, cwd),
+    logPath: resolveMetroLogPath(input, env, cwd, projectRoot),
+  };
 }
 
 async function waitForMetroReady(
@@ -687,166 +803,174 @@ async function configureMetroBridgeUntilReady(options: {
   );
 }
 
-export async function prepareMetroRuntime(
-  input: PrepareMetroRuntimeOptions = {},
-): Promise<PrepareMetroRuntimeResult> {
-  const env = input.env ?? process.env;
-  const cwd = process.cwd();
-  const projectRoot = resolvePath(input.projectRoot ?? cwd, env, cwd);
-  const kind = detectMetroKind(projectRoot, input.kind ?? 'auto');
-  const metroPort = parsePort(input.metroPort ?? 8081, 8081);
-  const listenHost = normalizeOptionalString(input.listenHost) ?? '0.0.0.0';
-  const statusHost = normalizeOptionalString(input.statusHost) ?? '127.0.0.1';
-  const publicBaseUrl = normalizeOptionalBaseUrl(input.publicBaseUrl);
-  const startupTimeoutMs = parseTimeout(input.startupTimeoutMs, 180_000, 30_000);
-  const probeTimeoutMs = parseTimeout(input.probeTimeoutMs, 10_000, 1_000);
-  const reuseExisting = input.reuseExisting ?? true;
-  const installProjectDeps = input.installDependenciesIfNeeded ?? true;
-  const runtimeFilePath = input.runtimeFilePath
-    ? resolvePath(input.runtimeFilePath, env, cwd)
-    : null;
-  const logPath = resolvePath(
-    input.logPath ?? path.join(projectRoot, '.agent-device', 'metro.log'),
-    env,
-    cwd,
-  );
-
-  if (!publicBaseUrl) {
-    const hasProxyBaseUrl = Boolean(normalizeOptionalBaseUrl(input.proxyBaseUrl));
-    if (!hasProxyBaseUrl) {
-      throw new AppError('INVALID_ARGS', 'metro prepare requires --public-base-url <url>.');
-    }
+async function ensureMetroProcessReady(
+  settings: ResolvedMetroPrepareSettings,
+): Promise<MetroProcessState> {
+  const statusUrl = `http://${settings.statusHost}:${settings.metroPort}/status`;
+  if (settings.reuseExisting && (await isMetroReady(statusUrl, settings.probeTimeoutMs))) {
+    return { started: false, reused: true, pid: 0, statusUrl };
   }
 
-  const { proxyEnabled, proxyBaseUrl, proxyBearerToken } = resolveProxySettings(
-    normalizeOptionalBaseUrl(input.proxyBaseUrl),
-    normalizeOptionalString(input.proxyBearerToken) ?? '',
+  const startedProcess = startMetroProcess(
+    settings.projectRoot,
+    settings.kind,
+    settings.metroPort,
+    settings.listenHost,
+    settings.logPath,
+    settings.env,
   );
-  const bridgeScope = proxyEnabled ? requireBridgeScope(input.bridgeScope) : null;
 
-  const dependencyInstall = installProjectDeps
-    ? installDependenciesIfNeeded(projectRoot, env)
-    : { installed: false as const };
-  const statusUrl = `http://${statusHost}:${metroPort}/status`;
-
-  let started = false;
-  let reused = false;
-  let pid = 0;
-  if (reuseExisting && (await isMetroReady(statusUrl, probeTimeoutMs))) {
-    reused = true;
-  } else {
-    const startedProcess = startMetroProcess(
-      projectRoot,
-      kind,
-      metroPort,
-      listenHost,
-      logPath,
-      env,
-    );
-    started = true;
-    pid = startedProcess.pid;
-
-    if (!(await waitForMetroReady(statusUrl, startupTimeoutMs, probeTimeoutMs))) {
-      await stopSpawnedMetroProcess(pid).catch(() => {});
-      throw new Error(
-        `Metro did not become ready at ${statusUrl} within ${startupTimeoutMs}ms. Check ${logPath}.`,
-      );
-    }
+  if (await waitForMetroReady(statusUrl, settings.startupTimeoutMs, settings.probeTimeoutMs)) {
+    return { started: true, reused: false, pid: startedProcess.pid, statusUrl };
   }
 
-  const publicIosRuntime = publicBaseUrl
-    ? buildMetroRuntimeHints(publicBaseUrl, 'ios')
-    : { platform: 'ios' as const };
-  const publicAndroidRuntime = publicBaseUrl
-    ? buildMetroRuntimeHints(publicBaseUrl, 'android')
-    : { platform: 'android' as const };
+  await stopSpawnedMetroProcess(startedProcess.pid).catch(() => {});
+  throw new Error(
+    `Metro did not become ready at ${statusUrl} within ${settings.startupTimeoutMs}ms. Check ${settings.logPath}.`,
+  );
+}
+
+async function configureProxyBridgeForRuntime(
+  input: PrepareMetroRuntimeOptions,
+  settings: ResolvedMetroPrepareSettings,
+): Promise<MetroBridgeResult | null> {
+  const bridgeScope = settings.bridgeScope;
+  if (!bridgeScope) {
+    return null;
+  }
 
   let bridge: MetroBridgeResult | null = null;
   let initialBridgeError: string | null = null;
-
-  if (bridgeScope) {
-    try {
-      bridge = await configureMetroBridge({
-        baseUrl: proxyBaseUrl,
-        bearerToken: proxyBearerToken,
-        scope: bridgeScope,
-        timeoutMs: probeTimeoutMs,
-      });
-    } catch (error) {
-      if (!isRetryableBridgeError(error)) {
-        throw error;
-      }
-      initialBridgeError = error instanceof Error ? error.message : String(error);
+  try {
+    bridge = await configureMetroBridge({
+      baseUrl: settings.proxyBaseUrl,
+      bearerToken: settings.proxyBearerToken,
+      scope: bridgeScope,
+      timeoutMs: settings.probeTimeoutMs,
+    });
+  } catch (error) {
+    if (!isRetryableBridgeError(error)) {
+      throw error;
     }
+    initialBridgeError = error instanceof Error ? error.message : String(error);
   }
 
-  if (bridgeScope && (!bridge || bridge.probe.reachable === false)) {
-    let companionLogPath: string | undefined;
-    try {
-      const companion = await ensureMetroCompanion({
-        projectRoot,
-        serverBaseUrl: proxyBaseUrl,
-        bearerToken: proxyBearerToken,
-        bridgeScope,
-        localBaseUrl: `http://${statusHost}:${metroPort}`,
-        launchUrl: normalizeOptionalString(input.launchUrl),
-        profileKey: normalizeOptionalString(input.companionProfileKey),
-        consumerKey: normalizeOptionalString(input.companionConsumerKey),
-        env: env as NodeJS.ProcessEnv,
-      });
-      companionLogPath = companion.logPath;
-    } catch (error) {
-      throw new Error(
-        describeBridgeFailure(
-          proxyBaseUrl,
-          error instanceof Error ? error.message : String(error),
-          bridge,
-          initialBridgeError,
-        ),
-      );
-    }
-    try {
-      bridge = await configureMetroBridgeUntilReady({
-        baseUrl: proxyBaseUrl,
-        bearerToken: proxyBearerToken,
-        scope: bridgeScope,
-        probeTimeoutMs,
-        startupTimeoutMs,
+  if (!bridge || bridge.probe.reachable === false) {
+    bridge = await configureProxyBridgeViaCompanion(
+      input,
+      settings,
+      bridgeScope,
+      bridge,
+      initialBridgeError,
+    );
+  }
+
+  requireBridgeRuntimeDescriptor(settings.proxyBaseUrl, bridge);
+  return bridge;
+}
+
+async function configureProxyBridgeViaCompanion(
+  input: PrepareMetroRuntimeOptions,
+  settings: ResolvedMetroPrepareSettings,
+  bridgeScope: MetroBridgeScope,
+  bridge: MetroBridgeResult | null,
+  initialBridgeError: string | null,
+): Promise<MetroBridgeResult> {
+  let companionLogPath: string | undefined;
+  try {
+    const companion = await ensureMetroCompanion({
+      projectRoot: settings.projectRoot,
+      serverBaseUrl: settings.proxyBaseUrl,
+      bearerToken: settings.proxyBearerToken,
+      bridgeScope,
+      localBaseUrl: `http://${settings.statusHost}:${settings.metroPort}`,
+      launchUrl: normalizeOptionalString(input.launchUrl),
+      profileKey: normalizeOptionalString(input.companionProfileKey),
+      consumerKey: normalizeOptionalString(input.companionConsumerKey),
+      env: settings.env as NodeJS.ProcessEnv,
+    });
+    companionLogPath = companion.logPath;
+  } catch (error) {
+    throw new Error(
+      describeBridgeFailure(
+        settings.proxyBaseUrl,
+        error instanceof Error ? error.message : String(error),
+        bridge,
         initialBridgeError,
-        companionLogPath,
-      });
-    } catch (error) {
-      throw error instanceof Error ? error : new Error(String(error));
-    }
+      ),
+    );
   }
 
-  if (bridgeScope) {
-    requireBridgeRuntimeDescriptor(proxyBaseUrl, bridge);
+  try {
+    return await configureMetroBridgeUntilReady({
+      baseUrl: settings.proxyBaseUrl,
+      bearerToken: settings.proxyBearerToken,
+      scope: bridgeScope,
+      probeTimeoutMs: settings.probeTimeoutMs,
+      startupTimeoutMs: settings.startupTimeoutMs,
+      initialBridgeError,
+      companionLogPath,
+    });
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(String(error));
   }
+}
 
-  const iosRuntime = bridge?.iosRuntime ?? publicIosRuntime;
-  const androidRuntime = bridge?.androidRuntime ?? publicAndroidRuntime;
+function buildBaseRuntimeHints(publicBaseUrl: string): {
+  baseIosRuntime: MetroRuntimeHints;
+  baseAndroidRuntime: MetroRuntimeHints;
+} {
+  return {
+    baseIosRuntime: publicBaseUrl
+      ? buildMetroRuntimeHints(publicBaseUrl, 'ios')
+      : { platform: 'ios' as const },
+    baseAndroidRuntime: publicBaseUrl
+      ? buildMetroRuntimeHints(publicBaseUrl, 'android')
+      : { platform: 'android' as const },
+  };
+}
+
+function writeMetroRuntimeFile(
+  runtimeFilePath: string | null,
+  result: PrepareMetroRuntimeResult,
+): void {
+  if (!runtimeFilePath) {
+    return;
+  }
+  fs.mkdirSync(path.dirname(runtimeFilePath), { recursive: true });
+  fs.writeFileSync(runtimeFilePath, JSON.stringify(result, null, 2));
+}
+
+export async function prepareMetroRuntime(
+  input: PrepareMetroRuntimeOptions = {},
+): Promise<PrepareMetroRuntimeResult> {
+  const settings = resolveMetroPrepareSettings(input);
+  const dependencyInstall = settings.installProjectDeps
+    ? installDependenciesIfNeeded(settings.projectRoot, settings.env)
+    : { installed: false as const };
+  const processState = await ensureMetroProcessReady(settings);
+  const { baseIosRuntime, baseAndroidRuntime } = buildBaseRuntimeHints(settings.publicBaseUrl);
+  const bridge = await configureProxyBridgeForRuntime(input, settings);
+
+  const iosRuntime = bridge?.iosRuntime ?? baseIosRuntime;
+  const androidRuntime = bridge?.androidRuntime ?? baseAndroidRuntime;
   const result: PrepareMetroRuntimeResult = {
-    projectRoot,
-    kind,
+    projectRoot: settings.projectRoot,
+    kind: settings.kind,
     dependenciesInstalled: dependencyInstall.installed,
     packageManager: dependencyInstall.packageManager ?? null,
-    started,
-    reused,
-    pid,
-    logPath,
-    statusUrl,
-    runtimeFilePath,
+    started: processState.started,
+    reused: processState.reused,
+    pid: processState.pid,
+    logPath: settings.logPath,
+    statusUrl: processState.statusUrl,
+    runtimeFilePath: settings.runtimeFilePath,
     iosRuntime,
     androidRuntime,
     bridge,
   };
 
-  if (runtimeFilePath) {
-    fs.mkdirSync(path.dirname(runtimeFilePath), { recursive: true });
-    fs.writeFileSync(runtimeFilePath, JSON.stringify(result, null, 2));
-  }
-
+  writeMetroRuntimeFile(settings.runtimeFilePath, result);
   return result;
 }
 
