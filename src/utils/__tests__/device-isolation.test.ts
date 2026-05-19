@@ -6,20 +6,14 @@ import {
   resolveIosSimulatorDeviceSetPath,
 } from '../device-isolation.ts';
 
-test('resolveIosSimulatorDeviceSetPath prefers CLI flag over env', () => {
-  const value = resolveIosSimulatorDeviceSetPath('/tmp/flag-set', {
-    AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET: '/tmp/agent-set',
-    IOS_SIMULATOR_DEVICE_SET: '/tmp/compat-set',
-  });
+test('resolveIosSimulatorDeviceSetPath resolves CLI flag value only', () => {
+  const value = resolveIosSimulatorDeviceSetPath('/tmp/flag-set');
   assert.equal(value, '/tmp/flag-set');
 });
 
-test('resolveIosSimulatorDeviceSetPath falls back to AGENT_DEVICE env before compat env', () => {
-  const value = resolveIosSimulatorDeviceSetPath(undefined, {
-    AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET: '/tmp/agent-set',
-    IOS_SIMULATOR_DEVICE_SET: '/tmp/compat-set',
-  });
-  assert.equal(value, '/tmp/agent-set');
+test('resolveIosSimulatorDeviceSetPath ignores missing CLI flag value', () => {
+  const value = resolveIosSimulatorDeviceSetPath(undefined);
+  assert.equal(value, undefined);
 });
 
 test('parseSerialAllowlist splits comma and whitespace separators', () => {

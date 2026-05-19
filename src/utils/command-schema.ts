@@ -872,7 +872,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--bearer-token <token>',
     usageDescription:
-      'metro prepare: host bridge bearer token (prefer AGENT_DEVICE_PROXY_TOKEN or AGENT_DEVICE_METRO_BEARER_TOKEN)',
+      'metro prepare: host bridge bearer token (or AGENT_DEVICE_METRO_BEARER_TOKEN; falls back to AGENT_DEVICE_DAEMON_AUTH_TOKEN)',
   },
   {
     key: 'metroPreparePort',
@@ -1840,12 +1840,6 @@ export function getSchemaCapabilityKeys(): string[] {
     .filter(([, schema]) => !schema.skipCapabilityCheck)
     .map(([name]) => name)
     .sort();
-}
-
-export function isStrictFlagModeEnabled(value: string | undefined): boolean {
-  if (!value) return false;
-  const normalized = value.trim().toLowerCase();
-  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
 }
 
 function formatPositionalArg(arg: string): string {

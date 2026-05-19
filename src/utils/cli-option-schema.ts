@@ -31,11 +31,12 @@ const CONFIG_EXCLUDED_FLAG_KEYS = new Set<FlagKey>([
   'githubActionsArtifact',
 ]);
 
-const LEGACY_ENV_VAR_NAMES: Partial<Record<FlagKey, string[]>> = {
-  iosSimulatorDeviceSet: ['IOS_SIMULATOR_DEVICE_SET'],
-  androidDeviceAllowlist: ['ANDROID_DEVICE_ALLOWLIST'],
-  metroBearerToken: ['AGENT_DEVICE_PROXY_TOKEN'],
-};
+const ENV_EXCLUDED_FLAG_KEYS = new Set<FlagKey>([
+  'appsFilter',
+  'iosSimulatorDeviceSet',
+  'sessionLocked',
+  'sessionLockConflicts',
+]);
 
 const optionSpecs = buildOptionSpecs();
 const optionSpecByKey = new Map(optionSpecs.map((spec) => [spec.key, spec]));
@@ -99,7 +100,7 @@ function buildOptionSpecs(): OptionSpec[] {
         key,
       },
       env: {
-        names: [buildPrimaryEnvVarName(key), ...(LEGACY_ENV_VAR_NAMES[key] ?? [])],
+        names: ENV_EXCLUDED_FLAG_KEYS.has(key) ? [] : [buildPrimaryEnvVarName(key)],
       },
       supportsCommand(command: string | null): boolean {
         const supported = supportedCommandsByKey.get(key);

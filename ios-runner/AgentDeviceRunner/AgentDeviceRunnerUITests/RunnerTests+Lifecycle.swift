@@ -147,7 +147,7 @@ extension RunnerTests {
       ? (target.value(forKey: "waitForIdleTimeout") as? NSNumber)
       : nil
     if supportsWaitForIdleTimeout {
-      target.setValue(resolveScrollInteractionIdleTimeout(), forKey: "waitForIdleTimeout")
+      target.setValue(scrollInteractionIdleTimeoutDefault, forKey: "waitForIdleTimeout")
     }
     defer {
       if let previous {
@@ -189,19 +189,6 @@ extension RunnerTests {
         block
       )
     }
-  }
-
-  private func resolveScrollInteractionIdleTimeout() -> TimeInterval {
-    guard
-      let raw = ProcessInfo.processInfo.environment["AGENT_DEVICE_IOS_INTERACTION_IDLE_TIMEOUT"],
-      !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    else {
-      return scrollInteractionIdleTimeoutDefault
-    }
-    guard let parsed = Double(raw), parsed >= 0 else {
-      return scrollInteractionIdleTimeoutDefault
-    }
-    return min(parsed, 30)
   }
 
   func shouldRetryCommand(_ command: Command) -> Bool {

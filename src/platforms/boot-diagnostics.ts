@@ -113,7 +113,7 @@ export function classifyBootFailure(input: {
 export function bootFailureHint(reason: BootFailureReason): string {
   switch (reason) {
     case 'IOS_BOOT_TIMEOUT':
-      return 'Retry simulator boot and inspect simctl bootstatus logs; in CI consider increasing AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS.';
+      return 'Retry simulator boot and inspect simctl bootstatus logs; in CI reduce parallel jobs or use a larger runner.';
     case 'IOS_RUNNER_CONNECT_TIMEOUT':
       return 'Retry runner startup, inspect xcodebuild logs, and verify simulator responsiveness before command execution.';
     case 'ANDROID_BOOT_TIMEOUT':

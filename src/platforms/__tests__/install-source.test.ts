@@ -1,7 +1,7 @@
-import { test, onTestFinished, vi } from 'vitest';
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import http from 'node:http';
+import dns from 'node:dns/promises';
 import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -31,17 +31,6 @@ test('validateDownloadSourceUrl rejects localhost and private literal addresses 
     async () => await validateDownloadSourceUrl(new URL('http://10.0.0.8/app.apk')),
     /not allowed|private or loopback/i,
   );
-});
-
-test('validateDownloadSourceUrl allows private URLs when explicitly enabled', async () => {
-  const previous = process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
-  process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = '1';
-  try {
-    await validateDownloadSourceUrl(new URL('http://127.0.0.1/app.apk'));
-  } finally {
-    if (previous === undefined) delete process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
-    else process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = previous;
-  }
 });
 
 test('validateDownloadSourceUrl rejects unsupported protocols', async () => {
@@ -158,46 +147,84 @@ test('prepareIosInstallArtifact rejects untrusted URL sources', async () => {
   );
 });
 
-test('prepareAndroidInstallArtifact resolves package identity for direct APK URL sources even when untrusted', async () => {
-  const previous = process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
-  process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = '1';
-
+test('prepareAndroidInstallArtifact resolves package identity for direct APK URL sources', async () => {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-direct-apk-url-'));
-  const manifestPath = path.join(tempRoot, 'AndroidManifest.xml');
-  const apkPath = path.join(tempRoot, 'fixture.apk');
-  await fs.writeFile(
-    manifestPath,
-    '<manifest package="io.example.directurl" xmlns:android="http://schemas.android.com/apk/res/android" />',
-    'utf8',
-  );
-  execFileSync('zip', ['-q', apkPath, 'AndroidManifest.xml'], { cwd: tempRoot });
-  const apkBytes = await fs.readFile(apkPath);
-
-  const server = http.createServer((_req, res) => {
-    res.writeHead(200, { 'content-type': 'application/vnd.android.package-archive' });
-    res.end(apkBytes);
-  });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  onTestFinished(async () => {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
-    await fs.rm(tempRoot, { recursive: true, force: true });
-    if (previous === undefined) delete process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
-    else process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = previous;
-  });
-
-  const address = server.address();
-  assert.ok(address && typeof address === 'object');
-  const result = await prepareAndroidInstallArtifact({
-    kind: 'url',
-    url: `http://127.0.0.1:${address.port}/app.apk`,
-  });
-
   try {
-    assert.equal(result.packageName, 'io.example.directurl');
+    const manifestPath = path.join(tempRoot, 'AndroidManifest.xml');
+    const apkPath = path.join(tempRoot, 'fixture.apk');
+    await fs.writeFile(
+      manifestPath,
+      '<manifest package="io.example.directurl" xmlns:android="http://schemas.android.com/apk/res/android" />',
+      'utf8',
+    );
+    execFileSync('zip', ['-q', apkPath, 'AndroidManifest.xml'], { cwd: tempRoot });
+    const apkBytes = await fs.readFile(apkPath);
+
+    await withMockedInstallSourceFetch(
+      apkBytes,
+      async () => {
+        const result = await prepareAndroidInstallArtifact({
+          kind: 'url',
+          url: 'https://example.com/app.apk',
+        });
+
+        try {
+          assert.equal(result.packageName, 'io.example.directurl');
+        } finally {
+          await result.cleanup();
+        }
+      },
+      { filename: 'app.apk', contentType: 'application/vnd.android.package-archive' },
+    );
   } finally {
-    await result.cleanup();
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('prepareAndroidInstallArtifact rejects private direct APK URL sources', async () => {
+  await assert.rejects(
+    async () =>
+      await prepareAndroidInstallArtifact({
+        kind: 'url',
+        url: 'http://127.0.0.1/app.apk',
+      }),
+    /not allowed|private or loopback/i,
+  );
+});
+
+test('prepareAndroidInstallArtifact accepts direct AAB URL sources', async () => {
+  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-direct-aab-url-'));
+  try {
+    const manifestDir = path.join(tempRoot, 'base', 'manifest');
+    const aabPath = path.join(tempRoot, 'fixture.aab');
+    await fs.mkdir(manifestDir, { recursive: true });
+    await fs.writeFile(
+      path.join(manifestDir, 'AndroidManifest.xml'),
+      '<manifest package="io.example.directaab" xmlns:android="http://schemas.android.com/apk/res/android" />',
+      'utf8',
+    );
+    await fs.writeFile(path.join(tempRoot, 'BundleConfig.pb'), 'bundle-config', 'utf8');
+    execFileSync('zip', ['-qr', aabPath, 'BundleConfig.pb', 'base'], { cwd: tempRoot });
+    const aabBytes = await fs.readFile(aabPath);
+
+    await withMockedInstallSourceFetch(
+      aabBytes,
+      async () => {
+        const result = await prepareAndroidInstallArtifact({
+          kind: 'url',
+          url: 'https://example.com/app.aab',
+        });
+
+        try {
+          assert.equal(result.packageName, 'io.example.directaab');
+        } finally {
+          await result.cleanup();
+        }
+      },
+      { filename: 'app.aab', contentType: 'application/octet-stream' },
+    );
+  } finally {
+    await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });
 
@@ -226,51 +253,6 @@ test('prepareAndroidInstallArtifact cleans URL materialization when identity ins
       manifestSpy.mockRestore();
     }
   });
-});
-
-test('prepareAndroidInstallArtifact accepts direct AAB URL sources', async () => {
-  const previous = process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
-  process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = '1';
-
-  const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-direct-aab-url-'));
-  const manifestDir = path.join(tempRoot, 'base', 'manifest');
-  const aabPath = path.join(tempRoot, 'fixture.aab');
-  await fs.mkdir(manifestDir, { recursive: true });
-  await fs.writeFile(
-    path.join(manifestDir, 'AndroidManifest.xml'),
-    '<manifest package="io.example.directaab" xmlns:android="http://schemas.android.com/apk/res/android" />',
-    'utf8',
-  );
-  await fs.writeFile(path.join(tempRoot, 'BundleConfig.pb'), 'bundle-config', 'utf8');
-  execFileSync('zip', ['-qr', aabPath, 'BundleConfig.pb', 'base'], { cwd: tempRoot });
-  const aabBytes = await fs.readFile(aabPath);
-
-  const server = http.createServer((_req, res) => {
-    res.writeHead(200, { 'content-type': 'application/octet-stream' });
-    res.end(aabBytes);
-  });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  onTestFinished(async () => {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
-    await fs.rm(tempRoot, { recursive: true, force: true });
-    if (previous === undefined) delete process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
-    else process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = previous;
-  });
-
-  const address = server.address();
-  assert.ok(address && typeof address === 'object');
-  const result = await prepareAndroidInstallArtifact({
-    kind: 'url',
-    url: `http://127.0.0.1:${address.port}/app.aab`,
-  });
-
-  try {
-    assert.equal(result.packageName, 'io.example.directaab');
-  } finally {
-    await result.cleanup();
-  }
 });
 
 test('prepareAndroidInstallArtifact extracts trusted GitHub artifact ZIP containing one APK', async () => {
@@ -445,39 +427,30 @@ test('prepareAndroidInstallArtifact rejects trusted artifact archives with multi
 });
 
 test('prepareAndroidInstallArtifact rejects untrusted URL archives instead of extracting them', async () => {
-  const previous = process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
-  process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = '1';
-
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-untrusted-archive-'));
   const archivePath = path.join(tempRoot, 'artifact.zip');
   await fs.writeFile(path.join(tempRoot, 'app.apk'), 'apk', 'utf8');
   execFileSync('zip', ['-q', archivePath, 'app.apk'], { cwd: tempRoot });
   const archiveBytes = await fs.readFile(archivePath);
 
-  const server = http.createServer((_req, res) => {
-    res.writeHead(200, { 'content-type': 'application/zip' });
-    res.end(archiveBytes);
-  });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  onTestFinished(async () => {
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
+  try {
+    await withMockedInstallSourceFetch(
+      archiveBytes,
+      async () => {
+        await assert.rejects(
+          async () =>
+            await prepareAndroidInstallArtifact({
+              kind: 'url',
+              url: 'https://example.com/artifact.zip',
+            }),
+          /archive extraction is not allowed/i,
+        );
+      },
+      { filename: 'artifact.zip', contentType: 'application/zip' },
+    );
+  } finally {
     await fs.rm(tempRoot, { recursive: true, force: true });
-    if (previous === undefined) delete process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
-    else process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = previous;
-  });
-
-  const address = server.address();
-  assert.ok(address && typeof address === 'object');
-  await assert.rejects(
-    async () =>
-      await prepareAndroidInstallArtifact({
-        kind: 'url',
-        url: `http://127.0.0.1:${address.port}/artifact.zip`,
-      }),
-    /archive extraction is not allowed/i,
-  );
+  }
 });
 
 function findExecutableInPath(command: string): string | undefined {
@@ -502,8 +475,14 @@ async function withMockedInstallSourceFetch(
   run: () => Promise<void>,
   options?: { filename?: string; contentType?: string },
 ): Promise<void> {
-  const previous = process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
-  process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = '1';
+  const lookupMock = vi
+    .spyOn(dns, 'lookup')
+    .mockImplementation(
+      async () =>
+        [{ address: '203.0.113.10', family: 4 }] as unknown as Awaited<
+          ReturnType<typeof dns.lookup>
+        >,
+    );
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
     new Response(new Uint8Array(bytes), {
       status: 200,
@@ -517,8 +496,7 @@ async function withMockedInstallSourceFetch(
     await run();
   } finally {
     fetchMock.mockRestore();
-    if (previous === undefined) delete process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS;
-    else process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS = previous;
+    lookupMock.mockRestore();
   }
 }
 

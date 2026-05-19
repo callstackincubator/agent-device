@@ -112,7 +112,7 @@ test('batch forwards reject lock policy for target retargeting', async () => {
     {
       env: {
         AGENT_DEVICE_PLATFORM: 'ios',
-        AGENT_DEVICE_SESSION_LOCKED: '1',
+        AGENT_DEVICE_SESSION_LOCK: 'reject',
       },
     },
   );
@@ -137,7 +137,6 @@ test('batch session lock flags apply to nested steps without env configuration',
     {
       env: {
         AGENT_DEVICE_PLATFORM: 'ios',
-        AGENT_DEVICE_SESSION_LOCKED: '0',
       },
     },
   );

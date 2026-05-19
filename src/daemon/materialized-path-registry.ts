@@ -3,13 +3,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { AppError } from '../utils/errors.ts';
-import { resolveTimeoutMs } from '../utils/timeouts.ts';
 
-const DEFAULT_MATERIALIZED_PATH_TTL_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_INSTALL_SOURCE_RETAIN_TTL_MS,
-  15 * 60 * 1000,
-  5_000,
-);
+const DEFAULT_MATERIALIZED_PATH_TTL_MS = 15 * 60 * 1000;
 
 type RetainedEntry = {
   rootPath: string;

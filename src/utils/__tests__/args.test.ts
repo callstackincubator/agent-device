@@ -1316,6 +1316,7 @@ test('command usage keeps detailed descriptions', () => {
   assert.match(help, /Prepare a local Metro runtime or ask Metro to reload/);
   assert.match(help, /metro reload/);
   assert.match(help, /--metro-host <host>/);
+  assert.match(help, /AGENT_DEVICE_METRO_BEARER_TOKEN/);
 });
 
 test('command usage shows no command flags when unsupported', () => {

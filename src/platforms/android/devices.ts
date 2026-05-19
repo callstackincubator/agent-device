@@ -3,13 +3,14 @@ import type { ExecResult } from '../../utils/exec.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { AppError, asAppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { Deadline, retryWithPolicy, TIMEOUT_PROFILES } from '../../utils/retry.ts';
+import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
 import { resolveAndroidSerialAllowlist } from '../../utils/device-isolation.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import { ensureAndroidSdkPathConfigured } from './sdk.ts';
 
 const EMULATOR_SERIAL_PREFIX = 'emulator-';
 const ANDROID_BOOT_POLL_MS = 1000;
+const ANDROID_BOOT_PROP_TIMEOUT_MS = 10_000;
 const ANDROID_EMULATOR_BOOT_POLL_MS = 1000;
 const ANDROID_EMULATOR_BOOT_TIMEOUT_MS = 120_000;
 const ANDROID_EMULATOR_AVD_NAME_TIMEOUT_MS = 10_000;
@@ -77,7 +78,7 @@ export function parseAndroidEmulatorAvdNameOutput(rawOutput: string): string | u
 
 async function readAndroidBootProp(
   serial: string,
-  timeoutMs = TIMEOUT_PROFILES.android_boot.operationMs,
+  timeoutMs = ANDROID_BOOT_PROP_TIMEOUT_MS,
 ): Promise<ExecResult> {
   return runCmd('adb', adbArgs(serial, ['shell', 'getprop', 'sys.boot_completed']), {
     allowFailure: true,
@@ -167,7 +168,7 @@ async function probeAndroidFeature(serial: string, feature: string): Promise<boo
     adbArgs(serial, ['shell', 'cmd', 'package', 'has-feature', feature]),
     {
       allowFailure: true,
-      timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
+      timeoutMs: ANDROID_BOOT_PROP_TIMEOUT_MS,
     },
   );
   const output = commandOutput(result).toLowerCase();
@@ -191,7 +192,7 @@ async function resolveAndroidTarget(serial: string): Promise<'mobile' | 'tv'> {
     adbArgs(serial, ['shell', 'getprop', 'ro.build.characteristics']),
     {
       allowFailure: true,
-      timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
+      timeoutMs: ANDROID_BOOT_PROP_TIMEOUT_MS,
     },
   );
   const characteristicsTarget = parseAndroidTargetFromCharacteristics(
@@ -210,7 +211,7 @@ async function resolveAndroidTarget(serial: string): Promise<'mobile' | 'tv'> {
     adbArgs(serial, ['shell', 'pm', 'list', 'features']),
     {
       allowFailure: true,
-      timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
+      timeoutMs: ANDROID_BOOT_PROP_TIMEOUT_MS,
     },
   );
   if (parseAndroidFeatureListForTv(commandOutput(featureListResult))) {
@@ -277,7 +278,7 @@ function parseAndroidDeviceEntries(rawOutput: string): AndroidDeviceEntry[] {
 
 async function listAndroidDeviceEntries(): Promise<AndroidDeviceEntry[]> {
   const result = await runCmd('adb', ['devices', '-l'], {
-    timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
+    timeoutMs: ANDROID_BOOT_PROP_TIMEOUT_MS,
   });
   return parseAndroidDeviceEntries(result.stdout);
 }
@@ -302,7 +303,7 @@ export function resolveAndroidAvdName(
 async function listAndroidAvdNames(): Promise<string[]> {
   const result = await runCmd('emulator', ['-list-avds'], {
     allowFailure: true,
-    timeoutMs: TIMEOUT_PROFILES.android_boot.operationMs,
+    timeoutMs: ANDROID_BOOT_PROP_TIMEOUT_MS,
   });
   if (result.exitCode !== 0) {
     throw new AppError('COMMAND_FAILED', 'Failed to list Android emulator AVDs', {
@@ -483,7 +484,7 @@ export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Pro
         const remainingMs = Math.max(1_000, attemptDeadline?.remainingMs() ?? timeoutBudget);
         const result = await readAndroidBootProp(
           serial,
-          Math.min(remainingMs, TIMEOUT_PROFILES.android_boot.operationMs),
+          Math.min(remainingMs, ANDROID_BOOT_PROP_TIMEOUT_MS),
         );
         lastBootResult = result;
         if (result.stdout.trim() === '1') return;

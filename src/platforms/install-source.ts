@@ -8,7 +8,6 @@ import { pipeline } from 'node:stream/promises';
 import { AppError } from '../utils/errors.ts';
 import { runCmd } from '../utils/exec.ts';
 import { expandUserHomePath } from '../utils/path-resolution.ts';
-import { resolveTimeoutMs } from '../utils/timeouts.ts';
 
 export type MaterializeInstallSource =
   | {
@@ -48,12 +47,7 @@ const INTERNAL_ARCHIVE_EXTENSIONS = ['.zip', '.tar', '.tar.gz', '.tgz'] as const
 
 export const ARCHIVE_EXTENSIONS = Object.freeze([...INTERNAL_ARCHIVE_EXTENSIONS] as const);
 const MAX_INSTALL_SOURCE_SEARCH_DEPTH = 5;
-const DEFAULT_SOURCE_DOWNLOAD_TIMEOUT_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_SOURCE_DOWNLOAD_TIMEOUT_MS,
-  120_000,
-  1_000,
-);
-const ALLOW_PRIVATE_SOURCE_URLS = ['1', 'true', 'yes', 'on'];
+const DEFAULT_SOURCE_DOWNLOAD_TIMEOUT_MS = 120_000;
 
 export async function materializeInstallablePath(
   options: MaterializeInstallableOptions,
@@ -195,18 +189,10 @@ export async function validateDownloadSourceUrl(parsedUrl: URL): Promise<void> {
   if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
     throw new AppError('INVALID_ARGS', `Unsupported source URL protocol: ${parsedUrl.protocol}`);
   }
-  if (
-    ALLOW_PRIVATE_SOURCE_URLS.includes(
-      (process.env.AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS ?? '').toLowerCase(),
-    )
-  ) {
-    return;
-  }
-
   const hostname = parsedUrl.hostname.toLowerCase();
   if (isBlockedSourceHostname(hostname)) {
     throw new AppError('INVALID_ARGS', `Source URL host is not allowed: ${parsedUrl.hostname}`, {
-      hint: 'Use a public artifact URL, or set AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS=1 for trusted private-network daemons.',
+      hint: 'Use a public artifact URL.',
     });
   }
 
@@ -218,7 +204,7 @@ export async function validateDownloadSourceUrl(parsedUrl: URL): Promise<void> {
       'INVALID_ARGS',
       `Source URL host resolved to a private or loopback address: ${parsedUrl.hostname}`,
       {
-        hint: 'Use a public artifact URL, or set AGENT_DEVICE_ALLOW_PRIVATE_SOURCE_URLS=1 for trusted private-network daemons.',
+        hint: 'Use a public artifact URL.',
       },
     );
   }

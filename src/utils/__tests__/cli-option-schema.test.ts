@@ -21,15 +21,16 @@ test('option schema exposes config/env metadata for global options', () => {
   assert.equal(spec.supportsCommand('snapshot'), true);
 });
 
-test('option schema exposes legacy env aliases and command scoping', () => {
+test('option schema exposes env defaults and command scoping', () => {
   const spec = getOptionSpec('iosSimulatorDeviceSet');
   assert.ok(spec);
-  assert.deepEqual(spec.env.names, [
-    'AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET',
-    'IOS_SIMULATOR_DEVICE_SET',
-  ]);
+  assert.deepEqual(spec.env.names, []);
   assert.equal(spec.supportsCommand('devices'), true);
   assert.equal(spec.supportsCommand('snapshot'), true);
+
+  const androidDeviceAllowlist = getOptionSpec('androidDeviceAllowlist');
+  assert.ok(androidDeviceAllowlist);
+  assert.deepEqual(androidDeviceAllowlist.env.names, ['AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST']);
 
   const snapshotDepth = getOptionSpec('snapshotDepth');
   assert.ok(snapshotDepth);
@@ -38,10 +39,7 @@ test('option schema exposes legacy env aliases and command scoping', () => {
 
   const metroBearerToken = getOptionSpec('metroBearerToken');
   assert.ok(metroBearerToken);
-  assert.deepEqual(metroBearerToken.env.names, [
-    'AGENT_DEVICE_METRO_BEARER_TOKEN',
-    'AGENT_DEVICE_PROXY_TOKEN',
-  ]);
+  assert.deepEqual(metroBearerToken.env.names, ['AGENT_DEVICE_METRO_BEARER_TOKEN']);
 });
 
 test('remote config schema stays aligned with CLI option metadata', () => {
@@ -93,13 +91,9 @@ test('isFlagSupportedForCommand consults option schema support map', () => {
 test('option schema parses enum options from env/config sources', () => {
   const spec = getOptionSpec('appsFilter');
   assert.ok(spec);
+  assert.deepEqual(spec.env.names, []);
   assert.equal(
-    parseOptionValueFromSource(
-      spec,
-      'user-installed',
-      'environment variable AGENT_DEVICE_APPS_FILTER',
-      'AGENT_DEVICE_APPS_FILTER',
-    ),
+    parseOptionValueFromSource(spec, 'user-installed', 'config file /tmp/test.json', 'appsFilter'),
     'user-installed',
   );
   assert.equal(
@@ -107,13 +101,7 @@ test('option schema parses enum options from env/config sources', () => {
     'all',
   );
   assert.throws(
-    () =>
-      parseOptionValueFromSource(
-        spec,
-        true,
-        'environment variable AGENT_DEVICE_APPS_FILTER',
-        'AGENT_DEVICE_APPS_FILTER',
-      ),
+    () => parseOptionValueFromSource(spec, true, 'config file /tmp/test.json', 'appsFilter'),
     (error) => error instanceof AppError && error.code === 'INVALID_ARGS',
   );
 });

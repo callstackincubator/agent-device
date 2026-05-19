@@ -5,7 +5,6 @@ import net from 'node:net';
 import { createRequestCanceledError, isRequestCanceledError } from '../../daemon/request-cancel.ts';
 import { AppError } from '../../utils/errors.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
-import { resolveTimeoutMs, resolveTimeoutSeconds } from '../../utils/timeouts.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { classifyBootFailure, bootFailureHint } from '../boot-diagnostics.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
@@ -18,47 +17,15 @@ import {
 } from './runner-contract.ts';
 import type { RunnerSession } from './runner-session-types.ts';
 
-export const RUNNER_STARTUP_TIMEOUT_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_RUNNER_STARTUP_TIMEOUT_MS,
-  45_000,
-  5_000,
-);
-export const RUNNER_COMMAND_TIMEOUT_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_RUNNER_COMMAND_TIMEOUT_MS,
-  45_000,
-  1_000,
-);
-const RUNNER_CONNECT_ATTEMPT_INTERVAL_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_RUNNER_CONNECT_ATTEMPT_INTERVAL_MS,
-  250,
-  50,
-);
-const RUNNER_CONNECT_RETRY_BASE_DELAY_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_RUNNER_CONNECT_RETRY_BASE_DELAY_MS,
-  300,
-  10,
-);
-const RUNNER_CONNECT_RETRY_MAX_DELAY_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_RUNNER_CONNECT_RETRY_MAX_DELAY_MS,
-  2_000,
-  10,
-);
-const RUNNER_CONNECT_REQUEST_TIMEOUT_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_RUNNER_CONNECT_REQUEST_TIMEOUT_MS,
-  20_000,
-  250,
-);
-const RUNNER_DEVICE_INFO_TIMEOUT_MS = resolveTimeoutMs(
-  process.env.AGENT_DEVICE_IOS_DEVICE_INFO_TIMEOUT_MS,
-  10_000,
-  500,
-);
+export const RUNNER_STARTUP_TIMEOUT_MS = 45_000;
+export const RUNNER_COMMAND_TIMEOUT_MS = 45_000;
+const RUNNER_CONNECT_ATTEMPT_INTERVAL_MS = 250;
+const RUNNER_CONNECT_RETRY_BASE_DELAY_MS = 300;
+const RUNNER_CONNECT_RETRY_MAX_DELAY_MS = 2_000;
+const RUNNER_CONNECT_REQUEST_TIMEOUT_MS = 20_000;
+const RUNNER_DEVICE_INFO_TIMEOUT_MS = 10_000;
 const RUNNER_DEVICE_TUNNEL_IP_CACHE_TTL_MS = 30_000;
-export const RUNNER_DESTINATION_TIMEOUT_SECONDS = resolveTimeoutSeconds(
-  process.env.AGENT_DEVICE_RUNNER_DESTINATION_TIMEOUT_SECONDS,
-  20,
-  5,
-);
+export const RUNNER_DESTINATION_TIMEOUT_SECONDS = 20;
 
 type DeviceTunnelIpCacheEntry = {
   ip: string;

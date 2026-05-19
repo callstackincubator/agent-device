@@ -28,7 +28,7 @@ type AndroidSettingsWorld = {
     target?: { x: number; y: number };
   }>;
   inventoryRequests: DeviceInventoryRequest[];
-  installCalls: Array<{ apkPath: string; replace?: boolean }>;
+  apkInstallCalls: Array<{ apkPath: string; replace?: boolean }>;
   bundleInstallCalls: Array<{ bundlePath: string; mode: string }>;
   spawnedLogcat: AndroidAdbProcess[];
   tempRoot: string;
@@ -47,7 +47,7 @@ export async function createAndroidSettingsWorld(options?: {
   const adbCalls: string[][] = [];
   const textInjectionCalls: AndroidSettingsWorld['textInjectionCalls'] = [];
   const inventoryRequests: DeviceInventoryRequest[] = [];
-  const installCalls: Array<{ apkPath: string; replace?: boolean }> = [];
+  const apkInstallCalls: Array<{ apkPath: string; replace?: boolean }> = [];
   const bundleInstallCalls: Array<{ bundlePath: string; mode: string }> = [];
   let searchText = '';
   let clipboardText = 'hello';
@@ -78,7 +78,7 @@ export async function createAndroidSettingsWorld(options?: {
       return androidAdbResult(args, searchText, clipboardText);
     },
     install: async (apk, options) => {
-      installCalls.push({ apkPath: apk, replace: options?.replace });
+      apkInstallCalls.push({ apkPath: apk, replace: options?.replace });
       return { stdout: '', stderr: '', exitCode: 0 };
     },
     installBundle: async (bundlePath, bundleOptions) => {
@@ -129,7 +129,7 @@ export async function createAndroidSettingsWorld(options?: {
     adbCalls,
     textInjectionCalls,
     inventoryRequests,
-    installCalls,
+    apkInstallCalls,
     bundleInstallCalls,
     spawnedLogcat,
     tempRoot,
