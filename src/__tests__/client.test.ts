@@ -399,6 +399,7 @@ test('client throws AppError for daemon failures', async () => {
   );
 });
 
+// fallow-ignore-next-line complexity
 test('replay.run serializes client-collected AD_VAR shell env into daemon request', async () => {
   const previousAppId = process.env.AD_VAR_APP_ID;
   const previousWaitMs = process.env.AD_VAR_WAIT_MS;
@@ -419,6 +420,7 @@ test('replay.run serializes client-collected AD_VAR shell env into daemon reques
     assert.equal(setup.calls[0]?.command, 'replay');
     assert.deepEqual(setup.calls[0]?.positionals, ['./flows/login.ad']);
     assert.deepEqual(setup.calls[0]?.flags?.replayEnv, ['APP_ID=cli-override']);
+    assert.equal(setup.calls[0]?.flags?.replayBackend, undefined);
     const replayShellEnv = setup.calls[0]?.flags?.replayShellEnv as
       | Record<string, string>
       | undefined;
@@ -433,6 +435,36 @@ test('replay.run serializes client-collected AD_VAR shell env into daemon reques
     if (previousLegacy === undefined) delete process.env.AD_APP_ID;
     else process.env.AD_APP_ID = previousLegacy;
   }
+});
+
+test('replay.run forwards backend without knowing the concrete syntax', async () => {
+  const setup = createTransport(async () => ({ ok: true, data: {} }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await client.replay.run({
+    path: './flows/login.yaml',
+    backend: 'external-flow',
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'replay');
+  assert.deepEqual(setup.calls[0]?.positionals, ['./flows/login.yaml']);
+  assert.equal(setup.calls[0]?.flags?.replayBackend, 'external-flow');
+});
+
+test('replay.run keeps deprecated maestro option as backend alias', async () => {
+  const setup = createTransport(async () => ({ ok: true, data: {} }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await client.replay.run({
+    path: './flows/login.yaml',
+    maestro: true,
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'replay');
+  assert.deepEqual(setup.calls[0]?.positionals, ['./flows/login.yaml']);
+  assert.equal(setup.calls[0]?.flags?.replayBackend, 'maestro');
 });
 
 test('client.command.wait prepares selector options and rejects invalid selectors', async () => {

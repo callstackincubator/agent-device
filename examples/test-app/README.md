@@ -76,3 +76,48 @@ pnpm android
 ```
 
 Once the app is running, use `agent-device` against `Agent Device Tester` like any other target app.
+
+## Local Agent Device suites
+
+The repo includes two local suites for iterating on the fixture app:
+
+```bash
+pnpm test-app:replay:ios
+pnpm test-app:replay:android
+```
+
+These run the `.ad` replay suite in `examples/test-app/replays`.
+
+To target a specific iOS simulator or an installed Expo development build, run the
+underlying command directly so global flags stay before replay inputs:
+
+```bash
+node bin/agent-device.mjs test examples/test-app/replays \
+  --platform ios \
+  --device "iPhone 17 Pro" \
+  --env APP_TARGET=dev.expo.easagentdevice \
+  --env APP_URL=<project-url> \
+  --artifacts-dir .tmp/test-app-replay/ios
+```
+
+Use `APP_TARGET=com.callstack.agentdevicelab` when the standalone fixture app is
+installed instead of an Expo development shell.
+
+The Maestro prototype suite lives in `examples/test-app/maestro` and runs through
+`agent-device replay --maestro`:
+
+```bash
+pnpm test-app:maestro:ios -- --open "Agent Device Tester"
+pnpm test-app:maestro:android -- --open "Agent Device Tester"
+```
+
+When running through Expo Go, start the project first and pass the shell that is already showing
+the app, for example:
+
+```bash
+pnpm test-app:maestro:ios -- --open "Expo Go"
+```
+
+The suite intentionally covers the compat layer syntax used by public Maestro suites:
+`runFlow` file/inline blocks, `when.platform`, config hooks, deterministic `repeat.times`,
+flow `env`, selectors, input, assertions, and swipe.

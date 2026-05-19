@@ -1,4 +1,4 @@
-import { appendOpenActionScriptArgs } from './session-open-script.ts';
+import { appendOpenActionScriptArgs } from './open-script.ts';
 import {
   appendGenericActionScriptArgs,
   appendRecordActionScriptArgs,
@@ -6,7 +6,7 @@ import {
   appendScreenshotActionScriptArgs,
   appendSnapshotActionScriptArgs,
 } from './script-utils.ts';
-import type { SessionAction } from './types.ts';
+import type { SessionAction } from '../daemon/types.ts';
 
 export function formatPortableActionLine(
   action: SessionAction,

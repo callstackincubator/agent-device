@@ -337,7 +337,7 @@ agent-device replay -u ./session.ad   # Update selector drift and rewrite .ad sc
 - `replay -u` updates stale recorded actions and rewrites the same script.
 - `--save-script` records a replay script on `close`; optional path is a file path and parent directories are created.
 
-See [Replay & E2E (Experimental)](/docs/replay-e2e) for recording and CI workflow details.
+See [Replay & E2E](/docs/replay-e2e) for recording, Maestro compatibility, and CI workflow details.
 
 ## Batch
 

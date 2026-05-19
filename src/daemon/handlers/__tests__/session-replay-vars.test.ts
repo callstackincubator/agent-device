@@ -13,12 +13,12 @@ import {
   parseReplayCliEnvEntries,
   resolveReplayAction,
   resolveReplayString,
-} from '../session-replay-vars.ts';
+} from '../../../replay/vars.ts';
 import {
   parseReplayScript,
   parseReplayScriptDetailed,
   readReplayScriptMetadata,
-} from '../session-replay-script.ts';
+} from '../../../replay/script.ts';
 import { runReplayScriptFile } from '../session-replay-runtime.ts';
 
 const LOC = { file: 'test.ad', line: 1 };
@@ -381,6 +381,7 @@ test('runReplayScriptFile rejects replay -u when any action contains ${VAR}', as
   }
 });
 
+// fallow-ignore-next-line complexity
 test('runReplayScriptFile dispatches resolved literals with file env overridden by CLI', async () => {
   const { response, calls } = await runReplayFixture({
     label: 'green',
@@ -412,6 +413,32 @@ test('runReplayScriptFile dispatches resolved literals with file env overridden 
       assert.equal(pos.includes('${'), false, `unresolved interpolation leaked: ${pos}`);
     }
   }
+});
+
+test('runReplayScriptFile applies CLI env overrides before Maestro compat mapping', async () => {
+  const { response, calls } = await runReplayFixture({
+    label: 'maestro-env',
+    script: [
+      'appId: ${APP_ID}',
+      'env:',
+      '  APP_ID: yaml-app',
+      '  BUTTON_ID: yaml-button',
+      '---',
+      '- launchApp',
+      '- tapOn:',
+      '    id: ${BUTTON_ID}',
+      '',
+    ].join('\n'),
+    flags: {
+      replayBackend: 'maestro',
+      replayShellEnv: { AD_VAR_BUTTON_ID: 'shell-button' },
+      replayEnv: ['APP_ID=cli-app'],
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(calls[0]?.positionals, ['cli-app']);
+  assert.deepEqual(calls[1]?.positionals, ['id="shell-button"']);
 });
 
 test('runReplayScriptFile reads shell env from request (client-collected), not daemon process.env', async () => {

@@ -1,4 +1,4 @@
-import type { SessionAction } from './types.ts';
+import type { SessionAction } from '../daemon/types.ts';
 import { appendScreenshotScriptFlags } from '../commands/capture-screenshot-options.ts';
 
 const NUMERIC_ARG_RE = /^-?\d+(\.\d+)?$/;
@@ -59,6 +59,7 @@ export function formatScriptActionSummary(action: SessionAction): string {
   return [action.command, ...values].join(' ');
 }
 
+// fallow-ignore-next-line complexity
 export function appendScriptSeriesFlags(
   parts: string[],
   action: Pick<SessionAction, 'command' | 'flags'>,
@@ -178,6 +179,7 @@ export function appendGenericActionScriptArgs(parts: string[], action: SessionAc
   appendScriptSeriesFlags(parts, action);
 }
 
+// fallow-ignore-next-line complexity
 export function parseReplaySeriesFlags(
   command: string,
   args: string[],
@@ -234,6 +236,7 @@ export function parseReplaySeriesFlags(
   return { positionals, flags };
 }
 
+// fallow-ignore-next-line complexity
 export function parseReplayRuntimeFlags(args: string[]): {
   positionals: string[];
   flags: {

@@ -4,7 +4,7 @@ import { AppError } from '../../utils/errors.ts';
 import type { PlatformSelector } from '../../utils/device.ts';
 import { resolveRequestTrackingId } from '../request-cancel.ts';
 import { SessionStore } from '../session-store.ts';
-import { readReplayScriptMetadata, type ReplayScriptMetadata } from './session-replay-script.ts';
+import { readReplayScriptMetadata, type ReplayScriptMetadata } from '../../replay/script.ts';
 
 const GLOB_PATTERN_CHARS = /[*?[\]{}]/;
 

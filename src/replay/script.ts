@@ -1,17 +1,17 @@
 import fs from 'node:fs';
-import { AppError } from '../../utils/errors.ts';
-import { readScreenshotScriptFlag } from '../../commands/capture-screenshot-options.ts';
-import type { DeviceTarget, PlatformSelector } from '../../utils/device.ts';
-import { parseReplayOpenFlags } from '../session-open-script.ts';
-import { formatPortableActionLine } from '../session-script-formatting.ts';
-import type { SessionAction, SessionState } from '../types.ts';
+import { AppError } from '../utils/errors.ts';
+import { readScreenshotScriptFlag } from '../commands/capture-screenshot-options.ts';
+import type { DeviceTarget, PlatformSelector } from '../utils/device.ts';
+import { parseReplayOpenFlags } from './open-script.ts';
+import { formatPortableActionLine } from './script-formatting.ts';
+import type { SessionAction, SessionState } from '../daemon/types.ts';
 import {
   formatScriptStringLiteral,
   isClickLikeCommand,
   parseReplaySeriesFlags,
   parseReplayRuntimeFlags,
-} from '../script-utils.ts';
-import { REPLAY_VAR_KEY_RE } from './session-replay-vars.ts';
+} from './script-utils.ts';
+import { REPLAY_VAR_KEY_RE } from './vars.ts';
 
 type ReplayScriptPlatform = Exclude<PlatformSelector, 'apple'>;
 
@@ -67,6 +67,7 @@ export function parseReplayScriptDetailed(script: string): ParsedReplayScript {
   return { actions, actionLines };
 }
 
+// fallow-ignore-next-line complexity
 export function readReplayScriptMetadata(script: string): ReplayScriptMetadata {
   const lines = script.split(/\r?\n/);
   const metadata: ReplayScriptMetadata = {};
@@ -184,6 +185,7 @@ function assignReplayMetadataValue<Key extends keyof ReplayScriptMetadata>(
   metadata[key] = value as ReplayScriptMetadata[Key];
 }
 
+// fallow-ignore-next-line complexity
 function parseReplayScriptLine(line: string): SessionAction | null {
   const trimmed = line.trim();
   if (trimmed.length === 0 || trimmed.startsWith('#')) return null;

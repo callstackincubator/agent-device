@@ -1,27 +1,26 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { type CommandFlags } from '../../core/dispatch.ts';
+import { parseReplayInput } from '../../compat/replay-input.ts';
 import { asAppError } from '../../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
-import {
-  parseReplayScriptDetailed,
-  readReplayScriptMetadata,
-  writeReplayScript,
-} from './session-replay-script.ts';
-import { parseMaestroReplayFlow } from './session-maestro-replay.ts';
+import { type ReplayScriptMetadata, writeReplayScript } from '../../replay/script.ts';
 import { healReplayAction } from './session-replay-heal.ts';
-import { formatScriptActionSummary } from '../script-utils.ts';
+import { formatScriptActionSummary } from '../../replay/script-utils.ts';
 import { mergeParentFlags } from './handler-utils.ts';
 import { errorResponse } from './response.ts';
 import {
   buildReplayVarScope,
   collectReplayShellEnv,
   parseReplayCliEnvEntries,
+  readReplayCliEnvEntries,
+  readReplayShellEnvSource,
   resolveReplayAction,
   type ReplayVarScope,
-} from './session-replay-vars.ts';
+} from '../../replay/vars.ts';
 
+// fallow-ignore-next-line complexity
 export async function runReplayScriptFile(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -48,21 +47,16 @@ export async function runReplayScriptFile(params: {
       );
     }
 
-    const maestroReplay = req.flags?.replayMaestro === true;
-    const maestroFlow = maestroReplay ? parseMaestroReplayFlow(script) : null;
-    const metadata = maestroFlow?.metadata ?? readReplayScriptMetadata(script);
+    const parsed = parseReplayInput(script, req.flags, { sourcePath: resolved });
+    const metadata = parsed.metadata;
     const replayReq =
       metadata.platform || metadata.target
         ? { ...req, flags: buildReplayMetadataFlags(req.flags, metadata) }
         : req;
-    const parsed = maestroFlow ?? parseReplayScriptDetailed(script);
     const actions = parsed.actions;
     const actionLines = parsed.actionLines;
-    if (req.flags?.replayUpdate === true && maestroReplay) {
-      return errorResponse(
-        'INVALID_ARGS',
-        'replay -u is not supported for Maestro flow input. Convert to .ad first, then update that replay file.',
-      );
+    if (req.flags?.replayUpdate === true && parsed.updateUnsupportedMessage) {
+      return errorResponse('INVALID_ARGS', parsed.updateUnsupportedMessage);
     }
     if (req.flags?.replayUpdate === true && metadata.env && Object.keys(metadata.env).length > 0) {
       return errorResponse(
@@ -84,8 +78,8 @@ export async function runReplayScriptFile(params: {
         resolvedPath: resolved,
       }),
       fileEnv: metadata.env,
-      shellEnv: collectReplayShellEnv(readShellEnvSource(req)),
-      cliEnv: parseReplayCliEnvEntries(readCliEnvEntries(req)),
+      shellEnv: collectReplayShellEnv(readReplayShellEnvSource(req.flags?.replayShellEnv)),
+      cliEnv: parseReplayCliEnvEntries(readReplayCliEnvEntries(req.flags?.replayEnv)),
     });
     const shouldUpdate = req.flags?.replayUpdate === true;
     let healed = 0;
@@ -218,10 +212,11 @@ function appendReplayTraceEvent(
   fs.appendFileSync(tracePath, `${JSON.stringify(event)}\n`);
 }
 
+// fallow-ignore-next-line complexity
 function buildReplayBuiltinVars(params: {
   req: DaemonRequest;
   sessionName: string;
-  metadata: ReturnType<typeof readReplayScriptMetadata>;
+  metadata: ReplayScriptMetadata;
   resolvedPath: string;
 }): Record<string, string> {
   const { req, sessionName, metadata, resolvedPath } = params;
@@ -247,7 +242,7 @@ function buildReplayBuiltinVars(params: {
 
 function buildReplayMetadataFlags(
   flags: CommandFlags | undefined,
-  metadata: ReturnType<typeof readReplayScriptMetadata>,
+  metadata: ReplayScriptMetadata,
 ): CommandFlags {
   return {
     ...(flags ?? {}),
@@ -258,25 +253,6 @@ function buildReplayMetadataFlags(
       ? { target: metadata.target }
       : {}),
   };
-}
-
-function readCliEnvEntries(req: DaemonRequest): string[] {
-  const raw = req.flags?.replayEnv;
-  return Array.isArray(raw)
-    ? raw.filter((value): value is string => typeof value === 'string')
-    : [];
-}
-
-function readShellEnvSource(req: DaemonRequest): NodeJS.ProcessEnv {
-  const raw = req.flags?.replayShellEnv;
-  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-    const result: NodeJS.ProcessEnv = {};
-    for (const [key, value] of Object.entries(raw)) {
-      if (typeof value === 'string') result[key] = value;
-    }
-    return result;
-  }
-  return process.env;
 }
 
 export function withReplayFailureContext(
@@ -308,6 +284,7 @@ export function withReplayFailureContext(
   };
 }
 
+// fallow-ignore-next-line complexity
 export function collectReplayActionArtifactPaths(response: DaemonResponse): string[] {
   if (!response.ok || !response.data) return [];
   const candidates: string[] = [];
@@ -343,6 +320,7 @@ export function buildReplayActionFlags(
   return mergeParentFlags(parentFlags, { ...(actionFlags ?? {}) });
 }
 
+// fallow-ignore-next-line complexity
 function actionsContainInterpolation(actions: SessionAction[]): boolean {
   for (const action of actions) {
     for (const positional of action.positionals ?? []) {

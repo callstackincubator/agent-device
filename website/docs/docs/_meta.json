@@ -62,7 +62,7 @@
   {
     "name": "replay-e2e",
     "type": "file",
-    "label": "Replay & E2E (Experimental)"
+    "label": "Replay & E2E"
   },
   {
     "name": "snapshots",

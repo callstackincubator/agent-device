@@ -94,6 +94,7 @@ export const DAEMON_COMMAND_GROUPS = {
     PUBLIC_COMMANDS.longPress,
     PUBLIC_COMMANDS.pinch,
     PUBLIC_COMMANDS.press,
+    PUBLIC_COMMANDS.record,
     PUBLIC_COMMANDS.rotate,
     PUBLIC_COMMANDS.screenshot,
     PUBLIC_COMMANDS.scroll,

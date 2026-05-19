@@ -1,0 +1,44 @@
+appId: host.exp.Exponent
+env:
+  CHECKOUT_NAME: Ada Lovelace
+  CHECKOUT_EMAIL: ada@example.com
+  PICKUP_TAPS: "2"
+onFlowStart:
+  - assertVisible: Agent Device Tester
+onFlowComplete:
+  - assertVisible: Delivery choices
+---
+- runFlow:
+    file: helpers/open-checkout-form.yaml
+    env:
+      CHECKOUT_NAME: Ada Lovelace
+      CHECKOUT_EMAIL: ada@example.com
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible: Checkout form
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertVisible: Checkout form
+- assertVisible:
+    text: Checkout form
+- swipe:
+    start: 50%, 75%
+    end: 50%, 35%
+    duration: 300
+- repeat:
+    times: ${PICKUP_TAPS}
+    commands:
+      - tapOn:
+          id: shipping-pickup
+      - assertVisible:
+          id: shipping-pickup
+          selected: true
+- tapOn:
+    id: payment-cash
+- assertVisible:
+    id: payment-cash
+    selected: true

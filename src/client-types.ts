@@ -624,7 +624,9 @@ export type FindOptions =
 export type ReplayRunOptions = AgentDeviceRequestOverrides & {
   path: string;
   update?: boolean;
+  /** @deprecated Use backend: 'maestro'. */
   maestro?: boolean;
+  backend?: string;
   env?: string[];
 };
 
@@ -759,7 +761,7 @@ type CommandExecutionOptions = Partial<ScreenshotRequestFlags> & {
   headless?: boolean;
   restart?: boolean;
   replayUpdate?: boolean;
-  replayMaestro?: boolean;
+  replayBackend?: string;
   replayEnv?: string[];
   replayShellEnv?: Record<string, string>;
   failFast?: boolean;

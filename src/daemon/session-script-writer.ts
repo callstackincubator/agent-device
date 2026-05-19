@@ -2,14 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { inferFillText } from './action-utils.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
-import { formatPortableActionLine } from './session-script-formatting.ts';
+import { formatPortableActionLine } from '../replay/script-formatting.ts';
 import { expandSessionPath, safeSessionName } from './session-paths.ts';
 import {
   appendScriptSeriesFlags,
   formatScriptArg,
   formatScriptStringLiteral,
   isClickLikeCommand,
-} from './script-utils.ts';
+} from '../replay/script-utils.ts';
 import type { SessionAction, SessionState } from './types.ts';
 
 export type SessionScriptWriteResult = { written: false } | { written: true; path: string };

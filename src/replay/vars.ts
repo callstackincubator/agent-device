@@ -1,5 +1,5 @@
-import { AppError } from '../../utils/errors.ts';
-import type { SessionAction } from '../types.ts';
+import { AppError } from '../utils/errors.ts';
+import type { SessionAction } from '../daemon/types.ts';
 
 export type ReplayVarScope = {
   readonly values: Readonly<Record<string, string>>;
@@ -89,6 +89,23 @@ export function parseReplayCliEnvEntries(entries: readonly string[]): Record<str
     result[key] = entry.slice(eqIndex + 1);
   }
   return result;
+}
+
+export function readReplayCliEnvEntries(raw: unknown): string[] {
+  return Array.isArray(raw)
+    ? raw.filter((value): value is string => typeof value === 'string')
+    : [];
+}
+
+export function readReplayShellEnvSource(raw: unknown): NodeJS.ProcessEnv {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const result: NodeJS.ProcessEnv = {};
+    for (const [key, value] of Object.entries(raw)) {
+      if (typeof value === 'string') result[key] = value;
+    }
+    return result;
+  }
+  return process.env;
 }
 
 export function resolveReplayString(

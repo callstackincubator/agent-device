@@ -1520,6 +1520,23 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     forbiddenOutputs: [/sed\s+-i/i, /open .*\.ad/i],
   }),
   makeCase({
+    id: 'replay-maestro-compatibility-flow',
+    contract: [
+      'Flow path: ./flows/checkout-form.yaml',
+      'The flow is a Maestro YAML compatibility flow',
+      'Need to run it through Agent Device replay, not the Maestro CLI',
+      'Target platform: iOS',
+    ],
+    task: 'Plan the command to replay the Maestro YAML flow through Agent Device on iOS.',
+    outputs: [
+      plannedCommand('replay'),
+      /--maestro/i,
+      /\.\/flows\/checkout-form\.yaml/i,
+      /--platform\s+ios/i,
+    ],
+    forbiddenOutputs: [/maestro\s+test/i, /maestro\s+cloud/i, plannedCommand('test')],
+  }),
+  makeCase({
     id: 'batch-known-stable-flow',
     contract: [
       'App name: Agent Device Tester',

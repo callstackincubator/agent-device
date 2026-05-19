@@ -16,7 +16,7 @@ import {
 } from '../selectors.ts';
 import { inferFillText, uniqueStrings } from '../action-utils.ts';
 import type { SessionAction, SessionState } from '../types.ts';
-import { isClickLikeCommand } from '../script-utils.ts';
+import { isClickLikeCommand } from '../../replay/script-utils.ts';
 import { contextFromFlags } from '../context.ts';
 import { SessionStore } from '../session-store.ts';
 
@@ -38,6 +38,7 @@ function parseSelectorWaitPositionals(positionals: string[]): {
   };
 }
 
+// fallow-ignore-next-line complexity
 function collectReplaySelectorCandidates(action: SessionAction): string[] {
   const result: string[] = [];
   const explicitChain =
@@ -87,6 +88,7 @@ function collectReplaySelectorChains(action: SessionAction) {
     .filter((chain) => chain !== null);
 }
 
+// fallow-ignore-next-line complexity
 export async function healReplayAction(params: {
   action: SessionAction;
   sessionName: string;
@@ -168,6 +170,7 @@ export async function healReplayAction(params: {
   return null;
 }
 
+// fallow-ignore-next-line complexity
 async function captureSnapshotForReplay(
   session: SessionState,
   action: SessionAction,

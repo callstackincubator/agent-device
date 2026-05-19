@@ -309,7 +309,7 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     headless: options.headless,
     restart: options.restart,
     replayUpdate: options.replayUpdate,
-    replayMaestro: options.replayMaestro,
+    replayBackend: options.replayBackend,
     replayEnv: options.replayEnv,
     replayShellEnv: options.replayShellEnv,
     failFast: options.failFast,

@@ -1,8 +1,8 @@
 ---
-title: Replay & E2E Testing (Experimental)
+title: Replay & E2E Testing
 ---
 
-# Replay & E2E Testing (Experimental)
+# Replay & E2E Testing
 
 Agents use refs for exploration and authoring. Replay scripts are deterministic runs that can be used for E2E testing.
 
@@ -47,6 +47,25 @@ agent-device replay ~/.agent-device/sessions/e2e-2026-02-09T12-00-00-000Z.ad --s
 ```
 
 - Replay reads `.ad` scripts.
+
+## Run Maestro compatibility flows
+
+Agent Device can run a supported subset of Maestro YAML through the replay runtime:
+
+```bash
+agent-device replay ./flow.yaml --maestro --platform ios --session e2e-run
+```
+
+Maestro compatibility translates supported YAML commands into Agent Device replay actions. It is intended for common mobile flows, not full Maestro parity. Unsupported Maestro syntax fails loudly with the command or field name and a line number when available. If a missing command matters for your flows, use the compatibility tracker to check current support and share demand:
+
+- Supported and unsupported capabilities: https://github.com/callstackincubator/agent-device/issues/558
+- New focused compatibility request: https://github.com/callstackincubator/agent-device/issues/new
+
+Currently supported areas include app launch without state-reset side effects, file and inline `runFlow` with `when.platform`, `onFlowStart` / `onFlowComplete`, deterministic `repeat.times`, `tapOn`, `doubleTapOn`, `longPressOn`, `inputText`, `pasteText`, `openLink`, visibility assertions, literal `assertTrue`, `extendedWaitUntil`, `scroll`, absolute/percentage `swipe`, screenshots, keyboard dismiss, basic `pressKey`, `back`, animation waits, `stopApp` / `killApp`, airplane mode, mock location, orientation, supported permission targets, and screen recording.
+
+Maestro `env` values use the same replay precedence as `.ad` files: flow `env` is the default, shell `AD_VAR_*` values override it, and CLI `-e KEY=VALUE` wins over both.
+
+Runtime-dependent Maestro features such as `scrollUntilVisible`, `repeat.while`, `runFlow.when.visible`, `runScript`, `evalScript`, text clearing, and app state reset are tracked separately because they require neutral Agent Device runtime or device capabilities before they can be mapped safely.
 
 ## Run a lightweight `.ad` suite
 
@@ -219,3 +238,5 @@ Use `replay -u` locally during maintenance, review the rewritten `.ad` lines, th
   - Re-record that flow (`--save-script`) from a fresh exploratory pass.
 - Replay file parse error:
   - Validate quoting in `.ad` lines (unclosed quotes are rejected).
+- Maestro compatibility flow fails on unsupported syntax:
+  - Check the linked command or field in https://github.com/callstackincubator/agent-device/issues/558. If it is important to your suite, comment there or open a focused issue with a small flow snippet.

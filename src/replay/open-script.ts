@@ -1,4 +1,4 @@
-import type { SessionAction } from './types.ts';
+import type { SessionAction } from '../daemon/types.ts';
 import {
   appendRuntimeHintFlags,
   formatScriptArg,

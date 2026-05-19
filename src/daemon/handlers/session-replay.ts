@@ -4,7 +4,7 @@ import { SessionStore } from '../session-store.ts';
 import { runReplayTestSuite } from './session-test.ts';
 import { handleCloseCommand } from './session-close.ts';
 import { collectReplayActionArtifactPaths, runReplayScriptFile } from './session-replay-runtime.ts';
-import type { ReplayScriptMetadata } from './session-replay-script.ts';
+import type { ReplayScriptMetadata } from '../../replay/script.ts';
 
 export function buildNestedReplayFlags(params: {
   parentFlags: CommandFlags | undefined;

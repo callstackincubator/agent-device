@@ -37,4 +37,4 @@ Notes:
 - For remote `connect --remote-config` sessions, see [Commands](/docs/commands#remote-metro-workflow).
 - Use `--session <name>` to run multiple sessions in parallel. Do not parallelize mutating commands against the same session; serialize stateful actions such as open, press, fill, type, scroll, back, alert, replay, batch, and close.
 
-For replay scripts and deterministic E2E guidance, see [Replay & E2E (Experimental)](/docs/replay-e2e).
+For replay scripts and deterministic E2E guidance, see [Replay & E2E](/docs/replay-e2e).

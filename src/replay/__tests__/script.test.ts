@@ -3,14 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { AppError } from '../../../utils/errors.ts';
-import {
-  parseReplayScript,
-  readReplayScriptMetadata,
-  writeReplayScript,
-} from '../session-replay-script.ts';
-import { parseMaestroReplayFlow } from '../session-maestro-replay.ts';
-import type { SessionAction, SessionState } from '../../types.ts';
+import { AppError } from '../../utils/errors.ts';
+import { parseReplayScript, readReplayScriptMetadata, writeReplayScript } from '../script.ts';
+import type { SessionAction, SessionState } from '../../daemon/types.ts';
 
 function makeSession(): SessionState {
   return {
@@ -51,54 +46,6 @@ test('writeReplayScript preserves inline open runtime hints', () => {
   assert.match(
     script,
     /open "Demo" --relaunch --platform android --metro-host 10\.0\.0\.10 --metro-port 8081 --launch-url myapp:\/\/dev/,
-  );
-});
-
-test('parseMaestroReplayFlow converts a supported Maestro command subset', () => {
-  const parsed = parseMaestroReplayFlow(`appId: com.callstack.agentdevicelab
-env:
-  USER_NAME: Ada
----
-- launchApp
-- tapOn:
-    id: home-open-form
-- openLink: exp://localhost:8082
-- tapOn: Full name
-- inputText: Ada Lovelace
-- assertVisible:
-    text: Checkout form
-- extendedWaitUntil:
-    visible:
-      id: submit-order
-    timeout: 7000
-- takeScreenshot: ./screens/form.png
-- hideKeyboard
-`);
-
-  assert.equal(parsed.metadata.env?.USER_NAME, 'Ada');
-  assert.deepEqual(
-    parsed.actions.map((entry) => [entry.command, entry.positionals]),
-    [
-      ['open', ['com.callstack.agentdevicelab']],
-      ['click', ['id="home-open-form"']],
-      ['open', ['exp://localhost:8082']],
-      ['click', ['label="Full name" || text="Full name" || id="Full name"']],
-      ['type', ['Ada Lovelace']],
-      ['wait', ['label="Checkout form"', '5000']],
-      ['wait', ['id="submit-order"', '7000']],
-      ['screenshot', ['./screens/form.png']],
-      ['keyboard', ['dismiss']],
-    ],
-  );
-});
-
-test('parseMaestroReplayFlow rejects unsupported Maestro commands', () => {
-  assert.throws(
-    () => parseMaestroReplayFlow('---\n- scrollUntilVisible: Save\n'),
-    (error) =>
-      error instanceof AppError &&
-      error.code === 'INVALID_ARGS' &&
-      /scrollUntilVisible/.test(error.message),
   );
 });
 

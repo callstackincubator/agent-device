@@ -1,0 +1,14 @@
+---
+- tapOn:
+    id: home-open-form
+- assertVisible: Checkout form
+- tapOn:
+    id: field-name
+- inputText:
+    text: ${CHECKOUT_NAME}
+    label: Full name
+- tapOn:
+    id: field-email
+- inputText: ${CHECKOUT_EMAIL}
+- tapOn:
+    text: Checkout form

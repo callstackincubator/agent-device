@@ -8,7 +8,7 @@ import {
   registerRequestAbort,
 } from '../request-cancel.ts';
 import type { DaemonResponse } from '../types.ts';
-import type { ReplayScriptMetadata } from './session-replay-script.ts';
+import type { ReplayScriptMetadata } from '../../replay/script.ts';
 import type { ReplayTestRuntimeDependencies } from './session-test-types.ts';
 
 const REPLAY_TIMEOUT_CLEANUP_GRACE_MS = 2_000;

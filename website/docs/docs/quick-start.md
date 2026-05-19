@@ -111,9 +111,9 @@ agent-device find label "Email" fill "user@example.com"
 agent-device find role button click
 ```
 
-## Replay (experimental)
+## Replay
 
-For deterministic replay scripts and E2E guidance, see [Replay & E2E (Experimental)](/docs/replay-e2e).
+For deterministic replay scripts and E2E guidance, see [Replay & E2E](/docs/replay-e2e).
 
 ## Scrolling
 

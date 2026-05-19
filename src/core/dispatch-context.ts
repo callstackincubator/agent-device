@@ -1,4 +1,4 @@
-import type { CliFlags } from '../utils/command-schema.ts';
+import type { CliFlags, DaemonExcludedCliFlag } from '../utils/command-schema.ts';
 import type { ScreenshotDispatchFlags } from '../commands/capture-screenshot-options.ts';
 import type { ClickButton } from './click-button.ts';
 import type { SessionSurface } from './session-surface.ts';
@@ -10,8 +10,9 @@ export type BatchStep = {
   runtime?: unknown;
 };
 
-export type CommandFlags = Omit<CliFlags, 'json' | 'help' | 'version' | 'batchSteps'> & {
+export type CommandFlags = Omit<CliFlags, DaemonExcludedCliFlag> & {
   batchSteps?: BatchStep[];
+  replayBackend?: string;
 };
 
 export type DispatchContext = ScreenshotDispatchFlags & {

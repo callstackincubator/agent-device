@@ -871,6 +871,14 @@ test('usageForCommand includes Maestro replay flag', () => {
   const help = usageForCommand('replay');
   if (help === null) throw new Error('Expected replay help text');
   assert.match(help, /--maestro/);
+  assert.match(help, /doubleTapOn/);
+  assert.match(help, /pasteText/);
+  assert.match(help, /setPermissions/);
+  assert.match(help, /startRecording\/stopRecording/);
+  assert.match(help, /runFlow file\/inline/);
+  assert.match(help, /repeat\.times/);
+  assert.match(help, /Unsupported syntax fails loudly/);
+  assert.match(help, /issues\/558/);
 });
 
 test('usageForCommand resolves workflow help topic', () => {
