@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/static/js/649.63df3d8087.js"></script>
-<script defer src="/agent-device/static/js/index.574d5525e9.js"></script>
+<script defer src="/agent-device/static/js/index.40ef34c4e0.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -74,7 +74,7 @@
 <li><code>AGENT_DEVICE_SESSION</code> and <code>AGENT_DEVICE_PLATFORM</code> can pre-bind a default session/platform for CLI automation runs, so normal commands (<code>open</code>, <code>snapshot</code>, <code>press</code>, <code>fill</code>, <code>screenshot</code>, <code>devices</code>, and <code>batch</code>) do not need those flags repeated on every call.</li>
 <li>A configured <code>AGENT_DEVICE_SESSION</code> implies bound-session lock mode by default. The CLI forwards that policy to the daemon, which enforces the same conflict handling for CLI, typed client, and direct RPC requests.</li>
 <li><code>--session-lock reject|strip</code> sets the lock policy for a single CLI invocation, including nested batch steps.</li>
-<li><code>AGENT_DEVICE_SESSION_LOCK=reject|strip</code> sets the default lock policy for bound-session automation runs. The older <code>--session-locked</code>, <code>--session-lock-conflicts</code>, <code>AGENT_DEVICE_SESSION_LOCKED</code>, and <code>AGENT_DEVICE_SESSION_LOCK_CONFLICTS</code> forms remain supported as compatibility aliases.</li>
+<li><code>AGENT_DEVICE_SESSION_LOCK=reject|strip</code> sets the default lock policy for bound-session automation runs. Older lock aliases remain accepted for compatibility, but new automation should use <code>--session-lock</code> or <code>AGENT_DEVICE_SESSION_LOCK</code>.</li>
 <li>Direct RPC callers can pass <code>meta.lockPolicy</code> and optional <code>meta.lockPlatform</code> on <code>agent_device.command</code> requests for the same daemon-enforced behavior.</li>
 <li>In <code>batch</code>, steps that omit <code>platform</code> still inherit the parent batch <code>--platform</code>; lock-mode defaults do not override that parent setting.</li>
 <li>Tenant-scoped daemon runs can pass <code>--tenant</code>, <code>--session-isolation tenant</code>, <code>--run-id</code>, and <code>--lease-id</code> to enforce lease admission.</li>
@@ -101,12 +101,7 @@
 <li><code>--android-device-allowlist &lt;serials&gt;</code> constrains Android discovery/selection to comma or space separated serials.</li>
 <li>Scope is applied before selectors (<code>--device</code>, <code>--udid</code>, <code>--serial</code>), so out-of-scope selectors fail with <code>DEVICE_NOT_FOUND</code>.</li>
 <li>With iOS simulator-set scope enabled, iOS physical devices are not enumerated.</li>
-<li>Environment equivalents:
-<ul>
-<li>iOS: <code>AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET</code> (compat: <code>IOS_SIMULATOR_DEVICE_SET</code>)</li>
-<li>Android: <code>AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST</code> (compat: <code>ANDROID_DEVICE_ALLOWLIST</code>)</li>
-</ul>
-</li>
+<li>Device scoping can also be configured with <code>iosSimulatorDeviceSet</code> and <code>androidDeviceAllowlist</code> config keys. Android allowlists can use <code>AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST</code>.</li>
 <li>CLI scope flags override environment values unless bound-session lock mode is active with <code>strip</code>, in which case conflicting per-call selectors are ignored.</li>
 </ul>
 <h2 class="rp-toc-include" id="device-discovery"><a href="#device-discovery" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Device discovery</h2>
@@ -323,7 +318,7 @@ When a target only appears in an off-screen summary, use <code>scroll &lt;direct
 <li>Remote daemons automatically upload local app artifacts for <code>install</code>; prefix the path with <code>remote:</code> to use a daemon-side path verbatim.</li>
 <li>Supported binary formats: Android <code>.apk</code>/<code>.aab</code>, iOS <code>.app</code>/<code>.ipa</code>.</li>
 <li><code>.aab</code> requires <code>bundletool</code> in <code>PATH</code>, or <code>AGENT_DEVICE_BUNDLETOOL_JAR=&lt;absolute-path-to-bundletool-all.jar&gt;</code> with <code>java</code> in <code>PATH</code>.</li>
-<li>Optional: <code>AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=&lt;mode&gt;</code> overrides bundletool <code>build-apks --mode</code> (default: <code>universal</code>).</li>
+<li><code>.aab</code> installs use bundletool <code>build-apks --mode universal</code>.</li>
 <li><code>.ipa</code> installs by extracting <code>Payload/*.app</code>; if multiple app bundles exist, <code>&lt;app&gt;</code> is used as a bundle id/name hint to select one.</li>
 </ul>
 <h2 class="rp-toc-include" id="app-reinstall-fresh-state"><a href="#app-reinstall-fresh-state" class="rp-header-anchor rp-link" aria-hidden="true">#</a>App reinstall (fresh state)</h2>
@@ -335,7 +330,7 @@ When a target only appears in an off-screen summary, use <code>scroll &lt;direct
 <li>Useful for login/logout reset flows and deterministic test setup.</li>
 <li>Remote daemons automatically upload local app artifacts for <code>reinstall</code>; prefix the path with <code>remote:</code> to use a daemon-side path verbatim.</li>
 <li>Supported binary formats: Android <code>.apk</code>/<code>.aab</code>, iOS <code>.app</code>/<code>.ipa</code>.</li>
-<li><code>.aab</code> accepts the same bundletool requirements and optional <code>AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE</code> override as <code>install</code>.</li>
+<li><code>.aab</code> accepts the same bundletool requirements as <code>install</code>.</li>
 <li><code>.ipa</code> uses <code>&lt;app&gt;</code> as the selection hint when multiple <code>Payload/*.app</code> bundles are present.</li>
 </ul>
 <h2 class="rp-toc-include" id="app-install-from-source-url"><a href="#app-install-from-source-url" class="rp-header-anchor rp-link" aria-hidden="true">#</a>App install from source URL</h2>
@@ -724,11 +719,8 @@ On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li
 </ul>
 </li>
 <li>Free Apple Developer (Personal Team) accounts can fail on unavailable generic bundle IDs; set <code>AGENT_DEVICE_IOS_BUNDLE_ID</code> to a unique reverse-DNS value.</li>
-<li>If first-run XCTest setup/build is slow, increase daemon request timeout:
-<ul>
-<li><code>AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000</code> (default is <code>90000</code>)</li>
-</ul>
-</li>
+<li>First-run XCTest setup/build can take longer than normal commands; keep the device connected and inspect daemon diagnostics if setup times out.</li>
+<li>If you override the iOS runner derived-data path and also force cleanup, keep <code>AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH</code> under the project <code>.tmp/</code> directory. Other cleanup override paths are rejected with a recovery hint.</li>
 <li>For daemon startup troubleshooting:
 <ul>
 <li>follow stale metadata hints for <code>&lt;state-dir&gt;/daemon.json</code> and <code>&lt;state-dir&gt;/daemon.lock</code> (<code>state-dir</code> defaults to <code>~/.agent-device</code>)</li>

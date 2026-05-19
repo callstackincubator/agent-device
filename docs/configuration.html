@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/static/js/649.63df3d8087.js"></script>
-<script defer src="/agent-device/static/js/index.574d5525e9.js"></script>
+<script defer src="/agent-device/static/js/index.40ef34c4e0.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -64,19 +64,12 @@
 <ul>
 <li><code>session</code> -&gt; <code>AGENT_DEVICE_SESSION</code></li>
 <li><code>daemonBaseUrl</code> -&gt; <code>AGENT_DEVICE_DAEMON_BASE_URL</code></li>
-<li><code>iosSimulatorDeviceSet</code> -&gt; <code>AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET</code></li>
 <li><code>androidDeviceAllowlist</code> -&gt; <code>AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST</code></li>
 </ul>
 <p>Config and environment sources use canonical option values rather than CLI flag names. Example:</p>
 <ul>
 <li>config: <code>&quot;appsFilter&quot;: &quot;user-installed&quot;</code></li>
-<li>env: <code>AGENT_DEVICE_APPS_FILTER=user-installed</code></li>
 <li>CLI equivalent: omit <code>--all</code></li>
-</ul>
-<p>Legacy compatibility env vars are still accepted for device scoping:</p>
-<ul>
-<li><code>IOS_SIMULATOR_DEVICE_SET</code></li>
-<li><code>ANDROID_DEVICE_ALLOWLIST</code></li>
 </ul>
 <p>Example:</p>
 <div class="rp-codeblock language-json"><div class="rp-codeblock__content"><div class="rp-codeblock__content__scroll-container rp-scrollbar rp-scrollbar--always"><pre class="shiki css-variables" style="background-color:var(--shiki-background);color:var(--shiki-foreground)" tabindex="0" data-lang="json"><code><span class="line"><span style="color:var(--shiki-foreground)">{</span></span>
@@ -92,16 +85,12 @@
 <li><code>stateDir</code></li>
 <li><code>daemonBaseUrl</code></li>
 <li><code>daemonAuthToken</code></li>
-<li><code>daemonTransport</code></li>
-<li><code>daemonServerMode</code></li>
 <li><code>tenant</code></li>
 <li><code>sessionIsolation</code></li>
 <li><code>runId</code></li>
 <li><code>leaseId</code></li>
 <li><code>leaseBackend</code></li>
 <li><code>sessionLock</code></li>
-<li><code>sessionLocked</code></li>
-<li><code>sessionLockConflicts</code></li>
 <li><code>platform</code></li>
 <li><code>target</code></li>
 <li><code>device</code></li>
@@ -127,9 +116,56 @@
 <p>Bound-session defaults use the same config and env mapping too:</p>
 <ul>
 <li><code>sessionLock</code> -&gt; <code>AGENT_DEVICE_SESSION_LOCK</code></li>
-<li><code>sessionLocked</code> -&gt; <code>AGENT_DEVICE_SESSION_LOCKED</code></li>
-<li><code>sessionLockConflicts</code> -&gt; <code>AGENT_DEVICE_SESSION_LOCK_CONFLICTS</code></li>
 </ul>
+<p>Older bound-session lock config aliases remain accepted for compatibility, but new configs and automation should use <code>sessionLock</code>, <code>--session-lock</code>, or <code>AGENT_DEVICE_SESSION_LOCK</code>.</p>
+<h2 class="rp-toc-include" id="supported-environment-variables"><a href="#supported-environment-variables" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Supported environment variables</h2>
+<p>These env vars are the supported user-facing configuration surface. Other <code>AGENT_DEVICE_*</code> names may appear in source, tests, CI, runner logs, or child-process contracts, but they are internal unless documented here or in command-specific docs.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="rp-table-scroll-container rp-scrollbar"><table><thead><tr><th>Category</th><th>Env vars</th><th>Decision</th></tr></thead><tbody><tr><td>CLI defaults and config</td><td><code>AGENT_DEVICE_CONFIG</code>, <code>AGENT_DEVICE_SESSION</code>, <code>AGENT_DEVICE_PLATFORM</code>, <code>AGENT_DEVICE_SESSION_LOCK</code>, <code>AGENT_DEVICE_DAEMON_BASE_URL</code>, <code>AGENT_DEVICE_DAEMON_AUTH_TOKEN</code>, <code>AGENT_DEVICE_CLOUD_BASE_URL</code></td><td>Public</td></tr><tr><td>Device scoping</td><td><code>AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST</code></td><td>Public</td></tr><tr><td>Local daemon storage</td><td><code>AGENT_DEVICE_STATE_DIR</code></td><td>Public</td></tr><tr><td>Metro and install helpers</td><td><code>AGENT_DEVICE_METRO_BEARER_TOKEN</code>, <code>AGENT_DEVICE_BUNDLETOOL_JAR</code></td><td>Public</td></tr><tr><td>App hooks and logs</td><td><code>AGENT_DEVICE_APP_EVENT_URL_TEMPLATE</code>, <code>AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE</code>, <code>AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE</code>, <code>AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE</code>, <code>AGENT_DEVICE_APP_LOG_MAX_BYTES</code>, <code>AGENT_DEVICE_APP_LOG_MAX_FILES</code>, <code>AGENT_DEVICE_APP_LOG_REDACT_PATTERNS</code></td><td>Public</td></tr><tr><td>Apple runner setup</td><td><code>AGENT_DEVICE_IOS_TEAM_ID</code>, <code>AGENT_DEVICE_IOS_SIGNING_IDENTITY</code>, <code>AGENT_DEVICE_IOS_PROVISIONING_PROFILE</code>, <code>AGENT_DEVICE_IOS_BUNDLE_ID</code>, <code>AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH</code>, <code>AGENT_DEVICE_IOS_CLEAN_DERIVED</code></td><td>Public operator controls. Cleanup is only automatic for override paths under project <code>.tmp/</code>.</td></tr><tr><td>Install/update and macOS helper</td><td><code>AGENT_DEVICE_NO_UPDATE_NOTIFIER</code>, <code>AGENT_DEVICE_MACOS_HELPER_BIN</code></td><td>Public operator controls</td></tr></tbody></table></div>
 <h2 class="rp-toc-include" id="command-specific-defaults"><a href="#command-specific-defaults" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Command-specific defaults</h2>
 <p>Command-specific keys are applied only when the current command supports them.</p>
 <p>Examples:</p>
@@ -143,7 +179,7 @@
 <li>If <code>--config</code> or <code>AGENT_DEVICE_CONFIG</code> points to a missing file, agent-device fails during CLI parse before contacting the daemon.</li>
 <li>Invalid JSON, unknown keys, or invalid values in config files also fail during CLI parse with <code>INVALID_ARGS</code>.</li>
 </ul><!--/$--></div><div class="container-uhcWmO"><img class="logo-IwzwG8" src="/agent-device/static/image/abstract-atom.4eca0300ff.avif" alt="Abstract Logo" aria-hidden="true"/><div class="content-uJxcIj"><div class="headlineContainer-NHNT4y"><h1 class="headline-iCUUUl">Need React or React Native
-expertise you can count on?</h1></div><div class="buttonContainer-wOj8Y6"><div class="dark"><a href="https://www.callstack.com/contact?utm_campaign=open_source&amp;utm_source=agent-device&amp;utm_medium=referral&amp;utm_content=FOOTER_CTA" class="button-DogSnd brand-rT2ahT ">Let&#x27;s talk<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16" class="button-icon-Okk0hT" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9.333 13.333h1.334V12H9.333zm-6.666-2.666h8V12H12v-1.333h1.333V9.333H12V8h-1.333v1.333H4V2.667H2.667zM9.333 8h1.334V6.667H9.333z"></path></svg></a></div></div></div></div><footer class="rp-doc-footer"><div class="rp-doc-footer__edit"><a href="https://github.com/callstackincubator/agent-device/edit/main/website/docs/configuration.md" target="_blank" rel="noopener noreferrer" class="rp-edit-link rp-link">Edit this page on GitHub</a></div><div class="rp-doc-footer__divider"></div><div class="container-aZLxg0"><a href="/agent-device/docs/commands" class="pagerLink-_WIlZJ rp-link"><span class="iconBox-AUO0Le"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" class="icon-WRLCnG"><path d="M4 20h2V4H4zm8-5v2h2v-2zm-2-4H8v2h2v2h2v-2h8v-2h-8V9h-2zm2-2h2V7h-2z"></path></svg></span><span class="textWrap-lmdyLc"><span class="desc-sp3vRh">Previous page</span><span class="title-hrit_i">Commands</span></span></a><a href="/agent-device/docs/security-trust" class="pagerLink-_WIlZJ next-axkYXz rp-link"><span class="textWrap-lmdyLc"><span class="desc-sp3vRh">Next page</span><span class="title-hrit_i">Security &amp; Trust</span></span><span class="iconBox-AUO0Le"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" class="icon-WRLCnG"><path d="M20 20h-2V4h2zm-8-5v2h-2v-2zm2-4h2v2h-2v2h-2v-2H4v-2h8V9h2zm-2-2h-2V7h2z"></path></svg></span></a></div></footer></main></div><aside class="rp-doc-layout__outline rp-scrollbar"><div class="rp-outline"><div class="rp-outline__title">Contents<svg width="14" height="14" class="rp-progress-circle"><circle cx="7" cy="7" r="6" stroke-linecap="round" fill="none" stroke="var(--rp-c-divider-light)" stroke-width="2"></circle><circle cx="7" cy="7" r="6" stroke-linecap="round" fill="none" stroke="var(--rp-c-brand)" stroke-width="2" stroke-dasharray="37.69911184307752" stroke-dashoffset="37.69911184307752" transform="rotate(-90 7 7)" style="transition:stroke-dashoffset 0.3s"></circle></svg></div><nav class="rp-outline__toc rp-scrollbar"><a href="#config-file-locations" class="rp-toc-item rp-link" title="Config file locations" style="padding-left:0" data-depth="0"><span class="rp-toc-item__text rp-doc">Config file locations</span></a><a href="#config-format" class="rp-toc-item rp-link" title="Config format" style="padding-left:0" data-depth="0"><span class="rp-toc-item__text rp-doc">Config format</span></a><a href="#command-specific-defaults" class="rp-toc-item rp-link" title="Command-specific defaults" style="padding-left:0" data-depth="0"><span class="rp-toc-item__text rp-doc">Command-specific defaults</span></a><a href="#failure-behavior" class="rp-toc-item rp-link" title="Failure behavior" style="padding-left:0" data-depth="0"><span class="rp-toc-item__text rp-doc">Failure behavior</span></a></nav><div class="rp-outline__divider"></div><div class="rp-outline__bottom"><a href="https://github.com/callstackincubator/agent-device/edit/main/website/docs/configuration.md" target="_blank" rel="noopener noreferrer" class="rp-outline__action-row rp-edit-link rp-link"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"></path></svg><span>Edit this page on GitHub</span></a></div></div><div class="container-LzbylO"><div><div class="headline-y75_LS">Curious about developing mobile apps with AI agents?</div><div class="description-muYVs3">We can help you take your agentic workflows to the next level and ship faster.</div></div><a href="https://www.callstack.com/contact?utm_campaign=open_source&amp;utm_source=agent-device&amp;utm_medium=referral&amp;utm_content=OUTLINE_CTA" class="button-DogSnd brand-rT2ahT ">Book a call<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16" class="button-icon-Okk0hT" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9.333 13.333h1.334V12H9.333zm-6.666-2.666h8V12H12v-1.333h1.333V9.333H12V8h-1.333v1.333H4V2.667H2.667zM9.333 8h1.334V6.667H9.333z"></path></svg></a></div></aside></div></div>
+expertise you can count on?</h1></div><div class="buttonContainer-wOj8Y6"><div class="dark"><a href="https://www.callstack.com/contact?utm_campaign=open_source&amp;utm_source=agent-device&amp;utm_medium=referral&amp;utm_content=FOOTER_CTA" class="button-DogSnd brand-rT2ahT ">Let&#x27;s talk<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16" class="button-icon-Okk0hT" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9.333 13.333h1.334V12H9.333zm-6.666-2.666h8V12H12v-1.333h1.333V9.333H12V8h-1.333v1.333H4V2.667H2.667zM9.333 8h1.334V6.667H9.333z"></path></svg></a></div></div></div></div><footer class="rp-doc-footer"><div class="rp-doc-footer__edit"><a href="https://github.com/callstackincubator/agent-device/edit/main/website/docs/configuration.md" target="_blank" rel="noopener noreferrer" class="rp-edit-link rp-link">Edit this page on GitHub</a></div><div class="rp-doc-footer__divider"></div><div class="container-aZLxg0"><a href="/agent-device/docs/commands" class="pagerLink-_WIlZJ rp-link"><span class="iconBox-AUO0Le"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" class="icon-WRLCnG"><path d="M4 20h2V4H4zm8-5v2h2v-2zm-2-4H8v2h2v2h2v-2h8v-2h-8V9h-2zm2-2h2V7h-2z"></path></svg></span><span class="textWrap-lmdyLc"><span class="desc-sp3vRh">Previous page</span><span class="title-hrit_i">Commands</span></span></a><a href="/agent-device/docs/security-trust" class="pagerLink-_WIlZJ next-axkYXz rp-link"><span class="textWrap-lmdyLc"><span class="desc-sp3vRh">Next page</span><span class="title-hrit_i">Security &amp; Trust</span></span><span class="iconBox-AUO0Le"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" class="icon-WRLCnG"><path d="M20 20h-2V4h2zm-8-5v2h-2v-2zm2-4h2v2h-2v2h-2v-2H4v-2h8V9h2zm-2-2h-2V7h2z"></path></svg></span></a></div></footer></main></div><aside class="rp-doc-layout__outline rp-scrollbar"><div class="rp-outline"><div class="rp-outline__title">Contents<svg width="14" height="14" class="rp-progress-circle"><circle cx="7" cy="7" r="6" stroke-linecap="round" fill="none" stroke="var(--rp-c-divider-light)" stroke-width="2"></circle><circle cx="7" cy="7" r="6" stroke-linecap="round" fill="none" stroke="var(--rp-c-brand)" stroke-width="2" stroke-dasharray="37.69911184307752" stroke-dashoffset="37.69911184307752" transform="rotate(-90 7 7)" style="transition:stroke-dashoffset 0.3s"></circle></svg></div><nav class="rp-outline__toc rp-scrollbar"><a href="#config-file-locations" class="rp-toc-item rp-link" title="Config file locations" style="padding-left:0" data-depth="0"><span class="rp-toc-item__text rp-doc">Config file locations</span></a><a href="#config-format" class="rp-toc-item rp-link" title="Config format" style="padding-left:0" data-depth="0"><span class="rp-toc-item__text rp-doc">Config format</span></a><a href="#supported-environment-variables" class="rp-toc-item rp-link" title="Supported environment variables" style="padding-left:0" data-depth="0"><span class="rp-toc-item__text rp-doc">Supported environment variables</span></a><a href="#command-specific-defaults" class="rp-toc-item rp-link" title="Command-specific defaults" style="padding-left:0" data-depth="0"><span class="rp-toc-item__text rp-doc">Command-specific defaults</span></a><a href="#failure-behavior" class="rp-toc-item rp-link" title="Failure behavior" style="padding-left:0" data-depth="0"><span class="rp-toc-item__text rp-doc">Failure behavior</span></a></nav><div class="rp-outline__divider"></div><div class="rp-outline__bottom"><a href="https://github.com/callstackincubator/agent-device/edit/main/website/docs/configuration.md" target="_blank" rel="noopener noreferrer" class="rp-outline__action-row rp-edit-link rp-link"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"></path></svg><span>Edit this page on GitHub</span></a></div></div><div class="container-LzbylO"><div><div class="headline-y75_LS">Curious about developing mobile apps with AI agents?</div><div class="description-muYVs3">We can help you take your agentic workflows to the next level and ship faster.</div></div><a href="https://www.callstack.com/contact?utm_campaign=open_source&amp;utm_source=agent-device&amp;utm_medium=referral&amp;utm_content=OUTLINE_CTA" class="button-DogSnd brand-rT2ahT ">Book a call<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16" class="button-icon-Okk0hT" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9.333 13.333h1.334V12H9.333zm-6.666-2.666h8V12H12v-1.333h1.333V9.333H12V8h-1.333v1.333H4V2.667H2.667zM9.333 8h1.334V6.667H9.333z"></path></svg></a></div></aside></div></div>
     <div id="__rspress_modal_container"></div>
   </body>
 </html>
