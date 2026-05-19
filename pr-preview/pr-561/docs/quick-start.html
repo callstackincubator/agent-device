@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-561/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/pr-preview/pr-561/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/pr-preview/pr-561/static/js/649.63df3d8087.js"></script>
-<script defer src="/agent-device/pr-preview/pr-561/static/js/index.1ca64c9d3b.js"></script>
+<script defer src="/agent-device/pr-preview/pr-561/static/js/index.29133f1092.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -74,7 +74,7 @@
 <li>Android: <code>.apk</code> and <code>.aab</code></li>
 <li>iOS: <code>.app</code> and <code>.ipa</code></li>
 <li><code>.aab</code> requires <code>bundletool</code> in <code>PATH</code>, or <code>AGENT_DEVICE_BUNDLETOOL_JAR=&lt;absolute-path-to-bundletool-all.jar&gt;</code> with <code>java</code> in <code>PATH</code>.</li>
-<li>Optional: <code>AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=&lt;mode&gt;</code> overrides bundletool <code>build-apks --mode</code> (default: <code>universal</code>).</li>
+<li><code>.aab</code> installs use bundletool <code>build-apks --mode universal</code>.</li>
 <li><code>.ipa</code> installs extract <code>Payload/*.app</code>; if multiple app bundles exist, <code>&lt;app&gt;</code> selects the target by bundle id or bundle name.</li>
 <li>Use <code>install-from-source</code> for existing artifact URLs, including direct Android <code>.apk</code>/<code>.aab</code> URLs and trusted archives with one installable artifact. Use <code>install-from-source --github-actions-artifact &lt;owner/repo:artifact&gt;</code> for daemon-resolved GitHub Actions artifacts.</li>
 </ul>

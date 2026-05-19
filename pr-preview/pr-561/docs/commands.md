@@ -67,7 +67,7 @@ agent-device app-switcher
 - `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` can pre-bind a default session/platform for CLI automation runs, so normal commands (`open`, `snapshot`, `press`, `fill`, `screenshot`, `devices`, and `batch`) do not need those flags repeated on every call.
 - A configured `AGENT_DEVICE_SESSION` implies bound-session lock mode by default. The CLI forwards that policy to the daemon, which enforces the same conflict handling for CLI, typed client, and direct RPC requests.
 - `--session-lock reject|strip` sets the lock policy for a single CLI invocation, including nested batch steps.
-- `AGENT_DEVICE_SESSION_LOCK=reject|strip` sets the default lock policy for bound-session automation runs. The older `--session-locked`, `--session-lock-conflicts`, `AGENT_DEVICE_SESSION_LOCKED`, and `AGENT_DEVICE_SESSION_LOCK_CONFLICTS` forms remain supported as compatibility aliases.
+- `AGENT_DEVICE_SESSION_LOCK=reject|strip` sets the default lock policy for bound-session automation runs. Older lock aliases remain accepted for compatibility, but new automation should use `--session-lock` or `AGENT_DEVICE_SESSION_LOCK`.
 - Direct RPC callers can pass `meta.lockPolicy` and optional `meta.lockPlatform` on `agent_device.command` requests for the same daemon-enforced behavior.
 - In `batch`, steps that omit `platform` still inherit the parent batch `--platform`; lock-mode defaults do not override that parent setting.
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
@@ -100,9 +100,7 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
 - `--android-device-allowlist <serials>` constrains Android discovery/selection to comma or space separated serials.
 - Scope is applied before selectors (`--device`, `--udid`, `--serial`), so out-of-scope selectors fail with `DEVICE_NOT_FOUND`.
 - With iOS simulator-set scope enabled, iOS physical devices are not enumerated.
-- Environment equivalents:
-  - iOS: `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET` (compat: `IOS_SIMULATOR_DEVICE_SET`)
-  - Android: `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST` (compat: `ANDROID_DEVICE_ALLOWLIST`)
+- Device scoping can also be configured with `iosSimulatorDeviceSet` and `androidDeviceAllowlist` config keys. Android allowlists can use `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST`.
 - CLI scope flags override environment values unless bound-session lock mode is active with `strip`, in which case conflicting per-call selectors are ignored.
 
 ## Device discovery
@@ -365,7 +363,7 @@ agent-device install com.example.app ./build/MyApp.app --platform ios
 - Remote daemons automatically upload local app artifacts for `install`; prefix the path with `remote:` to use a daemon-side path verbatim.
 - Supported binary formats: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
 - `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<absolute-path-to-bundletool-all.jar>` with `java` in `PATH`.
-- Optional: `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` overrides bundletool `build-apks --mode` (default: `universal`).
+- `.aab` installs use bundletool `build-apks --mode universal`.
 - `.ipa` installs by extracting `Payload/*.app`; if multiple app bundles exist, `<app>` is used as a bundle id/name hint to select one.
 
 ## App reinstall (fresh state)
@@ -380,7 +378,7 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 - Useful for login/logout reset flows and deterministic test setup.
 - Remote daemons automatically upload local app artifacts for `reinstall`; prefix the path with `remote:` to use a daemon-side path verbatim.
 - Supported binary formats: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
-- `.aab` accepts the same bundletool requirements and optional `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE` override as `install`.
+- `.aab` accepts the same bundletool requirements as `install`.
 - `.ipa` uses `<app>` as the selection hint when multiple `Payload/*.app` bundles are present.
 
 ## App install from source URL
@@ -804,7 +802,7 @@ agent-device session list --json
   - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
   - `AGENT_DEVICE_IOS_BUNDLE_ID` (runner bundle-id base; tests use `<id>.uitests`)
 - Free Apple Developer (Personal Team) accounts can fail on unavailable generic bundle IDs; set `AGENT_DEVICE_IOS_BUNDLE_ID` to a unique reverse-DNS value.
-- If first-run XCTest setup/build is slow, increase daemon request timeout:
-  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000` (default is `90000`)
+- First-run XCTest setup/build can take longer than normal commands; keep the device connected and inspect daemon diagnostics if setup times out.
+- If you override the iOS runner derived-data path and also force cleanup, keep `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH` under the project `.tmp/` directory. Other cleanup override paths are rejected with a recovery hint.
 - For daemon startup troubleshooting:
   - follow stale metadata hints for `<state-dir>/daemon.json` and `<state-dir>/daemon.lock` (`state-dir` defaults to `~/.agent-device`)

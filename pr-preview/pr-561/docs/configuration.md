@@ -25,19 +25,12 @@ Environment variables follow the same fields using `AGENT_DEVICE_*` uppercase sn
 
 - `session` -> `AGENT_DEVICE_SESSION`
 - `daemonBaseUrl` -> `AGENT_DEVICE_DAEMON_BASE_URL`
-- `iosSimulatorDeviceSet` -> `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET`
 - `androidDeviceAllowlist` -> `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST`
 
 Config and environment sources use canonical option values rather than CLI flag names. Example:
 
 - config: `"appsFilter": "user-installed"`
-- env: `AGENT_DEVICE_APPS_FILTER=user-installed`
 - CLI equivalent: omit `--all`
-
-Legacy compatibility env vars are still accepted for device scoping:
-
-- `IOS_SIMULATOR_DEVICE_SET`
-- `ANDROID_DEVICE_ALLOWLIST`
 
 Example:
 
@@ -58,16 +51,12 @@ Common keys include:
 - `stateDir`
 - `daemonBaseUrl`
 - `daemonAuthToken`
-- `daemonTransport`
-- `daemonServerMode`
 - `tenant`
 - `sessionIsolation`
 - `runId`
 - `leaseId`
 - `leaseBackend`
 - `sessionLock`
-- `sessionLocked`
-- `sessionLockConflicts`
 - `platform`
 - `target`
 - `device`
@@ -99,8 +88,22 @@ Use a numeric `artifact` value for an artifact ID. Use a string `artifact` value
 Bound-session defaults use the same config and env mapping too:
 
 - `sessionLock` -> `AGENT_DEVICE_SESSION_LOCK`
-- `sessionLocked` -> `AGENT_DEVICE_SESSION_LOCKED`
-- `sessionLockConflicts` -> `AGENT_DEVICE_SESSION_LOCK_CONFLICTS`
+
+Older bound-session lock config aliases remain accepted for compatibility, but new configs and automation should use `sessionLock`, `--session-lock`, or `AGENT_DEVICE_SESSION_LOCK`.
+
+## Supported environment variables
+
+These env vars are the supported user-facing configuration surface. Other `AGENT_DEVICE_*` names may appear in source, tests, CI, runner logs, or child-process contracts, but they are internal unless documented here or in command-specific docs.
+
+| Category                        | Env vars                                                                                                                                                                                                                                                                                 | Decision                                                                                      |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| CLI defaults and config         | `AGENT_DEVICE_CONFIG`, `AGENT_DEVICE_SESSION`, `AGENT_DEVICE_PLATFORM`, `AGENT_DEVICE_SESSION_LOCK`, `AGENT_DEVICE_DAEMON_BASE_URL`, `AGENT_DEVICE_DAEMON_AUTH_TOKEN`, `AGENT_DEVICE_CLOUD_BASE_URL`                                                                                     | Public                                                                                        |
+| Device scoping                  | `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST`                                                                                                                                                                                                                                                  | Public                                                                                        |
+| Local daemon storage            | `AGENT_DEVICE_STATE_DIR`                                                                                                                                                                                                                                                                 | Public                                                                                        |
+| Metro and install helpers       | `AGENT_DEVICE_METRO_BEARER_TOKEN`, `AGENT_DEVICE_BUNDLETOOL_JAR`                                                                                                                                                                                                                         | Public                                                                                        |
+| App hooks and logs              | `AGENT_DEVICE_APP_EVENT_URL_TEMPLATE`, `AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE`, `AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE`, `AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE`, `AGENT_DEVICE_APP_LOG_MAX_BYTES`, `AGENT_DEVICE_APP_LOG_MAX_FILES`, `AGENT_DEVICE_APP_LOG_REDACT_PATTERNS` | Public                                                                                        |
+| Apple runner setup              | `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`, `AGENT_DEVICE_IOS_BUNDLE_ID`, `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH`, `AGENT_DEVICE_IOS_CLEAN_DERIVED`                                                                         | Public operator controls. Cleanup is only automatic for override paths under project `.tmp/`. |
+| Install/update and macOS helper | `AGENT_DEVICE_NO_UPDATE_NOTIFIER`, `AGENT_DEVICE_MACOS_HELPER_BIN`                                                                                                                                                                                                                       | Public operator controls                                                                      |
 
 ## Command-specific defaults
 

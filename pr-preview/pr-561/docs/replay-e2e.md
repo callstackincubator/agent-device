@@ -59,6 +59,8 @@ Maestro compatibility translates supported YAML commands into Agent Device repla
 
 Currently supported areas include app launch without state-reset side effects, file and inline `runFlow` with `when.platform`, `onFlowStart` / `onFlowComplete`, deterministic `repeat.times`, `tapOn`, `doubleTapOn`, `longPressOn`, `inputText`, `pasteText`, `openLink`, visibility assertions, literal `assertTrue`, `extendedWaitUntil`, `scroll`, absolute/percentage `swipe`, screenshots, keyboard dismiss, basic `pressKey`, `back`, animation waits, `stopApp` / `killApp`, airplane mode, mock location, orientation, supported permission targets, and screen recording.
 
+Maestro `env` values use the same replay precedence as `.ad` files: flow `env` is the default, shell `AD_VAR_*` values override it, and CLI `-e KEY=VALUE` wins over both.
+
 Runtime-dependent Maestro features such as `scrollUntilVisible`, `repeat.while`, `runFlow.when.visible`, `runScript`, `evalScript`, text clearing, and app state reset are tracked separately because they require neutral Agent Device runtime or device capabilities before they can be mapped safely.
 
 ## Run a lightweight `.ad` suite
