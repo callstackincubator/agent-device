@@ -33,4 +33,4 @@ Notes:
 - For remote `connect --remote-config` sessions, see [Commands](/agent-device/pr-preview/pr-562/docs/commands.md#remote-metro-workflow).
 - Use `--session <name>` to run multiple sessions in parallel. Do not parallelize mutating commands against the same session; serialize stateful actions such as open, press, fill, type, scroll, back, alert, replay, batch, and close.
 
-For replay scripts and deterministic E2E guidance, see [Replay & E2E (Experimental)](/agent-device/pr-preview/pr-562/docs/replay-e2e.md).
+For replay scripts and deterministic E2E guidance, see [Replay & E2E](/agent-device/pr-preview/pr-562/docs/replay-e2e.md).
