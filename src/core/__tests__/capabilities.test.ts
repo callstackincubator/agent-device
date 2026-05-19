@@ -77,11 +77,20 @@ function assertCommandSupport(commands: string[], checks: SupportCheck[]): void 
 test('device capability matrix stays consistent across shared command groups', () => {
   const scenarios: Array<{ commands: string[]; checks: SupportCheck[] }> = [
     {
-      commands: ['alert', 'pinch'],
+      commands: ['pinch'],
       checks: [
         { device: iosSimulator, expected: true, label: 'on iOS sim' },
         { device: iosDevice, expected: false, label: 'on iOS device' },
         { device: androidDevice, expected: false, label: 'on Android' },
+        { device: macOsDevice, expected: true, label: 'on macOS' },
+      ],
+    },
+    {
+      commands: ['alert'],
+      checks: [
+        { device: iosSimulator, expected: true, label: 'on iOS sim' },
+        { device: iosDevice, expected: false, label: 'on iOS device' },
+        { device: androidDevice, expected: true, label: 'on Android' },
         { device: macOsDevice, expected: true, label: 'on macOS' },
       ],
     },

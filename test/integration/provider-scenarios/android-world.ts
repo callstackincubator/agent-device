@@ -42,6 +42,7 @@ type AndroidSettingsWorld = {
 
 export async function createAndroidSettingsWorld(options?: {
   nativeTextInjection?: boolean;
+  snapshotXml?: () => string;
 }): Promise<AndroidSettingsWorld> {
   const hostAdbGuard = installFakeHostAdbGuard();
   const adbCalls: string[][] = [];
@@ -75,7 +76,7 @@ export async function createAndroidSettingsWorld(options?: {
       if (args.join(' ') === 'shell cmd clipboard set text android otp') {
         clipboardText = 'android otp';
       }
-      return androidAdbResult(args, searchText, clipboardText);
+      return androidAdbResult(args, searchText, clipboardText, options?.snapshotXml);
     },
     install: async (apk, options) => {
       installCalls.push({ apkPath: apk, replace: options?.replace });
@@ -175,20 +176,45 @@ function androidAdbResult(
   args: string[],
   searchText: string,
   clipboardText: string,
+  snapshotXml?: () => string,
 ): { stdout: string; stderr: string; exitCode: number; stdoutBuffer?: Buffer } {
-  if (args.join(' ') === 'shell getprop sys.boot_completed') {
+  const key = args.join(' ');
+  return (
+    androidDeviceStateAdbResult(key, clipboardText) ??
+    androidMetricsAdbResult(key) ??
+    androidPackageAdbResult(key, args) ??
+    androidCaptureAdbResult(key, searchText, snapshotXml) ?? { stdout: '', stderr: '', exitCode: 0 }
+  );
+}
+
+type AndroidAdbResult = {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  stdoutBuffer?: Buffer;
+};
+
+function androidDeviceStateAdbResult(
+  key: string,
+  clipboardText: string,
+): AndroidAdbResult | undefined {
+  if (key === 'shell getprop sys.boot_completed') {
     return { stdout: '1\n', stderr: '', exitCode: 0 };
   }
-  if (args.join(' ') === 'shell cmd clipboard get text') {
+  if (key === 'shell cmd clipboard get text') {
     return { stdout: `clipboard text: ${clipboardText}\n`, stderr: '', exitCode: 0 };
   }
-  if (args.join(' ') === 'shell dumpsys input_method') {
+  if (key === 'shell dumpsys input_method') {
     return { stdout: 'mInputShown=false inputType=0x1\n', stderr: '', exitCode: 0 };
   }
-  if (args.join(' ') === 'shell pidof com.example.demo') {
+  if (key === 'shell pidof com.example.demo') {
     return { stdout: '4242\n', stderr: '', exitCode: 0 };
   }
-  if (args.join(' ') === 'shell dumpsys cpuinfo') {
+  return undefined;
+}
+
+function androidMetricsAdbResult(key: string): AndroidAdbResult | undefined {
+  if (key === 'shell dumpsys cpuinfo') {
     return {
       stdout: [
         'Load: 1.0 / 0.5 / 0.25',
@@ -200,7 +226,7 @@ function androidAdbResult(
       exitCode: 0,
     };
   }
-  if (args.join(' ') === 'shell dumpsys meminfo com.example.demo') {
+  if (key === 'shell dumpsys meminfo com.example.demo') {
     return {
       stdout: [
         '** MEMINFO in pid 18227 [com.example.demo] **',
@@ -215,7 +241,7 @@ function androidAdbResult(
       exitCode: 0,
     };
   }
-  if (args.join(' ') === 'shell dumpsys gfxinfo com.example.demo framestats') {
+  if (key === 'shell dumpsys gfxinfo com.example.demo framestats') {
     return {
       stdout: [
         'Uptime: 10000',
@@ -227,6 +253,10 @@ function androidAdbResult(
       exitCode: 0,
     };
   }
+  return undefined;
+}
+
+function androidPackageAdbResult(key: string, args: string[]): AndroidAdbResult | undefined {
   if (
     args.slice(0, 7).join(' ') ===
     'shell cmd package query-activities --brief -a android.intent.action.MAIN'
@@ -237,31 +267,39 @@ function androidAdbResult(
       exitCode: 0,
     };
   }
-  if (args.join(' ') === 'shell pm list packages -3') {
+  if (key === 'shell pm list packages -3') {
     return {
       stdout: 'package:com.example.demo\npackage:com.example.serviceonly\n',
       stderr: '',
       exitCode: 0,
     };
   }
-  if (args.join(' ') === 'shell dumpsys window windows') {
+  if (key === 'shell dumpsys window windows') {
     return {
       stdout: 'mCurrentFocus=Window{42 u0 com.android.settings/.Settings}\n',
       stderr: '',
       exitCode: 0,
     };
   }
-  if (args.join(' ') === 'exec-out uiautomator dump /dev/tty') {
+  return undefined;
+}
+
+function androidCaptureAdbResult(
+  key: string,
+  searchText: string,
+  snapshotXml?: () => string,
+): AndroidAdbResult | undefined {
+  if (key === 'exec-out uiautomator dump /dev/tty') {
     return {
-      stdout: androidSettingsXml(searchText),
+      stdout: snapshotXml?.() ?? androidSettingsXml(searchText),
       stderr: '',
       exitCode: 0,
     };
   }
-  if (args.join(' ') === 'exec-out screencap -p') {
+  if (key === 'exec-out screencap -p') {
     return { stdout: '', stderr: '', exitCode: 0, stdoutBuffer: validPng() };
   }
-  return { stdout: '', stderr: '', exitCode: 0 };
+  return undefined;
 }
 
 export function androidSettingsXml(

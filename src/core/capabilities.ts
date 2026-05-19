@@ -35,9 +35,9 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     // macOS desktop targets report kind=device, so this stays enabled here and the
     // supports() guard excludes iOS physical devices.
     apple: { simulator: true, device: true },
-    android: {},
+    android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,
-    supports: isMacOsOrAppleSimulator,
+    supports: (device) => device.platform === 'android' || isMacOsOrAppleSimulator(device),
   },
   pinch: {
     // macOS desktop targets report kind=device, so this stays enabled here and the

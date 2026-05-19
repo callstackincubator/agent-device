@@ -381,14 +381,15 @@ Network:
   network log is a supported alias, but network dump --include headers is the clearest plan form. Do not write network log headers.
 
 Alerts:
-  Native alerts:
+  Native and platform dialogs:
     agent-device alert wait 3000
     agent-device alert accept
     agent-device alert dismiss
-  If alert accept says no alert but a permission sheet is visibly on screen, treat it as normal UI:
+  Android support is snapshot-derived for runtime permission prompts and native app dialogs. Use alert wait/get before guessing from app state or React Native internals.
+  If alert says no alert but a sheet is visibly on screen, treat it as app-owned UI:
     agent-device snapshot -i
     agent-device press 'label="Allow"'
-  Android runtime permission prompts are visible UI. Do not use alert wait for them, and do not use settings permission to answer a dialog already on screen. Reserve settings permission for setup/resetting permission state before a flow.
+  Do not use settings permission to answer a dialog already on screen. Reserve settings permission for setup/resetting permission state before a flow.
 
 Diagnostics and traces:
   Use --debug for CLI/daemon diagnostic ids and log paths.
@@ -500,7 +501,7 @@ Overlays and busy RN UIs:
   React Native warning/error overlays belong to the app run. Treat them as blockers before normal app work: press visible Dismiss/Close immediately when unrelated, or press the collapsed warning banner first if only a warning chip is visible; then re-snapshot and report the overlay in the final summary. Use screenshot --overlay-refs only if visual evidence is required.
   Full-screen RedBox stack traces are app errors, not failed navigation. If Minimize is visible, prefer Minimize over Dismiss; Dismiss can re-trigger infinite-loop render errors such as getSnapshot/useOnyx stack paths.
   If snapshot times out because the UI never becomes idle, Android accessibility may be blocked by busy or continuously changing app UI. After that timeout, use screenshot as visual truth instead of repeatedly retrying snapshots.
-  Android runtime permission dialogs are visible UI: inspect snapshot -i and press Allow/Deny by visible label/ref. Use alert wait/accept/dismiss only where the platform supports native alerts.
+  Android runtime permission dialogs and native alerts are handled by alert wait/accept/dismiss. If alert reports no alert, treat the visible surface as app-owned UI and use snapshot -i plus press by label/ref.
 
 React DevTools routing:
   Keep the agent-device react-devtools prefix on every React DevTools command.
@@ -1623,8 +1624,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   ...SELECTOR_COMMAND_SCHEMAS,
   alert: {
     usageOverride: 'alert [get|accept|dismiss|wait] [timeout]',
-    helpDescription: 'Inspect or handle alert (iOS simulator and macOS desktop)',
-    summary: 'Inspect or handle iOS/macOS alerts',
+    helpDescription: 'Inspect or handle platform alerts/dialogs',
+    summary: 'Inspect or handle platform alerts',
     positionalArgs: ['action?', 'timeout?'],
     allowedFlags: [],
   },

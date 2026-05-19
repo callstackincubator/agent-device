@@ -945,8 +945,8 @@ test('usageForCommand resolves debugging help topic', () => {
   if (help === null) throw new Error('Expected debugging help text');
   assert.match(help, /agent-device help debugging/);
   assert.match(help, /agent-device alert wait 3000/);
-  assert.match(help, /Do not use alert wait for them/);
-  assert.match(help, /do not use settings permission to answer a dialog already on screen/);
+  assert.match(help, /Android support is snapshot-derived/);
+  assert.match(help, /Do not use settings permission to answer a dialog already on screen/);
 });
 
 test('usageForCommand resolves remote help topic', () => {
@@ -1035,7 +1035,7 @@ test('usageForCommand resolves react-native help topic', () => {
   assert.match(help, /logs clear --restart/);
   assert.match(help, /network dump --include headers/);
   assert.match(help, /React Native warning\/error overlays belong to the app run/);
-  assert.match(help, /Android runtime permission dialogs are visible UI/);
+  assert.match(help, /Android runtime permission dialogs and native alerts are handled by alert/);
   assert.match(help, /snapshot times out because the UI never becomes idle/);
   assert.match(help, /Report React render offenders separately/);
 });

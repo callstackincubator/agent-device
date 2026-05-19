@@ -157,6 +157,7 @@ function appendAndroidSnapshotNode(
     label: node.label ?? undefined,
     value: node.value ?? undefined,
     identifier: node.identifier ?? undefined,
+    bundleId: node.packageName ?? undefined,
     rect: node.rect,
     enabled: node.enabled,
     hittable: node.hittable,
@@ -345,6 +346,7 @@ export type AndroidUiHierarchy = {
   label: string | null;
   value: string | null;
   identifier: string | null;
+  packageName: string | null;
   rect?: Rect;
   enabled?: boolean;
   hittable?: boolean;
@@ -371,6 +373,7 @@ export function parseUiHierarchyTree(xml: string): AndroidUiHierarchy {
     label: null,
     value: null,
     identifier: null,
+    packageName: null,
     depth: -1,
     children: [],
   };
@@ -391,6 +394,7 @@ export function parseUiHierarchyTree(xml: string): AndroidUiHierarchy {
       label: attrs.text || attrs.desc,
       value: attrs.text,
       identifier: attrs.resourceId,
+      packageName: attrs.packageName,
       rect: attrs.rect,
       enabled: attrs.enabled,
       hittable: attrs.clickable ?? attrs.focusable,

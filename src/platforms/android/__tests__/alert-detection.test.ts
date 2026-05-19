@@ -1,0 +1,105 @@
+import { test } from 'vitest';
+import assert from 'node:assert/strict';
+import { chooseAndroidAlertButton, findAndroidAlertCandidate } from '../alert-detection.ts';
+import type { RawSnapshotNode } from '../../../utils/snapshot.ts';
+
+test('chooseAndroidAlertButton prefers platform ids over ambiguous labels', () => {
+  const candidate = findAndroidAlertCandidate([
+    node(0, 'android.app.AlertDialog'),
+    node(1, 'android.widget.TextView', {
+      label: 'Ambiguous',
+      identifier: 'android:id/alertTitle',
+    }),
+    button(2, 'Not now', 'android:id/button1', { x: 210, y: 612 }),
+    button(3, 'Allow', 'android:id/button2', { x: 52, y: 612 }),
+    button(4, 'Later', 'android:id/button3', { x: 130, y: 680 }),
+  ]);
+
+  assert.equal(chooseAndroidAlertButton(candidate?.buttons ?? [], 'accept')?.label, 'Not now');
+  assert.equal(chooseAndroidAlertButton(candidate?.buttons ?? [], 'dismiss')?.label, 'Allow');
+});
+
+test('chooseAndroidAlertButton classifies permission ids before labels', () => {
+  const candidate = findAndroidAlertCandidate([
+    node(0, 'android.widget.FrameLayout', {
+      bundleId: 'com.google.android.permissioncontroller',
+    }),
+    node(1, 'android.widget.TextView', {
+      label: 'Camera access',
+      identifier: 'com.android.permissioncontroller:id/permission_message',
+      bundleId: 'com.google.android.permissioncontroller',
+    }),
+    button(2, 'No thanks', 'permission_allow_foreground_only_button', { x: 210, y: 612 }, true),
+    button(3, 'OK', 'permission_deny_button', { x: 52, y: 612 }, true),
+  ]);
+
+  assert.equal(chooseAndroidAlertButton(candidate?.buttons ?? [], 'accept')?.label, 'No thanks');
+  assert.equal(chooseAndroidAlertButton(candidate?.buttons ?? [], 'dismiss')?.label, 'OK');
+});
+
+test('findAndroidAlertCandidate collects descendants independent of node order', () => {
+  const candidate = findAndroidAlertCandidate([
+    text(3, 'Leave without saving?', 'android:id/message', 2),
+    button(4, 'Discard', 'android:id/button1', { x: 210, y: 612 }, false, 2),
+    node(1, 'android.app.AlertDialog'),
+    text(2, 'Unsaved changes', 'android:id/alertTitle', 1),
+    node(0, 'android.widget.FrameLayout'),
+  ]);
+
+  assert.deepEqual(candidate?.alert, {
+    title: 'Unsaved changes',
+    message: 'Leave without saving?',
+    buttons: ['Discard'],
+    platform: 'android',
+    source: 'native-dialog',
+    packageName: 'com.example.app',
+  });
+});
+
+test('chooseAndroidAlertButton accepts a single neutral button', () => {
+  const candidate = findAndroidAlertCandidate([
+    node(0, 'android.app.AlertDialog'),
+    text(1, 'Storage full', 'android:id/alertTitle'),
+    button(2, 'Later', 'android:id/button3', { x: 130, y: 680 }),
+  ]);
+
+  assert.equal(chooseAndroidAlertButton(candidate?.buttons ?? [], 'accept')?.label, 'Later');
+});
+
+function node(
+  index: number,
+  type: string,
+  overrides: Partial<RawSnapshotNode> = {},
+): RawSnapshotNode {
+  return {
+    index,
+    parentIndex: index === 0 ? undefined : 0,
+    type,
+    bundleId: 'com.example.app',
+    ...overrides,
+  };
+}
+
+function text(index: number, label: string, identifier: string, parentIndex = 0): RawSnapshotNode {
+  return node(index, 'android.widget.TextView', { label, identifier, parentIndex });
+}
+
+function button(
+  index: number,
+  label: string,
+  identifier: string,
+  origin: { x: number; y: number },
+  permission = false,
+  parentIndex = 0,
+): RawSnapshotNode {
+  const packageName = permission ? 'com.google.android.permissioncontroller' : 'com.example.app';
+  const id = permission ? `com.android.permissioncontroller:id/${identifier}` : identifier;
+  return node(index, 'android.widget.Button', {
+    label,
+    identifier: id,
+    bundleId: packageName,
+    parentIndex,
+    rect: { ...origin, width: 128, height: 52 },
+    hittable: true,
+  });
+}
