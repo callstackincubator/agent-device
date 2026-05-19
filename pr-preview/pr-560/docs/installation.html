@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-560/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/pr-preview/pr-560/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/pr-preview/pr-560/static/js/649.63df3d8087.js"></script>
-<script defer src="/agent-device/pr-preview/pr-560/static/js/index.9ed9db8bde.js"></script>
+<script defer src="/agent-device/pr-preview/pr-560/static/js/index.542c7c5e6f.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -70,11 +70,7 @@
 <li><code>AGENT_DEVICE_IOS_PROVISIONING_PROFILE</code></li>
 <li><code>AGENT_DEVICE_IOS_BUNDLE_ID</code> (optional runner bundle-id base override)</li>
 <li>Free Apple Developer (Personal Team) accounts can fail with &quot;bundle identifier is not available&quot; for generic IDs; set <code>AGENT_DEVICE_IOS_BUNDLE_ID</code> to a unique reverse-DNS value (for example <code>com.yourname.agentdevice.runner</code>).</li>
-<li>If device setup is slow, increase daemon timeout:
-<ul>
-<li><code>AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000</code> (default is <code>90000</code>)</li>
-</ul>
-</li>
+<li>If device setup is slow, keep the device connected and inspect daemon diagnostics after retrying.</li>
 <li>If daemon startup reports stale metadata, remove stale files and retry:
 <ul>
 <li><code>&lt;state-dir&gt;/daemon.json</code></li>

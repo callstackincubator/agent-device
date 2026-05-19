@@ -363,7 +363,7 @@ agent-device install com.example.app ./build/MyApp.app --platform ios
 - Remote daemons automatically upload local app artifacts for `install`; prefix the path with `remote:` to use a daemon-side path verbatim.
 - Supported binary formats: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
 - `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<absolute-path-to-bundletool-all.jar>` with `java` in `PATH`.
-- Optional: `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` overrides bundletool `build-apks --mode` (default: `universal`).
+- `.aab` installs use bundletool `build-apks --mode universal`.
 - `.ipa` installs by extracting `Payload/*.app`; if multiple app bundles exist, `<app>` is used as a bundle id/name hint to select one.
 
 ## App reinstall (fresh state)
@@ -378,7 +378,7 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 - Useful for login/logout reset flows and deterministic test setup.
 - Remote daemons automatically upload local app artifacts for `reinstall`; prefix the path with `remote:` to use a daemon-side path verbatim.
 - Supported binary formats: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
-- `.aab` accepts the same bundletool requirements and optional `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE` override as `install`.
+- `.aab` accepts the same bundletool requirements as `install`.
 - `.ipa` uses `<app>` as the selection hint when multiple `Payload/*.app` bundles are present.
 
 ## App install from source URL
@@ -802,8 +802,7 @@ agent-device session list --json
   - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
   - `AGENT_DEVICE_IOS_BUNDLE_ID` (runner bundle-id base; tests use `<id>.uitests`)
 - Free Apple Developer (Personal Team) accounts can fail on unavailable generic bundle IDs; set `AGENT_DEVICE_IOS_BUNDLE_ID` to a unique reverse-DNS value.
-- If first-run XCTest setup/build is slow, increase daemon request timeout:
-  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000` (default is `90000`)
+- First-run XCTest setup/build can take longer than normal commands; keep the device connected and inspect daemon diagnostics if setup times out.
 - If you override the iOS runner derived-data path and also force cleanup, keep `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH` under the project `.tmp/` directory. Other cleanup override paths are rejected with a recovery hint.
 - For daemon startup troubleshooting:
   - follow stale metadata hints for `<state-dir>/daemon.json` and `<state-dir>/daemon.lock` (`state-dir` defaults to `~/.agent-device`)

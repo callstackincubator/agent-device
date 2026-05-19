@@ -1151,7 +1151,7 @@ agent-device install com.example.app ./build/MyApp.app --platform ios
 - Remote daemons automatically upload local app artifacts for `install`; prefix the path with `remote:` to use a daemon-side path verbatim.
 - Supported binary formats: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
 - `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<absolute-path-to-bundletool-all.jar>` with `java` in `PATH`.
-- Optional: `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` overrides bundletool `build-apks --mode` (default: `universal`).
+- `.aab` installs use bundletool `build-apks --mode universal`.
 - `.ipa` installs by extracting `Payload/*.app`; if multiple app bundles exist, `<app>` is used as a bundle id/name hint to select one.
 
 ## App reinstall (fresh state)
@@ -1166,7 +1166,7 @@ agent-device reinstall com.example.app ./build/MyApp.app --platform ios
 - Useful for login/logout reset flows and deterministic test setup.
 - Remote daemons automatically upload local app artifacts for `reinstall`; prefix the path with `remote:` to use a daemon-side path verbatim.
 - Supported binary formats: Android `.apk`/`.aab`, iOS `.app`/`.ipa`.
-- `.aab` accepts the same bundletool requirements and optional `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE` override as `install`.
+- `.aab` accepts the same bundletool requirements as `install`.
 - `.ipa` uses `<app>` as the selection hint when multiple `Payload/*.app` bundles are present.
 
 ## App install from source URL
@@ -1590,8 +1590,7 @@ agent-device session list --json
   - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
   - `AGENT_DEVICE_IOS_BUNDLE_ID` (runner bundle-id base; tests use `<id>.uitests`)
 - Free Apple Developer (Personal Team) accounts can fail on unavailable generic bundle IDs; set `AGENT_DEVICE_IOS_BUNDLE_ID` to a unique reverse-DNS value.
-- If first-run XCTest setup/build is slow, increase daemon request timeout:
-  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000` (default is `90000`)
+- First-run XCTest setup/build can take longer than normal commands; keep the device connected and inspect daemon diagnostics if setup times out.
 - If you override the iOS runner derived-data path and also force cleanup, keep `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH` under the project `.tmp/` directory. Other cleanup override paths are rejected with a recovery hint.
 - For daemon startup troubleshooting:
   - follow stale metadata hints for `<state-dir>/daemon.json` and `<state-dir>/daemon.lock` (`state-dir` defaults to `~/.agent-device`)
@@ -1634,7 +1633,6 @@ Environment variables follow the same fields using `AGENT_DEVICE_*` uppercase sn
 Config and environment sources use canonical option values rather than CLI flag names. Example:
 
 - config: `"appsFilter": "user-installed"`
-- env: `AGENT_DEVICE_APPS_FILTER=user-installed`
 - CLI equivalent: omit `--all`
 
 Example:
@@ -1702,10 +1700,10 @@ These env vars are the supported user-facing configuration surface. Other `AGENT
 
 | Category                  | Env vars                                                                                                                                                                                                                                                                                 | Decision                                                                                      |
 | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| CLI defaults and config   | `AGENT_DEVICE_CONFIG`, `AGENT_DEVICE_SESSION`, `AGENT_DEVICE_PLATFORM`, `AGENT_DEVICE_SESSION_LOCK`, `AGENT_DEVICE_DAEMON_BASE_URL`, `AGENT_DEVICE_DAEMON_AUTH_TOKEN`, `AGENT_DEVICE_CLOUD_BASE_URL`, `AGENT_DEVICE_APPS_FILTER`                                                         | Public                                                                                        |
+| CLI defaults and config   | `AGENT_DEVICE_CONFIG`, `AGENT_DEVICE_SESSION`, `AGENT_DEVICE_PLATFORM`, `AGENT_DEVICE_SESSION_LOCK`, `AGENT_DEVICE_DAEMON_BASE_URL`, `AGENT_DEVICE_DAEMON_AUTH_TOKEN`, `AGENT_DEVICE_CLOUD_BASE_URL`                                                                                     | Public                                                                                        |
 | Device scoping            | `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST`                                                                                                                                                                                                                                                  | Public                                                                                        |
 | Local daemon storage      | `AGENT_DEVICE_STATE_DIR`                                                                                                                                                                                                                                                                 | Public                                                                                        |
-| Metro and install helpers | `AGENT_DEVICE_METRO_BEARER_TOKEN`, `AGENT_DEVICE_BUNDLETOOL_JAR`, `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE`                                                                                                                                                                                 | Public                                                                                        |
+| Metro and install helpers | `AGENT_DEVICE_METRO_BEARER_TOKEN`, `AGENT_DEVICE_BUNDLETOOL_JAR`                                                                                                                                                                                                                         | Public                                                                                        |
 | App hooks and logs        | `AGENT_DEVICE_APP_EVENT_URL_TEMPLATE`, `AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE`, `AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE`, `AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE`, `AGENT_DEVICE_APP_LOG_MAX_BYTES`, `AGENT_DEVICE_APP_LOG_MAX_FILES`, `AGENT_DEVICE_APP_LOG_REDACT_PATTERNS` | Public                                                                                        |
 | Apple runner setup        | `AGENT_DEVICE_IOS_TEAM_ID`, `AGENT_DEVICE_IOS_SIGNING_IDENTITY`, `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`, `AGENT_DEVICE_IOS_BUNDLE_ID`, `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH`, `AGENT_DEVICE_IOS_CLEAN_DERIVED`                                                                         | Public operator controls. Cleanup is only automatic for override paths under project `.tmp/`. |
 | Compatibility aliases     | `AGENT_DEVICE_PROXY_TOKEN`                                                                                                                                                                                                                                                               | Keep accepted, hide from new guidance                                                         |
@@ -1913,8 +1911,7 @@ One-off `npx` usage is fine for humans and scripts that intentionally fetch from
 - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
 - `AGENT_DEVICE_IOS_BUNDLE_ID` (optional runner bundle-id base override)
 - Free Apple Developer (Personal Team) accounts can fail with "bundle identifier is not available" for generic IDs; set `AGENT_DEVICE_IOS_BUNDLE_ID` to a unique reverse-DNS value (for example `com.yourname.agentdevice.runner`).
-- If device setup is slow, increase daemon timeout:
-  - `AGENT_DEVICE_DAEMON_TIMEOUT_MS=120000` (default is `90000`)
+- If device setup is slow, keep the device connected and inspect daemon diagnostics after retrying.
 - If daemon startup reports stale metadata, remove stale files and retry:
   - `<state-dir>/daemon.json`
   - `<state-dir>/daemon.lock`
@@ -2037,7 +2034,7 @@ agent-device close
 - Android: `.apk` and `.aab`
 - iOS: `.app` and `.ipa`
 - `.aab` requires `bundletool` in `PATH`, or `AGENT_DEVICE_BUNDLETOOL_JAR=<absolute-path-to-bundletool-all.jar>` with `java` in `PATH`.
-- Optional: `AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE=<mode>` overrides bundletool `build-apks --mode` (default: `universal`).
+- `.aab` installs use bundletool `build-apks --mode universal`.
 - `.ipa` installs extract `Payload/*.app`; if multiple app bundles exist, `<app>` selects the target by bundle id or bundle name.
 - Use `install-from-source` for existing artifact URLs, including direct Android `.apk`/`.aab` URLs and trusted archives with one installable artifact. Use `install-from-source --github-actions-artifact <owner/repo:artifact>` for daemon-resolved GitHub Actions artifacts.
 
