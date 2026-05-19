@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-560/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/pr-preview/pr-560/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/pr-preview/pr-560/static/js/649.63df3d8087.js"></script>
-<script defer src="/agent-device/pr-preview/pr-560/static/js/index.2515ac632e.js"></script>
+<script defer src="/agent-device/pr-preview/pr-560/static/js/index.9ed9db8bde.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -64,7 +64,6 @@
 <ul>
 <li><code>session</code> -&gt; <code>AGENT_DEVICE_SESSION</code></li>
 <li><code>daemonBaseUrl</code> -&gt; <code>AGENT_DEVICE_DAEMON_BASE_URL</code></li>
-<li><code>iosSimulatorDeviceSet</code> -&gt; <code>AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET</code></li>
 <li><code>androidDeviceAllowlist</code> -&gt; <code>AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST</code></li>
 </ul>
 <p>Config and environment sources use canonical option values rather than CLI flag names. Example:</p>
@@ -72,11 +71,6 @@
 <li>config: <code>&quot;appsFilter&quot;: &quot;user-installed&quot;</code></li>
 <li>env: <code>AGENT_DEVICE_APPS_FILTER=user-installed</code></li>
 <li>CLI equivalent: omit <code>--all</code></li>
-</ul>
-<p>Legacy compatibility env vars are still accepted for device scoping:</p>
-<ul>
-<li><code>IOS_SIMULATOR_DEVICE_SET</code></li>
-<li><code>ANDROID_DEVICE_ALLOWLIST</code></li>
 </ul>
 <p>Example:</p>
 <div class="rp-codeblock language-json"><div class="rp-codeblock__content"><div class="rp-codeblock__content__scroll-container rp-scrollbar rp-scrollbar--always"><pre class="shiki css-variables" style="background-color:var(--shiki-background);color:var(--shiki-foreground)" tabindex="0" data-lang="json"><code><span class="line"><span style="color:var(--shiki-foreground)">{</span></span>
@@ -124,7 +118,7 @@
 <ul>
 <li><code>sessionLock</code> -&gt; <code>AGENT_DEVICE_SESSION_LOCK</code></li>
 </ul>
-<p>Older bound-session lock aliases remain accepted for compatibility, but new configs and automation should use <code>sessionLock</code>, <code>--session-lock</code>, or <code>AGENT_DEVICE_SESSION_LOCK</code>.</p>
+<p>Older bound-session lock config aliases remain accepted for compatibility, but new configs and automation should use <code>sessionLock</code>, <code>--session-lock</code>, or <code>AGENT_DEVICE_SESSION_LOCK</code>.</p>
 <h2 class="rp-toc-include" id="supported-environment-variables"><a href="#supported-environment-variables" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Supported environment variables</h2>
 <p>These env vars are the supported user-facing configuration surface. Other <code>AGENT_DEVICE_*</code> names may appear in source, tests, CI, runner logs, or child-process contracts, but they are internal unless documented here or in command-specific docs.</p>
 
@@ -177,7 +171,7 @@
 
 
 
-<div class="rp-table-scroll-container rp-scrollbar"><table><thead><tr><th>Category</th><th>Env vars</th><th>Decision</th></tr></thead><tbody><tr><td>CLI defaults and config</td><td><code>AGENT_DEVICE_CONFIG</code>, <code>AGENT_DEVICE_SESSION</code>, <code>AGENT_DEVICE_PLATFORM</code>, <code>AGENT_DEVICE_SESSION_LOCK</code>, <code>AGENT_DEVICE_DAEMON_BASE_URL</code>, <code>AGENT_DEVICE_DAEMON_AUTH_TOKEN</code>, <code>AGENT_DEVICE_CLOUD_BASE_URL</code>, <code>AGENT_DEVICE_APPS_FILTER</code></td><td>Public</td></tr><tr><td>Device scoping</td><td><code>AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET</code>, <code>AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST</code></td><td>Public</td></tr><tr><td>Local daemon storage</td><td><code>AGENT_DEVICE_STATE_DIR</code></td><td>Public</td></tr><tr><td>Metro and install helpers</td><td><code>AGENT_DEVICE_METRO_BEARER_TOKEN</code>, <code>AGENT_DEVICE_BUNDLETOOL_JAR</code>, <code>AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE</code></td><td>Public</td></tr><tr><td>App hooks and logs</td><td><code>AGENT_DEVICE_APP_EVENT_URL_TEMPLATE</code>, <code>AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE</code>, <code>AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE</code>, <code>AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE</code>, <code>AGENT_DEVICE_APP_LOG_MAX_BYTES</code>, <code>AGENT_DEVICE_APP_LOG_MAX_FILES</code>, <code>AGENT_DEVICE_APP_LOG_REDACT_PATTERNS</code></td><td>Public</td></tr><tr><td>Apple runner setup</td><td><code>AGENT_DEVICE_IOS_TEAM_ID</code>, <code>AGENT_DEVICE_IOS_SIGNING_IDENTITY</code>, <code>AGENT_DEVICE_IOS_PROVISIONING_PROFILE</code>, <code>AGENT_DEVICE_IOS_BUNDLE_ID</code>, <code>AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH</code>, <code>AGENT_DEVICE_IOS_CLEAN_DERIVED</code></td><td>Public operator controls. Cleanup is only automatic for override paths under project <code>.tmp/</code>.</td></tr><tr><td>Compatibility aliases</td><td><code>AGENT_DEVICE_SESSION_LOCKED</code>, <code>AGENT_DEVICE_SESSION_LOCK_CONFLICTS</code>, <code>AGENT_DEVICE_PROXY_TOKEN</code>, <code>IOS_SIMULATOR_DEVICE_SET</code>, <code>ANDROID_DEVICE_ALLOWLIST</code></td><td>Keep accepted, hide from new guidance</td></tr><tr><td>Removed</td><td><code>AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN</code></td><td>Removed; use project <code>.tmp/</code> derived paths for cleanable overrides</td></tr></tbody></table></div>
+<div class="rp-table-scroll-container rp-scrollbar"><table><thead><tr><th>Category</th><th>Env vars</th><th>Decision</th></tr></thead><tbody><tr><td>CLI defaults and config</td><td><code>AGENT_DEVICE_CONFIG</code>, <code>AGENT_DEVICE_SESSION</code>, <code>AGENT_DEVICE_PLATFORM</code>, <code>AGENT_DEVICE_SESSION_LOCK</code>, <code>AGENT_DEVICE_DAEMON_BASE_URL</code>, <code>AGENT_DEVICE_DAEMON_AUTH_TOKEN</code>, <code>AGENT_DEVICE_CLOUD_BASE_URL</code>, <code>AGENT_DEVICE_APPS_FILTER</code></td><td>Public</td></tr><tr><td>Device scoping</td><td><code>AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST</code></td><td>Public</td></tr><tr><td>Local daemon storage</td><td><code>AGENT_DEVICE_STATE_DIR</code></td><td>Public</td></tr><tr><td>Metro and install helpers</td><td><code>AGENT_DEVICE_METRO_BEARER_TOKEN</code>, <code>AGENT_DEVICE_BUNDLETOOL_JAR</code>, <code>AGENT_DEVICE_ANDROID_BUNDLETOOL_MODE</code></td><td>Public</td></tr><tr><td>App hooks and logs</td><td><code>AGENT_DEVICE_APP_EVENT_URL_TEMPLATE</code>, <code>AGENT_DEVICE_IOS_APP_EVENT_URL_TEMPLATE</code>, <code>AGENT_DEVICE_MACOS_APP_EVENT_URL_TEMPLATE</code>, <code>AGENT_DEVICE_ANDROID_APP_EVENT_URL_TEMPLATE</code>, <code>AGENT_DEVICE_APP_LOG_MAX_BYTES</code>, <code>AGENT_DEVICE_APP_LOG_MAX_FILES</code>, <code>AGENT_DEVICE_APP_LOG_REDACT_PATTERNS</code></td><td>Public</td></tr><tr><td>Apple runner setup</td><td><code>AGENT_DEVICE_IOS_TEAM_ID</code>, <code>AGENT_DEVICE_IOS_SIGNING_IDENTITY</code>, <code>AGENT_DEVICE_IOS_PROVISIONING_PROFILE</code>, <code>AGENT_DEVICE_IOS_BUNDLE_ID</code>, <code>AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH</code>, <code>AGENT_DEVICE_IOS_CLEAN_DERIVED</code></td><td>Public operator controls. Cleanup is only automatic for override paths under project <code>.tmp/</code>.</td></tr><tr><td>Compatibility aliases</td><td><code>AGENT_DEVICE_PROXY_TOKEN</code></td><td>Keep accepted, hide from new guidance</td></tr><tr><td>Removed</td><td><code>AGENT_DEVICE_IOS_ALLOW_OVERRIDE_DERIVED_CLEAN</code></td><td>Removed; use project <code>.tmp/</code> derived paths for cleanable overrides</td></tr></tbody></table></div>
 <h2 class="rp-toc-include" id="command-specific-defaults"><a href="#command-specific-defaults" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Command-specific defaults</h2>
 <p>Command-specific keys are applied only when the current command supports them.</p>
 <p>Examples:</p>

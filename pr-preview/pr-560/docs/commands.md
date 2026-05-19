@@ -100,9 +100,7 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
 - `--android-device-allowlist <serials>` constrains Android discovery/selection to comma or space separated serials.
 - Scope is applied before selectors (`--device`, `--udid`, `--serial`), so out-of-scope selectors fail with `DEVICE_NOT_FOUND`.
 - With iOS simulator-set scope enabled, iOS physical devices are not enumerated.
-- Environment equivalents:
-  - iOS: `AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET` (compat: `IOS_SIMULATOR_DEVICE_SET`)
-  - Android: `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST` (compat: `ANDROID_DEVICE_ALLOWLIST`)
+- Device scoping can also be configured with `iosSimulatorDeviceSet` and `androidDeviceAllowlist` config keys. Android allowlists can use `AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST`.
 - CLI scope flags override environment values unless bound-session lock mode is active with `strip`, in which case conflicting per-call selectors are ignored.
 
 ## Device discovery

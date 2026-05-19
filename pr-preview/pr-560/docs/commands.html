@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-560/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/pr-preview/pr-560/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/pr-preview/pr-560/static/js/649.63df3d8087.js"></script>
-<script defer src="/agent-device/pr-preview/pr-560/static/js/index.2515ac632e.js"></script>
+<script defer src="/agent-device/pr-preview/pr-560/static/js/index.9ed9db8bde.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -101,12 +101,7 @@
 <li><code>--android-device-allowlist &lt;serials&gt;</code> constrains Android discovery/selection to comma or space separated serials.</li>
 <li>Scope is applied before selectors (<code>--device</code>, <code>--udid</code>, <code>--serial</code>), so out-of-scope selectors fail with <code>DEVICE_NOT_FOUND</code>.</li>
 <li>With iOS simulator-set scope enabled, iOS physical devices are not enumerated.</li>
-<li>Environment equivalents:
-<ul>
-<li>iOS: <code>AGENT_DEVICE_IOS_SIMULATOR_DEVICE_SET</code> (compat: <code>IOS_SIMULATOR_DEVICE_SET</code>)</li>
-<li>Android: <code>AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST</code> (compat: <code>ANDROID_DEVICE_ALLOWLIST</code>)</li>
-</ul>
-</li>
+<li>Device scoping can also be configured with <code>iosSimulatorDeviceSet</code> and <code>androidDeviceAllowlist</code> config keys. Android allowlists can use <code>AGENT_DEVICE_ANDROID_DEVICE_ALLOWLIST</code>.</li>
 <li>CLI scope flags override environment values unless bound-session lock mode is active with <code>strip</code>, in which case conflicting per-call selectors are ignored.</li>
 </ul>
 <h2 class="rp-toc-include" id="device-discovery"><a href="#device-discovery" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Device discovery</h2>
