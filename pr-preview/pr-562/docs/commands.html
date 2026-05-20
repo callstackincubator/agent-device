@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-562/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/pr-preview/pr-562/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/pr-preview/pr-562/static/js/649.63df3d8087.js"></script>
-<script defer src="/agent-device/pr-preview/pr-562/static/js/index.9f06ed3505.js"></script>
+<script defer src="/agent-device/pr-preview/pr-562/static/js/index.618e8c4398.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -212,7 +212,7 @@ can appear alongside the app root; <code>androidSnapshot.captureMode</code> and
 <li><code>wait</code> shares the selector/snapshot resolution flow used by <code>click</code>, <code>fill</code>, <code>get</code>, and <code>is</code>.</li>
 <li><code>alert</code> inspects or handles system alerts on iOS simulator, macOS desktop, and Android native/runtime permission dialogs.</li>
 <li><code>alert</code> without an action is equivalent to <code>alert get</code>.</li>
-<li><code>alert wait [timeout]</code> waits for an alert to appear before returning it.</li>
+<li>Use <code>alert get</code> for an immediate cheap check. Use <code>alert wait &lt;short-ms&gt;</code> only when a prompt may appear after async work.</li>
 <li>Android support is snapshot-derived. If <code>alert</code> reports no alert but a sheet is visible, treat it as app-owned UI and use <code>snapshot -i</code> plus <code>press</code> by visible label/ref.</li>
 <li>If an iOS permission sheet is visible in <code>snapshot</code> or <code>screenshot</code> but <code>alert accept</code> reports no alert, fall back to a scoped <code>snapshot -i -s &quot;&lt;visible label&gt;&quot;</code> plus <code>press @ref</code>; not every simulator permission surface is exposed as a native XCTest alert.</li>
 </ul>
@@ -522,7 +522,7 @@ On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li
 <li>Do not repeatedly raise broad <code>profile slow</code> limits such as <code>--limit 50</code>, <code>--limit 200</code>, or <code>--limit 500</code> unless you have a specific target that needs more rows.</li>
 <li>Keep using <code>snapshot</code>, <code>press</code>, <code>fill</code>, <code>logs</code>, <code>network</code>, and <code>perf</code> for device/app runtime evidence. Use <code>react-devtools</code> for React internals.</li>
 <li>For React Native apps, overlays, Metro/Fast Refresh blockers, and routing to React DevTools or debugging evidence, start with <code>agent-device help react-native</code>.</li>
-<li>On Android, use <code>alert wait</code>, <code>alert accept</code>, and <code>alert dismiss</code> for runtime permission prompts and native alerts. On iOS, use the same alert commands for XCTest alerts, app-owned modal popups with native blocking markers, and blocking system dialogs. Do not use <code>settings permission</code> to answer a dialog already on screen; reserve it for setup or resetting permission state before a flow.</li>
+<li>On Android, use <code>alert get</code>, <code>alert wait &lt;short-ms&gt;</code>, <code>alert accept</code>, and <code>alert dismiss</code> for runtime permission prompts and native alerts. On iOS, use the same alert commands for XCTest alerts, app-owned modal popups with native blocking markers, and blocking system dialogs. Do not use <code>settings permission</code> to answer a dialog already on screen; reserve it for setup or resetting permission state before a flow.</li>
 <li>React Native development builds can connect to the DevTools daemon on port 8097. For Android emulators or physical devices, run <code>adb reverse tcp:8097 tcp:8097</code> if the app cannot reach the host. If Metro is local, also run <code>adb reverse tcp:8081 tcp:8081</code>.</li>
 <li>For Android and iOS sessions connected through a remote bridge profile, <code>react-devtools</code> registers a lease-scoped companion tunnel to the sandbox-local DevTools daemon at <code>127.0.0.1:8097</code>. Android bridge profiles use the bridge-owned remote <code>adb reverse</code> mapping; iOS bridge profiles use the bridge-owned wildcard Metro host tunnel. The CLI keeps the companion alive until <code>agent-device react-devtools stop</code> or <code>agent-device disconnect</code>.</li>
 <li>For remote iOS bridge sessions, open the app once to create the bridge session, run <code>agent-device react-devtools start</code>, then relaunch the same bundle id with <code>agent-device open &lt;bundle-id&gt; --platform ios --relaunch</code> before <code>wait --connected</code>. React Native attempts the legacy DevTools websocket during JavaScript startup, so starting DevTools after the first launch can miss that connection attempt.</li>
