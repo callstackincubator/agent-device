@@ -110,8 +110,11 @@ async function dismissReactNativeOverlayTarget(
     y: target.point.y,
     ...(target.ref ? { ref: target.ref } : {}),
     ...(target.label ? { label: target.label } : {}),
+    ...(target.warning ? { warning: target.warning } : {}),
     dismissed: true,
     verified: false,
+    verificationRequired: true,
+    nextCommand: 'agent-device snapshot -i -c',
     ...successText(formatDismissMessage(target)),
   };
   return finalizeTouchInteraction({

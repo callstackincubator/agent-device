@@ -80,6 +80,8 @@ type DaemonStartupCleanupResult = {
   removedLock: boolean;
   stoppedInfoProcess: boolean;
   stoppedLockProcess: boolean;
+  retainedInfoProcess?: boolean;
+  retainedLockProcess?: boolean;
   error?: string;
 };
 
@@ -511,9 +513,15 @@ async function ensureDaemon(settings: DaemonClientSettings): Promise<DaemonInfo>
 
     const metadataState = getDaemonMetadataState(settings.paths);
     const hasAnotherAttempt = attempt < DAEMON_STARTUP_ATTEMPTS;
-    cleanupResults.push(
-      await cleanupFailedDaemonStartupMetadata(settings.paths, 'startup_timeout'),
-    );
+    const cleanup = await cleanupFailedDaemonStartupMetadata(settings.paths, 'startup_timeout', {
+      stopLiveProcesses: false,
+    });
+    cleanupResults.push(cleanup);
+    if (cleanup.retainedInfoProcess || cleanup.retainedLockProcess) {
+      const extended = await waitForDaemonInfo(DAEMON_STARTUP_TIMEOUT_MS, settings);
+      if (extended) return extended;
+      break;
+    }
     if (!hasAnotherAttempt) break;
 
     // Detached daemon startup can race on busy CI hosts; retry when no metadata exists yet.
@@ -560,13 +568,7 @@ async function recoverDaemonLockHolder(paths: DaemonPaths): Promise<boolean> {
     removeDaemonLock(paths.lockPath);
     return true;
   }
-  await stopProcessForTakeover(lockInfo.pid, {
-    termTimeoutMs: DAEMON_TAKEOVER_TERM_TIMEOUT_MS,
-    killTimeoutMs: DAEMON_TAKEOVER_KILL_TIMEOUT_MS,
-    expectedStartTime: lockInfo.processStartTime,
-  });
-  removeDaemonLock(paths.lockPath);
-  return true;
+  return false;
 }
 
 async function stopDaemonProcessForTakeover(info: DaemonInfo): Promise<void> {
@@ -648,7 +650,9 @@ function cleanupStaleDaemonLockIfSafe(paths: DaemonPaths): void {
 export async function cleanupFailedDaemonStartupMetadata(
   paths: DaemonPaths,
   reason: DaemonStartupCleanupReason,
+  options: { stopLiveProcesses?: boolean } = {},
 ): Promise<DaemonStartupCleanupResult> {
+  const stopLiveProcesses = options.stopLiveProcesses ?? true;
   const result: DaemonStartupCleanupResult = {
     reason,
     removedInfo: false,
@@ -661,13 +665,17 @@ export async function cleanupFailedDaemonStartupMetadata(
     const infoExists = fs.existsSync(paths.infoPath);
     const info = readDaemonInfo(paths.infoPath);
     if (info) {
-      const shouldStopInfoProcess = isAgentDeviceDaemonProcess(info.pid, info.processStartTime);
-      if (shouldStopInfoProcess) {
-        await stopDaemonProcessForTakeover(info);
-        result.stoppedInfoProcess = true;
+      const liveInfoProcess = isAgentDeviceDaemonProcess(info.pid, info.processStartTime);
+      if (liveInfoProcess && !stopLiveProcesses) {
+        result.retainedInfoProcess = true;
+      } else {
+        if (liveInfoProcess) {
+          await stopDaemonProcessForTakeover(info);
+          result.stoppedInfoProcess = true;
+        }
+        removeDaemonInfo(paths.infoPath);
+        result.removedInfo = true;
       }
-      removeDaemonInfo(paths.infoPath);
-      result.removedInfo = true;
     } else if (infoExists) {
       removeDaemonInfo(paths.infoPath);
       result.removedInfo = true;
@@ -676,20 +684,21 @@ export async function cleanupFailedDaemonStartupMetadata(
     const lockExists = fs.existsSync(paths.lockPath);
     const lockInfo = readDaemonLockInfo(paths.lockPath);
     if (lockInfo) {
-      const shouldStopLockProcess = isAgentDeviceDaemonProcess(
-        lockInfo.pid,
-        lockInfo.processStartTime,
-      );
-      if (shouldStopLockProcess) {
-        await stopProcessForTakeover(lockInfo.pid, {
-          termTimeoutMs: DAEMON_TAKEOVER_TERM_TIMEOUT_MS,
-          killTimeoutMs: DAEMON_TAKEOVER_KILL_TIMEOUT_MS,
-          expectedStartTime: lockInfo.processStartTime,
-        });
-        result.stoppedLockProcess = true;
+      const liveLockProcess = isAgentDeviceDaemonProcess(lockInfo.pid, lockInfo.processStartTime);
+      if (liveLockProcess && !stopLiveProcesses) {
+        result.retainedLockProcess = true;
+      } else {
+        if (liveLockProcess) {
+          await stopProcessForTakeover(lockInfo.pid, {
+            termTimeoutMs: DAEMON_TAKEOVER_TERM_TIMEOUT_MS,
+            killTimeoutMs: DAEMON_TAKEOVER_KILL_TIMEOUT_MS,
+            expectedStartTime: lockInfo.processStartTime,
+          });
+          result.stoppedLockProcess = true;
+        }
+        removeDaemonLock(paths.lockPath);
+        result.removedLock = true;
       }
-      removeDaemonLock(paths.lockPath);
-      result.removedLock = true;
     } else if (lockExists) {
       removeDaemonLock(paths.lockPath);
       result.removedLock = true;

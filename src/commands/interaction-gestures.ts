@@ -232,15 +232,6 @@ export const scrollCommand: RuntimeCommand<ScrollCommandOptions, ScrollCommandRe
         edgeTarget,
         edgeState.scope,
       );
-      if (nextState.canScroll && nextState.signature === edgeState.signature) {
-        throw new AppError(
-          'COMMAND_FAILED',
-          `scroll ${target.edge} did not move the scoped scroll container`,
-          {
-            hint: `Snapshot still reports hidden content ${target.edge === 'bottom' ? 'below' : 'above'}, but the list signature did not change after scrolling.`,
-          },
-        );
-      }
       edgeState = nextState;
     }
   } else {
@@ -462,7 +453,15 @@ async function captureRuntimeScrollEdgeState(
     return state;
   } catch (error) {
     if (scope) {
-      return await captureRuntimeScrollEdgeState(runtime, options, edge, target);
+      throw new AppError(
+        'COMMAND_FAILED',
+        `Failed to verify scroll ${edge} state for scoped container`,
+        {
+          scope,
+          hint: `scroll ${edge} could not verify the scoped scroll container. Run snapshot -i -c for the current screen and retry with a visible scroll target.`,
+        },
+        error,
+      );
     }
     throw new AppError(
       'COMMAND_FAILED',

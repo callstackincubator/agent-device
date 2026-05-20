@@ -73,6 +73,9 @@ test('react-native dismiss-overlay taps collapsed warning close affordance inste
   expect(response?.ok && response.data).toMatchObject({
     action: 'dismiss-overlay',
     overlayAction: 'close-collapsed-banner',
+    verified: false,
+    verificationRequired: true,
+    nextCommand: 'agent-device snapshot -i -c',
     x: 379,
     y: 820,
   });
@@ -137,6 +140,102 @@ test('react-native dismiss-overlay minimizes RedBox error overlays instead of di
     ref: 'e3',
     x: 265,
     y: 752,
+  });
+});
+
+test('react-native dismiss-overlay falls back to Dismiss when RedBox Minimize is absent', async () => {
+  const sessionName = 'rn-redbox-dismiss-session';
+  const sessionStore = makeSessionStore();
+  sessionStore.set(sessionName, makeSession(sessionName));
+  mockDispatchCommand.mockResolvedValue({ x: 95, y: 752 });
+  mockCaptureSnapshot.mockResolvedValue({
+    snapshot: {
+      nodes: [
+        {
+          index: 0,
+          ref: 'e1',
+          label: 'Runtime Error',
+          rect: { x: 0, y: 0, width: 390, height: 100 },
+        },
+        {
+          index: 1,
+          ref: 'e2',
+          label: 'Dismiss',
+          rect: { x: 20, y: 730, width: 150, height: 44 },
+        },
+      ],
+      createdAt: Date.now(),
+    },
+  });
+
+  const response = await handleReactNativeCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'react-native',
+      positionals: ['dismiss-overlay'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+    contextFromFlags: () => ({}),
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatchCommand).toHaveBeenCalledWith(
+    expect.objectContaining({ platform: 'ios' }),
+    'press',
+    ['95', '752'],
+    undefined,
+    expect.any(Object),
+  );
+  expect(response?.ok && response.data).toMatchObject({
+    action: 'dismiss-overlay',
+    overlayAction: 'dismiss',
+    ref: 'e2',
+    warning: 'RedBox Minimize control was not exposed; used Dismiss fallback',
+  });
+});
+
+test('react-native dismiss-overlay ignores app copy that only mentions RN overlay terms', async () => {
+  const sessionName = 'rn-copy-session';
+  const sessionStore = makeSessionStore();
+  sessionStore.set(sessionName, makeSession(sessionName));
+  mockCaptureSnapshot.mockResolvedValue({
+    snapshot: {
+      nodes: [
+        {
+          index: 0,
+          ref: 'e1',
+          label: 'Runtime error troubleshooting docs mention LogBox and RedBox',
+          rect: { x: 0, y: 100, width: 390, height: 80 },
+        },
+      ],
+      createdAt: Date.now(),
+    },
+  });
+
+  const response = await handleReactNativeCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'react-native',
+      positionals: ['dismiss-overlay'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+    contextFromFlags: () => ({}),
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatchCommand).not.toHaveBeenCalled();
+  expect(response?.ok && response.data).toMatchObject({
+    action: 'dismiss-overlay',
+    detected: false,
+    dismissed: false,
   });
 });
 

@@ -16,6 +16,7 @@ export type ReactNativeOverlayDismissTarget = {
   point: Point;
   ref?: string;
   label?: string;
+  warning?: string;
 };
 
 export function formatReactNativeOverlayWarning(nodes: SnapshotNode[]): string | undefined {
@@ -48,14 +49,14 @@ export function detectReactNativeOverlay(nodes: SnapshotNode[]): ReactNativeOver
   const minimizeRefs = refsOf(minimizeNodes);
   const collapsedRefs = refsOf(collapsedNodes);
   const hasReactNativeStackFrame = isReactNativeStackFrame(text);
-  const hasOverlayControl = dismissRefs.length > 0 || minimizeRefs.length > 0;
+  const hasOverlayControl =
+    dismissRefs.length > 0 || minimizeRefs.length > 0 || /\b(reload js|copy stack)\b/.test(text);
   const redBox =
     /\b(redbox|runtime error|reload js|copy stack|component stack|call stack)\b/.test(text) ||
     (hasReactNativeStackFrame && hasOverlayControl);
   const detected =
-    hasKnownReactNativeOverlayText(text) ||
     collapsedRefs.length > 0 ||
-    (hasReactNativeStackFrame && hasOverlayControl);
+    (hasOverlayControl && (hasKnownReactNativeOverlayText(text) || hasReactNativeStackFrame));
   return {
     detected,
     redBox,
@@ -76,7 +77,14 @@ export function resolveReactNativeOverlayDismissTarget(
 
   if (overlay.redBox) {
     const minimize = firstNodeWithRect(overlay.minimizeNodes);
-    return minimize ? targetFromNode(minimize, 'minimize') : null;
+    if (minimize) return targetFromNode(minimize, 'minimize');
+    const dismiss = firstNodeWithRect(overlay.dismissNodes);
+    return dismiss
+      ? {
+          ...targetFromNode(dismiss, actionFromDismissNode(dismiss)),
+          warning: 'RedBox Minimize control was not exposed; used Dismiss fallback',
+        }
+      : null;
   }
 
   const dismiss = firstNodeWithRect(overlay.dismissNodes);

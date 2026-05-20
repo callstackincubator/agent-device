@@ -100,6 +100,51 @@ test('dispatch scroll bottom scrolls only while scoped snapshot confirms hidden 
   assert.deepEqual(snapshotScopes, [undefined, 'Messages', 'Messages']);
 });
 
+test('dispatch scroll bottom tolerates unchanged signatures while hidden content advances', async () => {
+  const calls: Array<{ direction: string; options: unknown }> = [];
+  const snapshots = [
+    makeScrollSnapshot({ hiddenBelow: true, message: 'Repeated row' }),
+    makeScrollSnapshot({ hiddenBelow: true, message: 'Repeated row' }),
+    makeScrollSnapshot({ hiddenBelow: true, message: 'Repeated row' }),
+    makeScrollSnapshot({ hiddenBelow: false, message: 'Repeated row' }),
+  ];
+  let snapshotIndex = 0;
+  const interactor = {
+    scroll: async (direction: any, options: unknown) => {
+      calls.push({ direction, options });
+      return { lastPass: calls.length };
+    },
+    snapshot: async () => snapshots[Math.min(snapshotIndex++, snapshots.length - 1)],
+  } as unknown as Interactor;
+
+  const result = await handleScrollCommand(interactor, ['bottom'], undefined);
+
+  assert.equal(calls.length, 2);
+  assert.equal(result.passes, 2);
+});
+
+test('dispatch scroll bottom keeps scoped snapshot failures scoped', async () => {
+  let snapshotCount = 0;
+  const interactor = {
+    scroll: async () => ({}),
+    snapshot: async (options: any) => {
+      snapshotCount += 1;
+      if (options.scope) throw new Error('scoped snapshot failed');
+      return makeScrollSnapshot({ hiddenBelow: true, message: 'Middle message' });
+    },
+  } as unknown as Interactor;
+
+  await assert.rejects(
+    () => handleScrollCommand(interactor, ['bottom'], undefined),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'COMMAND_FAILED' &&
+      /scoped container/i.test(error.message) &&
+      error.details?.scope === 'Messages',
+  );
+  assert.equal(snapshotCount, 2);
+});
+
 function makeScrollSnapshot(options: { hiddenBelow: boolean; message: string }) {
   return {
     backend: 'xctest' as const,

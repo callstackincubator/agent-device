@@ -42,6 +42,35 @@ describe('React Native overlay helpers', () => {
     });
   });
 
+  test('falls back to Dismiss for RedBox overlays without Minimize', () => {
+    const nodes = [
+      node({ ref: 'e1', label: 'Runtime Error', rect: { x: 0, y: 0, width: 390, height: 100 } }),
+      node({ ref: 'e2', label: 'Dismiss', rect: { x: 20, y: 730, width: 150, height: 44 } }),
+    ];
+
+    const target = resolveReactNativeOverlayDismissTarget(nodes);
+
+    expect(target).toMatchObject({
+      action: 'dismiss',
+      ref: 'e2',
+      point: { x: 95, y: 752 },
+      warning: 'RedBox Minimize control was not exposed; used Dismiss fallback',
+    });
+  });
+
+  test('does not detect app copy that mentions React Native overlay terms without controls', () => {
+    const nodes = [
+      node({
+        ref: 'e1',
+        label: 'Runtime error troubleshooting docs mention LogBox and RedBox',
+        rect: { x: 0, y: 100, width: 390, height: 80 },
+      }),
+    ];
+
+    expect(detectReactNativeOverlay(nodes).detected).toBe(false);
+    expect(resolveReactNativeOverlayDismissTarget(nodes)).toBeNull();
+  });
+
   test('formats snapshot warning around the overlay command', () => {
     const nodes = [
       node({
