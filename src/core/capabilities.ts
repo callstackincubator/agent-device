@@ -1,7 +1,7 @@
 import { isApplePlatform, type DeviceInfo } from '../utils/device.ts';
 import { CAPTURE_COMMAND_CAPABILITIES } from '../commands/capture-definition.ts';
 import { INTERACTION_COMMAND_CAPABILITIES } from '../commands/interactions/definition.ts';
-import { REACT_NATIVE_COMMAND_CAPABILITIES } from '../commands/react-native-definition.ts';
+import { REACT_NATIVE_COMMAND_CAPABILITIES } from '../commands/react-native/definition.ts';
 import { SELECTOR_COMMAND_CAPABILITIES } from '../commands/selectors-definition.ts';
 import { SESSION_LIFECYCLE_COMMAND_CAPABILITIES } from '../commands/session-lifecycle/definition.ts';
 

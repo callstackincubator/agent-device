@@ -5,7 +5,7 @@ import {
   detectReactNativeOverlay,
   resolveReactNativeOverlayDismissTarget,
   type ReactNativeOverlayDismissTarget,
-} from '../../utils/react-native-overlay.ts';
+} from '../../commands/react-native/overlay.ts';
 import { normalizeError } from '../../utils/errors.ts';
 import { successText } from '../../utils/success-text.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';

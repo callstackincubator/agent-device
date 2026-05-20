@@ -1,5 +1,5 @@
-import { PUBLIC_COMMANDS } from '../command-catalog.ts';
-import { commandCapabilityMap, commandSchemaMap, defineCommand } from './command-definition.ts';
+import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
+import { commandCapabilityMap, commandSchemaMap, defineCommand } from '../command-definition.ts';
 
 export type ReactNativeCommandOptions = {
   action: 'dismiss-overlay';

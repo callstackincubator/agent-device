@@ -11,7 +11,7 @@ import type {
   SnapshotVisibility,
 } from '../utils/snapshot.ts';
 import { buildSnapshotVisibility } from '../utils/snapshot-visibility.ts';
-import { formatReactNativeOverlayWarning } from '../utils/react-native-overlay.ts';
+import { formatReactNativeOverlayWarning } from './react-native/overlay.ts';
 import {
   buildUnchangedSnapshotMetadata,
   ensureSnapshotPresentationKey,

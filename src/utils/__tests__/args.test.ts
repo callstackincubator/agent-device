@@ -1057,11 +1057,12 @@ test('usageForCommand resolves react-native help topic', () => {
   assert.match(help, /Use help react-devtools for status\/wait/);
   assert.match(help, /logs clear --restart/);
   assert.match(help, /network dump --include headers/);
-  assert.match(help, /React Native warning\/error overlays belong to the app run/);
+  assert.match(help, /If snapshot reports a React Native warning\/error overlay/);
   assert.match(help, /agent-device react-native dismiss-overlay/);
+  assert.match(help, /agent-device snapshot -i -c/);
+  assert.match(help, /Use refs from the new snapshot/);
   assert.match(help, /Do not manually press warning\/error text bodies/);
-  assert.match(help, /taps the trailing close affordance for collapsed warning banners/);
-  assert.match(help, /prefers Minimize over Dismiss/);
+  assert.match(help, /dismiss-overlay command owns the narrow LogBox\/RedBox targeting policy/);
   assert.match(help, /Android runtime permission dialogs and native alerts are handled by alert/);
   assert.match(help, /snapshot times out because the UI never becomes idle/);
   assert.match(help, /Report React render offenders separately/);

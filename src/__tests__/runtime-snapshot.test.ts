@@ -160,7 +160,6 @@ test('runtime snapshot warns on collapsed Android React Native warning banners',
   const result = await device.capture.snapshot({ session: 'default', interactiveOnly: true });
 
   assertReactNativeOverlayWarning(result.warnings);
-  assert.match(result.warnings?.[0] ?? '', /compact banner @e1/);
 });
 
 test('runtime snapshot does not suggest full-screen React Native warning parents', async () => {
@@ -188,9 +187,7 @@ test('runtime snapshot does not suggest full-screen React Native warning parents
   }).capture.snapshot({ session: 'default', interactiveOnly: true });
 
   assertReactNativeOverlayWarning(result.warnings);
-  assert.match(result.warnings?.[0] ?? '', /compact banner @e2/);
   assert.doesNotMatch(result.warnings?.[0] ?? '', /@e1/);
-  assert.match(result.warnings?.[0] ?? '', /do not press a full-screen warning body/i);
 });
 
 test('runtime snapshot prefers TextView Minimize over Dismiss on Android React Native stack overlays', async () => {
@@ -205,8 +202,6 @@ test('runtime snapshot prefers TextView Minimize over Dismiss on Android React N
   }).capture.snapshot({ session: 'default', interactiveOnly: true });
 
   assertReactNativeOverlayWarning(result.warnings);
-  assert.match(result.warnings?.[0] ?? '', /press @e3/);
-  assert.match(result.warnings?.[0] ?? '', /Prefer Minimize over Dismiss/);
 });
 
 test('runtime snapshot does not suggest Dismiss for Android RedBox stacks without Minimize', async () => {
@@ -220,7 +215,6 @@ test('runtime snapshot does not suggest Dismiss for Android RedBox stacks withou
   }).capture.snapshot({ session: 'default', interactiveOnly: true });
 
   assertReactNativeOverlayWarning(result.warnings);
-  assert.match(result.warnings?.[0] ?? '', /RedBox stack overlay/);
   assert.doesNotMatch(result.warnings?.[0] ?? '', /Dismiss before continuing|press @e2/);
 });
 
@@ -276,8 +270,6 @@ test('runtime snapshot targets React Native LogBox close icon instead of warning
   }).capture.snapshot({ session: 'default', interactiveOnly: true });
 
   assertReactNativeOverlayWarning(result.warnings);
-  assert.match(result.warnings?.[0] ?? '', /press only the close control @e3/i);
-  assert.match(result.warnings?.[0] ?? '', /not the warning\/error text body/i);
 });
 
 test('runtime snapshot does not warn for ordinary Android validation errors', async () => {
@@ -452,5 +444,7 @@ function createSnapshotOnlyDevice(result: BackendSnapshotResult) {
 
 function assertReactNativeOverlayWarning(warnings: string[] | undefined) {
   assert.equal(warnings?.length, 1);
-  assert.match(warnings[0] ?? '', /Possible React Native warning\/error overlay/);
+  assert.match(warnings[0] ?? '', /Hint: React Native warning\/error overlay detected/);
+  assert.match(warnings[0] ?? '', /agent-device react-native dismiss-overlay/);
+  assert.match(warnings[0] ?? '', /agent-device snapshot -i -c/);
 }

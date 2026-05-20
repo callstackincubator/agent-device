@@ -1,4 +1,4 @@
-import { centerOfRect, type Point, type SnapshotNode } from './snapshot.ts';
+import { centerOfRect, type Point, type SnapshotNode } from '../../utils/snapshot.ts';
 
 export type ReactNativeOverlayState = {
   detected: boolean;
@@ -21,16 +21,12 @@ export type ReactNativeOverlayDismissTarget = {
 export function formatReactNativeOverlayWarning(nodes: SnapshotNode[]): string | undefined {
   const overlay = detectReactNativeOverlay(nodes);
   if (!overlay.detected) return undefined;
-  if (overlay.redBox) return formatRedBoxOverlayWarning(overlay.minimizeRefs);
-  if (overlay.dismissRefs.length > 0) {
-    return `Possible React Native warning/error overlay detected. Dismiss before continuing: run agent-device react-native dismiss-overlay, then snapshot -i and report the warning/error in the final summary. The dismiss-overlay command targets the close control ${formatRefList(
-      overlay.dismissRefs,
-    )}; do not press the warning/error text body manually. Use screenshot --overlay-refs only if visual evidence is required.`;
-  }
-  if (overlay.collapsedRefs.length > 0) {
-    return `Possible React Native warning/error overlay detected. Collapsed warning banner detected. If it blocks the target, run agent-device react-native dismiss-overlay, then snapshot -i and report the warning/error in the final summary. The dismiss-overlay command taps the banner close affordance; do not press the collapsed warning banner body manually. Use screenshot --overlay-refs only if visual evidence is required.`;
-  }
-  return 'Possible React Native warning/error overlay detected. Run agent-device react-native dismiss-overlay before continuing, then snapshot -i and report the warning/error in the final summary. Use screenshot --overlay-refs only if visual evidence is required.';
+  return [
+    'Hint: React Native warning/error overlay detected. It overlays part of the app and should be handled before interacting.',
+    'Run: agent-device react-native dismiss-overlay',
+    'Then run: agent-device snapshot -i -c',
+    'Use refs from the new snapshot.',
+  ].join('\n');
 }
 
 export function detectReactNativeOverlay(nodes: SnapshotNode[]): ReactNativeOverlayState {
@@ -94,15 +90,6 @@ export function resolveReactNativeOverlayDismissTarget(
     ref: collapsed.ref,
     label: readNodeLabel(collapsed),
   };
-}
-
-function formatRedBoxOverlayWarning(minimizeRefs: string[]): string {
-  if (minimizeRefs.length > 0) {
-    return `Possible React Native warning/error overlay detected. React Native RedBox stack overlay detected. Run agent-device react-native dismiss-overlay before continuing; it will prefer Minimize ${formatRefList(
-      minimizeRefs,
-    )} over Dismiss. Then snapshot -i and report the error in the final summary.`;
-  }
-  return 'Possible React Native warning/error overlay detected. React Native RedBox stack overlay detected. Run agent-device react-native dismiss-overlay before continuing. If no safe Minimize/Close target is found, use screenshot --overlay-refs and report the error in the final summary.';
 }
 
 function hasKnownReactNativeOverlayText(text: string): boolean {
@@ -230,11 +217,4 @@ function clamp(value: number, min: number, max: number): number {
 
 function readNodeLabel(node: SnapshotNode): string | undefined {
   return node.label ?? node.value ?? node.identifier;
-}
-
-function formatRefList(refs: string[]): string {
-  return refs
-    .slice(0, 3)
-    .map((ref) => `@${ref}`)
-    .join(', ');
 }

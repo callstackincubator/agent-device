@@ -4,7 +4,7 @@ import type { DaemonInstallSource } from '../contracts.ts';
 import type { RemoteConfigMetroOptions } from '../remote-config-schema.ts';
 import { CAPTURE_COMMAND_SCHEMAS } from '../commands/capture-definition.ts';
 import { INTERACTION_COMMAND_SCHEMAS } from '../commands/interactions/definition.ts';
-import { REACT_NATIVE_COMMAND_SCHEMAS } from '../commands/react-native-definition.ts';
+import { REACT_NATIVE_COMMAND_SCHEMAS } from '../commands/react-native/definition.ts';
 import {
   SELECTOR_COMMAND_SCHEMAS,
   SELECTOR_SNAPSHOT_FLAGS,
@@ -503,8 +503,8 @@ React Native dev loop:
   Expo Go/dev clients are host shells. Use provided project URLs, verify with snapshot -i after opening, and ask instead of inventing app ids or URLs. Help workflow owns the full Expo URL command shapes.
 
 Overlays and busy RN UIs:
-  React Native warning/error overlays belong to the app run. Treat them as blockers before normal app work: run agent-device react-native dismiss-overlay, then snapshot -i. Do not manually press warning/error text bodies, collapsed banner bodies, full-screen warning parents, or broad LogBox/RedBox refs.
-  The dismiss-overlay command targets visible X/Close/Dismiss controls and taps the trailing close affordance for collapsed warning banners. For full-screen RedBox stack traces it prefers Minimize over Dismiss because Dismiss can re-trigger infinite-loop render errors such as getSnapshot/useOnyx stack paths.
+  If snapshot reports a React Native warning/error overlay, handle it before interacting with the app: run agent-device react-native dismiss-overlay, then agent-device snapshot -i -c. Use refs from the new snapshot.
+  Do not manually press warning/error text bodies, collapsed banner bodies, full-screen warning parents, or broad LogBox/RedBox refs. The dismiss-overlay command owns the narrow LogBox/RedBox targeting policy.
   Report the overlay in the final summary. Use screenshot --overlay-refs before dismissing only if visual evidence is required.
   If snapshot times out because the UI never becomes idle, Android accessibility may be blocked by busy or continuously changing app UI. After that timeout, use screenshot as visual truth instead of repeatedly retrying snapshots.
   Android runtime permission dialogs and native alerts are handled by alert wait/accept/dismiss. If alert reports no alert, treat the visible surface as app-owned UI and use snapshot -i plus press by label/ref.

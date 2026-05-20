@@ -3,8 +3,8 @@ import {
   detectReactNativeOverlay,
   formatReactNativeOverlayWarning,
   resolveReactNativeOverlayDismissTarget,
-} from '../react-native-overlay.ts';
-import type { SnapshotNode } from '../snapshot.ts';
+} from '../overlay.ts';
+import type { SnapshotNode } from '../../../utils/snapshot.ts';
 
 describe('React Native overlay helpers', () => {
   test('targets the trailing close affordance for collapsed warning banners', () => {
@@ -54,8 +54,14 @@ describe('React Native overlay helpers', () => {
     const warning = formatReactNativeOverlayWarning(nodes);
 
     expect(detectReactNativeOverlay(nodes).detected).toBe(true);
-    expect(warning).toContain('agent-device react-native dismiss-overlay');
-    expect(warning).toContain('do not press the collapsed warning banner body manually');
+    expect(warning).toBe(
+      [
+        'Hint: React Native warning/error overlay detected. It overlays part of the app and should be handled before interacting.',
+        'Run: agent-device react-native dismiss-overlay',
+        'Then run: agent-device snapshot -i -c',
+        'Use refs from the new snapshot.',
+      ].join('\n'),
+    );
   });
 });
 
