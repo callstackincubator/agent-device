@@ -4,6 +4,7 @@ import type { DaemonInstallSource } from '../contracts.ts';
 import type { RemoteConfigMetroOptions } from '../remote-config-schema.ts';
 import { CAPTURE_COMMAND_SCHEMAS } from '../commands/capture-definition.ts';
 import { INTERACTION_COMMAND_SCHEMAS } from '../commands/interactions/definition.ts';
+import { REACT_NATIVE_COMMAND_SCHEMAS } from '../commands/react-native-definition.ts';
 import {
   SELECTOR_COMMAND_SCHEMAS,
   SELECTOR_SNAPSHOT_FLAGS,
@@ -166,7 +167,7 @@ const AGENT_QUICKSTART_LINES = [
   'Read-only visible/state question: use snapshot/get/is/find; use snapshot -i only when refs are needed.',
   'Anti-pattern: snapshot -i followed by snapshot -i | grep ...; prior refs stay valid until app state changes, and --force-full is the explicit full re-read.',
   'Truncated text/input preview: expand first with snapshot -s @e12, not get text.',
-  'React Native apps: read help react-native for Metro, LogBox/RedBox overlays, DevTools routing, and RN-specific blockers.',
+  'React Native apps: read help react-native for Metro, DevTools routing, and RN-specific blockers; use react-native dismiss-overlay for LogBox/RedBox overlays.',
   'Android RN/Expo Metro: adb reverse tcp:<port> tcp:<port> is harmless and helps the device reach any local Metro port.',
   'Expo Go/dev clients: use the provided URL when given; on iOS prefer open "Expo Go" <url>; Android URL opens infer the foreground package for logs/perf when possible.',
   'Install flows: install/install-from-source first, then open the installed id with --relaunch.',
@@ -340,7 +341,7 @@ React Native dev loop:
     agent-device metro reload
     agent-device find "Home"
   Do not use agent-device reload. Use open --relaunch for native startup reset.
-  React Native apps: use help react-native for Metro/Fast Refresh, LogBox/RedBox overlays, DevTools routing, and RN-specific blockers.
+  React Native apps: use help react-native for Metro/Fast Refresh, DevTools routing, and RN-specific blockers; use react-native dismiss-overlay for LogBox/RedBox overlays.
   Android RN/Expo Metro: run adb reverse tcp:<port> tcp:<port> before opening the app or URL; it is harmless even if already configured.
   Expo Go is a host shell. Use a provided project URL instead of inventing a bundle id; if no URL is provided but a target/app name is provided, open that target and do not inspect project files to find one. On iOS, prefer host + URL when the host shell is known because direct URL open can report success while leaving the runner/shell focused; verify with snapshot -i after opening:
     agent-device open "Expo Go" exp://127.0.0.1:8081 --platform ios
@@ -502,8 +503,9 @@ React Native dev loop:
   Expo Go/dev clients are host shells. Use provided project URLs, verify with snapshot -i after opening, and ask instead of inventing app ids or URLs. Help workflow owns the full Expo URL command shapes.
 
 Overlays and busy RN UIs:
-  React Native warning/error overlays belong to the app run. Treat them as blockers before normal app work: press the visible close control by ref immediately when unrelated, including Dismiss, Close, or the small X icon. Press only that control, not the warning/error text body. If only a collapsed warning chip/banner is visible and it blocks the target, press only the compact chip/banner ref once to expand it; do not press a full-screen warning parent/body. Then close the visible X/Dismiss control, re-snapshot, and report the overlay in the final summary. Use screenshot --overlay-refs only if visual evidence is required.
-  Full-screen RedBox stack traces are app errors, not failed navigation. If Minimize is visible, prefer Minimize over Dismiss; Dismiss can re-trigger infinite-loop render errors such as getSnapshot/useOnyx stack paths.
+  React Native warning/error overlays belong to the app run. Treat them as blockers before normal app work: run agent-device react-native dismiss-overlay, then snapshot -i. Do not manually press warning/error text bodies, collapsed banner bodies, full-screen warning parents, or broad LogBox/RedBox refs.
+  The dismiss-overlay command targets visible X/Close/Dismiss controls and taps the trailing close affordance for collapsed warning banners. For full-screen RedBox stack traces it prefers Minimize over Dismiss because Dismiss can re-trigger infinite-loop render errors such as getSnapshot/useOnyx stack paths.
+  Report the overlay in the final summary. Use screenshot --overlay-refs before dismissing only if visual evidence is required.
   If snapshot times out because the UI never becomes idle, Android accessibility may be blocked by busy or continuously changing app UI. After that timeout, use screenshot as visual truth instead of repeatedly retrying snapshots.
   Android runtime permission dialogs and native alerts are handled by alert wait/accept/dismiss. If alert reports no alert, treat the visible surface as app-owned UI and use snapshot -i plus press by label/ref.
 
@@ -604,7 +606,7 @@ Loop:
 
 Coverage:
   Navigation, forms, empty/error/loading states, offline or retry behavior, permissions, settings, accessibility labels, orientation/keyboard, and obvious performance stalls.
-  React Native warning/error overlays can be real findings or test blockers. Capture them, dismiss if unrelated, re-snapshot, and report them.
+  React Native warning/error overlays can be real findings or test blockers. Capture them, use react-native dismiss-overlay if unrelated, re-snapshot, and report them.
   Expo Go/dev-client shells: use the provided exp:// or dev-client URL and record whether the shell, project load, or app UI is being tested. On iOS dogfood, prefer agent-device open "Expo Go" <url> when Expo Go is the known shell, then snapshot -i to confirm the project UI rather than the runner splash.
   Android RN/Expo Metro: run adb reverse tcp:<port> tcp:<port> before opening the app or URL; it is harmless even if already configured.
   Categories: visual, functional, UX, content, performance, diagnostics, permissions, accessibility.
@@ -1755,6 +1757,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: ['start|stop', 'path?'],
     allowedFlags: ['fps', 'quality', 'hideTouches'],
   },
+  ...REACT_NATIVE_COMMAND_SCHEMAS,
   trace: {
     usageOverride: 'trace start <path> | trace stop <path>',
     listUsageOverride: 'trace start <path> | trace stop <path>',

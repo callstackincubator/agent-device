@@ -471,6 +471,10 @@ export type ClipboardCommandResult =
       textLength: number;
     });
 
+export type ReactNativeCommandOptions = ClientCommandBaseOptions & {
+  action: 'dismiss-overlay';
+};
+
 export type AgentDeviceCommandClient = {
   wait: (options: WaitCommandOptions) => Promise<WaitCommandResult>;
   alert: (options?: AlertCommandOptions) => Promise<AlertCommandResult>;
@@ -481,6 +485,7 @@ export type AgentDeviceCommandClient = {
   appSwitcher: (options?: AppSwitcherCommandOptions) => Promise<AppSwitcherCommandResult>;
   keyboard: (options?: KeyboardCommandOptions) => Promise<KeyboardCommandResult>;
   clipboard: (options: ClipboardCommandOptions) => Promise<ClipboardCommandResult>;
+  reactNative: (options: ReactNativeCommandOptions) => Promise<CommandRequestResult>;
 };
 
 type SelectorSnapshotCommandOptions = Pick<CaptureSnapshotOptions, 'depth' | 'scope' | 'raw'>;

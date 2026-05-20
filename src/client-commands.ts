@@ -66,6 +66,12 @@ export function createAgentDeviceCommandClient(
         options,
       }),
     clipboard: async (options) => await run<'clipboard'>(prepareClipboardCommand(options)),
+    reactNative: async (options) =>
+      await run<'reactNative'>({
+        command: PUBLIC_COMMANDS.reactNative,
+        positionals: [options.action],
+        options,
+      }),
   };
 }
 

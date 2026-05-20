@@ -169,6 +169,10 @@ function buildGestureEvents(
     case 'click':
     case 'press':
       return buildPressEvents(positionals, result, tMs, referenceFrame);
+    case 'react-native':
+      return positionals[0] === 'dismiss-overlay'
+        ? buildPressEvents(positionals, result, tMs, referenceFrame)
+        : [];
     case 'fill':
     case 'focus':
       return buildFocusEvents(positionals, result, tMs, referenceFrame);
@@ -200,6 +204,8 @@ function shouldAnchorTapVisualizationNearCompletion(
       const holdMs = clampInt(readNumber(result.holdMs), 1);
       return count === 1 && !doubleTap && holdMs === undefined;
     }
+    case 'react-native':
+      return result.action === 'dismiss-overlay';
     default:
       return false;
   }

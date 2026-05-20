@@ -1,0 +1,99 @@
+import { beforeEach, expect, test, vi } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { handleReactNativeCommands } from '../react-native.ts';
+import { captureSnapshot } from '../snapshot-capture.ts';
+import { dispatchCommand } from '../../../core/dispatch.ts';
+import { SessionStore } from '../../session-store.ts';
+import type { SessionState } from '../../types.ts';
+
+vi.mock('../snapshot-capture.ts', () => ({
+  captureSnapshot: vi.fn(),
+}));
+
+vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
+  return {
+    ...actual,
+    dispatchCommand: vi.fn(async () => ({ x: 379, y: 820 })),
+  };
+});
+
+const mockCaptureSnapshot = vi.mocked(captureSnapshot);
+const mockDispatchCommand = vi.mocked(dispatchCommand);
+
+beforeEach(() => {
+  mockCaptureSnapshot.mockReset();
+  mockDispatchCommand.mockReset();
+  mockDispatchCommand.mockResolvedValue({ x: 379, y: 820 });
+});
+
+test('react-native dismiss-overlay taps collapsed warning close affordance instead of banner center', async () => {
+  const sessionName = 'rn-session';
+  const sessionStore = makeSessionStore();
+  sessionStore.set(sessionName, makeSession(sessionName));
+  mockCaptureSnapshot.mockResolvedValue({
+    snapshot: {
+      nodes: [
+        {
+          index: 0,
+          ref: 'e90',
+          label: '!, Open debugger to view warnings.',
+          rect: { x: 0, y: 794, width: 402, height: 52 },
+          hittable: true,
+        },
+      ],
+      createdAt: Date.now(),
+    },
+  });
+
+  const response = await handleReactNativeCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'react-native',
+      positionals: ['dismiss-overlay'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+    contextFromFlags: () => ({}),
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatchCommand).toHaveBeenCalledWith(
+    expect.objectContaining({ platform: 'ios' }),
+    'press',
+    ['379', '820'],
+    undefined,
+    expect.any(Object),
+  );
+  expect(response?.ok && response.data).toMatchObject({
+    action: 'dismiss-overlay',
+    overlayAction: 'close-collapsed-banner',
+    x: 379,
+    y: 820,
+  });
+});
+
+function makeSessionStore(): SessionStore {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-rn-handler-'));
+  return new SessionStore(path.join(root, 'sessions'));
+}
+
+function makeSession(name: string): SessionState {
+  return {
+    name,
+    createdAt: Date.now(),
+    actions: [],
+    device: {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone',
+      kind: 'simulator',
+      booted: true,
+    },
+  };
+}

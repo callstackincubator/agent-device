@@ -179,6 +179,11 @@ const genericClientCommandRunners = {
       limit: optionalNumber(positionals[1]),
       include: flags.networkInclude ?? readNetworkInclude(positionals[2]),
     }),
+  'react-native': ({ client, positionals, flags }) =>
+    client.command.reactNative({
+      ...buildSelectionOptions(flags),
+      action: readReactNativeAction(positionals[0]),
+    }),
   find: ({ client, positionals, flags }) =>
     client.interactions.find(findCommandCodec.decode(positionals, flags)),
   is: ({ client, positionals, flags }) =>
@@ -282,6 +287,11 @@ function readJsonObject(value: string, label: string): Record<string, unknown> {
 function required(value: string | undefined, message: string): string {
   if (value === undefined || value === '') throw new AppError('INVALID_ARGS', message);
   return value;
+}
+
+function readReactNativeAction(value: string | undefined): 'dismiss-overlay' {
+  if (value === 'dismiss-overlay') return value;
+  throw new AppError('INVALID_ARGS', 'react-native supports only: dismiss-overlay');
 }
 
 function optionalNumber(value: string | undefined): number | undefined {

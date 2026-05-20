@@ -61,6 +61,16 @@ test('parseArgs recognizes command-specific flag combinations', async () => {
       },
     },
     {
+      label: 'react-native dismiss-overlay',
+      argv: ['react-native', 'dismiss-overlay', '--platform', 'ios'],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'react-native');
+        assert.deepEqual(parsed.positionals, ['dismiss-overlay']);
+        assert.equal(parsed.flags.platform, 'ios');
+      },
+    },
+    {
       label: 'open --platform apple alias',
       argv: ['open', 'Settings', '--platform', 'apple', '--target', 'tv'],
       strictFlags: true,
@@ -1048,10 +1058,10 @@ test('usageForCommand resolves react-native help topic', () => {
   assert.match(help, /logs clear --restart/);
   assert.match(help, /network dump --include headers/);
   assert.match(help, /React Native warning\/error overlays belong to the app run/);
-  assert.match(help, /small X icon/);
-  assert.match(help, /not the warning\/error text body/);
-  assert.match(help, /compact chip\/banner ref/);
-  assert.match(help, /not press a full-screen warning parent\/body/);
+  assert.match(help, /agent-device react-native dismiss-overlay/);
+  assert.match(help, /Do not manually press warning\/error text bodies/);
+  assert.match(help, /taps the trailing close affordance for collapsed warning banners/);
+  assert.match(help, /prefers Minimize over Dismiss/);
   assert.match(help, /Android runtime permission dialogs and native alerts are handled by alert/);
   assert.match(help, /snapshot times out because the UI never becomes idle/);
   assert.match(help, /Report React render offenders separately/);

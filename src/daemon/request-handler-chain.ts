@@ -4,6 +4,7 @@ import type { DaemonCommandContext } from './context.ts';
 import { handleFindCommands } from './handlers/find.ts';
 import { handleInteractionCommands } from './handlers/interaction.ts';
 import { handleLeaseCommands } from './handlers/lease.ts';
+import { handleReactNativeCommands } from './handlers/react-native.ts';
 import { handleRecordTraceCommands } from './handlers/record-trace.ts';
 import { handleSessionCommands } from './handlers/session.ts';
 import { handleSnapshotCommands } from './handlers/snapshot.ts';
@@ -59,6 +60,15 @@ export async function runRequestHandlerChain(params: {
     sessionStore,
   });
   if (snapshotResponse) return snapshotResponse;
+
+  const reactNativeResponse = await handleReactNativeCommands({
+    req,
+    sessionName,
+    logPath,
+    sessionStore,
+    contextFromFlags,
+  });
+  if (reactNativeResponse) return reactNativeResponse;
 
   const recordTraceResponse = await handleRecordTraceCommands({
     req,
