@@ -78,6 +78,68 @@ test('react-native dismiss-overlay taps collapsed warning close affordance inste
   });
 });
 
+test('react-native dismiss-overlay minimizes RedBox error overlays instead of dismissing them', async () => {
+  const sessionName = 'rn-redbox-session';
+  const sessionStore = makeSessionStore();
+  sessionStore.set(sessionName, makeSession(sessionName));
+  mockDispatchCommand.mockResolvedValue({ x: 265, y: 752 });
+  mockCaptureSnapshot.mockResolvedValue({
+    snapshot: {
+      nodes: [
+        {
+          index: 0,
+          ref: 'e1',
+          label: 'Runtime Error',
+          rect: { x: 0, y: 0, width: 390, height: 100 },
+        },
+        {
+          index: 1,
+          ref: 'e2',
+          label: 'Dismiss',
+          rect: { x: 20, y: 730, width: 150, height: 44 },
+        },
+        {
+          index: 2,
+          ref: 'e3',
+          label: 'Minimize',
+          rect: { x: 190, y: 730, width: 150, height: 44 },
+        },
+      ],
+      createdAt: Date.now(),
+    },
+  });
+
+  const response = await handleReactNativeCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'react-native',
+      positionals: ['dismiss-overlay'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+    contextFromFlags: () => ({}),
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatchCommand).toHaveBeenCalledWith(
+    expect.objectContaining({ platform: 'ios' }),
+    'press',
+    ['265', '752'],
+    undefined,
+    expect.any(Object),
+  );
+  expect(response?.ok && response.data).toMatchObject({
+    action: 'dismiss-overlay',
+    overlayAction: 'minimize',
+    ref: 'e3',
+    x: 265,
+    y: 752,
+  });
+});
+
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-rn-handler-'));
   return new SessionStore(path.join(root, 'sessions'));
