@@ -385,7 +385,7 @@ Alerts:
     agent-device alert wait 3000
     agent-device alert accept
     agent-device alert dismiss
-  Android support is snapshot-derived for runtime permission prompts and native app dialogs. Use alert wait/get before guessing from app state or React Native internals.
+  Android support is snapshot-derived for runtime permission prompts and native app dialogs. iOS support is runner-derived for XCTest alerts, app-owned modal popups with native blocking markers, and blocking system dialogs. Use cheap alert get for an immediate check; use alert wait <short-ms> only when a prompt may appear after async work.
   If alert says no alert but a sheet is visibly on screen, treat it as app-owned UI:
     agent-device snapshot -i
     agent-device press 'label="Allow"'

@@ -31,7 +31,8 @@ const ANDROID_PERMISSION_PACKAGES = new Set([
 ]);
 const ANDROID_SYSTEM_DIALOG_PACKAGES = new Set(['android', 'com.android.systemui']);
 const ANDROID_ALERT_ID_PATTERN =
-  /(?:^|:)id\/(?:alertTitle|message|button[123]|parentPanel|buttonPanel|contentPanel)$/i;
+  /^android:id\/(?:alertTitle|message|button[123]|parentPanel|buttonPanel|contentPanel)$/i;
+const ANDROID_ALERT_BUTTON_ID_PATTERN = /^android:id\/button[123]$/i;
 const ANDROID_PERMISSION_ID_PATTERN = /(?:^|:)id\/permission_/i;
 const ANDROID_BLOCKING_DIALOG_PATTERN =
   /\b(?:is(?:n't| not) responding|keeps stopping|has stopped|close app|app info)\b/i;
@@ -91,15 +92,29 @@ function findAndroidAlertNodes(nodes: RawSnapshotNode[]): {
 }
 
 function findNativeDialogNodes(nodes: RawSnapshotNode[]): RawSnapshotNode[] {
-  const signalNodes = nodes.filter((node) => {
-    const identifier = node.identifier ?? '';
-    const type = node.type ?? '';
-    return ANDROID_ALERT_ID_PATTERN.test(identifier) || /\bdialog\b/i.test(type);
-  });
+  const dialogNodes = nodes.filter((node) => isAndroidDialogType(node.type ?? ''));
+  const alertIdNodes = nodes.filter((node) => ANDROID_ALERT_ID_PATTERN.test(node.identifier ?? ''));
+  const signalNodes = dialogNodes.length
+    ? [...dialogNodes, ...alertIdNodes]
+    : correlatedAndroidAlertIdNodes(alertIdNodes);
   if (signalNodes.length === 0) return [];
   const rootIndex = findCommonAncestorIndex(nodes, signalNodes);
   if (rootIndex === undefined) return signalNodes;
   return collectDescendants(nodes, rootIndex);
+}
+
+function isAndroidDialogType(type: string): boolean {
+  return /(?:^|[.$])[^.]*Dialog$/i.test(type);
+}
+
+function correlatedAndroidAlertIdNodes(nodes: RawSnapshotNode[]): RawSnapshotNode[] {
+  const hasButton = nodes.some((node) =>
+    ANDROID_ALERT_BUTTON_ID_PATTERN.test(node.identifier ?? ''),
+  );
+  const hasContent = nodes.some(
+    (node) => !ANDROID_ALERT_BUTTON_ID_PATTERN.test(node.identifier ?? ''),
+  );
+  return hasButton && hasContent ? nodes : [];
 }
 
 function findSystemDialogNodes(nodes: RawSnapshotNode[]): RawSnapshotNode[] {
@@ -237,24 +252,19 @@ function isButtonLike(node: RawSnapshotNode): boolean {
   return Boolean(
     node.hittable ||
     /\bbutton\b/i.test(type) ||
-    /(?:^|:)id\/button[123]$/i.test(identifier) ||
+    ANDROID_ALERT_BUTTON_ID_PATTERN.test(identifier) ||
     /(?:^|:)id\/permission_(?:allow|deny)/i.test(identifier),
   );
 }
 
 function readNodeText(node: RawSnapshotNode | undefined): string {
   if (!node) return '';
-  const parts = [node.label, node.value, node.identifier].filter(
+  const parts = [node.label, node.value].filter(
     (part): part is string => typeof part === 'string' && part.trim().length > 0,
   );
-  const text = parts.find((part) => !isGenericAndroidId(part)) ?? '';
-  return text.trim();
+  return parts[0]?.trim() ?? '';
 }
 
 function choosePackageName(nodes: RawSnapshotNode[]): string | undefined {
   return nodes.find((node) => node.bundleId)?.bundleId;
-}
-
-function isGenericAndroidId(value: string): boolean {
-  return /^[\w.]+:id\/[\w.-]+$/i.test(value.trim());
 }

@@ -36,7 +36,7 @@ For React Native apps, overlays, Metro/Fast Refresh blockers, and routing to Rea
 
 React Native warning/error overlays belong to the app run. Treat them as findings or blockers: capture them, check `react-devtools errors` when connected, dismiss visible `Dismiss`/`Close` controls only when unrelated, then re-snapshot and report the overlay.
 
-On Android, runtime permission dialogs are visible UI for `snapshot -i` plus visible `Allow`/`Deny` refs or labels. Do not use `alert wait` for Android permission prompts, and do not use `settings permission` to answer a dialog already on screen. Reserve `settings permission` for setup or resetting permission state before a flow.
+Use `alert wait`, `alert accept`, and `alert dismiss` for Android runtime permission prompts, Android native alerts, and iOS platform/app-owned modal dialogs. Do not use `settings permission` to answer a dialog already on screen. Reserve `settings permission` for setup or resetting permission state before a flow.
 
 ## Fast path
 

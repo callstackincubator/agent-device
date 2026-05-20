@@ -56,6 +56,34 @@ test('findAndroidAlertCandidate collects descendants independent of node order',
   });
 });
 
+test('findAndroidAlertCandidate ignores normal app message ids', () => {
+  const candidate = findAndroidAlertCandidate([
+    text(1, 'Latest chat message', 'com.example:id/message'),
+    button(2, 'Reply', 'com.example:id/reply', { x: 210, y: 612 }),
+    button(3, 'Archive', 'com.example:id/archive', { x: 52, y: 612 }),
+    node(0, 'android.widget.FrameLayout'),
+  ]);
+
+  assert.equal(candidate, null);
+});
+
+test('findAndroidAlertCandidate keeps buttonless native dialogs for Back fallback', () => {
+  const candidate = findAndroidAlertCandidate([
+    node(0, 'android.app.AlertDialog', { identifier: 'android:id/parentPanel' }),
+    text(1, 'Unsaved changes', 'android:id/alertTitle'),
+    text(2, 'Leave without saving?', 'android:id/message'),
+  ]);
+
+  assert.deepEqual(candidate?.alert, {
+    title: 'Unsaved changes',
+    message: 'Leave without saving?',
+    buttons: [],
+    platform: 'android',
+    source: 'native-dialog',
+    packageName: 'com.example.app',
+  });
+});
+
 test('chooseAndroidAlertButton accepts a single neutral button', () => {
   const candidate = findAndroidAlertCandidate([
     node(0, 'android.app.AlertDialog'),

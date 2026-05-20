@@ -1,7 +1,7 @@
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { contextFromFlags } from '../context.ts';
 import { AppError } from '../../utils/errors.ts';
-import type { RawSnapshotNode } from '../../utils/snapshot.ts';
+import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import { successText } from '../../utils/success-text.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import {
@@ -10,6 +10,7 @@ import {
   type AndroidAlertCandidate,
   type AndroidAlertInfo,
 } from '../../platforms/android/alert-detection.ts';
+import { snapshotAndroid } from '../../platforms/android/snapshot.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { recordIfSession } from './snapshot-session.ts';
 import {
@@ -117,10 +118,16 @@ async function pollAndroidAlertCandidate(
 async function readAndroidAlertCandidate(
   params: Pick<HandleAndroidAlertCommandParams, 'device' | 'logPath' | 'req' | 'session'>,
 ): Promise<AndroidAlertCandidate | null> {
-  const result = (await dispatchAndroidAlertCommand(params, 'snapshot', [])) as {
-    nodes?: RawSnapshotNode[];
-  };
-  return findAndroidAlertCandidate(result.nodes ?? []);
+  const result = await withDiagnosticTimer(
+    'snapshot_capture',
+    async () =>
+      await snapshotAndroid(params.device, {
+        helperWaitForIdleTimeoutMs: 0,
+        includeHiddenContentHints: false,
+      }),
+    { backend: 'android', purpose: 'alert' },
+  );
+  return findAndroidAlertCandidate(result.nodes);
 }
 
 async function dispatchAndroidAlertCommand(

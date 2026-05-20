@@ -46,7 +46,7 @@ extension RunnerTests {
     #endif
   }
 
-  private func firstBlockingSystemModal(in springboard: XCUIApplication) -> XCUIElement? {
+  func firstBlockingSystemModal(in springboard: XCUIApplication) -> XCUIElement? {
     let disableSafeProbe = RunnerEnv.isTruthy("AGENT_DEVICE_RUNNER_DISABLE_SAFE_MODAL_PROBE")
     let queryElements: (() -> [XCUIElement]) -> [XCUIElement] = { fetch in
       if disableSafeProbe {
@@ -76,7 +76,7 @@ extension RunnerTests {
     return nil
   }
 
-  private func safeElementsQuery(_ fetch: () -> [XCUIElement]) -> [XCUIElement] {
+  func safeElementsQuery(_ fetch: () -> [XCUIElement]) -> [XCUIElement] {
     var elements: [XCUIElement] = []
     let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
       elements = fetch()
@@ -120,7 +120,7 @@ extension RunnerTests {
     return true
   }
 
-  private func actionableElements(in element: XCUIElement) -> [XCUIElement] {
+  func actionableElements(in element: XCUIElement) -> [XCUIElement] {
     var seen = Set<String>()
     var actions: [XCUIElement] = []
     let descendants = safeElementsQuery {

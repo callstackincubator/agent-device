@@ -47,6 +47,8 @@ type AndroidSnapshotOptions = SnapshotOptions & {
   helperArtifact?: AndroidSnapshotHelperArtifact;
   helperInstallPolicy?: AndroidSnapshotHelperInstallPolicy;
   helperAdb?: AndroidAdbExecutor;
+  helperWaitForIdleTimeoutMs?: number;
+  includeHiddenContentHints?: boolean;
 };
 
 export async function snapshotAndroid(
@@ -61,10 +63,13 @@ export async function snapshotAndroid(
   const adb = resolveAndroidAdbExecutor(device, options.helperAdb);
   const capture = await captureAndroidUiHierarchy(device, options, adb);
   const xml = capture.xml;
+  const includeHiddenContentHints = options.includeHiddenContentHints !== false;
   if (!options.interactiveOnly) {
     const parsed = parseUiHierarchy(xml, ANDROID_SNAPSHOT_MAX_NODES, options);
-    const nativeHints = await deriveScrollableContentHintsIfNeeded(device, parsed.nodes, adb);
-    applyHiddenContentHintsToNodes(nativeHints, parsed.nodes);
+    if (includeHiddenContentHints) {
+      const nativeHints = await deriveScrollableContentHintsIfNeeded(device, parsed.nodes, adb);
+      applyHiddenContentHintsToNodes(nativeHints, parsed.nodes);
+    }
     return { ...parsed, androidSnapshot: capture.metadata };
   }
 
@@ -74,13 +79,19 @@ export async function snapshotAndroid(
     interactiveOnly: false,
   });
   const interactiveSnapshot = buildUiHierarchySnapshot(tree, ANDROID_SNAPSHOT_MAX_NODES, options);
-  const nativeHints = await deriveScrollableContentHintsIfNeeded(device, fullSnapshot.nodes, adb);
-  applyHiddenContentHintsToInteractiveNodes(nativeHints, fullSnapshot, interactiveSnapshot);
-  if (nativeHints.size === 0) {
-    const presentationHints = deriveMobileSnapshotHiddenContentHints(
-      attachRefs(fullSnapshot.nodes),
-    );
-    applyHiddenContentHintsToInteractiveNodes(presentationHints, fullSnapshot, interactiveSnapshot);
+  if (includeHiddenContentHints) {
+    const nativeHints = await deriveScrollableContentHintsIfNeeded(device, fullSnapshot.nodes, adb);
+    applyHiddenContentHintsToInteractiveNodes(nativeHints, fullSnapshot, interactiveSnapshot);
+    if (nativeHints.size === 0) {
+      const presentationHints = deriveMobileSnapshotHiddenContentHints(
+        attachRefs(fullSnapshot.nodes),
+      );
+      applyHiddenContentHintsToInteractiveNodes(
+        presentationHints,
+        fullSnapshot,
+        interactiveSnapshot,
+      );
+    }
   }
   const { sourceNodes: _sourceNodes, ...snapshot } = interactiveSnapshot;
   return { ...snapshot, androidSnapshot: capture.metadata };
@@ -133,7 +144,9 @@ async function captureAndroidUiHierarchy(
             adb,
             packageName: helper.artifact!.manifest.packageName,
             instrumentationRunner: helper.artifact!.manifest.instrumentationRunner,
-            waitForIdleTimeoutMs: ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
+            waitForIdleTimeoutMs:
+              options.helperWaitForIdleTimeoutMs ??
+              ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
             timeoutMs: HELPER_CAPTURE_TIMEOUT_MS,
             commandTimeoutMs: HELPER_COMMAND_TIMEOUT_MS,
           }),

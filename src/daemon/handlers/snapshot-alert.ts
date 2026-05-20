@@ -142,12 +142,16 @@ function withAlertFallbackHint(error: unknown): unknown {
   if (!(error instanceof AppError)) {
     return error;
   }
-  const message = String(error.message ?? '').toLowerCase();
-  if (!message.includes('alert not found') && !message.includes('no alert')) {
+  if (!isAlertNotFoundError(error)) {
     return error;
   }
   return new AppError(error.code, error.message, {
     ...(error.details ?? {}),
     hint: ALERT_FALLBACK_HINT,
   });
+}
+
+function isAlertNotFoundError(error: unknown): boolean {
+  const message = String((error as { message?: unknown })?.message ?? '').toLowerCase();
+  return message.includes('alert not found') || message.includes('no alert');
 }

@@ -945,7 +945,7 @@ test('usageForCommand resolves debugging help topic', () => {
   if (help === null) throw new Error('Expected debugging help text');
   assert.match(help, /agent-device help debugging/);
   assert.match(help, /agent-device alert wait 3000/);
-  assert.match(help, /Android support is snapshot-derived/);
+  assert.match(help, /iOS support is runner-derived/);
   assert.match(help, /Do not use settings permission to answer a dialog already on screen/);
 });
 

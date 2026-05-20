@@ -333,6 +333,33 @@ test('snapshotAndroid uses injected helper artifact before stock uiautomator', a
   assert.equal(mockRunCmd.mock.calls.length, 0);
 });
 
+test('snapshotAndroid forwards alert-style helper idle timeout override', async () => {
+  let instrumentArgs: string[] | undefined;
+  const helperAdb: AndroidAdbExecutor = async (args) => {
+    if (args.includes('--show-versioncode')) {
+      return installedHelperProbe;
+    }
+    if (args.includes('instrument')) {
+      instrumentArgs = args;
+      return {
+        exitCode: 0,
+        stdout: helperOutput('<hierarchy><node text="helper" bounds="[0,0][10,10]" /></hierarchy>'),
+        stderr: '',
+      };
+    }
+    throw new Error(`unexpected helper adb args: ${args.join(' ')}`);
+  };
+
+  await snapshotAndroid(device, {
+    helperAdb,
+    helperArtifact,
+    helperWaitForIdleTimeoutMs: 0,
+  });
+
+  assert.ok(instrumentArgs);
+  assert.equal(instrumentArgs[instrumentArgs.indexOf('waitForIdleTimeoutMs') + 1], '0');
+});
+
 test('snapshotAndroid emits helper phase diagnostics', async () => {
   const helperAdb: AndroidAdbExecutor = async (args) => {
     if (args.includes('--show-versioncode')) {
@@ -889,6 +916,34 @@ test('snapshotAndroid skips activity dump when snapshot has no scrollable nodes'
 
   assert.equal(result.nodes.length, 1);
   assert.equal(result.nodes[0]?.label, 'Continue');
+});
+
+test('snapshotAndroid skips hidden content hints when disabled', async () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<hierarchy rotation="0">
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" clickable="false" focusable="false">
+    <node class="android.widget.ScrollView" bounds="[0,100][390,600]" clickable="false" focusable="false">
+      <node class="android.widget.Button" text="Continue" bounds="[20,120][200,180]" clickable="true" focusable="true" />
+    </node>
+  </node>
+</hierarchy>`;
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 0, stdout: xml, stderr: '' };
+    }
+    if (args.includes('dumpsys') && args.includes('activity') && args.includes('top')) {
+      throw new Error('dumpsys activity top should not run when hints are disabled');
+    }
+    throw new Error(`unexpected args: ${args.join(' ')}`);
+  });
+
+  const result = await snapshotAndroid(device, { includeHiddenContentHints: false });
+
+  assert.equal(
+    result.nodes.some((node) => node.type === 'android.widget.ScrollView'),
+    true,
+  );
 });
 
 test('snapshotAndroid derives hidden content hints for interactive snapshots from shared visibility semantics', async () => {
