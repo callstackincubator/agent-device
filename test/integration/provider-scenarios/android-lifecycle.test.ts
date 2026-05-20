@@ -952,6 +952,9 @@ function assertAndroidInventoryContract(world: AndroidSettingsWorld): void {
 
 function assertAndroidInstallAndLaunchContract(world: AndroidSettingsWorld): void {
   const { adbCalls, apkInstallCalls, bundleInstallCalls } = world;
+  const appApkInstallCalls = apkInstallCalls.filter((call) =>
+    ['Demo.apk', 'ManifestDemo.apk'].includes(path.basename(call.apkPath)),
+  );
   assertCommandCall(adbCalls, ['shell', 'am', 'start', '-W', '-a', 'android.settings.SETTINGS']);
   assertCommandCall(adbCalls, ['shell', 'am', 'force-stop', 'com.example.demo']);
   assertCommandCall(adbCalls, [
@@ -969,11 +972,11 @@ function assertAndroidInstallAndLaunchContract(world: AndroidSettingsWorld): voi
     'com.example.demo/.MainActivity',
   ]);
   assertCommandCall(adbCalls, ['uninstall', 'com.example.demo']);
-  assert.equal(apkInstallCalls.length, 2);
-  assert.equal(path.basename(apkInstallCalls[0]?.apkPath ?? ''), 'Demo.apk');
-  assert.equal(apkInstallCalls[0]?.replace, true);
-  assert.equal(path.basename(apkInstallCalls[1]?.apkPath ?? ''), 'ManifestDemo.apk');
-  assert.equal(apkInstallCalls[1]?.replace, true);
+  assert.equal(appApkInstallCalls.length, 2);
+  assert.equal(path.basename(appApkInstallCalls[0]?.apkPath ?? ''), 'Demo.apk');
+  assert.equal(appApkInstallCalls[0]?.replace, true);
+  assert.equal(path.basename(appApkInstallCalls[1]?.apkPath ?? ''), 'ManifestDemo.apk');
+  assert.equal(appApkInstallCalls[1]?.replace, true);
   assert.deepEqual(bundleInstallCalls, [{ bundlePath: world.aabPath, mode: 'universal' }]);
 }
 

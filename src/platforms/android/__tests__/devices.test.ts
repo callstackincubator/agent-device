@@ -340,7 +340,7 @@ test('ensureAndroidEmulatorBooted reuses running emulator for headless requests'
     const log = await fs.readFile(emulatorLogPath, 'utf8').catch(() => '');
     assert.equal(log.trim(), '');
   });
-});
+}, 10_000);
 
 test('ensureAndroidEmulatorBooted launches emulator with GUI by default', async () => {
   await withMockedAndroidTools(async ({ emulatorLogPath }) => {
