@@ -111,6 +111,17 @@ export function restoreEnv(key: string, previous: string | undefined): void {
   else process.env[key] = previous;
 }
 
+export function likelyPlayableMp4Container(): Buffer {
+  return Buffer.concat([atom('ftyp', Buffer.from('isom0000isom')), atom('moov')]);
+}
+
+function atom(type: string, payload = Buffer.alloc(0)): Buffer {
+  const header = Buffer.alloc(8);
+  header.writeUInt32BE(8 + payload.length, 0);
+  header.write(type, 4, 4, 'latin1');
+  return Buffer.concat([header, payload]);
+}
+
 function commandRequest(
   command: string,
   positionals: string[] = [],

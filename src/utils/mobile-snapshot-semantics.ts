@@ -296,17 +296,9 @@ function findNearestVisibleScrollableAncestor(
   visibleNodeIndexes: Set<number>,
   byIndex: Map<number, SnapshotNode>,
 ): SnapshotNode | null {
-  let current = typeof node.parentIndex === 'number' ? byIndex.get(node.parentIndex) : undefined;
-  const visited = new Set<number>();
-  while (current && !visited.has(current.index)) {
-    visited.add(current.index);
-    if (visibleNodeIndexes.has(current.index) && isScrollableNodeLike(current)) {
-      return current;
-    }
-    current =
-      typeof current.parentIndex === 'number' ? byIndex.get(current.parentIndex) : undefined;
-  }
-  return null;
+  return findNearestScrollableAncestorMatching(node, byIndex, (current) =>
+    visibleNodeIndexes.has(current.index),
+  );
 }
 
 function mergeScrollIndicatorDirections(
@@ -356,12 +348,23 @@ function findNearestScrollableAncestorRect(
   node: Pick<SnapshotNode, 'index' | 'parentIndex' | 'type' | 'role' | 'subrole'>,
   byIndex: Map<number, SnapshotNode>,
 ): Rect | null {
+  return (
+    findNearestScrollableAncestorMatching(node, byIndex, (current) => Boolean(current.rect))
+      ?.rect ?? null
+  );
+}
+
+function findNearestScrollableAncestorMatching(
+  node: Pick<SnapshotNode, 'index' | 'parentIndex' | 'type' | 'role' | 'subrole'>,
+  byIndex: Map<number, SnapshotNode>,
+  predicate: (node: SnapshotNode) => boolean,
+): SnapshotNode | null {
   let current = typeof node.parentIndex === 'number' ? byIndex.get(node.parentIndex) : undefined;
   const visited = new Set<number>();
   while (current && !visited.has(current.index)) {
     visited.add(current.index);
-    if (current.rect && isScrollableNodeLike(current)) {
-      return current.rect;
+    if (predicate(current) && isScrollableNodeLike(current)) {
+      return current;
     }
     current =
       typeof current.parentIndex === 'number' ? byIndex.get(current.parentIndex) : undefined;

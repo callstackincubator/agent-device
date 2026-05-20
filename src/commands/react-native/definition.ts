@@ -5,7 +5,7 @@ export type ReactNativeCommandOptions = {
   action: 'dismiss-overlay';
 };
 
-export const reactNativeCommandDefinition = defineCommand({
+const reactNativeCommandDefinition = defineCommand({
   name: PUBLIC_COMMANDS.reactNative,
   schema: {
     usageOverride: 'react-native dismiss-overlay',
@@ -22,7 +22,7 @@ export const reactNativeCommandDefinition = defineCommand({
   },
 });
 
-export const REACT_NATIVE_COMMAND_DEFINITIONS = [reactNativeCommandDefinition] as const;
+const REACT_NATIVE_COMMAND_DEFINITIONS = [reactNativeCommandDefinition] as const;
 
 export const REACT_NATIVE_COMMAND_SCHEMAS = commandSchemaMap(REACT_NATIVE_COMMAND_DEFINITIONS);
 export const REACT_NATIVE_COMMAND_CAPABILITIES = commandCapabilityMap(

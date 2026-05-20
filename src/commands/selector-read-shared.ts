@@ -39,12 +39,13 @@ export async function captureSelectorSnapshot(
   options: CommandContext & SelectorSnapshotOptions,
   captureOptions: { updateSession: boolean; scope?: string } = { updateSession: true },
 ): Promise<CapturedSnapshot> {
-  if (!runtime.backend.captureSnapshot) {
+  const captureSnapshot = runtime.backend.captureSnapshot;
+  if (!captureSnapshot) {
     throw new AppError('UNSUPPORTED_OPERATION', 'snapshot is not supported by this backend');
   }
   const sessionName = options.session ?? 'default';
   const session = await runtime.sessions.get(sessionName);
-  const result = await runtime.backend.captureSnapshot(toBackendContext(runtime, options), {
+  const result = await captureSnapshot(toBackendContext(runtime, options), {
     interactiveOnly: false,
     compact: false,
     depth: options.depth,

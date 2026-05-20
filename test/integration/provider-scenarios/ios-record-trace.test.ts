@@ -9,7 +9,12 @@ import {
   assertRecordingStopped,
 } from './assertions.ts';
 import { PROVIDER_SCENARIO_IOS_DEVICE, PROVIDER_SCENARIO_IOS_SIMULATOR } from './fixtures.ts';
-import { createProviderScenarioHarness, withProviderScenarioTempDir } from './harness.ts';
+import {
+  createProviderScenarioHarness,
+  likelyPlayableMp4Container,
+  restoreEnv,
+  withProviderScenarioTempDir,
+} from './harness.ts';
 import {
   createAppleRunnerProviderFromTranscript,
   createRecordingAppleToolProvider,
@@ -155,28 +160,7 @@ test('Provider-backed integration iOS simulator recording flow uses semantic rec
     'agent-device-provider-scenario-ios-sim-record-',
     async (tmpDir) => {
       const recordingPath = path.join(tmpDir, 'sim-recording.mp4');
-      const runnerTranscript = createProviderTranscript([
-        {
-          command: 'ios.runner.snapshot',
-          deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
-          platform: 'ios',
-          request: {
-            command: 'snapshot',
-            appBundleId: 'com.apple.Preferences',
-            interactiveOnly: true,
-            compact: true,
-            depth: 1,
-          },
-          result: { nodes: [], truncated: false },
-        },
-        {
-          command: 'ios.runner.uptime',
-          deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
-          platform: 'ios',
-          request: { command: 'uptime', appBundleId: 'com.apple.Preferences' },
-          result: { currentUptimeMs: 12_345 },
-        },
-      ]);
+      const runnerTranscript = createProviderTranscript([]);
       const appleRunnerProvider = createAppleRunnerProviderFromTranscript(
         runnerTranscript,
         'ios.runner',
@@ -192,7 +176,7 @@ test('Provider-backed integration iOS simulator recording flow uses semantic rec
         startIosSimulatorRecording: ({ device, outPath }) => {
           assert.equal(device.id, PROVIDER_SCENARIO_IOS_SIMULATOR.id);
           recordingStarts.push(outPath);
-          fs.writeFileSync(outPath, 'provider-scenario-sim-recording', 'utf8');
+          fs.writeFileSync(outPath, likelyPlayableMp4Container());
           return {
             child: {
               kill: (signal) => {
@@ -211,6 +195,8 @@ test('Provider-backed integration iOS simulator recording flow uses semantic rec
         recordingProvider: () => recordingProvider,
         deviceInventoryProvider: async () => [PROVIDER_SCENARIO_IOS_SIMULATOR],
       });
+      const previousPath = process.env.PATH;
+      process.env.PATH = tmpDir;
 
       try {
         const open = await daemon.callCommand('open', ['com.apple.Preferences'], {
@@ -253,6 +239,7 @@ test('Provider-backed integration iOS simulator recording flow uses semantic rec
         );
       } finally {
         await daemon.close();
+        restoreEnv('PATH', previousPath);
       }
     },
   );

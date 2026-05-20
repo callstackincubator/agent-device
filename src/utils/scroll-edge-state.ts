@@ -2,6 +2,7 @@ import {
   deriveMobileSnapshotHiddenContentHints,
   isNodeVisibleInEffectiveViewport,
 } from './mobile-snapshot-semantics.ts';
+import { AppError } from './errors.ts';
 import { isScrollableNodeLike } from './scrollable.ts';
 import type { HiddenContentHint, Point, RawSnapshotNode, SnapshotNode } from './snapshot.ts';
 
@@ -19,11 +20,11 @@ export type ScrollEdgeTarget = {
   nodeIndex?: number;
 };
 
-export const SCROLL_EDGE_PASS_LIMIT = 40;
+const SCROLL_EDGE_PASS_LIMIT = 40;
 
 const SCROLL_SIGNATURE_RECT_PRECISION = 1;
 
-export function analyzeScrollEdgeState(
+function analyzeScrollEdgeState(
   inputNodes: readonly (RawSnapshotNode | SnapshotNode)[] | undefined,
   edge: ScrollEdge,
   target: ScrollEdgeTarget = {},
@@ -56,6 +57,99 @@ export function analyzeScrollEdgeState(
     signature,
     scope: buildScrollContainerScope(container),
   };
+}
+
+export async function captureScrollEdgeState(params: {
+  edge: ScrollEdge;
+  target?: ScrollEdgeTarget;
+  scope?: string;
+  captureNodes: (scope?: string) => Promise<readonly (RawSnapshotNode | SnapshotNode)[]>;
+}): Promise<ScrollEdgeState> {
+  const { edge, target = {}, scope, captureNodes } = params;
+  try {
+    const nodes = await captureNodes(scope);
+    const state = analyzeScrollEdgeState(nodes, edge, target);
+    if (scope && state.emptySnapshot) {
+      return await captureScrollEdgeState({ edge, target, captureNodes });
+    }
+    return state;
+  } catch (error) {
+    throw buildScrollEdgeVerificationError(edge, scope, error);
+  }
+}
+
+export async function runScrollEdgePasses<TResult>(params: {
+  edge: ScrollEdge;
+  captureState: (scope?: string) => Promise<ScrollEdgeState>;
+  scroll: () => Promise<TResult>;
+}): Promise<{ passes: number; result?: TResult }> {
+  const { edge, captureState, scroll } = params;
+  let state = await captureState();
+  if (state.scope) {
+    state = await captureState(state.scope);
+  }
+
+  let passes = 0;
+  let result: TResult | undefined;
+  while (state.canScroll) {
+    if (passes >= SCROLL_EDGE_PASS_LIMIT) {
+      throw new AppError(
+        'COMMAND_FAILED',
+        `scroll ${edge} reached the safety limit before the snapshot showed the edge`,
+        {
+          hint: 'The scoped scroll container still reports hidden content. Use a smaller manual scroll + snapshot loop to inspect the current state.',
+        },
+      );
+    }
+
+    result = await scroll();
+    passes += 1;
+    state = await captureState(state.scope);
+  }
+
+  return { passes, result };
+}
+
+export function formatScrollEdgeMessage(
+  direction: 'up' | 'down' | 'left' | 'right',
+  edge: ScrollEdge | undefined,
+  passes: number,
+  amount: number | undefined,
+  pixels: number | undefined,
+): string {
+  if (edge && passes === 0) {
+    return `Already at ${edge}; no hidden content ${edge === 'bottom' ? 'below' : 'above'} detected`;
+  }
+  if (edge) return `Scrolled to ${edge} with ${passes} ${direction} passes`;
+  if (pixels !== undefined) return `Scrolled ${direction} by ${pixels}px`;
+  if (amount !== undefined) return `Scrolled ${direction} by ${amount}`;
+  return `Scrolled ${direction}`;
+}
+
+function buildScrollEdgeVerificationError(
+  edge: ScrollEdge,
+  scope: string | undefined,
+  cause: unknown,
+): AppError {
+  if (scope) {
+    return new AppError(
+      'COMMAND_FAILED',
+      `Failed to verify scroll ${edge} state for scoped container`,
+      {
+        scope,
+        hint: `scroll ${edge} could not verify the scoped scroll container. Run snapshot -i -c for the current screen and retry with a visible scroll target.`,
+      },
+      cause,
+    );
+  }
+  return new AppError(
+    'COMMAND_FAILED',
+    `Failed to verify scroll ${edge} state`,
+    {
+      hint: `scroll ${edge} needs a snapshot showing hidden content ${edge === 'bottom' ? 'below' : 'above'} before it will move.`,
+    },
+    cause,
+  );
 }
 
 function ensureSnapshotNodes(nodes: readonly (RawSnapshotNode | SnapshotNode)[]): SnapshotNode[] {

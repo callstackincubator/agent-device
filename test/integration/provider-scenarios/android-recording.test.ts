@@ -14,6 +14,7 @@ import { PROVIDER_SCENARIO_ANDROID } from './fixtures.ts';
 import {
   restoreEnv,
   createProviderScenarioHarness,
+  likelyPlayableMp4Container,
   withProviderScenarioTempDir,
 } from './harness.ts';
 
@@ -41,10 +42,7 @@ test('Provider-backed integration Android recording flow uses scripted ADB provi
       });
 
       const previousPath = process.env.PATH;
-      const swiftPath = path.join(tmpDir, 'swift');
-      fs.writeFileSync(swiftPath, '#!/bin/sh\nexit 0\n', 'utf8');
-      fs.chmodSync(swiftPath, 0o755);
-      process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+      process.env.PATH = tmpDir;
 
       try {
         const open = await daemon.callCommand('open', ['settings'], {
@@ -157,17 +155,6 @@ function androidAdbResult(args: string[]): {
     return { stdout: '', stderr: '', exitCode: 1 };
   }
   return { stdout: '', stderr: '', exitCode: 0 };
-}
-
-function likelyPlayableMp4Container(): Buffer {
-  return Buffer.concat([atom('ftyp', Buffer.from('isom0000isom')), atom('moov', Buffer.from(''))]);
-}
-
-function atom(type: string, payload: Buffer): Buffer {
-  const header = Buffer.alloc(8);
-  header.writeUInt32BE(8 + payload.length, 0);
-  header.write(type, 4, 4, 'latin1');
-  return Buffer.concat([header, payload]);
 }
 
 function isAndroidScreenrecordStartCommand(command: string): boolean {

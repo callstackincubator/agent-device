@@ -14,8 +14,9 @@ import {
   type ClickButton,
 } from './click-button.ts';
 import {
-  analyzeScrollEdgeState,
-  SCROLL_EDGE_PASS_LIMIT,
+  captureScrollEdgeState,
+  formatScrollEdgeMessage,
+  runScrollEdgePasses,
   type ScrollEdge,
   type ScrollEdgeState,
 } from '../utils/scroll-edge-state.ts';
@@ -467,38 +468,17 @@ export async function handleScrollCommand(
   const target = parseScrollTarget(directionInput);
   let interactionResult: Record<string, unknown> | void = {};
   let completedPasses = 0;
-  let edgeState: ScrollEdgeState | undefined;
 
   if (target.edge) {
-    edgeState = await captureVerifiedScrollEdgeState(interactor, context, target.edge);
-    if (edgeState.scope) {
-      edgeState = await captureVerifiedScrollEdgeState(
-        interactor,
-        context,
-        target.edge,
-        edgeState.scope,
-      );
-    }
-    while (edgeState.canScroll) {
-      if (completedPasses >= SCROLL_EDGE_PASS_LIMIT) {
-        throw new AppError(
-          'COMMAND_FAILED',
-          `scroll ${target.edge} reached the safety limit before the snapshot showed the edge`,
-          {
-            hint: 'The scoped scroll container still reports hidden content. Use a smaller manual scroll + snapshot loop to inspect the current state.',
-          },
-        );
-      }
-      interactionResult = await interactor.scroll(target.direction, { amount, pixels });
-      completedPasses += 1;
-      const nextState = await captureVerifiedScrollEdgeState(
-        interactor,
-        context,
-        target.edge,
-        edgeState.scope,
-      );
-      edgeState = nextState;
-    }
+    const edge = target.edge;
+    const edgeResult = await runScrollEdgePasses({
+      edge,
+      captureState: async (scope) =>
+        await captureVerifiedScrollEdgeState(interactor, context, edge, scope),
+      scroll: async () => await interactor.scroll(target.direction, { amount, pixels }),
+    });
+    interactionResult = edgeResult.result ?? {};
+    completedPasses = edgeResult.passes;
   } else {
     interactionResult = await interactor.scroll(target.direction, { amount, pixels });
     completedPasses = 1;
@@ -517,7 +497,7 @@ export async function handleScrollCommand(
       ...(pixels !== undefined ? { pixels } : {}),
       ...interactionResult,
     },
-    formatScrollMessage(target.direction, target.edge, completedPasses, amount, pixels),
+    formatScrollEdgeMessage(target.direction, target.edge, completedPasses, amount, pixels),
   );
 }
 
@@ -533,38 +513,19 @@ async function captureVerifiedScrollEdgeState(
       `scroll ${edge} requires snapshot support to verify hidden content before scrolling`,
     );
   }
-  try {
-    const snapshot = await interactor.snapshot({
-      appBundleId: context?.appBundleId,
-      compact: true,
-      scope,
-    });
-    const state = analyzeScrollEdgeState(snapshot.nodes, edge);
-    if (scope && state.emptySnapshot) {
-      return await captureVerifiedScrollEdgeState(interactor, context, edge);
-    }
-    return state;
-  } catch (error) {
-    if (scope) {
-      throw new AppError(
-        'COMMAND_FAILED',
-        `Failed to verify scroll ${edge} state for scoped container`,
-        {
-          scope,
-          hint: `scroll ${edge} could not verify the scoped scroll container. Run snapshot -i -c for the current screen and retry with a visible scroll target.`,
-        },
-        error,
-      );
-    }
-    throw new AppError(
-      'COMMAND_FAILED',
-      `Failed to verify scroll ${edge} state`,
-      {
-        hint: `scroll ${edge} needs a snapshot showing hidden content ${edge === 'bottom' ? 'below' : 'above'} before it will move.`,
-      },
-      error,
-    );
-  }
+  const snapshot = interactor.snapshot;
+  return await captureScrollEdgeState({
+    edge,
+    scope,
+    captureNodes: async (snapshotScope) =>
+      (
+        await snapshot({
+          appBundleId: context?.appBundleId,
+          compact: true,
+          scope: snapshotScope,
+        })
+      ).nodes ?? [],
+  });
 }
 
 function parseScrollTarget(input: string): {
@@ -574,22 +535,6 @@ function parseScrollTarget(input: string): {
   if (input === 'bottom') return { direction: 'down', edge: 'bottom' };
   if (input === 'top') return { direction: 'up', edge: 'top' };
   return { direction: parseScrollDirection(input) };
-}
-
-function formatScrollMessage(
-  direction: ReturnType<typeof parseScrollDirection>,
-  edge: 'top' | 'bottom' | undefined,
-  passes: number,
-  amount: number | undefined,
-  pixels: number | undefined,
-): string {
-  if (edge && passes === 0) {
-    return `Already at ${edge}; no hidden content ${edge === 'bottom' ? 'below' : 'above'} detected`;
-  }
-  if (edge) return `Scrolled to ${edge} with ${passes} ${direction} passes`;
-  if (pixels !== undefined) return `Scrolled ${direction} by ${pixels}px`;
-  if (amount !== undefined) return `Scrolled ${direction} by ${amount}`;
-  return `Scrolled ${direction}`;
 }
 
 export async function handlePinchCommand(

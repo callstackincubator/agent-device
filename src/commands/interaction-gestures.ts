@@ -6,8 +6,9 @@ import { requireIntInRange } from '../utils/validation.ts';
 import { successText } from '../utils/success-text.ts';
 import { isNodeVisibleInEffectiveViewport } from '../utils/mobile-snapshot-semantics.ts';
 import {
-  analyzeScrollEdgeState,
-  SCROLL_EDGE_PASS_LIMIT,
+  captureScrollEdgeState,
+  formatScrollEdgeMessage,
+  runScrollEdgePasses,
   type ScrollEdge,
   type ScrollEdgeState,
   type ScrollEdgeTarget,
@@ -190,77 +191,40 @@ export const scrollCommand: RuntimeCommand<ScrollCommandOptions, ScrollCommandRe
     resolved.kind === 'viewport'
       ? { kind: 'viewport' as const }
       : { kind: 'point' as const, point: resolved.point };
+  const scrollBackend = runtime.backend.scroll;
+  const runScroll = async () =>
+    await scrollBackend(toBackendContext(runtime, options), backendTarget, {
+      direction: target.direction,
+      ...(amount !== undefined ? { amount } : {}),
+      ...(pixels !== undefined ? { pixels } : {}),
+    });
   let backendResult: Awaited<ReturnType<NonNullable<typeof runtime.backend.scroll>>> | undefined;
   let completedPasses = 0;
-  let edgeState: ScrollEdgeState | undefined;
   if (target.edge) {
+    const edge = target.edge;
     const edgeTarget = buildScrollEdgeTarget(resolved);
-    edgeState = await captureRuntimeScrollEdgeState(runtime, options, target.edge, edgeTarget);
-    if (edgeState.scope) {
-      edgeState = await captureRuntimeScrollEdgeState(
-        runtime,
-        options,
-        target.edge,
-        edgeTarget,
-        edgeState.scope,
-      );
-    }
-    while (edgeState.canScroll) {
-      if (completedPasses >= SCROLL_EDGE_PASS_LIMIT) {
-        throw new AppError(
-          'COMMAND_FAILED',
-          `scroll ${target.edge} reached the safety limit before the snapshot showed the edge`,
-          {
-            hint: 'The scoped scroll container still reports hidden content. Use a smaller manual scroll + snapshot loop to inspect the current state.',
-          },
-        );
-      }
-      backendResult = await runtime.backend.scroll(
-        toBackendContext(runtime, options),
-        backendTarget,
-        {
-          direction: target.direction,
-          ...(amount !== undefined ? { amount } : {}),
-          ...(pixels !== undefined ? { pixels } : {}),
-        },
-      );
-      completedPasses += 1;
-      const nextState = await captureRuntimeScrollEdgeState(
-        runtime,
-        options,
-        target.edge,
-        edgeTarget,
-        edgeState.scope,
-      );
-      edgeState = nextState;
-    }
+    const edgeResult = await runScrollEdgePasses({
+      edge,
+      captureState: async (scope) =>
+        await captureRuntimeScrollEdgeState(runtime, options, edge, edgeTarget, scope),
+      scroll: runScroll,
+    });
+    backendResult = edgeResult.result;
+    completedPasses = edgeResult.passes;
   } else {
-    backendResult = await runtime.backend.scroll(
-      toBackendContext(runtime, options),
-      backendTarget,
-      {
-        direction: target.direction,
-        ...(amount !== undefined ? { amount } : {}),
-        ...(pixels !== undefined ? { pixels } : {}),
-      },
-    );
+    backendResult = await runScroll();
     completedPasses = 1;
   }
   const formattedBackendResult = toBackendResult(backendResult);
   return {
     ...resolved,
     direction: target.direction,
-    ...(target.edge
-      ? {
-          edge: target.edge,
-          passes: completedPasses,
-        }
-      : {}),
+    ...(target.edge ? { edge: target.edge, passes: completedPasses } : {}),
     ...(amount !== undefined ? { amount } : {}),
     ...(pixels !== undefined ? { pixels } : {}),
     ...(formattedBackendResult ? { backendResult: formattedBackendResult } : {}),
     ...successText(
-      formatScrollMessage(target.direction, target.edge, completedPasses, amount, pixels),
+      formatScrollEdgeMessage(target.direction, target.edge, completedPasses, amount, pixels),
     ),
   };
 };
@@ -437,57 +401,19 @@ async function captureRuntimeScrollEdgeState(
       `scroll ${edge} requires snapshot support to verify hidden content before scrolling`,
     );
   }
-  try {
-    const result = await runtime.backend.captureSnapshot(toBackendContext(runtime, options), {
-      compact: true,
-      scope,
-    });
-    const state = analyzeScrollEdgeState(
-      result.snapshot?.nodes ?? result.nodes ?? [],
-      edge,
-      target,
-    );
-    if (scope && state.emptySnapshot) {
-      return await captureRuntimeScrollEdgeState(runtime, options, edge, target);
-    }
-    return state;
-  } catch (error) {
-    if (scope) {
-      throw new AppError(
-        'COMMAND_FAILED',
-        `Failed to verify scroll ${edge} state for scoped container`,
-        {
-          scope,
-          hint: `scroll ${edge} could not verify the scoped scroll container. Run snapshot -i -c for the current screen and retry with a visible scroll target.`,
-        },
-        error,
-      );
-    }
-    throw new AppError(
-      'COMMAND_FAILED',
-      `Failed to verify scroll ${edge} state`,
-      {
-        hint: `scroll ${edge} needs a snapshot showing hidden content ${edge === 'bottom' ? 'below' : 'above'} before it will move.`,
-      },
-      error,
-    );
-  }
-}
-
-function formatScrollMessage(
-  direction: GestureDirection,
-  edge: 'top' | 'bottom' | undefined,
-  passes: number,
-  amount: number | undefined,
-  pixels: number | undefined,
-): string {
-  if (edge && passes === 0) {
-    return `Already at ${edge}; no hidden content ${edge === 'bottom' ? 'below' : 'above'} detected`;
-  }
-  if (edge) return `Scrolled to ${edge} with ${passes} ${direction} passes`;
-  if (pixels !== undefined) return `Scrolled ${direction} by ${pixels}px`;
-  if (amount !== undefined) return `Scrolled ${direction} by ${amount}`;
-  return `Scrolled ${direction}`;
+  const { captureSnapshot } = runtime.backend;
+  return await captureScrollEdgeState({
+    edge,
+    target,
+    scope,
+    captureNodes: async (snapshotScope) => {
+      const result = await captureSnapshot(toBackendContext(runtime, options), {
+        compact: true,
+        scope: snapshotScope,
+      });
+      return result.snapshot?.nodes ?? result.nodes ?? [];
+    },
+  });
 }
 
 function requireDirection(
