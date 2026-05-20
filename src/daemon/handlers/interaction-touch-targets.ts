@@ -1,6 +1,7 @@
 import type {
   FillCommandResult,
   InteractionTarget,
+  LongPressCommandResult,
   PressCommandResult,
 } from '../../commands/index.ts';
 import { fillCommandCodec, interactionTargetCodec } from '../../command-codecs.ts';
@@ -8,11 +9,11 @@ import type { DaemonResponse } from '../types.ts';
 import { parseCoordinateTarget } from './interaction-targeting.ts';
 import { errorResponse } from './response.ts';
 
-export type ParsedPressTarget =
-  | { ok: true; target: InteractionTarget }
+export type ParsedTouchTarget =
+  | { ok: true; target: InteractionTarget; durationMs?: never }
   | { ok: false; response: DaemonResponse };
 
-export function parsePressTarget(positionals: string[], commandLabel: string): ParsedPressTarget {
+export function parseTouchTarget(positionals: string[], commandLabel: string): ParsedTouchTarget {
   const coordinates = parseCoordinateTarget(positionals);
   if (coordinates) {
     return { ok: true, target: { kind: 'point', x: coordinates.x, y: coordinates.y } };
@@ -40,6 +41,30 @@ export function parsePressTarget(positionals: string[], commandLabel: string): P
     };
   }
   return { ok: true, target: { kind: 'selector', selector } };
+}
+
+export type ParsedLongPressTarget =
+  | { ok: true; target: InteractionTarget; durationMs?: number }
+  | { ok: false; response: DaemonResponse };
+
+export function parseLongPressTarget(positionals: string[]): ParsedLongPressTarget {
+  const coordinates = parseCoordinateTarget(positionals);
+  if (coordinates) {
+    return {
+      ok: true,
+      target: { kind: 'point', x: coordinates.x, y: coordinates.y },
+      ...readOptionalDuration(positionals[2]),
+    };
+  }
+
+  const split = splitTrailingDuration(positionals);
+  const parsedTarget = parseTouchTarget(split.targetPositionals, 'longpress');
+  if (!parsedTarget.ok) return parsedTarget;
+  return {
+    ok: true,
+    target: parsedTarget.target,
+    ...split.duration,
+  };
 }
 
 export type ParsedFillTarget =
@@ -100,7 +125,7 @@ export function parseFillTarget(positionals: string[]): ParsedFillTarget {
 }
 
 export function interactionResultExtra(
-  result: PressCommandResult | FillCommandResult,
+  result: PressCommandResult | FillCommandResult | LongPressCommandResult,
 ): Record<string, unknown> {
   if (result.kind === 'ref') {
     return {
@@ -119,9 +144,9 @@ export function interactionResultExtra(
   return {};
 }
 
-export function formatPressTargetLabel(
+export function formatTouchTargetLabel(
   target: InteractionTarget,
-  result: PressCommandResult,
+  result: PressCommandResult | LongPressCommandResult,
 ): string {
   if (target.kind === 'point') return 'coordinate tap';
   if (result.kind === 'ref' && result.target?.kind === 'ref') return result.target.ref;
@@ -136,4 +161,30 @@ export function stripAtPrefix(ref: string | undefined): string | undefined {
 
 function readRefFallbackLabel(positionals: string[]): string {
   return positionals.length >= 3 ? positionals[1]?.trim() || '' : '';
+}
+
+function splitTrailingDuration(positionals: string[]): {
+  targetPositionals: string[];
+  duration: { durationMs: number } | Record<string, never>;
+} {
+  const last = positionals.at(-1);
+  if (positionals.length > 1 && isFiniteNumberString(last)) {
+    return {
+      targetPositionals: positionals.slice(0, -1),
+      duration: { durationMs: Number(last) },
+    };
+  }
+  return { targetPositionals: positionals, duration: {} };
+}
+
+function readOptionalDuration(
+  value: string | undefined,
+): { durationMs: number } | Record<string, never> {
+  if (value === undefined) return {};
+  return { durationMs: Number(value) };
+}
+
+function isFiniteNumberString(value: string | undefined): boolean {
+  if (value === undefined || value.trim() === '') return false;
+  return Number.isFinite(Number(value));
 }

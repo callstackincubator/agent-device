@@ -1,4 +1,9 @@
-import type { ElementTarget, FillOptions, InteractionTarget } from '../client-types.ts';
+import type {
+  ElementTarget,
+  FillOptions,
+  InteractionTarget,
+  LongPressOptions,
+} from '../client-types.ts';
 import { splitSelectorFromArgs } from '../daemon/selectors.ts';
 import { AppError } from '../utils/errors.ts';
 
@@ -9,7 +14,8 @@ export type DecodedFillTarget =
 
 export function readInteractionTargetFromPositionals(positionals: string[]): InteractionTarget {
   if (positionals[0]?.startsWith('@')) {
-    return { ref: positionals[0], label: optionalTrimmedText(positionals.slice(1)) };
+    const label = optionalTrimmedText(positionals.slice(1));
+    return { ref: positionals[0], ...(label === undefined ? {} : { label }) };
   }
   const selectorArgs = splitSelectorFromArgs(positionals);
   if (selectorArgs) return { selector: selectorArgs.selectorExpression };
@@ -20,6 +26,23 @@ export function interactionTargetToPositionals(options: InteractionTarget): stri
   if (options.ref !== undefined) return [options.ref, ...optionalString(options.label)];
   if (options.selector !== undefined) return [options.selector];
   return [String(options.x), String(options.y)];
+}
+
+export function readLongPressTargetFromPositionals(positionals: string[]): LongPressOptions {
+  const targetPositionals = readLongPressTargetPositionals(positionals);
+  return {
+    ...readInteractionTargetFromPositionals(targetPositionals.target),
+    ...(targetPositionals.durationMs !== undefined
+      ? { durationMs: targetPositionals.durationMs }
+      : {}),
+  };
+}
+
+export function longPressOptionsToPositionals(options: LongPressOptions): string[] {
+  return [
+    ...interactionTargetToPositionals(options),
+    ...(options.durationMs === undefined ? [] : [String(options.durationMs)]),
+  ];
 }
 
 export function readElementTargetFromPositionals(positionals: string[]): ElementTarget {
@@ -75,4 +98,29 @@ function optionalString(value: string | undefined): string[] {
 function optionalTrimmedText(values: string[]): string | undefined {
   const text = values.join(' ').trim();
   return text || undefined;
+}
+
+function readLongPressTargetPositionals(positionals: string[]): {
+  target: string[];
+  durationMs?: number;
+} {
+  if (isFiniteNumberString(positionals[0]) && isFiniteNumberString(positionals[1])) {
+    return {
+      target: positionals.slice(0, 2),
+      ...(positionals[2] !== undefined ? { durationMs: Number(positionals[2]) } : {}),
+    };
+  }
+  const last = positionals.at(-1);
+  if (positionals.length > 1 && isFiniteNumberString(last)) {
+    return {
+      target: positionals.slice(0, -1),
+      durationMs: Number(last),
+    };
+  }
+  return { target: positionals };
+}
+
+function isFiniteNumberString(value: string | undefined): boolean {
+  if (value === undefined || value.trim() === '') return false;
+  return Number.isFinite(Number(value));
 }

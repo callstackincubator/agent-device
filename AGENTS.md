@@ -126,6 +126,7 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 ## Hard Rules
 - Use process helpers from `src/utils/exec.ts` for TypeScript process execution: `runCmd`, `runCmdStreaming`, `runCmdSync`, `runCmdBackground`, and `runCmdDetached`. Do not import raw `spawn`/`spawnSync` outside `src/utils/exec.ts`; add or extend an exec helper instead. Plain `.mjs` packaging fixtures that cannot import TypeScript helpers should keep child-process usage local and prefer `execFile`/`execFileSync` over spawn.
 - Use daemon session flow for interactions (`open` before interactions, `close` after).
+- Every manual `agent-device open` must have a matching `agent-device close` before the agent finishes, using the same `--session`, `--platform`, `--udid`, and `--state-dir` flags.
 - Use `keyboard dismiss` for iOS keyboard dismissal; it may tap safe native controls such as `Done` but must not fall back to system back navigation.
 - Do not remove shared snapshot/session model behavior without full migration.
 - Command/device support must come from `src/core/capabilities.ts`.
@@ -157,6 +158,13 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 ## React Native Verification
 - After changing runtime code exercised through `bin/agent-device.mjs` or the daemon, run `pnpm build` and `pnpm clean:daemon` before manual device verification so snapshots use current `dist` output.
 - For Android RN/Expo/dev-client apps connected to any local Metro port, `adb reverse tcp:<port> tcp:<port>` is harmless and should be run before opening the app or URL on the emulator/device.
+
+## Manual Device Session Hygiene
+- Treat every manually opened `agent-device` session as a resource that must be closed, including exploratory sessions and failed verification attempts.
+- For experiments, use a purpose-specific session name and, when practical, an isolated `--state-dir` under `/private/tmp` so stale metadata does not poison the default daemon.
+- Keep track of each opened session in the working notes. Before final response, close each one with the same flags used to open it.
+- If `close` or a later command is blocked by stale daemon metadata, inspect running processes first with `ps -ax | rg "agent-device|xcodebuild test-without-building"`. Stop only exact stale PIDs that belong to the verification run, then run `pnpm clean:daemon`.
+- If cleanup cannot be completed, report the remaining session name, state dir, process IDs, and metadata paths as a blocker.
 
 ## Selector System Rules
 - Interaction commands (`click`, `fill`, `get`, `is`) and `wait` accept selectors and `@ref`.

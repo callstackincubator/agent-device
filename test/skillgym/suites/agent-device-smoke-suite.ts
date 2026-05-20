@@ -22,8 +22,11 @@ Do not read project source files or project docs.
 Do not inspect examples/test-app, src/, README.md, or website/docs.
 Do not browse the web.
 Use only this prompt plus local CLI help as private reference.
+Do not execute live app/device commands while planning; only local CLI help commands are allowed before final output.
 For local CLI help in this repo, use node bin/agent-device.mjs help or --help; final commands still use agent-device.
 Final output: only commands, one per line. Use agent-device for app/device automation; shell setup commands are allowed only when this prompt explicitly requires them. Any prose or Markdown fails.
+Every final output line must start with agent-device.
+Do not combine final commands with shell operators such as &&, ||, pipes, or semicolons.
 `.trim();
 
 function workspacePathPattern(relativePath: string, kind: 'directory' | 'file') {
@@ -199,6 +202,82 @@ function assertExpectedOutput(
   assertOutputs(ctx.finalOutput(), matchers);
 }
 
+function assertFinalOutputAgentDeviceCommandsOnly(finalOutput: string) {
+  const output = normalizedFinalOutput(finalOutput);
+  const lines = output
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  assert.ok(lines.length > 0, 'Expected final output to contain agent-device commands.');
+
+  for (const line of lines) {
+    assert.match(
+      line,
+      /^agent-device\s+\S+/,
+      `Expected final output line to be one agent-device command with no prose: ${JSON.stringify(line)}`,
+    );
+    assert.doesNotMatch(
+      line,
+      /\s(?:&&|\|\||\|)\s|;/,
+      `Expected one command per line without shell chaining: ${JSON.stringify(line)}`,
+    );
+  }
+}
+
+function assertOnlyLocalCliHelpCommands(report: SessionReport) {
+  const commandEvents = extractCommandEvents(report);
+  const forbiddenCommands = commandEvents.filter((command) => !isLocalCliHelpCommand(command));
+
+  assert.deepEqual(
+    forbiddenCommands,
+    [],
+    `Expected planning runs to execute only local CLI help commands. Observed runtime commands: ${forbiddenCommands
+      .map((command) => JSON.stringify(command))
+      .join(', ')}`,
+  );
+}
+
+function extractCommandEvents(report: SessionReport): string[] {
+  const events = (report as { events?: unknown[] }).events ?? [];
+  const commands: string[] = [];
+
+  for (const event of events) {
+    if (!event || typeof event !== 'object') {
+      continue;
+    }
+
+    const record = event as {
+      type?: unknown;
+      command?: unknown;
+      args?: { command?: unknown; cmd?: unknown };
+    };
+
+    if (record.type === 'command' && typeof record.command === 'string') {
+      commands.push(record.command);
+      continue;
+    }
+
+    const toolCommand = record.args?.command ?? record.args?.cmd;
+    if (record.type === 'toolCall' && typeof toolCommand === 'string') {
+      commands.push(toolCommand);
+    }
+  }
+
+  return commands;
+}
+
+function isLocalCliHelpCommand(command: string) {
+  const strippedCommand = command
+    .trim()
+    .replace(/^\/bin\/zsh\s+-lc\s+'(.+)'$/, '$1')
+    .trim();
+
+  return /^(?:node\s+bin\/agent-device\.mjs|agent-device)\s+(?:(?:help(?:\s+\S+)?)|(?:\S+\s+)?--help)(?:\s+2>&1)?$/.test(
+    strippedCommand,
+  );
+}
+
 const RAW_COORDINATE_TARGET =
   /(?:^|\n)(?:agent-device\s+)?(?:click|fill|press)\s+-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?/i;
 const PSEUDO_ASSERTION_COMMAND = /(?:^|\n)\s*(?:assert|assertVisible|waitFor|waitForText)\b/i;
@@ -220,6 +299,8 @@ function makeCase(options: {
   tags?: string[];
   outputs?: OutputMatcher[];
   forbiddenOutputs?: OutputMatcher[];
+  strictFinalOutput?: boolean;
+  allowOnlyLocalCliHelpCommands?: boolean;
 }): Case {
   return {
     id: options.id,
@@ -233,6 +314,12 @@ function makeCase(options: {
       });
       assertExpectedOutput(report, ctx, options.outputs);
       assertNoOutputs(ctx.finalOutput(), options.forbiddenOutputs ?? []);
+      if (options.strictFinalOutput) {
+        assertFinalOutputAgentDeviceCommandsOnly(ctx.finalOutput());
+      }
+      if (options.allowOnlyLocalCliHelpCommands) {
+        assertOnlyLocalCliHelpCommands(report);
+      }
     },
   };
 }
@@ -579,6 +666,33 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     forbiddenOutputs: [RAW_COORDINATE_TARGET, /\btestID=/i],
   }),
   makeCase({
+    id: 'post-type-refresh-interactive-refs',
+    contract: [
+      'App name: Agent Device Tester',
+      'Current screen: Chat composer',
+      'The previous command typed into a focused text input',
+      'The keyboard appeared, so previous @e refs are stale',
+      'The Send control has no stable selector in the task context',
+      'Fresh interactive snapshot will expose Send as @e9',
+      'Submitted text to verify: sent with agent-device v0.15',
+      'Use wait/find for that exact text or diff snapshot -i; do not use a plain full snapshot for verification',
+    ],
+    task: 'Plan the next commands to refresh only current interactive refs, press Send, then verify the message was submitted.',
+    outputs: [
+      /snapshot -i/i,
+      /(?:^|\n)(?:agent-device\s+)?(?:press|click)\s+@e9\b/i,
+      /(?:diff snapshot -i|wait\b.*sent with agent-device v0\.15|find\b.*sent with agent-device v0\.15|snapshot\b.*-i)/i,
+    ],
+    forbiddenOutputs: [
+      /(?:^|\n)(?:agent-device\s+)?snapshot(?![^\n]*\s-i\b)/i,
+      plannedCommand('screenshot'),
+      RAW_COORDINATE_TARGET,
+      /(?:^|\n)(?:agent-device\s+)?(?:press|click)\s+@e(?!9\b)\d+\b/i,
+    ],
+    strictFinalOutput: true,
+    allowOnlyLocalCliHelpCommands: true,
+  }),
+  makeCase({
     id: 'ios-disabled-row-raw-rect-fallback',
     contract: [
       'Platform: iOS simulator',
@@ -722,13 +836,18 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'Current screen: Catalog tab',
       'Visible-first snapshot says [off-screen below] "Seasonal footer target"',
       'Off-screen refs are discovery hints, not actionable refs',
+      'The target is below the viewport, not necessarily at the absolute bottom of the list',
+      'Do not use scroll bottom for this task',
     ],
     task: 'Plan the commands to reach the Seasonal footer target from the off-screen summary, then refresh interactive refs before acting or verifying.',
-    outputs: [plannedCommand('scroll'), /down/i, /snapshot -i/i],
+    outputs: [plannedCommand('scroll'), /\bdown\b/i, /snapshot -i/i],
     forbiddenOutputs: [
       /scrollintoview/i,
-      /(?:^|\n)(?:agent-device\s+)?(?:click|press)\s+@(?:e\d+|ref)/i,
+      /\bscroll\s+bottom\b/i,
+      /(?:^|\n)(?:agent-device\s+)?(?:click|press)\s+@\S+/i,
     ],
+    strictFinalOutput: true,
+    allowOnlyLocalCliHelpCommands: true,
   }),
   makeCase({
     id: 'ios-composite-horizontal-tabs-coordinate-fallback',
@@ -884,21 +1003,24 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'App name: Agent Device Tester',
       'Current screen after opening will trigger console.warn',
       'Fresh interactive snapshot should show the minimized React Native warning overlay',
-      'Overlay close control label: Dismiss',
+      'Fresh interactive snapshot shows @e4 label="×" for the small close icon',
       'The warning overlay can obscure UI and intercept taps',
       'Target selector after dismissing overlay: id="submit-order"',
     ],
-    task: 'Plan commands to identify the warning overlay in snapshot -i, dismiss it, verify the overlay is gone with diff snapshot -i or a fresh snapshot -i, then press the submit target.',
+    task: 'Plan commands to identify the warning overlay in snapshot -i, dismiss it by pressing only the @e4 close icon, verify the overlay is gone with diff snapshot -i or a fresh snapshot -i, then press the submit target.',
     outputs: [
-      /snapshot -i[\s\S]*(?:(?:press|click)\b[^\n]*(?:Dismiss|Close|warning)|find\b[^\n]*(?:Dismiss|Close|warning)[^\n]*(?:press|click))[\s\S]*(?:diff snapshot -i|snapshot\b.*-i)/i,
+      /snapshot -i[\s\S]*(?:press|click)\s+@e4[\s\S]*(?:diff snapshot -i|snapshot\b.*-i)/i,
       /submit-order/i,
     ],
     forbiddenOutputs: [
       plannedCommand('screenshot'),
       RAW_COORDINATE_TARGET,
       /(?:^|\n)(?:agent-device\s+)?(?:press|click)\b[^\n]*submit-order[\s\S]*(?:Dismiss|Close)/i,
+      /(?:press|click)\b[^\n]*(?:warning|LogBox)/i,
       /alert accept/i,
     ],
+    strictFinalOutput: true,
+    allowOnlyLocalCliHelpCommands: true,
   }),
   makeCase({
     id: 'rn-collapsed-warning-banner-expand-dismiss',
@@ -907,9 +1029,10 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'Current screen has a collapsed React Native warning banner',
       'Fresh interactive snapshot shows @e12 label="!, Open debugger to view warnings."',
       'Dismiss is not visible until the warning banner is pressed',
+      'The post-expansion Dismiss/Close ref is unknown in this prompt; use find or a label selector instead of inventing a new @e ref',
       'Target selector after dismissing overlay: id="submit-order"',
     ],
-    task: 'Plan commands to press the collapsed warning banner, re-snapshot to find Dismiss or Close, dismiss the overlay, re-snapshot, then continue to id="submit-order".',
+    task: 'Plan commands to press the collapsed warning banner, re-snapshot to find Dismiss or Close by label, dismiss the overlay, re-snapshot, then press id="submit-order". Do not stop after dismissing the overlay.',
     outputs: [
       /(?:snapshot -i[\s\S]*)?(?:press|click)\s+@e12[\s\S]*snapshot -i[\s\S]*(?:(?:press|click)\b[^\n]*(?:Dismiss|Close)|find\b[^\n]*(?:Dismiss|Close)[^\n]*(?:press|click))[\s\S]*snapshot -i[\s\S]*submit-order/i,
     ],
@@ -917,8 +1040,11 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       plannedCommand('screenshot'),
       RAW_COORDINATE_TARGET,
       /(?:^|\n)(?:agent-device\s+)?(?:press|click)\b[^\n]*submit-order[\s\S]*(?:@e12|Dismiss|Close)/i,
+      /(?:^|\n)(?:agent-device\s+)?(?:press|click)\s+@e(?!12\b)\d+\b/i,
       /alert accept/i,
     ],
+    strictFinalOutput: true,
+    allowOnlyLocalCliHelpCommands: true,
   }),
   makeCase({
     id: 'rn-error-overlay-human-flag',
@@ -964,6 +1090,8 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       /alert accept/i,
       /failed nav|navigation failed/i,
     ],
+    strictFinalOutput: true,
+    allowOnlyLocalCliHelpCommands: true,
   }),
   makeCase({
     id: 'expo-go-ios-project-url',
@@ -1303,6 +1431,23 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     task: 'Plan the gesture command to long-press the target center for 800ms.',
     outputs: [plannedCommand('longpress'), /300\s+500\s+800/i],
     forbiddenOutputs: [/--duration-ms/i, /--hold-ms/i, plannedCommand('click')],
+  }),
+  makeCase({
+    id: 'gesture-longpress-ref-context-menu',
+    contract: [
+      'Platform: iOS simulator',
+      'Current screen: chat thread',
+      'Target message current ref: @e42',
+      'Need to open the reaction menu with an 800ms long press',
+    ],
+    task: 'Plan the gesture command to long-press the current message ref for 800ms.',
+    outputs: [plannedCommand('longpress'), /@e42/i, /\b800\b/i],
+    forbiddenOutputs: [
+      /--duration-ms/i,
+      /--hold-ms/i,
+      plannedCommand('click'),
+      RAW_COORDINATE_TARGET,
+    ],
   }),
   makeCase({
     id: 'gesture-pinch-zoom',

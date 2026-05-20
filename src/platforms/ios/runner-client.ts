@@ -71,9 +71,9 @@ export async function runIosRunnerCommand(
 export function prewarmIosRunnerXctestrun(
   device: DeviceInfo,
   options: RunnerSessionOptions = {},
-): void {
+): Promise<void> | undefined {
   if (device.platform !== 'ios') {
-    return;
+    return undefined;
   }
   if (hasScopedAppleRunnerProvider(device, { requestId: options.requestId })) {
     emitDiagnostic({
@@ -81,26 +81,30 @@ export function prewarmIosRunnerXctestrun(
       phase: 'ios_runner_xctestrun_prewarm_skipped_scoped_provider',
       data: { deviceId: device.id },
     });
-    return;
+    return undefined;
   }
-  void ensureXctestrun(device, options).catch((error: unknown) => {
-    emitDiagnostic({
-      level: 'warn',
-      phase: 'ios_runner_xctestrun_prewarm_failed',
-      data: {
-        deviceId: device.id,
-        error: error instanceof Error ? error.message : String(error),
-      },
+  const prewarm = ensureXctestrun(device, options)
+    .then(() => {})
+    .catch((error: unknown) => {
+      emitDiagnostic({
+        level: 'warn',
+        phase: 'ios_runner_xctestrun_prewarm_failed',
+        data: {
+          deviceId: device.id,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
     });
-  });
+  void prewarm;
+  return prewarm;
 }
 
 export function prewarmIosRunnerSession(
   device: DeviceInfo,
   options: RunnerSessionOptions = {},
-): void {
+): Promise<void> | undefined {
   if (device.platform !== 'ios') {
-    return;
+    return undefined;
   }
   if (hasScopedAppleRunnerProvider(device, { requestId: options.requestId })) {
     emitDiagnostic({
@@ -108,18 +112,22 @@ export function prewarmIosRunnerSession(
       phase: 'ios_runner_session_prewarm_skipped_scoped_provider',
       data: { deviceId: device.id },
     });
-    return;
+    return undefined;
   }
-  void ensureRunnerSession(device, options).catch((error: unknown) => {
-    emitDiagnostic({
-      level: 'warn',
-      phase: 'ios_runner_session_prewarm_failed',
-      data: {
-        deviceId: device.id,
-        error: error instanceof Error ? error.message : String(error),
-      },
+  const prewarm = ensureRunnerSession(device, options)
+    .then(() => {})
+    .catch((error: unknown) => {
+      emitDiagnostic({
+        level: 'warn',
+        phase: 'ios_runner_session_prewarm_failed',
+        data: {
+          deviceId: device.id,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
     });
-  });
+  void prewarm;
+  return prewarm;
 }
 
 // fallow-ignore-next-line complexity

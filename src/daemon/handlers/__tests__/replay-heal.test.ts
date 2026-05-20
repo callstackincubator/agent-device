@@ -143,6 +143,46 @@ test('replay heal snapshot refresh clears stale scoped snapshot source', async (
   expect(sessionStore.get(sessionName)?.snapshotScopeSource).toBeUndefined();
 });
 
+test('replay heal rewrites longpress selector and preserves duration', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-heal-longpress-'));
+  const sessionsDir = path.join(tempRoot, 'sessions');
+  const sessionStore = new SessionStore(sessionsDir);
+  const sessionName = 'heal-longpress-session';
+  sessionStore.set(sessionName, makeSession(sessionName));
+
+  mockDispatchCommand.mockResolvedValue({
+    nodes: [
+      {
+        index: 0,
+        depth: 0,
+        type: 'XCUIElementTypeStaticText',
+        label: 'Last message',
+        identifier: 'message_last',
+        rect: { x: 0, y: 0, width: 100, height: 44 },
+        hittable: true,
+      },
+    ],
+    truncated: false,
+    backend: 'xctest',
+  });
+
+  const healed = await healReplayAction({
+    action: {
+      ts: Date.now(),
+      command: 'longpress',
+      positionals: ['id="old_message" || label="Last message"', '800'],
+      flags: {},
+      result: { selectorChain: ['id="old_message"', 'label="Last message"'], durationMs: 800 },
+    },
+    sessionName,
+    logPath: '/tmp/replay.log',
+    sessionStore,
+  });
+
+  expect(healed?.positionals[0]).toContain('message_last');
+  expect(healed?.positionals[1]).toBe('800');
+});
+
 test('replay --update heals selector and rewrites replay file', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-heal-'));
   const sessionsDir = path.join(tempRoot, 'sessions');

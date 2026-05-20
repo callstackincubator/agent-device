@@ -10,6 +10,7 @@ import {
   findCommandCodec,
   interactionTargetCodec,
   isCommandCodec,
+  longPressCommandCodec,
   settingsCommandCodec,
 } from '../../command-codecs.ts';
 import { selectorSnapshotOptionsFromFlags } from '../../command-codecs/flags.ts';
@@ -96,10 +97,9 @@ const genericClientCommandRunners = {
     }),
   longpress: ({ client, positionals, flags }) =>
     client.interactions.longPress({
+      ...longPressCommandCodec.decode(positionals),
+      ...selectorSnapshotOptionsFromFlags(flags),
       ...buildSelectionOptions(flags),
-      x: Number(positionals[0]),
-      y: Number(positionals[1]),
-      durationMs: optionalNumber(positionals[2]),
     }),
   swipe: ({ client, positionals, flags }) =>
     client.interactions.swipe({
@@ -216,8 +216,19 @@ function readGetFormat(value: string | undefined): 'text' | 'attrs' {
   throw new AppError('INVALID_ARGS', 'get only supports text or attrs');
 }
 
-function readScrollDirection(value: string | undefined): 'up' | 'down' | 'left' | 'right' {
-  if (value === 'up' || value === 'down' || value === 'left' || value === 'right') return value;
+function readScrollDirection(
+  value: string | undefined,
+): 'up' | 'down' | 'left' | 'right' | 'top' | 'bottom' {
+  if (
+    value === 'up' ||
+    value === 'down' ||
+    value === 'left' ||
+    value === 'right' ||
+    value === 'top' ||
+    value === 'bottom'
+  ) {
+    return value;
+  }
   throw new AppError('INVALID_ARGS', `Unknown direction: ${String(value)}`);
 }
 

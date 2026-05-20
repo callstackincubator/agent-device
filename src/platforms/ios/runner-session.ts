@@ -431,14 +431,11 @@ export async function executeRunnerCommandWithSession(
   emitRunnerStartupTimings(session, command.command);
   const readOnlyCommand = isReadOnlyRunnerCommand(command.command);
   if (readOnlyCommand) {
-    const response = await waitForRunner(
-      device,
-      session.port,
-      command,
-      logPath,
-      timeoutMs,
-      session,
-      signal,
+    const response = await withDiagnosticTimer(
+      'ios_runner_command_send',
+      async () =>
+        await waitForRunner(device, session.port, command, logPath, timeoutMs, session, signal),
+      { command: command.command, readOnly: true, sessionReady: session.ready, timeoutMs },
     );
     return await parseRunnerResponse(response, session, logPath);
   }

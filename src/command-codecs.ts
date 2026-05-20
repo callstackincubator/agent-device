@@ -5,6 +5,8 @@ import {
   readElementTargetFromPositionals,
   readFillTargetFromPositionals,
   readInteractionTargetFromPositionals,
+  longPressOptionsToPositionals,
+  readLongPressTargetFromPositionals,
 } from './command-codecs/targets.ts';
 import { readWaitOptionsFromPositionals, waitOptionsToPositionals } from './command-codecs/wait.ts';
 import { findOptionsToPositionals, readFindOptionsFromPositionals } from './command-codecs/find.ts';
@@ -27,6 +29,11 @@ export const elementTargetCodec = {
 export const fillCommandCodec = {
   decode: readFillTargetFromPositionals,
   encode: fillOptionsToPositionals,
+} as const;
+
+export const longPressCommandCodec = {
+  decode: readLongPressTargetFromPositionals,
+  encode: longPressOptionsToPositionals,
 } as const;
 
 export const waitCommandCodec = {

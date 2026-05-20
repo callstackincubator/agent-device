@@ -330,6 +330,15 @@ test('writeSessionLog optimizes selector chains and scopes fallback snapshots', 
     result: { selectorChain: ['text="Continue"', 'role=button'], refLabel: 'Continue' },
   });
   fixture.store.recordAction(fixture.session, {
+    command: 'longpress',
+    positionals: ['@e3', '800'],
+    flags: { platform: 'ios' },
+    result: {
+      selectorChain: ['label="Last message"', 'role="statictext"'],
+      durationMs: 800,
+    },
+  });
+  fixture.store.recordAction(fixture.session, {
     command: 'fill',
     positionals: ['@e2', 'hello world'],
     flags: { platform: 'ios', delayMs: 5 },
@@ -340,6 +349,7 @@ test('writeSessionLog optimizes selector chains and scopes fallback snapshots', 
   assert.doesNotMatch(script, /\nsnapshot\n/);
   assertScriptMatches(script, [
     /click "text=\\"Continue\\" \|\| role=button" --count 2/,
+    /longpress "label=\\"Last message\\" \|\| role=\\"statictext\\"" 800/,
     /snapshot -i -c -s "Email"/,
     /fill @e2 "Email" "hello world" --delay-ms 5/,
   ]);

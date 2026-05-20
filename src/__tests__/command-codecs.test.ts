@@ -6,6 +6,7 @@ import {
   findCommandCodec,
   interactionTargetCodec,
   isCommandCodec,
+  longPressCommandCodec,
   settingsCommandCodec,
   waitCommandCodec,
 } from '../command-codecs.ts';
@@ -64,6 +65,19 @@ test('interaction and fill codecs share ref, selector, and point grammar', () =>
       text: 'qa@example.com',
     }),
     ['@e4', 'Email', 'qa@example.com'],
+  );
+  assert.deepEqual(longPressCommandCodec.decode(['@e4', '800']), {
+    ref: '@e4',
+    durationMs: 800,
+  });
+  assert.deepEqual(longPressCommandCodec.decode(['10', '20', '800']), {
+    x: 10,
+    y: 20,
+    durationMs: 800,
+  });
+  assert.deepEqual(
+    longPressCommandCodec.encode({ selector: 'label="Last message"', durationMs: 800 }),
+    ['label="Last message"', '800'],
   );
 });
 

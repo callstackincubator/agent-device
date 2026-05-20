@@ -24,6 +24,10 @@ export function isClickLikeCommand(command: string): command is 'click' | 'press
   return command === 'click' || command === 'press';
 }
 
+export function isTouchTargetCommand(command: string): command is 'click' | 'press' | 'longpress' {
+  return isClickLikeCommand(command) || command === 'longpress';
+}
+
 function isTypingCommand(command: string): command is 'type' | 'fill' {
   return command === 'type' || command === 'fill';
 }

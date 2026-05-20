@@ -3,7 +3,7 @@ import { errorResponse } from './response.ts';
 
 export function unsupportedMacOsDesktopSurfaceInteraction(
   session: SessionState,
-  command: 'click' | 'press' | 'fill',
+  command: 'click' | 'press' | 'fill' | 'longpress',
 ): DaemonResponse | null {
   if (session.device.platform !== 'macos') {
     return null;

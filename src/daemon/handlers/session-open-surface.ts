@@ -12,16 +12,27 @@ export function buildOpenResult(params: {
   appBundleId?: string;
   surface: SessionSurface;
   startup?: StartupPerfSample;
+  timing?: Record<string, unknown>;
   device?: DeviceInfo;
   runtime?: SessionRuntimeHints;
   runtimeHintCount: (runtime: SessionRuntimeHints) => number;
 }): Record<string, unknown> {
-  const { sessionName, appName, appBundleId, surface, startup, device, runtime, runtimeHintCount } =
-    params;
+  const {
+    sessionName,
+    appName,
+    appBundleId,
+    surface,
+    startup,
+    timing,
+    device,
+    runtime,
+    runtimeHintCount,
+  } = params;
   const result: Record<string, unknown> = { session: sessionName, surface };
   if (appName) result.appName = appName;
   if (appBundleId) result.appBundleId = appBundleId;
   if (startup) result.startup = startup;
+  if (timing) result.timing = timing;
   if (runtime && runtimeHintCount(runtime) > 0) {
     result.runtime = runtime;
   }

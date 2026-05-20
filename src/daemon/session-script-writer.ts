@@ -9,6 +9,7 @@ import {
   formatScriptArg,
   formatScriptStringLiteral,
   isClickLikeCommand,
+  isTouchTargetCommand,
 } from '../replay/script-utils.ts';
 import type { SessionAction, SessionState } from './types.ts';
 
@@ -80,6 +81,7 @@ function optimizeSelectorChainAction(action: SessionAction): SessionAction | und
   const selectorExpr = readSelectorChainExpression(action);
   if (!selectorExpr || !isSelectorTargetingCommand(action.command)) return undefined;
   if (isClickLikeCommand(action.command)) return { ...action, positionals: [selectorExpr] };
+  if (action.command === 'longpress') return optimizeLongPressAction(action, selectorExpr);
   if (action.command === 'fill') return optimizeFillAction(action, selectorExpr);
   return optimizeGetAction(action, selectorExpr);
 }
@@ -94,7 +96,7 @@ function readSelectorChainExpression(action: SessionAction): string | undefined 
 }
 
 function isSelectorTargetingCommand(command: string): boolean {
-  return isClickLikeCommand(command) || command === 'fill' || command === 'get';
+  return isTouchTargetCommand(command) || command === 'fill' || command === 'get';
 }
 
 function optimizeFillAction(
@@ -105,11 +107,28 @@ function optimizeFillAction(
   return text.length > 0 ? { ...action, positionals: [selectorExpr, text] } : undefined;
 }
 
+function optimizeLongPressAction(action: SessionAction, selectorExpr: string): SessionAction {
+  const durationMs =
+    typeof action.result?.durationMs === 'number'
+      ? String(action.result.durationMs)
+      : readLongPressDurationFromPositionals(action.positionals ?? []);
+  return {
+    ...action,
+    positionals: durationMs ? [selectorExpr, durationMs] : [selectorExpr],
+  };
+}
+
 function optimizeGetAction(action: SessionAction, selectorExpr: string): SessionAction | undefined {
   const sub = action.positionals?.[0];
   return sub === 'text' || sub === 'attrs'
     ? { ...action, positionals: [sub, selectorExpr] }
     : undefined;
+}
+
+function readLongPressDurationFromPositionals(positionals: string[]): string | undefined {
+  const last = positionals.at(-1);
+  if (positionals.length <= 1 || last === undefined || last.trim() === '') return undefined;
+  return Number.isFinite(Number(last)) ? last : undefined;
 }
 
 function buildScopedSnapshotAction(

@@ -114,6 +114,7 @@ function deriveContainerHints(
   coveredNodeIndexes: Set<number>;
 } {
   const directionsByContainer = new Map<number, Set<Direction>>();
+  const geometryDirectionsByContainer = new Map<number, Set<Direction>>();
   const coveredNodeIndexes = new Set<number>();
 
   for (const node of offscreenNodes) {
@@ -131,10 +132,20 @@ function deriveContainerHints(
     const directions = directionsByContainer.get(container.index) ?? new Set<Direction>();
     directions.add(direction);
     directionsByContainer.set(container.index, directions);
+    const geometryDirections =
+      geometryDirectionsByContainer.get(container.index) ?? new Set<Direction>();
+    geometryDirections.add(direction);
+    geometryDirectionsByContainer.set(container.index, geometryDirections);
     coveredNodeIndexes.add(node.index);
   }
 
-  mergeScrollIndicatorDirections(allNodes, visibleNodeIndexes, byIndex, directionsByContainer);
+  mergeScrollIndicatorDirections(
+    allNodes,
+    visibleNodeIndexes,
+    byIndex,
+    directionsByContainer,
+    geometryDirectionsByContainer,
+  );
 
   return { directionsByContainer, coveredNodeIndexes };
 }
@@ -303,6 +314,7 @@ function mergeScrollIndicatorDirections(
   visibleNodeIndexes: Set<number>,
   byIndex: Map<number, SnapshotNode>,
   directionsByContainer: Map<number, Set<Direction>>,
+  geometryDirectionsByContainer: Map<number, Set<Direction>>,
 ): void {
   for (const node of nodes) {
     const inferredDirections = inferDirectionsFromScrollIndicator(node);
@@ -314,7 +326,11 @@ function mergeScrollIndicatorDirections(
       continue;
     }
     const directions = directionsByContainer.get(container.index) ?? new Set<Direction>();
+    const geometryDirections = geometryDirectionsByContainer.get(container.index);
     for (const direction of inferredDirections) {
+      if (geometryDirections && geometryDirections.size > 0 && !geometryDirections.has(direction)) {
+        continue;
+      }
       directions.add(direction);
     }
     directionsByContainer.set(container.index, directions);

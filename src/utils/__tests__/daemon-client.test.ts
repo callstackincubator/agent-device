@@ -13,6 +13,7 @@ import {
 } from '../../__tests__/test-utils/index.ts';
 import { runCmdBackground } from '../exec.ts';
 import {
+  cleanupFailedDaemonStartupMetadata,
   computeDaemonCodeSignature,
   downloadRemoteArtifact,
   openApp,
@@ -134,7 +135,7 @@ function writeCurrentDaemonInfo(
 test('resolveDaemonStartupHint prefers stale lock guidance when lock exists without info', () => {
   const hint = resolveDaemonStartupHint({ hasInfo: false, hasLock: true });
   assert.match(hint, /daemon\.lock/i);
-  assert.match(hint, /delete/i);
+  assert.match(hint, /automatically/i);
 });
 
 test('resolveDaemonStartupHint covers stale info+lock pair', () => {
@@ -145,7 +146,7 @@ test('resolveDaemonStartupHint covers stale info+lock pair', () => {
 
 test('resolveDaemonStartupHint falls back to daemon.json guidance', () => {
   const hint = resolveDaemonStartupHint({ hasInfo: true, hasLock: false });
-  assert.match(hint, /daemon\.json/i);
+  assert.match(hint, /cleaned automatically/i);
 });
 
 test('resolveDaemonStartupHint includes configured state directory paths', () => {
@@ -153,6 +154,30 @@ test('resolveDaemonStartupHint includes configured state directory paths', () =>
   const hint = resolveDaemonStartupHint({ hasInfo: false, hasLock: true }, paths);
   assert.match(hint, /\/tmp\/ad-custom-state\/daemon\.lock/);
   assert.match(hint, /\/tmp\/ad-custom-state\/daemon\.json/);
+});
+
+test('cleanupFailedDaemonStartupMetadata removes partial startup metadata', async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-daemon-cleanup-'));
+  const paths = resolveDaemonPaths(stateDir);
+  try {
+    fs.mkdirSync(paths.baseDir, { recursive: true });
+    fs.writeFileSync(paths.infoPath, '{"invalid":true}\n', 'utf8');
+    fs.writeFileSync(paths.lockPath, 'not-json\n', 'utf8');
+
+    const result = await cleanupFailedDaemonStartupMetadata(paths, 'startup_timeout');
+
+    assert.deepEqual(result, {
+      reason: 'startup_timeout',
+      removedInfo: true,
+      removedLock: true,
+      stoppedInfoProcess: false,
+      stoppedLockProcess: false,
+    });
+    assert.equal(fs.existsSync(paths.infoPath), false);
+    assert.equal(fs.existsSync(paths.lockPath), false);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
 });
 
 test('sendToDaemon reuses reachable local socket daemon metadata', async (t) => {

@@ -1,9 +1,9 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCmd } from '../utils/exec.ts';
 import { AppError } from '../utils/errors.ts';
+import { buildSwiftToolEnv, compileSwiftSourceFile } from '../utils/swift-cache.ts';
 import { waitForPlayableVideo, waitForStableFile } from '../utils/video.ts';
 
 function resolveScriptPath(scriptName: string): string {
@@ -66,30 +66,15 @@ async function exportProcessedVideo(params: {
   await waitForStableFile(videoPath);
   await waitForPlayableVideo(videoPath);
 
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-record-overlay-'));
-  const inputPath = path.join(tempDir, `input${path.extname(videoPath) || '.mp4'}`);
-  const outputPath = path.join(tempDir, path.basename(videoPath));
-  const homePath = path.join(tempDir, 'home');
-  const moduleCachePath = path.join(tempDir, 'module-cache');
-
-  fs.copyFileSync(videoPath, inputPath);
-  fs.mkdirSync(homePath, { recursive: true });
-  fs.mkdirSync(moduleCachePath, { recursive: true });
+  const outputPath = temporarySiblingVideoPath(videoPath);
   try {
-    await runCmd(
-      'xcrun',
-      ['swift', scriptPath, '--input', inputPath, '--output', outputPath, ...scriptArgs],
-      {
-        timeoutMs: 120_000,
-        env: {
-          ...process.env,
-          HOME: homePath,
-          CLANG_MODULE_CACHE_PATH: moduleCachePath,
-        },
-      },
-    );
+    const executablePath = await compileSwiftSourceFile({ sourcePath: scriptPath });
+    await runCmd(executablePath, ['--input', videoPath, '--output', outputPath, ...scriptArgs], {
+      timeoutMs: 120_000,
+      env: buildSwiftToolEnv(),
+    });
     await waitForPlayableVideo(outputPath);
-    fs.copyFileSync(outputPath, videoPath);
+    fs.renameSync(outputPath, videoPath);
   } catch (error) {
     const cause =
       error instanceof AppError
@@ -114,8 +99,14 @@ async function exportProcessedVideo(params: {
       cause,
     );
   } finally {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    fs.rmSync(outputPath, { force: true });
   }
+}
+
+function temporarySiblingVideoPath(videoPath: string): string {
+  const parsed = path.parse(videoPath);
+  const suffix = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return path.join(parsed.dir, `.${parsed.name}.agent-device-${suffix}${parsed.ext || '.mp4'}`);
 }
 
 export async function trimRecordingStart(params: {

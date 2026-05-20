@@ -5,6 +5,13 @@ import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts'
 import { requireIntInRange } from '../utils/validation.ts';
 import { successText } from '../utils/success-text.ts';
 import { isNodeVisibleInEffectiveViewport } from '../utils/mobile-snapshot-semantics.ts';
+import {
+  analyzeScrollEdgeState,
+  SCROLL_EDGE_PASS_LIMIT,
+  type ScrollEdge,
+  type ScrollEdgeState,
+  type ScrollEdgeTarget,
+} from '../utils/scroll-edge-state.ts';
 import type { RuntimeCommand } from './runtime-types.ts';
 import {
   assertSupportedInteractionSurface,
@@ -36,6 +43,7 @@ export type LongPressCommandResult = ResolvedInteractionTarget & {
 };
 
 export type GestureDirection = 'up' | 'down' | 'left' | 'right';
+export type ScrollInputDirection = GestureDirection | 'top' | 'bottom';
 
 export type ScrollTarget =
   | InteractionTarget
@@ -45,7 +53,7 @@ export type ScrollTarget =
 
 export type ScrollCommandOptions = CommandContext & {
   target?: ScrollTarget;
-  direction: GestureDirection;
+  direction: ScrollInputDirection;
   amount?: number;
   pixels?: number;
 };
@@ -54,6 +62,8 @@ export type ScrollCommandResult =
   | {
       kind: 'viewport';
       direction: GestureDirection;
+      edge?: 'top' | 'bottom';
+      passes?: number;
       amount?: number;
       pixels?: number;
       backendResult?: Record<string, unknown>;
@@ -61,6 +71,8 @@ export type ScrollCommandResult =
     }
   | (ResolvedInteractionTarget & {
       direction: GestureDirection;
+      edge?: 'top' | 'bottom';
+      passes?: number;
       amount?: number;
       pixels?: number;
       backendResult?: Record<string, unknown>;
@@ -166,7 +178,7 @@ export const scrollCommand: RuntimeCommand<ScrollCommandOptions, ScrollCommandRe
   if (!runtime.backend.scroll) {
     throw new AppError('UNSUPPORTED_OPERATION', 'scroll is not supported by this backend');
   }
-  const direction = requireDirection(options.direction, 'scroll direction');
+  const target = resolveScrollDirection(options.direction);
   const amount = normalizeOptionalPositiveNumber(options.amount, 'scroll amount');
   const pixels = normalizeOptionalPositiveInteger(options.pixels, 'scroll pixels');
   if (amount !== undefined && pixels !== undefined) {
@@ -178,28 +190,86 @@ export const scrollCommand: RuntimeCommand<ScrollCommandOptions, ScrollCommandRe
     resolved.kind === 'viewport'
       ? { kind: 'viewport' as const }
       : { kind: 'point' as const, point: resolved.point };
-  const backendResult = await runtime.backend.scroll(
-    toBackendContext(runtime, options),
-    backendTarget,
-    {
-      direction,
-      ...(amount !== undefined ? { amount } : {}),
-      ...(pixels !== undefined ? { pixels } : {}),
-    },
-  );
+  let backendResult: Awaited<ReturnType<NonNullable<typeof runtime.backend.scroll>>> | undefined;
+  let completedPasses = 0;
+  let edgeState: ScrollEdgeState | undefined;
+  if (target.edge) {
+    const edgeTarget = buildScrollEdgeTarget(resolved);
+    edgeState = await captureRuntimeScrollEdgeState(runtime, options, target.edge, edgeTarget);
+    if (edgeState.scope) {
+      edgeState = await captureRuntimeScrollEdgeState(
+        runtime,
+        options,
+        target.edge,
+        edgeTarget,
+        edgeState.scope,
+      );
+    }
+    while (edgeState.canScroll) {
+      if (completedPasses >= SCROLL_EDGE_PASS_LIMIT) {
+        throw new AppError(
+          'COMMAND_FAILED',
+          `scroll ${target.edge} reached the safety limit before the snapshot showed the edge`,
+          {
+            hint: 'The scoped scroll container still reports hidden content. Use a smaller manual scroll + snapshot loop to inspect the current state.',
+          },
+        );
+      }
+      backendResult = await runtime.backend.scroll(
+        toBackendContext(runtime, options),
+        backendTarget,
+        {
+          direction: target.direction,
+          ...(amount !== undefined ? { amount } : {}),
+          ...(pixels !== undefined ? { pixels } : {}),
+        },
+      );
+      completedPasses += 1;
+      const nextState = await captureRuntimeScrollEdgeState(
+        runtime,
+        options,
+        target.edge,
+        edgeTarget,
+        edgeState.scope,
+      );
+      if (nextState.canScroll && nextState.signature === edgeState.signature) {
+        throw new AppError(
+          'COMMAND_FAILED',
+          `scroll ${target.edge} did not move the scoped scroll container`,
+          {
+            hint: `Snapshot still reports hidden content ${target.edge === 'bottom' ? 'below' : 'above'}, but the list signature did not change after scrolling.`,
+          },
+        );
+      }
+      edgeState = nextState;
+    }
+  } else {
+    backendResult = await runtime.backend.scroll(
+      toBackendContext(runtime, options),
+      backendTarget,
+      {
+        direction: target.direction,
+        ...(amount !== undefined ? { amount } : {}),
+        ...(pixels !== undefined ? { pixels } : {}),
+      },
+    );
+    completedPasses = 1;
+  }
   const formattedBackendResult = toBackendResult(backendResult);
   return {
     ...resolved,
-    direction,
+    direction: target.direction,
+    ...(target.edge
+      ? {
+          edge: target.edge,
+          passes: completedPasses,
+        }
+      : {}),
     ...(amount !== undefined ? { amount } : {}),
     ...(pixels !== undefined ? { pixels } : {}),
     ...(formattedBackendResult ? { backendResult: formattedBackendResult } : {}),
     ...successText(
-      pixels !== undefined
-        ? `Scrolled ${direction} by ${pixels}px`
-        : amount !== undefined
-          ? `Scrolled ${direction} by ${amount}`
-          : `Scrolled ${direction}`,
+      formatScrollMessage(target.direction, target.edge, completedPasses, amount, pixels),
     ),
   };
 };
@@ -343,6 +413,82 @@ function resolveSwipeTo(
     case 'right':
       return { point: { x: from.x + distance, y: from.y }, direction, distance };
   }
+}
+
+function resolveScrollDirection(direction: ScrollInputDirection): {
+  direction: GestureDirection;
+  edge?: 'top' | 'bottom';
+} {
+  if (direction === 'bottom') return { direction: 'down', edge: 'bottom' };
+  if (direction === 'top') return { direction: 'up', edge: 'top' };
+  return { direction: requireDirection(direction, 'scroll direction') };
+}
+
+function buildScrollEdgeTarget(resolved: ResolvedScrollTarget): ScrollEdgeTarget {
+  return resolved.kind === 'viewport'
+    ? {}
+    : {
+        point: resolved.point,
+        nodeIndex: 'node' in resolved ? resolved.node.index : undefined,
+      };
+}
+
+async function captureRuntimeScrollEdgeState(
+  runtime: AgentDeviceRuntime,
+  options: ScrollCommandOptions,
+  edge: ScrollEdge,
+  target: ScrollEdgeTarget,
+  scope?: string,
+): Promise<ScrollEdgeState> {
+  if (!runtime.backend.captureSnapshot) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      `scroll ${edge} requires snapshot support to verify hidden content before scrolling`,
+    );
+  }
+  try {
+    const result = await runtime.backend.captureSnapshot(toBackendContext(runtime, options), {
+      compact: true,
+      scope,
+    });
+    const state = analyzeScrollEdgeState(
+      result.snapshot?.nodes ?? result.nodes ?? [],
+      edge,
+      target,
+    );
+    if (scope && state.emptySnapshot) {
+      return await captureRuntimeScrollEdgeState(runtime, options, edge, target);
+    }
+    return state;
+  } catch (error) {
+    if (scope) {
+      return await captureRuntimeScrollEdgeState(runtime, options, edge, target);
+    }
+    throw new AppError(
+      'COMMAND_FAILED',
+      `Failed to verify scroll ${edge} state`,
+      {
+        hint: `scroll ${edge} needs a snapshot showing hidden content ${edge === 'bottom' ? 'below' : 'above'} before it will move.`,
+      },
+      error,
+    );
+  }
+}
+
+function formatScrollMessage(
+  direction: GestureDirection,
+  edge: 'top' | 'bottom' | undefined,
+  passes: number,
+  amount: number | undefined,
+  pixels: number | undefined,
+): string {
+  if (edge && passes === 0) {
+    return `Already at ${edge}; no hidden content ${edge === 'bottom' ? 'below' : 'above'} detected`;
+  }
+  if (edge) return `Scrolled to ${edge} with ${passes} ${direction} passes`;
+  if (pixels !== undefined) return `Scrolled ${direction} by ${pixels}px`;
+  if (amount !== undefined) return `Scrolled ${direction} by ${amount}`;
+  return `Scrolled ${direction}`;
 }
 
 function requireDirection(

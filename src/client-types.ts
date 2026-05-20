@@ -556,11 +556,11 @@ export type PressOptions = ClientCommandBaseOptions &
   InteractionTarget &
   RepeatedPressOptions;
 
-export type LongPressOptions = ClientCommandBaseOptions & {
-  x: number;
-  y: number;
-  durationMs?: number;
-};
+export type LongPressOptions = ClientCommandBaseOptions &
+  SelectorSnapshotCommandOptions &
+  InteractionTarget & {
+    durationMs?: number;
+  };
 
 export type SwipeOptions = ClientCommandBaseOptions & {
   from: { x: number; y: number };
@@ -589,7 +589,7 @@ export type FillOptions = ClientCommandBaseOptions &
   };
 
 export type ScrollOptions = ClientCommandBaseOptions & {
-  direction: 'up' | 'down' | 'left' | 'right';
+  direction: 'up' | 'down' | 'left' | 'right' | 'top' | 'bottom';
   amount?: number;
   pixels?: number;
 };

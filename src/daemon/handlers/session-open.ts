@@ -36,6 +36,19 @@ import { errorResponse } from './response.ts';
 
 const firstSessionOpenLocks = new Map<string, Promise<unknown>>();
 
+type OpenTiming = {
+  totalDurationMs?: number;
+  relaunchCloseDurationMs?: number;
+  runtimeHintsDurationMs?: number;
+  runnerPrewarmKind?: 'session' | 'xctestrun';
+  runnerPrewarmScheduled?: boolean;
+  runnerPrewarmWaited?: boolean;
+  runnerPrewarmDurationMs?: number;
+  openDispatchDurationMs?: number;
+  launchUrlDurationMs?: number;
+  postOpenSettleDurationMs?: number;
+};
+
 async function relaunchCloseApp(params: {
   device: DeviceInfo;
   closeTarget: string;
@@ -117,9 +130,12 @@ async function completeOpenCommand(params: {
   const shouldRelaunch = req.flags?.relaunch === true;
   const traceLogPath = existingSession?.trace?.outPath;
   let sessionAppBundleId = appBundleId;
+  const openCommandStartedAtMs = Date.now();
+  const timing: OpenTiming = {};
 
   if (shouldRelaunch && openTarget) {
     const closeTarget = sessionAppBundleId ?? openTarget;
+    const closeStartedAtMs = Date.now();
     await relaunchCloseApp({
       device,
       closeTarget,
@@ -133,13 +149,16 @@ async function completeOpenCommand(params: {
         ),
       },
     });
+    timing.relaunchCloseDurationMs = Math.max(0, Date.now() - closeStartedAtMs);
   }
 
+  const runtimeHintsStartedAtMs = Date.now();
   await applyRuntimeHintsToApp({
     device,
     appId: sessionAppBundleId,
     runtime,
   });
+  timing.runtimeHintsDurationMs = Math.max(0, Date.now() - runtimeHintsStartedAtMs);
   const shouldPrewarmIosRunner =
     device.platform === 'ios' && surface === 'app' && openPositionals.length > 0;
   const runnerPrewarmOptions = {
@@ -148,15 +167,22 @@ async function completeOpenCommand(params: {
     traceLogPath,
     requestId: req.meta?.requestId,
   };
+  let runnerPrewarm: Promise<void> | undefined;
   if (shouldPrewarmIosRunner && sessionAppBundleId) {
-    prewarmIosRunnerSession(device, runnerPrewarmOptions);
+    timing.runnerPrewarmKind = 'session';
+    timing.runnerPrewarmScheduled = true;
+    runnerPrewarm = prewarmIosRunnerSession(device, runnerPrewarmOptions);
   } else if (shouldPrewarmIosRunner) {
-    prewarmIosRunnerXctestrun(device, runnerPrewarmOptions);
+    timing.runnerPrewarmKind = 'xctestrun';
+    timing.runnerPrewarmScheduled = true;
+    runnerPrewarm = prewarmIosRunnerXctestrun(device, runnerPrewarmOptions);
   }
   const openStartedAtMs = Date.now();
   await dispatchCommand(device, 'open', openPositionals, req.flags?.out, {
     ...contextFromFlags(logPath, req.flags, sessionAppBundleId),
   });
+  timing.openDispatchDurationMs = Math.max(0, Date.now() - openStartedAtMs);
+  const launchUrlStartedAtMs = Date.now();
   await maybeApplySessionLaunchUrl({
     runtime,
     device,
@@ -166,6 +192,15 @@ async function completeOpenCommand(params: {
     traceLogPath,
     openPositionals,
   });
+  timing.launchUrlDurationMs = Math.max(0, Date.now() - launchUrlStartedAtMs);
+  if (shouldRelaunch && runnerPrewarm) {
+    const runnerPrewarmStartedAtMs = Date.now();
+    await runnerPrewarm;
+    timing.runnerPrewarmWaited = true;
+    timing.runnerPrewarmDurationMs = Math.max(0, Date.now() - runnerPrewarmStartedAtMs);
+  } else if (runnerPrewarm) {
+    timing.runnerPrewarmWaited = false;
+  }
   sessionAppBundleId = await inferAndroidPackageAfterOpen(device, openTarget, sessionAppBundleId);
   if (device.platform === 'android' && sessionAppBundleId) {
     await resetAndroidFramePerfStats(device, sessionAppBundleId);
@@ -173,7 +208,9 @@ async function completeOpenCommand(params: {
   const startupSample = openTarget
     ? buildStartupPerfSample(openStartedAtMs, openTarget, sessionAppBundleId)
     : undefined;
+  const settleStartedAtMs = Date.now();
   await settleIosSimulator(device, IOS_SIMULATOR_POST_OPEN_SETTLE_MS);
+  timing.postOpenSettleDurationMs = Math.max(0, Date.now() - settleStartedAtMs);
   if (isRequestCanceled(req.meta?.requestId)) {
     const canceled = createRequestCanceledError();
     return errorResponse(canceled.code, canceled.message, canceled.details);
@@ -196,12 +233,14 @@ async function completeOpenCommand(params: {
   if (req.runtime !== undefined) {
     setSessionRuntimeHintsForOpen(sessionStore, sessionName, runtime);
   }
+  timing.totalDurationMs = Math.max(0, Date.now() - openCommandStartedAtMs);
   const openResult = buildOpenResult({
     sessionName,
     appName,
     appBundleId: sessionAppBundleId,
     surface,
     startup: startupSample,
+    timing,
     device,
     runtime,
     runtimeHintCount: countConfiguredRuntimeHints,

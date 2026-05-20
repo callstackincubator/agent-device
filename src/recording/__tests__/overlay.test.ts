@@ -1,0 +1,79 @@
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+vi.mock('../../utils/exec.ts', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  return {
+    runCmd: vi.fn(async (cmd: string, args: string[]) => {
+      if (cmd === 'xcrun') {
+        const outputPath = args[args.indexOf('-o') + 1];
+        fs.writeFileSync(outputPath, 'compiled');
+        fs.chmodSync(outputPath, 0o755);
+        return { stdout: '', stderr: '', exitCode: 0 };
+      }
+
+      const outputPath = args[args.indexOf('--output') + 1];
+      fs.writeFileSync(outputPath, `processed ${path.basename(cmd)}`);
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }),
+  };
+});
+
+vi.mock('../../utils/video.ts', () => ({
+  waitForStableFile: vi.fn(async () => {}),
+  waitForPlayableVideo: vi.fn(async () => {}),
+}));
+
+import { overlayRecordingTouches } from '../overlay.ts';
+import { runCmd } from '../../utils/exec.ts';
+
+const mockRunCmd = vi.mocked(runCmd);
+
+let tmpDir: string;
+
+beforeEach(() => {
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-overlay-test-'));
+  vi.stubEnv('AGENT_DEVICE_SWIFT_CACHE_DIR', path.join(tmpDir, 'swift-cache'));
+  vi.clearAllMocks();
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+});
+
+test('overlay burns touches through a cached helper and same-directory temp output', async () => {
+  const videoPath = path.join(tmpDir, 'recording.mp4');
+  const telemetryPath = path.join(tmpDir, 'recording.gesture-telemetry.json');
+  fs.writeFileSync(videoPath, 'original');
+  fs.writeFileSync(telemetryPath, '{"events":[]}');
+
+  await overlayRecordingTouches({ videoPath, telemetryPath });
+  fs.writeFileSync(videoPath, 'second original');
+  await overlayRecordingTouches({ videoPath, telemetryPath });
+
+  const compileCalls = mockRunCmd.mock.calls.filter(([cmd, args]) => {
+    return cmd === 'xcrun' && args[0] === 'swiftc';
+  });
+  const helperCalls = mockRunCmd.mock.calls.filter(([cmd]) => cmd !== 'xcrun');
+
+  expect(compileCalls).toHaveLength(1);
+  expect(helperCalls).toHaveLength(2);
+
+  const [helperCmd, helperArgs, helperOptions] = helperCalls[0];
+  const inputPath = helperArgs[helperArgs.indexOf('--input') + 1];
+  const outputPath = helperArgs[helperArgs.indexOf('--output') + 1];
+  expect(inputPath).toBe(videoPath);
+  expect(outputPath).not.toBe(videoPath);
+  expect(path.dirname(outputPath)).toBe(tmpDir);
+  expect(path.basename(outputPath)).toMatch(/^\.recording\.agent-device-/);
+  expect(fs.existsSync(outputPath)).toBe(false);
+  expect(fs.readFileSync(videoPath, 'utf8')).toBe(`processed ${path.basename(helperCmd)}`);
+  expect(helperOptions?.env?.HOME).toBe(path.join(tmpDir, 'swift-cache', 'home'));
+  expect(helperOptions?.env?.CLANG_MODULE_CACHE_PATH).toBe(
+    path.join(tmpDir, 'swift-cache', 'module-cache'),
+  );
+});

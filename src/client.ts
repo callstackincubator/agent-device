@@ -9,6 +9,7 @@ import {
   findCommandCodec,
   interactionTargetCodec,
   isCommandCodec,
+  longPressCommandCodec,
   settingsCommandCodec,
 } from './command-codecs.ts';
 import { typeCommandCodec } from './commands/interactions/definition.ts';
@@ -315,7 +316,7 @@ export function createAgentDeviceClient(
       longPress: async (options) =>
         await executeCommandRequest(
           PUBLIC_COMMANDS.longPress,
-          [String(options.x), String(options.y), ...optionalNumber(options.durationMs)],
+          longPressCommandCodec.encode(options),
           options,
         ),
       swipe: async (options) =>

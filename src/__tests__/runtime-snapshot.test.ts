@@ -160,7 +160,37 @@ test('runtime snapshot warns on collapsed Android React Native warning banners',
   const result = await device.capture.snapshot({ session: 'default', interactiveOnly: true });
 
   assertReactNativeOverlayWarning(result.warnings);
-  assert.match(result.warnings?.[0] ?? '', /Press @e1/);
+  assert.match(result.warnings?.[0] ?? '', /compact banner @e1/);
+});
+
+test('runtime snapshot does not suggest full-screen React Native warning parents', async () => {
+  const result = await createSnapshotOnlyDevice({
+    nodes: [
+      {
+        ref: 'e1',
+        index: 0,
+        depth: 0,
+        type: 'XCUIElementTypeOther',
+        label: '!, Open debugger to view warnings.',
+        rect: { x: 0, y: 0, width: 402, height: 874 },
+      },
+      {
+        ref: 'e2',
+        index: 1,
+        depth: 1,
+        type: 'XCUIElementTypeOther',
+        label: '!, Open debugger to view warnings.',
+        rect: { x: 10, y: 786, width: 382, height: 68 },
+      },
+    ],
+    truncated: false,
+    backend: 'xctest',
+  }).capture.snapshot({ session: 'default', interactiveOnly: true });
+
+  assertReactNativeOverlayWarning(result.warnings);
+  assert.match(result.warnings?.[0] ?? '', /compact banner @e2/);
+  assert.doesNotMatch(result.warnings?.[0] ?? '', /@e1/);
+  assert.match(result.warnings?.[0] ?? '', /do not press a full-screen warning body/i);
 });
 
 test('runtime snapshot prefers TextView Minimize over Dismiss on Android React Native stack overlays', async () => {
@@ -226,6 +256,28 @@ test('runtime snapshot warns when iOS hierarchy looks like a React Native overla
   const result = await device.capture.snapshot({ session: 'default', interactiveOnly: true });
 
   assertReactNativeOverlayWarning(result.warnings);
+});
+
+test('runtime snapshot targets React Native LogBox close icon instead of warning body', async () => {
+  const result = await createSnapshotOnlyDevice({
+    nodes: [
+      { ref: 'e1', index: 0, depth: 0, type: 'XCUIElementTypeOther', label: 'LogBox' },
+      {
+        ref: 'e2',
+        index: 1,
+        depth: 1,
+        type: 'XCUIElementTypeStaticText',
+        label: 'Warning: Each child in a list should have a unique "key" prop.',
+      },
+      { ref: 'e3', index: 2, depth: 1, type: 'XCUIElementTypeButton', label: '×' },
+    ],
+    truncated: false,
+    backend: 'xctest',
+  }).capture.snapshot({ session: 'default', interactiveOnly: true });
+
+  assertReactNativeOverlayWarning(result.warnings);
+  assert.match(result.warnings?.[0] ?? '', /press only the close control @e3/i);
+  assert.match(result.warnings?.[0] ?? '', /not the warning\/error text body/i);
 });
 
 test('runtime snapshot does not warn for ordinary Android validation errors', async () => {

@@ -996,6 +996,54 @@ test('press @ref preserves native timing in recorded result and touch visualizat
   expect(stored?.recording?.gestureEvents[0]?.tMs).toBe(570);
 });
 
+test('longpress @ref resolves the target and dispatches coordinate longpress', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'longpress-ref';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'XCUIElementTypeStaticText',
+        label: 'Last message',
+        rect: { x: 10, y: 20, width: 100, height: 40 },
+        enabled: true,
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockResolvedValue({ native: true });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'longpress',
+      positionals: ['@e1', '800'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.x).toBe(60);
+    expect(response.data?.y).toBe(40);
+    expect(response.data?.durationMs).toBe(800);
+    expect(response.data?.message).toMatch(/Long pressed @e1/);
+  }
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  expect(mockDispatch.mock.calls[0]?.[1]).toBe('longpress');
+  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['60', '40', '800']);
+  expect(sessionStore.get(sessionName)?.actions[0]?.command).toBe('longpress');
+});
+
 test('press @ref refreshes stale stored refs and syncs the daemon session snapshot', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'stale-ref-refresh';

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { AppError } from './errors.ts';
 import { runCmd } from './exec.ts';
+import { buildSwiftToolEnv, compileSwiftSourceText } from './swift-cache.ts';
 import { sleep } from './timeouts.ts';
 
 const VIDEO_VALIDATION_SCRIPT = `
@@ -28,6 +29,8 @@ Task {
 semaphore.wait()
 exit(exitCode)
 `.trim();
+
+let videoValidatorExecutablePathPromise: Promise<string> | undefined;
 
 export async function waitForStableFile(
   filePath: string,
@@ -62,10 +65,11 @@ export async function waitForStableFile(
 
 export async function isPlayableVideo(filePath: string): Promise<boolean> {
   try {
-    const result = await runCmd('swift', ['-', filePath], {
-      stdin: VIDEO_VALIDATION_SCRIPT,
+    const validatorPath = await getVideoValidatorExecutablePath();
+    const result = await runCmd(validatorPath, [filePath], {
       allowFailure: true,
       timeoutMs: 10_000,
+      env: buildSwiftToolEnv(),
     });
     if (result.exitCode === 0) {
       return true;
@@ -75,11 +79,38 @@ export async function isPlayableVideo(filePath: string): Promise<boolean> {
     }
     return false;
   } catch (error) {
-    if (error instanceof AppError && error.code === 'TOOL_MISSING') {
+    if (isSwiftVideoValidatorError(error)) {
       return hasLikelyPlayableVideoContainer(filePath);
     }
     throw error;
   }
+}
+
+async function getVideoValidatorExecutablePath(): Promise<string> {
+  videoValidatorExecutablePathPromise ??= compileSwiftSourceText({
+    source: VIDEO_VALIDATION_SCRIPT,
+    cacheName: 'video-validator',
+    timeoutMs: 30_000,
+  });
+  try {
+    return await videoValidatorExecutablePathPromise;
+  } catch (error) {
+    videoValidatorExecutablePathPromise = undefined;
+    throw error;
+  }
+}
+
+function isSwiftVideoValidatorError(error: unknown): boolean {
+  if (!(error instanceof AppError)) {
+    return false;
+  }
+  if (error.code === 'TOOL_MISSING') {
+    return true;
+  }
+  return isSwiftVideoValidatorUnavailable(
+    String(error.details?.stderr ?? ''),
+    String(error.details?.stdout ?? ''),
+  );
 }
 
 export async function waitForPlayableVideo(
@@ -99,7 +130,7 @@ export async function waitForPlayableVideo(
 
 function isSwiftVideoValidatorUnavailable(stderr: string, stdout: string): boolean {
   const combined = `${stderr}\n${stdout}`;
-  return /\b(no such module ['"]AVFoundation['"]|unable to find utility ["']swift["']|xcrun: error: unable to find utility ["']swift["'])\b/i.test(
+  return /\b(no such module ['"]AVFoundation['"]|unable to find utility ["']swiftc?["']|xcrun: error: unable to find utility ["']swiftc?["'])\b/i.test(
     combined,
   );
 }

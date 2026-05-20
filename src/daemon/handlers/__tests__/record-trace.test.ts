@@ -596,6 +596,56 @@ test('record stop leaves a short visual tail after iOS simulator gestures', asyn
   expect(kill).toHaveBeenCalledWith('SIGINT');
 });
 
+test('record stop escalates stale iOS simulator recordVideo processes', async () => {
+  vi.useFakeTimers();
+  const processKill = vi.spyOn(process, 'kill').mockImplementation(() => true);
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-stale-recorder';
+  const kill = vi.fn();
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'Simulator',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.recording = {
+    platform: 'ios',
+    outPath: '/tmp/stale-recorder.mp4',
+    startedAt: Date.now(),
+    showTouches: true,
+    gestureEvents: [],
+    child: { kill },
+    wait: new Promise(() => {}),
+  };
+  sessionStore.set(sessionName, session);
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'pgrep') {
+      expect(args).toEqual(['-f', 'simctl.*recordVideo.*/tmp/stale-recorder\\.mp4']);
+      return { stdout: '4242\n', stderr: '', exitCode: 0 };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  try {
+    const responsePromise = runRecordCommand({
+      sessionStore,
+      sessionName,
+      positionals: ['stop'],
+    });
+
+    await vi.advanceTimersByTimeAsync(12_000);
+    const response = await responsePromise;
+
+    expect(response?.ok).toBe(false);
+    expect((response as any).error?.message).toMatch(/did not exit/);
+    expect(kill.mock.calls.map((call) => call[0])).toEqual(['SIGINT', 'SIGTERM', 'SIGKILL']);
+    expect(processKill.mock.calls.map((call) => call[1])).toEqual(['SIGINT', 'SIGTERM', 'SIGKILL']);
+  } finally {
+    processKill.mockRestore();
+  }
+});
+
 test('record stop skips iOS simulator resize when quality is 10', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim-quality-max';
@@ -659,6 +709,12 @@ test('record stop keeps iOS simulator video when overlay export fails', async ()
     sessionName,
     positionals: ['start', './sim-warning.mp4'],
   });
+  sessionStore.get(sessionName)?.recording?.gestureEvents.push({
+    kind: 'tap',
+    tMs: 120,
+    x: 90,
+    y: 180,
+  });
 
   const responseStop = await runRecordCommand({
     sessionStore,
@@ -670,6 +726,42 @@ test('record stop keeps iOS simulator video when overlay export fails', async ()
   expect((responseStop as any).data?.overlayWarning).toBe(
     overlaySupportWarning ?? 'failed to overlay recording touches: swift export failed',
   );
+});
+
+test('record stop skips touch overlay export when no gestures were recorded', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-no-gestures';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+
+  mockRunCmdBackground.mockImplementation(() => ({
+    child: { kill: () => {} } as any,
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  }));
+
+  await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './sim-no-gestures.mp4'],
+  });
+
+  const responseStop = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(responseStop?.ok).toBe(true);
+  expect(mockOverlayRecordingTouches).not.toHaveBeenCalled();
+  expect((responseStop as any).data?.overlayWarning).toBeUndefined();
 });
 
 test('record stop keeps iOS simulator video when resize export fails', async () => {
@@ -745,6 +837,36 @@ test('record start does not fail when iOS simulator runner warm-up fails', async
 
   expect(response?.ok).toBe(true);
   expect(started).toBe(true);
+});
+
+test('record start skips iOS simulator runner warm-up when touch overlays are hidden', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-hide-touches';
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'Simulator',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.appBundleId = 'com.apple.Preferences';
+  sessionStore.set(sessionName, session);
+
+  mockRunCmdBackground.mockImplementation(() => ({
+    child: { kill: () => {} } as any,
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  }));
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './sim-hide-touches.mp4'],
+    flags: { hideTouches: true },
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockRunIosRunnerCommand).not.toHaveBeenCalled();
+  expect(sessionStore.get(sessionName)?.recording?.showTouches).toBe(false);
 });
 
 test('record start/stop overlays Android gestures by default on devices', async () => {

@@ -320,14 +320,14 @@ function formatReactNativeOverlayWarning(nodes: SnapshotNode[]): string | undefi
   if (!overlay.detected) return undefined;
   if (overlay.redBox) return formatRedBoxOverlayWarning(overlay.minimizeRefs);
   if (overlay.dismissRefs.length > 0) {
-    return `Possible React Native warning/error overlay detected. Dismiss before continuing: press ${formatRefList(
+    return `Possible React Native warning/error overlay detected. Dismiss before continuing: press only the close control ${formatRefList(
       overlay.dismissRefs,
-    )}, then snapshot -i and report the warning/error in the final summary. Use screenshot --overlay-refs only if visual evidence is required.`;
+    )}, not the warning/error text body; then snapshot -i and report the warning/error in the final summary. Use screenshot --overlay-refs only if visual evidence is required.`;
   }
   if (overlay.collapsedRefs.length > 0) {
-    return `Possible React Native warning/error overlay detected. Warning banner detected. Press ${formatRefList(
+    return `Possible React Native warning/error overlay detected. Collapsed warning banner detected. If it blocks the target, press only the compact banner ${formatRefList(
       overlay.collapsedRefs,
-    )} to expand or clear it; if Dismiss/Close appears, press it, then snapshot -i and report the warning/error in the final summary.`;
+    )} once to expand or clear it; do not press a full-screen warning body. If Dismiss/Close appears, press it, then snapshot -i and report the warning/error in the final summary.`;
   }
   return 'Possible React Native warning/error overlay detected. Dismiss visible Dismiss/Close before continuing, then snapshot -i and report the warning/error in the final summary. Use screenshot --overlay-refs only if visual evidence is required.';
 }
@@ -348,9 +348,13 @@ function detectReactNativeOverlay(nodes: SnapshotNode[]): ReactNativeOverlayStat
     .join('\n')
     .toLowerCase();
 
-  const dismissRefs = collectOverlayRefs(nodes, isDismissLabel);
+  const dismissRefs = collectOverlayRefs(nodes, isDismissControlLabel);
   const minimizeRefs = collectOverlayRefs(nodes, isMinimizeLabel);
-  const collapsedRefs = collectOverlayRefs(nodes, isCollapsedReactNativeWarningLabel);
+  const collapsedRefs = collectOverlayRefs(
+    nodes,
+    isCollapsedReactNativeWarningLabel,
+    isLikelyCollapsedWarningControl,
+  );
   const hasReactNativeStackFrame = isReactNativeStackFrame(text);
   const hasOverlayControl = dismissRefs.length > 0 || minimizeRefs.length > 0;
   const redBox =
@@ -385,8 +389,12 @@ function isReactNativeStackFrame(text: string): boolean {
   );
 }
 
-function isDismissLabel(label: string): boolean {
-  return label === 'dismiss' || label === 'close';
+function isDismissControlLabel(label: string): boolean {
+  return label === 'dismiss' || label === 'close' || isCloseIconLabel(label);
+}
+
+function isCloseIconLabel(label: string): boolean {
+  return ['x', '×', '✕', '✖', '⨯'].includes(label);
 }
 
 function isMinimizeLabel(label: string): boolean {
@@ -407,12 +415,23 @@ function isCollapsedReactNativeWarningLabel(label: string): boolean {
   );
 }
 
-function collectOverlayRefs(nodes: SnapshotNode[], matches: (label: string) => boolean): string[] {
+function isLikelyCollapsedWarningControl(node: SnapshotNode): boolean {
+  return !node.rect || node.rect.height <= 180;
+}
+
+function collectOverlayRefs(
+  nodes: SnapshotNode[],
+  matches: (label: string) => boolean,
+  includeNode: (node: SnapshotNode) => boolean = () => true,
+): string[] {
   const refs: string[] = [];
   for (const node of nodes) {
     if (!node.ref) continue;
-    const label = (node.label ?? '').trim().toLowerCase();
-    if (!matches(label)) continue;
+    if (!includeNode(node)) continue;
+    const labels = [node.label, node.value, node.identifier]
+      .map((value) => value?.trim().toLowerCase())
+      .filter((value): value is string => Boolean(value));
+    if (!labels.some(matches)) continue;
     refs.push(node.ref);
   }
   return refs;

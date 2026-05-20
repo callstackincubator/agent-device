@@ -73,6 +73,20 @@ function createInteractionBackend(
           params.contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
         ),
       ),
+    longPress: async (_context, point, options): Promise<BackendActionResult> =>
+      toBackendActionResult(
+        await dispatchCommand(
+          session.device,
+          'longpress',
+          [
+            String(point.x),
+            String(point.y),
+            ...(options?.durationMs === undefined ? [] : [String(options.durationMs)]),
+          ],
+          req.flags?.out,
+          params.contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
+        ),
+      ),
     typeText: async (_context, text): Promise<BackendActionResult> =>
       toBackendActionResult(
         await dispatchCommand(

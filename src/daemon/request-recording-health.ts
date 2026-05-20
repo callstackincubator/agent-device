@@ -2,10 +2,10 @@ import { getRunnerSessionSnapshot } from '../platforms/ios/runner-client.ts';
 import type { SessionState } from './types.ts';
 
 export function refreshRecordingHealth(session: SessionState): void {
-  const recording = session.recording;
-  if (!recording || session.device.platform !== 'ios') {
+  if (!recordingRequiresRunnerHealth(session)) {
     return;
   }
+  const recording = session.recording!;
 
   const snapshot = getRunnerSessionSnapshot(session.device.id);
   if (!recording.runnerSessionId) {
@@ -27,4 +27,10 @@ export function refreshRecordingHealth(session: SessionState): void {
 
 export function shouldBlockForInvalidRecording(command: string): boolean {
   return command !== 'record' && command !== 'close';
+}
+
+function recordingRequiresRunnerHealth(session: SessionState): boolean {
+  const recording = session.recording;
+  if (!recording || session.device.platform !== 'ios') return false;
+  return recording.showTouches !== false;
 }

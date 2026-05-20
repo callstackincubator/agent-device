@@ -15,14 +15,20 @@ test('help longpress prints command help and skips daemon dispatch', async () =>
   const result = await runCliCapture(['help', 'longpress']);
   assert.equal(result.code, 0);
   assert.equal(result.calls.length, 0);
-  assert.match(result.stdout, /Usage:\n  agent-device longpress <x> <y> \[durationMs\]/);
+  assert.match(
+    result.stdout,
+    /Usage:\n  agent-device longpress <x y\|@ref\|selector> \[durationMs\]/,
+  );
 });
 
 test('help long-press resolves to longpress help and skips daemon dispatch', async () => {
   const result = await runCliCapture(['help', 'long-press']);
   assert.equal(result.code, 0);
   assert.equal(result.calls.length, 0);
-  assert.match(result.stdout, /Usage:\n  agent-device longpress <x> <y> \[durationMs\]/);
+  assert.match(
+    result.stdout,
+    /Usage:\n  agent-device longpress <x y\|@ref\|selector> \[durationMs\]/,
+  );
   assert.doesNotMatch(result.stdout, /agent-device long-press/);
 });
 
@@ -74,7 +80,7 @@ test('help workflow preserves known device workaround guidance', async () => {
   assert.match(result.stdout, /wait text/);
   assert.match(result.stdout, /Never use args/);
   assert.match(result.stdout, /Never use args, step/);
-  assert.match(result.stdout, /scrollintoview/);
+  assert.match(result.stdout, /scroll bottom\/top/);
   assert.match(result.stdout, /--delay-ms/);
   assert.match(result.stdout, /Discovery is not enough when the task asks to open\/start/);
   assert.match(result.stdout, /If the task says install, use install/);

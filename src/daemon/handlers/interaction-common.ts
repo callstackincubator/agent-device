@@ -52,10 +52,14 @@ function buildTouchMessage(
 ): string | undefined {
   const ref = typeof extra?.ref === 'string' ? extra.ref : undefined;
   const button = typeof extra?.button === 'string' ? extra.button : undefined;
+  const gesture = typeof extra?.gesture === 'string' ? extra.gesture : undefined;
   if (typeof extra?.text === 'string') {
     return `Filled ${Array.from(extra.text).length} chars`;
   }
   if (ref) {
+    if (gesture === 'longpress') {
+      return `Long pressed @${ref} (${x}, ${y})`;
+    }
     if (button && button !== 'primary') {
       return `Clicked ${button} @${ref} (${x}, ${y})`;
     }

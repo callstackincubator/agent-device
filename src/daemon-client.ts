@@ -72,6 +72,17 @@ type DaemonMetadataState = {
   hasLock: boolean;
 };
 
+type DaemonStartupCleanupReason = 'start_error' | 'startup_timeout';
+
+type DaemonStartupCleanupResult = {
+  reason: DaemonStartupCleanupReason;
+  removedInfo: boolean;
+  removedLock: boolean;
+  stoppedInfoProcess: boolean;
+  stoppedLockProcess: boolean;
+  error?: string;
+};
+
 type DaemonClientSettings = {
   paths: DaemonPaths;
   transportPreference: DaemonTransportPreference;
@@ -475,8 +486,21 @@ async function ensureDaemon(settings: DaemonClientSettings): Promise<DaemonInfo>
   cleanupStaleDaemonLockIfSafe(settings.paths);
 
   let lockRecoveryCount = 0;
+  const cleanupResults: DaemonStartupCleanupResult[] = [];
+  let startError: string | undefined;
   for (let attempt = 1; attempt <= DAEMON_STARTUP_ATTEMPTS; attempt += 1) {
-    await startDaemon(settings);
+    try {
+      await startDaemon(settings);
+    } catch (error) {
+      startError = error instanceof Error ? error.message : String(error);
+      cleanupResults.push(await cleanupFailedDaemonStartupMetadata(settings.paths, 'start_error'));
+      if (attempt < DAEMON_STARTUP_ATTEMPTS) {
+        await sleep(150);
+        continue;
+      }
+      break;
+    }
+
     const started = await waitForDaemonInfo(DAEMON_STARTUP_TIMEOUT_MS, settings);
     if (started) return started;
 
@@ -487,13 +511,13 @@ async function ensureDaemon(settings: DaemonClientSettings): Promise<DaemonInfo>
 
     const metadataState = getDaemonMetadataState(settings.paths);
     const hasAnotherAttempt = attempt < DAEMON_STARTUP_ATTEMPTS;
+    cleanupResults.push(
+      await cleanupFailedDaemonStartupMetadata(settings.paths, 'startup_timeout'),
+    );
     if (!hasAnotherAttempt) break;
 
     // Detached daemon startup can race on busy CI hosts; retry when no metadata exists yet.
-    if (!metadataState.hasInfo && !metadataState.hasLock) {
-      await sleep(150);
-      continue;
-    }
+    if (!metadataState.hasInfo && !metadataState.hasLock) await sleep(150);
   }
 
   const state = getDaemonMetadataState(settings.paths);
@@ -504,6 +528,8 @@ async function ensureDaemon(settings: DaemonClientSettings): Promise<DaemonInfo>
     startupTimeoutMs: DAEMON_STARTUP_TIMEOUT_MS,
     startupAttempts: DAEMON_STARTUP_ATTEMPTS,
     lockRecoveryCount,
+    cleanupResults,
+    startError,
     metadataState: state,
     hint: resolveDaemonStartupHint(state, settings.paths),
   });
@@ -617,6 +643,67 @@ function cleanupStaleDaemonLockIfSafe(paths: DaemonPaths): void {
     return;
   }
   removeDaemonLock(paths.lockPath);
+}
+
+export async function cleanupFailedDaemonStartupMetadata(
+  paths: DaemonPaths,
+  reason: DaemonStartupCleanupReason,
+): Promise<DaemonStartupCleanupResult> {
+  const result: DaemonStartupCleanupResult = {
+    reason,
+    removedInfo: false,
+    removedLock: false,
+    stoppedInfoProcess: false,
+    stoppedLockProcess: false,
+  };
+
+  try {
+    const infoExists = fs.existsSync(paths.infoPath);
+    const info = readDaemonInfo(paths.infoPath);
+    if (info) {
+      const shouldStopInfoProcess = isAgentDeviceDaemonProcess(info.pid, info.processStartTime);
+      if (shouldStopInfoProcess) {
+        await stopDaemonProcessForTakeover(info);
+        result.stoppedInfoProcess = true;
+      }
+      removeDaemonInfo(paths.infoPath);
+      result.removedInfo = true;
+    } else if (infoExists) {
+      removeDaemonInfo(paths.infoPath);
+      result.removedInfo = true;
+    }
+
+    const lockExists = fs.existsSync(paths.lockPath);
+    const lockInfo = readDaemonLockInfo(paths.lockPath);
+    if (lockInfo) {
+      const shouldStopLockProcess = isAgentDeviceDaemonProcess(
+        lockInfo.pid,
+        lockInfo.processStartTime,
+      );
+      if (shouldStopLockProcess) {
+        await stopProcessForTakeover(lockInfo.pid, {
+          termTimeoutMs: DAEMON_TAKEOVER_TERM_TIMEOUT_MS,
+          killTimeoutMs: DAEMON_TAKEOVER_KILL_TIMEOUT_MS,
+          expectedStartTime: lockInfo.processStartTime,
+        });
+        result.stoppedLockProcess = true;
+      }
+      removeDaemonLock(paths.lockPath);
+      result.removedLock = true;
+    } else if (lockExists) {
+      removeDaemonLock(paths.lockPath);
+      result.removedLock = true;
+    }
+  } catch (error) {
+    result.error = error instanceof Error ? error.message : String(error);
+  }
+
+  emitDiagnostic({
+    level: result.error ? 'warn' : 'info',
+    phase: 'daemon_startup_metadata_cleanup',
+    data: result,
+  });
+  return result;
 }
 
 function getDaemonMetadataState(paths: DaemonPaths): DaemonMetadataState {
@@ -1412,10 +1499,10 @@ export function resolveDaemonStartupHint(
   ),
 ): string {
   if (state.hasLock && !state.hasInfo) {
-    return `Detected ${paths.lockPath} without ${paths.infoPath}. If no agent-device daemon process is running, delete ${paths.lockPath} and retry.`;
+    return `agent-device attempted to clean stale daemon metadata automatically, but ${paths.lockPath} still exists without ${paths.infoPath}. Retry with --debug; if this persists, remove ${paths.lockPath} after confirming no agent-device daemon process is running.`;
   }
   if (state.hasLock && state.hasInfo) {
-    return `Daemon metadata may be stale. If no agent-device daemon process is running, delete ${paths.infoPath} and ${paths.lockPath}, then retry.`;
+    return `agent-device attempted to clean stale daemon metadata automatically, but ${paths.infoPath} and ${paths.lockPath} still remain. Retry with --debug; if this persists, remove both files after confirming no agent-device daemon process is running.`;
   }
-  return `Daemon metadata is missing or stale. Delete ${paths.infoPath} if present and retry.`;
+  return `agent-device did not observe reachable daemon metadata after retrying. Stale metadata was cleaned automatically when safe; retry with --debug and check daemon diagnostics logs.`;
 }

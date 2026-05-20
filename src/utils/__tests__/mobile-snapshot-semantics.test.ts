@@ -352,3 +352,57 @@ test('mobile presentation infers hidden content from vertical scroll indicator v
   assert.equal(container?.hiddenContentAbove, true);
   assert.equal(container?.hiddenContentBelow, true);
 });
+
+test('mobile presentation does not let contradictory scroll indicator add hidden content below', () => {
+  const nodes: SnapshotNode[] = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'Window',
+      rect: { x: 0, y: 0, width: 402, height: 874 },
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'ScrollView',
+      label: 'List of chat messages',
+      rect: { x: 0, y: 135, width: 402, height: 617 },
+    },
+    {
+      ref: 'e3',
+      index: 2,
+      depth: 2,
+      parentIndex: 1,
+      type: 'Button',
+      label: 'Older message',
+      rect: { x: 0, y: -120, width: 402, height: 56 },
+    },
+    {
+      ref: 'e4',
+      index: 3,
+      depth: 2,
+      parentIndex: 1,
+      type: 'Button',
+      label: 'Latest visible message',
+      rect: { x: 0, y: 696, width: 402, height: 56 },
+    },
+    {
+      ref: 'e5',
+      index: 4,
+      depth: 2,
+      parentIndex: 1,
+      type: 'Other',
+      label: 'Vertical scroll bar, 3 pages',
+      value: '0%',
+      rect: { x: 369, y: 135, width: 30, height: 617 },
+    },
+  ];
+
+  const presentation = buildMobileSnapshotPresentation(nodes);
+  const container = presentation.nodes.find((node) => node.index === 1);
+  assert.equal(container?.hiddenContentAbove, true);
+  assert.equal(container?.hiddenContentBelow, undefined);
+});

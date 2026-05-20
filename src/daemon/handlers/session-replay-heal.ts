@@ -16,7 +16,7 @@ import {
 } from '../selectors.ts';
 import { inferFillText, uniqueStrings } from '../action-utils.ts';
 import type { SessionAction, SessionState } from '../types.ts';
-import { isClickLikeCommand } from '../../replay/script-utils.ts';
+import { isTouchTargetCommand } from '../../replay/script-utils.ts';
 import { contextFromFlags } from '../context.ts';
 import { SessionStore } from '../session-store.ts';
 
@@ -48,10 +48,11 @@ function collectReplaySelectorCandidates(action: SessionAction): string[] {
       : [];
   result.push(...explicitChain);
 
-  if (isClickLikeCommand(action.command)) {
-    const first = action.positionals?.[0] ?? '';
+  if (isTouchTargetCommand(action.command)) {
+    const positionals = readTargetSelectorPositionals(action);
+    const first = positionals[0] ?? '';
     if (first && !first.startsWith('@')) {
-      result.push(action.positionals.join(' '));
+      result.push(positionals.join(' '));
     }
   }
   if (action.command === 'fill') {
@@ -97,7 +98,9 @@ export async function healReplayAction(params: {
 }): Promise<SessionAction | null> {
   const { action, sessionName, logPath, sessionStore } = params;
   if (
-    !(isClickLikeCommand(action.command) || ['fill', 'get', 'is', 'wait'].includes(action.command))
+    !(
+      isTouchTargetCommand(action.command) || ['fill', 'get', 'is', 'wait'].includes(action.command)
+    )
   ) {
     return null;
   }
@@ -107,9 +110,9 @@ export async function healReplayAction(params: {
   const selectorChains = collectReplaySelectorChains(action);
   if (selectorChains.length === 0) return null;
 
-  const requiresRect = isClickLikeCommand(action.command) || action.command === 'fill';
+  const requiresRect = isTouchTargetCommand(action.command) || action.command === 'fill';
   const allowDisambiguation =
-    isClickLikeCommand(action.command) ||
+    isTouchTargetCommand(action.command) ||
     action.command === 'fill' ||
     (action.command === 'get' && action.positionals?.[0] === 'text');
   const snapshot = await captureSnapshotForReplay(
@@ -129,16 +132,19 @@ export async function healReplayAction(params: {
     if (!resolved) continue;
 
     const selectorChain = buildSelectorChainForNode(resolved.node, session.device.platform, {
-      action: isClickLikeCommand(action.command)
-        ? 'click'
-        : action.command === 'fill'
-          ? 'fill'
-          : 'get',
+      action:
+        action.command === 'fill' ? 'fill' : isTouchTargetCommand(action.command) ? 'click' : 'get',
     });
     const selectorExpression = selectorChain.join(' || ');
 
-    if (isClickLikeCommand(action.command)) {
-      return { ...action, positionals: [selectorExpression] };
+    if (isTouchTargetCommand(action.command)) {
+      return {
+        ...action,
+        positionals:
+          action.command === 'longpress'
+            ? withLongPressDuration(action, selectorExpression)
+            : [selectorExpression],
+      };
     }
     if (action.command === 'fill') {
       const fillText = inferFillText(action);
@@ -170,7 +176,33 @@ export async function healReplayAction(params: {
   return null;
 }
 
-// fallow-ignore-next-line complexity
+function readTargetSelectorPositionals(action: SessionAction): string[] {
+  const positionals = action.positionals ?? [];
+  if (action.command !== 'longpress') return positionals;
+  const last = positionals.at(-1);
+  return positionals.length > 1 && isFiniteNumberString(last)
+    ? positionals.slice(0, -1)
+    : positionals;
+}
+
+function withLongPressDuration(action: SessionAction, selectorExpression: string): string[] {
+  const durationMs =
+    typeof action.result?.durationMs === 'number'
+      ? String(action.result.durationMs)
+      : readLongPressDurationFromPositionals(action.positionals ?? []);
+  return durationMs ? [selectorExpression, durationMs] : [selectorExpression];
+}
+
+function readLongPressDurationFromPositionals(positionals: string[]): string | undefined {
+  const last = positionals.at(-1);
+  return positionals.length > 1 && isFiniteNumberString(last) ? last : undefined;
+}
+
+function isFiniteNumberString(value: string | undefined): boolean {
+  if (value === undefined || value.trim() === '') return false;
+  return Number.isFinite(Number(value));
+}
+
 async function captureSnapshotForReplay(
   session: SessionState,
   action: SessionAction,

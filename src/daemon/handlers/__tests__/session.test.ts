@@ -2482,6 +2482,53 @@ test('open --relaunch on iOS stops runner before close/open', async () => {
   expect(calls).toEqual(['stop-runner', 'close:com.example.app', 'open:com.example.app']);
 });
 
+test('open --relaunch includes timing and waits for iOS runner prewarm', async () => {
+  vi.useFakeTimers({ now: 1_000 });
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-timing-session';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'My iPhone',
+      kind: 'device',
+      booted: true,
+    }),
+    appName: 'Example',
+    appBundleId: 'com.example.app',
+  });
+
+  mockPrewarmIosRunnerSession.mockImplementation(
+    () => new Promise((resolve) => setTimeout(resolve, 250)),
+  );
+
+  const responsePromise = handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: [],
+      flags: { relaunch: true },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  await vi.advanceTimersByTimeAsync(250);
+  const response = await responsePromise;
+
+  expect(response?.ok).toBe(true);
+  expect((response as any).data?.timing).toMatchObject({
+    runnerPrewarmKind: 'session',
+    runnerPrewarmScheduled: true,
+    runnerPrewarmWaited: true,
+    runnerPrewarmDurationMs: 250,
+  });
+  expect((response as any).data?.timing?.totalDurationMs).toBeGreaterThanOrEqual(250);
+});
+
 test('open --relaunch on iOS without existing session closes then opens target app', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-new-session';

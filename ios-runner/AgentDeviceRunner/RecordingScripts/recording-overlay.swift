@@ -145,7 +145,13 @@ func run() throws {
     in: parentLayer
   )
 
-  guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
+  // Overlay burn-in forces a full re-encode; medium quality keeps simulator videos readable
+  // while avoiding very slow highest-quality exports.
+  let presetName = AVAssetExportSession.exportPresets(compatibleWith: composition)
+    .contains(AVAssetExportPresetMediumQuality)
+    ? AVAssetExportPresetMediumQuality
+    : AVAssetExportPresetHighestQuality
+  guard let exporter = AVAssetExportSession(asset: composition, presetName: presetName) else {
     throw OverlayError.exportFailed("Failed to create export session.")
   }
 

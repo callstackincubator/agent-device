@@ -7,6 +7,7 @@ import {
 import type {
   FillCommandResult,
   InteractionTarget,
+  LongPressCommandResult,
   PressCommandResult,
 } from '../../commands/index.ts';
 import { asAppError, normalizeError } from '../../utils/errors.ts';
@@ -30,10 +31,11 @@ import {
 } from './interaction-android-escape.ts';
 import { createInteractionRuntime } from './interaction-runtime.ts';
 import {
-  formatPressTargetLabel,
+  formatTouchTargetLabel,
   interactionResultExtra,
   parseFillTarget,
-  parsePressTarget,
+  parseLongPressTarget,
+  parseTouchTarget,
   stripAtPrefix,
 } from './interaction-touch-targets.ts';
 import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
@@ -53,8 +55,11 @@ export async function handleTouchInteractionCommands(
 ): Promise<DaemonResponse | null> {
   switch (params.req.command) {
     case 'press':
+      return await dispatchTargetedTouchViaRuntime(params, 'press');
     case 'click':
-      return await dispatchPressViaRuntime(params);
+      return await dispatchTargetedTouchViaRuntime(params, 'click');
+    case 'longpress':
+      return await dispatchTargetedTouchViaRuntime(params, 'longpress');
     case 'fill':
       return await dispatchFillViaRuntime(params);
     default:
@@ -63,29 +68,34 @@ export async function handleTouchInteractionCommands(
 }
 
 // fallow-ignore-next-line complexity
-async function dispatchPressViaRuntime(
+async function dispatchTargetedTouchViaRuntime(
   params: InteractionHandlerParams & {
     captureSnapshotForSession: CaptureSnapshotForSession;
     refSnapshotFlagGuardResponse: RefSnapshotFlagGuardResponse;
   },
+  command: TargetedTouchCommand,
 ): Promise<DaemonResponse> {
   const { req, sessionName, sessionStore } = params;
   const session = sessionStore.get(sessionName);
-  const commandLabel = req.command === 'click' ? 'click' : 'press';
   if (!session) return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
 
+  const commandLabel = command === 'click' ? 'click' : command;
+  const capabilityCommand = command === 'longpress' ? 'longpress' : 'press';
   const unsupportedSurfaceResponse = unsupportedMacOsDesktopSurfaceInteraction(
     session,
     commandLabel,
   );
   if (unsupportedSurfaceResponse) return unsupportedSurfaceResponse;
-  if (!isCommandSupportedOnDevice('press', session.device)) {
-    return errorResponse('UNSUPPORTED_OPERATION', 'press is not supported on this device');
+  if (!isCommandSupportedOnDevice(capabilityCommand, session.device)) {
+    return errorResponse(
+      'UNSUPPORTED_OPERATION',
+      `${capabilityCommand} is not supported on this device`,
+    );
   }
 
   const clickButton = resolveClickButton(req.flags);
   const resultButtonTag = buttonTag(clickButton);
-  if (clickButton !== 'primary') {
+  if (command !== 'longpress' && clickButton !== 'primary') {
     const validationError = getClickButtonValidationError({
       commandLabel,
       platform: session.device.platform,
@@ -101,11 +111,17 @@ async function dispatchPressViaRuntime(
     }
   }
 
-  const parsedTarget = parsePressTarget(req.positionals ?? [], commandLabel);
+  const parsedTarget =
+    command === 'longpress'
+      ? parseLongPressTarget(req.positionals ?? [])
+      : parseTouchTarget(req.positionals ?? [], commandLabel);
   if (!parsedTarget.ok) return parsedTarget.response;
   let androidFreshnessBaseline: SessionState['snapshot'];
   if (parsedTarget.target.kind === 'ref') {
-    const invalidRefFlagsResponse = params.refSnapshotFlagGuardResponse('press', req.flags);
+    const invalidRefFlagsResponse = params.refSnapshotFlagGuardResponse(
+      command === 'longpress' ? 'longpress' : 'press',
+      req.flags,
+    );
     if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
     androidFreshnessBaseline = await refreshAndroidRefSnapshotIfFreshnessActive(params, session);
   }
@@ -119,54 +135,116 @@ async function dispatchPressViaRuntime(
     const directResponse = await dispatchDirectIosSelectorTap(params, session, directSelector);
     if (directResponse) return directResponse;
   }
+  const durationMs = command === 'longpress' ? parsedTarget.durationMs : undefined;
 
   return await dispatchRuntimeInteraction(params, {
     androidFreshnessBaseline,
-    run: async (runtime) => {
-      const options = {
-        session: sessionName,
+    run: async (runtime) =>
+      await runTargetedTouchInteraction({
+        runtime,
+        command,
+        target: parsedTarget.target,
+        sessionName,
         requestId: req.meta?.requestId,
-        button: clickButton,
-        count: req.flags?.count,
-        intervalMs: req.flags?.intervalMs,
-        holdMs: req.flags?.holdMs,
-        jitterPx: req.flags?.jitterPx,
-        doubleTap: req.flags?.doubleTap,
-      };
-      return commandLabel === 'click'
-        ? await runtime.interactions.click(parsedTarget.target, options)
-        : await runtime.interactions.press(parsedTarget.target, options);
-    },
+        clickButton,
+        flags: req.flags,
+        durationMs,
+      }),
     afterRun: async (result) => {
       await assertAndroidPressStayedInApp(
         session,
-        formatPressTargetLabel(parsedTarget.target, result),
+        formatTouchTargetLabel(parsedTarget.target, result),
       );
     },
     buildPayloads: async (result) => {
-      const referenceFrame =
-        result.kind === 'point'
-          ? await resolveDirectTouchReferenceFrameSafely({
-              session,
-              flags: req.flags,
-              sessionStore,
-              contextFromFlags: params.contextFromFlags,
-              captureSnapshotForSession: params.captureSnapshotForSession,
-            })
-          : readSnapshotNodesReferenceFrame(session.snapshot?.nodes ?? []);
-      const responseData = buildTouchVisualizationResult({
-        data: result.backendResult,
-        fallbackX: result.point.x,
-        fallbackY: result.point.y,
-        referenceFrame,
-        extra: {
-          ...interactionResultExtra(result),
-          ...resultButtonTag,
-        },
+      const durationMs = readLongPressResultDuration(result);
+      const responseData = await buildTargetedTouchResponseData({
+        params,
+        session,
+        result,
+        extra:
+          command === 'longpress'
+            ? {
+                ...(durationMs !== undefined ? { durationMs } : {}),
+                gesture: 'longpress',
+              }
+            : resultButtonTag,
       });
       return { result: responseData, responseData };
     },
   });
+}
+
+type TargetedTouchCommand = 'press' | 'click' | 'longpress';
+type TargetedTouchResult = PressCommandResult | LongPressCommandResult;
+
+async function runTargetedTouchInteraction(params: {
+  runtime: ReturnType<typeof createInteractionRuntime>;
+  command: TargetedTouchCommand;
+  target: InteractionTarget;
+  sessionName: string;
+  requestId: string | undefined;
+  clickButton: ReturnType<typeof resolveClickButton>;
+  flags: CommandFlags | undefined;
+  durationMs?: number;
+}): Promise<TargetedTouchResult> {
+  const { runtime, command, target, sessionName, requestId, flags } = params;
+  if (command === 'longpress') {
+    return await runtime.interactions.longPress(target, {
+      session: sessionName,
+      requestId,
+      durationMs: params.durationMs,
+    });
+  }
+
+  const options = {
+    session: sessionName,
+    requestId,
+    button: params.clickButton,
+    count: flags?.count,
+    intervalMs: flags?.intervalMs,
+    holdMs: flags?.holdMs,
+    jitterPx: flags?.jitterPx,
+    doubleTap: flags?.doubleTap,
+  };
+  return command === 'click'
+    ? await runtime.interactions.click(target, options)
+    : await runtime.interactions.press(target, options);
+}
+
+async function buildTargetedTouchResponseData(params: {
+  params: InteractionHandlerParams & {
+    captureSnapshotForSession: CaptureSnapshotForSession;
+  };
+  session: SessionState;
+  result: TargetedTouchResult;
+  extra: Record<string, unknown>;
+}): Promise<Record<string, unknown>> {
+  const { params: handlerParams, session, result, extra } = params;
+  const referenceFrame =
+    result.kind === 'point'
+      ? await resolveDirectTouchReferenceFrameSafely({
+          session,
+          flags: handlerParams.req.flags,
+          sessionStore: handlerParams.sessionStore,
+          contextFromFlags: handlerParams.contextFromFlags,
+          captureSnapshotForSession: handlerParams.captureSnapshotForSession,
+        })
+      : readSnapshotNodesReferenceFrame(session.snapshot?.nodes ?? []);
+  return buildTouchVisualizationResult({
+    data: result.backendResult,
+    fallbackX: result.point.x,
+    fallbackY: result.point.y,
+    referenceFrame,
+    extra: {
+      ...interactionResultExtra(result),
+      ...extra,
+    },
+  });
+}
+
+function readLongPressResultDuration(result: TargetedTouchResult): number | undefined {
+  return 'durationMs' in result ? result.durationMs : undefined;
 }
 
 function readDirectIosSelectorTapTarget(params: {
@@ -329,7 +407,9 @@ async function dispatchFillViaRuntime(
   });
 }
 
-async function dispatchRuntimeInteraction<TResult extends PressCommandResult | FillCommandResult>(
+async function dispatchRuntimeInteraction<
+  TResult extends PressCommandResult | FillCommandResult | LongPressCommandResult,
+>(
   params: InteractionHandlerParams & {
     captureSnapshotForSession: CaptureSnapshotForSession;
   },

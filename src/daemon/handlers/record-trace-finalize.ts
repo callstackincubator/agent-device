@@ -1,6 +1,7 @@
 import { persistRecordingTelemetry } from '../recording-telemetry.ts';
 import { getRecordingOverlaySupportWarning } from '../../recording/overlay.ts';
 import { formatRecordTraceError } from '../record-trace-errors.ts';
+import { emitDiagnostic, withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import type { RecordTraceDeps } from './record-trace-types.ts';
 
 type FinalizeRecordingOverlayParams = {
@@ -26,20 +27,45 @@ export async function finalizeRecordingOverlay(
     trimStartMs,
   });
 
-  if (recording.showTouches) {
-    const overlaySupportWarning = getRecordingOverlaySupportWarning();
-    if (overlaySupportWarning) {
-      recording.overlayWarning ??= overlaySupportWarning;
-    } else {
-      try {
-        await deps.overlayRecordingTouches({
+  if (!recording.showTouches) {
+    emitDiagnostic({
+      level: 'debug',
+      phase: 'record_stop_overlay_skipped',
+      data: { reason: 'hide_touches' },
+    });
+    return;
+  }
+
+  if (recording.gestureEvents.length === 0) {
+    emitDiagnostic({
+      level: 'debug',
+      phase: 'record_stop_overlay_skipped',
+      data: { reason: 'no_gesture_events' },
+    });
+    return;
+  }
+
+  const overlaySupportWarning = getRecordingOverlaySupportWarning();
+  if (overlaySupportWarning) {
+    recording.overlayWarning ??= overlaySupportWarning;
+    return;
+  }
+
+  try {
+    await withDiagnosticTimer(
+      'record_stop_overlay_export',
+      () =>
+        deps.overlayRecordingTouches({
           videoPath: recording.outPath,
           telemetryPath,
           targetLabel,
-        });
-      } catch (error) {
-        recording.overlayWarning ??= `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
-      }
-    }
+        }),
+      {
+        targetLabel,
+        gestureEventCount: recording.gestureEvents.length,
+      },
+    );
+  } catch (error) {
+    recording.overlayWarning ??= `failed to overlay recording touches: ${formatRecordTraceError(error)}`;
   }
 }

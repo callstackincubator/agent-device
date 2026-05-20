@@ -731,13 +731,13 @@ test('parseArgs accepts rotate orientation aliases', () => {
 test('usageForCommand resolves longpress help', () => {
   const help = usageForCommand('longpress');
   assert.equal(help === null, false);
-  assert.match(help ?? '', /agent-device longpress <x> <y> \[durationMs\]/);
+  assert.match(help ?? '', /agent-device longpress <x y\|@ref\|selector> \[durationMs\]/);
 });
 
 test('usageForCommand supports legacy long-press alias', () => {
   const help = usageForCommand('long-press');
   assert.equal(help === null, false);
-  assert.match(help ?? '', /agent-device longpress <x> <y> \[durationMs\]/);
+  assert.match(help ?? '', /agent-device longpress <x y\|@ref\|selector> \[durationMs\]/);
   assert.doesNotMatch(help ?? '', /agent-device long-press/);
 });
 
@@ -814,7 +814,10 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Agent Quickstart:/);
   assert.match(usageText, /Default loop: devices\/apps -> open -> snapshot -i/);
   assert.match(usageText, /Use selectors or refs as positional targets/);
-  assert.match(usageText, /Plain snapshot reads state; snapshot -i is required/);
+  assert.match(
+    usageText,
+    /Plain snapshot reads state; snapshot -i refreshes current interactive refs only/,
+  );
   assert.match(usageText, /agent-facing, token-efficient view for planning and targeting actions/);
   assert.match(usageText, /Truncated text\/input preview: expand first with snapshot -s @e12/);
   assert.match(usageText, /React Native apps: read help react-native/);
@@ -827,7 +830,8 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Android IME capture: if fill says input was captured/);
   assert.match(usageText, /Run mutating commands serially against one session/);
   assert.match(usageText, /run session list and reuse the active session name/);
-  assert.match(usageText, /After mutation: diff snapshot -i/);
+  assert.match(usageText, /After mutation: refs are stale/);
+  assert.match(usageText, /use its selector directly; otherwise refresh with snapshot -i/);
   assert.match(usageText, /app-owned back uses back/);
   assert.match(usageText, /logs clear --restart\/mark\/path/);
   assert.match(usageText, /trace start \.\/path; trace stop \.\/path/);
@@ -902,6 +906,7 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /report that gap instead of typing\/searching\/navigating/);
   assert.match(help, /App-owned action sheets, menus, and camera\/scan screens are normal UI/);
   assert.match(help, /wait for a concrete result before returning to chat\/form state/);
+  assert.match(help, /longpress accepts coordinates, @refs, or selectors/);
   assert.match(help, /use help react-native for Metro\/Fast Refresh/);
   assert.match(help, /iOS Allow Paste prompt cannot be exercised under XCUITest/);
   assert.match(help, /Empty replacement is not a supported clear-field command/);
@@ -1043,6 +1048,10 @@ test('usageForCommand resolves react-native help topic', () => {
   assert.match(help, /logs clear --restart/);
   assert.match(help, /network dump --include headers/);
   assert.match(help, /React Native warning\/error overlays belong to the app run/);
+  assert.match(help, /small X icon/);
+  assert.match(help, /not the warning\/error text body/);
+  assert.match(help, /compact chip\/banner ref/);
+  assert.match(help, /not press a full-screen warning parent\/body/);
   assert.match(help, /Android runtime permission dialogs and native alerts are handled by alert/);
   assert.match(help, /snapshot times out because the UI never becomes idle/);
   assert.match(help, /Report React render offenders separately/);
@@ -1316,6 +1325,7 @@ test('command usage shows record touch-overlay opt-out flag', () => {
   );
   assert.match(help, /--quality <5-10>/);
   assert.match(help, /--hide-touches/);
+  assert.match(help, /skip touch-overlay post-processing/);
 });
 
 test('command usage keeps detailed descriptions', () => {
