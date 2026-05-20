@@ -210,7 +210,7 @@ test('Provider-backed integration Android alert wait polls until a dialog appear
         ...world.selection,
       });
       assert.equal(alertWait.kind, 'alertWait');
-      assert.equal((alertWait.alert as { source?: string })?.source, 'permission');
+      assert.equal(alertWait.alert?.source, 'permission');
       assert.ok(snapshotCount >= 2);
     },
   );

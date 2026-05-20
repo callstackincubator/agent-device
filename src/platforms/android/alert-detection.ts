@@ -1,4 +1,5 @@
 import { centerOfRect, type RawSnapshotNode } from '../../utils/snapshot.ts';
+import type { AlertInfo, AlertSource } from '../../alert-contract.ts';
 
 type AndroidAlertButtonRole = 'accept' | 'dismiss' | 'neutral';
 
@@ -9,12 +10,12 @@ export type AndroidAlertButton = {
   role: AndroidAlertButtonRole;
 };
 
-export type AndroidAlertInfo = {
-  title?: string;
-  message?: string;
+type AndroidAlertSource = Extract<AlertSource, 'permission' | 'native-dialog' | 'system-dialog'>;
+
+export type AndroidAlertInfo = AlertInfo & {
   buttons: string[];
   platform: 'android';
-  source: 'permission' | 'native-dialog' | 'system-dialog';
+  source: AndroidAlertSource;
   packageName?: string;
 };
 

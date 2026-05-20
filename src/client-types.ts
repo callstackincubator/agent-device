@@ -24,10 +24,12 @@ import type {
 import type { MetroBridgeScope } from './client-companion-tunnel-contract.ts';
 import type { AppsFilter } from './commands/app-inventory-contract.ts';
 import type { ScreenshotRequestFlags } from './commands/capture-screenshot-options.ts';
+import type { AlertInfo } from './alert-contract.ts';
 
 export type { FindLocator } from './utils/finders.ts';
 export type { CompanionTunnelScope, MetroBridgeScope } from './client-companion-tunnel-contract.ts';
 export type { AppsFilter } from './commands/app-inventory-contract.ts';
+export type { AlertInfo, AlertPlatform, AlertSource } from './alert-contract.ts';
 
 type DaemonTransportMode = 'auto' | 'socket' | 'http';
 type DaemonServerMode = 'socket' | 'http' | 'dual';
@@ -404,7 +406,19 @@ export type WaitCommandResult = DaemonResponseData & {
   selector?: string;
 };
 
-export type AlertCommandResult = DaemonResponseData;
+export type AlertCommandResult = DaemonResponseData & {
+  kind?: 'alertStatus' | 'alertHandled' | 'alertWait';
+  action?: AlertCommandOptions['action'];
+  alert?: AlertInfo | null;
+  handled?: boolean;
+  button?: string;
+  waitedMs?: number;
+  timedOut?: boolean;
+  platform?: AlertInfo['platform'];
+  accepted?: boolean;
+  dismissed?: boolean;
+  items?: string[];
+};
 
 type CommandActionResult<T extends string> = DaemonResponseData & {
   action?: T;
