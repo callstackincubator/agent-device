@@ -31,6 +31,7 @@ export type {
   AgentDeviceSelectionOptions,
   AgentDeviceSession,
   AgentDeviceSessionDevice,
+  AlertAction,
   AlertCommandOptions,
   AlertInfo,
   AlertPlatform,

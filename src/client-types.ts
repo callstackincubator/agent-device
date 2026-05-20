@@ -29,7 +29,7 @@ import type { AlertInfo } from './alert-contract.ts';
 export type { FindLocator } from './utils/finders.ts';
 export type { CompanionTunnelScope, MetroBridgeScope } from './client-companion-tunnel-contract.ts';
 export type { AppsFilter } from './commands/app-inventory-contract.ts';
-export type { AlertInfo, AlertPlatform, AlertSource } from './alert-contract.ts';
+export type { AlertAction, AlertInfo, AlertPlatform, AlertSource } from './alert-contract.ts';
 
 type DaemonTransportMode = 'auto' | 'socket' | 'http';
 type DaemonServerMode = 'socket' | 'http' | 'dual';

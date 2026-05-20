@@ -1,7 +1,9 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import type { AlertAction } from '../../alert-contract.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
+import { handleAndroidAlert } from '../../platforms/android/alert.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
@@ -13,7 +15,6 @@ import {
   POLL_INTERVAL_MS,
 } from './parse-utils.ts';
 import { errorResponse } from './response.ts';
-import { handleAndroidAlertCommand } from './snapshot-alert-android.ts';
 
 type HandleAlertCommandParams = {
   req: DaemonRequest;
@@ -23,7 +24,7 @@ type HandleAlertCommandParams = {
   device: SessionState['device'];
 };
 
-type NativeAlertAction = 'get' | 'accept' | 'dismiss';
+type NativeAlertAction = Exclude<AlertAction, 'wait'>;
 type NativeAlertRunner = (action: NativeAlertAction) => Promise<unknown>;
 
 const ALERT_FALLBACK_HINT =
@@ -32,8 +33,8 @@ const ALERT_FALLBACK_HINT =
 export async function handleAlertCommand(
   params: HandleAlertCommandParams,
 ): Promise<DaemonResponse> {
-  const { req, logPath, sessionStore, session, device } = params;
-  const action = (req.positionals?.[0] ?? 'get').toLowerCase();
+  const { req, logPath, session, device } = params;
+  const action = normalizeAlertAction(req.positionals?.[0]);
   const macOsAlertTarget = (() => {
     if (!session) return {};
     if (session.surface === 'frontmost-app') {
@@ -48,14 +49,13 @@ export async function handleAlertCommand(
     return errorResponse('UNSUPPORTED_OPERATION', 'alert is not supported on this device');
   }
   if (device.platform === 'android') {
-    return await handleAndroidAlertCommand({
-      req,
-      logPath,
-      sessionStore,
-      session,
-      device,
-      action,
-    });
+    const timeoutMs = parseTimeout(req.positionals?.[1]) ?? DEFAULT_TIMEOUT_MS;
+    return recordAlertResponse(
+      params,
+      await handleAndroidAlert(device, action, {
+        timeoutMs,
+      }),
+    );
   }
   if (device.platform === 'macos') {
     const runAlert: NativeAlertRunner = async (alertAction) =>
@@ -80,7 +80,7 @@ export async function handleAlertCommand(
 
 async function handleNativeAlertCommand(
   params: HandleAlertCommandParams,
-  action: string,
+  action: AlertAction,
   runAlert: NativeAlertRunner,
 ): Promise<DaemonResponse> {
   if (action === 'wait') {
@@ -93,6 +93,11 @@ async function handleNativeAlertCommand(
   }
 
   return recordAlertResponse(params, await runAlert('get'));
+}
+
+function normalizeAlertAction(action: string | undefined): AlertAction {
+  if (action === 'accept' || action === 'dismiss' || action === 'wait') return action;
+  return 'get';
 }
 
 async function waitForNativeAlert(

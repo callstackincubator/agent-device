@@ -1,6 +1,8 @@
-export const POLL_INTERVAL_MS = 300;
-export const DEFAULT_TIMEOUT_MS = 10_000;
-export const ALERT_ACTION_RETRY_MS = 2_000;
+export {
+  ALERT_ACTION_RETRY_MS,
+  ALERT_POLL_INTERVAL_MS as POLL_INTERVAL_MS,
+  DEFAULT_ALERT_TIMEOUT_MS as DEFAULT_TIMEOUT_MS,
+} from '../../alert-contract.ts';
 
 export function parseTimeout(value: string | undefined): number | null {
   if (!value) return null;
