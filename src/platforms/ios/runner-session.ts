@@ -464,6 +464,19 @@ export async function executeRunnerCommandWithSession(
       { command: command.command, sessionReady: session.ready, timeoutMs: readinessTimeoutMs },
     );
     await parseRunnerResponse(readinessResponse, session, logPath);
+  } else {
+    emitDiagnostic({
+      level: 'debug',
+      phase: 'ios_runner_readiness_preflight_skipped',
+      data: {
+        command: command.command,
+        lastSuccessfulRunnerResponseAgeMs:
+          session.lastSuccessfulRunnerResponseAtMs === undefined
+            ? undefined
+            : Date.now() - session.lastSuccessfulRunnerResponseAtMs,
+        sessionReady: session.ready,
+      },
+    });
   }
   const remainingMs = deadline.remainingMs();
   if (remainingMs <= 0) {
