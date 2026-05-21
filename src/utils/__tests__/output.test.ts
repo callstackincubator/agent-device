@@ -460,10 +460,12 @@ test('formatSnapshotText collapses Android helper nodes in agent-facing output',
   assert.match(text, /@e3 \[button\] "alice@example\.com"/);
   assert.doesNotMatch(text, /@e4 \[button\] "alice@example\.com"/);
   assert.doesNotMatch(text, /Invisible stale action/);
-  assert.match(text, /@e8 \[group\] "Dashboard" \[likely navigation\]/);
-  assert.match(text, /@e10 \[group\] "Messages\. Your review is required" \[likely navigation\]/);
-  assert.match(text, /@e12 \[group\] "Billing" \[likely navigation\]/);
-  assert.match(text, /@e14 \[group\] "Profile, My settings\." \[likely navigation\]/);
+  assert.match(text, /@e8 \[group\] "Dashboard"/);
+  assert.match(text, /@e10 \[group\] "Messages\. Your review is required"/);
+  assert.match(text, /@e12 \[group\] "Billing"/);
+  assert.match(text, /@e14 \[group\] "Profile, My settings\."/);
+  assert.doesNotMatch(text, /@e11 \[text\] "Messages"/);
+  assert.doesNotMatch(text, /@e15 \[text\] "Profile"/);
   assert.doesNotMatch(text, /possible repeated nav subtree/);
 
   const raw = withNoColor(() =>
@@ -478,6 +480,80 @@ test('formatSnapshotText collapses Android helper nodes in agent-facing output',
   );
   assert.match(raw, /"Invisible stale action"/);
   assert.match(raw, /"Messages\. Your review is required"/);
+});
+
+test('formatSnapshotText promotes Android helper unlabeled action rows', () => {
+  const nodes = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'android.widget.FrameLayout',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.widget.LinearLayout',
+      rect: { x: 0, y: 160, width: 390, height: 72 },
+      hittable: true,
+    },
+    {
+      ref: 'e3',
+      index: 2,
+      depth: 2,
+      parentIndex: 1,
+      type: 'android.widget.ImageView',
+      rect: { x: 24, y: 176, width: 32, height: 32 },
+    },
+    {
+      ref: 'e4',
+      index: 3,
+      depth: 2,
+      parentIndex: 1,
+      type: 'android.widget.TextView',
+      label: 'Network & internet',
+      rect: { x: 72, y: 168, width: 260, height: 28 },
+    },
+    {
+      ref: 'e5',
+      index: 4,
+      depth: 2,
+      parentIndex: 1,
+      type: 'android.widget.TextView',
+      label: 'Mobile, Wi-Fi, hotspot',
+      rect: { x: 72, y: 198, width: 260, height: 24 },
+    },
+  ];
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes,
+      truncated: false,
+      androidSnapshot: { backend: 'android-helper' },
+    }),
+  );
+
+  assert.match(text, /Snapshot: 2 visible nodes \(5 total\)/);
+  assert.match(text, /Collapsed 3 Android helper nodes from the agent-facing text snapshot/);
+  assert.match(text, /@e2 \[group\] "Network & internet, Mobile, Wi-Fi, hotspot"/);
+  assert.doesNotMatch(text, /@e4 \[text\] "Network & internet"/);
+  assert.doesNotMatch(text, /@e5 \[text\] "Mobile, Wi-Fi, hotspot"/);
+
+  const raw = withNoColor(() =>
+    formatSnapshotText(
+      {
+        nodes,
+        truncated: false,
+        androidSnapshot: { backend: 'android-helper' },
+      },
+      { raw: true },
+    ),
+  );
+  assert.match(raw, /"ref":"e4"/);
+  assert.match(raw, /"Network & internet"/);
+  assert.match(raw, /"Mobile, Wi-Fi, hotspot"/);
 });
 
 test('formatSnapshotText collapses adjacent React Native row noise in Android helper output', () => {
@@ -586,13 +662,14 @@ test('formatSnapshotText collapses adjacent React Native row noise in Android he
     }),
   );
 
-  assert.match(text, /Snapshot: 8 visible nodes \(10 total\)/);
-  assert.match(text, /Collapsed 2 Android helper nodes from the agent-facing text snapshot/);
-  assert.match(text, /@e5 \[button\] "Adam" \[has image\]/);
-  assert.match(text, /@e7 \[button\] "Hello from Adam"/);
+  assert.match(text, /Snapshot: 6 visible nodes \(10 total\)/);
+  assert.match(text, /Collapsed 4 Android helper nodes from the agent-facing text snapshot/);
+  assert.match(text, /@e3 \[button\] "Adam, 9:41 AM, Hello from Adam"/);
   assert.doesNotMatch(text, /\[also text\]/);
   assert.doesNotMatch(text, /@e4 \[image\] "Adam"/);
+  assert.doesNotMatch(text, /@e5 \[button\] "Adam"/);
   assert.doesNotMatch(text, /@e6 \[text\] "Hello from Adam"/);
+  assert.doesNotMatch(text, /@e7 \[button\] "Hello from Adam"/);
   assert.match(text, /@e8 \[text-field\] "Write a message\.\.\." \[editable\]/);
   assert.match(text, /@e9 \[button\] "Send"/);
   assert.match(text, /@e10 \[button\] "Create expense"/);
@@ -609,6 +686,176 @@ test('formatSnapshotText collapses adjacent React Native row noise in Android he
   );
   assert.match(raw, /"ref":"e5"/);
   assert.match(raw, /"ref":"e7"/);
+});
+
+test('formatSnapshotText keeps single repeated child control in Android helper output', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        {
+          ref: 'e1',
+          index: 0,
+          depth: 0,
+          type: 'android.widget.FrameLayout',
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          ref: 'e2',
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'android.widget.Button',
+          label: 'Send message',
+          rect: { x: 16, y: 700, width: 358, height: 56 },
+          hittable: true,
+        },
+        {
+          ref: 'e3',
+          index: 2,
+          depth: 2,
+          parentIndex: 1,
+          type: 'android.widget.Button',
+          label: 'Send',
+          rect: { x: 290, y: 708, width: 64, height: 40 },
+          hittable: true,
+        },
+      ],
+      truncated: false,
+      androidSnapshot: { backend: 'android-helper' },
+    }),
+  );
+
+  assert.match(text, /Snapshot: 3 nodes/);
+  assert.doesNotMatch(text, /Collapsed \d+ Android helper node/);
+  assert.match(text, /@e2 \[button\] "Send message"/);
+  assert.match(text, /@e3 \[button\] "Send"/);
+});
+
+test('formatSnapshotText labels Android helper action rows with trailing child controls', () => {
+  const nodes = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'android.widget.FrameLayout',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.view.ViewGroup',
+      identifier: 'com.google.android.youtube:id/linearLayout',
+      rect: { x: 0, y: 120, width: 390, height: 48 },
+      hittable: true,
+    },
+    {
+      ref: 'e3',
+      index: 2,
+      depth: 2,
+      parentIndex: 1,
+      type: 'android.widget.ImageView',
+      rect: { x: 4, y: 132, width: 40, height: 24 },
+    },
+    {
+      ref: 'e4',
+      index: 3,
+      depth: 2,
+      parentIndex: 1,
+      type: 'android.widget.TextView',
+      label: 'lofi hip hop',
+      rect: { x: 52, y: 132, width: 260, height: 24 },
+    },
+    {
+      ref: 'e5',
+      index: 4,
+      depth: 2,
+      parentIndex: 1,
+      type: 'android.widget.ImageView',
+      label: 'Edit suggestion lofi hip hop',
+      rect: { x: 330, y: 120, width: 48, height: 48 },
+      hittable: true,
+    },
+  ];
+
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes,
+      truncated: false,
+      androidSnapshot: { backend: 'android-helper' },
+    }),
+  );
+
+  assert.match(text, /Snapshot: 3 visible nodes \(5 total\)/);
+  assert.match(text, /@e2 \[group\] "lofi hip hop"/);
+  assert.doesNotMatch(text, /@e4 \[text\] "lofi hip hop"/);
+  assert.match(text, /@e5 \[image\] "Edit suggestion lofi hip hop"/);
+});
+
+test('formatSnapshotText hides Android helper rectless offscreen rows and derives above hints', () => {
+  const nodes = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'android.widget.FrameLayout',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.widget.ScrollView',
+      rect: { x: 0, y: 120, width: 390, height: 640 },
+      hiddenContentBelow: true,
+    },
+    {
+      ref: 'e3',
+      index: 2,
+      depth: 2,
+      parentIndex: 1,
+      type: 'android.widget.Button',
+      label: 'Save Citrus Starter Kit',
+      hittable: true,
+    },
+    {
+      ref: 'e4',
+      index: 3,
+      depth: 2,
+      parentIndex: 1,
+      type: 'android.widget.Button',
+      label: 'View details',
+      identifier: 'details-pretzel-bites',
+      rect: { x: 24, y: 180, width: 342, height: 48 },
+      hittable: true,
+    },
+    {
+      ref: 'e5',
+      index: 4,
+      depth: 3,
+      parentIndex: 3,
+      type: 'android.widget.TextView',
+      label: 'View details',
+      rect: { x: 140, y: 192, width: 110, height: 24 },
+    },
+  ];
+
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes,
+      truncated: false,
+      androidSnapshot: { backend: 'android-helper' },
+    }),
+  );
+
+  assert.match(text, /Snapshot: 3 visible nodes \(5 total\)/);
+  assert.match(text, /\[content above scroll-area hidden\]/);
+  assert.match(text, /\[content below scroll-area hidden\]/);
+  assert.doesNotMatch(text, /Save Citrus Starter Kit/);
+  assert.match(text, /@e4 \[button\] "View details"/);
+  assert.doesNotMatch(text, /@e5 \[text\] "View details"/);
 });
 
 test('formatSnapshotText keeps ordinary repeated labels on separate rows', () => {
@@ -687,6 +934,63 @@ test('formatSnapshotText renders explicit hidden scroll-area content hints', () 
   assert.match(text, /^  @e2 \[scroll-area\] "Messages" \[scrollable\]$/m);
   assert.match(text, /^    \[content above scroll-area hidden\]$/m);
   assert.match(text, /^    \[content below scroll-area hidden\]$/m);
+  assert.ok(
+    text.indexOf('[content above scroll-area hidden]') < text.indexOf('@e3 [button]'),
+    'above hint should appear before visible scroll-area content',
+  );
+  assert.ok(
+    text.indexOf('@e3 [button]') < text.indexOf('[content below scroll-area hidden]'),
+    'below hint should appear after visible scroll-area content',
+  );
+});
+
+test('formatSnapshotText keeps below scroll hints at the bottom when depth is flattened', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        {
+          ref: 'e1',
+          index: 0,
+          depth: 0,
+          type: 'Window',
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          ref: 'e2',
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'android.widget.ScrollView',
+          label: 'Catalog',
+          rect: { x: 0, y: 120, width: 390, height: 500 },
+          hiddenContentAbove: true,
+          hiddenContentBelow: true,
+        },
+        {
+          ref: 'e3',
+          index: 2,
+          depth: 1,
+          parentIndex: 1,
+          type: 'android.widget.Button',
+          label: 'Visible product',
+          rect: { x: 20, y: 240, width: 350, height: 48 },
+          hittable: true,
+        },
+      ],
+      truncated: false,
+    }),
+  );
+
+  assert.match(text, /^  @e2 \[scroll-area\] "Catalog" \[scrollable\]$/m);
+  assert.match(text, /^  @e3 \[button\] "Visible product"$/m);
+  assert.ok(
+    text.indexOf('[content above scroll-area hidden]') < text.indexOf('@e3 [button]'),
+    'above hint should stay at the top of the scroll-area',
+  );
+  assert.ok(
+    text.indexOf('@e3 [button]') < text.indexOf('[content below scroll-area hidden]'),
+    'below hint should stay at the bottom of the scroll-area',
+  );
 });
 
 test('formatSnapshotText prefers payload visibility metadata for partial snapshot headers', () => {

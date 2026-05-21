@@ -632,25 +632,62 @@ function readSnapshotWarnings(data: Record<string, unknown>): string[] {
   );
 }
 
+type SnapshotDisplayLine = ReturnType<typeof buildSnapshotDisplayLines>[number];
+
 function renderSnapshotDisplayLines(lines: ReturnType<typeof buildSnapshotDisplayLines>): string[] {
   const output: string[] = [];
-  const pendingBelow: ReturnType<typeof buildSnapshotDisplayLines> = [];
-  const flushClosedBelowHints = (nextDepth: number) => {
-    while (pendingBelow.length > 0 && nextDepth <= pendingBelow[pendingBelow.length - 1]!.depth) {
+  const pendingBelow: SnapshotDisplayLine[] = [];
+  const lineNodesByIndex = new Map(lines.map((line) => [line.node.index, line.node]));
+  const flushClosedBelowHints = (nextLine?: SnapshotDisplayLine) => {
+    while (
+      pendingBelow.length > 0 &&
+      (!nextLine ||
+        isOutsideHiddenContentContainer(
+          nextLine,
+          pendingBelow[pendingBelow.length - 1]!,
+          lineNodesByIndex,
+        ))
+    ) {
       output.push(...readHiddenContentHintLines(pendingBelow.pop()!, 'below'));
     }
   };
 
   for (const line of lines) {
-    flushClosedBelowHints(line.depth);
+    flushClosedBelowHints(line);
     output.push(line.text);
     output.push(...readHiddenContentHintLines(line, 'above'));
     if (line.node.hiddenContentBelow) {
       pendingBelow.push(line);
     }
   }
-  flushClosedBelowHints(0);
+  flushClosedBelowHints();
   return output;
+}
+
+function isOutsideHiddenContentContainer(
+  line: SnapshotDisplayLine,
+  containerLine: SnapshotDisplayLine,
+  lineNodesByIndex: Map<number, SnapshotNode>,
+): boolean {
+  if (isDescendantOfRenderedLine(line.node, containerLine.node, lineNodesByIndex)) {
+    return false;
+  }
+  return line.depth <= containerLine.depth;
+}
+
+function isDescendantOfRenderedLine(
+  node: SnapshotNode,
+  ancestor: SnapshotNode,
+  lineNodesByIndex: Map<number, SnapshotNode>,
+): boolean {
+  let current = node;
+  while (typeof current.parentIndex === 'number') {
+    if (current.parentIndex === ancestor.index) return true;
+    const parent = lineNodesByIndex.get(current.parentIndex);
+    if (!parent) return false;
+    current = parent;
+  }
+  return false;
 }
 
 function buildFlattenedSnapshotDisplayLines(nodes: SnapshotNode[]): string[] {
@@ -662,7 +699,7 @@ function buildFlattenedSnapshotDisplayLines(nodes: SnapshotNode[]): string[] {
 }
 
 function readHiddenContentHintLines(
-  line: ReturnType<typeof buildSnapshotDisplayLines>[number],
+  line: SnapshotDisplayLine,
   direction?: 'above' | 'below',
 ): string[] {
   const target = hintTargetLabel(line.type);

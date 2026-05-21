@@ -8,11 +8,9 @@ import {
   type SnapshotState,
 } from '../utils/snapshot.ts';
 import { decodePng } from '../utils/png.ts';
-import {
-  findNearestHittableAncestor,
-  normalizeType,
-  resolveRefLabel,
-} from './snapshot-processing.ts';
+import { findNearestAncestor, normalizeType } from './snapshot-processing.ts';
+import { resolveAndroidOverlaySourceRect } from './screenshot-overlay-android.ts';
+import { hasPositiveRect, rectArea, rectContains } from './screenshot-overlay-rects.ts';
 
 const MAX_OVERLAY_REFS = 24;
 const BORDER_COLOR = [255, 59, 48, 255] as const;
@@ -25,6 +23,26 @@ const BADGE_PADDING_X = 3;
 const BADGE_PADDING_Y = 2;
 const BADGE_MARGIN = 2;
 const BORDER_THICKNESS = 2;
+const ANDROID_UNLABELED_CLICKABLE_EXCLUDED_TYPES = [
+  'scroll',
+  'list',
+  'recyclerview',
+  'edittext',
+  'textfield',
+] as const;
+const ACTIONABLE_ROLE_TYPES = [
+  'button',
+  'link',
+  'menu',
+  'tab',
+  'textfield',
+  'searchfield',
+  'securetextfield',
+  'checkbox',
+  'radio',
+  'switch',
+  'cell',
+] as const;
 
 const FONT: Record<string, readonly string[]> = {
   e: ['01110', '10000', '11110', '10000', '10000', '10001', '01110'],
@@ -73,14 +91,16 @@ export function buildScreenshotOverlayRefs(
   const snapshotBounds = resolveSnapshotBounds(snapshot.nodes);
   const candidatesByRef = new Map<string, OverlayCandidate>();
   for (const node of snapshot.nodes) {
-    if (!isOverlaySourceNode(node)) continue;
+    if (!isOverlaySourceNode(snapshot, snapshotBounds, node)) continue;
     const target = resolveOverlayTarget(snapshot.nodes, node);
     if (!target?.rect || !hasPositiveRect(target.rect)) continue;
     const label = resolveOverlayLabel(node, target, snapshot.nodes);
     const score = scoreOverlayCandidate(node, target, label);
+    const overlaySourceRect = resolveOverlaySourceRect(snapshot, target, snapshot.nodes);
     const overlayRect = projectRectToScreenshot(
+      snapshot,
       snapshotBounds,
-      target.rect,
+      overlaySourceRect,
       screenshotWidth,
       screenshotHeight,
     );
@@ -90,7 +110,7 @@ export function buildScreenshotOverlayRefs(
       candidatesByRef.set(target.ref, {
         ref: target.ref,
         label,
-        rect: target.rect,
+        rect: overlaySourceRect,
         overlayRect,
         score,
       });
@@ -98,22 +118,9 @@ export function buildScreenshotOverlayRefs(
   }
 
   const ranked = suppressContainedCandidates([...candidatesByRef.values()])
-    .sort((left, right) => {
-      if (right.score !== left.score) return right.score - left.score;
-      const topDelta = left.overlayRect.y - right.overlayRect.y;
-      if (topDelta !== 0) return topDelta;
-      const leftDelta = left.overlayRect.x - right.overlayRect.x;
-      if (leftDelta !== 0) return leftDelta;
-      return compareNumericRefs(left.ref, right.ref);
-    })
+    .sort(compareOverlayCandidatesByScore)
     .slice(0, options.maxRefs ?? MAX_OVERLAY_REFS)
-    .sort((left, right) => {
-      const topDelta = left.overlayRect.y - right.overlayRect.y;
-      if (topDelta !== 0) return topDelta;
-      const leftDelta = left.overlayRect.x - right.overlayRect.x;
-      if (leftDelta !== 0) return leftDelta;
-      return compareNumericRefs(left.ref, right.ref);
-    });
+    .sort(compareOverlayCandidatesByPosition);
 
   return ranked.map((candidate) => ({
     ref: candidate.ref,
@@ -124,28 +131,59 @@ export function buildScreenshotOverlayRefs(
   }));
 }
 
-function isOverlaySourceNode(node: SnapshotNode): boolean {
+function resolveOverlaySourceRect(
+  snapshot: SnapshotState,
+  target: SnapshotNode,
+  nodes: SnapshotState['nodes'],
+): Rect {
+  if (snapshot.backend !== 'android') return target.rect!;
+  return (
+    resolveAndroidOverlaySourceRect(target, nodes, hasActionableRole, (node) =>
+      Boolean(resolveNodeOverlayLabel(node)),
+    ) ?? target.rect!
+  );
+}
+
+function isOverlaySourceNode(
+  snapshot: SnapshotState,
+  snapshotBounds: Rect | null,
+  node: SnapshotNode,
+): boolean {
   const hasTextSignal =
     [node.label, node.value].some(isOverlaySignal) ||
     isMeaningfulOverlayIdentifier(node.identifier);
+  if (isAndroidUnlabeledClickableSource(snapshot, snapshotBounds, node)) return true;
   if (hasActionableRole(node)) return hasTextSignal;
   return hasTextSignal && isProxyOverlayNode(node);
+}
+
+function isAndroidUnlabeledClickableSource(
+  snapshot: SnapshotState,
+  snapshotBounds: Rect | null,
+  node: SnapshotNode,
+): boolean {
+  if (snapshot.backend !== 'android') return false;
+  if (!node.hittable || !hasPositiveRect(node.rect) || isViewportLikeNode(node)) return false;
+  const normalizedType = normalizeType(node.type ?? '');
+  if (ANDROID_UNLABELED_CLICKABLE_EXCLUDED_TYPES.some((type) => normalizedType.includes(type))) {
+    return false;
+  }
+  if (snapshotBounds && rectArea(node.rect) > rectArea(snapshotBounds) * 0.25) return false;
+  return true;
 }
 
 function resolveOverlayTarget(
   nodes: SnapshotState['nodes'],
   node: SnapshotNode,
 ): SnapshotNode | null {
-  if (isOverlayActionableNode(node) && hasPositiveRect(node.rect)) return node;
-  const actionableAncestor = findNearestActionableAncestor(nodes, node);
-  if (actionableAncestor?.rect && hasPositiveRect(actionableAncestor.rect))
-    return actionableAncestor;
-  if (node.hittable && hasPositiveRect(node.rect) && !isViewportLikeNode(node)) return node;
-  const ancestor = findNearestHittableAncestor(nodes, node);
-  if (ancestor?.rect && hasPositiveRect(ancestor.rect) && !isViewportLikeNode(ancestor)) {
-    return ancestor;
-  }
-  return null;
+  return (
+    [
+      isOverlayActionableNode(node) ? node : null,
+      findNearestAncestor(nodes, node, (parent) => isOverlayActionableNode(parent)),
+      node.hittable ? node : null,
+      findNearestAncestor(nodes, node, (parent) => parent.hittable === true),
+    ].find(isUsableOverlayTarget) ?? null
+  );
 }
 
 function resolveOverlayLabel(
@@ -157,7 +195,7 @@ function resolveOverlayLabel(
   if (source.ref !== target.ref && sourceLabel) return sourceLabel;
   const descendantLabel = findDescendantOverlayLabel(target, nodes);
   if (descendantLabel) return descendantLabel;
-  return resolveNodeOverlayLabel(target) ?? resolveRefLabel(target, nodes);
+  return resolveNodeOverlayLabel(target);
 }
 
 function scoreOverlayCandidate(
@@ -201,22 +239,17 @@ function suppressContainedCandidates(candidates: OverlayCandidate[]): OverlayCan
 }
 
 function projectRectToScreenshot(
+  snapshot: SnapshotState,
   bounds: Rect | null,
   rect: Rect,
   screenshotWidth: number,
   screenshotHeight: number,
 ): Rect {
+  if (snapshot.backend === 'android') {
+    return clampRect(roundRect(rect), screenshotWidth, screenshotHeight);
+  }
   if (!bounds) {
-    return clampRect(
-      {
-        x: Math.round(rect.x),
-        y: Math.round(rect.y),
-        width: Math.round(rect.width),
-        height: Math.round(rect.height),
-      },
-      screenshotWidth,
-      screenshotHeight,
-    );
+    return clampRect(roundRect(rect), screenshotWidth, screenshotHeight);
   }
   const scaleX = screenshotWidth / bounds.width;
   const scaleY = screenshotHeight / bounds.height;
@@ -279,19 +312,7 @@ function hasActionableRole(node: SnapshotNode): boolean {
   const roleText = [node.type, node.role, node.subrole]
     .map((value) => normalizeType(value ?? ''))
     .join(' ');
-  return (
-    roleText.includes('button') ||
-    roleText.includes('link') ||
-    roleText.includes('menu') ||
-    roleText.includes('tab') ||
-    roleText.includes('textfield') ||
-    roleText.includes('searchfield') ||
-    roleText.includes('securetextfield') ||
-    roleText.includes('checkbox') ||
-    roleText.includes('radio') ||
-    roleText.includes('switch') ||
-    roleText.includes('cell')
-  );
+  return ACTIONABLE_ROLE_TYPES.some((type) => roleText.includes(type));
 }
 
 function isOverlayActionableNode(node: SnapshotNode): boolean {
@@ -315,21 +336,8 @@ function isViewportLikeNode(node: Pick<SnapshotNode, 'type' | 'role' | 'subrole'
   return roleText.includes('application') || roleText.includes('window');
 }
 
-function findNearestActionableAncestor(
-  nodes: SnapshotState['nodes'],
-  node: SnapshotNode,
-): SnapshotNode | null {
-  let current = node;
-  const visited = new Set<string>();
-  while (current.parentIndex !== undefined) {
-    if (visited.has(current.ref)) break;
-    visited.add(current.ref);
-    const parent = nodes[current.parentIndex];
-    if (!parent) break;
-    if (isOverlayActionableNode(parent) && hasPositiveRect(parent.rect)) return parent;
-    current = parent;
-  }
-  return null;
+function isUsableOverlayTarget(node: SnapshotNode | null): node is SnapshotNode {
+  return Boolean(node?.rect && hasPositiveRect(node.rect) && !isViewportLikeNode(node));
 }
 
 function isMeaningfulSignal(value: string | undefined): boolean {
@@ -412,27 +420,19 @@ function isGenericOverlayIdentifier(value: string): boolean {
   return /^[a-z0-9_.]+:id\/[a-z0-9_.-]+$/i.test(value.trim());
 }
 
-function hasPositiveRect(rect: Rect | undefined): rect is Rect {
-  return Boolean(rect && rect.width > 0 && rect.height > 0);
-}
-
-function rectArea(rect: Rect): number {
-  return rect.width * rect.height;
-}
-
-function rectContains(container: Rect, nested: Rect): boolean {
-  return (
-    nested.x >= container.x &&
-    nested.y >= container.y &&
-    nested.x + nested.width <= container.x + container.width &&
-    nested.y + nested.height <= container.y + container.height
-  );
-}
-
 function compareNumericRefs(left: string, right: string): number {
   const leftValue = Number.parseInt(left.replace(/^\D+/, ''), 10);
   const rightValue = Number.parseInt(right.replace(/^\D+/, ''), 10);
   return leftValue - rightValue;
+}
+
+function roundRect(rect: Rect): Rect {
+  return {
+    x: Math.round(rect.x),
+    y: Math.round(rect.y),
+    width: Math.round(rect.width),
+    height: Math.round(rect.height),
+  };
 }
 
 function clampRect(rect: Rect, width: number, height: number): Rect {
@@ -571,4 +571,19 @@ function setPixel(
   png.data[index + 1] = color[1];
   png.data[index + 2] = color[2];
   png.data[index + 3] = color[3];
+}
+function compareOverlayCandidatesByPosition(
+  left: OverlayCandidate,
+  right: OverlayCandidate,
+): number {
+  const topDelta = left.overlayRect.y - right.overlayRect.y;
+  if (topDelta !== 0) return topDelta;
+  const leftDelta = left.overlayRect.x - right.overlayRect.x;
+  if (leftDelta !== 0) return leftDelta;
+  return compareNumericRefs(left.ref, right.ref);
+}
+
+function compareOverlayCandidatesByScore(left: OverlayCandidate, right: OverlayCandidate): number {
+  if (right.score !== left.score) return right.score - left.score;
+  return compareOverlayCandidatesByPosition(left, right);
 }

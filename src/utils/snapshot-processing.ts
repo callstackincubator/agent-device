@@ -102,6 +102,14 @@ export function findNearestHittableAncestor(
   node: SnapshotState['nodes'][number],
 ): SnapshotState['nodes'][number] | null {
   if (node.hittable) return node;
+  return findNearestAncestor(nodes, node, (parent) => parent.hittable === true);
+}
+
+export function findNearestAncestor(
+  nodes: SnapshotState['nodes'],
+  node: SnapshotState['nodes'][number],
+  predicate: (node: SnapshotState['nodes'][number]) => boolean,
+): SnapshotState['nodes'][number] | null {
   let current = node;
   const visited = new Set<string>();
   while (current.parentIndex !== undefined) {
@@ -109,7 +117,7 @@ export function findNearestHittableAncestor(
     visited.add(current.ref);
     const parent = nodes[current.parentIndex];
     if (!parent) break;
-    if (parent.hittable) return parent;
+    if (predicate(parent)) return parent;
     current = parent;
   }
   return null;

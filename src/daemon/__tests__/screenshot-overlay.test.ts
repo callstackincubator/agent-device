@@ -258,6 +258,157 @@ test('buildScreenshotOverlayRefs prefers descendant text over generic android re
   ]);
 });
 
+test('buildScreenshotOverlayRefs keeps Android pixel rects aligned with screenshots', () => {
+  const snapshot = makeSnapshotState(
+    [
+      {
+        index: 0,
+        type: 'android.widget.ScrollView',
+        rect: { x: 0, y: 0, width: 1344, height: 2920 },
+      },
+      {
+        index: 1,
+        parentIndex: 0,
+        type: 'android.widget.LinearLayout',
+        hittable: true,
+        rect: { x: 0, y: 2697, width: 1344, height: 223 },
+      },
+      {
+        index: 2,
+        parentIndex: 1,
+        type: 'android.widget.TextView',
+        label: 'Storage',
+        rect: { x: 240, y: 2745, width: 205, height: 81 },
+      },
+    ],
+    { backend: 'android' },
+  );
+
+  const overlayRefs = buildScreenshotOverlayRefs(snapshot, 1344, 2992);
+
+  assert.deepEqual(overlayRefs, [
+    {
+      ref: 'e2',
+      label: 'Storage',
+      rect: { x: 0, y: 2697, width: 1344, height: 223 },
+      overlayRect: { x: 0, y: 2697, width: 1344, height: 223 },
+      center: { x: 672, y: 2809 },
+    },
+  ]);
+});
+
+test('buildScreenshotOverlayRefs includes unlabeled Android bottom tab controls', () => {
+  const snapshot = makeSnapshotState(
+    [
+      {
+        index: 0,
+        type: 'android.widget.FrameLayout',
+        rect: { x: 0, y: 0, width: 1344, height: 2992 },
+      },
+      {
+        index: 1,
+        parentIndex: 0,
+        type: 'android.widget.ScrollView',
+        hittable: true,
+        rect: { x: 0, y: 159, width: 1344, height: 2593 },
+      },
+      {
+        index: 2,
+        parentIndex: 0,
+        type: 'android.widget.TextView',
+        label: 'Agent Device Tester',
+        rect: { x: 54, y: 181, width: 770, height: 86 },
+      },
+      {
+        index: 3,
+        parentIndex: 0,
+        type: 'android.view.ViewGroup',
+        hittable: true,
+        rect: { x: 72, y: 2724, width: 192, height: 132 },
+      },
+      {
+        index: 4,
+        parentIndex: 0,
+        type: 'android.view.ViewGroup',
+        hittable: true,
+        rect: { x: 436, y: 2724, width: 192, height: 132 },
+      },
+      {
+        index: 5,
+        parentIndex: 0,
+        type: 'android.view.ViewGroup',
+        hittable: true,
+        rect: { x: 800, y: 2724, width: 192, height: 132 },
+      },
+      {
+        index: 6,
+        parentIndex: 0,
+        type: 'android.view.ViewGroup',
+        hittable: true,
+        rect: { x: 1164, y: 2724, width: 132, height: 132 },
+      },
+    ],
+    { backend: 'android' },
+  );
+
+  const overlayRefs = buildScreenshotOverlayRefs(snapshot, 1344, 2992);
+
+  assert.deepEqual(
+    overlayRefs.map((overlayRef) => overlayRef.ref),
+    ['e4', 'e5', 'e6', 'e7'],
+  );
+  assert.ok(
+    overlayRefs.every((overlayRef) => !overlayRef.label),
+    'unlabeled Android tab controls should still get visual refs',
+  );
+});
+
+test('buildScreenshotOverlayRefs trims Android row spacing from unlabeled action containers', () => {
+  const snapshot = makeSnapshotState(
+    [
+      {
+        index: 0,
+        type: 'android.widget.ScrollView',
+        rect: { x: 0, y: 0, width: 1344, height: 2920 },
+      },
+      {
+        index: 1,
+        parentIndex: 0,
+        type: 'android.widget.LinearLayout',
+        hittable: true,
+        rect: { x: 0, y: 447, width: 1344, height: 282 },
+      },
+      {
+        index: 2,
+        parentIndex: 1,
+        type: 'android.widget.TextView',
+        label: 'Google',
+        rect: { x: 240, y: 495, width: 190, height: 81 },
+      },
+      {
+        index: 3,
+        parentIndex: 1,
+        type: 'android.widget.TextView',
+        label: 'Services & preferences',
+        rect: { x: 240, y: 576, width: 425, height: 57 },
+      },
+    ],
+    { backend: 'android' },
+  );
+
+  const overlayRefs = buildScreenshotOverlayRefs(snapshot, 1344, 2992);
+
+  assert.deepEqual(overlayRefs, [
+    {
+      ref: 'e2',
+      label: 'Google',
+      rect: { x: 0, y: 447, width: 1344, height: 234 },
+      overlayRect: { x: 0, y: 447, width: 1344, height: 234 },
+      center: { x: 672, y: 564 },
+    },
+  ]);
+});
+
 test('annotateScreenshotWithRefs draws the overlay onto the saved PNG', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-screenshot-overlay-'));
   const screenshotPath = path.join(root, 'screen.png');
