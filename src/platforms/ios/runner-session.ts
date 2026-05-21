@@ -43,9 +43,9 @@ const runnerSessionLocks = new Map<string, Promise<unknown>>();
 const RUNNER_STOP_WAIT_TIMEOUT_MS = 10_000;
 const RUNNER_INVALIDATE_WAIT_TIMEOUT_MS = 1_000;
 const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 5_000;
-// Hot tap loops can skip one uptime preflight only while the runner has recently responded.
+// Hot tap loops can skip one uptime preflight only while the runner has just responded.
 // Failed mutating taps still invalidate the session instead of being replayed.
-const RUNNER_TAP_PREFLIGHT_SKIP_FRESHNESS_MS = 60_000;
+const RUNNER_TAP_PREFLIGHT_SKIP_FRESHNESS_MS = 10_000;
 const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
 
 function withRunnerSessionLock<T>(deviceId: string, task: () => Promise<T>): Promise<T> {

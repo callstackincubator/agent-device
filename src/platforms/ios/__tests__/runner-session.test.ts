@@ -224,7 +224,7 @@ test('runner session keeps readiness preflight for tap commands when ready but n
 test('runner session keeps readiness preflight for tap commands when marked ready but stale', async () => {
   const session = makeRunnerSession({
     ready: true,
-    lastSuccessfulRunnerResponseAtMs: Date.now() - 61_000,
+    lastSuccessfulRunnerResponseAtMs: Date.now() - 11_000,
   });
   mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
   mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));

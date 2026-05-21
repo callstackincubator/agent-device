@@ -13,35 +13,6 @@ extension RunnerTests {
     return (gestureStartUptimeMs, currentUptimeMs())
   }
 
-  private func coordinateTapData(
-    message: String,
-    app: XCUIApplication,
-    x: Double,
-    y: Double,
-    timing: (gestureStartUptimeMs: Double, gestureEndUptimeMs: Double)
-  ) -> DataPayload {
-#if os(iOS)
-    return DataPayload(
-      message: message,
-      gestureStartUptimeMs: timing.gestureStartUptimeMs,
-      gestureEndUptimeMs: timing.gestureEndUptimeMs,
-      x: x,
-      y: y
-    )
-#else
-    let touchFrame = resolvedTouchVisualizationFrame(app: app, x: x, y: y)
-    return DataPayload(
-      message: message,
-      gestureStartUptimeMs: timing.gestureStartUptimeMs,
-      gestureEndUptimeMs: timing.gestureEndUptimeMs,
-      x: touchFrame.x,
-      y: touchFrame.y,
-      referenceWidth: touchFrame.referenceWidth,
-      referenceHeight: touchFrame.referenceHeight
-    )
-#endif
-  }
-
   func unsupportedResponse(for outcome: RunnerInteractionOutcome) -> Response? {
     switch outcome {
     case .performed:
@@ -337,6 +308,7 @@ extension RunnerTests {
         return Response(ok: false, error: ErrorPayload(message: "element not found"))
       }
       if let x = command.x, let y = command.y {
+        let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
         var outcome = RunnerInteractionOutcome.performed
         let timing = measureGesture {
           withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
@@ -348,7 +320,15 @@ extension RunnerTests {
         }
         return Response(
           ok: true,
-          data: coordinateTapData(message: "tapped", app: activeApp, x: x, y: y, timing: timing)
+          data: DataPayload(
+            message: "tapped",
+            gestureStartUptimeMs: timing.gestureStartUptimeMs,
+            gestureEndUptimeMs: timing.gestureEndUptimeMs,
+            x: touchFrame.x,
+            y: touchFrame.y,
+            referenceWidth: touchFrame.referenceWidth,
+            referenceHeight: touchFrame.referenceHeight
+          )
         )
       }
       return Response(ok: false, error: ErrorPayload(message: "tap requires text or x/y"))
@@ -391,6 +371,7 @@ extension RunnerTests {
       let count = max(Int(command.count ?? 1), 1)
       let intervalMs = max(command.intervalMs ?? 0, 0)
       let doubleTap = command.doubleTap ?? false
+      let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
       if doubleTap {
         var outcome = RunnerInteractionOutcome.performed
         let timing = measureGesture {
@@ -407,7 +388,15 @@ extension RunnerTests {
         }
         return Response(
           ok: true,
-          data: coordinateTapData(message: "tap series", app: activeApp, x: x, y: y, timing: timing)
+          data: DataPayload(
+            message: "tap series",
+            gestureStartUptimeMs: timing.gestureStartUptimeMs,
+            gestureEndUptimeMs: timing.gestureEndUptimeMs,
+            x: touchFrame.x,
+            y: touchFrame.y,
+            referenceWidth: touchFrame.referenceWidth,
+            referenceHeight: touchFrame.referenceHeight
+          )
         )
       }
       var outcome = RunnerInteractionOutcome.performed
@@ -425,7 +414,15 @@ extension RunnerTests {
       }
       return Response(
         ok: true,
-        data: coordinateTapData(message: "tap series", app: activeApp, x: x, y: y, timing: timing)
+        data: DataPayload(
+          message: "tap series",
+          gestureStartUptimeMs: timing.gestureStartUptimeMs,
+          gestureEndUptimeMs: timing.gestureEndUptimeMs,
+          x: touchFrame.x,
+          y: touchFrame.y,
+          referenceWidth: touchFrame.referenceWidth,
+          referenceHeight: touchFrame.referenceHeight
+        )
       )
     case .longPress:
       guard let x = command.x, let y = command.y else {
