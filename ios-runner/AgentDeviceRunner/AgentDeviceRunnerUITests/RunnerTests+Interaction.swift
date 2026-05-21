@@ -1359,12 +1359,17 @@ extension RunnerTests {
 
 #if !os(tvOS)
   private func interactionCoordinate(app: XCUIApplication, x: Double, y: Double) -> XCUICoordinate {
+#if os(iOS)
+    let origin = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+    return origin.withOffset(CGVector(dx: x, dy: y))
+#else
     let root = interactionRoot(app: app)
     let origin = root.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
     let rootFrame = root.frame
     let offsetX = x - Double(rootFrame.origin.x)
     let offsetY = y - Double(rootFrame.origin.y)
     return origin.withOffset(CGVector(dx: offsetX, dy: offsetY))
+#endif
   }
 #endif
 
