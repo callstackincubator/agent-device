@@ -89,12 +89,9 @@ async function exportProcessedVideo(params: {
       'COMMAND_FAILED',
       commandDescription,
       {
+        ...cause.details,
         videoPath,
         script: scriptPath,
-        stderr: cause.details?.stderr,
-        stdout: cause.details?.stdout,
-        exitCode: cause.details?.exitCode,
-        processExitError: cause.details?.processExitError,
       },
       cause,
     );

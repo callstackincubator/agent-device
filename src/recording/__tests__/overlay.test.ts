@@ -28,6 +28,7 @@ vi.mock('../../utils/video.ts', () => ({
 }));
 
 import { overlayRecordingTouches } from '../overlay.ts';
+import { AppError } from '../../utils/errors.ts';
 import { runCmd } from '../../utils/exec.ts';
 
 const mockRunCmd = vi.mocked(runCmd);
@@ -76,4 +77,24 @@ test('overlay burns touches through a cached helper and same-directory temp outp
   expect(helperOptions?.env?.CLANG_MODULE_CACHE_PATH).toBe(
     path.join(tmpDir, 'swift-cache', 'module-cache'),
   );
+});
+
+test('overlay preserves Swift helper compile hints', async () => {
+  const videoPath = path.join(tmpDir, 'recording.mp4');
+  const telemetryPath = path.join(tmpDir, 'recording.gesture-telemetry.json');
+  const hint = 'Remove the stale Swift cache lock and retry.';
+  fs.writeFileSync(videoPath, 'original');
+  fs.writeFileSync(telemetryPath, '{"events":[]}');
+
+  mockRunCmd.mockImplementationOnce(async () => {
+    throw new AppError('COMMAND_FAILED', 'Timed out waiting for Swift cache lock', { hint });
+  });
+
+  await expect(overlayRecordingTouches({ videoPath, telemetryPath })).rejects.toMatchObject({
+    code: 'COMMAND_FAILED',
+    message: 'Failed to add touch overlays to the recording',
+    details: {
+      hint,
+    },
+  });
 });

@@ -2,9 +2,12 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
+import { AppError } from './errors.ts';
 import { runCmd } from './exec.ts';
 
-const SWIFT_CACHE_VERSION = '1';
+const SWIFT_CACHE_VERSION = '2';
+const LOCK_RETRY_DELAY_MS = 25;
 
 export function buildSwiftToolEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   const root = getSwiftCacheRoot();
@@ -56,14 +59,10 @@ export async function compileSwiftSourceText(params: {
   const sourcePath = path.join(getSwiftCacheRoot(), 'sources', `${cacheName}-${key}.swift`);
   const executablePath = path.join(getSwiftCacheRoot(), 'bin', `${cacheName}-${key}`);
 
-  fs.mkdirSync(path.dirname(sourcePath), { recursive: true });
-  if (!fs.existsSync(sourcePath)) {
-    fs.writeFileSync(sourcePath, params.source);
-  }
-
   await ensureSwiftExecutable({
     sourcePath,
     executablePath,
+    sourceText: params.source,
     timeoutMs: params.timeoutMs,
   });
   return executablePath;
@@ -80,24 +79,86 @@ function getSwiftCacheRoot(): string {
 async function ensureSwiftExecutable(params: {
   sourcePath: string;
   executablePath: string;
+  sourceText?: string;
   timeoutMs?: number;
 }): Promise<void> {
   if (isExecutableFile(params.executablePath)) {
     return;
   }
 
-  fs.mkdirSync(path.dirname(params.executablePath), { recursive: true });
-  const tempExecutablePath = `${params.executablePath}.${process.pid}.${Date.now()}.tmp`;
+  const executableDir = path.dirname(params.executablePath);
+  fs.mkdirSync(executableDir, { recursive: true });
+  const lockDir = `${params.executablePath}.lock`;
+  if (!(await acquireSwiftCacheLock(lockDir, params.executablePath, params.timeoutMs ?? 120_000))) {
+    return;
+  }
+
+  const tempDir = fs.mkdtempSync(
+    path.join(executableDir, `.${path.basename(params.executablePath)}.${process.pid}.`),
+  );
+  const tempExecutablePath = path.join(tempDir, path.basename(params.executablePath));
   try {
+    if (isExecutableFile(params.executablePath)) {
+      return;
+    }
+    if (params.sourceText !== undefined && !fs.existsSync(params.sourcePath)) {
+      fs.mkdirSync(path.dirname(params.sourcePath), { recursive: true });
+      fs.writeFileSync(params.sourcePath, params.sourceText);
+    }
     await runCmd('xcrun', ['swiftc', params.sourcePath, '-o', tempExecutablePath], {
       timeoutMs: params.timeoutMs ?? 120_000,
       env: buildSwiftToolEnv(),
     });
-    if (!isExecutableFile(params.executablePath)) {
-      fs.renameSync(tempExecutablePath, params.executablePath);
-    }
+    fs.renameSync(tempExecutablePath, params.executablePath);
   } finally {
-    fs.rmSync(tempExecutablePath, { force: true });
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    fs.rmSync(lockDir, { recursive: true, force: true });
+  }
+}
+
+async function acquireSwiftCacheLock(
+  lockDir: string,
+  executablePath: string,
+  timeoutMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    if (isExecutableFile(executablePath)) {
+      return false;
+    }
+    try {
+      fs.mkdirSync(lockDir);
+      return true;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'EEXIST') {
+        throw error;
+      }
+      if (isStaleSwiftCacheLock(lockDir, timeoutMs)) {
+        fs.rmSync(lockDir, { recursive: true, force: true });
+        continue;
+      }
+      if (Date.now() >= deadline) {
+        throw new AppError(
+          'COMMAND_FAILED',
+          `Timed out waiting for Swift cache lock: ${lockDir} (${timeoutMs}ms)`,
+          {
+            lockDir,
+            timeoutMs,
+            hint: `Another agent-device process may still be compiling this Swift helper. Retry shortly; if no agent-device process is active, remove "${lockDir}" and retry.`,
+          },
+        );
+      }
+      await delay(LOCK_RETRY_DELAY_MS);
+    }
+  }
+}
+
+function isStaleSwiftCacheLock(lockDir: string, timeoutMs: number): boolean {
+  try {
+    return Date.now() - fs.statSync(lockDir).mtimeMs >= timeoutMs;
+  } catch {
+    return false;
   }
 }
 
