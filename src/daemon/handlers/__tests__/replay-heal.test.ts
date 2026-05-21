@@ -183,6 +183,56 @@ test('replay heal rewrites longpress selector and preserves duration', async () 
   expect(healed?.positionals[1]).toBe('800');
 });
 
+test('replay heal uses canonical iOS snapshot presentation', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-heal-ios-row-'));
+  const sessionsDir = path.join(tempRoot, 'sessions');
+  const sessionStore = new SessionStore(sessionsDir);
+  const sessionName = 'heal-ios-row-session';
+  sessionStore.set(sessionName, makeSession(sessionName));
+  const rowRect = { x: 16, y: 293, width: 370, height: 52 };
+
+  mockDispatchCommand.mockResolvedValue({
+    nodes: [
+      { index: 0, depth: 0, type: 'Application', label: 'Settings' },
+      { index: 1, depth: 1, parentIndex: 0, type: 'CollectionView' },
+      { index: 2, depth: 2, parentIndex: 1, type: 'Cell', label: 'General', rect: rowRect },
+      { index: 3, depth: 3, parentIndex: 2, type: 'Other', label: 'General', rect: rowRect },
+      {
+        index: 4,
+        depth: 4,
+        parentIndex: 3,
+        type: 'Button',
+        label: 'General',
+        identifier: 'com.apple.settings.general',
+        rect: rowRect,
+      },
+      { index: 5, depth: 5, parentIndex: 4, type: 'StaticText', label: 'General', rect: rowRect },
+    ],
+    truncated: false,
+    backend: 'xctest',
+  });
+
+  const healed = await healReplayAction({
+    action: {
+      ts: Date.now(),
+      command: 'click',
+      positionals: ['label="General"'],
+      flags: {},
+      result: { selectorChain: ['label="General"'] },
+    },
+    sessionName,
+    logPath: '/tmp/replay.log',
+    sessionStore,
+  });
+
+  expect(healed?.positionals[0]).toContain('com.apple.settings.general');
+  expect(sessionStore.get(sessionName)?.snapshot?.nodes.map((node) => node.type)).toEqual([
+    'Application',
+    'CollectionView',
+    'Cell',
+  ]);
+});
+
 test('replay --update heals selector and rewrites replay file', async () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-heal-'));
   const sessionsDir = path.join(tempRoot, 'sessions');

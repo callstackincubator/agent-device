@@ -15,7 +15,7 @@ import type { SessionState } from '../types.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
 import { attachRefs } from '../../utils/snapshot.ts';
 import { PNG } from 'pngjs';
-import { ANDROID_EMULATOR } from '../../__tests__/test-utils/device-fixtures.ts';
+import { ANDROID_EMULATOR, IOS_SIMULATOR } from '../../__tests__/test-utils/device-fixtures.ts';
 import { makeSessionStore } from '../../__tests__/test-utils/store-factory.ts';
 import { makeSession as makeBaseSession } from '../../__tests__/test-utils/session-factories.ts';
 
@@ -23,6 +23,10 @@ const mockDispatch = vi.mocked(dispatchCommand);
 
 function makeSession(name: string): SessionState {
   return makeBaseSession(name, { device: ANDROID_EMULATOR });
+}
+
+function makeIosSession(name: string): SessionState {
+  return makeBaseSession(name, { device: IOS_SIMULATOR });
 }
 
 function makeMacOsMenubarSession(name: string): SessionState {
@@ -413,6 +417,102 @@ test('screenshot --overlay-refs captures a fresh snapshot when the session has n
     ]);
   }
   expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['screenshot', 'snapshot']);
+});
+
+test('screenshot --overlay-refs uses interactive iOS presentation for row-like other nodes', async () => {
+  const sessionStore = makeSessionStore('agent-device-router-screenshot-');
+  sessionStore.set('default', makeIosSession('default'));
+  const screenshotPath = path.join(os.tmpdir(), `agent-device-overlay-ios-${Date.now()}.png`);
+
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command === 'screenshot') {
+      writeSolidPng(screenshotPath, 402, 874);
+      return { path: screenshotPath };
+    }
+    if (command === 'snapshot') {
+      return {
+        backend: 'xctest',
+        nodes: [
+          {
+            index: 0,
+            depth: 0,
+            type: 'Application',
+            label: 'New Expensify Dev',
+            rect: { x: 0, y: 0, width: 402, height: 874 },
+          },
+          {
+            index: 1,
+            depth: 1,
+            parentIndex: 0,
+            type: 'Other',
+            label: '!, Open debugger to view warnings.',
+            rect: { x: 0, y: 0, width: 402, height: 874 },
+          },
+          {
+            index: 2,
+            depth: 1,
+            parentIndex: 0,
+            type: 'ScrollView',
+            label: 'Recent chats',
+            rect: { x: 8, y: 212, width: 386, height: 600 },
+          },
+          {
+            index: 3,
+            depth: 2,
+            parentIndex: 2,
+            type: 'Other',
+            label: 'Recent chats',
+            rect: { x: 0, y: 220, width: 402, height: 16 },
+          },
+          {
+            index: 4,
+            depth: 2,
+            parentIndex: 2,
+            type: 'Other',
+            label: 'Receipt missing details, Receipt scanning failed. Enter details manually.',
+            rect: { x: 8, y: 367, width: 386, height: 64 },
+          },
+        ],
+      };
+    }
+    return {};
+  });
+
+  const handler = createRequestHandler({
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    token: 'test-token',
+    sessionStore,
+    leaseRegistry: new LeaseRegistry(),
+    trackDownloadableArtifact: () => 'artifact-id',
+  });
+
+  const response = await handler({
+    token: 'test-token',
+    session: 'default',
+    command: 'screenshot',
+    positionals: [screenshotPath],
+    flags: { overlayRefs: true },
+    meta: { requestId: 'req-overlay-ios-rows' },
+  });
+
+  expect(response.ok).toBe(true);
+  if (response.ok) {
+    expect(response.data?.overlayRefs).toEqual([
+      {
+        ref: 'e5',
+        label: 'Receipt missing details, Receipt scanning failed. Enter details manually.',
+        rect: { x: 8, y: 367, width: 386, height: 64 },
+        overlayRect: { x: 8, y: 367, width: 386, height: 64 },
+        center: { x: 201, y: 399 },
+      },
+    ]);
+  }
+  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['screenshot', 'snapshot']);
+  expect(mockDispatch.mock.calls[1]?.[4]).toMatchObject({
+    snapshotInteractiveOnly: true,
+    snapshotCompact: true,
+  });
+  expect(sessionStore.get('default')?.snapshot?.nodes[4]?.type).toBe('Cell');
 });
 
 test('screenshot --overlay-refs uses a fresh snapshot instead of stale session snapshot', async () => {

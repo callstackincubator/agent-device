@@ -26,6 +26,46 @@ describe('React Native overlay helpers', () => {
     });
   });
 
+  test('targets visible close affordance when collapsed banner keeps outer bounds', () => {
+    const nodes = [
+      node({
+        ref: 'e3',
+        label: '!, Open debugger to view warnings.',
+        rect: { x: 0, y: 0, width: 402, height: 874 },
+        hittable: false,
+      }),
+      node({
+        ref: 'e125',
+        label: '!, Open debugger to view warnings.',
+        rect: { x: 10, y: 786.666, width: 382, height: 67.333 },
+        hittable: false,
+      }),
+    ];
+
+    const target = resolveReactNativeOverlayDismissTarget(nodes);
+
+    expect(detectReactNativeOverlay(nodes).detected).toBe(true);
+    expect(target).toMatchObject({
+      action: 'close-collapsed-banner',
+      ref: 'e125',
+      point: { x: 369, y: 813 },
+    });
+  });
+
+  test('detects full-screen open-debugger wrappers but does not use them as targets', () => {
+    const nodes = [
+      node({
+        ref: 'e3',
+        label: '!, Open debugger to view warnings.',
+        rect: { x: 0, y: 0, width: 402, height: 874 },
+        hittable: false,
+      }),
+    ];
+
+    expect(detectReactNativeOverlay(nodes).detected).toBe(true);
+    expect(resolveReactNativeOverlayDismissTarget(nodes)).toBeNull();
+  });
+
   test('prefers Minimize for RedBox overlays', () => {
     const nodes = [
       node({ ref: 'e1', label: 'Runtime Error', rect: { x: 0, y: 0, width: 390, height: 100 } }),

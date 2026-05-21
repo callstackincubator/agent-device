@@ -1,10 +1,10 @@
 import path from 'node:path';
 import {
   buildAndroidHelperPresentationInput,
-  detectPossibleRepeatedNavSubtree,
   type AndroidHelperPresentationInput,
 } from './android-helper-snapshot-presentation.ts';
 import { AppError, normalizeError, type NormalizedError } from './errors.ts';
+import { detectPossibleRepeatedNavSubtree } from './repeated-nav-subtree.ts';
 import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.ts';
 import type { SnapshotNode, SnapshotUnchanged, SnapshotVisibility } from './snapshot.ts';
 import type { ScreenshotDiffResult } from './screenshot-diff.ts';

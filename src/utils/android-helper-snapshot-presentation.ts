@@ -1,4 +1,5 @@
 import type { Rect, SnapshotNode } from './snapshot.ts';
+import { isEmailLikeLabel, normalizeRepeatedNodeLabel } from './snapshot-label-signals.ts';
 import { displayNodeLabel } from './snapshot-tree.ts';
 
 const ACTIONABLE_STRUCTURAL_TYPE_TOKENS = ['button', 'switch', 'checkbox', 'radio'];
@@ -22,27 +23,6 @@ export function buildAndroidHelperPresentationInput(
     nodes: filtered,
     filteredCount: nodes.length - filtered.length,
   };
-}
-
-export function detectPossibleRepeatedNavSubtree(nodes: SnapshotNode[]): boolean {
-  if (nodes.length < 20) {
-    return false;
-  }
-  const counts = new Map<string, number>();
-  for (const node of nodes) {
-    const type = (node.type ?? '').toLowerCase();
-    const label = normalizeRepeatedNodeLabel(displayNodeLabel(node));
-    if (!label) continue;
-    const signature = `${type}|${label}`;
-    counts.set(signature, (counts.get(signature) ?? 0) + 1);
-  }
-  let duplicateCount = 0;
-  for (const count of counts.values()) {
-    if (count > 1) {
-      duplicateCount += count;
-    }
-  }
-  return duplicateCount >= 8;
 }
 
 function isAndroidHelperSnapshot(data: Record<string, unknown>): boolean {
@@ -407,18 +387,8 @@ function getNodeOrDescendantLabel(node: SnapshotNode, nodes: SnapshotNode[]): st
   return '';
 }
 
-function normalizeRepeatedNodeLabel(label: string): string | null {
-  const normalized = label.trim().replace(/\s+/g, ' ').toLowerCase();
-  if (!normalized || isEmailLikeLabel(normalized)) return null;
-  return normalized;
-}
-
 function bucket(value: number, size: number): number {
   return Math.round(value / size);
-}
-
-function isEmailLikeLabel(label: string): boolean {
-  return /\S+@\S+\.\S+/.test(label);
 }
 
 function areSameVisualRow(left: Rect | undefined, right: Rect | undefined): boolean {

@@ -31,6 +31,7 @@ import { contextFromFlags } from '../context.ts';
 import { capturePostGestureStabilizedSnapshot } from '../post-gesture-stabilization.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
+import { presentIosInteractiveSnapshot } from '../snapshot-presentation/ios/index.ts';
 
 type CaptureSnapshotParams = {
   device: SessionState['device'];
@@ -245,7 +246,10 @@ export function buildSnapshotState(
     flags?.snapshotScope && data?.backend !== 'macos-helper'
       ? scopeSnapshotNodes(normalizedNodes, flags.snapshotScope)
       : normalizedNodes;
-  const nodes = attachRefs(scopedNodes);
+  const presentableNodes = shouldPresentIosInteractiveSnapshot(data?.backend, flags)
+    ? presentIosInteractiveSnapshot(scopedNodes)
+    : scopedNodes;
+  const nodes = attachRefs(presentableNodes);
   return {
     nodes,
     truncated: data?.truncated,
@@ -255,13 +259,42 @@ export function buildSnapshotState(
     // Only broad Android snapshots become freshness baselines. If the user asked for a scoped
     // or filtered view, preserve that output contract but avoid pretending it is safe for
     // route-level comparisons on the next capture.
-    comparisonSafe:
-      data?.backend === 'android' &&
-      flags?.snapshotInteractiveOnly !== true &&
-      flags?.snapshotCompact !== true &&
-      typeof flags?.snapshotDepth !== 'number' &&
-      !flags?.snapshotScope,
+    comparisonSafe: isAndroidComparisonSafeSnapshot(data?.backend, flags),
   };
+}
+
+function shouldPresentIosInteractiveSnapshot(
+  backend: SnapshotBackend | undefined,
+  flags:
+    | (Pick<
+        CommandFlags,
+        'snapshotCompact' | 'snapshotDepth' | 'snapshotInteractiveOnly' | 'snapshotRaw'
+      > &
+        Partial<Pick<CommandFlags, 'snapshotScope'>>)
+    | undefined,
+): boolean {
+  return (
+    backend === 'xctest' && flags?.snapshotInteractiveOnly === true && flags.snapshotRaw !== true
+  );
+}
+
+function isAndroidComparisonSafeSnapshot(
+  backend: SnapshotBackend | undefined,
+  flags:
+    | (Pick<
+        CommandFlags,
+        'snapshotCompact' | 'snapshotDepth' | 'snapshotInteractiveOnly' | 'snapshotRaw'
+      > &
+        Partial<Pick<CommandFlags, 'snapshotScope'>>)
+    | undefined,
+): boolean {
+  return (
+    backend === 'android' &&
+    flags?.snapshotInteractiveOnly !== true &&
+    flags?.snapshotCompact !== true &&
+    typeof flags?.snapshotDepth !== 'number' &&
+    !flags?.snapshotScope
+  );
 }
 
 function shapeDesktopSurfaceSnapshot(

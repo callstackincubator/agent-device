@@ -1,4 +1,10 @@
 import { centerOfRect, type Point, type SnapshotNode } from '../../utils/snapshot.ts';
+import {
+  hasKnownReactNativeOverlayText,
+  isReactNativeCollapsedWarningLabel,
+  isReactNativeOpenDebuggerWarningLabel,
+  isReactNativeStackFrame,
+} from '../../utils/react-native-overlay-signals.ts';
 
 export type ReactNativeOverlayState = {
   detected: boolean;
@@ -42,8 +48,12 @@ export function detectReactNativeOverlay(nodes: SnapshotNode[]): ReactNativeOver
   const minimizeNodes = collectOverlayNodes(nodes, isMinimizeLabel);
   const collapsedNodes = collectOverlayNodes(
     nodes,
-    isCollapsedReactNativeWarningLabel,
+    isReactNativeCollapsedWarningLabel,
     isLikelyCollapsedWarningControl,
+  );
+  const openDebuggerWarningNodes = collectOverlayNodes(
+    nodes,
+    isReactNativeOpenDebuggerWarningLabel,
   );
   const dismissRefs = refsOf(dismissNodes);
   const minimizeRefs = refsOf(minimizeNodes);
@@ -56,6 +66,7 @@ export function detectReactNativeOverlay(nodes: SnapshotNode[]): ReactNativeOver
     (hasReactNativeStackFrame && hasOverlayControl);
   const detected =
     collapsedRefs.length > 0 ||
+    openDebuggerWarningNodes.length > 0 ||
     (hasOverlayControl && (hasKnownReactNativeOverlayText(text) || hasReactNativeStackFrame));
   return {
     detected,
@@ -100,19 +111,6 @@ export function resolveReactNativeOverlayDismissTarget(
   };
 }
 
-function hasKnownReactNativeOverlayText(text: string): boolean {
-  return /\b(logbox|redbox|reload js|copy stack|component stack|call stack|runtime error|open debugger to view warnings)\b/.test(
-    text,
-  );
-}
-
-function isReactNativeStackFrame(text: string): boolean {
-  return (
-    /\b[\w.$<>/-]+\.(?:tsx?|jsx?):\d+(?::\d+)?\b/.test(text) ||
-    /\b[\w.$<>/-]+\.(?:tsx?|jsx?)\s+\(\d+:\d+\)/.test(text)
-  );
-}
-
 function isDismissControlLabel(label: string): boolean {
   return label === 'dismiss' || label === 'close' || isCloseIconLabel(label);
 }
@@ -123,20 +121,6 @@ function isCloseIconLabel(label: string): boolean {
 
 function isMinimizeLabel(label: string): boolean {
   return /^minimi[sz]e$/.test(label);
-}
-
-function isCollapsedReactNativeWarningLabel(label: string): boolean {
-  return (
-    label.includes('open debugger to view warnings') ||
-    /^!,\s+/.test(label) ||
-    /^(warn|warning|error):\s+/.test(label) ||
-    /\b(?:possible\s+)?unhandled (?:promise )?rejection\b/.test(label) ||
-    label.includes('getsnapshot should be cached to avoid an infinite loop') ||
-    label.includes('unique "key" prop') ||
-    label.includes("unique 'key' prop") ||
-    label.includes('virtualizedlists should never be nested') ||
-    label.includes('failed prop type')
-  );
 }
 
 function isLikelyCollapsedWarningControl(node: SnapshotNode): boolean {
@@ -155,7 +139,7 @@ function collectOverlayNodes(
     const labels = [node.label, node.value, node.identifier]
       .map((value) => value?.trim().toLowerCase())
       .filter((value): value is string => Boolean(value));
-    if (!labels.some(matches)) continue;
+    if (!labels.some((label) => matches(label))) continue;
     matchedNodes.push(node);
   }
   return matchedNodes;
@@ -206,7 +190,8 @@ function chooseCollapsedWarningNode(nodes: SnapshotNode[]): SnapshotNode | null 
 
 function collapsedBannerClosePoint(node: SnapshotNode): Point {
   if (!node.rect) throw new Error('Collapsed React Native warning node must have rect');
-  const inset = Math.min(36, Math.max(18, node.rect.height * 0.45));
+  const closeTargetHeight = Math.min(node.rect.height, 52);
+  const inset = Math.min(36, Math.max(18, closeTargetHeight * 0.45));
   return {
     x: Math.round(
       clamp(
@@ -215,7 +200,7 @@ function collapsedBannerClosePoint(node: SnapshotNode): Point {
         node.rect.x + node.rect.width - 1,
       ),
     ),
-    y: Math.round(node.rect.y + node.rect.height / 2),
+    y: Math.round(node.rect.y + closeTargetHeight / 2),
   };
 }
 

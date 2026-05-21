@@ -80,6 +80,45 @@ test('buildScreenshotOverlayRefs promotes labeled children to actionable ancesto
   ]);
 });
 
+test('buildScreenshotOverlayRefs includes non-hittable iOS cell rows', () => {
+  const snapshot = makeSnapshotState([
+    {
+      index: 0,
+      type: 'XCUIElementTypeApplication',
+      label: 'New Expensify Dev',
+      hittable: true,
+      rect: { x: 0, y: 0, width: 402, height: 874 },
+    },
+    {
+      index: 1,
+      parentIndex: 0,
+      type: 'XCUIElementTypeScrollView',
+      label: 'Recent chats',
+      rect: { x: 8, y: 212, width: 386, height: 600 },
+    },
+    {
+      index: 2,
+      parentIndex: 1,
+      type: 'Cell',
+      label: 'Receipt missing details, Receipt scanning failed. Enter details manually.',
+      hittable: false,
+      rect: { x: 8, y: 367, width: 386, height: 64 },
+    },
+  ]);
+
+  const overlayRefs = buildScreenshotOverlayRefs(snapshot, 804, 1748);
+
+  assert.deepEqual(overlayRefs, [
+    {
+      ref: 'e3',
+      label: 'Receipt missing details, Receipt scanning failed. Enter details manually.',
+      rect: { x: 8, y: 367, width: 386, height: 64 },
+      overlayRect: { x: 16, y: 734, width: 772, height: 128 },
+      center: { x: 402, y: 798 },
+    },
+  ]);
+});
+
 test('buildScreenshotOverlayRefs suppresses contained duplicates with the same label, keeping the smaller rect', () => {
   const snapshot = makeSnapshotState([
     {

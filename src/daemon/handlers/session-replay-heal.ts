@@ -1,12 +1,6 @@
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { setSessionSnapshot } from '../session-snapshot.ts';
-import {
-  attachRefs,
-  type RawSnapshotNode,
-  type SnapshotBackend,
-  type SnapshotState,
-} from '../../utils/snapshot.ts';
-import { pruneGroupNodes } from '../snapshot-processing.ts';
+import type { RawSnapshotNode, SnapshotBackend, SnapshotState } from '../../utils/snapshot.ts';
 import {
   buildSelectorChainForNode,
   resolveSelectorChain,
@@ -19,6 +13,7 @@ import type { SessionAction, SessionState } from '../types.ts';
 import { isTouchTargetCommand } from '../../replay/script-utils.ts';
 import { contextFromFlags } from '../context.ts';
 import { SessionStore } from '../session-store.ts';
+import { buildSnapshotState } from './snapshot-capture.ts';
 
 function parseSelectorWaitPositionals(positionals: string[]): {
   selectorExpression: string | null;
@@ -226,14 +221,11 @@ async function captureSnapshotForReplay(
     truncated?: boolean;
     backend?: SnapshotBackend;
   };
-  const rawNodes = data?.nodes ?? [];
-  const nodes = attachRefs(action.flags?.snapshotRaw ? rawNodes : pruneGroupNodes(rawNodes));
-  const snapshot: SnapshotState = {
-    nodes,
-    truncated: data?.truncated,
-    createdAt: Date.now(),
-    backend: data?.backend,
-  };
+  const snapshot = buildSnapshotState(data, {
+    ...(action.flags ?? {}),
+    snapshotInteractiveOnly: interactiveOnly,
+    snapshotCompact: interactiveOnly,
+  });
   setSessionSnapshot(session, snapshot);
   sessionStore.set(session.name, session);
   return snapshot;

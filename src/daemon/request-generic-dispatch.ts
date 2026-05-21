@@ -173,14 +173,18 @@ async function applyScreenshotOverlay(
   data: Record<string, unknown>,
   logPath: string,
 ): Promise<void> {
+  const overlaySnapshotFlags = {
+    snapshotInteractiveOnly: true,
+    snapshotCompact: true,
+  } satisfies CommandFlags;
   const overlaySnapshotData = await captureSnapshotData({
     device: session.device,
     session,
-    flags: undefined,
+    flags: overlaySnapshotFlags,
     logPath,
     snapshotScope: undefined,
   });
-  const overlaySnapshot = buildSnapshotState(overlaySnapshotData, undefined);
+  const overlaySnapshot = buildSnapshotState(overlaySnapshotData, overlaySnapshotFlags);
   setSessionSnapshot(session, overlaySnapshot);
   const overlayRefs = await annotateScreenshotWithRefs({
     screenshotPath: data.path as string,
