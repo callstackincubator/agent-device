@@ -43,6 +43,9 @@ const runnerSessionLocks = new Map<string, Promise<unknown>>();
 const RUNNER_STOP_WAIT_TIMEOUT_MS = 10_000;
 const RUNNER_INVALIDATE_WAIT_TIMEOUT_MS = 1_000;
 const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 5_000;
+// Hot tap loops can skip one uptime preflight only while the runner has just responded.
+// Failed mutating taps still invalidate the session instead of being replayed.
+const RUNNER_TAP_PREFLIGHT_SKIP_FRESHNESS_MS = 10_000;
 const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
 
 function withRunnerSessionLock<T>(deviceId: string, task: () => Promise<T>): Promise<T> {
@@ -441,24 +444,40 @@ export async function executeRunnerCommandWithSession(
   }
 
   const deadline = Deadline.fromTimeoutMs(timeoutMs);
-  const readinessTimeoutMs = session.ready
-    ? Math.min(RUNNER_READY_PREFLIGHT_TIMEOUT_MS, deadline.remainingMs())
-    : Math.min(RUNNER_STARTUP_TIMEOUT_MS, deadline.remainingMs());
-  const readinessResponse = await withDiagnosticTimer(
-    'ios_runner_readiness_preflight',
-    async () =>
-      await waitForRunner(
-        device,
-        session.port,
-        { command: 'uptime' },
-        logPath,
-        readinessTimeoutMs,
-        session,
-        signal,
-      ),
-    { command: command.command, sessionReady: session.ready, timeoutMs: readinessTimeoutMs },
-  );
-  await parseRunnerResponse(readinessResponse, session, logPath);
+  const shouldPreflight = shouldPreflightMutatingRunnerCommand(session, command);
+  if (shouldPreflight) {
+    const readinessTimeoutMs = session.ready
+      ? Math.min(RUNNER_READY_PREFLIGHT_TIMEOUT_MS, deadline.remainingMs())
+      : Math.min(RUNNER_STARTUP_TIMEOUT_MS, deadline.remainingMs());
+    const readinessResponse = await withDiagnosticTimer(
+      'ios_runner_readiness_preflight',
+      async () =>
+        await waitForRunner(
+          device,
+          session.port,
+          { command: 'uptime' },
+          logPath,
+          readinessTimeoutMs,
+          session,
+          signal,
+        ),
+      { command: command.command, sessionReady: session.ready, timeoutMs: readinessTimeoutMs },
+    );
+    await parseRunnerResponse(readinessResponse, session, logPath);
+  } else {
+    emitDiagnostic({
+      level: 'debug',
+      phase: 'ios_runner_readiness_preflight_skipped',
+      data: {
+        command: command.command,
+        lastSuccessfulRunnerResponseAgeMs:
+          session.lastSuccessfulRunnerResponseAtMs === undefined
+            ? undefined
+            : Date.now() - session.lastSuccessfulRunnerResponseAtMs,
+        sessionReady: session.ready,
+      },
+    });
+  }
   const remainingMs = deadline.remainingMs();
   if (remainingMs <= 0) {
     throw new AppError('COMMAND_FAILED', 'Runner command deadline exceeded', { timeoutMs });
@@ -508,10 +527,24 @@ export async function parseRunnerResponse(
     });
   }
   session.ready = true;
+  session.lastSuccessfulRunnerResponseAtMs = Date.now();
   if (json.data && typeof json.data === 'object' && !Array.isArray(json.data)) {
     return json.data as Record<string, unknown>;
   }
   return {};
+}
+
+function shouldPreflightMutatingRunnerCommand(
+  session: RunnerSession,
+  command: RunnerCommand,
+): boolean {
+  if (!session.ready) return true;
+  if (command.command !== 'tap' && command.command !== 'tapSeries') return true;
+  const lastSuccessAt = session.lastSuccessfulRunnerResponseAtMs;
+  return (
+    lastSuccessAt === undefined ||
+    Date.now() - lastSuccessAt > RUNNER_TAP_PREFLIGHT_SKIP_FRESHNESS_MS
+  );
 }
 
 async function measureRunnerStartupStep<T>(

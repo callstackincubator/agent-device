@@ -161,7 +161,48 @@ test('runner session probes readiness before mutating commands', async () => {
   });
 });
 
-test('runner session probes readiness before mutating commands even when marked ready', async () => {
+test('runner session skips readiness preflight for tap commands after a recent successful response', async () => {
+  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+
+  const result = await executeRunnerCommandWithSession(
+    IOS_SIMULATOR,
+    session,
+    { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.demo' },
+    '/tmp/runner.log',
+    30_000,
+  );
+
+  assert.deepEqual(result, { tapped: true });
+  assert.equal(mockWaitForRunner.mock.calls.length, 0);
+  assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
+});
+
+test('runner session skips readiness preflight for tapSeries after a recent successful response', async () => {
+  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+
+  const result = await executeRunnerCommandWithSession(
+    IOS_SIMULATOR,
+    session,
+    {
+      command: 'tapSeries',
+      x: 120,
+      y: 240,
+      count: 2,
+      intervalMs: 80,
+      appBundleId: 'com.example.demo',
+    },
+    '/tmp/runner.log',
+    30_000,
+  );
+
+  assert.deepEqual(result, { tapped: true });
+  assert.equal(mockWaitForRunner.mock.calls.length, 0);
+  assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
+});
+
+test('runner session keeps readiness preflight for tap commands when ready but never proven fresh', async () => {
   const session = makeRunnerSession({ ready: true });
   mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
   mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
@@ -175,6 +216,47 @@ test('runner session probes readiness before mutating commands even when marked 
   );
 
   assert.deepEqual(result, { tapped: true });
+  assert.equal(mockWaitForRunner.mock.calls.length, 1);
+  assert.deepEqual(mockWaitForRunner.mock.calls[0]?.[2], { command: 'uptime' });
+  assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
+});
+
+test('runner session keeps readiness preflight for tap commands when marked ready but stale', async () => {
+  const session = makeRunnerSession({
+    ready: true,
+    lastSuccessfulRunnerResponseAtMs: Date.now() - 11_000,
+  });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+
+  const result = await executeRunnerCommandWithSession(
+    IOS_SIMULATOR,
+    session,
+    { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.demo' },
+    '/tmp/runner.log',
+    30_000,
+  );
+
+  assert.deepEqual(result, { tapped: true });
+  assert.equal(mockWaitForRunner.mock.calls.length, 1);
+  assert.deepEqual(mockWaitForRunner.mock.calls[0]?.[2], { command: 'uptime' });
+  assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
+});
+
+test('runner session keeps readiness preflight for non-tap mutating commands when marked ready', async () => {
+  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ pressed: true }));
+
+  const result = await executeRunnerCommandWithSession(
+    IOS_SIMULATOR,
+    session,
+    { command: 'longPress', x: 120, y: 240, appBundleId: 'com.example.demo' },
+    '/tmp/runner.log',
+    30_000,
+  );
+
+  assert.deepEqual(result, { pressed: true });
   assert.equal(mockWaitForRunner.mock.calls.length, 1);
   assert.deepEqual(mockWaitForRunner.mock.calls[0]?.[2], { command: 'uptime' });
   assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
