@@ -6,6 +6,7 @@ export type DirectIosSelectorTarget = {
   key: 'id' | 'label' | 'text' | 'value';
   value: string;
   raw: string;
+  allowNonHittableTap?: boolean;
 };
 
 export function readSimpleIosSelectorTarget(params: {

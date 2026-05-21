@@ -21,6 +21,7 @@ export function contextFromFlags(
     appBundleId,
     activity: flags?.activity,
     launchConsole: flags?.launchConsole,
+    launchArgs: flags?.launchArgs,
     verbose: flags?.verbose,
     logPath,
     traceLogPath,
@@ -41,5 +42,6 @@ export function contextFromFlags(
     backMode: flags?.backMode,
     pauseMs: flags?.pauseMs,
     pattern: flags?.pattern,
+    allowNonHittableSelectorTap: flags?.allowNonHittableSelectorTap,
   };
 }

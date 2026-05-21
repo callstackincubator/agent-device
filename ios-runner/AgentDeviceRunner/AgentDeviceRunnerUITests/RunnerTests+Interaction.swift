@@ -27,6 +27,7 @@ extension RunnerTests {
   struct SelectorElementMatch {
     let element: XCUIElement?
     let isAmbiguous: Bool
+    let usedNonHittableFallback: Bool
   }
 
   enum TextTypingRepairMode {
@@ -177,10 +178,15 @@ extension RunnerTests {
     return element.exists ? element : nil
   }
 
-  func findElement(app: XCUIApplication, selectorKey: String, selectorValue: String) -> SelectorElementMatch {
+  func findElement(
+    app: XCUIApplication,
+    selectorKey: String,
+    selectorValue: String,
+    allowNonHittableFallback: Bool = false
+  ) -> SelectorElementMatch {
     let value = selectorValue.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !value.isEmpty else {
-      return SelectorElementMatch(element: nil, isAmbiguous: false)
+      return SelectorElementMatch(element: nil, isAmbiguous: false, usedNonHittableFallback: false)
     }
     let predicate: NSPredicate
     switch selectorKey {
@@ -193,21 +199,44 @@ extension RunnerTests {
     case "text":
       predicate = NSPredicate(format: "label ==[c] %@ OR identifier ==[c] %@ OR value ==[c] %@", value, value, value)
     default:
-      return SelectorElementMatch(element: nil, isAmbiguous: false)
+      return SelectorElementMatch(element: nil, isAmbiguous: false, usedNonHittableFallback: false)
     }
 
     var matchedElement: XCUIElement?
+    var nonHittableElement: XCUIElement?
     let matches = app.descendants(matching: .any).matching(predicate).allElementsBoundByIndex
     for element in matches where element.exists {
-      guard element.isHittable else {
+      if !element.isHittable {
+        if allowNonHittableFallback && hasTappableFrame(app: app, element: element) {
+          guard nonHittableElement == nil else {
+            return SelectorElementMatch(element: nil, isAmbiguous: true, usedNonHittableFallback: false)
+          }
+          nonHittableElement = element
+        }
         continue
       }
       guard matchedElement == nil else {
-        return SelectorElementMatch(element: nil, isAmbiguous: true)
+        return SelectorElementMatch(element: nil, isAmbiguous: true, usedNonHittableFallback: false)
       }
       matchedElement = element
     }
-    return SelectorElementMatch(element: matchedElement, isAmbiguous: false)
+    if let matchedElement {
+      return SelectorElementMatch(element: matchedElement, isAmbiguous: false, usedNonHittableFallback: false)
+    }
+    return SelectorElementMatch(
+      element: nonHittableElement,
+      isAmbiguous: false,
+      usedNonHittableFallback: nonHittableElement != nil
+    )
+  }
+
+  private func hasTappableFrame(app: XCUIApplication, element: XCUIElement) -> Bool {
+    let frame = element.frame
+    if frame.isEmpty {
+      return false
+    }
+    let appFrame = app.frame
+    return appFrame.isEmpty || appFrame.intersects(frame)
   }
 
   func queryElement(app: XCUIApplication, selectorKey: String, selectorValue: String) -> Response {

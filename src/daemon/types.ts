@@ -228,6 +228,7 @@ export type SessionAction = {
     snapshotDepth?: number;
     snapshotScope?: string;
     snapshotRaw?: boolean;
+    launchArgs?: string[];
     saveScript?: boolean | string;
     noRecord?: boolean;
   };

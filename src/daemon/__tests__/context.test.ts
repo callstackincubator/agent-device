@@ -14,6 +14,12 @@ test('contextFromFlags forwards scroll pixels from CLI flags', () => {
   assert.equal(context.pixels, 240);
 });
 
+test('contextFromFlags forwards internal non-hittable selector tap flag', () => {
+  const flags: CommandFlags = { allowNonHittableSelectorTap: true };
+  const context = contextFromFlags('/tmp/agent-device.log', flags);
+  assert.equal(context.allowNonHittableSelectorTap, true);
+});
+
 test('contextFromFlags forwards screenshot flags from CLI flags', () => {
   const flags: CommandFlags = {
     screenshotFullscreen: true,

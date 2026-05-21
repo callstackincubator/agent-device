@@ -61,11 +61,11 @@ Maestro compatibility translates supported YAML commands into Agent Device repla
 - Supported and unsupported capabilities: https://github.com/callstackincubator/agent-device/issues/558
 - New focused compatibility request: https://github.com/callstackincubator/agent-device/issues/new
 
-Currently supported areas include app launch without state-reset side effects, file and inline `runFlow` with `when.platform`, `onFlowStart` / `onFlowComplete`, deterministic `repeat.times`, `tapOn`, `doubleTapOn`, `longPressOn`, `inputText`, `pasteText`, `openLink`, visibility assertions, literal `assertTrue`, `extendedWaitUntil`, `scroll`, absolute/percentage `swipe`, screenshots, keyboard dismiss, basic `pressKey`, `back`, animation waits, `stopApp` / `killApp`, airplane mode, mock location, orientation, supported permission targets, and screen recording.
+Currently supported areas include app launch with launch arguments but without state-reset side effects, file and inline `runFlow` with `when.platform`, `when.visible`, and `when.notVisible`, `onFlowStart` / `onFlowComplete`, deterministic `repeat.times`, `tapOn` including `optional` and absolute/percentage point taps, `doubleTapOn`, `longPressOn`, `inputText`, `pasteText`, `openLink`, visibility assertions, `extendedWaitUntil`, `scroll`, `scrollUntilVisible`, absolute/percentage `swipe`, screenshots, keyboard dismiss, basic `pressKey`, `back`, animation waits, and `stopApp`. `runScript` is supported only as a Maestro compatibility feature for file/env scripts that use `http.post`, `json`, and `output` variables; it is not a native `.ad` command.
 
 Maestro `env` values use the same replay precedence as `.ad` files: flow `env` is the default, shell `AD_VAR_*` values override it, and CLI `-e KEY=VALUE` wins over both.
 
-Runtime-dependent Maestro features such as `scrollUntilVisible`, `repeat.while`, `runFlow.when.visible`, `runScript`, `evalScript`, text clearing, and app state reset are tracked separately because they require neutral Agent Device runtime or device capabilities before they can be mapped safely.
+Unsupported Maestro features such as `repeat.while`, `runFlow.when.true`, full expression predicates, `evalScript`, text clearing, selector relations such as `index` / `childOf`, device utility commands, and app state reset are tracked separately because they require neutral Agent Device runtime or device capabilities before they can be mapped safely.
 
 ## Run a lightweight `.ad` suite
 

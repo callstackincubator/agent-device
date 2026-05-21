@@ -31,5 +31,3 @@ export type MaestroParseContext = {
 export type MaestroCommandMapperDeps = {
   parseRunFlowFile(filePath: string, context: MaestroParseContext): MaestroReplayFlow;
 };
-
-export type PermissionCommand = 'grant' | 'deny' | 'reset';

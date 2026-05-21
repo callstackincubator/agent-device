@@ -127,7 +127,7 @@ export async function resolveIosApp(device: DeviceInfo, app: string): Promise<st
 export async function openIosApp(
   device: DeviceInfo,
   app: string,
-  options?: { appBundleId?: string; launchConsole?: string; url?: string },
+  options?: { appBundleId?: string; launchConsole?: string; launchArgs?: string[]; url?: string },
 ): Promise<void> {
   const launchConsole = options?.launchConsole?.trim();
   if (launchConsole && (device.platform !== 'ios' || device.kind !== 'simulator')) {
@@ -185,7 +185,10 @@ export async function openIosApp(
 
   const bundleId = options?.appBundleId ?? (await resolveIosApp(device, app));
   if (device.kind === 'simulator') {
-    await launchIosSimulatorApp(device, bundleId, launchConsole ? { launchConsole } : undefined);
+    await launchIosSimulatorApp(device, bundleId, {
+      ...(launchConsole ? { launchConsole } : {}),
+      ...(options?.launchArgs ? { launchArgs: options.launchArgs } : {}),
+    });
     return;
   }
 
@@ -884,7 +887,7 @@ function isIosBiometricCapabilityMissing(stdout: string, stderr: string): boolea
 async function launchIosSimulatorApp(
   device: DeviceInfo,
   bundleId: string,
-  options?: { launchConsole?: string },
+  options?: { launchConsole?: string; launchArgs?: string[] },
 ): Promise<void> {
   await ensureBootedSimulator(device);
 
@@ -947,11 +950,12 @@ async function launchIosSimulatorApp(
 function buildIosSimulatorLaunchArgs(
   deviceId: string,
   bundleId: string,
-  options?: { launchConsole?: string },
+  options?: { launchConsole?: string; launchArgs?: string[] },
 ): string[] {
   const args = ['launch'];
   if (options?.launchConsole) args.push('--console-pty');
   args.push(deviceId, bundleId);
+  if (options?.launchArgs) args.push(...options.launchArgs);
   return args;
 }
 

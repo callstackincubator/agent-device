@@ -217,6 +217,7 @@ async function handleOpenCommand(
     await interactor.open(app, {
       activity: context?.activity,
       appBundleId: context?.appBundleId,
+      launchArgs: context?.launchArgs,
       url,
     });
     return { app, url, ...successText(`Opened: ${app}`) };
@@ -228,6 +229,7 @@ async function handleOpenCommand(
     activity: context?.activity,
     appBundleId: context?.appBundleId,
     launchConsole,
+    launchArgs: context?.launchArgs,
   });
   return { app, ...(launchConsole ? { launchConsole } : {}), ...successText(`Opened: ${app}`) };
 }

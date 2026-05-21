@@ -417,6 +417,43 @@ test('click simple iOS id selector uses direct runner selector tap without snaps
   }
 });
 
+test('click simple iOS selector forwards Maestro non-hittable tap backdoor', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-maestro-selector-fallback';
+  sessionStore.set(sessionName, makeIosSession(sessionName, { appBundleId: 'com.example.app' }));
+
+  mockDispatch.mockResolvedValue({
+    message: 'tapped via non-hittable coordinate fallback',
+    x: 439.5,
+    y: 101.5,
+    referenceWidth: 440,
+    referenceHeight: 956,
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'click',
+      positionals: ['id="e2eSignInAlice"'],
+      flags: { allowNonHittableSelectorTap: true },
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  const pressCalls = mockDispatch.mock.calls.filter((call) => call[1] === 'press');
+  expect(pressCalls.length).toBe(1);
+  expect((pressCalls[0]?.[4] as Record<string, unknown>)?.directElementSelector).toEqual({
+    key: 'id',
+    value: 'e2eSignInAlice',
+    raw: 'id="e2eSignInAlice"',
+    allowNonHittableTap: true,
+  });
+});
+
 test('click simple iOS id selector falls back to snapshot coordinates when direct tap fails', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-direct-selector-fallback';

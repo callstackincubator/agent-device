@@ -29,6 +29,7 @@ export type ScreenshotOptions = {
 export type ElementSelectorTapOptions = {
   key: 'id' | 'label' | 'text' | 'value';
   value: string;
+  allowNonHittableTap?: boolean;
 };
 
 export type SnapshotOptions = BaseSnapshotOptions & {
@@ -44,7 +45,13 @@ export type SnapshotResult = Omit<BackendSnapshotResult, 'backend' | 'nodes'> & 
 export type Interactor = {
   open(
     app: string,
-    options?: { activity?: string; appBundleId?: string; launchConsole?: string; url?: string },
+    options?: {
+      activity?: string;
+      appBundleId?: string;
+      launchConsole?: string;
+      launchArgs?: string[];
+      url?: string;
+    },
   ): Promise<void>;
   openDevice(): Promise<void>;
   close(app: string): Promise<void>;

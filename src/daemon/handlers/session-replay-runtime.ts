@@ -10,6 +10,7 @@ import { healReplayAction } from './session-replay-heal.ts';
 import { formatScriptActionSummary } from '../../replay/script-utils.ts';
 import { mergeParentFlags } from './handler-utils.ts';
 import { errorResponse } from './response.ts';
+import { invokeMaestroRuntimeCommand } from './session-replay-maestro-runtime.ts';
 import {
   buildReplayVarScope,
   collectReplayShellEnv,
@@ -180,15 +181,41 @@ async function invokeReplayAction(params: {
     command: resolved.command,
     positionals: resolved.positionals ?? [],
   });
-  const response = await invoke({
+  const flags = buildReplayActionFlags(req.flags, resolved.flags);
+  const baseReq = {
     token: req.token,
     session: sessionName,
-    command: resolved.command,
-    positionals: resolved.positionals ?? [],
-    flags: buildReplayActionFlags(req.flags, resolved.flags),
+    flags,
     runtime: resolved.runtime,
     meta: req.meta,
-  });
+  };
+  const response =
+    (await invokeMaestroRuntimeCommand({
+      command: resolved.command,
+      baseReq,
+      positionals: resolved.positionals ?? [],
+      batchSteps: resolved.flags?.batchSteps,
+      line,
+      step,
+      invoke,
+      invokeReplayAction: async (nested) =>
+        await invokeReplayAction({
+          req,
+          sessionName,
+          action: nested.action,
+          scope,
+          filePath,
+          line: nested.line,
+          step: nested.step,
+          tracePath,
+          invoke,
+        }),
+    })) ??
+    (await invoke({
+      ...baseReq,
+      command: resolved.command,
+      positionals: resolved.positionals ?? [],
+    }));
   const finishedAt = Date.now();
   appendReplayTraceEvent(tracePath, {
     type: 'replay_action_stop',

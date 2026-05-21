@@ -252,7 +252,12 @@ extension RunnerTests {
       )
     case .tap:
       if let selectorKey = command.selectorKey, let selectorValue = command.selectorValue {
-        let match = findElement(app: activeApp, selectorKey: selectorKey, selectorValue: selectorValue)
+        let match = findElement(
+          app: activeApp,
+          selectorKey: selectorKey,
+          selectorValue: selectorValue,
+          allowNonHittableFallback: command.allowNonHittableSelectorTap == true
+        )
         if match.isAmbiguous {
           return Response(ok: false, error: ErrorPayload(code: "AMBIGUOUS_MATCH", message: "selector matched multiple elements"))
         }
@@ -264,7 +269,14 @@ extension RunnerTests {
           var outcome = RunnerInteractionOutcome.performed
           let timing = measureGesture {
             withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
-              outcome = activateElement(app: activeApp, element: element, action: "tap by selector")
+              if match.usedNonHittableFallback {
+                // Maestro compatibility: RN E2E backdoor controls can be 1x1 and
+                // reported non-hittable by XCTest, while Maestro still taps their
+                // resolved bounds. Keep this behind the explicit replay-only flag.
+                outcome = tapAt(app: activeApp, x: frame.midX, y: frame.midY)
+              } else {
+                outcome = activateElement(app: activeApp, element: element, action: "tap by selector")
+              }
             }
           }
           if let response = unsupportedResponse(for: outcome) {
@@ -273,7 +285,7 @@ extension RunnerTests {
           return Response(
             ok: true,
             data: DataPayload(
-              message: "tapped",
+              message: match.usedNonHittableFallback ? "tapped via non-hittable coordinate fallback" : "tapped",
               gestureStartUptimeMs: timing.gestureStartUptimeMs,
               gestureEndUptimeMs: timing.gestureEndUptimeMs,
               x: touchFrame?.x,

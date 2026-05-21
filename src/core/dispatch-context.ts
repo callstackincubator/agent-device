@@ -12,7 +12,10 @@ export type BatchStep = {
 
 export type CommandFlags = Omit<CliFlags, DaemonExcludedCliFlag> & {
   batchSteps?: BatchStep[];
+  launchArgs?: string[];
   replayBackend?: string;
+  allowNonHittableSelectorTap?: boolean;
+  maestroOptional?: boolean;
 };
 
 export type DispatchContext = ScreenshotDispatchFlags & {
@@ -20,6 +23,7 @@ export type DispatchContext = ScreenshotDispatchFlags & {
   appBundleId?: string;
   activity?: string;
   launchConsole?: string;
+  launchArgs?: string[];
   verbose?: boolean;
   logPath?: string;
   traceLogPath?: string;
@@ -40,9 +44,11 @@ export type DispatchContext = ScreenshotDispatchFlags & {
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
   surface?: SessionSurface;
+  allowNonHittableSelectorTap?: boolean;
   directElementSelector?: {
     key: 'id' | 'label' | 'text' | 'value';
     value: string;
     raw: string;
+    allowNonHittableTap?: boolean;
   };
 };

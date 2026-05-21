@@ -19,7 +19,7 @@ test('parseReplayInput routes compat replay scripts through the selected parser'
     parsed.actions.map((action) => [action.command, action.positionals]),
     [
       ['open', ['com.callstack.agentdevicelab']],
-      ['click', ['id="submit-order"']],
+      ['__maestroTapOn', ['id="submit-order"']],
     ],
   );
 });
@@ -47,7 +47,7 @@ env:
     parsed.actions.map((action) => [action.command, action.positionals]),
     [
       ['open', ['cli-app']],
-      ['click', ['id="shell-button"']],
+      ['__maestroTapOn', ['id="shell-button"']],
     ],
   );
 });

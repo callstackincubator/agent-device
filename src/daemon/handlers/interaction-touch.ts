@@ -258,7 +258,12 @@ function readDirectIosSelectorTapTarget(params: {
   if (commandLabel !== 'click') return null;
   if (target.kind !== 'selector') return null;
   if (hasNonDefaultClickOptions(flags)) return null;
-  return readSimpleIosSelectorTarget({ session, selectorExpression: target.selector });
+  const selector = readSimpleIosSelectorTarget({ session, selectorExpression: target.selector });
+  if (!selector) return null;
+  return {
+    ...selector,
+    ...(flags?.allowNonHittableSelectorTap ? { allowNonHittableTap: true } : {}),
+  };
 }
 
 function hasNonDefaultClickOptions(flags: CommandFlags | undefined): boolean {
