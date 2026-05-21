@@ -3,11 +3,17 @@ import assert from 'node:assert/strict';
 import {
   handleFlingCommand,
   handlePanCommand,
+  handlePinchCommand,
   handlePressCommand,
   handleRotateGestureCommand,
 } from '../dispatch-interactions.ts';
 import type { Interactor } from '../interactor-types.ts';
-import { IOS_SIMULATOR, MACOS_DEVICE } from '../../__tests__/test-utils/device-fixtures.ts';
+import {
+  ANDROID_EMULATOR,
+  IOS_SIMULATOR,
+  MACOS_DEVICE,
+} from '../../__tests__/test-utils/device-fixtures.ts';
+import { AppError } from '../../utils/errors.ts';
 
 vi.mock('../../platforms/ios/macos-helper.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../platforms/ios/macos-helper.ts')>();
@@ -120,6 +126,17 @@ test('handleFlingCommand converts direction and distance into a short drag', asy
   });
 });
 
+test('handlePinchCommand rejects Android adb sessions explicitly', async () => {
+  await assert.rejects(
+    () => handlePinchCommand(ANDROID_EMULATOR, ['2'], undefined),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'UNSUPPORTED_OPERATION' &&
+      /Android adb sessions/i.test(error.message) &&
+      /RemoteControl\/WebRTC/i.test(error.message),
+  );
+});
+
 test('handleRotateGestureCommand defaults velocity sign to match degrees', async () => {
   const calls: unknown[][] = [];
   const interactor = {
@@ -143,4 +160,15 @@ test('handleRotateGestureCommand defaults velocity sign to match degrees', async
     velocity: -1,
     message: 'Rotated gesture -215 degrees',
   });
+});
+
+test('handleRotateGestureCommand rejects Android adb sessions explicitly', async () => {
+  await assert.rejects(
+    () => handleRotateGestureCommand(ANDROID_EMULATOR, makeUnusedInteractor(), ['145']),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'UNSUPPORTED_OPERATION' &&
+      /Android adb sessions/i.test(error.message) &&
+      /RemoteControl\/WebRTC/i.test(error.message),
+  );
 });

@@ -601,14 +601,14 @@ export async function handlePinchCommand(
   positionals: string[],
   context: DispatchContext | undefined,
 ): Promise<Record<string, unknown>> {
+  if (device.target === 'tv') {
+    throw new AppError('UNSUPPORTED_OPERATION', 'gesture pinch is not supported on tvOS');
+  }
   if (device.platform === 'android') {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
-      'Android gesture pinch is not supported in current adb backend; requires instrumentation-based backend.',
+      'gesture pinch is not supported on Android adb sessions; adb tunnels expose standard adb only. Use a RemoteControl/WebRTC provider for Android multi-touch gestures.',
     );
-  }
-  if (device.target === 'tv') {
-    throw new AppError('UNSUPPORTED_OPERATION', 'gesture pinch is not supported on tvOS');
   }
   if (device.platform === 'macos' && context?.surface && context.surface !== 'app') {
     throw new AppError(
@@ -640,14 +640,14 @@ export async function handleRotateGestureCommand(
   interactor: Interactor,
   positionals: string[],
 ): Promise<Record<string, unknown>> {
+  if (device.target === 'tv') {
+    throw new AppError('UNSUPPORTED_OPERATION', 'gesture rotate is not supported on tvOS');
+  }
   if (device.platform === 'android') {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
-      'Android gesture rotate is not supported in current adb backend; requires instrumentation-based backend.',
+      'gesture rotate is not supported on Android adb sessions; adb tunnels expose standard adb only. Use a RemoteControl/WebRTC provider for Android multi-touch gestures.',
     );
-  }
-  if (device.target === 'tv') {
-    throw new AppError('UNSUPPORTED_OPERATION', 'gesture rotate is not supported on tvOS');
   }
   if (device.platform === 'macos') {
     throw new AppError(
