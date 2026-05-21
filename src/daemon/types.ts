@@ -161,7 +161,7 @@ type SessionRecordingBase = {
   invalidatedReason?: string;
 };
 
-type SessionRecordingProcessChild = Pick<ExecBackgroundResult['child'], 'kill'>;
+type SessionRecordingProcessChild = Pick<ExecBackgroundResult['child'], 'kill' | 'pid'>;
 
 export type SessionState = {
   name: string;
@@ -187,6 +187,7 @@ export type SessionState = {
         platform: 'ios';
         child: SessionRecordingProcessChild;
         wait: Promise<ExecResult>;
+        recorderPid?: number;
         remotePath?: string;
       })
     | (SessionRecordingBase & {

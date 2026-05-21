@@ -6,7 +6,7 @@ import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { SessionStore } from '../session-store.ts';
 import type { DaemonArtifact, DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
-import { runCmd, type ExecResult } from '../../utils/exec.ts';
+import { runCmd } from '../../utils/exec.ts';
 import { isPlayableVideo, waitForStableFile } from '../../utils/video.ts';
 import { deriveRecordingTelemetryPath } from '../recording-telemetry.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
@@ -21,7 +21,7 @@ import { resolveRecordingProvider } from '../recording-provider.ts';
 import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
 import { errorResponse } from './response.ts';
 import { startAndroidRecording, stopAndroidRecording } from './record-trace-android.ts';
-import { emitDiagnostic, withDiagnosticTimer } from '../../utils/diagnostics.ts';
+import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import {
   getIosRunnerOptions,
   normalizeAppBundleId,
@@ -31,6 +31,10 @@ import {
   stopIosDeviceRecording,
   warmIosSimulatorRunner,
 } from './record-trace-ios.ts';
+import {
+  IOS_SIMULATOR_RECORDING_STOP_TIMEOUT_MS,
+  stopIosSimulatorRecordingProcess,
+} from './record-trace-ios-simulator.ts';
 
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
 const IOS_DEVICE_RECORD_MAX_FPS = 120;
@@ -39,8 +43,6 @@ const RECORDING_MAX_QUALITY = 10;
 const LOCAL_RECORDING_READY_POLL_MS = 250;
 const LOCAL_RECORDING_READY_SETTLE_POLLS = 2;
 const IOS_SIMULATOR_RECORDING_TAIL_SETTLE_MS = 350;
-const IOS_SIMULATOR_RECORDING_STOP_TIMEOUT_MS = 5_000;
-const IOS_SIMULATOR_RECORDING_FORCE_STOP_TIMEOUT_MS = 2_000;
 const IOS_SIMULATOR_VIDEO_READY_POLL_MS = 150;
 const IOS_SIMULATOR_VIDEO_READY_ATTEMPTS = 12;
 
@@ -159,6 +161,7 @@ async function startIosSimulatorRecording(params: {
     child,
     wait,
     ...recordingBase,
+    recorderPid: child.pid,
     startedAt: readyAt,
     gestureClockOriginAtMs:
       gestureClockOriginUptimeMs === undefined ? undefined : gestureClockOriginAtMs,
@@ -168,6 +171,7 @@ async function startIosSimulatorRecording(params: {
 
 // --- Start recording orchestrator ---
 
+// fallow-ignore-next-line complexity
 async function startRecording(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -393,101 +397,6 @@ async function stopNonRunnerRecording(params: {
   return null;
 }
 
-async function stopIosSimulatorRecordingProcess(params: {
-  deps: RecordTraceDeps;
-  recording: Extract<NonNullable<SessionState['recording']>, { platform: 'ios' }>;
-}): Promise<ExecResult | null> {
-  const { deps, recording } = params;
-  recording.child.kill('SIGINT');
-  let result = await waitForRecordingProcessExit(
-    recording.wait,
-    IOS_SIMULATOR_RECORDING_STOP_TIMEOUT_MS,
-  );
-  if (result) return result;
-
-  await signalMatchingIosSimulatorRecorders(deps, recording.outPath, 'SIGINT');
-  result = await waitForRecordingProcessExit(
-    recording.wait,
-    IOS_SIMULATOR_RECORDING_FORCE_STOP_TIMEOUT_MS,
-  );
-  if (result) return result;
-
-  recording.child.kill('SIGTERM');
-  await signalMatchingIosSimulatorRecorders(deps, recording.outPath, 'SIGTERM');
-  result = await waitForRecordingProcessExit(
-    recording.wait,
-    IOS_SIMULATOR_RECORDING_FORCE_STOP_TIMEOUT_MS,
-  );
-  if (result) return result;
-
-  recording.child.kill('SIGKILL');
-  await signalMatchingIosSimulatorRecorders(deps, recording.outPath, 'SIGKILL');
-  return await waitForRecordingProcessExit(
-    recording.wait,
-    IOS_SIMULATOR_RECORDING_FORCE_STOP_TIMEOUT_MS,
-  );
-}
-
-async function waitForRecordingProcessExit(
-  wait: Promise<ExecResult>,
-  timeoutMs: number,
-): Promise<ExecResult | null> {
-  return await Promise.race([wait, sleep(timeoutMs).then(() => null)]);
-}
-
-async function signalMatchingIosSimulatorRecorders(
-  deps: RecordTraceDeps,
-  outPath: string,
-  signal: NodeJS.Signals,
-): Promise<void> {
-  const pattern = `simctl.*recordVideo.*${escapeProcessRegex(outPath)}`;
-  let result: ExecResult;
-  try {
-    result = await deps.runCmd('pgrep', ['-f', pattern], { allowFailure: true });
-  } catch (error) {
-    emitDiagnostic({
-      level: 'warn',
-      phase: 'record_stop_ios_simulator_pgrep_failed',
-      data: {
-        outPath,
-        signal,
-        error: formatRecordTraceError(error),
-      },
-    });
-    return;
-  }
-
-  const pids = result.stdout
-    .split(/\s+/)
-    .map((value) => Number(value))
-    .filter((pid) => Number.isInteger(pid) && pid > 0 && pid !== process.pid);
-  let signaled = 0;
-  for (const pid of pids) {
-    try {
-      process.kill(pid, signal);
-      signaled += 1;
-    } catch {
-      // Process already exited or cannot be signaled; continue best-effort cleanup.
-    }
-  }
-
-  emitDiagnostic({
-    level: signaled > 0 ? 'warn' : 'debug',
-    phase: 'record_stop_ios_simulator_signal_recorders',
-    data: {
-      outPath,
-      signal,
-      matchedPidCount: pids.length,
-      signaled,
-      pgrepExitCode: result.exitCode,
-    },
-  });
-}
-
-function escapeProcessRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 async function stopRecording(params: {
   req: DaemonRequest;
   activeSession: SessionState;
@@ -515,7 +424,9 @@ async function stopRecording(params: {
     return stopError;
   }
 
-  if (invalidatedReason) {
+  if (invalidatedReason && recording.platform === 'ios' && recording.showTouches) {
+    recording.overlayWarning ??= `overlay unavailable: ${invalidatedReason}`;
+  } else if (invalidatedReason) {
     return errorResponse('COMMAND_FAILED', invalidatedReason);
   }
 

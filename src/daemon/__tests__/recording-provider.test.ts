@@ -4,7 +4,7 @@ import { IOS_SIMULATOR } from '../../__tests__/test-utils/index.ts';
 
 const { runCmdBackgroundMock } = vi.hoisted(() => ({
   runCmdBackgroundMock: vi.fn(() => ({
-    child: { kill: () => true },
+    child: { kill: () => true, pid: 1234 },
     wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
   })),
 }));
@@ -31,6 +31,7 @@ test('local recording provider starts iOS simulator recordVideo through simctl',
   });
 
   assert.equal(result.child.kill('SIGINT'), true);
+  assert.equal(result.child.pid, 1234);
   assert.deepEqual(mockRunCmdBackground.mock.calls, [
     [
       'xcrun',

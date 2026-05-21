@@ -32,5 +32,6 @@ export function shouldBlockForInvalidRecording(command: string): boolean {
 function recordingRequiresRunnerHealth(session: SessionState): boolean {
   const recording = session.recording;
   if (!recording || session.device.platform !== 'ios') return false;
+  if (recording.platform === 'ios') return false;
   return recording.showTouches !== false;
 }

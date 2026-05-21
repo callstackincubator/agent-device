@@ -53,8 +53,32 @@ test('raw iOS simulator recordings do not depend on runner health', () => {
   expect(session.recording?.invalidatedReason).toBeUndefined();
 });
 
-test('touch-overlay iOS simulator recordings are invalidated by runner restarts', () => {
+test('touch-overlay iOS simulator recordings tolerate runner restarts', () => {
   const session = makeIosSimulatorSession(true);
+  mockGetRunnerSessionSnapshot.mockReturnValue({
+    alive: true,
+    sessionId: 'runner-after',
+  });
+
+  refreshRecordingHealth(session);
+
+  expect(mockGetRunnerSessionSnapshot).not.toHaveBeenCalled();
+  expect(session.recording?.runnerSessionId).toBe('runner-before');
+  expect(session.recording?.invalidatedReason).toBeUndefined();
+});
+
+test('runner-backed iOS recordings still invalidate on runner restarts', () => {
+  const session = makeIosSimulatorSession(true);
+  session.device.kind = 'device';
+  session.recording = {
+    platform: 'ios-device-runner',
+    outPath: '/tmp/demo.mp4',
+    remotePath: '/tmp/demo.mp4',
+    startedAt: Date.now() - 1_000,
+    showTouches: true,
+    gestureEvents: [],
+    runnerSessionId: 'runner-before',
+  };
   mockGetRunnerSessionSnapshot.mockReturnValue({
     alive: true,
     sessionId: 'runner-after',

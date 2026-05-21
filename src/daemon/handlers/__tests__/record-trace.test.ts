@@ -596,7 +596,109 @@ test('record stop leaves a short visual tail after iOS simulator gestures', asyn
   expect(kill).toHaveBeenCalledWith('SIGINT');
 });
 
-test('record stop escalates stale iOS simulator recordVideo processes', async () => {
+test('record start stores iOS simulator recorder pid for scoped cleanup', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-recorder-pid';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'Simulator',
+      kind: 'simulator',
+      booted: true,
+    }),
+  );
+  mockRunCmdBackground.mockImplementation(() => ({
+    child: { kill: () => {}, pid: 5151 } as any,
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  }));
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './sim-recorder-pid.mp4'],
+    flags: { hideTouches: true },
+  });
+
+  expect(response?.ok).toBe(true);
+  const recording = sessionStore.get(sessionName)?.recording;
+  expect(recording?.platform).toBe('ios');
+  if (recording?.platform === 'ios') {
+    expect(recording.recorderPid).toBe(5151);
+  }
+});
+
+test('record stop prefers session-owned iOS recorder processes before path fallback', async () => {
+  vi.useFakeTimers();
+  const processKill = vi.spyOn(process, 'kill').mockImplementation(() => true);
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-owned-recorder';
+  const kill = vi.fn();
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'Simulator',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.recording = {
+    platform: 'ios',
+    outPath: '/tmp/owned-recorder.mp4',
+    startedAt: Date.now(),
+    showTouches: true,
+    gestureEvents: [],
+    recorderPid: 1111,
+    child: { kill, pid: 1111 },
+    wait: new Promise(() => {}),
+  };
+  sessionStore.set(sessionName, session);
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'pgrep' && args[0] === '-P') {
+      expect(args).toEqual(['-P', '1111']);
+      return { stdout: '2222\n', stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'pgrep' && args[0] === '-f') {
+      throw new Error('path fallback should not run when owned recorder cleanup matches');
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  try {
+    const responsePromise = runRecordCommand({
+      sessionStore,
+      sessionName,
+      positionals: ['stop'],
+    });
+
+    await vi.advanceTimersByTimeAsync(12_000);
+    const response = await responsePromise;
+
+    expect(response?.ok).toBe(false);
+    expect((response as any).error?.message).toMatch(/did not exit/);
+    expect(kill.mock.calls.map((call) => call[0])).toEqual(['SIGINT', 'SIGTERM', 'SIGKILL']);
+    expect(mockRunCmd.mock.calls.map((call) => call[1])).toEqual([
+      ['-P', '1111'],
+      ['-P', '1111'],
+      ['-P', '1111'],
+    ]);
+    expect(processKill.mock.calls.map((call) => call[0])).toEqual([
+      1111, 2222, 1111, 2222, 1111, 2222,
+    ]);
+    expect(processKill.mock.calls.map((call) => call[1])).toEqual([
+      'SIGINT',
+      'SIGINT',
+      'SIGTERM',
+      'SIGTERM',
+      'SIGKILL',
+      'SIGKILL',
+    ]);
+  } finally {
+    processKill.mockRestore();
+  }
+});
+
+test('record stop falls back to path matching for stale iOS simulator recordVideo processes', async () => {
   vi.useFakeTimers();
   const processKill = vi.spyOn(process, 'kill').mockImplementation(() => true);
   const sessionStore = makeSessionStore();
@@ -1229,7 +1331,7 @@ test('record stop force-kills Android screenrecord when SIGINT fails but process
   ).toBe(true);
 });
 
-test('record stop reports invalidated recording after cleanup', async () => {
+test('record stop keeps iOS simulator video when touch overlay recording was invalidated', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-invalidated-recording';
   const session = makeSession(sessionName, {
@@ -1257,10 +1359,12 @@ test('record stop reports invalidated recording after cleanup', async () => {
     positionals: ['stop'],
   });
 
-  expect(response?.ok).toBe(false);
-  if (response?.ok === false) {
-    expect(response.error.code).toBe('COMMAND_FAILED');
-    expect(response.error.message).toBe('iOS runner session exited during recording');
+  expect(response?.ok).toBe(true);
+  if (response?.ok === true) {
+    expect(response.data?.outPath).toBe(path.resolve('./invalidated.mp4'));
+    expect(response.data?.overlayWarning).toBe(
+      'overlay unavailable: iOS runner session exited during recording',
+    );
   }
   expect(sessionStore.get(sessionName)?.recording).toBeUndefined();
 });

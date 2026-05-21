@@ -4,7 +4,7 @@ import { runCmdBackground, type ExecBackgroundResult, type ExecResult } from '..
 import { createScopedProvider } from '../utils/scoped-provider.ts';
 
 export type RecordingProcess = {
-  child: Pick<ExecBackgroundResult['child'], 'kill'>;
+  child: Pick<ExecBackgroundResult['child'], 'kill' | 'pid'>;
   wait: Promise<ExecResult>;
 };
 
