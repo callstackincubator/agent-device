@@ -165,31 +165,38 @@ function buildGestureEvents(
   gestureDurationMs: number,
   referenceFrame?: ReferenceFrame,
 ): RecordingGestureEvent[] {
-  switch (command) {
-    case 'click':
-    case 'press':
-      return buildPressEvents(positionals, result, tMs, referenceFrame);
-    case 'react-native':
-      return positionals[0] === 'dismiss-overlay'
-        ? buildPressEvents(positionals, result, tMs, referenceFrame)
-        : [];
-    case 'fill':
-    case 'focus':
-      return buildFocusEvents(positionals, result, tMs, referenceFrame);
-    case 'longpress':
-      return buildLongPressEvents(positionals, result, tMs, gestureDurationMs, referenceFrame);
-    case 'scroll':
-      return buildScrollEvents(positionals, result, tMs, gestureDurationMs, referenceFrame);
-    case 'pan':
-    case 'fling':
-    case 'swipe':
-      return buildSwipeEvents(positionals, result, tMs, gestureDurationMs, referenceFrame);
-    case 'pinch':
-      return buildPinchEvents(positionals, result, tMs, gestureDurationMs, referenceFrame);
-    default:
-      return [];
-  }
+  const builder = gestureEventBuilders[command];
+  return builder?.(positionals, result, tMs, gestureDurationMs, referenceFrame) ?? [];
 }
+
+type GestureEventBuilder = (
+  positionals: string[],
+  result: Record<string, unknown>,
+  tMs: number,
+  gestureDurationMs: number,
+  referenceFrame?: ReferenceFrame,
+) => RecordingGestureEvent[];
+
+const gestureEventBuilders: Record<string, GestureEventBuilder> = {
+  click: (positionals, result, tMs, _durationMs, referenceFrame) =>
+    buildPressEvents(positionals, result, tMs, referenceFrame),
+  press: (positionals, result, tMs, _durationMs, referenceFrame) =>
+    buildPressEvents(positionals, result, tMs, referenceFrame),
+  'react-native': (positionals, result, tMs, _durationMs, referenceFrame) =>
+    positionals[0] === 'dismiss-overlay'
+      ? buildPressEvents(positionals, result, tMs, referenceFrame)
+      : [],
+  fill: (positionals, result, tMs, _durationMs, referenceFrame) =>
+    buildFocusEvents(positionals, result, tMs, referenceFrame),
+  focus: (positionals, result, tMs, _durationMs, referenceFrame) =>
+    buildFocusEvents(positionals, result, tMs, referenceFrame),
+  longpress: buildLongPressEvents,
+  scroll: buildScrollEvents,
+  pan: buildSwipeEvents,
+  fling: buildSwipeEvents,
+  swipe: buildSwipeEvents,
+  pinch: buildPinchEvents,
+};
 
 function shouldAnchorTapVisualizationNearCompletion(
   command: string,
@@ -296,43 +303,51 @@ function buildSwipeEvents(
   const count = clampInt(readNumber(result.count), 1) ?? 1;
   const pauseMs = clampInt(readNumber(result.pauseMs), 0) ?? 0;
   const pattern = result.pattern === 'ping-pong' ? 'ping-pong' : 'one-way';
-  const events: RecordingGestureEvent[] = [];
-
-  for (let index = 0; index < count; index += 1) {
-    const reverse = pattern === 'ping-pong' && index % 2 === 1;
-    const startX = reverse ? x2 : x1;
-    const startY = reverse ? y2 : y1;
-    const endX = reverse ? x1 : x2;
-    const endY = reverse ? y1 : y2;
+  return Array.from({ length: count }, (_, index) => {
+    const { startX, startY, endX, endY } = resolveSwipePathForIndex(index, pattern, x1, y1, x2, y2);
     const startTime = tMs + index * (durationMs + pauseMs);
-    const kind = classifySwipeKind(startX, startY, endX, endY, referenceFrame);
-    if (kind === 'back-swipe') {
-      events.push({
-        kind: 'back-swipe',
-        tMs: startTime,
-        x: startX,
-        y: startY,
-        x2: endX,
-        y2: endY,
-        ...referenceFrame,
-        durationMs,
-        edge: resolveBackSwipeEdge(startX, endX, referenceFrame),
-      });
-      continue;
-    }
-    events.push({
-      kind: 'swipe',
-      tMs: startTime,
-      x: startX,
-      y: startY,
-      x2: endX,
-      y2: endY,
+    return buildSwipeTravelEvent(startTime, startX, startY, endX, endY, durationMs, referenceFrame);
+  });
+}
+
+function resolveSwipePathForIndex(
+  index: number,
+  pattern: 'one-way' | 'ping-pong',
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): { startX: number; startY: number; endX: number; endY: number } {
+  const reverse = pattern === 'ping-pong' && index % 2 === 1;
+  return reverse
+    ? { startX: x2, startY: y2, endX: x1, endY: y1 }
+    : { startX: x1, startY: y1, endX: x2, endY: y2 };
+}
+
+function buildSwipeTravelEvent(
+  tMs: number,
+  x: number,
+  y: number,
+  x2: number,
+  y2: number,
+  durationMs: number,
+  referenceFrame?: ReferenceFrame,
+): RecordingGestureEvent {
+  const kind = classifySwipeKind(x, y, x2, y2, referenceFrame);
+  if (kind === 'back-swipe') {
+    return {
+      kind,
+      tMs,
+      x,
+      y,
+      x2,
+      y2,
       ...referenceFrame,
       durationMs,
-    });
+      edge: resolveBackSwipeEdge(x, x2, referenceFrame),
+    };
   }
-
-  return events;
+  return { kind, tMs, x, y, x2, y2, ...referenceFrame, durationMs };
 }
 
 function buildScrollEvents(
@@ -506,14 +521,18 @@ function readTravelCoordinates(
   result: Record<string, unknown>,
   positionals: string[],
 ): { x1: number; y1: number; x2: number; y2: number } | undefined {
-  const x1 = readNumber(result.x1) ?? readNumber(result.x) ?? readNumber(positionals[0]);
-  const y1 = readNumber(result.y1) ?? readNumber(result.y) ?? readNumber(positionals[1]);
-  const x2 = readNumber(result.x2) ?? readNumber(positionals[2]);
-  const y2 = readNumber(result.y2) ?? readNumber(positionals[3]);
+  const x1 = readFirstNumber(result.x1, result.x, positionals[0]);
+  const y1 = readFirstNumber(result.y1, result.y, positionals[1]);
+  const x2 = readFirstNumber(result.x2, positionals[2]);
+  const y2 = readFirstNumber(result.y2, positionals[3]);
   if (x1 === undefined || y1 === undefined || x2 === undefined || y2 === undefined) {
     return undefined;
   }
   return { x1, y1, x2, y2 };
+}
+
+function readFirstNumber(...values: unknown[]): number | undefined {
+  return values.map(readNumber).find((value) => value !== undefined);
 }
 
 function resolveDurationMs(

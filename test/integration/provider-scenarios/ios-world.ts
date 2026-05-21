@@ -67,12 +67,11 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
       result: { dragged: true },
     },
     {
-      command: 'ios.runner.fling',
+      command: 'ios.runner.drag',
       deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
       platform: 'ios',
       request: {
-        command: 'fling',
-        direction: 'right',
+        command: 'drag',
         x: 196,
         y: 122,
         x2: 376,

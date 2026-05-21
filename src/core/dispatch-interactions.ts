@@ -653,22 +653,7 @@ export async function handleRotateGestureCommand(
     );
   }
 
-  const degrees = Number(positionals[0]);
-  const x = positionals[1] ? Number(positionals[1]) : undefined;
-  const y = positionals[2] ? Number(positionals[2]) : undefined;
-  const velocity = positionals[3] ? Number(positionals[3]) : degrees >= 0 ? 1 : -1;
-  if (!Number.isFinite(degrees)) {
-    throw new AppError('INVALID_ARGS', 'rotate-gesture requires degrees [x] [y] [velocity]');
-  }
-  if ((x === undefined) !== (y === undefined)) {
-    throw new AppError('INVALID_ARGS', 'rotate-gesture center requires both x and y');
-  }
-  if (x !== undefined && (!Number.isFinite(x) || !Number.isFinite(y))) {
-    throw new AppError('INVALID_ARGS', 'rotate-gesture center requires finite x and y');
-  }
-  if (!Number.isFinite(velocity) || velocity === 0) {
-    throw new AppError('INVALID_ARGS', 'rotate-gesture velocity must be a non-zero number');
-  }
+  const { degrees, x, y, velocity } = parseRotateGestureParams(positionals);
 
   await interactor.rotateGesture(degrees, x, y, velocity);
   return {
@@ -680,6 +665,45 @@ export async function handleRotateGestureCommand(
 }
 
 type GestureDirection = 'up' | 'down' | 'left' | 'right';
+
+type RotateGestureParams = {
+  degrees: number;
+  x?: number;
+  y?: number;
+  velocity: number;
+};
+
+function parseRotateGestureParams(positionals: string[]): RotateGestureParams {
+  const degrees = Number(positionals[0]);
+  if (!Number.isFinite(degrees)) {
+    throw new AppError('INVALID_ARGS', 'rotate-gesture requires degrees [x] [y] [velocity]');
+  }
+
+  const center = parseOptionalGestureCenter(positionals[1], positionals[2]);
+  const velocity = Number(positionals[3] ?? (degrees >= 0 ? 1 : -1));
+  if (!Number.isFinite(velocity) || velocity === 0) {
+    throw new AppError('INVALID_ARGS', 'rotate-gesture velocity must be a non-zero number');
+  }
+
+  return { degrees, ...center, velocity };
+}
+
+function parseOptionalGestureCenter(
+  xInput: string | undefined,
+  yInput: string | undefined,
+): Pick<RotateGestureParams, 'x' | 'y'> {
+  if (xInput === undefined && yInput === undefined) return {};
+  if (xInput === undefined || yInput === undefined) {
+    throw new AppError('INVALID_ARGS', 'rotate-gesture center requires both x and y');
+  }
+
+  const x = Number(xInput);
+  const y = Number(yInput);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    throw new AppError('INVALID_ARGS', 'rotate-gesture center requires finite x and y');
+  }
+  return { x, y };
+}
 
 function parseGestureDirection(input: string | undefined, field: string): GestureDirection {
   if (input === 'up' || input === 'down' || input === 'left' || input === 'right') {
