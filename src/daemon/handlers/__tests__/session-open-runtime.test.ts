@@ -28,6 +28,13 @@ vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
     stopIosRunnerSession: vi.fn(async () => {}),
   };
 });
+vi.mock('../../../platforms/ios/apps.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/ios/apps.ts')>();
+  return {
+    ...actual,
+    resolveIosApp: vi.fn(async () => 'com.example.demo'),
+  };
+});
 vi.mock('../session-device-utils.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../session-device-utils.ts')>();
   return { ...actual, settleIosSimulator: vi.fn(async () => {}) };
@@ -138,6 +145,52 @@ test('open applies stored runtime launchUrl and reports runtime hints', async ()
       launchUrl: 'myapp://dev-client',
     });
   }
+});
+
+test('open applies launchConsole only to the direct app launch before runtime launchUrl', async () => {
+  const sessionStore = makeSessionStore();
+  const launchConsolePath = path.join(os.tmpdir(), 'launch-console.log');
+  const dispatchCalls: Array<{
+    command: string;
+    positionals: string[];
+    launchConsole?: string;
+  }> = [];
+
+  sessionStore.setRuntimeHints('launch-console-runtime', {
+    platform: 'ios',
+    launchUrl: 'myapp://dev-client',
+  });
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 15',
+    kind: 'simulator',
+    booted: true,
+  });
+  mockDispatch.mockImplementation(async (_device, command, positionals, _outPath, context) => {
+    dispatchCalls.push({ command, positionals, launchConsole: context?.launchConsole });
+    return {};
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'launch-console-runtime',
+      command: 'open',
+      positionals: ['Demo'],
+      flags: { platform: 'ios', launchConsole: launchConsolePath },
+    },
+    sessionName: 'launch-console-runtime',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(dispatchCalls).toEqual([
+    { command: 'open', positionals: ['Demo'], launchConsole: launchConsolePath },
+    { command: 'open', positionals: ['myapp://dev-client'], launchConsole: undefined },
+  ]);
 });
 
 test('open runtime payload replaces stored session runtime atomically', async () => {

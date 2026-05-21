@@ -275,6 +275,7 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     androidDeviceAllowlist: options.androidDeviceAllowlist,
     surface: options.surface,
     activity: options.activity,
+    launchConsole: options.launchConsole,
     relaunch: options.relaunch,
     shutdown: options.shutdown,
     saveScript: options.saveScript,

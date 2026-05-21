@@ -19,6 +19,7 @@ import {
   openApp,
   resolveDaemonStartupHint,
   sendToDaemon,
+  shouldResetDaemonAfterRequestTimeout,
 } from '../../daemon-client.ts';
 import { resolveDaemonPaths } from '../../daemon/config.ts';
 import {
@@ -154,6 +155,12 @@ test('resolveDaemonStartupHint includes configured state directory paths', () =>
   const hint = resolveDaemonStartupHint({ hasInfo: false, hasLock: true }, paths);
   assert.match(hint, /\/tmp\/ad-custom-state\/daemon\.lock/);
   assert.match(hint, /\/tmp\/ad-custom-state\/daemon\.json/);
+});
+
+test('snapshot request timeout preserves daemon metadata for follow-up evidence commands', () => {
+  assert.equal(shouldResetDaemonAfterRequestTimeout('snapshot'), false);
+  assert.equal(shouldResetDaemonAfterRequestTimeout('screenshot'), true);
+  assert.equal(shouldResetDaemonAfterRequestTimeout(undefined), true);
 });
 
 test('cleanupFailedDaemonStartupMetadata removes partial startup metadata', async () => {

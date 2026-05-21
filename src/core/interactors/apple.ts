@@ -27,7 +27,11 @@ export function createAppleInteractor(
   const { overrides, runnerOpts } = iosRunnerOverrides(device, runnerContext);
   return {
     open: (app, options) =>
-      openIosApp(device, app, { appBundleId: options?.appBundleId, url: options?.url }),
+      openIosApp(device, app, {
+        appBundleId: options?.appBundleId,
+        launchConsole: options?.launchConsole,
+        url: options?.url,
+      }),
     openDevice: () => openIosDevice(device),
     close: (app) => closeIosApp(device, app),
     screenshot: async (outPath, options) => {

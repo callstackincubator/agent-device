@@ -117,6 +117,9 @@ const snapshot = await client.capture.snapshot({ interactiveOnly: true });
 await client.sessions.close();
 ```
 
+For direct iOS simulator app launches, `client.apps.open({ app, platform: 'ios', launchConsole: './artifacts/app.console.log' })` captures launch-time
+stdout/stderr. The option mirrors `open --launch-console` and is not valid for URL opens or non-simulator targets.
+
 ## Android snapshot helper providers
 
 Remote Android providers should import `agent-device/android-snapshot-helper` and inject their own

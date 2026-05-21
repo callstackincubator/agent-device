@@ -3,7 +3,12 @@ import os from 'node:os';
 import path from 'node:path';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
+import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
+import {
+  LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE,
+  LAUNCH_CONSOLE_IOS_SIMULATOR_ONLY_MESSAGE,
+} from '../../core/launch-console.ts';
 import { requireLocationCoordinates } from '../../utils/location-coordinates.ts';
 import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
@@ -60,6 +65,7 @@ export {
 const ALIASES: Record<string, string> = {
   settings: 'com.apple.Preferences',
 };
+const IOS_SIMULATOR_CONSOLE_CAPTURE_MS = 25_000;
 
 const iosAppResolutionCache = createAppResolutionCache<string>();
 let cachedSimctlPrivacyServices: Set<string> | null = null;
@@ -117,17 +123,25 @@ export async function resolveIosApp(device: DeviceInfo, app: string): Promise<st
   throw new AppError('APP_NOT_INSTALLED', `No app found matching "${app}"`);
 }
 
+// fallow-ignore-next-line complexity
 export async function openIosApp(
   device: DeviceInfo,
   app: string,
-  options?: { appBundleId?: string; url?: string },
+  options?: { appBundleId?: string; launchConsole?: string; url?: string },
 ): Promise<void> {
+  const launchConsole = options?.launchConsole?.trim();
+  if (launchConsole && (device.platform !== 'ios' || device.kind !== 'simulator')) {
+    throw new AppError('UNSUPPORTED_OPERATION', LAUNCH_CONSOLE_IOS_SIMULATOR_ONLY_MESSAGE);
+  }
   if (device.platform === 'macos') {
     await openMacOsApp(device, app, options);
     return;
   }
   const explicitUrl = options?.url?.trim();
   if (explicitUrl) {
+    if (launchConsole) {
+      throw new AppError('INVALID_ARGS', LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE);
+    }
     if (!isDeepLinkTarget(explicitUrl)) {
       throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
     }
@@ -150,6 +164,9 @@ export async function openIosApp(
 
   const deepLinkTarget = app.trim();
   if (isDeepLinkTarget(deepLinkTarget)) {
+    if (launchConsole) {
+      throw new AppError('INVALID_ARGS', LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE);
+    }
     if (device.kind === 'simulator') {
       await ensureBootedSimulator(device);
       await runSimctl(device, ['openurl', device.id, deepLinkTarget]);
@@ -168,7 +185,7 @@ export async function openIosApp(
 
   const bundleId = options?.appBundleId ?? (await resolveIosApp(device, app));
   if (device.kind === 'simulator') {
-    await launchIosSimulatorApp(device, bundleId);
+    await launchIosSimulatorApp(device, bundleId, launchConsole ? { launchConsole } : undefined);
     return;
   }
 
@@ -721,6 +738,7 @@ function parseSimctlPrivacyServices(helpText: string): Set<string> {
   return services;
 }
 
+// fallow-ignore-next-line complexity
 function parseIosPermissionTarget(
   permissionTarget: string | undefined,
   permissionMode: string | undefined,
@@ -863,7 +881,11 @@ function isIosBiometricCapabilityMissing(stdout: string, stderr: string): boolea
   );
 }
 
-async function launchIosSimulatorApp(device: DeviceInfo, bundleId: string): Promise<void> {
+async function launchIosSimulatorApp(
+  device: DeviceInfo,
+  bundleId: string,
+  options?: { launchConsole?: string },
+): Promise<void> {
   await ensureBootedSimulator(device);
 
   let consecutiveFBSFailures = 0;
@@ -879,10 +901,15 @@ async function launchIosSimulatorApp(device: DeviceInfo, bundleId: string): Prom
           });
         }
 
-        const launchArgs = simctlArgs(device, ['launch', device.id, bundleId]);
-        const result = await runXcrun(launchArgs, {
-          allowFailure: true,
-        });
+        const launchArgs = simctlArgs(
+          device,
+          buildIosSimulatorLaunchArgs(device.id, bundleId, options),
+        );
+        const result = options?.launchConsole
+          ? await runIosSimulatorConsoleLaunch(launchArgs, options.launchConsole)
+          : await runXcrun(launchArgs, {
+              allowFailure: true,
+            });
         if (result.exitCode === 0) return;
 
         throw new AppError('COMMAND_FAILED', `xcrun exited with code ${result.exitCode}`, {
@@ -915,6 +942,67 @@ async function launchIosSimulatorApp(device: DeviceInfo, bundleId: string): Prom
     }
     throw error;
   }
+}
+
+function buildIosSimulatorLaunchArgs(
+  deviceId: string,
+  bundleId: string,
+  options?: { launchConsole?: string },
+): string[] {
+  const args = ['launch'];
+  if (options?.launchConsole) args.push('--console-pty');
+  args.push(deviceId, bundleId);
+  return args;
+}
+
+async function runIosSimulatorConsoleLaunch(
+  launchArgs: string[],
+  logPath: string,
+): Promise<Awaited<ReturnType<typeof runXcrun>>> {
+  await fs.mkdir(path.dirname(logPath), { recursive: true });
+  try {
+    const result = await runXcrun(launchArgs, {
+      allowFailure: true,
+      timeoutMs: IOS_SIMULATOR_CONSOLE_CAPTURE_MS,
+    });
+    await writeIosSimulatorConsoleLog(logPath, result.stdout, result.stderr);
+    return result;
+  } catch (error) {
+    const appError = error instanceof AppError ? error : undefined;
+    const details = appError?.details;
+    if (details?.timeoutMs === IOS_SIMULATOR_CONSOLE_CAPTURE_MS) {
+      const stdout = typeof details.stdout === 'string' ? details.stdout : '';
+      const stderr = typeof details.stderr === 'string' ? details.stderr : '';
+      await writeIosSimulatorConsoleLog(logPath, stdout, stderr);
+      emitDiagnostic({
+        level: 'warn',
+        phase: 'ios_simulator_launch_console_capture_timeout',
+        data: {
+          timeoutMs: IOS_SIMULATOR_CONSOLE_CAPTURE_MS,
+          logPath,
+          stdoutBytes: Buffer.byteLength(stdout),
+          stderrBytes: Buffer.byteLength(stderr),
+        },
+      });
+      return { stdout, stderr, exitCode: 0 };
+    }
+    throw error;
+  }
+}
+
+async function writeIosSimulatorConsoleLog(
+  logPath: string,
+  stdout: string,
+  stderr: string,
+): Promise<void> {
+  await fs.writeFile(logPath, joinProcessOutput(stdout, stderr), 'utf8');
+}
+
+function joinProcessOutput(stdout: string, stderr: string): string {
+  if (!stdout || !stderr || stdout.endsWith('\n') || stdout.endsWith('\r')) {
+    return `${stdout}${stderr}`;
+  }
+  return `${stdout}\n${stderr}`;
 }
 
 async function launchIosDeviceProcess(

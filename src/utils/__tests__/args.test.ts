@@ -969,6 +969,8 @@ test('usageForCommand resolves debugging help topic', () => {
   assert.match(help, /agent-device help debugging/);
   assert.match(help, /agent-device alert wait 3000/);
   assert.match(help, /iOS support is runner-derived/);
+  assert.match(help, /resolved app executable/);
+  assert.match(help, /--launch-console is only for direct iOS simulator app launches/);
   assert.match(help, /Do not use settings permission to answer a dialog already on screen/);
 });
 
@@ -1320,11 +1322,13 @@ test('back command usage documents explicit mode flags', () => {
   assert.match(help, /--system/);
 });
 
-test('open command usage documents macOS desktop surface flags', () => {
+test('open command usage documents surface and console log flags', () => {
   const help = usageForCommand('open');
   if (help === null) throw new Error('Expected command help text');
   assert.match(help, /--surface app\|frontmost-app\|desktop\|menubar/);
   assert.match(help, /macOS also supports --surface/);
+  assert.match(help, /--launch-console <path>/);
+  assert.match(help, /iOS simulator launch console/);
 });
 
 test('command usage shows record touch-overlay opt-out flag', () => {

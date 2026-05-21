@@ -52,6 +52,14 @@ agent-device logs path
 
 Use this flow when you need a clean repro window with logs, recent network activity, and a quick perf sample from the active app session.
 
+On iOS simulators, `logs` scope by bundle id and the resolved app executable. For launch-time stdout/stderr, capture the direct app launch console instead of starting raw `simctl` streams:
+
+```bash
+agent-device open MyApp --platform ios --relaunch --launch-console ./artifacts/app.console.log
+```
+
+`--launch-console` is only for direct iOS simulator app launches, not URL opens.
+
 ## Core commands
 
 ### Logs

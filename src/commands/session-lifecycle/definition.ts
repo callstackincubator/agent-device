@@ -29,7 +29,7 @@ const openCommandDefinition = defineCommand({
       'Boot device/simulator; optionally launch app or deep link URL (macOS also supports --surface app|frontmost-app|desktop|menubar)',
     summary: 'Open an app, deep link or URL, save replays',
     positionalArgs: ['appOrUrl?', 'url?'],
-    allowedFlags: ['activity', 'saveScript', 'relaunch', 'surface'],
+    allowedFlags: ['activity', 'launchConsole', 'saveScript', 'relaunch', 'surface'],
   },
   capability: APP_RUNTIME_CAPABILITY,
 });

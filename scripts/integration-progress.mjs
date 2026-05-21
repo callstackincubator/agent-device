@@ -195,6 +195,7 @@ function summarizeProviderScenarioFlagCoverage(files) {
     ['session', 'named session routing'],
     ['surface', 'macOS app/frontmost/desktop/menubar surfaces'],
     ['activity', 'Android explicit launch activity'],
+    ['launchConsole', 'iOS simulator launch console capture'],
     ['saveScript', 'open/close replay recording output'],
     ['relaunch', 'open terminates before launch'],
     ['shutdown', 'close/disconnect shutdown behavior'],

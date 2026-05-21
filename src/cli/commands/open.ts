@@ -8,6 +8,7 @@ export const openCommand: ClientCommandHandler = async ({ positionals, flags, cl
     url: positionals[1],
     surface: flags.surface,
     activity: flags.activity,
+    launchConsole: flags.launchConsole,
     relaunch: flags.relaunch,
     saveScript: flags.saveScript,
     noRecord: flags.noRecord,

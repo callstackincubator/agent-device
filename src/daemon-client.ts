@@ -42,6 +42,7 @@ export type OpenAppOptions = {
   udid?: NonNullable<DaemonRequest['flags']>['udid'];
   serial?: NonNullable<DaemonRequest['flags']>['serial'];
   activity?: NonNullable<DaemonRequest['flags']>['activity'];
+  launchConsole?: NonNullable<DaemonRequest['flags']>['launchConsole'];
   out?: NonNullable<DaemonRequest['flags']>['out'];
   saveScript?: NonNullable<DaemonRequest['flags']>['saveScript'];
   relaunch?: boolean;
@@ -180,6 +181,7 @@ export async function openApp(options: OpenAppOptions = {}): Promise<DaemonRespo
     udid,
     serial,
     activity,
+    launchConsole,
     out,
     saveScript,
     relaunch,
@@ -200,6 +202,7 @@ export async function openApp(options: OpenAppOptions = {}): Promise<DaemonRespo
       ...(udid !== undefined ? { udid } : {}),
       ...(serial !== undefined ? { serial } : {}),
       ...(activity !== undefined ? { activity } : {}),
+      ...(launchConsole !== undefined ? { launchConsole } : {}),
       ...(out !== undefined ? { out } : {}),
       ...(saveScript !== undefined ? { saveScript } : {}),
       ...(relaunch ? { relaunch: true } : {}),
@@ -912,7 +915,10 @@ function handleRequestTimeout(
   timeoutMs: number,
 ): AppError {
   const cleanup = remote ? { terminated: 0 } : cleanupTimedOutIosRunnerBuilds();
-  const daemonReset = remote ? { forcedKill: false } : resetDaemonAfterTimeout(info, statePaths);
+  const resetDaemon = !remote && shouldResetDaemonAfterRequestTimeout(command);
+  const daemonReset = resetDaemon
+    ? resetDaemonAfterTimeout(info, statePaths)
+    : { forcedKill: false };
   emitDiagnostic({
     level: 'error',
     phase: 'daemon_request_timeout',
@@ -922,18 +928,39 @@ function handleRequestTimeout(
       command,
       timedOutRunnerPidsTerminated: cleanup.terminated,
       timedOutRunnerCleanupError: cleanup.error,
-      daemonPidReset: remote ? undefined : info.pid,
-      daemonPidForceKilled: remote ? undefined : daemonReset.forcedKill,
+      daemonPidReset: resetDaemon ? info.pid : undefined,
+      daemonPidForceKilled: resetDaemon ? daemonReset.forcedKill : undefined,
+      daemonPreservedAfterTimeout: !remote && !resetDaemon,
       daemonBaseUrl: info.baseUrl,
     },
   });
   return new AppError('COMMAND_FAILED', 'Daemon request timed out', {
     timeoutMs,
     requestId,
-    hint: remote
-      ? 'Retry with --debug and verify the remote daemon URL, auth token, and remote host logs.'
-      : 'Retry with --debug and check daemon diagnostics logs. Timed-out iOS runner xcodebuild processes were terminated when detected.',
+    hint: resolveRequestTimeoutHint({ remote, resetDaemon, command }),
   });
+}
+
+export function shouldResetDaemonAfterRequestTimeout(command: string | undefined): boolean {
+  // Snapshot can block in platform accessibility bridges while the app is crashed or never idle.
+  // Keep the daemon/session alive so callers can still collect screenshot/perf/log evidence
+  // and close the session after the runner abort path has been triggered.
+  return command !== 'snapshot';
+}
+
+function resolveRequestTimeoutHint(params: {
+  remote: boolean;
+  resetDaemon: boolean;
+  command: string | undefined;
+}): string {
+  const { remote, resetDaemon, command } = params;
+  if (remote) {
+    return 'Retry with --debug and verify the remote daemon URL, auth token, and remote host logs.';
+  }
+  if (!resetDaemon) {
+    return `Retry with --debug and check daemon diagnostics logs. The timed-out ${command ?? 'request'} request was canceled and iOS runner work was aborted when detected; the daemon was kept alive so the session can still be closed or inspected.`;
+  }
+  return 'Retry with --debug and check daemon diagnostics logs. Timed-out iOS runner xcodebuild processes were terminated when detected.';
 }
 
 function handleTransportError(

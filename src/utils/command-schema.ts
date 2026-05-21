@@ -74,6 +74,7 @@ export type CliFlags = RemoteConfigMetroOptions &
     pauseMs?: number;
     pattern?: 'one-way' | 'ping-pong';
     activity?: string;
+    launchConsole?: string;
     header?: string[];
     githubActionsArtifact?: string;
     installSource?: DaemonInstallSource;
@@ -377,6 +378,10 @@ Logs:
     agent-device logs path
   Do not cat a full stale log into agent context. Open or grep only the relevant window when needed.
   logs clear --restart is the compact command to clear old logs and start a fresh capture; do not split it into logs stop, logs clear, logs start.
+  On iOS simulators, logs scope by bundle id and resolved app executable, so use this instead of raw simctl log stream predicates.
+  For iOS simulator launch-time stdout/stderr, use --launch-console on the direct app launch:
+    agent-device open MyApp --platform ios --relaunch --launch-console ./artifacts/app.console.log
+  --launch-console is only for direct iOS simulator app launches, not URL opens.
 
 Network:
   Use network dump for recent session HTTP traffic parsed from app logs.
@@ -976,6 +981,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--activity <component>',
     usageDescription: 'Android app launch activity (package/Activity); not for URL opens',
+  },
+  {
+    key: 'launchConsole',
+    names: ['--launch-console'],
+    type: 'string',
+    usageLabel: '--launch-console <path>',
+    usageDescription: 'open: capture the initial iOS simulator launch console window to a file',
   },
   {
     key: 'header',

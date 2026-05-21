@@ -80,8 +80,19 @@ async function maybeApplySessionLaunchUrl(params: {
   const openTarget = openPositionals[0]?.trim();
   if (!openTarget || isDeepLinkTarget(openTarget)) return;
   await dispatchCommand(device, 'open', [launchUrl], req.flags?.out, {
-    ...contextFromFlags(logPath, req.flags, appBundleId, traceLogPath),
+    ...contextForRuntimeLaunchUrl(logPath, req.flags, appBundleId, traceLogPath),
   });
+}
+
+function contextForRuntimeLaunchUrl(
+  logPath: string,
+  flags: DaemonRequest['flags'],
+  appBundleId?: string,
+  traceLogPath?: string,
+): ReturnType<typeof contextFromFlags> {
+  const context = contextFromFlags(logPath, flags, appBundleId, traceLogPath);
+  delete context.launchConsole;
+  return context;
 }
 
 function buildStartupPerfSample(

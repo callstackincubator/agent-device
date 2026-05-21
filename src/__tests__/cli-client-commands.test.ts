@@ -511,6 +511,41 @@ test('open forwards macOS surface to the client apps API', async () => {
   assert.equal(observed?.surface, 'menubar');
 });
 
+test('open forwards launch console option to the client apps API', async () => {
+  let observed: AppOpenOptions | undefined;
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+    open: async (options) => {
+      observed = options;
+      return {
+        session: 'default',
+        appName: 'Agent Device Tester',
+        appBundleId: 'com.example.agentdevicetester',
+        identifiers: { session: 'default', appBundleId: 'com.example.agentdevicetester' },
+      };
+    },
+  });
+
+  const handled = await tryRunClientBackedCommand({
+    command: 'open',
+    positionals: ['Agent Device Tester'],
+    flags: {
+      json: false,
+      help: false,
+      version: false,
+      platform: 'ios',
+      launchConsole: '/tmp/launch-console.log',
+    },
+    client,
+  });
+
+  assert.equal(handled, true);
+  assert.equal(observed?.platform, 'ios');
+  assert.equal(observed?.launchConsole, '/tmp/launch-console.log');
+});
+
 test('apps command defaults to user-installed and prints discovery hint', async () => {
   let observedAppsFilter: string | undefined;
   const client = createStubClient({

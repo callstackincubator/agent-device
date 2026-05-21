@@ -19,6 +19,7 @@ export type DispatchContext = ScreenshotDispatchFlags & {
   requestId?: string;
   appBundleId?: string;
   activity?: string;
+  launchConsole?: string;
   verbose?: boolean;
   logPath?: string;
   traceLogPath?: string;

@@ -1,24 +1,43 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { buildSimctlArgs } from '../platforms/ios/simctl.ts';
-import { runCmdBackground } from '../utils/exec.ts';
+import { runCmd, runCmdBackground } from '../utils/exec.ts';
 import { runXcrun } from '../platforms/ios/tool-provider.ts';
 import { clearPidFile, writePidFile, type AppLogResult } from './app-log-process.ts';
 import { attachChildToStream, createLineWriter, waitForChildExit } from './app-log-stream.ts';
 
-export function buildAppleLogPredicate(appBundleId: string): string {
-  return [
-    `subsystem == "${appBundleId}"`,
-    `processImagePath ENDSWITH[c] "/${appBundleId}"`,
-    `senderImagePath ENDSWITH[c] "/${appBundleId}"`,
-  ].join(' OR ');
+export function buildAppleLogPredicate(
+  appBundleId: string,
+  executableName?: string | undefined,
+): string {
+  const escapedBundleId = escapeAppleLogPredicateString(appBundleId);
+  const clauses = [
+    `subsystem == "${escapedBundleId}"`,
+    // App frameworks/extensions often log through subsystem names prefixed by the app bundle id.
+    `subsystem CONTAINS "${escapedBundleId}"`,
+    `processImagePath ENDSWITH[c] "/${escapedBundleId}"`,
+    `senderImagePath ENDSWITH[c] "/${escapedBundleId}"`,
+  ];
+  if (executableName) {
+    const escapedExecutable = escapeAppleLogPredicateString(executableName);
+    clauses.push(
+      `process == "${escapedExecutable}"`,
+      `processImagePath ENDSWITH[c] "/${escapedExecutable}"`,
+      `senderImagePath ENDSWITH[c] "/${escapedExecutable}"`,
+      `processImagePath CONTAINS[c] "/${escapedExecutable}.app/"`,
+      `senderImagePath CONTAINS[c] "/${escapedExecutable}.app/"`,
+    );
+  }
+  return clauses.join(' OR ');
 }
 
 export function buildIosSimulatorLogStreamArgs(params: {
   deviceId: string;
   appBundleId: string;
+  executableName?: string | undefined;
   simulatorSetPath?: string;
 }): string[] {
-  const { deviceId, appBundleId, simulatorSetPath } = params;
+  const { deviceId, appBundleId, executableName, simulatorSetPath } = params;
   return buildSimctlArgs(
     [
       'spawn',
@@ -30,7 +49,7 @@ export function buildIosSimulatorLogStreamArgs(params: {
       '--level',
       'info',
       '--predicate',
-      buildAppleLogPredicate(appBundleId),
+      buildAppleLogPredicate(appBundleId, executableName),
     ],
     { simulatorSetPath },
   );
@@ -43,10 +62,11 @@ export function buildIosDeviceLogStreamArgs(deviceId: string): string[] {
 export async function readRecentIosSimulatorLogShowForBundle(params: {
   deviceId: string;
   appBundleId: string;
+  executableName?: string | undefined;
   startedAt?: number;
   simulatorSetPath?: string;
 }): Promise<{ text: string; recoveredLineCount: number } | null> {
-  const { deviceId, appBundleId, startedAt, simulatorSetPath } = params;
+  const { deviceId, appBundleId, executableName, startedAt, simulatorSetPath } = params;
   const args = buildSimctlArgs(
     [
       'spawn',
@@ -57,7 +77,7 @@ export async function readRecentIosSimulatorLogShowForBundle(params: {
       'compact',
       '--info',
       '--predicate',
-      buildAppleLogPredicate(appBundleId),
+      buildAppleLogPredicate(appBundleId, executableName),
     ],
     { simulatorSetPath },
   );
@@ -96,14 +116,51 @@ export async function startIosSimulatorAppLog(
   simulatorSetPath?: string,
   pidPath?: string,
 ): Promise<AppLogResult> {
+  const executableName = await resolveIosSimulatorExecutableName({
+    deviceId,
+    appBundleId,
+    simulatorSetPath,
+  });
   return startAppleAppLogStream({
     backend: 'ios-simulator',
     cmd: 'xcrun',
-    args: buildIosSimulatorLogStreamArgs({ deviceId, appBundleId, simulatorSetPath }),
+    args: buildIosSimulatorLogStreamArgs({
+      deviceId,
+      appBundleId,
+      executableName,
+      simulatorSetPath,
+    }),
     stream,
     redactionPatterns,
     pidPath,
   });
+}
+
+function escapeAppleLogPredicateString(value: string): string {
+  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+}
+
+async function resolveIosSimulatorExecutableName(params: {
+  deviceId: string;
+  appBundleId: string;
+  simulatorSetPath?: string;
+}): Promise<string | undefined> {
+  const { deviceId, appBundleId, simulatorSetPath } = params;
+  const container = await runXcrun(
+    buildSimctlArgs(['get_app_container', deviceId, appBundleId, 'app'], { simulatorSetPath }),
+    { allowFailure: true, timeoutMs: 4_000 },
+  );
+  if (container.exitCode !== 0) return undefined;
+  const appPath = container.stdout.trim();
+  if (!appPath) return undefined;
+  const plistPath = path.join(appPath, 'Info.plist');
+  const executable = await runCmd(
+    'plutil',
+    ['-extract', 'CFBundleExecutable', 'raw', '-o', '-', plistPath],
+    { allowFailure: true, timeoutMs: 4_000 },
+  );
+  if (executable.exitCode !== 0) return undefined;
+  return executable.stdout.trim() || undefined;
 }
 
 export async function startMacOsAppLog(

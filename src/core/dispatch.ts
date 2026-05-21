@@ -13,6 +13,10 @@ import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { pushIosNotification } from '../platforms/ios/apps.ts';
 import { isDeepLinkTarget } from './open-target.ts';
 import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
+import {
+  LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE,
+  LAUNCH_CONSOLE_IOS_SIMULATOR_ONLY_MESSAGE,
+} from './launch-console.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
 import { readLocationCoordinate } from '../utils/location-coordinates.ts';
 import { successText, withSuccessText } from '../utils/success-text.ts';
@@ -35,6 +39,7 @@ import { parseDeviceRotation } from './device-rotation.ts';
 export { resolveTargetDevice } from './dispatch-resolve.ts';
 export type { BatchStep, CommandFlags, DispatchContext } from './dispatch-context.ts';
 
+// fallow-ignore-next-line complexity
 export async function dispatchCommand(
   device: DeviceInfo,
   command: string,
@@ -158,6 +163,7 @@ export async function dispatchCommand(
 // Command handlers
 // ---------------------------------------------------------------------------
 
+// fallow-ignore-next-line complexity
 async function handleOpenCommand(
   device: DeviceInfo,
   interactor: Interactor,
@@ -166,12 +172,19 @@ async function handleOpenCommand(
 ): Promise<Record<string, unknown>> {
   const app = positionals[0];
   const url = positionals[1];
+  const launchConsole = context?.launchConsole;
   if (positionals.length > 2) {
     throw new AppError('INVALID_ARGS', 'open accepts at most two arguments: <app|url> [url]');
   }
   if (!app) {
+    if (launchConsole) {
+      throw new AppError('INVALID_ARGS', '--launch-console requires an app target');
+    }
     await interactor.openDevice();
     return { app: null, ...successText('Opened device') };
+  }
+  if (launchConsole && (device.platform !== 'ios' || device.kind !== 'simulator')) {
+    throw new AppError('UNSUPPORTED_OPERATION', LAUNCH_CONSOLE_IOS_SIMULATOR_ONLY_MESSAGE);
   }
   if (url !== undefined) {
     if (device.platform === 'android') {
@@ -186,6 +199,9 @@ async function handleOpenCommand(
     if (!isDeepLinkTarget(url)) {
       throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
     }
+    if (launchConsole) {
+      throw new AppError('INVALID_ARGS', LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE);
+    }
     await interactor.open(app, {
       activity: context?.activity,
       appBundleId: context?.appBundleId,
@@ -193,11 +209,15 @@ async function handleOpenCommand(
     });
     return { app, url, ...successText(`Opened: ${app}`) };
   }
+  if (launchConsole && isDeepLinkTarget(app)) {
+    throw new AppError('INVALID_ARGS', LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE);
+  }
   await interactor.open(app, {
     activity: context?.activity,
     appBundleId: context?.appBundleId,
+    launchConsole,
   });
-  return { app, ...successText(`Opened: ${app}`) };
+  return { app, ...(launchConsole ? { launchConsole } : {}), ...successText(`Opened: ${app}`) };
 }
 
 async function handleClipboardCommand(

@@ -858,6 +858,52 @@ test('openIosApp custom scheme on iOS device uses active app context', async () 
   }
 });
 
+test('openIosApp captures iOS simulator launch console output when requested', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-console-test-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  const launchConsolePath = path.join(tmpDir, 'console.log');
+  await fs.writeFile(
+    xcrunPath,
+    [
+      '#!/bin/sh',
+      'printf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "simctl" ] && [ "$2" = "launch" ]; then',
+      '  printf "console stdout"',
+      '  echo "console stderr" >&2',
+      'fi',
+      'exit 0',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  try {
+    mockEnsureBootedSimulator.mockResolvedValue();
+    await openIosApp(IOS_TEST_SIMULATOR, 'MyApp', {
+      appBundleId: 'com.example.app',
+      launchConsole: launchConsolePath,
+    });
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
+    assert.deepEqual(args, ['simctl', 'launch', '--console-pty', 'sim-1', 'com.example.app']);
+    assert.equal(await fs.readFile(launchConsolePath, 'utf8'), 'console stdout\nconsole stderr\n');
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test('readIosClipboardText rejects physical devices', async () => {
   await assert.rejects(
     () => readIosClipboardText(IOS_TEST_DEVICE),

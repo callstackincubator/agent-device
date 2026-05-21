@@ -60,6 +60,15 @@ test('Provider-backed integration iOS Settings flow uses scripted simctl and run
           expectData: { appBundleId: 'com.apple.Preferences' },
         },
         {
+          name: 'capture iOS launch console while reopening app',
+          command: 'open',
+          positionals: ['com.apple.Preferences'],
+          flags: {
+            launchConsole: path.join(path.dirname(appPath), 'launch-console.log'),
+          },
+          expectData: { appBundleId: 'com.apple.Preferences' },
+        },
+        {
           name: 'reinstall demo app',
           command: 'reinstall',
           positionals: ['com.example.demo', appPath],
@@ -180,6 +189,13 @@ test('Provider-backed integration iOS Settings flow uses scripted simctl and run
 
       runnerTranscript.assertComplete();
       assertFlatToolCall(appleTool.calls, ['simctl', 'launch', 'sim-1', 'com.apple.Preferences']);
+      assertFlatToolCall(appleTool.calls, [
+        'simctl',
+        'launch',
+        '--console-pty',
+        'sim-1',
+        'com.apple.Preferences',
+      ]);
       assertFlatToolCall(appleTool.calls, ['simctl', 'uninstall', 'sim-1', 'com.example.demo']);
       assertFlatToolCall(appleTool.calls, ['plist', 'readJson', path.join(appPath, 'Info.plist')]);
       assertFlatToolCall(appleTool.calls, ['simctl', 'install', 'sim-1', appPath]);

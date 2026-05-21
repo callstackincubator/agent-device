@@ -1208,6 +1208,21 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     forbiddenOutputs: [/cat .*log/i, /tail -n \+1/i],
   }),
   makeCase({
+    id: 'ios-simulator-open-launch-console',
+    contract: [
+      'App name: Agent Device Tester',
+      'Platform: iOS simulator',
+      'Need initial launch stdout/stderr in artifacts/launch-console.log',
+      'After launch, verify the app UI loaded with an interactive snapshot',
+    ],
+    task: 'Plan commands for launching the iOS simulator app while capturing the initial launch console output, then verify the UI loaded.',
+    outputs: [
+      /open\b[^\n]*Agent Device Tester[^\n]*--launch-console artifacts\/launch-console\.log/i,
+      /snapshot -i/i,
+    ],
+    forbiddenOutputs: [/simctl\b/i, /--console-pty/i, /\bsleep\s+\d+/i],
+  }),
+  makeCase({
     id: 'debug-network-session-dump',
     contract: [
       'App name: Agent Device Tester',

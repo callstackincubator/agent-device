@@ -21,9 +21,17 @@ import {
 test('buildAppleLogPredicate includes bundle-aware filters', () => {
   const predicate = buildAppleLogPredicate('com.example.app');
   assert.match(predicate, /subsystem == "com\.example\.app"/);
+  assert.match(predicate, /subsystem CONTAINS "com\.example\.app"/);
   assert.match(predicate, /processImagePath ENDSWITH\[c\] "\/com\.example\.app"/);
   assert.match(predicate, /senderImagePath ENDSWITH\[c\] "\/com\.example\.app"/);
   assert.doesNotMatch(predicate, /eventMessage CONTAINS\[c\] "com\.example\.app"/);
+});
+
+test('buildAppleLogPredicate includes executable-aware filters when available', () => {
+  const predicate = buildAppleLogPredicate('com.example.app', 'ExampleExec');
+  assert.match(predicate, /process == "ExampleExec"/);
+  assert.match(predicate, /processImagePath ENDSWITH\[c\] "\/ExampleExec"/);
+  assert.match(predicate, /processImagePath CONTAINS\[c\] "\/ExampleExec\.app\/"/);
 });
 
 test('assertAndroidPackageArgSafe rejects unsafe values', () => {
@@ -95,7 +103,11 @@ test('buildIosDeviceLogStreamArgs builds expected devicectl command args', () =>
 
 test('buildIosSimulatorLogStreamArgs streams logs inside the simulator at info level', () => {
   assert.deepEqual(
-    buildIosSimulatorLogStreamArgs({ deviceId: 'sim-1', appBundleId: 'com.example.app' }),
+    buildIosSimulatorLogStreamArgs({
+      deviceId: 'sim-1',
+      appBundleId: 'com.example.app',
+      executableName: 'ExampleExec',
+    }),
     [
       'simctl',
       'spawn',
@@ -107,7 +119,7 @@ test('buildIosSimulatorLogStreamArgs streams logs inside the simulator at info l
       '--level',
       'info',
       '--predicate',
-      buildAppleLogPredicate('com.example.app'),
+      buildAppleLogPredicate('com.example.app', 'ExampleExec'),
     ],
   );
 });
