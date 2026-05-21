@@ -34,76 +34,177 @@ export async function dispatchGenericCommand(params: {
   ) => DaemonCommandContext;
 }): Promise<DaemonResponse> {
   const { req, session, logPath, sessionStore, contextFromFlags } = params;
-  const command = req.command;
-
-  if (!isCommandSupportedOnDevice(command, session.device)) {
+  const commandResolution = resolveDispatchCommand(req);
+  if (!commandResolution.ok) {
     return {
       ok: false,
       error: {
-        code: 'UNSUPPORTED_OPERATION',
-        message: `${command} is not supported on this device`,
+        code: 'INVALID_ARGS',
+        message: commandResolution.message,
       },
     };
   }
+  const { platformCommand, dispatchRequest, recordedCommand } = commandResolution;
 
-  if (session.device.platform === 'android' && session.recording && command !== 'record') {
-    const androidRecoveryResult = await recoverAndroidBlockingSystemDialog({ session });
-    if (androidRecoveryResult === 'failed') {
-      return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: 'Android system dialog blocked the recording session',
-        },
-      };
-    }
-  }
+  const readinessResponse = await ensureGenericCommandReady(session, platformCommand);
+  if (readinessResponse) return readinessResponse;
 
   const { resolvedPositionals, resolvedOut, recordedPositionals, recordedFlags } =
-    resolveCommandPositionals(req);
+    resolveCommandPositionals(dispatchRequest);
 
   const actionStartedAt = Date.now();
   const dispatchContext = {
     ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
     surface: session.surface,
   };
-  const data =
-    command === 'screenshot'
-      ? await dispatchScreenshotViaRuntime({
-          session,
-          sessionName: params.sessionName,
-          outPath: resolvedPositionals[0] ?? resolvedOut,
-          outputPlacement: resolveScreenshotOutputPlacement(req),
-          dispatchContext,
-        })
-      : await dispatchCommand(session.device, command, resolvedPositionals, resolvedOut, {
-          ...dispatchContext,
-        });
-
-  if (command === 'screenshot' && req.flags?.overlayRefs && typeof data?.path === 'string') {
-    await applyScreenshotOverlay(session, data, logPath);
-  }
+  const data = await executeGenericPlatformCommand({
+    session,
+    sessionName: params.sessionName,
+    logPath,
+    command: platformCommand,
+    request: dispatchRequest,
+    positionals: resolvedPositionals,
+    out: resolvedOut,
+    dispatchContext,
+  });
 
   const actionFinishedAt = Date.now();
+  const actionRecordedPositionals =
+    recordedCommand === platformCommand ? recordedPositionals : (req.positionals ?? []);
+  const actionRecordedFlags =
+    recordedCommand === platformCommand ? recordedFlags : (req.flags ?? {});
   recordVisualizationAndAction({
     session,
     sessionStore,
-    command,
+    command: platformCommand,
+    recordedCommand,
     resolvedPositionals,
-    recordedPositionals,
-    recordedFlags,
+    recordedPositionals: actionRecordedPositionals,
+    recordedFlags: actionRecordedFlags,
     data,
     actionStartedAt,
     actionFinishedAt,
     flags: req.flags ?? {},
   });
 
-  if (isNavigationSensitiveAction(command)) {
-    markAndroidSnapshotFreshness(session, command);
+  if (isNavigationSensitiveAction(platformCommand)) {
+    markAndroidSnapshotFreshness(session, platformCommand);
   }
-  markPostGestureStabilization(session, command);
+  markPostGestureStabilization(session, platformCommand);
 
   return { ok: true, data: data ?? {} };
+}
+
+async function ensureGenericCommandReady(
+  session: SessionState,
+  platformCommand: string,
+): Promise<DaemonResponse | null> {
+  if (!isCommandSupportedOnDevice(platformCommand, session.device)) {
+    return {
+      ok: false,
+      error: {
+        code: 'UNSUPPORTED_OPERATION',
+        message: `${platformCommand} is not supported on this device`,
+      },
+    };
+  }
+  if (!shouldRecoverAndroidRecordingDialog(session, platformCommand)) return null;
+  const androidRecoveryResult = await recoverAndroidBlockingSystemDialog({ session });
+  if (androidRecoveryResult !== 'failed') return null;
+  return {
+    ok: false,
+    error: {
+      code: 'COMMAND_FAILED',
+      message: 'Android system dialog blocked the recording session',
+    },
+  };
+}
+
+function shouldRecoverAndroidRecordingDialog(
+  session: SessionState,
+  platformCommand: string,
+): boolean {
+  return (
+    session.device.platform === 'android' &&
+    Boolean(session.recording) &&
+    platformCommand !== 'record'
+  );
+}
+
+async function executeGenericPlatformCommand(params: {
+  session: SessionState;
+  sessionName: string;
+  logPath: string;
+  command: string;
+  request: DaemonRequest;
+  positionals: string[];
+  out: string | undefined;
+  dispatchContext: DaemonCommandContext;
+}): Promise<Record<string, unknown> | void> {
+  const { session, command, request, positionals, out, dispatchContext } = params;
+  if (command !== 'screenshot') {
+    return await dispatchCommand(session.device, command, positionals, out, {
+      ...dispatchContext,
+    });
+  }
+  const data = await dispatchScreenshotViaRuntime({
+    session,
+    sessionName: params.sessionName,
+    outPath: positionals[0] ?? out,
+    outputPlacement: resolveScreenshotOutputPlacement(request),
+    dispatchContext,
+  });
+  if (request.flags?.overlayRefs && typeof data?.path === 'string') {
+    await applyScreenshotOverlay(session, data, params.logPath);
+  }
+  return data;
+}
+
+type DispatchCommandResolution =
+  | {
+      ok: true;
+      platformCommand: string;
+      dispatchRequest: DaemonRequest;
+      recordedCommand: string;
+    }
+  | { ok: false; message: string };
+
+function resolveDispatchCommand(req: DaemonRequest): DispatchCommandResolution {
+  if (req.command === 'pan' || req.command === 'fling' || req.command === 'rotate-gesture') {
+    return { ok: false, message: 'Use gesture pan, gesture fling, or gesture rotate.' };
+  }
+  if (req.command !== 'gesture') {
+    return {
+      ok: true,
+      platformCommand: req.command,
+      dispatchRequest: req,
+      recordedCommand: req.command,
+    };
+  }
+  const [subcommand, ...positionals] = req.positionals ?? [];
+  const platformCommand = platformCommandForGestureSubcommand(subcommand);
+  if (!platformCommand) {
+    return { ok: false, message: 'gesture requires one of: pan, fling, pinch, rotate' };
+  }
+  return {
+    ok: true,
+    platformCommand,
+    dispatchRequest: { ...req, command: platformCommand, positionals },
+    recordedCommand: req.command,
+  };
+}
+
+function platformCommandForGestureSubcommand(subcommand: string | undefined): string | null {
+  switch (subcommand) {
+    case 'pan':
+    case 'fling':
+    case 'pinch':
+      return subcommand;
+    case 'rotate':
+      return 'rotate-gesture';
+    default:
+      return null;
+  }
 }
 
 function resolveScreenshotOutputPlacement(req: DaemonRequest): ScreenshotOutputPlacement {
@@ -197,6 +298,7 @@ function recordVisualizationAndAction(params: {
   session: SessionState;
   sessionStore: SessionStore;
   command: string;
+  recordedCommand: string;
   resolvedPositionals: string[];
   recordedPositionals: string[];
   recordedFlags: Record<string, unknown>;
@@ -209,6 +311,7 @@ function recordVisualizationAndAction(params: {
     session,
     sessionStore,
     command,
+    recordedCommand,
     resolvedPositionals,
     recordedPositionals,
     recordedFlags,
@@ -233,7 +336,7 @@ function recordVisualizationAndAction(params: {
     actionFinishedAt,
   );
   sessionStore.recordAction(session, {
-    command,
+    command: recordedCommand,
     positionals: recordedPositionals,
     flags: recordedFlags,
     result: data ?? {},

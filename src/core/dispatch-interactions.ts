@@ -456,7 +456,7 @@ export async function handlePanCommand(
   const dx = Number(positionals[2]);
   const dy = Number(positionals[3]);
   if ([x, y, dx, dy].some((value) => !Number.isFinite(value))) {
-    throw new AppError('INVALID_ARGS', 'pan requires x y dx dy [durationMs]');
+    throw new AppError('INVALID_ARGS', 'gesture pan requires x y dx dy [durationMs]');
   }
   const requestedDurationMs = positionals[4] ? Number(positionals[4]) : 500;
   const durationMs = requireIntInRange(requestedDurationMs, 'durationMs', 16, 10_000);
@@ -483,7 +483,10 @@ export async function handleFlingCommand(
   const x = Number(positionals[1]);
   const y = Number(positionals[2]);
   if (![x, y].every(Number.isFinite)) {
-    throw new AppError('INVALID_ARGS', 'fling requires direction x y [distance] [durationMs]');
+    throw new AppError(
+      'INVALID_ARGS',
+      'gesture fling requires direction x y [distance] [durationMs]',
+    );
   }
   const distanceInput = positionals[3] ? Number(positionals[3]) : 180;
   const distance = requireFinitePositiveNumber(distanceInput, 'distance');
@@ -601,23 +604,23 @@ export async function handlePinchCommand(
   if (device.platform === 'android') {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
-      'Android pinch is not supported in current adb backend; requires instrumentation-based backend.',
+      'Android gesture pinch is not supported in current adb backend; requires instrumentation-based backend.',
     );
   }
   if (device.target === 'tv') {
-    throw new AppError('UNSUPPORTED_OPERATION', 'pinch is not supported on tvOS');
+    throw new AppError('UNSUPPORTED_OPERATION', 'gesture pinch is not supported on tvOS');
   }
   if (device.platform === 'macos' && context?.surface && context.surface !== 'app') {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
-      'pinch is only supported in macOS app sessions. Re-open the target app without --surface desktop|menubar|frontmost-app first.',
+      'gesture pinch is only supported in macOS app sessions. Re-open the target app without --surface desktop|menubar|frontmost-app first.',
     );
   }
   const scale = Number(positionals[0]);
   const x = positionals[1] ? Number(positionals[1]) : undefined;
   const y = positionals[2] ? Number(positionals[2]) : undefined;
   if (Number.isNaN(scale) || scale <= 0) {
-    throw new AppError('INVALID_ARGS', 'pinch requires scale > 0');
+    throw new AppError('INVALID_ARGS', 'gesture pinch requires scale > 0');
   }
   await runIosRunnerCommand(
     device,
@@ -640,16 +643,16 @@ export async function handleRotateGestureCommand(
   if (device.platform === 'android') {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
-      'Android rotate-gesture is not supported in current adb backend; requires instrumentation-based backend.',
+      'Android gesture rotate is not supported in current adb backend; requires instrumentation-based backend.',
     );
   }
   if (device.target === 'tv') {
-    throw new AppError('UNSUPPORTED_OPERATION', 'rotate-gesture is not supported on tvOS');
+    throw new AppError('UNSUPPORTED_OPERATION', 'gesture rotate is not supported on tvOS');
   }
   if (device.platform === 'macos') {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
-      'rotate-gesture is not supported on macOS; XCTest rotation gestures are available only for iOS app sessions.',
+      'gesture rotate is not supported on macOS; XCTest rotation gestures are available only for iOS app sessions.',
     );
   }
 
@@ -676,13 +679,13 @@ type RotateGestureParams = {
 function parseRotateGestureParams(positionals: string[]): RotateGestureParams {
   const degrees = Number(positionals[0]);
   if (!Number.isFinite(degrees)) {
-    throw new AppError('INVALID_ARGS', 'rotate-gesture requires degrees [x] [y] [velocity]');
+    throw new AppError('INVALID_ARGS', 'gesture rotate requires degrees [x] [y] [velocity]');
   }
 
   const center = parseOptionalGestureCenter(positionals[1], positionals[2]);
   const velocity = Number(positionals[3] ?? (degrees >= 0 ? 1 : -1));
   if (!Number.isFinite(velocity) || velocity === 0) {
-    throw new AppError('INVALID_ARGS', 'rotate-gesture velocity must be a non-zero number');
+    throw new AppError('INVALID_ARGS', 'gesture rotate velocity must be a non-zero number');
   }
 
   return { degrees, ...center, velocity };
@@ -694,13 +697,13 @@ function parseOptionalGestureCenter(
 ): Pick<RotateGestureParams, 'x' | 'y'> {
   if (xInput === undefined && yInput === undefined) return {};
   if (xInput === undefined || yInput === undefined) {
-    throw new AppError('INVALID_ARGS', 'rotate-gesture center requires both x and y');
+    throw new AppError('INVALID_ARGS', 'gesture rotate center requires both x and y');
   }
 
   const x = Number(xInput);
   const y = Number(yInput);
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    throw new AppError('INVALID_ARGS', 'rotate-gesture center requires finite x and y');
+    throw new AppError('INVALID_ARGS', 'gesture rotate center requires finite x and y');
   }
   return { x, y };
 }

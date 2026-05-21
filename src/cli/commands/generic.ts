@@ -111,23 +111,11 @@ const genericClientCommandRunners = {
       pauseMs: flags.pauseMs,
       pattern: flags.pattern,
     }),
-  pan: ({ client, positionals, flags }) =>
-    client.interactions.pan({
-      ...buildSelectionOptions(flags),
-      x: Number(positionals[0]),
-      y: Number(positionals[1]),
-      dx: Number(positionals[2]),
-      dy: Number(positionals[3]),
-      durationMs: optionalNumber(positionals[4]),
-    }),
-  fling: ({ client, positionals, flags }) =>
-    client.interactions.fling({
-      ...buildSelectionOptions(flags),
-      direction: readGestureDirection(positionals[0], 'fling'),
-      x: Number(positionals[1]),
-      y: Number(positionals[2]),
-      distance: optionalNumber(positionals[3]),
-      durationMs: optionalNumber(positionals[4]),
+  gesture: ({ client, positionals, flags }) =>
+    runGestureCommand({
+      client,
+      positionals,
+      flags,
     }),
   focus: ({ client, positionals, flags }) =>
     client.interactions.focus({
@@ -152,21 +140,6 @@ const genericClientCommandRunners = {
       direction: readScrollDirection(positionals[0]),
       amount: optionalNumber(positionals[1]),
       pixels: flags.pixels,
-    }),
-  pinch: ({ client, positionals, flags }) =>
-    client.interactions.pinch({
-      ...buildSelectionOptions(flags),
-      scale: Number(positionals[0]),
-      x: optionalNumber(positionals[1]),
-      y: optionalNumber(positionals[2]),
-    }),
-  'rotate-gesture': ({ client, positionals, flags }) =>
-    client.interactions.rotateGesture({
-      ...buildSelectionOptions(flags),
-      degrees: Number(positionals[0]),
-      x: optionalNumber(positionals[1]),
-      y: optionalNumber(positionals[2]),
-      velocity: optionalNumber(positionals[3]),
     }),
   'trigger-app-event': ({ client, positionals, flags }) =>
     client.apps.triggerEvent({
@@ -217,6 +190,53 @@ const genericClientCommandRunners = {
   settings: ({ client, positionals, flags }) =>
     client.settings.update(settingsCommandCodec.decode(positionals, flags)),
 } satisfies Partial<Record<PublicCommandName, GenericClientCommandRunner>>;
+
+function runGestureCommand(params: {
+  client: AgentDeviceClient;
+  positionals: string[];
+  flags: CliFlags;
+}): Promise<CommandRequestResult> {
+  const { client, positionals, flags } = params;
+  const subcommand = required(positionals[0], 'gesture requires subcommand');
+  const args = positionals.slice(1);
+  switch (subcommand) {
+    case 'pan':
+      return client.interactions.pan({
+        ...buildSelectionOptions(flags),
+        x: Number(args[0]),
+        y: Number(args[1]),
+        dx: Number(args[2]),
+        dy: Number(args[3]),
+        durationMs: optionalNumber(args[4]),
+      });
+    case 'fling':
+      return client.interactions.fling({
+        ...buildSelectionOptions(flags),
+        direction: readGestureDirection(args[0], 'gesture fling'),
+        x: Number(args[1]),
+        y: Number(args[2]),
+        distance: optionalNumber(args[3]),
+        durationMs: optionalNumber(args[4]),
+      });
+    case 'pinch':
+      return client.interactions.pinch({
+        ...buildSelectionOptions(flags),
+        scale: Number(args[0]),
+        x: optionalNumber(args[1]),
+        y: optionalNumber(args[2]),
+      });
+    case 'rotate':
+      return client.interactions.rotateGesture({
+        ...buildSelectionOptions(flags),
+        degrees: Number(args[0]),
+        x: optionalNumber(args[1]),
+        y: optionalNumber(args[2]),
+        velocity: optionalNumber(args[3]),
+      });
+    default:
+      throw new AppError('INVALID_ARGS', 'gesture requires one of: pan, fling, pinch, rotate');
+  }
+}
 
 export const genericClientCommandHandlers = Object.fromEntries(
   Object.entries(genericClientCommandRunners).map(([command, run]) => [

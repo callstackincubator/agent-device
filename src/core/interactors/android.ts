@@ -74,7 +74,7 @@ export function createAndroidInteractor(device: DeviceInfo): Interactor {
     rotateGesture: () => {
       throw new AppError(
         'UNSUPPORTED_OPERATION',
-        'rotate-gesture is not supported by the Android adb backend',
+        'gesture rotate is not supported by the Android adb backend',
       );
     },
     appSwitcher: () => appSwitcherAndroid(device),

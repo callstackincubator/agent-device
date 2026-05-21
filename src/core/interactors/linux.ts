@@ -31,7 +31,7 @@ export function createLinuxInteractor(): Interactor {
     swipe: (x1, y1, x2, y2, durationMs) => swipeLinux(x1, y1, x2, y2, durationMs),
     pan: (x1, y1, x2, y2, durationMs) => swipeLinux(x1, y1, x2, y2, durationMs),
     fling: () => {
-      throw new AppError('UNSUPPORTED_OPERATION', 'fling not supported on Linux');
+      throw new AppError('UNSUPPORTED_OPERATION', 'gesture fling not supported on Linux');
     },
     longPress: (x, y, durationMs) => longPressLinux(x, y, durationMs),
     focus: (x, y) => focusLinux(x, y),
@@ -57,7 +57,7 @@ export function createLinuxInteractor(): Interactor {
       throw new AppError('UNSUPPORTED_OPERATION', 'rotate not supported on Linux');
     },
     rotateGesture: () => {
-      throw new AppError('UNSUPPORTED_OPERATION', 'rotate-gesture not supported on Linux');
+      throw new AppError('UNSUPPORTED_OPERATION', 'gesture rotate not supported on Linux');
     },
     appSwitcher: () => {
       throw new AppError('UNSUPPORTED_OPERATION', 'appSwitcher not yet supported on Linux');

@@ -611,20 +611,24 @@ test('parseArgs recognizes swipe positional + pattern flags', () => {
   assert.equal(parsed.flags.pattern, 'ping-pong');
 });
 
-test('parseArgs recognizes pan, fling, and rotate gesture positionals', () => {
-  const pan = parseArgs(['pan', '200', '420', '0', '-80', '500'], { strictFlags: true });
-  assert.equal(pan.command, 'pan');
-  assert.deepEqual(pan.positionals, ['200', '420', '0', '-80', '500']);
-
-  const fling = parseArgs(['fling', 'right', '200', '420', '180'], { strictFlags: true });
-  assert.equal(fling.command, 'fling');
-  assert.deepEqual(fling.positionals, ['right', '200', '420', '180']);
-
-  const rotateGesture = parseArgs(['rotate-gesture', '35', '200', '420'], {
+test('parseArgs recognizes gesture subcommand positionals', () => {
+  const pan = parseArgs(['gesture', 'pan', '200', '420', '0', '-80', '500'], {
     strictFlags: true,
   });
-  assert.equal(rotateGesture.command, 'rotate-gesture');
-  assert.deepEqual(rotateGesture.positionals, ['35', '200', '420']);
+  assert.equal(pan.command, 'gesture');
+  assert.deepEqual(pan.positionals, ['pan', '200', '420', '0', '-80', '500']);
+
+  const fling = parseArgs(['gesture', 'fling', 'right', '200', '420', '180'], {
+    strictFlags: true,
+  });
+  assert.equal(fling.command, 'gesture');
+  assert.deepEqual(fling.positionals, ['fling', 'right', '200', '420', '180']);
+
+  const rotate = parseArgs(['gesture', 'rotate', '35', '200', '420'], {
+    strictFlags: true,
+  });
+  assert.equal(rotate.command, 'gesture');
+  assert.deepEqual(rotate.positionals, ['rotate', '35', '200', '420']);
 });
 
 test('parseArgs recognizes type and fill delay flags', () => {
@@ -803,10 +807,11 @@ test('usage includes concise top-level commands', () => {
   assert.match(usageText, /clipboard read \| clipboard write <text>/);
   assert.match(usageText, /keyboard \[action\]/);
   assert.match(usageText, /trigger-app-event <event> \[payloadJson\]/);
-  assert.match(usageText, /pan <x> <y> <dx> <dy> \[durationMs\]/);
-  assert.match(usageText, /fling <up\|down\|left\|right> <x> <y> \[distance\] \[durationMs\]/);
-  assert.match(usageText, /pinch <scale> \[x\] \[y\]/);
-  assert.match(usageText, /rotate-gesture <degrees> \[x\] \[y\] \[velocity\]/);
+  assert.match(usageText, /gesture <pan\|fling\|pinch\|rotate> \.\.\./);
+  assert.doesNotMatch(usageText, /^  pan <x> <y> <dx> <dy> \[durationMs\]/m);
+  assert.doesNotMatch(usageText, /^  fling <up\|down\|left\|right>/m);
+  assert.doesNotMatch(usageText, /^  pinch <scale> \[x\] \[y\]/m);
+  assert.doesNotMatch(usageText, /^  rotate-gesture <degrees>/m);
   assert.match(usageText, /rotate <orientation>/);
   assert.match(usageText, /record start \[path\] \| record stop/);
   assert.match(usageText, /trace start <path> \| trace stop <path>/);
@@ -1107,15 +1112,23 @@ test('apps defaults to user-installed filter and allows overrides', () => {
   );
 });
 
-test('every capability command has a parser schema entry', () => {
+const INTERNAL_GESTURE_CAPABILITY_COMMANDS = new Set(['pan', 'fling', 'pinch', 'rotate-gesture']);
+
+test('every public capability command has a parser schema entry', () => {
   const schemaCommands = new Set(getCliCommandNames());
   for (const command of listCapabilityCommands()) {
+    if (INTERNAL_GESTURE_CAPABILITY_COMMANDS.has(command)) continue;
     assert.equal(schemaCommands.has(command), true, `Missing schema for command: ${command}`);
   }
 });
 
 test('schema capability mappings match capability source-of-truth', () => {
-  assert.deepEqual(getSchemaCapabilityKeys(), listCapabilityCommands());
+  assert.deepEqual(
+    getSchemaCapabilityKeys(),
+    listCapabilityCommands().filter(
+      (command) => !INTERNAL_GESTURE_CAPABILITY_COMMANDS.has(command),
+    ),
+  );
 });
 
 test('compat mode warns and strips unsupported command flags', () => {

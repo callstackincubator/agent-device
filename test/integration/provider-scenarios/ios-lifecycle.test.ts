@@ -111,20 +111,20 @@ test('Provider-backed integration iOS Settings flow uses scripted simctl and run
         },
         {
           name: 'pinch current app',
-          command: 'pinch',
-          positionals: ['0.8', '196', '122'],
+          command: 'gesture',
+          positionals: ['pinch', '0.8', '196', '122'],
           expectData: { scale: 0.8, x: 196, y: 122 },
         },
         {
           name: 'pan current app',
-          command: 'pan',
-          positionals: ['196', '122', '80', '0', '500'],
+          command: 'gesture',
+          positionals: ['pan', '196', '122', '80', '0', '500'],
           expectData: { x: 196, y: 122, dx: 80, dy: 0, x2: 276, y2: 122, durationMs: 500 },
         },
         {
           name: 'fling current app',
-          command: 'fling',
-          positionals: ['right', '196', '122', '180'],
+          command: 'gesture',
+          positionals: ['fling', 'right', '196', '122', '180'],
           expectData: {
             direction: 'right',
             x: 196,
@@ -137,8 +137,8 @@ test('Provider-backed integration iOS Settings flow uses scripted simctl and run
         },
         {
           name: 'rotate current app content',
-          command: 'rotate-gesture',
-          positionals: ['35', '196', '122'],
+          command: 'gesture',
+          positionals: ['rotate', '35', '196', '122'],
           expectData: { degrees: 35, x: 196, y: 122, velocity: 1 },
         },
         {

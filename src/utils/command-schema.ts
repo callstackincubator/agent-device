@@ -236,7 +236,7 @@ Command shape:
   Snapshot refs look like @e12. After snapshot -i, use the exact @eN ref from that output.
   If the exact ref is not known yet, first output snapshot -i, then use a concrete example shape like press @e12 in the next command; do not write @<ref>, @ref, @Label_Name, or @eN placeholders.
   Close means agent-device close. App-owned back means back; system back means back --system.
-  Taps are press or click. Gestures are direct commands: swipe, pan, fling, longpress, pinch, rotate-gesture.
+  Taps are press or click. Gestures use swipe, longpress, or gesture <pan|fling|pinch|rotate>.
 
 Bootstrap:
   agent-device devices --platform ios
@@ -309,19 +309,19 @@ Read-only and waits:
   Ambiguous find: add --first or --last. If info is not visible/exposed, report that gap instead of typing/searching/navigating to reveal it.
 
 Navigation and gestures:
-  Use scroll for lists; swipe for coordinate gestures/carousels; pan for deliberate drags; fling for fast directional throws.
+  Use scroll for lists; swipe for coordinate gestures/carousels; gesture pan for deliberate drags; gesture fling for fast directional throws.
   For raw coordinate gestures, run snapshot -i first and choose a point near the center of the intended app-owned target. Avoid screen edges, tab bars, navigation bars, and home indicators because those areas can trigger system or app navigation instead of the gesture under test.
   If app-owned back is ambiguous or has just misrouted, prefer a visible nav/back button ref, tab-bar ref, or deep link over repeated back/system back.
   App-owned action sheets, menus, and camera/scan screens are normal UI. After opening one, run snapshot -i or wait for the option, press by label/ref, handle visible permission sheets through UI or platform-supported native alerts, then wait for a concrete result before returning to chat/form state.
   Keep count/pause/pattern on one swipe; flags are --count, --pause-ms, --pattern ping-pong.
-  longpress accepts coordinates, @refs, or selectors. Prefer @ref/selector from snapshot -i; use coordinates only as a fallback when accessibility refs miss the exact target. Duration and pinch scale/center are positional:
+  longpress accepts coordinates, @refs, or selectors. Prefer @ref/selector from snapshot -i; use coordinates only as a fallback when accessibility refs miss the exact target. Duration and gesture scale/center are positional:
     agent-device longpress 300 500 800
     agent-device longpress @e12 800
     agent-device swipe 320 500 40 500 --count 8 --pause-ms 30 --pattern ping-pong
-    agent-device pan 200 420 0 -80 500
-    agent-device fling right 200 420 180
-    agent-device pinch 0.5 200 400
-    agent-device rotate-gesture 35 200 420
+    agent-device gesture pan 200 420 0 -80 500
+    agent-device gesture fling right 200 420 180
+    agent-device gesture pinch 0.5 200 400
+    agent-device gesture rotate 35 200 420
 
 Validation and evidence:
   Nearby mutation diff: agent-device diff snapshot -i.
@@ -1732,20 +1732,16 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: ['x1', 'y1', 'x2', 'y2', 'durationMs?'],
     allowedFlags: ['count', 'pauseMs', 'pattern'],
   },
-  pan: {
+  gesture: {
+    usageOverride: 'gesture <pan|fling|pinch|rotate> ...',
+    listUsageOverride: 'gesture <pan|fling|pinch|rotate> ...',
     helpDescription:
-      'Pan from a coordinate by a delta; duration is best-effort and may be normalized by platform',
-    summary: 'Pan from a coordinate by delta',
-    positionalArgs: ['x', 'y', 'dx', 'dy', 'durationMs?'],
+      'Run touch gestures: pan <x> <y> <dx> <dy> [durationMs], fling <up|down|left|right> <x> <y> [distance] [durationMs], pinch <scale> [x] [y], or rotate <degrees> [x] [y] [velocity]',
+    summary: 'Run pan, fling, pinch, or rotate gestures',
+    positionalArgs: ['pan|fling|pinch|rotate', 'args?'],
+    allowsExtraPositionals: true,
     allowedFlags: [],
-  },
-  fling: {
-    usageOverride: 'fling <up|down|left|right> <x> <y> [distance] [durationMs]',
-    listUsageOverride: 'fling <up|down|left|right> <x> <y> [distance] [durationMs]',
-    helpDescription: 'Fast directional throw gesture from a coordinate',
-    summary: 'Fling from a coordinate',
-    positionalArgs: ['direction', 'x', 'y', 'distance?', 'durationMs?'],
-    allowedFlags: [],
+    skipCapabilityCheck: true,
   },
   focus: {
     helpDescription: 'Focus input at coordinates',
@@ -1766,18 +1762,6 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     summary: 'Scroll in a direction or to an edge',
     positionalArgs: ['directionOrEdge', 'amount?'],
     allowedFlags: ['pixels'],
-  },
-  pinch: {
-    helpDescription: 'Pinch/zoom gesture (Apple simulator or macOS app session)',
-    positionalArgs: ['scale', 'x?', 'y?'],
-    allowedFlags: [],
-  },
-  'rotate-gesture': {
-    helpDescription:
-      'Two-finger rotation gesture (iOS simulator app session; distinct from device rotate)',
-    summary: 'Rotate app content with a gesture',
-    positionalArgs: ['degrees', 'x?', 'y?', 'velocity?'],
-    allowedFlags: [],
   },
   'trigger-app-event': {
     usageOverride: 'trigger-app-event <event> [payloadJson]',
