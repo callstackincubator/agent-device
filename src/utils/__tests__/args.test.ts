@@ -611,6 +611,22 @@ test('parseArgs recognizes swipe positional + pattern flags', () => {
   assert.equal(parsed.flags.pattern, 'ping-pong');
 });
 
+test('parseArgs recognizes pan, fling, and rotate gesture positionals', () => {
+  const pan = parseArgs(['pan', '200', '420', '0', '-80', '500'], { strictFlags: true });
+  assert.equal(pan.command, 'pan');
+  assert.deepEqual(pan.positionals, ['200', '420', '0', '-80', '500']);
+
+  const fling = parseArgs(['fling', 'right', '200', '420', '180'], { strictFlags: true });
+  assert.equal(fling.command, 'fling');
+  assert.deepEqual(fling.positionals, ['right', '200', '420', '180']);
+
+  const rotateGesture = parseArgs(['rotate-gesture', '35', '200', '420'], {
+    strictFlags: true,
+  });
+  assert.equal(rotateGesture.command, 'rotate-gesture');
+  assert.deepEqual(rotateGesture.positionals, ['35', '200', '420']);
+});
+
 test('parseArgs recognizes type and fill delay flags', () => {
   const typeParsed = parseArgs(['type', 'hello', '--delay-ms', '75'], {
     strictFlags: true,
@@ -787,7 +803,10 @@ test('usage includes concise top-level commands', () => {
   assert.match(usageText, /clipboard read \| clipboard write <text>/);
   assert.match(usageText, /keyboard \[action\]/);
   assert.match(usageText, /trigger-app-event <event> \[payloadJson\]/);
+  assert.match(usageText, /pan <x> <y> <dx> <dy> \[durationMs\]/);
+  assert.match(usageText, /fling <up\|down\|left\|right> <x> <y> \[distance\] \[durationMs\]/);
   assert.match(usageText, /pinch <scale> \[x\] \[y\]/);
+  assert.match(usageText, /rotate-gesture <degrees> \[x\] \[y\] \[velocity\]/);
   assert.match(usageText, /rotate <orientation>/);
   assert.match(usageText, /record start \[path\] \| record stop/);
   assert.match(usageText, /trace start <path> \| trace stop <path>/);
@@ -916,6 +935,8 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /report that gap instead of typing\/searching\/navigating/);
   assert.match(help, /App-owned action sheets, menus, and camera\/scan screens are normal UI/);
   assert.match(help, /wait for a concrete result before returning to chat\/form state/);
+  assert.match(help, /choose a point near the center of the intended app-owned target/);
+  assert.match(help, /Avoid screen edges, tab bars, navigation bars, and home indicators/);
   assert.match(help, /longpress accepts coordinates, @refs, or selectors/);
   assert.match(help, /use help react-native for Metro\/Fast Refresh/);
   assert.match(help, /iOS Allow Paste prompt cannot be exercised under XCUITest/);
@@ -929,6 +950,7 @@ test('usageForCommand resolves workflow help topic', () => {
     /Do not run open\/press\/fill\/type\/scroll\/back\/alert\/replay\/batch\/close commands in parallel/,
   );
   assert.match(help, /agent-device clipboard write "some text"/);
+  assert.match(help, /For gesture-heavy iOS simulator proof videos, prefer --hide-touches/);
   assert.match(help, /Android Gboard handwriting\/stylus UI can capture text/);
   assert.match(help, /targetInput\/actualInput details/);
   assert.match(help, /Do not keep retrying fill\/type against the same field/);

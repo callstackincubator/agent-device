@@ -58,6 +58,20 @@ export type Interactor = {
     y2: number,
     durationMs?: number,
   ): Promise<Record<string, unknown> | void>;
+  pan(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    durationMs?: number,
+  ): Promise<Record<string, unknown> | void>;
+  fling(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    durationMs?: number,
+  ): Promise<Record<string, unknown> | void>;
   longPress(x: number, y: number, durationMs?: number): Promise<Record<string, unknown> | void>;
   focus(x: number, y: number): Promise<Record<string, unknown> | void>;
   type(text: string, delayMs?: number): Promise<void>;
@@ -76,6 +90,7 @@ export type Interactor = {
   back(mode?: BackMode): Promise<void>;
   home(): Promise<void>;
   rotate(orientation: DeviceRotation): Promise<void>;
+  rotateGesture(degrees: number, x?: number, y?: number, velocity?: number): Promise<void>;
   appSwitcher(): Promise<void>;
   readClipboard(): Promise<string>;
   writeClipboard(text: string): Promise<void>;

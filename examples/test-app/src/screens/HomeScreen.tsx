@@ -2,6 +2,7 @@ import { Alert, ActivityIndicator, ScrollView, StyleSheet, Text, View } from 're
 
 import { ActionButton, InlineBadge, ScreenTitle, SectionCard, ToggleRow } from '../components';
 import { useAppColors, type AppColors } from '../theme';
+import { GestureLab } from './GestureLab';
 
 export interface HomeScreenProps {
   cartCount: number;
@@ -48,6 +49,8 @@ export function HomeScreen(props: HomeScreenProps) {
         title="Agent Device Tester"
         testID="home-title"
       />
+
+      <GestureLab />
 
       {props.noticeVisible ? (
         <SectionCard

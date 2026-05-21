@@ -69,6 +69,7 @@ import {
 import { ensureBootedSimulator, openIosSimulatorApp } from '../simulator.ts';
 import { prepareSimulatorStatusBarForScreenshot as prepareStatusBarForScreenshot } from '../screenshot-status-bar.ts';
 import { runIosRunnerCommand } from '../runner-client.ts';
+import { iosRunnerOverrides } from '../interactions.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { withDiagnosticsScope } from '../../../utils/diagnostics.ts';
 import { AppError } from '../../../utils/errors.ts';
@@ -135,6 +136,26 @@ test('resolveMacOsHelperPackageRootFrom finds helper package from source and dis
   } finally {
     await fs.rm(repoRoot, { recursive: true, force: true });
   }
+});
+
+test('iosRunnerOverrides maps pan duration to a short XCUITest drag hold', async () => {
+  mockRunIosRunnerCommand.mockResolvedValue({});
+
+  const { overrides } = iosRunnerOverrides(IOS_TEST_SIMULATOR, {
+    appBundleId: 'com.example.App',
+  });
+
+  await overrides.pan(100, 200, 180, 200, 500);
+
+  assert.deepEqual(mockRunIosRunnerCommand.mock.calls[0]?.[1], {
+    command: 'drag',
+    x: 100,
+    y: 200,
+    x2: 180,
+    y2: 200,
+    durationMs: 16,
+    appBundleId: 'com.example.App',
+  });
 });
 
 test('AGENT_DEVICE_MACOS_HELPER_BIN rejects relative override paths', async () => {

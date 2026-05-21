@@ -577,6 +577,22 @@ export type SwipeOptions = ClientCommandBaseOptions & {
   pattern?: 'one-way' | 'ping-pong';
 };
 
+export type PanOptions = ClientCommandBaseOptions & {
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+  durationMs?: number;
+};
+
+export type FlingOptions = ClientCommandBaseOptions & {
+  direction: 'up' | 'down' | 'left' | 'right';
+  x: number;
+  y: number;
+  distance?: number;
+  durationMs?: number;
+};
+
 export type FocusOptions = ClientCommandBaseOptions & {
   x: number;
   y: number;
@@ -604,6 +620,13 @@ export type PinchOptions = ClientCommandBaseOptions & {
   scale: number;
   x?: number;
   y?: number;
+};
+
+export type RotateGestureOptions = ClientCommandBaseOptions & {
+  degrees: number;
+  x?: number;
+  y?: number;
+  velocity?: number;
 };
 
 export type GetOptions = ClientCommandBaseOptions &
@@ -876,11 +899,14 @@ export type AgentDeviceClient = {
     press: (options: PressOptions) => Promise<CommandRequestResult>;
     longPress: (options: LongPressOptions) => Promise<CommandRequestResult>;
     swipe: (options: SwipeOptions) => Promise<CommandRequestResult>;
+    pan: (options: PanOptions) => Promise<CommandRequestResult>;
+    fling: (options: FlingOptions) => Promise<CommandRequestResult>;
     focus: (options: FocusOptions) => Promise<CommandRequestResult>;
     type: (options: TypeTextOptions) => Promise<CommandRequestResult>;
     fill: (options: FillOptions) => Promise<CommandRequestResult>;
     scroll: (options: ScrollOptions) => Promise<CommandRequestResult>;
     pinch: (options: PinchOptions) => Promise<CommandRequestResult>;
+    rotateGesture: (options: RotateGestureOptions) => Promise<CommandRequestResult>;
     get: (options: GetOptions) => Promise<CommandRequestResult>;
     is: (options: IsOptions) => Promise<CommandRequestResult>;
     find: (options: FindOptions) => Promise<CommandRequestResult>;

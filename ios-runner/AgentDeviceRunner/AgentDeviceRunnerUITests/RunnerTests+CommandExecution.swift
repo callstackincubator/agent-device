@@ -754,6 +754,35 @@ extension RunnerTests {
           gestureEndUptimeMs: timing.gestureEndUptimeMs
         )
       )
+    case .rotateGesture:
+      guard let degrees = command.degrees, degrees.isFinite else {
+        return Response(ok: false, error: ErrorPayload(message: "rotateGesture requires degrees"))
+      }
+      let velocity = command.velocity ?? (degrees >= 0 ? 1.0 : -1.0)
+      guard velocity.isFinite && velocity != 0 else {
+        return Response(ok: false, error: ErrorPayload(message: "rotateGesture velocity must be non-zero"))
+      }
+      var outcome = RunnerInteractionOutcome.performed
+      let timing = measureGesture {
+        outcome = rotateGesture(
+          app: activeApp,
+          degrees: degrees,
+          x: command.x,
+          y: command.y,
+          velocity: velocity
+        )
+      }
+      if let response = unsupportedResponse(for: outcome) {
+        return response
+      }
+      return Response(
+        ok: true,
+        data: DataPayload(
+          message: "rotatedGesture",
+          gestureStartUptimeMs: timing.gestureStartUptimeMs,
+          gestureEndUptimeMs: timing.gestureEndUptimeMs
+        )
+      )
     }
   }
 

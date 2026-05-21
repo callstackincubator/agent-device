@@ -1490,6 +1490,29 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     ],
   }),
   makeCase({
+    id: 'gesture-pan-fling-rotate',
+    contract: [
+      'Platform: iOS simulator',
+      'Current screen: gesture lab',
+      'Target center is x=200 y=420',
+      'The target point is app-owned content away from screen edges, tab bars, navigation bars, and home indicators',
+      'Need to test a slow upward pan, a right fling, and app-content rotation',
+      'Pan delta is dx=0 dy=-80 over 500ms',
+      'Fling distance is 180px',
+      'Rotation is 35 degrees',
+    ],
+    task: 'Plan direct agent-device gesture commands for the pan, fling, and rotate gesture.',
+    outputs: [
+      plannedCommand('pan'),
+      /200\s+420\s+0\s+-80\s+500/i,
+      plannedCommand('fling'),
+      /right\s+200\s+420\s+180/i,
+      plannedCommand('rotate-gesture'),
+      /35\s+200\s+420/i,
+    ],
+    forbiddenOutputs: [plannedCommand('swipe'), /rotate\s+35/i, /--duration-ms/i],
+  }),
+  makeCase({
     id: 'settings-animation-stabilizer',
     contract: [
       'Platform: Android',

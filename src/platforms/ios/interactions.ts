@@ -34,11 +34,14 @@ type IosRunnerOverrides = Pick<
   | 'tapElementSelector'
   | 'doubleTap'
   | 'swipe'
+  | 'pan'
+  | 'fling'
   | 'longPress'
   | 'focus'
   | 'type'
   | 'fill'
   | 'scroll'
+  | 'rotateGesture'
 >;
 
 export function resolveAppleBackRunnerCommand(mode?: BackMode): AppleBackRunnerCommand {
@@ -103,6 +106,36 @@ export function iosRunnerOverrides(
           runnerOpts,
         );
       },
+      pan: async (x1, y1, x2, y2, durationMs) => {
+        return await runIosRunnerCommand(
+          device,
+          {
+            command: 'drag',
+            x: x1,
+            y: y1,
+            x2,
+            y2,
+            durationMs: iosPanHoldDurationMs(durationMs),
+            appBundleId: ctx.appBundleId,
+          },
+          runnerOpts,
+        );
+      },
+      fling: async (x1, y1, x2, y2, durationMs) => {
+        return await runIosRunnerCommand(
+          device,
+          {
+            command: 'drag',
+            x: x1,
+            y: y1,
+            x2,
+            y2,
+            durationMs,
+            appBundleId: ctx.appBundleId,
+          },
+          runnerOpts,
+        );
+      },
       longPress: async (x, y, durationMs) => {
         return await runIosRunnerCommand(
           device,
@@ -153,6 +186,20 @@ export function iosRunnerOverrides(
           runnerOpts,
           direction,
           options,
+        );
+      },
+      rotateGesture: async (degrees, x, y, velocity) => {
+        await runIosRunnerCommand(
+          device,
+          {
+            command: 'rotateGesture',
+            degrees,
+            x,
+            y,
+            velocity,
+            appBundleId: ctx.appBundleId,
+          },
+          runnerOpts,
         );
       },
     },
@@ -247,6 +294,11 @@ async function resolveAppleInteractionFrame(
 
 function readFiniteNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function iosPanHoldDurationMs(durationMs: number | undefined): number {
+  // XCUITest uses this as the pre-drag hold, not drag travel time. Keep pan distinct from longpress.
+  return Math.min(durationMs ?? 500, 16);
 }
 
 function normalizeIosScrollResult(

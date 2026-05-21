@@ -24,11 +24,14 @@ import { screenshotOptionsFromFlags } from '../commands/capture-screenshot-optio
 import type { DispatchContext } from './dispatch-context.ts';
 import {
   handleFillCommand,
+  handleFlingCommand,
   handleFocusCommand,
   handleLongPressCommand,
+  handlePanCommand,
   handlePinchCommand,
   handlePressCommand,
   handleReadCommand,
+  handleRotateGestureCommand,
   handleScrollCommand,
   handleSwipeCommand,
   handleTypeCommand,
@@ -82,6 +85,10 @@ export async function dispatchCommand(
           return handlePressCommand(device, interactor, positionals, context);
         case 'swipe':
           return handleSwipeCommand(device, interactor, positionals, context);
+        case 'pan':
+          return handlePanCommand(interactor, positionals);
+        case 'fling':
+          return handleFlingCommand(interactor, positionals);
         case 'longpress':
           return handleLongPressCommand(interactor, positionals);
         case 'focus':
@@ -94,6 +101,8 @@ export async function dispatchCommand(
           return handleScrollCommand(interactor, positionals, context);
         case 'pinch':
           return handlePinchCommand(device, positionals, context);
+        case 'rotate-gesture':
+          return handleRotateGestureCommand(device, interactor, positionals);
         case 'trigger-app-event': {
           const { eventName, payload } = parseTriggerAppEventArgs(positionals);
           const eventUrl = resolveAppEventUrl(device.platform, eventName, payload);

@@ -25,6 +25,7 @@ import { snapshotAndroid } from '../../platforms/android/snapshot.ts';
 import { screenshotAndroid } from '../../platforms/android/screenshot.ts';
 import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import { AppError } from '../../utils/errors.ts';
 import type { Interactor } from '../interactor-types.ts';
 
 export function createAndroidInteractor(device: DeviceInfo): Interactor {
@@ -38,6 +39,8 @@ export function createAndroidInteractor(device: DeviceInfo): Interactor {
       await pressAndroid(device, x, y);
     },
     swipe: (x1, y1, x2, y2, durationMs) => swipeAndroid(device, x1, y1, x2, y2, durationMs),
+    pan: (x1, y1, x2, y2, durationMs) => swipeAndroid(device, x1, y1, x2, y2, durationMs),
+    fling: (x1, y1, x2, y2, durationMs) => swipeAndroid(device, x1, y1, x2, y2, durationMs),
     longPress: (x, y, durationMs) => longPressAndroid(device, x, y, durationMs),
     focus: (x, y) => focusAndroid(device, x, y),
     type: (text, delayMs) => typeAndroid(device, text, delayMs),
@@ -68,6 +71,12 @@ export function createAndroidInteractor(device: DeviceInfo): Interactor {
     back: (_mode) => backAndroid(device),
     home: () => homeAndroid(device),
     rotate: (orientation) => rotateAndroid(device, orientation),
+    rotateGesture: () => {
+      throw new AppError(
+        'UNSUPPORTED_OPERATION',
+        'rotate-gesture is not supported by the Android adb backend',
+      );
+    },
     appSwitcher: () => appSwitcherAndroid(device),
     readClipboard: () => readAndroidClipboardText(device),
     writeClipboard: (text) => writeAndroidClipboardText(device, text),

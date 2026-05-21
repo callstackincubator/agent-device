@@ -107,6 +107,28 @@ test('snapshot replay script parses full refresh flags', () => {
   assert.equal(parsed[0]?.flags.snapshotScope, '@e1');
 });
 
+test('gesture replay script parses pan, fling, pinch, and rotate gesture commands', () => {
+  const parsed = parseReplayScript(
+    [
+      'pan 195 443 80 0',
+      'wait "pan changed yes" 5000',
+      'fling right 195 443 180',
+      'pinch 1.25 195 443',
+      'rotate-gesture 35 195 443',
+      '',
+    ].join('\n'),
+  );
+
+  assert.deepEqual(
+    parsed.map((action) => action.command),
+    ['pan', 'wait', 'fling', 'pinch', 'rotate-gesture'],
+  );
+  assert.deepEqual(parsed[0]?.positionals, ['195', '443', '80', '0']);
+  assert.deepEqual(parsed[2]?.positionals, ['right', '195', '443', '180']);
+  assert.deepEqual(parsed[3]?.positionals, ['1.25', '195', '443']);
+  assert.deepEqual(parsed[4]?.positionals, ['35', '195', '443']);
+});
+
 test('type and fill replay scripts round-trip typing delay flags', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-script-typing-'));
   const replayPath = path.join(root, 'flow.ad');

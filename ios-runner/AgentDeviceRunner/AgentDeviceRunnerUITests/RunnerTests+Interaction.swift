@@ -1266,6 +1266,10 @@ extension RunnerTests {
     return performCoordinatePinch(app: app, scale: scale, x: x, y: y)
   }
 
+  func rotateGesture(app: XCUIApplication, degrees: Double, x: Double?, y: Double?, velocity: Double) -> RunnerInteractionOutcome {
+    return performCoordinateRotateGesture(app: app, degrees: degrees, x: x, y: y, velocity: velocity)
+  }
+
   private func performCoordinatePinch(app: XCUIApplication, scale: Double, x: Double?, y: Double?) -> RunnerInteractionOutcome {
 #if os(tvOS)
     return .unsupported("pinch is not supported on tvOS")
@@ -1301,6 +1305,19 @@ extension RunnerTests {
     // Immediately press and drag (second tap + drag)
     center.press(forDuration: 0.05, thenDragTo: endPoint)
     return .performed
+#endif
+  }
+
+  private func performCoordinateRotateGesture(app: XCUIApplication, degrees: Double, x: Double?, y: Double?, velocity: Double) -> RunnerInteractionOutcome {
+#if os(iOS)
+    let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
+    let radians = CGFloat(degrees * .pi / 180.0)
+    target.rotate(radians, withVelocity: CGFloat(velocity))
+    return .performed
+#elseif os(tvOS)
+    return .unsupported("rotate-gesture is not supported on tvOS")
+#else
+    return .unsupported("rotate-gesture is not supported on macOS")
 #endif
   }
 

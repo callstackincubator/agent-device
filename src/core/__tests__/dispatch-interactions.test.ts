@@ -1,8 +1,13 @@
 import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import { handlePressCommand } from '../dispatch-interactions.ts';
+import {
+  handleFlingCommand,
+  handlePanCommand,
+  handlePressCommand,
+  handleRotateGestureCommand,
+} from '../dispatch-interactions.ts';
 import type { Interactor } from '../interactor-types.ts';
-import { MACOS_DEVICE } from '../../__tests__/test-utils/device-fixtures.ts';
+import { IOS_SIMULATOR, MACOS_DEVICE } from '../../__tests__/test-utils/device-fixtures.ts';
 
 vi.mock('../../platforms/ios/macos-helper.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../platforms/ios/macos-helper.ts')>();
@@ -25,6 +30,8 @@ function makeUnusedInteractor(): Interactor {
     tap: fail,
     doubleTap: fail,
     swipe: fail,
+    pan: fail,
+    fling: fail,
     longPress: fail,
     focus: fail,
     type: fail,
@@ -35,6 +42,7 @@ function makeUnusedInteractor(): Interactor {
     back: fail,
     home: fail,
     rotate: fail,
+    rotateGesture: fail,
     appSwitcher: fail,
     readClipboard: fail,
     writeClipboard: fail,
@@ -62,4 +70,77 @@ test('handlePressCommand routes macOS menubar press through the helper', async (
     200,
     { bundleId: 'com.example.menubarapp', surface: 'menubar' },
   ]);
+});
+
+test('handlePanCommand preserves the requested drag duration and moves by delta', async () => {
+  const calls: unknown[][] = [];
+  const interactor = {
+    ...makeUnusedInteractor(),
+    pan: async (...args: unknown[]) => {
+      calls.push(args);
+    },
+  };
+
+  const result = await handlePanCommand(interactor, ['200', '420', '0', '-80', '500']);
+
+  assert.deepEqual(calls, [[200, 420, 200, 340, 500]]);
+  assert.deepEqual(result, {
+    x: 200,
+    y: 420,
+    dx: 0,
+    dy: -80,
+    x2: 200,
+    y2: 340,
+    durationMs: 500,
+    message: 'Panned (200, 420) by (0, -80)',
+  });
+});
+
+test('handleFlingCommand converts direction and distance into a short drag', async () => {
+  const calls: unknown[][] = [];
+  const interactor = {
+    ...makeUnusedInteractor(),
+    fling: async (...args: unknown[]) => {
+      calls.push(args);
+    },
+  };
+
+  const result = await handleFlingCommand(interactor, ['right', '200', '420', '180']);
+
+  assert.deepEqual(calls, [[200, 420, 380, 420, 50]]);
+  assert.deepEqual(result, {
+    direction: 'right',
+    x: 200,
+    y: 420,
+    x2: 380,
+    y2: 420,
+    distance: 180,
+    durationMs: 50,
+    message: 'Flung right',
+  });
+});
+
+test('handleRotateGestureCommand defaults velocity sign to match degrees', async () => {
+  const calls: unknown[][] = [];
+  const interactor = {
+    ...makeUnusedInteractor(),
+    rotateGesture: async (...args: unknown[]) => {
+      calls.push(args);
+    },
+  };
+
+  const result = await handleRotateGestureCommand(IOS_SIMULATOR, interactor, [
+    '-215',
+    '200',
+    '420',
+  ]);
+
+  assert.deepEqual(calls, [[-215, 200, 420, -1]]);
+  assert.deepEqual(result, {
+    degrees: -215,
+    x: 200,
+    y: 420,
+    velocity: -1,
+    message: 'Rotated gesture -215 degrees',
+  });
 });

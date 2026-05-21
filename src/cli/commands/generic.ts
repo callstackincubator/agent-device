@@ -111,6 +111,24 @@ const genericClientCommandRunners = {
       pauseMs: flags.pauseMs,
       pattern: flags.pattern,
     }),
+  pan: ({ client, positionals, flags }) =>
+    client.interactions.pan({
+      ...buildSelectionOptions(flags),
+      x: Number(positionals[0]),
+      y: Number(positionals[1]),
+      dx: Number(positionals[2]),
+      dy: Number(positionals[3]),
+      durationMs: optionalNumber(positionals[4]),
+    }),
+  fling: ({ client, positionals, flags }) =>
+    client.interactions.fling({
+      ...buildSelectionOptions(flags),
+      direction: readGestureDirection(positionals[0], 'fling'),
+      x: Number(positionals[1]),
+      y: Number(positionals[2]),
+      distance: optionalNumber(positionals[3]),
+      durationMs: optionalNumber(positionals[4]),
+    }),
   focus: ({ client, positionals, flags }) =>
     client.interactions.focus({
       ...buildSelectionOptions(flags),
@@ -141,6 +159,14 @@ const genericClientCommandRunners = {
       scale: Number(positionals[0]),
       x: optionalNumber(positionals[1]),
       y: optionalNumber(positionals[2]),
+    }),
+  'rotate-gesture': ({ client, positionals, flags }) =>
+    client.interactions.rotateGesture({
+      ...buildSelectionOptions(flags),
+      degrees: Number(positionals[0]),
+      x: optionalNumber(positionals[1]),
+      y: optionalNumber(positionals[2]),
+      velocity: optionalNumber(positionals[3]),
     }),
   'trigger-app-event': ({ client, positionals, flags }) =>
     client.apps.triggerEvent({
@@ -235,6 +261,14 @@ function readScrollDirection(
     return value;
   }
   throw new AppError('INVALID_ARGS', `Unknown direction: ${String(value)}`);
+}
+
+function readGestureDirection(
+  value: string | undefined,
+  command: string,
+): 'up' | 'down' | 'left' | 'right' {
+  if (value === 'up' || value === 'down' || value === 'left' || value === 'right') return value;
+  throw new AppError('INVALID_ARGS', `${command} direction must be up, down, left, or right`);
 }
 
 function readStartStop(value: string | undefined, command: string): 'start' | 'stop' {

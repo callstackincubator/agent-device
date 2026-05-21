@@ -331,6 +331,33 @@ export function createAgentDeviceClient(
           ],
           options,
         ),
+      pan: async (options) =>
+        await executeCommandRequest(
+          PUBLIC_COMMANDS.pan,
+          [
+            String(options.x),
+            String(options.y),
+            String(options.dx),
+            String(options.dy),
+            ...optionalNumber(options.durationMs),
+          ],
+          options,
+        ),
+      fling: async (options) => {
+        const distance =
+          options.durationMs !== undefined ? (options.distance ?? 180) : options.distance;
+        return await executeCommandRequest(
+          PUBLIC_COMMANDS.fling,
+          [
+            options.direction,
+            String(options.x),
+            String(options.y),
+            ...optionalNumber(distance),
+            ...optionalNumber(options.durationMs),
+          ],
+          options,
+        );
+      },
       focus: async (options) =>
         await executeCommandRequest(
           PUBLIC_COMMANDS.focus,
@@ -361,6 +388,18 @@ export function createAgentDeviceClient(
           [String(options.scale), ...optionalNumber(options.x), ...optionalNumber(options.y)],
           options,
         ),
+      rotateGesture: async (options) => {
+        const center = options.x !== undefined || options.y !== undefined;
+        return await executeCommandRequest(
+          PUBLIC_COMMANDS.rotateGesture,
+          [
+            String(options.degrees),
+            ...(center ? [String(options.x), String(options.y)] : []),
+            ...optionalNumber(options.velocity),
+          ],
+          options,
+        );
+      },
       get: async (options) =>
         await executeCommandRequest(
           PUBLIC_COMMANDS.get,

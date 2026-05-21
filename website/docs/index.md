@@ -18,7 +18,7 @@ features:
   - title: Accessibility-first snapshots
     details: Accessibility trees give agents compact UI context without forcing screenshot-only reasoning.
   - title: Agent-native interactions
-    details: Tap, swipe, scroll, focus, type, assert, and find visible UI through refs, selectors, and semantic finders.
+    details: Tap, pan, fling, pinch, rotate, scroll, focus, type, assert, and find visible UI through refs, selectors, and semantic finders.
   - title: Built-in debugging and profiling
     details: Collect session logs, inspect recent HTTP traffic, capture screenshots and recordings, and sample CPU, memory, startup, and frame-health metrics.
   - title: Session and replay

@@ -138,6 +138,36 @@ test('device capability matrix stays consistent across shared command groups', (
         { device: macOsDevice, expected: true, label: 'on macOS' },
       ],
     },
+    {
+      commands: ['pan'],
+      checks: [
+        { device: iosSimulator, expected: true, label: 'on iOS sim' },
+        { device: iosDevice, expected: true, label: 'on iOS device' },
+        { device: androidDevice, expected: true, label: 'on Android' },
+        { device: macOsDevice, expected: true, label: 'on macOS' },
+        { device: linuxDevice, expected: true, label: 'on Linux' },
+      ],
+    },
+    {
+      commands: ['fling'],
+      checks: [
+        { device: iosSimulator, expected: true, label: 'on iOS sim' },
+        { device: iosDevice, expected: true, label: 'on iOS device' },
+        { device: androidDevice, expected: true, label: 'on Android' },
+        { device: macOsDevice, expected: true, label: 'on macOS' },
+        { device: linuxDevice, expected: false, label: 'on Linux' },
+      ],
+    },
+    {
+      commands: ['rotate-gesture'],
+      checks: [
+        { device: iosSimulator, expected: true, label: 'on iOS sim' },
+        { device: iosDevice, expected: false, label: 'on iOS device' },
+        { device: androidDevice, expected: false, label: 'on Android' },
+        { device: macOsDevice, expected: false, label: 'on macOS' },
+        { device: tvOsSimulator, expected: false, label: 'on tvOS simulator' },
+      ],
+    },
   ];
 
   for (const scenario of scenarios) {

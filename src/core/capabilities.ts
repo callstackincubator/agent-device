@@ -24,6 +24,8 @@ const isMacOsOrAppleSimulator = (device: DeviceInfo): boolean =>
   device.platform === 'macos' || device.kind === 'simulator';
 const isMacOsOrMobileAppleSimulator = (device: DeviceInfo): boolean =>
   device.platform === 'macos' || (device.kind === 'simulator' && device.target !== 'tv');
+const isIosMobileSimulator = (device: DeviceInfo): boolean =>
+  device.platform === 'ios' && device.kind === 'simulator' && device.target !== 'tv';
 
 // Linux desktop supports these commands via xdotool/ydotool + AT-SPI2.
 // Linux device kind is always 'device' (local desktop).
@@ -47,6 +49,12 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     android: {},
     linux: LINUX_NONE,
     supports: isMacOsOrMobileAppleSimulator,
+  },
+  'rotate-gesture': {
+    apple: { simulator: true, device: true },
+    android: {},
+    linux: LINUX_NONE,
+    supports: isIosMobileSimulator,
   },
   'app-switcher': {
     apple: { simulator: true, device: true },
@@ -94,6 +102,11 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_DEVICE,
   },
+  fling: {
+    apple: { simulator: true, device: true },
+    android: { emulator: true, device: true, unknown: true },
+    linux: LINUX_NONE,
+  },
   ...CAPTURE_COMMAND_CAPABILITIES,
   ...SELECTOR_COMMAND_CAPABILITIES,
   focus: {
@@ -126,6 +139,11 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,
+  },
+  pan: {
+    apple: { simulator: true, device: true },
+    android: { emulator: true, device: true, unknown: true },
+    linux: LINUX_DEVICE,
   },
   press: {
     apple: { simulator: true, device: true },

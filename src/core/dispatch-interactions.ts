@@ -447,6 +447,62 @@ export async function handleSwipeCommand(
   );
 }
 
+export async function handlePanCommand(
+  interactor: Interactor,
+  positionals: string[],
+): Promise<Record<string, unknown>> {
+  const x = Number(positionals[0]);
+  const y = Number(positionals[1]);
+  const dx = Number(positionals[2]);
+  const dy = Number(positionals[3]);
+  if ([x, y, dx, dy].some((value) => !Number.isFinite(value))) {
+    throw new AppError('INVALID_ARGS', 'pan requires x y dx dy [durationMs]');
+  }
+  const requestedDurationMs = positionals[4] ? Number(positionals[4]) : 500;
+  const durationMs = requireIntInRange(requestedDurationMs, 'durationMs', 16, 10_000);
+  const x2 = x + dx;
+  const y2 = y + dy;
+  await interactor.pan(x, y, x2, y2, durationMs);
+  return {
+    x,
+    y,
+    dx,
+    dy,
+    x2,
+    y2,
+    durationMs,
+    ...successText(`Panned (${x}, ${y}) by (${dx}, ${dy})`),
+  };
+}
+
+export async function handleFlingCommand(
+  interactor: Interactor,
+  positionals: string[],
+): Promise<Record<string, unknown>> {
+  const direction = parseGestureDirection(positionals[0], 'fling direction');
+  const x = Number(positionals[1]);
+  const y = Number(positionals[2]);
+  if (![x, y].every(Number.isFinite)) {
+    throw new AppError('INVALID_ARGS', 'fling requires direction x y [distance] [durationMs]');
+  }
+  const distanceInput = positionals[3] ? Number(positionals[3]) : 180;
+  const distance = requireFinitePositiveNumber(distanceInput, 'distance');
+  const requestedDurationMs = positionals[4] ? Number(positionals[4]) : 50;
+  const durationMs = requireIntInRange(requestedDurationMs, 'durationMs', 16, 1_000);
+  const { x2, y2 } = pointOffsetByDirection(x, y, direction, distance);
+  await interactor.fling(x, y, x2, y2, durationMs);
+  return {
+    direction,
+    x,
+    y,
+    x2,
+    y2,
+    distance,
+    durationMs,
+    ...successText(`Flung ${direction}`),
+  };
+}
+
 export async function handleScrollCommand(
   interactor: Interactor,
   positionals: string[],
@@ -574,6 +630,87 @@ export async function handlePinchCommand(
     },
   );
   return { scale, x, y, ...successText(`Pinched to scale ${scale}`) };
+}
+
+export async function handleRotateGestureCommand(
+  device: DeviceInfo,
+  interactor: Interactor,
+  positionals: string[],
+): Promise<Record<string, unknown>> {
+  if (device.platform === 'android') {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      'Android rotate-gesture is not supported in current adb backend; requires instrumentation-based backend.',
+    );
+  }
+  if (device.target === 'tv') {
+    throw new AppError('UNSUPPORTED_OPERATION', 'rotate-gesture is not supported on tvOS');
+  }
+  if (device.platform === 'macos') {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      'rotate-gesture is not supported on macOS; XCTest rotation gestures are available only for iOS app sessions.',
+    );
+  }
+
+  const degrees = Number(positionals[0]);
+  const x = positionals[1] ? Number(positionals[1]) : undefined;
+  const y = positionals[2] ? Number(positionals[2]) : undefined;
+  const velocity = positionals[3] ? Number(positionals[3]) : degrees >= 0 ? 1 : -1;
+  if (!Number.isFinite(degrees)) {
+    throw new AppError('INVALID_ARGS', 'rotate-gesture requires degrees [x] [y] [velocity]');
+  }
+  if ((x === undefined) !== (y === undefined)) {
+    throw new AppError('INVALID_ARGS', 'rotate-gesture center requires both x and y');
+  }
+  if (x !== undefined && (!Number.isFinite(x) || !Number.isFinite(y))) {
+    throw new AppError('INVALID_ARGS', 'rotate-gesture center requires finite x and y');
+  }
+  if (!Number.isFinite(velocity) || velocity === 0) {
+    throw new AppError('INVALID_ARGS', 'rotate-gesture velocity must be a non-zero number');
+  }
+
+  await interactor.rotateGesture(degrees, x, y, velocity);
+  return {
+    degrees,
+    ...(x !== undefined && y !== undefined ? { x, y } : {}),
+    velocity,
+    ...successText(`Rotated gesture ${degrees} degrees`),
+  };
+}
+
+type GestureDirection = 'up' | 'down' | 'left' | 'right';
+
+function parseGestureDirection(input: string | undefined, field: string): GestureDirection {
+  if (input === 'up' || input === 'down' || input === 'left' || input === 'right') {
+    return input;
+  }
+  throw new AppError('INVALID_ARGS', `${field} must be up, down, left, or right`);
+}
+
+function requireFinitePositiveNumber(value: number, field: string): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new AppError('INVALID_ARGS', `${field} must be a positive number`);
+  }
+  return value;
+}
+
+function pointOffsetByDirection(
+  x: number,
+  y: number,
+  direction: GestureDirection,
+  distance: number,
+): { x2: number; y2: number } {
+  switch (direction) {
+    case 'up':
+      return { x2: x, y2: y - distance };
+    case 'down':
+      return { x2: x, y2: y + distance };
+    case 'left':
+      return { x2: x - distance, y2: y };
+    case 'right':
+      return { x2: x + distance, y2: y };
+  }
 }
 
 export async function handleReadCommand(

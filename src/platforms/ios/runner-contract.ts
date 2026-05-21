@@ -30,6 +30,7 @@ export type RunnerCommand = {
     | 'backSystem'
     | 'home'
     | 'rotate'
+    | 'rotateGesture'
     | 'appSwitcher'
     | 'keyboardDismiss'
     | 'alert'
@@ -60,6 +61,8 @@ export type RunnerCommand = {
   direction?: 'up' | 'down' | 'left' | 'right';
   orientation?: DeviceRotation;
   scale?: number;
+  degrees?: number;
+  velocity?: number;
   outPath?: string;
   fps?: number;
   quality?: number;

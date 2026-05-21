@@ -834,6 +834,34 @@ async function runAndroidCaptureInteractionAndReplayWorkflow(
   assert.equal(swipe.pauseMs, 1);
   assert.equal(swipe.pattern, 'ping-pong');
 
+  const pan = await client.interactions.pan({
+    x: 100,
+    y: 200,
+    dx: 50,
+    dy: -20,
+    durationMs: 400,
+    ...selection,
+  });
+  assert.equal(pan.x, 100);
+  assert.equal(pan.y, 200);
+  assert.equal(pan.x2, 150);
+  assert.equal(pan.y2, 180);
+  assert.equal(pan.durationMs, 400);
+
+  const fling = await client.interactions.fling({
+    direction: 'right',
+    x: 100,
+    y: 200,
+    distance: 180,
+    ...selection,
+  });
+  assert.equal(fling.direction, 'right');
+  assert.equal(fling.x, 100);
+  assert.equal(fling.y, 200);
+  assert.equal(fling.x2, 280);
+  assert.equal(fling.y2, 200);
+  assert.equal(fling.distance, 180);
+
   const batch = await client.batch.run({
     steps: [
       {
@@ -1139,6 +1167,8 @@ function assertAndroidInteractionContract(world: AndroidSettingsWorld): void {
   assertCommandCall(adbCalls, ['shell', 'input', 'swipe', '31', '40', '31', '40', '5']);
   assertCommandCall(adbCalls, ['shell', 'input', 'swipe', '20', '200', '20', '100', '250']);
   assertCommandCall(adbCalls, ['shell', 'input', 'swipe', '20', '100', '20', '200', '250']);
+  assertCommandCall(adbCalls, ['shell', 'input', 'swipe', '100', '200', '150', '180', '400']);
+  assertCommandCall(adbCalls, ['shell', 'input', 'swipe', '100', '200', '280', '200', '50']);
   assert.equal(
     adbCalls.filter((call) => arrayEqual(call, ['shell', 'input', 'tap', '88', '151'])).length,
     5,

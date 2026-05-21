@@ -141,6 +141,7 @@ const runnerProtocolCommandFixtures: Record<RunnerCommand['command'], RunnerComm
   keyboardDismiss: { command: 'keyboardDismiss' },
   alert: { command: 'alert', action: 'accept' },
   pinch: { command: 'pinch', scale: 0.5 },
+  rotateGesture: { command: 'rotateGesture', degrees: 35, x: 200, y: 420, velocity: 1 },
   recordStart: {
     command: 'recordStart',
     outPath: '/tmp/runner-recording.mp4',
@@ -343,6 +344,7 @@ test('runner protocol fixtures cover every runner command with JSON-safe samples
     'recordStop',
     'remotePress',
     'rotate',
+    'rotateGesture',
     'screenshot',
     'shutdown',
     'snapshot',

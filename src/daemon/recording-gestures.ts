@@ -180,6 +180,8 @@ function buildGestureEvents(
       return buildLongPressEvents(positionals, result, tMs, gestureDurationMs, referenceFrame);
     case 'scroll':
       return buildScrollEvents(positionals, result, tMs, gestureDurationMs, referenceFrame);
+    case 'pan':
+    case 'fling':
     case 'swipe':
       return buildSwipeEvents(positionals, result, tMs, gestureDurationMs, referenceFrame);
     case 'pinch':
@@ -504,8 +506,8 @@ function readTravelCoordinates(
   result: Record<string, unknown>,
   positionals: string[],
 ): { x1: number; y1: number; x2: number; y2: number } | undefined {
-  const x1 = readNumber(result.x1) ?? readNumber(positionals[0]);
-  const y1 = readNumber(result.y1) ?? readNumber(positionals[1]);
+  const x1 = readNumber(result.x1) ?? readNumber(result.x) ?? readNumber(positionals[0]);
+  const y1 = readNumber(result.y1) ?? readNumber(result.y) ?? readNumber(positionals[1]);
   const x2 = readNumber(result.x2) ?? readNumber(positionals[2]);
   const y2 = readNumber(result.y2) ?? readNumber(positionals[3]);
   if (x1 === undefined || y1 === undefined || x2 === undefined || y2 === undefined) {

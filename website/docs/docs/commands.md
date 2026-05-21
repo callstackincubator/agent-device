@@ -255,11 +255,14 @@ agent-device press 300 500 --count 12 --interval-ms 45
 agent-device press 300 500 --count 6 --hold-ms 120 --interval-ms 30 --jitter-px 2
 agent-device swipe 540 1500 540 500 120
 agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
+agent-device pan 200 420 0 -80 500
+agent-device fling right 200 420 180
 agent-device longpress 300 500 800
 agent-device scroll down 0.5
 agent-device scroll down --pixels 320
 agent-device pinch 2.0          # zoom in 2x (Apple simulator or macOS app session)
 agent-device pinch 0.5 200 400 # zoom out at coordinates (Apple simulator or macOS app session)
+agent-device rotate-gesture 35 200 420 # rotate app content (iOS simulator app session)
 ```
 
 `fill` clears then types. `type` does not clear.
@@ -272,6 +275,8 @@ Android text entry is owned by `agent-device`: provider-native injection when av
 `click --button middle` is reserved for future runner support and currently returns an explicit unsupported-operation error on macOS.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
 On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpress side effects.
+`pan` accepts `x y dx dy [durationMs]` for deliberate drags where the requested duration should be preserved.
+`fling` accepts `up|down|left|right x y [distance] [durationMs]` for fast directional throws.
 `scroll` accepts either a relative amount (`0.5` means roughly half of the viewport on that axis) or `--pixels <n>` for a fixed-distance gesture. Large distances are clamped to the usable drag band so the gesture stays reliable across Android, iOS, and macOS.
 Default snapshot text output is visible-first, so off-screen interactive content is summarized instead of shown as tappable refs.
 When a target only appears in an off-screen summary, use `scroll <direction>` and then take a fresh `snapshot -i`. For repeated checks, a small shell loop is enough:
@@ -290,6 +295,7 @@ done
 
 `longpress` is supported on iOS and Android.
 `pinch` is supported on Apple simulators and macOS app sessions.
+`rotate-gesture` is supported on iOS simulator app sessions. Use `rotate` for device orientation.
 
 ## Find (semantic)
 
