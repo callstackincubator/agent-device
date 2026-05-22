@@ -629,6 +629,12 @@ test('parseArgs recognizes gesture subcommand positionals', () => {
   });
   assert.equal(rotate.command, 'gesture');
   assert.deepEqual(rotate.positionals, ['rotate', '35', '200', '420']);
+
+  const transform = parseArgs(['gesture', 'transform', '200', '420', '80', '-40', '2', '35'], {
+    strictFlags: true,
+  });
+  assert.equal(transform.command, 'gesture');
+  assert.deepEqual(transform.positionals, ['transform', '200', '420', '80', '-40', '2', '35']);
 });
 
 test('parseArgs recognizes type and fill delay flags', () => {
@@ -807,7 +813,7 @@ test('usage includes concise top-level commands', () => {
   assert.match(usageText, /clipboard read \| clipboard write <text>/);
   assert.match(usageText, /keyboard \[action\]/);
   assert.match(usageText, /trigger-app-event <event> \[payloadJson\]/);
-  assert.match(usageText, /gesture <pan\|fling\|pinch\|rotate> \.\.\./);
+  assert.match(usageText, /gesture <pan\|fling\|pinch\|rotate\|transform> \.\.\./);
   assert.doesNotMatch(usageText, /^  pan <x> <y> <dx> <dy> \[durationMs\]/m);
   assert.doesNotMatch(usageText, /^  fling <up\|down\|left\|right>/m);
   assert.doesNotMatch(usageText, /^  pinch <scale> \[x\] \[y\]/m);
@@ -1112,7 +1118,13 @@ test('apps defaults to user-installed filter and allows overrides', () => {
   );
 });
 
-const INTERNAL_GESTURE_CAPABILITY_COMMANDS = new Set(['pan', 'fling', 'pinch', 'rotate-gesture']);
+const INTERNAL_GESTURE_CAPABILITY_COMMANDS = new Set([
+  'pan',
+  'fling',
+  'pinch',
+  'rotate-gesture',
+  'transform-gesture',
+]);
 
 test('every public capability command has a parser schema entry', () => {
   const schemaCommands = new Set(getCliCommandNames());

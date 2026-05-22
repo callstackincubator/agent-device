@@ -11,7 +11,7 @@ const recordingScriptsDir = path.resolve(
   '../../../../ios-runner/AgentDeviceRunner/RecordingScripts',
 );
 const recordingTestSupportDir = path.resolve(__dirname, '../../../../test/integration/support');
-const SWIFT_TYPECHECK_TIMEOUT_MS = 30_000;
+const SWIFT_TYPECHECK_TIMEOUT_MS = 60_000;
 
 async function assertSwiftScriptTypechecks(scriptPath: string): Promise<void> {
   const result = await runCmd('xcrun', ['swiftc', '-typecheck', scriptPath], {

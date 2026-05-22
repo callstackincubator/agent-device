@@ -142,6 +142,20 @@ test('Provider-backed integration iOS Settings flow uses scripted simctl and run
           expectData: { degrees: 35, x: 196, y: 122, velocity: 1 },
         },
         {
+          name: 'transform current app content',
+          command: 'gesture',
+          positionals: ['transform', '196', '122', '40', '-20', '1.5', '35', '700'],
+          expectData: {
+            x: 196,
+            y: 122,
+            dx: 40,
+            dy: -20,
+            scale: 1.5,
+            degrees: 35,
+            durationMs: 700,
+          },
+        },
+        {
           name: 'get ref attrs',
           command: 'get',
           positionals: ['attrs', '@e1'],

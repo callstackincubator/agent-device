@@ -1520,6 +1520,27 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     ],
   }),
   makeCase({
+    id: 'android-gesture-transform',
+    contract: [
+      'Platform: Android',
+      'Current screen: gesture lab',
+      'Target center is x=200 y=420',
+      'Need one continuous two-finger gesture without lifting fingers',
+      'Pan delta is dx=80 dy=-40',
+      'Zoom scale is 2',
+      'Rotation is 35 degrees',
+      'Duration is 700ms',
+    ],
+    task: 'Plan the direct agent-device command for the combined pan, zoom, and rotate gesture.',
+    outputs: [plannedCommand('gesture transform'), /200\s+420\s+80\s+-40\s+2\s+35\s+700/i],
+    forbiddenOutputs: [
+      plannedCommand('gesture pan'),
+      plannedCommand('gesture pinch'),
+      plannedCommand('gesture rotate'),
+      plannedCommand('compose-gestures'),
+    ],
+  }),
+  makeCase({
     id: 'settings-animation-stabilizer',
     contract: [
       'Platform: Android',

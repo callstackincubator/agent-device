@@ -598,17 +598,12 @@ function parseScrollTarget(input: string): {
 
 export async function handlePinchCommand(
   device: DeviceInfo,
+  interactor: Interactor,
   positionals: string[],
   context: DispatchContext | undefined,
 ): Promise<Record<string, unknown>> {
   if (device.target === 'tv') {
     throw new AppError('UNSUPPORTED_OPERATION', 'gesture pinch is not supported on tvOS');
-  }
-  if (device.platform === 'android') {
-    throw new AppError(
-      'UNSUPPORTED_OPERATION',
-      'gesture pinch is not supported on Android adb sessions; adb tunnels expose standard adb only. Use a RemoteControl/WebRTC provider for Android multi-touch gestures.',
-    );
   }
   if (device.platform === 'macos' && context?.surface && context.surface !== 'app') {
     throw new AppError(
@@ -622,17 +617,8 @@ export async function handlePinchCommand(
   if (Number.isNaN(scale) || scale <= 0) {
     throw new AppError('INVALID_ARGS', 'gesture pinch requires scale > 0');
   }
-  await runIosRunnerCommand(
-    device,
-    { command: 'pinch', scale, x, y, appBundleId: context?.appBundleId },
-    {
-      verbose: context?.verbose,
-      logPath: context?.logPath,
-      traceLogPath: context?.traceLogPath,
-      requestId: context?.requestId,
-    },
-  );
-  return { scale, x, y, ...successText(`Pinched to scale ${scale}`) };
+  const interactionResult = await interactor.pinch(scale, x, y);
+  return { scale, x, y, ...interactionResult, ...successText(`Pinched to scale ${scale}`) };
 }
 
 export async function handleRotateGestureCommand(
@@ -643,12 +629,6 @@ export async function handleRotateGestureCommand(
   if (device.target === 'tv') {
     throw new AppError('UNSUPPORTED_OPERATION', 'gesture rotate is not supported on tvOS');
   }
-  if (device.platform === 'android') {
-    throw new AppError(
-      'UNSUPPORTED_OPERATION',
-      'gesture rotate is not supported on Android adb sessions; adb tunnels expose standard adb only. Use a RemoteControl/WebRTC provider for Android multi-touch gestures.',
-    );
-  }
   if (device.platform === 'macos') {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
@@ -658,12 +638,40 @@ export async function handleRotateGestureCommand(
 
   const { degrees, x, y, velocity } = parseRotateGestureParams(positionals);
 
-  await interactor.rotateGesture(degrees, x, y, velocity);
+  const interactionResult = await interactor.rotateGesture(degrees, x, y, velocity);
   return {
     degrees,
     ...(x !== undefined && y !== undefined ? { x, y } : {}),
     velocity,
+    ...interactionResult,
     ...successText(`Rotated gesture ${degrees} degrees`),
+  };
+}
+
+export async function handleTransformGestureCommand(
+  device: DeviceInfo,
+  interactor: Interactor,
+  positionals: string[],
+): Promise<Record<string, unknown>> {
+  if (device.target === 'tv') {
+    throw new AppError('UNSUPPORTED_OPERATION', 'gesture transform is not supported on tvOS');
+  }
+  const supportedIosSimulator = device.platform === 'ios' && device.kind === 'simulator';
+  if (device.platform !== 'android' && !supportedIosSimulator) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      'gesture transform is currently supported on Android and iOS simulators',
+    );
+  }
+
+  const params = parseTransformGestureParams(positionals);
+  const interactionResult = await interactor.transformGesture(params);
+  return {
+    ...params,
+    ...interactionResult,
+    ...successText(
+      `Requested transform gesture by (${params.dx}, ${params.dy}), scale ${params.scale}, rotate ${params.degrees} degrees`,
+    ),
   };
 }
 
@@ -674,6 +682,16 @@ type RotateGestureParams = {
   x?: number;
   y?: number;
   velocity: number;
+};
+
+type TransformGestureParams = {
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+  scale: number;
+  degrees: number;
+  durationMs?: number;
 };
 
 function parseRotateGestureParams(positionals: string[]): RotateGestureParams {
@@ -689,6 +707,29 @@ function parseRotateGestureParams(positionals: string[]): RotateGestureParams {
   }
 
   return { degrees, ...center, velocity };
+}
+
+function parseTransformGestureParams(positionals: string[]): TransformGestureParams {
+  const x = Number(positionals[0]);
+  const y = Number(positionals[1]);
+  const dx = Number(positionals[2]);
+  const dy = Number(positionals[3]);
+  const scale = Number(positionals[4]);
+  const degrees = Number(positionals[5]);
+  if (![x, y, dx, dy, scale, degrees].every(Number.isFinite)) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'gesture transform requires x y dx dy scale degrees [durationMs]',
+    );
+  }
+  if (scale <= 0) {
+    throw new AppError('INVALID_ARGS', 'gesture transform scale must be > 0');
+  }
+  const durationMs =
+    positionals[6] === undefined
+      ? undefined
+      : requireIntInRange(Number(positionals[6]), 'durationMs', 16, 10_000);
+  return { x, y, dx, dy, scale, degrees, durationMs };
 }
 
 function parseOptionalGestureCenter(

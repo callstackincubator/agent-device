@@ -31,6 +31,7 @@ export type RunnerCommand = {
     | 'home'
     | 'rotate'
     | 'rotateGesture'
+    | 'transformGesture'
     | 'appSwitcher'
     | 'keyboardDismiss'
     | 'alert'
@@ -57,6 +58,8 @@ export type RunnerCommand = {
   pattern?: 'one-way' | 'ping-pong';
   x2?: number;
   y2?: number;
+  dx?: number;
+  dy?: number;
   durationMs?: number;
   direction?: 'up' | 'down' | 'left' | 'right';
   orientation?: DeviceRotation;

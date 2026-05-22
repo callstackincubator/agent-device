@@ -119,6 +119,36 @@ export type AndroidTextInjectionRequest = {
 
 export type AndroidTextInjector = (request: AndroidTextInjectionRequest) => Promise<void>;
 
+export type AndroidTouchGestureRequest =
+  | {
+      kind: 'pinch';
+      x: number;
+      y: number;
+      scale: number;
+      durationMs?: number;
+    }
+  | {
+      kind: 'rotate';
+      x: number;
+      y: number;
+      degrees: number;
+      durationMs?: number;
+    }
+  | {
+      kind: 'transform';
+      x: number;
+      y: number;
+      dx: number;
+      dy: number;
+      scale: number;
+      degrees: number;
+      durationMs?: number;
+    };
+
+export type AndroidTouchInjector = (
+  request: AndroidTouchGestureRequest,
+) => Promise<Record<string, unknown> | void>;
+
 export type AndroidAdbProvider = {
   /**
    * Fallback executor for device-scoped adb arguments. Providers may omit explicit
@@ -131,6 +161,7 @@ export type AndroidAdbProvider = {
   install?: AndroidAdbInstaller;
   installBundle?: AndroidBundleInstaller;
   text?: AndroidTextInjector;
+  touch?: AndroidTouchInjector;
 };
 
 export type AndroidAdbProviderScopeOptions = {
@@ -208,6 +239,11 @@ export function resolveAndroidAdbProvider(
 export function resolveAndroidTextInjector(device: DeviceInfo): AndroidTextInjector | undefined {
   const scoped = androidAdbProviderScope.getStore();
   return scoped?.serial === device.id ? scoped.provider.text : undefined;
+}
+
+export function resolveAndroidTouchInjector(device: DeviceInfo): AndroidTouchInjector | undefined {
+  const scoped = androidAdbProviderScope.getStore();
+  return scoped?.serial === device.id ? scoped.provider.touch : undefined;
 }
 
 export function createAndroidPortReverseManager(

@@ -196,7 +196,9 @@ test('Provider-backed integration iOS simulator recording flow uses semantic rec
         deviceInventoryProvider: async () => [PROVIDER_SCENARIO_IOS_SIMULATOR],
       });
       const previousPath = process.env.PATH;
+      const previousSwiftCacheDir = process.env.AGENT_DEVICE_SWIFT_CACHE_DIR;
       process.env.PATH = tmpDir;
+      process.env.AGENT_DEVICE_SWIFT_CACHE_DIR = path.join(tmpDir, 'swift-cache');
 
       try {
         const open = await daemon.callCommand('open', ['com.apple.Preferences'], {
@@ -240,6 +242,7 @@ test('Provider-backed integration iOS simulator recording flow uses semantic rec
       } finally {
         await daemon.close();
         restoreEnv('PATH', previousPath);
+        restoreEnv('AGENT_DEVICE_SWIFT_CACHE_DIR', previousSwiftCacheDir);
       }
     },
   );

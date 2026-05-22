@@ -42,7 +42,9 @@ test('Provider-backed integration Android recording flow uses scripted ADB provi
       });
 
       const previousPath = process.env.PATH;
+      const previousSwiftCacheDir = process.env.AGENT_DEVICE_SWIFT_CACHE_DIR;
       process.env.PATH = tmpDir;
+      process.env.AGENT_DEVICE_SWIFT_CACHE_DIR = path.join(tmpDir, 'swift-cache');
 
       try {
         const open = await daemon.callCommand('open', ['settings'], {
@@ -82,6 +84,7 @@ test('Provider-backed integration Android recording flow uses scripted ADB provi
       } finally {
         await daemon.close();
         restoreEnv('PATH', previousPath);
+        restoreEnv('AGENT_DEVICE_SWIFT_CACHE_DIR', previousSwiftCacheDir);
       }
     },
   );

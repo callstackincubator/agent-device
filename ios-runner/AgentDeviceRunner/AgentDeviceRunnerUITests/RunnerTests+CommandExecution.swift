@@ -783,6 +783,53 @@ extension RunnerTests {
           gestureEndUptimeMs: timing.gestureEndUptimeMs
         )
       )
+    case .transformGesture:
+      guard
+        let x = command.x,
+        let y = command.y,
+        let dx = command.dx,
+        let dy = command.dy,
+        x.isFinite,
+        y.isFinite,
+        dx.isFinite,
+        dy.isFinite
+      else {
+        return Response(ok: false, error: ErrorPayload(message: "transformGesture requires finite x y dx dy"))
+      }
+      guard let scale = command.scale, scale.isFinite, scale > 0 else {
+        return Response(ok: false, error: ErrorPayload(message: "transformGesture requires scale > 0"))
+      }
+      guard let degrees = command.degrees, degrees.isFinite else {
+        return Response(ok: false, error: ErrorPayload(message: "transformGesture requires finite degrees"))
+      }
+      let durationMs = command.durationMs ?? 300
+      guard durationMs.isFinite && durationMs >= 16 else {
+        return Response(ok: false, error: ErrorPayload(message: "transformGesture durationMs must be >= 16"))
+      }
+      var outcome = RunnerInteractionOutcome.performed
+      let timing = measureGesture {
+        outcome = transformGesture(
+          app: activeApp,
+          x: x,
+          y: y,
+          dx: dx,
+          dy: dy,
+          scale: scale,
+          degrees: degrees,
+          durationMs: durationMs
+        )
+      }
+      if let response = unsupportedResponse(for: outcome) {
+        return response
+      }
+      return Response(
+        ok: true,
+        data: DataPayload(
+          message: "transformedGesture",
+          gestureStartUptimeMs: timing.gestureStartUptimeMs,
+          gestureEndUptimeMs: timing.gestureEndUptimeMs
+        )
+      )
     }
   }
 

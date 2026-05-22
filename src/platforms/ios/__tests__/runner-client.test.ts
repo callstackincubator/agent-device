@@ -142,6 +142,16 @@ const runnerProtocolCommandFixtures: Record<RunnerCommand['command'], RunnerComm
   alert: { command: 'alert', action: 'accept' },
   pinch: { command: 'pinch', scale: 0.5 },
   rotateGesture: { command: 'rotateGesture', degrees: 35, x: 200, y: 420, velocity: 1 },
+  transformGesture: {
+    command: 'transformGesture',
+    x: 200,
+    y: 420,
+    dx: 80,
+    dy: -40,
+    scale: 2,
+    degrees: 35,
+    durationMs: 700,
+  },
   recordStart: {
     command: 'recordStart',
     outPath: '/tmp/runner-recording.mp4',
@@ -351,6 +361,7 @@ test('runner protocol fixtures cover every runner command with JSON-safe samples
     'swipe',
     'tap',
     'tapSeries',
+    'transformGesture',
     'type',
     'uptime',
   ]);

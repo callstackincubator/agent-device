@@ -17,6 +17,11 @@ import {
   typeAndroid,
 } from '../../platforms/android/input-actions.ts';
 import {
+  pinchAndroid,
+  rotateGestureAndroid,
+  transformGestureAndroid,
+} from '../../platforms/android/multitouch-helper.ts';
+import {
   readAndroidClipboardText,
   writeAndroidClipboardText,
 } from '../../platforms/android/device-input-state.ts';
@@ -25,7 +30,6 @@ import { snapshotAndroid } from '../../platforms/android/snapshot.ts';
 import { screenshotAndroid } from '../../platforms/android/screenshot.ts';
 import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { AppError } from '../../utils/errors.ts';
 import type { Interactor } from '../interactor-types.ts';
 
 export function createAndroidInteractor(device: DeviceInfo): Interactor {
@@ -46,6 +50,7 @@ export function createAndroidInteractor(device: DeviceInfo): Interactor {
     type: (text, delayMs) => typeAndroid(device, text, delayMs),
     fill: (x, y, text, delayMs) => fillAndroid(device, x, y, text, delayMs),
     scroll: (direction, options) => scrollAndroid(device, direction, options),
+    pinch: (scale, x, y) => pinchAndroid(device, { scale, x, y }),
     screenshot: (outPath, options) => screenshotAndroid(device, outPath, options),
     snapshot: async (options) => {
       const result = await withDiagnosticTimer(
@@ -71,12 +76,9 @@ export function createAndroidInteractor(device: DeviceInfo): Interactor {
     back: (_mode) => backAndroid(device),
     home: () => homeAndroid(device),
     rotate: (orientation) => rotateAndroid(device, orientation),
-    rotateGesture: () => {
-      throw new AppError(
-        'UNSUPPORTED_OPERATION',
-        'gesture rotate is not supported by the Android adb backend',
-      );
-    },
+    rotateGesture: (degrees, x, y, velocity) =>
+      rotateGestureAndroid(device, { degrees, x, y, velocity }),
+    transformGesture: (options) => transformGestureAndroid(device, options),
     appSwitcher: () => appSwitcherAndroid(device),
     readClipboard: () => readAndroidClipboardText(device),
     writeClipboard: (text) => writeAndroidClipboardText(device, text),

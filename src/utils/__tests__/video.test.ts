@@ -18,12 +18,15 @@ test('isPlayableVideo falls back to MP4 container validation when swift is unava
   await fs.writeFile(videoPath, Buffer.concat([makeAtom('ftyp'), makeAtom('moov')]));
 
   const previousPath = process.env.PATH;
+  const previousSwiftCacheDir = process.env.AGENT_DEVICE_SWIFT_CACHE_DIR;
   process.env.PATH = '';
+  process.env.AGENT_DEVICE_SWIFT_CACHE_DIR = path.join(tmpDir, 'swift-cache');
 
   try {
     assert.equal(await isPlayableVideo(videoPath), true);
   } finally {
     process.env.PATH = previousPath;
+    restoreEnv('AGENT_DEVICE_SWIFT_CACHE_DIR', previousSwiftCacheDir);
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 });
@@ -34,12 +37,23 @@ test('isPlayableVideo fallback rejects files without playable MP4 atoms', async 
   await fs.writeFile(videoPath, Buffer.concat([makeAtom('ftyp'), makeAtom('mdat')]));
 
   const previousPath = process.env.PATH;
+  const previousSwiftCacheDir = process.env.AGENT_DEVICE_SWIFT_CACHE_DIR;
   process.env.PATH = '';
+  process.env.AGENT_DEVICE_SWIFT_CACHE_DIR = path.join(tmpDir, 'swift-cache');
 
   try {
     assert.equal(await isPlayableVideo(videoPath), false);
   } finally {
     process.env.PATH = previousPath;
+    restoreEnv('AGENT_DEVICE_SWIFT_CACHE_DIR', previousSwiftCacheDir);
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 });
+
+function restoreEnv(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+  process.env[name] = value;
+}

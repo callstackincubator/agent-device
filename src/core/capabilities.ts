@@ -46,15 +46,21 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     // macOS desktop targets report kind=device, so this stays enabled here and the
     // supports() guard excludes iOS physical devices.
     apple: { simulator: true, device: true },
-    android: {},
+    android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,
-    supports: isMacOsOrMobileAppleSimulator,
+    supports: (device) => device.platform === 'android' || isMacOsOrMobileAppleSimulator(device),
   },
   'rotate-gesture': {
     apple: { simulator: true, device: true },
-    android: {},
+    android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,
-    supports: isIosMobileSimulator,
+    supports: (device) => device.platform === 'android' || isIosMobileSimulator(device),
+  },
+  'transform-gesture': {
+    apple: { simulator: true, device: true },
+    android: { emulator: true, device: true, unknown: true },
+    linux: LINUX_NONE,
+    supports: (device) => device.platform === 'android' || isIosMobileSimulator(device),
   },
   'app-switcher': {
     apple: { simulator: true, device: true },

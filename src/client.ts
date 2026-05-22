@@ -408,6 +408,21 @@ export function createAgentDeviceClient(
           options,
         );
       },
+      transformGesture: async (options) =>
+        await executeCommandRequest(
+          PUBLIC_COMMANDS.gesture,
+          [
+            'transform',
+            String(options.x),
+            String(options.y),
+            String(options.dx),
+            String(options.dy),
+            String(options.scale),
+            String(options.degrees),
+            ...optionalNumber(options.durationMs),
+          ],
+          options,
+        ),
       get: async (options) =>
         await executeCommandRequest(
           PUBLIC_COMMANDS.get,

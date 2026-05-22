@@ -1270,6 +1270,46 @@ extension RunnerTests {
     return performCoordinateRotateGesture(app: app, degrees: degrees, x: x, y: y, velocity: velocity)
   }
 
+  func transformGesture(
+    app: XCUIApplication,
+    x: Double,
+    y: Double,
+    dx: Double,
+    dy: Double,
+    scale: Double,
+    degrees: Double,
+    durationMs: Double
+  ) -> RunnerInteractionOutcome {
+#if os(iOS)
+    let holdDuration = max(0.02, min(durationMs / 1000.0, 10.0) / 3.0)
+    let panOutcome = performCoordinateDrag(
+      app: app,
+      x: x,
+      y: y,
+      x2: x + dx,
+      y2: y + dy,
+      holdDuration: holdDuration
+    )
+    guard case .performed = panOutcome else {
+      return panOutcome
+    }
+
+    let target = gestureElement(app: app, x: x, y: y)
+    target.pinch(withScale: CGFloat(scale), velocity: CGFloat(scale >= 1.0 ? 1.0 : -1.0))
+    return performCoordinateRotateGesture(
+      app: app,
+      degrees: degrees,
+      x: x,
+      y: y,
+      velocity: degrees >= 0 ? 1.0 : -1.0
+    )
+#elseif os(tvOS)
+    return .unsupported("transformGesture is not supported on tvOS")
+#else
+    return .unsupported("transformGesture is not supported on macOS")
+#endif
+  }
+
   private func performCoordinatePinch(app: XCUIApplication, scale: Double, x: Double?, y: Double?) -> RunnerInteractionOutcome {
 #if os(tvOS)
     return .unsupported("pinch is not supported on tvOS")
@@ -1320,6 +1360,21 @@ extension RunnerTests {
     return .unsupported("rotate-gesture is not supported on macOS")
 #endif
   }
+
+#if os(iOS)
+  private func gestureElement(app: XCUIApplication, x: Double, y: Double) -> XCUIElement {
+    let point = CGPoint(x: x, y: y)
+    let matches = app.descendants(matching: .any).allElementsBoundByIndex.filter { element in
+      element.exists && element.frame.contains(point) && !element.frame.isEmpty
+    }
+    if let smallest = matches.min(by: { left, right in
+      (left.frame.width * left.frame.height) < (right.frame.width * right.frame.height)
+    }) {
+      return smallest
+    }
+    return interactionRoot(app: app)
+  }
+#endif
 
   private func interactionRoot(app: XCUIApplication) -> XCUIElement {
     let windows = app.windows.allElementsBoundByIndex

@@ -85,12 +85,27 @@ export type Interactor = {
     direction: ScrollDirection,
     options?: { amount?: number; pixels?: number },
   ): Promise<Record<string, unknown> | void>;
+  pinch(scale: number, x?: number, y?: number): Promise<Record<string, unknown> | void>;
   screenshot(outPath: string, options?: ScreenshotOptions): Promise<void>;
   snapshot(options?: SnapshotOptions): Promise<SnapshotResult>;
   back(mode?: BackMode): Promise<void>;
   home(): Promise<void>;
   rotate(orientation: DeviceRotation): Promise<void>;
-  rotateGesture(degrees: number, x?: number, y?: number, velocity?: number): Promise<void>;
+  rotateGesture(
+    degrees: number,
+    x?: number,
+    y?: number,
+    velocity?: number,
+  ): Promise<Record<string, unknown> | void>;
+  transformGesture(options: {
+    x: number;
+    y: number;
+    dx: number;
+    dy: number;
+    scale: number;
+    degrees: number;
+    durationMs?: number;
+  }): Promise<Record<string, unknown> | void>;
   appSwitcher(): Promise<void>;
   readClipboard(): Promise<string>;
   writeClipboard(text: string): Promise<void>;

@@ -41,7 +41,9 @@ type IosRunnerOverrides = Pick<
   | 'type'
   | 'fill'
   | 'scroll'
+  | 'pinch'
   | 'rotateGesture'
+  | 'transformGesture'
 >;
 
 export function resolveAppleBackRunnerCommand(mode?: BackMode): AppleBackRunnerCommand {
@@ -188,6 +190,19 @@ export function iosRunnerOverrides(
           options,
         );
       },
+      pinch: async (scale, x, y) => {
+        await runIosRunnerCommand(
+          device,
+          {
+            command: 'pinch',
+            scale,
+            x,
+            y,
+            appBundleId: ctx.appBundleId,
+          },
+          runnerOpts,
+        );
+      },
       rotateGesture: async (degrees, x, y, velocity) => {
         await runIosRunnerCommand(
           device,
@@ -197,6 +212,23 @@ export function iosRunnerOverrides(
             x,
             y,
             velocity,
+            appBundleId: ctx.appBundleId,
+          },
+          runnerOpts,
+        );
+      },
+      transformGesture: async (options) => {
+        return await runIosRunnerCommand(
+          device,
+          {
+            command: 'transformGesture',
+            x: options.x,
+            y: options.y,
+            dx: options.dx,
+            dy: options.dy,
+            scale: options.scale,
+            degrees: options.degrees,
+            durationMs: options.durationMs,
             appBundleId: ctx.appBundleId,
           },
           runnerOpts,

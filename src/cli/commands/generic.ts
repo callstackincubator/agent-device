@@ -233,8 +233,22 @@ function runGestureCommand(params: {
         y: optionalNumber(args[2]),
         velocity: optionalNumber(args[3]),
       });
+    case 'transform':
+      return client.interactions.transformGesture({
+        ...buildSelectionOptions(flags),
+        x: Number(args[0]),
+        y: Number(args[1]),
+        dx: Number(args[2]),
+        dy: Number(args[3]),
+        scale: Number(args[4]),
+        degrees: Number(args[5]),
+        durationMs: optionalNumber(args[6]),
+      });
     default:
-      throw new AppError('INVALID_ARGS', 'gesture requires one of: pan, fling, pinch, rotate');
+      throw new AppError(
+        'INVALID_ARGS',
+        'gesture requires one of: pan, fling, pinch, rotate, transform',
+      );
   }
 }
 

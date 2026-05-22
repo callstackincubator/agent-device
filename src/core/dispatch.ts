@@ -34,6 +34,7 @@ import {
   handleRotateGestureCommand,
   handleScrollCommand,
   handleSwipeCommand,
+  handleTransformGestureCommand,
   handleTypeCommand,
 } from './dispatch-interactions.ts';
 import { readNotificationPayload } from './dispatch-payload.ts';
@@ -100,9 +101,11 @@ export async function dispatchCommand(
         case 'scroll':
           return handleScrollCommand(interactor, positionals, context);
         case 'pinch':
-          return handlePinchCommand(device, positionals, context);
+          return handlePinchCommand(device, interactor, positionals, context);
         case 'rotate-gesture':
           return handleRotateGestureCommand(device, interactor, positionals);
+        case 'transform-gesture':
+          return handleTransformGestureCommand(device, interactor, positionals);
         case 'trigger-app-event': {
           const { eventName, payload } = parseTriggerAppEventArgs(positionals);
           const eventUrl = resolveAppEventUrl(device.platform, eventName, payload);

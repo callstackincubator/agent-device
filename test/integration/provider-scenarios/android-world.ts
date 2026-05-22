@@ -27,6 +27,11 @@ type AndroidSettingsWorld = {
     delayMs?: number;
     target?: { x: number; y: number };
   }>;
+  touchInjectionCalls: NonNullable<AndroidAdbProvider['touch']> extends (
+    request: infer TRequest,
+  ) => unknown
+    ? TRequest[]
+    : never;
   inventoryRequests: DeviceInventoryRequest[];
   apkInstallCalls: Array<{ apkPath: string; replace?: boolean }>;
   bundleInstallCalls: Array<{ bundlePath: string; mode: string }>;
@@ -42,11 +47,13 @@ type AndroidSettingsWorld = {
 
 export async function createAndroidSettingsWorld(options?: {
   nativeTextInjection?: boolean;
+  nativeTouchInjection?: boolean;
   snapshotXml?: () => string;
 }): Promise<AndroidSettingsWorld> {
   const hostAdbGuard = installFakeHostAdbGuard();
   const adbCalls: string[][] = [];
   const textInjectionCalls: AndroidSettingsWorld['textInjectionCalls'] = [];
+  const touchInjectionCalls: AndroidSettingsWorld['touchInjectionCalls'] = [];
   const inventoryRequests: DeviceInventoryRequest[] = [];
   const apkInstallCalls: Array<{ apkPath: string; replace?: boolean }> = [];
   const bundleInstallCalls: Array<{ bundlePath: string; mode: string }> = [];
@@ -116,6 +123,12 @@ export async function createAndroidSettingsWorld(options?: {
       searchText = request.text;
     };
   }
+  if (options?.nativeTouchInjection) {
+    adbProvider.touch = async (request) => {
+      touchInjectionCalls.push({ ...request });
+      return { backend: 'provider-native-touch' };
+    };
+  }
   const daemon = await createProviderScenarioHarness({
     androidAdbProvider: () => adbProvider,
     deviceInventoryProvider: async (request) => {
@@ -129,6 +142,7 @@ export async function createAndroidSettingsWorld(options?: {
     daemon,
     adbCalls,
     textInjectionCalls,
+    touchInjectionCalls,
     inventoryRequests,
     apkInstallCalls,
     bundleInstallCalls,

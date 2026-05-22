@@ -170,8 +170,16 @@ type DispatchCommandResolution =
   | { ok: false; message: string };
 
 function resolveDispatchCommand(req: DaemonRequest): DispatchCommandResolution {
-  if (req.command === 'pan' || req.command === 'fling' || req.command === 'rotate-gesture') {
-    return { ok: false, message: 'Use gesture pan, gesture fling, or gesture rotate.' };
+  if (
+    req.command === 'pan' ||
+    req.command === 'fling' ||
+    req.command === 'rotate-gesture' ||
+    req.command === 'transform-gesture'
+  ) {
+    return {
+      ok: false,
+      message: 'Use gesture pan, gesture fling, gesture rotate, or gesture transform.',
+    };
   }
   if (req.command !== 'gesture') {
     return {
@@ -184,7 +192,7 @@ function resolveDispatchCommand(req: DaemonRequest): DispatchCommandResolution {
   const [subcommand, ...positionals] = req.positionals ?? [];
   const platformCommand = platformCommandForGestureSubcommand(subcommand);
   if (!platformCommand) {
-    return { ok: false, message: 'gesture requires one of: pan, fling, pinch, rotate' };
+    return { ok: false, message: 'gesture requires one of: pan, fling, pinch, rotate, transform' };
   }
   return {
     ok: true,
@@ -202,6 +210,8 @@ function platformCommandForGestureSubcommand(subcommand: string | undefined): st
       return subcommand;
     case 'rotate':
       return 'rotate-gesture';
+    case 'transform':
+      return 'transform-gesture';
     default:
       return null;
   }

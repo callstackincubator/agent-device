@@ -6,6 +6,7 @@ import {
   handlePinchCommand,
   handlePressCommand,
   handleRotateGestureCommand,
+  handleTransformGestureCommand,
 } from '../dispatch-interactions.ts';
 import type { Interactor } from '../interactor-types.ts';
 import {
@@ -13,7 +14,6 @@ import {
   IOS_SIMULATOR,
   MACOS_DEVICE,
 } from '../../__tests__/test-utils/device-fixtures.ts';
-import { AppError } from '../../utils/errors.ts';
 
 vi.mock('../../platforms/ios/macos-helper.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../platforms/ios/macos-helper.ts')>();
@@ -43,12 +43,14 @@ function makeUnusedInteractor(): Interactor {
     type: fail,
     fill: fail,
     scroll: fail,
+    pinch: fail,
     screenshot: fail,
     snapshot: fail,
     back: fail,
     home: fail,
     rotate: fail,
     rotateGesture: fail,
+    transformGesture: fail,
     appSwitcher: fail,
     readClipboard: fail,
     writeClipboard: fail,
@@ -126,15 +128,31 @@ test('handleFlingCommand converts direction and distance into a short drag', asy
   });
 });
 
-test('handlePinchCommand rejects Android adb sessions explicitly', async () => {
-  await assert.rejects(
-    () => handlePinchCommand(ANDROID_EMULATOR, ['2'], undefined),
-    (error: unknown) =>
-      error instanceof AppError &&
-      error.code === 'UNSUPPORTED_OPERATION' &&
-      /Android adb sessions/i.test(error.message) &&
-      /RemoteControl\/WebRTC/i.test(error.message),
+test('handlePinchCommand routes Android through the interactor', async () => {
+  const calls: unknown[][] = [];
+  const interactor = {
+    ...makeUnusedInteractor(),
+    pinch: async (...args: unknown[]) => {
+      calls.push(args);
+      return { backend: 'android-multitouch-helper' };
+    },
+  };
+
+  const result = await handlePinchCommand(
+    ANDROID_EMULATOR,
+    interactor,
+    ['2', '200', '420'],
+    undefined,
   );
+
+  assert.deepEqual(calls, [[2, 200, 420]]);
+  assert.deepEqual(result, {
+    scale: 2,
+    x: 200,
+    y: 420,
+    backend: 'android-multitouch-helper',
+    message: 'Pinched to scale 2',
+  });
 });
 
 test('handleRotateGestureCommand defaults velocity sign to match degrees', async () => {
@@ -162,13 +180,94 @@ test('handleRotateGestureCommand defaults velocity sign to match degrees', async
   });
 });
 
-test('handleRotateGestureCommand rejects Android adb sessions explicitly', async () => {
-  await assert.rejects(
-    () => handleRotateGestureCommand(ANDROID_EMULATOR, makeUnusedInteractor(), ['145']),
-    (error: unknown) =>
-      error instanceof AppError &&
-      error.code === 'UNSUPPORTED_OPERATION' &&
-      /Android adb sessions/i.test(error.message) &&
-      /RemoteControl\/WebRTC/i.test(error.message),
-  );
+test('handleRotateGestureCommand routes Android through the interactor', async () => {
+  const calls: unknown[][] = [];
+  const interactor = {
+    ...makeUnusedInteractor(),
+    rotateGesture: async (...args: unknown[]) => {
+      calls.push(args);
+      return { backend: 'android-multitouch-helper' };
+    },
+  };
+
+  const result = await handleRotateGestureCommand(ANDROID_EMULATOR, interactor, ['145']);
+
+  assert.deepEqual(calls, [[145, undefined, undefined, 1]]);
+  assert.deepEqual(result, {
+    degrees: 145,
+    velocity: 1,
+    backend: 'android-multitouch-helper',
+    message: 'Rotated gesture 145 degrees',
+  });
+});
+
+test('handleTransformGestureCommand routes Android through the interactor', async () => {
+  const calls: unknown[][] = [];
+  const interactor = {
+    ...makeUnusedInteractor(),
+    transformGesture: async (...args: unknown[]) => {
+      calls.push(args);
+      return { backend: 'android-multitouch-helper' };
+    },
+  };
+
+  const result = await handleTransformGestureCommand(ANDROID_EMULATOR, interactor, [
+    '200',
+    '420',
+    '80',
+    '-40',
+    '2',
+    '35',
+    '700',
+  ]);
+
+  assert.deepEqual(calls, [
+    [{ x: 200, y: 420, dx: 80, dy: -40, scale: 2, degrees: 35, durationMs: 700 }],
+  ]);
+  assert.deepEqual(result, {
+    x: 200,
+    y: 420,
+    dx: 80,
+    dy: -40,
+    scale: 2,
+    degrees: 35,
+    durationMs: 700,
+    backend: 'android-multitouch-helper',
+    message: 'Requested transform gesture by (80, -40), scale 2, rotate 35 degrees',
+  });
+});
+
+test('handleTransformGestureCommand routes iOS simulator through the interactor', async () => {
+  const calls: unknown[][] = [];
+  const interactor = {
+    ...makeUnusedInteractor(),
+    transformGesture: async (...args: unknown[]) => {
+      calls.push(args);
+      return { backend: 'xctest' };
+    },
+  };
+
+  const result = await handleTransformGestureCommand(IOS_SIMULATOR, interactor, [
+    '200',
+    '420',
+    '80',
+    '-40',
+    '2',
+    '35',
+  ]);
+
+  assert.deepEqual(calls, [
+    [{ x: 200, y: 420, dx: 80, dy: -40, scale: 2, degrees: 35, durationMs: undefined }],
+  ]);
+  assert.deepEqual(result, {
+    x: 200,
+    y: 420,
+    dx: 80,
+    dy: -40,
+    scale: 2,
+    degrees: 35,
+    durationMs: undefined,
+    backend: 'xctest',
+    message: 'Requested transform gesture by (80, -40), scale 2, rotate 35 degrees',
+  });
 });

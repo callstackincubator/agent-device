@@ -81,7 +81,7 @@ test('device capability matrix stays consistent across shared command groups', (
       checks: [
         { device: iosSimulator, expected: true, label: 'on iOS sim' },
         { device: iosDevice, expected: false, label: 'on iOS device' },
-        { device: androidDevice, expected: false, label: 'on Android' },
+        { device: androidDevice, expected: true, label: 'on Android' },
         { device: macOsDevice, expected: true, label: 'on macOS' },
       ],
     },
@@ -163,7 +163,17 @@ test('device capability matrix stays consistent across shared command groups', (
       checks: [
         { device: iosSimulator, expected: true, label: 'on iOS sim' },
         { device: iosDevice, expected: false, label: 'on iOS device' },
-        { device: androidDevice, expected: false, label: 'on Android' },
+        { device: androidDevice, expected: true, label: 'on Android' },
+        { device: macOsDevice, expected: false, label: 'on macOS' },
+        { device: tvOsSimulator, expected: false, label: 'on tvOS simulator' },
+      ],
+    },
+    {
+      commands: ['transform-gesture'],
+      checks: [
+        { device: iosSimulator, expected: true, label: 'on iOS sim' },
+        { device: iosDevice, expected: false, label: 'on iOS device' },
+        { device: androidDevice, expected: true, label: 'on Android' },
         { device: macOsDevice, expected: false, label: 'on macOS' },
         { device: tvOsSimulator, expected: false, label: 'on tvOS simulator' },
       ],

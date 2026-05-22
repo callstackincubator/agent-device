@@ -72,6 +72,70 @@ test('Provider-backed integration Android text provider handles Unicode without 
   );
 });
 
+test('Provider-backed integration Android touch provider handles multi-touch gestures', async () => {
+  await withProviderScenarioResource(
+    async () => await createAndroidSettingsWorld({ nativeTouchInjection: true }),
+    async (world) => {
+      const client = world.daemon.client();
+      await client.apps.open({ app: 'settings', ...world.selection });
+
+      const pinch = await client.interactions.pinch({
+        scale: 2,
+        x: 195,
+        y: 320,
+        ...world.selection,
+      });
+      assert.equal(pinch.scale, 2);
+      assert.equal(pinch.backend, 'provider-native-touch');
+
+      const rotate = await client.interactions.rotateGesture({
+        degrees: 145,
+        x: 195,
+        y: 320,
+        ...world.selection,
+      });
+      assert.equal(rotate.degrees, 145);
+      assert.equal(rotate.backend, 'provider-native-touch');
+
+      const transform = await client.interactions.transformGesture({
+        x: 195,
+        y: 320,
+        dx: 40,
+        dy: -20,
+        scale: 1.5,
+        degrees: 35,
+        durationMs: 700,
+        ...world.selection,
+      });
+      assert.equal(transform.scale, 1.5);
+      assert.equal(transform.degrees, 35);
+      assert.equal(transform.backend, 'provider-native-touch');
+
+      assert.deepEqual(world.touchInjectionCalls, [
+        { kind: 'pinch', x: 195, y: 320, scale: 2, durationMs: undefined },
+        { kind: 'rotate', x: 195, y: 320, degrees: 145, durationMs: undefined },
+        {
+          kind: 'transform',
+          x: 195,
+          y: 320,
+          dx: 40,
+          dy: -20,
+          scale: 1.5,
+          degrees: 35,
+          durationMs: 700,
+        },
+      ]);
+      assert.equal(
+        world.adbCalls.some(
+          (call) => call[0] === 'shell' && call[1] === 'am' && call[2] === 'instrument',
+        ),
+        false,
+        JSON.stringify(world.adbCalls),
+      );
+    },
+  );
+});
+
 test('Provider-backed integration Android alert handles runtime permission dialog', async () => {
   await withProviderScenarioResource(
     async () => await createAndroidSettingsWorld({ snapshotXml: androidRuntimePermissionXml }),

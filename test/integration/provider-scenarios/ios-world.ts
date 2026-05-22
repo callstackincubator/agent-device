@@ -95,6 +95,23 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
       },
       result: { rotated: true },
     },
+    {
+      command: 'ios.runner.transformGesture',
+      deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
+      platform: 'ios',
+      request: {
+        command: 'transformGesture',
+        x: 196,
+        y: 122,
+        dx: 40,
+        dy: -20,
+        scale: 1.5,
+        degrees: 35,
+        durationMs: 700,
+        appBundleId: 'com.apple.Preferences',
+      },
+      result: { transformed: true },
+    },
     runnerSnapshot(),
     {
       command: 'ios.runner.querySelector',

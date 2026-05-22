@@ -629,6 +629,16 @@ export type RotateGestureOptions = ClientCommandBaseOptions & {
   velocity?: number;
 };
 
+export type TransformGestureOptions = ClientCommandBaseOptions & {
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+  scale: number;
+  degrees: number;
+  durationMs?: number;
+};
+
 export type GetOptions = ClientCommandBaseOptions &
   SelectorSnapshotCommandOptions &
   ElementTarget & {
@@ -907,6 +917,7 @@ export type AgentDeviceClient = {
     scroll: (options: ScrollOptions) => Promise<CommandRequestResult>;
     pinch: (options: PinchOptions) => Promise<CommandRequestResult>;
     rotateGesture: (options: RotateGestureOptions) => Promise<CommandRequestResult>;
+    transformGesture: (options: TransformGestureOptions) => Promise<CommandRequestResult>;
     get: (options: GetOptions) => Promise<CommandRequestResult>;
     is: (options: IsOptions) => Promise<CommandRequestResult>;
     find: (options: FindOptions) => Promise<CommandRequestResult>;
