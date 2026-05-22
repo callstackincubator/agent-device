@@ -236,7 +236,10 @@ extension RunnerTests {
       return false
     }
     let appFrame = app.frame
-    return appFrame.isEmpty || appFrame.intersects(frame)
+    if appFrame.isEmpty {
+      return true
+    }
+    return appFrame.contains(CGPoint(x: frame.midX, y: frame.midY))
   }
 
   func queryElement(app: XCUIApplication, selectorKey: String, selectorValue: String) -> Response {

@@ -12,6 +12,8 @@ import {
 } from './support.ts';
 import type { MaestroParseContext } from './types.ts';
 
+const RUN_SCRIPT_TIMEOUT_MS = 30_000;
+
 type HttpResponse = {
   status: number;
   body: string;
@@ -51,7 +53,7 @@ export function executeRunScript(value: unknown, context: MaestroParseContext): 
   try {
     vm.runInNewContext(script, buildScriptGlobals(scriptEnv, output), {
       filename: scriptPath,
-      timeout: 30_000,
+      timeout: RUN_SCRIPT_TIMEOUT_MS,
     });
   } catch (error) {
     throw new AppError(
@@ -124,13 +126,41 @@ function runHttpRequestSync(
       headers: options?.headers ?? {},
       body: options?.body ?? '',
     }),
-    timeoutMs: 30_000,
+    timeoutMs: RUN_SCRIPT_TIMEOUT_MS,
+    allowFailure: true,
   });
-  return JSON.parse(result.stdout) as HttpResponse;
+  if (result.exitCode !== 0) {
+    throw new AppError(
+      'COMMAND_FAILED',
+      `Maestro runScript http.${method.toLowerCase()} failed for ${url}: ${trimHttpErrorOutput(result.stderr)}`,
+      {
+        exitCode: result.exitCode,
+        stderr: result.stderr,
+      },
+    );
+  }
+  try {
+    return JSON.parse(result.stdout) as HttpResponse;
+  } catch (error) {
+    throw new AppError(
+      'COMMAND_FAILED',
+      `Maestro runScript http.${method.toLowerCase()} returned invalid JSON for ${url}`,
+      {
+        stdout: result.stdout.slice(0, 1000),
+        stderr: result.stderr.slice(0, 1000),
+      },
+      error instanceof Error ? error : undefined,
+    );
+  }
 }
 
 function stringifyOutputValue(value: unknown): string {
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   return JSON.stringify(value);
+}
+
+function trimHttpErrorOutput(stderr: string): string {
+  const trimmed = stderr.trim();
+  return trimmed.length > 0 ? trimmed.slice(0, 1000) : 'request process exited without stderr';
 }

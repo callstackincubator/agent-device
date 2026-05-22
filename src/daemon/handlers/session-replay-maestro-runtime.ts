@@ -33,6 +33,10 @@ type MaestroTapOnParams = {
   invoke: MaestroRuntimeInvoke;
 };
 
+type MaestroRunFlowWhenCondition =
+  | { ok: true; mode: string; predicate: string; selector: string }
+  | { ok: false; response: DaemonResponse };
+
 export async function invokeMaestroRuntimeCommand(params: {
   command: string;
   baseReq: ReplayBaseRequest;
@@ -254,26 +258,56 @@ async function invokeMaestroRunFlowWhen(params: {
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
   invokeReplayAction: MaestroReplayInvoker;
 }): Promise<DaemonResponse> {
-  const [mode, selector] = params.positionals;
-  if ((mode !== 'visible' && mode !== 'notVisible') || !selector) {
-    return errorResponse(
-      'INVALID_ARGS',
-      'runFlow.when requires visible/notVisible and a selector.',
-    );
-  }
-  const predicate = mode === 'visible' ? 'visible' : 'hidden';
+  const condition = readMaestroRunFlowWhenCondition(params.positionals);
+  if (!condition.ok) return condition.response;
   const conditionResponse = await params.invoke({
     ...params.baseReq,
     command: 'is',
-    positionals: [predicate, selector],
+    positionals: [condition.predicate, condition.selector],
     flags: { ...params.baseReq.flags, noRecord: true },
   });
-  if (!conditionResponse.ok) {
-    return { ok: true, data: { skipped: true, condition: mode, selector } };
+  if (isMaestroWhenConditionMiss(conditionResponse)) {
+    return {
+      ok: true,
+      data: { skipped: true, condition: condition.mode, selector: condition.selector },
+    };
   }
+  if (!conditionResponse.ok) return conditionResponse;
+  return await invokeMaestroRunFlowWhenSteps(params, condition);
+}
 
+function readMaestroRunFlowWhenCondition(positionals: string[]): MaestroRunFlowWhenCondition {
+  const [mode, selector] = positionals;
+  if ((mode !== 'visible' && mode !== 'notVisible') || !selector) {
+    return {
+      ok: false,
+      response: errorResponse(
+        'INVALID_ARGS',
+        'runFlow.when requires visible/notVisible and a selector.',
+      ),
+    };
+  }
+  return {
+    ok: true,
+    mode,
+    predicate: mode === 'visible' ? 'visible' : 'hidden',
+    selector,
+  };
+}
+
+async function invokeMaestroRunFlowWhenSteps(
+  params: {
+    batchSteps: CommandFlags['batchSteps'] | undefined;
+    line: number;
+    step: number;
+    invokeReplayAction: MaestroReplayInvoker;
+  },
+  condition: Extract<MaestroRunFlowWhenCondition, { ok: true }>,
+): Promise<DaemonResponse> {
   const steps = (params.batchSteps ?? []).map(batchStepToSessionAction);
   for (const [index, action] of steps.entries()) {
+    // Preserve stable parent-step ordering for nested runtime commands while
+    // keeping the substep distinguishable in traces.
     const response = await params.invokeReplayAction({
       action,
       line: params.line,
@@ -282,7 +316,16 @@ async function invokeMaestroRunFlowWhen(params: {
     if (!response.ok) return response;
   }
 
-  return { ok: true, data: { ran: steps.length, condition: mode, selector } };
+  return {
+    ok: true,
+    data: { ran: steps.length, condition: condition.mode, selector: condition.selector },
+  };
+}
+
+function isMaestroWhenConditionMiss(response: DaemonResponse): boolean {
+  if (response.ok) return response.data?.pass === false;
+  if (response.error.code !== 'COMMAND_FAILED') return false;
+  return response.error.details?.blockedBy !== 'android_foreground_surface';
 }
 
 async function invokeMaestroPressEnter(params: {
@@ -298,6 +341,9 @@ async function invokeMaestroPressEnter(params: {
   const message = response.error.message.toLowerCase();
   if (!message.includes('fetch failed')) return response;
 
+  // Maestro compatibility: some iOS apps submit on Enter and immediately reset
+  // the runner transport. Treat this as recovered only after a fresh snapshot
+  // proves the runner connection is usable again; it does not assert UI state.
   const snapshotResponse = await params.invoke({
     ...params.baseReq,
     command: 'snapshot',
@@ -333,6 +379,8 @@ function extractMaestroVisibleTextQuery(selectorExpression: string): string | nu
   const chain = parseSelectorChain(selectorExpression);
   const terms = chain.selectors.flatMap((selector) => selector.terms);
   if (terms.length === 0) return null;
+  // Mixed selectors may encode more than a visible-text lookup, so they keep
+  // the exact selector path instead of fuzzy text fallback.
   if (!terms.some((term) => term.key === 'label' || term.key === 'text')) return null;
   if (!terms.every((term) => ['label', 'text', 'id'].includes(term.key))) return null;
   const values = terms.map((term) => (typeof term.value === 'string' ? term.value : ''));

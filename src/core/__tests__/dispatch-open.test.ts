@@ -23,3 +23,26 @@ test('dispatch open rejects URL as first argument when second URL is provided', 
     },
   );
 });
+
+test('dispatch open rejects Android launch arguments instead of dropping them', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  await assert.rejects(
+    () =>
+      dispatchCommand(device, 'open', ['com.example.app'], undefined, {
+        launchArgs: ['--fixture', 'demo'],
+      }),
+    (error: unknown) => {
+      assert.equal(error instanceof AppError, true);
+      assert.equal((error as AppError).code, 'UNSUPPORTED_OPERATION');
+      assert.match((error as AppError).message, /Apple platforms/i);
+      return true;
+    },
+  );
+});

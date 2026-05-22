@@ -142,9 +142,7 @@ export function convertScrollUntilVisible(
   assertOnlyKeys(value, 'scrollUntilVisible', ['element', 'direction', 'timeout']);
   const selector = maestroSelector(value.element, 'scrollUntilVisible.element', [], context);
   const direction =
-    typeof value.direction === 'string'
-      ? readScrollPositionalsFromDirectionSwipe(value.direction)[0]
-      : 'down';
+    typeof value.direction === 'string' ? readScrollUntilVisibleDirection(value.direction) : 'down';
   const timeoutMs = String(readTimeoutMs(value, 5000));
   return [action(MAESTRO_RUNTIME_COMMAND.scrollUntilVisible, [selector, timeoutMs, direction])];
 }
@@ -195,6 +193,20 @@ function readScrollPositionalsFromDirectionSwipe(direction: string): string[] {
       return ['left'];
     default:
       throw unsupportedMaestroSyntax('Maestro swipe direction must be UP, DOWN, LEFT, or RIGHT.');
+  }
+}
+
+function readScrollUntilVisibleDirection(direction: string): string {
+  switch (direction.toLowerCase()) {
+    case 'up':
+    case 'down':
+    case 'left':
+    case 'right':
+      return direction.toLowerCase();
+    default:
+      throw unsupportedMaestroSyntax(
+        'Maestro scrollUntilVisible.direction must be UP, DOWN, LEFT, or RIGHT.',
+      );
   }
 }
 

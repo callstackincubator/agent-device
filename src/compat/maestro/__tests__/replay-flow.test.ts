@@ -69,7 +69,7 @@ env:
       ['scroll', ['right']],
       [
         '__maestroScrollUntilVisible',
-        ['label="Discover" || text="Discover" || id="Discover"', '5000', 'down'],
+        ['label="Discover" || text="Discover" || id="Discover"', '5000', 'up'],
       ],
       ['screenshot', ['./screens/form.png']],
       ['keyboard', ['dismiss']],
@@ -125,6 +125,29 @@ output.result = SERVER_PATH + ':' + json(res.body).appviewDid
   assert.deepEqual(
     parsed.actions.map((entry) => [entry.command, entry.positionals]),
     [['type', ['local:did:plc:test']]],
+  );
+});
+
+test('parseMaestroReplayFlow reports runScript http failures with command context', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-maestro-runscript-fail-'));
+  const scriptPath = path.join(root, 'setup.js');
+  const flowPath = path.join(root, 'flow.yml');
+  fs.writeFileSync(scriptPath, `output.result = http.post('http://127.0.0.1:1').body`);
+
+  assert.throws(
+    () =>
+      parseMaestroReplayFlow(
+        `appId: com.callstack.agentdevicelab
+---
+- runScript: ./setup.js
+`,
+        { sourcePath: flowPath },
+      ),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'COMMAND_FAILED' &&
+      /runScript failed/.test(error.message) &&
+      /http\.post failed/.test(error.message),
   );
 });
 
@@ -325,7 +348,7 @@ test('parseMaestroReplayFlow keeps visible-gated runFlow commands for runtime ev
   ]);
 });
 
-test('parseMaestroReplayFlow accepts launchApp reset options without state-reset side effects', () => {
+test('parseMaestroReplayFlow accepts launchApp reset options', () => {
   const parsed = parseMaestroReplayFlow(`appId: com.callstack.agentdevicelab
 ---
 - launchApp:

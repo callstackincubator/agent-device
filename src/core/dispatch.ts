@@ -225,6 +225,12 @@ async function handleOpenCommand(
   if (launchConsole && isDeepLinkTarget(app)) {
     throw new AppError('INVALID_ARGS', LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE);
   }
+  if (device.platform === 'android' && context?.launchArgs && context.launchArgs.length > 0) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      'Launch arguments are currently supported only on Apple platforms.',
+    );
+  }
   if (context?.maestroClearState) {
     if (isDeepLinkTarget(app)) {
       throw new AppError(
