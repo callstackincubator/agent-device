@@ -17,13 +17,12 @@ export function markUnlabeledActionRowsForPromotion(
 
     const descendants = collectDescendants(nodes, node.index);
     const promotedContent = collectPromotableRowContent(descendants, node, removed);
-    const promotedLabel = promotedContent.labels.join(', ');
-    if (!promotedLabel) continue;
+    if (!promotedContent.label) continue;
 
     replacements.set(node.index, {
       ...node,
       ...replacements.get(node.index),
-      label: promotedLabel,
+      label: promotedContent.label,
     });
     for (const descendantIndex of promotedContent.removableIndexes) {
       markNodeAndDescendantsForRemoval(nodes, descendantIndex, removed);
@@ -110,7 +109,7 @@ function collectPromotableRowContent(
   descendants: SnapshotNode[],
   parent: SnapshotNode,
   removed: Set<number>,
-): { labels: string[]; removableIndexes: number[] } {
+): { label: string; removableIndexes: number[] } {
   const labels: string[] = [];
   const removableIndexes: number[] = [];
   const seen = new Set<string>();
@@ -129,7 +128,7 @@ function collectPromotableRowContent(
     seen.add(normalized);
     labels.push(label);
   }
-  return { labels, removableIndexes };
+  return { label: labels.join(', '), removableIndexes };
 }
 
 function isPassiveRowContent(node: SnapshotNode): boolean {

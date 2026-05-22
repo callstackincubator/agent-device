@@ -17,13 +17,13 @@ export function rectContains(container: Rect, nested: Rect): boolean {
   );
 }
 
-export function unionRects(rects: Rect[]): Rect | null {
-  if (rects.length === 0) return null;
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxRight = Number.NEGATIVE_INFINITY;
-  let maxBottom = Number.NEGATIVE_INFINITY;
-  for (const rect of rects) {
+export function unionRects(rects: Rect[]): Rect {
+  const firstRect = rects[0]!;
+  let minX = firstRect.x;
+  let minY = firstRect.y;
+  let maxRight = firstRect.x + firstRect.width;
+  let maxBottom = firstRect.y + firstRect.height;
+  for (const rect of rects.slice(1)) {
     minX = Math.min(minX, rect.x);
     minY = Math.min(minY, rect.y);
     maxRight = Math.max(maxRight, rect.x + rect.width);
