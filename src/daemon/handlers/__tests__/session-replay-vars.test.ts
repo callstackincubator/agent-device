@@ -507,6 +507,71 @@ test('runReplayScriptFile lets Maestro tapOn use fuzzy visible text matching', a
   );
 });
 
+test('runReplayScriptFile retries Maestro fuzzy tapOn without raw selector fallback', async () => {
+  const calls: CapturedInvocation[] = [];
+  let findAttempts = 0;
+  const { response } = await runReplayFixture({
+    label: 'maestro-tap-visible-text-fuzzy-retry',
+    script: ['appId: demo.app', '---', '- tapOn: Discover', ''].join('\n'),
+    flags: { replayBackend: 'maestro' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'find') {
+        findAttempts += 1;
+        if (findAttempts === 2) return { ok: true, data: { found: true } };
+      }
+      return {
+        ok: false,
+        error: { code: 'ELEMENT_NOT_FOUND', message: 'element not found' },
+      };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['find', ['Discover', 'click']],
+      ['find', ['Discover', 'click']],
+    ],
+  );
+});
+
+test('runReplayScriptFile lets optional Maestro fuzzy tapOn hit native alert labels', async () => {
+  const calls: CapturedInvocation[] = [];
+  const { response } = await runReplayFixture({
+    label: 'maestro-tap-visible-text-optional-native-label',
+    script: [
+      'appId: demo.app',
+      '---',
+      '- tapOn:',
+      '    text: Not Now',
+      '    optional: true',
+      '',
+    ].join('\n'),
+    flags: { replayBackend: 'maestro' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'click' && req.positionals?.[0] === 'label="Not Now"') {
+        return { ok: true, data: { dismissed: true } };
+      }
+      return {
+        ok: false,
+        error: { code: 'ELEMENT_NOT_FOUND', message: 'element not found' },
+      };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['find', ['Not Now', 'click']],
+      ['click', ['label="Not Now"']],
+    ],
+  );
+});
+
 test('runReplayScriptFile resolves Maestro percentage point taps from snapshot size', async () => {
   const calls: CapturedInvocation[] = [];
   const { response } = await runReplayFixture({

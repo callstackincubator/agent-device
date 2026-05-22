@@ -345,6 +345,7 @@ test('parseMaestroReplayFlow accepts launchApp reset options without state-reset
         'open',
         ['com.callstack.agentdevicelab'],
         {
+          maestroClearState: true,
           relaunch: true,
           launchArgs: ['-EXDevMenuIsOnboardingFinished', 'true', '-Example', 'ignored'],
         },

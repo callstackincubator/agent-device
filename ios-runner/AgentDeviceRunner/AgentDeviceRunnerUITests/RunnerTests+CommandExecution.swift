@@ -282,6 +282,7 @@ extension RunnerTests {
           if let response = unsupportedResponse(for: outcome) {
             return response
           }
+          waitForTextEntryReadinessAfterTap(app: activeApp, element: element)
           return Response(
             ok: true,
             data: DataPayload(

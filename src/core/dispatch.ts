@@ -10,7 +10,7 @@ import { pushAndroidNotification } from '../platforms/android/notifications.ts';
 import { getInteractor } from './interactors.ts';
 import type { Interactor, RunnerContext } from './interactor-types.ts';
 import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
-import { pushIosNotification } from '../platforms/ios/apps.ts';
+import { clearIosSimulatorAppState, pushIosNotification } from '../platforms/ios/apps.ts';
 import { isDeepLinkTarget } from './open-target.ts';
 import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
 import {
@@ -224,6 +224,21 @@ async function handleOpenCommand(
   }
   if (launchConsole && isDeepLinkTarget(app)) {
     throw new AppError('INVALID_ARGS', LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE);
+  }
+  if (context?.maestroClearState) {
+    if (isDeepLinkTarget(app)) {
+      throw new AppError(
+        'INVALID_ARGS',
+        'Maestro launchApp.clearState requires an app target, not a deep link.',
+      );
+    }
+    if (device.platform !== 'ios' || device.kind !== 'simulator') {
+      throw new AppError(
+        'UNSUPPORTED_OPERATION',
+        'Maestro launchApp.clearState is currently supported only on iOS simulators.',
+      );
+    }
+    await clearIosSimulatorAppState(device, app);
   }
   await interactor.open(app, {
     activity: context?.activity,

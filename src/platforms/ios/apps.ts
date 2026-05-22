@@ -238,6 +238,53 @@ export async function closeIosApp(device: DeviceInfo, app: string): Promise<void
   });
 }
 
+export async function clearIosSimulatorAppState(
+  device: DeviceInfo,
+  app: string,
+): Promise<{ bundleId: string; containerPath: string }> {
+  if (device.platform !== 'ios' || device.kind !== 'simulator') {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      'Maestro launchApp.clearState is currently supported only on iOS simulators.',
+    );
+  }
+
+  const bundleId = await resolveIosApp(device, app);
+  await ensureBootedSimulator(device);
+  await closeIosApp(device, bundleId);
+
+  const result = await runSimctl(device, ['get_app_container', device.id, bundleId, 'data'], {
+    allowFailure: true,
+  });
+  if (result.exitCode !== 0) {
+    throw new AppError('COMMAND_FAILED', `simctl get_app_container failed for ${bundleId}`, {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+    });
+  }
+
+  const containerPath = result.stdout.trim();
+  if (!containerPath) {
+    throw new AppError(
+      'COMMAND_FAILED',
+      `simctl get_app_container returned an empty data container path for ${bundleId}`,
+    );
+  }
+
+  const entries = await fs.readdir(containerPath);
+  await Promise.all(
+    entries.map((entry) =>
+      fs.rm(path.join(containerPath, entry), {
+        recursive: true,
+        force: true,
+      }),
+    ),
+  );
+
+  return { bundleId, containerPath };
+}
+
 export async function uninstallIosApp(
   device: DeviceInfo,
   app: string,

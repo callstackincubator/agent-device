@@ -16,6 +16,7 @@ export type CommandFlags = Omit<CliFlags, DaemonExcludedCliFlag> & {
   replayBackend?: string;
   allowNonHittableSelectorTap?: boolean;
   maestroOptional?: boolean;
+  maestroClearState?: boolean;
 };
 
 export type DispatchContext = ScreenshotDispatchFlags & {
@@ -24,6 +25,7 @@ export type DispatchContext = ScreenshotDispatchFlags & {
   activity?: string;
   launchConsole?: string;
   launchArgs?: string[];
+  maestroClearState?: boolean;
   verbose?: boolean;
   logPath?: string;
   traceLogPath?: string;

@@ -121,6 +121,42 @@ test('handleFindCommands click returns deterministic metadata across locator var
   }
 });
 
+test('handleFindCommands click prefers on-screen duplicate text matches', async () => {
+  const { response, invokeCalls } = await runFindClickScenario({
+    positionals: ['Sign in', 'click'],
+    nodes: [
+      {
+        index: 0,
+        ref: 'e1',
+        type: 'Application',
+        hittable: true,
+        rect: { x: 0, y: 0, width: 440, height: 956 },
+      },
+      {
+        index: 1,
+        ref: 'e2',
+        type: 'Button',
+        label: 'Sign in',
+        hittable: false,
+        rect: { x: -199, y: 186, width: 70, height: 33 },
+        parentIndex: 0,
+      },
+      {
+        index: 2,
+        ref: 'e3',
+        type: 'Button',
+        label: 'Sign in',
+        hittable: false,
+        rect: { x: 40, y: 870, width: 360, height: 44 },
+        parentIndex: 0,
+      },
+    ],
+  });
+
+  expect(response.ok).toBe(true);
+  expect(invokeCalls[0].positionals?.[0]).toBe('@e3');
+});
+
 test('handleFindCommands wait bypasses snapshot cache while Android freshness recovery is active', async () => {
   const sessionName = 'android-find-wait';
   const session: SessionState = {

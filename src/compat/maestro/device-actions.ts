@@ -37,9 +37,11 @@ export function convertLaunchApp(
     context,
   );
   const launchArgs = readLaunchArgs(value, context);
-  const shouldRelaunch = value.stopApp === true || launchArgs.length > 0;
+  const shouldClearState = value.clearState === true;
+  const shouldRelaunch = value.stopApp === true || shouldClearState || launchArgs.length > 0;
   return action('open', [appId], {
     relaunch: shouldRelaunch,
+    ...(shouldClearState ? { maestroClearState: true } : {}),
     ...(launchArgs.length > 0 ? { launchArgs } : {}),
   });
 }

@@ -19,6 +19,20 @@ type MaestroReplayInvoker = (params: {
   step: number;
 }) => Promise<DaemonResponse>;
 
+type MaestroRuntimeInvoke = (req: DaemonRequest) => Promise<DaemonResponse>;
+
+type MaestroScrollUntilVisibleParams = {
+  baseReq: ReplayBaseRequest;
+  positionals: string[];
+  invoke: MaestroRuntimeInvoke;
+};
+
+type MaestroTapOnParams = {
+  baseReq: ReplayBaseRequest;
+  positionals: string[];
+  invoke: MaestroRuntimeInvoke;
+};
+
 export async function invokeMaestroRuntimeCommand(params: {
   command: string;
   baseReq: ReplayBaseRequest;
@@ -45,11 +59,9 @@ export async function invokeMaestroRuntimeCommand(params: {
   }
 }
 
-async function invokeMaestroScrollUntilVisible(params: {
-  baseReq: ReplayBaseRequest;
-  positionals: string[];
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
-}): Promise<DaemonResponse> {
+async function invokeMaestroScrollUntilVisible(
+  params: MaestroScrollUntilVisibleParams,
+): Promise<DaemonResponse> {
   const [selector, timeoutValue = '5000', direction = 'down'] = params.positionals;
   if (!selector) {
     return errorResponse('INVALID_ARGS', 'scrollUntilVisible requires a selector.');
@@ -63,27 +75,14 @@ async function invokeMaestroScrollUntilVisible(params: {
   let lastWaitResponse: DaemonResponse | undefined;
 
   for (let index = 0; index < attempts; index += 1) {
-    const probeMs = Math.min(
-      MAESTRO_SCROLL_UNTIL_VISIBLE_PROBE_MS,
-      Math.max(1, timeoutMs - index * MAESTRO_SCROLL_UNTIL_VISIBLE_PROBE_MS),
+    const probe = await probeMaestroScrollVisibility(
+      params,
+      selector,
+      fuzzyTextQuery,
+      scrollProbeMs(timeoutMs, index),
     );
-    const waitResponse = await params.invoke({
-      ...params.baseReq,
-      command: 'wait',
-      positionals: [selector, String(probeMs)],
-    });
-    if (waitResponse.ok) return waitResponse;
-    lastWaitResponse = waitResponse;
-
-    const fuzzyResponse = fuzzyTextQuery
-      ? await params.invoke({
-          ...params.baseReq,
-          command: 'find',
-          positionals: [fuzzyTextQuery, 'wait', String(probeMs)],
-        })
-      : undefined;
-    if (fuzzyResponse?.ok) return fuzzyResponse;
-    lastWaitResponse = fuzzyResponse ?? lastWaitResponse;
+    if (probe.visible) return probe.response;
+    lastWaitResponse = probe.response;
 
     if (index === attempts - 1) break;
 
@@ -96,6 +95,35 @@ async function invokeMaestroScrollUntilVisible(params: {
   }
 
   return withMaestroScrollTimeoutContext(lastWaitResponse, selector, timeoutMs);
+}
+
+async function probeMaestroScrollVisibility(
+  params: MaestroScrollUntilVisibleParams,
+  selector: string,
+  fuzzyTextQuery: string | null,
+  probeMs: number,
+): Promise<{ visible: boolean; response: DaemonResponse }> {
+  const waitResponse = await params.invoke({
+    ...params.baseReq,
+    command: 'wait',
+    positionals: [selector, String(probeMs)],
+  });
+  if (waitResponse.ok) return { visible: true, response: waitResponse };
+  if (!fuzzyTextQuery) return { visible: false, response: waitResponse };
+
+  const fuzzyResponse = await params.invoke({
+    ...params.baseReq,
+    command: 'find',
+    positionals: [fuzzyTextQuery, 'wait', String(probeMs)],
+  });
+  return { visible: fuzzyResponse.ok, response: fuzzyResponse };
+}
+
+function scrollProbeMs(timeoutMs: number, index: number): number {
+  return Math.min(
+    MAESTRO_SCROLL_UNTIL_VISIBLE_PROBE_MS,
+    Math.max(1, timeoutMs - index * MAESTRO_SCROLL_UNTIL_VISIBLE_PROBE_MS),
+  );
 }
 
 async function invokeMaestroTapPointPercent(params: {
@@ -160,11 +188,7 @@ function readSnapshotState(data: unknown): SnapshotState | undefined {
   return undefined;
 }
 
-async function invokeMaestroTapOn(params: {
-  baseReq: ReplayBaseRequest;
-  positionals: string[];
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
-}): Promise<DaemonResponse> {
+async function invokeMaestroTapOn(params: MaestroTapOnParams): Promise<DaemonResponse> {
   const [selector] = params.positionals;
   if (!selector) {
     return errorResponse('INVALID_ARGS', 'tapOn requires a selector.');
@@ -174,13 +198,11 @@ async function invokeMaestroTapOn(params: {
   let lastResponse: DaemonResponse | undefined;
   while (Date.now() - startedAt < MAESTRO_TAP_ON_TIMEOUT_MS) {
     if (fuzzyTextQuery) {
-      const findResponse = await params.invoke({
-        ...params.baseReq,
-        command: 'find',
-        positionals: [fuzzyTextQuery, 'click'],
-      });
-      if (findResponse.ok) return findResponse;
-      lastResponse = findResponse;
+      const attempt = await invokeMaestroFuzzyTapOn(params, fuzzyTextQuery);
+      if (!attempt.retry) return attempt.response;
+      lastResponse = attempt.response;
+      await sleep(MAESTRO_TAP_ON_RETRY_MS);
+      continue;
     }
 
     const clickResponse = await params.invoke({
@@ -199,6 +221,28 @@ async function invokeMaestroTapOn(params: {
   return (
     lastResponse ?? errorResponse('COMMAND_FAILED', `tapOn timed out for selector: ${selector}`)
   );
+}
+
+async function invokeMaestroFuzzyTapOn(
+  params: MaestroTapOnParams,
+  query: string,
+): Promise<{ retry: boolean; response: DaemonResponse }> {
+  const findResponse = await params.invoke({
+    ...params.baseReq,
+    command: 'find',
+    positionals: [query, 'click'],
+  });
+  if (findResponse.ok) return { retry: false, response: findResponse };
+  if (params.baseReq.flags?.maestroOptional !== true) {
+    return { retry: true, response: findResponse };
+  }
+
+  const nativeLabelResponse = await params.invoke({
+    ...params.baseReq,
+    command: 'click',
+    positionals: [simpleLabelSelector(query)],
+  });
+  return { retry: !nativeLabelResponse.ok, response: nativeLabelResponse };
 }
 
 async function invokeMaestroRunFlowWhen(params: {
@@ -295,6 +339,10 @@ function extractMaestroVisibleTextQuery(selectorExpression: string): string | nu
   const first = values[0];
   if (!first || !values.every((value) => value === first)) return null;
   return first;
+}
+
+function simpleLabelSelector(value: string): string {
+  return `label=${JSON.stringify(value)}`;
 }
 
 function withMaestroScrollTimeoutContext(

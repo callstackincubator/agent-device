@@ -8,6 +8,9 @@ import { getDiagnosticsMeta } from '../utils/diagnostics.ts';
 
 export type DaemonCommandContext = DispatchContext & ScreenshotRuntimeFlags;
 
+// Flat compatibility mapper: keeping each CLI flag visible here makes request
+// context drift easier to spot than splitting the same optional fields apart.
+// fallow-ignore-next-line complexity
 export function contextFromFlags(
   logPath: string,
   flags: CommandFlags | undefined,
@@ -22,6 +25,7 @@ export function contextFromFlags(
     activity: flags?.activity,
     launchConsole: flags?.launchConsole,
     launchArgs: flags?.launchArgs,
+    maestroClearState: flags?.maestroClearState,
     verbose: flags?.verbose,
     logPath,
     traceLogPath,

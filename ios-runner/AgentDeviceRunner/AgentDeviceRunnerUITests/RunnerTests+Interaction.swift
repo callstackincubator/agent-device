@@ -809,6 +809,35 @@ extension RunnerTests {
 #endif
   }
 
+  func waitForTextEntryReadinessAfterTap(app: XCUIApplication, element: XCUIElement) {
+#if os(iOS)
+    switch element.elementType {
+    case .textField, .secureTextField, .searchField, .textView:
+      if waitForFocusedTextInput(app: app, timeout: TextEntryTiming.readinessTimeout) != nil {
+        return
+      }
+      let frame = element.frame
+      if !frame.isEmpty {
+        _ = tapAt(app: app, x: frame.midX, y: frame.midY)
+        _ = waitForFocusedTextInput(app: app, timeout: TextEntryTiming.readinessTimeout)
+      }
+    default:
+      return
+    }
+#endif
+  }
+
+  private func waitForFocusedTextInput(app: XCUIApplication, timeout: TimeInterval) -> XCUIElement? {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+      if let focused = focusedTextInput(app: app) {
+        return focused
+      }
+      sleepFor(TextEntryTiming.pollInterval)
+    }
+    return focusedTextInput(app: app)
+  }
+
   private func textEntryRefreshPoint(for element: XCUIElement?) -> CGPoint? {
     guard let element else {
       return nil

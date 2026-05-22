@@ -251,15 +251,11 @@ function selectorTerm(key: string, value: string): string {
 function tapFlags(value: unknown): SessionAction['flags'] | undefined {
   if (!isPlainRecord(value)) return undefined;
   const flags: SessionAction['flags'] = {};
-  if (typeof value.repeat === 'number' && Number.isInteger(value.repeat) && value.repeat > 1) {
-    flags.count = value.repeat;
-  }
-  if (typeof value.delay === 'number' && Number.isInteger(value.delay) && value.delay >= 0) {
-    flags.intervalMs = value.delay;
-  }
-  if (value.optional === true) {
-    flags.maestroOptional = true;
-  }
+  const repeat = positiveInteger(value.repeat);
+  const delay = nonNegativeInteger(value.delay);
+  if (repeat && repeat > 1) flags.count = repeat;
+  if (delay !== undefined) flags.intervalMs = delay;
+  if (value.optional === true) flags.maestroOptional = true;
   return Object.keys(flags).length > 0 ? flags : undefined;
 }
 
@@ -269,4 +265,12 @@ function doubleTapFlags(value: unknown): SessionAction['flags'] {
     flags.intervalMs = Math.max(0, value.delay);
   }
   return flags;
+}
+
+function positiveInteger(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
+function nonNegativeInteger(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
 }

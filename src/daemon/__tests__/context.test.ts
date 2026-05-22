@@ -20,6 +20,12 @@ test('contextFromFlags forwards internal non-hittable selector tap flag', () => 
   assert.equal(context.allowNonHittableSelectorTap, true);
 });
 
+test('contextFromFlags forwards Maestro clearState launch compatibility flag', () => {
+  const flags: CommandFlags = { maestroClearState: true };
+  const context = contextFromFlags('/tmp/agent-device.log', flags);
+  assert.equal(context.maestroClearState, true);
+});
+
 test('contextFromFlags forwards screenshot flags from CLI flags', () => {
   const flags: CommandFlags = {
     screenshotFullscreen: true,

@@ -1263,7 +1263,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '--maestro',
     usageDescription:
-      'Replay: treat input as a Maestro YAML compatibility flow. Supported subset: launchApp with launch arguments but without state-reset side effects, runFlow file/inline with when.platform/visible/notVisible, runScript file/env with http.post/json/output variables, onFlowStart/onFlowComplete, deterministic repeat.times, tapOn including optional and absolute/percentage point taps, doubleTapOn, longPressOn, inputText, pasteText, openLink, assertVisible, assertNotVisible, extendedWaitUntil, scroll, scrollUntilVisible, absolute/percentage swipe, takeScreenshot, hideKeyboard, pressKey back/enter/home, back, waitForAnimationToEnd, and stopApp. ' +
+      'Replay: treat input as a Maestro YAML compatibility flow. Supported subset: launchApp with launch arguments and iOS simulator clearState, runFlow file/inline with when.platform/visible/notVisible, runScript file/env with http.post/json/output variables, onFlowStart/onFlowComplete, deterministic repeat.times, tapOn including optional and absolute/percentage point taps, doubleTapOn, longPressOn, inputText, pasteText, openLink, assertVisible, assertNotVisible, extendedWaitUntil, scroll, scrollUntilVisible, absolute/percentage swipe, takeScreenshot, hideKeyboard, pressKey back/enter/home, back, waitForAnimationToEnd, and stopApp. ' +
       'Unsupported syntax fails loudly with a link to https://github.com/callstackincubator/agent-device/issues/558',
   },
   {
