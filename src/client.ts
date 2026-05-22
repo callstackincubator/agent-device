@@ -397,7 +397,16 @@ export function createAgentDeviceClient(
           options,
         ),
       rotateGesture: async (options) => {
-        const center = encodeOptionalGestureCenter(options.x, options.y, 'gesture rotate');
+        if (
+          (options.x === undefined && options.y !== undefined) ||
+          (options.x !== undefined && options.y === undefined)
+        ) {
+          throw new AppError('INVALID_ARGS', 'gesture rotate center requires both x and y');
+        }
+        const center =
+          options.x === undefined || options.y === undefined
+            ? []
+            : [String(options.x), String(options.y)];
         return await executeCommandRequest(
           PUBLIC_COMMANDS.gesture,
           ['rotate', String(options.degrees), ...center, ...optionalNumber(options.velocity)],
@@ -563,18 +572,6 @@ function optionalString(value: string | undefined): string[] {
 
 function optionalNumber(value: number | undefined): string[] {
   return value === undefined ? [] : [String(value)];
-}
-
-function encodeOptionalGestureCenter(
-  x: number | undefined,
-  y: number | undefined,
-  command: string,
-): string[] {
-  if (x === undefined && y === undefined) return [];
-  if (x === undefined || y === undefined) {
-    throw new AppError('INVALID_ARGS', `${command} center requires both x and y`);
-  }
-  return [String(x), String(y)];
 }
 
 const REPLAY_SHELL_ENV_PREFIX = 'AD_VAR_';

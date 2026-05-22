@@ -22,6 +22,14 @@ import {
 } from './recording-gestures.ts';
 import { markPostGestureStabilization } from './post-gesture-stabilization.ts';
 
+const GESTURE_PLATFORM_COMMANDS: Readonly<Record<string, string>> = {
+  pan: 'pan',
+  fling: 'fling',
+  pinch: 'pinch',
+  rotate: 'rotate-gesture',
+  transform: 'transform-gesture',
+};
+
 export async function dispatchGenericCommand(params: {
   req: DaemonRequest;
   session: SessionState;
@@ -109,9 +117,14 @@ async function ensureGenericCommandReady(
       },
     };
   }
-  if (!shouldRecoverAndroidRecordingDialog(session, platformCommand)) return null;
-  const androidRecoveryResult = await recoverAndroidBlockingSystemDialog({ session });
-  if (androidRecoveryResult !== 'failed') return null;
+  if (
+    session.device.platform !== 'android' ||
+    !session.recording ||
+    platformCommand === 'record' ||
+    (await recoverAndroidBlockingSystemDialog({ session })) !== 'failed'
+  ) {
+    return null;
+  }
   return {
     ok: false,
     error: {
@@ -119,17 +132,6 @@ async function ensureGenericCommandReady(
       message: 'Android system dialog blocked the recording session',
     },
   };
-}
-
-function shouldRecoverAndroidRecordingDialog(
-  session: SessionState,
-  platformCommand: string,
-): boolean {
-  return (
-    session.device.platform === 'android' &&
-    Boolean(session.recording) &&
-    platformCommand !== 'record'
-  );
 }
 
 async function executeGenericPlatformCommand(params: {
@@ -191,7 +193,7 @@ function resolveDispatchCommand(req: DaemonRequest): DispatchCommandResolution {
     };
   }
   const [subcommand, ...positionals] = req.positionals ?? [];
-  const platformCommand = platformCommandForGestureSubcommand(subcommand);
+  const platformCommand = subcommand ? GESTURE_PLATFORM_COMMANDS[subcommand] : undefined;
   if (!platformCommand) {
     return { ok: false, message: GESTURE_SUBCOMMAND_ERROR };
   }
@@ -201,21 +203,6 @@ function resolveDispatchCommand(req: DaemonRequest): DispatchCommandResolution {
     dispatchRequest: { ...req, command: platformCommand, positionals },
     recordedCommand: req.command,
   };
-}
-
-function platformCommandForGestureSubcommand(subcommand: string | undefined): string | null {
-  switch (subcommand) {
-    case 'pan':
-    case 'fling':
-    case 'pinch':
-      return subcommand;
-    case 'rotate':
-      return 'rotate-gesture';
-    case 'transform':
-      return 'transform-gesture';
-    default:
-      return null;
-  }
 }
 
 function resolveScreenshotOutputPlacement(req: DaemonRequest): ScreenshotOutputPlacement {
