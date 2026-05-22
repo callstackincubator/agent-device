@@ -54,7 +54,7 @@ export const INTERNAL_COMMANDS = {
   sessionList: 'session_list',
 } as const;
 
-export const GESTURE_SUBCOMMANDS = ['pan', 'fling', 'pinch', 'rotate', 'transform'] as const;
+const GESTURE_SUBCOMMANDS = ['pan', 'fling', 'pinch', 'rotate', 'transform'] as const;
 export const GESTURE_SUBCOMMAND_ERROR = `gesture requires one of: ${GESTURE_SUBCOMMANDS.join(', ')}`;
 
 export type PublicCommandName = (typeof PUBLIC_COMMANDS)[keyof typeof PUBLIC_COMMANDS];
