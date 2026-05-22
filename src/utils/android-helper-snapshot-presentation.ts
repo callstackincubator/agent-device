@@ -94,6 +94,9 @@ function inferRectlessNodeDirection(
     .map((candidate) => candidate.index);
   if (renderedSiblingIndexes.length === 0) return null;
 
+  // Android helper rectless children are offscreen list content. UIAutomator
+  // traversal order is the only signal left once bounds disappear, so this is
+  // intentionally a conservative above/below hint rather than exact geometry.
   if (node.index < Math.min(...renderedSiblingIndexes)) return 'above';
   if (node.index > Math.max(...renderedSiblingIndexes)) return 'below';
   return null;

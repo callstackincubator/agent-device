@@ -363,6 +363,41 @@ test('buildScreenshotOverlayRefs includes unlabeled Android bottom tab controls'
   );
 });
 
+test('buildScreenshotOverlayRefs keeps nested unlabeled Android controls separate', () => {
+  const snapshot = makeSnapshotState(
+    [
+      {
+        index: 0,
+        type: 'android.widget.FrameLayout',
+        rect: { x: 0, y: 0, width: 1344, height: 2992 },
+      },
+      {
+        index: 1,
+        parentIndex: 0,
+        type: 'android.view.ViewGroup',
+        hittable: true,
+        rect: { x: 80, y: 240, width: 400, height: 240 },
+      },
+      {
+        index: 2,
+        parentIndex: 1,
+        type: 'android.view.ViewGroup',
+        hittable: true,
+        rect: { x: 120, y: 280, width: 160, height: 120 },
+      },
+    ],
+    { backend: 'android' },
+  );
+
+  const overlayRefs = buildScreenshotOverlayRefs(snapshot, 1344, 2992);
+
+  assert.deepEqual(
+    overlayRefs.map((overlayRef) => overlayRef.ref),
+    ['e2', 'e3'],
+  );
+  assert.ok(overlayRefs.every((overlayRef) => !overlayRef.label));
+});
+
 test('buildScreenshotOverlayRefs trims Android row spacing from unlabeled action containers', () => {
   const snapshot = makeSnapshotState(
     [
@@ -402,7 +437,7 @@ test('buildScreenshotOverlayRefs trims Android row spacing from unlabeled action
     {
       ref: 'e2',
       label: 'Google',
-      rect: { x: 0, y: 447, width: 1344, height: 234 },
+      rect: { x: 0, y: 447, width: 1344, height: 282 },
       overlayRect: { x: 0, y: 447, width: 1344, height: 234 },
       center: { x: 672, y: 564 },
     },

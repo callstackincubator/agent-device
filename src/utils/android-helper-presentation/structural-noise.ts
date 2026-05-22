@@ -16,7 +16,8 @@ export function markUnlabeledActionRowsForPromotion(
     if (removed.has(node.index) || !isUnlabeledActionRow(node)) continue;
 
     const descendants = collectDescendants(nodes, node.index);
-    const promotedLabel = collectPromotableRowLabels(descendants, node, removed).join(', ');
+    const promotedContent = collectPromotableRowContent(descendants, node, removed);
+    const promotedLabel = promotedContent.labels.join(', ');
     if (!promotedLabel) continue;
 
     replacements.set(node.index, {
@@ -24,10 +25,8 @@ export function markUnlabeledActionRowsForPromotion(
       ...replacements.get(node.index),
       label: promotedLabel,
     });
-    for (const descendant of descendants) {
-      if (isPassiveRowContent(descendant)) {
-        markNodeAndDescendantsForRemoval(nodes, descendant.index, removed);
-      }
+    for (const descendantIndex of promotedContent.removableIndexes) {
+      markNodeAndDescendantsForRemoval(nodes, descendantIndex, removed);
     }
   }
 }
@@ -107,12 +106,13 @@ function isUnlabeledActionRow(node: SnapshotNode): boolean {
   );
 }
 
-function collectPromotableRowLabels(
+function collectPromotableRowContent(
   descendants: SnapshotNode[],
   parent: SnapshotNode,
   removed: Set<number>,
-): string[] {
+): { labels: string[]; removableIndexes: number[] } {
   const labels: string[] = [];
+  const removableIndexes: number[] = [];
   const seen = new Set<string>();
   for (const descendant of descendants) {
     if (
@@ -124,11 +124,12 @@ function collectPromotableRowLabels(
     }
     const label = visibleNodeLabel(descendant).trim().replace(/\s+/g, ' ');
     const normalized = normalizeStructuralNodeLabel(label);
+    removableIndexes.push(descendant.index);
     if (!label || !normalized || seen.has(normalized)) continue;
     seen.add(normalized);
     labels.push(label);
   }
-  return labels;
+  return { labels, removableIndexes };
 }
 
 function isPassiveRowContent(node: SnapshotNode): boolean {

@@ -556,6 +556,58 @@ test('formatSnapshotText promotes Android helper unlabeled action rows', () => {
   assert.match(raw, /"Mobile, Wi-Fi, hotspot"/);
 });
 
+test('formatSnapshotText keeps passive row descendants that were not promoted', () => {
+  const nodes = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'android.widget.FrameLayout',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'android.widget.LinearLayout',
+      rect: { x: 0, y: 160, width: 390, height: 72 },
+      hittable: true,
+    },
+    {
+      ref: 'e3',
+      index: 2,
+      depth: 2,
+      parentIndex: 1,
+      type: 'android.widget.TextView',
+      label: 'Inside row',
+      rect: { x: 72, y: 176, width: 260, height: 28 },
+    },
+    {
+      ref: 'e4',
+      index: 3,
+      depth: 2,
+      parentIndex: 1,
+      type: 'android.widget.TextView',
+      label: 'Outside parent bounds',
+      rect: { x: 72, y: 260, width: 260, height: 28 },
+    },
+  ];
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes,
+      truncated: false,
+      androidSnapshot: { backend: 'android-helper' },
+    }),
+  );
+
+  assert.match(text, /Snapshot: 3 visible nodes \(4 total\)/);
+  assert.match(text, /Collapsed 1 Android helper node from the agent-facing text snapshot/);
+  assert.match(text, /@e2 \[group\] "Inside row"/);
+  assert.doesNotMatch(text, /@e3 \[text\] "Inside row"/);
+  assert.match(text, /@e4 \[text\] "Outside parent bounds"/);
+});
+
 test('formatSnapshotText collapses adjacent React Native row noise in Android helper output', () => {
   const nodes = [
     {

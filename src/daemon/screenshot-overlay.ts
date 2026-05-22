@@ -110,7 +110,7 @@ export function buildScreenshotOverlayRefs(
       candidatesByRef.set(target.ref, {
         ref: target.ref,
         label,
-        rect: overlaySourceRect,
+        rect: target.rect,
         overlayRect,
         score,
       });
@@ -223,6 +223,7 @@ function suppressContainedCandidates(candidates: OverlayCandidate[]): OverlayCan
   )) {
     const duplicateIndex = kept.findIndex(
       (current) =>
+        current.label !== undefined &&
         current.label === candidate.label &&
         (rectContains(current.overlayRect, candidate.overlayRect) ||
           rectContains(candidate.overlayRect, current.overlayRect)),
