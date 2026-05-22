@@ -117,7 +117,7 @@ export function iosRunnerOverrides(
             y: y1,
             x2,
             y2,
-            durationMs: iosPanHoldDurationMs(durationMs),
+            durationMs: iosPanHoldDurationMs(durationMs, 500),
             appBundleId: ctx.appBundleId,
           },
           runnerOpts,
@@ -132,7 +132,7 @@ export function iosRunnerOverrides(
             y: y1,
             x2,
             y2,
-            durationMs,
+            durationMs: iosPanHoldDurationMs(durationMs, 16),
             appBundleId: ctx.appBundleId,
           },
           runnerOpts,
@@ -328,9 +328,9 @@ function readFiniteNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
-function iosPanHoldDurationMs(durationMs: number | undefined): number {
-  // XCUITest uses this as the pre-drag hold, not drag travel time. Keep pan distinct from longpress.
-  return Math.min(durationMs ?? 500, 16);
+function iosPanHoldDurationMs(durationMs: number | undefined, defaultMs: number): number {
+  // XCUITest uses this as the pre-drag hold, not drag travel time.
+  return durationMs ?? defaultMs;
 }
 
 function normalizeIosScrollResult(

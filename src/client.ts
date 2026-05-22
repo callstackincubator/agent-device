@@ -52,6 +52,7 @@ import type {
   MetroPrepareOptions,
   NetworkOptions,
 } from './client-types.ts';
+import { AppError } from './utils/errors.ts';
 
 export function createAgentDeviceClient(
   config: AgentDeviceClientConfig = {},
@@ -396,15 +397,10 @@ export function createAgentDeviceClient(
           options,
         ),
       rotateGesture: async (options) => {
-        const center = options.x !== undefined || options.y !== undefined;
+        const center = encodeOptionalGestureCenter(options.x, options.y, 'gesture rotate');
         return await executeCommandRequest(
           PUBLIC_COMMANDS.gesture,
-          [
-            'rotate',
-            String(options.degrees),
-            ...(center ? [String(options.x), String(options.y)] : []),
-            ...optionalNumber(options.velocity),
-          ],
+          ['rotate', String(options.degrees), ...center, ...optionalNumber(options.velocity)],
           options,
         );
       },
@@ -567,6 +563,18 @@ function optionalString(value: string | undefined): string[] {
 
 function optionalNumber(value: number | undefined): string[] {
   return value === undefined ? [] : [String(value)];
+}
+
+function encodeOptionalGestureCenter(
+  x: number | undefined,
+  y: number | undefined,
+  command: string,
+): string[] {
+  if (x === undefined && y === undefined) return [];
+  if (x === undefined || y === undefined) {
+    throw new AppError('INVALID_ARGS', `${command} center requires both x and y`);
+  }
+  return [String(x), String(y)];
 }
 
 const REPLAY_SHELL_ENV_PREFIX = 'AD_VAR_';

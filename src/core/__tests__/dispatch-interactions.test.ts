@@ -180,6 +180,26 @@ test('handleRotateGestureCommand defaults velocity sign to match degrees', async
   });
 });
 
+test('handleRotateGestureCommand keeps direction owned by degrees when velocity sign conflicts', async () => {
+  const calls: unknown[][] = [];
+  const interactor = {
+    ...makeUnusedInteractor(),
+    rotateGesture: async (...args: unknown[]) => {
+      calls.push(args);
+    },
+  };
+
+  const result = await handleRotateGestureCommand(IOS_SIMULATOR, interactor, [
+    '145',
+    '200',
+    '420',
+    '-2',
+  ]);
+
+  assert.deepEqual(calls, [[145, 200, 420, 2]]);
+  assert.equal(result.velocity, 2);
+});
+
 test('handleRotateGestureCommand routes Android through the interactor', async () => {
   const calls: unknown[][] = [];
   const interactor = {

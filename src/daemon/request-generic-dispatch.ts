@@ -1,4 +1,5 @@
 import { dispatchCommand, type CommandFlags } from '../core/dispatch.ts';
+import { GESTURE_SUBCOMMAND_ERROR } from '../command-catalog.ts';
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
 import { SessionStore } from './session-store.ts';
 import type { DaemonCommandContext } from './context.ts';
@@ -192,7 +193,7 @@ function resolveDispatchCommand(req: DaemonRequest): DispatchCommandResolution {
   const [subcommand, ...positionals] = req.positionals ?? [];
   const platformCommand = platformCommandForGestureSubcommand(subcommand);
   if (!platformCommand) {
-    return { ok: false, message: 'gesture requires one of: pan, fling, pinch, rotate, transform' };
+    return { ok: false, message: GESTURE_SUBCOMMAND_ERROR };
   }
   return {
     ok: true,

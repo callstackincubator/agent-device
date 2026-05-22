@@ -122,9 +122,14 @@ export async function rotateGestureAndroid(
   if (!Number.isFinite(options.degrees)) {
     throw new AppError('INVALID_ARGS', 'gesture rotate requires finite degrees');
   }
+  if (
+    options.velocity !== undefined &&
+    (!Number.isFinite(options.velocity) || options.velocity === 0)
+  ) {
+    throw new AppError('INVALID_ARGS', 'gesture rotate velocity must be a non-zero number');
+  }
   const center = await resolveGestureCenter(device, options.x, options.y);
-  const velocity = options.velocity ?? (options.degrees >= 0 ? 1 : -1);
-  const degrees = Math.abs(options.degrees) * Math.sign(velocity);
+  const degrees = options.degrees;
   return await runAndroidMultiTouchGesture(device, {
     kind: 'rotate',
     x: center.x,

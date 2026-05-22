@@ -322,6 +322,31 @@ test('apps.installFromSource forwards GitHub Actions artifact sources unchanged'
   });
 });
 
+test('interactions.rotateGesture serializes a complete center without undefined literals', async () => {
+  const setup = createTransport(async () => ({ ok: true, data: {} }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await client.interactions.rotateGesture({ degrees: 35, x: 200, y: 420 });
+
+  assert.deepEqual(setup.calls[0]?.positionals, ['rotate', '35', '200', '420']);
+});
+
+test('interactions.rotateGesture rejects partial centers on the client side', async () => {
+  const setup = createTransport(async () => {
+    throw new Error('transport should not run for invalid input');
+  });
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await assert.rejects(
+    () => client.interactions.rotateGesture({ degrees: 35, x: 200 }),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message === 'gesture rotate center requires both x and y',
+  );
+  assert.equal(setup.calls.length, 0);
+});
+
 test('apps.list forwards filters and returns daemon app names', async () => {
   const setup = createTransport(async () => ({
     ok: true,

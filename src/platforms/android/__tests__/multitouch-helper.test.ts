@@ -149,6 +149,26 @@ test('pinchAndroid, rotateGestureAndroid, and transformGestureAndroid prefer pro
   ]);
 });
 
+test('rotateGestureAndroid rejects zero velocity before provider dispatch', async () => {
+  await withAndroidAdbProvider(
+    {
+      exec: async () => {
+        throw new Error('adb should not run for invalid input');
+      },
+      touch: async () => {
+        throw new Error('native touch should not run for invalid input');
+      },
+    },
+    { serial: ANDROID_EMULATOR.id },
+    async () => {
+      await assert.rejects(
+        () => rotateGestureAndroid(ANDROID_EMULATOR, { degrees: 90, velocity: 0 }),
+        { code: 'INVALID_ARGS' },
+      );
+    },
+  );
+});
+
 test('ensureAndroidMultiTouchHelper installs with semantic provider install options', async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'multitouch-helper-install-'));
   const apkPath = path.join(tmpDir, 'helper.apk');

@@ -16,7 +16,7 @@ import {
 import { selectorSnapshotOptionsFromFlags } from '../../command-codecs/flags.ts';
 import { buildSelectionOptions } from './shared.ts';
 import { writeCommandCliOutput } from './output.ts';
-import type { PublicCommandName } from '../../command-catalog.ts';
+import { GESTURE_SUBCOMMAND_ERROR, type PublicCommandName } from '../../command-catalog.ts';
 import type { ClientCommandHandler } from './router-types.ts';
 
 type GenericClientCommandRunner = (params: {
@@ -245,10 +245,7 @@ function runGestureCommand(params: {
         durationMs: optionalNumber(args[6]),
       });
     default:
-      throw new AppError(
-        'INVALID_ARGS',
-        'gesture requires one of: pan, fling, pinch, rotate, transform',
-      );
+      throw new AppError('INVALID_ARGS', GESTURE_SUBCOMMAND_ERROR);
   }
 }
 

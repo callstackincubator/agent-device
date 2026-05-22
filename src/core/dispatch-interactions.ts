@@ -706,7 +706,7 @@ function parseRotateGestureParams(positionals: string[]): RotateGestureParams {
     throw new AppError('INVALID_ARGS', 'gesture rotate velocity must be a non-zero number');
   }
 
-  return { degrees, ...center, velocity };
+  return { degrees, ...center, velocity: Math.abs(velocity) * (degrees >= 0 ? 1 : -1) };
 }
 
 function parseTransformGestureParams(positionals: string[]): TransformGestureParams {
