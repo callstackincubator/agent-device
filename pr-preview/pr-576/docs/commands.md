@@ -272,8 +272,9 @@ Android text entry is owned by `agent-device`: provider-native injection when av
 `click --button middle` is reserved for future runner support and currently returns an explicit unsupported-operation error on macOS.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
 On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpress side effects.
-`gesture pan` accepts `x y dx dy [durationMs]` for deliberate drags where the requested duration should be preserved.
+`gesture pan` accepts `x y dx dy [durationMs]` for deliberate drags. Android preserves the requested travel duration; iOS uses XCTest drag primitives where this value is the pre-drag hold duration.
 `gesture fling` accepts `up|down|left|right x y [distance] [durationMs]` for fast directional throws.
+`gesture rotate` accepts `degrees [x] [y] [velocity]`; the degree sign controls direction and velocity controls speed.
 `gesture transform` accepts `x y dx dy scale degrees [durationMs]` for one combined pan/zoom/rotate gesture on Android and iOS simulators.
 On iOS simulators it is implemented with XCTest gesture primitives, so verify app-level metrics instead of assuming the requested degrees map exactly to recognizer output.
 `scroll` accepts either a relative amount (`0.5` means roughly half of the viewport on that axis) or `--pixels <n>` for a fixed-distance gesture. Large distances are clamped to the usable drag band so the gesture stays reliable across Android, iOS, and macOS.

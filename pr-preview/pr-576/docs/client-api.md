@@ -242,7 +242,7 @@ Additional CLI-backed methods are exposed on their domain groups with typed opti
 - `client.apps.push()`
 - `client.apps.triggerEvent()`
 - `client.capture.diff()`
-- `client.interactions.click()`, `press()`, `longPress()`, `swipe()`, `pan()`, `fling()`, `focus()`, `type()`, `fill()`, `scroll()`, `pinch()`, `rotateGesture()`, `get()`, `is()`, `find()`
+- `client.interactions.click()`, `press()`, `longPress()`, `swipe()`, `pan()`, `fling()`, `focus()`, `type()`, `fill()`, `scroll()`, `pinch()`, `rotateGesture()`, `transformGesture()`, `get()`, `is()`, `find()`
 - `client.replay.run()` and `client.replay.test()`
 - `client.batch.run()`
 - `client.observability.perf()`, `logs()`, and `network()`
