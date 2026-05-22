@@ -61,7 +61,7 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
         y: 122,
         x2: 276,
         y2: 122,
-        durationMs: 16,
+        durationMs: 500,
         appBundleId: 'com.apple.Preferences',
       },
       result: { dragged: true },
