@@ -1047,9 +1047,10 @@ agent-device gesture fling right 200 420 180
 agent-device longpress 300 500 800
 agent-device scroll down 0.5
 agent-device scroll down --pixels 320
-agent-device gesture pinch 2.0          # zoom in 2x (Apple simulator or macOS app session)
-agent-device gesture pinch 0.5 200 400 # zoom out at coordinates (Apple simulator or macOS app session)
-agent-device gesture rotate 35 200 420 # rotate app content (iOS simulator app session)
+agent-device gesture pinch 2.0          # zoom in 2x
+agent-device gesture pinch 0.5 200 400 # zoom out at coordinates
+agent-device gesture rotate 35 200 420 # rotate app content
+agent-device gesture transform 200 420 80 -40 2 35 700 # combined pan, zoom, and rotate
 ```
 
 `fill` clears then types. `type` does not clear.
@@ -1064,6 +1065,8 @@ Android text entry is owned by `agent-device`: provider-native injection when av
 On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpress side effects.
 `gesture pan` accepts `x y dx dy [durationMs]` for deliberate drags where the requested duration should be preserved.
 `gesture fling` accepts `up|down|left|right x y [distance] [durationMs]` for fast directional throws.
+`gesture transform` accepts `x y dx dy scale degrees [durationMs]` for one combined pan/zoom/rotate gesture on Android and iOS simulators.
+On iOS simulators it is implemented with XCTest gesture primitives, so verify app-level metrics instead of assuming the requested degrees map exactly to recognizer output.
 `scroll` accepts either a relative amount (`0.5` means roughly half of the viewport on that axis) or `--pixels <n>` for a fixed-distance gesture. Large distances are clamped to the usable drag band so the gesture stays reliable across Android, iOS, and macOS.
 Default snapshot text output is visible-first, so off-screen interactive content is summarized instead of shown as tappable refs.
 When a target only appears in an off-screen summary, use `scroll <direction>` and then take a fresh `snapshot -i`. For repeated checks, a small shell loop is enough:
@@ -1081,8 +1084,9 @@ done
 ```
 
 `longpress` is supported on iOS and Android.
-`gesture pinch` is supported on Apple simulators and macOS app sessions.
-`gesture rotate` is supported on iOS simulator app sessions. Use `rotate` for device orientation.
+`gesture pinch` is supported on Android, Apple simulators, and macOS app sessions.
+`gesture rotate` is supported on Android and iOS simulator app sessions. Use `rotate` for device orientation.
+`gesture transform` is supported on Android and iOS simulator app sessions.
 
 ## Find (semantic)
 
