@@ -101,6 +101,12 @@ pnpm exec skillgym run \
   --repeat-failure 1
 ```
 
+To run one case across the configured Codex and Claude runners:
+
+```bash
+pnpm test:skillgym:case open-and-snapshot
+```
+
 Use `--reporter github-actions` in CI when you want annotations in GitHub Actions logs.
 
 The config uses `schedule: parallel` so the planning suite can run case/runner pairs concurrently up to SkillGym v0.8's default available-machine parallelism cap. This is safe for the included suite because cases validate command plans and local CLI help, not live shared device state or workspace edits. Override with `--max-parallel <n>` for local experiments that need a different cap.
@@ -113,6 +119,10 @@ Prerequisites:
 - `claude` CLI installed and authenticated, because the same cases also run against Claude Haiku
 - repo dependencies installed with `pnpm install`
 - if you want the fixture app running locally, use `pnpm test-app:install` and then `pnpm test-app:ios` or `pnpm test-app:android`
+
+Sandbox note:
+
+The configured runners call external Codex and Claude model backends. In Codex sandboxes with `CODEX_SANDBOX_NETWORK_DISABLED=1`, `pnpm test:skillgym` and direct `skillgym run --config ./test/skillgym/skillgym.config.ts` fail fast before building or launching runners. Run the suite from a normal authenticated local shell instead. If you are in a sandbox that has explicitly approved network access and you still want to launch external runners, set `SKILLGYM_ALLOW_EXTERNAL_RUNNERS_IN_SANDBOX=1`.
 
 ## Where to extend next
 

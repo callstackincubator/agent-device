@@ -1,6 +1,9 @@
 import type { SkillGymConfig } from 'skillgym';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { enforceSkillGymRunnerEnvironment } from './runner-environment.ts';
+
+enforceSkillGymRunnerEnvironment();
 
 const localBinDir = fileURLToPath(new URL('./bin', import.meta.url));
 const runnerEnv = {
