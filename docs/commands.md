@@ -132,7 +132,7 @@ agent-device screenshot apple-tv.png --platform ios --target tv
 - TV target selection supports both simulator/emulator and connected physical devices (AppleTV + AndroidTV).
 - tvOS supports the same runner-driven interaction/snapshot flow as iOS (`snapshot`, `wait`, `press`, `fill`, `get`, `scroll`, `back`, `home`, `app-switcher`, `record`, and related selector flows).
 - On tvOS, runner `back`/`home`/`app-switcher` map to Siri Remote actions (`menu`, `home`, double-home).
-- tvOS follows iOS simulator-only command semantics for helpers like `pinch`, `settings`, and `push`.
+- tvOS follows iOS simulator-only command semantics for helpers like `gesture pinch`, `settings`, and `push`.
 
 ## Desktop targets
 
@@ -154,7 +154,7 @@ agent-device snapshot -i --platform apple --target desktop
 - Status-item apps often expose little or no useful UI through the default macOS `app` surface. Prefer `--surface menubar` for discovery when the app lives in the top menu bar.
 - Use `frontmost-app`, `desktop`, and `menubar` mainly for `snapshot`, `get`, `is`, and `wait`.
 - If you inspect with `desktop` or `menubar` and then need to click or fill inside one app, open that app in a normal `app` session.
-- macOS also supports `clipboard read|write`, `trigger-app-event`, `logs`, `network dump`, `alert`, `pinch` in app sessions, `settings appearance`, and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`.
+- macOS also supports `clipboard read|write`, `trigger-app-event`, `logs`, `network dump`, `alert`, `gesture pinch` in app sessions, `settings appearance`, and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`.
 - In macOS app sessions, `screenshot` captures the target app window bounds rather than the full desktop.
 - Prefer selector or `@ref`-driven interactions on macOS. Window position can shift between runs, so raw x/y point commands are less stable than snapshot-derived targets.
 - Use `click --button secondary` for context menus on macOS, then run `snapshot -i` again.
@@ -251,11 +251,15 @@ agent-device press 300 500 --count 12 --interval-ms 45
 agent-device press 300 500 --count 6 --hold-ms 120 --interval-ms 30 --jitter-px 2
 agent-device swipe 540 1500 540 500 120
 agent-device swipe 540 1500 540 500 120 --count 8 --pause-ms 30 --pattern ping-pong
+agent-device gesture pan 200 420 0 -80 500
+agent-device gesture fling right 200 420 180
 agent-device longpress 300 500 800
 agent-device scroll down 0.5
 agent-device scroll down --pixels 320
-agent-device pinch 2.0          # zoom in 2x (Apple simulator or macOS app session)
-agent-device pinch 0.5 200 400 # zoom out at coordinates (Apple simulator or macOS app session)
+agent-device gesture pinch 2.0          # zoom in 2x
+agent-device gesture pinch 0.5 200 400 # zoom out at coordinates
+agent-device gesture rotate 35 200 420 # rotate app content
+agent-device gesture transform 200 420 80 -40 2 35 700 # combined pan, zoom, and rotate
 ```
 
 `fill` clears then types. `type` does not clear.
@@ -268,6 +272,11 @@ Android text entry is owned by `agent-device`: provider-native injection when av
 `click --button middle` is reserved for future runner support and currently returns an explicit unsupported-operation error on macOS.
 `swipe` accepts an optional `durationMs` argument (default `250ms`, range `16..10000`).
 On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpress side effects.
+`gesture pan` accepts `x y dx dy [durationMs]` for deliberate drags. Android preserves the requested travel duration; iOS uses XCTest drag primitives where this value is the pre-drag hold duration.
+`gesture fling` accepts `up|down|left|right x y [distance] [durationMs]` for fast directional throws.
+`gesture rotate` accepts `degrees [x] [y] [velocity]`; the degree sign controls direction and velocity controls speed.
+`gesture transform` accepts `x y dx dy scale degrees [durationMs]` for one combined pan/zoom/rotate gesture on Android and iOS simulators.
+On iOS simulators it is implemented with XCTest gesture primitives, so verify app-level metrics instead of assuming the requested degrees map exactly to recognizer output.
 `scroll` accepts either a relative amount (`0.5` means roughly half of the viewport on that axis) or `--pixels <n>` for a fixed-distance gesture. Large distances are clamped to the usable drag band so the gesture stays reliable across Android, iOS, and macOS.
 Default snapshot text output is visible-first, so off-screen interactive content is summarized instead of shown as tappable refs.
 When a target only appears in an off-screen summary, use `scroll <direction>` and then take a fresh `snapshot -i`. For repeated checks, a small shell loop is enough:
@@ -285,7 +294,9 @@ done
 ```
 
 `longpress` is supported on iOS and Android.
-`pinch` is supported on Apple simulators and macOS app sessions.
+`gesture pinch` is supported on Android, Apple simulators, and macOS app sessions.
+`gesture rotate` is supported on Android and iOS simulator app sessions. Use `rotate` for device orientation.
+`gesture transform` is supported on Android and iOS simulator app sessions.
 
 ## Find (semantic)
 
