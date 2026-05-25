@@ -1,6 +1,7 @@
 import { AppError } from '../utils/errors.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionState, DaemonRequest } from './types.ts';
+import { PUBLIC_COMMANDS } from '../command-catalog.ts';
 import {
   formatSessionSelectorConflict,
   listSessionSelectorConflicts,
@@ -20,6 +21,11 @@ const LOCKABLE_SELECTOR_KEYS: Array<keyof CommandFlags> = [
   'androidDeviceAllowlist',
 ];
 
+const SELECTOR_OVERRIDE_LOCK_POLICY_COMMANDS: ReadonlySet<string> = new Set([
+  PUBLIC_COMMANDS.apps,
+  PUBLIC_COMMANDS.devices,
+]);
+
 export function applyRequestLockPolicy(
   req: DaemonRequest,
   existingSession?: SessionState,
@@ -30,13 +36,19 @@ export function applyRequestLockPolicy(
   }
 
   const nextFlags: CommandFlags = { ...(req.flags ?? {}) };
-  const conflicts = existingSession
-    ? listSessionSelectorConflicts(existingSession, nextFlags)
-    : listFreshSessionConflicts(nextFlags, req.meta?.lockPlatform, req.command);
+  const canOverrideSelector = SELECTOR_OVERRIDE_LOCK_POLICY_COMMANDS.has(req.command);
+  const conflicts = canOverrideSelector
+    ? []
+    : existingSession
+      ? listSessionSelectorConflicts(existingSession, nextFlags)
+      : listFreshSessionConflicts(nextFlags, req.meta?.lockPlatform, req.command);
+  const lockPlatform = req.meta?.lockPlatform;
 
   if (conflicts.length === 0) {
-    if (!existingSession && req.meta?.lockPlatform && nextFlags.platform === undefined) {
-      nextFlags.platform = req.meta.lockPlatform;
+    if (
+      shouldApplyLockPlatformDefault(canOverrideSelector, existingSession, nextFlags, lockPlatform)
+    ) {
+      nextFlags.platform = lockPlatform;
     }
     return {
       ...req,
@@ -45,12 +57,7 @@ export function applyRequestLockPolicy(
   }
 
   if (lockPolicy === 'strip') {
-    if (existingSession) {
-      stripSessionConflicts(nextFlags, conflicts);
-      nextFlags.platform = existingSession.device.platform;
-    } else {
-      stripFreshSessionConflicts(nextFlags, req.meta?.lockPlatform);
-    }
+    applyStripLockPolicy(nextFlags, conflicts, lockPlatform, existingSession);
     return {
       ...req,
       flags: nextFlags,
@@ -62,6 +69,35 @@ export function applyRequestLockPolicy(
     `${req.command} cannot override session lock policy with ${conflicts.map(formatSessionSelectorConflict).join(', ')}. ` +
       'Unset those selectors or remove the request lock policy.',
   );
+}
+
+function shouldApplyLockPlatformDefault(
+  canOverrideSelector: boolean,
+  existingSession: SessionState | undefined,
+  flags: CommandFlags,
+  lockPlatform: LockPlatform,
+): boolean {
+  if (!lockPlatform || existingSession || flags.platform !== undefined) {
+    return false;
+  }
+  if (!canOverrideSelector) {
+    return true;
+  }
+  return !LOCKABLE_SELECTOR_KEYS.some((key) => hasSelectorValue(flags[key]));
+}
+
+function applyStripLockPolicy(
+  flags: CommandFlags,
+  conflicts: SessionSelectorConflict[],
+  lockPlatform: LockPlatform,
+  existingSession: SessionState | undefined,
+): void {
+  if (existingSession) {
+    stripSessionConflicts(flags, conflicts);
+    flags.platform = existingSession.device.platform;
+    return;
+  }
+  stripFreshSessionConflicts(flags, lockPlatform);
 }
 
 function listFreshSessionConflicts(
@@ -83,11 +119,15 @@ function listFreshSessionConflicts(
   }
   for (const key of LOCKABLE_SELECTOR_KEYS) {
     const value = flags[key];
-    if (typeof value === 'string' && value.trim().length > 0) {
+    if (hasSelectorValue(value)) {
       conflicts.push({ key: key as SessionSelectorConflictKey, value });
     }
   }
   return conflicts;
+}
+
+function hasSelectorValue(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function platformSelectorsConflict(
