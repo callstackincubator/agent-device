@@ -12,6 +12,12 @@ import { isApplePlatform, normalizePlatformSelector } from '../utils/device.ts';
 
 type LockPlatform = NonNullable<DaemonRequest['meta']>['lockPlatform'];
 
+type LockPolicyContext = {
+  allowsSelectorOverride: boolean;
+  conflicts: SessionSelectorConflict[];
+  lockPlatform: LockPlatform;
+};
+
 const LOCKABLE_SELECTOR_KEYS: Array<keyof CommandFlags> = [
   'target',
   'device',
@@ -36,22 +42,11 @@ export function applyRequestLockPolicy(
   }
 
   const nextFlags: CommandFlags = { ...(req.flags ?? {}) };
-  const allowsSelectorOverride = SELECTOR_OVERRIDE_LOCK_POLICY_COMMANDS.has(req.command);
-  const conflicts = allowsSelectorOverride
-    ? []
-    : existingSession
-      ? listSessionSelectorConflicts(existingSession, nextFlags)
-      : listFreshSessionConflicts(nextFlags, req.meta?.lockPlatform, req.command);
-  const lockPlatform = req.meta?.lockPlatform;
-  const shouldApplyLockPlatformDefault =
-    !existingSession &&
-    nextFlags.platform === undefined &&
-    (!allowsSelectorOverride ||
-      (nextFlags.serial === undefined && nextFlags.androidDeviceAllowlist === undefined));
+  const context = resolveLockPolicyContext(req, existingSession, nextFlags);
 
-  if (conflicts.length === 0) {
-    if (lockPlatform && shouldApplyLockPlatformDefault) {
-      nextFlags.platform = lockPlatform;
+  if (context.conflicts.length === 0) {
+    if (shouldApplyLockPlatformDefault(context, existingSession, nextFlags)) {
+      nextFlags.platform = context.lockPlatform;
     }
     return {
       ...req,
@@ -60,12 +55,7 @@ export function applyRequestLockPolicy(
   }
 
   if (lockPolicy === 'strip') {
-    if (existingSession) {
-      stripSessionConflicts(nextFlags, conflicts);
-      nextFlags.platform = existingSession.device.platform;
-    } else {
-      stripFreshSessionConflicts(nextFlags, req.meta?.lockPlatform);
-    }
+    applyStripLockPolicy(nextFlags, context, existingSession);
     return {
       ...req,
       flags: nextFlags,
@@ -74,9 +64,61 @@ export function applyRequestLockPolicy(
 
   throw new AppError(
     'INVALID_ARGS',
-    `${req.command} cannot override session lock policy with ${conflicts.map(formatSessionSelectorConflict).join(', ')}. ` +
+    `${req.command} cannot override session lock policy with ${context.conflicts.map(formatSessionSelectorConflict).join(', ')}. ` +
       'Unset those selectors or remove the request lock policy.',
   );
+}
+
+function resolveLockPolicyContext(
+  req: DaemonRequest,
+  existingSession: SessionState | undefined,
+  flags: CommandFlags,
+): LockPolicyContext {
+  const allowsSelectorOverride = SELECTOR_OVERRIDE_LOCK_POLICY_COMMANDS.has(req.command);
+  return {
+    allowsSelectorOverride,
+    conflicts: listLockPolicyConflicts(req, existingSession, flags, allowsSelectorOverride),
+    lockPlatform: req.meta?.lockPlatform,
+  };
+}
+
+function listLockPolicyConflicts(
+  req: DaemonRequest,
+  existingSession: SessionState | undefined,
+  flags: CommandFlags,
+  allowsSelectorOverride: boolean,
+): SessionSelectorConflict[] {
+  if (allowsSelectorOverride) return [];
+  return existingSession
+    ? listSessionSelectorConflicts(existingSession, flags)
+    : listFreshSessionConflicts(flags, req.meta?.lockPlatform, req.command);
+}
+
+function shouldApplyLockPlatformDefault(
+  context: LockPolicyContext,
+  existingSession: SessionState | undefined,
+  flags: CommandFlags,
+): boolean {
+  if (!context.lockPlatform || existingSession || flags.platform !== undefined) {
+    return false;
+  }
+  if (!context.allowsSelectorOverride) {
+    return true;
+  }
+  return flags.serial === undefined && flags.androidDeviceAllowlist === undefined;
+}
+
+function applyStripLockPolicy(
+  flags: CommandFlags,
+  context: LockPolicyContext,
+  existingSession: SessionState | undefined,
+): void {
+  if (existingSession) {
+    stripSessionConflicts(flags, context.conflicts);
+    flags.platform = existingSession.device.platform;
+    return;
+  }
+  stripFreshSessionConflicts(flags, context.lockPlatform);
 }
 
 function listFreshSessionConflicts(
