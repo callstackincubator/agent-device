@@ -1281,33 +1281,34 @@ extension RunnerTests {
     durationMs: Double
   ) -> RunnerInteractionOutcome {
 #if os(iOS)
-    let holdDuration = max(0.02, min(durationMs / 1000.0, 10.0) / 3.0)
-    let panOutcome = performCoordinateDrag(
-      app: app,
+    let target = interactionRoot(app: app)
+    if let message = RunnerSynthesizedGesture.synthesizeTransform(
+      withApplication: app,
       x: x,
       y: y,
-      x2: x + dx,
-      y2: y + dy,
-      holdDuration: holdDuration
-    )
-    guard case .performed = panOutcome else {
-      return panOutcome
-    }
-
-    let target = gestureElement(app: app, x: x, y: y)
-    target.pinch(withScale: CGFloat(scale), velocity: CGFloat(scale >= 1.0 ? 1.0 : -1.0))
-    return performCoordinateRotateGesture(
-      app: app,
+      dx: dx,
+      dy: dy,
+      scale: scale,
       degrees: degrees,
-      x: x,
-      y: y,
-      velocity: degrees >= 0 ? 1.0 : -1.0
-    )
+      radius: transformGestureRadius(frame: target.frame, scale: scale),
+      durationMs: durationMs
+    ) {
+      return .unsupported(message)
+    }
+    return .performed
 #elseif os(tvOS)
     return .unsupported("transformGesture is not supported on tvOS")
 #else
     return .unsupported("transformGesture is not supported on macOS")
 #endif
+  }
+
+  private func transformGestureRadius(frame: CGRect, scale: Double) -> Double {
+    let shorterSide = Double(min(frame.width, frame.height))
+    let frameRadius = shorterSide * 0.20
+    let minimumEndRadius = shorterSide * 0.08
+    let scaleAdjustedRadius = scale < 1.0 ? max(frameRadius, minimumEndRadius / scale) : frameRadius
+    return min(max(scaleAdjustedRadius, 48.0), shorterSide * 0.35)
   }
 
   private func performCoordinatePinch(app: XCUIApplication, scale: Double, x: Double?, y: Double?) -> RunnerInteractionOutcome {
@@ -1360,21 +1361,6 @@ extension RunnerTests {
     return .unsupported("rotate-gesture is not supported on macOS")
 #endif
   }
-
-#if os(iOS)
-  private func gestureElement(app: XCUIApplication, x: Double, y: Double) -> XCUIElement {
-    let point = CGPoint(x: x, y: y)
-    let matches = app.descendants(matching: .any).allElementsBoundByIndex.filter { element in
-      element.exists && element.frame.contains(point) && !element.frame.isEmpty
-    }
-    if let smallest = matches.min(by: { left, right in
-      (left.frame.width * left.frame.height) < (right.frame.width * right.frame.height)
-    }) {
-      return smallest
-    }
-    return interactionRoot(app: app)
-  }
-#endif
 
   private func interactionRoot(app: XCUIApplication) -> XCUIElement {
     let windows = app.windows.allElementsBoundByIndex

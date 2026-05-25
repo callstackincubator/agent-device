@@ -965,6 +965,10 @@ test('usageForCommand resolves workflow help topic', () => {
   );
   assert.match(help, /agent-device clipboard write "some text"/);
   assert.match(help, /For gesture-heavy iOS simulator proof videos, prefer --hide-touches/);
+  assert.match(
+    help,
+    /iOS simulator transform uses private XCTest synthesis for a continuous two-finger pan\/scale\/rotation path/,
+  );
   assert.match(help, /Android Gboard handwriting\/stylus UI can capture text/);
   assert.match(help, /targetInput\/actualInput details/);
   assert.match(help, /Do not keep retrying fill\/type against the same field/);

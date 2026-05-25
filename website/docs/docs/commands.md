@@ -280,7 +280,7 @@ On iOS, swipe duration is clamped to a safe range (`16..60ms`) to avoid longpres
 `gesture fling` accepts `up|down|left|right x y [distance] [durationMs]` for fast directional throws.
 `gesture rotate` accepts `degrees [x] [y] [velocity]`; the degree sign controls direction and velocity controls speed.
 `gesture transform` accepts `x y dx dy scale degrees [durationMs]` for one combined pan/zoom/rotate gesture on Android and iOS simulators.
-On iOS simulators it is implemented with XCTest gesture primitives, so verify app-level metrics instead of assuming the requested degrees map exactly to recognizer output.
+On iOS simulators it uses private XCTest synthesis for a continuous two-finger pan/scale/rotation path, so verify app-level metrics instead of assuming the requested values map exactly to recognizer output.
 On Android, `gesture transform` injects a geometric two-finger path. App recognizers may report non-exact pan, scale, and rotation values, so verify qualitative state such as `pan changed yes`, `pinch changed yes`, and `rotate changed yes` unless the app explicitly promises exact centroid metrics. If exact app-state values matter, prefer isolated `gesture pan`, `gesture pinch`, or `gesture rotate` commands.
 `scroll` accepts either a relative amount (`0.5` means roughly half of the viewport on that axis) or `--pixels <n>` for a fixed-distance gesture. Large distances are clamped to the usable drag band so the gesture stays reliable across Android, iOS, and macOS.
 Default snapshot text output is visible-first, so off-screen interactive content is summarized instead of shown as tappable refs.

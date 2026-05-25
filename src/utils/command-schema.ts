@@ -236,7 +236,7 @@ Command shape:
   Snapshot refs look like @e12. After snapshot -i, use the exact @eN ref from that output.
   If the exact ref is not known yet, first output snapshot -i, then use a concrete example shape like press @e12 in the next command; do not write @<ref>, @ref, @Label_Name, or @eN placeholders.
   Close means agent-device close. App-owned back means back; system back means back --system.
-  Taps are press or click. Gestures use swipe, longpress, or gesture <pan|fling|pinch|rotate|transform>. Android pinch, rotate, and transform use provider-native touch injection when available, then the bundled multi-touch helper.
+  Taps are press or click. Gestures use swipe, longpress, or gesture <pan|fling|pinch|rotate|transform>. Android pinch, rotate, and transform use provider-native touch injection when available, then the bundled multi-touch helper. iOS simulator transform uses private XCTest synthesis for a continuous two-finger pan/scale/rotation path; otherwise it reports UNSUPPORTED_OPERATION.
 
 Bootstrap:
   agent-device devices --platform ios
@@ -323,7 +323,7 @@ Navigation and gestures:
     agent-device gesture pinch 0.5 200 400
     agent-device gesture rotate 35 200 420
     agent-device gesture transform 200 420 80 -40 2 35 700
-  iOS simulator transform uses XCTest gesture primitives; verify app metrics instead of assuming requested degrees map exactly to recognizer output.
+  iOS simulator transform uses private XCTest synthesis for a continuous two-finger pan/scale/rotation path; verify app metrics instead of assuming requested values map exactly to recognizer output.
   Android transform injects a geometric two-finger path; app recognizers may report non-exact pan/scale/rotation. For Android combined transforms, verify qualitative state such as "pan changed yes" / "pinch changed yes" / "rotate changed yes" unless the app explicitly promises exact centroid metrics.
   If Android needs exact app-state values, prefer isolated gesture pan, gesture pinch, or gesture rotate commands over one combined transform.
 
