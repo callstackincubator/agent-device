@@ -91,7 +91,9 @@ These run the `.ad` replay suite in `examples/test-app/replays`.
 `gesture-lab.ad` verifies `gesture pan`, `gesture fling`, `gesture pinch`, and
 `gesture rotate` against the gesture metrics rendered by the Home screen on iOS
 and Android. Android and iOS simulator sessions also support `gesture transform`
-for a combined pan/zoom/rotate gesture.
+for a combined pan/zoom/rotate gesture. On Android, treat combined transform
+assertions as qualitative because recognizers can report non-exact centroid,
+scale, and rotation values for one simultaneous two-finger gesture.
 
 To target a specific iOS simulator or an installed Expo development build, run the
 underlying command directly so global flags stay before replay inputs:
