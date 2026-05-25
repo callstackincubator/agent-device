@@ -18,6 +18,7 @@ public final class MultiTouchInstrumentation extends Instrumentation {
   private static final int MAX_RADIUS = 1200;
   private static final int MIN_DURATION_MS = 16;
   private static final int MAX_DURATION_MS = 10_000;
+  private static final int MOVE_FRAME_INTERVAL_MS = 16;
   private Bundle arguments;
 
   @Override
@@ -91,54 +92,79 @@ public final class MultiTouchInstrumentation extends Instrumentation {
     long eventTime = downTime;
     PointerPair start = pointerPairAt(spec, 0);
     PointerPair end = pointerPairAt(spec, 1);
+    PointerPair activePointers = start.firstOnly();
     int count = 0;
 
-    inject(
-        automation,
-        motionEvent(downTime, eventTime, MotionEvent.ACTION_DOWN, start.firstOnly()));
-    count += 1;
-    eventTime += 8;
-    inject(
-        automation,
-        motionEvent(
-            downTime,
-            eventTime,
-            MotionEvent.ACTION_POINTER_DOWN | (1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT),
-            start));
-    count += 1;
-
-    int frameCount = Math.max(3, Math.round(spec.durationMs / 16.0f));
-    for (int index = 1; index < frameCount; index += 1) {
-      double t = (double) index / (double) frameCount;
-      PointerPair frame = pointerPairAt(spec, t);
-      eventTime = downTime + Math.round(spec.durationMs * t);
-      inject(automation, motionEvent(downTime, eventTime, MotionEvent.ACTION_MOVE, frame));
+    try {
+      inject(
+          automation,
+          motionEvent(downTime, eventTime, MotionEvent.ACTION_DOWN, activePointers),
+          true);
       count += 1;
-    }
+      eventTime += 8;
+      inject(
+          automation,
+          motionEvent(
+              downTime,
+              eventTime,
+              MotionEvent.ACTION_POINTER_DOWN | (1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT),
+              start),
+          true);
+      count += 1;
+      activePointers = start;
 
-    eventTime = downTime + spec.durationMs;
-    inject(
-        automation,
-        motionEvent(
-            downTime,
-            eventTime,
-            MotionEvent.ACTION_POINTER_UP | (1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT),
-            end));
-    count += 1;
-    inject(
-        automation,
-        motionEvent(downTime, eventTime + 8, MotionEvent.ACTION_UP, end.firstOnly()));
-    count += 1;
-    return count;
+      int frameCount =
+          Math.max(3, Math.round(spec.durationMs / (float) MOVE_FRAME_INTERVAL_MS));
+      for (int index = 1; index < frameCount; index += 1) {
+        double t = (double) index / (double) frameCount;
+        PointerPair frame = pointerPairAt(spec, t);
+        eventTime = downTime + Math.round(spec.durationMs * t);
+        inject(automation, motionEvent(downTime, eventTime, MotionEvent.ACTION_MOVE, frame), false);
+        count += 1;
+        activePointers = frame;
+      }
+
+      eventTime = downTime + spec.durationMs;
+      inject(
+          automation,
+          motionEvent(
+              downTime,
+              eventTime,
+              MotionEvent.ACTION_POINTER_UP | (1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT),
+              end),
+          true);
+      count += 1;
+      activePointers = end.firstOnly();
+      inject(
+          automation,
+          motionEvent(downTime, eventTime + 8, MotionEvent.ACTION_UP, activePointers),
+          true);
+      count += 1;
+      return count;
+    } catch (RuntimeException error) {
+      if (count > 0) {
+        injectCancel(automation, downTime, eventTime + 16, activePointers);
+      }
+      throw error;
+    }
   }
 
-  private static void inject(UiAutomation automation, MotionEvent event) {
+  private static void inject(UiAutomation automation, MotionEvent event, boolean waitForDispatch) {
     try {
-      if (!automation.injectInputEvent(event, true)) {
+      if (!automation.injectInputEvent(event, waitForDispatch)) {
         throw new IllegalStateException("injectInputEvent returned false");
       }
     } finally {
       event.recycle();
+    }
+  }
+
+  private static void injectCancel(
+      UiAutomation automation, long downTime, long eventTime, PointerPair pair) {
+    try {
+      inject(automation, motionEvent(downTime, eventTime, MotionEvent.ACTION_CANCEL, pair), true);
+    } catch (RuntimeException ignored) {
+      // Best-effort cleanup; preserve the original injection failure.
     }
   }
 

@@ -59,9 +59,11 @@ test('parseAndroidMultiTouchHelperOutput returns final instrumentation gesture m
 
 test('runAndroidMultiTouchHelperGesture encodes protocol payload for instrumentation', async () => {
   let capturedArgs: string[] | undefined;
+  let capturedOptions: Parameters<AndroidAdbExecutor>[1];
   const result = await runAndroidMultiTouchHelperGesture({
-    adb: async (args) => {
+    adb: async (args, options) => {
       capturedArgs = args;
+      capturedOptions = options;
       return {
         exitCode: 0,
         stdout: [resultRecord({ ok: 'true', kind: 'rotate' }), 'INSTRUMENTATION_CODE: 0'].join(
@@ -96,6 +98,41 @@ test('runAndroidMultiTouchHelperGesture encodes protocol payload for instrumenta
     durationMs: 250,
   });
   assert.equal(capturedArgs.at(-1), manifest.instrumentationRunner);
+  assert.equal(capturedOptions?.timeoutMs, 45_000);
+});
+
+test('parseAndroidMultiTouchHelperOutput distinguishes missing final results', () => {
+  assert.throws(() => parseAndroidMultiTouchHelperOutput('INSTRUMENTATION_CODE: 0'), {
+    code: 'ANDROID_MULTITOUCH_HELPER_NO_FINAL_RESULT',
+    message: 'Android multi-touch helper did not return a final result',
+  });
+});
+
+test('runAndroidMultiTouchHelperGesture preserves helper failure messages', async () => {
+  await assert.rejects(
+    () =>
+      runAndroidMultiTouchHelperGesture({
+        adb: async () => ({
+          exitCode: 1,
+          stdout: [
+            resultRecord({
+              ok: 'false',
+              errorType: 'java.lang.IllegalStateException',
+              message: 'injectInputEvent returned false',
+            }),
+            'INSTRUMENTATION_CODE: 1',
+          ].join('\n'),
+          stderr: '',
+        }),
+        request: { kind: 'pinch', x: 100, y: 200, scale: 1.5, radius: 120, durationMs: 250 },
+        packageName: manifest.packageName,
+        instrumentationRunner: manifest.instrumentationRunner,
+      }),
+    {
+      code: 'COMMAND_FAILED',
+      message: 'injectInputEvent returned false',
+    },
+  );
 });
 
 test('pinchAndroid, rotateGestureAndroid, and transformGestureAndroid prefer provider-native touch injection', async () => {

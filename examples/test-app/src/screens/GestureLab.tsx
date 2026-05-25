@@ -69,7 +69,7 @@ export function GestureLab() {
 
   function beginTransformGesture(handlerTag: number) {
     const activeHandlerTags = activeTransformHandlerTagsRef.current;
-    if (!activeHandlerTags.has(handlerTag) && activeHandlerTags.size === 0) {
+    if (activeHandlerTags.size === 0) {
       gestureStartRef.current = transformRef.current;
     }
     activeHandlerTags.add(handlerTag);
