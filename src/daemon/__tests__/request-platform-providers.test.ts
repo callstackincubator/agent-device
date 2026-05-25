@@ -6,11 +6,21 @@ import {
   makeAndroidSession,
   makeIosSession,
 } from '../../__tests__/test-utils/index.ts';
+import { withTargetDeviceResolutionScope } from '../../core/dispatch-resolve.ts';
 import { createLocalAppleToolProvider, runXcrun } from '../../platforms/ios/tool-provider.ts';
+import type { DeviceInfo } from '../../utils/device.ts';
 import { startAppLog } from '../app-log.ts';
 import { resolveRecordingProvider } from '../recording-provider.ts';
 import { withRequestPlatformProviderScope } from '../request-platform-providers.ts';
 import type { DaemonRequest } from '../types.ts';
+
+const OTHER_IOS_SIMULATOR: DeviceInfo = {
+  platform: 'ios',
+  id: 'sim-2',
+  name: 'iPhone 17',
+  kind: 'simulator',
+  booted: true,
+};
 
 test('request platform provider scope exposes Android executor for Android sessions', async () => {
   const calls: string[][] = [];
@@ -177,6 +187,44 @@ test('request platform provider scope applies Apple tool provider only for Apple
 
   assert.equal(result.stdout, 'simctl-ok');
   assert.deepEqual(calls, [['list', 'devices', '-j']]);
+});
+
+test('request platform provider scope follows explicit apps selector for existing sessions', async () => {
+  const seenDevices: string[] = [];
+
+  const result = await withTargetDeviceResolutionScope(
+    async () => [OTHER_IOS_SIMULATOR],
+    async () =>
+      await withRequestPlatformProviderScope(
+        {
+          req: {
+            ...request('apps'),
+            flags: {
+              platform: 'ios',
+              device: 'iPhone 17',
+            },
+          },
+          existingSession: makeIosSession('default'),
+          providers: {
+            appleToolProvider: ({ device, session }) => {
+              seenDevices.push(`${session?.name}:${device.id}`);
+              return createLocalAppleToolProvider({
+                runCommand: async (cmd, args) => {
+                  throw new Error(`unexpected generic command: ${cmd} ${args.join(' ')}`);
+                },
+                simctl: {
+                  run: async () => ({ exitCode: 0, stdout: 'apps-ok', stderr: '' }),
+                },
+              });
+            },
+          },
+        },
+        async () => await runXcrun(['simctl', 'listapps', OTHER_IOS_SIMULATOR.id]),
+      ),
+  );
+
+  assert.equal(result.stdout, 'apps-ok');
+  assert.deepEqual(seenDevices, [`default:${OTHER_IOS_SIMULATOR.id}`]);
 });
 
 test('request platform provider scopes stay isolated across concurrent requests', async () => {

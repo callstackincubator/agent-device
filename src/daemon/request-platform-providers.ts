@@ -270,7 +270,11 @@ async function resolveScopedProviderDevice(
   req: DaemonRequest,
   existingSession: SessionState | undefined,
 ): Promise<DeviceInfo | undefined> {
-  if (existingSession) return existingSession.device;
+  if (existingSession) {
+    return req.command === PUBLIC_COMMANDS.apps && hasExplicitDeviceSelector(req.flags)
+      ? await resolveTargetDevice(req.flags ?? {})
+      : existingSession.device;
+  }
   if (
     req.command !== PUBLIC_COMMANDS.open &&
     !hasExplicitDeviceSelector(req.flags) &&

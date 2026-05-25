@@ -1,6 +1,7 @@
 import { AppError } from '../utils/errors.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionState, DaemonRequest } from './types.ts';
+import { PUBLIC_COMMANDS } from '../command-catalog.ts';
 import {
   formatSessionSelectorConflict,
   listSessionSelectorConflicts,
@@ -20,6 +21,11 @@ const LOCKABLE_SELECTOR_KEYS: Array<keyof CommandFlags> = [
   'androidDeviceAllowlist',
 ];
 
+const SELECTOR_OVERRIDE_LOCK_POLICY_COMMANDS: ReadonlySet<string> = new Set([
+  PUBLIC_COMMANDS.apps,
+  PUBLIC_COMMANDS.devices,
+]);
+
 export function applyRequestLockPolicy(
   req: DaemonRequest,
   existingSession?: SessionState,
@@ -30,13 +36,22 @@ export function applyRequestLockPolicy(
   }
 
   const nextFlags: CommandFlags = { ...(req.flags ?? {}) };
-  const conflicts = existingSession
-    ? listSessionSelectorConflicts(existingSession, nextFlags)
-    : listFreshSessionConflicts(nextFlags, req.meta?.lockPlatform, req.command);
+  const allowsSelectorOverride = SELECTOR_OVERRIDE_LOCK_POLICY_COMMANDS.has(req.command);
+  const conflicts = allowsSelectorOverride
+    ? []
+    : existingSession
+      ? listSessionSelectorConflicts(existingSession, nextFlags)
+      : listFreshSessionConflicts(nextFlags, req.meta?.lockPlatform, req.command);
+  const lockPlatform = req.meta?.lockPlatform;
+  const shouldApplyLockPlatformDefault =
+    !existingSession &&
+    nextFlags.platform === undefined &&
+    (!allowsSelectorOverride ||
+      (nextFlags.serial === undefined && nextFlags.androidDeviceAllowlist === undefined));
 
   if (conflicts.length === 0) {
-    if (!existingSession && req.meta?.lockPlatform && nextFlags.platform === undefined) {
-      nextFlags.platform = req.meta.lockPlatform;
+    if (lockPlatform && shouldApplyLockPlatformDefault) {
+      nextFlags.platform = lockPlatform;
     }
     return {
       ...req,
