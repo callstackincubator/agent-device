@@ -36,23 +36,17 @@ export function applyRequestLockPolicy(
   }
 
   const nextFlags: CommandFlags = { ...(req.flags ?? {}) };
-  const allowsSelectorOverride = SELECTOR_OVERRIDE_LOCK_POLICY_COMMANDS.has(req.command);
-  const conflicts = listLockPolicyConflicts(
-    req,
-    existingSession,
-    nextFlags,
-    allowsSelectorOverride,
-  );
+  const canOverrideSelector = SELECTOR_OVERRIDE_LOCK_POLICY_COMMANDS.has(req.command);
+  const conflicts = canOverrideSelector
+    ? []
+    : existingSession
+      ? listSessionSelectorConflicts(existingSession, nextFlags)
+      : listFreshSessionConflicts(nextFlags, req.meta?.lockPlatform, req.command);
   const lockPlatform = req.meta?.lockPlatform;
 
   if (conflicts.length === 0) {
     if (
-      shouldApplyLockPlatformDefault(
-        allowsSelectorOverride,
-        existingSession,
-        nextFlags,
-        lockPlatform,
-      )
+      shouldApplyLockPlatformDefault(canOverrideSelector, existingSession, nextFlags, lockPlatform)
     ) {
       nextFlags.platform = lockPlatform;
     }
@@ -77,20 +71,8 @@ export function applyRequestLockPolicy(
   );
 }
 
-function listLockPolicyConflicts(
-  req: DaemonRequest,
-  existingSession: SessionState | undefined,
-  flags: CommandFlags,
-  allowsSelectorOverride: boolean,
-): SessionSelectorConflict[] {
-  if (allowsSelectorOverride) return [];
-  return existingSession
-    ? listSessionSelectorConflicts(existingSession, flags)
-    : listFreshSessionConflicts(flags, req.meta?.lockPlatform, req.command);
-}
-
 function shouldApplyLockPlatformDefault(
-  allowsSelectorOverride: boolean,
+  canOverrideSelector: boolean,
   existingSession: SessionState | undefined,
   flags: CommandFlags,
   lockPlatform: LockPlatform,
@@ -98,7 +80,7 @@ function shouldApplyLockPlatformDefault(
   if (!lockPlatform || existingSession || flags.platform !== undefined) {
     return false;
   }
-  if (!allowsSelectorOverride) {
+  if (!canOverrideSelector) {
     return true;
   }
   return flags.serial === undefined && flags.androidDeviceAllowlist === undefined;

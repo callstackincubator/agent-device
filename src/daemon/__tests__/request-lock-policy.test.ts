@@ -146,18 +146,7 @@ test.each([
       IOS_SESSION,
     );
 
-    assert.deepEqual(
-      {
-        platform: req.flags?.platform,
-        device: req.flags?.device,
-        serial: req.flags?.serial,
-      },
-      {
-        platform: expected.platform,
-        device: expected.device,
-        serial: expected.serial,
-      },
-    );
+    assert.deepEqual(selectedFlags(req), expected);
   },
 );
 
@@ -187,18 +176,7 @@ test.each([
       },
     });
 
-    assert.deepEqual(
-      {
-        platform: req.flags?.platform,
-        device: req.flags?.device,
-        serial: req.flags?.serial,
-      },
-      {
-        platform: expected.platform,
-        device: expected.device,
-        serial: expected.serial,
-      },
-    );
+    assert.deepEqual(selectedFlags(req), expected);
   },
 );
 
@@ -340,3 +318,15 @@ test('strips only conflicting selectors for existing sessions', () => {
   assert.equal(req.flags?.device, 'iPhone 16');
   assert.equal(req.flags?.serial, undefined);
 });
+
+function selectedFlags(req: ReturnType<typeof applyRequestLockPolicy>): {
+  platform: string | undefined;
+  device: string | undefined;
+  serial: string | undefined;
+} {
+  return {
+    platform: req.flags?.platform,
+    device: req.flags?.device,
+    serial: req.flags?.serial,
+  };
+}
