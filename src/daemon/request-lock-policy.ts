@@ -83,7 +83,7 @@ function shouldApplyLockPlatformDefault(
   if (!canOverrideSelector) {
     return true;
   }
-  return flags.serial === undefined && flags.androidDeviceAllowlist === undefined;
+  return !LOCKABLE_SELECTOR_KEYS.some((key) => hasSelectorValue(flags[key]));
 }
 
 function applyStripLockPolicy(
@@ -119,11 +119,15 @@ function listFreshSessionConflicts(
   }
   for (const key of LOCKABLE_SELECTOR_KEYS) {
     const value = flags[key];
-    if (typeof value === 'string' && value.trim().length > 0) {
+    if (hasSelectorValue(value)) {
       conflicts.push({ key: key as SessionSelectorConflictKey, value });
     }
   }
   return conflicts;
+}
+
+function hasSelectorValue(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function platformSelectorsConflict(

@@ -154,7 +154,7 @@ test.each([
   {
     command: 'apps',
     flags: { device: 'iPhone 17' },
-    expected: { platform: 'ios', device: 'iPhone 17', serial: undefined },
+    expected: { platform: undefined, device: 'iPhone 17', serial: undefined },
   },
   {
     command: 'devices',
@@ -179,6 +179,41 @@ test.each([
     assert.deepEqual(selectedFlags(req), expected);
   },
 );
+
+test('allows inventory commands to use explicit Apple selectors under another lock platform', () => {
+  const req = applyRequestLockPolicy({
+    token: 'token',
+    session: 'qa-android',
+    command: 'apps',
+    positionals: [],
+    flags: {
+      udid: 'SIM-001',
+    },
+    meta: {
+      lockPolicy: 'reject',
+      lockPlatform: 'android',
+    },
+  });
+
+  assert.equal(req.flags?.platform, undefined);
+  assert.equal(req.flags?.udid, 'SIM-001');
+});
+
+test('defaults inventory commands without explicit selectors to the lock platform', () => {
+  const req = applyRequestLockPolicy({
+    token: 'token',
+    session: 'qa-ios',
+    command: 'apps',
+    positionals: [],
+    flags: {},
+    meta: {
+      lockPolicy: 'reject',
+      lockPlatform: 'ios',
+    },
+  });
+
+  assert.equal(req.flags?.platform, 'ios');
+});
 
 test('allows matching redundant selectors for existing sessions', () => {
   const req = applyRequestLockPolicy(
