@@ -12,12 +12,6 @@ import { isApplePlatform, normalizePlatformSelector } from '../utils/device.ts';
 
 type LockPlatform = NonNullable<DaemonRequest['meta']>['lockPlatform'];
 
-type LockPolicyContext = {
-  allowsSelectorOverride: boolean;
-  conflicts: SessionSelectorConflict[];
-  lockPlatform: LockPlatform;
-};
-
 const LOCKABLE_SELECTOR_KEYS: Array<keyof CommandFlags> = [
   'target',
   'device',
@@ -42,11 +36,25 @@ export function applyRequestLockPolicy(
   }
 
   const nextFlags: CommandFlags = { ...(req.flags ?? {}) };
-  const context = resolveLockPolicyContext(req, existingSession, nextFlags);
+  const allowsSelectorOverride = SELECTOR_OVERRIDE_LOCK_POLICY_COMMANDS.has(req.command);
+  const conflicts = listLockPolicyConflicts(
+    req,
+    existingSession,
+    nextFlags,
+    allowsSelectorOverride,
+  );
+  const lockPlatform = req.meta?.lockPlatform;
 
-  if (context.conflicts.length === 0) {
-    if (shouldApplyLockPlatformDefault(context, existingSession, nextFlags)) {
-      nextFlags.platform = context.lockPlatform;
+  if (conflicts.length === 0) {
+    if (
+      shouldApplyLockPlatformDefault(
+        allowsSelectorOverride,
+        existingSession,
+        nextFlags,
+        lockPlatform,
+      )
+    ) {
+      nextFlags.platform = lockPlatform;
     }
     return {
       ...req,
@@ -55,7 +63,7 @@ export function applyRequestLockPolicy(
   }
 
   if (lockPolicy === 'strip') {
-    applyStripLockPolicy(nextFlags, context, existingSession);
+    applyStripLockPolicy(nextFlags, conflicts, lockPlatform, existingSession);
     return {
       ...req,
       flags: nextFlags,
@@ -64,22 +72,9 @@ export function applyRequestLockPolicy(
 
   throw new AppError(
     'INVALID_ARGS',
-    `${req.command} cannot override session lock policy with ${context.conflicts.map(formatSessionSelectorConflict).join(', ')}. ` +
+    `${req.command} cannot override session lock policy with ${conflicts.map(formatSessionSelectorConflict).join(', ')}. ` +
       'Unset those selectors or remove the request lock policy.',
   );
-}
-
-function resolveLockPolicyContext(
-  req: DaemonRequest,
-  existingSession: SessionState | undefined,
-  flags: CommandFlags,
-): LockPolicyContext {
-  const allowsSelectorOverride = SELECTOR_OVERRIDE_LOCK_POLICY_COMMANDS.has(req.command);
-  return {
-    allowsSelectorOverride,
-    conflicts: listLockPolicyConflicts(req, existingSession, flags, allowsSelectorOverride),
-    lockPlatform: req.meta?.lockPlatform,
-  };
 }
 
 function listLockPolicyConflicts(
@@ -95,14 +90,15 @@ function listLockPolicyConflicts(
 }
 
 function shouldApplyLockPlatformDefault(
-  context: LockPolicyContext,
+  allowsSelectorOverride: boolean,
   existingSession: SessionState | undefined,
   flags: CommandFlags,
+  lockPlatform: LockPlatform,
 ): boolean {
-  if (!context.lockPlatform || existingSession || flags.platform !== undefined) {
+  if (!lockPlatform || existingSession || flags.platform !== undefined) {
     return false;
   }
-  if (!context.allowsSelectorOverride) {
+  if (!allowsSelectorOverride) {
     return true;
   }
   return flags.serial === undefined && flags.androidDeviceAllowlist === undefined;
@@ -110,15 +106,16 @@ function shouldApplyLockPlatformDefault(
 
 function applyStripLockPolicy(
   flags: CommandFlags,
-  context: LockPolicyContext,
+  conflicts: SessionSelectorConflict[],
+  lockPlatform: LockPlatform,
   existingSession: SessionState | undefined,
 ): void {
   if (existingSession) {
-    stripSessionConflicts(flags, context.conflicts);
+    stripSessionConflicts(flags, conflicts);
     flags.platform = existingSession.device.platform;
     return;
   }
-  stripFreshSessionConflicts(flags, context.lockPlatform);
+  stripFreshSessionConflicts(flags, lockPlatform);
 }
 
 function listFreshSessionConflicts(
