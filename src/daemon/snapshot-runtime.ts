@@ -1,8 +1,13 @@
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import type { AgentDeviceBackend, BackendSnapshotResult } from '../backend.ts';
 import type { CommandSessionRecord } from '../runtime.ts';
 import { createAgentDevice } from '../runtime.ts';
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
-import { AppError } from '../utils/errors.ts';
+import { dispatchCommand } from '../core/dispatch.ts';
+import { AppError, normalizeError } from '../utils/errors.ts';
+import { emitDiagnostic } from '../utils/diagnostics.ts';
 import type { SnapshotDiffSummary } from '../utils/snapshot-diff.ts';
 import type { DaemonRequest, DaemonResponse, DaemonResponseData, SessionState } from './types.ts';
 import { SessionStore } from './session-store.ts';
@@ -13,8 +18,10 @@ import {
   resolveSessionDevice,
   withSessionlessRunnerCleanup,
 } from './handlers/snapshot-session.ts';
+import { contextFromFlags } from './context.ts';
 import { createDaemonRuntimePolicy } from './runtime-policy.ts';
 import { createDaemonRuntimeSessionStore } from './runtime-session.ts';
+import { annotateScreenshotWithRefs } from './screenshot-overlay.ts';
 
 export async function dispatchSnapshotViaRuntime(params: {
   req: DaemonRequest;
@@ -125,12 +132,35 @@ async function dispatchSnapshotRuntimeCommand(
       device,
       snapshotScope: resolvedScope.scope,
     });
-    const result = await params.execute({
-      runtime,
-      sessionName,
-      req,
-      snapshotScope: resolvedScope.scope,
-    });
+    let result: Awaited<ReturnType<SnapshotRuntimeCommandParams['execute']>>;
+    try {
+      result = await params.execute({
+        runtime,
+        sessionName,
+        req,
+        snapshotScope: resolvedScope.scope,
+      });
+    } catch (error) {
+      const timeoutEvidence = await maybeCaptureAndroidSnapshotTimeoutEvidence({
+        error,
+        command: params.command,
+        logPath,
+        session,
+        device,
+      });
+      if (!timeoutEvidence) throw error;
+      const normalized = normalizeError(error);
+      return {
+        ok: false,
+        error: {
+          ...normalized,
+          details: {
+            ...(normalized.details ?? {}),
+            androidSnapshotTimeoutScreenshot: timeoutEvidence,
+          },
+        },
+      };
+    }
     recordSnapshotRuntimeAction({
       req,
       sessionName,
@@ -142,6 +172,125 @@ async function dispatchSnapshotRuntimeCommand(
       data: result.data,
     };
   });
+}
+
+async function maybeCaptureAndroidSnapshotTimeoutEvidence(params: {
+  error: unknown;
+  command: SnapshotRuntimeCommandParams['command'];
+  logPath: string;
+  session: SessionState | undefined;
+  device: SessionState['device'];
+}): Promise<Record<string, unknown> | undefined> {
+  if (params.command !== 'snapshot') return undefined;
+  if (params.device.platform !== 'android') return undefined;
+  if (!isAndroidSnapshotTimeoutError(params.error)) return undefined;
+
+  try {
+    const tempDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'agent-device-android-snapshot-timeout-'),
+    );
+    const screenshotPath = path.join(tempDir, 'snapshot-timeout-overlay-refs.png');
+    const data = await dispatchCommand(params.device, 'screenshot', [screenshotPath], undefined, {
+      ...contextFromFlags(
+        params.logPath,
+        { screenshotNoStabilize: true },
+        params.session?.appBundleId,
+        params.session?.trace?.outPath,
+      ),
+      surface: params.session?.surface,
+    });
+    const resolvedPath =
+      typeof data === 'object' &&
+      data !== null &&
+      typeof (data as Record<string, unknown>).path === 'string'
+        ? ((data as Record<string, unknown>).path as string)
+        : screenshotPath;
+    const evidence: Record<string, unknown> = {
+      path: resolvedPath,
+      overlayRefsRequested: true,
+      overlayRefsAnnotated: false,
+    };
+
+    if (params.session?.snapshot) {
+      try {
+        const overlayRefs = await annotateScreenshotWithRefs({
+          screenshotPath: resolvedPath,
+          snapshot: params.session.snapshot,
+        });
+        evidence.overlayRefsAnnotated = overlayRefs.length > 0;
+        evidence.overlayRefCount = overlayRefs.length;
+        evidence.overlayRefSource = 'session-snapshot';
+        evidence.overlayRefs = overlayRefs;
+      } catch (error) {
+        const normalized = normalizeError(error);
+        evidence.overlayAnnotationError = normalized.message;
+        emitDiagnostic({
+          level: 'warn',
+          phase: 'android_snapshot_timeout_screenshot_overlay_failed',
+          data: { path: resolvedPath, error: normalized.message },
+        });
+      }
+    } else {
+      evidence.overlayRefSource = 'unavailable';
+      evidence.overlayRefCount = 0;
+    }
+
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'android_snapshot_timeout_screenshot_captured',
+      data: {
+        path: resolvedPath,
+        overlayRefCount: evidence.overlayRefCount,
+        overlayRefsAnnotated: evidence.overlayRefsAnnotated,
+      },
+    });
+    return evidence;
+  } catch (error) {
+    const normalized = normalizeError(error);
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'android_snapshot_timeout_screenshot_failed',
+      data: { error: normalized.message },
+    });
+    return {
+      captureFailed: true,
+      error: normalized.message,
+    };
+  }
+}
+
+function isAndroidSnapshotTimeoutError(error: unknown): boolean {
+  const normalized = normalizeError(error);
+  if (normalized.code !== 'COMMAND_FAILED') return false;
+
+  const text = `${normalized.message}\n${normalized.hint ?? ''}`;
+  if (/Android UI hierarchy dump timed out/i.test(text)) return true;
+  if (/Stock UIAutomator fallback was skipped/i.test(text)) return true;
+  if (/Android accessibility snapshots can be blocked/i.test(text)) return true;
+
+  const details = normalized.details;
+  const helper = details?.helper;
+  if (helper && typeof helper === 'object') {
+    const helperRecord = helper as Record<string, unknown>;
+    const errorType = String(helperRecord.errorType ?? '');
+    const message = String(helperRecord.message ?? '');
+    if (/TimeoutException/i.test(errorType) || /timed out/i.test(message)) return true;
+  }
+
+  const timeoutMs = details?.timeoutMs;
+  const cmd = details?.cmd;
+  const rawArgs = details?.args;
+  const args = Array.isArray(rawArgs)
+    ? rawArgs.map(String)
+    : typeof rawArgs === 'string'
+      ? rawArgs.split(/\s+/)
+      : [];
+  return (
+    typeof timeoutMs === 'number' &&
+    cmd === 'adb' &&
+    args.includes('uiautomator') &&
+    args.includes('dump')
+  );
 }
 
 function createSnapshotRuntime(params: {

@@ -2,6 +2,7 @@ import { test, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { PNG } from 'pngjs';
 import { handleSnapshotCommands } from '../snapshot.ts';
 import { captureSnapshot } from '../snapshot-capture.ts';
 import { SessionStore } from '../../session-store.ts';
@@ -79,6 +80,17 @@ beforeEach(() => {
   mockRunnerCommand.mockReset();
   mockRunnerCommand.mockResolvedValue({});
 });
+
+function writeSolidPng(filePath: string, width = 390, height = 844): void {
+  const png = new PNG({ width, height });
+  for (let index = 0; index < png.data.length; index += 4) {
+    png.data[index] = 255;
+    png.data[index + 1] = 255;
+    png.data[index + 2] = 255;
+    png.data[index + 3] = 255;
+  }
+  fs.writeFileSync(filePath, PNG.sync.write(png));
+}
 
 async function runWaitCommand(
   sessionName: string,
@@ -266,6 +278,80 @@ test('snapshot surfaces filtered-to-zero Android guidance for interactive snapsh
       'Interactive output is empty at depth 3; retry without -d.',
     ]);
   }
+});
+
+test('snapshot timeout captures Android screenshot evidence with overlay refs', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-timeout-evidence';
+  const session = makeSession(sessionName, androidDevice);
+  session.snapshot = {
+    nodes: [
+      {
+        ref: 'e1',
+        index: 0,
+        depth: 0,
+        type: 'android.widget.Button',
+        label: 'Continue',
+        hittable: true,
+        rect: { x: 20, y: 40, width: 120, height: 48 },
+      },
+    ],
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockImplementation(async (_device, command, positionals, _out, context) => {
+    if (command === 'snapshot') {
+      throw new AppError(
+        'COMMAND_FAILED',
+        'Android UI hierarchy dump timed out while waiting for the UI to become idle.',
+        {
+          cmd: 'adb',
+          args: ['exec-out', 'uiautomator', 'dump', '/dev/tty'],
+          timeoutMs: 8000,
+          hint: 'Android accessibility snapshots can be blocked by busy or continuously changing app UI. Use screenshot as visual truth after this timeout.',
+        },
+      );
+    }
+    if (command === 'screenshot') {
+      const screenshotPath = positionals[0];
+      expect(context?.screenshotNoStabilize).toBe(true);
+      writeSolidPng(screenshotPath);
+      return { path: screenshotPath };
+    }
+    return {};
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'snapshot',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(false);
+  if (response && !response.ok) {
+    expect(response.error.message).toMatch(/UI hierarchy dump timed out/i);
+    expect(response.error.hint).toMatch(/Use screenshot as visual truth/i);
+    const evidence = response.error.details?.androidSnapshotTimeoutScreenshot as
+      | Record<string, unknown>
+      | undefined;
+    expect(evidence?.path).toEqual(expect.stringContaining('snapshot-timeout-overlay-refs.png'));
+    expect(fs.existsSync(evidence?.path as string)).toBe(true);
+    expect(evidence?.overlayRefsAnnotated).toBe(true);
+    expect(evidence?.overlayRefCount).toBe(1);
+    expect(evidence?.overlayRefs).toEqual([
+      expect.objectContaining({ ref: 'e1', label: 'Continue' }),
+    ]);
+  }
+  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['snapshot', 'screenshot']);
 });
 
 test('snapshot warns when recent snapshot node count collapses sharply', async () => {
