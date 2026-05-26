@@ -8,17 +8,14 @@ import { SessionStore } from '../session-store.ts';
 import { type ReplayScriptMetadata, writeReplayScript } from '../../replay/script.ts';
 import { healReplayAction } from './session-replay-heal.ts';
 import { formatScriptActionSummary } from '../../replay/script-utils.ts';
-import { mergeParentFlags } from './handler-utils.ts';
 import { errorResponse } from './response.ts';
-import { invokeMaestroRuntimeCommand } from './session-replay-maestro-runtime.ts';
+import { invokeReplayAction } from './session-replay-action-runtime.ts';
 import {
   buildReplayVarScope,
   collectReplayShellEnv,
   parseReplayCliEnvEntries,
   readReplayCliEnvEntries,
   readReplayShellEnvSource,
-  resolveReplayAction,
-  type ReplayVarScope,
 } from '../../replay/vars.ts';
 
 // fallow-ignore-next-line complexity
@@ -158,87 +155,6 @@ export async function runReplayScriptFile(params: {
   }
 }
 
-async function invokeReplayAction(params: {
-  req: DaemonRequest;
-  sessionName: string;
-  action: SessionAction;
-  scope: ReplayVarScope;
-  filePath: string;
-  line: number;
-  step: number;
-  tracePath?: string;
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
-}): Promise<DaemonResponse> {
-  const { req, sessionName, action, scope, filePath, line, step, tracePath, invoke } = params;
-  const resolved = resolveReplayAction(action, scope, { file: filePath, line });
-  const startedAt = Date.now();
-  appendReplayTraceEvent(tracePath, {
-    type: 'replay_action_start',
-    ts: new Date(startedAt).toISOString(),
-    replayPath: filePath,
-    line,
-    step,
-    command: resolved.command,
-    positionals: resolved.positionals ?? [],
-  });
-  const flags = buildReplayActionFlags(req.flags, resolved.flags);
-  const baseReq = {
-    token: req.token,
-    session: sessionName,
-    flags,
-    runtime: resolved.runtime,
-    meta: req.meta,
-  };
-  const response =
-    (await invokeMaestroRuntimeCommand({
-      command: resolved.command,
-      baseReq,
-      positionals: resolved.positionals ?? [],
-      batchSteps: resolved.flags?.batchSteps,
-      line,
-      step,
-      invoke,
-      invokeReplayAction: async (nested) =>
-        await invokeReplayAction({
-          req,
-          sessionName,
-          action: nested.action,
-          scope,
-          filePath,
-          line: nested.line,
-          step: nested.step,
-          tracePath,
-          invoke,
-        }),
-    })) ??
-    (await invoke({
-      ...baseReq,
-      command: resolved.command,
-      positionals: resolved.positionals ?? [],
-    }));
-  const finishedAt = Date.now();
-  appendReplayTraceEvent(tracePath, {
-    type: 'replay_action_stop',
-    ts: new Date(finishedAt).toISOString(),
-    replayPath: filePath,
-    line,
-    step,
-    command: resolved.command,
-    ok: response.ok,
-    durationMs: finishedAt - startedAt,
-    errorCode: response.ok ? undefined : response.error.code,
-  });
-  return response;
-}
-
-function appendReplayTraceEvent(
-  tracePath: string | undefined,
-  event: Record<string, unknown>,
-): void {
-  if (!tracePath) return;
-  fs.appendFileSync(tracePath, `${JSON.stringify(event)}\n`);
-}
-
 // fallow-ignore-next-line complexity
 function buildReplayBuiltinVars(params: {
   req: DaemonRequest;
@@ -340,29 +256,21 @@ function isReplayArtifactPath(candidate: string): boolean {
   }
 }
 
-export function buildReplayActionFlags(
-  parentFlags: CommandFlags | undefined,
-  actionFlags: SessionAction['flags'] | undefined,
-): CommandFlags {
-  return mergeParentFlags(parentFlags, { ...(actionFlags ?? {}) });
-}
-
 // fallow-ignore-next-line complexity
 function actionsContainInterpolation(actions: SessionAction[]): boolean {
   for (const action of actions) {
     for (const positional of action.positionals ?? []) {
       if (typeof positional === 'string' && positional.includes('${')) return true;
     }
-    if (action.flags) {
-      for (const value of Object.values(action.flags)) {
-        if (typeof value === 'string' && value.includes('${')) return true;
-      }
-    }
-    if (action.runtime) {
-      for (const value of Object.values(action.runtime)) {
-        if (typeof value === 'string' && value.includes('${')) return true;
-      }
-    }
+    if (containsInterpolation(action.flags)) return true;
+    if (containsInterpolation(action.runtime)) return true;
   }
+  return false;
+}
+
+function containsInterpolation(value: unknown): boolean {
+  if (typeof value === 'string') return value.includes('${');
+  if (Array.isArray(value)) return value.some(containsInterpolation);
+  if (value && typeof value === 'object') return Object.values(value).some(containsInterpolation);
   return false;
 }

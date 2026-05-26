@@ -44,7 +44,7 @@ export type SystemRotateCommandResult = {
 };
 
 export type SystemKeyboardCommandOptions = CommandContext & {
-  action?: 'status' | 'get' | 'dismiss';
+  action?: 'status' | 'get' | 'dismiss' | 'enter' | 'return';
 };
 
 export type SystemKeyboardCommandResult =
@@ -57,6 +57,13 @@ export type SystemKeyboardCommandResult =
   | {
       kind: 'keyboardDismissed';
       action: 'dismiss';
+      state: BackendKeyboardResult;
+      backendResult?: Record<string, unknown>;
+      message?: string;
+    }
+  | {
+      kind: 'keyboardEnterPressed';
+      action: 'enter';
       state: BackendKeyboardResult;
       backendResult?: Record<string, unknown>;
       message?: string;
@@ -200,11 +207,29 @@ export const keyboardCommand: RuntimeCommand<
     throw new AppError('UNSUPPORTED_OPERATION', 'system.keyboard is not supported by this backend');
   }
   const action = options.action ?? 'status';
-  if (action !== 'status' && action !== 'get' && action !== 'dismiss') {
-    throw new AppError('INVALID_ARGS', 'system.keyboard action must be status, get, or dismiss');
+  if (
+    action !== 'status' &&
+    action !== 'get' &&
+    action !== 'dismiss' &&
+    action !== 'enter' &&
+    action !== 'return'
+  ) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'system.keyboard action must be status, get, dismiss, enter, or return',
+    );
   }
   const state = await runtime.backend.setKeyboard(toBackendContext(runtime, options), { action });
   const formattedBackendResult = toBackendResult(state);
+  if (action === 'enter' || action === 'return') {
+    return {
+      kind: 'keyboardEnterPressed',
+      action: 'enter',
+      state: isKeyboardResult(state) ? state : {},
+      ...(formattedBackendResult ? { backendResult: formattedBackendResult } : {}),
+      ...successText('Keyboard enter pressed'),
+    };
+  }
   if (action === 'dismiss') {
     const dismissed = isKeyboardResult(state) ? state.dismissed : undefined;
     return {

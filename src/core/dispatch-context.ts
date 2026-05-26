@@ -10,13 +10,18 @@ export type BatchStep = {
   runtime?: unknown;
 };
 
+export type MaestroRuntimeFlags = {
+  allowNonHittableSelectorTap?: boolean;
+  clearState?: boolean;
+  optional?: boolean;
+  runScriptEnv?: Record<string, string>;
+};
+
 export type CommandFlags = Omit<CliFlags, DaemonExcludedCliFlag> & {
   batchSteps?: BatchStep[];
   launchArgs?: string[];
+  maestro?: MaestroRuntimeFlags;
   replayBackend?: string;
-  allowNonHittableSelectorTap?: boolean;
-  maestroOptional?: boolean;
-  maestroClearState?: boolean;
 };
 
 export type DispatchContext = ScreenshotDispatchFlags & {
@@ -25,7 +30,7 @@ export type DispatchContext = ScreenshotDispatchFlags & {
   activity?: string;
   launchConsole?: string;
   launchArgs?: string[];
-  maestroClearState?: boolean;
+  clearAppState?: boolean;
   verbose?: boolean;
   logPath?: string;
   traceLogPath?: string;
@@ -46,7 +51,6 @@ export type DispatchContext = ScreenshotDispatchFlags & {
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
   surface?: SessionSurface;
-  allowNonHittableSelectorTap?: boolean;
   directElementSelector?: {
     key: 'id' | 'label' | 'text' | 'value';
     value: string;

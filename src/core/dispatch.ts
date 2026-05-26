@@ -6,6 +6,7 @@ import {
   dismissAndroidKeyboard,
   getAndroidKeyboardState,
 } from '../platforms/android/device-input-state.ts';
+import { pressAndroidEnter } from '../platforms/android/input-actions.ts';
 import { pushAndroidNotification } from '../platforms/android/notifications.ts';
 import { getInteractor } from './interactors.ts';
 import type { Interactor, RunnerContext } from './interactor-types.ts';
@@ -231,7 +232,7 @@ async function handleOpenCommand(
       'Launch arguments are currently supported only on Apple platforms.',
     );
   }
-  if (context?.maestroClearState) {
+  if (context?.clearAppState) {
     if (isDeepLinkTarget(app)) {
       throw new AppError(
         'INVALID_ARGS',
@@ -289,13 +290,30 @@ async function handleKeyboardCommand(
   runnerCtx: RunnerContext,
 ): Promise<Record<string, unknown>> {
   const action = (positionals[0] ?? 'status').toLowerCase();
-  if (action !== 'status' && action !== 'get' && action !== 'dismiss') {
-    throw new AppError('INVALID_ARGS', 'keyboard requires a subcommand: status, get, or dismiss');
+  if (
+    action !== 'status' &&
+    action !== 'get' &&
+    action !== 'dismiss' &&
+    action !== 'enter' &&
+    action !== 'return'
+  ) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'keyboard requires a subcommand: status, get, dismiss, enter, or return',
+    );
   }
   if (positionals.length > 1) {
     throw new AppError('INVALID_ARGS', 'keyboard accepts at most one subcommand argument');
   }
   if (device.platform === 'android') {
+    if (action === 'enter' || action === 'return') {
+      await pressAndroidEnter(device);
+      return {
+        platform: 'android',
+        action: 'enter',
+        ...successText('Keyboard enter pressed'),
+      };
+    }
     if (action === 'dismiss') {
       const result = await dismissAndroidKeyboard(device);
       return {
@@ -327,11 +345,25 @@ async function handleKeyboardCommand(
     };
   }
   if (device.platform === 'ios') {
-    if (action !== 'dismiss') {
+    if (action !== 'dismiss' && action !== 'enter' && action !== 'return') {
       throw new AppError(
         'UNSUPPORTED_OPERATION',
-        'keyboard status/get is currently supported only on Android; use keyboard dismiss on iOS',
+        'keyboard status/get is currently supported only on Android; use keyboard dismiss or enter on iOS',
       );
+    }
+    if (action === 'enter' || action === 'return') {
+      const result = await runIosRunnerCommand(
+        device,
+        { command: 'keyboardReturn', appBundleId: context?.appBundleId },
+        runnerCtx,
+      );
+      return {
+        platform: 'ios',
+        action: 'enter',
+        visible: result.visible,
+        wasVisible: result.wasVisible,
+        ...successText('Keyboard enter pressed'),
+      };
     }
     const result = await runIosRunnerCommand(
       device,

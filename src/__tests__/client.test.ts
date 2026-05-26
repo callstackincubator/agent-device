@@ -253,6 +253,21 @@ test('replay.run keeps deprecated maestro option as backend alias', async () => 
   assert.equal(setup.calls[0]?.flags?.replayBackend, 'maestro');
 });
 
+test('replay.run forwards timeout budget', async () => {
+  const setup = createTransport(async () => ({ ok: true, data: {} }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await client.replay.run({
+    path: './flows/mod-lists.yaml',
+    backend: 'maestro',
+    timeoutMs: 240_000,
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'replay');
+  assert.equal(setup.calls[0]?.flags?.timeoutMs, 240_000);
+});
+
 test('client.command.wait prepares selector options and rejects invalid selectors', async () => {
   const setup = createTransport(async () => ({
     ok: true,

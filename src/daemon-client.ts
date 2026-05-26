@@ -117,7 +117,7 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
   const requestId = req.meta?.requestId ?? createRequestId();
   const debug = Boolean(req.meta?.debug || req.flags?.verbose);
   const settings = resolveClientSettings(req);
-  const requestTimeoutMs = req.command === 'test' ? undefined : REQUEST_TIMEOUT_MS;
+  const requestTimeoutMs = resolveDaemonRequestTimeoutMs(req);
   const info = await withDiagnosticTimer(
     'daemon_startup',
     async () => await ensureDaemon(settings),
@@ -166,6 +166,14 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
     async () => await sendRequest(info, request, settings.transportPreference, requestTimeoutMs),
     { requestId, command: req.command },
   );
+}
+
+function resolveDaemonRequestTimeoutMs(req: Omit<DaemonRequest, 'token'>): number | undefined {
+  if (req.command === 'test') return undefined;
+  if (req.command === 'replay' && typeof req.flags?.timeoutMs === 'number') {
+    return req.flags.timeoutMs;
+  }
+  return REQUEST_TIMEOUT_MS;
 }
 
 export async function openApp(options: OpenAppOptions = {}): Promise<DaemonResponse> {

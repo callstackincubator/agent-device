@@ -17,14 +17,18 @@ import {
 import { MAESTRO_RUNTIME_COMMAND } from './runtime-commands.ts';
 import type { MaestroParseContext } from './types.ts';
 
+type SwipeDirection = 'up' | 'down' | 'left' | 'right';
+
 export function convertTapOn(value: unknown, context: MaestroParseContext): SessionAction {
   if (typeof value === 'string') {
-    return action(MAESTRO_RUNTIME_COMMAND.tapOn, [
-      visibleTextSelector(resolveMaestroString(value, context)),
-    ]);
+    return action(
+      MAESTRO_RUNTIME_COMMAND.tapOn,
+      [visibleTextSelector(resolveMaestroString(value, context))],
+      maestroTapOnFlags(value),
+    );
   }
   if (isPlainRecord(value) && typeof value.point === 'string') {
-    assertOnlyKeys(value, 'tapOn', ['point', 'repeat', 'delay']);
+    assertOnlyKeys(value, 'tapOn', ['point', 'repeat', 'delay', 'optional', 'label']);
     const point = parseMaestroPoint(value.point);
     if (point.kind === 'percent') {
       return action(
@@ -39,7 +43,9 @@ export function convertTapOn(value: unknown, context: MaestroParseContext): Sess
     assertOnlyKeys(value, 'tapOn', [
       'id',
       'text',
+      'childOf',
       'enabled',
+      'index',
       'selected',
       'repeat',
       'delay',
@@ -47,10 +53,19 @@ export function convertTapOn(value: unknown, context: MaestroParseContext): Sess
       'label',
     ]);
   }
+  const flags = maestroTapOnFlags(value);
   return action(
     MAESTRO_RUNTIME_COMMAND.tapOn,
-    [maestroSelector(value, 'tapOn', ['repeat', 'delay', 'optional', 'label'], context)],
-    { ...tapFlags(value), allowNonHittableSelectorTap: true },
+    [
+      maestroSelector(
+        value,
+        'tapOn',
+        ['repeat', 'delay', 'optional', 'label', 'index', 'childOf'],
+        context,
+      ),
+      ...maestroTapOnRuntimeOptions(value, context),
+    ],
+    flags,
   );
 }
 
@@ -92,6 +107,26 @@ export function readInputText(value: unknown): string {
     throw new AppError('INVALID_ARGS', 'inputText map requires a string text field.');
   }
   return value.text;
+}
+
+export function convertEraseText(value: unknown): SessionAction {
+  if (value === null || value === undefined) return action('type', ['\b'.repeat(50)]);
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return action('type', ['\b'.repeat(value)]);
+  }
+  if (!isPlainRecord(value)) {
+    throw new AppError('INVALID_ARGS', 'eraseText expects empty, a positive count, or a map.');
+  }
+  assertOnlyKeys(value, 'eraseText', ['charactersToErase']);
+  if (value.charactersToErase === undefined) return action('type', ['\b'.repeat(50)]);
+  if (
+    typeof value.charactersToErase !== 'number' ||
+    !Number.isInteger(value.charactersToErase) ||
+    value.charactersToErase <= 0
+  ) {
+    throw new AppError('INVALID_ARGS', 'eraseText.charactersToErase must be a positive integer.');
+  }
+  return action('type', ['\b'.repeat(value.charactersToErase)]);
 }
 
 export function convertExtendedWaitUntil(
@@ -147,11 +182,22 @@ export function convertScrollUntilVisible(
   return [action(MAESTRO_RUNTIME_COMMAND.scrollUntilVisible, [selector, timeoutMs, direction])];
 }
 
-export function convertSwipe(value: unknown): SessionAction {
+export function convertSwipe(value: unknown, context: MaestroParseContext): SessionAction {
   if (!isPlainRecord(value)) {
     throw new AppError('INVALID_ARGS', 'swipe expects a map.');
   }
-  assertOnlyKeys(value, 'swipe', ['start', 'end', 'direction', 'duration']);
+  assertOnlyKeys(value, 'swipe', ['start', 'end', 'direction', 'duration', 'from', 'label']);
+  const from = value.from ?? (typeof value.label === 'string' ? value.label : undefined);
+  if (from !== undefined) {
+    const direction = readSwipeDirection(
+      typeof value.direction === 'string' ? value.direction : 'up',
+    );
+    return action(MAESTRO_RUNTIME_COMMAND.swipeOn, [
+      maestroSelector(from, 'swipe.from', [], context),
+      direction,
+      ...swipeDurationPositionals(value),
+    ]);
+  }
   if (typeof value.direction === 'string') {
     return action('scroll', readScrollPositionalsFromDirectionSwipe(value.direction));
   }
@@ -182,7 +228,7 @@ export function convertSwipe(value: unknown): SessionAction {
 }
 
 function readScrollPositionalsFromDirectionSwipe(direction: string): string[] {
-  switch (direction.toLowerCase()) {
+  switch (readSwipeDirection(direction)) {
     case 'up':
       return ['down'];
     case 'down':
@@ -191,6 +237,17 @@ function readScrollPositionalsFromDirectionSwipe(direction: string): string[] {
       return ['right'];
     case 'right':
       return ['left'];
+  }
+}
+
+function readSwipeDirection(direction: string): SwipeDirection {
+  const normalized = direction.toLowerCase();
+  switch (normalized) {
+    case 'up':
+    case 'down':
+    case 'left':
+    case 'right':
+      return normalized;
     default:
       throw unsupportedMaestroSyntax('Maestro swipe direction must be UP, DOWN, LEFT, or RIGHT.');
   }
@@ -235,6 +292,8 @@ export function maestroSelector(
     terms.push(selectorTerm('id', resolveMaestroString(value.id, context)));
   if (typeof value.text === 'string')
     terms.push(selectorTerm('label', resolveMaestroString(value.text, context)));
+  if (typeof value.label === 'string' && terms.length === 0)
+    terms.push(selectorTerm('label', resolveMaestroString(value.label, context)));
   if (typeof value.enabled === 'boolean')
     terms.push(selectorTerm('enabled', String(value.enabled)));
   if (typeof value.selected === 'boolean')
@@ -242,7 +301,7 @@ export function maestroSelector(
   if (terms.length === 0) {
     throw new AppError(
       'INVALID_ARGS',
-      `${command} selector map must include one of id, text, enabled, or selected.`,
+      `${command} selector map must include one of id, text, label, enabled, or selected.`,
     );
   }
   return terms.join(' ');
@@ -256,6 +315,27 @@ function visibleTextSelector(value: string): string {
   ].join(' || ');
 }
 
+function maestroTapOnRuntimeOptions(value: unknown, context: MaestroParseContext): string[] {
+  if (!isPlainRecord(value)) return [];
+  const options: { index?: number; childOf?: string } = {};
+  if (value.index !== undefined) {
+    if (typeof value.index !== 'number' || !Number.isInteger(value.index) || value.index < 0) {
+      throw new AppError('INVALID_ARGS', 'tapOn.index must be a non-negative integer.');
+    }
+    options.index = value.index;
+  }
+  if (value.childOf !== undefined) {
+    options.childOf = maestroSelector(value.childOf, 'tapOn.childOf', [], context);
+  }
+  return Object.keys(options).length > 0 ? [JSON.stringify(options)] : [];
+}
+
+function swipeDurationPositionals(value: Record<string, unknown>): string[] {
+  return typeof value.duration === 'number' && Number.isFinite(value.duration)
+    ? [String(Math.max(16, Math.floor(value.duration)))]
+    : [];
+}
+
 function selectorTerm(key: string, value: string): string {
   return `${key}=${JSON.stringify(value)}`;
 }
@@ -267,8 +347,19 @@ function tapFlags(value: unknown): SessionAction['flags'] | undefined {
   const delay = nonNegativeInteger(value.delay);
   if (repeat && repeat > 1) flags.count = repeat;
   if (delay !== undefined) flags.intervalMs = delay;
-  if (value.optional === true) flags.maestroOptional = true;
+  if (value.optional === true) flags.maestro = { optional: true };
   return Object.keys(flags).length > 0 ? flags : undefined;
+}
+
+function maestroTapOnFlags(value: unknown): SessionAction['flags'] {
+  const flags = tapFlags(value) ?? {};
+  return {
+    ...flags,
+    maestro: {
+      ...(flags.maestro ?? {}),
+      allowNonHittableSelectorTap: true,
+    },
+  };
 }
 
 function doubleTapFlags(value: unknown): SessionAction['flags'] {

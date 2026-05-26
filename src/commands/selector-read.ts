@@ -303,7 +303,12 @@ export const isCommand: RuntimeCommand<IsCommandOptions, IsCommandResult> = asyn
     disambiguateAmbiguous: false,
   });
   if (!resolved) {
-    throw new AppError('COMMAND_FAILED', formatSelectorFailure(chain, [], { unique: true }));
+    throw new AppError('COMMAND_FAILED', formatSelectorFailure(chain, [], { unique: true }), {
+      command: 'is',
+      reason: 'selector_not_found',
+      predicate: options.predicate,
+      selector: chain.raw,
+    });
   }
   const result = evaluateIsPredicate({
     predicate: options.predicate,
@@ -316,6 +321,13 @@ export const isCommand: RuntimeCommand<IsCommandOptions, IsCommandResult> = asyn
     throw new AppError(
       'COMMAND_FAILED',
       `is ${options.predicate} failed for selector ${resolved.selector.raw}: ${result.details}`,
+      {
+        command: 'is',
+        reason: 'predicate_failed',
+        predicate: options.predicate,
+        selector: resolved.selector.raw,
+        predicateDetails: result.details,
+      },
     );
   }
   return {

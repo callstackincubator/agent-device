@@ -3,6 +3,7 @@ import { AppError } from '../../utils/errors.ts';
 import { convertLaunchApp, convertStopApp } from './device-actions.ts';
 import {
   convertDoubleTapOn,
+  convertEraseText,
   convertExtendedWaitUntil,
   convertLongPressOn,
   convertPressKey,
@@ -22,7 +23,8 @@ import {
   unsupportedCommand,
 } from './support.ts';
 import { convertRepeat, convertRunFlow } from './flow-control.ts';
-import { executeRunScript } from './run-script.ts';
+import { convertRunScript } from './run-script.ts';
+import { MAESTRO_RUNTIME_COMMAND } from './runtime-commands.ts';
 import type {
   MaestroCommand,
   MaestroCommandMapperDeps,
@@ -46,6 +48,7 @@ const MAP_COMMAND_HANDLERS: Record<string, MaestroCommandHandler> = {
   inputText: ({ value, context }) => [
     action('type', [resolveMaestroString(readInputText(value), context)]),
   ],
+  eraseText: ({ value }) => [convertEraseText(value)],
   pasteText: ({ value, context, name }) => [
     action('type', [resolveMaestroString(requireStringValue(name, value), context)]),
   ],
@@ -54,7 +57,7 @@ const MAP_COMMAND_HANDLERS: Record<string, MaestroCommandHandler> = {
     action('wait', [maestroSelector(value, name, [], context), '5000']),
   ],
   assertNotVisible: ({ value, context, name }) => [
-    action('is', ['hidden', maestroSelector(value, name, [], context)]),
+    action(MAESTRO_RUNTIME_COMMAND.assertNotVisible, [maestroSelector(value, name, [], context)]),
   ],
   extendedWaitUntil: ({ value, context }) => convertExtendedWaitUntil(value, context),
   takeScreenshot: ({ value, context, name }) => [
@@ -62,16 +65,15 @@ const MAP_COMMAND_HANDLERS: Record<string, MaestroCommandHandler> = {
   ],
   scroll: ({ value }) => [convertScroll(value)],
   scrollUntilVisible: ({ value, context }) => convertScrollUntilVisible(value, context),
-  swipe: ({ value }) => [convertSwipe(value)],
+  swipe: ({ value, context }) => [convertSwipe(value, context)],
   hideKeyboard: () => [action('keyboard', ['dismiss'])],
   pressKey: ({ value }) => [convertPressKey(value)],
   back: () => [action('back')],
-  waitForAnimationToEnd: ({ value }) => [action('wait', [String(readTimeoutMs(value, 250))])],
+  waitForAnimationToEnd: ({ value }) => [
+    action(MAESTRO_RUNTIME_COMMAND.waitForAnimationToEnd, [String(readTimeoutMs(value, 15000))]),
+  ],
   stopApp: ({ value, config, context }) => [convertStopApp(value, config, context)],
-  runScript: ({ value, context }) => {
-    executeRunScript(value, context);
-    return [];
-  },
+  runScript: ({ value, context }) => [convertRunScript(value, context)],
   runFlow: ({ value, config, context, deps }) =>
     convertRunFlow(value, config, context, deps, convertCommandList),
   repeat: ({ value, config, context, deps }) =>
@@ -85,8 +87,9 @@ const SCALAR_COMMAND_HANDLERS: Record<
   launchApp: (config, context) => [convertLaunchApp(undefined, config, context)],
   scroll: () => [action('scroll', ['down'])],
   hideKeyboard: () => [action('keyboard', ['dismiss'])],
+  eraseText: () => [convertEraseText(undefined)],
   back: () => [action('back')],
-  waitForAnimationToEnd: () => [action('wait', ['250'])],
+  waitForAnimationToEnd: () => [action(MAESTRO_RUNTIME_COMMAND.waitForAnimationToEnd, ['15000'])],
   stopApp: (config, context) => [convertStopApp(undefined, config, context)],
 };
 

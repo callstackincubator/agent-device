@@ -32,16 +32,17 @@ export function convertLaunchApp(
     'launchArguments',
   ]);
   rejectUnsupportedLaunchOption(value, 'permissions');
+  rejectUnsupportedLaunchOption(value, 'clearKeychain');
   const appId = resolveMaestroString(
     typeof value.appId === 'string' ? value.appId : requireAppId(config, 'launchApp'),
     context,
   );
   const launchArgs = readLaunchArgs(value, context);
   const shouldClearState = value.clearState === true;
-  const shouldRelaunch = value.stopApp === true || shouldClearState || launchArgs.length > 0;
+  const shouldRelaunch = !shouldClearState && (value.stopApp === true || launchArgs.length > 0);
   return action('open', [appId], {
-    relaunch: shouldRelaunch,
-    ...(shouldClearState ? { maestroClearState: true } : {}),
+    ...(shouldRelaunch ? { relaunch: true } : {}),
+    ...(shouldClearState ? { maestro: { clearState: true } } : {}),
     ...(launchArgs.length > 0 ? { launchArgs } : {}),
   });
 }

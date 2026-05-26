@@ -417,6 +417,49 @@ test('click simple iOS id selector uses direct runner selector tap without snaps
   }
 });
 
+test('fill simple iOS id selector uses direct runner selector fill without snapshot coordinates', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-direct-selector-fill';
+  sessionStore.set(sessionName, makeIosSession(sessionName, { appBundleId: 'com.example.app' }));
+
+  mockDispatch.mockResolvedValue({
+    message: 'filled',
+    x: 439.5,
+    y: 100.5,
+    referenceWidth: 440,
+    referenceHeight: 956,
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'fill',
+      positionals: ['id="email"', 'ada@example.com'],
+      flags: { delayMs: 25 },
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  expect(mockDispatch.mock.calls[0]?.[1]).toBe('fill');
+  expect(mockDispatch.mock.calls[0]?.[2]).toEqual(['ada@example.com']);
+  const context = mockDispatch.mock.calls[0]?.[4] as Record<string, unknown>;
+  expect(context.directElementSelector).toEqual({
+    key: 'id',
+    value: 'email',
+    raw: 'id="email"',
+  });
+  expect(context.delayMs).toBe(25);
+  if (response?.ok) {
+    expect(response.data?.selector).toBe('id="email"');
+    expect(response.data?.text).toBe('ada@example.com');
+  }
+});
+
 test('click simple iOS selector forwards Maestro non-hittable tap backdoor', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-maestro-selector-fallback';
@@ -436,7 +479,7 @@ test('click simple iOS selector forwards Maestro non-hittable tap backdoor', asy
       session: sessionName,
       command: 'click',
       positionals: ['id="e2eSignInAlice"'],
-      flags: { allowNonHittableSelectorTap: true },
+      flags: { maestro: { allowNonHittableSelectorTap: true } },
     },
     sessionName,
     sessionStore,

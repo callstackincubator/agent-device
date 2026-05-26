@@ -335,7 +335,7 @@ extension RunnerTests {
           switch element.elementType {
           case .textField, .secureTextField, .searchField, .textView:
             let frame = element.frame
-            return !frame.isEmpty && frame.contains(point)
+            return !frame.isEmpty && frameContainsPoint(frame, point, tolerance: 2)
           default:
             return false
           }
@@ -366,20 +366,31 @@ extension RunnerTests {
     return matched
   }
 
+  private func frameContainsPoint(_ frame: CGRect, _ point: CGPoint, tolerance: CGFloat) -> Bool {
+    point.x >= frame.minX - tolerance
+      && point.x <= frame.maxX + tolerance
+      && point.y >= frame.minY - tolerance
+      && point.y <= frame.maxY + tolerance
+  }
+
   func focusedTextInput(app: XCUIApplication) -> XCUIElement? {
+#if os(iOS)
+    return nil
+#else
     var focused: XCUIElement?
     let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
-      let candidate = app
+      let candidates = app
         .descendants(matching: .any)
         .matching(NSPredicate(format: "hasKeyboardFocus == 1"))
-        .firstMatch
-      guard candidate.exists else { return }
-
-      switch candidate.elementType {
-      case .textField, .secureTextField, .searchField, .textView:
-        focused = candidate
-      default:
-        return
+        .allElementsBoundByIndex
+      for candidate in candidates where candidate.exists {
+        switch candidate.elementType {
+        case .textField, .secureTextField, .searchField, .textView:
+          focused = candidate
+          return
+        default:
+          continue
+        }
       }
     })
     if let exceptionMessage {
@@ -390,6 +401,7 @@ extension RunnerTests {
       return nil
     }
     return focused
+#endif
   }
 
   func stabilizeTextInputBeforeTyping(app: XCUIApplication, target: XCUIElement?) -> XCUIElement? {
@@ -447,6 +459,36 @@ extension RunnerTests {
       refreshPoint: textEntryRefreshPoint(for: element) ?? requestedPoint,
       prefersFocusedElement: false
     )
+  }
+
+  func focusTextInputForTextEntry(app: XCUIApplication, element: XCUIElement) -> TextEntryTarget {
+    let point = textEntryRefreshPoint(for: element)
+    if let point {
+      _ = tapAt(app: app, x: point.x, y: point.y)
+    }
+    let stabilized = stabilizeTextInputBeforeTyping(app: app, target: element)
+    let resolved = waitForTextEntryReadiness(
+      app: app,
+      target: TextEntryTarget(
+        element: stabilized ?? element,
+        refreshPoint: point,
+        prefersFocusedElement: false
+      )
+    ) ?? stabilized ?? element
+    return TextEntryTarget(
+      element: resolved,
+      refreshPoint: textEntryRefreshPoint(for: resolved) ?? point,
+      prefersFocusedElement: false
+    )
+  }
+
+  func isTextEntryElement(_ element: XCUIElement) -> Bool {
+    switch element.elementType {
+    case .textField, .secureTextField, .searchField, .textView:
+      return true
+    default:
+      return false
+    }
   }
 
   func resolveTextEntryMode(_ command: Command) -> TextTypingRepairMode {
@@ -629,7 +671,7 @@ extension RunnerTests {
     guard let observedText = editableTextValue(for: targetElement) else {
       return TextEntryResult(verified: nil, repaired: repaired, expectedText: expectedText, observedText: nil)
     }
-    guard observedText == expectedText else {
+    guard textEntryValueMatchesExpected(targetElement, observedText: observedText, expectedText: expectedText) else {
       return TextEntryResult(
         verified: false,
         repaired: repaired,
@@ -645,7 +687,11 @@ extension RunnerTests {
         return TextEntryResult(verified: nil, repaired: repaired, expectedText: expectedText, observedText: nil)
       }
       latestObservedText = nextObservedText
-      guard nextObservedText == expectedText else {
+      guard textEntryValueMatchesExpected(
+        resolveTextEntryElement(app: app, target: target),
+        observedText: nextObservedText,
+        expectedText: expectedText
+      ) else {
         return TextEntryResult(
           verified: false,
           repaired: repaired,
@@ -660,6 +706,28 @@ extension RunnerTests {
       expectedText: expectedText,
       observedText: latestObservedText
     )
+  }
+
+  private func textEntryValueMatchesExpected(
+    _ element: XCUIElement?,
+    observedText: String,
+    expectedText: String
+  ) -> Bool {
+    if observedText == expectedText {
+      return true
+    }
+    guard hasTextEntrySubmitSuffix(expectedText), element?.elementType != .textView else {
+      return false
+    }
+    var submittedText = expectedText
+    while hasTextEntrySubmitSuffix(submittedText) {
+      submittedText.removeLast()
+    }
+    return observedText == submittedText
+  }
+
+  private func hasTextEntrySubmitSuffix(_ text: String) -> Bool {
+    text.hasSuffix("\n") || text.hasSuffix("\r")
   }
 
   private func expectedTextEntryValue(
@@ -693,7 +761,11 @@ extension RunnerTests {
       guard let observedText = editableTextValue(for: resolveTextEntryElement(app: app, target: target)) else {
         return false
       }
-      if observedText == expectedText {
+      if textEntryValueMatchesExpected(
+        resolveTextEntryElement(app: app, target: target),
+        observedText: observedText,
+        expectedText: expectedText
+      ) {
         return false
       }
       latestObservedText = observedText
@@ -710,7 +782,11 @@ extension RunnerTests {
     guard let latestObservedText else {
       return false
     }
-    guard latestObservedText != expectedText else {
+    guard !textEntryValueMatchesExpected(
+      resolveTextEntryElement(app: app, target: target),
+      observedText: latestObservedText,
+      expectedText: expectedText
+    ) else {
       return false
     }
     return isRepairableTextEntryMismatch(
@@ -904,6 +980,85 @@ extension RunnerTests {
 #endif
   }
 
+  func pressKeyboardReturn(app: XCUIApplication) -> (wasVisible: Bool, pressed: Bool, visible: Bool) {
+#if os(tvOS)
+    return (wasVisible: false, pressed: pressTvRemote(.select), visible: false)
+#elseif os(iOS)
+    let wasVisible = isKeyboardVisible(app: app)
+    if tapKeyboardReturnControl(app: app) {
+      sleepFor(0.2)
+      return (wasVisible: wasVisible, pressed: true, visible: isKeyboardVisible(app: app))
+    }
+
+    var typed = false
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      app.typeText(XCUIKeyboardKey.return.rawValue)
+      typed = true
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_KEYBOARD_RETURN_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      if let singleTarget = singleTextEntryElement(app: app) {
+        return pressKeyboardReturn(on: singleTarget, app: app, wasVisible: wasVisible)
+      }
+      return (wasVisible: wasVisible, pressed: false, visible: isKeyboardVisible(app: app))
+    }
+    sleepFor(0.2)
+    return (wasVisible: wasVisible, pressed: typed, visible: isKeyboardVisible(app: app))
+#else
+    return (wasVisible: false, pressed: false, visible: false)
+#endif
+  }
+
+  private func pressKeyboardReturn(
+    on element: XCUIElement,
+    app: XCUIApplication,
+    wasVisible: Bool
+  ) -> (wasVisible: Bool, pressed: Bool, visible: Bool) {
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      element.tap()
+      element.typeText(XCUIKeyboardKey.return.rawValue)
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_KEYBOARD_RETURN_TARGET_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      return (wasVisible: wasVisible, pressed: false, visible: isKeyboardVisible(app: app))
+    }
+    sleepFor(0.2)
+    return (wasVisible: wasVisible, pressed: true, visible: isKeyboardVisible(app: app))
+  }
+
+  private func singleTextEntryElement(app: XCUIApplication) -> XCUIElement? {
+#if os(iOS)
+    var matches: [XCUIElement] = []
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      matches = app.descendants(matching: .any).allElementsBoundByIndex.filter { element in
+        guard element.exists else { return false }
+        switch element.elementType {
+        case .textField, .secureTextField, .searchField, .textView:
+          return true
+        default:
+          return false
+        }
+      }
+    })
+    if let exceptionMessage {
+      NSLog(
+        "AGENT_DEVICE_RUNNER_KEYBOARD_RETURN_TEXT_ENTRY_QUERY_IGNORED_EXCEPTION=%@",
+        exceptionMessage
+      )
+      return nil
+    }
+    return matches.count == 1 ? matches[0] : nil
+#else
+    return nil
+#endif
+  }
+
   private func tapKeyboardDismissControl(app: XCUIApplication) -> Bool {
 #if os(tvOS)
     return false
@@ -939,6 +1094,22 @@ extension RunnerTests {
     }
     return false
 #endif
+  }
+
+  private func tapKeyboardReturnControl(app: XCUIApplication) -> Bool {
+#if os(iOS)
+    for label in ["return", "Return", "Enter", "Go", "Search", "Next", "Done", "Send", "Join"] {
+      let candidates = [
+        app.keyboards.buttons[label],
+        app.keyboards.keys[label],
+      ]
+      if let hittable = candidates.first(where: { $0.exists && $0.isHittable }) {
+        hittable.tap()
+        return true
+      }
+    }
+#endif
+    return false
   }
 
   private func isKeyboardAccessoryControl(_ element: XCUIElement, keyboardFrame: CGRect) -> Bool {
@@ -1003,11 +1174,24 @@ extension RunnerTests {
     guard !normalizedValue.isEmpty else {
       return false
     }
-    guard let placeholder = element.placeholderValue?.trimmingCharacters(in: .whitespacesAndNewlines),
-          !placeholder.isEmpty else {
+    let placeholder = element.placeholderValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    if !placeholder.isEmpty && normalizedValue == placeholder {
+      return true
+    }
+    if isGenericTextInputLabel(normalizedValue) {
+      return true
+    }
+    let normalizedLabel = element.label.trimmingCharacters(in: .whitespacesAndNewlines)
+    return normalizedLabel == normalizedValue && isGenericTextInputLabel(normalizedLabel)
+  }
+
+  private func isGenericTextInputLabel(_ value: String) -> Bool {
+    switch value {
+    case "Text input field":
+      return true
+    default:
       return false
     }
-    return normalizedValue == placeholder
   }
 
   private func readableText(for element: XCUIElement) -> String? {

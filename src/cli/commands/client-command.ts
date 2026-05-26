@@ -173,10 +173,19 @@ function readKeyboardAction(
 ): KeyboardCommandOptions['action'] | undefined {
   const action = value?.toLowerCase();
   if (action === 'get') return 'status';
-  if (action === undefined || action === 'status' || action === 'dismiss') {
+  if (
+    action === undefined ||
+    action === 'status' ||
+    action === 'dismiss' ||
+    action === 'enter' ||
+    action === 'return'
+  ) {
     return action;
   }
-  throw new AppError('INVALID_ARGS', 'keyboard action must be status, get, or dismiss.');
+  throw new AppError(
+    'INVALID_ARGS',
+    'keyboard action must be status, get, dismiss, enter, or return.',
+  );
 }
 
 function readFiniteNumber(value: string | undefined, label: string): number | undefined {

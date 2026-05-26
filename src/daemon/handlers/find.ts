@@ -6,7 +6,11 @@ import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
-import { extractNodeText, findNearestHittableAncestor } from '../snapshot-processing.ts';
+import { extractNodeText } from '../snapshot-processing.ts';
+import {
+  resolveActionableTouchNode,
+  resolveActionableTouchResolution,
+} from '../../commands/interaction-targeting.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
 import { setSessionSnapshot } from '../session-snapshot.ts';
@@ -229,19 +233,50 @@ function preferOnscreenMatches(
       center.y <= viewport.y + viewport.height
     );
   });
-  return onscreen.length > 0 ? onscreen : matches;
+  return rankInteractiveMatches(onscreen.length > 0 ? onscreen : matches, nodes);
+}
+
+function rankInteractiveMatches(
+  matches: SnapshotState['nodes'],
+  nodes: SnapshotState['nodes'],
+): SnapshotState['nodes'] {
+  if (matches.length < 2) return matches;
+  return matches
+    .map((node, index) => ({ node, index, score: interactiveMatchScore(node, nodes) }))
+    .sort((left, right) => {
+      if (right.score !== left.score) return right.score - left.score;
+      return rectArea(left.node) - rectArea(right.node) || left.index - right.index;
+    })
+    .map((entry) => entry.node);
+}
+
+function interactiveMatchScore(
+  node: SnapshotState['nodes'][number],
+  nodes: SnapshotState['nodes'],
+): number {
+  const resolution = resolveActionableTouchResolution(nodes, node);
+  if (resolution.reason === 'semantic-target' && resolution.node.rect) return 4;
+  if (resolution.reason === 'same-rect-descendant' && resolution.node.rect) return 4;
+  if (
+    resolution.reason === 'hittable-ancestor' &&
+    resolution.node.rect &&
+    !isRootInteractionContainer(resolution.node, nodes[0])
+  ) {
+    return 2;
+  }
+  if (node.hittable && node.rect && !isRootInteractionContainer(node, nodes[0])) return 3;
+  return node.rect ? 1 : 0;
+}
+
+function rectArea(node: SnapshotState['nodes'][number]): number {
+  return node.rect ? node.rect.width * node.rect.height : Number.POSITIVE_INFINITY;
 }
 
 function resolveInteractiveMatchNode(
   nodes: SnapshotState['nodes'],
   node: SnapshotState['nodes'][number],
 ): SnapshotState['nodes'][number] {
-  const ancestor = findNearestHittableAncestor(nodes, node);
-  if (!ancestor) return node;
-  if (node.rect && isRootInteractionContainer(ancestor, nodes[0])) {
-    return node;
-  }
-  return ancestor;
+  return resolveActionableTouchNode(nodes, node);
 }
 
 function isRootInteractionContainer(

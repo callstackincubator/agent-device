@@ -86,6 +86,15 @@ export async function handleFillCommand(
   positionals: string[],
   context: DispatchContext | undefined,
 ): Promise<Record<string, unknown>> {
+  if (context?.directElementSelector) {
+    return await handleDirectElementSelectorFill(
+      interactor,
+      context.directElementSelector,
+      positionals,
+      context,
+    );
+  }
+
   const x = Number(positionals[0]);
   const y = Number(positionals[1]);
   const text = positionals.slice(2).join(' ');
@@ -95,6 +104,28 @@ export async function handleFillCommand(
   const delayMs = requireIntInRange(context?.delayMs ?? 0, 'delay-ms', 0, 10_000);
   await interactor.fill(x, y, text, delayMs);
   return { x, y, text, delayMs, ...successText(formatTextLengthMessage('Filled', text)) };
+}
+
+async function handleDirectElementSelectorFill(
+  interactor: Interactor,
+  selector: NonNullable<DispatchContext['directElementSelector']>,
+  positionals: string[],
+  context: DispatchContext,
+): Promise<Record<string, unknown>> {
+  if (!interactor.fillElementSelector) {
+    throw new AppError('UNSUPPORTED_OPERATION', 'direct element selector fill is not supported');
+  }
+  const text = positionals.join(' ');
+  if (!text) throw new AppError('INVALID_ARGS', 'fill requires text');
+  const delayMs = requireIntInRange(context.delayMs ?? 0, 'delay-ms', 0, 10_000);
+  const result = await interactor.fillElementSelector(selector, text, delayMs);
+  return {
+    selector: selector.raw,
+    text,
+    delayMs,
+    ...(result ?? {}),
+    ...successText(formatTextLengthMessage('Filled', text)),
+  };
 }
 
 export async function handlePressCommand(

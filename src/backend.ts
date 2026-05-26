@@ -92,7 +92,7 @@ export type BackendBackOptions = {
 };
 
 export type BackendKeyboardOptions = {
-  action: 'status' | 'get' | 'dismiss';
+  action: 'status' | 'get' | 'dismiss' | 'enter' | 'return';
 };
 
 export type BackendKeyboardResult = {

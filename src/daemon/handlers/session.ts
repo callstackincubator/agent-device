@@ -203,13 +203,15 @@ export async function handleSessionCommands(params: {
   if (req.command === PUBLIC_COMMANDS.keyboard) {
     const session = sessionStore.get(sessionName);
     const keyboardAction = req.positionals?.[0]?.trim().toLowerCase();
-    if (!session && keyboardAction === 'dismiss') {
+    const needsForegroundIosApp =
+      keyboardAction === 'dismiss' || keyboardAction === 'enter' || keyboardAction === 'return';
+    if (!session && needsForegroundIosApp) {
       const flags = req.flags ?? {};
       const normalizedPlatform = normalizePlatformSelector(flags.platform);
       if (normalizedPlatform === 'ios') {
         return errorResponse(
           'SESSION_NOT_FOUND',
-          'iOS keyboard dismiss requires an active session so the target app stays foregrounded. Run open first.',
+          'iOS keyboard action requires an active session so the target app stays foregrounded. Run open first.',
         );
       }
     }

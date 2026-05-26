@@ -39,6 +39,7 @@ type IosRunnerOverrides = Pick<
   | 'longPress'
   | 'focus'
   | 'type'
+  | 'fillElementSelector'
   | 'fill'
   | 'scroll'
   | 'pinch'
@@ -161,6 +162,22 @@ export function iosRunnerOverrides(
             text,
             delayMs,
             textEntryMode: text === '\n' ? undefined : 'append',
+            appBundleId: ctx.appBundleId,
+          },
+          runnerOpts,
+        );
+      },
+      fillElementSelector: async (selector, text, delayMs) => {
+        return await runIosRunnerCommand(
+          device,
+          {
+            command: 'type',
+            selectorKey: selector.key,
+            selectorValue: selector.value,
+            allowNonHittableSelectorTap: selector.allowNonHittableTap,
+            text,
+            delayMs,
+            textEntryMode: 'replace',
             appBundleId: ctx.appBundleId,
           },
           runnerOpts,

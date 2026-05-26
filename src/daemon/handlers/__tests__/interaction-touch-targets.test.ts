@@ -52,6 +52,19 @@ test('parseFillTarget reads selector text through shared fill codec', () => {
   });
 });
 
+test('parseFillTarget preserves selector text whitespace', () => {
+  const parsed = parseFillTarget(['label="Command"', 'submit\n']);
+
+  expect(parsed).toEqual({
+    ok: true,
+    target: {
+      kind: 'selector',
+      selector: 'label="Command"',
+    },
+    text: 'submit\n',
+  });
+});
+
 test('parseFillTarget rejects invalid coordinates instead of treating them as a point', () => {
   const parsed = parseFillTarget(['10', 'not-y', 'text']);
 

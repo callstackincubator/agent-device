@@ -31,6 +31,7 @@ vi.mock('../runner-macos-products.ts', async () => {
 
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
+import type { RunnerCommand } from '../runner-contract.ts';
 import {
   assertSafeDerivedCleanup,
   isRetryableRunnerError,
@@ -96,6 +97,70 @@ const macOsDevice: DeviceInfo = {
   kind: 'device',
   target: 'desktop',
   booted: true,
+};
+
+const runnerProtocolCommandFixtures: Record<RunnerCommand['command'], RunnerCommand> = {
+  tap: { command: 'tap', x: 120, y: 240 },
+  mouseClick: { command: 'mouseClick', x: 120, y: 240, button: 'secondary' },
+  tapSeries: { command: 'tapSeries', x: 120, y: 240, count: 2, intervalMs: 80 },
+  longPress: { command: 'longPress', x: 120, y: 240, durationMs: 750 },
+  interactionFrame: { command: 'interactionFrame' },
+  drag: { command: 'drag', x: 120, y: 240, x2: 300, y2: 420, durationMs: 400 },
+  dragSeries: {
+    command: 'dragSeries',
+    x: 120,
+    y: 240,
+    x2: 300,
+    y2: 420,
+    count: 2,
+    pauseMs: 100,
+    pattern: 'ping-pong',
+  },
+  remotePress: { command: 'remotePress', remoteButton: 'down', durationMs: 250 },
+  type: { command: 'type', text: 'hello', delayMs: 20, textEntryMode: 'replace' },
+  swipe: { command: 'swipe', direction: 'down', durationMs: 250 },
+  findText: { command: 'findText', text: 'Settings' },
+  querySelector: { command: 'querySelector', selectorKey: 'id', selectorValue: 'submit' },
+  readText: { command: 'readText' },
+  snapshot: {
+    command: 'snapshot',
+    interactiveOnly: true,
+    compact: true,
+    depth: 2,
+    scope: 'app',
+    raw: false,
+  },
+  screenshot: { command: 'screenshot', outPath: '/tmp/runner-screenshot.png', fullscreen: true },
+  back: { command: 'back' },
+  backInApp: { command: 'backInApp' },
+  backSystem: { command: 'backSystem' },
+  home: { command: 'home' },
+  rotate: { command: 'rotate', orientation: 'landscape-left' },
+  appSwitcher: { command: 'appSwitcher' },
+  keyboardDismiss: { command: 'keyboardDismiss' },
+  keyboardReturn: { command: 'keyboardReturn' },
+  alert: { command: 'alert', action: 'accept' },
+  pinch: { command: 'pinch', scale: 0.5 },
+  rotateGesture: { command: 'rotateGesture', degrees: 35, x: 200, y: 420, velocity: 1 },
+  transformGesture: {
+    command: 'transformGesture',
+    x: 200,
+    y: 420,
+    dx: 80,
+    dy: -40,
+    scale: 2,
+    degrees: 35,
+    durationMs: 700,
+  },
+  recordStart: {
+    command: 'recordStart',
+    outPath: '/tmp/runner-recording.mp4',
+    fps: 30,
+    quality: 7,
+  },
+  recordStop: { command: 'recordStop' },
+  uptime: { command: 'uptime' },
+  shutdown: { command: 'shutdown' },
 };
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../../');
@@ -264,6 +329,55 @@ beforeEach(() => {
 
 test('resolveRunnerDestination uses simulator destination for simulators', () => {
   assert.equal(resolveRunnerDestination(iosSimulator), 'platform=iOS Simulator,id=sim-1');
+});
+
+test('runner protocol fixtures cover every runner command with JSON-safe samples', () => {
+  const commands = Object.keys(runnerProtocolCommandFixtures).sort();
+  assert.deepEqual(commands, [
+    'alert',
+    'appSwitcher',
+    'back',
+    'backInApp',
+    'backSystem',
+    'drag',
+    'dragSeries',
+    'findText',
+    'home',
+    'interactionFrame',
+    'keyboardDismiss',
+    'keyboardReturn',
+    'longPress',
+    'mouseClick',
+    'pinch',
+    'querySelector',
+    'readText',
+    'recordStart',
+    'recordStop',
+    'remotePress',
+    'rotate',
+    'rotateGesture',
+    'screenshot',
+    'shutdown',
+    'snapshot',
+    'swipe',
+    'tap',
+    'tapSeries',
+    'transformGesture',
+    'type',
+    'uptime',
+  ]);
+
+  const roundTrip = JSON.parse(JSON.stringify(runnerProtocolCommandFixtures)) as Record<
+    string,
+    Record<string, unknown>
+  >;
+  assert.equal(roundTrip.tap.command, 'tap');
+  assert.equal(roundTrip.mouseClick.button, 'secondary');
+  assert.equal(roundTrip.snapshot.scope, 'app');
+  assert.equal(roundTrip.screenshot.fullscreen, true);
+  assert.equal(roundTrip.rotate.orientation, 'landscape-left');
+  assert.equal(roundTrip.recordStart.fps, 30);
+  assert.equal(roundTrip.recordStart.quality, 7);
 });
 
 test('resolveRunnerDestination uses device destination for physical devices', () => {

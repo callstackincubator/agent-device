@@ -34,6 +34,7 @@ export type RunnerCommand = {
     | 'transformGesture'
     | 'appSwitcher'
     | 'keyboardDismiss'
+    | 'keyboardReturn'
     | 'alert'
     | 'pinch'
     | 'recordStart'

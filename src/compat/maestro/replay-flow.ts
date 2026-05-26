@@ -4,6 +4,7 @@ import { parseAllDocuments } from 'yaml';
 import type { SessionAction } from '../../daemon/types.ts';
 import { AppError } from '../../utils/errors.ts';
 import { convertMaestroCommandWithLine } from './command-mapper.ts';
+import { MAESTRO_RUNTIME_COMMAND } from './runtime-commands.ts';
 import { isPlainRecord, normalizeCommandList, normalizePlatform, readEnvMap } from './support.ts';
 import type {
   MaestroCommand,
@@ -74,7 +75,82 @@ function convertRootCommands(params: {
     actions.push(...converted);
     converted.forEach(() => actionLines.push(line));
   }
-  return { actions, actionLines };
+  return optimizeInputTextActions(actions, actionLines);
+}
+
+function optimizeInputTextActions(
+  actions: SessionAction[],
+  actionLines: number[],
+): { actions: SessionAction[]; actionLines: number[] } {
+  const maestroTapTimeoutMs = '30000';
+  const mergedActions: SessionAction[] = [];
+  const mergedLines: number[] = [];
+  for (let index = 0; index < actions.length; index += 1) {
+    const action = actions[index];
+    const nextAction = actions[index + 1];
+    const typedAfterTap = readPlainTypeText(nextAction);
+    if (typedAfterTap !== null) {
+      const tapSelector = readPlainMaestroTapSelector(action);
+      const pressEnterAfterType =
+        actions[index + 2]?.command === MAESTRO_RUNTIME_COMMAND.pressEnter;
+      if (tapSelector !== null && pressEnterAfterType) {
+        mergedActions.push({
+          ...action,
+          command: 'wait',
+          positionals: [tapSelector, maestroTapTimeoutMs],
+        });
+        mergedLines.push(actionLines[index] ?? 1);
+        mergedActions.push({
+          ...nextAction,
+          command: 'fill',
+          positionals: [tapSelector, typedAfterTap],
+          flags: action.flags,
+        });
+        mergedLines.push(actionLines[index] ?? 1);
+        mergedActions.push(actions[index + 2] as SessionAction);
+        mergedLines.push(actionLines[index + 2] ?? actionLines[index] ?? 1);
+        index += 2;
+        continue;
+      }
+      if (tapSelector !== null) {
+        mergedActions.push(clearMaestroNonHittableTap(action));
+        mergedLines.push(actionLines[index] ?? 1);
+        continue;
+      }
+    }
+    mergedActions.push(action);
+    mergedLines.push(actionLines[index] ?? 1);
+  }
+  return { actions: mergedActions, actionLines: mergedLines };
+}
+
+function clearMaestroNonHittableTap(action: SessionAction): SessionAction {
+  const maestro = { ...(action.flags?.maestro ?? {}) };
+  delete maestro.allowNonHittableSelectorTap;
+  return {
+    ...action,
+    flags: {
+      ...(action.flags ?? {}),
+      maestro: {
+        ...maestro,
+      },
+    },
+  };
+}
+
+function readPlainMaestroTapSelector(action: SessionAction | undefined): string | null {
+  if (action?.command !== MAESTRO_RUNTIME_COMMAND.tapOn) return null;
+  const [selector, ...rest] = action.positionals ?? [];
+  if (rest.length > 0 || typeof selector !== 'string') return null;
+  return selector;
+}
+
+function readPlainTypeText(action: SessionAction | undefined): string | null {
+  if (action?.command !== 'type') return null;
+  if (action.flags && Object.keys(action.flags).length > 0) return null;
+  const [text, ...rest] = action.positionals ?? [];
+  if (rest.length > 0 || typeof text !== 'string') return null;
+  return text;
 }
 
 function parseYamlDocuments(script: string): unknown[] {

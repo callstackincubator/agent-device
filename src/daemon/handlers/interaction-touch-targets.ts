@@ -110,8 +110,7 @@ export function parseFillTarget(positionals: string[]): ParsedFillTarget {
       ),
     };
   }
-  const text = parsed.text.trim();
-  if (!text) {
+  if (!parsed.text.trim()) {
     return {
       ok: false,
       response: errorResponse('INVALID_ARGS', 'fill requires text after selector'),
@@ -120,7 +119,7 @@ export function parseFillTarget(positionals: string[]): ParsedFillTarget {
   return {
     ok: true,
     target: { kind: 'selector', selector: parsed.target.selector },
-    text,
+    text: parsed.text,
   };
 }
 

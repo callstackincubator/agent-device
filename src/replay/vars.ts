@@ -2,7 +2,7 @@ import { AppError } from '../utils/errors.ts';
 import type { SessionAction } from '../daemon/types.ts';
 
 export type ReplayVarScope = {
-  readonly values: Readonly<Record<string, string>>;
+  readonly values: Record<string, string>;
 };
 
 export type ReplayVarSources = {
@@ -13,7 +13,7 @@ export type ReplayVarSources = {
 };
 
 export const REPLAY_VAR_KEY_RE = /^[A-Z_][A-Z0-9_]*$/;
-const INTERPOLATION_RE = /(\\\$\{)|\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-((?:[^}\\]|\\.)*))?\}/g;
+const INTERPOLATION_RE = /(\\\$\{)|\$\{([A-Za-z_][A-Za-z0-9_.]*)(?::-((?:[^}\\]|\\.)*))?\}/g;
 const SHELL_PREFIX = 'AD_VAR_';
 const RESERVED_NAMESPACE_PREFIX = 'AD_';
 
@@ -51,6 +51,13 @@ export function buildReplayVarScope(sources: ReplayVarSources): ReplayVarScope {
     }
   }
   return { values: merged };
+}
+
+export function mergeReplayVarScopeValues(
+  scope: ReplayVarScope,
+  values: Record<string, string>,
+): void {
+  Object.assign(scope.values, values);
 }
 
 export function collectReplayShellEnv(processEnv: NodeJS.ProcessEnv): Record<string, string> {
@@ -156,11 +163,20 @@ function resolveStringProps<T extends object>(
   loc: { file: string; line: number },
 ): T | undefined {
   if (!obj) return obj;
-  const next: Record<string, unknown> = { ...(obj as Record<string, unknown>) };
-  for (const [key, value] of Object.entries(next)) {
-    if (typeof value === 'string') {
-      next[key] = resolveReplayString(value, scope, loc);
-    }
+  return resolveStringValue(obj, scope, loc) as T;
+}
+
+function resolveStringValue(
+  value: unknown,
+  scope: ReplayVarScope,
+  loc: { file: string; line: number },
+): unknown {
+  if (typeof value === 'string') return resolveReplayString(value, scope, loc);
+  if (Array.isArray(value)) return value.map((entry) => resolveStringValue(entry, scope, loc));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, resolveStringValue(entry, scope, loc)]),
+    );
   }
-  return next as T;
+  return value;
 }

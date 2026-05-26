@@ -1263,7 +1263,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '--maestro',
     usageDescription:
-      'Replay: treat input as a Maestro YAML compatibility flow. Supported subset: launchApp with Apple-platform launch arguments and iOS simulator clearState, runFlow file/inline with when.platform/visible/notVisible, runScript file/env with parse-time http.post/json/output variables, onFlowStart/onFlowComplete, deterministic repeat.times, tapOn including optional and absolute/percentage point taps, doubleTapOn, longPressOn, inputText, pasteText, openLink, assertVisible, assertNotVisible, extendedWaitUntil, scroll, scrollUntilVisible, absolute/percentage swipe, takeScreenshot, hideKeyboard, pressKey back/enter/home, back, waitForAnimationToEnd, and stopApp. ' +
+      'Replay: treat input as a Maestro YAML compatibility flow. Supported subset: launchApp with Apple-platform launch arguments and iOS simulator clearState, runFlow file/inline with when.platform/visible/notVisible, ordered trusted runScript file/env steps with http.post/json/output variables, onFlowStart/onFlowComplete, deterministic repeat.times, tapOn including optional, index, childOf, label, and absolute/percentage point taps, doubleTapOn, longPressOn, inputText, eraseText for focused fields, pasteText, openLink, assertVisible, assertNotVisible, extendedWaitUntil, scroll, scrollUntilVisible, absolute/percentage swipe plus swipe.label, takeScreenshot, hideKeyboard, pressKey back/enter/home, back, waitForAnimationToEnd, and stopApp. ' +
       'Unsupported syntax fails loudly with a link to https://github.com/callstackincubator/agent-device/issues/558',
   },
   {
@@ -1288,7 +1288,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'int',
     min: 1,
     usageLabel: '--timeout <ms>',
-    usageDescription: 'Test: maximum wall-clock time per script attempt',
+    usageDescription: 'Replay/Test: maximum wall-clock time per script attempt',
   },
   {
     key: 'retries',
@@ -1599,9 +1599,10 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: [],
   },
   keyboard: {
-    usageOverride: 'keyboard [status|get|dismiss]',
-    helpDescription: 'Inspect Android keyboard visibility/type or dismiss the device keyboard',
-    summary: 'Inspect or dismiss the device keyboard',
+    usageOverride: 'keyboard [status|get|dismiss|enter|return]',
+    helpDescription:
+      'Inspect Android keyboard visibility/type or press/dismiss the device keyboard',
+    summary: 'Inspect, press, or dismiss the device keyboard',
     positionalArgs: ['action?'],
     allowedFlags: [],
   },
@@ -1676,7 +1677,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   replay: {
     helpDescription: 'Replay a recorded session',
     positionalArgs: ['path'],
-    allowedFlags: ['replayUpdate', 'replayMaestro', 'replayEnv'],
+    allowedFlags: ['replayUpdate', 'replayMaestro', 'replayEnv', 'timeoutMs'],
     skipCapabilityCheck: true,
   },
   test: {

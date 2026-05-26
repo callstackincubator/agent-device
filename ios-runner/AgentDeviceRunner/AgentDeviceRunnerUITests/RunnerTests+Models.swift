@@ -23,6 +23,7 @@ enum CommandType: String, Codable {
   case rotate
   case appSwitcher
   case keyboardDismiss
+  case keyboardReturn
   case alert
   case pinch
   case rotateGesture

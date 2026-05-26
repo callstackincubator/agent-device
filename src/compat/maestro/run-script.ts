@@ -1,9 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import type { SessionAction } from '../../daemon/types.ts';
 import { AppError } from '../../utils/errors.ts';
 import { runCmdSync } from '../../utils/exec.ts';
+import { MAESTRO_RUNTIME_COMMAND } from './runtime-commands.ts';
 import {
+  action,
   assertOnlyKeys,
   isPlainRecord,
   readEnvMap,
@@ -23,6 +26,10 @@ type HttpResponse = {
 const HTTP_REQUEST_SCRIPT = `
 const fs = require('node:fs');
 const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+if (typeof fetch !== 'function') {
+  console.error('global fetch is required for Maestro runScript http helpers');
+  process.exit(1);
+}
 fetch(input.url, {
   method: input.method,
   headers: input.headers,
@@ -39,19 +46,30 @@ fetch(input.url, {
 });
 `;
 
-export function executeRunScript(value: unknown, context: MaestroParseContext): void {
+export function convertRunScript(value: unknown, context: MaestroParseContext): SessionAction {
   const scriptConfig = readRunScriptConfig(value, context);
   const scriptPath = resolveRunScriptPath(scriptConfig.file, context);
+  return action(MAESTRO_RUNTIME_COMMAND.runScript, [scriptPath], {
+    ...(Object.keys(scriptConfig.env).length > 0
+      ? { maestro: { runScriptEnv: scriptConfig.env } }
+      : {}),
+  });
+}
+
+export function executeRunScriptFile(params: {
+  scriptPath: string;
+  env: Record<string, string>;
+}): Record<string, string> {
+  const { scriptPath, env } = params;
   const script = fs.readFileSync(scriptPath, 'utf8');
   const output: Record<string, unknown> = {};
-  const scriptEnv = {
-    ...context.env,
-    ...scriptConfig.env,
-    ...context.envOverrides,
-  };
 
   try {
-    vm.runInNewContext(script, buildScriptGlobals(scriptEnv, output), {
+    // Compatibility note: node:vm is not a security sandbox. Maestro runScript
+    // files are trusted flow-local setup code; the timeout only bounds
+    // synchronous script execution. Async http.post work is bounded separately
+    // by the child process timeout in runHttpRequestSync.
+    vm.runInNewContext(script, buildScriptGlobals(env, output), {
       filename: scriptPath,
       timeout: RUN_SCRIPT_TIMEOUT_MS,
     });
@@ -64,9 +82,13 @@ export function executeRunScript(value: unknown, context: MaestroParseContext): 
     );
   }
 
-  for (const [key, rawValue] of Object.entries(output)) {
-    context.env[`output.${key}`] = stringifyOutputValue(rawValue);
-  }
+  validateOutputKeys(output, scriptPath);
+  return Object.fromEntries(
+    Object.entries(output).map(([key, rawValue]) => [
+      `output.${key}`,
+      stringifyOutputValue(rawValue),
+    ]),
+  );
 }
 
 function readRunScriptConfig(
@@ -119,6 +141,8 @@ function runHttpRequestSync(
   url: string,
   options?: { headers?: Record<string, string>; body?: string },
 ): HttpResponse {
+  // Keep http.post synchronous from the flow author's point of view while the
+  // network request remains timeout-bounded independently from node:vm.
   const result = runCmdSync(process.execPath, ['-e', HTTP_REQUEST_SCRIPT], {
     stdin: JSON.stringify({
       method,
@@ -151,6 +175,16 @@ function runHttpRequestSync(
       },
       error instanceof Error ? error : undefined,
     );
+  }
+}
+
+function validateOutputKeys(output: Record<string, unknown>, scriptPath: string): void {
+  for (const key of Object.keys(output)) {
+    if (!key.includes('.')) continue;
+    throw new AppError('INVALID_ARGS', `Maestro runScript output key cannot contain ".": ${key}`, {
+      scriptPath,
+      key,
+    });
   }
 }
 

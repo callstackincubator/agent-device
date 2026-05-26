@@ -82,6 +82,11 @@ export type Interactor = {
   longPress(x: number, y: number, durationMs?: number): Promise<Record<string, unknown> | void>;
   focus(x: number, y: number): Promise<Record<string, unknown> | void>;
   type(text: string, delayMs?: number): Promise<void>;
+  fillElementSelector?(
+    selector: ElementSelectorTapOptions,
+    text: string,
+    delayMs?: number,
+  ): Promise<Record<string, unknown> | void>;
   fill(
     x: number,
     y: number,

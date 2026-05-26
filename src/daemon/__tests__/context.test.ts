@@ -14,16 +14,10 @@ test('contextFromFlags forwards scroll pixels from CLI flags', () => {
   assert.equal(context.pixels, 240);
 });
 
-test('contextFromFlags forwards internal non-hittable selector tap flag', () => {
-  const flags: CommandFlags = { allowNonHittableSelectorTap: true };
+test('contextFromFlags maps Maestro clearState to generic app-state clearing', () => {
+  const flags: CommandFlags = { maestro: { clearState: true } };
   const context = contextFromFlags('/tmp/agent-device.log', flags);
-  assert.equal(context.allowNonHittableSelectorTap, true);
-});
-
-test('contextFromFlags forwards Maestro clearState launch compatibility flag', () => {
-  const flags: CommandFlags = { maestroClearState: true };
-  const context = contextFromFlags('/tmp/agent-device.log', flags);
-  assert.equal(context.maestroClearState, true);
+  assert.equal(context.clearAppState, true);
 });
 
 test('contextFromFlags forwards screenshot flags from CLI flags', () => {

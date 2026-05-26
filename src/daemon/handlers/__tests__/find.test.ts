@@ -95,6 +95,7 @@ test('handleFindCommands click returns deterministic metadata across locator var
       expectedLocator: 'any',
       expectedQuery: 'Increment',
       expectedCoordinates: { x: 100, y: 50 },
+      expectedRef: '@e2',
     },
   ];
 
@@ -104,7 +105,7 @@ test('handleFindCommands click returns deterministic metadata across locator var
     if (!response.ok) return;
     const data = response.data as Record<string, unknown>;
     expect(Object.keys(data).sort()).toEqual(scenario.expectedKeys);
-    expect(data.ref).toBe('@e1');
+    expect(data.ref).toBe(scenario.expectedRef);
     expect(data.locator).toBe(scenario.expectedLocator);
     expect(data.query).toBe(scenario.expectedQuery);
 
@@ -117,7 +118,7 @@ test('handleFindCommands click returns deterministic metadata across locator var
     }
 
     expect(invokeCalls.length).toBe(1);
-    expect(invokeCalls[0].positionals?.[0]).toBe('@e1');
+    expect(invokeCalls[0].positionals?.[0]).toBe(scenario.expectedRef);
   }
 });
 
@@ -155,6 +156,61 @@ test('handleFindCommands click prefers on-screen duplicate text matches', async 
 
   expect(response.ok).toBe(true);
   expect(invokeCalls[0].positionals?.[0]).toBe('@e3');
+});
+
+test('handleFindCommands click prefers semantic controls over matching containers', async () => {
+  const { response, invokeCalls } = await runFindClickScenario({
+    positionals: ['Later', 'click'],
+    flags: { findFirst: true },
+    nodes: [
+      {
+        index: 0,
+        ref: 'e1',
+        type: 'Application',
+        hittable: true,
+        rect: { x: 0, y: 0, width: 440, height: 956 },
+      },
+      {
+        index: 1,
+        ref: 'e2',
+        type: 'Element(5)',
+        label: 'Dialog',
+        hittable: true,
+        rect: { x: 60, y: 356, width: 320, height: 272 },
+        parentIndex: 0,
+      },
+      {
+        index: 2,
+        ref: 'e3',
+        type: 'ScrollView',
+        label: 'Later',
+        hittable: false,
+        rect: { x: 60, y: 548, width: 320, height: 80 },
+        parentIndex: 1,
+      },
+      {
+        index: 3,
+        ref: 'e4',
+        type: 'Other',
+        label: 'Later',
+        hittable: false,
+        rect: { x: 76, y: 564, width: 288, height: 48 },
+        parentIndex: 2,
+      },
+      {
+        index: 4,
+        ref: 'e5',
+        type: 'Button',
+        label: 'Later',
+        hittable: false,
+        rect: { x: 76, y: 564, width: 140, height: 48 },
+        parentIndex: 3,
+      },
+    ],
+  });
+
+  expect(response.ok).toBe(true);
+  expect(invokeCalls[0].positionals?.[0]).toBe('@e5');
 });
 
 test('handleFindCommands wait bypasses snapshot cache while Android freshness recovery is active', async () => {

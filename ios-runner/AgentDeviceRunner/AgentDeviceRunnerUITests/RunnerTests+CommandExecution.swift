@@ -742,6 +742,25 @@ extension RunnerTests {
           dismissed: result.dismissed
         )
       )
+    case .keyboardReturn:
+      let result = pressKeyboardReturn(app: activeApp)
+      if !result.pressed {
+        return Response(
+          ok: false,
+          error: ErrorPayload(
+            code: "UNSUPPORTED_OPERATION",
+            message: "Unable to press the iOS keyboard return key"
+          )
+        )
+      }
+      return Response(
+        ok: true,
+        data: DataPayload(
+          message: "keyboardReturn",
+          visible: result.visible,
+          wasVisible: result.wasVisible
+        )
+      )
     case .alert:
       let action = (command.action ?? "get").lowercased()
       guard let alert = resolveAlert(app: activeApp) else {
@@ -852,7 +871,27 @@ extension RunnerTests {
     }
     let delaySeconds = Double(max(command.delayMs ?? 0, 0)) / 1000.0
     let textEntryMode = resolveTextEntryMode(command)
-    let target = focusTextInputForTextEntry(app: activeApp, x: command.x, y: command.y)
+    let target: TextEntryTarget
+    if let selectorKey = command.selectorKey, let selectorValue = command.selectorValue {
+      let match = findElement(
+        app: activeApp,
+        selectorKey: selectorKey,
+        selectorValue: selectorValue,
+        allowNonHittableFallback: command.allowNonHittableSelectorTap == true
+      )
+      if match.isAmbiguous {
+        return Response(ok: false, error: ErrorPayload(code: "AMBIGUOUS_MATCH", message: "selector matched multiple elements"))
+      }
+      guard let element = match.element else {
+        return Response(ok: false, error: ErrorPayload(code: "NO_MATCH", message: "selector did not match an element"))
+      }
+      guard isTextEntryElement(element) else {
+        return Response(ok: false, error: ErrorPayload(code: "INVALID_TARGET", message: "selector did not match a text input"))
+      }
+      target = focusTextInputForTextEntry(app: activeApp, element: element)
+    } else {
+      target = focusTextInputForTextEntry(app: activeApp, x: command.x, y: command.y)
+    }
     if textEntryMode == .replacement {
       guard target.element != nil else {
         let message =
@@ -880,6 +919,17 @@ extension RunnerTests {
         )
       )
     }
-    return Response(ok: true, data: DataPayload(message: textResult.repaired ? "typed after repair" : "typed"))
+    let point = target.refreshPoint
+    let frame = activeApp.frame
+    return Response(
+      ok: true,
+      data: DataPayload(
+        message: textResult.repaired ? "typed after repair" : "typed",
+        x: point.map { Double($0.x) },
+        y: point.map { Double($0.y) },
+        referenceWidth: frame.isEmpty ? nil : Double(frame.width),
+        referenceHeight: frame.isEmpty ? nil : Double(frame.height)
+      )
+    )
   }
 }

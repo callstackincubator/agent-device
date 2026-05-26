@@ -262,7 +262,7 @@ function readDirectIosSelectorTapTarget(params: {
   if (!selector) return null;
   return {
     ...selector,
-    ...(flags?.allowNonHittableSelectorTap ? { allowNonHittableTap: true } : {}),
+    ...(flags?.maestro?.allowNonHittableSelectorTap ? { allowNonHittableTap: true } : {}),
   };
 }
 
@@ -372,6 +372,20 @@ async function dispatchFillViaRuntime(
     if (invalidRefFlagsResponse) return invalidRefFlagsResponse;
     await refreshAndroidRefSnapshotIfFreshnessActive(params, session);
   }
+  const directSelector = readDirectIosSelectorFillTarget({
+    session,
+    target: parsedTarget.target,
+    flags: req.flags,
+  });
+  if (directSelector) {
+    const directResponse = await dispatchDirectIosSelectorFill(
+      params,
+      session,
+      directSelector,
+      parsedTarget.text,
+    );
+    if (directResponse) return directResponse;
+  }
 
   return await dispatchRuntimeInteraction(params, {
     run: async (runtime) =>
@@ -411,6 +425,74 @@ async function dispatchFillViaRuntime(
       return { result: recordedResult, responseData };
     },
   });
+}
+
+function readDirectIosSelectorFillTarget(params: {
+  session: SessionState;
+  target: InteractionTarget;
+  flags: CommandFlags | undefined;
+}): DirectIosSelectorTarget | null {
+  const { session, target, flags } = params;
+  if (target.kind !== 'selector') return null;
+  const selector = readSimpleIosSelectorTarget({ session, selectorExpression: target.selector });
+  if (!selector) return null;
+  return {
+    ...selector,
+    ...(flags?.maestro?.allowNonHittableSelectorTap ? { allowNonHittableTap: true } : {}),
+  };
+}
+
+async function dispatchDirectIosSelectorFill(
+  params: InteractionHandlerParams,
+  session: SessionState,
+  selector: DirectIosSelectorTarget,
+  text: string,
+): Promise<DaemonResponse | null> {
+  const actionStartedAt = Date.now();
+  try {
+    const data =
+      (await dispatchCommand(session.device, 'fill', [text], params.req.flags?.out, {
+        ...params.contextFromFlags(params.req.flags, session.appBundleId, session.trace?.outPath),
+        directElementSelector: selector,
+        surface: session.surface,
+      })) ?? {};
+    const actionFinishedAt = Date.now();
+    const point = readPointFromDirectSelectorTapResult(data);
+    const responseData = buildTouchVisualizationResult({
+      data,
+      fallbackX: point.x,
+      fallbackY: point.y,
+      referenceFrame: readReferenceFrameFromDirectSelectorTapResult(data),
+      extra: {
+        selector: selector.raw,
+        text,
+      },
+    });
+    return finalizeTouchInteraction({
+      session,
+      sessionStore: params.sessionStore,
+      command: params.req.command,
+      positionals: params.req.positionals ?? [],
+      flags: params.req.flags,
+      result: responseData,
+      responseData,
+      actionStartedAt,
+      actionFinishedAt,
+    });
+  } catch (error) {
+    if (!isDirectIosSelectorFallbackError(error)) {
+      return { ok: false, error: normalizeError(error) };
+    }
+    emitDiagnostic({
+      level: 'debug',
+      phase: 'ios_direct_selector_fill_fallback',
+      data: {
+        selector: selector.raw,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+    return null;
+  }
 }
 
 async function dispatchRuntimeInteraction<

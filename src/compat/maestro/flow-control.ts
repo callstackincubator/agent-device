@@ -20,7 +20,10 @@ import type {
   MaestroParseContext,
 } from './types.ts';
 
-const MAX_REPEAT_EXPANSIONS = 100;
+// repeat.times is expanded at parse time for deterministic replay traces. Keep
+// a guardrail until repeat can execute as a runtime loop without materializing
+// every child action.
+const MAX_REPEAT_EXPANSIONS = 1000;
 
 type ConvertCommandList = (
   commands: MaestroCommand[],

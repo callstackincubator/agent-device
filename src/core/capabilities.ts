@@ -96,7 +96,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
       device.kind === 'simulator',
   },
   keyboard: {
-    // iOS only supports keyboard dismiss; status/get remains Android-only.
+    // iOS only supports keyboard dismiss/enter; status/get remains Android-only.
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,

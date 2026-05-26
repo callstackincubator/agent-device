@@ -389,7 +389,7 @@ export type RotateCommandOptions = DeviceCommandBaseOptions & {
 export type AppSwitcherCommandOptions = DeviceCommandBaseOptions;
 
 export type KeyboardCommandOptions = DeviceCommandBaseOptions & {
-  action?: 'status' | 'dismiss';
+  action?: 'status' | 'dismiss' | 'enter' | 'return';
 };
 
 export type ClipboardCommandOptions =
@@ -449,7 +449,7 @@ export type AppSwitcherCommandResult = CommandActionResult<'app-switcher'>;
 
 export type KeyboardCommandResult = DaemonResponseData & {
   platform?: 'android' | 'ios';
-  action?: 'status' | 'dismiss';
+  action?: 'status' | 'dismiss' | 'enter';
   visible?: boolean;
   inputType?: string | null;
   inputMethodPackage?: string | null;
@@ -681,6 +681,7 @@ export type ReplayRunOptions = AgentDeviceRequestOverrides & {
   maestro?: boolean;
   backend?: string;
   env?: string[];
+  timeoutMs?: number;
 };
 
 export type ReplayTestOptions = AgentDeviceRequestOverrides &
