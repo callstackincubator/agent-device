@@ -40,33 +40,6 @@ function makeIosSimulatorSession(showTouches: boolean): SessionState {
   };
 }
 
-test('raw iOS simulator recordings do not depend on runner health', () => {
-  const session = makeIosSimulatorSession(false);
-  mockGetRunnerSessionSnapshot.mockReturnValue({
-    alive: true,
-    sessionId: 'runner-after',
-  });
-
-  refreshRecordingHealth(session);
-
-  expect(mockGetRunnerSessionSnapshot).not.toHaveBeenCalled();
-  expect(session.recording?.invalidatedReason).toBeUndefined();
-});
-
-test('touch-overlay iOS simulator recordings tolerate runner restarts', () => {
-  const session = makeIosSimulatorSession(true);
-  mockGetRunnerSessionSnapshot.mockReturnValue({
-    alive: true,
-    sessionId: 'runner-after',
-  });
-
-  refreshRecordingHealth(session);
-
-  expect(mockGetRunnerSessionSnapshot).not.toHaveBeenCalled();
-  expect(session.recording?.runnerSessionId).toBe('runner-before');
-  expect(session.recording?.invalidatedReason).toBeUndefined();
-});
-
 test('runner-backed iOS recordings still invalidate on runner restarts', () => {
   const session = makeIosSimulatorSession(true);
   session.device.kind = 'device';

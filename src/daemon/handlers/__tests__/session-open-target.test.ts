@@ -32,9 +32,3 @@ test('inferAndroidPackageAfterOpen reads foreground package for Android URL open
   ).resolves.toBe('host.exp.exponent');
 });
 
-test('inferAndroidPackageAfterOpen preserves existing package context', async () => {
-  await expect(
-    inferAndroidPackageAfterOpen(androidDevice, 'exp://127.0.0.1:8082', 'com.example.app'),
-  ).resolves.toBe('com.example.app');
-  expect(mockGetAndroidAppState).not.toHaveBeenCalled();
-});

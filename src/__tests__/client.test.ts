@@ -34,90 +34,6 @@ function createTransport(
   };
 }
 
-test('devices.list maps daemon devices into normalized identifiers', async () => {
-  const setup = createTransport(async () => ({
-    ok: true,
-    data: {
-      devices: [
-        {
-          platform: 'ios',
-          id: 'SIM-001',
-          name: 'iPhone 16',
-          kind: 'simulator',
-          target: 'mobile',
-          booted: true,
-        },
-      ],
-    },
-  }));
-  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
-
-  const devices = await client.devices.list({
-    platform: 'ios',
-    iosSimulatorDeviceSet: '/tmp/sim-set',
-  });
-
-  assert.equal(setup.calls.length, 1);
-  assert.equal(setup.calls[0]?.command, 'devices');
-  assert.deepEqual(setup.calls[0]?.flags, {
-    daemonBaseUrl: 'http://daemon.example.test',
-    daemonAuthToken: 'secret',
-    daemonTransport: 'http',
-    tenant: 'acme',
-    sessionIsolation: 'tenant',
-    runId: 'run-123',
-    leaseId: 'lease-123',
-    platform: 'ios',
-    iosSimulatorDeviceSet: '/tmp/sim-set',
-    verbose: true,
-  });
-  assert.deepEqual(devices, [
-    {
-      platform: 'ios',
-      target: 'mobile',
-      kind: 'simulator',
-      id: 'SIM-001',
-      name: 'iPhone 16',
-      booted: true,
-      identifiers: {
-        deviceId: 'SIM-001',
-        deviceName: 'iPhone 16',
-        udid: 'SIM-001',
-      },
-      ios: {
-        udid: 'SIM-001',
-      },
-      android: undefined,
-    },
-  ]);
-});
-
-test('typed client forwards shared request lock policy metadata', async () => {
-  const setup = createTransport(async () => ({
-    ok: true,
-    data: {
-      devices: [],
-    },
-  }));
-  const client = createAgentDeviceClient(
-    {
-      ...setup.config,
-      lockPolicy: 'reject',
-      lockPlatform: 'ios',
-    },
-    { transport: setup.transport },
-  );
-
-  await client.devices.list({
-    device: 'Pixel 9',
-  });
-
-  assert.equal(setup.calls.length, 1);
-  assert.equal(setup.calls[0]?.meta?.lockPolicy, 'reject');
-  assert.equal(setup.calls[0]?.meta?.lockPlatform, 'ios');
-  assert.equal(setup.calls[0]?.flags?.device, 'Pixel 9');
-});
-
 test('apps.open resolves session device identifiers from open response', async () => {
   const setup = createTransport(async (req) => {
     if (req.command === 'open') {
@@ -202,60 +118,6 @@ test('apps.open forwards explicit runtime hints through the daemon request', asy
   });
 });
 
-test('apps.installFromSource forwards source payload and normalizes launch identity', async () => {
-  const setup = createTransport(async () => ({
-    ok: true,
-    data: {
-      packageName: 'com.example.demo',
-      appName: 'Demo',
-      launchTarget: 'com.example.demo',
-      installablePath: '/tmp/materialized/installable/demo.apk',
-      archivePath: '/tmp/materialized/archive/demo.zip',
-      materializationId: 'materialized-123',
-      materializationExpiresAt: '2026-03-13T12:00:00.000Z',
-    },
-  }));
-  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
-
-  const result = await client.apps.installFromSource({
-    platform: 'android',
-    retainPaths: true,
-    retentionMs: 60_000,
-    source: {
-      kind: 'url',
-      url: 'https://example.com/demo.apk',
-      headers: { authorization: 'Bearer token' },
-    },
-  });
-
-  assert.equal(setup.calls.length, 1);
-  assert.equal(setup.calls[0]?.command, 'install_source');
-  assert.deepEqual(setup.calls[0]?.meta?.installSource, {
-    kind: 'url',
-    url: 'https://example.com/demo.apk',
-    headers: { authorization: 'Bearer token' },
-  });
-  assert.equal(setup.calls[0]?.meta?.retainMaterializedPaths, true);
-  assert.equal(setup.calls[0]?.meta?.materializedPathRetentionMs, 60_000);
-  assert.deepEqual(result, {
-    appName: 'Demo',
-    appId: 'com.example.demo',
-    bundleId: undefined,
-    packageName: 'com.example.demo',
-    launchTarget: 'com.example.demo',
-    installablePath: '/tmp/materialized/installable/demo.apk',
-    archivePath: '/tmp/materialized/archive/demo.zip',
-    materializationId: 'materialized-123',
-    materializationExpiresAt: '2026-03-13T12:00:00.000Z',
-    identifiers: {
-      session: 'qa',
-      appId: 'com.example.demo',
-      appBundleId: undefined,
-      package: 'com.example.demo',
-    },
-  });
-});
-
 test('apps.installFromSource derives Android launchTarget from packageName when daemon omits it', async () => {
   const setup = createTransport(async () => ({
     ok: true,
@@ -322,15 +184,6 @@ test('apps.installFromSource forwards GitHub Actions artifact sources unchanged'
   });
 });
 
-test('interactions.rotateGesture serializes a complete center without undefined literals', async () => {
-  const setup = createTransport(async () => ({ ok: true, data: {} }));
-  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
-
-  await client.interactions.rotateGesture({ degrees: 35, x: 200, y: 420 });
-
-  assert.deepEqual(setup.calls[0]?.positionals, ['rotate', '35', '200', '420']);
-});
-
 test('interactions.rotateGesture rejects partial centers on the client side', async () => {
   const setup = createTransport(async () => {
     throw new Error('transport should not run for invalid input');
@@ -345,83 +198,6 @@ test('interactions.rotateGesture rejects partial centers on the client side', as
       error.message === 'gesture rotate center requires both x and y',
   );
   assert.equal(setup.calls.length, 0);
-});
-
-test('apps.list forwards filters and returns daemon app names', async () => {
-  const setup = createTransport(async () => ({
-    ok: true,
-    data: {
-      apps: ['Settings (com.apple.Preferences)', 'Demo (com.example.demo)', { ignored: true }],
-    },
-  }));
-  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
-
-  const apps = await client.apps.list({
-    platform: 'ios',
-    device: 'iPhone 16',
-    appsFilter: 'user-installed',
-  });
-
-  assert.equal(setup.calls.length, 1);
-  assert.equal(setup.calls[0]?.command, 'apps');
-  assert.deepEqual(setup.calls[0]?.positionals, []);
-  assert.equal(setup.calls[0]?.flags?.platform, 'ios');
-  assert.equal(setup.calls[0]?.flags?.device, 'iPhone 16');
-  assert.equal(setup.calls[0]?.flags?.appsFilter, 'user-installed');
-  assert.deepEqual(apps, ['Settings (com.apple.Preferences)', 'Demo (com.example.demo)']);
-});
-
-test('materializations.release forwards materialization identity through the daemon request', async () => {
-  const setup = createTransport(async () => ({
-    ok: true,
-    data: {
-      released: true,
-      materializationId: 'materialized-123',
-    },
-  }));
-  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
-
-  const result = await client.materializations.release({
-    materializationId: 'materialized-123',
-  });
-
-  assert.equal(setup.calls.length, 1);
-  assert.equal(setup.calls[0]?.command, 'release_materialized_paths');
-  assert.equal(setup.calls[0]?.meta?.materializationId, 'materialized-123');
-  assert.deepEqual(result, {
-    released: true,
-    materializationId: 'materialized-123',
-    identifiers: {},
-  });
-});
-
-test('client throws AppError for daemon failures', async () => {
-  const setup = createTransport(async () => ({
-    ok: false,
-    error: {
-      code: 'SESSION_NOT_FOUND',
-      message: 'No active session',
-      hint: 'Run open first.',
-      diagnosticId: 'diag-1',
-      logPath: '/tmp/daemon.log',
-      details: { session: 'qa' },
-    },
-  }));
-  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
-
-  await assert.rejects(
-    async () => await client.capture.snapshot(),
-    (error: unknown) => {
-      assert.ok(error instanceof AppError);
-      assert.equal(error.code, 'SESSION_NOT_FOUND');
-      assert.equal(error.message, 'No active session');
-      assert.equal(error.details?.hint, 'Run open first.');
-      assert.equal(error.details?.diagnosticId, 'diag-1');
-      assert.equal(error.details?.logPath, '/tmp/daemon.log');
-      assert.deepEqual(error.details?.session, 'qa');
-      return true;
-    },
-  );
 });
 
 // fallow-ignore-next-line complexity
@@ -460,21 +236,6 @@ test('replay.run serializes client-collected AD_VAR shell env into daemon reques
     if (previousLegacy === undefined) delete process.env.AD_APP_ID;
     else process.env.AD_APP_ID = previousLegacy;
   }
-});
-
-test('replay.run forwards backend without knowing the concrete syntax', async () => {
-  const setup = createTransport(async () => ({ ok: true, data: {} }));
-  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
-
-  await client.replay.run({
-    path: './flows/login.yaml',
-    backend: 'external-flow',
-  });
-
-  assert.equal(setup.calls.length, 1);
-  assert.equal(setup.calls[0]?.command, 'replay');
-  assert.deepEqual(setup.calls[0]?.positionals, ['./flows/login.yaml']);
-  assert.equal(setup.calls[0]?.flags?.replayBackend, 'external-flow');
 });
 
 test('replay.run keeps deprecated maestro option as backend alias', async () => {

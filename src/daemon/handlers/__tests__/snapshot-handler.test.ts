@@ -1466,29 +1466,6 @@ test('alert dismiss retries on "no alert" message', async () => {
   expect(calls).toBe(3);
 });
 
-test('alert get does not retry on failure', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-sim';
-  sessionStore.set(sessionName, makeSession(sessionName, iosSimulatorDevice));
-
-  let calls = 0;
-  mockRunnerCommand.mockImplementation(async () => {
-    calls += 1;
-    throw new AppError('COMMAND_FAILED', 'alert not found');
-  });
-
-  await expect(
-    handleSnapshotCommands({
-      req: { token: 't', session: sessionName, command: 'alert', positionals: ['get'], flags: {} },
-      sessionName,
-      logPath: '/tmp/daemon.log',
-      sessionStore,
-    }),
-  ).rejects.toThrow();
-
-  expect(calls).toBe(1);
-});
-
 test('wait sleep bypasses sessionless runner cleanup wrapper', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-sim';

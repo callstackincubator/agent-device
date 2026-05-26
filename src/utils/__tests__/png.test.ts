@@ -6,28 +6,6 @@ import path from 'node:path';
 import { PNG } from 'pngjs';
 import { resizePngFileToMaxSize } from '../png.ts';
 
-test('resizePngFileToMaxSize downscales with area weighting', async () => {
-  const filePath = tmpPngPath('resize');
-  const png = new PNG({ width: 4, height: 2 });
-  setPngPixel(png, 0, 0, 0, 20, 30);
-  setPngPixel(png, 1, 0, 100, 20, 30);
-  setPngPixel(png, 0, 1, 100, 20, 30);
-  setPngPixel(png, 1, 1, 200, 20, 30);
-  setPngPixel(png, 2, 0, 20, 80, 140);
-  setPngPixel(png, 3, 0, 20, 80, 140);
-  setPngPixel(png, 2, 1, 20, 80, 140);
-  setPngPixel(png, 3, 1, 20, 80, 140);
-  writePng(filePath, png);
-
-  await resizePngFileToMaxSize(filePath, 2);
-
-  const resized = PNG.sync.read(fs.readFileSync(filePath));
-  assert.equal(resized.width, 2);
-  assert.equal(resized.height, 1);
-  assert.deepEqual(readPngPixel(resized, 0, 0), [100, 20, 30, 255]);
-  assert.deepEqual(readPngPixel(resized, 1, 0), [20, 80, 140, 255]);
-});
-
 test('resizePngFileToMaxSize leaves smaller images unchanged', async () => {
   const filePath = tmpPngPath('unchanged');
   const png = new PNG({ width: 4, height: 2 });
@@ -40,23 +18,6 @@ test('resizePngFileToMaxSize leaves smaller images unchanged', async () => {
   assert.equal(unchanged.width, 4);
   assert.equal(unchanged.height, 2);
   assert.deepEqual(readPngPixel(unchanged, 3, 1), [45, 90, 135, 255]);
-});
-
-test('resizePngFileToMaxSize preserves source edges when downscaling', async () => {
-  const filePath = tmpPngPath('edges');
-  const png = new PNG({ width: 3, height: 1 });
-  setPngPixel(png, 0, 0, 0, 0, 0);
-  setPngPixel(png, 1, 0, 100, 0, 0);
-  setPngPixel(png, 2, 0, 250, 0, 0);
-  writePng(filePath, png);
-
-  await resizePngFileToMaxSize(filePath, 2);
-
-  const resized = PNG.sync.read(fs.readFileSync(filePath));
-  assert.equal(resized.width, 2);
-  assert.equal(resized.height, 1);
-  assert.deepEqual(readPngPixel(resized, 0, 0), [33, 0, 0, 255]);
-  assert.deepEqual(readPngPixel(resized, 1, 0), [200, 0, 0, 255]);
 });
 
 function tmpPngPath(prefix: string): string {

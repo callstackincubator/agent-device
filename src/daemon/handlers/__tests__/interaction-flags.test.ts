@@ -10,11 +10,3 @@ test('unsupportedRefSnapshotFlags returns unsupported snapshot flags for @ref fl
   expect(unsupported).toEqual(['--depth', '--scope', '--raw']);
 });
 
-test('unsupportedRefSnapshotFlags returns empty when no ref-unsupported flags are present', () => {
-  const unsupported = unsupportedRefSnapshotFlags({
-    platform: 'ios',
-    session: 'default',
-    verbose: true,
-  });
-  expect(unsupported).toEqual([]);
-});

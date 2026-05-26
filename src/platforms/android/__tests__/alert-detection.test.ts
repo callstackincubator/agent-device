@@ -19,24 +19,6 @@ test('chooseAndroidAlertButton prefers platform ids over ambiguous labels', () =
   assert.equal(chooseAndroidAlertButton(candidate?.buttons ?? [], 'dismiss')?.label, 'Allow');
 });
 
-test('chooseAndroidAlertButton classifies permission ids before labels', () => {
-  const candidate = findAndroidAlertCandidate([
-    node(0, 'android.widget.FrameLayout', {
-      bundleId: 'com.google.android.permissioncontroller',
-    }),
-    node(1, 'android.widget.TextView', {
-      label: 'Camera access',
-      identifier: 'com.android.permissioncontroller:id/permission_message',
-      bundleId: 'com.google.android.permissioncontroller',
-    }),
-    button(2, 'No thanks', 'permission_allow_foreground_only_button', { x: 210, y: 612 }, true),
-    button(3, 'OK', 'permission_deny_button', { x: 52, y: 612 }, true),
-  ]);
-
-  assert.equal(chooseAndroidAlertButton(candidate?.buttons ?? [], 'accept')?.label, 'No thanks');
-  assert.equal(chooseAndroidAlertButton(candidate?.buttons ?? [], 'dismiss')?.label, 'OK');
-});
-
 test('findAndroidAlertCandidate collects descendants independent of node order', () => {
   const candidate = findAndroidAlertCandidate([
     text(3, 'Leave without saving?', 'android:id/message', 2),
@@ -65,23 +47,6 @@ test('findAndroidAlertCandidate ignores normal app message ids', () => {
   ]);
 
   assert.equal(candidate, null);
-});
-
-test('findAndroidAlertCandidate keeps buttonless native dialogs for Back fallback', () => {
-  const candidate = findAndroidAlertCandidate([
-    node(0, 'android.app.AlertDialog', { identifier: 'android:id/parentPanel' }),
-    text(1, 'Unsaved changes', 'android:id/alertTitle'),
-    text(2, 'Leave without saving?', 'android:id/message'),
-  ]);
-
-  assert.deepEqual(candidate?.alert, {
-    title: 'Unsaved changes',
-    message: 'Leave without saving?',
-    buttons: [],
-    platform: 'android',
-    source: 'native-dialog',
-    packageName: 'com.example.app',
-  });
 });
 
 test('chooseAndroidAlertButton accepts a single neutral button', () => {

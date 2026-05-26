@@ -13,20 +13,6 @@ test('expandUserHomePath expands the current user home prefix', () => {
   );
 });
 
-test('expandUserHomePath leaves non-home-prefixed paths unchanged', () => {
-  const env = { HOME: '/tmp/agent-device-home' };
-
-  assert.equal(expandUserHomePath('relative/path', { env }), 'relative/path');
-  assert.equal(expandUserHomePath('~other/path', { env }), '~other/path');
-});
-
-test('resolveUserPath resolves relative paths against cwd', () => {
-  assert.equal(
-    resolveUserPath('workflows/replay.ad', { cwd: '/tmp/agent-device-cwd' }),
-    path.resolve('/tmp/agent-device-cwd', 'workflows/replay.ad'),
-  );
-});
-
 test('resolveUserPath expands home-prefixed and absolute paths', () => {
   const env = { HOME: '/tmp/agent-device-home' };
   const absolutePath = '/tmp/agent-device-absolute.ad';

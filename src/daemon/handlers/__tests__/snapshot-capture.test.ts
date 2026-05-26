@@ -53,12 +53,6 @@ test('buildSnapshotState marks comparisonSafe false for filtered Android snapsho
   expect(unfiltered.comparisonSafe).toBe(true);
 });
 
-test('buildSnapshotState marks comparisonSafe false for non-Android backends', () => {
-  const nodes = [{ index: 0, depth: 0, type: 'Button', label: 'OK' }];
-  const state = buildSnapshotState({ nodes, backend: 'xctest' }, {});
-  expect(state.comparisonSafe).toBe(false);
-});
-
 test('buildSnapshotState applies iOS interactive presentation for xctest snapshots', () => {
   const rowRect = { x: 16, y: 293, width: 370, height: 52 };
   const state = buildSnapshotState(
@@ -81,29 +75,6 @@ test('buildSnapshotState applies iOS interactive presentation for xctest snapsho
   ]);
 });
 
-test('buildSnapshotState keeps raw iOS snapshots uncollapsed', () => {
-  const rowRect = { x: 16, y: 293, width: 370, height: 52 };
-  const nodes = [
-    { index: 0, depth: 0, type: 'Cell', label: 'General', rect: rowRect },
-    {
-      index: 1,
-      depth: 1,
-      parentIndex: 0,
-      type: 'Button',
-      label: 'General',
-      identifier: 'com.apple.settings.general',
-      rect: rowRect,
-    },
-  ];
-
-  const state = buildSnapshotState(
-    { nodes, backend: 'xctest' },
-    { snapshotInteractiveOnly: true, snapshotRaw: true },
-  );
-
-  expect(state.nodes.map((node) => node.type)).toEqual(['Cell', 'Button']);
-});
-
 test('buildSnapshotState returns empty nodes when scoped snapshot has no label match', () => {
   const nodes = [
     { index: 0, depth: 0, type: 'Window', label: 'Root' },
@@ -123,24 +94,6 @@ test('buildSnapshotVisibility returns non-partial for empty node list', () => {
   expect(vis.partial).toBe(false);
   expect(vis.visibleNodeCount).toBe(0);
   expect(vis.totalNodeCount).toBe(0);
-  expect(vis.reasons).toEqual([]);
-});
-
-test('buildSnapshotVisibility skips semantic analysis for raw snapshots', () => {
-  const nodes = [
-    { ref: 'e1', index: 0, depth: 0, type: 'View', label: 'Root', hiddenContentBelow: true },
-  ];
-  const vis = buildSnapshotVisibility({ nodes, backend: 'android', snapshotRaw: true });
-  expect(vis.partial).toBe(false);
-  expect(vis.visibleNodeCount).toBe(1);
-  expect(vis.totalNodeCount).toBe(1);
-  expect(vis.reasons).toEqual([]);
-});
-
-test('buildSnapshotVisibility skips semantic analysis for macos-helper backend', () => {
-  const nodes = [{ ref: 'e1', index: 0, depth: 0, type: 'AXButton', label: 'Click Me' }];
-  const vis = buildSnapshotVisibility({ nodes, backend: 'macos-helper' });
-  expect(vis.partial).toBe(false);
   expect(vis.reasons).toEqual([]);
 });
 

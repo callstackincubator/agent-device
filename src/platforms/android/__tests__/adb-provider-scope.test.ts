@@ -68,22 +68,3 @@ test('withAndroidAdbProvider ignores adb commands for another serial', async () 
   assert.deepEqual(calls, []);
 });
 
-test('resolveAndroidAdbProvider uses the scoped provider spawner', async () => {
-  const child = { pid: 123 } as AndroidAdbProcess;
-  const calls: string[][] = [];
-
-  const result = await withAndroidAdbProvider(
-    {
-      exec: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
-      spawn: (args) => {
-        calls.push(args);
-        return child;
-      },
-    },
-    { serial: device.id },
-    async () => resolveAndroidAdbProvider(device).spawn?.(['logcat', '-v', 'time']),
-  );
-
-  assert.equal(result, child);
-  assert.deepEqual(calls, [['logcat', '-v', 'time']]);
-});

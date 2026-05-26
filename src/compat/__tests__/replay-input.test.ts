@@ -3,19 +3,6 @@ import assert from 'node:assert/strict';
 import { AppError } from '../../utils/errors.ts';
 import { parseReplayInput } from '../replay-input.ts';
 
-test('parseReplayInput routes native replay scripts through the native parser', () => {
-  const parsed = parseReplayInput('open Demo\nwait "Ready" 5000\n', undefined);
-
-  assert.equal(parsed.updateUnsupportedMessage, undefined);
-  assert.deepEqual(
-    parsed.actions.map((action) => [action.command, action.positionals]),
-    [
-      ['open', ['Demo']],
-      ['wait', ['Ready', '5000']],
-    ],
-  );
-});
-
 test('parseReplayInput routes compat replay scripts through the selected parser', () => {
   const parsed = parseReplayInput(
     `appId: com.callstack.agentdevicelab

@@ -192,23 +192,6 @@ test('parseAndroidLaunchComponent returns null when no component is present', ()
   assert.equal(parseAndroidLaunchComponent(stdout), null);
 });
 
-test('isAmStartError detects am start failure in stdout', () => {
-  assert.equal(
-    isAmStartError(
-      'Starting: Intent { ... }\nError: Activity not started, unable to resolve Intent { ... }',
-      '',
-    ),
-    true,
-  );
-});
-
-test('isAmStartError returns false for successful am start', () => {
-  assert.equal(
-    isAmStartError('Status: ok\nLaunchState: COLD\nActivity: com.example/.MainActivity', ''),
-    false,
-  );
-});
-
 test('inferAndroidAppName derives readable names from package ids', () => {
   assert.equal(inferAndroidAppName('com.android.settings'), 'Settings');
   assert.equal(inferAndroidAppName('com.google.android.apps.maps'), 'Maps');

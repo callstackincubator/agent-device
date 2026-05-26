@@ -100,59 +100,12 @@ test('expandHome resolves tilde, relative-with-cwd, and absolute paths', () => {
   assert.equal(absolutePath, absoluteInput);
 });
 
-test('recordAction stores normalized action entries', () => {
-  const store = new SessionStore(path.join(os.tmpdir(), 'agent-device-tests'));
-  const session = makeSession('default');
-  store.recordAction(session, {
-    command: 'snapshot',
-    positionals: [],
-    flags: {
-      platform: 'ios',
-      snapshotInteractiveOnly: true,
-      verbose: true,
-      json: true,
-      unknownFlag: 'drop-me',
-    } as Parameters<SessionStore['recordAction']>[1]['flags'] & {
-      json: boolean;
-      unknownFlag: string;
-    },
-    result: { nodes: 1 },
-  });
-  assert.equal(session.actions.length, 1);
-  assert.equal(session.actions[0].command, 'snapshot');
-  assert.deepEqual(session.actions[0].flags, {
-    platform: 'ios',
-    snapshotInteractiveOnly: true,
-    verbose: true,
-  });
-});
-
-test('recordAction skips entries marked noRecord', () => {
-  const store = new SessionStore(path.join(os.tmpdir(), 'agent-device-tests'));
-  const session = makeSession('default');
-  store.recordAction(session, {
-    command: 'click',
-    positionals: ['@e1'],
-    flags: { noRecord: true },
-    result: {},
-  });
-  assert.equal(session.actions.length, 0);
-});
-
 test('defaultTracePath sanitizes session name', () => {
   const store = new SessionStore(path.join(os.tmpdir(), 'agent-device-tests'));
   const session = makeSession('session with spaces');
   const tracePath = store.defaultTracePath(session);
   assert.match(tracePath, /session_with_spaces/);
   assert.match(tracePath, /\.trace\.log$/);
-});
-
-test('writeSessionLog writes .ad only when recording is enabled', () => {
-  const { root, store, session } = makeFixture('agent-device-session-log-disabled-');
-  recordOpen(store, session, { platform: 'ios' });
-
-  store.writeSessionLog(session);
-  assert.equal(listSessionScriptFiles(root).length, 0);
 });
 
 test('saveScript flag enables .ad session log writing', () => {

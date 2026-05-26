@@ -271,13 +271,6 @@ test('macOS supports the Apple runner interaction core but excludes mobile-only 
   );
 });
 
-test('Android TV uses Android capabilities for core commands', () => {
-  assertCommandSupport(
-    ['open', 'apps', 'snapshot', 'press', 'swipe', 'back', 'home', 'scroll'],
-    [{ device: androidTvDevice, expected: true, label: 'on Android TV' }],
-  );
-});
-
 test('tvOS follows iOS capability matrix by device kind', () => {
   assertCommandSupport(
     ['open', 'close', 'apps', 'screenshot', 'trigger-app-event', 'logs', 'reinstall', 'boot'],

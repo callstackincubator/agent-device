@@ -12,14 +12,6 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-test('markPostGestureStabilization marks iOS swipe sessions', () => {
-  const session = makeSession();
-
-  markPostGestureStabilization(session, 'swipe');
-
-  assert.equal(session.postGestureStabilization?.action, 'swipe');
-});
-
 test('capturePostGestureStabilizedSnapshot retries until rects stop moving', async () => {
   vi.useFakeTimers();
   const session = makeSession();

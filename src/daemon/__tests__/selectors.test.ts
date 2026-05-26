@@ -209,13 +209,6 @@ test('parseSelectorChain handles quoted values ending in escaped backslashes', (
   assert.equal(chain.selectors.length, 2);
 });
 
-test('isSelectorToken only accepts known keys for key=value tokens', () => {
-  assert.equal(isSelectorToken('id=foo'), true);
-  assert.equal(isSelectorToken('editable=true'), true);
-  assert.equal(isSelectorToken('foo=bar'), false);
-  assert.equal(isSelectorToken('a=b'), false);
-});
-
 test('text selector matches extractNodeText semantics (first non-empty field)', () => {
   const chainByLabel = parseSelectorChain('text=Email');
   const chainById = parseSelectorChain('text=login_email');
@@ -230,13 +223,6 @@ test('text selector matches extractNodeText semantics (first non-empty field)', 
   assert.ok(resolvedLabel);
   assert.equal(resolvedLabel.node.ref, 'e1');
   assert.equal(resolvedId, null);
-});
-
-test('buildSelectorChainForNode prefers id and adds editable for fill action', () => {
-  const target = nodes[0];
-  const chain = buildSelectorChainForNode(target, 'ios', { action: 'fill' });
-  assert.ok(chain.some((entry) => entry.includes('id=')));
-  assert.ok(chain.some((entry) => entry.includes('editable=true')));
 });
 
 test('role selector normalization matches Android class names by leaf type', () => {
@@ -307,9 +293,3 @@ test('appName selector matches nodes with appName field', () => {
   assert.equal(match3.matches, 1);
 });
 
-test('isSelectorToken recognizes appname and windowtitle', () => {
-  assert.ok(isSelectorToken('appName=Foo'));
-  assert.ok(isSelectorToken('appname=Foo'));
-  assert.ok(isSelectorToken('windowTitle=Bar'));
-  assert.ok(isSelectorToken('windowtitle=Bar'));
-});

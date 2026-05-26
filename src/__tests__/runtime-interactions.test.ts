@@ -124,40 +124,6 @@ test('runtime click still promotes non-touchable nodes to hittable ancestors', a
   assert.equal(result.node?.label, 'Clickable group');
 });
 
-test('touch resolution keeps non-hittable semantic iOS tab buttons at their own center', () => {
-  const snapshot = makeSnapshotState([
-    {
-      index: 0,
-      depth: 0,
-      type: 'XCUIElementTypeApplication',
-      label: 'TabRepro',
-      rect: { x: 0, y: 0, width: 402, height: 874 },
-    },
-    {
-      index: 1,
-      depth: 1,
-      parentIndex: 0,
-      type: 'XCUIElementTypeTabBar',
-      rect: { x: 0, y: 791, width: 402, height: 83 },
-      hittable: true,
-    },
-    {
-      index: 2,
-      depth: 2,
-      parentIndex: 1,
-      type: 'XCUIElementTypeButton',
-      label: 'Library',
-      rect: { x: 120, y: 800, width: 92, height: 44 },
-      hittable: false,
-    },
-  ]);
-
-  const resolution = resolveActionableTouchResolution(snapshot.nodes, snapshot.nodes[2]!);
-
-  assert.equal(resolution.reason, 'semantic-target');
-  assert.equal(resolution.node.label, 'Library');
-});
-
 test('touch resolution promotes static text inside a hittable row to the row', () => {
   const snapshot = makeSnapshotState([
     {

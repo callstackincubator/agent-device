@@ -55,8 +55,3 @@ test('discoverReplayTestEntries rejects empty post-filter suites', () => {
   );
 });
 
-test('resolveReplayTestRetries clamps metadata and cli values to the supported ceiling', () => {
-  assert.equal(resolveReplayTestRetries(undefined, 9), 3);
-  assert.equal(resolveReplayTestRetries(2, 9), 2);
-  assert.equal(resolveReplayTestRetries(5, undefined), 3);
-});

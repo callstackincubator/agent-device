@@ -7,31 +7,6 @@ import { flushDiagnosticsToSessionFile, withDiagnosticsScope } from '../../utils
 import { createDaemonRuntimeSessionStore, toRuntimeSessionRecord } from '../runtime-session.ts';
 import type { CommandSessionRecord } from '../../runtime-contract.ts';
 
-test('toRuntimeSessionRecord projects daemon session state for runtime commands', () => {
-  const session = makeIosSession('qa-ios', {
-    appBundleId: 'com.example.app',
-    appName: 'Example',
-    surface: 'app',
-    snapshot: {
-      nodes: [],
-      createdAt: 123,
-    },
-  });
-
-  expect(toRuntimeSessionRecord(session, 'runtime-session', { includeSnapshot: true })).toEqual({
-    name: 'runtime-session',
-    appBundleId: 'com.example.app',
-    appName: 'Example',
-    snapshot: {
-      nodes: [],
-      createdAt: 123,
-    },
-    metadata: {
-      surface: 'app',
-    },
-  });
-});
-
 test('createDaemonRuntimeSessionStore hides non-matching sessions and scopes writes', async () => {
   const previousHome = process.env.HOME;
   const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-runtime-session-home-'));

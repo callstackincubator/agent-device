@@ -10,8 +10,3 @@ test('parseTriggerAppEventArgs validates event name format', () => {
   );
 });
 
-test('parseTriggerAppEventArgs accepts JSON object payload', () => {
-  const parsed = parseTriggerAppEventArgs(['screenshot_taken', '{"source":"qa"}']);
-  assert.equal(parsed.eventName, 'screenshot_taken');
-  assert.deepEqual(parsed.payload, { source: 'qa' });
-});

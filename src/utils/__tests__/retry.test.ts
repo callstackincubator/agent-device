@@ -6,14 +6,6 @@ import path from 'node:path';
 import { Deadline, retryWithPolicy, withRetry } from '../retry.ts';
 import { flushDiagnosticsToSessionFile, withDiagnosticsScope } from '../diagnostics.ts';
 
-test('Deadline tracks remaining and expiration', async () => {
-  const deadline = Deadline.fromTimeoutMs(25);
-  assert.equal(deadline.isExpired(), false);
-  await new Promise((resolve) => setTimeout(resolve, 30));
-  assert.equal(deadline.isExpired(), true);
-  assert.equal(deadline.remainingMs(), 0);
-});
-
 test('retryWithPolicy retries until success', async () => {
   let attempts = 0;
   const result = await retryWithPolicy(

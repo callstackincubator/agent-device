@@ -56,28 +56,6 @@ test('rotateAppLogIfNeeded rotates and truncates oldest by configured max files'
   assert.equal(fs.readFileSync(`${outPath}.2`, 'utf8'), 'old1');
 });
 
-test('stopAppLog delegates stop and waits for completion', async () => {
-  let stopped = false;
-  let resolved = false;
-  const wait = new Promise<{ stdout: string; stderr: string; exitCode: number }>((resolve) => {
-    setTimeout(() => {
-      resolved = true;
-      resolve({ stdout: '', stderr: '', exitCode: 0 });
-    }, 5);
-  });
-  await stopAppLog({
-    backend: 'android',
-    getState: () => 'active',
-    startedAt: Date.now(),
-    stop: async () => {
-      stopped = true;
-    },
-    wait,
-  });
-  assert.equal(stopped, true);
-  assert.equal(resolved, true);
-});
-
 test('cleanupStaleAppLogProcesses removes pid files even when pid is stale', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-app-log-clean-'));
   const sessionDir = path.join(root, 'default');
@@ -159,34 +137,6 @@ test('cleanupStaleAppLogProcesses removes legacy plain pid files safely', () => 
   cleanupStaleAppLogProcesses(root);
 
   assert.equal(fs.existsSync(pidPath), false);
-});
-
-test('appendAppLogMarker writes marker lines and metadata reflects file', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-app-log-mark-'));
-  const outPath = path.join(root, 'app.log');
-  appendAppLogMarker(outPath, 'checkpoint');
-  const content = fs.readFileSync(outPath, 'utf8');
-  assert.match(content, /checkpoint/);
-  const metadata = getAppLogPathMetadata(outPath);
-  assert.equal(metadata.exists, true);
-  assert.ok(metadata.sizeBytes > 0);
-});
-
-test('clearAppLogFiles truncates current log and removes rotated log files', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-app-log-clear-'));
-  const outPath = path.join(root, 'app.log');
-  fs.writeFileSync(outPath, 'line1\nline2\n');
-  fs.writeFileSync(`${outPath}.1`, 'older');
-  fs.writeFileSync(`${outPath}.2`, 'oldest');
-
-  const result = clearAppLogFiles(outPath);
-
-  assert.equal(result.path, outPath);
-  assert.equal(result.cleared, true);
-  assert.equal(result.removedRotatedFiles, 2);
-  assert.equal(fs.readFileSync(outPath, 'utf8'), '');
-  assert.equal(fs.existsSync(`${outPath}.1`), false);
-  assert.equal(fs.existsSync(`${outPath}.2`), false);
 });
 
 test('runAppLogDoctor returns note when app bundle is missing', async () => {

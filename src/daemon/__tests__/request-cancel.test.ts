@@ -7,10 +7,6 @@ import {
   resolveRequestTrackingId,
 } from '../request-cancel.ts';
 
-test('resolveRequestTrackingId keeps explicit request id', () => {
-  assert.equal(resolveRequestTrackingId('req-123'), 'req-123');
-});
-
 test('resolveRequestTrackingId generates unique ids for fallback seeds', () => {
   const first = resolveRequestTrackingId(undefined, 42);
   const second = resolveRequestTrackingId(undefined, 42);

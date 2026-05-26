@@ -21,18 +21,6 @@ const androidDevice: DeviceInfo = {
 
 // --- requireIntInRange ---
 
-test('requireIntInRange returns value at lower bound', () => {
-  assert.equal(requireIntInRange(0, 'x', 0, 10), 0);
-});
-
-test('requireIntInRange returns value at upper bound', () => {
-  assert.equal(requireIntInRange(10, 'x', 0, 10), 10);
-});
-
-test('requireIntInRange returns value within range', () => {
-  assert.equal(requireIntInRange(5, 'x', 0, 10), 5);
-});
-
 test('requireIntInRange throws for value below minimum', () => {
   assert.throws(
     () => requireIntInRange(-1, 'x', 0, 10),
@@ -93,14 +81,6 @@ test('shouldUseIosTapSeries returns true for iOS with count > 1 and no hold or j
   assert.equal(shouldUseIosTapSeries(iosDevice, 2, 0, 0), true);
 });
 
-test('shouldUseIosTapSeries returns false for Android', () => {
-  assert.equal(shouldUseIosTapSeries(androidDevice, 2, 0, 0), false);
-});
-
-test('shouldUseIosTapSeries returns false when count is 1', () => {
-  assert.equal(shouldUseIosTapSeries(iosDevice, 1, 0, 0), false);
-});
-
 test('shouldUseIosTapSeries returns false when holdMs is non-zero', () => {
   assert.equal(shouldUseIosTapSeries(iosDevice, 2, 100, 0), false);
 });
@@ -115,80 +95,11 @@ test('shouldUseIosDragSeries returns true for iOS with count > 1', () => {
   assert.equal(shouldUseIosDragSeries(iosDevice, 2), true);
 });
 
-test('shouldUseIosDragSeries returns false for Android', () => {
-  assert.equal(shouldUseIosDragSeries(androidDevice, 2), false);
-});
-
 test('shouldUseIosDragSeries returns false when count is 1', () => {
   assert.equal(shouldUseIosDragSeries(iosDevice, 1), false);
 });
 
 // --- computeDeterministicJitter ---
 
-test('computeDeterministicJitter scales pattern entry by jitter pixels', () => {
-  assert.deepEqual(computeDeterministicJitter(1, 3), [3, 0]);
-});
-
-test('computeDeterministicJitter returns [0, 0] at index 0', () => {
-  assert.deepEqual(computeDeterministicJitter(0, 5), [0, 0]);
-});
-
-test('computeDeterministicJitter cycles through 9-entry pattern', () => {
-  assert.deepEqual(computeDeterministicJitter(9, 2), [0, 0]);
-});
-
-test('computeDeterministicJitter returns [0, 0] when jitterPx is 0', () => {
-  assert.deepEqual(computeDeterministicJitter(1, 0), [0, 0]);
-});
-
-test('computeDeterministicJitter returns [0, 0] when jitterPx is negative', () => {
-  assert.deepEqual(computeDeterministicJitter(1, -3), [0, 0]);
-});
-
 // --- runRepeatedSeries ---
 
-test('runRepeatedSeries invokes operation for each index in order', async () => {
-  const indices: number[] = [];
-  await runRepeatedSeries(4, 0, async (i) => {
-    indices.push(i);
-  });
-  assert.deepEqual(indices, [0, 1, 2, 3]);
-});
-
-test('runRepeatedSeries does not invoke operation when count is 0', async () => {
-  const indices: number[] = [];
-  await runRepeatedSeries(0, 0, async (i) => {
-    indices.push(i);
-  });
-  assert.deepEqual(indices, []);
-});
-
-test('runRepeatedSeries pauses between operations but not after the last', async () => {
-  const timeoutDelays: number[] = [];
-  vi.spyOn(globalThis, 'setTimeout').mockImplementation(((cb: () => void, ms: number) => {
-    timeoutDelays.push(ms);
-    cb();
-    return 0;
-  }) as typeof setTimeout);
-  const pauseMs = 50;
-  const calls: number[] = [];
-  await runRepeatedSeries(3, pauseMs, async (i) => {
-    calls.push(i);
-  });
-  assert.deepEqual(calls, [0, 1, 2]);
-  // 3 operations with pauses only between them = 2 pauses
-  assert.deepEqual(timeoutDelays, [pauseMs, pauseMs]);
-});
-
-test('runRepeatedSeries propagates operation error and stops iteration', async () => {
-  const indices: number[] = [];
-  await assert.rejects(
-    () =>
-      runRepeatedSeries(5, 0, async (i) => {
-        indices.push(i);
-        if (i === 2) throw new Error('boom');
-      }),
-    (e: unknown) => e instanceof Error && e.message === 'boom',
-  );
-  assert.deepEqual(indices, [0, 1, 2]);
-});

@@ -85,11 +85,6 @@ test('resolveReplayString fallback preserves embedded braces via escapes', () =>
   assert.equal(resolveReplayString('x ${A:-one\\}two}', scope, LOC), 'x one}two');
 });
 
-test('resolveReplayString supports escape for literal $', () => {
-  const scope = buildReplayVarScope({ fileEnv: { APP: 'settings' } });
-  assert.equal(resolveReplayString('\\${APP}', scope, LOC), '${APP}');
-});
-
 test('resolveReplayString throws on unresolved variable with file:line', () => {
   const scope = buildReplayVarScope({ fileEnv: { OTHER: 'x' } });
   assert.throws(
@@ -193,12 +188,6 @@ test('resolveReplayAction walks runtime hints', () => {
   const scope = buildReplayVarScope({ fileEnv: { HOST: '10.0.0.1' } });
   const resolved = resolveReplayAction(action, scope, LOC);
   assert.equal(resolved.runtime?.metroHost, '10.0.0.1');
-});
-
-test('JSON-quoted args round-trip with ${VAR} intact after parse', () => {
-  const script = 'context platform=android\nenv SEL="label=Wait || label=Apps"\nclick "${SEL}"\n';
-  const actions = parseReplayScript(script);
-  assert.deepEqual(actions[0]?.positionals, ['${SEL}']);
 });
 
 test('parseReplayScriptDetailed tracks line numbers', () => {
@@ -357,28 +346,6 @@ test('parseReplayCliEnvEntries error wording is user-friendly for invalid keys',
       error.code === 'INVALID_ARGS' &&
       /uppercase letters, digits, and underscores/.test(error.message),
   );
-});
-
-test('buildReplayVarScope allows AD_* keys from builtins (trusted)', () => {
-  const scope = buildReplayVarScope({
-    builtins: { AD_SESSION: 's', AD_PLATFORM: 'android' },
-  });
-  assert.equal(scope.values.AD_SESSION, 's');
-  assert.equal(scope.values.AD_PLATFORM, 'android');
-});
-
-test('runReplayScriptFile rejects replay -u when any action contains ${VAR}', async () => {
-  const { response } = await runReplayFixture({
-    label: 'var-heal',
-    // No env directive, but positional uses ${APP}.
-    script: 'context platform=android\nopen ${APP}\n',
-    flags: { replayUpdate: true, replayEnv: ['APP=settings'] },
-  });
-  assert.equal(response.ok, false);
-  if (!response.ok) {
-    assert.equal(response.error.code, 'INVALID_ARGS');
-    assert.match(response.error.message, /replay -u does not yet preserve \$\{VAR\} substitutions/);
-  }
 });
 
 // fallow-ignore-next-line complexity

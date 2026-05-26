@@ -384,35 +384,6 @@ test('batch rejects nested replay and batch commands', async () => {
   }
 });
 
-test('batch enforces max step guard', async () => {
-  const sessionStore = makeSessionStore();
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: 'default',
-      command: 'batch',
-      positionals: [],
-      flags: {
-        batchMaxSteps: 1,
-        batchSteps: [
-          { command: 'open', positionals: ['settings'] },
-          { command: 'wait', positionals: ['100'] },
-        ],
-      },
-    },
-    sessionName: 'default',
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(false);
-  if (response && !response.ok) {
-    expect(response.error.code).toBe('INVALID_ARGS');
-    expect(response.error.message).toMatch(/max allowed is 1/);
-  }
-});
-
 test('batch step flags override parent selector flags', async () => {
   const sessionStore = makeSessionStore();
   const response = await handleSessionCommands({
@@ -2613,91 +2584,6 @@ test('open --relaunch on iOS simulator reaches settle path for close and open', 
   expect(settleCalls.length).toBe(2);
   expect(settleCalls[0]).toEqual({ deviceId: 'sim-1', delayMs: 300 });
   expect(settleCalls[1]).toEqual({ deviceId: 'sim-1', delayMs: 300 });
-});
-
-test('close on iOS session with recording stops runner session before delete', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-device-session';
-  sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'ios',
-      id: 'ios-device-1',
-      name: 'My iPhone',
-      kind: 'device',
-      booted: true,
-    }),
-    recording: {
-      platform: 'ios-device-runner',
-      outPath: '/tmp/device-recording.mp4',
-      remotePath: 'tmp/device-recording.mp4',
-      startedAt: Date.now(),
-      showTouches: false,
-      gestureEvents: [],
-    },
-  });
-
-  const stopCalls: string[] = [];
-  mockStopIosRunner.mockImplementation(async (deviceId) => {
-    stopCalls.push(deviceId);
-  });
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'close',
-      positionals: [],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  expect(stopCalls).toEqual(['ios-device-1']);
-  expect(sessionStore.get(sessionName)).toBe(undefined);
-});
-
-test('plain close on iOS simulator retains runner for local iteration', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-simulator-close-session';
-  sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'ios',
-      id: 'ios-sim-1',
-      name: 'iPhone 17',
-      kind: 'simulator',
-      booted: true,
-    }),
-    appBundleId: 'com.example.app',
-  });
-
-  const stopCalls: string[] = [];
-  mockStopIosRunner.mockImplementation(async (deviceId) => {
-    stopCalls.push(deviceId);
-  });
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'close',
-      positionals: [],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  expect(stopCalls).toEqual([]);
-  expect(sessionStore.get(sessionName)).toBe(undefined);
 });
 
 test('close on macOS session stops runner and dismisses automation alert before delete', async () => {

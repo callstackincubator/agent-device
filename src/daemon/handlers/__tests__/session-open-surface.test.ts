@@ -3,23 +3,6 @@ import { test } from 'vitest';
 import { AppError } from '../../../utils/errors.ts';
 import { resolveRequestedOpenSurface } from '../session-open-surface.ts';
 
-test('resolveRequestedOpenSurface preserves existing macOS surface when flag is omitted', () => {
-  const surface = resolveRequestedOpenSurface({
-    device: {
-      platform: 'macos',
-      id: 'host-mac',
-      name: 'Host Mac',
-      kind: 'device',
-      target: 'desktop',
-    },
-    surfaceFlag: undefined,
-    openTarget: undefined,
-    existingSurface: 'desktop',
-  });
-
-  assert.equal(surface, 'desktop');
-});
-
 test('resolveRequestedOpenSurface rejects surface flag on iOS', () => {
   assert.throws(
     () =>

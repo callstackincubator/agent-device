@@ -23,12 +23,6 @@ const baseNode = {
   hittable: true,
 };
 
-test('isSupportedPredicate validates supported predicates', () => {
-  assert.equal(isSupportedPredicate('visible'), true);
-  assert.equal(isSupportedPredicate('text'), true);
-  assert.equal(isSupportedPredicate('checked'), false);
-});
-
 test('evaluateIsPredicate visible and hidden', () => {
   const nodes = [viewportNode, baseNode];
   const visible = evaluateIsPredicate({

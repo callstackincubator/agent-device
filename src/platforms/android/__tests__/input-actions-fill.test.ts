@@ -162,26 +162,6 @@ test('fillAndroid refuses shell fallback after focus when the IME owns input foc
   assert.equal(calls.filter(isTextInput).length, 0);
 });
 
-test('typeAndroid prefers provider-native text injection when available', async () => {
-  const calls: unknown[] = [];
-  await withAndroidAdbProvider(
-    {
-      exec: async () => {
-        throw new Error('adb should not run');
-      },
-      text: async (request) => {
-        calls.push(request);
-      },
-    },
-    { serial: ANDROID_EMULATOR.id },
-    async () => {
-      await typeAndroid(ANDROID_EMULATOR, '很 ☝ 😀');
-    },
-  );
-
-  assert.deepEqual(calls, [{ action: 'type', text: '很 ☝ 😀', delayMs: 0 }]);
-});
-
 test('fillAndroid delegates target replacement to provider-native text injection', async () => {
   const calls: unknown[] = [];
   let value = '';

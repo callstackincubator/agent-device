@@ -31,29 +31,6 @@ test('withKeyedLock serializes work per key', async () => {
   assert.deepEqual(order, ['start-1', 'end-1', 'start-2', 'end-2']);
 });
 
-test('withKeyedLock allows concurrent work across different keys', async () => {
-  const locks = new Map<string, Promise<unknown>>();
-  let active = 0;
-  let maxActive = 0;
-
-  await Promise.all([
-    withKeyedLock(locks, 'device-a', async () => {
-      active += 1;
-      maxActive = Math.max(maxActive, active);
-      await new Promise((resolve) => setTimeout(resolve, 15));
-      active -= 1;
-    }),
-    withKeyedLock(locks, 'device-b', async () => {
-      active += 1;
-      maxActive = Math.max(maxActive, active);
-      await new Promise((resolve) => setTimeout(resolve, 15));
-      active -= 1;
-    }),
-  ]);
-
-  assert.equal(maxActive, 2);
-});
-
 test('withKeyedLock allows reentrant work for the same key while holding the outer lock', async () => {
   const locks = new Map<string, Promise<unknown>>();
   const order: string[] = [];

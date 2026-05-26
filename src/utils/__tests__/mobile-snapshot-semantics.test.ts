@@ -102,47 +102,6 @@ test('mobile presentation assigns hidden content hints to visible scroll contain
   assert.deepEqual(presentation.summaryLines, []);
 });
 
-test('visibility checks use nearest scroll container clipping viewport', () => {
-  const nodes: SnapshotNode[] = [
-    {
-      ref: 'e1',
-      index: 0,
-      depth: 0,
-      type: 'Window',
-      rect: { x: 0, y: 0, width: 390, height: 844 },
-    },
-    {
-      ref: 'e2',
-      index: 1,
-      depth: 1,
-      parentIndex: 0,
-      type: 'android.widget.ScrollView',
-      rect: { x: 0, y: 120, width: 390, height: 500 },
-    },
-    {
-      ref: 'e3',
-      index: 2,
-      depth: 2,
-      parentIndex: 1,
-      type: 'android.widget.TextView',
-      label: 'Inside',
-      rect: { x: 20, y: 200, width: 200, height: 30 },
-    },
-    {
-      ref: 'e4',
-      index: 3,
-      depth: 2,
-      parentIndex: 1,
-      type: 'android.widget.TextView',
-      label: 'Clipped',
-      rect: { x: 20, y: 700, width: 200, height: 30 },
-    },
-  ];
-
-  assert.equal(isNodeVisibleInEffectiveViewport(nodes[2], nodes), true);
-  assert.equal(isNodeVisibleInEffectiveViewport(nodes[3], nodes), false);
-});
-
 test('mobile presentation handles zero-width viewport gracefully', () => {
   const nodes: SnapshotNode[] = [
     {

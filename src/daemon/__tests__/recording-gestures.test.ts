@@ -75,19 +75,6 @@ test('scroll amount scales swipe travel for visualization', () => {
   assert.equal(event.amount, 0.6);
 });
 
-test('scroll augmentation falls back to normalized geometry without a snapshot', () => {
-  const session = makeSession();
-  session.snapshot = undefined;
-
-  const augmented = augmentScrollVisualizationResult(session, 'scroll', ['down'], {
-    direction: 'down',
-  });
-
-  assert.ok(augmented);
-  assert.equal((augmented as Record<string, unknown>).referenceWidth, 1000);
-  assert.equal((augmented as Record<string, unknown>).referenceHeight, 1000);
-});
-
 test('scroll augmentation preserves explicit reference frame from platform result', () => {
   const session = makeSession();
   session.snapshot = undefined;

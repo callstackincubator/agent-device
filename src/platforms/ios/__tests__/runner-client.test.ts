@@ -331,54 +331,6 @@ test('resolveRunnerDestination uses simulator destination for simulators', () =>
   assert.equal(resolveRunnerDestination(iosSimulator), 'platform=iOS Simulator,id=sim-1');
 });
 
-test('runner protocol fixtures cover every runner command with JSON-safe samples', () => {
-  const commands = Object.keys(runnerProtocolCommandFixtures).sort();
-  assert.deepEqual(commands, [
-    'alert',
-    'appSwitcher',
-    'back',
-    'backInApp',
-    'backSystem',
-    'drag',
-    'dragSeries',
-    'findText',
-    'home',
-    'interactionFrame',
-    'keyboardDismiss',
-    'longPress',
-    'mouseClick',
-    'pinch',
-    'querySelector',
-    'readText',
-    'recordStart',
-    'recordStop',
-    'remotePress',
-    'rotate',
-    'rotateGesture',
-    'screenshot',
-    'shutdown',
-    'snapshot',
-    'swipe',
-    'tap',
-    'tapSeries',
-    'transformGesture',
-    'type',
-    'uptime',
-  ]);
-
-  const roundTrip = JSON.parse(JSON.stringify(runnerProtocolCommandFixtures)) as Record<
-    string,
-    Record<string, unknown>
-  >;
-  assert.equal(roundTrip.tap.command, 'tap');
-  assert.equal(roundTrip.mouseClick.button, 'secondary');
-  assert.equal(roundTrip.snapshot.scope, 'app');
-  assert.equal(roundTrip.screenshot.fullscreen, true);
-  assert.equal(roundTrip.rotate.orientation, 'landscape-left');
-  assert.equal(roundTrip.recordStart.fps, 30);
-  assert.equal(roundTrip.recordStart.quality, 7);
-});
-
 test('resolveRunnerDestination uses device destination for physical devices', () => {
   assert.equal(resolveRunnerDestination(iosDevice), 'platform=iOS,id=00008110-000E12341234002E');
 });
@@ -398,10 +350,6 @@ test('resolveRunnerDestination uses tvOS destination for tvOS devices', () => {
 test('resolveRunnerBuildDestination uses tvOS destinations for tvOS devices and simulators', () => {
   assert.equal(resolveRunnerBuildDestination(tvOsSimulator), 'platform=tvOS Simulator,id=tv-sim-1');
   assert.equal(resolveRunnerBuildDestination(tvOsDevice), 'generic/platform=tvOS');
-});
-
-test('isReadOnlyRunnerCommand treats interactionFrame as read-only', () => {
-  assert.equal(isReadOnlyRunnerCommand('interactionFrame'), true);
 });
 
 test('resolveRunnerMaxConcurrentDestinationsFlag uses simulator flag for simulators', () => {

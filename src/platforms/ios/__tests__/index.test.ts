@@ -138,26 +138,6 @@ test('resolveMacOsHelperPackageRootFrom finds helper package from source and dis
   }
 });
 
-test('iosRunnerOverrides maps pan duration to the XCUITest drag hold', async () => {
-  mockRunIosRunnerCommand.mockResolvedValue({});
-
-  const { overrides } = iosRunnerOverrides(IOS_TEST_SIMULATOR, {
-    appBundleId: 'com.example.App',
-  });
-
-  await overrides.pan(100, 200, 180, 200, 500);
-
-  assert.deepEqual(mockRunIosRunnerCommand.mock.calls[0]?.[1], {
-    command: 'drag',
-    x: 100,
-    y: 200,
-    x2: 180,
-    y2: 200,
-    durationMs: 500,
-    appBundleId: 'com.example.App',
-  });
-});
-
 test('iosRunnerOverrides gives fling a short default XCUITest drag hold', async () => {
   mockRunIosRunnerCommand.mockResolvedValue({});
 

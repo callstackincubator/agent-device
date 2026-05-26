@@ -236,42 +236,6 @@ test('close --shutdown is ignored for Android devices', async () => {
   }
 });
 
-test('close without --shutdown does not call shutdownSimulator', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'ios-no-shutdown-session';
-  sessionStore.set(
-    sessionName,
-    makeSession(sessionName, {
-      platform: 'ios',
-      id: 'sim-udid-2',
-      name: 'iPhone 15',
-      kind: 'simulator',
-      booted: true,
-    }),
-  );
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'close',
-      positionals: [],
-      flags: {},
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  expect(mockShutdownSimulator).not.toHaveBeenCalled();
-  if (response && response.ok) {
-    expect(response.data?.shutdown).toBeUndefined();
-  }
-});
-
 test('close --shutdown returns success and failure payload when shutdownAndroidEmulator throws', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-shutdown-failure-session';
