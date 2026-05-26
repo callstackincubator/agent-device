@@ -5,20 +5,37 @@ import type { DaemonResponse, SessionState } from './types.ts';
 import { dispatchCommand } from '../core/dispatch.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
 import { normalizeError, type NormalizedError } from '../utils/errors.ts';
+import type { ScreenshotOverlayRef } from '../utils/snapshot.ts';
 import { contextFromFlags } from './context.ts';
 import { annotateScreenshotWithRefs } from './screenshot-overlay.ts';
 
-type AndroidSnapshotTimeoutEvidence = {
-  path?: string;
-  overlayRefsRequested?: boolean;
-  overlayRefsAnnotated?: boolean;
-  overlayRefCount?: number;
-  overlayRefSource?: 'session-snapshot' | 'unavailable';
-  overlayRefs?: unknown[];
-  overlayAnnotationError?: string;
-  captureFailed?: boolean;
-  error?: string;
+type CapturedAndroidSnapshotTimeoutEvidenceBase = {
+  path: string;
+  overlayRefsRequested: true;
 };
+
+type AndroidSnapshotTimeoutEvidence =
+  | {
+      captureFailed: true;
+      error: string;
+    }
+  | (CapturedAndroidSnapshotTimeoutEvidenceBase & {
+      overlayRefSource: 'unavailable';
+      overlayRefsAnnotated: false;
+      overlayRefCount: 0;
+    })
+  | (CapturedAndroidSnapshotTimeoutEvidenceBase & {
+      overlayRefSource: 'session-snapshot';
+      overlayRefsAnnotated: boolean;
+      overlayRefCount: number;
+      overlayRefs: ScreenshotOverlayRef[];
+    })
+  | (CapturedAndroidSnapshotTimeoutEvidenceBase & {
+      overlayRefSource: 'session-snapshot';
+      overlayRefsAnnotated: false;
+      overlayRefCount: 0;
+      overlayAnnotationError: string;
+    });
 
 export async function maybeBuildAndroidSnapshotTimeoutFailure(params: {
   error: unknown;
@@ -71,8 +88,9 @@ async function captureAndroidSnapshotTimeoutEvidence(params: {
       phase: 'android_snapshot_timeout_screenshot_captured',
       data: {
         path: resolvedPath,
-        overlayRefCount: evidence.overlayRefCount,
-        overlayRefsAnnotated: evidence.overlayRefsAnnotated,
+        overlayRefCount: 'overlayRefCount' in evidence ? evidence.overlayRefCount : undefined,
+        overlayRefsAnnotated:
+          'overlayRefsAnnotated' in evidence ? evidence.overlayRefsAnnotated : undefined,
       },
     });
     return evidence;
@@ -98,14 +116,12 @@ async function annotateAndroidSnapshotTimeoutEvidence(
     path: screenshotPath,
     overlayRefsRequested: true,
     overlayRefsAnnotated: false,
+    overlayRefSource: 'unavailable',
+    overlayRefCount: 0,
   };
 
   if (!session?.snapshot) {
-    return {
-      ...evidence,
-      overlayRefSource: 'unavailable',
-      overlayRefCount: 0,
-    };
+    return evidence;
   }
 
   try {
@@ -129,17 +145,20 @@ async function annotateAndroidSnapshotTimeoutEvidence(
     });
     return {
       ...evidence,
+      overlayRefSource: 'session-snapshot',
       overlayAnnotationError: normalized.message,
     };
   }
 }
 
 function resolveCapturedScreenshotPath(data: unknown, fallbackPath: string): string {
-  return typeof data === 'object' &&
-    data !== null &&
-    typeof (data as Record<string, unknown>).path === 'string'
-    ? ((data as Record<string, unknown>).path as string)
-    : fallbackPath;
+  return hasStringPath(data) ? data.path : fallbackPath;
+}
+
+function hasStringPath(value: unknown): value is { path: string } {
+  return (
+    typeof value === 'object' && value !== null && 'path' in value && typeof value.path === 'string'
+  );
 }
 
 function isAndroidSnapshotTimeoutError(error: unknown): boolean {
