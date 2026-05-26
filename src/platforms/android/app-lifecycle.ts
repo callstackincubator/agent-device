@@ -247,17 +247,21 @@ async function ensureAndroidLocalhostReverse(device: DeviceInfo, target: string)
   try {
     await reverse.ensure({ local: endpoint, remote: endpoint });
   } catch (error) {
-    const causeDetails = error instanceof AppError ? error.details : undefined;
+    const details = {
+      localPort: endpoint.replace('tcp:', ''),
+      operation: `adb reverse ${endpoint} ${endpoint}`,
+    };
+    if (error instanceof AppError) {
+      Object.assign(details, {
+        hint: error.details?.hint,
+        diagnosticId: error.details?.diagnosticId,
+        logPath: error.details?.logPath,
+      });
+    }
     throw new AppError(
       'COMMAND_FAILED',
       `Failed to ensure Android port reverse ${endpoint} before opening localhost URL`,
-      {
-        localPort: endpoint.replace('tcp:', ''),
-        operation: `adb reverse ${endpoint} ${endpoint}`,
-        ...(causeDetails?.hint ? { hint: causeDetails.hint } : {}),
-        ...(causeDetails?.diagnosticId ? { diagnosticId: causeDetails.diagnosticId } : {}),
-        ...(causeDetails?.logPath ? { logPath: causeDetails.logPath } : {}),
-      },
+      details,
       error,
     );
   }
