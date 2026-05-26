@@ -23,7 +23,7 @@ export const appCliReaders = {
   }),
   session: (positionals, flags) => ({
     ...commonInputFromFlags(flags),
-    action: positionals[0] ?? 'list',
+    action: readSessionAction(positionals[0]),
   }),
   boot: (_positionals, flags) => ({
     ...commonInputFromFlags(flags),
@@ -99,6 +99,12 @@ function installInputFromCli(
     app: requiredString(positionals[0], `${command} requires app`),
     appPath: requiredString(positionals[1], `${command} requires path`),
   };
+}
+
+function readSessionAction(value: string | undefined): 'list' {
+  const action = value ?? 'list';
+  if (action === 'list') return action;
+  throw new AppError('INVALID_ARGS', 'session only supports list');
 }
 
 function openPositionals(input: SemanticRequestInput): string[] {

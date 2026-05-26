@@ -1,36 +1,18 @@
-import {
-  serializeCloseResult,
-  serializeDeployResult,
-  serializeDevice,
-  serializeInstallFromSourceResult,
-  serializeOpenResult,
-  serializeSessionListEntry,
-  serializeSnapshotResult,
-} from '../../client-shared.ts';
-import type {
-  AgentDeviceClient,
-  AgentDeviceDevice,
-  AgentDeviceSession,
-  AppCloseResult,
-  AppDeployResult,
-  AppInstallFromSourceResult,
-  AppOpenResult,
-  CaptureSnapshotResult,
-  CommandRequestResult,
-  SessionCloseResult,
-} from '../../client.ts';
+import type { AgentDeviceClient, CommandRequestResult } from '../../client.ts';
 import { announceReplayTestRun } from '../../cli-test.ts';
-import { runSemanticCliCommand } from '../../commands/semantic-cli.ts';
 import {
+  runSemanticCliCommand,
+  runSemanticCliCommandWithOutput,
+} from '../../commands/semantic-cli.ts';
+import {
+  listSemanticCliOutputCommandNames,
   listSemanticCommandNames,
   type SemanticCliCommand,
 } from '../../commands/semantic-command-surface.ts';
-import { assertResolvedAppsFilter } from '../../commands/app-inventory-contract.ts';
+import type { SemanticCliOutput } from '../../commands/semantic-contract.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
-import { AppError } from '../../utils/errors.ts';
-import { formatSnapshotText } from '../../utils/output.ts';
 import { writeCommandCliOutput } from './output.ts';
-import { writeCommandMessage, writeCommandOutput } from './shared.ts';
+import { writeCommandOutput } from './shared.ts';
 import type { PublicCommandName } from '../../command-catalog.ts';
 import type { ClientCommandHandler } from './router-types.ts';
 
@@ -40,101 +22,12 @@ type GenericClientCommandRunner = (params: {
   flags: CliFlags;
 }) => Promise<CommandRequestResult>;
 
-const formattedSemanticCommandHandlers = {
-  devices: createFormattedSemanticHandler('devices', {
-    write: ({ flags, result }) => {
-      const devices = result as unknown as AgentDeviceDevice[];
-      const data = { devices: devices.map(serializeDevice) };
-      writeCommandOutput(flags, data, () => devices.map(formatDeviceLine).join('\n'));
-    },
-  }),
-  apps: createFormattedSemanticHandler('apps', {
-    write: ({ flags, result }) => {
-      const appsFilter = assertResolvedAppsFilter(flags.appsFilter);
-      const apps = result as unknown as string[];
-      const data = { apps };
-      writeCommandOutput(flags, data, () => {
-        if (!flags.json) {
-          process.stderr.write(
-            appsFilter === 'all'
-              ? 'Showing all apps, including system apps.\n'
-              : 'Showing user-installed apps. Use --all to include system apps.\n',
-          );
-        }
-        if (apps.length > 0) return apps.join('\n');
-        return appsFilter === 'all' ? 'No apps found.' : 'No user-installed apps found.';
-      });
-    },
-  }),
-  session: createFormattedSemanticHandler('session', {
-    beforeRun: ({ positionals }) => {
-      const subcommand = positionals[0] ?? 'list';
-      if (subcommand !== 'list') {
-        throw new AppError('INVALID_ARGS', 'session only supports list');
-      }
-    },
-    write: ({ flags, result }) => {
-      const sessions = (result as { sessions: AgentDeviceSession[] }).sessions;
-      const data = { sessions: sessions.map(serializeSessionListEntry) };
-      writeCommandOutput(flags, data, () => JSON.stringify(data, null, 2));
-    },
-  }),
-  open: createFormattedSemanticHandler('open', {
-    write: ({ flags, result }) => {
-      writeCommandMessage(flags, serializeOpenResult(result as AppOpenResult));
-    },
-  }),
-  close: createFormattedSemanticHandler('close', {
-    write: ({ flags, result }) => {
-      writeCommandMessage(
-        flags,
-        serializeCloseResult(result as AppCloseResult | SessionCloseResult),
-      );
-    },
-  }),
-  install: createFormattedSemanticHandler('install', {
-    write: ({ flags, result }) => {
-      writeCommandMessage(flags, serializeDeployResult(result as AppDeployResult));
-    },
-  }),
-  reinstall: createFormattedSemanticHandler('reinstall', {
-    write: ({ flags, result }) => {
-      writeCommandMessage(flags, serializeDeployResult(result as AppDeployResult));
-    },
-  }),
-  'install-from-source': createFormattedSemanticHandler('install-from-source', {
-    write: ({ flags, result }) => {
-      writeCommandMessage(
-        flags,
-        serializeInstallFromSourceResult(result as AppInstallFromSourceResult),
-      );
-    },
-  }),
-  snapshot: createFormattedSemanticHandler('snapshot', {
-    positionals: () => [],
-    write: ({ flags, result }) => {
-      const data = serializeSnapshotResult(result as CaptureSnapshotResult);
-      // Programmatic SDK callers can see `unchanged`; CLI --json hides it for schema compatibility.
-      const outputData = flags.json ? withoutUnchanged(data) : data;
-      writeCommandOutput(flags, outputData, () =>
-        formatSnapshotText(outputData, {
-          raw: flags.snapshotRaw,
-          flatten: flags.snapshotInteractiveOnly,
-        }),
-      );
-    },
-  }),
-  metro: createFormattedSemanticHandler('metro', {
-    write: ({ positionals, flags, result }) => {
-      const action = (positionals[0] ?? '').toLowerCase();
-      writeCommandOutput(flags, result, () =>
-        action === 'reload'
-          ? `Reloaded React Native apps via ${(result as { reloadUrl?: unknown }).reloadUrl}`
-          : JSON.stringify(result, null, 2),
-      );
-    },
-  }),
-} satisfies Partial<Record<SemanticCliCommand, ClientCommandHandler>>;
+const formattedSemanticCommandHandlers = Object.fromEntries(
+  listSemanticCliOutputCommandNames().map((command) => [
+    command,
+    createFormattedSemanticHandler(command),
+  ]),
+) as Partial<Record<SemanticCliCommand, ClientCommandHandler>>;
 
 export const dedicatedSemanticCommandHandlers = formattedSemanticCommandHandlers;
 
@@ -188,42 +81,31 @@ function createGenericClientCommandHandler(
   };
 }
 
-function createFormattedSemanticHandler(
-  command: SemanticCliCommand,
-  options: {
-    positionals?: (positionals: string[]) => string[];
-    beforeRun?: (params: { positionals: string[]; flags: CliFlags }) => void;
-    write: (params: {
-      positionals: string[];
-      flags: CliFlags;
-      result: Awaited<ReturnType<typeof runSemanticCliCommand>>;
-    }) => void;
-  },
-): ClientCommandHandler {
+function createFormattedSemanticHandler(command: SemanticCliCommand): ClientCommandHandler {
   return async ({ positionals, flags, client }) => {
-    options.beforeRun?.({ positionals, flags });
-    const semanticPositionals = options.positionals?.(positionals) ?? positionals;
-    const result = await runSemanticCliCommand({
+    const { cliOutput } = await runSemanticCliCommandWithOutput({
       client,
       command,
-      positionals: semanticPositionals,
+      positionals,
       flags,
     });
-    options.write({ positionals, flags, result });
+    if (!cliOutput) {
+      throw new Error(`Missing CLI output formatter for semantic command: ${command}`);
+    }
+    writeSemanticCliOutput(flags, cliOutput);
     return true;
   };
 }
 
-function formatDeviceLine(device: AgentDeviceDevice): string {
-  const kind = device.kind ? ` ${device.kind}` : '';
-  const target = device.target ? ` target=${device.target}` : '';
-  const booted = typeof device.booted === 'boolean' ? ` booted=${device.booted}` : '';
-  return `${device.name} (${device.platform}${kind}${target})${booted}`;
-}
-
-function withoutUnchanged(data: Record<string, unknown>): Record<string, unknown> {
-  const { unchanged: _unchanged, ...outputData } = data;
-  return outputData;
+function writeSemanticCliOutput(flags: CliFlags, output: SemanticCliOutput): void {
+  if (!flags.json && output.stderr) {
+    process.stderr.write(output.stderr);
+  }
+  writeCommandOutput(
+    flags,
+    flags.json ? (output.jsonData ?? output.data) : output.data,
+    () => output.text,
+  );
 }
 
 function isGenericSemanticCliCommand(command: SemanticCliCommand): boolean {

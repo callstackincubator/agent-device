@@ -7,14 +7,31 @@ import type {
   IsOptions,
   LongPressOptions,
   MetroPrepareOptions,
+  MetroPrepareResult,
   MetroReloadOptions,
+  MetroReloadResult,
   RecordOptions,
   SettingsUpdateOptions,
   SwipeOptions,
   WaitCommandOptions,
 } from '../client-types.ts';
 import type { DaemonInstallSource } from '../contracts.ts';
-import { defineSemanticCommand, type JsonSchema } from './semantic-contract.ts';
+import {
+  appsCliOutput,
+  closeCliOutput,
+  deployCliOutput,
+  devicesCliOutput,
+  installFromSourceCliOutput,
+  metroCliOutput,
+  openCliOutput,
+  sessionCliOutput,
+  snapshotCliOutput,
+} from './semantic-client-output.ts';
+import {
+  defineSemanticCommand,
+  type JsonSchema,
+  type SemanticCliOutputFormatter,
+} from './semantic-contract.ts';
 import {
   booleanSchema,
   commandResultSchema,
@@ -73,20 +90,33 @@ const METRO_ACTION_VALUES = ['prepare', 'reload'] as const;
 type MetroInput = { action: 'prepare' | 'reload' } & MetroPrepareOptions & MetroReloadOptions;
 
 export const semanticClientCommands = [
-  defineFieldCommand('devices', 'List available devices.', {}, (client, input) =>
-    client.devices.list(input),
+  defineFieldCommand(
+    'devices',
+    'List available devices.',
+    {},
+    (client, input) => client.devices.list(input),
+    {
+      formatCliOutput: ({ result }) => devicesCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'apps',
     'List installed apps.',
     { appsFilter: enumField(['user-installed', 'all']) },
     (client, input) => client.apps.list(input),
+    {
+      formatCliOutput: ({ input, result }) =>
+        appsCliOutput({ result, appsFilter: input.appsFilter }),
+    },
   ),
   defineFieldCommand(
     'session',
     'List active sessions.',
     { action: enumField(['list']) },
     async (client) => ({ sessions: await client.sessions.list() }),
+    {
+      formatCliOutput: ({ result }) => sessionCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'open',
@@ -102,6 +132,9 @@ export const semanticClientCommands = [
       noRecord: booleanField('Do not record this action.'),
     },
     (client, input) => client.apps.open(input),
+    {
+      formatCliOutput: ({ result }) => openCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'close',
@@ -113,6 +146,9 @@ export const semanticClientCommands = [
     },
     (client, input) =>
       input.app ? client.apps.close(input) : client.sessions.close(withoutApp(input)),
+    {
+      formatCliOutput: ({ result }) => closeCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'install',
@@ -122,6 +158,9 @@ export const semanticClientCommands = [
       appPath: requiredField(stringField('Path to app binary.')),
     },
     (client, input) => client.apps.install(input),
+    {
+      formatCliOutput: ({ result }) => deployCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'reinstall',
@@ -131,6 +170,9 @@ export const semanticClientCommands = [
       appPath: requiredField(stringField('Path to app binary.')),
     },
     (client, input) => client.apps.reinstall(input),
+    {
+      formatCliOutput: ({ result }) => deployCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'install-from-source',
@@ -143,6 +185,9 @@ export const semanticClientCommands = [
       retentionMs: integerField(),
     },
     (client, input) => client.apps.installFromSource(input),
+    {
+      formatCliOutput: ({ result }) => installFromSourceCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'push',
@@ -175,6 +220,14 @@ export const semanticClientCommands = [
       forceFull: booleanField(),
     },
     (client, input) => client.capture.snapshot(input),
+    {
+      formatCliOutput: ({ input, result }) =>
+        snapshotCliOutput({
+          result,
+          raw: input.raw,
+          interactiveOnly: input.interactiveOnly,
+        }),
+    },
   ),
   defineFieldCommand(
     'screenshot',
@@ -460,26 +513,38 @@ export const semanticClientCommands = [
       bundleUrl: stringField(),
       timeoutMs: integerField(),
     },
-    (client, input) =>
+    async (client, input): Promise<MetroPrepareResult | MetroReloadResult> =>
       input.action === 'prepare'
-        ? client.metro.prepare(toMetroPrepareOptions(input))
-        : client.metro.reload(toMetroReloadOptions(input)),
+        ? await client.metro.prepare(toMetroPrepareOptions(input))
+        : await client.metro.reload(toMetroReloadOptions(input)),
+    {
+      formatCliOutput: ({ input, result }) => metroCliOutput({ result, action: input.action }),
+    },
   ),
 ] as const;
 
-function defineFieldCommand<const TName extends string, const TFields extends SemanticFieldMap>(
+function defineFieldCommand<
+  const TName extends string,
+  const TFields extends SemanticFieldMap,
+  TResult,
+>(
   name: TName,
   description: string,
   fields: TFields,
-  run: (client: AgentDeviceClient, input: InferCommandInput<TFields>) => Promise<unknown>,
+  run: (client: AgentDeviceClient, input: InferCommandInput<TFields>) => Promise<TResult>,
+  options: {
+    outputSchema?: JsonSchema;
+    formatCliOutput?: SemanticCliOutputFormatter<InferCommandInput<TFields>, TResult>;
+  } = {},
 ) {
   return defineSemanticCommand({
     name,
     description,
     inputSchema: fieldsInputSchema(fields),
-    outputSchema: commandResultSchema(),
+    outputSchema: options.outputSchema ?? commandResultSchema(),
     readInput: (input) => readFieldInput(input, fields),
     run,
+    formatCliOutput: options.formatCliOutput,
   });
 }
 

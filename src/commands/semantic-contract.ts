@@ -22,6 +22,7 @@ type SemanticCommandContract<Name extends string, Input, Result> = {
   outputSchema: JsonSchema;
   readInput: (input: unknown) => Input;
   run: (client: AgentDeviceClient, input: Input) => Promise<Result>;
+  formatCliOutput?: SemanticCliOutputFormatter<Input, Result>;
 };
 
 export type SemanticCommandDefinition<Name extends string, Input, Result> = SemanticCommandContract<
@@ -31,6 +32,19 @@ export type SemanticCommandDefinition<Name extends string, Input, Result> = Sema
 > & {
   invoke: (client: AgentDeviceClient, input: unknown) => Promise<Result>;
 };
+
+export type SemanticCliOutput = {
+  data: unknown;
+  jsonData?: unknown;
+  text?: string | null;
+  stderr?: string | null;
+};
+
+export type SemanticCliOutputFormatter<Input, Result> = (params: {
+  input: Input;
+  result: Result;
+  positionals: string[];
+}) => SemanticCliOutput;
 
 export function defineSemanticCommand<Name extends string, Input, Result>(
   definition: SemanticCommandContract<Name, Input, Result>,
