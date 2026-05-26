@@ -1177,9 +1177,11 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'Local Metro port: 8082',
       'Project URL: exp://127.0.0.1:8082',
       'Direct Android localhost URL opens auto-configure host reachability',
+      'On Android, open the URL target directly; do not use the iOS host-plus-URL form with "Expo Go"',
+      'Every agent-device command must target Android explicitly with --platform android',
       'Do not assume every React Native app is Expo; this one is Expo only because an exp:// URL was provided',
     ],
-    task: 'Plan the commands to open the Android Expo project URL on local Metro port 8082 and verify the app UI with an interactive snapshot.',
+    task: 'Plan the explicit Android direct-URL commands to open the Expo project URL on local Metro port 8082 and verify the app UI with an interactive snapshot.',
     outputs: [
       plannedCommand('open'),
       /exp:\/\/127\.0\.0\.1:8082/i,
