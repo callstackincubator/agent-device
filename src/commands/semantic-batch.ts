@@ -4,18 +4,20 @@ import { defineSemanticCommand, type JsonSchema } from './semantic-contract.ts';
 import { prepareSemanticBatchStep, type SemanticDaemonCommand } from './semantic-grammar.ts';
 import {
   assertAllowedKeys,
-  commandInputSchema,
   commonToClientOptions,
-  optionalEnum,
-  optionalInteger,
-  optionalString,
-  readCommonInput,
-  readInputRecord,
+  customField,
+  enumField,
+  fieldsInputSchema,
+  integerField,
+  readFieldInput,
   requiredEnum,
-  type CommonCommandInput,
+  requiredField,
+  stringField,
+  type InferCommandInput,
+  type SemanticFieldMap,
 } from './semantic-common.ts';
 
-type BatchInput = CommonCommandInput & {
+type BatchInput = InferCommandInput<SemanticFieldMap> & {
   steps: BatchStep[];
   onError?: 'stop';
   maxSteps?: number;
@@ -25,32 +27,37 @@ type BatchInput = CommonCommandInput & {
 export function createBatchSemanticCommand<const TCommand extends SemanticDaemonCommand>(
   nestedCommands: readonly TCommand[],
 ) {
+  const fields = batchFields(nestedCommands);
   return defineSemanticCommand({
     name: 'batch',
     description: 'Run multiple structured command steps in one daemon request.',
-    inputSchema: commandInputSchema(
-      {
-        steps: {
+    inputSchema: fieldsInputSchema(fields),
+    outputSchema: batchResultSchema(),
+    readInput: (input) => readBatchInput(input, fields),
+    run: (client, input) => client.batch.run(toBatchOptions(input)),
+  });
+}
+
+function batchFields(nestedCommands: readonly SemanticDaemonCommand[]) {
+  return {
+    steps: requiredField(
+      customField<BatchStep[]>(
+        {
           type: 'array',
           description:
             'Structured batch steps. CLI JSON parsing belongs to the CLI normalizer; MCP passes this array directly.',
           items: batchStepSchema(nestedCommands),
         },
-        onError: { type: 'string', enum: ['stop'], description: 'Batch failure policy.' },
-        maxSteps: {
-          type: 'integer',
-          minimum: 1,
-          maximum: 1000,
-          description: 'Maximum number of steps accepted for this batch.',
-        },
-        out: { type: 'string', description: 'Optional output path for command artifacts.' },
-      },
-      ['steps'],
+        (record, key) => readBatchSteps(record[key], nestedCommands),
+      ),
     ),
-    outputSchema: batchResultSchema(),
-    readInput: (input) => readBatchInput(input, nestedCommands),
-    run: (client, input) => client.batch.run(toBatchOptions(input)),
-  });
+    onError: enumField(['stop'] as const, 'Batch failure policy.'),
+    maxSteps: integerField('Maximum number of steps accepted for this batch.', {
+      min: 1,
+      max: 1000,
+    }),
+    out: stringField('Optional output path for command artifacts.'),
+  };
 }
 
 function batchStepSchema(nestedCommands: readonly SemanticDaemonCommand[]): JsonSchema {
@@ -90,27 +97,20 @@ function batchResultSchema(): JsonSchema {
   };
 }
 
-function readBatchInput(
-  input: unknown,
-  nestedCommands: readonly SemanticDaemonCommand[],
-): BatchInput {
-  const record = readInputRecord(input);
-  const maxSteps = optionalInteger(record, 'maxSteps', { min: 1, max: 1000 });
+function readBatchInput(input: unknown, fields: ReturnType<typeof batchFields>): BatchInput {
+  const parsed = readFieldInput(input, fields);
   const normalized = validateAndNormalizeBatchSteps(
-    readBatchSteps(record.steps, nestedCommands),
-    maxSteps ?? DEFAULT_BATCH_MAX_STEPS,
+    parsed.steps,
+    parsed.maxSteps ?? DEFAULT_BATCH_MAX_STEPS,
   );
   return {
-    ...readCommonInput(record),
+    ...parsed,
     steps: normalized.map(({ command, positionals, flags, runtime }) => ({
       command,
       positionals,
       flags,
       runtime,
     })),
-    onError: optionalEnum(record, 'onError', ['stop'] as const),
-    maxSteps,
-    out: optionalString(record, 'out'),
   };
 }
 

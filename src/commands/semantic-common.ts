@@ -44,7 +44,7 @@ export type SelectorSnapshotInput = {
 
 export type PointInput = { x: number; y: number };
 
-export function commandInputSchema(
+function commandInputSchema(
   properties: Record<string, JsonSchema>,
   required: readonly string[] = [],
 ): JsonSchema {
@@ -187,6 +187,13 @@ export function jsonSchemaField<T>(schema: JsonSchema): SemanticField<T> {
   return optionalField(schema, (record, key) => record[key] as T | undefined);
 }
 
+export function customField<T>(
+  schema: JsonSchema,
+  read: (record: Record<string, unknown>, key: string) => T | undefined,
+): SemanticField<T> {
+  return optionalField(schema, read);
+}
+
 export function interactionTargetField(): SemanticField<SemanticInteractionTarget> {
   return optionalField(interactionTargetSchema(), (record, key) =>
     record[key] === undefined ? undefined : readInteractionTarget(record, key),
@@ -308,7 +315,7 @@ function requiredString(record: Record<string, unknown>, key: string): string {
   return value;
 }
 
-export function optionalString(record: Record<string, unknown>, key: string): string | undefined {
+function optionalString(record: Record<string, unknown>, key: string): string | undefined {
   const value = record[key];
   if (value === undefined) return undefined;
   if (typeof value !== 'string' || value.length === 0) {
