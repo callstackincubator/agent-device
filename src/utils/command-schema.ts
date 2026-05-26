@@ -169,7 +169,7 @@ const AGENT_QUICKSTART_LINES = [
   'Anti-pattern: snapshot -i followed by snapshot -i | grep ...; prior refs stay valid until app state changes, and --force-full is the explicit full re-read.',
   'Truncated text/input preview: expand first with snapshot -s @e12, not get text.',
   'React Native apps: read help react-native for Metro, DevTools routing, and RN-specific blockers; use react-native dismiss-overlay for LogBox/RedBox overlays.',
-  'Android RN/Expo Metro: adb reverse tcp:<port> tcp:<port> is harmless and helps the device reach any local Metro port.',
+  'Android RN/Expo Metro: direct Android localhost URL opens with a port auto-ensure adb reverse when supported; manual adb reverse tcp:<port> tcp:<port> remains harmless before app launches or unsupported flows.',
   'Expo Go/dev clients: use the provided URL when given; on iOS prefer open "Expo Go" <url>; Android URL opens infer the foreground package for logs/perf when possible.',
   'Install flows: install/install-from-source first, then open the installed id with --relaunch.',
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
@@ -349,7 +349,7 @@ React Native dev loop:
     agent-device find "Home"
   Do not use agent-device reload. Use open --relaunch for native startup reset.
   React Native apps: use help react-native for Metro/Fast Refresh, DevTools routing, and RN-specific blockers; use react-native dismiss-overlay for LogBox/RedBox overlays.
-  Android RN/Expo Metro: run adb reverse tcp:<port> tcp:<port> before opening the app or URL; it is harmless even if already configured.
+  Android RN/Expo Metro: direct Android URL opens to localhost/127.0.0.1/[::1] with a port auto-ensure adb reverse when supported; manual adb reverse tcp:<port> tcp:<port> remains harmless before app launches or unsupported flows.
   Expo Go is a host shell. Use a provided project URL instead of inventing a bundle id; if no URL is provided but a target/app name is provided, open that target and do not inspect project files to find one. On iOS, prefer host + URL when the host shell is known because direct URL open can report success while leaving the runner/shell focused; verify with snapshot -i after opening:
     agent-device open "Expo Go" exp://127.0.0.1:8081 --platform ios
     agent-device snapshot -i --platform ios
@@ -510,7 +510,7 @@ React Native dev loop:
     agent-device metro reload
     agent-device find "Home"
   Do not use agent-device reload. Use open --relaunch for native startup reset.
-  Android RN/Expo Metro: run adb reverse tcp:<port> tcp:<port> before opening the app or URL; it is harmless even if already configured.
+  Android RN/Expo Metro: direct Android URL opens to localhost/127.0.0.1/[::1] with a port auto-ensure adb reverse when supported; manual adb reverse tcp:<port> tcp:<port> remains harmless before app launches or unsupported flows.
   Expo Go/dev clients are host shells. Use provided project URLs, verify with snapshot -i after opening, and ask instead of inventing app ids or URLs. Help workflow owns the full Expo URL command shapes.
 
 Overlays and busy RN UIs:
@@ -619,7 +619,7 @@ Coverage:
   Navigation, forms, empty/error/loading states, offline or retry behavior, permissions, settings, accessibility labels, orientation/keyboard, and obvious performance stalls.
   React Native warning/error overlays can be real findings or test blockers. Capture them, use react-native dismiss-overlay if unrelated, re-snapshot, and report them.
   Expo Go/dev-client shells: use the provided exp:// or dev-client URL and record whether the shell, project load, or app UI is being tested. On iOS dogfood, prefer agent-device open "Expo Go" <url> when Expo Go is the known shell, then snapshot -i to confirm the project UI rather than the runner splash.
-  Android RN/Expo Metro: run adb reverse tcp:<port> tcp:<port> before opening the app or URL; it is harmless even if already configured.
+  Android RN/Expo Metro: direct Android URL opens to localhost/127.0.0.1/[::1] with a port auto-ensure adb reverse when supported; manual adb reverse tcp:<port> tcp:<port> remains harmless before app launches or unsupported flows.
   Categories: visual, functional, UX, content, performance, diagnostics, permissions, accessibility.
   Severity: critical blocks a core flow/data/crashes; high breaks a major feature; medium has friction or workaround; low is polish.
 
