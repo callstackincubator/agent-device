@@ -191,10 +191,12 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 ## Testing Matrix
 - Docs/skills only: no tests required unless a more specific rule below applies.
 - CLI help/guidance changes in `src/utils/command-schema.ts`: run `pnpm exec vitest run src/utils/__tests__/args.test.ts`.
-- SkillGym prompt/assertion changes: run the touched `--case` checks. For broad validation, use `pnpm test:skillgym`; use `--tag fixture-smoke` or `--tag skill-guidance` when validating one suite group.
+- SkillGym prompt/assertion changes: run `pnpm test:skillgym:case <case-id>`; the script builds local CLI help first. For broad validation, use `pnpm test:skillgym`; append `-- --tag fixture-smoke` or `-- --tag skill-guidance` when validating one suite group.
 - Non-TS, no behavior impact: no tests unless requested.
 - Keep tests behavioral; do not assert shapes or cases TypeScript already proves.
 - Any TS change: `pnpm typecheck` or `pnpm check:quick`.
+- Fallow CI failures: reproduce with `pnpm check:fallow --base origin/main` instead of manually estimating complexity/dead-code impact.
+- Test-only DI seam CI failures: the workflow enforces this; do not add optional `typeof` DI params in production code.
 - Tooling/config change (`package.json`, `tsconfig*.json`, `.oxlintrc.json`, `.oxfmtrc.json`): `pnpm check:tooling`.
 - Daemon handler/shared module change: `pnpm check:unit`.
 - iOS runner/Swift change: `pnpm build:xcuitest`.
@@ -226,8 +228,8 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - For behavior/CLI surface changes and command-planning guidance changes, write or update a SkillGym case in `test/skillgym/suites/agent-device-smoke-suite.ts` that captures the expected agent command plan.
 - Do not update `skills/**/SKILL.md` for command behavior or workflow guidance unless the user explicitly asks; skills must route to versioned CLI help instead of carrying behavior details.
 - Keep SkillGym cases behavioral and command-planning oriented. Prefer prompts that assert the user-visible contract and expected command family over brittle exact output, but forbid known bad patterns.
-- Build before SkillGym when local CLI help is needed: `pnpm build`, then `pnpm exec skillgym run ... --case <id>`.
-- Run SkillGym broad validation with `pnpm test:skillgym`; use v0.8 `--tag` filters for focused suite groups.
+- Use `pnpm test:skillgym:case <case-id>` for focused SkillGym validation; it runs the environment guard and builds local CLI help before `skillgym run`.
+- Run SkillGym broad validation with `pnpm test:skillgym`; append v0.8 filters such as `-- --tag fixture-smoke` for focused suite groups.
 - Preserve current high-value workflow guidance:
   - iOS Expo Go dogfood: prefer `agent-device open "Expo Go" <url> --platform ios` when the shell is known, then `snapshot -i` to confirm the project UI rather than the runner splash.
   - `keyboard dismiss` is the preferred iOS keyboard-dismissal path before manually pressing visible keyboard controls such as `Done`; it remains best-effort and can report unsupported layouts explicitly.
