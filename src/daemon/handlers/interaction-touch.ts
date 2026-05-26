@@ -262,7 +262,9 @@ function readDirectIosSelectorTapTarget(params: {
   if (!selector) return null;
   return {
     ...selector,
-    ...(flags?.maestro?.allowNonHittableSelectorTap ? { allowNonHittableTap: true } : {}),
+    ...(flags?.maestro?.allowNonHittableCoordinateFallback
+      ? { allowNonHittableCoordinateFallback: true }
+      : {}),
   };
 }
 
@@ -438,7 +440,9 @@ function readDirectIosSelectorFillTarget(params: {
   if (!selector) return null;
   return {
     ...selector,
-    ...(flags?.maestro?.allowNonHittableSelectorTap ? { allowNonHittableTap: true } : {}),
+    ...(flags?.maestro?.allowNonHittableCoordinateFallback
+      ? { allowNonHittableCoordinateFallback: true }
+      : {}),
   };
 }
 

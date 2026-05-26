@@ -45,7 +45,7 @@ export type RunnerCommand = {
   text?: string;
   selectorKey?: 'id' | 'label' | 'text' | 'value';
   selectorValue?: string;
-  allowNonHittableSelectorTap?: boolean;
+  allowNonHittableCoordinateFallback?: boolean;
   delayMs?: number;
   textEntryMode?: 'append' | 'replace';
   action?: 'get' | 'accept' | 'dismiss';

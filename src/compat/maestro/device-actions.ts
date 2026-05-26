@@ -42,7 +42,7 @@ export function convertLaunchApp(
   const shouldRelaunch = !shouldClearState && (value.stopApp === true || launchArgs.length > 0);
   return action('open', [appId], {
     ...(shouldRelaunch ? { relaunch: true } : {}),
-    ...(shouldClearState ? { maestro: { clearState: true } } : {}),
+    ...(shouldClearState ? { clearAppState: true } : {}),
     ...(launchArgs.length > 0 ? { launchArgs } : {}),
   });
 }

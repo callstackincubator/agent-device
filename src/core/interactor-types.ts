@@ -29,7 +29,7 @@ export type ScreenshotOptions = {
 export type ElementSelectorTapOptions = {
   key: 'id' | 'label' | 'text' | 'value';
   value: string;
-  allowNonHittableTap?: boolean;
+  allowNonHittableCoordinateFallback?: boolean;
 };
 
 export type SnapshotOptions = BaseSnapshotOptions & {

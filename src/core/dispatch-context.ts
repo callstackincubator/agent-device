@@ -11,14 +11,14 @@ export type BatchStep = {
 };
 
 export type MaestroRuntimeFlags = {
-  allowNonHittableSelectorTap?: boolean;
-  clearState?: boolean;
+  allowNonHittableCoordinateFallback?: boolean;
   optional?: boolean;
   runScriptEnv?: Record<string, string>;
 };
 
 export type CommandFlags = Omit<CliFlags, DaemonExcludedCliFlag> & {
   batchSteps?: BatchStep[];
+  clearAppState?: boolean;
   launchArgs?: string[];
   maestro?: MaestroRuntimeFlags;
   replayBackend?: string;
@@ -55,6 +55,6 @@ export type DispatchContext = ScreenshotDispatchFlags & {
     key: 'id' | 'label' | 'text' | 'value';
     value: string;
     raw: string;
-    allowNonHittableTap?: boolean;
+    allowNonHittableCoordinateFallback?: boolean;
   };
 };

@@ -126,7 +126,7 @@ function optimizeInputTextActions(
 
 function clearMaestroNonHittableTap(action: SessionAction): SessionAction {
   const maestro = { ...(action.flags?.maestro ?? {}) };
-  delete maestro.allowNonHittableSelectorTap;
+  delete maestro.allowNonHittableCoordinateFallback;
   return {
     ...action,
     flags: {

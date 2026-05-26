@@ -25,7 +25,7 @@ export function contextFromFlags(
     activity: flags?.activity,
     launchConsole: flags?.launchConsole,
     launchArgs: flags?.launchArgs,
-    clearAppState: flags?.maestro?.clearState,
+    clearAppState: flags?.clearAppState,
     verbose: flags?.verbose,
     logPath,
     traceLogPath,

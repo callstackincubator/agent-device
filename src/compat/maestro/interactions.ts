@@ -357,7 +357,7 @@ function maestroTapOnFlags(value: unknown): SessionAction['flags'] {
     ...flags,
     maestro: {
       ...(flags.maestro ?? {}),
-      allowNonHittableSelectorTap: true,
+      allowNonHittableCoordinateFallback: true,
     },
   };
 }

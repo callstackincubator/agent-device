@@ -40,7 +40,7 @@ struct Command: Codable {
   let text: String?
   let selectorKey: String?
   let selectorValue: String?
-  let allowNonHittableSelectorTap: Bool?
+  let allowNonHittableCoordinateFallback: Bool?
   let delayMs: Int?
   let textEntryMode: String?
   let clearFirst: Bool?

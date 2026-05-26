@@ -245,7 +245,7 @@ export async function clearIosSimulatorAppState(
   if (device.platform !== 'ios' || device.kind !== 'simulator') {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
-      'Maestro launchApp.clearState is currently supported only on iOS simulators.',
+      'Clearing app state is currently supported only on iOS simulators.',
     );
   }
 

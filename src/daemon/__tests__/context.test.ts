@@ -14,8 +14,8 @@ test('contextFromFlags forwards scroll pixels from CLI flags', () => {
   assert.equal(context.pixels, 240);
 });
 
-test('contextFromFlags maps Maestro clearState to generic app-state clearing', () => {
-  const flags: CommandFlags = { maestro: { clearState: true } };
+test('contextFromFlags forwards generic app-state clearing', () => {
+  const flags: CommandFlags = { clearAppState: true };
   const context = contextFromFlags('/tmp/agent-device.log', flags);
   assert.equal(context.clearAppState, true);
 });

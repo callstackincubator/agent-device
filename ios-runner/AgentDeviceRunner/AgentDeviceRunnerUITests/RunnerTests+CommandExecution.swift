@@ -256,7 +256,7 @@ extension RunnerTests {
           app: activeApp,
           selectorKey: selectorKey,
           selectorValue: selectorValue,
-          allowNonHittableFallback: command.allowNonHittableSelectorTap == true
+          allowNonHittableFallback: command.allowNonHittableCoordinateFallback == true
         )
         if match.isAmbiguous {
           return Response(ok: false, error: ErrorPayload(code: "AMBIGUOUS_MATCH", message: "selector matched multiple elements"))
@@ -877,7 +877,7 @@ extension RunnerTests {
         app: activeApp,
         selectorKey: selectorKey,
         selectorValue: selectorValue,
-        allowNonHittableFallback: command.allowNonHittableSelectorTap == true
+        allowNonHittableFallback: command.allowNonHittableCoordinateFallback == true
       )
       if match.isAmbiguous {
         return Response(ok: false, error: ErrorPayload(code: "AMBIGUOUS_MATCH", message: "selector matched multiple elements"))

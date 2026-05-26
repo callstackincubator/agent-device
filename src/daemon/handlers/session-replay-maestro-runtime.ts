@@ -12,11 +12,27 @@ import { getSnapshotReferenceFrame, type TouchReferenceFrame } from '../touch-re
 import type { DaemonRequest, DaemonResponse, SessionAction } from '../types.ts';
 import { errorResponse } from './response.ts';
 
-const MAESTRO_SCROLL_UNTIL_VISIBLE_PROBE_MS = 500;
-const MAESTRO_TAP_ON_TIMEOUT_MS = 30000;
-const MAESTRO_OPTIONAL_TAP_ON_TIMEOUT_MS = 3000;
-const MAESTRO_TAP_ON_RETRY_MS = 250;
-const MAESTRO_ANIMATION_POLL_MS = 250;
+// Keep Maestro timing and target-selection heuristics behind one policy so
+// generic Agent Device command behavior does not inherit compatibility rules.
+const MAESTRO_REPLAY_POLICY = {
+  animationPollMs: 250,
+  scrollUntilVisibleProbeMs: 500,
+  tapOnRetryMs: 250,
+  tapOnTimeoutMs: 30000,
+  optionalTapOnTimeoutMs: 3000,
+  swipe: {
+    screenRatio: 0.35,
+    minDistancePx: 120,
+    maxDistancePx: 360,
+    marginPx: 8,
+  },
+  largeTextContainerBias: {
+    minWidth: 120,
+    minHeight: 70,
+    width: 168,
+    height: 48,
+  },
+} as const;
 
 type ReplayBaseRequest = Omit<DaemonRequest, 'command' | 'positionals'>;
 
@@ -160,7 +176,7 @@ async function invokeMaestroWaitForAnimationToEnd(params: {
     });
     if (!response.ok) {
       lastResponse = response;
-      await sleep(MAESTRO_ANIMATION_POLL_MS);
+      await sleep(MAESTRO_REPLAY_POLICY.animationPollMs);
       continue;
     }
     const snapshot = readSnapshotState(response.data);
@@ -171,7 +187,7 @@ async function invokeMaestroWaitForAnimationToEnd(params: {
     }
     previousSignature = signature;
     lastResponse = response;
-    await sleep(MAESTRO_ANIMATION_POLL_MS);
+    await sleep(MAESTRO_REPLAY_POLICY.animationPollMs);
   }
 
   return lastResponse?.ok === false
@@ -191,7 +207,10 @@ async function invokeMaestroScrollUntilVisible(
     return errorResponse('INVALID_ARGS', 'scrollUntilVisible timeout must be a positive number.');
   }
   const fuzzyTextQuery = extractMaestroVisibleTextQuery(selector);
-  const attempts = Math.max(1, Math.ceil(timeoutMs / MAESTRO_SCROLL_UNTIL_VISIBLE_PROBE_MS));
+  const attempts = Math.max(
+    1,
+    Math.ceil(timeoutMs / MAESTRO_REPLAY_POLICY.scrollUntilVisibleProbeMs),
+  );
   let lastWaitResponse: FailedDaemonResponse | null = null;
 
   for (let index = 0; index < attempts; index += 1) {
@@ -240,8 +259,8 @@ async function probeMaestroScrollVisibility(
 
 function scrollProbeMs(timeoutMs: number, index: number): number {
   return Math.min(
-    MAESTRO_SCROLL_UNTIL_VISIBLE_PROBE_MS,
-    Math.max(1, timeoutMs - index * MAESTRO_SCROLL_UNTIL_VISIBLE_PROBE_MS),
+    MAESTRO_REPLAY_POLICY.scrollUntilVisibleProbeMs,
+    Math.max(1, timeoutMs - index * MAESTRO_REPLAY_POLICY.scrollUntilVisibleProbeMs),
   );
 }
 
@@ -339,8 +358,8 @@ async function invokeMaestroTapOn(params: MaestroTapOnParams): Promise<DaemonRes
   const fuzzyTextQuery = extractMaestroVisibleTextQuery(selector);
   const timeoutMs =
     params.baseReq.flags?.maestro?.optional === true
-      ? MAESTRO_OPTIONAL_TAP_ON_TIMEOUT_MS
-      : MAESTRO_TAP_ON_TIMEOUT_MS;
+      ? MAESTRO_REPLAY_POLICY.optionalTapOnTimeoutMs
+      : MAESTRO_REPLAY_POLICY.tapOnTimeoutMs;
   let lastResponse: DaemonResponse | undefined;
   while (Date.now() - startedAt < timeoutMs) {
     const attempt = await invokeMaestroSnapshotTapOn(params, selector, options.value ?? {});
@@ -351,7 +370,7 @@ async function invokeMaestroTapOn(params: MaestroTapOnParams): Promise<DaemonRes
       if (!fuzzyAttempt.retry) return fuzzyAttempt.response;
       lastResponse = fuzzyAttempt.response;
     }
-    await sleep(MAESTRO_TAP_ON_RETRY_MS);
+    await sleep(MAESTRO_REPLAY_POLICY.tapOnRetryMs);
   }
 
   if (params.baseReq.flags?.maestro?.optional === true) {
@@ -644,10 +663,11 @@ function swipeCoordinatesFromTarget(
   const frame = target.frame;
   const horizontalDistance = swipeDistance(frame?.referenceWidth, target.rect.width);
   const verticalDistance = swipeDistance(frame?.referenceHeight, target.rect.height);
-  const minX = 8;
-  const minY = 8;
-  const maxX = frame ? frame.referenceWidth - 8 : center.x + horizontalDistance;
-  const maxY = frame ? frame.referenceHeight - 8 : center.y + verticalDistance;
+  const margin = MAESTRO_REPLAY_POLICY.swipe.marginPx;
+  const minX = margin;
+  const minY = margin;
+  const maxX = frame ? frame.referenceWidth - margin : center.x + horizontalDistance;
+  const maxY = frame ? frame.referenceHeight - margin : center.y + verticalDistance;
   switch (direction.toLowerCase()) {
     case 'up':
       return {
@@ -685,8 +705,14 @@ function swipeCoordinatesFromTarget(
 }
 
 function swipeDistance(frameSize: number | undefined, rectSize: number): number {
-  const screenRelative = typeof frameSize === 'number' ? frameSize * 0.35 : 0;
-  return Math.round(Math.min(360, Math.max(120, screenRelative, rectSize * 1.5)));
+  const screenRelative =
+    typeof frameSize === 'number' ? frameSize * MAESTRO_REPLAY_POLICY.swipe.screenRatio : 0;
+  return Math.round(
+    Math.min(
+      MAESTRO_REPLAY_POLICY.swipe.maxDistancePx,
+      Math.max(MAESTRO_REPLAY_POLICY.swipe.minDistancePx, screenRelative, rectSize * 1.5),
+    ),
+  );
 }
 
 function clampCoordinate(value: number, min: number, max: number): number {
@@ -708,8 +734,14 @@ function pointForMaestroTapOnTarget(
     return pointInsideRect(target.rect);
   }
   return {
-    x: interiorCoordinate(target.rect.x, Math.min(target.rect.width, 168)),
-    y: interiorCoordinate(target.rect.y, Math.min(target.rect.height, 48)),
+    x: interiorCoordinate(
+      target.rect.x,
+      Math.min(target.rect.width, MAESTRO_REPLAY_POLICY.largeTextContainerBias.width),
+    ),
+    y: interiorCoordinate(
+      target.rect.y,
+      Math.min(target.rect.height, MAESTRO_REPLAY_POLICY.largeTextContainerBias.height),
+    ),
   };
 }
 
@@ -719,7 +751,12 @@ function shouldBiasMaestroVisibleTextTap(
   rect: Rect,
 ): boolean {
   if (!extractMaestroVisibleTextQuery(selector)) return false;
-  if (rect.height < 70 || rect.width < 120) return false;
+  if (
+    rect.height < MAESTRO_REPLAY_POLICY.largeTextContainerBias.minHeight ||
+    rect.width < MAESTRO_REPLAY_POLICY.largeTextContainerBias.minWidth
+  ) {
+    return false;
+  }
   const type = node.type?.toLowerCase();
   return type === 'cell' || type === 'other' || type === 'scrollview';
 }

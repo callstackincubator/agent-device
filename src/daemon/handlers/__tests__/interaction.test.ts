@@ -460,7 +460,7 @@ test('fill simple iOS id selector uses direct runner selector fill without snaps
   }
 });
 
-test('click simple iOS selector forwards Maestro non-hittable tap backdoor', async () => {
+test('click simple iOS selector forwards Maestro non-hittable coordinate fallback', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-maestro-selector-fallback';
   sessionStore.set(sessionName, makeIosSession(sessionName, { appBundleId: 'com.example.app' }));
@@ -479,7 +479,7 @@ test('click simple iOS selector forwards Maestro non-hittable tap backdoor', asy
       session: sessionName,
       command: 'click',
       positionals: ['id="e2eSignInAlice"'],
-      flags: { maestro: { allowNonHittableSelectorTap: true } },
+      flags: { maestro: { allowNonHittableCoordinateFallback: true } },
     },
     sessionName,
     sessionStore,
@@ -493,7 +493,7 @@ test('click simple iOS selector forwards Maestro non-hittable tap backdoor', asy
     key: 'id',
     value: 'e2eSignInAlice',
     raw: 'id="e2eSignInAlice"',
-    allowNonHittableTap: true,
+    allowNonHittableCoordinateFallback: true,
   });
 });
 

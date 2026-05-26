@@ -236,13 +236,13 @@ async function handleOpenCommand(
     if (isDeepLinkTarget(app)) {
       throw new AppError(
         'INVALID_ARGS',
-        'Maestro launchApp.clearState requires an app target, not a deep link.',
+        'Clearing app state requires an app target, not a deep link.',
       );
     }
     if (device.platform !== 'ios' || device.kind !== 'simulator') {
       throw new AppError(
         'UNSUPPORTED_OPERATION',
-        'Maestro launchApp.clearState is currently supported only on iOS simulators.',
+        'Clearing app state is currently supported only on iOS simulators.',
       );
     }
     await clearIosSimulatorAppState(device, app);

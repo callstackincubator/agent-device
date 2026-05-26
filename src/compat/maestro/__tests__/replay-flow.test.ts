@@ -80,8 +80,8 @@ env:
   assert.equal(parsed.actions[3]?.flags.doubleTap, true);
   assert.equal(parsed.actions[3]?.flags.intervalMs, 150);
   assert.equal(parsed.actions[4]?.flags.holdMs, 3000);
-  assert.equal(parsed.actions[1]?.flags.maestro?.allowNonHittableSelectorTap, true);
-  assert.equal(parsed.actions[6]?.flags?.maestro?.allowNonHittableSelectorTap, undefined);
+  assert.equal(parsed.actions[1]?.flags.maestro?.allowNonHittableCoordinateFallback, true);
+  assert.equal(parsed.actions[6]?.flags?.maestro?.allowNonHittableCoordinateFallback, undefined);
 });
 
 test('parseMaestroReplayFlow maps iOS openLink through the app id when available', () => {
@@ -200,7 +200,7 @@ test('parseMaestroReplayFlow marks tapOn before inputText for snapshot tap focus
       ['type', ['Muted Users']],
     ],
   );
-  assert.equal(parsed.actions[0]?.flags?.maestro?.allowNonHittableSelectorTap, undefined);
+  assert.equal(parsed.actions[0]?.flags?.maestro?.allowNonHittableCoordinateFallback, undefined);
 });
 
 test('parseMaestroReplayFlow coalesces tapOn inputText while preserving pressKey Enter submit', () => {
@@ -221,7 +221,7 @@ test('parseMaestroReplayFlow coalesces tapOn inputText while preserving pressKey
     ],
   );
   assert.deepEqual(parsed.actionLines, [3, 3, 6]);
-  assert.equal(parsed.actions[1]?.flags?.maestro?.allowNonHittableSelectorTap, true);
+  assert.equal(parsed.actions[1]?.flags?.maestro?.allowNonHittableCoordinateFallback, true);
 });
 
 test('parseMaestroReplayFlow rejects relative runScript paths without source path', () => {
@@ -430,7 +430,7 @@ test('parseMaestroReplayFlow keeps visible-gated runFlow commands for runtime ev
     {
       command: '__maestroTapOn',
       positionals: ['label="Continue" || text="Continue" || id="Continue"'],
-      flags: { maestro: { allowNonHittableSelectorTap: true } },
+      flags: { maestro: { allowNonHittableCoordinateFallback: true } },
     },
   ]);
 });
@@ -454,7 +454,7 @@ test('parseMaestroReplayFlow accepts launchApp reset options', () => {
         'open',
         ['com.callstack.agentdevicelab'],
         {
-          maestro: { clearState: true },
+          clearAppState: true,
           launchArgs: ['-EXDevMenuIsOnboardingFinished', 'true', '-Example', 'ignored'],
         },
       ],
