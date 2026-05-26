@@ -1,5 +1,5 @@
 import type { CommandCapability } from '../core/capabilities.ts';
-import type { CliFlags, CommandSchema } from '../utils/command-schema.ts';
+import type { CommandSchema } from '../utils/command-schema.ts';
 
 export const ALL_DEVICE_COMMAND_CAPABILITY = {
   apple: { simulator: true, device: true },
@@ -7,19 +7,13 @@ export const ALL_DEVICE_COMMAND_CAPABILITY = {
   linux: { device: true },
 } as const satisfies CommandCapability;
 
-export type CommandCodec<TOptions = unknown> = {
-  decode(positionals: string[], flags?: Partial<CliFlags>): TOptions;
-  encode(options: TOptions): string[];
-};
-
-export type CommandDefinition<TName extends string = string, TOptions = unknown> = {
+export type CommandDefinition<TName extends string = string> = {
   name: TName;
   schema: CommandSchema;
   capability: CommandCapability;
-  codec?: CommandCodec<TOptions>;
 };
 
-export function defineCommand<const TDefinition extends CommandDefinition<string, unknown>>(
+export function defineCommand<const TDefinition extends CommandDefinition<string>>(
   definition: TDefinition,
 ): TDefinition {
   return definition;

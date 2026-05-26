@@ -1,8 +1,9 @@
 import { readVersion } from '../utils/version.ts';
+import { listSemanticCommandTools } from './semantic-tools.ts';
 
 export const MCP_SERVER_NAME = 'agent-device';
 
-type StatusHandoff = {
+type StatusMetadata = {
   packageName: string;
   installedPackageVersion: string;
   cliCommandName: string;
@@ -15,13 +16,13 @@ type StatusHandoff = {
   docsUrl: string;
   agentDocsUrl: string;
   firstCommands: string[];
-  automationInterface: 'cli';
+  automationInterface: 'mcp-tools';
   automationNote: string;
   installRequiresHumanApproval: true;
   installSafetyNote: string;
 };
 
-export function createStatusHandoff(): StatusHandoff {
+export function createStatusMetadata(): StatusMetadata {
   return {
     packageName: 'agent-device',
     installedPackageVersion: readVersion(),
@@ -67,9 +68,9 @@ export function createStatusHandoff(): StatusHandoff {
       'agent-device apps --platform ios',
       'agent-device apps --platform android',
     ],
-    automationInterface: 'cli',
+    automationInterface: 'mcp-tools',
     automationNote:
-      'Device automation happens through the agent-device CLI. This MCP server is discovery-only and does not expose device automation tools.',
+      'Device automation MCP tools use semantic command contracts and execute through the agent-device client.',
     installRequiresHumanApproval: true,
     installSafetyNote:
       'Agents should not install or update the package unless the human has approved the environment change. If the CLI is missing, ask the human to run the install command, then run the verify command.',
@@ -81,7 +82,7 @@ export function listTools(): unknown[] {
     {
       name: 'status',
       description:
-        'Return discovery-only handoff metadata for installing, verifying, and using the agent-device CLI.',
+        'Return package, install, verify, and capability metadata for the agent-device MCP tools.',
       inputSchema: {
         type: 'object',
         properties: {},
@@ -114,7 +115,7 @@ export function listTools(): unknown[] {
             type: 'array',
             items: { type: 'string' },
           },
-          automationInterface: { type: 'string', const: 'cli' },
+          automationInterface: { type: 'string', const: 'mcp-tools' },
           automationNote: { type: 'string' },
           installRequiresHumanApproval: { type: 'boolean', const: true },
           installSafetyNote: { type: 'string' },
@@ -140,5 +141,6 @@ export function listTools(): unknown[] {
         additionalProperties: false,
       },
     },
+    ...listSemanticCommandTools(),
   ];
 }

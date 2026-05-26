@@ -1,18 +1,17 @@
 import { formatSnapshotText } from '../../utils/output.ts';
 import { serializeSnapshotResult } from '../../client-shared.ts';
-import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
+import { runSemanticCliCommand } from '../../commands/semantic-cli.ts';
+import type { CaptureSnapshotResult } from '../../client.ts';
+import { writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router-types.ts';
 
 export const snapshotCommand: ClientCommandHandler = async ({ flags, client }) => {
-  const result = await client.capture.snapshot({
-    ...buildSelectionOptions(flags),
-    interactiveOnly: flags.snapshotInteractiveOnly,
-    compact: flags.snapshotCompact,
-    depth: flags.snapshotDepth,
-    scope: flags.snapshotScope,
-    raw: flags.snapshotRaw,
-    forceFull: flags.snapshotForceFull,
-  });
+  const result = (await runSemanticCliCommand({
+    client,
+    command: 'snapshot',
+    positionals: [],
+    flags,
+  })) as CaptureSnapshotResult;
   const data = serializeSnapshotResult(result);
   // Programmatic SDK callers can see `unchanged`; CLI --json hides it for schema compatibility.
   const outputData = flags.json ? withoutUnchanged(data) : data;

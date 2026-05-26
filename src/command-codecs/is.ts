@@ -31,11 +31,3 @@ export function readIsOptionsFromPositionals(positionals: string[], flags: CliFl
     'is requires predicate: visible|hidden|exists|editable|selected|text',
   );
 }
-
-export function isOptionsToPositionals(options: IsOptions): string[] {
-  return [
-    options.predicate,
-    options.selector,
-    ...(options.predicate === 'text' ? [options.value] : []),
-  ];
-}

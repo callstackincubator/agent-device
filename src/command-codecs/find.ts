@@ -61,29 +61,6 @@ export function readFindOptionsFromPositionals(
   throw new AppError('INVALID_ARGS', `Unsupported find action: ${action}`);
 }
 
-export function findOptionsToPositionals(options: FindOptions): string[] {
-  const args =
-    options.locator && options.locator !== 'any'
-      ? [options.locator, options.query]
-      : [options.query];
-  switch (options.action) {
-    case undefined:
-    case 'click':
-    case 'focus':
-    case 'exists':
-      return options.action ? [...args, options.action] : args;
-    case 'getText':
-      return [...args, 'get', 'text'];
-    case 'getAttrs':
-      return [...args, 'get', 'attrs'];
-    case 'wait':
-      return [...args, 'wait', ...optionalNumberValue(options.timeoutMs)];
-    case 'fill':
-    case 'type':
-      return [...args, options.action, options.value];
-  }
-}
-
 function readFindLocator(value: string | undefined): FindLocator | undefined {
   if (
     value === 'text' ||
@@ -116,8 +93,4 @@ function readRequiredQuery(value: string | undefined): string {
 
 function readOptionalTimeoutMs(value: string | undefined): number | undefined {
   return value === undefined ? undefined : Number(value);
-}
-
-function optionalNumberValue(value: number | undefined): string[] {
-  return value === undefined ? [] : [String(value)];
 }

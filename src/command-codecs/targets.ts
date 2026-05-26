@@ -1,9 +1,4 @@
-import type {
-  ElementTarget,
-  FillOptions,
-  InteractionTarget,
-  LongPressOptions,
-} from '../client-types.ts';
+import type { ElementTarget, InteractionTarget, LongPressOptions } from '../client-types.ts';
 import { splitSelectorFromArgs } from '../daemon/selectors.ts';
 import { AppError } from '../utils/errors.ts';
 
@@ -22,12 +17,6 @@ export function readInteractionTargetFromPositionals(positionals: string[]): Int
   return { x: Number(positionals[0]), y: Number(positionals[1]) };
 }
 
-export function interactionTargetToPositionals(options: InteractionTarget): string[] {
-  if (options.ref !== undefined) return [options.ref, ...optionalString(options.label)];
-  if (options.selector !== undefined) return [options.selector];
-  return [String(options.x), String(options.y)];
-}
-
 export function readLongPressTargetFromPositionals(positionals: string[]): LongPressOptions {
   const targetPositionals = readLongPressTargetPositionals(positionals);
   return {
@@ -38,13 +27,6 @@ export function readLongPressTargetFromPositionals(positionals: string[]): LongP
   };
 }
 
-export function longPressOptionsToPositionals(options: LongPressOptions): string[] {
-  return [
-    ...interactionTargetToPositionals(options),
-    ...(options.durationMs === undefined ? [] : [String(options.durationMs)]),
-  ];
-}
-
 export function readElementTargetFromPositionals(positionals: string[]): ElementTarget {
   if (positionals[0]?.startsWith('@')) {
     return { ref: positionals[0], label: optionalTrimmedText(positionals.slice(1)) };
@@ -52,11 +34,6 @@ export function readElementTargetFromPositionals(positionals: string[]): Element
   const selector = positionals.join(' ').trim();
   if (!selector) throw new AppError('INVALID_ARGS', 'get requires @ref or selector expression');
   return { selector };
-}
-
-export function elementTargetToPositionals(options: ElementTarget): string[] {
-  if (options.ref !== undefined) return [options.ref, ...optionalString(options.label)];
-  return [options.selector];
 }
 
 export function readFillTargetFromPositionals(positionals: string[]): DecodedFillTarget {
@@ -85,14 +62,6 @@ export function readFillTargetFromPositionals(positionals: string[]): DecodedFil
     target: { x: Number(positionals[0]), y: Number(positionals[1]) },
     text: positionals.slice(2).join(' '),
   };
-}
-
-export function fillOptionsToPositionals(options: FillOptions): string[] {
-  return [...interactionTargetToPositionals(options), options.text];
-}
-
-function optionalString(value: string | undefined): string[] {
-  return value === undefined ? [] : [value];
 }
 
 function optionalTrimmedText(values: string[]): string | undefined {

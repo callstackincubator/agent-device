@@ -1,18 +1,10 @@
 import { sendToDaemon } from './daemon-client.ts';
 import { prepareMetroRuntime, reloadMetro } from './client-metro.ts';
-import { INTERNAL_COMMANDS, PUBLIC_COMMANDS } from './command-catalog.ts';
-import { createAgentDeviceCommandClient, type PreparedClientCommand } from './client-commands.ts';
-import { screenshotFlagsFromOptions } from './commands/capture-screenshot-options.ts';
+import { INTERNAL_COMMANDS } from './command-catalog.ts';
 import {
-  elementTargetCodec,
-  fillCommandCodec,
-  findCommandCodec,
-  interactionTargetCodec,
-  isCommandCodec,
-  longPressCommandCodec,
-  settingsCommandCodec,
-} from './command-codecs.ts';
-import { typeCommandCodec } from './commands/interactions/definition.ts';
+  prepareSemanticDaemonRequest,
+  type SemanticDaemonCommand,
+} from './commands/semantic-request.ts';
 import { throwDaemonError } from './daemon-error.ts';
 import {
   buildFlags,
@@ -35,8 +27,6 @@ import type {
   AgentDeviceClient,
   AgentDeviceClientConfig,
   AgentDeviceDaemonTransport,
-  AppPushOptions,
-  AppTriggerEventOptions,
   AppCloseOptions,
   AppDeployOptions,
   AppInstallFromSourceOptions,
@@ -45,14 +35,11 @@ import type {
   CaptureScreenshotOptions,
   CaptureSnapshotOptions,
   CaptureSnapshotResult,
-  CommandRequestResult,
   InternalRequestOptions,
   Lease,
   MaterializationReleaseOptions,
   MetroPrepareOptions,
-  NetworkOptions,
 } from './client-types.ts';
-import { AppError } from './utils/errors.ts';
 
 export function createAgentDeviceClient(
   config: AgentDeviceClientConfig = {},
@@ -86,34 +73,43 @@ export function createAgentDeviceClient(
     return sessions.map(normalizeSession);
   };
 
-  const executePreparedCommand = async <T>(prepared: PreparedClientCommand): Promise<T> =>
-    (await execute(prepared.command, prepared.positionals, prepared.options)) as T;
-
-  const executeCommandRequest = async (
-    command: string,
-    positionals: string[] = [],
+  const executeSemanticCommand = async <T>(
+    command: SemanticDaemonCommand,
     options: InternalRequestOptions = {},
-  ): Promise<CommandRequestResult> =>
-    (await execute(command, positionals, options)) as CommandRequestResult;
+  ): Promise<T> => {
+    const request = prepareSemanticDaemonRequest(command, options);
+    return (await execute(request.command, request.positionals, request.options)) as T;
+  };
 
   const resolveRequestSession = (options: InternalRequestOptions = {}) =>
     resolveSessionName(mergeClientOptions(config, options).session);
 
   return {
-    command: createAgentDeviceCommandClient(executePreparedCommand),
+    command: {
+      wait: async (options) => await executeSemanticCommand('wait', options),
+      alert: async (options = {}) => await executeSemanticCommand('alert', options),
+      appState: async (options = {}) => await executeSemanticCommand('appstate', options),
+      back: async (options = {}) => await executeSemanticCommand('back', options),
+      home: async (options = {}) => await executeSemanticCommand('home', options),
+      rotate: async (options) => await executeSemanticCommand('rotate', options),
+      appSwitcher: async (options = {}) => await executeSemanticCommand('app-switcher', options),
+      keyboard: async (options = {}) => await executeSemanticCommand('keyboard', options),
+      clipboard: async (options) => await executeSemanticCommand('clipboard', options),
+      reactNative: async (options) => await executeSemanticCommand('react-native', options),
+    },
     devices: {
       list: async (options = {}) => {
-        const data = await execute(PUBLIC_COMMANDS.devices, [], options);
+        const data = await executeSemanticCommand<Record<string, unknown>>('devices', options);
         const devices = Array.isArray(data.devices) ? data.devices : [];
         return devices.map(normalizeDevice);
       },
-      boot: async (options = {}) => await executeCommandRequest(PUBLIC_COMMANDS.boot, [], options),
+      boot: async (options = {}) => await executeSemanticCommand('boot', options),
     },
     sessions: {
       list: async (options = {}) => await listSessions(options),
       close: async (options = {}) => {
         const session = resolveRequestSession(options);
-        const data = await execute(PUBLIC_COMMANDS.close, [], options);
+        const data = await executeSemanticCommand<Record<string, unknown>>('close', options);
         const shutdown = data.shutdown;
         return {
           session,
@@ -128,38 +124,28 @@ export function createAgentDeviceClient(
     apps: {
       install: async (options: AppDeployOptions) =>
         normalizeDeployResult(
-          await execute(PUBLIC_COMMANDS.install, [options.app, options.appPath], options),
+          await executeSemanticCommand('install', options),
           resolveRequestSession(options),
         ),
       reinstall: async (options: AppDeployOptions) =>
         normalizeDeployResult(
-          await execute(PUBLIC_COMMANDS.reinstall, [options.app, options.appPath], options),
+          await executeSemanticCommand('reinstall', options),
           resolveRequestSession(options),
         ),
       installFromSource: async (options: AppInstallFromSourceOptions) =>
         normalizeInstallFromSourceResult(
-          await execute(INTERNAL_COMMANDS.installSource, [], {
-            ...options,
-            installSource: options.source,
-            retainMaterializedPaths: options.retainPaths,
-            materializedPathRetentionMs: options.retentionMs,
-          }),
+          await executeSemanticCommand('install-from-source', options),
           resolveRequestSession(options),
         ),
       list: async (options: AppListOptions = {}) => {
-        const data = await execute(PUBLIC_COMMANDS.apps, [], options);
+        const data = await executeSemanticCommand<Record<string, unknown>>('apps', options);
         return Array.isArray(data.apps)
           ? data.apps.filter((app): app is string => typeof app === 'string')
           : [];
       },
       open: async (options: AppOpenOptions) => {
         const session = resolveRequestSession(options);
-        const positionals = options.app
-          ? options.url
-            ? [options.app, options.url]
-            : [options.app]
-          : [];
-        const data = await execute(PUBLIC_COMMANDS.open, positionals, options);
+        const data = await executeSemanticCommand<Record<string, unknown>>('open', options);
         const device = normalizeOpenDevice(data);
         const appBundleId = readOptionalString(data, 'appBundleId');
         const appId = appBundleId;
@@ -184,11 +170,7 @@ export function createAgentDeviceClient(
       },
       close: async (options: AppCloseOptions = {}) => {
         const session = resolveRequestSession(options);
-        const data = await execute(
-          PUBLIC_COMMANDS.close,
-          options.app ? [options.app] : [],
-          options,
-        );
+        const data = await executeSemanticCommand<Record<string, unknown>>('close', options);
         const shutdown = data.shutdown;
         return {
           session,
@@ -200,18 +182,8 @@ export function createAgentDeviceClient(
           identifiers: { session },
         };
       },
-      push: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.push,
-          [options.app, stringifyPayload(options.payload)],
-          options,
-        ),
-      triggerEvent: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.triggerAppEvent,
-          triggerEventPositionals(options),
-          options,
-        ),
+      push: async (options) => await executeSemanticCommand('push', options),
+      triggerEvent: async (options) => await executeSemanticCommand('trigger-app-event', options),
     },
     materializations: {
       release: async (options: MaterializationReleaseOptions) =>
@@ -277,230 +249,57 @@ export function createAgentDeviceClient(
     capture: {
       snapshot: async (options: CaptureSnapshotOptions = {}) => {
         const session = resolveRequestSession(options);
-        const data = await execute(PUBLIC_COMMANDS.snapshot, [], options);
+        const data = await executeSemanticCommand<Record<string, unknown>>('snapshot', options);
         return normalizeSnapshotResult(data, session);
       },
       screenshot: async (options: CaptureScreenshotOptions = {}) => {
         const session = resolveRequestSession(options);
-        const data = await execute(PUBLIC_COMMANDS.screenshot, options.path ? [options.path] : [], {
-          ...options,
-          ...screenshotFlagsFromOptions(options),
-        });
+        const data = await executeSemanticCommand<Record<string, unknown>>('screenshot', options);
         return {
           path: readRequiredString(data, 'path'),
           overlayRefs: readScreenshotOverlayRefs(data),
           identifiers: { session },
         };
       },
-      diff: async (options) =>
-        await executeCommandRequest(PUBLIC_COMMANDS.diff, [options.kind], {
-          ...options,
-          interactiveOnly: options.interactiveOnly,
-          compact: options.compact,
-          depth: options.depth,
-          scope: options.scope,
-          raw: options.raw,
-        }),
+      diff: async (options) => await executeSemanticCommand('diff', options),
     },
     interactions: {
-      click: async (options) =>
-        await executeCommandRequest(PUBLIC_COMMANDS.click, interactionTargetCodec.encode(options), {
-          ...options,
-          clickButton: options.button,
-        }),
-      press: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.press,
-          interactionTargetCodec.encode(options),
-          options,
-        ),
-      longPress: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.longPress,
-          longPressCommandCodec.encode(options),
-          options,
-        ),
-      swipe: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.swipe,
-          [
-            String(options.from.x),
-            String(options.from.y),
-            String(options.to.x),
-            String(options.to.y),
-            ...optionalNumber(options.durationMs),
-          ],
-          options,
-        ),
-      pan: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.gesture,
-          [
-            'pan',
-            String(options.x),
-            String(options.y),
-            String(options.dx),
-            String(options.dy),
-            ...optionalNumber(options.durationMs),
-          ],
-          options,
-        ),
-      fling: async (options) => {
-        const distance =
-          options.durationMs !== undefined ? (options.distance ?? 180) : options.distance;
-        return await executeCommandRequest(
-          PUBLIC_COMMANDS.gesture,
-          [
-            'fling',
-            options.direction,
-            String(options.x),
-            String(options.y),
-            ...optionalNumber(distance),
-            ...optionalNumber(options.durationMs),
-          ],
-          options,
-        );
-      },
-      focus: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.focus,
-          [String(options.x), String(options.y)],
-          options,
-        ),
-      type: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.type,
-          typeCommandCodec.encode(options),
-          options,
-        ),
-      fill: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.fill,
-          fillCommandCodec.encode(options),
-          options,
-        ),
-      scroll: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.scroll,
-          [options.direction, ...optionalNumber(options.amount)],
-          options,
-        ),
-      pinch: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.gesture,
-          [
-            'pinch',
-            String(options.scale),
-            ...optionalNumber(options.x),
-            ...optionalNumber(options.y),
-          ],
-          options,
-        ),
-      rotateGesture: async (options) => {
-        if (
-          (options.x === undefined && options.y !== undefined) ||
-          (options.x !== undefined && options.y === undefined)
-        ) {
-          throw new AppError('INVALID_ARGS', 'gesture rotate center requires both x and y');
-        }
-        const center =
-          options.x === undefined || options.y === undefined
-            ? []
-            : [String(options.x), String(options.y)];
-        return await executeCommandRequest(
-          PUBLIC_COMMANDS.gesture,
-          ['rotate', String(options.degrees), ...center, ...optionalNumber(options.velocity)],
-          options,
-        );
-      },
+      click: async (options) => await executeSemanticCommand('click', options),
+      press: async (options) => await executeSemanticCommand('press', options),
+      longPress: async (options) => await executeSemanticCommand('longpress', options),
+      swipe: async (options) => await executeSemanticCommand('swipe', options),
+      pan: async (options) => await executeSemanticCommand('gesture-pan', options),
+      fling: async (options) => await executeSemanticCommand('gesture-fling', options),
+      focus: async (options) => await executeSemanticCommand('focus', options),
+      type: async (options) => await executeSemanticCommand('type', options),
+      fill: async (options) => await executeSemanticCommand('fill', options),
+      scroll: async (options) => await executeSemanticCommand('scroll', options),
+      pinch: async (options) => await executeSemanticCommand('gesture-pinch', options),
+      rotateGesture: async (options) => await executeSemanticCommand('gesture-rotate', options),
       transformGesture: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.gesture,
-          [
-            'transform',
-            String(options.x),
-            String(options.y),
-            String(options.dx),
-            String(options.dy),
-            String(options.scale),
-            String(options.degrees),
-            ...optionalNumber(options.durationMs),
-          ],
-          options,
-        ),
-      get: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.get,
-          [options.format, ...elementTargetCodec.encode(options)],
-          options,
-        ),
-      is: async (options) =>
-        await executeCommandRequest(PUBLIC_COMMANDS.is, isCommandCodec.encode(options), options),
-      find: async (options) =>
-        await executeCommandRequest(PUBLIC_COMMANDS.find, findCommandCodec.encode(options), {
-          ...options,
-          findFirst: options.first,
-          findLast: options.last,
-        }),
+        await executeSemanticCommand('gesture-transform', options),
+      get: async (options) => await executeSemanticCommand('get', options),
+      is: async (options) => await executeSemanticCommand('is', options),
+      find: async (options) => await executeSemanticCommand('find', options),
     },
     replay: {
-      run: async (options) =>
-        await executeCommandRequest(PUBLIC_COMMANDS.replay, [options.path], {
-          ...options,
-          replayUpdate: options.update,
-          replayBackend: options.backend ?? (options.maestro === true ? 'maestro' : undefined),
-          replayEnv: options.env,
-          replayShellEnv: collectReplayClientShellEnv(process.env),
-        }),
-      test: async (options) =>
-        await executeCommandRequest(PUBLIC_COMMANDS.test, options.paths, {
-          ...options,
-          replayUpdate: options.update,
-          replayBackend: options.backend ?? (options.maestro === true ? 'maestro' : undefined),
-          replayEnv: options.env,
-          replayShellEnv: collectReplayClientShellEnv(process.env),
-        }),
+      run: async (options) => await executeSemanticCommand('replay', options),
+      test: async (options) => await executeSemanticCommand('test', options),
     },
     batch: {
-      run: async (options) =>
-        await executeCommandRequest(PUBLIC_COMMANDS.batch, [], {
-          ...options,
-          batchSteps: options.steps,
-          batchOnError: options.onError,
-          batchMaxSteps: options.maxSteps,
-        }),
+      run: async (options) => await executeSemanticCommand('batch', options),
     },
     observability: {
-      perf: async (options = {}) => await executeCommandRequest(PUBLIC_COMMANDS.perf, [], options),
-      logs: async (options = {}) =>
-        await executeCommandRequest(PUBLIC_COMMANDS.logs, logsPositionals(options), options),
-      network: async (options = {}) =>
-        await executeCommandRequest(PUBLIC_COMMANDS.network, networkPositionals(options), {
-          ...options,
-          networkInclude: options.include,
-        }),
+      perf: async (options = {}) => await executeSemanticCommand('perf', options),
+      logs: async (options = {}) => await executeSemanticCommand('logs', options),
+      network: async (options = {}) => await executeSemanticCommand('network', options),
     },
     recording: {
-      record: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.record,
-          [options.action, ...optionalString(options.path)],
-          options,
-        ),
-      trace: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.trace,
-          [options.action, ...optionalString(options.path)],
-          options,
-        ),
+      record: async (options) => await executeSemanticCommand('record', options),
+      trace: async (options) => await executeSemanticCommand('trace', options),
     },
     settings: {
-      update: async (options) =>
-        await executeCommandRequest(
-          PUBLIC_COMMANDS.settings,
-          settingsCommandCodec.encode(options),
-          options,
-        ),
+      update: async (options) => await executeSemanticCommand('settings', options),
     },
   };
 }
@@ -549,42 +348,6 @@ function readObject(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null
     ? (value as Record<string, unknown>)
     : undefined;
-}
-
-function stringifyPayload(payload: AppPushOptions['payload']): string {
-  return typeof payload === 'string' ? payload : JSON.stringify(payload);
-}
-
-function triggerEventPositionals(options: AppTriggerEventOptions): string[] {
-  return [options.event, ...(options.payload ? [JSON.stringify(options.payload)] : [])];
-}
-
-function logsPositionals(options: { action?: string; message?: string }): string[] {
-  return [options.action ?? 'path', ...optionalString(options.message)];
-}
-
-function networkPositionals(options: NetworkOptions): string[] {
-  return [...(options.action ? [options.action] : []), ...optionalNumber(options.limit)];
-}
-
-function optionalString(value: string | undefined): string[] {
-  return value === undefined ? [] : [value];
-}
-
-function optionalNumber(value: number | undefined): string[] {
-  return value === undefined ? [] : [String(value)];
-}
-
-const REPLAY_SHELL_ENV_PREFIX = 'AD_VAR_';
-
-function collectReplayClientShellEnv(env: NodeJS.ProcessEnv): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(env)) {
-    if (typeof value === 'string' && key.startsWith(REPLAY_SHELL_ENV_PREFIX)) {
-      result[key] = value;
-    }
-  }
-  return result;
 }
 
 function mergeClientOptions(

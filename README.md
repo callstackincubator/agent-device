@@ -83,7 +83,7 @@ Snapshots assign refs like `@e1`, `@e2`, and `@e3` to elements on the current sc
 
 ## Next Steps
 
-- **Set up your agent**: run the CLI from Cursor, Codex, Claude Code, Windsurf, or another agent terminal. For skills, rules, MCP discovery, and client-specific setup, see [AI Agent Setup](https://incubator.callstack.com/agent-device/docs/agent-setup).
+- **Set up your agent**: run the CLI from Cursor, Codex, Claude Code, Windsurf, or another agent terminal. For skills, rules, direct MCP tools, and client-specific setup, see [AI Agent Setup](https://incubator.callstack.com/agent-device/docs/agent-setup).
 - **Try the sample app**: clone the repo and run the bundled Expo fixture when you want a guided first dogfood run with screenshots, replay, and performance evidence. See [Quick Start](https://incubator.callstack.com/agent-device/docs/quick-start).
 - **Go deeper**: use [Commands](https://incubator.callstack.com/agent-device/docs/commands), [Replay & E2E](https://incubator.callstack.com/agent-device/docs/replay-e2e), and [Debugging & Profiling](https://incubator.callstack.com/agent-device/docs/debugging-profiling) for production workflows.
 

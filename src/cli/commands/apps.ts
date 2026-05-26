@@ -1,13 +1,16 @@
-import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
+import { runSemanticCliCommand } from '../../commands/semantic-cli.ts';
+import { writeCommandOutput } from './shared.ts';
 import { assertResolvedAppsFilter } from '../../commands/app-inventory-contract.ts';
 import type { ClientCommandHandler } from './router-types.ts';
 
 export const appsCommand: ClientCommandHandler = async ({ flags, client }) => {
   const appsFilter = assertResolvedAppsFilter(flags.appsFilter);
-  const apps = await client.apps.list({
-    ...buildSelectionOptions(flags),
-    appsFilter,
-  });
+  const apps = (await runSemanticCliCommand({
+    client,
+    command: 'apps',
+    positionals: [],
+    flags,
+  })) as unknown as string[];
   const data = { apps };
   writeCommandOutput(flags, data, () => {
     if (!flags.json) {

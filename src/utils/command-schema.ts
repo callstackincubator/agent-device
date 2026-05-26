@@ -1512,8 +1512,8 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   },
   mcp: {
     helpDescription:
-      'Start the official stdio MCP discovery router. It exposes only a status tool with CLI install, verify, and starting-help guidance; device automation still runs through terminal CLI commands.',
-    summary: 'Start MCP discovery router',
+      'Start the official stdio MCP server. It exposes semantic command tools backed by the agent-device client.',
+    summary: 'Start MCP server',
     positionalArgs: [],
     allowedFlags: [],
     skipCapabilityCheck: true,

@@ -43,28 +43,6 @@ export function readWaitOptionsFromPositionals(
   };
 }
 
-export function waitOptionsToPositionals(options: WaitCommandOptions): string[] {
-  const targets = [
-    options.durationMs !== undefined ? 'durationMs' : undefined,
-    options.text !== undefined ? 'text' : undefined,
-    options.ref !== undefined ? 'ref' : undefined,
-    options.selector !== undefined ? 'selector' : undefined,
-  ].filter(Boolean);
-  if (targets.length !== 1) {
-    throw new AppError(
-      'INVALID_ARGS',
-      'wait command requires exactly one of durationMs, text, ref, or selector.',
-    );
-  }
-  if (options.durationMs !== undefined) return [String(options.durationMs)];
-  const timeout = options.timeoutMs !== undefined ? [String(options.timeoutMs)] : [];
-  if (options.text !== undefined) return ['text', options.text, ...timeout];
-  if (options.ref !== undefined) return [options.ref, ...timeout];
-  const selector = options.selector!;
-  assertValidSelector(selector);
-  return [selector, ...timeout];
-}
-
 export function parseWaitPositionals(args: string[]): WaitParsed | null {
   if (args.length === 0) return null;
 
@@ -95,11 +73,6 @@ export function parseWaitPositionals(args: string[]): WaitParsed | null {
 
   const text = timeoutMs !== null ? args.slice(0, -1).join(' ') : args.join(' ');
   return { kind: 'text', text: text.trim(), timeoutMs };
-}
-
-function assertValidSelector(selector: string): void {
-  if (tryParseSelectorChain(selector)) return;
-  throw new AppError('INVALID_ARGS', `Invalid wait selector: ${selector}`);
 }
 
 function readTimeoutOption(timeoutMs: number | null): { timeoutMs?: number } {

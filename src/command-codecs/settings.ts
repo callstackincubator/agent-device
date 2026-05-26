@@ -82,16 +82,6 @@ export function readSettingsOptionsFromPositionals(
   throw new AppError('INVALID_ARGS', 'Invalid settings arguments.');
 }
 
-export function settingsOptionsToPositionals(options: SettingsUpdateOptions): string[] {
-  if (options.setting === 'location' && options.state === 'set') {
-    return [options.setting, options.state, String(options.latitude), String(options.longitude)];
-  }
-  if (options.setting === 'permission') {
-    return [options.setting, options.state, options.permission, ...optionalString(options.mode)];
-  }
-  return [options.setting, options.state];
-}
-
 function readPermission(value: string | undefined): PermissionTarget {
   if (isOneOf(value, PERMISSION_TARGETS)) return value;
   throw new AppError('INVALID_ARGS', 'settings permission requires a permission target.');
@@ -100,10 +90,6 @@ function readPermission(value: string | undefined): PermissionTarget {
 function readPermissionMode(value: string | undefined): 'full' | 'limited' | undefined {
   if (value === undefined || value === 'full' || value === 'limited') return value;
   throw new AppError('INVALID_ARGS', 'settings permission mode must be full or limited.');
-}
-
-function optionalString(value: string | undefined): string[] {
-  return value === undefined ? [] : [value];
 }
 
 function setOf<T extends string>(...values: T[]): ReadonlySet<T> {

@@ -2,19 +2,21 @@ import { formatScreenshotDiffText, formatSnapshotDiffText } from '../../utils/ou
 import { AppError } from '../../utils/errors.ts';
 import { resolveUserPath } from '../../utils/path-resolution.ts';
 import type { AgentDeviceBackend } from '../../backend.ts';
-import type { AgentDeviceClient } from '../../client.ts';
+import type { AgentDeviceClient, CaptureScreenshotResult } from '../../client.ts';
 import { createLocalArtifactAdapter } from '../../io.ts';
 import { createAgentDevice, localCommandPolicy } from '../../runtime.ts';
-import { screenshotOptionsFromFlags } from '../../commands/capture-screenshot-options.ts';
+import { runSemanticCliCommand } from '../../commands/semantic-cli.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
-import { buildSelectionOptions, writeCommandOutput } from './shared.ts';
+import { writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router-types.ts';
 
 export const screenshotCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
-  const result = await client.capture.screenshot({
-    path: positionals[0] ?? flags.out,
-    ...screenshotOptionsFromFlags(flags),
-  });
+  const result = (await runSemanticCliCommand({
+    client,
+    command: 'screenshot',
+    positionals,
+    flags,
+  })) as CaptureScreenshotResult;
   const data = {
     path: result.path,
     ...(result.overlayRefs ? { overlayRefs: result.overlayRefs } : {}),
@@ -29,16 +31,7 @@ export const screenshotCommand: ClientCommandHandler = async ({ positionals, fla
 
 export const diffCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
   if (positionals[0] === 'snapshot') {
-    const result = await client.capture.diff({
-      ...buildSelectionOptions(flags),
-      kind: 'snapshot',
-      out: flags.out,
-      interactiveOnly: flags.snapshotInteractiveOnly,
-      compact: flags.snapshotCompact,
-      depth: flags.snapshotDepth,
-      scope: flags.snapshotScope,
-      raw: flags.snapshotRaw,
-    });
+    const result = await runSemanticCliCommand({ client, command: 'diff', positionals, flags });
     writeCommandOutput(flags, result, () => formatSnapshotDiffText(result));
     return true;
   }
