@@ -15,11 +15,6 @@ type StatusMetadata = {
   prerequisites: string[];
   docsUrl: string;
   agentDocsUrl: string;
-  firstCommands: string[];
-  automationInterface: 'mcp-tools';
-  automationNote: string;
-  installRequiresHumanApproval: true;
-  installSafetyNote: string;
 };
 
 export function createStatusMetadata(): StatusMetadata {
@@ -63,17 +58,6 @@ export function createStatusMetadata(): StatusMetadata {
     ],
     docsUrl: 'https://agent-device.dev/',
     agentDocsUrl: 'https://incubator.callstack.com/agent-device/llms-full.txt',
-    firstCommands: [
-      'agent-device help workflow',
-      'agent-device apps --platform ios',
-      'agent-device apps --platform android',
-    ],
-    automationInterface: 'mcp-tools',
-    automationNote:
-      'Device automation MCP tools use semantic command contracts and execute through the agent-device client.',
-    installRequiresHumanApproval: true,
-    installSafetyNote:
-      'Agents should not install or update the package unless the human has approved the environment change. If the CLI is missing, ask the human to run the install command, then run the verify command.',
   };
 }
 
@@ -111,14 +95,6 @@ export function listTools(): unknown[] {
           },
           docsUrl: { type: 'string' },
           agentDocsUrl: { type: 'string' },
-          firstCommands: {
-            type: 'array',
-            items: { type: 'string' },
-          },
-          automationInterface: { type: 'string', const: 'mcp-tools' },
-          automationNote: { type: 'string' },
-          installRequiresHumanApproval: { type: 'boolean', const: true },
-          installSafetyNote: { type: 'string' },
         },
         required: [
           'packageName',
@@ -132,11 +108,6 @@ export function listTools(): unknown[] {
           'prerequisites',
           'docsUrl',
           'agentDocsUrl',
-          'firstCommands',
-          'automationInterface',
-          'automationNote',
-          'installRequiresHumanApproval',
-          'installSafetyNote',
         ],
         additionalProperties: false,
       },

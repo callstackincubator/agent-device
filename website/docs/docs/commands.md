@@ -29,7 +29,7 @@ For MCP-aware clients that support direct tools, run:
 agent-device mcp
 ```
 
-The MCP server exposes direct semantic tools for installed commands. Tools use semantic input contracts through `AgentDeviceClient`; local-only workflows are explicit boundaries rather than subprocess fallbacks. It does not expose generic shell execution over MCP.
+The MCP server exposes direct semantic tools for installed commands. Tools use semantic input contracts through `AgentDeviceClient`; local-only workflows stay CLI-only rather than subprocess fallbacks. It does not expose generic shell execution over MCP.
 
 ## Navigation
 
