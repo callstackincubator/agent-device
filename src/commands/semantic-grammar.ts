@@ -825,7 +825,7 @@ function readBatchCliCommand(command: string, stepNumber: number): SemanticBatch
   );
 }
 
-export function isSemanticBatchCommand(name: string): name is SemanticBatchCommand {
+function isSemanticBatchCommand(name: string): name is SemanticBatchCommand {
   return semanticBatchNames.has(name);
 }
 

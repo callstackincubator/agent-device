@@ -22,7 +22,7 @@ import type {
 import { announceReplayTestRun } from '../../cli-test.ts';
 import { runSemanticCliCommand } from '../../commands/semantic-cli.ts';
 import {
-  listSemanticGenericCliCommands,
+  listSemanticCommandNames,
   type SemanticCliCommand,
 } from '../../commands/semantic-command-surface.ts';
 import { assertResolvedAppsFilter } from '../../commands/app-inventory-contract.ts';
@@ -39,30 +39,6 @@ type GenericClientCommandRunner = (params: {
   positionals: string[];
   flags: CliFlags;
 }) => Promise<CommandRequestResult>;
-
-const semanticGenericCommands = listSemanticGenericCliCommands();
-
-const genericClientCommandRunners = Object.fromEntries(
-  semanticGenericCommands.map((command) => [
-    command,
-    async ({ client, positionals, flags }) => {
-      if (command === 'test') {
-        announceReplayTestRun({ json: flags.json });
-      }
-      return await runSemanticCliCommand({ client, command, positionals, flags });
-    },
-  ]),
-) as Record<(typeof semanticGenericCommands)[number], GenericClientCommandRunner>;
-
-export const genericClientCommandHandlers = Object.fromEntries(
-  Object.entries(genericClientCommandRunners).map(([command, run]) => [
-    command,
-    createGenericClientCommandHandler(
-      command as PublicCommandName,
-      run as GenericClientCommandRunner,
-    ),
-  ]),
-) as { [TCommand in keyof typeof genericClientCommandRunners]: ClientCommandHandler };
 
 const formattedSemanticCommandHandlers = {
   devices: createFormattedSemanticHandler('devices', {
@@ -162,6 +138,42 @@ const formattedSemanticCommandHandlers = {
 
 export const dedicatedSemanticCommandHandlers = formattedSemanticCommandHandlers;
 
+const clientMethodCommandNames = commandNameSet([
+  'wait',
+  'alert',
+  'appstate',
+  'back',
+  'home',
+  'rotate',
+  'app-switcher',
+  'keyboard',
+  'clipboard',
+] as const satisfies readonly SemanticCliCommand[]);
+
+const semanticGenericCommands = listSemanticCommandNames().filter(isGenericSemanticCliCommand);
+
+const genericClientCommandRunners = Object.fromEntries(
+  semanticGenericCommands.map((command) => [
+    command,
+    async ({ client, positionals, flags }) => {
+      if (command === 'test') {
+        announceReplayTestRun({ json: flags.json });
+      }
+      return await runSemanticCliCommand({ client, command, positionals, flags });
+    },
+  ]),
+) as Record<(typeof semanticGenericCommands)[number], GenericClientCommandRunner>;
+
+export const genericClientCommandHandlers = Object.fromEntries(
+  Object.entries(genericClientCommandRunners).map(([command, run]) => [
+    command,
+    createGenericClientCommandHandler(
+      command as PublicCommandName,
+      run as GenericClientCommandRunner,
+    ),
+  ]),
+) as { [TCommand in keyof typeof genericClientCommandRunners]: ClientCommandHandler };
+
 function createGenericClientCommandHandler(
   command: PublicCommandName,
   run: GenericClientCommandRunner,
@@ -212,4 +224,17 @@ function formatDeviceLine(device: AgentDeviceDevice): string {
 function withoutUnchanged(data: Record<string, unknown>): Record<string, unknown> {
   const { unchanged: _unchanged, ...outputData } = data;
   return outputData;
+}
+
+function isGenericSemanticCliCommand(command: SemanticCliCommand): boolean {
+  return (
+    !(command in formattedSemanticCommandHandlers) &&
+    !clientMethodCommandNames.has(command) &&
+    command !== 'screenshot' &&
+    command !== 'diff'
+  );
+}
+
+function commandNameSet<const TName extends string>(names: readonly TName[]): ReadonlySet<string> {
+  return new Set(names);
 }

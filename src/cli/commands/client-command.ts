@@ -6,7 +6,6 @@ import type {
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { readCommandMessage } from '../../utils/success-text.ts';
 import { runSemanticCliCommand } from '../../commands/semantic-cli.ts';
-import type { SemanticCliCommand } from '../../commands/semantic-command-surface.ts';
 import { writeCommandMessage, writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandlerMap } from './router-types.ts';
 
@@ -90,8 +89,7 @@ export const clientCommandMethodHandlers = {
 } satisfies ClientCommandHandlerMap;
 
 function runClientCommand(options: {
-  command: Extract<
-    SemanticCliCommand,
+  command:
     | 'wait'
     | 'alert'
     | 'appstate'
@@ -100,8 +98,7 @@ function runClientCommand(options: {
     | 'rotate'
     | 'app-switcher'
     | 'keyboard'
-    | 'clipboard'
-  >;
+    | 'clipboard';
   positionals: string[];
   flags: CliFlags;
   client: Parameters<typeof runSemanticCliCommand>[0]['client'];
