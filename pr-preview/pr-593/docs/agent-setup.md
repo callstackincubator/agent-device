@@ -49,7 +49,7 @@ Use MCP tools or the CLI in the integrated terminal. If `agent-device` is not on
 
 ## MCP server
 
-`agent-device mcp` starts the official stdio MCP server. It exposes direct semantic tools for installed CLI commands, plus a `status` tool that returns package, install, verify, and help metadata. Tools run through semantic command contracts and `AgentDeviceClient`; local-only workflows are explicit boundaries rather than subprocess fallbacks.
+`agent-device mcp` starts the official stdio MCP server. It exposes direct semantic tools for installed CLI commands, plus a `status` tool that returns package, install, verify, help, target, and capability metadata. Tools run through semantic command contracts and `AgentDeviceClient`; local-only workflows stay CLI-only rather than subprocess fallbacks.
 
 MCP clients must not use this server as a generic shell runner. If the CLI is missing, agents should ask a human before installing or updating packages, then verify with `agent-device --version` and start with `agent-device help workflow`.
 

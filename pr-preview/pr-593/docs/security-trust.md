@@ -5,7 +5,7 @@
 ## Local control
 
 - Device automation runs through the installed CLI and platform tooling such as Xcode, ADB, macOS accessibility APIs, and Linux AT-SPI.
-- The MCP server exposes direct semantic tools for `agent-device` commands. Tools use semantic contracts through `AgentDeviceClient`; local-only workflows are explicit boundaries rather than subprocess fallbacks. It does not expose generic shell execution over MCP.
+- The MCP server exposes direct semantic tools for `agent-device` commands. Tools use semantic contracts through `AgentDeviceClient`; local-only workflows stay CLI-only rather than subprocess fallbacks. It does not expose generic shell execution over MCP.
 - Mutating commands should run serially against one session. Use separate sessions/devices for parallel work.
 
 ## Sensitive artifacts
