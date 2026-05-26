@@ -1,4 +1,4 @@
-import type { DaemonResponse } from '../types.ts';
+import type { DaemonResponse, SessionState } from '../types.ts';
 import type { InteractionHandlerParams } from './interaction-common.ts';
 import { handleTouchInteractionCommands } from './interaction-touch.ts';
 import { captureSnapshotForSession } from './interaction-snapshot.ts';
@@ -11,7 +11,10 @@ import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { typeCommandDefinition } from '../../commands/interactions/definition.ts';
 import { normalizeError } from '../../utils/errors.ts';
 import { successText } from '../../utils/success-text.ts';
-import { recoverAndroidBlockingSystemDialog } from '../android-system-dialog.ts';
+import {
+  ensureAndroidBlockingSystemDialogReady,
+  recoverAndroidBlockingSystemDialog,
+} from '../android-system-dialog.ts';
 
 export async function handleInteractionCommands(
   params: InteractionHandlerParams,
@@ -45,35 +48,64 @@ async function dispatchTypeViaRuntime(
     captureSnapshotForSession: typeof captureSnapshotForSession;
   },
 ): Promise<DaemonResponse> {
-  const { req, sessionName, sessionStore } = params;
+  const { sessionName, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   if (!session) return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
   if (!isCommandSupportedOnDevice(typeCommandDefinition.name, session.device)) {
     return errorResponse('UNSUPPORTED_OPERATION', 'type is not supported on this device');
   }
+  const recordingRecoveryResponse = await recoverAndroidRecordingDialogForType(session);
+  if (recordingRecoveryResponse) return recordingRecoveryResponse;
+
+  return await runTypeTextViaRuntime(params, session);
+}
+
+async function recoverAndroidRecordingDialogForType(
+  session: SessionState,
+): Promise<DaemonResponse | null> {
   if (session.device.platform === 'android' && session.recording) {
     const androidRecoveryResult = await recoverAndroidBlockingSystemDialog({ session });
     if (androidRecoveryResult === 'failed') {
       return errorResponse('COMMAND_FAILED', 'Android system dialog blocked the recording session');
     }
   }
+  return null;
+}
 
+async function runTypeTextViaRuntime(
+  params: InteractionHandlerParams & {
+    captureSnapshotForSession: typeof captureSnapshotForSession;
+  },
+  session: SessionState,
+): Promise<DaemonResponse> {
+  const { req, sessionName, sessionStore } = params;
   const text = (req.positionals ?? []).join(' ');
   const runtime = createInteractionRuntime(params);
   const actionStartedAt = Date.now();
   try {
+    const readiness = await ensureAndroidBlockingSystemDialogReady({
+      session,
+      command: req.command,
+      phase: 'before-command',
+    });
     const result = await runtime.interactions.typeText(text, {
       session: sessionName,
       requestId: req.meta?.requestId,
       delayMs: req.flags?.delayMs,
     });
+    await ensureAndroidBlockingSystemDialogReady({
+      session,
+      command: req.command,
+      phase: 'after-command',
+    });
     const actionFinishedAt = Date.now();
-    const responseData = {
+    const responseData: Record<string, unknown> = {
       ...(result.backendResult ?? {}),
       text: result.text,
       delayMs: result.delayMs,
       ...successText(result.message ?? `Typed ${Array.from(result.text).length} chars`),
     };
+    if (readiness.status === 'recovered') responseData.warning = readiness.warning;
     return finalizeTouchInteraction({
       session,
       sessionStore,

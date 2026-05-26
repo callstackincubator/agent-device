@@ -19,8 +19,10 @@ import { classifyAndroidAppTarget } from './open-target.ts';
 import { prepareAndroidInstallArtifact } from './install-artifact.ts';
 import {
   parseAndroidForegroundApp,
+  parseAndroidBlockingDialogFocus,
   parseAndroidLaunchablePackages,
   parseAndroidUserInstalledPackages,
+  type AndroidBlockingDialogFocus,
   type AndroidForegroundApp,
 } from './app-parsers.ts';
 
@@ -28,6 +30,7 @@ export {
   parseAndroidForegroundApp,
   parseAndroidLaunchablePackages,
   parseAndroidUserInstalledPackages,
+  type AndroidBlockingDialogFocus,
   type AndroidForegroundApp,
 } from './app-parsers.ts';
 
@@ -210,6 +213,15 @@ export async function getAndroidAppState(device: DeviceInfo): Promise<AndroidFor
   return {};
 }
 
+export async function getAndroidBlockingDialogFocus(
+  device: DeviceInfo,
+): Promise<AndroidBlockingDialogFocus | null> {
+  return await readAndroidBlockingDialogFocus(device, [
+    ['shell', 'dumpsys', 'window', 'windows'],
+    ['shell', 'dumpsys', 'window'],
+  ]);
+}
+
 async function readAndroidFocus(
   device: DeviceInfo,
   commands: string[][],
@@ -218,6 +230,18 @@ async function readAndroidFocus(
     const result = await runAndroidAdb(device, args, { allowFailure: true });
     const text = result.stdout ?? '';
     const parsed = parseAndroidForegroundApp(text);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+async function readAndroidBlockingDialogFocus(
+  device: DeviceInfo,
+  commands: string[][],
+): Promise<AndroidBlockingDialogFocus | null> {
+  for (const args of commands) {
+    const result = await runAndroidAdb(device, args, { allowFailure: true });
+    const parsed = parseAndroidBlockingDialogFocus(result.stdout ?? '');
     if (parsed) return parsed;
   }
   return null;
