@@ -40,21 +40,19 @@ export function parseAndroidUserInstalledPackages(stdout: string): string[] {
 }
 
 export function parseAndroidForegroundApp(text: string): AndroidForegroundApp | null {
-  const lines = text.split('\n');
-
-  for (const marker of ANDROID_FOCUS_MARKERS) {
-    for (const line of lines) {
-      const markerIndex = line.indexOf(marker);
-      if (markerIndex === -1) continue;
-      const segment = line.slice(markerIndex + marker.length);
-      const parsed = parseAndroidComponentFromSegment(segment);
-      if (parsed) return parsed;
-    }
-  }
-  return null;
+  return parseAndroidFocusSegment(text, (segment) => parseAndroidComponentFromSegment(segment));
 }
 
 export function parseAndroidBlockingDialogFocus(text: string): AndroidBlockingDialogFocus | null {
+  return parseAndroidFocusSegment(text, (segment, raw) =>
+    parseAndroidBlockingDialogFromSegment(segment, raw),
+  );
+}
+
+function parseAndroidFocusSegment<T>(
+  text: string,
+  parse: (segment: string, raw: string) => T | null,
+): T | null {
   const lines = text.split('\n');
 
   for (const marker of ANDROID_FOCUS_MARKERS) {
@@ -63,8 +61,8 @@ export function parseAndroidBlockingDialogFocus(text: string): AndroidBlockingDi
       if (markerIndex === -1) continue;
       const raw = line.trim();
       const segment = line.slice(markerIndex + marker.length);
-      const focus = parseAndroidBlockingDialogFromSegment(segment, raw);
-      if (focus) return focus;
+      const parsed = parse(segment, raw);
+      if (parsed) return parsed;
     }
   }
   return null;

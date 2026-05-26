@@ -27,7 +27,6 @@ import {
 } from './app-parsers.ts';
 
 export {
-  parseAndroidBlockingDialogFocus,
   parseAndroidForegroundApp,
   parseAndroidLaunchablePackages,
   parseAndroidUserInstalledPackages,

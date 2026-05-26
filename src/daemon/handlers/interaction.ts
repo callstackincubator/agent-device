@@ -1,4 +1,4 @@
-import type { DaemonResponse } from '../types.ts';
+import type { DaemonResponse, SessionState } from '../types.ts';
 import type { InteractionHandlerParams } from './interaction-common.ts';
 import { handleTouchInteractionCommands } from './interaction-touch.ts';
 import { captureSnapshotForSession } from './interaction-snapshot.ts';
@@ -48,19 +48,37 @@ async function dispatchTypeViaRuntime(
     captureSnapshotForSession: typeof captureSnapshotForSession;
   },
 ): Promise<DaemonResponse> {
-  const { req, sessionName, sessionStore } = params;
+  const { sessionName, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   if (!session) return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
   if (!isCommandSupportedOnDevice(typeCommandDefinition.name, session.device)) {
     return errorResponse('UNSUPPORTED_OPERATION', 'type is not supported on this device');
   }
+  const recordingRecoveryResponse = await recoverAndroidRecordingDialogForType(session);
+  if (recordingRecoveryResponse) return recordingRecoveryResponse;
+
+  return await runTypeTextViaRuntime(params, session);
+}
+
+async function recoverAndroidRecordingDialogForType(
+  session: SessionState,
+): Promise<DaemonResponse | null> {
   if (session.device.platform === 'android' && session.recording) {
     const androidRecoveryResult = await recoverAndroidBlockingSystemDialog({ session });
     if (androidRecoveryResult === 'failed') {
       return errorResponse('COMMAND_FAILED', 'Android system dialog blocked the recording session');
     }
   }
+  return null;
+}
 
+async function runTypeTextViaRuntime(
+  params: InteractionHandlerParams & {
+    captureSnapshotForSession: typeof captureSnapshotForSession;
+  },
+  session: SessionState,
+): Promise<DaemonResponse> {
+  const { req, sessionName, sessionStore } = params;
   const text = (req.positionals ?? []).join(' ');
   const runtime = createInteractionRuntime(params);
   const actionStartedAt = Date.now();
