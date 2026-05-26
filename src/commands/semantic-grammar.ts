@@ -38,57 +38,6 @@ import {
 } from './capture-screenshot-options.ts';
 import { compactRecord } from './semantic-common.ts';
 
-export type SemanticDaemonCommand =
-  | 'devices'
-  | 'boot'
-  | 'apps'
-  | 'open'
-  | 'close'
-  | 'install'
-  | 'reinstall'
-  | 'install-from-source'
-  | 'push'
-  | 'trigger-app-event'
-  | 'snapshot'
-  | 'screenshot'
-  | 'diff'
-  | 'wait'
-  | 'alert'
-  | 'appstate'
-  | 'back'
-  | 'home'
-  | 'rotate'
-  | 'app-switcher'
-  | 'keyboard'
-  | 'clipboard'
-  | 'react-native'
-  | 'click'
-  | 'press'
-  | 'longpress'
-  | 'swipe'
-  | 'gesture'
-  | 'gesture-pan'
-  | 'gesture-fling'
-  | 'gesture-pinch'
-  | 'gesture-rotate'
-  | 'gesture-transform'
-  | 'focus'
-  | 'type'
-  | 'fill'
-  | 'scroll'
-  | 'get'
-  | 'is'
-  | 'find'
-  | 'replay'
-  | 'test'
-  | 'batch'
-  | 'perf'
-  | 'logs'
-  | 'network'
-  | 'record'
-  | 'trace'
-  | 'settings';
-
 export type SemanticDaemonRequest = {
   command: string;
   positionals: string[];
@@ -96,55 +45,6 @@ export type SemanticDaemonRequest = {
 };
 
 export type SemanticRequestInput = InternalRequestOptions & Record<string, any>;
-
-export const semanticBatchCommandNames = [
-  'devices',
-  'boot',
-  'apps',
-  'open',
-  'close',
-  'install',
-  'reinstall',
-  'install-from-source',
-  'push',
-  'trigger-app-event',
-  'snapshot',
-  'screenshot',
-  'diff',
-  'wait',
-  'alert',
-  'appstate',
-  'back',
-  'home',
-  'rotate',
-  'app-switcher',
-  'keyboard',
-  'clipboard',
-  'react-native',
-  'click',
-  'press',
-  'longpress',
-  'swipe',
-  'gesture',
-  'focus',
-  'type',
-  'fill',
-  'scroll',
-  'get',
-  'is',
-  'find',
-  'test',
-  'perf',
-  'logs',
-  'network',
-  'record',
-  'trace',
-  'settings',
-] as const satisfies readonly SemanticDaemonCommand[];
-
-export type SemanticBatchCommand = (typeof semanticBatchCommandNames)[number];
-
-const semanticBatchNames = commandNameSet(semanticBatchCommandNames);
 
 export type SelectionOptions = {
   platform?: CliFlags['platform'];
@@ -518,7 +418,34 @@ const daemonWriters = {
   settings: direct(PUBLIC_COMMANDS.settings, (input) =>
     settingsPositionals(input as SettingsUpdateOptions),
   ),
-} satisfies Record<SemanticDaemonCommand, DaemonWriter>;
+} satisfies Record<string, DaemonWriter>;
+
+export type SemanticDaemonCommand = keyof typeof daemonWriters;
+type NonBatchSemanticCommand =
+  | 'replay'
+  | 'batch'
+  | 'gesture-pan'
+  | 'gesture-fling'
+  | 'gesture-pinch'
+  | 'gesture-rotate'
+  | 'gesture-transform';
+export type SemanticBatchCommand = Exclude<SemanticDaemonCommand, NonBatchSemanticCommand>;
+
+const semanticNonBatchCommandNames = commandNameSet([
+  'replay',
+  'batch',
+  'gesture-pan',
+  'gesture-fling',
+  'gesture-pinch',
+  'gesture-rotate',
+  'gesture-transform',
+] as const satisfies readonly NonBatchSemanticCommand[]);
+
+export const semanticBatchCommandNames = (
+  Object.keys(daemonWriters) as SemanticDaemonCommand[]
+).filter((name): name is SemanticBatchCommand => !semanticNonBatchCommandNames.has(name));
+
+const semanticBatchNames = commandNameSet(semanticBatchCommandNames);
 
 export function readSemanticInputFromCli(
   command: string,

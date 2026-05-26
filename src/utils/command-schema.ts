@@ -2,15 +2,9 @@ import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
 import { SESSION_SURFACES } from '../core/session-surface.ts';
 import type { DaemonInstallSource } from '../contracts.ts';
 import type { RemoteConfigMetroOptions } from '../remote-config-schema.ts';
-import { CAPTURE_COMMAND_SCHEMAS } from '../commands/capture-definition.ts';
-import { INTERACTION_COMMAND_SCHEMAS } from '../commands/interactions/definition.ts';
-import { REACT_NATIVE_COMMAND_SCHEMAS } from '../commands/react-native/definition.ts';
+import { DEFAULT_APPS_FILTER } from '../commands/app-inventory-contract.ts';
 import {
-  SELECTOR_COMMAND_SCHEMAS,
-  SELECTOR_SNAPSHOT_FLAGS,
-} from '../commands/selectors-definition.ts';
-import { SESSION_LIFECYCLE_COMMAND_SCHEMAS } from '../commands/session-lifecycle/definition.ts';
-import {
+  SCREENSHOT_COMMAND_FLAG_KEYS,
   SCREENSHOT_SPECIFIC_FLAG_DEFINITIONS,
   type ScreenshotRequestFlags,
 } from '../commands/capture-screenshot-options.ts';
@@ -140,6 +134,20 @@ export type CommandSchema = {
   usageOverride?: string;
   listUsageOverride?: string;
 };
+
+const SNAPSHOT_FLAGS = [
+  'snapshotInteractiveOnly',
+  'snapshotCompact',
+  'snapshotDepth',
+  'snapshotScope',
+  'snapshotRaw',
+] as const;
+
+const SELECTOR_SNAPSHOT_FLAGS = [
+  'snapshotDepth',
+  'snapshotScope',
+  'snapshotRaw',
+] as const satisfies readonly FlagKey[];
 
 const AGENT_WORKFLOWS = [
   { label: 'help workflow', description: 'Normal bootstrap, exploration, and validation loop' },
@@ -1482,7 +1490,53 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: [],
     allowedFlags: ['headless'],
   },
-  ...SESSION_LIFECYCLE_COMMAND_SCHEMAS,
+  open: {
+    helpDescription:
+      'Boot device/simulator; optionally launch app or deep link URL (macOS also supports --surface app|frontmost-app|desktop|menubar)',
+    summary: 'Open an app, deep link or URL, save replays',
+    positionalArgs: ['appOrUrl?', 'url?'],
+    allowedFlags: ['activity', 'launchConsole', 'saveScript', 'relaunch', 'surface'],
+  },
+  close: {
+    helpDescription: 'Close app or just end session',
+    summary: 'Close app or end session',
+    positionalArgs: ['app?'],
+    allowedFlags: ['saveScript', 'shutdown'],
+  },
+  reinstall: {
+    helpDescription: 'Uninstall + install app from binary path',
+    summary: 'Reinstall app from binary path',
+    positionalArgs: ['app', 'path'],
+    allowedFlags: [],
+  },
+  install: {
+    helpDescription: 'Install app from binary path without uninstalling first',
+    summary: 'Install app from binary path',
+    positionalArgs: ['app', 'path'],
+    allowedFlags: [],
+  },
+  'install-from-source': {
+    usageOverride:
+      'install-from-source <url> | install-from-source --github-actions-artifact <owner/repo:artifact>',
+    listUsageOverride: 'install-from-source <url> | install-from-source --github-actions-artifact',
+    helpDescription: 'Install app from a URL or remote-resolved source',
+    summary: 'Install app from a source',
+    positionalArgs: ['url?'],
+    allowedFlags: [
+      'header',
+      'githubActionsArtifact',
+      'installSource',
+      'retainPaths',
+      'retentionMs',
+    ],
+  },
+  apps: {
+    helpDescription: 'List user-installed apps; use --all to include system/OEM apps',
+    summary: 'List installed apps',
+    positionalArgs: [],
+    allowedFlags: ['appsFilter'],
+    defaults: { appsFilter: DEFAULT_APPS_FILTER },
+  },
   connect: {
     usageOverride:
       'connect [--remote-config <path>] [--tenant <id>] [--run-id <id>] [--lease-backend <backend>] [--force] [--no-login]',
@@ -1550,7 +1604,26 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: ['bundleOrPackage', 'payloadOrJson'],
     allowedFlags: [],
   },
-  ...CAPTURE_COMMAND_SCHEMAS,
+  snapshot: {
+    usageOverride: 'snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--force-full]',
+    helpDescription: 'Capture accessibility tree or diff against the previous session baseline',
+    positionalArgs: [],
+    allowedFlags: ['snapshotDiff', ...SNAPSHOT_FLAGS, 'snapshotForceFull'],
+  },
+  diff: {
+    usageOverride:
+      'diff snapshot | diff screenshot --baseline <path> [current.png] [--out <diff.png>] [--threshold <0-1>] [--overlay-refs]',
+    helpDescription: 'Diff accessibility snapshot or compare screenshots pixel-by-pixel',
+    summary: 'Diff snapshot or screenshot',
+    positionalArgs: ['kind', 'current?'],
+    allowedFlags: [...SNAPSHOT_FLAGS, 'baseline', 'threshold', 'out', 'overlayRefs'],
+  },
+  screenshot: {
+    helpDescription:
+      'Capture screenshot (macOS app sessions default to the app window; use --fullscreen for full desktop, --max-size to downscale, --overlay-refs to annotate current refs, or --no-stabilize for low-latency Android capture loops)',
+    positionalArgs: ['path?'],
+    allowedFlags: SCREENSHOT_COMMAND_FLAG_KEYS,
+  },
   devices: {
     helpDescription: 'List available devices',
     positionalArgs: [],
@@ -1652,7 +1725,37 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: [],
     allowedFlags: [],
   },
-  ...SELECTOR_COMMAND_SCHEMAS,
+  wait: {
+    usageOverride: 'wait <ms>|text <text>|@ref|<selector> [timeoutMs]',
+    helpDescription: 'Wait for duration, text, ref, or selector to appear',
+    summary: 'Wait for time, text, ref, or selector',
+    positionalArgs: ['durationOrSelector', 'timeoutMs?'],
+    allowsExtraPositionals: true,
+    allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
+  },
+  get: {
+    usageOverride: 'get text|attrs <@ref|selector>',
+    helpDescription:
+      'Return exposed element text/attributes by ref or selector; use snapshot -s @ref for truncated previews',
+    summary: 'Get exposed text or attrs by ref or selector',
+    positionalArgs: ['subcommand', 'target'],
+    allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
+  },
+  find: {
+    usageOverride: 'find <locator|text> <action> [value] [--first|--last]',
+    helpDescription: 'Find by text/label/value/role/id and run action',
+    summary: 'Find an element and act',
+    positionalArgs: ['query', 'action', 'value?'],
+    allowsExtraPositionals: true,
+    allowedFlags: ['snapshotDepth', 'snapshotRaw', 'findFirst', 'findLast'],
+  },
+  is: {
+    helpDescription: 'Assert UI state (visible|hidden|exists|editable|selected|text)',
+    summary: 'Assert UI state',
+    positionalArgs: ['predicate', 'selector', 'value?'],
+    allowsExtraPositionals: true,
+    allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
+  },
   alert: {
     usageOverride: 'alert [get|accept|dismiss|wait] [timeout]',
     helpDescription: 'Inspect or handle platform alerts/dialogs',
@@ -1756,7 +1859,12 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: ['x', 'y'],
     allowedFlags: [],
   },
-  ...INTERACTION_COMMAND_SCHEMAS,
+  type: {
+    helpDescription: 'Type text in focused field',
+    positionalArgs: ['text'],
+    allowsExtraPositionals: true,
+    allowedFlags: ['delayMs'],
+  },
   fill: {
     usageOverride: 'fill <x> <y> <text> | fill <@ref|selector> <text>',
     helpDescription: 'Tap then type',
@@ -1787,7 +1895,14 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     positionalArgs: ['start|stop', 'path?'],
     allowedFlags: ['fps', 'quality', 'hideTouches'],
   },
-  ...REACT_NATIVE_COMMAND_SCHEMAS,
+  'react-native': {
+    usageOverride: 'react-native dismiss-overlay',
+    listUsageOverride: 'react-native dismiss-overlay',
+    helpDescription: 'Dismiss React Native LogBox/RedBox overlays safely',
+    summary: 'Dismiss React Native overlays',
+    positionalArgs: ['dismiss-overlay'],
+    allowedFlags: [],
+  },
   trace: {
     usageOverride: 'trace start <path> | trace stop <path>',
     listUsageOverride: 'trace start <path> | trace stop <path>',

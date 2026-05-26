@@ -1,9 +1,4 @@
 import { isApplePlatform, type DeviceInfo } from '../utils/device.ts';
-import { CAPTURE_COMMAND_CAPABILITIES } from '../commands/capture-definition.ts';
-import { INTERACTION_COMMAND_CAPABILITIES } from '../commands/interactions/definition.ts';
-import { REACT_NATIVE_COMMAND_CAPABILITIES } from '../commands/react-native/definition.ts';
-import { SELECTOR_COMMAND_CAPABILITIES } from '../commands/selectors-definition.ts';
-import { SESSION_LIFECYCLE_COMMAND_CAPABILITIES } from '../commands/session-lifecycle/definition.ts';
 
 type KindMatrix = {
   simulator?: boolean;
@@ -31,6 +26,23 @@ const isIosMobileSimulator = (device: DeviceInfo): boolean =>
 // Linux device kind is always 'device' (local desktop).
 const LINUX_DEVICE: KindMatrix = { device: true };
 const LINUX_NONE: KindMatrix = {};
+const ALL_DEVICE_COMMAND_CAPABILITY = {
+  apple: { simulator: true, device: true },
+  android: { emulator: true, device: true, unknown: true },
+  linux: LINUX_DEVICE,
+} as const satisfies CommandCapability;
+const APP_RUNTIME_CAPABILITY = ALL_DEVICE_COMMAND_CAPABILITY;
+const APP_INVENTORY_CAPABILITY = {
+  apple: { simulator: true, device: true },
+  android: { emulator: true, device: true, unknown: true },
+  linux: LINUX_NONE,
+} as const satisfies CommandCapability;
+const APP_INSTALL_CAPABILITY = {
+  apple: { simulator: true, device: true },
+  android: { emulator: true, device: true, unknown: true },
+  linux: LINUX_NONE,
+  supports: isNotMacOs,
+} as const satisfies CommandCapability;
 
 const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   // Apple simulator-only.
@@ -68,7 +80,12 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     linux: LINUX_NONE,
     supports: isNotMacOs,
   },
-  ...SESSION_LIFECYCLE_COMMAND_CAPABILITIES,
+  open: APP_RUNTIME_CAPABILITY,
+  close: APP_RUNTIME_CAPABILITY,
+  reinstall: APP_INSTALL_CAPABILITY,
+  install: APP_INSTALL_CAPABILITY,
+  'install-from-source': APP_INSTALL_CAPABILITY,
+  apps: APP_INVENTORY_CAPABILITY,
   back: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
@@ -113,8 +130,13 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,
   },
-  ...CAPTURE_COMMAND_CAPABILITIES,
-  ...SELECTOR_COMMAND_CAPABILITIES,
+  snapshot: ALL_DEVICE_COMMAND_CAPABILITY,
+  diff: ALL_DEVICE_COMMAND_CAPABILITY,
+  screenshot: ALL_DEVICE_COMMAND_CAPABILITY,
+  wait: ALL_DEVICE_COMMAND_CAPABILITY,
+  get: ALL_DEVICE_COMMAND_CAPABILITY,
+  find: ALL_DEVICE_COMMAND_CAPABILITY,
+  is: ALL_DEVICE_COMMAND_CAPABILITY,
   focus: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
@@ -167,7 +189,11 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,
   },
-  ...REACT_NATIVE_COMMAND_CAPABILITIES,
+  'react-native': {
+    apple: { simulator: true, device: true },
+    android: { emulator: true, device: true, unknown: true },
+    linux: LINUX_NONE,
+  },
   rotate: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
@@ -197,7 +223,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,
   },
-  ...INTERACTION_COMMAND_CAPABILITIES,
+  type: ALL_DEVICE_COMMAND_CAPABILITY,
 };
 
 export function isCommandSupportedOnDevice(command: string, device: DeviceInfo): boolean {
@@ -212,10 +238,6 @@ export function isCommandSupportedOnDevice(command: string, device: DeviceInfo):
   if (capability.supports && !capability.supports(device)) return false;
   const kind = (device.kind ?? 'unknown') as keyof KindMatrix;
   return byPlatform[kind] === true;
-}
-
-export function getCommandCapability(command: string): CommandCapability | undefined {
-  return COMMAND_CAPABILITY_MATRIX[command];
 }
 
 export function listCapabilityCommands(): string[] {

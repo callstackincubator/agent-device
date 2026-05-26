@@ -7,8 +7,8 @@ import { dispatchGetViaRuntime, dispatchIsViaRuntime } from '../selector-runtime
 import { createInteractionRuntime } from './interaction-runtime.ts';
 import { finalizeTouchInteraction } from './interaction-common.ts';
 import { errorResponse } from './response.ts';
+import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import { typeCommandDefinition } from '../../commands/interactions/definition.ts';
 import { normalizeError } from '../../utils/errors.ts';
 import { successText } from '../../utils/success-text.ts';
 import {
@@ -29,7 +29,7 @@ export async function handleInteractionCommands(
   }
 
   switch (params.req.command) {
-    case typeCommandDefinition.name:
+    case PUBLIC_COMMANDS.type:
       return await dispatchTypeViaRuntime({
         ...params,
         captureSnapshotForSession,
@@ -51,7 +51,7 @@ async function dispatchTypeViaRuntime(
   const { sessionName, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   if (!session) return errorResponse('SESSION_NOT_FOUND', 'No active session. Run open first.');
-  if (!isCommandSupportedOnDevice(typeCommandDefinition.name, session.device)) {
+  if (!isCommandSupportedOnDevice(PUBLIC_COMMANDS.type, session.device)) {
     return errorResponse('UNSUPPORTED_OPERATION', 'type is not supported on this device');
   }
   const recordingRecoveryResponse = await recoverAndroidRecordingDialogForType(session);
