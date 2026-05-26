@@ -4,7 +4,7 @@ import path from 'node:path';
 import type { DaemonResponse, SessionState } from './types.ts';
 import { dispatchCommand } from '../core/dispatch.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
-import { normalizeError } from '../utils/errors.ts';
+import { normalizeError, type NormalizedError } from '../utils/errors.ts';
 import { contextFromFlags } from './context.ts';
 import { annotateScreenshotWithRefs } from './screenshot-overlay.ts';
 
@@ -145,33 +145,42 @@ function resolveCapturedScreenshotPath(data: unknown, fallbackPath: string): str
 function isAndroidSnapshotTimeoutError(error: unknown): boolean {
   const normalized = normalizeError(error);
   if (normalized.code !== 'COMMAND_FAILED') return false;
+  return (
+    hasKnownAndroidSnapshotTimeoutMessage(normalized) ||
+    hasHelperTimeoutDetails(normalized.details?.helper) ||
+    hasUiAutomatorDumpTimeoutDetails(normalized.details)
+  );
+}
 
-  const text = `${normalized.message}\n${normalized.hint ?? ''}`;
+function hasKnownAndroidSnapshotTimeoutMessage(error: NormalizedError): boolean {
+  const text = `${error.message}\n${error.hint ?? ''}`;
   if (/Android UI hierarchy dump timed out/i.test(text)) return true;
   if (/Stock UIAutomator fallback was skipped/i.test(text)) return true;
-  if (/Android accessibility snapshots can be blocked/i.test(text)) return true;
+  return /Android accessibility snapshots can be blocked/i.test(text);
+}
 
-  const details = normalized.details;
-  const helper = details?.helper;
-  if (helper && typeof helper === 'object') {
-    const helperRecord = helper as Record<string, unknown>;
-    const errorType = String(helperRecord.errorType ?? '');
-    const message = String(helperRecord.message ?? '');
-    if (/TimeoutException/i.test(errorType) || /timed out/i.test(message)) return true;
-  }
+function hasHelperTimeoutDetails(helper: unknown): boolean {
+  if (!helper || typeof helper !== 'object') return false;
+  const helperRecord = helper as Record<string, unknown>;
+  const errorType = String(helperRecord.errorType ?? '');
+  const message = String(helperRecord.message ?? '');
+  return /TimeoutException/i.test(errorType) || /timed out/i.test(message);
+}
 
+function hasUiAutomatorDumpTimeoutDetails(details: Record<string, unknown> | undefined): boolean {
+  if (!details) return false;
   const timeoutMs = details?.timeoutMs;
   const cmd = details?.cmd;
-  const rawArgs = details?.args;
-  const args = Array.isArray(rawArgs)
-    ? rawArgs.map(String)
-    : typeof rawArgs === 'string'
-      ? rawArgs.split(/\s+/)
-      : [];
+  const args = normalizeArgList(details?.args);
   return (
     typeof timeoutMs === 'number' &&
     cmd === 'adb' &&
     args.includes('uiautomator') &&
     args.includes('dump')
   );
+}
+
+function normalizeArgList(rawArgs: unknown): string[] {
+  if (Array.isArray(rawArgs)) return rawArgs.map(String);
+  return typeof rawArgs === 'string' ? rawArgs.split(/\s+/) : [];
 }
