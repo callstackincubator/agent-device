@@ -49,7 +49,7 @@ Use MCP tools or the CLI in the integrated terminal. If `agent-device` is not on
 
 ## MCP server
 
-`agent-device mcp` starts the official stdio MCP server. It exposes direct semantic tools for installed CLI commands, plus a `status` tool that returns package, install, verify, help, target, and capability metadata. Tools run through semantic command contracts and `AgentDeviceClient`; local-only workflows stay CLI-only rather than subprocess fallbacks.
+`agent-device mcp` starts the official stdio MCP server. It exposes direct semantic tools for installed CLI commands. Tools run through semantic command contracts and `AgentDeviceClient`; local-only workflows stay CLI-only rather than subprocess fallbacks.
 
 MCP clients must not use this server as a generic shell runner. If the CLI is missing, agents should ask a human before installing or updating packages, then verify with `agent-device --version` and start with `agent-device help workflow`.
 
@@ -142,7 +142,7 @@ JSON
 Restart Cursor or reconnect MCP from Cursor settings, then ask Cursor Agent:
 
 ```text
-Use the agent-device MCP tools to inspect the iOS app. Start with the status tool, then open the app, take an interactive snapshot, act on visible refs/selectors, verify with another snapshot, and close the session.
+Use the agent-device MCP tools to inspect the iOS app. Open the app, take an interactive snapshot, act on visible refs/selectors, verify with another snapshot, and close the session.
 ```
 
 If the MCP server fails because Cursor cannot find the global binary, use the absolute binary path in `.cursor/mcp.json`:
@@ -232,7 +232,7 @@ In Claude Code or the VS Code extension, run:
 Confirm `agent-device` is connected, then ask:
 
 ```text
-Use the agent-device MCP tools to verify the app. Start with status, open the app, take an interactive snapshot, use refs/selectors for actions, verify with another snapshot, and close the session.
+Use the agent-device MCP tools to verify the app. Open the app, take an interactive snapshot, use refs/selectors for actions, verify with another snapshot, and close the session.
 ```
 
 If Claude cannot start the MCP server because the extension process cannot find the global binary, remove and re-add it with an absolute path:
