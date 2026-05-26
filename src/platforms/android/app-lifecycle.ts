@@ -41,6 +41,7 @@ const ANDROID_APPS_DISCOVERY_HINT =
   'Run agent-device apps --platform android to discover the installed package name, then retry open with that exact package.';
 const ANDROID_AMBIGUOUS_APP_HINT =
   'Run agent-device apps --platform android to see the exact installed package names before retrying open.';
+const ANDROID_LOCALHOST_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 
 type AndroidAppResolution = { type: 'intent' | 'package'; value: string };
 
@@ -231,9 +232,7 @@ function androidLocalhostReverseEndpoint(target: string): AndroidPortReverseEndp
   }
 
   const hostname = url.hostname.toLowerCase();
-  if (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname !== '[::1]') {
-    return null;
-  }
+  if (!ANDROID_LOCALHOST_HOSTNAMES.has(hostname)) return null;
   if (!url.port) return null;
   const port = Number(url.port);
   if (!Number.isInteger(port)) return null;

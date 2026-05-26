@@ -582,6 +582,96 @@ test('openAndroidApp ensures Android reverse before localhost deep link launch',
   ]);
 });
 
+test('openAndroidApp ensures Android reverse before IPv6 localhost deep link launch', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+  const calls: Array<
+    { kind: 'exec'; args: string[] } | { kind: 'reverse'; local: string; remote: string }
+  > = [];
+
+  await withAndroidAdbProvider(
+    {
+      exec: async (args) => {
+        calls.push({ kind: 'exec', args });
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      reverse: {
+        ensure: async (mapping) => {
+          calls.push({ kind: 'reverse', local: mapping.local, remote: mapping.remote });
+        },
+        remove: async () => {},
+        removeAllOwned: async () => {},
+      },
+    },
+    { serial: 'emulator-5554' },
+    async () => await openAndroidApp(device, 'http://[::1]:8081/status'),
+  );
+
+  assert.deepEqual(calls, [
+    { kind: 'reverse', local: 'tcp:8081', remote: 'tcp:8081' },
+    {
+      kind: 'exec',
+      args: [
+        'shell',
+        'am',
+        'start',
+        '-W',
+        '-a',
+        'android.intent.action.VIEW',
+        '-d',
+        'http://[::1]:8081/status',
+      ],
+    },
+  ]);
+});
+
+test('openAndroidApp leaves localhost deep links without a port unchanged', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+  const calls: string[][] = [];
+
+  await withAndroidAdbProvider(
+    {
+      exec: async (args) => {
+        calls.push(args);
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      reverse: {
+        ensure: async () => {
+          throw new Error('reverse should not run without a URL port');
+        },
+        remove: async () => {},
+        removeAllOwned: async () => {},
+      },
+    },
+    { serial: 'emulator-5554' },
+    async () => await openAndroidApp(device, 'http://localhost/path'),
+  );
+
+  assert.deepEqual(calls, [
+    [
+      'shell',
+      'am',
+      'start',
+      '-W',
+      '-a',
+      'android.intent.action.VIEW',
+      '-d',
+      'http://localhost/path',
+    ],
+  ]);
+});
+
 test('openAndroidApp leaves non-localhost deep links unchanged', async () => {
   const device: DeviceInfo = {
     platform: 'android',
