@@ -13,6 +13,7 @@
 - Target: selected automation destination, such as mobile, tv, or desktop.
 - Modality: broad supported device family, such as mobile, tv, or desktop.
 - Session: daemon-owned state for a selected target and opened app or surface.
+- Command surface: catalog of public command identity, interface exposure, adapter policy, and shared command metadata across CLI, Node.js, MCP, and batch entrypoints.
 
 ## Testing Principles
 

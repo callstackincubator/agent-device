@@ -1,9 +1,9 @@
 import { createAgentDeviceClient } from '../client.ts';
 import {
   isSemanticCommandName,
-  listSemanticCommandDefinitions,
+  listSemanticMcpToolDefinitions,
   runSemanticCommand,
-} from '../commands/semantic-definitions.ts';
+} from '../commands/semantic-command-surface.ts';
 import type { JsonSchema } from '../commands/semantic-contract.ts';
 
 type ToolResult = {
@@ -18,7 +18,7 @@ export function listSemanticCommandTools(): Array<{
   inputSchema: JsonSchema;
   outputSchema: JsonSchema;
 }> {
-  return listSemanticCommandDefinitions().map((definition) => ({
+  return listSemanticMcpToolDefinitions().map((definition) => ({
     name: definition.name,
     description: definition.description,
     inputSchema: definition.inputSchema,

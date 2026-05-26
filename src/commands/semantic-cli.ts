@@ -23,56 +23,12 @@ import { resolveInstallSource } from '../command-codecs/install-source.ts';
 import { AppError } from '../utils/errors.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { compactRecord } from './semantic-common.ts';
-import { NESTED_SEMANTIC_BATCH_COMMANDS } from './semantic-batch.ts';
-import { runSemanticCommand } from './semantic-definitions.ts';
-
-export type SemanticCliCommand =
-  | 'boot'
-  | 'push'
-  | 'perf'
-  | 'click'
-  | 'get'
-  | 'replay'
-  | 'test'
-  | 'batch'
-  | 'press'
-  | 'longpress'
-  | 'swipe'
-  | 'gesture'
-  | 'focus'
-  | 'type'
-  | 'fill'
-  | 'scroll'
-  | 'trigger-app-event'
-  | 'record'
-  | 'trace'
-  | 'logs'
-  | 'network'
-  | 'react-native'
-  | 'find'
-  | 'is'
-  | 'settings'
-  | 'wait'
-  | 'alert'
-  | 'appstate'
-  | 'back'
-  | 'home'
-  | 'rotate'
-  | 'app-switcher'
-  | 'keyboard'
-  | 'clipboard'
-  | 'devices'
-  | 'apps'
-  | 'session'
-  | 'open'
-  | 'close'
-  | 'install'
-  | 'reinstall'
-  | 'install-from-source'
-  | 'snapshot'
-  | 'screenshot'
-  | 'diff'
-  | 'metro';
+import {
+  isSemanticBatchCommand,
+  runSemanticCommand,
+  type SemanticBatchCommand,
+  type SemanticCliCommand,
+} from './semantic-command-surface.ts';
 
 type SemanticCliRunOptions = {
   client: AgentDeviceClient;
@@ -380,22 +336,13 @@ function semanticBatchStepsFromCli(
   });
 }
 
-function readBatchCliCommand(
-  command: string,
-  stepNumber: number,
-): (typeof NESTED_SEMANTIC_BATCH_COMMANDS)[number] {
+function readBatchCliCommand(command: string, stepNumber: number): SemanticBatchCommand {
   const normalized = command.trim().toLowerCase();
-  if (isNestedSemanticBatchCommand(normalized)) return normalized;
+  if (isSemanticBatchCommand(normalized)) return normalized;
   throw new AppError(
     'INVALID_ARGS',
     `Batch step ${stepNumber} command is not available through semantic batch: ${command}`,
   );
-}
-
-function isNestedSemanticBatchCommand(
-  command: string,
-): command is (typeof NESTED_SEMANTIC_BATCH_COMMANDS)[number] {
-  return (NESTED_SEMANTIC_BATCH_COMMANDS as readonly string[]).includes(command);
 }
 
 function cliFlagsFromBatchStep(flags: BatchStep['flags']): CliFlags {

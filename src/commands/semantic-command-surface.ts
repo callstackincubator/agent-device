@@ -1,0 +1,218 @@
+import type { AgentDeviceClient } from '../client-types.ts';
+import { createBatchSemanticCommand } from './semantic-batch.ts';
+import { semanticClientCommands } from './semantic-client-commands.ts';
+import type { JsonSchema } from './semantic-contract.ts';
+import { bootSemanticCommand } from './semantic-device.ts';
+import { interactionSemanticCommands } from './semantic-interactions.ts';
+import { semanticLocalCommands } from './semantic-local-commands.ts';
+import type { SemanticDaemonCommand } from './semantic-request.ts';
+
+type AnySemanticCommandDefinition = {
+  name: string;
+  description: string;
+  inputSchema: JsonSchema;
+  outputSchema: JsonSchema;
+  invoke: (client: AgentDeviceClient, input: unknown) => Promise<unknown>;
+};
+
+type CommandSurfaceEntry<TDefinition extends AnySemanticCommandDefinition> = {
+  definition: TDefinition;
+  batch: boolean;
+  genericCli: boolean;
+  mcp: 'tool' | 'local-boundary';
+};
+
+function commandSurfaceEntry<
+  TDefinition extends AnySemanticCommandDefinition,
+  const TMetadata extends Omit<CommandSurfaceEntry<TDefinition>, 'definition'>,
+>(definition: TDefinition, metadata: TMetadata): { definition: TDefinition } & TMetadata {
+  return { definition, ...metadata };
+}
+
+const semanticGenericCliCommandNames = [
+  'boot',
+  'push',
+  'perf',
+  'click',
+  'get',
+  'replay',
+  'test',
+  'batch',
+  'press',
+  'longpress',
+  'swipe',
+  'gesture',
+  'focus',
+  'type',
+  'fill',
+  'scroll',
+  'trigger-app-event',
+  'record',
+  'trace',
+  'logs',
+  'network',
+  'react-native',
+  'find',
+  'is',
+  'settings',
+] as const;
+
+const semanticDedicatedCliCommandNames = [
+  'wait',
+  'alert',
+  'appstate',
+  'back',
+  'home',
+  'rotate',
+  'app-switcher',
+  'keyboard',
+  'clipboard',
+  'devices',
+  'apps',
+  'session',
+  'open',
+  'close',
+  'install',
+  'reinstall',
+  'install-from-source',
+  'snapshot',
+  'screenshot',
+  'diff',
+  'metro',
+] as const;
+
+const semanticCliCommandNames = [
+  ...semanticGenericCliCommandNames,
+  ...semanticDedicatedCliCommandNames,
+] as const;
+
+const genericCliNames = commandNameSet(semanticGenericCliCommandNames);
+
+const semanticBatchCommandNames = [
+  'devices',
+  'boot',
+  'apps',
+  'open',
+  'close',
+  'install',
+  'reinstall',
+  'install-from-source',
+  'push',
+  'trigger-app-event',
+  'snapshot',
+  'screenshot',
+  'diff',
+  'wait',
+  'alert',
+  'appstate',
+  'back',
+  'home',
+  'rotate',
+  'app-switcher',
+  'keyboard',
+  'clipboard',
+  'react-native',
+  'click',
+  'press',
+  'longpress',
+  'swipe',
+  'gesture',
+  'focus',
+  'type',
+  'fill',
+  'scroll',
+  'get',
+  'is',
+  'find',
+  'test',
+  'perf',
+  'logs',
+  'network',
+  'record',
+  'trace',
+  'settings',
+] as const satisfies readonly SemanticDaemonCommand[];
+
+const semanticBatchNames = commandNameSet(semanticBatchCommandNames);
+
+const baseCommandSurface = [
+  commandSurfaceEntry(bootSemanticCommand, commandMetadata(bootSemanticCommand.name)),
+  ...interactionSemanticCommands.map((definition) =>
+    commandSurfaceEntry(definition, commandMetadata(definition.name)),
+  ),
+  ...semanticClientCommands.map((definition) =>
+    commandSurfaceEntry(definition, commandMetadata(definition.name)),
+  ),
+  ...semanticLocalCommands.map((definition) =>
+    commandSurfaceEntry(definition, {
+      batch: false,
+      genericCli: false,
+      mcp: 'local-boundary',
+    }),
+  ),
+] as const;
+
+const batchSemanticCommand = createBatchSemanticCommand(semanticBatchCommandNames);
+
+export const semanticCommandSurface = [
+  ...baseCommandSurface,
+  commandSurfaceEntry(batchSemanticCommand, {
+    batch: false,
+    genericCli: true,
+    mcp: 'tool',
+  }),
+] as const;
+
+export type SemanticCommandName = (typeof semanticCommandSurface)[number]['definition']['name'];
+export type SemanticCliCommand = (typeof semanticCliCommandNames)[number];
+export type SemanticBatchCommand = (typeof semanticBatchCommandNames)[number];
+
+const semanticCommandMap = new Map(
+  semanticCommandSurface.map((entry) => [entry.definition.name, entry.definition]),
+);
+
+function commandMetadata(
+  name: string,
+): Omit<CommandSurfaceEntry<AnySemanticCommandDefinition>, 'definition'> {
+  return {
+    batch: semanticBatchNames.has(name),
+    genericCli: genericCliNames.has(name),
+    mcp: 'tool',
+  };
+}
+
+export function listSemanticMcpToolDefinitions(): AnySemanticCommandDefinition[] {
+  return semanticCommandSurface
+    .filter((entry) => entry.mcp === 'tool' || entry.mcp === 'local-boundary')
+    .map((entry) => entry.definition);
+}
+
+export function listSemanticGenericCliCommands(): SemanticCliCommand[] {
+  return semanticCommandSurface
+    .filter((entry) => entry.genericCli)
+    .map((entry) => entry.definition.name as SemanticCliCommand);
+}
+
+export function isSemanticCommandName(name: string): name is SemanticCommandName {
+  return semanticCommandMap.has(name);
+}
+
+export function isSemanticBatchCommand(name: string): name is SemanticBatchCommand {
+  return semanticBatchNames.has(name);
+}
+
+export async function runSemanticCommand(
+  client: AgentDeviceClient,
+  name: SemanticCommandName,
+  input: unknown,
+): Promise<unknown> {
+  const definition = semanticCommandMap.get(name);
+  if (!definition) {
+    throw new Error(`Unknown semantic command: ${name}`);
+  }
+  return await definition.invoke(client, input);
+}
+
+function commandNameSet<const TName extends string>(names: readonly TName[]): ReadonlySet<string> {
+  return new Set(names);
+}

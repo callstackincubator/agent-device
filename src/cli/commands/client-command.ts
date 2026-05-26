@@ -5,7 +5,8 @@ import type {
 } from '../../client.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { readCommandMessage } from '../../utils/success-text.ts';
-import { runSemanticCliCommand, type SemanticCliCommand } from '../../commands/semantic-cli.ts';
+import { runSemanticCliCommand } from '../../commands/semantic-cli.ts';
+import type { SemanticCliCommand } from '../../commands/semantic-command-surface.ts';
 import { writeCommandMessage, writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandlerMap } from './router-types.ts';
 

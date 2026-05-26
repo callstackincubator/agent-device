@@ -1,6 +1,7 @@
 import type { AgentDeviceClient, CommandRequestResult } from '../../client.ts';
 import { announceReplayTestRun } from '../../cli-test.ts';
-import { runSemanticCliCommand, type SemanticCliCommand } from '../../commands/semantic-cli.ts';
+import { runSemanticCliCommand } from '../../commands/semantic-cli.ts';
+import { listSemanticGenericCliCommands } from '../../commands/semantic-command-surface.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { writeCommandCliOutput } from './output.ts';
 import type { PublicCommandName } from '../../command-catalog.ts';
@@ -12,36 +13,10 @@ type GenericClientCommandRunner = (params: {
   flags: CliFlags;
 }) => Promise<CommandRequestResult>;
 
-const SEMANTIC_GENERIC_COMMANDS = [
-  'boot',
-  'push',
-  'perf',
-  'click',
-  'get',
-  'replay',
-  'test',
-  'batch',
-  'press',
-  'longpress',
-  'swipe',
-  'gesture',
-  'focus',
-  'type',
-  'fill',
-  'scroll',
-  'trigger-app-event',
-  'record',
-  'trace',
-  'logs',
-  'network',
-  'react-native',
-  'find',
-  'is',
-  'settings',
-] as const satisfies readonly SemanticCliCommand[];
+const semanticGenericCommands = listSemanticGenericCliCommands();
 
 const genericClientCommandRunners = Object.fromEntries(
-  SEMANTIC_GENERIC_COMMANDS.map((command) => [
+  semanticGenericCommands.map((command) => [
     command,
     async ({ client, positionals, flags }) => {
       if (command === 'test') {
@@ -50,7 +25,7 @@ const genericClientCommandRunners = Object.fromEntries(
       return await runSemanticCliCommand({ client, command, positionals, flags });
     },
   ]),
-) as Record<(typeof SEMANTIC_GENERIC_COMMANDS)[number], GenericClientCommandRunner>;
+) as Record<(typeof semanticGenericCommands)[number], GenericClientCommandRunner>;
 
 export const genericClientCommandHandlers = Object.fromEntries(
   Object.entries(genericClientCommandRunners).map(([command, run]) => [

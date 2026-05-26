@@ -15,51 +15,6 @@ import {
   type CommonCommandInput,
 } from './semantic-common.ts';
 
-export const NESTED_SEMANTIC_BATCH_COMMANDS = [
-  'devices',
-  'boot',
-  'apps',
-  'open',
-  'close',
-  'install',
-  'reinstall',
-  'install-from-source',
-  'push',
-  'trigger-app-event',
-  'snapshot',
-  'screenshot',
-  'diff',
-  'wait',
-  'alert',
-  'appstate',
-  'back',
-  'home',
-  'rotate',
-  'app-switcher',
-  'keyboard',
-  'clipboard',
-  'react-native',
-  'click',
-  'press',
-  'longpress',
-  'swipe',
-  'gesture',
-  'focus',
-  'type',
-  'fill',
-  'scroll',
-  'get',
-  'is',
-  'find',
-  'test',
-  'perf',
-  'logs',
-  'network',
-  'record',
-  'trace',
-  'settings',
-] as const satisfies readonly SemanticDaemonCommand[];
-
 type BatchInput = CommonCommandInput & {
   steps: BatchStep[];
   onError?: 'stop';
@@ -67,40 +22,44 @@ type BatchInput = CommonCommandInput & {
   out?: string;
 };
 
-export const batchSemanticCommand = defineSemanticCommand({
-  name: 'batch',
-  description: 'Run multiple structured command steps in one daemon request.',
-  inputSchema: commandInputSchema(
-    {
-      steps: {
-        type: 'array',
-        description:
-          'Structured batch steps. CLI JSON parsing belongs to the CLI normalizer; MCP passes this array directly.',
-        items: batchStepSchema(),
+export function createBatchSemanticCommand<const TCommand extends SemanticDaemonCommand>(
+  nestedCommands: readonly TCommand[],
+) {
+  return defineSemanticCommand({
+    name: 'batch',
+    description: 'Run multiple structured command steps in one daemon request.',
+    inputSchema: commandInputSchema(
+      {
+        steps: {
+          type: 'array',
+          description:
+            'Structured batch steps. CLI JSON parsing belongs to the CLI normalizer; MCP passes this array directly.',
+          items: batchStepSchema(nestedCommands),
+        },
+        onError: { type: 'string', enum: ['stop'], description: 'Batch failure policy.' },
+        maxSteps: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 1000,
+          description: 'Maximum number of steps accepted for this batch.',
+        },
+        out: { type: 'string', description: 'Optional output path for command artifacts.' },
       },
-      onError: { type: 'string', enum: ['stop'], description: 'Batch failure policy.' },
-      maxSteps: {
-        type: 'integer',
-        minimum: 1,
-        maximum: 1000,
-        description: 'Maximum number of steps accepted for this batch.',
-      },
-      out: { type: 'string', description: 'Optional output path for command artifacts.' },
-    },
-    ['steps'],
-  ),
-  outputSchema: batchResultSchema(),
-  readInput: readBatchInput,
-  run: (client, input) => client.batch.run(toBatchOptions(input)),
-});
+      ['steps'],
+    ),
+    outputSchema: batchResultSchema(),
+    readInput: (input) => readBatchInput(input, nestedCommands),
+    run: (client, input) => client.batch.run(toBatchOptions(input)),
+  });
+}
 
-function batchStepSchema(): JsonSchema {
+function batchStepSchema(nestedCommands: readonly SemanticDaemonCommand[]): JsonSchema {
   return {
     type: 'object',
     properties: {
       command: {
         type: 'string',
-        enum: NESTED_SEMANTIC_BATCH_COMMANDS,
+        enum: nestedCommands,
         description: 'Migrated command name to run with semantic input.',
       },
       input: {
@@ -131,11 +90,14 @@ function batchResultSchema(): JsonSchema {
   };
 }
 
-function readBatchInput(input: unknown): BatchInput {
+function readBatchInput(
+  input: unknown,
+  nestedCommands: readonly SemanticDaemonCommand[],
+): BatchInput {
   const record = readInputRecord(input);
   const maxSteps = optionalInteger(record, 'maxSteps', { min: 1, max: 1000 });
   const normalized = validateAndNormalizeBatchSteps(
-    readBatchSteps(record.steps),
+    readBatchSteps(record.steps, nestedCommands),
     maxSteps ?? DEFAULT_BATCH_MAX_STEPS,
   );
   return {
@@ -152,21 +114,28 @@ function readBatchInput(input: unknown): BatchInput {
   };
 }
 
-function readBatchSteps(steps: unknown): BatchStep[] {
+function readBatchSteps(
+  steps: unknown,
+  nestedCommands: readonly SemanticDaemonCommand[],
+): BatchStep[] {
   if (!Array.isArray(steps)) {
     throw new Error('Expected steps to be an array.');
   }
-  return steps.map((step, index) => readBatchStep(step, index + 1));
+  return steps.map((step, index) => readBatchStep(step, index + 1, nestedCommands));
 }
 
-function readBatchStep(step: unknown, stepNumber: number): BatchStep {
+function readBatchStep(
+  step: unknown,
+  stepNumber: number,
+  nestedCommands: readonly SemanticDaemonCommand[],
+): BatchStep {
   if (!step || typeof step !== 'object' || Array.isArray(step)) {
     throw new Error(`Invalid batch step ${stepNumber}.`);
   }
   const record = step as Record<string, unknown>;
   assertAllowedKeys(record, ['command', 'input'], `Batch step ${stepNumber}`);
   return prepareSemanticBatchStep(
-    requiredEnum(record, 'command', NESTED_SEMANTIC_BATCH_COMMANDS),
+    requiredEnum(record, 'command', nestedCommands),
     record.input as Record<string, unknown>,
   );
 }
