@@ -10,56 +10,75 @@ import type {
 } from '../client-types.ts';
 import { defineSemanticCommand } from './semantic-contract.ts';
 import {
-  commandInputSchema,
   commandResultSchema,
   commonToClientOptions,
-  interactionInputSchema,
-  optionalEnum,
+  enumField,
+  fieldsInputSchema,
+  integerField,
+  interactionTargetField,
+  numberField,
   optionalInteger,
-  pointSchema,
+  pointField,
   readCommonInput,
+  readFieldInput,
   readInputRecord,
-  readInteractionTarget,
   readPoint,
-  readRepeatedInput,
-  readSelectorSnapshotInput,
-  repeatedProperties,
+  repeatedFields,
   requiredEnum,
+  requiredField,
   requiredNumber,
-  requiredString,
+  selectorSnapshotFields,
+  stringField,
   toClientInteractionTarget,
   toRepeatedOptions,
   toSelectorSnapshotOptions,
   type CommonCommandInput,
+  type InferCommandInput,
   type PointInput,
-  type RepeatedInput,
-  type SelectorSnapshotInput,
-  type SemanticInteractionTarget,
 } from './semantic-common.ts';
 
 const CLICK_BUTTON_VALUES = ['primary', 'secondary', 'middle'] as const;
 const GESTURE_KIND_VALUES = ['pan', 'fling', 'pinch', 'rotate', 'transform'] as const;
 const GESTURE_DIRECTION_VALUES = ['up', 'down', 'left', 'right'] as const;
 
-type ClickInput = CommonCommandInput &
-  RepeatedInput &
-  SelectorSnapshotInput & {
-    target: SemanticInteractionTarget;
-    button?: 'primary' | 'secondary' | 'middle';
-  };
+const clickFields = {
+  target: requiredField(interactionTargetField()),
+  button: enumField(
+    CLICK_BUTTON_VALUES,
+    'Pointer button for platforms that support mouse buttons.',
+  ),
+  ...selectorSnapshotFields(),
+  ...repeatedFields(),
+};
 
-type PressInput = CommonCommandInput &
-  RepeatedInput &
-  SelectorSnapshotInput & {
-    target: SemanticInteractionTarget;
-  };
+const pressFields = {
+  target: requiredField(interactionTargetField()),
+  ...selectorSnapshotFields(),
+  ...repeatedFields(),
+};
 
-type FillInput = CommonCommandInput &
-  SelectorSnapshotInput & {
-    target: SemanticInteractionTarget;
-    text: string;
-    delayMs?: number;
-  };
+const fillFields = {
+  target: requiredField(interactionTargetField()),
+  text: requiredField(stringField('Text to enter into the target.')),
+  delayMs: integerField('Delay between typed characters.', { min: 0 }),
+  ...selectorSnapshotFields(),
+};
+
+const gestureFields = {
+  kind: requiredField(enumField(GESTURE_KIND_VALUES, 'Gesture variant.')),
+  direction: enumField(GESTURE_DIRECTION_VALUES, 'Fling direction.'),
+  origin: pointField('Gesture origin point.'),
+  delta: pointField('Movement delta for pan or transform gestures.'),
+  distance: integerField('Fling distance.', { min: 0 }),
+  scale: numberField('Pinch or transform scale.'),
+  degrees: numberField('Rotation in degrees.'),
+  velocity: integerField('Rotate gesture velocity.', { min: 0 }),
+  durationMs: integerField('Gesture duration in milliseconds.', { min: 0 }),
+};
+
+type ClickInput = InferCommandInput<typeof clickFields>;
+type PressInput = InferCommandInput<typeof pressFields>;
+type FillInput = InferCommandInput<typeof fillFields>;
 
 type PanInput = CommonCommandInput & {
   kind: 'pan';
@@ -104,75 +123,31 @@ export const interactionSemanticCommands = [
   defineSemanticCommand({
     name: 'click',
     description: 'Click or tap a semantic UI target by ref, selector, or point.',
-    inputSchema: interactionInputSchema({
-      button: {
-        type: 'string',
-        enum: CLICK_BUTTON_VALUES,
-        description: 'Pointer button for platforms that support mouse buttons.',
-      },
-      ...repeatedProperties(),
-    }),
+    inputSchema: fieldsInputSchema(clickFields),
     outputSchema: commandResultSchema(),
-    readInput: readClickInput,
+    readInput: (input) => readFieldInput(input, clickFields),
     run: (client, input) => client.interactions.click(toClickOptions(input)),
   }),
   defineSemanticCommand({
     name: 'press',
     description: 'Press a semantic UI target by ref, selector, or point.',
-    inputSchema: interactionInputSchema(repeatedProperties()),
+    inputSchema: fieldsInputSchema(pressFields),
     outputSchema: commandResultSchema(),
-    readInput: readPressInput,
+    readInput: (input) => readFieldInput(input, pressFields),
     run: (client, input) => client.interactions.press(toPressOptions(input)),
   }),
   defineSemanticCommand({
     name: 'fill',
     description: 'Fill text into a semantic UI target by ref, selector, or point.',
-    inputSchema: interactionInputSchema(
-      {
-        text: { type: 'string', description: 'Text to enter into the target.' },
-        delayMs: { type: 'integer', minimum: 0, description: 'Delay between typed characters.' },
-      },
-      ['target', 'text'],
-    ),
+    inputSchema: fieldsInputSchema(fillFields),
     outputSchema: commandResultSchema(),
-    readInput: readFillInput,
+    readInput: (input) => readFieldInput(input, fillFields),
     run: (client, input) => client.interactions.fill(toFillOptions(input)),
   }),
   defineSemanticCommand({
     name: 'gesture',
     description: 'Run a structured gesture.',
-    inputSchema: commandInputSchema(
-      {
-        kind: {
-          type: 'string',
-          enum: GESTURE_KIND_VALUES,
-          description: 'Gesture variant.',
-        },
-        direction: {
-          type: 'string',
-          enum: GESTURE_DIRECTION_VALUES,
-          description: 'Fling direction.',
-        },
-        origin: pointSchema('Gesture origin point.'),
-        delta: pointSchema('Movement delta for pan or transform gestures.'),
-        distance: { type: 'number', description: 'Fling distance.' },
-        scale: { type: 'number', description: 'Pinch or transform scale.' },
-        degrees: {
-          type: 'number',
-          description: 'Rotation in degrees.',
-        },
-        velocity: {
-          type: 'number',
-          description: 'Rotate gesture velocity.',
-        },
-        durationMs: {
-          type: 'integer',
-          minimum: 0,
-          description: 'Gesture duration in milliseconds.',
-        },
-      },
-      ['kind'],
-    ),
+    inputSchema: fieldsInputSchema(gestureFields),
     outputSchema: commandResultSchema(),
     readInput: readGestureInput,
     run: async (client, input) => {
@@ -191,38 +166,6 @@ export const interactionSemanticCommands = [
     },
   }),
 ] as const;
-
-function readClickInput(input: unknown): ClickInput {
-  const record = readInputRecord(input);
-  return {
-    ...readCommonInput(record),
-    target: readInteractionTarget(record, 'target'),
-    button: optionalEnum(record, 'button', CLICK_BUTTON_VALUES),
-    ...readSelectorSnapshotInput(record),
-    ...readRepeatedInput(record),
-  };
-}
-
-function readPressInput(input: unknown): PressInput {
-  const record = readInputRecord(input);
-  return {
-    ...readCommonInput(record),
-    target: readInteractionTarget(record, 'target'),
-    ...readSelectorSnapshotInput(record),
-    ...readRepeatedInput(record),
-  };
-}
-
-function readFillInput(input: unknown): FillInput {
-  const record = readInputRecord(input);
-  return {
-    ...readCommonInput(record),
-    target: readInteractionTarget(record, 'target'),
-    text: requiredString(record, 'text'),
-    delayMs: optionalInteger(record, 'delayMs', { min: 0 }),
-    ...readSelectorSnapshotInput(record),
-  };
-}
 
 function readGestureInput(input: unknown): GestureInput {
   const record = readInputRecord(input);

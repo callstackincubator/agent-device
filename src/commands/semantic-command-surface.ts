@@ -27,7 +27,7 @@ export type SemanticCommandName = (typeof semanticCommandSurface)[number]['name'
 export type SemanticCliCommand = SemanticCommandName;
 export type { SemanticBatchCommand };
 
-const semanticCommandMap = new Map(
+const semanticCommandMap: ReadonlyMap<string, AnySemanticCommandDefinition> = new Map(
   semanticCommandSurface.map((definition) => [definition.name, definition]),
 );
 

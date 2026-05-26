@@ -52,5 +52,5 @@ test('MCP exposes every automatable CLI command as a semantic direct tool', asyn
   });
   assert.ok(invalidFillResponse && 'result' in invalidFillResponse);
   assert.equal((invalidFillResponse.result as { isError: boolean }).isError, true);
-  assert.match(JSON.stringify(invalidFillResponse.result), /Expected target to be an object/);
+  assert.match(JSON.stringify(invalidFillResponse.result), /Expected target to be set/);
 });

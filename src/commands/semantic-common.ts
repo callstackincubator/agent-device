@@ -59,37 +59,7 @@ export function commandInputSchema(
   };
 }
 
-export function interactionInputSchema(
-  properties: Record<string, JsonSchema>,
-  required: readonly string[] = ['target'],
-): JsonSchema {
-  return commandInputSchema(
-    {
-      target: interactionTargetSchema(),
-      depth: snapshotDepthSchema(),
-      scope: { type: 'string', description: 'Snapshot scope selector used before resolution.' },
-      raw: { type: 'boolean', description: 'Use raw snapshot data during selector resolution.' },
-      ...properties,
-    },
-    required,
-  );
-}
-
-export function repeatedProperties(): Record<string, JsonSchema> {
-  return {
-    count: { type: 'integer', minimum: 1, description: 'Number of press/click repetitions.' },
-    intervalMs: {
-      type: 'integer',
-      minimum: 0,
-      description: 'Delay between repeated press/click actions.',
-    },
-    holdMs: { type: 'integer', minimum: 0, description: 'Hold duration for each action.' },
-    jitterPx: { type: 'integer', minimum: 0, description: 'Randomization radius in pixels.' },
-    doubleTap: { type: 'boolean', description: 'Request a double-tap action.' },
-  };
-}
-
-export function pointSchema(description: string): JsonSchema {
+function pointSchema(description: string): JsonSchema {
   return {
     type: 'object',
     description,
@@ -102,15 +72,11 @@ export function pointSchema(description: string): JsonSchema {
   };
 }
 
-function snapshotDepthSchema(): JsonSchema {
-  return { type: 'integer', minimum: 0, description: 'Snapshot traversal depth.' };
-}
-
 export function commandResultSchema(): JsonSchema {
   return { type: 'object', additionalProperties: true };
 }
 
-export function enumSchema(values: readonly string[], description?: string): JsonSchema {
+function enumSchema(values: readonly string[], description?: string): JsonSchema {
   return { type: 'string', enum: values, ...(description ? { description } : {}) };
 }
 
@@ -130,7 +96,7 @@ export function booleanSchema(description?: string): JsonSchema {
   return { type: 'boolean', ...(description ? { description } : {}) };
 }
 
-export function stringArraySchema(description?: string): JsonSchema {
+function stringArraySchema(description?: string): JsonSchema {
   return {
     type: 'array',
     items: { type: 'string' },
@@ -146,21 +112,143 @@ export function looseObjectSchema(description?: string): JsonSchema {
   };
 }
 
+type FieldReader<T> = (record: Record<string, unknown>, key: string) => T | undefined;
+
+export type SemanticField<T> = {
+  schema: JsonSchema;
+  required: boolean;
+  read: FieldReader<T>;
+};
+
+export type SemanticFieldMap = Record<string, SemanticField<unknown>>;
+
+export type InferSemanticFields<TFields extends SemanticFieldMap> = {
+  [TKey in keyof TFields as TFields[TKey]['required'] extends true
+    ? TKey
+    : never]: TFields[TKey] extends SemanticField<infer TValue> ? TValue : never;
+} & {
+  [TKey in keyof TFields as TFields[TKey]['required'] extends true
+    ? never
+    : TKey]?: TFields[TKey] extends SemanticField<infer TValue> ? TValue : never;
+};
+
+export type InferCommandInput<TFields extends SemanticFieldMap> = InferSemanticFields<TFields> &
+  CommonCommandInput &
+  AgentDeviceRequestOverrides &
+  AgentDeviceSelectionOptions;
+
+export function requiredField<T>(
+  field: SemanticField<T>,
+): SemanticField<Exclude<T, undefined>> & { required: true } {
+  return { ...field, required: true } as SemanticField<Exclude<T, undefined>> & {
+    required: true;
+  };
+}
+
+export function stringField(description?: string): SemanticField<string> {
+  return optionalField(stringSchema(description), optionalString);
+}
+
+export function numberField(description?: string): SemanticField<number> {
+  return optionalField(numberSchema(description), optionalNumberValue);
+}
+
+export function integerField(
+  description?: string,
+  options: { min?: number; max?: number } = {},
+): SemanticField<number> {
+  return optionalField(integerSchemaWithBounds(description, options), (record, key) =>
+    optionalInteger(record, key, options),
+  );
+}
+
+export function booleanField(description?: string): SemanticField<boolean> {
+  return optionalField(booleanSchema(description), optionalBoolean);
+}
+
+export function enumField<const TValues extends readonly string[]>(
+  values: TValues,
+  description?: string,
+): SemanticField<TValues[number]> {
+  return optionalField(enumSchema(values, description), (record, key) =>
+    optionalEnum(record, key, values),
+  );
+}
+
+export function looseObjectField(description?: string): SemanticField<Record<string, unknown>> {
+  return optionalField(looseObjectSchema(description), optionalRecord);
+}
+
+export function stringArrayField(description?: string): SemanticField<string[]> {
+  return optionalField(stringArraySchema(description), optionalStringArray);
+}
+
+export function jsonSchemaField<T>(schema: JsonSchema): SemanticField<T> {
+  return optionalField(schema, (record, key) => record[key] as T | undefined);
+}
+
+export function interactionTargetField(): SemanticField<SemanticInteractionTarget> {
+  return optionalField(interactionTargetSchema(), (record, key) =>
+    record[key] === undefined ? undefined : readInteractionTarget(record, key),
+  );
+}
+
+export function pointField(description: string): SemanticField<PointInput> {
+  return optionalField(pointSchema(description), (record, key) =>
+    record[key] === undefined ? undefined : readPoint(record, key),
+  );
+}
+
+export function selectorSnapshotFields() {
+  return {
+    depth: integerField('Snapshot traversal depth.', { min: 0 }),
+    scope: stringField('Snapshot scope selector used before resolution.'),
+    raw: booleanField('Use raw snapshot data during selector resolution.'),
+  };
+}
+
+export function repeatedFields() {
+  return {
+    count: integerField('Number of press/click repetitions.', { min: 1 }),
+    intervalMs: integerField('Delay between repeated press/click actions.', { min: 0 }),
+    holdMs: integerField('Hold duration for each action.', { min: 0 }),
+    jitterPx: integerField('Randomization radius in pixels.', { min: 0 }),
+    doubleTap: booleanField('Request a double-tap action.'),
+  };
+}
+
+export function fieldsInputSchema(fields: SemanticFieldMap): JsonSchema {
+  return commandInputSchema(fieldProperties(fields), requiredFieldNames(fields));
+}
+
+export function readFieldInput<TFields extends SemanticFieldMap>(
+  input: unknown,
+  fields: TFields,
+): InferCommandInput<TFields> {
+  const record = readInputRecord(input);
+  const commandOptions = Object.fromEntries(
+    Object.entries(fields).flatMap(([key, field]) => {
+      const value = field.read(record, key);
+      if (field.required && value === undefined) {
+        throw new Error(`Expected ${key} to be set.`);
+      }
+      return value === undefined ? [] : [[key, value]];
+    }),
+  );
+  const commonInput = readCommonInput(record);
+  return compactRecord({
+    ...commonInput,
+    ...commonToClientOptions(commonInput),
+    ...commandOptions,
+  }) as InferCommandInput<TFields>;
+}
+
 export function readInputRecord(input: unknown): Record<string, unknown> {
   if (input === undefined || input === null) return {};
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new Error('Expected object arguments.');
   }
   return input as Record<string, unknown>;
-}
-
-export function readClientOptions<TOptions>(input: unknown): TOptions {
-  const record = readInputRecord(input);
-  const commandOptions = commandOptionsFromInputRecord(record);
-  return compactRecord({
-    ...commandOptions,
-    ...commonToClientOptions(readCommonInput(record)),
-  }) as TOptions;
 }
 
 export function readCommonInput(record: Record<string, unknown>): CommonCommandInput {
@@ -183,25 +271,7 @@ export function readCommonInput(record: Record<string, unknown>): CommonCommandI
   };
 }
 
-export function readRepeatedInput(record: Record<string, unknown>): RepeatedInput {
-  return {
-    count: optionalInteger(record, 'count', { min: 1 }),
-    intervalMs: optionalInteger(record, 'intervalMs', { min: 0 }),
-    holdMs: optionalInteger(record, 'holdMs', { min: 0 }),
-    jitterPx: optionalInteger(record, 'jitterPx', { min: 0 }),
-    doubleTap: optionalBoolean(record, 'doubleTap'),
-  };
-}
-
-export function readSelectorSnapshotInput(record: Record<string, unknown>): SelectorSnapshotInput {
-  return {
-    depth: optionalInteger(record, 'depth', { min: 0 }),
-    scope: optionalString(record, 'scope'),
-    raw: optionalBoolean(record, 'raw'),
-  };
-}
-
-export function readInteractionTarget(
+function readInteractionTarget(
   record: Record<string, unknown>,
   key: string,
 ): SemanticInteractionTarget {
@@ -230,7 +300,7 @@ export function readPoint(record: Record<string, unknown>, key: string): PointIn
   return { x: requiredNumber(point, 'x'), y: requiredNumber(point, 'y') };
 }
 
-export function requiredString(record: Record<string, unknown>, key: string): string {
+function requiredString(record: Record<string, unknown>, key: string): string {
   const value = record[key];
   if (typeof value !== 'string' || value.length === 0) {
     throw new Error(`Expected ${key} to be a non-empty string.`);
@@ -249,6 +319,15 @@ export function optionalString(record: Record<string, unknown>, key: string): st
 
 export function requiredNumber(record: Record<string, unknown>, key: string): number {
   const value = record[key];
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`Expected ${key} to be a finite number.`);
+  }
+  return value;
+}
+
+function optionalNumberValue(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  if (value === undefined) return undefined;
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throw new Error(`Expected ${key} to be a finite number.`);
   }
@@ -275,7 +354,7 @@ export function optionalInteger(
   return numberValue;
 }
 
-export function optionalBoolean(record: Record<string, unknown>, key: string): boolean | undefined {
+function optionalBoolean(record: Record<string, unknown>, key: string): boolean | undefined {
   const value = record[key];
   if (value === undefined) return undefined;
   if (typeof value !== 'boolean') {
@@ -376,27 +455,48 @@ export function compactRecord(record: Record<string, unknown>): Record<string, u
   return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined));
 }
 
-const COMMON_INPUT_KEYS = new Set([
-  'session',
-  'platform',
-  'deviceTarget',
-  'device',
-  'udid',
-  'serial',
-  'iosSimulatorDeviceSet',
-  'androidDeviceAllowlist',
-  'stateDir',
-  'daemonBaseUrl',
-  'daemonAuthToken',
-  'tenant',
-  'runId',
-  'leaseId',
-  'cwd',
-  'debug',
-]);
+function optionalField<T>(schema: JsonSchema, read: FieldReader<T>): SemanticField<T> {
+  return { schema, required: false, read };
+}
 
-function commandOptionsFromInputRecord(record: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(record).filter(([key]) => !COMMON_INPUT_KEYS.has(key)));
+function integerSchemaWithBounds(
+  description: string | undefined,
+  options: { min?: number; max?: number },
+): JsonSchema {
+  return {
+    ...integerSchema(description),
+    ...(options.min === undefined ? {} : { minimum: options.min }),
+    ...(options.max === undefined ? {} : { maximum: options.max }),
+  };
+}
+
+function fieldProperties(fields: SemanticFieldMap): Record<string, JsonSchema> {
+  return Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, field.schema]));
+}
+
+function requiredFieldNames(fields: SemanticFieldMap): string[] {
+  return Object.entries(fields).flatMap(([key, field]) => (field.required ? [key] : []));
+}
+
+function optionalRecord(
+  record: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> | undefined {
+  const value = record[key];
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`Expected ${key} to be an object.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function optionalStringArray(record: Record<string, unknown>, key: string): string[] | undefined {
+  const value = record[key];
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+    throw new Error(`Expected ${key} to be an array of strings.`);
+  }
+  return value as string[];
 }
 
 function commonProperties(): Record<string, JsonSchema> {

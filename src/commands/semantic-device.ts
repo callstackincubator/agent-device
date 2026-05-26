@@ -1,41 +1,20 @@
-import type { DeviceBootOptions } from '../client-types.ts';
 import { defineSemanticCommand } from './semantic-contract.ts';
 import {
-  commandInputSchema,
+  booleanField,
   commandResultSchema,
-  commonToClientOptions,
-  optionalBoolean,
-  readCommonInput,
-  readInputRecord,
-  type CommonCommandInput,
+  fieldsInputSchema,
+  readFieldInput,
 } from './semantic-common.ts';
 
-type BootInput = CommonCommandInput & {
-  headless?: boolean;
+const bootFields = {
+  headless: booleanField('Boot without showing simulator UI when supported.'),
 };
 
 export const bootSemanticCommand = defineSemanticCommand({
   name: 'boot',
   description: 'Boot or prepare a selected device without using CLI positional arguments.',
-  inputSchema: commandInputSchema({
-    headless: {
-      type: 'boolean',
-      description: 'Boot without showing simulator UI when supported.',
-    },
-  }),
+  inputSchema: fieldsInputSchema(bootFields),
   outputSchema: commandResultSchema(),
-  readInput: readBootInput,
-  run: (client, input) => client.devices.boot(toBootOptions(input)),
+  readInput: (input) => readFieldInput(input, bootFields),
+  run: (client, input) => client.devices.boot(input),
 });
-
-function readBootInput(input: unknown): BootInput {
-  const record = readInputRecord(input);
-  return {
-    ...readCommonInput(record),
-    headless: optionalBoolean(record, 'headless'),
-  };
-}
-
-function toBootOptions(input: BootInput): DeviceBootOptions {
-  return { ...commonToClientOptions(input), headless: input.headless };
-}
