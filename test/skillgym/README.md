@@ -70,41 +70,30 @@ pnpm install
 pnpm test:skillgym
 ```
 
-If you want to run `skillgym` directly instead of using the convenience script, build the local CLI first so agents can call `node bin/agent-device.mjs help workflow`:
+Prefer the package scripts so the environment guard and local CLI build run consistently:
 
 ```bash
 cd /absolute/path/to/agent-device
-pnpm build
-pnpm exec skillgym run \
-  ./test/skillgym/suites/agent-device-smoke-suite.ts \
-  --config ./test/skillgym/skillgym.config.ts
+pnpm test:skillgym
+pnpm test:skillgym:case open-and-snapshot
 ```
 
 Useful v0.8 filters, reporters, and recovery options:
 
 ```bash
+pnpm test:skillgym -- --tag fixture-smoke
+pnpm test:skillgym -- --reporter json
+pnpm test:skillgym -- --repeat 3 --repeat-failure 1
+```
+
+If you need to run `skillgym` directly while developing the runner itself, build first so agents can call `node bin/agent-device.mjs help workflow`:
+
+```bash
 pnpm build
 pnpm exec skillgym run \
   ./test/skillgym/suites/agent-device-smoke-suite.ts \
   --config ./test/skillgym/skillgym.config.ts \
-  --tag fixture-smoke
-
-pnpm exec skillgym run \
-  ./test/skillgym/suites/agent-device-smoke-suite.ts \
-  --config ./test/skillgym/skillgym.config.ts \
-  --reporter json
-
-pnpm exec skillgym run \
-  ./test/skillgym/suites/agent-device-smoke-suite.ts \
-  --config ./test/skillgym/skillgym.config.ts \
-  --repeat 3 \
-  --repeat-failure 1
-```
-
-To run one case across the configured Codex and Claude runners:
-
-```bash
-pnpm test:skillgym:case open-and-snapshot
+  --case open-and-snapshot
 ```
 
 Use `--reporter github-actions` in CI when you want annotations in GitHub Actions logs.

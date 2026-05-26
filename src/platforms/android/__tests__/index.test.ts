@@ -534,6 +534,224 @@ test('openAndroidApp rejects activity override for deep link URLs', async () => 
   );
 });
 
+test('openAndroidApp ensures Android reverse before localhost deep link launch', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+  const calls: Array<
+    { kind: 'exec'; args: string[] } | { kind: 'reverse'; local: string; remote: string }
+  > = [];
+
+  await withAndroidAdbProvider(
+    {
+      exec: async (args) => {
+        calls.push({ kind: 'exec', args });
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      reverse: {
+        ensure: async (mapping) => {
+          calls.push({ kind: 'reverse', local: mapping.local, remote: mapping.remote });
+        },
+        remove: async () => {},
+        removeAllOwned: async () => {},
+      },
+    },
+    { serial: 'emulator-5554' },
+    async () => await openAndroidApp(device, 'exp://127.0.0.1:8083'),
+  );
+
+  assert.deepEqual(calls, [
+    { kind: 'reverse', local: 'tcp:8083', remote: 'tcp:8083' },
+    {
+      kind: 'exec',
+      args: [
+        'shell',
+        'am',
+        'start',
+        '-W',
+        '-a',
+        'android.intent.action.VIEW',
+        '-d',
+        'exp://127.0.0.1:8083',
+      ],
+    },
+  ]);
+});
+
+test('openAndroidApp ensures Android reverse before IPv6 localhost deep link launch', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+  const calls: Array<
+    { kind: 'exec'; args: string[] } | { kind: 'reverse'; local: string; remote: string }
+  > = [];
+
+  await withAndroidAdbProvider(
+    {
+      exec: async (args) => {
+        calls.push({ kind: 'exec', args });
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      reverse: {
+        ensure: async (mapping) => {
+          calls.push({ kind: 'reverse', local: mapping.local, remote: mapping.remote });
+        },
+        remove: async () => {},
+        removeAllOwned: async () => {},
+      },
+    },
+    { serial: 'emulator-5554' },
+    async () => await openAndroidApp(device, 'http://[::1]:8081/status'),
+  );
+
+  assert.deepEqual(calls, [
+    { kind: 'reverse', local: 'tcp:8081', remote: 'tcp:8081' },
+    {
+      kind: 'exec',
+      args: [
+        'shell',
+        'am',
+        'start',
+        '-W',
+        '-a',
+        'android.intent.action.VIEW',
+        '-d',
+        'http://[::1]:8081/status',
+      ],
+    },
+  ]);
+});
+
+test('openAndroidApp leaves localhost deep links without a port unchanged', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+  const calls: string[][] = [];
+
+  await withAndroidAdbProvider(
+    {
+      exec: async (args) => {
+        calls.push(args);
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      reverse: {
+        ensure: async () => {
+          throw new Error('reverse should not run without a URL port');
+        },
+        remove: async () => {},
+        removeAllOwned: async () => {},
+      },
+    },
+    { serial: 'emulator-5554' },
+    async () => await openAndroidApp(device, 'http://localhost/path'),
+  );
+
+  assert.deepEqual(calls, [
+    [
+      'shell',
+      'am',
+      'start',
+      '-W',
+      '-a',
+      'android.intent.action.VIEW',
+      '-d',
+      'http://localhost/path',
+    ],
+  ]);
+});
+
+test('openAndroidApp leaves non-localhost deep links unchanged', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+  const calls: string[][] = [];
+
+  await withAndroidAdbProvider(
+    {
+      exec: async (args) => {
+        calls.push(args);
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      reverse: {
+        ensure: async () => {
+          throw new Error('reverse should not run for remote URLs');
+        },
+        remove: async () => {},
+        removeAllOwned: async () => {},
+      },
+    },
+    { serial: 'emulator-5554' },
+    async () => await openAndroidApp(device, 'https://example.com:8083/path'),
+  );
+
+  assert.deepEqual(calls, [
+    [
+      'shell',
+      'am',
+      'start',
+      '-W',
+      '-a',
+      'android.intent.action.VIEW',
+      '-d',
+      'https://example.com:8083/path',
+    ],
+  ]);
+});
+
+test('openAndroidApp reports localhost reverse failures with port context', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  await withAndroidAdbProvider(
+    {
+      exec: async (args) => {
+        throw new Error(`unexpected adb exec: ${args.join(' ')}`);
+      },
+      reverse: {
+        ensure: async () => {
+          throw new Error('bridge unavailable');
+        },
+        remove: async () => {},
+        removeAllOwned: async () => {},
+      },
+    },
+    { serial: 'emulator-5554' },
+    async () => {
+      await assert.rejects(
+        () => openAndroidApp(device, 'http://localhost:8081'),
+        (error: unknown) => {
+          assert.equal(error instanceof AppError, true);
+          assert.equal((error as AppError).code, 'COMMAND_FAILED');
+          assert.match((error as Error).message, /tcp:8081/);
+          assert.match((error as Error).message, /reverse/i);
+          return true;
+        },
+      );
+    },
+  );
+});
+
 test('setAndroidSetting appearance toggle flips current mode', async () => {
   await withMockedAdb(
     'agent-device-android-appearance-toggle-',

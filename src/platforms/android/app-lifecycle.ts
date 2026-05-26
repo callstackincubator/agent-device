@@ -9,7 +9,12 @@ import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';
 import { waitForAndroidBoot } from './devices.ts';
 import { runAndroidAdb } from './adb.ts';
-import { installAndroidAdbPackage, resolveAndroidAdbProvider } from './adb-executor.ts';
+import {
+  createAndroidPortReverseManager,
+  installAndroidAdbPackage,
+  resolveAndroidAdbProvider,
+  type AndroidPortReverseEndpoint,
+} from './adb-executor.ts';
 import { classifyAndroidAppTarget } from './open-target.ts';
 import { prepareAndroidInstallArtifact } from './install-artifact.ts';
 import {
@@ -36,6 +41,7 @@ const ANDROID_APPS_DISCOVERY_HINT =
   'Run agent-device apps --platform android to discover the installed package name, then retry open with that exact package.';
 const ANDROID_AMBIGUOUS_APP_HINT =
   'Run agent-device apps --platform android to see the exact installed package names before retrying open.';
+const ANDROID_LOCALHOST_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 
 type AndroidAppResolution = { type: 'intent' | 'package'; value: string };
 
@@ -217,6 +223,50 @@ async function readAndroidFocus(
   return null;
 }
 
+function androidLocalhostReverseEndpoint(target: string): AndroidPortReverseEndpoint | null {
+  let url: URL;
+  try {
+    url = new URL(target);
+  } catch {
+    return null;
+  }
+
+  const hostname = url.hostname.toLowerCase();
+  if (!ANDROID_LOCALHOST_HOSTNAMES.has(hostname)) return null;
+  if (!url.port) return null;
+  const port = Number(url.port);
+  if (!Number.isInteger(port)) return null;
+  return `tcp:${port}`;
+}
+
+async function ensureAndroidLocalhostReverse(device: DeviceInfo, target: string): Promise<void> {
+  const endpoint = androidLocalhostReverseEndpoint(target);
+  if (!endpoint) return;
+
+  const reverse = createAndroidPortReverseManager(resolveAndroidAdbProvider(device));
+  try {
+    await reverse.ensure({ local: endpoint, remote: endpoint });
+  } catch (error) {
+    const details = {
+      localPort: endpoint.replace('tcp:', ''),
+      operation: `adb reverse ${endpoint} ${endpoint}`,
+    };
+    if (error instanceof AppError) {
+      Object.assign(details, {
+        hint: error.details?.hint,
+        diagnosticId: error.details?.diagnosticId,
+        logPath: error.details?.logPath,
+      });
+    }
+    throw new AppError(
+      'COMMAND_FAILED',
+      `Failed to ensure Android port reverse ${endpoint} before opening localhost URL`,
+      details,
+      error,
+    );
+  }
+}
+
 export async function openAndroidApp(
   device: DeviceInfo,
   app: string,
@@ -233,6 +283,7 @@ export async function openAndroidApp(
         'Activity override is not supported when opening a deep link URL',
       );
     }
+    await ensureAndroidLocalhostReverse(device, deepLinkTarget);
     await runAndroidAdb(device, [
       'shell',
       'am',
