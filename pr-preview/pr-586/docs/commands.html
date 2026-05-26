@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-586/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/pr-preview/pr-586/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/pr-preview/pr-586/static/js/649.63df3d8087.js"></script>
-<script defer src="/agent-device/pr-preview/pr-586/static/js/index.4ba1a060cc.js"></script>
+<script defer src="/agent-device/pr-preview/pr-586/static/js/index.db621689fe.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -254,7 +254,8 @@ On iOS, swipe duration is clamped to a safe range (<code>16..60ms</code>) to avo
 <code>gesture fling</code> accepts <code>up|down|left|right x y [distance] [durationMs]</code> for fast directional throws.
 <code>gesture rotate</code> accepts <code>degrees [x] [y] [velocity]</code>; the degree sign controls direction and velocity controls speed.
 <code>gesture transform</code> accepts <code>x y dx dy scale degrees [durationMs]</code> for one combined pan/zoom/rotate gesture on Android and iOS simulators.
-On iOS simulators it uses private XCTest synthesis for pan/scale and XCTest rotation for degrees, so verify app-level metrics instead of assuming the requested values map exactly to recognizer output.
+On iOS simulators it uses private XCTest synthesis for a continuous two-finger pan/scale/rotation path, so verify app-level metrics instead of assuming the requested values map exactly to recognizer output.
+On Android, <code>gesture transform</code> injects a geometric two-finger path. App recognizers may report non-exact pan, scale, and rotation values, so verify qualitative state such as <code>pan changed yes</code>, <code>pinch changed yes</code>, and <code>rotate changed yes</code> unless the app explicitly promises exact centroid metrics. If exact app-state values matter, prefer isolated <code>gesture pan</code>, <code>gesture pinch</code>, or <code>gesture rotate</code> commands.
 <code>scroll</code> accepts either a relative amount (<code>0.5</code> means roughly half of the viewport on that axis) or <code>--pixels &lt;n&gt;</code> for a fixed-distance gesture. Large distances are clamped to the usable drag band so the gesture stays reliable across Android, iOS, and macOS.
 Default snapshot text output is visible-first, so off-screen interactive content is summarized instead of shown as tappable refs.
 When a target only appears in an off-screen summary, use <code>scroll &lt;direction&gt;</code> and then take a fresh <code>snapshot -i</code>. For repeated checks, a small shell loop is enough:</p>
