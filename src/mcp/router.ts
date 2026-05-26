@@ -1,4 +1,4 @@
-import { createStatusMetadata, listTools, MCP_SERVER_NAME } from './catalog.ts';
+import { listTools, MCP_SERVER_NAME } from './catalog.ts';
 import { semanticCommandToolExecutor } from './semantic-tools.ts';
 import { readVersion } from '../utils/version.ts';
 
@@ -65,7 +65,6 @@ async function callTool(params: unknown): Promise<unknown> {
   const record = asRecord(params);
   const name = stringField(record, 'name');
   try {
-    if (name === 'status') return statusToolResult();
     return await semanticCommandToolExecutor.execute(name, record.arguments);
   } catch (error) {
     return textToolResult(error instanceof Error ? error.message : String(error), true);
@@ -80,15 +79,6 @@ function textToolResult(text: string, isError = false): unknown {
   return {
     isError,
     content: [{ type: 'text', text }],
-  };
-}
-
-function statusToolResult(): unknown {
-  const metadata = createStatusMetadata();
-  return {
-    isError: false,
-    structuredContent: metadata,
-    content: [{ type: 'text', text: JSON.stringify(metadata, null, 2) }],
   };
 }
 

@@ -19,7 +19,6 @@ type SemanticCommandContract<Name extends string, Input, Result> = {
   name: Name;
   description: string;
   inputSchema: JsonSchema;
-  outputSchema: JsonSchema;
   readInput: (input: unknown) => Input;
   run: (client: AgentDeviceClient, input: Input) => Promise<Result>;
   formatCliOutput?: SemanticCliOutputFormatter<Input, Result>;

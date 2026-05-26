@@ -19,7 +19,7 @@ test('MCP exposes every automatable CLI command as a semantic direct tool', asyn
     .filter((command) => !MCP_EXCLUDED_CLI_COMMANDS.has(command))
     .sort();
 
-  assert.deepEqual(tools.filter((name) => name !== 'status').sort(), expectedToolNames);
+  assert.deepEqual(tools.sort(), expectedToolNames);
 
   const fillTool = (response.result as { tools: Array<Record<string, unknown>> }).tools.find(
     (tool) => tool.name === 'fill',

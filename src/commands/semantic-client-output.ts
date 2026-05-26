@@ -10,11 +10,15 @@ import {
 import type {
   AgentDeviceDevice,
   AgentDeviceSession,
+  AppStateCommandResult,
   AppCloseResult,
   AppDeployResult,
   AppInstallFromSourceResult,
   AppOpenResult,
   CaptureSnapshotResult,
+  ClipboardCommandResult,
+  CommandRequestResult,
+  KeyboardCommandResult,
   SessionCloseResult,
 } from '../client-types.ts';
 import { formatSnapshotText } from '../utils/output.ts';
@@ -59,6 +63,38 @@ export function closeCliOutput(result: AppCloseResult | SessionCloseResult): Sem
   return messageOutput(serializeCloseResult(result));
 }
 
+export function messageCliOutput(result: Record<string, unknown>): SemanticCliOutput {
+  return messageOutput(result);
+}
+
+export function appStateCliOutput(result: AppStateCommandResult): SemanticCliOutput {
+  return {
+    data: result,
+    text: formatAppState(result),
+  };
+}
+
+export function keyboardCliOutput(result: KeyboardCommandResult): SemanticCliOutput {
+  if (result.platform === 'android' && result.action === 'status') {
+    const lines = [
+      `Keyboard visible: ${result.visible === true ? 'yes' : 'no'}`,
+      `Input type: ${result.type ?? result.inputType ?? 'unknown'}`,
+      `Input owner: ${result.inputOwner ?? 'unknown'}`,
+    ];
+    if (result.inputMethodPackage) lines.push(`Input method: ${result.inputMethodPackage}`);
+    if (result.focusedPackage) lines.push(`Focused package: ${result.focusedPackage}`);
+    if (result.focusedResourceId) lines.push(`Focused resource: ${result.focusedResourceId}`);
+    lines.push(`Next action: ${androidKeyboardNextAction(result.visible, result.inputOwner)}`);
+    return { data: result, text: lines.join('\n') };
+  }
+  return messageOutput(result);
+}
+
+export function clipboardCliOutput(result: ClipboardCommandResult): SemanticCliOutput {
+  if (result.action === 'read') return { data: result, text: result.text };
+  return messageOutput(result);
+}
+
 export function deployCliOutput(result: AppDeployResult): SemanticCliOutput {
   return messageOutput(serializeDeployResult(result));
 }
@@ -94,8 +130,91 @@ export function metroCliOutput(params: { result: unknown; action?: string }): Se
   };
 }
 
+export function bootCliOutput(result: CommandRequestResult): SemanticCliOutput {
+  const data = result as Record<string, unknown>;
+  const platform = data.platform ?? 'unknown';
+  const device = data.device ?? data.id ?? 'unknown';
+  return { data, text: `Boot ready: ${device} (${platform})` };
+}
+
+export function getCliOutput(params: {
+  result: CommandRequestResult;
+  format?: string;
+}): SemanticCliOutput {
+  const data = params.result as Record<string, unknown>;
+  if (params.format === 'text') {
+    return { data, text: typeof data.text === 'string' ? data.text : '' };
+  }
+  if (params.format === 'attrs') {
+    return { data, text: JSON.stringify(data.node ?? {}, null, 2) };
+  }
+  return defaultCommandCliOutput(data);
+}
+
+export function findCliOutput(result: CommandRequestResult): SemanticCliOutput {
+  const data = result as Record<string, unknown>;
+  if (typeof data.text === 'string') return { data, text: data.text };
+  if (typeof data.found === 'boolean') return { data, text: `Found: ${data.found}` };
+  if (data.node) return { data, text: JSON.stringify(data.node, null, 2) };
+  return defaultCommandCliOutput(data);
+}
+
+export function isCliOutput(result: CommandRequestResult): SemanticCliOutput {
+  const data = result as Record<string, unknown>;
+  return { data, text: `Passed: is ${data.predicate ?? 'assertion'}` };
+}
+
+export function tapCliOutput(result: CommandRequestResult): SemanticCliOutput {
+  const data = result as Record<string, unknown>;
+  const ref = data.ref ?? '';
+  const x = data.x;
+  const y = data.y;
+  if (!ref || typeof x !== 'number' || typeof y !== 'number') {
+    return defaultCommandCliOutput(data);
+  }
+  return { data, text: `Tapped @${ref} (${x}, ${y})` };
+}
+
+export function recordCliOutput(result: CommandRequestResult): SemanticCliOutput {
+  const data = result as Record<string, unknown>;
+  const outPath = typeof data.outPath === 'string' ? data.outPath : '';
+  return { data, text: outPath };
+}
+
+function defaultCommandCliOutput(result: CommandRequestResult): SemanticCliOutput {
+  return messageOutput(result as Record<string, unknown>);
+}
+
 function messageOutput(data: Record<string, unknown>): SemanticCliOutput {
   return { data, text: readCommandMessage(data) };
+}
+
+function formatAppState(data: AppStateCommandResult): string | null {
+  if (data.platform === 'ios') {
+    const lines = [`Foreground app: ${data.appName ?? data.appBundleId ?? 'unknown'}`];
+    if (data.appBundleId) lines.push(`Bundle: ${data.appBundleId}`);
+    if (data.source) lines.push(`Source: ${data.source}`);
+    return lines.join('\n');
+  }
+  if (data.platform === 'android') {
+    const lines = [`Foreground app: ${data.package ?? 'unknown'}`];
+    if (data.activity) lines.push(`Activity: ${data.activity}`);
+    return lines.join('\n');
+  }
+  return null;
+}
+
+function androidKeyboardNextAction(
+  visible: boolean | undefined,
+  inputOwner: KeyboardCommandResult['inputOwner'],
+): string {
+  if (inputOwner === 'ime') {
+    return 'Focused input appears to be owned by the keyboard/IME; dismiss or change the IME before retrying text entry.';
+  }
+  if (visible === true) {
+    return 'Keyboard is visible and focused input appears app-owned; fill/type can proceed.';
+  }
+  return 'Keyboard is hidden; focus an app field before type, or use fill with a concrete target.';
 }
 
 function formatDeviceLine(device: AgentDeviceDevice): string {

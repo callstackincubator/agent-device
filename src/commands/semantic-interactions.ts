@@ -9,8 +9,8 @@ import type {
   TransformGestureOptions,
 } from '../client-types.ts';
 import { defineSemanticCommand } from './semantic-contract.ts';
+import { tapCliOutput } from './semantic-client-output.ts';
 import {
-  commandResultSchema,
   commonToClientOptions,
   enumField,
   fieldsInputSchema,
@@ -124,23 +124,22 @@ export const interactionSemanticCommands = [
     name: 'click',
     description: 'Click or tap a semantic UI target by ref, selector, or point.',
     inputSchema: fieldsInputSchema(clickFields),
-    outputSchema: commandResultSchema(),
     readInput: (input) => readFieldInput(input, clickFields),
     run: (client, input) => client.interactions.click(toClickOptions(input)),
+    formatCliOutput: ({ result }) => tapCliOutput(result),
   }),
   defineSemanticCommand({
     name: 'press',
     description: 'Press a semantic UI target by ref, selector, or point.',
     inputSchema: fieldsInputSchema(pressFields),
-    outputSchema: commandResultSchema(),
     readInput: (input) => readFieldInput(input, pressFields),
     run: (client, input) => client.interactions.press(toPressOptions(input)),
+    formatCliOutput: ({ result }) => tapCliOutput(result),
   }),
   defineSemanticCommand({
     name: 'fill',
     description: 'Fill text into a semantic UI target by ref, selector, or point.',
     inputSchema: fieldsInputSchema(fillFields),
-    outputSchema: commandResultSchema(),
     readInput: (input) => readFieldInput(input, fillFields),
     run: (client, input) => client.interactions.fill(toFillOptions(input)),
   }),
@@ -148,7 +147,6 @@ export const interactionSemanticCommands = [
     name: 'gesture',
     description: 'Run a structured gesture.',
     inputSchema: fieldsInputSchema(gestureFields),
-    outputSchema: commandResultSchema(),
     readInput: readGestureInput,
     run: async (client, input) => {
       switch (input.kind) {

@@ -2,6 +2,7 @@ import type { BatchRunOptions, BatchStep } from '../client-types.ts';
 import { DEFAULT_BATCH_MAX_STEPS, validateAndNormalizeBatchSteps } from '../core/batch.ts';
 import { defineSemanticCommand, type JsonSchema } from './semantic-contract.ts';
 import { prepareSemanticBatchStep, type SemanticDaemonCommand } from './semantic-grammar.ts';
+import { batchCliOutput } from './semantic-runtime-output.ts';
 import {
   assertAllowedKeys,
   commonToClientOptions,
@@ -32,9 +33,9 @@ export function createBatchSemanticCommand<const TCommand extends SemanticDaemon
     name: 'batch',
     description: 'Run multiple structured command steps in one daemon request.',
     inputSchema: fieldsInputSchema(fields),
-    outputSchema: batchResultSchema(),
     readInput: (input) => readBatchInput(input, fields),
     run: (client, input) => client.batch.run(toBatchOptions(input)),
+    formatCliOutput: ({ result }) => batchCliOutput(result),
   });
 }
 
@@ -78,22 +79,6 @@ function batchStepSchema(nestedCommands: readonly SemanticDaemonCommand[]): Json
     },
     required: ['command', 'input'],
     additionalProperties: false,
-  };
-}
-
-function batchResultSchema(): JsonSchema {
-  return {
-    type: 'object',
-    properties: {
-      total: { type: 'integer' },
-      executed: { type: 'integer' },
-      totalDurationMs: { type: 'integer' },
-      results: {
-        type: 'array',
-        items: { type: 'object', additionalProperties: true },
-      },
-    },
-    additionalProperties: true,
   };
 }
 

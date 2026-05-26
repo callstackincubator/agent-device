@@ -31,13 +31,11 @@ export function listSemanticCommandTools(): Array<{
   name: string;
   description: string;
   inputSchema: JsonSchema;
-  outputSchema: JsonSchema;
 }> {
   return listSemanticMcpToolDefinitions().map((definition) => ({
     name: definition.name,
     description: definition.description,
     inputSchema: definition.inputSchema,
-    outputSchema: definition.outputSchema,
   }));
 }
 

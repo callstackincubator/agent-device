@@ -1,5 +1,5 @@
 import type { AgentDeviceClient, CommandRequestResult } from '../../client.ts';
-import { announceReplayTestRun } from '../../cli-test.ts';
+import { announceReplayTestRun, renderReplayTestResponse } from '../../cli-test.ts';
 import {
   runSemanticCliCommand,
   runSemanticCliCommandWithOutput,
@@ -10,8 +10,9 @@ import {
   type SemanticCliCommand,
 } from '../../commands/semantic-command-surface.ts';
 import type { SemanticCliOutput } from '../../commands/semantic-contract.ts';
+import type { ReplaySuiteResult } from '../../daemon/types.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
-import { writeCommandCliOutput } from './output.ts';
+import { readCommandMessage } from '../../utils/success-text.ts';
 import { writeCommandOutput } from './shared.ts';
 import type { PublicCommandName } from '../../command-catalog.ts';
 import type { ClientCommandHandler } from './router-types.ts';
@@ -30,18 +31,6 @@ const formattedSemanticCommandHandlers = Object.fromEntries(
 ) as Partial<Record<SemanticCliCommand, ClientCommandHandler>>;
 
 export const dedicatedSemanticCommandHandlers = formattedSemanticCommandHandlers;
-
-const clientMethodCommandNames = commandNameSet([
-  'wait',
-  'alert',
-  'appstate',
-  'back',
-  'home',
-  'rotate',
-  'app-switcher',
-  'keyboard',
-  'clipboard',
-] as const satisfies readonly SemanticCliCommand[]);
 
 const semanticGenericCommands = listSemanticCommandNames().filter(isGenericSemanticCliCommand);
 
@@ -73,12 +62,31 @@ function createGenericClientCommandHandler(
 ): ClientCommandHandler {
   return async ({ positionals, flags, client }) => {
     const data = await run({ client, positionals, flags });
-    const exitCode = writeCommandCliOutput(command, positionals, flags, data);
+    const exitCode = writeGenericSemanticCliOutput(command, flags, data);
     if (exitCode !== 0) {
       process.exit(exitCode);
     }
     return true;
   };
+}
+
+function writeGenericSemanticCliOutput(
+  command: PublicCommandName,
+  flags: CliFlags,
+  data: CommandRequestResult,
+): number {
+  if (command === 'test') {
+    return renderReplayTestResponse({
+      suite: data as ReplaySuiteResult,
+      verbose: flags.verbose,
+      json: flags.json,
+      reportJunit: flags.reportJunit,
+    });
+  }
+  writeCommandOutput(flags, data, () =>
+    readCommandMessage(data as Record<string, unknown> | undefined),
+  );
+  return 0;
 }
 
 function createFormattedSemanticHandler(command: SemanticCliCommand): ClientCommandHandler {
@@ -110,13 +118,6 @@ function writeSemanticCliOutput(flags: CliFlags, output: SemanticCliOutput): voi
 
 function isGenericSemanticCliCommand(command: SemanticCliCommand): boolean {
   return (
-    !(command in formattedSemanticCommandHandlers) &&
-    !clientMethodCommandNames.has(command) &&
-    command !== 'screenshot' &&
-    command !== 'diff'
+    !(command in formattedSemanticCommandHandlers) && command !== 'screenshot' && command !== 'diff'
   );
-}
-
-function commandNameSet<const TName extends string>(names: readonly TName[]): ReadonlySet<string> {
-  return new Set(names);
 }

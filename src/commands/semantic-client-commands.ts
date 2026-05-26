@@ -17,16 +17,25 @@ import type {
 } from '../client-types.ts';
 import type { DaemonInstallSource } from '../contracts.ts';
 import {
+  appStateCliOutput,
   appsCliOutput,
   closeCliOutput,
+  clipboardCliOutput,
   deployCliOutput,
   devicesCliOutput,
+  findCliOutput,
+  getCliOutput,
   installFromSourceCliOutput,
+  isCliOutput,
+  keyboardCliOutput,
+  messageCliOutput,
   metroCliOutput,
   openCliOutput,
+  recordCliOutput,
   sessionCliOutput,
   snapshotCliOutput,
 } from './semantic-client-output.ts';
+import { logsCliOutput, networkCliOutput, perfCliOutput } from './semantic-runtime-output.ts';
 import {
   defineSemanticCommand,
   type JsonSchema,
@@ -34,7 +43,6 @@ import {
 } from './semantic-contract.ts';
 import {
   booleanSchema,
-  commandResultSchema,
   booleanField,
   commonToClientOptions,
   enumField,
@@ -271,45 +279,81 @@ export const semanticClientCommands = [
       raw: booleanField(),
     },
     (client, input) => client.command.wait(waitInputToOptions(input)),
+    {
+      formatCliOutput: ({ result }) => messageCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'alert',
     'Inspect or handle platform alerts.',
     { action: enumField(ALERT_ACTION_VALUES), timeoutMs: integerField() },
     (client, input) => client.command.alert(input),
+    {
+      formatCliOutput: ({ result }) => messageCliOutput(result),
+    },
   ),
-  defineFieldCommand('appstate', 'Show foreground app or activity.', {}, (client, input) =>
-    client.command.appState(input),
+  defineFieldCommand(
+    'appstate',
+    'Show foreground app or activity.',
+    {},
+    (client, input) => client.command.appState(input),
+    {
+      formatCliOutput: ({ result }) => appStateCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'back',
     'Navigate back.',
     { mode: enumField(BACK_MODE_VALUES) },
     (client, input) => client.command.back(input),
+    {
+      formatCliOutput: ({ result }) => messageCliOutput(result),
+    },
   ),
-  defineFieldCommand('home', 'Go to the home screen.', {}, (client, input) =>
-    client.command.home(input),
+  defineFieldCommand(
+    'home',
+    'Go to the home screen.',
+    {},
+    (client, input) => client.command.home(input),
+    {
+      formatCliOutput: ({ result }) => messageCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'rotate',
     'Rotate device orientation.',
     { orientation: requiredField(enumField(ORIENTATION_VALUES)) },
     (client, input) => client.command.rotate(input),
+    {
+      formatCliOutput: ({ result }) => messageCliOutput(result),
+    },
   ),
-  defineFieldCommand('app-switcher', 'Open the app switcher.', {}, (client, input) =>
-    client.command.appSwitcher(input),
+  defineFieldCommand(
+    'app-switcher',
+    'Open the app switcher.',
+    {},
+    (client, input) => client.command.appSwitcher(input),
+    {
+      formatCliOutput: ({ result }) => messageCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'keyboard',
     'Inspect or dismiss the keyboard.',
     { action: enumField(['status', 'dismiss']) },
     (client, input) => client.command.keyboard(input),
+    {
+      formatCliOutput: ({ result }) => keyboardCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'clipboard',
     'Read or write clipboard text.',
     { action: requiredField(enumField(CLIPBOARD_ACTION_VALUES)), text: stringField() },
     (client, input) => client.command.clipboard(input as ClipboardCommandOptions),
+    {
+      formatCliOutput: ({ result }) => clipboardCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'react-native',
@@ -376,6 +420,9 @@ export const semanticClientCommands = [
       raw: booleanField(),
     },
     (client, input) => client.interactions.get(elementTargetInputToOptions(input)),
+    {
+      formatCliOutput: ({ input, result }) => getCliOutput({ result, format: input.format }),
+    },
   ),
   defineFieldCommand(
     'is',
@@ -391,6 +438,9 @@ export const semanticClientCommands = [
       raw: booleanField(),
     },
     (client, input) => client.interactions.is(input as IsOptions),
+    {
+      formatCliOutput: ({ result }) => isCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'find',
@@ -407,6 +457,9 @@ export const semanticClientCommands = [
       raw: booleanField(),
     },
     (client, input) => client.interactions.find(input as FindOptions),
+    {
+      formatCliOutput: ({ result }) => findCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'replay',
@@ -434,14 +487,23 @@ export const semanticClientCommands = [
     },
     (client, input) => client.replay.test(input),
   ),
-  defineFieldCommand('perf', 'Show session performance metrics.', {}, (client, input) =>
-    client.observability.perf(input),
+  defineFieldCommand(
+    'perf',
+    'Show session performance metrics.',
+    {},
+    (client, input) => client.observability.perf(input),
+    {
+      formatCliOutput: ({ result }) => perfCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'logs',
     'Manage session app logs.',
     { action: enumField(LOG_ACTION_VALUES), message: stringField(), restart: booleanField() },
     (client, input) => client.observability.logs(input),
+    {
+      formatCliOutput: ({ result }) => logsCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'network',
@@ -452,6 +514,9 @@ export const semanticClientCommands = [
       include: enumField(NETWORK_INCLUDE_VALUES),
     },
     (client, input) => client.observability.network(input),
+    {
+      formatCliOutput: ({ result }) => networkCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'record',
@@ -464,6 +529,9 @@ export const semanticClientCommands = [
       hideTouches: booleanField(),
     },
     (client, input) => client.recording.record(input as RecordOptions),
+    {
+      formatCliOutput: ({ result }) => recordCliOutput(result),
+    },
   ),
   defineFieldCommand(
     'trace',
@@ -533,7 +601,6 @@ function defineFieldCommand<
   fields: TFields,
   run: (client: AgentDeviceClient, input: InferCommandInput<TFields>) => Promise<TResult>,
   options: {
-    outputSchema?: JsonSchema;
     formatCliOutput?: SemanticCliOutputFormatter<InferCommandInput<TFields>, TResult>;
   } = {},
 ) {
@@ -541,7 +608,6 @@ function defineFieldCommand<
     name,
     description,
     inputSchema: fieldsInputSchema(fields),
-    outputSchema: options.outputSchema ?? commandResultSchema(),
     readInput: (input) => readFieldInput(input, fields),
     run,
     formatCliOutput: options.formatCliOutput,

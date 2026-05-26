@@ -72,10 +72,6 @@ function pointSchema(description: string): JsonSchema {
   };
 }
 
-export function commandResultSchema(): JsonSchema {
-  return { type: 'object', additionalProperties: true };
-}
-
 function enumSchema(values: readonly string[], description?: string): JsonSchema {
   return { type: 'string', enum: values, ...(description ? { description } : {}) };
 }

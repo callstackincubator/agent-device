@@ -1,6 +1,5 @@
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { printJson } from '../../utils/output.ts';
-import { readCommandMessage } from '../../utils/success-text.ts';
 
 export function writeCommandOutput(
   flags: CliFlags,
@@ -13,10 +12,6 @@ export function writeCommandOutput(
   }
   const text = renderHuman?.();
   if (text) writeLine(text);
-}
-
-export function writeCommandMessage(flags: CliFlags, data: Record<string, unknown>): void {
-  writeCommandOutput(flags, data, () => readCommandMessage(data));
 }
 
 function writeLine(text: string): void {

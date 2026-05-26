@@ -10,7 +10,6 @@ type AnySemanticCommandDefinition = {
   name: string;
   description: string;
   inputSchema: JsonSchema;
-  outputSchema: JsonSchema;
   invoke: (client: AgentDeviceClient, input: unknown) => Promise<unknown>;
   formatCliOutput?: (params: {
     input: never;
