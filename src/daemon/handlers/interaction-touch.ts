@@ -46,6 +46,7 @@ import {
   readSimpleIosSelectorTarget,
   type DirectIosSelectorTarget,
 } from '../direct-ios-selector.ts';
+import { ensureAndroidBlockingSystemDialogReady } from '../android-system-dialog.ts';
 
 export async function handleTouchInteractionCommands(
   params: InteractionHandlerParams & {
@@ -429,10 +430,24 @@ async function dispatchRuntimeInteraction<
   const runtime = createInteractionRuntime(params);
   const actionStartedAt = Date.now();
   try {
+    const readiness = await ensureAndroidBlockingSystemDialogReady({
+      session,
+      command: params.req.command,
+      phase: 'before-command',
+    });
     const runtimeResult = await options.run(runtime);
     await options.afterRun?.(runtimeResult);
+    await ensureAndroidBlockingSystemDialogReady({
+      session,
+      command: params.req.command,
+      phase: 'after-command',
+    });
     const actionFinishedAt = Date.now();
     const { result, responseData } = await options.buildPayloads(runtimeResult);
+    if (readiness.status === 'recovered') {
+      result.warning = readiness.warning;
+      responseData.warning = readiness.warning;
+    }
     return finalizeTouchInteraction({
       session,
       sessionStore: params.sessionStore,

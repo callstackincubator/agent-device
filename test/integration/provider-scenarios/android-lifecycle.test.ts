@@ -3,7 +3,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'vitest';
 import type { AgentDeviceClient } from '../../../src/client-types.ts';
-import { arrayEqual, assertCommandCall, assertPngFile } from './assertions.ts';
+import {
+  arrayEqual,
+  assertCommandCall,
+  assertPngFile,
+  assertRpcError,
+  assertRpcOk,
+} from './assertions.ts';
 import { createAndroidSettingsWorld, waitForFileContent } from './android-world.ts';
 import { PROVIDER_SCENARIO_ANDROID } from './fixtures.ts';
 import { createProviderScenarioTempPath, withProviderScenarioResource } from './harness.ts';
@@ -226,6 +232,80 @@ test('Provider-backed integration Android alert handles system dialogs', async (
       const alertDismiss = await client.command.alert({ action: 'dismiss', ...world.selection });
       assert.equal(alertDismiss.button, 'Close app');
       assertCommandCall(world.adbCalls, ['shell', 'input', 'tap', '116', '638']);
+    },
+  );
+});
+
+test('Provider-backed integration Android app-owned ANR recovers before action commands', async () => {
+  let anrFocused = true;
+  await withProviderScenarioResource(
+    async () =>
+      await createAndroidSettingsWorld({
+        snapshotXml: () => (anrFocused ? androidSystemDialogXml() : androidAppOwnedSheetXml()),
+        dumpsysWindow: () =>
+          anrFocused
+            ? 'mCurrentFocus=Window{7f8 u0 Application Not Responding: com.example.demo}\n'
+            : 'mCurrentFocus=Window{42 u0 com.example.demo/.MainActivity}\n',
+        onAdbExec: (args) => {
+          if (args[0] === 'shell' && args[1] === 'input' && args[2] === 'tap' && anrFocused) {
+            anrFocused = false;
+          }
+        },
+      }),
+    async (world) => {
+      const client = world.daemon.client();
+      await client.apps.open({ app: 'com.example.demo', ...world.selection });
+
+      const press = await world.daemon.callCommand('press', ['50', '60'], world.selection);
+      if (press.json?.error) {
+        assert.fail(JSON.stringify({ response: press.json, adbCalls: world.adbCalls }, null, 2));
+      }
+      const pressData = assertRpcOk(press);
+
+      assert.equal(pressData.x, 50);
+      assert.equal(pressData.y, 60);
+      assert.match(String(pressData.warning ?? ''), /Recovered Android app ANR before press/);
+      assertCommandCall(world.adbCalls, ['shell', 'input', 'tap', '116', '638']);
+      assertCommandCall(world.adbCalls, ['shell', 'input', 'tap', '50', '60']);
+      assert.ok(
+        world.adbCalls.filter((call) => call.slice(0, 4).join(' ') === 'shell am start -W')
+          .length >= 2,
+        JSON.stringify(world.adbCalls),
+      );
+    },
+  );
+});
+
+test('Provider-backed integration Android external ANR fails with actionable context', async () => {
+  await withProviderScenarioResource(
+    async () =>
+      await createAndroidSettingsWorld({
+        snapshotXml: androidSystemDialogXml,
+        dumpsysWindow: () =>
+          'mCurrentFocus=Window{7f8 u0 Application Not Responding: com.android.systemui}\n',
+      }),
+    async (world) => {
+      const client = world.daemon.client();
+      await client.apps.open({ app: 'com.example.demo', ...world.selection });
+
+      const openCalls = world.adbCalls.filter(
+        (call) => call.slice(0, 4).join(' ') === 'shell am start -W',
+      ).length;
+      const press = await world.daemon.callCommand('press', ['50', '60'], world.selection);
+      const error = assertRpcError(press, 'COMMAND_FAILED', /com\.android\.systemui/);
+      const details = error.details as Record<string, unknown>;
+
+      assert.equal(details.focusedPackage, 'com.android.systemui');
+      assert.equal(details.expectedPackage, 'com.example.demo');
+      assert.equal(
+        world.adbCalls.some((call) => call.join(' ') === 'shell input tap 116 638'),
+        false,
+        JSON.stringify(world.adbCalls),
+      );
+      assert.equal(
+        world.adbCalls.filter((call) => call.slice(0, 4).join(' ') === 'shell am start -W').length,
+        openCalls,
+      );
     },
   );
 });

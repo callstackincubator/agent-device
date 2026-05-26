@@ -1,5 +1,5 @@
 import { dispatchCommand, type CommandFlags } from '../core/dispatch.ts';
-import { GESTURE_SUBCOMMAND_ERROR } from '../command-catalog.ts';
+import { DAEMON_COMMAND_GROUPS, GESTURE_SUBCOMMAND_ERROR } from '../command-catalog.ts';
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
 import { SessionStore } from './session-store.ts';
 import type { DaemonCommandContext } from './context.ts';
@@ -10,7 +10,10 @@ import {
   dispatchScreenshotViaRuntime,
   type ScreenshotOutputPlacement,
 } from './screenshot-runtime.ts';
-import { recoverAndroidBlockingSystemDialog } from './android-system-dialog.ts';
+import {
+  ensureAndroidBlockingSystemDialogReady,
+  recoverAndroidBlockingSystemDialog,
+} from './android-system-dialog.ts';
 import { annotateScreenshotWithRefs } from './screenshot-overlay.ts';
 import {
   isNavigationSensitiveAction,
@@ -21,6 +24,7 @@ import {
   recordTouchVisualizationEvent,
 } from './recording-gestures.ts';
 import { markPostGestureStabilization } from './post-gesture-stabilization.ts';
+import { normalizeError } from '../utils/errors.ts';
 
 const GESTURE_PLATFORM_COMMANDS: Readonly<Record<string, string>> = {
   pan: 'pan',
@@ -57,6 +61,8 @@ export async function dispatchGenericCommand(params: {
 
   const readinessResponse = await ensureGenericCommandReady(session, platformCommand);
   if (readinessResponse) return readinessResponse;
+  const preflightReadiness = await ensureNoAndroidBlockingDialogReady(session, platformCommand);
+  if ('response' in preflightReadiness) return preflightReadiness.response;
 
   const { resolvedPositionals, resolvedOut, recordedPositionals, recordedFlags } =
     resolveCommandPositionals(dispatchRequest);
@@ -66,7 +72,7 @@ export async function dispatchGenericCommand(params: {
     ...contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
     surface: session.surface,
   };
-  const data = await executeGenericPlatformCommand({
+  let data = await executeGenericPlatformCommand({
     session,
     sessionName: params.sessionName,
     logPath,
@@ -76,6 +82,20 @@ export async function dispatchGenericCommand(params: {
     out: resolvedOut,
     dispatchContext,
   });
+  const postflightReadiness = await ensureNoAndroidBlockingDialogReady(
+    session,
+    platformCommand,
+    'after-command',
+  );
+  if ('response' in postflightReadiness) return postflightReadiness.response;
+  if (
+    'status' in preflightReadiness &&
+    preflightReadiness.status === 'recovered' &&
+    (!data || typeof data === 'object')
+  ) {
+    data ??= {};
+    data.warning = preflightReadiness.warning;
+  }
 
   const actionFinishedAt = Date.now();
   const actionRecordedPositionals =
@@ -102,6 +122,30 @@ export async function dispatchGenericCommand(params: {
   markPostGestureStabilization(session, platformCommand);
 
   return { ok: true, data: data ?? {} };
+}
+
+async function ensureNoAndroidBlockingDialogReady(
+  session: SessionState,
+  platformCommand: string,
+  phase: 'before-command' | 'after-command' = 'before-command',
+): Promise<
+  { status: 'clear' } | { status: 'recovered'; warning: string } | { response: DaemonResponse }
+> {
+  if (
+    session.device.platform !== 'android' ||
+    !DAEMON_COMMAND_GROUPS.androidBlockingDialogGuardedAction.has(platformCommand)
+  ) {
+    return { status: 'clear' };
+  }
+  try {
+    return await ensureAndroidBlockingSystemDialogReady({
+      session,
+      command: platformCommand,
+      phase,
+    });
+  } catch (error) {
+    return { response: { ok: false, error: normalizeError(error) } };
+  }
 }
 
 async function ensureGenericCommandReady(

@@ -56,6 +56,7 @@ vi.mock('../../platforms/android/app-lifecycle.ts', async (importOriginal) => {
     ...actual,
     openAndroidApp: vi.fn(async () => {}),
     getAndroidAppState: vi.fn(async () => ({ package: 'com.android.settings' })),
+    getAndroidBlockingDialogFocus: vi.fn(async () => null),
   };
 });
 

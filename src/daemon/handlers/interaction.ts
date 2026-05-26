@@ -11,7 +11,10 @@ import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { typeCommandDefinition } from '../../commands/interactions/definition.ts';
 import { normalizeError } from '../../utils/errors.ts';
 import { successText } from '../../utils/success-text.ts';
-import { recoverAndroidBlockingSystemDialog } from '../android-system-dialog.ts';
+import {
+  ensureAndroidBlockingSystemDialogReady,
+  recoverAndroidBlockingSystemDialog,
+} from '../android-system-dialog.ts';
 
 export async function handleInteractionCommands(
   params: InteractionHandlerParams,
@@ -62,18 +65,29 @@ async function dispatchTypeViaRuntime(
   const runtime = createInteractionRuntime(params);
   const actionStartedAt = Date.now();
   try {
+    const readiness = await ensureAndroidBlockingSystemDialogReady({
+      session,
+      command: req.command,
+      phase: 'before-command',
+    });
     const result = await runtime.interactions.typeText(text, {
       session: sessionName,
       requestId: req.meta?.requestId,
       delayMs: req.flags?.delayMs,
     });
+    await ensureAndroidBlockingSystemDialogReady({
+      session,
+      command: req.command,
+      phase: 'after-command',
+    });
     const actionFinishedAt = Date.now();
-    const responseData = {
+    const responseData: Record<string, unknown> = {
       ...(result.backendResult ?? {}),
       text: result.text,
       delayMs: result.delayMs,
       ...successText(result.message ?? `Typed ${Array.from(result.text).length} chars`),
     };
+    if (readiness.status === 'recovered') responseData.warning = readiness.warning;
     return finalizeTouchInteraction({
       session,
       sessionStore,

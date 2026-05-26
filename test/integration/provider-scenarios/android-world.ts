@@ -49,6 +49,8 @@ export async function createAndroidSettingsWorld(options?: {
   nativeTextInjection?: boolean;
   nativeTouchInjection?: boolean;
   snapshotXml?: () => string;
+  dumpsysWindow?: () => string;
+  onAdbExec?: (args: string[]) => void;
 }): Promise<AndroidSettingsWorld> {
   const hostAdbGuard = installFakeHostAdbGuard();
   const adbCalls: string[][] = [];
@@ -77,13 +79,17 @@ export async function createAndroidSettingsWorld(options?: {
   const adbProvider: AndroidAdbProvider = {
     exec: async (args) => {
       adbCalls.push([...args]);
+      options?.onAdbExec?.([...args]);
       if (args[0] === 'shell' && args[1] === 'input' && args[2] === 'text') {
         searchText = String(args[3] ?? '').replaceAll('%s', ' ');
       }
       if (args.join(' ') === 'shell cmd clipboard set text android otp') {
         clipboardText = 'android otp';
       }
-      return androidAdbResult(args, searchText, clipboardText, options?.snapshotXml);
+      return androidAdbResult(args, searchText, clipboardText, {
+        snapshotXml: options?.snapshotXml,
+        dumpsysWindow: options?.dumpsysWindow,
+      });
     },
     install: async (apk, options) => {
       apkInstallCalls.push({ apkPath: apk, replace: options?.replace });
@@ -190,14 +196,21 @@ function androidAdbResult(
   args: string[],
   searchText: string,
   clipboardText: string,
-  snapshotXml?: () => string,
+  options: {
+    snapshotXml?: () => string;
+    dumpsysWindow?: () => string;
+  },
 ): { stdout: string; stderr: string; exitCode: number; stdoutBuffer?: Buffer } {
   const key = args.join(' ');
   return (
     androidDeviceStateAdbResult(key, clipboardText) ??
     androidMetricsAdbResult(key) ??
-    androidPackageAdbResult(key, args) ??
-    androidCaptureAdbResult(key, searchText, snapshotXml) ?? { stdout: '', stderr: '', exitCode: 0 }
+    androidPackageAdbResult(key, args, options.dumpsysWindow) ??
+    androidCaptureAdbResult(key, searchText, options.snapshotXml) ?? {
+      stdout: '',
+      stderr: '',
+      exitCode: 0,
+    }
   );
 }
 
@@ -270,7 +283,11 @@ function androidMetricsAdbResult(key: string): AndroidAdbResult | undefined {
   return undefined;
 }
 
-function androidPackageAdbResult(key: string, args: string[]): AndroidAdbResult | undefined {
+function androidPackageAdbResult(
+  key: string,
+  args: string[],
+  dumpsysWindow?: () => string,
+): AndroidAdbResult | undefined {
   if (
     args.slice(0, 7).join(' ') ===
     'shell cmd package query-activities --brief -a android.intent.action.MAIN'
@@ -288,9 +305,9 @@ function androidPackageAdbResult(key: string, args: string[]): AndroidAdbResult 
       exitCode: 0,
     };
   }
-  if (key === 'shell dumpsys window windows') {
+  if (key === 'shell dumpsys window windows' || key === 'shell dumpsys window') {
     return {
-      stdout: 'mCurrentFocus=Window{42 u0 com.android.settings/.Settings}\n',
+      stdout: dumpsysWindow?.() ?? 'mCurrentFocus=Window{42 u0 com.android.settings/.Settings}\n',
       stderr: '',
       exitCode: 0,
     };
