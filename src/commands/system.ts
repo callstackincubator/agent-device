@@ -207,13 +207,7 @@ export const keyboardCommand: RuntimeCommand<
     throw new AppError('UNSUPPORTED_OPERATION', 'system.keyboard is not supported by this backend');
   }
   const action = options.action ?? 'status';
-  if (
-    action !== 'status' &&
-    action !== 'get' &&
-    action !== 'dismiss' &&
-    action !== 'enter' &&
-    action !== 'return'
-  ) {
+  if (!isKeyboardAction(action)) {
     throw new AppError(
       'INVALID_ARGS',
       'system.keyboard action must be status, get, dismiss, enter, or return',
@@ -221,11 +215,12 @@ export const keyboardCommand: RuntimeCommand<
   }
   const state = await runtime.backend.setKeyboard(toBackendContext(runtime, options), { action });
   const formattedBackendResult = toBackendResult(state);
+  const keyboardState = isKeyboardResult(state) ? state : {};
   if (action === 'enter' || action === 'return') {
     return {
       kind: 'keyboardEnterPressed',
       action: 'enter',
-      state: isKeyboardResult(state) ? state : {},
+      state: keyboardState,
       ...(formattedBackendResult ? { backendResult: formattedBackendResult } : {}),
       ...successText('Keyboard enter pressed'),
     };
@@ -235,7 +230,7 @@ export const keyboardCommand: RuntimeCommand<
     return {
       kind: 'keyboardDismissed',
       action,
-      state: isKeyboardResult(state) ? state : {},
+      state: keyboardState,
       ...(formattedBackendResult ? { backendResult: formattedBackendResult } : {}),
       ...successText(dismissed === false ? 'Keyboard already hidden' : 'Keyboard dismissed'),
     };
@@ -243,7 +238,7 @@ export const keyboardCommand: RuntimeCommand<
   return {
     kind: 'keyboardState',
     action,
-    state: isKeyboardResult(state) ? state : {},
+    state: keyboardState,
     ...(formattedBackendResult ? { backendResult: formattedBackendResult } : {}),
   };
 };
@@ -373,25 +368,41 @@ function normalizeAlertResult(
   action: BackendAlertAction,
   result: BackendAlertResult,
 ): SystemAlertCommandResult {
-  if (action === 'get') {
-    if (result.kind !== 'alertStatus') {
-      throw new AppError('COMMAND_FAILED', 'system.alert get returned an invalid backend result');
-    }
-    return { kind: 'alertStatus', action, alert: result.alert };
+  switch (action) {
+    case 'get':
+      return normalizeAlertStatusResult(result);
+    case 'wait':
+      return normalizeAlertWaitResult(result);
+    default:
+      return normalizeAlertHandledResult(action, result);
   }
-  if (action === 'wait') {
-    if (result.kind !== 'alertWait') {
-      throw new AppError('COMMAND_FAILED', 'system.alert wait returned an invalid backend result');
-    }
-    return {
-      kind: 'alertWait',
-      action,
-      alert: result.alert,
-      ...(result.waitedMs !== undefined ? { waitedMs: result.waitedMs } : {}),
-      ...(result.timedOut !== undefined ? { timedOut: result.timedOut } : {}),
-      ...successText(result.alert ? 'Alert visible' : 'Alert wait timed out'),
-    };
+}
+
+function normalizeAlertStatusResult(result: BackendAlertResult): SystemAlertCommandResult {
+  if (result.kind !== 'alertStatus') {
+    throw new AppError('COMMAND_FAILED', 'system.alert get returned an invalid backend result');
   }
+  return { kind: 'alertStatus', action: 'get', alert: result.alert };
+}
+
+function normalizeAlertWaitResult(result: BackendAlertResult): SystemAlertCommandResult {
+  if (result.kind !== 'alertWait') {
+    throw new AppError('COMMAND_FAILED', 'system.alert wait returned an invalid backend result');
+  }
+  return {
+    kind: 'alertWait',
+    action: 'wait',
+    alert: result.alert,
+    ...(result.waitedMs !== undefined ? { waitedMs: result.waitedMs } : {}),
+    ...(result.timedOut !== undefined ? { timedOut: result.timedOut } : {}),
+    ...successText(result.alert ? 'Alert visible' : 'Alert wait timed out'),
+  };
+}
+
+function normalizeAlertHandledResult(
+  action: Extract<BackendAlertAction, 'accept' | 'dismiss'>,
+  result: BackendAlertResult,
+): SystemAlertCommandResult {
   if (result.kind !== 'alertHandled') {
     throw new AppError(
       'COMMAND_FAILED',
@@ -406,6 +417,18 @@ function normalizeAlertResult(
     ...(result.button ? { button: result.button } : {}),
     ...successText(result.handled ? `Alert ${action}ed` : 'No alert handled'),
   };
+}
+
+function isKeyboardAction(
+  action: string,
+): action is 'status' | 'get' | 'dismiss' | 'enter' | 'return' {
+  return (
+    action === 'status' ||
+    action === 'get' ||
+    action === 'dismiss' ||
+    action === 'enter' ||
+    action === 'return'
+  );
 }
 
 function isKeyboardResult(value: unknown): value is BackendKeyboardResult {

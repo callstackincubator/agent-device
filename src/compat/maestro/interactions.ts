@@ -189,27 +189,56 @@ export function convertSwipe(value: unknown, context: MaestroParseContext): Sess
   assertOnlyKeys(value, 'swipe', ['start', 'end', 'direction', 'duration', 'from', 'label']);
   const from = value.from ?? (typeof value.label === 'string' ? value.label : undefined);
   if (from !== undefined) {
-    const direction = readSwipeDirection(
-      typeof value.direction === 'string' ? value.direction : 'up',
-    );
-    return action(MAESTRO_RUNTIME_COMMAND.swipeOn, [
-      maestroSelector(from, 'swipe.from', [], context),
-      direction,
-      ...swipeDurationPositionals(value),
-    ]);
+    return convertTargetedSwipe(value, from, context);
   }
   if (typeof value.direction === 'string') {
     return action('scroll', readScrollPositionalsFromDirectionSwipe(value.direction));
   }
-  if (typeof value.start !== 'string' || typeof value.end !== 'string') {
-    throw unsupportedMaestroSyntax('Only Maestro swipe start/end coordinates are supported.');
+  return convertCoordinateSwipe(value);
+}
+
+function convertTargetedSwipe(
+  value: Record<string, unknown>,
+  from: unknown,
+  context: MaestroParseContext,
+): SessionAction {
+  const direction = readSwipeDirection(
+    typeof value.direction === 'string' ? value.direction : 'up',
+  );
+  return action(MAESTRO_RUNTIME_COMMAND.swipeOn, [
+    maestroSelector(from, 'swipe.from', [], context),
+    direction,
+    ...swipeDurationPositionals(value),
+  ]);
+}
+
+function convertCoordinateSwipe(value: Record<string, unknown>): SessionAction {
+  const { start, end } = readCoordinateSwipePoints(value);
+  const durationMs = readSwipeDurationMs(value.duration);
+  return convertCoordinateSwipePoints(start, end, durationMs);
+}
+
+function readCoordinateSwipePoints(value: Record<string, unknown>): {
+  start: ReturnType<typeof parseMaestroPoint>;
+  end: ReturnType<typeof parseMaestroPoint>;
+} {
+  if (typeof value.start === 'string' && typeof value.end === 'string') {
+    return { start: parseMaestroPoint(value.start), end: parseMaestroPoint(value.end) };
   }
-  const start = parseMaestroPoint(value.start);
-  const end = parseMaestroPoint(value.end);
-  const durationMs =
-    typeof value.duration === 'number' && Number.isFinite(value.duration)
-      ? String(Math.max(16, Math.floor(value.duration)))
-      : undefined;
+  throw unsupportedMaestroSyntax('Only Maestro swipe start/end coordinates are supported.');
+}
+
+function readSwipeDurationMs(duration: unknown): string | undefined {
+  return typeof duration === 'number' && Number.isFinite(duration)
+    ? String(Math.max(16, Math.floor(duration)))
+    : undefined;
+}
+
+function convertCoordinateSwipePoints(
+  start: ReturnType<typeof parseMaestroPoint>,
+  end: ReturnType<typeof parseMaestroPoint>,
+  durationMs: string | undefined,
+): SessionAction {
   if (start.kind === 'absolute' && end.kind === 'absolute') {
     return action('swipe', [
       String(start.x),

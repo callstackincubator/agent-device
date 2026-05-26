@@ -34,6 +34,18 @@ const MAESTRO_REPLAY_POLICY = {
   },
 } as const;
 
+const MAESTRO_TAP_TARGET_TYPE_RANK = new Map([
+  ['button', 0],
+  ['link', 0],
+  ['textfield', 0],
+  ['textview', 0],
+  ['searchfield', 0],
+  ['switch', 0],
+  ['slider', 0],
+  ['cell', 1],
+  ['statictext', 2],
+]);
+
 type ReplayBaseRequest = Omit<DaemonRequest, 'command' | 'positionals'>;
 
 type MaestroReplayInvoker = (params: {
@@ -163,29 +175,10 @@ async function invokeMaestroWaitForAnimationToEnd(params: {
   let lastResponse: DaemonResponse | undefined;
 
   while (Date.now() - startedAt < timeoutMs) {
-    const response = await params.invoke({
-      ...params.baseReq,
-      command: 'snapshot',
-      positionals: [],
-      flags: {
-        ...params.baseReq.flags,
-        noRecord: true,
-        snapshotRaw: true,
-        snapshotForceFull: true,
-      },
-    });
-    if (!response.ok) {
-      lastResponse = response;
-      await sleep(MAESTRO_REPLAY_POLICY.animationPollMs);
-      continue;
-    }
-    const snapshot = readSnapshotState(response.data);
-    if (!snapshot) return response;
-    const signature = snapshotStabilitySignature(snapshot);
-    if (previousSignature === signature) {
-      return { ok: true, data: { stable: true, timeoutMs } };
-    }
-    previousSignature = signature;
+    const response = await captureMaestroRawSnapshot(params);
+    const poll = readAnimationPollResult(response, previousSignature, timeoutMs);
+    if (poll.done) return poll.response;
+    previousSignature = poll.signature ?? previousSignature;
     lastResponse = response;
     await sleep(MAESTRO_REPLAY_POLICY.animationPollMs);
   }
@@ -193,6 +186,43 @@ async function invokeMaestroWaitForAnimationToEnd(params: {
   return lastResponse?.ok === false
     ? lastResponse
     : { ok: true, data: { stable: false, timeoutMs } };
+}
+
+function readAnimationPollResult(
+  response: DaemonResponse,
+  previousSignature: string | undefined,
+  timeoutMs: number,
+): { done: true; response: DaemonResponse } | { done: false; signature?: string } {
+  const signature = readSnapshotStabilitySignature(response);
+  if (!response.ok) return { done: false };
+  if (!signature) return { done: true, response };
+  if (previousSignature === signature) {
+    return { done: true, response: { ok: true, data: { stable: true, timeoutMs } } };
+  }
+  return { done: false, signature };
+}
+
+async function captureMaestroRawSnapshot(params: {
+  baseReq: ReplayBaseRequest;
+  invoke: MaestroRuntimeInvoke;
+}): Promise<DaemonResponse> {
+  return await params.invoke({
+    ...params.baseReq,
+    command: 'snapshot',
+    positionals: [],
+    flags: {
+      ...params.baseReq.flags,
+      noRecord: true,
+      snapshotRaw: true,
+      snapshotForceFull: true,
+    },
+  });
+}
+
+function readSnapshotStabilitySignature(response: DaemonResponse): string | null {
+  if (!response.ok) return null;
+  const snapshot = readSnapshotState(response.data);
+  return snapshot ? snapshotStabilitySignature(snapshot) : null;
 }
 
 async function invokeMaestroScrollUntilVisible(
@@ -356,29 +386,54 @@ async function invokeMaestroTapOn(params: MaestroTapOnParams): Promise<DaemonRes
   if (!options.ok) return options.response;
   const startedAt = Date.now();
   const fuzzyTextQuery = extractMaestroVisibleTextQuery(selector);
-  const timeoutMs =
-    params.baseReq.flags?.maestro?.optional === true
-      ? MAESTRO_REPLAY_POLICY.optionalTapOnTimeoutMs
-      : MAESTRO_REPLAY_POLICY.tapOnTimeoutMs;
+  const timeoutMs = maestroTapOnTimeoutMs(params);
   let lastResponse: DaemonResponse | undefined;
   while (Date.now() - startedAt < timeoutMs) {
-    const attempt = await invokeMaestroSnapshotTapOn(params, selector, options.value ?? {});
-    if (attempt.ok) return attempt;
-    lastResponse = attempt;
-    if (fuzzyTextQuery) {
-      const fuzzyAttempt = await invokeMaestroFuzzyTapOn(params, fuzzyTextQuery);
-      if (!fuzzyAttempt.retry) return fuzzyAttempt.response;
-      lastResponse = fuzzyAttempt.response;
-    }
+    const attempt = await attemptMaestroTapOn(
+      params,
+      selector,
+      options.value ?? {},
+      fuzzyTextQuery,
+    );
+    if (!attempt.retry) return attempt.response;
+    lastResponse = attempt.response;
     await sleep(MAESTRO_REPLAY_POLICY.tapOnRetryMs);
   }
 
+  return maestroTapOnTimeoutResponse(params, selector, lastResponse);
+}
+
+function maestroTapOnTimeoutMs(params: MaestroTapOnParams): number {
+  return params.baseReq.flags?.maestro?.optional === true
+    ? MAESTRO_REPLAY_POLICY.optionalTapOnTimeoutMs
+    : MAESTRO_REPLAY_POLICY.tapOnTimeoutMs;
+}
+
+function maestroTapOnTimeoutResponse(
+  params: MaestroTapOnParams,
+  selector: string,
+  lastResponse: DaemonResponse | undefined,
+): DaemonResponse {
   if (params.baseReq.flags?.maestro?.optional === true) {
     return { ok: true, data: { skipped: true, optional: true, selector } };
   }
   return (
     lastResponse ?? errorResponse('COMMAND_FAILED', `tapOn timed out for selector: ${selector}`)
   );
+}
+
+async function attemptMaestroTapOn(
+  params: MaestroTapOnParams,
+  selector: string,
+  options: MaestroTapOnOptions,
+  fuzzyTextQuery: string | null,
+): Promise<
+  { retry: false; response: DaemonResponse } | { retry: true; response: FailedDaemonResponse }
+> {
+  const attempt = await invokeMaestroSnapshotTapOn(params, selector, options);
+  if (attempt.ok) return { retry: false, response: attempt };
+  if (!fuzzyTextQuery) return { retry: true, response: attempt };
+  return await invokeMaestroFuzzyTapOn(params, fuzzyTextQuery);
 }
 
 async function invokeMaestroSnapshotTapOn(
@@ -423,7 +478,9 @@ async function invokeMaestroSwipeOn(params: {
 async function invokeMaestroFuzzyTapOn(
   params: MaestroTapOnParams,
   query: string,
-): Promise<{ retry: boolean; response: DaemonResponse }> {
+): Promise<
+  { retry: false; response: DaemonResponse } | { retry: true; response: FailedDaemonResponse }
+> {
   const findResponse = await params.invoke({
     ...params.baseReq,
     command: 'find',
@@ -544,14 +601,11 @@ function findMaestroSelectorMatches(
 
 function resolveNodeRect(nodes: SnapshotState['nodes'], node: SnapshotNode): Rect | null {
   if (node.rect && node.rect.width > 0 && node.rect.height > 0) return node.rect;
-  let current: SnapshotNode | undefined = node;
-  const byIndex = new Map(nodes.map((candidate) => [candidate.index, candidate]));
-  while (typeof current.parentIndex === 'number') {
-    current = byIndex.get(current.parentIndex) ?? nodes[current.parentIndex];
-    if (!current) return null;
-    if (current.rect && current.rect.width > 0 && current.rect.height > 0) return current.rect;
-  }
-  return null;
+  return (
+    findSnapshotAncestor(nodes, node, (ancestor) =>
+      ancestor.rect && ancestor.rect.width > 0 && ancestor.rect.height > 0 ? ancestor : null,
+    )?.rect ?? null
+  );
 }
 
 function selectMaestroSnapshotMatch(
@@ -601,22 +655,7 @@ function compareMaestroSnapshotMatches(
 }
 
 function maestroTapTargetTypeRank(node: SnapshotNode): number {
-  switch (node.type?.toLowerCase()) {
-    case 'button':
-    case 'link':
-    case 'textfield':
-    case 'textview':
-    case 'searchfield':
-    case 'switch':
-    case 'slider':
-      return 0;
-    case 'cell':
-      return 1;
-    case 'statictext':
-      return 2;
-    default:
-      return 3;
-  }
+  return MAESTRO_TAP_TARGET_TYPE_RANK.get(node.type?.toLowerCase() ?? '') ?? 3;
 }
 
 function isDescendantOfSnapshotNode(
@@ -624,14 +663,27 @@ function isDescendantOfSnapshotNode(
   node: SnapshotNode,
   ancestor: SnapshotNode,
 ): boolean {
+  return Boolean(
+    findSnapshotAncestor(nodes, node, (candidate) =>
+      candidate === ancestor || candidate.index === ancestor.index ? candidate : null,
+    ),
+  );
+}
+
+function findSnapshotAncestor<T>(
+  nodes: SnapshotState['nodes'],
+  node: SnapshotNode,
+  resolve: (ancestor: SnapshotNode) => T | null,
+): T | null {
   let current: SnapshotNode | undefined = node;
   const byIndex = new Map(nodes.map((candidate) => [candidate.index, candidate]));
   while (typeof current.parentIndex === 'number') {
     current = byIndex.get(current.parentIndex) ?? nodes[current.parentIndex];
-    if (!current) return false;
-    if (current === ancestor || current.index === ancestor.index) return true;
+    if (!current) return null;
+    const result = resolve(current);
+    if (result) return result;
   }
-  return false;
+  return null;
 }
 
 function readMaestroTapOnOptions(

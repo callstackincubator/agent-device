@@ -284,11 +284,44 @@ async function dispatchDirectIosSelectorTap(
   session: SessionState,
   selector: DirectIosSelectorTarget,
 ): Promise<DaemonResponse | null> {
+  return await dispatchDirectIosSelectorInteraction({
+    params,
+    session,
+    selector,
+    command: 'press',
+    positionals: [],
+    extra: { selector: selector.raw },
+    fallbackPhase: 'ios_direct_selector_tap_fallback',
+  });
+}
+
+async function dispatchDirectIosSelectorInteraction(params: {
+  params: InteractionHandlerParams;
+  session: SessionState;
+  selector: DirectIosSelectorTarget;
+  command: 'press' | 'fill';
+  positionals: string[];
+  extra: Record<string, unknown>;
+  fallbackPhase: string;
+}): Promise<DaemonResponse | null> {
+  const {
+    params: handlerParams,
+    session,
+    selector,
+    command,
+    positionals,
+    extra,
+    fallbackPhase,
+  } = params;
   const actionStartedAt = Date.now();
   try {
     const data =
-      (await dispatchCommand(session.device, 'press', [], params.req.flags?.out, {
-        ...params.contextFromFlags(params.req.flags, session.appBundleId, session.trace?.outPath),
+      (await dispatchCommand(session.device, command, positionals, handlerParams.req.flags?.out, {
+        ...handlerParams.contextFromFlags(
+          handlerParams.req.flags,
+          session.appBundleId,
+          session.trace?.outPath,
+        ),
         directElementSelector: selector,
         surface: session.surface,
       })) ?? {};
@@ -299,16 +332,14 @@ async function dispatchDirectIosSelectorTap(
       fallbackX: point.x,
       fallbackY: point.y,
       referenceFrame: readReferenceFrameFromDirectSelectorTapResult(data),
-      extra: {
-        selector: selector.raw,
-      },
+      extra,
     });
     return finalizeTouchInteraction({
       session,
-      sessionStore: params.sessionStore,
-      command: params.req.command,
-      positionals: params.req.positionals ?? [],
-      flags: params.req.flags,
+      sessionStore: handlerParams.sessionStore,
+      command: handlerParams.req.command,
+      positionals: handlerParams.req.positionals ?? [],
+      flags: handlerParams.req.flags,
       result: responseData,
       responseData,
       actionStartedAt,
@@ -320,7 +351,7 @@ async function dispatchDirectIosSelectorTap(
     }
     emitDiagnostic({
       level: 'debug',
-      phase: 'ios_direct_selector_tap_fallback',
+      phase: fallbackPhase,
       data: {
         selector: selector.raw,
         error: error instanceof Error ? error.message : String(error),
@@ -452,51 +483,15 @@ async function dispatchDirectIosSelectorFill(
   selector: DirectIosSelectorTarget,
   text: string,
 ): Promise<DaemonResponse | null> {
-  const actionStartedAt = Date.now();
-  try {
-    const data =
-      (await dispatchCommand(session.device, 'fill', [text], params.req.flags?.out, {
-        ...params.contextFromFlags(params.req.flags, session.appBundleId, session.trace?.outPath),
-        directElementSelector: selector,
-        surface: session.surface,
-      })) ?? {};
-    const actionFinishedAt = Date.now();
-    const point = readPointFromDirectSelectorTapResult(data);
-    const responseData = buildTouchVisualizationResult({
-      data,
-      fallbackX: point.x,
-      fallbackY: point.y,
-      referenceFrame: readReferenceFrameFromDirectSelectorTapResult(data),
-      extra: {
-        selector: selector.raw,
-        text,
-      },
-    });
-    return finalizeTouchInteraction({
-      session,
-      sessionStore: params.sessionStore,
-      command: params.req.command,
-      positionals: params.req.positionals ?? [],
-      flags: params.req.flags,
-      result: responseData,
-      responseData,
-      actionStartedAt,
-      actionFinishedAt,
-    });
-  } catch (error) {
-    if (!isDirectIosSelectorFallbackError(error)) {
-      return { ok: false, error: normalizeError(error) };
-    }
-    emitDiagnostic({
-      level: 'debug',
-      phase: 'ios_direct_selector_fill_fallback',
-      data: {
-        selector: selector.raw,
-        error: error instanceof Error ? error.message : String(error),
-      },
-    });
-    return null;
-  }
+  return await dispatchDirectIosSelectorInteraction({
+    params,
+    session,
+    selector,
+    command: 'fill',
+    positionals: [text],
+    extra: { selector: selector.raw, text },
+    fallbackPhase: 'ios_direct_selector_fill_fallback',
+  });
 }
 
 async function dispatchRuntimeInteraction<

@@ -166,13 +166,7 @@ export const findCommand: RuntimeCommand<FindReadCommandOptions, FindReadCommand
     return await waitForFindMatch(runtime, options, locator);
   }
 
-  const capture = await captureSelectorSnapshot(runtime, options, {
-    updateSession: true,
-    scope: shouldScopeFind(locator) ? options.query : undefined,
-  });
-  const match = findBestMatchesByLocator(capture.snapshot.nodes, locator, options.query, {
-    requireRect: false,
-  }).matches[0];
+  const { capture, match } = await findFirstLocatorMatch(runtime, options, locator);
   if (!match) {
     throw new AppError('COMMAND_FAILED', 'find did not match any element');
   }
@@ -412,17 +406,26 @@ async function waitForFindMatch(
   const timeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const start = now(runtime);
   while (now(runtime) - start < timeout) {
-    const capture = await captureSelectorSnapshot(runtime, options, {
-      updateSession: true,
-      scope: shouldScopeFind(locator) ? options.query : undefined,
-    });
-    const match = findBestMatchesByLocator(capture.snapshot.nodes, locator, options.query, {
-      requireRect: false,
-    }).matches[0];
+    const { match } = await findFirstLocatorMatch(runtime, options, locator);
     if (match) return { kind: 'found', found: true, waitedMs: now(runtime) - start };
     await sleep(runtime, POLL_INTERVAL_MS);
   }
   throw new AppError('COMMAND_FAILED', 'find wait timed out');
+}
+
+async function findFirstLocatorMatch(
+  runtime: AgentDeviceRuntime,
+  options: FindReadCommandOptions,
+  locator: FindLocator,
+): Promise<{ capture: CapturedSnapshot; match: SnapshotNode | undefined }> {
+  const capture = await captureSelectorSnapshot(runtime, options, {
+    updateSession: true,
+    scope: shouldScopeFind(locator) ? options.query : undefined,
+  });
+  const match = findBestMatchesByLocator(capture.snapshot.nodes, locator, options.query, {
+    requireRect: false,
+  }).matches[0];
+  return { capture, match };
 }
 
 async function waitForSelector(

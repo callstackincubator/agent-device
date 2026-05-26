@@ -82,46 +82,55 @@ function optimizeInputTextActions(
   actions: SessionAction[],
   actionLines: number[],
 ): { actions: SessionAction[]; actionLines: number[] } {
-  const maestroTapTimeoutMs = '30000';
   const mergedActions: SessionAction[] = [];
   const mergedLines: number[] = [];
   for (let index = 0; index < actions.length; index += 1) {
     const action = actions[index];
-    const nextAction = actions[index + 1];
-    const typedAfterTap = readPlainTypeText(nextAction);
-    if (typedAfterTap !== null) {
-      const tapSelector = readPlainMaestroTapSelector(action);
-      const pressEnterAfterType =
-        actions[index + 2]?.command === MAESTRO_RUNTIME_COMMAND.pressEnter;
-      if (tapSelector !== null && pressEnterAfterType) {
-        mergedActions.push({
-          ...action,
-          command: 'wait',
-          positionals: [tapSelector, maestroTapTimeoutMs],
-        });
-        mergedLines.push(actionLines[index] ?? 1);
-        mergedActions.push({
-          ...nextAction,
-          command: 'fill',
-          positionals: [tapSelector, typedAfterTap],
-          flags: action.flags,
-        });
-        mergedLines.push(actionLines[index] ?? 1);
-        mergedActions.push(actions[index + 2] as SessionAction);
-        mergedLines.push(actionLines[index + 2] ?? actionLines[index] ?? 1);
-        index += 2;
-        continue;
-      }
-      if (tapSelector !== null) {
-        mergedActions.push(clearMaestroNonHittableTap(action));
-        mergedLines.push(actionLines[index] ?? 1);
-        continue;
-      }
+    const optimized = optimizeTypedAfterTap(actions, actionLines, index);
+    if (optimized) {
+      mergedActions.push(...optimized.actions);
+      mergedLines.push(...optimized.actionLines);
+      index += optimized.consumed - 1;
+      continue;
     }
     mergedActions.push(action);
     mergedLines.push(actionLines[index] ?? 1);
   }
   return { actions: mergedActions, actionLines: mergedLines };
+}
+
+function optimizeTypedAfterTap(
+  actions: SessionAction[],
+  actionLines: number[],
+  index: number,
+): { actions: SessionAction[]; actionLines: number[]; consumed: number } | null {
+  const action = actions[index];
+  const nextAction = actions[index + 1];
+  const typedAfterTap = readPlainTypeText(nextAction);
+  const tapSelector = readPlainMaestroTapSelector(action);
+  if (typedAfterTap === null || tapSelector === null) return null;
+  const line = actionLines[index] ?? 1;
+  if (actions[index + 2]?.command !== MAESTRO_RUNTIME_COMMAND.pressEnter) {
+    return { actions: [clearMaestroNonHittableTap(action)], actionLines: [line], consumed: 1 };
+  }
+  return {
+    actions: [
+      {
+        ...action,
+        command: 'wait',
+        positionals: [tapSelector, '30000'],
+      },
+      {
+        ...nextAction,
+        command: 'fill',
+        positionals: [tapSelector, typedAfterTap],
+        flags: action.flags,
+      },
+      actions[index + 2] as SessionAction,
+    ],
+    actionLines: [line, line, actionLines[index + 2] ?? line],
+    consumed: 3,
+  };
 }
 
 function clearMaestroNonHittableTap(action: SessionAction): SessionAction {
