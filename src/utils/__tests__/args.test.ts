@@ -861,7 +861,7 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /agent-facing, token-efficient view for planning and targeting actions/);
   assert.match(usageText, /Truncated text\/input preview: expand first with snapshot -s @e12/);
   assert.match(usageText, /React Native apps: read help react-native/);
-  assert.match(usageText, /localhost URL opens with a port auto-ensure adb reverse/);
+  assert.match(usageText, /localhost URL opens with a port auto-configure host reachability/);
   assert.match(usageText, /Expo Go\/dev clients: use the provided URL when given/);
   assert.match(usageText, /on iOS prefer open "Expo Go" <url>/);
   assert.match(usageText, /Install flows: install\/install-from-source first/);
@@ -968,7 +968,8 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /provider-native text injection when available/);
   assert.match(help, /Do not switch to raw adb, clipboard, or paste as an agent fallback/);
   assert.match(help, /if no URL is provided but a target\/app name is provided, open that target/);
-  assert.match(help, /localhost\/127\.0\.0\.1\/\[::1\] with a port auto-ensure adb reverse/);
+  assert.match(help, /localhost\/127\.0\.0\.1\/\[::1\] with a port auto-configure/);
+  assert.match(help, /Manual adb reverse tcp:<port> tcp:<port> is only needed/);
   assert.match(help, /do not split clear\/restart/);
   assert.match(help, /do not write network log headers/);
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform ios/);
@@ -1037,7 +1038,7 @@ test('usageForCommand resolves dogfood help topic', () => {
   assert.match(help, /Static\/on-load issues can use one screenshot/);
   assert.match(help, /React Native warning\/error overlays can be real findings/);
   assert.match(help, /Expo Go\/dev-client shells/);
-  assert.match(help, /localhost\/127\.0\.0\.1\/\[::1\] with a port auto-ensure adb reverse/);
+  assert.match(help, /direct Android localhost URL opens with a port auto-configure/);
   assert.match(help, /Keep stateful commands serial within the same session/);
   assert.match(help, /prefer agent-device open "Expo Go" <url>/);
   assert.match(help, /dogfood-output\/report\.md/);

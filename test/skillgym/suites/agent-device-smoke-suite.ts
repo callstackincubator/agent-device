@@ -1176,7 +1176,7 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'Launch context: Expo Go because the user provided an exp:// project URL',
       'Local Metro port: 8082',
       'Project URL: exp://127.0.0.1:8082',
-      'Direct Android localhost URL opens auto-ensure adb reverse when supported',
+      'Direct Android localhost URL opens auto-configure host reachability',
       'Do not assume every React Native app is Expo; this one is Expo only because an exp:// URL was provided',
     ],
     task: 'Plan the commands to open the Android Expo project URL on local Metro port 8082 and verify the app UI with an interactive snapshot.',
