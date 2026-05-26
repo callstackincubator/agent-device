@@ -4,7 +4,7 @@ import { INTERNAL_COMMANDS } from './command-catalog.ts';
 import {
   prepareSemanticDaemonRequest,
   type SemanticDaemonCommand,
-} from './commands/semantic-request.ts';
+} from './commands/semantic-grammar.ts';
 import { throwDaemonError } from './daemon-error.ts';
 import {
   buildFlags,

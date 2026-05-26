@@ -1,7 +1,7 @@
 import { test, expect } from 'vitest';
 import { parseFillTarget, parseTouchTarget } from '../interaction-touch-targets.ts';
 
-test('parseTouchTarget preserves ref fallback label through shared target codec', () => {
+test('parseTouchTarget preserves ref fallback label through shared grammar', () => {
   const parsed = parseTouchTarget(['@e4', 'Email field'], 'press');
 
   expect(parsed).toEqual({
@@ -39,7 +39,7 @@ test('parseTouchTarget keeps invalid coordinates as selector text', () => {
   });
 });
 
-test('parseFillTarget reads selector text through shared fill codec', () => {
+test('parseFillTarget reads selector text through shared grammar', () => {
   const parsed = parseFillTarget(['label="Email"', 'qa@example.com']);
 
   expect(parsed).toEqual({

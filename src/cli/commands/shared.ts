@@ -1,11 +1,6 @@
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { printJson } from '../../utils/output.ts';
 import { readCommandMessage } from '../../utils/success-text.ts';
-import { selectionOptionsFromFlags, type SelectionOptions } from '../../command-codecs/flags.ts';
-
-export function buildSelectionOptions(flags: CliFlags): SelectionOptions {
-  return selectionOptionsFromFlags(flags);
-}
 
 export function writeCommandOutput(
   flags: CliFlags,

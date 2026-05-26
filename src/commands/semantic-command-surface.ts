@@ -5,7 +5,11 @@ import type { JsonSchema } from './semantic-contract.ts';
 import { bootSemanticCommand } from './semantic-device.ts';
 import { interactionSemanticCommands } from './semantic-interactions.ts';
 import { semanticLocalCommands } from './semantic-local-commands.ts';
-import type { SemanticDaemonCommand } from './semantic-request.ts';
+import {
+  isSemanticBatchCommand as isSemanticGrammarBatchCommand,
+  semanticBatchCommandNames,
+  type SemanticBatchCommand,
+} from './semantic-grammar.ts';
 
 type AnySemanticCommandDefinition = {
   name: string;
@@ -88,53 +92,6 @@ const semanticCliCommandNames = [
 
 const genericCliNames = commandNameSet(semanticGenericCliCommandNames);
 
-const semanticBatchCommandNames = [
-  'devices',
-  'boot',
-  'apps',
-  'open',
-  'close',
-  'install',
-  'reinstall',
-  'install-from-source',
-  'push',
-  'trigger-app-event',
-  'snapshot',
-  'screenshot',
-  'diff',
-  'wait',
-  'alert',
-  'appstate',
-  'back',
-  'home',
-  'rotate',
-  'app-switcher',
-  'keyboard',
-  'clipboard',
-  'react-native',
-  'click',
-  'press',
-  'longpress',
-  'swipe',
-  'gesture',
-  'focus',
-  'type',
-  'fill',
-  'scroll',
-  'get',
-  'is',
-  'find',
-  'test',
-  'perf',
-  'logs',
-  'network',
-  'record',
-  'trace',
-  'settings',
-] as const satisfies readonly SemanticDaemonCommand[];
-
-const semanticBatchNames = commandNameSet(semanticBatchCommandNames);
-
 const baseCommandSurface = [
   commandSurfaceEntry(bootSemanticCommand, commandMetadata(bootSemanticCommand.name)),
   ...interactionSemanticCommands.map((definition) =>
@@ -154,7 +111,7 @@ const baseCommandSurface = [
 
 const batchSemanticCommand = createBatchSemanticCommand(semanticBatchCommandNames);
 
-export const semanticCommandSurface = [
+const semanticCommandSurface = [
   ...baseCommandSurface,
   commandSurfaceEntry(batchSemanticCommand, {
     batch: false,
@@ -165,7 +122,7 @@ export const semanticCommandSurface = [
 
 export type SemanticCommandName = (typeof semanticCommandSurface)[number]['definition']['name'];
 export type SemanticCliCommand = (typeof semanticCliCommandNames)[number];
-export type SemanticBatchCommand = (typeof semanticBatchCommandNames)[number];
+export type { SemanticBatchCommand };
 
 const semanticCommandMap = new Map(
   semanticCommandSurface.map((entry) => [entry.definition.name, entry.definition]),
@@ -175,7 +132,7 @@ function commandMetadata(
   name: string,
 ): Omit<CommandSurfaceEntry<AnySemanticCommandDefinition>, 'definition'> {
   return {
-    batch: semanticBatchNames.has(name),
+    batch: isSemanticGrammarBatchCommand(name),
     genericCli: genericCliNames.has(name),
     mcp: 'tool',
   };
@@ -195,10 +152,6 @@ export function listSemanticGenericCliCommands(): SemanticCliCommand[] {
 
 export function isSemanticCommandName(name: string): name is SemanticCommandName {
   return semanticCommandMap.has(name);
-}
-
-export function isSemanticBatchCommand(name: string): name is SemanticBatchCommand {
-  return semanticBatchNames.has(name);
 }
 
 export async function runSemanticCommand(

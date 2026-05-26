@@ -1,6 +1,27 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { parseWaitPositionals as parseWaitArgs } from '../../../command-codecs/wait.ts';
+import { parseWaitPositionals as parseWaitArgs } from '../../../commands/semantic-grammar.ts';
+import { parseTimeout } from '../parse-utils.ts';
+
+// --- parseTimeout ---
+
+test('parseTimeout parses integer string', () => {
+  assert.equal(parseTimeout('500'), 500);
+});
+
+test('parseTimeout parses zero', () => {
+  assert.equal(parseTimeout('0'), 0);
+});
+
+test('parseTimeout returns null for non-numeric string', () => {
+  assert.equal(parseTimeout('abc'), null);
+});
+
+test('parseTimeout returns null for Infinity', () => {
+  assert.equal(parseTimeout('Infinity'), null);
+});
+
+// --- parseWaitArgs ---
 
 test('parseWaitArgs returns null for empty args', () => {
   assert.equal(parseWaitArgs([]), null);
@@ -19,6 +40,16 @@ test('parseWaitArgs returns sleep for zero', () => {
 test('parseWaitArgs parses text keyword with label', () => {
   const result = parseWaitArgs(['text', 'Loading']);
   assert.deepEqual(result, { kind: 'text', text: 'Loading', timeoutMs: null });
+});
+
+test('parseWaitArgs parses text keyword with timeout', () => {
+  const result = parseWaitArgs(['text', 'Loading', '5000']);
+  assert.deepEqual(result, { kind: 'text', text: 'Loading', timeoutMs: 5000 });
+});
+
+test('parseWaitArgs parses text keyword with multi-word and timeout', () => {
+  const result = parseWaitArgs(['text', 'Sign', 'In', '3000']);
+  assert.deepEqual(result, { kind: 'text', text: 'Sign In', timeoutMs: 3000 });
 });
 
 test('parseWaitArgs parses text keyword with multi-word and no timeout', () => {

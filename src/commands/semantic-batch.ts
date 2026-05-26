@@ -1,7 +1,7 @@
 import type { BatchRunOptions, BatchStep } from '../client-types.ts';
 import { DEFAULT_BATCH_MAX_STEPS, validateAndNormalizeBatchSteps } from '../core/batch.ts';
 import { defineSemanticCommand, type JsonSchema } from './semantic-contract.ts';
-import { prepareSemanticBatchStep, type SemanticDaemonCommand } from './semantic-request.ts';
+import { prepareSemanticBatchStep, type SemanticDaemonCommand } from './semantic-grammar.ts';
 import {
   assertAllowedKeys,
   commandInputSchema,

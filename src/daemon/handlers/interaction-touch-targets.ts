@@ -4,7 +4,10 @@ import type {
   LongPressCommandResult,
   PressCommandResult,
 } from '../../commands/index.ts';
-import { fillCommandCodec, interactionTargetCodec } from '../../command-codecs.ts';
+import {
+  readFillTargetFromPositionals,
+  readInteractionTargetFromPositionals,
+} from '../../commands/semantic-grammar.ts';
 import type { DaemonResponse } from '../types.ts';
 import { parseCoordinateTarget } from './interaction-targeting.ts';
 import { errorResponse } from './response.ts';
@@ -20,7 +23,7 @@ export function parseTouchTarget(positionals: string[], commandLabel: string): P
   }
   const first = positionals[0] ?? '';
   if (first.startsWith('@')) {
-    const parsed = interactionTargetCodec.decode(positionals);
+    const parsed = readInteractionTargetFromPositionals(positionals);
     return {
       ok: true,
       target: {
@@ -74,7 +77,7 @@ export type ParsedFillTarget =
 export function parseFillTarget(positionals: string[]): ParsedFillTarget {
   const first = positionals[0] ?? '';
   if (first.startsWith('@')) {
-    const parsed = fillCommandCodec.decode(positionals);
+    const parsed = readFillTargetFromPositionals(positionals);
     const text = parsed.text;
     if (!text)
       return { ok: false, response: errorResponse('INVALID_ARGS', 'fill requires text after ref') };
@@ -100,7 +103,7 @@ export function parseFillTarget(positionals: string[]): ParsedFillTarget {
     return { ok: true, target: { kind: 'point', x: coordinates.x, y: coordinates.y }, text };
   }
 
-  const parsed = fillCommandCodec.decode(positionals);
+  const parsed = readFillTargetFromPositionals(positionals);
   if (parsed.kind !== 'selector') {
     return {
       ok: false,

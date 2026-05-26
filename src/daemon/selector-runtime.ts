@@ -4,7 +4,7 @@ import type {
   BackendSnapshotResult,
 } from '../backend.ts';
 import { createAgentDevice } from '../runtime.ts';
-import { parseWaitPositionals, type WaitParsed } from '../command-codecs/wait.ts';
+import { parseWaitPositionals, type WaitParsed } from '../commands/semantic-grammar.ts';
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
 import { resolveTargetDevice, type CommandFlags } from '../core/dispatch.ts';
 import { isApplePlatform } from '../utils/device.ts';

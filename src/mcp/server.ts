@@ -44,7 +44,7 @@ export async function runAgentDeviceMcpServer(): Promise<void> {
   });
 }
 
-export function handleMcpPayload(
+function handleMcpPayload(
   messageOrBatch: JsonRpcMessage | JsonRpcMessage[],
 ): Promise<unknown | null> {
   if (Array.isArray(messageOrBatch)) {
