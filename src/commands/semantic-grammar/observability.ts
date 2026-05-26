@@ -1,0 +1,102 @@
+import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
+import type { LogsOptions, NetworkOptions, RecordOptions } from '../../client-types.ts';
+import { AppError } from '../../utils/errors.ts';
+import {
+  commonInputFromFlags,
+  direct,
+  optionalCliNumber,
+  optionalNumber,
+  optionalString,
+  request,
+} from './common.ts';
+import type { CliReader, DaemonWriter } from './types.ts';
+
+export const observabilityCliReaders = {
+  perf: (_positionals, flags) => commonInputFromFlags(flags),
+  logs: (positionals, flags) => ({
+    ...commonInputFromFlags(flags),
+    action: readLogsAction(positionals[0]),
+    message: positionals.slice(1).join(' ') || undefined,
+    restart: flags.restart,
+  }),
+  network: (positionals, flags) => ({
+    ...commonInputFromFlags(flags),
+    action: readNetworkAction(positionals[0]),
+    limit: optionalCliNumber(positionals[1]),
+    include: flags.networkInclude ?? readNetworkInclude(positionals[2]),
+  }),
+  record: (positionals, flags) => ({
+    ...commonInputFromFlags(flags),
+    action: readStartStop(positionals[0], 'record'),
+    path: positionals[1],
+    fps: flags.fps,
+    quality: flags.quality as RecordOptions['quality'],
+    hideTouches: flags.hideTouches,
+  }),
+  trace: (positionals, flags) => ({
+    ...commonInputFromFlags(flags),
+    action: readStartStop(positionals[0], 'trace'),
+    path: positionals[1],
+  }),
+} satisfies Record<string, CliReader>;
+
+export const observabilityDaemonWriters = {
+  perf: direct(PUBLIC_COMMANDS.perf),
+  logs: direct(PUBLIC_COMMANDS.logs, (input) => logsPositionals(input as LogsOptions)),
+  network: (input) =>
+    request(PUBLIC_COMMANDS.network, networkPositionals(input as NetworkOptions), {
+      ...input,
+      networkInclude: input.include,
+    }),
+  record: direct(PUBLIC_COMMANDS.record, (input) => recordingPositionals(input as RecordOptions)),
+  trace: direct(PUBLIC_COMMANDS.trace, (input) => recordingPositionals(input as RecordOptions)),
+} satisfies Record<string, DaemonWriter>;
+
+function logsPositionals(input: { action?: string; message?: string }): string[] {
+  return [input.action ?? 'path', ...optionalString(input.message)];
+}
+
+function networkPositionals(input: NetworkOptions): string[] {
+  return [...(input.action ? [input.action] : []), ...optionalNumber(input.limit)];
+}
+
+function recordingPositionals(input: RecordOptions): string[] {
+  return [input.action, ...optionalString(input.path)];
+}
+
+function readStartStop(value: string | undefined, command: string): 'start' | 'stop' {
+  if (value === 'start' || value === 'stop') return value;
+  throw new AppError('INVALID_ARGS', `${command} requires start|stop`);
+}
+
+function readLogsAction(
+  value: string | undefined,
+): 'path' | 'start' | 'stop' | 'doctor' | 'mark' | 'clear' | undefined {
+  if (value === undefined) return undefined;
+  if (
+    value === 'path' ||
+    value === 'start' ||
+    value === 'stop' ||
+    value === 'doctor' ||
+    value === 'mark' ||
+    value === 'clear'
+  ) {
+    return value;
+  }
+  throw new AppError('INVALID_ARGS', 'logs requires path, start, stop, doctor, mark, or clear');
+}
+
+function readNetworkAction(value: string | undefined): 'dump' | 'log' | undefined {
+  if (value === undefined) return undefined;
+  if (value === 'dump' || value === 'log') return value;
+  throw new AppError('INVALID_ARGS', 'network requires dump or log');
+}
+
+function readNetworkInclude(
+  value: string | undefined,
+): 'summary' | 'headers' | 'body' | 'all' | undefined {
+  if (value === undefined) return undefined;
+  if (value === 'summary' || value === 'headers' || value === 'body' || value === 'all')
+    return value;
+  throw new AppError('INVALID_ARGS', 'network include mode must be summary, headers, body, or all');
+}
