@@ -948,6 +948,9 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /wait for a concrete result before returning to chat\/form state/);
   assert.match(help, /choose a point near the center of the intended app-owned target/);
   assert.match(help, /Avoid screen edges, tab bars, navigation bars, and home indicators/);
+  assert.match(help, /Android transform injects a geometric two-finger path/);
+  assert.match(help, /verify qualitative state such as "pan changed yes"/);
+  assert.match(help, /prefer isolated gesture pan, gesture pinch, or gesture rotate/);
   assert.match(help, /longpress accepts coordinates, @refs, or selectors/);
   assert.match(help, /use help react-native for Metro\/Fast Refresh/);
   assert.match(help, /iOS Allow Paste prompt cannot be exercised under XCUITest/);

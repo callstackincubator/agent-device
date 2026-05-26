@@ -324,6 +324,8 @@ Navigation and gestures:
     agent-device gesture rotate 35 200 420
     agent-device gesture transform 200 420 80 -40 2 35 700
   iOS simulator transform uses XCTest gesture primitives; verify app metrics instead of assuming requested degrees map exactly to recognizer output.
+  Android transform injects a geometric two-finger path; app recognizers may report non-exact pan/scale/rotation. For Android combined transforms, verify qualitative state such as "pan changed yes" / "pinch changed yes" / "rotate changed yes" unless the app explicitly promises exact centroid metrics.
+  If Android needs exact app-state values, prefer isolated gesture pan, gesture pinch, or gesture rotate commands over one combined transform.
 
 Validation and evidence:
   Nearby mutation diff: agent-device diff snapshot -i.

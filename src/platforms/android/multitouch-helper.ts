@@ -22,12 +22,14 @@ const ANDROID_MULTITOUCH_HELPER_RUNNER =
   'com.callstack.agentdevice.multitouchhelper/.MultiTouchInstrumentation';
 const ANDROID_MULTITOUCH_HELPER_PROTOCOL = 'android-multitouch-helper-v1';
 const ANDROID_MULTITOUCH_HELPER_INSTALL_TIMEOUT_MS = 30_000;
-const ANDROID_MULTITOUCH_HELPER_GESTURE_TIMEOUT_MS = 15_000;
+const ANDROID_MULTITOUCH_HELPER_GESTURE_TIMEOUT_MS = 45_000;
 const ANDROID_MULTITOUCH_HELPER_DEFAULT_DURATION_MS = 300;
 const ANDROID_MULTITOUCH_HELPER_DEFAULT_RADIUS = 160;
 const ANDROID_MULTITOUCH_HELPER_ROTATE_MAX_DEGREES_PER_FRAME = 3;
 const ANDROID_MULTITOUCH_HELPER_ROTATE_FRAME_INTERVAL_MS = 16;
 const ANDROID_MULTITOUCH_HELPER_ROTATE_MAX_DURATION_MS = 2_400;
+const ANDROID_MULTITOUCH_HELPER_NO_FINAL_RESULT = 'ANDROID_MULTITOUCH_HELPER_NO_FINAL_RESULT';
+const ANDROID_MULTITOUCH_HELPER_REPORTED_FAILURE = 'ANDROID_MULTITOUCH_HELPER_REPORTED_FAILURE';
 
 type AndroidMultiTouchHelperManifest = {
   name: 'android-multitouch-helper';
@@ -309,6 +311,14 @@ export async function runAndroidMultiTouchHelperGesture(options: {
   try {
     output = parseAndroidMultiTouchHelperOutput(`${result.stdout}\n${result.stderr}`);
   } catch (error) {
+    if (error instanceof AppError) {
+      if (error.code === ANDROID_MULTITOUCH_HELPER_REPORTED_FAILURE) {
+        throw new AppError('COMMAND_FAILED', error.message, error.details, error);
+      }
+      if (error.code !== ANDROID_MULTITOUCH_HELPER_NO_FINAL_RESULT) {
+        throw error;
+      }
+    }
     throw new AppError(
       'COMMAND_FAILED',
       result.exitCode === 0
@@ -339,15 +349,19 @@ export function parseAndroidMultiTouchHelperOutput(output: string): Record<strin
   );
   if (!finalResult) {
     throw new AppError(
-      'COMMAND_FAILED',
+      ANDROID_MULTITOUCH_HELPER_NO_FINAL_RESULT,
       'Android multi-touch helper did not return a final result',
     );
   }
   if (finalResult.ok !== 'true') {
-    throw new AppError('COMMAND_FAILED', readHelperErrorMessage(finalResult), {
-      errorType: finalResult.errorType,
-      helper: finalResult,
-    });
+    throw new AppError(
+      ANDROID_MULTITOUCH_HELPER_REPORTED_FAILURE,
+      readHelperErrorMessage(finalResult),
+      {
+        errorType: finalResult.errorType,
+        helper: finalResult,
+      },
+    );
   }
   return {
     kind: finalResult.kind,

@@ -60,14 +60,23 @@ export function GestureLab() {
   const pinchRef = useRef(null);
   const rotationRef = useRef(null);
   const flingRefs = [flingLeftRef, flingRightRef, flingUpRef, flingDownRef];
+  const activeTransformHandlerTagsRef = useRef(new Set<number>());
 
   function updateTransform(nextTransform: TransformState) {
     transformRef.current = nextTransform;
     setTransform(nextTransform);
   }
 
-  function beginTransformGesture() {
-    gestureStartRef.current = transformRef.current;
+  function beginTransformGesture(handlerTag: number) {
+    const activeHandlerTags = activeTransformHandlerTagsRef.current;
+    if (activeHandlerTags.size === 0) {
+      gestureStartRef.current = transformRef.current;
+    }
+    activeHandlerTags.add(handlerTag);
+  }
+
+  function endTransformGesture(handlerTag: number) {
+    activeTransformHandlerTagsRef.current.delete(handlerTag);
   }
 
   function handlePan(event: PanGestureHandlerGestureEvent) {
@@ -102,7 +111,16 @@ export function GestureLab() {
       | RotationGestureHandlerStateChangeEvent,
   ) {
     if (event.nativeEvent.state === State.BEGAN) {
-      beginTransformGesture();
+      beginTransformGesture(event.nativeEvent.handlerTag);
+      return;
+    }
+
+    if (
+      event.nativeEvent.state === State.END ||
+      event.nativeEvent.state === State.FAILED ||
+      event.nativeEvent.state === State.CANCELLED
+    ) {
+      endTransformGesture(event.nativeEvent.handlerTag);
     }
   }
 
@@ -163,6 +181,7 @@ export function GestureLab() {
                   simultaneousHandlers={[panRef, rotationRef, ...flingRefs]}
                 >
                   <PanGestureHandler
+                    avgTouches
                     minDist={4}
                     onGestureEvent={handlePan}
                     onHandlerStateChange={handleTransformStateChange}
