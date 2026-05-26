@@ -4,7 +4,6 @@ import { semanticClientCommands } from './semantic-client-commands.ts';
 import type { JsonSchema } from './semantic-contract.ts';
 import { bootSemanticCommand } from './semantic-device.ts';
 import { interactionSemanticCommands } from './semantic-interactions.ts';
-import { semanticLocalCommands } from './semantic-local-commands.ts';
 import {
   isSemanticBatchCommand as isSemanticGrammarBatchCommand,
   semanticBatchCommandNames,
@@ -23,7 +22,6 @@ type CommandSurfaceEntry<TDefinition extends AnySemanticCommandDefinition> = {
   definition: TDefinition;
   batch: boolean;
   genericCli: boolean;
-  mcp: 'tool' | 'local-boundary';
 };
 
 function commandSurfaceEntry<
@@ -100,13 +98,6 @@ const baseCommandSurface = [
   ...semanticClientCommands.map((definition) =>
     commandSurfaceEntry(definition, commandMetadata(definition.name)),
   ),
-  ...semanticLocalCommands.map((definition) =>
-    commandSurfaceEntry(definition, {
-      batch: false,
-      genericCli: false,
-      mcp: 'local-boundary',
-    }),
-  ),
 ] as const;
 
 const batchSemanticCommand = createBatchSemanticCommand(semanticBatchCommandNames);
@@ -116,7 +107,6 @@ const semanticCommandSurface = [
   commandSurfaceEntry(batchSemanticCommand, {
     batch: false,
     genericCli: true,
-    mcp: 'tool',
   }),
 ] as const;
 
@@ -134,14 +124,11 @@ function commandMetadata(
   return {
     batch: isSemanticGrammarBatchCommand(name),
     genericCli: genericCliNames.has(name),
-    mcp: 'tool',
   };
 }
 
 export function listSemanticMcpToolDefinitions(): AnySemanticCommandDefinition[] {
-  return semanticCommandSurface
-    .filter((entry) => entry.mcp === 'tool' || entry.mcp === 'local-boundary')
-    .map((entry) => entry.definition);
+  return semanticCommandSurface.map((entry) => entry.definition);
 }
 
 export function listSemanticGenericCliCommands(): SemanticCliCommand[] {

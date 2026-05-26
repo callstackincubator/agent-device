@@ -3,7 +3,15 @@ import { test } from 'vitest';
 import { getCliCommandNames } from '../../utils/command-schema.ts';
 import { handleMcpMessage } from '../router.ts';
 
-test('MCP exposes every CLI command as a semantic direct tool except the MCP transport command', async () => {
+const LOCAL_ONLY_CLI_COMMANDS = new Set([
+  'auth',
+  'connect',
+  'connection',
+  'disconnect',
+  'react-devtools',
+]);
+
+test('MCP exposes every automatable CLI command as a semantic direct tool', async () => {
   const response = await handleMcpMessage({
     jsonrpc: '2.0',
     id: 1,
@@ -15,7 +23,7 @@ test('MCP exposes every CLI command as a semantic direct tool except the MCP tra
     (tool) => tool.name,
   );
   const expectedToolNames = getCliCommandNames()
-    .filter((command) => command !== 'mcp')
+    .filter((command) => command !== 'mcp' && !LOCAL_ONLY_CLI_COMMANDS.has(command))
     .sort();
 
   assert.deepEqual(tools.filter((name) => name !== 'status').sort(), expectedToolNames);
