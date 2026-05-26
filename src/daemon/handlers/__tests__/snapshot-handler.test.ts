@@ -147,10 +147,10 @@ function expectAndroidTimeoutEvidence(
   if (response.ok) throw new Error('Expected snapshot timeout failure');
   expect(response.error.message).toMatch(/UI hierarchy dump timed out/i);
   expect(response.error.hint).toMatch(/Use screenshot as visual truth/i);
-  expectAndroidTimeoutEvidencePayload(response.error.details?.androidSnapshotTimeoutScreenshot);
+  assertAndroidTimeoutEvidencePayload(response.error.details?.androidSnapshotTimeoutScreenshot);
 }
 
-function expectAndroidTimeoutEvidencePayload(evidence: unknown) {
+function assertAndroidTimeoutEvidencePayload(evidence: unknown) {
   if (!evidence || typeof evidence !== 'object') {
     throw new Error('Expected Android snapshot timeout screenshot evidence');
   }

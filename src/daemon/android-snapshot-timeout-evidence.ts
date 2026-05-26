@@ -46,9 +46,10 @@ export async function maybeBuildAndroidSnapshotTimeoutFailure(params: {
 }): Promise<Extract<DaemonResponse, { ok: false }> | undefined> {
   if (params.command !== 'snapshot') return undefined;
   if (params.device.platform !== 'android') return undefined;
-  if (!isAndroidSnapshotTimeoutError(params.error)) return undefined;
 
   const normalized = normalizeError(params.error);
+  if (!isAndroidSnapshotTimeoutError(normalized)) return undefined;
+
   return {
     ok: false,
     error: {
@@ -74,6 +75,8 @@ async function captureAndroidSnapshotTimeoutEvidence(params: {
     const data = await dispatchCommand(params.device, 'screenshot', [screenshotPath], undefined, {
       ...contextFromFlags(
         params.logPath,
+        // Use a fresh unstabilized screenshot context; inheriting snapshot flags could repeat the
+        // accessibility stabilization timeout that this fallback is trying to avoid.
         { screenshotNoStabilize: true },
         params.session?.appBundleId,
         params.session?.trace?.outPath,
@@ -81,6 +84,7 @@ async function captureAndroidSnapshotTimeoutEvidence(params: {
       surface: params.session?.surface,
     });
     const resolvedPath = resolveCapturedScreenshotPath(data, screenshotPath);
+    await fs.access(resolvedPath);
     const evidence = await annotateAndroidSnapshotTimeoutEvidence(resolvedPath, params.session);
 
     emitDiagnostic({
@@ -112,16 +116,14 @@ async function annotateAndroidSnapshotTimeoutEvidence(
   screenshotPath: string,
   session: SessionState | undefined,
 ): Promise<AndroidSnapshotTimeoutEvidence> {
-  const evidence: AndroidSnapshotTimeoutEvidence = {
-    path: screenshotPath,
-    overlayRefsRequested: true,
-    overlayRefsAnnotated: false,
-    overlayRefSource: 'unavailable',
-    overlayRefCount: 0,
-  };
-
   if (!session?.snapshot) {
-    return evidence;
+    return {
+      path: screenshotPath,
+      overlayRefsRequested: true,
+      overlayRefsAnnotated: false,
+      overlayRefSource: 'unavailable',
+      overlayRefCount: 0,
+    };
   }
 
   try {
@@ -130,7 +132,8 @@ async function annotateAndroidSnapshotTimeoutEvidence(
       snapshot: session.snapshot,
     });
     return {
-      ...evidence,
+      path: screenshotPath,
+      overlayRefsRequested: true,
       overlayRefsAnnotated: overlayRefs.length > 0,
       overlayRefCount: overlayRefs.length,
       overlayRefSource: 'session-snapshot',
@@ -144,8 +147,11 @@ async function annotateAndroidSnapshotTimeoutEvidence(
       data: { path: screenshotPath, error: normalized.message },
     });
     return {
-      ...evidence,
+      path: screenshotPath,
+      overlayRefsRequested: true,
+      overlayRefsAnnotated: false,
       overlayRefSource: 'session-snapshot',
+      overlayRefCount: 0,
       overlayAnnotationError: normalized.message,
     };
   }
@@ -161,13 +167,12 @@ function hasStringPath(value: unknown): value is { path: string } {
   );
 }
 
-function isAndroidSnapshotTimeoutError(error: unknown): boolean {
-  const normalized = normalizeError(error);
-  if (normalized.code !== 'COMMAND_FAILED') return false;
+function isAndroidSnapshotTimeoutError(error: NormalizedError): boolean {
+  if (error.code !== 'COMMAND_FAILED') return false;
   return (
-    hasKnownAndroidSnapshotTimeoutMessage(normalized) ||
-    hasHelperTimeoutDetails(normalized.details?.helper) ||
-    hasUiAutomatorDumpTimeoutDetails(normalized.details)
+    hasKnownAndroidSnapshotTimeoutMessage(error) ||
+    hasHelperTimeoutDetails(error.details?.helper) ||
+    hasUiAutomatorDumpTimeoutDetails(error.details)
   );
 }
 
