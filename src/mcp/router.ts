@@ -1,5 +1,5 @@
 import { createStatusMetadata, listTools, MCP_SERVER_NAME } from './catalog.ts';
-import { callSemanticCommandTool } from './semantic-tools.ts';
+import { semanticCommandToolExecutor } from './semantic-tools.ts';
 import { readVersion } from '../utils/version.ts';
 
 type JsonRpcId = string | number | null;
@@ -66,7 +66,7 @@ async function callTool(params: unknown): Promise<unknown> {
   const name = stringField(record, 'name');
   try {
     if (name === 'status') return statusToolResult();
-    return await callSemanticCommandTool(name, record.arguments);
+    return await semanticCommandToolExecutor.execute(name, record.arguments);
   } catch (error) {
     return textToolResult(error instanceof Error ? error.message : String(error), true);
   }

@@ -1,15 +1,30 @@
 import { createAgentDeviceClient } from '../client.ts';
+import type { AgentDeviceClient, AgentDeviceClientConfig } from '../client-types.ts';
 import {
   isSemanticCommandName,
   listSemanticMcpToolDefinitions,
   runSemanticCommand,
+  type SemanticCommandName,
 } from '../commands/semantic-command-surface.ts';
 import type { JsonSchema } from '../commands/semantic-contract.ts';
 
-type ToolResult = {
+export type ToolResult = {
   isError: boolean;
   structuredContent?: unknown;
   content: Array<{ type: 'text'; text: string }>;
+};
+
+type SemanticCommandToolExecutorDeps = {
+  createClient: (config: AgentDeviceClientConfig) => AgentDeviceClient;
+  runCommand: (
+    client: AgentDeviceClient,
+    name: SemanticCommandName,
+    input: unknown,
+  ) => Promise<unknown>;
+};
+
+export type SemanticCommandToolExecutor = {
+  execute: (name: string, input: unknown) => Promise<ToolResult>;
 };
 
 export function listSemanticCommandTools(): Array<{
@@ -26,20 +41,31 @@ export function listSemanticCommandTools(): Array<{
   }));
 }
 
-export async function callSemanticCommandTool(name: string, input: unknown): Promise<ToolResult> {
-  if (!isSemanticCommandName(name)) {
-    throw new Error(`Unknown semantic tool: ${name}`);
-  }
-  const client = createAgentDeviceClient(readClientConfig(input));
-  const result = await runSemanticCommand(client, name, input);
+export function createSemanticCommandToolExecutor(
+  deps: SemanticCommandToolExecutorDeps = {
+    createClient: createAgentDeviceClient,
+    runCommand: runSemanticCommand,
+  },
+): SemanticCommandToolExecutor {
   return {
-    isError: false,
-    structuredContent: result,
-    content: [{ type: 'text', text: renderToolText(result) }],
+    execute: async (name, input) => {
+      if (!isSemanticCommandName(name)) {
+        throw new Error(`Unknown semantic tool: ${name}`);
+      }
+      const client = deps.createClient(readClientConfig(input));
+      const result = await deps.runCommand(client, name, input);
+      return {
+        isError: false,
+        structuredContent: result,
+        content: [{ type: 'text', text: renderToolText(result) }],
+      };
+    },
   };
 }
 
-function readClientConfig(input: unknown): Parameters<typeof createAgentDeviceClient>[0] {
+export const semanticCommandToolExecutor = createSemanticCommandToolExecutor();
+
+function readClientConfig(input: unknown): AgentDeviceClientConfig {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
   const stateDir = (input as Record<string, unknown>).stateDir;
   if (stateDir === undefined) return {};
