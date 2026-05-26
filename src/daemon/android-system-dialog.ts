@@ -24,6 +24,14 @@ export type AndroidBlockingDialogRecoveryResult = 'absent' | 'recovered' | 'fail
 export type AndroidBlockingDialogReadinessResult =
   | { status: 'clear' }
   | { status: 'recovered'; warning: string };
+type AndroidDialogButtonTapResult =
+  | { ok: true; x: number; y: number }
+  | {
+      ok: false;
+      exitCode: number;
+      stdout: string;
+      stderr: string;
+    };
 
 export async function recoverAndroidBlockingSystemDialog(params: {
   session: SessionState;
@@ -41,13 +49,8 @@ export async function recoverAndroidBlockingSystemDialog(params: {
       return 'absent';
     }
 
-    const { x, y } = centerOfRect(closeAppButton.rect);
-    const tapResult = await runAndroidAdb(
-      session.device,
-      ['shell', 'input', 'tap', String(Math.round(x)), String(Math.round(y))],
-      { allowFailure: true },
-    );
-    if (tapResult.exitCode !== 0) {
+    const tapResult = await tapAndroidDialogButton(session, closeAppButton);
+    if (!tapResult.ok) {
       emitDiagnostic({
         level: 'warn',
         phase: 'android_blocking_dialog_tap_failed',
@@ -77,7 +80,7 @@ export async function recoverAndroidBlockingSystemDialog(params: {
 
     if (session.appBundleId) {
       await openAndroidApp(session.device, session.appBundleId);
-      const focused = await waitForFocusedAndroidApp(session, session.appBundleId);
+      const focused = await waitForAndroidAppFocus(session, session.appBundleId);
       if (!focused) {
         emitDiagnostic({
           level: 'warn',
@@ -99,8 +102,8 @@ export async function recoverAndroidBlockingSystemDialog(params: {
         session: session.name,
         deviceId: session.device.id,
         appBundleId: session.appBundleId,
-        x,
-        y,
+        x: tapResult.x,
+        y: tapResult.y,
       },
     });
     return 'recovered';
@@ -193,16 +196,13 @@ async function recoverAppOwnedAndroidBlockingSystemDialog(session: SessionState)
   const closeAppButton = findCloseAppButton(nodes, { requireDialogSignal: false });
   if (!closeAppButton?.rect) return false;
 
-  const { x, y } = centerOfRect(closeAppButton.rect);
-  const tapResult = await runAndroidAdb(
-    session.device,
-    ['shell', 'input', 'tap', String(Math.round(x)), String(Math.round(y))],
-    { allowFailure: true },
-  );
-  if (tapResult.exitCode !== 0) return false;
+  const tapResult = await tapAndroidDialogButton(session, closeAppButton);
+  if (!tapResult.ok) return false;
 
   await openAndroidApp(session.device, session.appBundleId);
-  const focused = await waitForRecoveredAndroidAppFocus(session, session.appBundleId);
+  const focused = await waitForAndroidAppFocus(session, session.appBundleId, {
+    requireNoBlockingDialog: true,
+  });
   if (focused) {
     emitDiagnostic({
       level: 'warn',
@@ -211,29 +211,12 @@ async function recoverAppOwnedAndroidBlockingSystemDialog(session: SessionState)
         session: session.name,
         deviceId: session.device.id,
         appBundleId: session.appBundleId,
-        x,
-        y,
+        x: tapResult.x,
+        y: tapResult.y,
       },
     });
   }
   return focused;
-}
-
-async function waitForRecoveredAndroidAppFocus(
-  session: SessionState,
-  appBundleId: string,
-): Promise<boolean> {
-  for (let attempt = 0; attempt < ANDROID_MODAL_POLL_ATTEMPTS; attempt += 1) {
-    const blockingFocus = await getAndroidBlockingDialogFocus(session.device);
-    const state = await getAndroidAppState(session.device);
-    if (!blockingFocus && state.package === appBundleId) {
-      return true;
-    }
-    await sleep(ANDROID_MODAL_POLL_MS);
-  }
-  const blockingFocus = await getAndroidBlockingDialogFocus(session.device);
-  const state = await getAndroidAppState(session.device);
-  return !blockingFocus && state.package === appBundleId;
 }
 
 function androidBlockingDialogError(params: {
@@ -266,6 +249,30 @@ async function readAndroidSnapshotNodes(session: SessionState): Promise<Snapshot
   return attachRefs(pruneGroupNodes(rawSnapshot.nodes));
 }
 
+async function tapAndroidDialogButton(
+  session: SessionState,
+  button: SnapshotNode,
+): Promise<AndroidDialogButtonTapResult> {
+  if (!button.rect) {
+    return { ok: false, exitCode: 1, stdout: '', stderr: 'button has no rect' };
+  }
+  const { x, y } = centerOfRect(button.rect);
+  const result = await runAndroidAdb(
+    session.device,
+    ['shell', 'input', 'tap', String(Math.round(x)), String(Math.round(y))],
+    { allowFailure: true },
+  );
+  if (result.exitCode !== 0) {
+    return {
+      ok: false,
+      exitCode: result.exitCode,
+      stdout: result.stdout.trim(),
+      stderr: result.stderr.trim(),
+    };
+  }
+  return { ok: true, x, y };
+}
+
 function findCloseAppButton(
   nodes: SnapshotNode[],
   options: { requireDialogSignal?: boolean } = {},
@@ -292,16 +299,27 @@ async function waitForBlockingDialogToDismiss(session: SessionState): Promise<bo
   return !containsBlockingDialog(nodes);
 }
 
-async function waitForFocusedAndroidApp(
+async function waitForAndroidAppFocus(
   session: SessionState,
   appBundleId: string,
+  options: { requireNoBlockingDialog?: boolean } = {},
 ): Promise<boolean> {
   for (let attempt = 0; attempt < ANDROID_MODAL_POLL_ATTEMPTS; attempt += 1) {
-    const state = await getAndroidAppState(session.device);
-    if (state.package === appBundleId) {
+    if (await isAndroidAppFocused(session, appBundleId, options)) {
       return true;
     }
     await sleep(ANDROID_MODAL_POLL_MS);
+  }
+  return await isAndroidAppFocused(session, appBundleId, options);
+}
+
+async function isAndroidAppFocused(
+  session: SessionState,
+  appBundleId: string,
+  options: { requireNoBlockingDialog?: boolean },
+): Promise<boolean> {
+  if (options.requireNoBlockingDialog && (await getAndroidBlockingDialogFocus(session.device))) {
+    return false;
   }
   const state = await getAndroidAppState(session.device);
   return state.package === appBundleId;
