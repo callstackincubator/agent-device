@@ -1,15 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
+import { MCP_EXCLUDED_CLI_COMMANDS } from '../../command-catalog.ts';
 import { getCliCommandNames } from '../../utils/command-schema.ts';
 import { handleMcpMessage } from '../router.ts';
-
-const LOCAL_ONLY_CLI_COMMANDS = new Set([
-  'auth',
-  'connect',
-  'connection',
-  'disconnect',
-  'react-devtools',
-]);
 
 test('MCP exposes every automatable CLI command as a semantic direct tool', async () => {
   const response = await handleMcpMessage({
@@ -23,7 +16,7 @@ test('MCP exposes every automatable CLI command as a semantic direct tool', asyn
     (tool) => tool.name,
   );
   const expectedToolNames = getCliCommandNames()
-    .filter((command) => command !== 'mcp' && !LOCAL_ONLY_CLI_COMMANDS.has(command))
+    .filter((command) => !MCP_EXCLUDED_CLI_COMMANDS.has(command))
     .sort();
 
   assert.deepEqual(tools.filter((name) => name !== 'status').sort(), expectedToolNames);

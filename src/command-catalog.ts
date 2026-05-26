@@ -54,18 +54,32 @@ export const INTERNAL_COMMANDS = {
   sessionList: 'session_list',
 } as const;
 
+export const LOCAL_CLI_COMMANDS = {
+  auth: 'auth',
+  connect: 'connect',
+  connection: 'connection',
+  disconnect: 'disconnect',
+  mcp: 'mcp',
+  metro: 'metro',
+  reactDevtools: 'react-devtools',
+  session: 'session',
+} as const;
+
 const GESTURE_SUBCOMMANDS = ['pan', 'fling', 'pinch', 'rotate', 'transform'] as const;
 export const GESTURE_SUBCOMMAND_ERROR = `gesture requires one of: ${GESTURE_SUBCOMMANDS.join(', ')}`;
 
 export type PublicCommandName = (typeof PUBLIC_COMMANDS)[keyof typeof PUBLIC_COMMANDS];
-export type CliCommandName =
-  | PublicCommandName
-  | 'auth'
-  | 'connect'
-  | 'connection'
-  | 'disconnect'
-  | 'metro'
-  | 'session';
+export type LocalCliCommandName = (typeof LOCAL_CLI_COMMANDS)[keyof typeof LOCAL_CLI_COMMANDS];
+export type CliCommandName = PublicCommandName | LocalCliCommandName;
+
+export const MCP_EXCLUDED_CLI_COMMANDS = commandSet(
+  LOCAL_CLI_COMMANDS.auth,
+  LOCAL_CLI_COMMANDS.connect,
+  LOCAL_CLI_COMMANDS.connection,
+  LOCAL_CLI_COMMANDS.disconnect,
+  LOCAL_CLI_COMMANDS.mcp,
+  LOCAL_CLI_COMMANDS.reactDevtools,
+);
 
 export const DAEMON_COMMAND_GROUPS = {
   inventory: commandSet(

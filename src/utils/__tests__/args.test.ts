@@ -4,6 +4,7 @@ import { parseArgs, usage, usageForCommand } from '../args.ts';
 import { AppError } from '../errors.ts';
 import { getCliCommandNames, getSchemaCapabilityKeys } from '../command-schema.ts';
 import { listCapabilityCommands } from '../../core/capabilities.ts';
+import { LOCAL_CLI_COMMANDS, PUBLIC_COMMANDS } from '../../command-catalog.ts';
 
 test('parseArgs recognizes command-specific flag combinations', async () => {
   const scenarios: Array<{
@@ -155,6 +156,13 @@ test('parseArgs recognizes command-specific flag combinations', async () => {
   for (const scenario of scenarios) {
     scenario.assertParsed(parseArgs(scenario.argv, { strictFlags: scenario.strictFlags }));
   }
+});
+
+test('command parser schemas cover the centralized CLI command catalog', () => {
+  assert.deepEqual(
+    new Set(getCliCommandNames()),
+    new Set([...Object.values(PUBLIC_COMMANDS), ...Object.values(LOCAL_CLI_COMMANDS)]),
+  );
 });
 
 test('parseArgs recognizes device isolation flags', () => {
