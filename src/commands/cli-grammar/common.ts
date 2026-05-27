@@ -1,4 +1,8 @@
-import type { ElementTarget, InteractionTarget } from '../../client-types.ts';
+import type {
+  ElementTarget,
+  InteractionTarget,
+  InternalRequestOptions,
+} from '../../client-types.ts';
 import { splitSelectorFromArgs } from '../../daemon/selectors.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { AppError } from '../../utils/errors.ts';
@@ -25,12 +29,19 @@ export function request(
   return { command, positionals, options: normalizeCommonRequestOptions(options) };
 }
 
-function normalizeCommonRequestOptions(options: CommandInput): CommandInput {
-  const normalizedTarget =
-    options.deviceTarget ?? (typeof options.target === 'string' ? options.target : undefined);
-  if (normalizedTarget === undefined && options.target === undefined) return options;
+function normalizeCommonRequestOptions(options: CommandInput): InternalRequestOptions {
+  const normalizedTarget = readDeviceTarget(options.deviceTarget ?? options.target);
+  if (normalizedTarget === undefined && options.target === undefined) {
+    return options as InternalRequestOptions;
+  }
   const { target: _target, ...rest } = options;
-  return normalizedTarget === undefined ? rest : { ...rest, target: normalizedTarget };
+  return (
+    normalizedTarget === undefined ? rest : { ...rest, target: normalizedTarget }
+  ) as InternalRequestOptions;
+}
+
+function readDeviceTarget(value: unknown): InternalRequestOptions['target'] | undefined {
+  return value === 'mobile' || value === 'tv' || value === 'desktop' ? value : undefined;
 }
 
 export function commonInputFromFlags(flags: CliFlags): Record<string, unknown> {

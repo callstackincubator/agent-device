@@ -40,7 +40,8 @@ export const systemCliReaders = {
 
 export const systemDaemonWriters = {
   appstate: direct(PUBLIC_COMMANDS.appState),
-  back: (input) => request(PUBLIC_COMMANDS.back, [], { ...input, backMode: input.mode }),
+  back: (input) =>
+    request(PUBLIC_COMMANDS.back, [], { ...input, backMode: readBackMode(input.mode) }),
   home: direct(PUBLIC_COMMANDS.home),
   rotate: direct(PUBLIC_COMMANDS.rotate, (input) => [
     requiredDaemonString(input.orientation, 'rotate requires orientation'),
@@ -54,6 +55,10 @@ export const systemDaemonWriters = {
     requiredDaemonString(input.action, 'react-native requires action'),
   ]),
 } satisfies Record<string, DaemonWriter>;
+
+function readBackMode(value: unknown): 'in-app' | 'system' | undefined {
+  return value === 'in-app' || value === 'system' ? value : undefined;
+}
 
 function clipboardPositionals(input: ClipboardCommandOptions): string[] {
   return input.action === 'read' ? ['read'] : ['write', input.text];
@@ -83,11 +88,24 @@ function readClipboardInput(positionals: string[]): Record<string, unknown> {
   return { action, text: positionals.slice(1).join(' ') };
 }
 
-function readKeyboardAction(value: string | undefined): 'status' | 'dismiss' | undefined {
+function readKeyboardAction(
+  value: string | undefined,
+): 'status' | 'dismiss' | 'enter' | 'return' | undefined {
   const action = value?.toLowerCase();
   if (action === 'get') return 'status';
-  if (action === undefined || action === 'status' || action === 'dismiss') return action;
-  throw new AppError('INVALID_ARGS', 'keyboard action must be status, get, or dismiss.');
+  if (
+    action === undefined ||
+    action === 'status' ||
+    action === 'dismiss' ||
+    action === 'enter' ||
+    action === 'return'
+  ) {
+    return action;
+  }
+  throw new AppError(
+    'INVALID_ARGS',
+    'keyboard action must be status, get, dismiss, enter, or return.',
+  );
 }
 
 function readReactNativeAction(value: string | undefined): 'dismiss-overlay' {

@@ -147,9 +147,10 @@ const CLI_COMMAND_OVERRIDES = {
     allowsExtraPositionals: true,
   },
   keyboard: {
-    usageOverride: 'keyboard [status|get|dismiss]',
-    helpDescription: 'Inspect Android keyboard visibility/type or dismiss the device keyboard',
-    summary: 'Inspect or dismiss the device keyboard',
+    usageOverride: 'keyboard [status|get|dismiss|enter|return]',
+    helpDescription:
+      'Inspect Android keyboard visibility/type or press/dismiss the device keyboard',
+    summary: 'Inspect, press, or dismiss the device keyboard',
     positionalArgs: ['action?'],
   },
   back: {
@@ -197,16 +198,17 @@ const CLI_COMMAND_OVERRIDES = {
   },
   replay: {
     positionalArgs: ['path'],
-    allowedFlags: ['replayMaestro', ...REPLAY_FLAGS],
+    allowedFlags: ['replayMaestro', ...REPLAY_FLAGS, 'timeoutMs'],
   },
   test: {
     usageOverride: 'test <path-or-glob>...',
     listUsageOverride: 'test <path-or-glob>...',
-    helpDescription: 'Run one or more .ad scripts as a serial test suite',
-    summary: 'Run .ad test suites',
+    helpDescription: 'Run one or more replay scripts as a serial test suite',
+    summary: 'Run replay test suites',
     positionalArgs: ['pathOrGlob'],
     allowsExtraPositionals: true,
     allowedFlags: [
+      'replayMaestro',
       ...REPLAY_FLAGS,
       'failFast',
       'timeoutMs',
