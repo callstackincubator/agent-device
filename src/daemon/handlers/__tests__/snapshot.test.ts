@@ -2,10 +2,6 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { parseWaitPositionals as parseWaitArgs } from '../../../command-codecs/wait.ts';
 
-// --- parseTimeout ---
-
-// --- parseWaitArgs ---
-
 test('parseWaitArgs returns null for empty args', () => {
   assert.equal(parseWaitArgs([]), null);
 });
