@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import {
-  parseAndroidCpuInfoSample,
   parseAndroidFramePerfSample,
   parseAndroidMemInfoSample,
 } from '../perf.ts';

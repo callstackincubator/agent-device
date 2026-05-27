@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { AppError } from '../../../utils/errors.ts';
-import { discoverReplayTestEntries, resolveReplayTestRetries } from '../session-test-discovery.ts';
+import { discoverReplayTestEntries } from '../session-test-discovery.ts';
 
 test('discoverReplayTestEntries expands directories in deterministic path order', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-discovery-'));

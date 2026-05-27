@@ -4,9 +4,7 @@ import { attachRefs } from '../../utils/snapshot.ts';
 import {
   extractNodeReadText,
   findNearestHittableAncestor,
-  isFillableType,
   pruneGroupNodes,
-  resolveRefLabel,
 } from '../snapshot-processing.ts';
 
 test('pruneGroupNodes drops unlabeled group wrappers and rebalances depth', () => {

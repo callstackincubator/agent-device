@@ -292,14 +292,3 @@ test('strips only conflicting selectors for existing sessions', () => {
   assert.equal(req.flags?.serial, undefined);
 });
 
-function selectedFlags(req: ReturnType<typeof applyRequestLockPolicy>): {
-  platform: string | undefined;
-  device: string | undefined;
-  serial: string | undefined;
-} {
-  return {
-    platform: req.flags?.platform,
-    device: req.flags?.device,
-    serial: req.flags?.serial,
-  };
-}

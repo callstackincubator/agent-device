@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { buildReplayActionFlags, withReplayFailureContext } from '../session-replay-runtime.ts';
 import { buildNestedReplayFlags } from '../session-replay.ts';
 
 test('buildNestedReplayFlags returns parent flags untouched when neither override is set', () => {

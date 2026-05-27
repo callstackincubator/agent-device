@@ -5,17 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   APP_LOG_PID_FILENAME,
-  appendAppLogMarker,
   assertAndroidPackageArgSafe,
   buildAppleLogPredicate,
   buildIosDeviceLogStreamArgs,
   buildIosSimulatorLogStreamArgs,
-  clearAppLogFiles,
   cleanupStaleAppLogProcesses,
-  getAppLogPathMetadata,
   runAppLogDoctor,
   rotateAppLogIfNeeded,
-  stopAppLog,
 } from '../app-log.ts';
 
 test('buildAppleLogPredicate includes bundle-aware filters', () => {

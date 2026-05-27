@@ -24,14 +24,6 @@ const androidDevice: DeviceInfo = {
   kind: 'device',
 };
 
-const androidTvDevice: DeviceInfo = {
-  platform: 'android',
-  id: 'and-tv-1',
-  name: 'Android TV',
-  kind: 'device',
-  target: 'tv',
-};
-
 const macOsDevice: DeviceInfo = {
   platform: 'macos',
   id: 'mac-1',

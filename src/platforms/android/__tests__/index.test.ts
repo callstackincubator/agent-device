@@ -8,7 +8,6 @@ import {
   inferAndroidAppName,
   installAndroidApp,
   installAndroidInstallablePath,
-  isAmStartError,
   openAndroidApp,
   parseAndroidLaunchComponent,
   resolveAndroidApp,

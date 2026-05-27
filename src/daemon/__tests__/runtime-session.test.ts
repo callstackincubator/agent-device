@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { makeIosSession } from '../../__tests__/test-utils/session-factories.ts';
 import { flushDiagnosticsToSessionFile, withDiagnosticsScope } from '../../utils/diagnostics.ts';
-import { createDaemonRuntimeSessionStore, toRuntimeSessionRecord } from '../runtime-session.ts';
+import { createDaemonRuntimeSessionStore } from '../runtime-session.ts';
 import type { CommandSessionRecord } from '../../runtime-contract.ts';
 
 test('createDaemonRuntimeSessionStore hides non-matching sessions and scopes writes', async () => {

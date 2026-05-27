@@ -1,6 +1,5 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { DAEMON_COMMAND_GROUPS, PUBLIC_COMMANDS } from '../command-catalog.ts';
 import {
   fillCommandCodec,
   findCommandCodec,

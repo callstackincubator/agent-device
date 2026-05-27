@@ -1,24 +1,15 @@
-import { test, vi } from 'vitest';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   requireIntInRange,
   clampIosSwipeDuration,
   shouldUseIosTapSeries,
   shouldUseIosDragSeries,
-  computeDeterministicJitter,
-  runRepeatedSeries,
 } from '../dispatch-series.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 
 const iosDevice: DeviceInfo = { platform: 'ios', id: 'test', name: 'iPhone', kind: 'simulator' };
-const androidDevice: DeviceInfo = {
-  platform: 'android',
-  id: 'test',
-  name: 'Pixel',
-  kind: 'emulator',
-};
-
 // --- requireIntInRange ---
 
 test('requireIntInRange throws for value below minimum', () => {

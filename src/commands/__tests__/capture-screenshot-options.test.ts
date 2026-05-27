@@ -6,8 +6,6 @@ import {
   SCREENSHOT_COMMAND_FLAG_KEYS,
   SCREENSHOT_SPECIFIC_FLAG_DEFINITIONS,
   readScreenshotScriptFlag,
-  screenshotFlagsFromOptions,
-  screenshotOptionsFromFlags,
 } from '../capture-screenshot-options.ts';
 
 test('screenshot script flags use the shared recorded flag contract', () => {

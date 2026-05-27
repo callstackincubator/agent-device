@@ -5,9 +5,7 @@ import path from 'node:path';
 import { test } from 'vitest';
 import { runCmd } from '../../../utils/exec.ts';
 import {
-  resolveAndroidAdbProvider,
   withAndroidAdbProvider,
-  type AndroidAdbProcess,
 } from '../adb-executor.ts';
 
 const device = {

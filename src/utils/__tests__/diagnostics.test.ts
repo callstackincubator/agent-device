@@ -6,7 +6,6 @@ import path from 'node:path';
 import {
   emitDiagnostic,
   flushDiagnosticsToSessionFile,
-  withDiagnosticTimer,
   withDiagnosticsScope,
 } from '../diagnostics.ts';
 

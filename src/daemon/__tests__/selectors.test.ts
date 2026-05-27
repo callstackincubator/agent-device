@@ -2,9 +2,7 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import type { SnapshotState } from '../../utils/snapshot.ts';
 import {
-  buildSelectorChainForNode,
   findSelectorChainMatch,
-  isSelectorToken,
   parseSelectorChain,
   resolveSelectorChain,
   splitSelectorFromArgs,

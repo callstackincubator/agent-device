@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { PNG } from 'pngjs';
 import { test } from 'vitest';
 import {
   createAgentDevice,

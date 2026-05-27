@@ -1,10 +1,6 @@
 import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import {
-  handleFlingCommand,
-  handlePanCommand,
-  handlePinchCommand,
-  handlePressCommand,
   handleRotateGestureCommand,
   handleTransformGestureCommand,
 } from '../dispatch-interactions.ts';
@@ -12,7 +8,6 @@ import type { Interactor } from '../interactor-types.ts';
 import {
   ANDROID_EMULATOR,
   IOS_SIMULATOR,
-  MACOS_DEVICE,
 } from '../../__tests__/test-utils/device-fixtures.ts';
 
 vi.mock('../../platforms/ios/macos-helper.ts', async (importOriginal) => {
@@ -22,8 +17,6 @@ vi.mock('../../platforms/ios/macos-helper.ts', async (importOriginal) => {
     runMacOsPressAction: vi.fn(async () => ({})),
   };
 });
-
-import { runMacOsPressAction } from '../../platforms/ios/macos-helper.ts';
 
 function makeUnusedInteractor(): Interactor {
   const fail = async () => {

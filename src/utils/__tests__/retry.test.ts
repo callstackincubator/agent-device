@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { Deadline, retryWithPolicy, withRetry } from '../retry.ts';
+import { retryWithPolicy, withRetry } from '../retry.ts';
 import { flushDiagnosticsToSessionFile, withDiagnosticsScope } from '../diagnostics.ts';
 
 test('retryWithPolicy retries until success', async () => {
