@@ -1,6 +1,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { createAgentDeviceClient, type AgentDeviceClientConfig } from '../client.ts';
+import { runCommand } from '../commands/command-surface.ts';
 import type { DaemonRequest, DaemonResponse } from '../contracts.ts';
 import { AppError } from '../utils/errors.ts';
 
@@ -115,6 +116,121 @@ test('apps.open forwards explicit runtime hints through the daemon request', asy
     metroPort: 8081,
     bundleUrl: undefined,
     launchUrl: undefined,
+  });
+});
+
+test('structured command input accepts target as deviceTarget alias when no UI target exists', async () => {
+  const setup = createTransport(async (req) => {
+    if (req.command === 'open') {
+      return {
+        ok: true,
+        data: {
+          session: 'qa',
+          appName: 'Settings',
+          appBundleId: 'com.apple.Preferences',
+          platform: 'ios',
+          target: 'tv',
+          device: 'Apple TV',
+          id: 'TV-001',
+          kind: 'simulator',
+        },
+      };
+    }
+    throw new Error(`Unexpected command: ${req.command}`);
+  });
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await runCommand(client, 'open', { app: 'Settings', target: 'tv' });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'open');
+  assert.deepEqual(setup.calls[0]?.positionals, ['Settings']);
+  assert.equal(setup.calls[0]?.flags?.target, 'tv');
+});
+
+test('structured interaction input keeps UI target separate from deviceTarget', async () => {
+  const setup = createTransport(async (req) => {
+    if (req.command === 'get' || req.command === 'longpress') {
+      return {
+        ok: true,
+        data: { ok: true },
+      };
+    }
+    throw new Error(`Unexpected command: ${req.command}`);
+  });
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await runCommand(client, 'get', {
+    deviceTarget: 'mobile',
+    format: 'text',
+    target: { kind: 'ref', ref: '@e1' },
+  });
+  await runCommand(client, 'longpress', {
+    deviceTarget: 'mobile',
+    durationMs: 800,
+    target: { kind: 'ref', ref: '@e2' },
+  });
+
+  assert.equal(setup.calls.length, 2);
+  assert.equal(setup.calls[0]?.command, 'get');
+  assert.deepEqual(setup.calls[0]?.positionals, ['text', '@e1']);
+  assert.equal(setup.calls[0]?.flags?.target, 'mobile');
+  assert.equal(setup.calls[1]?.command, 'longpress');
+  assert.deepEqual(setup.calls[1]?.positionals, ['@e2', '800']);
+  assert.equal(setup.calls[1]?.flags?.target, 'mobile');
+});
+
+test('apps.installFromSource forwards source payload and normalizes launch identity', async () => {
+  const setup = createTransport(async () => ({
+    ok: true,
+    data: {
+      packageName: 'com.example.demo',
+      appName: 'Demo',
+      launchTarget: 'com.example.demo',
+      installablePath: '/tmp/materialized/installable/demo.apk',
+      archivePath: '/tmp/materialized/archive/demo.zip',
+      materializationId: 'materialized-123',
+      materializationExpiresAt: '2026-03-13T12:00:00.000Z',
+    },
+  }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  const result = await client.apps.installFromSource({
+    platform: 'android',
+    retainPaths: true,
+    retentionMs: 60_000,
+    source: {
+      kind: 'url',
+      url: 'https://example.com/demo.apk',
+      headers: { authorization: 'Bearer token' },
+    },
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'install_source');
+  assert.deepEqual(setup.calls[0]?.meta?.installSource, {
+    kind: 'url',
+    url: 'https://example.com/demo.apk',
+    headers: { authorization: 'Bearer token' },
+  });
+  assert.equal(setup.calls[0]?.meta?.retainMaterializedPaths, true);
+  assert.equal(setup.calls[0]?.meta?.materializedPathRetentionMs, 60_000);
+  assert.deepEqual(result, {
+    appName: 'Demo',
+    appId: 'com.example.demo',
+    bundleId: undefined,
+    packageName: 'com.example.demo',
+    launchTarget: 'com.example.demo',
+    installablePath: '/tmp/materialized/installable/demo.apk',
+    archivePath: '/tmp/materialized/archive/demo.zip',
+    materializationId: 'materialized-123',
+    materializationExpiresAt: '2026-03-13T12:00:00.000Z',
+    identifiers: {
+      session: 'qa',
+      appId: 'com.example.demo',
+      appBundleId: undefined,
+      package: 'com.example.demo',
+    },
   });
 });
 

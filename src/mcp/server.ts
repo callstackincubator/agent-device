@@ -3,24 +3,15 @@ import { handleMcpMessage, type JsonRpcMessage } from './router.ts';
 type JsonRpcResponse = Awaited<NonNullable<ReturnType<typeof handleMcpMessage>>>;
 type JsonRpcId = string | number | null;
 type MessageSink = (message: JsonRpcMessage | JsonRpcMessage[]) => void;
+type PayloadHandler = (
+  messageOrBatch: JsonRpcMessage | JsonRpcMessage[],
+) => Promise<unknown | null>;
+type MessageWriter = (message: unknown) => void;
 
 export async function runAgentDeviceMcpServer(): Promise<void> {
+  const payloadQueue = createMcpPayloadQueue();
   const decoder = new McpMessageDecoder((messageOrBatch) => {
-    const fallbackId = fallbackErrorId(messageOrBatch);
-    void handleMcpPayload(messageOrBatch)
-      .then((response) => {
-        if (response) writeMessage(response);
-      })
-      .catch((error: unknown) => {
-        writeMessage({
-          jsonrpc: '2.0',
-          id: fallbackId,
-          error: {
-            code: -32603,
-            message: error instanceof Error ? error.message : String(error),
-          },
-        });
-      });
+    payloadQueue.push(messageOrBatch);
   });
 
   process.stdin.setEncoding('utf8');
@@ -44,6 +35,44 @@ export async function runAgentDeviceMcpServer(): Promise<void> {
     process.stdin.on('close', resolve);
     process.stdin.resume();
   });
+  await payloadQueue.idle();
+}
+
+export function createMcpPayloadQueue(
+  options: {
+    handlePayload?: PayloadHandler;
+    write?: MessageWriter;
+  } = {},
+): {
+  push: (messageOrBatch: JsonRpcMessage | JsonRpcMessage[]) => void;
+  idle: () => Promise<void>;
+} {
+  const handlePayload = options.handlePayload ?? handleMcpPayload;
+  const write = options.write ?? writeMessage;
+  let pending = Promise.resolve();
+  return {
+    push: (messageOrBatch) => {
+      const fallbackId = fallbackErrorId(messageOrBatch);
+      pending = pending
+        .then(async () => {
+          const response = await handlePayload(messageOrBatch);
+          if (response) write(response);
+        })
+        .catch((error: unknown) => {
+          write({
+            jsonrpc: '2.0',
+            id: fallbackId,
+            error: {
+              code: -32603,
+              message: error instanceof Error ? error.message : String(error),
+            },
+          });
+        });
+    },
+    idle: async () => {
+      await pending;
+    },
+  };
 }
 
 export function handleMcpPayload(

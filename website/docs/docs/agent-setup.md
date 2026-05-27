@@ -56,6 +56,8 @@ Use MCP tools or the CLI in the integrated terminal. If `agent-device` is not on
 
 `agent-device mcp` starts the official stdio MCP server. It exposes direct structured tools for installed CLI commands. Tools run through command contracts and `AgentDeviceClient`; local-only workflows stay CLI-only rather than subprocess fallbacks.
 
+Tool execution failures are returned as MCP tool results with `isError: true`; clients and agents should inspect the tool result, not only the successful JSON-RPC envelope.
+
 MCP clients must not use this server as a generic shell runner. If the CLI is missing, agents should ask a human before installing or updating packages, then verify with `agent-device --version` and start with `agent-device help workflow`.
 
 Global install configuration:

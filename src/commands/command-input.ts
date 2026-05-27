@@ -48,6 +48,7 @@ export type SelectorSnapshotInput = {
 };
 
 export type PointInput = { x: number; y: number };
+type CommonInputOptions = { readTargetAlias?: boolean };
 
 function commandInputSchema(
   properties: Record<string, JsonSchema>,
@@ -249,7 +250,9 @@ export function readFieldInput<TFields extends CommandFieldMap>(
       return value === undefined ? [] : [[key, value]];
     }),
   );
-  const commonInput = readCommonInput(record);
+  const commonInput = readCommonInput(record, {
+    readTargetAlias: !Object.hasOwn(fields, 'target'),
+  });
   return compactRecord({
     ...commonInput,
     ...commonToClientOptions(commonInput),
@@ -265,11 +268,14 @@ export function readInputRecord(input: unknown): Record<string, unknown> {
   return input as Record<string, unknown>;
 }
 
-export function readCommonInput(record: Record<string, unknown>): CommonCommandInput {
+export function readCommonInput(
+  record: Record<string, unknown>,
+  options: CommonInputOptions = {},
+): CommonCommandInput {
   return {
     session: optionalString(record, 'session'),
     platform: optionalEnum(record, 'platform', PLATFORM_VALUES),
-    deviceTarget: optionalEnum(record, 'deviceTarget', DEVICE_TARGET_VALUES),
+    deviceTarget: readDeviceTarget(record, options),
     device: optionalString(record, 'device'),
     udid: optionalString(record, 'udid'),
     serial: optionalString(record, 'serial'),
@@ -283,6 +289,19 @@ export function readCommonInput(record: Record<string, unknown>): CommonCommandI
     cwd: optionalString(record, 'cwd'),
     debug: optionalBoolean(record, 'debug'),
   };
+}
+
+function readDeviceTarget(
+  record: Record<string, unknown>,
+  options: CommonInputOptions,
+): DeviceTarget | undefined {
+  const deviceTarget = optionalEnum(record, 'deviceTarget', DEVICE_TARGET_VALUES);
+  if (options.readTargetAlias === false || record.target === undefined) return deviceTarget;
+  const targetAlias = optionalEnum(record, 'target', DEVICE_TARGET_VALUES);
+  if (deviceTarget !== undefined && targetAlias !== deviceTarget) {
+    throw new Error('Expected target alias to match deviceTarget when both are set.');
+  }
+  return deviceTarget ?? targetAlias;
 }
 
 function readInteractionTarget(
@@ -547,6 +566,12 @@ function commonProperties(): Record<string, JsonSchema> {
       type: 'string',
       enum: DEVICE_TARGET_VALUES,
       description: 'Device target form. Maps to the CLI --target flag.',
+    },
+    target: {
+      type: 'string',
+      enum: DEVICE_TARGET_VALUES,
+      description:
+        'Alias for deviceTarget on commands without a UI target field. Interaction commands reserve target for the UI element.',
     },
     device: { type: 'string', description: 'Device name selector.' },
     udid: { type: 'string', description: 'iOS device UDID selector.' },
