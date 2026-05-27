@@ -24,6 +24,7 @@ import type {
 import type { MetroBridgeScope } from './client-companion-tunnel-contract.ts';
 import type { AppsFilter } from './commands/app-inventory-contract.ts';
 import type { ScreenshotRequestFlags } from './commands/capture-screenshot-options.ts';
+import type { DaemonBatchStep } from './core/batch.ts';
 import type { AlertInfo } from './alert-contract.ts';
 
 export type { FindLocator } from './utils/finders.ts';
@@ -832,11 +833,7 @@ type CommandExecutionOptions = Partial<ScreenshotRequestFlags> & {
   networkInclude?: 'summary' | 'headers' | 'body' | 'all';
   batchOnError?: 'stop';
   batchMaxSteps?: number;
-  batchSteps?: Array<{
-    command: string;
-    positionals?: string[];
-    flags?: Record<string, unknown>;
-  }>;
+  batchSteps?: DaemonBatchStep[];
 };
 
 export type InternalRequestOptions = AgentDeviceClientConfig &

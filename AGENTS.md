@@ -70,7 +70,7 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
 - Keep command input/output contracts in the command modules:
   - command surface and shared schemas: `src/commands/command-surface.ts`, `src/commands/command-contract.ts`, `src/commands/command-input.ts`
   - typed client command execution: `src/commands/client-command-contracts.ts`
-  - command families: `src/commands/interaction-command-contracts.ts`, `src/commands/batch-command-contract.ts`, with other typed client contracts in `src/commands/client-command-contracts.ts`
+  - command families: `src/commands/interaction-command-contracts.ts`, `src/commands/batch-command.ts`, with other typed client contracts in `src/commands/client-command-contracts.ts`
   - CLI positional/flag grammar: `src/commands/cli-grammar.ts` and `src/commands/cli-grammar/*`
   - typed input to daemon request projection: `src/commands/command-projection.ts`
   - CLI/client/runtime output projection: `src/commands/cli-output.ts`, `src/commands/client-output.ts`, `src/commands/runtime-output.ts`
