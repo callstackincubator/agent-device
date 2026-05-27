@@ -4,6 +4,7 @@ import { dispatchCommand } from '../dispatch.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { clearIosSimulatorAppState, openIosApp } from '../../platforms/ios/apps.ts';
+import { openAndroidApp } from '../../platforms/android/app-lifecycle.ts';
 import { IOS_SIMULATOR } from '../../__tests__/test-utils/device-fixtures.ts';
 
 vi.mock('../../platforms/ios/apps.ts', async (importOriginal) => {
@@ -18,12 +19,23 @@ vi.mock('../../platforms/ios/apps.ts', async (importOriginal) => {
   };
 });
 
+vi.mock('../../platforms/android/app-lifecycle.ts', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../platforms/android/app-lifecycle.ts')>();
+  return {
+    ...actual,
+    openAndroidApp: vi.fn(async () => {}),
+  };
+});
+
 const mockClearIosSimulatorAppState = vi.mocked(clearIosSimulatorAppState);
 const mockOpenIosApp = vi.mocked(openIosApp);
+const mockOpenAndroidApp = vi.mocked(openAndroidApp);
 
 beforeEach(() => {
   mockClearIosSimulatorAppState.mockClear();
   mockOpenIosApp.mockClear();
+  mockOpenAndroidApp.mockClear();
 });
 
 test('dispatch open rejects URL as first argument when second URL is provided', async () => {
@@ -46,7 +58,7 @@ test('dispatch open rejects URL as first argument when second URL is provided', 
   );
 });
 
-test('dispatch open rejects Android launch arguments instead of dropping them', async () => {
+test('dispatch open forwards Android launch arguments to openAndroidApp', async () => {
   const device: DeviceInfo = {
     platform: 'android',
     id: 'emulator-5554',
@@ -55,18 +67,16 @@ test('dispatch open rejects Android launch arguments instead of dropping them', 
     booted: true,
   };
 
-  await assert.rejects(
-    () =>
-      dispatchCommand(device, 'open', ['com.example.app'], undefined, {
-        launchArgs: ['--fixture', 'demo'],
-      }),
-    (error: unknown) => {
-      assert.equal(error instanceof AppError, true);
-      assert.equal((error as AppError).code, 'UNSUPPORTED_OPERATION');
-      assert.match((error as AppError).message, /Apple platforms/i);
-      return true;
-    },
-  );
+  await dispatchCommand(device, 'open', ['com.example.app'], undefined, {
+    launchArgs: ['--es', 'KEY', 'value'],
+  });
+
+  assert.equal(mockOpenAndroidApp.mock.calls.length, 1);
+  assert.equal(mockOpenAndroidApp.mock.calls[0]?.[0], device);
+  assert.equal(mockOpenAndroidApp.mock.calls[0]?.[1], 'com.example.app');
+  const optionsArg = mockOpenAndroidApp.mock.calls[0]?.[2];
+  assert.ok(optionsArg && typeof optionsArg === 'object', 'expected options object');
+  assert.deepEqual(optionsArg.launchArgs, ['--es', 'KEY', 'value']);
 });
 
 test('dispatch open clears Maestro iOS simulator state and launches once', async () => {
