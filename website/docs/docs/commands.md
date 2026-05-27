@@ -362,6 +362,7 @@ agent-device batch --steps '[{"command":"open","input":{"app":"settings"}}]'
 - `batch` runs a JSON array of steps in a single daemon request.
 - Each step has `command`, `input`, and optional `runtime`.
 - `input` uses the same fields as the matching MCP/Node command.
+- Legacy CLI step payloads with `positionals`/`flags` still run with a deprecation warning and will be removed in the next major version.
 - Unknown top-level step fields are rejected.
 - Stop-on-first-error is the supported behavior (`--on-error stop`).
 - Use `--max-steps <n>` to tighten per-request safety limits.

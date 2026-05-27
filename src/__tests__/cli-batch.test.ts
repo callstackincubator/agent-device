@@ -62,6 +62,26 @@ test('batch --steps-file parses file payload', async () => {
   assert.equal((req.flags?.batchSteps ?? [])[0]?.command, 'wait');
 });
 
+test('batch accepts legacy positionals/flags steps with deprecation warning', async () => {
+  const result = await runCliCapture([
+    'batch',
+    '--steps',
+    '[{"command":"open","positionals":["settings"],"flags":{"platform":"ios"}}]',
+    '--json',
+  ]);
+  assert.equal(result.code, null);
+  assert.match(result.stderr, /positionals\/flags are deprecated.*next major version/);
+  assert.equal(result.calls.length, 1);
+  const req = result.calls[0];
+  assert.equal(req.command, 'batch');
+  assert.deepEqual((req.flags?.batchSteps ?? [])[0], {
+    command: 'open',
+    positionals: ['settings'],
+    flags: { platform: 'ios' },
+    runtime: undefined,
+  });
+});
+
 test('batch --steps-file returns clear error for missing file', async () => {
   const result = await runCliCapture([
     'batch',

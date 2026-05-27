@@ -14,6 +14,7 @@ import {
 import { materializeRemoteConnectionForCommand } from './cli/commands/connection-runtime.ts';
 import { tryRunClientBackedCommand } from './cli/commands/router.ts';
 import { runReactDevtoolsCommand } from './cli/commands/react-devtools.ts';
+import { readCliBatchStepsJson } from './cli/batch-steps.ts';
 import {
   createRequestId,
   emitDiagnostic,
@@ -384,16 +385,7 @@ function readBatchSteps(flags: ReturnType<typeof resolveCliOptions>['flags']): B
       );
     }
   }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new AppError('INVALID_ARGS', 'Batch steps must be valid JSON.');
-  }
-  if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new AppError('INVALID_ARGS', 'Batch steps must be a non-empty JSON array.');
-  }
-  return parsed as BatchStep[];
+  return readCliBatchStepsJson(raw);
 }
 
 function isDaemonStartupFailure(error: AppError): boolean {

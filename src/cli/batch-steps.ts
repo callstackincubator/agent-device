@@ -1,0 +1,115 @@
+import type { BatchStep } from '../client-types.ts';
+import { readInputFromCli } from '../commands/cli-grammar.ts';
+import type { CliFlags } from '../utils/command-schema.ts';
+import { AppError } from '../utils/errors.ts';
+
+type LegacyCliBatchStep = {
+  command: string;
+  positionals?: string[];
+  flags?: Record<string, unknown>;
+  runtime?: unknown;
+};
+
+export function readCliBatchStepsJson(raw: string): BatchStep[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new AppError('INVALID_ARGS', 'Batch steps must be valid JSON.');
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new AppError('INVALID_ARGS', 'Batch steps must be a non-empty JSON array.');
+  }
+  return normalizeCliBatchSteps(parsed);
+}
+
+function normalizeCliBatchSteps(steps: unknown[]): BatchStep[] {
+  let sawLegacyStep = false;
+  const normalized = steps.map((step, index) => {
+    if (isStructuredBatchStep(step)) return step;
+    const legacyStep = readLegacyCliBatchStep(step, index + 1);
+    sawLegacyStep = true;
+    return legacyStepToStructuredStep(legacyStep);
+  });
+  if (sawLegacyStep) {
+    process.stderr.write(
+      'Warning: batch steps using positionals/flags are deprecated and will be removed in the next major version. Use {"command":"...","input":{...}} steps instead.\n',
+    );
+  }
+  return normalized;
+}
+
+function legacyStepToStructuredStep(legacyStep: LegacyCliBatchStep): BatchStep {
+  const input = readInputFromCli(
+    legacyStep.command,
+    legacyStep.positionals ?? [],
+    cliFlagsFromBatchStep(legacyStep.flags),
+  );
+  return {
+    command: legacyStep.command,
+    input,
+    ...(legacyStep.runtime === undefined ? {} : { runtime: legacyStep.runtime }),
+  };
+}
+
+function isStructuredBatchStep(step: unknown): step is BatchStep {
+  return step !== null && typeof step === 'object' && !Array.isArray(step) && 'input' in step;
+}
+
+function readLegacyCliBatchStep(step: unknown, stepNumber: number): LegacyCliBatchStep {
+  if (!step || typeof step !== 'object' || Array.isArray(step)) {
+    throw new AppError('INVALID_ARGS', `Invalid batch step ${stepNumber}.`);
+  }
+  const record = step as Record<string, unknown>;
+  assertLegacyBatchStepKeys(record, stepNumber);
+  const command = typeof record.command === 'string' ? record.command.trim().toLowerCase() : '';
+  if (!command) throw new AppError('INVALID_ARGS', `Batch step ${stepNumber} requires command.`);
+  const positionals = readLegacyPositionals(record.positionals, stepNumber);
+  const flags = readLegacyFlags(record.flags, stepNumber);
+  return {
+    command,
+    ...(positionals === undefined ? {} : { positionals }),
+    ...(flags === undefined ? {} : { flags }),
+    ...(record.runtime === undefined ? {} : { runtime: record.runtime }),
+  };
+}
+
+function assertLegacyBatchStepKeys(record: Record<string, unknown>, stepNumber: number): void {
+  const unknownKeys = Object.keys(record).filter(
+    (key) => !['command', 'positionals', 'flags', 'runtime'].includes(key),
+  );
+  if (unknownKeys.length > 0) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Batch step ${stepNumber} has unknown legacy field(s): ${unknownKeys.join(', ')}.`,
+    );
+  }
+}
+
+function readLegacyPositionals(value: unknown, stepNumber: number): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
+    throw new AppError(
+      'INVALID_ARGS',
+      `Batch step ${stepNumber} positionals must contain only strings.`,
+    );
+  }
+  return value;
+}
+
+function readLegacyFlags(value: unknown, stepNumber: number): Record<string, unknown> | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new AppError('INVALID_ARGS', `Batch step ${stepNumber} flags must be an object.`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function cliFlagsFromBatchStep(flags: Record<string, unknown> | undefined): CliFlags {
+  return {
+    json: false,
+    help: false,
+    version: false,
+    ...(flags as Partial<CliFlags> | undefined),
+  };
+}

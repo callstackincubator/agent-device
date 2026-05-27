@@ -48,7 +48,7 @@ const AGENT_QUICKSTART_LINES = [
   'Clipboard limits: iOS Allow Paste cannot be automated through XCUITest; prefill with clipboard write. Android non-ASCII should use fill/type, not raw adb input.',
   'After mutation: refs are stale. If the next target is known, use its selector directly; otherwise refresh with snapshot -i, scoped with -s when a stable container is known.',
   'Raw coordinates are fallback-only: use snapshot -i -c --json rects when iOS refs no-op or child refs are missing.',
-  'Batch JSON steps use "command" and structured "input"; never "positionals", "flags", "args", or "step".',
+  'Batch JSON steps use "command" and structured "input"; legacy "positionals"/"flags" steps still run in CLI but are deprecated until the next major version.',
   'Navigation: app-owned back uses back; system back uses back --system.',
   'Verification commands must name the expected text/selector; bare screenshots/snapshots are not enough.',
   'Debug evidence: logs clear --restart/mark/path; trace start ./path; trace stop ./path; network dump --include headers.',
@@ -206,7 +206,7 @@ Validation and evidence:
   Stable known flow: batch ./steps.json, not workflow batch.
   Inline batch JSON example:
     agent-device batch --steps '[{"command":"open","input":{"app":"settings"}},{"command":"wait","input":{"kind":"duration","durationMs":100}}]'
-  Batch step keys are command, input, and optional runtime. Put command arguments inside input using the same fields as the MCP/Node command.
+  Batch step keys are command, input, and optional runtime. Put command arguments inside input using the same fields as the MCP/Node command. CLI still accepts legacy positionals/flags steps with a deprecation warning until the next major version.
   Android animations: settings animations off/on, not animations disable/restore.
   Debug logs: logs clear --restart, logs mark, reproduce, then logs path; do not split clear/restart into separate stop/start commands.
   Network headers: network dump --include headers; do not write network log headers.

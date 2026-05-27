@@ -53,6 +53,7 @@ Notes:
 
 - `input` is required and uses the same fields as the matching MCP/Node command.
 - Unknown top-level step fields are rejected. Supported keys are `command`, `input`, and `runtime`.
+- CLI `--steps` and `--steps-file` still accept the legacy `positionals`/`flags` step shape with a deprecation warning. That compatibility path will be removed in the next major version.
 - nested `batch` and `replay` steps are rejected.
 - `--on-error stop` is the supported behavior.
 
