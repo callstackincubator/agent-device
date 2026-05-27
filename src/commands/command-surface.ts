@@ -6,7 +6,7 @@ import type { JsonSchema } from './command-contract.ts';
 import { interactionCommandDefinitions } from './interaction-command-contracts.ts';
 import { batchCommandNames, type BatchCommandName } from './cli-grammar.ts';
 
-type AnyCommandDefinition = {
+type AnyExecutableCommand = {
   name: string;
   description: string;
   inputSchema: JsonSchema;
@@ -25,11 +25,11 @@ export type CommandName = (typeof commandSurface)[number]['name'];
 export type CliCommand = CommandName;
 export type { BatchCommandName };
 
-const commandMap: ReadonlyMap<CommandName, AnyCommandDefinition> = new Map(
+const commandMap: ReadonlyMap<CommandName, AnyExecutableCommand> = new Map(
   commandSurface.map((definition) => [definition.name, definition]),
 );
 
-export function listMcpToolDefinitions(): AnyCommandDefinition[] {
+export function listMcpToolDefinitions(): AnyExecutableCommand[] {
   return listMcpExposedCommandNames().map((name) => {
     if (!isCommandName(name)) {
       throw new Error(`Missing command for MCP-exposed command: ${name}`);
@@ -42,7 +42,7 @@ export function listCommandNames(): CommandName[] {
   return commandSurface.map((definition) => definition.name);
 }
 
-export function listCommandDefinitions(): AnyCommandDefinition[] {
+export function listCommandDefinitions(): AnyExecutableCommand[] {
   return [...commandSurface];
 }
 
@@ -58,6 +58,6 @@ export async function runCommand(
   return await getCommandDefinition(name).invoke(client, input);
 }
 
-function getCommandDefinition(name: CommandName): AnyCommandDefinition {
+function getCommandDefinition(name: CommandName): AnyExecutableCommand {
   return commandMap.get(name)!;
 }

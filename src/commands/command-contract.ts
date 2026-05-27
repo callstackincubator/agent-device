@@ -23,7 +23,7 @@ type CommandContract<Name extends string, Input, Result> = {
   run: (client: AgentDeviceClient, input: Input) => Promise<Result>;
 };
 
-export type CommandDefinition<Name extends string, Input, Result> = CommandContract<
+export type ExecutableCommandContract<Name extends string, Input, Result> = CommandContract<
   Name,
   Input,
   Result
@@ -40,7 +40,7 @@ export type CliOutput = {
 
 export function defineCommand<Name extends string, Input, Result>(
   definition: CommandContract<Name, Input, Result>,
-): CommandDefinition<Name, Input, Result> {
+): ExecutableCommandContract<Name, Input, Result> {
   return {
     ...definition,
     invoke: async (client, input) => await definition.run(client, definition.readInput(input)),
