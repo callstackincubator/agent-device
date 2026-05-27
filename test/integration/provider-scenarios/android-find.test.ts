@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import type { AndroidAdbProvider } from '../../../src/platforms/android/adb-executor.ts';
 import { arrayEqual, assertCommandCall } from './assertions.ts';
-import { androidSettingsXml } from './android-world.ts';
+import { androidSettingsXml, androidSnapshotHelperOutput } from './android-world.ts';
 import { PROVIDER_SCENARIO_ANDROID } from './fixtures.ts';
 import { createProviderScenarioHarness } from './harness.ts';
 
@@ -160,7 +160,6 @@ test('Provider-backed integration Android find flow covers refs, wait, ambiguity
     assert.equal(lastAppMatch.x, 122);
     assert.equal(lastAppMatch.y, 217);
 
-    assertCommandCall(adbCalls, ['exec-out', 'uiautomator', 'dump', '/dev/tty']);
     assertCommandCall(adbCalls, ['shell', 'input', 'tap', '88', '151']);
     assertCommandCall(adbCalls, ['shell', 'input', 'tap', '122', '217']);
     assertCommandCall(adbCalls, ['shell', 'input', 'tap', '195', '52']);
@@ -193,6 +192,15 @@ function androidFindAdbResult(
   if (args.join(' ') === 'exec-out uiautomator dump /dev/tty') {
     return {
       stdout: androidSettingsXml(searchText, { duplicateAppsRow: includeDuplicateAppsRow }),
+      stderr: '',
+      exitCode: 0,
+    };
+  }
+  if (args.join(' ').startsWith('shell am instrument ')) {
+    return {
+      stdout: androidSnapshotHelperOutput(
+        androidSettingsXml(searchText, { duplicateAppsRow: includeDuplicateAppsRow }),
+      ),
       stderr: '',
       exitCode: 0,
     };

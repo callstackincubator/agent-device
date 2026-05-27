@@ -340,7 +340,7 @@ function androidCaptureAdbResult(
   return undefined;
 }
 
-function androidSnapshotHelperOutput(xml: string): string {
+export function androidSnapshotHelperOutput(xml: string): string {
   return [
     'INSTRUMENTATION_STATUS: agentDeviceProtocol=android-snapshot-helper-v1',
     'INSTRUMENTATION_STATUS: helperApiVersion=1',

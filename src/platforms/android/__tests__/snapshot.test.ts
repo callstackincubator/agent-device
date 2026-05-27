@@ -837,7 +837,8 @@ test('dumpUiHierarchy does not read a stale fallback file when dump fails withou
     (error: unknown) =>
       error instanceof AppError &&
       error.code === 'COMMAND_FAILED' &&
-      error.message.includes('did not produce a fresh XML file'),
+      error.message.includes('did not return XML') &&
+      error.details?.reason === 'missing_fresh_dump',
   );
 });
 

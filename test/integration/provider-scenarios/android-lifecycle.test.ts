@@ -1226,6 +1226,8 @@ function assertAndroidPushAndEventContract(world: AndroidSettingsWorld): void {
     'android.intent.action.VIEW',
     '-d',
     'demo://agent-device/event?name=screenshot_taken&payload=%7B%22source%22%3A%22provider-scenario%22%2C%22foreground%22%3Atrue%7D&platform=android',
+    '-p',
+    'com.example.demo',
   ]);
   assertCommandCall(adbCalls, ['shell', 'cmd', 'clipboard', 'get', 'text']);
   assertCommandCall(adbCalls, ['shell', 'cmd', 'clipboard', 'set', 'text', 'android otp']);
