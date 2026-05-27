@@ -1,10 +1,11 @@
 import type {
   AgentDeviceRequestOverrides,
   AgentDeviceSelectionOptions,
+  ElementTarget,
   InteractionTarget,
 } from '../client-types.ts';
 import type { DeviceTarget, PlatformSelector } from '../utils/device.ts';
-import type { JsonSchema } from './semantic-contract.ts';
+import type { JsonSchema } from './command-contract.ts';
 
 const PLATFORM_VALUES = ['ios', 'android', 'macos', 'linux', 'apple'] as const;
 const DEVICE_TARGET_VALUES = ['mobile', 'tv', 'desktop'] as const;
@@ -23,10 +24,14 @@ export type CommonCommandInput = Pick<
   androidDeviceAllowlist?: string;
 };
 
-export type SemanticInteractionTarget =
+export type InteractionTargetInput =
   | { kind: 'ref'; ref: string; label?: string }
   | { kind: 'selector'; selector: string }
   | { kind: 'point'; x: number; y: number };
+
+export type ElementTargetInput =
+  | { kind: 'ref'; ref: string; label?: string }
+  | { kind: 'selector'; selector: string };
 
 export type RepeatedInput = {
   count?: number;
@@ -110,93 +115,99 @@ export function looseObjectSchema(description?: string): JsonSchema {
 
 type FieldReader<T> = (record: Record<string, unknown>, key: string) => T | undefined;
 
-export type SemanticField<T> = {
+export type CommandField<T> = {
   schema: JsonSchema;
   required: boolean;
   read: FieldReader<T>;
 };
 
-export type SemanticFieldMap = Record<string, SemanticField<unknown>>;
+export type CommandFieldMap = Record<string, CommandField<unknown>>;
 
-export type InferSemanticFields<TFields extends SemanticFieldMap> = {
+export type InferCommandFields<TFields extends CommandFieldMap> = {
   [TKey in keyof TFields as TFields[TKey]['required'] extends true
     ? TKey
-    : never]: TFields[TKey] extends SemanticField<infer TValue> ? TValue : never;
+    : never]: TFields[TKey] extends CommandField<infer TValue> ? TValue : never;
 } & {
   [TKey in keyof TFields as TFields[TKey]['required'] extends true
     ? never
-    : TKey]?: TFields[TKey] extends SemanticField<infer TValue> ? TValue : never;
+    : TKey]?: TFields[TKey] extends CommandField<infer TValue> ? TValue : never;
 };
 
-export type InferCommandInput<TFields extends SemanticFieldMap> = InferSemanticFields<TFields> &
+export type InferCommandInput<TFields extends CommandFieldMap> = InferCommandFields<TFields> &
   CommonCommandInput &
   AgentDeviceRequestOverrides &
   AgentDeviceSelectionOptions;
 
 export function requiredField<T>(
-  field: SemanticField<T>,
-): SemanticField<Exclude<T, undefined>> & { required: true } {
-  return { ...field, required: true } as SemanticField<Exclude<T, undefined>> & {
+  field: CommandField<T>,
+): CommandField<Exclude<T, undefined>> & { required: true } {
+  return { ...field, required: true } as CommandField<Exclude<T, undefined>> & {
     required: true;
   };
 }
 
-export function stringField(description?: string): SemanticField<string> {
+export function stringField(description?: string): CommandField<string> {
   return optionalField(stringSchema(description), optionalString);
 }
 
-export function numberField(description?: string): SemanticField<number> {
+export function numberField(description?: string): CommandField<number> {
   return optionalField(numberSchema(description), optionalNumberValue);
 }
 
 export function integerField(
   description?: string,
   options: { min?: number; max?: number } = {},
-): SemanticField<number> {
+): CommandField<number> {
   return optionalField(integerSchemaWithBounds(description, options), (record, key) =>
     optionalInteger(record, key, options),
   );
 }
 
-export function booleanField(description?: string): SemanticField<boolean> {
+export function booleanField(description?: string): CommandField<boolean> {
   return optionalField(booleanSchema(description), optionalBoolean);
 }
 
 export function enumField<const TValues extends readonly string[]>(
   values: TValues,
   description?: string,
-): SemanticField<TValues[number]> {
+): CommandField<TValues[number]> {
   return optionalField(enumSchema(values, description), (record, key) =>
     optionalEnum(record, key, values),
   );
 }
 
-export function looseObjectField(description?: string): SemanticField<Record<string, unknown>> {
+export function looseObjectField(description?: string): CommandField<Record<string, unknown>> {
   return optionalField(looseObjectSchema(description), optionalRecord);
 }
 
-export function stringArrayField(description?: string): SemanticField<string[]> {
+export function stringArrayField(description?: string): CommandField<string[]> {
   return optionalField(stringArraySchema(description), optionalStringArray);
 }
 
-export function jsonSchemaField<T>(schema: JsonSchema): SemanticField<T> {
+export function jsonSchemaField<T>(schema: JsonSchema): CommandField<T> {
   return optionalField(schema, (record, key) => record[key] as T | undefined);
 }
 
 export function customField<T>(
   schema: JsonSchema,
   read: (record: Record<string, unknown>, key: string) => T | undefined,
-): SemanticField<T> {
+): CommandField<T> {
   return optionalField(schema, read);
 }
 
-export function interactionTargetField(): SemanticField<SemanticInteractionTarget> {
+export function interactionTargetField(): CommandField<InteractionTargetInput> {
   return optionalField(interactionTargetSchema(), (record, key) =>
     record[key] === undefined ? undefined : readInteractionTarget(record, key),
   );
 }
 
-export function pointField(description: string): SemanticField<PointInput> {
+export function elementTargetField(): CommandField<ElementTargetInput> {
+  return optionalField(elementTargetSchema(), (record, key) =>
+    record[key] === undefined ? undefined : readElementTarget(record, key),
+  );
+}
+
+export function pointField(description: string): CommandField<PointInput> {
   return optionalField(pointSchema(description), (record, key) =>
     record[key] === undefined ? undefined : readPoint(record, key),
   );
@@ -220,11 +231,11 @@ export function repeatedFields() {
   };
 }
 
-export function fieldsInputSchema(fields: SemanticFieldMap): JsonSchema {
+export function fieldsInputSchema(fields: CommandFieldMap): JsonSchema {
   return commandInputSchema(fieldProperties(fields), requiredFieldNames(fields));
 }
 
-export function readFieldInput<TFields extends SemanticFieldMap>(
+export function readFieldInput<TFields extends CommandFieldMap>(
   input: unknown,
   fields: TFields,
 ): InferCommandInput<TFields> {
@@ -277,7 +288,7 @@ export function readCommonInput(record: Record<string, unknown>): CommonCommandI
 function readInteractionTarget(
   record: Record<string, unknown>,
   key: string,
-): SemanticInteractionTarget {
+): InteractionTargetInput {
   const target = readRecordField(record, key);
   const kind = requiredEnum(target, 'kind', INTERACTION_TARGET_KINDS);
   switch (kind) {
@@ -296,6 +307,19 @@ function readInteractionTarget(
         y: requiredNumber(target, 'y'),
       };
   }
+}
+
+function readElementTarget(record: Record<string, unknown>, key: string): ElementTargetInput {
+  const target = readRecordField(record, key);
+  const kind = requiredEnum(target, 'kind', ['ref', 'selector'] as const);
+  if (kind === 'ref') {
+    return {
+      kind,
+      ref: requiredString(target, 'ref'),
+      label: optionalString(target, 'label'),
+    };
+  }
+  return { kind, selector: requiredString(target, 'selector') };
 }
 
 export function readPoint(record: Record<string, unknown>, key: string): PointInput {
@@ -413,7 +437,7 @@ export function commonToClientOptions(
   };
 }
 
-export function toClientInteractionTarget(target: SemanticInteractionTarget): InteractionTarget {
+export function toClientInteractionTarget(target: InteractionTargetInput): InteractionTarget {
   switch (target.kind) {
     case 'ref':
       return { ref: target.ref, label: target.label };
@@ -421,6 +445,15 @@ export function toClientInteractionTarget(target: SemanticInteractionTarget): In
       return { selector: target.selector };
     case 'point':
       return { x: target.x, y: target.y };
+  }
+}
+
+export function toClientElementTarget(target: ElementTargetInput): ElementTarget {
+  switch (target.kind) {
+    case 'ref':
+      return { ref: target.ref, label: target.label };
+    case 'selector':
+      return { selector: target.selector };
   }
 }
 
@@ -458,7 +491,7 @@ export function compactRecord(record: Record<string, unknown>): Record<string, u
   return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined));
 }
 
-function optionalField<T>(schema: JsonSchema, read: FieldReader<T>): SemanticField<T> {
+function optionalField<T>(schema: JsonSchema, read: FieldReader<T>): CommandField<T> {
   return { schema, required: false, read };
 }
 
@@ -473,11 +506,11 @@ function integerSchemaWithBounds(
   };
 }
 
-function fieldProperties(fields: SemanticFieldMap): Record<string, JsonSchema> {
+function fieldProperties(fields: CommandFieldMap): Record<string, JsonSchema> {
   return Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, field.schema]));
 }
 
-function requiredFieldNames(fields: SemanticFieldMap): string[] {
+function requiredFieldNames(fields: CommandFieldMap): string[] {
   return Object.entries(fields).flatMap(([key, field]) => (field.required ? [key] : []));
 }
 
@@ -540,25 +573,7 @@ function commonProperties(): Record<string, JsonSchema> {
 function interactionTargetSchema(): JsonSchema {
   return {
     oneOf: [
-      {
-        type: 'object',
-        properties: {
-          kind: { type: 'string', const: 'ref' },
-          ref: { type: 'string', description: 'Snapshot element ref such as @e12.' },
-          label: { type: 'string', description: 'Optional human label for the ref.' },
-        },
-        required: ['kind', 'ref'],
-        additionalProperties: false,
-      },
-      {
-        type: 'object',
-        properties: {
-          kind: { type: 'string', const: 'selector' },
-          selector: { type: 'string', description: 'Agent-device selector expression.' },
-        },
-        required: ['kind', 'selector'],
-        additionalProperties: false,
-      },
+      ...elementTargetSchemaVariants(),
       {
         type: 'object',
         properties: {
@@ -572,6 +587,37 @@ function interactionTargetSchema(): JsonSchema {
     ],
     description: 'UI target. This is separate from deviceTarget, which selects the device form.',
   };
+}
+
+function elementTargetSchema(): JsonSchema {
+  return {
+    oneOf: elementTargetSchemaVariants(),
+    description: 'UI element target by snapshot ref or selector expression.',
+  };
+}
+
+function elementTargetSchemaVariants(): JsonSchema[] {
+  return [
+    {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', const: 'ref' },
+        ref: { type: 'string', description: 'Snapshot element ref such as @e12.' },
+        label: { type: 'string', description: 'Optional human label for the ref.' },
+      },
+      required: ['kind', 'ref'],
+      additionalProperties: false,
+    },
+    {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', const: 'selector' },
+        selector: { type: 'string', description: 'Agent-device selector expression.' },
+      },
+      required: ['kind', 'selector'],
+      additionalProperties: false,
+    },
+  ];
 }
 
 function readRecordField(record: Record<string, unknown>, key: string): Record<string, unknown> {

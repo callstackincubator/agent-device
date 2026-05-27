@@ -2,17 +2,17 @@ import type { ElementTarget, InteractionTarget } from '../../client-types.ts';
 import { splitSelectorFromArgs } from '../../daemon/selectors.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { AppError } from '../../utils/errors.ts';
-import { compactRecord } from '../semantic-common.ts';
+import { compactRecord } from '../command-input.ts';
 import type {
   DaemonWriter,
   SelectionOptions,
-  SemanticDaemonRequest,
-  SemanticRequestInput,
+  DaemonCommandRequest,
+  CommandInput,
 } from './types.ts';
 
 export function direct(
   command: string,
-  positionals?: (input: SemanticRequestInput) => string[],
+  positionals?: (input: CommandInput) => string[],
 ): DaemonWriter {
   return (input) => request(command, positionals ? positionals(input) : [], input);
 }
@@ -20,12 +20,12 @@ export function direct(
 export function request(
   command: string,
   positionals: string[],
-  options: SemanticRequestInput,
-): SemanticDaemonRequest {
+  options: CommandInput,
+): DaemonCommandRequest {
   return { command, positionals, options: normalizeCommonRequestOptions(options) };
 }
 
-function normalizeCommonRequestOptions(options: SemanticRequestInput): SemanticRequestInput {
+function normalizeCommonRequestOptions(options: CommandInput): CommandInput {
   return options.deviceTarget !== undefined && options.target === undefined
     ? { ...options, target: options.deviceTarget }
     : options;
@@ -86,7 +86,7 @@ export function repeatedInputFromFlags(flags: CliFlags): Record<string, unknown>
   });
 }
 
-export function semanticTargetFromClientTarget(
+export function targetInputFromClientTarget(
   target: InteractionTarget | ElementTarget,
 ): Record<string, unknown> {
   if ('ref' in target && target.ref !== undefined) {

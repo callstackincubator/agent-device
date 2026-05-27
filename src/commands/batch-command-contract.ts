@@ -1,8 +1,7 @@
 import type { BatchRunOptions, BatchStep } from '../client-types.ts';
 import { DEFAULT_BATCH_MAX_STEPS, validateAndNormalizeBatchSteps } from '../core/batch.ts';
-import { defineSemanticCommand, type JsonSchema } from './semantic-contract.ts';
-import { prepareSemanticBatchStep, type SemanticDaemonCommand } from './semantic-grammar.ts';
-import { batchCliOutput } from './semantic-runtime-output.ts';
+import { defineCommand, type JsonSchema } from './command-contract.ts';
+import { prepareBatchStep, type DaemonCommandName } from './cli-grammar.ts';
 import {
   assertAllowedKeys,
   commonToClientOptions,
@@ -15,31 +14,30 @@ import {
   requiredField,
   stringField,
   type InferCommandInput,
-  type SemanticFieldMap,
-} from './semantic-common.ts';
+  type CommandFieldMap,
+} from './command-input.ts';
 
-type BatchInput = InferCommandInput<SemanticFieldMap> & {
+type BatchInput = InferCommandInput<CommandFieldMap> & {
   steps: BatchStep[];
   onError?: 'stop';
   maxSteps?: number;
   out?: string;
 };
 
-export function createBatchSemanticCommand<const TCommand extends SemanticDaemonCommand>(
+export function createBatchCommand<const TCommand extends DaemonCommandName>(
   nestedCommands: readonly TCommand[],
 ) {
   const fields = batchFields(nestedCommands);
-  return defineSemanticCommand({
+  return defineCommand({
     name: 'batch',
     description: 'Run multiple structured command steps in one daemon request.',
     inputSchema: fieldsInputSchema(fields),
     readInput: (input) => readBatchInput(input, fields),
     run: (client, input) => client.batch.run(toBatchOptions(input)),
-    formatCliOutput: ({ result }) => batchCliOutput(result),
   });
 }
 
-function batchFields(nestedCommands: readonly SemanticDaemonCommand[]) {
+function batchFields(nestedCommands: readonly DaemonCommandName[]) {
   return {
     steps: requiredField(
       customField<BatchStep[]>(
@@ -61,20 +59,20 @@ function batchFields(nestedCommands: readonly SemanticDaemonCommand[]) {
   };
 }
 
-function batchStepSchema(nestedCommands: readonly SemanticDaemonCommand[]): JsonSchema {
+function batchStepSchema(nestedCommands: readonly DaemonCommandName[]): JsonSchema {
   return {
     type: 'object',
     properties: {
       command: {
         type: 'string',
         enum: nestedCommands,
-        description: 'Migrated command name to run with semantic input.',
+        description: 'Command name to run with structured input.',
       },
       input: {
         type: 'object',
         additionalProperties: true,
         description:
-          'Semantic command input for the nested command. Use the matching MCP tool schema for this object.',
+          'Structured command input for the nested command. Use the matching MCP tool schema for this object.',
       },
     },
     required: ['command', 'input'],
@@ -99,10 +97,7 @@ function readBatchInput(input: unknown, fields: ReturnType<typeof batchFields>):
   };
 }
 
-function readBatchSteps(
-  steps: unknown,
-  nestedCommands: readonly SemanticDaemonCommand[],
-): BatchStep[] {
+function readBatchSteps(steps: unknown, nestedCommands: readonly DaemonCommandName[]): BatchStep[] {
   if (!Array.isArray(steps)) {
     throw new Error('Expected steps to be an array.');
   }
@@ -112,14 +107,14 @@ function readBatchSteps(
 function readBatchStep(
   step: unknown,
   stepNumber: number,
-  nestedCommands: readonly SemanticDaemonCommand[],
+  nestedCommands: readonly DaemonCommandName[],
 ): BatchStep {
   if (!step || typeof step !== 'object' || Array.isArray(step)) {
     throw new Error(`Invalid batch step ${stepNumber}.`);
   }
   const record = step as Record<string, unknown>;
   assertAllowedKeys(record, ['command', 'input'], `Batch step ${stepNumber}`);
-  return prepareSemanticBatchStep(
+  return prepareBatchStep(
     requiredEnum(record, 'command', nestedCommands),
     record.input as Record<string, unknown>,
   );

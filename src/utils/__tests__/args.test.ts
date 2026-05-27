@@ -2,9 +2,9 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { parseArgs, usage, usageForCommand } from '../args.ts';
 import { AppError } from '../errors.ts';
-import { getCliCommandNames, getSchemaCapabilityKeys } from '../command-schema.ts';
 import { listCapabilityCommands } from '../../core/capabilities.ts';
-import { LOCAL_CLI_COMMANDS, PUBLIC_COMMANDS } from '../../command-catalog.ts';
+import { listCapabilityCheckedCommandNames, listCliCommandNames } from '../../command-catalog.ts';
+import { getCliCommandSchema } from '../command-schema.ts';
 
 test('parseArgs recognizes command-specific flag combinations', async () => {
   const scenarios: Array<{
@@ -156,13 +156,6 @@ test('parseArgs recognizes command-specific flag combinations', async () => {
   for (const scenario of scenarios) {
     scenario.assertParsed(parseArgs(scenario.argv, { strictFlags: scenario.strictFlags }));
   }
-});
-
-test('command parser schemas cover the centralized CLI command catalog', () => {
-  assert.deepEqual(
-    new Set(getCliCommandNames()),
-    new Set([...Object.values(PUBLIC_COMMANDS), ...Object.values(LOCAL_CLI_COMMANDS)]),
-  );
 });
 
 test('parseArgs recognizes device isolation flags', () => {
@@ -1176,16 +1169,25 @@ const INTERNAL_GESTURE_CAPABILITY_COMMANDS = new Set([
 ]);
 
 test('every public capability command has a parser schema entry', () => {
-  const schemaCommands = new Set(getCliCommandNames());
+  const schemaCommands = new Set<string>(listCliCommandNames());
   for (const command of listCapabilityCommands()) {
     if (INTERNAL_GESTURE_CAPABILITY_COMMANDS.has(command)) continue;
     assert.equal(schemaCommands.has(command), true, `Missing schema for command: ${command}`);
   }
 });
 
+test('every CLI command has a derived or local parser schema entry', () => {
+  for (const command of listCliCommandNames()) {
+    assert.doesNotThrow(
+      () => getCliCommandSchema(command),
+      `Missing schema for command: ${command}`,
+    );
+  }
+});
+
 test('schema capability mappings match capability source-of-truth', () => {
   assert.deepEqual(
-    getSchemaCapabilityKeys(),
+    listCapabilityCheckedCommandNames(),
     listCapabilityCommands().filter(
       (command) => !INTERNAL_GESTURE_CAPABILITY_COMMANDS.has(command),
     ),

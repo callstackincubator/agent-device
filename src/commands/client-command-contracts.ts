@@ -2,49 +2,19 @@ import type {
   AgentDeviceClient,
   AppCloseOptions,
   ClipboardCommandOptions,
-  FindOptions,
-  GetOptions,
-  IsOptions,
-  LongPressOptions,
   MetroPrepareOptions,
   MetroPrepareResult,
   MetroReloadOptions,
   MetroReloadResult,
   RecordOptions,
   SettingsUpdateOptions,
-  SwipeOptions,
   WaitCommandOptions,
 } from '../client-types.ts';
 import type { DaemonInstallSource } from '../contracts.ts';
-import {
-  appStateCliOutput,
-  appsCliOutput,
-  closeCliOutput,
-  clipboardCliOutput,
-  deployCliOutput,
-  devicesCliOutput,
-  findCliOutput,
-  getCliOutput,
-  installFromSourceCliOutput,
-  isCliOutput,
-  keyboardCliOutput,
-  messageCliOutput,
-  metroCliOutput,
-  openCliOutput,
-  recordCliOutput,
-  sessionCliOutput,
-  snapshotCliOutput,
-} from './semantic-client-output.ts';
-import { logsCliOutput, networkCliOutput, perfCliOutput } from './semantic-runtime-output.ts';
-import {
-  defineSemanticCommand,
-  type JsonSchema,
-  type SemanticCliOutputFormatter,
-} from './semantic-contract.ts';
+import { defineCommand } from './command-contract.ts';
 import {
   booleanSchema,
   booleanField,
-  commonToClientOptions,
   enumField,
   fieldsInputSchema,
   integerField,
@@ -53,7 +23,6 @@ import {
   looseObjectField,
   looseObjectSchema,
   numberField,
-  numberSchema,
   optionalEnum,
   readFieldInput,
   requiredField,
@@ -61,8 +30,8 @@ import {
   stringField,
   stringSchema,
   type InferCommandInput,
-  type SemanticFieldMap,
-} from './semantic-common.ts';
+  type CommandFieldMap,
+} from './command-input.ts';
 
 const SURFACE_VALUES = ['app', 'frontmost-app', 'desktop', 'menubar'] as const;
 const WAIT_KIND_VALUES = ['duration', 'text', 'ref', 'selector'] as const;
@@ -75,56 +44,36 @@ const ORIENTATION_VALUES = [
   'landscape-right',
 ] as const;
 const CLIPBOARD_ACTION_VALUES = ['read', 'write'] as const;
-const FIND_ACTION_VALUES = [
-  'click',
-  'focus',
-  'exists',
-  'getText',
-  'getAttrs',
-  'wait',
-  'fill',
-  'type',
-] as const;
-const FIND_LOCATOR_VALUES = ['any', 'text', 'label', 'value', 'role', 'id'] as const;
 const LOG_ACTION_VALUES = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
 const NETWORK_ACTION_VALUES = ['dump', 'log'] as const;
 const NETWORK_INCLUDE_VALUES = ['summary', 'headers', 'body', 'all'] as const;
 const START_STOP_VALUES = ['start', 'stop'] as const;
-const SCROLL_DIRECTION_VALUES = ['up', 'down', 'left', 'right', 'top', 'bottom'] as const;
-const SWIPE_PATTERN_VALUES = ['one-way', 'ping-pong'] as const;
 const REACT_NATIVE_ACTION_VALUES = ['dismiss-overlay'] as const;
 const METRO_ACTION_VALUES = ['prepare', 'reload'] as const;
 
 type MetroInput = { action: 'prepare' | 'reload' } & MetroPrepareOptions & MetroReloadOptions;
 
-export const semanticClientCommands = [
+export const clientCommandDefinitions = [
+  defineFieldCommand('devices', 'List available devices.', {}, (client, input) =>
+    client.devices.list(input),
+  ),
   defineFieldCommand(
-    'devices',
-    'List available devices.',
-    {},
-    (client, input) => client.devices.list(input),
-    {
-      formatCliOutput: ({ result }) => devicesCliOutput(result),
-    },
+    'boot',
+    'Boot or prepare a selected device without using CLI positional arguments.',
+    { headless: booleanField('Boot without showing simulator UI when supported.') },
+    (client, input) => client.devices.boot(input),
   ),
   defineFieldCommand(
     'apps',
     'List installed apps.',
     { appsFilter: enumField(['user-installed', 'all']) },
     (client, input) => client.apps.list(input),
-    {
-      formatCliOutput: ({ input, result }) =>
-        appsCliOutput({ result, appsFilter: input.appsFilter }),
-    },
   ),
   defineFieldCommand(
     'session',
     'List active sessions.',
     { action: enumField(['list']) },
     async (client) => ({ sessions: await client.sessions.list() }),
-    {
-      formatCliOutput: ({ result }) => sessionCliOutput(result),
-    },
   ),
   defineFieldCommand(
     'open',
@@ -140,9 +89,6 @@ export const semanticClientCommands = [
       noRecord: booleanField('Do not record this action.'),
     },
     (client, input) => client.apps.open(input),
-    {
-      formatCliOutput: ({ result }) => openCliOutput(result),
-    },
   ),
   defineFieldCommand(
     'close',
@@ -154,9 +100,6 @@ export const semanticClientCommands = [
     },
     (client, input) =>
       input.app ? client.apps.close(input) : client.sessions.close(withoutApp(input)),
-    {
-      formatCliOutput: ({ result }) => closeCliOutput(result),
-    },
   ),
   defineFieldCommand(
     'install',
@@ -166,9 +109,6 @@ export const semanticClientCommands = [
       appPath: requiredField(stringField('Path to app binary.')),
     },
     (client, input) => client.apps.install(input),
-    {
-      formatCliOutput: ({ result }) => deployCliOutput(result),
-    },
   ),
   defineFieldCommand(
     'reinstall',
@@ -178,9 +118,6 @@ export const semanticClientCommands = [
       appPath: requiredField(stringField('Path to app binary.')),
     },
     (client, input) => client.apps.reinstall(input),
-    {
-      formatCliOutput: ({ result }) => deployCliOutput(result),
-    },
   ),
   defineFieldCommand(
     'install-from-source',
@@ -193,9 +130,6 @@ export const semanticClientCommands = [
       retentionMs: integerField(),
     },
     (client, input) => client.apps.installFromSource(input),
-    {
-      formatCliOutput: ({ result }) => installFromSourceCliOutput(result),
-    },
   ),
   defineFieldCommand(
     'push',
@@ -228,14 +162,6 @@ export const semanticClientCommands = [
       forceFull: booleanField(),
     },
     (client, input) => client.capture.snapshot(input),
-    {
-      formatCliOutput: ({ input, result }) =>
-        snapshotCliOutput({
-          result,
-          raw: input.raw,
-          interactiveOnly: input.interactiveOnly,
-        }),
-    },
   ),
   defineFieldCommand(
     'screenshot',
@@ -279,187 +205,51 @@ export const semanticClientCommands = [
       raw: booleanField(),
     },
     (client, input) => client.command.wait(waitInputToOptions(input)),
-    {
-      formatCliOutput: ({ result }) => messageCliOutput(result),
-    },
   ),
   defineFieldCommand(
     'alert',
     'Inspect or handle platform alerts.',
     { action: enumField(ALERT_ACTION_VALUES), timeoutMs: integerField() },
     (client, input) => client.command.alert(input),
-    {
-      formatCliOutput: ({ result }) => messageCliOutput(result),
-    },
   ),
-  defineFieldCommand(
-    'appstate',
-    'Show foreground app or activity.',
-    {},
-    (client, input) => client.command.appState(input),
-    {
-      formatCliOutput: ({ result }) => appStateCliOutput(result),
-    },
+  defineFieldCommand('appstate', 'Show foreground app or activity.', {}, (client, input) =>
+    client.command.appState(input),
   ),
   defineFieldCommand(
     'back',
     'Navigate back.',
     { mode: enumField(BACK_MODE_VALUES) },
     (client, input) => client.command.back(input),
-    {
-      formatCliOutput: ({ result }) => messageCliOutput(result),
-    },
   ),
-  defineFieldCommand(
-    'home',
-    'Go to the home screen.',
-    {},
-    (client, input) => client.command.home(input),
-    {
-      formatCliOutput: ({ result }) => messageCliOutput(result),
-    },
+  defineFieldCommand('home', 'Go to the home screen.', {}, (client, input) =>
+    client.command.home(input),
   ),
   defineFieldCommand(
     'rotate',
     'Rotate device orientation.',
     { orientation: requiredField(enumField(ORIENTATION_VALUES)) },
     (client, input) => client.command.rotate(input),
-    {
-      formatCliOutput: ({ result }) => messageCliOutput(result),
-    },
   ),
-  defineFieldCommand(
-    'app-switcher',
-    'Open the app switcher.',
-    {},
-    (client, input) => client.command.appSwitcher(input),
-    {
-      formatCliOutput: ({ result }) => messageCliOutput(result),
-    },
+  defineFieldCommand('app-switcher', 'Open the app switcher.', {}, (client, input) =>
+    client.command.appSwitcher(input),
   ),
   defineFieldCommand(
     'keyboard',
     'Inspect or dismiss the keyboard.',
     { action: enumField(['status', 'dismiss']) },
     (client, input) => client.command.keyboard(input),
-    {
-      formatCliOutput: ({ result }) => keyboardCliOutput(result),
-    },
   ),
   defineFieldCommand(
     'clipboard',
     'Read or write clipboard text.',
     { action: requiredField(enumField(CLIPBOARD_ACTION_VALUES)), text: stringField() },
     (client, input) => client.command.clipboard(input as ClipboardCommandOptions),
-    {
-      formatCliOutput: ({ result }) => clipboardCliOutput(result),
-    },
   ),
   defineFieldCommand(
     'react-native',
     'Run supported React Native app automation helpers.',
     { action: requiredField(enumField(REACT_NATIVE_ACTION_VALUES)) },
     (client, input) => client.command.reactNative(input),
-  ),
-  defineFieldCommand(
-    'longpress',
-    'Long press by ref, selector, or point.',
-    {
-      target: requiredField(jsonSchemaField(longPressProperties().target)),
-      durationMs: integerField(),
-      depth: integerField(),
-      scope: stringField(),
-      raw: booleanField(),
-    },
-    (client, input) =>
-      client.interactions.longPress(targetInputToOptions(input) as LongPressOptions),
-  ),
-  defineFieldCommand(
-    'swipe',
-    'Swipe between two points.',
-    {
-      from: requiredField(jsonSchemaField<SwipeOptions['from']>(pointSchema())),
-      to: requiredField(jsonSchemaField<SwipeOptions['to']>(pointSchema())),
-      durationMs: integerField(),
-      count: integerField(),
-      pauseMs: integerField(),
-      pattern: enumField(SWIPE_PATTERN_VALUES),
-    },
-    (client, input) => client.interactions.swipe(input),
-  ),
-  defineFieldCommand(
-    'focus',
-    'Focus input at coordinates.',
-    { x: requiredField(numberField()), y: requiredField(numberField()) },
-    (client, input) => client.interactions.focus(input),
-  ),
-  defineFieldCommand(
-    'type',
-    'Type text in the focused field.',
-    { text: requiredField(stringField()), delayMs: integerField() },
-    (client, input) => client.interactions.type(input),
-  ),
-  defineFieldCommand(
-    'scroll',
-    'Scroll in a direction or to an edge.',
-    {
-      direction: requiredField(enumField(SCROLL_DIRECTION_VALUES)),
-      amount: numberField(),
-      pixels: integerField(),
-    },
-    (client, input) => client.interactions.scroll(input),
-  ),
-  defineFieldCommand(
-    'get',
-    'Get element text or attributes.',
-    {
-      format: requiredField(enumField(['text', 'attrs'])),
-      target: requiredField(jsonSchemaField<GetOptions['target']>(elementTargetSchema())),
-      depth: integerField(),
-      scope: stringField(),
-      raw: booleanField(),
-    },
-    (client, input) => client.interactions.get(elementTargetInputToOptions(input)),
-    {
-      formatCliOutput: ({ input, result }) => getCliOutput({ result, format: input.format }),
-    },
-  ),
-  defineFieldCommand(
-    'is',
-    'Assert UI state.',
-    {
-      predicate: requiredField(
-        enumField(['visible', 'hidden', 'exists', 'editable', 'selected', 'text']),
-      ),
-      selector: requiredField(stringField()),
-      value: stringField(),
-      depth: integerField(),
-      scope: stringField(),
-      raw: booleanField(),
-    },
-    (client, input) => client.interactions.is(input as IsOptions),
-    {
-      formatCliOutput: ({ result }) => isCliOutput(result),
-    },
-  ),
-  defineFieldCommand(
-    'find',
-    'Find an element and optionally act on it.',
-    {
-      locator: enumField(FIND_LOCATOR_VALUES),
-      query: requiredField(stringField()),
-      action: enumField(FIND_ACTION_VALUES),
-      value: stringField(),
-      timeoutMs: integerField(),
-      first: booleanField(),
-      last: booleanField(),
-      depth: integerField(),
-      raw: booleanField(),
-    },
-    (client, input) => client.interactions.find(input as FindOptions),
-    {
-      formatCliOutput: ({ result }) => findCliOutput(result),
-    },
   ),
   defineFieldCommand(
     'replay',
@@ -487,23 +277,14 @@ export const semanticClientCommands = [
     },
     (client, input) => client.replay.test(input),
   ),
-  defineFieldCommand(
-    'perf',
-    'Show session performance metrics.',
-    {},
-    (client, input) => client.observability.perf(input),
-    {
-      formatCliOutput: ({ result }) => perfCliOutput(result),
-    },
+  defineFieldCommand('perf', 'Show session performance metrics.', {}, (client, input) =>
+    client.observability.perf(input),
   ),
   defineFieldCommand(
     'logs',
     'Manage session app logs.',
     { action: enumField(LOG_ACTION_VALUES), message: stringField(), restart: booleanField() },
     (client, input) => client.observability.logs(input),
-    {
-      formatCliOutput: ({ result }) => logsCliOutput(result),
-    },
   ),
   defineFieldCommand(
     'network',
@@ -514,9 +295,6 @@ export const semanticClientCommands = [
       include: enumField(NETWORK_INCLUDE_VALUES),
     },
     (client, input) => client.observability.network(input),
-    {
-      formatCliOutput: ({ result }) => networkCliOutput(result),
-    },
   ),
   defineFieldCommand(
     'record',
@@ -529,9 +307,6 @@ export const semanticClientCommands = [
       hideTouches: booleanField(),
     },
     (client, input) => client.recording.record(input as RecordOptions),
-    {
-      formatCliOutput: ({ result }) => recordCliOutput(result),
-    },
   ),
   defineFieldCommand(
     'trace',
@@ -585,32 +360,25 @@ export const semanticClientCommands = [
       input.action === 'prepare'
         ? await client.metro.prepare(toMetroPrepareOptions(input))
         : await client.metro.reload(toMetroReloadOptions(input)),
-    {
-      formatCliOutput: ({ input, result }) => metroCliOutput({ result, action: input.action }),
-    },
   ),
 ] as const;
 
 function defineFieldCommand<
   const TName extends string,
-  const TFields extends SemanticFieldMap,
+  const TFields extends CommandFieldMap,
   TResult,
 >(
   name: TName,
   description: string,
   fields: TFields,
   run: (client: AgentDeviceClient, input: InferCommandInput<TFields>) => Promise<TResult>,
-  options: {
-    formatCliOutput?: SemanticCliOutputFormatter<InferCommandInput<TFields>, TResult>;
-  } = {},
 ) {
-  return defineSemanticCommand({
+  return defineCommand({
     name,
     description,
     inputSchema: fieldsInputSchema(fields),
     readInput: (input) => readFieldInput(input, fields),
     run,
-    formatCliOutput: options.formatCliOutput,
   });
 }
 
@@ -659,94 +427,9 @@ function toMetroReloadOptions(input: MetroInput): MetroReloadOptions {
   };
 }
 
-function pointSchema(): JsonSchema {
-  return {
-    type: 'object',
-    properties: { x: numberSchema(), y: numberSchema() },
-    required: ['x', 'y'],
-    additionalProperties: false,
-  };
-}
-
-function elementTargetSchema(): JsonSchema {
-  return {
-    oneOf: [
-      {
-        type: 'object',
-        properties: { kind: { type: 'string', const: 'ref' }, ref: stringSchema() },
-        required: ['kind', 'ref'],
-        additionalProperties: false,
-      },
-      {
-        type: 'object',
-        properties: { kind: { type: 'string', const: 'selector' }, selector: stringSchema() },
-        required: ['kind', 'selector'],
-        additionalProperties: false,
-      },
-    ],
-  };
-}
-
-function longPressProperties(): Record<string, JsonSchema> {
-  return {
-    target: {
-      oneOf: [
-        ...((elementTargetSchema().oneOf ?? []) as JsonSchema[]),
-        {
-          type: 'object',
-          properties: {
-            kind: { type: 'string', const: 'point' },
-            x: numberSchema(),
-            y: numberSchema(),
-          },
-          required: ['kind', 'x', 'y'],
-          additionalProperties: false,
-        },
-      ],
-    },
-    durationMs: integerSchema(),
-    depth: integerSchema(),
-    scope: stringSchema(),
-    raw: booleanSchema(),
-  };
-}
-
 function waitInputToOptions(input: Record<string, unknown>): WaitCommandOptions {
   optionalEnum(input, 'kind', WAIT_KIND_VALUES);
   const options = { ...input };
   delete options.kind;
   return options as WaitCommandOptions & { kind?: never };
-}
-
-function targetInputToOptions<
-  TInput extends InferCommandInput<SemanticFieldMap> & { target?: unknown },
->(input: TInput): Omit<TInput, 'target'> {
-  const { target, ...rest } = input;
-  return {
-    ...rest,
-    ...commonToClientOptions(input),
-    ...semanticTargetToClientTarget(target),
-  } as Omit<TInput, 'target'>;
-}
-
-function elementTargetInputToOptions(
-  input: InferCommandInput<SemanticFieldMap> & { format: 'text' | 'attrs'; target?: unknown },
-): GetOptions {
-  const { target, ...rest } = input;
-  return {
-    ...rest,
-    ...commonToClientOptions(input),
-    ...semanticTargetToClientTarget(target),
-  } as GetOptions;
-}
-
-function semanticTargetToClientTarget(target: unknown): Record<string, unknown> {
-  if (!target || typeof target !== 'object' || Array.isArray(target)) {
-    throw new Error('Expected target to be an object.');
-  }
-  const record = target as Record<string, unknown>;
-  if (record.kind === 'ref') return { ref: record.ref, label: record.label };
-  if (record.kind === 'selector') return { selector: record.selector };
-  if (record.kind === 'point') return { x: record.x, y: record.y };
-  throw new Error('Expected target kind to be ref, selector, or point.');
 }

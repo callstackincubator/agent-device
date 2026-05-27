@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import type { AgentDeviceClient } from '../../client-types.ts';
-import { createSemanticCommandToolExecutor } from '../semantic-tools.ts';
+import { createCommandToolExecutor } from '../command-tools.ts';
 
-test('MCP semantic tool executor hides client creation behind an execution adapter', async () => {
+test('MCP command tool executor hides client creation behind an execution adapter', async () => {
   const client = {} as AgentDeviceClient;
   const createdConfigs: unknown[] = [];
   const calls: unknown[] = [];
-  const executor = createSemanticCommandToolExecutor({
+  const executor = createCommandToolExecutor({
     createClient: (config) => {
       createdConfigs.push(config);
       return client;

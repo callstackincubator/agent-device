@@ -1,8 +1,8 @@
 import type { CommandRequestResult } from '../client-types.ts';
 import { readCommandMessage } from '../utils/success-text.ts';
-import type { SemanticCliOutput } from './semantic-contract.ts';
+import type { CliOutput } from './command-contract.ts';
 
-export function batchCliOutput(result: CommandRequestResult): SemanticCliOutput {
+export function batchCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   const total = typeof data.total === 'number' ? data.total : 0;
   const executed = typeof data.executed === 'number' ? data.executed : 0;
@@ -18,7 +18,7 @@ export function batchCliOutput(result: CommandRequestResult): SemanticCliOutput 
   return { data, text: lines.join('\n') };
 }
 
-export function logsCliOutput(result: CommandRequestResult): SemanticCliOutput {
+export function logsCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   const pathOut = typeof data.path === 'string' ? data.path : '';
   return {
@@ -33,7 +33,7 @@ export function logsCliOutput(result: CommandRequestResult): SemanticCliOutput {
   };
 }
 
-export function networkCliOutput(result: CommandRequestResult): SemanticCliOutput {
+export function networkCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   const lines: string[] = [];
   const pathOut = typeof data.path === 'string' ? data.path : '';
@@ -63,7 +63,7 @@ export function networkCliOutput(result: CommandRequestResult): SemanticCliOutpu
   };
 }
 
-export function perfCliOutput(result: CommandRequestResult): SemanticCliOutput {
+export function perfCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   return { data, text: formatPerfCliOutput(data) };
 }

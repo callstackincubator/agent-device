@@ -6,7 +6,43 @@ import {
   SCREENSHOT_COMMAND_FLAG_KEYS,
   SCREENSHOT_SPECIFIC_FLAG_DEFINITIONS,
   readScreenshotScriptFlag,
+  screenshotFlagsFromOptions,
+  screenshotOptionsFromFlags,
 } from '../capture-screenshot-options.ts';
+
+test('screenshot flag projection maps CLI flags to runtime options', () => {
+  assert.deepEqual(
+    screenshotOptionsFromFlags({
+      overlayRefs: true,
+      screenshotFullscreen: true,
+      screenshotMaxSize: 1024,
+      screenshotNoStabilize: true,
+    }),
+    {
+      overlayRefs: true,
+      fullscreen: true,
+      maxSize: 1024,
+      stabilize: false,
+    },
+  );
+});
+
+test('screenshot flag projection maps public options to request flags', () => {
+  assert.deepEqual(
+    screenshotFlagsFromOptions({
+      overlayRefs: true,
+      fullscreen: false,
+      maxSize: 512,
+      stabilize: false,
+    }),
+    {
+      overlayRefs: true,
+      screenshotFullscreen: false,
+      screenshotMaxSize: 512,
+      screenshotNoStabilize: true,
+    },
+  );
+});
 
 test('screenshot script flags use the shared recorded flag contract', () => {
   const parts: string[] = [];

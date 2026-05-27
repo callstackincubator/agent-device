@@ -7,7 +7,7 @@ import type {
 import {
   readFillTargetFromPositionals,
   readInteractionTargetFromPositionals,
-} from '../../commands/semantic-grammar.ts';
+} from '../../commands/cli-grammar/interactions.ts';
 import type { DaemonResponse } from '../types.ts';
 import { parseCoordinateTarget } from './interaction-targeting.ts';
 import { errorResponse } from './response.ts';

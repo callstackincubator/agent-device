@@ -1,8 +1,8 @@
-import { listTools, MCP_SERVER_NAME } from './catalog.ts';
-import { semanticCommandToolExecutor } from './semantic-tools.ts';
+import { listCommandTools, commandToolExecutor } from './command-tools.ts';
 import { readVersion } from '../utils/version.ts';
 
 type JsonRpcId = string | number | null;
+const MCP_SERVER_NAME = 'agent-device';
 const SUPPORTED_PROTOCOL_VERSION = '2025-11-25';
 
 export type JsonRpcMessage = {
@@ -53,7 +53,7 @@ async function handleRequest(method: string, params: unknown): Promise<unknown> 
     case 'ping':
       return {};
     case 'tools/list':
-      return { tools: listTools() };
+      return { tools: listCommandTools() };
     case 'tools/call':
       return await callTool(params);
     default:
@@ -65,7 +65,7 @@ async function callTool(params: unknown): Promise<unknown> {
   const record = asRecord(params);
   const name = stringField(record, 'name');
   try {
-    return await semanticCommandToolExecutor.execute(name, record.arguments);
+    return await commandToolExecutor.execute(name, record.arguments);
   } catch (error) {
     return textToolResult(error instanceof Error ? error.message : String(error), true);
   }

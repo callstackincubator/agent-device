@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { MCP_EXCLUDED_CLI_COMMANDS } from '../../command-catalog.ts';
-import { getCliCommandNames } from '../../utils/command-schema.ts';
+import { listMcpExposedCommandNames } from '../../command-catalog.ts';
 import { handleMcpMessage } from '../router.ts';
 
-test('MCP exposes every automatable CLI command as a semantic direct tool', async () => {
+test('MCP exposes every automatable CLI command as a structured direct tool', async () => {
   const response = await handleMcpMessage({
     jsonrpc: '2.0',
     id: 1,
@@ -15,9 +14,7 @@ test('MCP exposes every automatable CLI command as a semantic direct tool', asyn
   const tools = (response.result as { tools: Array<{ name: string }> }).tools.map(
     (tool) => tool.name,
   );
-  const expectedToolNames = getCliCommandNames()
-    .filter((command) => !MCP_EXCLUDED_CLI_COMMANDS.has(command))
-    .sort();
+  const expectedToolNames = listMcpExposedCommandNames().sort();
 
   assert.deepEqual(tools.sort(), expectedToolNames);
 

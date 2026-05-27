@@ -1,12 +1,12 @@
 import { createAgentDeviceClient } from '../client.ts';
 import type { AgentDeviceClient, AgentDeviceClientConfig } from '../client-types.ts';
 import {
-  isSemanticCommandName,
-  listSemanticMcpToolDefinitions,
-  runSemanticCommand,
-  type SemanticCommandName,
-} from '../commands/semantic-command-surface.ts';
-import type { JsonSchema } from '../commands/semantic-contract.ts';
+  isCommandName,
+  listMcpToolDefinitions,
+  runCommand,
+  type CommandName,
+} from '../commands/command-surface.ts';
+import type { JsonSchema } from '../commands/command-contract.ts';
 
 export type ToolResult = {
   isError: boolean;
@@ -14,41 +14,37 @@ export type ToolResult = {
   content: Array<{ type: 'text'; text: string }>;
 };
 
-type SemanticCommandToolExecutorDeps = {
+type CommandToolExecutorDeps = {
   createClient: (config: AgentDeviceClientConfig) => AgentDeviceClient;
-  runCommand: (
-    client: AgentDeviceClient,
-    name: SemanticCommandName,
-    input: unknown,
-  ) => Promise<unknown>;
+  runCommand: (client: AgentDeviceClient, name: CommandName, input: unknown) => Promise<unknown>;
 };
 
-export type SemanticCommandToolExecutor = {
+export type CommandToolExecutor = {
   execute: (name: string, input: unknown) => Promise<ToolResult>;
 };
 
-export function listSemanticCommandTools(): Array<{
+export function listCommandTools(): Array<{
   name: string;
   description: string;
   inputSchema: JsonSchema;
 }> {
-  return listSemanticMcpToolDefinitions().map((definition) => ({
+  return listMcpToolDefinitions().map((definition) => ({
     name: definition.name,
     description: definition.description,
     inputSchema: definition.inputSchema,
   }));
 }
 
-export function createSemanticCommandToolExecutor(
-  deps: SemanticCommandToolExecutorDeps = {
+export function createCommandToolExecutor(
+  deps: CommandToolExecutorDeps = {
     createClient: createAgentDeviceClient,
-    runCommand: runSemanticCommand,
+    runCommand: runCommand,
   },
-): SemanticCommandToolExecutor {
+): CommandToolExecutor {
   return {
     execute: async (name, input) => {
-      if (!isSemanticCommandName(name)) {
-        throw new Error(`Unknown semantic tool: ${name}`);
+      if (!isCommandName(name)) {
+        throw new Error(`Unknown command tool: ${name}`);
       }
       const client = deps.createClient(readClientConfig(input));
       const result = await deps.runCommand(client, name, input);
@@ -61,7 +57,7 @@ export function createSemanticCommandToolExecutor(
   };
 }
 
-export const semanticCommandToolExecutor = createSemanticCommandToolExecutor();
+export const commandToolExecutor = createCommandToolExecutor();
 
 function readClientConfig(input: unknown): AgentDeviceClientConfig {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return {};

@@ -2,14 +2,13 @@ import { AppError } from './errors.ts';
 import { mergeDefinedFlags } from './merge-flags.ts';
 import {
   applyCommandDefaults,
-  buildCommandUsageText,
-  buildUsageText,
   getCommandSchema,
   getFlagDefinition,
   type CliFlags,
   type FlagDefinition,
   type FlagKey,
 } from './command-schema.ts';
+import { buildCommandUsageText, buildUsageText } from './cli-help.ts';
 import { isFlagSupportedForCommand } from './cli-option-schema.ts';
 
 type ParsedArgs = {
@@ -280,9 +279,10 @@ function shouldTreatUnknownDashTokenAsPositional(
   const schema = getCommandSchema(command);
   if (!schema) return true;
   if (schema.allowsExtraPositionals) return true;
-  if (schema.positionalArgs.length === 0) return false;
-  if (positionals.length < schema.positionalArgs.length) return true;
-  return schema.positionalArgs.some((entry) => entry.includes('?'));
+  const positionalArgs = schema.positionalArgs ?? [];
+  if (positionalArgs.length === 0) return false;
+  if (positionals.length < positionalArgs.length) return true;
+  return positionalArgs.some((entry) => entry.includes('?'));
 }
 
 function isNegativeNumericToken(value: string): boolean {

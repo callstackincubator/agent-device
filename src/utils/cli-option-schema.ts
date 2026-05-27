@@ -1,7 +1,7 @@
 import { buildPrimaryEnvVarName, parseSourceValue } from './source-value.ts';
+import { listCliCommandNames } from '../command-catalog.ts';
 import {
-  getCliCommandNames,
-  getCommandSchema,
+  getCliCommandSchema,
   getFlagDefinition,
   getFlagDefinitions,
   GLOBAL_FLAG_KEYS,
@@ -80,10 +80,9 @@ function buildOptionSpecs(): OptionSpec[] {
   for (const key of GLOBAL_FLAG_KEYS) {
     supportedCommandsByKey.set(key, new Set(['*']));
   }
-  for (const command of getCliCommandNames()) {
-    const schema = getCommandSchema(command);
-    if (!schema) continue;
-    for (const key of schema.allowedFlags) {
+  for (const command of listCliCommandNames()) {
+    const schema = getCliCommandSchema(command);
+    for (const key of schema.allowedFlags ?? []) {
       const existing = supportedCommandsByKey.get(key);
       if (existing && existing.has('*')) continue;
       if (existing) existing.add(command);

@@ -5,13 +5,13 @@ import type { AgentDeviceBackend } from '../../backend.ts';
 import type { AgentDeviceClient, CaptureScreenshotResult } from '../../client.ts';
 import { createLocalArtifactAdapter } from '../../io.ts';
 import { createAgentDevice, localCommandPolicy } from '../../runtime.ts';
-import { runSemanticCliCommand } from '../../commands/semantic-cli.ts';
+import { runCliCommand } from '../../commands/cli-runner.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router-types.ts';
 
 export const screenshotCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
-  const result = (await runSemanticCliCommand({
+  const result = (await runCliCommand({
     client,
     command: 'screenshot',
     positionals,
@@ -31,7 +31,7 @@ export const screenshotCommand: ClientCommandHandler = async ({ positionals, fla
 
 export const diffCommand: ClientCommandHandler = async ({ positionals, flags, client }) => {
   if (positionals[0] === 'snapshot') {
-    const result = await runSemanticCliCommand({ client, command: 'diff', positionals, flags });
+    const result = await runCliCommand({ client, command: 'diff', positionals, flags });
     writeCommandOutput(flags, result, () => formatSnapshotDiffText(result));
     return true;
   }

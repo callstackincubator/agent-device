@@ -23,30 +23,30 @@ import {
   requiredDaemonString,
   repeatedInputFromFlags,
   selectorSnapshotInputFromFlags,
-  semanticTargetFromClientTarget,
+  targetInputFromClientTarget,
 } from './common.ts';
-import type { CliReader, DaemonWriter, DecodedFillTarget, SemanticRequestInput } from './types.ts';
+import type { CliReader, DaemonWriter, DecodedFillTarget, CommandInput } from './types.ts';
 
 export const interactionCliReaders = {
   click: (positionals, flags) => ({
     ...commonInputFromFlags(flags),
     ...selectorSnapshotInputFromFlags(flags),
     ...repeatedInputFromFlags(flags),
-    target: semanticTargetFromClientTarget(readInteractionTargetFromPositionals(positionals)),
+    target: targetInputFromClientTarget(readInteractionTargetFromPositionals(positionals)),
     button: flags.clickButton,
   }),
   press: (positionals, flags) => ({
     ...commonInputFromFlags(flags),
     ...selectorSnapshotInputFromFlags(flags),
     ...repeatedInputFromFlags(flags),
-    target: semanticTargetFromClientTarget(readInteractionTargetFromPositionals(positionals)),
+    target: targetInputFromClientTarget(readInteractionTargetFromPositionals(positionals)),
   }),
   longpress: (positionals, flags) => {
     const decoded = readLongPressTargetFromPositionals(positionals);
     return {
       ...commonInputFromFlags(flags),
       ...selectorSnapshotInputFromFlags(flags),
-      target: semanticTargetFromClientTarget(decoded),
+      target: targetInputFromClientTarget(decoded),
       durationMs: decoded.durationMs,
     };
   },
@@ -74,7 +74,7 @@ export const interactionCliReaders = {
     return {
       ...commonInputFromFlags(flags),
       ...selectorSnapshotInputFromFlags(flags),
-      target: semanticTargetFromClientTarget(decoded.target),
+      target: targetInputFromClientTarget(decoded.target),
       text: decoded.text,
       delayMs: flags.delayMs,
     };
@@ -89,7 +89,7 @@ export const interactionCliReaders = {
     ...commonInputFromFlags(flags),
     ...selectorSnapshotInputFromFlags(flags),
     format: readGetFormat(positionals[0]),
-    target: semanticTargetFromClientTarget(readElementTargetFromPositionals(positionals.slice(1))),
+    target: targetInputFromClientTarget(readElementTargetFromPositionals(positionals.slice(1))),
   }),
 } satisfies Record<string, CliReader>;
 
@@ -179,7 +179,7 @@ function fillPositionals(input: FillOptions): string[] {
   return [...interactionTargetPositionals(input), input.text];
 }
 
-function swipePositionals(input: SemanticRequestInput): string[] {
+function swipePositionals(input: CommandInput): string[] {
   return [
     String(input.from?.x),
     String(input.from?.y),

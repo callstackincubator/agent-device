@@ -1,10 +1,7 @@
 import { sendToDaemon } from './daemon-client.ts';
 import { prepareMetroRuntime, reloadMetro } from './client-metro.ts';
 import { INTERNAL_COMMANDS } from './command-catalog.ts';
-import {
-  prepareSemanticDaemonRequest,
-  type SemanticDaemonCommand,
-} from './commands/semantic-grammar.ts';
+import { prepareDaemonCommandRequest, type DaemonCommandName } from './commands/cli-grammar.ts';
 import { throwDaemonError } from './daemon-error.ts';
 import {
   buildFlags,
@@ -73,11 +70,11 @@ export function createAgentDeviceClient(
     return sessions.map(normalizeSession);
   };
 
-  const executeSemanticCommand = async <T>(
-    command: SemanticDaemonCommand,
+  const executeCommand = async <T>(
+    command: DaemonCommandName,
     options: InternalRequestOptions = {},
   ): Promise<T> => {
-    const request = prepareSemanticDaemonRequest(command, options);
+    const request = prepareDaemonCommandRequest(command, options);
     return (await execute(request.command, request.positionals, request.options)) as T;
   };
 
@@ -86,30 +83,30 @@ export function createAgentDeviceClient(
 
   return {
     command: {
-      wait: async (options) => await executeSemanticCommand('wait', options),
-      alert: async (options = {}) => await executeSemanticCommand('alert', options),
-      appState: async (options = {}) => await executeSemanticCommand('appstate', options),
-      back: async (options = {}) => await executeSemanticCommand('back', options),
-      home: async (options = {}) => await executeSemanticCommand('home', options),
-      rotate: async (options) => await executeSemanticCommand('rotate', options),
-      appSwitcher: async (options = {}) => await executeSemanticCommand('app-switcher', options),
-      keyboard: async (options = {}) => await executeSemanticCommand('keyboard', options),
-      clipboard: async (options) => await executeSemanticCommand('clipboard', options),
-      reactNative: async (options) => await executeSemanticCommand('react-native', options),
+      wait: async (options) => await executeCommand('wait', options),
+      alert: async (options = {}) => await executeCommand('alert', options),
+      appState: async (options = {}) => await executeCommand('appstate', options),
+      back: async (options = {}) => await executeCommand('back', options),
+      home: async (options = {}) => await executeCommand('home', options),
+      rotate: async (options) => await executeCommand('rotate', options),
+      appSwitcher: async (options = {}) => await executeCommand('app-switcher', options),
+      keyboard: async (options = {}) => await executeCommand('keyboard', options),
+      clipboard: async (options) => await executeCommand('clipboard', options),
+      reactNative: async (options) => await executeCommand('react-native', options),
     },
     devices: {
       list: async (options = {}) => {
-        const data = await executeSemanticCommand<Record<string, unknown>>('devices', options);
+        const data = await executeCommand<Record<string, unknown>>('devices', options);
         const devices = Array.isArray(data.devices) ? data.devices : [];
         return devices.map(normalizeDevice);
       },
-      boot: async (options = {}) => await executeSemanticCommand('boot', options),
+      boot: async (options = {}) => await executeCommand('boot', options),
     },
     sessions: {
       list: async (options = {}) => await listSessions(options),
       close: async (options = {}) => {
         const session = resolveRequestSession(options);
-        const data = await executeSemanticCommand<Record<string, unknown>>('close', options);
+        const data = await executeCommand<Record<string, unknown>>('close', options);
         const shutdown = data.shutdown;
         return {
           session,
@@ -124,28 +121,28 @@ export function createAgentDeviceClient(
     apps: {
       install: async (options: AppDeployOptions) =>
         normalizeDeployResult(
-          await executeSemanticCommand('install', options),
+          await executeCommand('install', options),
           resolveRequestSession(options),
         ),
       reinstall: async (options: AppDeployOptions) =>
         normalizeDeployResult(
-          await executeSemanticCommand('reinstall', options),
+          await executeCommand('reinstall', options),
           resolveRequestSession(options),
         ),
       installFromSource: async (options: AppInstallFromSourceOptions) =>
         normalizeInstallFromSourceResult(
-          await executeSemanticCommand('install-from-source', options),
+          await executeCommand('install-from-source', options),
           resolveRequestSession(options),
         ),
       list: async (options: AppListOptions = {}) => {
-        const data = await executeSemanticCommand<Record<string, unknown>>('apps', options);
+        const data = await executeCommand<Record<string, unknown>>('apps', options);
         return Array.isArray(data.apps)
           ? data.apps.filter((app): app is string => typeof app === 'string')
           : [];
       },
       open: async (options: AppOpenOptions) => {
         const session = resolveRequestSession(options);
-        const data = await executeSemanticCommand<Record<string, unknown>>('open', options);
+        const data = await executeCommand<Record<string, unknown>>('open', options);
         const device = normalizeOpenDevice(data);
         const appBundleId = readOptionalString(data, 'appBundleId');
         const appId = appBundleId;
@@ -170,7 +167,7 @@ export function createAgentDeviceClient(
       },
       close: async (options: AppCloseOptions = {}) => {
         const session = resolveRequestSession(options);
-        const data = await executeSemanticCommand<Record<string, unknown>>('close', options);
+        const data = await executeCommand<Record<string, unknown>>('close', options);
         const shutdown = data.shutdown;
         return {
           session,
@@ -182,8 +179,8 @@ export function createAgentDeviceClient(
           identifiers: { session },
         };
       },
-      push: async (options) => await executeSemanticCommand('push', options),
-      triggerEvent: async (options) => await executeSemanticCommand('trigger-app-event', options),
+      push: async (options) => await executeCommand('push', options),
+      triggerEvent: async (options) => await executeCommand('trigger-app-event', options),
     },
     materializations: {
       release: async (options: MaterializationReleaseOptions) =>
@@ -249,57 +246,56 @@ export function createAgentDeviceClient(
     capture: {
       snapshot: async (options: CaptureSnapshotOptions = {}) => {
         const session = resolveRequestSession(options);
-        const data = await executeSemanticCommand<Record<string, unknown>>('snapshot', options);
+        const data = await executeCommand<Record<string, unknown>>('snapshot', options);
         return normalizeSnapshotResult(data, session);
       },
       screenshot: async (options: CaptureScreenshotOptions = {}) => {
         const session = resolveRequestSession(options);
-        const data = await executeSemanticCommand<Record<string, unknown>>('screenshot', options);
+        const data = await executeCommand<Record<string, unknown>>('screenshot', options);
         return {
           path: readRequiredString(data, 'path'),
           overlayRefs: readScreenshotOverlayRefs(data),
           identifiers: { session },
         };
       },
-      diff: async (options) => await executeSemanticCommand('diff', options),
+      diff: async (options) => await executeCommand('diff', options),
     },
     interactions: {
-      click: async (options) => await executeSemanticCommand('click', options),
-      press: async (options) => await executeSemanticCommand('press', options),
-      longPress: async (options) => await executeSemanticCommand('longpress', options),
-      swipe: async (options) => await executeSemanticCommand('swipe', options),
-      pan: async (options) => await executeSemanticCommand('gesture-pan', options),
-      fling: async (options) => await executeSemanticCommand('gesture-fling', options),
-      focus: async (options) => await executeSemanticCommand('focus', options),
-      type: async (options) => await executeSemanticCommand('type', options),
-      fill: async (options) => await executeSemanticCommand('fill', options),
-      scroll: async (options) => await executeSemanticCommand('scroll', options),
-      pinch: async (options) => await executeSemanticCommand('gesture-pinch', options),
-      rotateGesture: async (options) => await executeSemanticCommand('gesture-rotate', options),
-      transformGesture: async (options) =>
-        await executeSemanticCommand('gesture-transform', options),
-      get: async (options) => await executeSemanticCommand('get', options),
-      is: async (options) => await executeSemanticCommand('is', options),
-      find: async (options) => await executeSemanticCommand('find', options),
+      click: async (options) => await executeCommand('click', options),
+      press: async (options) => await executeCommand('press', options),
+      longPress: async (options) => await executeCommand('longpress', options),
+      swipe: async (options) => await executeCommand('swipe', options),
+      pan: async (options) => await executeCommand('gesture-pan', options),
+      fling: async (options) => await executeCommand('gesture-fling', options),
+      focus: async (options) => await executeCommand('focus', options),
+      type: async (options) => await executeCommand('type', options),
+      fill: async (options) => await executeCommand('fill', options),
+      scroll: async (options) => await executeCommand('scroll', options),
+      pinch: async (options) => await executeCommand('gesture-pinch', options),
+      rotateGesture: async (options) => await executeCommand('gesture-rotate', options),
+      transformGesture: async (options) => await executeCommand('gesture-transform', options),
+      get: async (options) => await executeCommand('get', options),
+      is: async (options) => await executeCommand('is', options),
+      find: async (options) => await executeCommand('find', options),
     },
     replay: {
-      run: async (options) => await executeSemanticCommand('replay', options),
-      test: async (options) => await executeSemanticCommand('test', options),
+      run: async (options) => await executeCommand('replay', options),
+      test: async (options) => await executeCommand('test', options),
     },
     batch: {
-      run: async (options) => await executeSemanticCommand('batch', options),
+      run: async (options) => await executeCommand('batch', options),
     },
     observability: {
-      perf: async (options = {}) => await executeSemanticCommand('perf', options),
-      logs: async (options = {}) => await executeSemanticCommand('logs', options),
-      network: async (options = {}) => await executeSemanticCommand('network', options),
+      perf: async (options = {}) => await executeCommand('perf', options),
+      logs: async (options = {}) => await executeCommand('logs', options),
+      network: async (options = {}) => await executeCommand('network', options),
     },
     recording: {
-      record: async (options) => await executeSemanticCommand('record', options),
-      trace: async (options) => await executeSemanticCommand('trace', options),
+      record: async (options) => await executeCommand('record', options),
+      trace: async (options) => await executeCommand('trace', options),
     },
     settings: {
-      update: async (options) => await executeSemanticCommand('settings', options),
+      update: async (options) => await executeCommand('settings', options),
     },
   };
 }

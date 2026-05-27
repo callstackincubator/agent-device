@@ -23,9 +23,9 @@ import type {
 } from '../client-types.ts';
 import { formatSnapshotText } from '../utils/output.ts';
 import { readCommandMessage } from '../utils/success-text.ts';
-import type { SemanticCliOutput } from './semantic-contract.ts';
+import type { CliOutput } from './command-contract.ts';
 
-export function devicesCliOutput(result: AgentDeviceDevice[]): SemanticCliOutput {
+export function devicesCliOutput(result: AgentDeviceDevice[]): CliOutput {
   const data = { devices: result.map(serializeDevice) };
   return { data, text: result.map(formatDeviceLine).join('\n') };
 }
@@ -33,7 +33,7 @@ export function devicesCliOutput(result: AgentDeviceDevice[]): SemanticCliOutput
 export function appsCliOutput(params: {
   result: string[];
   appsFilter?: 'user-installed' | 'all';
-}): SemanticCliOutput {
+}): CliOutput {
   const data = { apps: params.result };
   return {
     data,
@@ -50,31 +50,31 @@ export function appsCliOutput(params: {
   };
 }
 
-export function sessionCliOutput(result: { sessions: AgentDeviceSession[] }): SemanticCliOutput {
+export function sessionCliOutput(result: { sessions: AgentDeviceSession[] }): CliOutput {
   const data = { sessions: result.sessions.map(serializeSessionListEntry) };
   return { data, text: JSON.stringify(data, null, 2) };
 }
 
-export function openCliOutput(result: AppOpenResult): SemanticCliOutput {
+export function openCliOutput(result: AppOpenResult): CliOutput {
   return messageOutput(serializeOpenResult(result));
 }
 
-export function closeCliOutput(result: AppCloseResult | SessionCloseResult): SemanticCliOutput {
+export function closeCliOutput(result: AppCloseResult | SessionCloseResult): CliOutput {
   return messageOutput(serializeCloseResult(result));
 }
 
-export function messageCliOutput(result: Record<string, unknown>): SemanticCliOutput {
+export function messageCliOutput(result: Record<string, unknown>): CliOutput {
   return messageOutput(result);
 }
 
-export function appStateCliOutput(result: AppStateCommandResult): SemanticCliOutput {
+export function appStateCliOutput(result: AppStateCommandResult): CliOutput {
   return {
     data: result,
     text: formatAppState(result),
   };
 }
 
-export function keyboardCliOutput(result: KeyboardCommandResult): SemanticCliOutput {
+export function keyboardCliOutput(result: KeyboardCommandResult): CliOutput {
   if (result.platform === 'android' && result.action === 'status') {
     const lines = [
       `Keyboard visible: ${result.visible === true ? 'yes' : 'no'}`,
@@ -90,16 +90,16 @@ export function keyboardCliOutput(result: KeyboardCommandResult): SemanticCliOut
   return messageOutput(result);
 }
 
-export function clipboardCliOutput(result: ClipboardCommandResult): SemanticCliOutput {
+export function clipboardCliOutput(result: ClipboardCommandResult): CliOutput {
   if (result.action === 'read') return { data: result, text: result.text };
   return messageOutput(result);
 }
 
-export function deployCliOutput(result: AppDeployResult): SemanticCliOutput {
+export function deployCliOutput(result: AppDeployResult): CliOutput {
   return messageOutput(serializeDeployResult(result));
 }
 
-export function installFromSourceCliOutput(result: AppInstallFromSourceResult): SemanticCliOutput {
+export function installFromSourceCliOutput(result: AppInstallFromSourceResult): CliOutput {
   return messageOutput(serializeInstallFromSourceResult(result));
 }
 
@@ -107,7 +107,7 @@ export function snapshotCliOutput(params: {
   result: CaptureSnapshotResult;
   raw?: boolean;
   interactiveOnly?: boolean;
-}): SemanticCliOutput {
+}): CliOutput {
   const data = serializeSnapshotResult(params.result);
   return {
     data,
@@ -120,7 +120,7 @@ export function snapshotCliOutput(params: {
   };
 }
 
-export function metroCliOutput(params: { result: unknown; action?: string }): SemanticCliOutput {
+export function metroCliOutput(params: { result: unknown; action?: string }): CliOutput {
   return {
     data: params.result,
     text:
@@ -130,17 +130,14 @@ export function metroCliOutput(params: { result: unknown; action?: string }): Se
   };
 }
 
-export function bootCliOutput(result: CommandRequestResult): SemanticCliOutput {
+export function bootCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   const platform = data.platform ?? 'unknown';
   const device = data.device ?? data.id ?? 'unknown';
   return { data, text: `Boot ready: ${device} (${platform})` };
 }
 
-export function getCliOutput(params: {
-  result: CommandRequestResult;
-  format?: string;
-}): SemanticCliOutput {
+export function getCliOutput(params: { result: CommandRequestResult; format?: string }): CliOutput {
   const data = params.result as Record<string, unknown>;
   if (params.format === 'text') {
     return { data, text: typeof data.text === 'string' ? data.text : '' };
@@ -151,7 +148,7 @@ export function getCliOutput(params: {
   return defaultCommandCliOutput(data);
 }
 
-export function findCliOutput(result: CommandRequestResult): SemanticCliOutput {
+export function findCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   if (typeof data.text === 'string') return { data, text: data.text };
   if (typeof data.found === 'boolean') return { data, text: `Found: ${data.found}` };
@@ -159,12 +156,12 @@ export function findCliOutput(result: CommandRequestResult): SemanticCliOutput {
   return defaultCommandCliOutput(data);
 }
 
-export function isCliOutput(result: CommandRequestResult): SemanticCliOutput {
+export function isCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   return { data, text: `Passed: is ${data.predicate ?? 'assertion'}` };
 }
 
-export function tapCliOutput(result: CommandRequestResult): SemanticCliOutput {
+export function tapCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   const ref = data.ref ?? '';
   const x = data.x;
@@ -175,17 +172,17 @@ export function tapCliOutput(result: CommandRequestResult): SemanticCliOutput {
   return { data, text: `Tapped @${ref} (${x}, ${y})` };
 }
 
-export function recordCliOutput(result: CommandRequestResult): SemanticCliOutput {
+export function recordCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   const outPath = typeof data.outPath === 'string' ? data.outPath : '';
   return { data, text: outPath };
 }
 
-function defaultCommandCliOutput(result: CommandRequestResult): SemanticCliOutput {
+function defaultCommandCliOutput(result: CommandRequestResult): CliOutput {
   return messageOutput(result as Record<string, unknown>);
 }
 
-function messageOutput(data: Record<string, unknown>): SemanticCliOutput {
+function messageOutput(data: Record<string, unknown>): CliOutput {
   return { data, text: readCommandMessage(data) };
 }
 

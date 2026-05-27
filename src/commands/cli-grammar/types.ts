@@ -1,13 +1,13 @@
 import type { InteractionTarget, InternalRequestOptions } from '../../client-types.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 
-export type SemanticDaemonRequest = {
+export type DaemonCommandRequest = {
   command: string;
   positionals: string[];
   options: InternalRequestOptions;
 };
 
-export type SemanticRequestInput = InternalRequestOptions & Record<string, any>;
+export type CommandInput = InternalRequestOptions & Record<string, any>;
 
 export type SelectionOptions = {
   platform?: CliFlags['platform'];
@@ -19,9 +19,9 @@ export type SelectionOptions = {
   androidDeviceAllowlist?: string;
 };
 
-export type SemanticCliInput = Record<string, unknown>;
-export type CliReader = (positionals: string[], flags: CliFlags) => SemanticCliInput;
-export type DaemonWriter = (input: SemanticRequestInput) => SemanticDaemonRequest;
+export type CliInput = Record<string, unknown>;
+export type CliReader = (positionals: string[], flags: CliFlags) => CliInput;
+export type DaemonWriter = (input: CommandInput) => DaemonCommandRequest;
 
 export type DecodedFillTarget =
   | { kind: 'ref'; target: { ref: string; label?: string }; text: string }

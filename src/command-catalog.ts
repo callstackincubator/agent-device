@@ -72,13 +72,31 @@ export type PublicCommandName = (typeof PUBLIC_COMMANDS)[keyof typeof PUBLIC_COM
 export type LocalCliCommandName = (typeof LOCAL_CLI_COMMANDS)[keyof typeof LOCAL_CLI_COMMANDS];
 export type CliCommandName = PublicCommandName | LocalCliCommandName;
 
-export const MCP_EXCLUDED_CLI_COMMANDS = commandSet(
+const MCP_UNEXPOSED_CLI_COMMANDS = commandSet(
   LOCAL_CLI_COMMANDS.auth,
   LOCAL_CLI_COMMANDS.connect,
   LOCAL_CLI_COMMANDS.connection,
   LOCAL_CLI_COMMANDS.disconnect,
   LOCAL_CLI_COMMANDS.mcp,
   LOCAL_CLI_COMMANDS.reactDevtools,
+);
+
+const CAPABILITY_EXEMPT_CLI_COMMANDS = commandSet(
+  LOCAL_CLI_COMMANDS.auth,
+  LOCAL_CLI_COMMANDS.connect,
+  LOCAL_CLI_COMMANDS.connection,
+  LOCAL_CLI_COMMANDS.disconnect,
+  LOCAL_CLI_COMMANDS.mcp,
+  LOCAL_CLI_COMMANDS.metro,
+  LOCAL_CLI_COMMANDS.reactDevtools,
+  LOCAL_CLI_COMMANDS.session,
+  PUBLIC_COMMANDS.appState,
+  PUBLIC_COMMANDS.batch,
+  PUBLIC_COMMANDS.devices,
+  PUBLIC_COMMANDS.gesture,
+  PUBLIC_COMMANDS.replay,
+  PUBLIC_COMMANDS.test,
+  PUBLIC_COMMANDS.trace,
 );
 
 export const DAEMON_COMMAND_GROUPS = {
@@ -161,4 +179,16 @@ export const DAEMON_COMMAND_GROUPS = {
 
 function commandSet(...commands: readonly string[]): ReadonlySet<string> {
   return new Set(commands);
+}
+
+export function listCliCommandNames(): CliCommandName[] {
+  return [...Object.values(PUBLIC_COMMANDS), ...Object.values(LOCAL_CLI_COMMANDS)].sort();
+}
+
+export function listMcpExposedCommandNames(): CliCommandName[] {
+  return listCliCommandNames().filter((command) => !MCP_UNEXPOSED_CLI_COMMANDS.has(command));
+}
+
+export function listCapabilityCheckedCommandNames(): CliCommandName[] {
+  return listCliCommandNames().filter((command) => !CAPABILITY_EXEMPT_CLI_COMMANDS.has(command));
 }

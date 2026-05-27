@@ -14,7 +14,7 @@ import {
   screenshotFlagsFromOptions,
   screenshotOptionsFromFlags,
 } from '../capture-screenshot-options.ts';
-import { compactRecord } from '../semantic-common.ts';
+import { compactRecord } from '../command-input.ts';
 import {
   commonInputFromFlags,
   direct,
@@ -47,7 +47,7 @@ export const captureCliReaders = {
   }),
   diff: (positionals, flags) => {
     if (positionals[0] !== 'snapshot') {
-      throw new AppError('INVALID_ARGS', 'Only diff snapshot is semantically migrated.');
+      throw new AppError('INVALID_ARGS', 'Only diff snapshot is available through this parser.');
     }
     return {
       ...commonInputFromFlags(flags),

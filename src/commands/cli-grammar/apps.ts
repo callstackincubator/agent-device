@@ -13,7 +13,7 @@ import {
   requiredDaemonString,
   requiredString,
 } from './common.ts';
-import type { CliReader, DaemonWriter, SemanticRequestInput } from './types.ts';
+import type { CliReader, DaemonWriter, CommandInput } from './types.ts';
 
 export const appCliReaders = {
   devices: (_positionals, flags) => commonInputFromFlags(flags),
@@ -107,7 +107,7 @@ function readSessionAction(value: string | undefined): 'list' {
   throw new AppError('INVALID_ARGS', 'session only supports list');
 }
 
-function openPositionals(input: SemanticRequestInput): string[] {
+function openPositionals(input: CommandInput): string[] {
   if (!input.app) return [];
   return input.url ? [input.app, input.url] : [input.app];
 }

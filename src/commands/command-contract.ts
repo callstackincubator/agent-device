@@ -15,16 +15,15 @@ export type JsonSchema = {
   maximum?: number;
 };
 
-type SemanticCommandContract<Name extends string, Input, Result> = {
+type CommandContract<Name extends string, Input, Result> = {
   name: Name;
   description: string;
   inputSchema: JsonSchema;
   readInput: (input: unknown) => Input;
   run: (client: AgentDeviceClient, input: Input) => Promise<Result>;
-  formatCliOutput?: SemanticCliOutputFormatter<Input, Result>;
 };
 
-export type SemanticCommandDefinition<Name extends string, Input, Result> = SemanticCommandContract<
+export type CommandDefinition<Name extends string, Input, Result> = CommandContract<
   Name,
   Input,
   Result
@@ -32,22 +31,16 @@ export type SemanticCommandDefinition<Name extends string, Input, Result> = Sema
   invoke: (client: AgentDeviceClient, input: unknown) => Promise<Result>;
 };
 
-export type SemanticCliOutput = {
+export type CliOutput = {
   data: unknown;
   jsonData?: unknown;
   text?: string | null;
   stderr?: string | null;
 };
 
-export type SemanticCliOutputFormatter<Input, Result> = (params: {
-  input: Input;
-  result: Result;
-  positionals: string[];
-}) => SemanticCliOutput;
-
-export function defineSemanticCommand<Name extends string, Input, Result>(
-  definition: SemanticCommandContract<Name, Input, Result>,
-): SemanticCommandDefinition<Name, Input, Result> {
+export function defineCommand<Name extends string, Input, Result>(
+  definition: CommandContract<Name, Input, Result>,
+): CommandDefinition<Name, Input, Result> {
   return {
     ...definition,
     invoke: async (client, input) => await definition.run(client, definition.readInput(input)),

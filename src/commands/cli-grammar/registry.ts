@@ -13,12 +13,7 @@ import { observabilityCliReaders, observabilityDaemonWriters } from './observabi
 import { replayCliReaders, replayDaemonWriters } from './replay.ts';
 import { selectorCliReaders, selectorDaemonWriters } from './selectors.ts';
 import { systemCliReaders, systemDaemonWriters } from './system.ts';
-import type {
-  CliReader,
-  DaemonWriter,
-  SemanticDaemonRequest,
-  SemanticRequestInput,
-} from './types.ts';
+import type { CliReader, DaemonWriter, DaemonCommandRequest, CommandInput } from './types.ts';
 
 const cliReaders = {
   ...appCliReaders,
@@ -32,7 +27,7 @@ const cliReaders = {
   ...metroCliReaders,
   batch: (_positionals, flags) => ({
     ...commonInputFromFlags(flags),
-    steps: readSemanticBatchStepsFromCli(flags.batchSteps ?? []),
+    steps: readBatchStepsFromCli(flags.batchSteps ?? []),
     onError: flags.batchOnError,
     maxSteps: flags.batchMaxSteps,
     out: flags.out,
@@ -57,8 +52,8 @@ const daemonWriters = {
     }),
 } satisfies Record<string, DaemonWriter>;
 
-export type SemanticDaemonCommand = keyof typeof daemonWriters;
-type NonBatchSemanticCommand =
+export type DaemonCommandName = keyof typeof daemonWriters;
+type NonBatchCommandName =
   | 'replay'
   | 'batch'
   | 'gesture-pan'
@@ -66,9 +61,9 @@ type NonBatchSemanticCommand =
   | 'gesture-pinch'
   | 'gesture-rotate'
   | 'gesture-transform';
-export type SemanticBatchCommand = Exclude<SemanticDaemonCommand, NonBatchSemanticCommand>;
+export type BatchCommandName = Exclude<DaemonCommandName, NonBatchCommandName>;
 
-const semanticNonBatchCommandNames = commandNameSet([
+const nonBatchCommandNames = commandNameSet([
   'replay',
   'batch',
   'gesture-pan',
@@ -76,29 +71,26 @@ const semanticNonBatchCommandNames = commandNameSet([
   'gesture-pinch',
   'gesture-rotate',
   'gesture-transform',
-] as const satisfies readonly NonBatchSemanticCommand[]);
+] as const satisfies readonly NonBatchCommandName[]);
 
-export const semanticBatchCommandNames = (
-  Object.keys(daemonWriters) as SemanticDaemonCommand[]
-).filter((name): name is SemanticBatchCommand => !semanticNonBatchCommandNames.has(name));
+export const batchCommandNames = (Object.keys(daemonWriters) as DaemonCommandName[]).filter(
+  (name): name is BatchCommandName => !nonBatchCommandNames.has(name),
+);
 
-const semanticBatchNames = commandNameSet(semanticBatchCommandNames);
+const batchNames = commandNameSet(batchCommandNames);
 
-export function readSemanticInputFromCli(
+export function readInputFromCli(
   command: string,
   positionals: string[],
   flags: CliFlags,
 ): Record<string, unknown> {
   const reader = (cliReaders as Record<string, CliReader>)[command];
-  if (!reader) throw new AppError('INVALID_ARGS', `Unknown semantic CLI command: ${command}`);
+  if (!reader) throw new AppError('INVALID_ARGS', `Unknown CLI command: ${command}`);
   return reader(positionals, flags);
 }
 
-export function prepareSemanticBatchStep(
-  command: SemanticDaemonCommand,
-  input: SemanticRequestInput,
-): BatchStep {
-  const prepared = prepareSemanticDaemonRequest(command, input);
+export function prepareBatchStep(command: DaemonCommandName, input: CommandInput): BatchStep {
+  const prepared = prepareDaemonCommandRequest(command, input);
   return {
     command: prepared.command,
     positionals: prepared.positionals,
@@ -107,19 +99,19 @@ export function prepareSemanticBatchStep(
   };
 }
 
-export function prepareSemanticDaemonRequest(
-  command: SemanticDaemonCommand,
-  input: SemanticRequestInput,
-): SemanticDaemonRequest {
+export function prepareDaemonCommandRequest(
+  command: DaemonCommandName,
+  input: CommandInput,
+): DaemonCommandRequest {
   return daemonWriters[command](input);
 }
 
-function readSemanticBatchStepsFromCli(
+function readBatchStepsFromCli(
   steps: BatchStep[],
 ): Array<{ command: string; input: Record<string, unknown> }> {
   return steps.map((step, index) => {
     const command = readBatchCliCommand(step.command, index + 1);
-    const input = readSemanticInputFromCli(
+    const input = readInputFromCli(
       command,
       step.positionals ?? [],
       cliFlagsFromBatchStep(step.flags),
@@ -129,17 +121,17 @@ function readSemanticBatchStepsFromCli(
   });
 }
 
-function readBatchCliCommand(command: string, stepNumber: number): SemanticBatchCommand {
+function readBatchCliCommand(command: string, stepNumber: number): BatchCommandName {
   const normalized = command.trim().toLowerCase();
-  if (isSemanticBatchCommand(normalized)) return normalized;
+  if (isBatchCommandName(normalized)) return normalized;
   throw new AppError(
     'INVALID_ARGS',
-    `Batch step ${stepNumber} command is not available through semantic batch: ${command}`,
+    `Batch step ${stepNumber} command is not available through command batch: ${command}`,
   );
 }
 
-function isSemanticBatchCommand(name: string): name is SemanticBatchCommand {
-  return semanticBatchNames.has(name);
+function isBatchCommandName(name: string): name is BatchCommandName {
+  return batchNames.has(name);
 }
 
 function cliFlagsFromBatchStep(flags: BatchStep['flags']): CliFlags {

@@ -9,6 +9,12 @@ const HANDLER_TEST_DIR = path.join(ROOT, 'src/daemon/handlers/__tests__');
 const PROVIDER_SCENARIO_DIR = path.join(ROOT, 'test/integration/provider-scenarios');
 const COVERAGE_SUMMARY = path.join(ROOT, 'coverage/coverage-summary.json');
 const COMMAND_CATALOG = path.join(ROOT, 'src/command-catalog.ts');
+const COMMAND_CONTRACT_FILES = [
+  path.join(ROOT, 'src/commands/client-command-contracts.ts'),
+  path.join(ROOT, 'src/commands/interaction-command-contracts.ts'),
+];
+const COMMAND_CATALOG_SOURCE = fs.readFileSync(COMMAND_CATALOG, 'utf8');
+const clientCommandMethods = readClientCommandMethods();
 
 const handlerTests = listFiles(HANDLER_TEST_DIR, (file) => file.endsWith('.test.ts'));
 const providerScenarioTests = listFiles(PROVIDER_SCENARIO_DIR, (file) => file.endsWith('.test.ts'));
@@ -24,8 +30,7 @@ const mockHeavyHandlerRows = summarizeMockHeavyHandlerFiles(mockHeavyHandlerFile
 const providerPressureRows = summarizeProviderPressure(providerScenarioSources);
 const publicCommandRows = summarizePublicCommandCoverage(providerScenarioTests);
 const missingPublicCommands = publicCommandRows.filter((command) => command.references === 0);
-const commandFamilyRows = summarizeCommandFamilyOwnership(providerScenarioTests);
-const flagCoverageRows = summarizeProviderScenarioFlagCoverage(providerScenarioSources);
+const flagCoverageRows = summarizeProviderScenarioFlagCoverage(providerScenarioTests);
 const missingFlagRows = flagCoverageRows.filter((flag) => flag.references === 0);
 const excludedFlagRows = summarizeProviderScenarioFlagExclusions();
 const publicCliFlagKeys = readPublicCliFlagKeys();
@@ -92,17 +97,6 @@ if (mockHeavyHandlerRows.length > 0) {
   console.log('| ---: | ---: | --- |');
   for (const file of mockHeavyHandlerRows) {
     console.log(`| ${file.tests} | ${file.lines} | ${file.file} |`);
-  }
-}
-
-if (commandFamilyRows.length > 0) {
-  console.log('');
-  console.log('Command family ownership in provider-backed integration');
-  console.log('');
-  console.log('| Command family | Command references | Files |');
-  console.log('| --- | ---: | ---: |');
-  for (const family of commandFamilyRows) {
-    console.log(`| ${family.name} | ${family.references} | ${family.files} |`);
   }
 }
 
@@ -470,80 +464,6 @@ function summarizeProviderPressure(files) {
     .filter((surface) => surface.references > 0);
 }
 
-function summarizeCommandFamilyOwnership(files) {
-  const commandFamilies = [
-    {
-      name: 'devices/boot/open/close/session/appstate',
-      commands: ['devices', 'boot', 'open', 'close', 'session_list', 'appstate'],
-    },
-    {
-      name: 'apps',
-      commands: ['apps'],
-    },
-    {
-      name: 'install/reinstall/install-source/push/trigger-event',
-      commands: ['install', 'reinstall', 'install-from-source', 'push', 'trigger-app-event'],
-    },
-    {
-      name: 'snapshot/diff/screenshot',
-      commands: ['snapshot', 'diff', 'screenshot'],
-    },
-    {
-      name: 'press/click/fill/type/scroll/swipe/gesture/rotate/app-switcher',
-      commands: [
-        'press',
-        'click',
-        'focus',
-        'longpress',
-        'swipe',
-        'scroll',
-        'gesture',
-        'type',
-        'fill',
-        'rotate',
-        'app-switcher',
-        'back',
-        'home',
-      ],
-    },
-    {
-      name: 'get/is/find/wait',
-      commands: ['get', 'is', 'find', 'wait'],
-    },
-    {
-      name: 'clipboard/keyboard/settings/alert',
-      commands: ['clipboard', 'keyboard', 'settings', 'alert'],
-    },
-    {
-      name: 'record/trace/logs/network/perf/replay/test/batch',
-      commands: ['record', 'trace', 'logs', 'network', 'perf', 'replay', 'test', 'batch'],
-    },
-  ];
-
-  const commandRefsByFile = files.map((file) => ({
-    file,
-    commands: extractProviderScenarioCommandReferences(fs.readFileSync(file, 'utf8')),
-  }));
-
-  return commandFamilies
-    .map((family) => {
-      const commands = new Set(family.commands);
-      let references = 0;
-      let filesWithReferences = 0;
-      for (const file of commandRefsByFile) {
-        const count = file.commands.filter((command) => commands.has(command)).length;
-        references += count;
-        if (count > 0) filesWithReferences += 1;
-      }
-      return {
-        name: family.name,
-        references,
-        files: filesWithReferences,
-      };
-    })
-    .filter((family) => family.references > 0);
-}
-
 function summarizePublicCommandCoverage(files) {
   const publicCommands = readPublicCommands();
   const commandRefsByFile = files.map((file) => ({
@@ -564,16 +484,52 @@ function summarizePublicCommandCoverage(files) {
 }
 
 function readPublicCommands() {
-  const text = fs.readFileSync(COMMAND_CATALOG, 'utf8');
-  const match = text.match(/export const PUBLIC_COMMANDS = \{([\s\S]*?)\} as const;/);
+  return [...readPublicCommandEntries().values()].sort();
+}
+
+function readPublicCommandEntries() {
+  const match = COMMAND_CATALOG_SOURCE.match(/export const PUBLIC_COMMANDS = \{([\s\S]*?)\} as const;/);
   if (!match) {
     throw new Error('Unable to find PUBLIC_COMMANDS in src/command-catalog.ts');
   }
-  const commands = [];
-  for (const command of match[1].matchAll(/:\s*'([^']+)'/g)) {
-    commands.push(command[1]);
+  const commands = new Map();
+  for (const command of match[1].matchAll(/\b([A-Za-z0-9_]+):\s*'([^']+)'/g)) {
+    commands.set(command[1], command[2]);
   }
-  return commands.sort();
+  return commands;
+}
+
+function readClientCommandMethods() {
+  const commands = new Map();
+  for (const file of COMMAND_CONTRACT_FILES) {
+    const text = fs.readFileSync(file, 'utf8');
+    for (const block of readCommandContractBlocks(text)) {
+      for (const method of block.source.matchAll(/\bclient\.([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)\s*\(/g)) {
+        commands.set(`${method[1]}.${method[2]}`, block.name);
+      }
+    }
+  }
+  return commands;
+}
+
+function readCommandContractBlocks(text) {
+  const starts = [
+    ...text.matchAll(/defineFieldCommand\(\s*['"]([^'"]+)['"]/g),
+    ...text.matchAll(/defineCommand\(\s*\{[\s\S]*?\bname:\s*['"]([^'"]+)['"]/g),
+  ]
+    .map((match) => ({
+      index: match.index ?? 0,
+      name: match[1],
+    }))
+    .sort((a, b) => a.index - b.index);
+
+  return starts.map((start, index) => {
+    const end = starts[index + 1]?.index ?? text.length;
+    return {
+      name: start.name,
+      source: text.slice(start.index, end),
+    };
+  });
 }
 
 function extractProviderScenarioCommandReferences(text) {
@@ -581,54 +537,7 @@ function extractProviderScenarioCommandReferences(text) {
   for (const match of text.matchAll(/\bcommand:\s*['"]([^'"]+)['"]|\.callCommand\(\s*['"]([^'"]+)['"]/g)) {
     commands.push(match[1] ?? match[2]);
   }
-  const typedClientCommands = new Map([
-    ['devices.list', 'devices'],
-    ['devices.boot', 'boot'],
-    ['apps.open', 'open'],
-    ['apps.close', 'close'],
-    ['apps.list', 'apps'],
-    ['apps.install', 'install'],
-    ['apps.reinstall', 'reinstall'],
-    ['apps.installFromSource', 'install-from-source'],
-    ['apps.push', 'push'],
-    ['apps.triggerEvent', 'trigger-app-event'],
-    ['command.appState', 'appstate'],
-    ['command.appSwitcher', 'app-switcher'],
-    ['command.back', 'back'],
-    ['command.clipboard', 'clipboard'],
-    ['command.home', 'home'],
-    ['command.keyboard', 'keyboard'],
-    ['command.rotate', 'rotate'],
-    ['command.wait', 'wait'],
-    ['capture.diff', 'diff'],
-    ['capture.screenshot', 'screenshot'],
-    ['capture.snapshot', 'snapshot'],
-    ['interactions.click', 'click'],
-    ['interactions.fill', 'fill'],
-    ['interactions.find', 'find'],
-    ['interactions.focus', 'focus'],
-    ['interactions.get', 'get'],
-    ['interactions.is', 'is'],
-    ['interactions.longPress', 'longpress'],
-    ['interactions.pan', 'gesture'],
-    ['interactions.fling', 'gesture'],
-    ['interactions.pinch', 'gesture'],
-    ['interactions.rotateGesture', 'gesture'],
-    ['interactions.press', 'press'],
-    ['interactions.scroll', 'scroll'],
-    ['interactions.swipe', 'swipe'],
-    ['interactions.type', 'type'],
-    ['observability.logs', 'logs'],
-    ['observability.network', 'network'],
-    ['observability.perf', 'perf'],
-    ['recording.record', 'record'],
-    ['recording.trace', 'trace'],
-    ['replay.run', 'replay'],
-    ['replay.test', 'test'],
-    ['batch.run', 'batch'],
-    ['settings.update', 'settings'],
-  ]);
-  for (const [method, command] of typedClientCommands) {
+  for (const [method, command] of clientCommandMethods) {
     const escapedMethod = method.replace('.', '\\.');
     const matches = text.match(new RegExp(`\\.${escapedMethod}\\s*\\(`, 'g'))?.length ?? 0;
     for (let index = 0; index < matches; index += 1) commands.push(command);

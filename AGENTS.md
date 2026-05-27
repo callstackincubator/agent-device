@@ -52,12 +52,28 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
 - Keep modules small for agent context safety:
   - target <= 300 LOC per implementation file when practical.
   - if a file grows past 500 LOC, plan/extract focused submodules before adding new behavior.
-  - exception: generated files, schema/fixture snapshots, and integration test aggregations.
+  - if a file grows past 1,000 LOC, treat it as architecture debt unless it is generated data, a fixture snapshot, or an integration test aggregation.
+  - long guidance/data tables should live behind focused modules instead of sharing a file with parser/runtime logic.
+  - prefer deep modules over mechanical splits: extract when it improves locality for a concept callers already need, not just to reduce line count.
+
+## Context Management
+- Optimize for one-pass agent reads. A module that requires reading many siblings to understand one change is usually too shallow; a module that hides one concept behind a small interface is usually worth keeping.
+- Start with the owning module, then one shared helper, then one downstream caller or adapter. Broaden only when the contract crosses that edge.
+- Use targeted symbol searches before opening large files. For files over 500 LOC, search for the relevant type/function/section first, then read a bounded range.
+- Do not add unrelated exports just to make tests easier. Test through the public interface when possible; if that is awkward, consider whether the module's interface is too shallow.
+- When adding new guidance, examples, schemas, or command metadata, decide whether it belongs in the command surface, CLI grammar, CLI help, MCP projection, or daemon runtime before editing.
+- Prefer updating existing domain vocabulary in `CONTEXT.md` when naming a new durable module concept. Do not coin parallel names in docs, tests, and code.
 
 ## Routing
 - Keep `src/daemon.ts` as a thin router.
 - Keep command names and daemon routing groups centralized in `src/command-catalog.ts`; do not re-create command string sets in handlers or request policy modules.
-- Keep CLI/client positional grammar in `src/command-codecs.ts` and its `src/command-codecs/*` command-family modules. CLI commands, typed client methods, and daemon interaction adapters should reuse these codecs instead of duplicating selector/ref/positionals parsing.
+- Keep command input/output contracts in the command modules:
+  - command surface and shared schemas: `src/commands/command-surface.ts`, `src/commands/command-contract.ts`, `src/commands/command-input.ts`
+  - typed client command execution: `src/commands/client-command-contracts.ts`
+  - command families: `src/commands/interaction-command-contracts.ts`, `src/commands/batch-command-contract.ts`, with other typed client contracts in `src/commands/client-command-contracts.ts`
+  - CLI positional/flag grammar and daemon request projection: `src/commands/cli-grammar.ts` and `src/commands/cli-grammar/*`
+  - CLI/client/runtime output projection: `src/commands/cli-output.ts`, `src/commands/client-output.ts`, `src/commands/runtime-output.ts`
+- Do not reintroduce CLI-shaped command adapters or schemas as a second source of truth. CLI, Node.js, and MCP should project from command contracts.
 - Keep `src/daemon/request-router.ts` as request orchestration: auth, diagnostics scope, request admission, locking, handler chain, and fallback dispatch.
 - Put request policies in focused request modules:
   - tenant/lease/selector/lock admission: `src/daemon/request-admission.ts`
@@ -111,17 +127,17 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
 
 ## Adding a New CLI Flag
 
-A new snapshot/command flag touches up to 7 files in a fixed order. Follow this checklist:
+A new snapshot/command flag touches only the layers that need to understand it. Follow this checklist in order:
 
-1. `src/utils/command-schema.ts`: add to `CliFlags` type, `FLAG_DEFINITIONS` array, and the relevant `*_FLAGS` constant (e.g. `SNAPSHOT_FLAGS`). Update the command's `usageOverride` string.
-2. `src/utils/snapshot.ts` (or the relevant options type): add to `SnapshotOptions` or equivalent.
-3. `src/client-types.ts`: add to `CaptureSnapshotOptions` (or equivalent public options type) **and** `InternalRequestOptions`.
-4. `src/client-normalizers.ts`: map the public option name to the internal flag name in `buildFlags`.
-5. `src/daemon/context.ts`: add to `DaemonCommandContext` type and `contextFromFlags` function.
-6. `src/core/dispatch-context.ts`: add to `DispatchContext` when the flag flows into platform dispatch, then thread it through the relevant dispatcher module.
-7. `src/cli/commands/<command>.ts`: pass the flag from `flags.*` to the client call.
+1. `src/utils/cli-flags.ts`: add to `CliFlags`, `FLAG_DEFINITIONS`, and the relevant exported flag group (e.g. `SNAPSHOT_FLAGS`). Add the flag to `CLI_COMMAND_OVERRIDES` in `src/utils/cli-command-overrides.ts` for each command that supports it; command names/descriptions come from command contracts unless CLI help needs a specific override.
+2. `src/commands/cli-grammar/*`: read the CLI flag into command input and write it into the daemon request only if the flag affects daemon execution.
+3. `src/commands/*-command-contracts.ts`: add or update the command input schema only if the option should be available through Node.js or MCP as structured input.
+4. `src/client-types.ts`: update the public typed client option only when the Node.js interface exposes the option.
+5. `src/client-normalizers.ts`: update daemon flag normalization only when the request still needs a public-to-internal option translation.
+6. `src/daemon/context.ts` and `src/core/dispatch-context.ts`: add the field only when it flows into platform dispatch.
+7. Handler/platform modules: thread the option only after the command surface and grammar prove it belongs there.
 
-Command-only flags (like `find --first`) that don't flow to the platform layer only need steps 1 and the handler file.
+Command-only flags (like `find --first`) that do not flow to the platform layer usually stop at steps 1-3.
 
 ## Hard Rules
 - Use process helpers from `src/utils/exec.ts` for TypeScript process execution: `runCmd`, `runCmdStreaming`, `runCmdSync`, `runCmdBackground`, and `runCmdDetached`. Do not import raw `spawn`/`spawnSync` outside `src/utils/exec.ts`; add or extend an exec helper instead. Plain `.mjs` packaging fixtures that cannot import TypeScript helpers should keep child-process usage local and prefer `execFile`/`execFileSync` over spawn.
@@ -190,7 +206,7 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 
 ## Testing Matrix
 - Docs/skills only: no tests required unless a more specific rule below applies.
-- CLI help/guidance changes in `src/utils/command-schema.ts`: run `pnpm exec vitest run src/utils/__tests__/args.test.ts`.
+- CLI help/guidance changes in `src/utils/cli-help.ts`, `src/utils/cli-command-overrides.ts`, or `src/utils/command-schema.ts`: run `pnpm exec vitest run src/utils/__tests__/args.test.ts`.
 - SkillGym prompt/assertion changes: run `pnpm test:skillgym:case <case-id>`; the script builds local CLI help first. For broad validation, use `pnpm test:skillgym`; append `-- --tag fixture-smoke` or `-- --tag skill-guidance` when validating one suite group.
 - Non-TS, no behavior impact: no tests unless requested.
 - Keep tests behavioral; do not assert shapes or cases TypeScript already proves.
@@ -208,6 +224,7 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Do not run integration tests by default.
 - Do not inspect both iOS and Android codepaths unless task requires both.
 - Prefer targeted `git diff -- <paths>` over broad file reads during review.
+- Keep long help prose in `src/utils/cli-help.ts`; keep flag definitions in `src/utils/cli-flags.ts`; keep CLI-specific command usage/flag metadata in `src/utils/cli-command-overrides.ts`.
 - Prefer `snapshot -i`, `find`, and scoped selectors over repeated full snapshot dumps when exploring Apple desktop UIs.
 - Keep PR summaries short and scoped.
 
@@ -222,9 +239,10 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Changing `tsconfig.lib.json`/build tooling without running `pnpm check:tooling`; declaration generation is stricter than `tsc --noEmit`.
 
 ## Docs & Skills
-- Versioned CLI help is the agent-facing source of truth. Put workflow guidance in `src/utils/command-schema.ts` help topics and assert important copy in `src/utils/__tests__/args.test.ts`.
+- Versioned CLI help is the agent-facing source of truth. Put workflow guidance and help-topic prose in `src/utils/cli-help.ts`, keep flag definitions in `src/utils/cli-flags.ts`, keep CLI command overrides in `src/utils/cli-command-overrides.ts`, and assert important copy in `src/utils/__tests__/args.test.ts`.
+- Keep parser schema and help rendering separate: `src/utils/command-schema.ts` composes contract-derived command schemas with CLI overrides; `src/utils/cli-help.ts` owns help topics and usage rendering.
 - Skills are thin routers. Keep `skills/**/SKILL.md` focused on when to use the skill, version gating, which `agent-device help <topic>` page to read, and a short default loop. Do not duplicate full CLI manuals in skills.
-- For behavior/CLI surface changes, update the versioned help instructions in `src/utils/command-schema.ts` and assert important help copy in `src/utils/__tests__/args.test.ts`. Also update `README.md` and relevant `website/docs/**` when user-facing docs need it.
+- For behavior/CLI surface changes, update the versioned help instructions in `src/utils/cli-help.ts` or the CLI command metadata in `src/utils/cli-command-overrides.ts`, then assert important help copy in `src/utils/__tests__/args.test.ts`. Also update `README.md` and relevant `website/docs/**` when user-facing docs need it.
 - For behavior/CLI surface changes and command-planning guidance changes, write or update a SkillGym case in `test/skillgym/suites/agent-device-smoke-suite.ts` that captures the expected agent command plan.
 - Do not update `skills/**/SKILL.md` for command behavior or workflow guidance unless the user explicitly asks; skills must route to versioned CLI help instead of carrying behavior details.
 - Keep SkillGym cases behavioral and command-planning oriented. Prefer prompts that assert the user-visible contract and expected command family over brittle exact output, but forbid known bad patterns.
@@ -245,6 +263,7 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 
 ## Key Files
 - CLI parse + formatting: `src/bin.ts`, `src/cli.ts`, `src/utils/args.ts`
+- CLI help + option metadata: `src/utils/cli-help.ts`, `src/utils/cli-flags.ts`, `src/utils/cli-command-overrides.ts`, `src/utils/command-schema.ts`, `src/utils/cli-option-schema.ts`
 - Daemon client transport: `src/daemon-client.ts`
 - Daemon state/store: `src/daemon/session-store.ts`
 - Selector DSL and matching: `src/daemon/selectors.ts`
@@ -254,7 +273,8 @@ Command-only flags (like `find --first`) that don't flow to the platform layer o
 - Handler context helpers: `src/daemon/context.ts`, `src/daemon/device-ready.ts`
 - Request routing/policy: `src/daemon/request-router.ts`, `src/daemon/request-admission.ts`, `src/daemon/request-generic-dispatch.ts`
 - Dispatcher + capability map: `src/core/dispatch.ts`, `src/core/dispatch-context.ts`, `src/core/dispatch-interactions.ts`, `src/core/capabilities.ts`
-- Command catalog + positional codecs: `src/command-catalog.ts`, `src/command-codecs.ts`, `src/command-codecs/*`
+- Command catalog + command surface: `src/command-catalog.ts`, `src/commands/command-surface.ts`, `src/commands/command-contract.ts`, `src/commands/client-command-contracts.ts`
+- CLI grammar + daemon request projection: `src/commands/cli-grammar.ts`, `src/commands/cli-grammar/*`
 - Platform backends: `src/platforms/ios/*`, `ios-runner/*`, `src/platforms/android/*`
 
 ## Pull Requests

@@ -9,14 +9,14 @@ import {
   optionalNumber,
   requiredDaemonString,
 } from './common.ts';
-import type { CliReader, DaemonWriter, SemanticRequestInput } from './types.ts';
+import type { CliReader, DaemonWriter, CommandInput } from './types.ts';
 
 export const gestureCliReaders = {
   gesture: gestureInputFromCli,
 } satisfies Record<string, CliReader>;
 
 export const gestureDaemonWriters = {
-  gesture: direct(PUBLIC_COMMANDS.gesture, semanticGesturePositionals),
+  gesture: direct(PUBLIC_COMMANDS.gesture, gesturePositionals),
   'gesture-pan': direct(PUBLIC_COMMANDS.gesture, panPositionals),
   'gesture-fling': direct(PUBLIC_COMMANDS.gesture, (input) =>
     flingPositionals(input as FlingOptions),
@@ -29,7 +29,7 @@ export const gestureDaemonWriters = {
 } satisfies Record<string, DaemonWriter>;
 
 // fallow-ignore-next-line complexity
-function semanticGesturePositionals(input: SemanticRequestInput): string[] {
+function gesturePositionals(input: CommandInput): string[] {
   switch (input.kind) {
     case 'pan':
       return [
@@ -83,7 +83,7 @@ function semanticGesturePositionals(input: SemanticRequestInput): string[] {
   }
 }
 
-function panPositionals(input: SemanticRequestInput): string[] {
+function panPositionals(input: CommandInput): string[] {
   return [
     'pan',
     String(input.x),
@@ -106,7 +106,7 @@ function flingPositionals(input: FlingOptions): string[] {
   ];
 }
 
-function pinchPositionals(input: SemanticRequestInput): string[] {
+function pinchPositionals(input: CommandInput): string[] {
   return ['pinch', String(input.scale), ...optionalNumber(input.x), ...optionalNumber(input.y)];
 }
 
@@ -117,7 +117,7 @@ function rotateGesturePositionals(input: RotateGestureOptions): string[] {
   return ['rotate', String(input.degrees), ...center, ...optionalNumber(input.velocity)];
 }
 
-function transformPositionals(input: SemanticRequestInput): string[] {
+function transformPositionals(input: CommandInput): string[] {
   return [
     'transform',
     String(input.x),

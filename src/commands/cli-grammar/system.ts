@@ -2,7 +2,7 @@ import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
 import type { ClipboardCommandOptions } from '../../client-types.ts';
 import { parseDeviceRotation } from '../../core/device-rotation.ts';
 import { AppError } from '../../utils/errors.ts';
-import { compactRecord } from '../semantic-common.ts';
+import { compactRecord } from '../command-input.ts';
 import {
   commonInputFromFlags,
   direct,

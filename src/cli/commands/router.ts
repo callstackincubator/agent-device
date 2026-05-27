@@ -3,7 +3,7 @@ import type { AgentDeviceClient } from '../../client.ts';
 import { connectCommand, connectionCommand, disconnectCommand } from './connection.ts';
 import { authCommand } from './auth.ts';
 import { screenshotCommand, diffCommand } from './screenshot.ts';
-import { dedicatedSemanticCommandHandlers, genericClientCommandHandlers } from './generic.ts';
+import { dedicatedCommandHandlers, genericClientCommandHandlers } from './generic.ts';
 import type { ClientCommandHandlerMap } from './router-types.ts';
 
 export type {
@@ -23,7 +23,7 @@ const dedicatedCliCommandHandlers = {
 
 const clientCommandHandlers: ClientCommandHandlerMap = {
   ...dedicatedCliCommandHandlers,
-  ...dedicatedSemanticCommandHandlers,
+  ...dedicatedCommandHandlers,
   ...genericClientCommandHandlers,
 };
 

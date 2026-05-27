@@ -1,15 +1,9 @@
 import type { AgentDeviceClient, CommandRequestResult } from '../../client.ts';
 import { announceReplayTestRun, renderReplayTestResponse } from '../../cli-test.ts';
-import {
-  runSemanticCliCommand,
-  runSemanticCliCommandWithOutput,
-} from '../../commands/semantic-cli.ts';
-import {
-  listSemanticCliOutputCommandNames,
-  listSemanticCommandNames,
-  type SemanticCliCommand,
-} from '../../commands/semantic-command-surface.ts';
-import type { SemanticCliOutput } from '../../commands/semantic-contract.ts';
+import { listCliOutputCommandNames } from '../../commands/cli-output.ts';
+import { runCliCommand, runCliCommandWithOutput } from '../../commands/cli-runner.ts';
+import { listCommandNames, type CliCommand } from '../../commands/command-surface.ts';
+import type { CliOutput } from '../../commands/command-contract.ts';
 import type { ReplaySuiteResult } from '../../daemon/types.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { readCommandMessage } from '../../utils/success-text.ts';
@@ -23,28 +17,25 @@ type GenericClientCommandRunner = (params: {
   flags: CliFlags;
 }) => Promise<CommandRequestResult>;
 
-const formattedSemanticCommandHandlers = Object.fromEntries(
-  listSemanticCliOutputCommandNames().map((command) => [
-    command,
-    createFormattedSemanticHandler(command),
-  ]),
-) as Partial<Record<SemanticCliCommand, ClientCommandHandler>>;
+const formattedCommandHandlers = Object.fromEntries(
+  listCliOutputCommandNames().map((command) => [command, createFormattedHandler(command)]),
+) as Partial<Record<CliCommand, ClientCommandHandler>>;
 
-export const dedicatedSemanticCommandHandlers = formattedSemanticCommandHandlers;
+export const dedicatedCommandHandlers = formattedCommandHandlers;
 
-const semanticGenericCommands = listSemanticCommandNames().filter(isGenericSemanticCliCommand);
+const genericCommands = listCommandNames().filter(isGenericCliCommand);
 
 const genericClientCommandRunners = Object.fromEntries(
-  semanticGenericCommands.map((command) => [
+  genericCommands.map((command) => [
     command,
     async ({ client, positionals, flags }) => {
       if (command === 'test') {
         announceReplayTestRun({ json: flags.json });
       }
-      return await runSemanticCliCommand({ client, command, positionals, flags });
+      return await runCliCommand({ client, command, positionals, flags });
     },
   ]),
-) as Record<(typeof semanticGenericCommands)[number], GenericClientCommandRunner>;
+) as Record<(typeof genericCommands)[number], GenericClientCommandRunner>;
 
 export const genericClientCommandHandlers = Object.fromEntries(
   Object.entries(genericClientCommandRunners).map(([command, run]) => [
@@ -62,7 +53,7 @@ function createGenericClientCommandHandler(
 ): ClientCommandHandler {
   return async ({ positionals, flags, client }) => {
     const data = await run({ client, positionals, flags });
-    const exitCode = writeGenericSemanticCliOutput(command, flags, data);
+    const exitCode = writeGenericCliOutput(command, flags, data);
     if (exitCode !== 0) {
       process.exit(exitCode);
     }
@@ -70,7 +61,7 @@ function createGenericClientCommandHandler(
   };
 }
 
-function writeGenericSemanticCliOutput(
+function writeGenericCliOutput(
   command: PublicCommandName,
   flags: CliFlags,
   data: CommandRequestResult,
@@ -89,23 +80,23 @@ function writeGenericSemanticCliOutput(
   return 0;
 }
 
-function createFormattedSemanticHandler(command: SemanticCliCommand): ClientCommandHandler {
+function createFormattedHandler(command: CliCommand): ClientCommandHandler {
   return async ({ positionals, flags, client }) => {
-    const { cliOutput } = await runSemanticCliCommandWithOutput({
+    const { cliOutput } = await runCliCommandWithOutput({
       client,
       command,
       positionals,
       flags,
     });
     if (!cliOutput) {
-      throw new Error(`Missing CLI output formatter for semantic command: ${command}`);
+      throw new Error(`Missing CLI output formatter for command: ${command}`);
     }
-    writeSemanticCliOutput(flags, cliOutput);
+    writeCliOutput(flags, cliOutput);
     return true;
   };
 }
 
-function writeSemanticCliOutput(flags: CliFlags, output: SemanticCliOutput): void {
+function writeCliOutput(flags: CliFlags, output: CliOutput): void {
   if (!flags.json && output.stderr) {
     process.stderr.write(output.stderr);
   }
@@ -116,8 +107,6 @@ function writeSemanticCliOutput(flags: CliFlags, output: SemanticCliOutput): voi
   );
 }
 
-function isGenericSemanticCliCommand(command: SemanticCliCommand): boolean {
-  return (
-    !(command in formattedSemanticCommandHandlers) && command !== 'screenshot' && command !== 'diff'
-  );
+function isGenericCliCommand(command: CliCommand): boolean {
+  return !(command in formattedCommandHandlers) && command !== 'screenshot' && command !== 'diff';
 }
