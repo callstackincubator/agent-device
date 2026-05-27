@@ -381,7 +381,7 @@ agent-device batch \
 Inline for small payloads:
 
 ```bash
-agent-device batch --steps '[{"command":"open","positionals":["settings"]},{"command":"wait","positionals":["100"]}]'
+agent-device batch --steps '[{"command":"open","input":{"app":"settings"}},{"command":"wait","input":{"kind":"duration","durationMs":100}}]'
 ```
 
 ## Step payload format
@@ -390,18 +390,26 @@ agent-device batch --steps '[{"command":"open","positionals":["settings"]},{"com
 
 ```json
 [
-  { "command": "open", "positionals": ["settings"], "flags": {} },
-  { "command": "wait", "positionals": ["label=\"Privacy & Security\"", "3000"], "flags": {} },
-  { "command": "click", "positionals": ["label=\"Privacy & Security\""], "flags": {} },
-  { "command": "get", "positionals": ["text", "label=\"Tracking\""], "flags": {} }
+  { "command": "open", "input": { "app": "settings" } },
+  {
+    "command": "wait",
+    "input": { "kind": "selector", "selector": "label=\"Privacy & Security\"", "timeoutMs": 3000 }
+  },
+  {
+    "command": "click",
+    "input": { "target": { "kind": "selector", "selector": "label=\"Privacy & Security\"" } }
+  },
+  {
+    "command": "get",
+    "input": { "format": "text", "target": { "kind": "selector", "selector": "label=\"Tracking\"" } }
+  }
 ]
 ```
 
 Notes:
 
-- `positionals` is optional (defaults to `[]`).
-- `flags` is optional (defaults to `{}`).
-- Unknown top-level step fields are rejected. Supported keys are `command`, `positionals`, `flags`, and `runtime`.
+- `input` is required and uses the same fields as the matching MCP/Node command.
+- Unknown top-level step fields are rejected. Supported keys are `command`, `input`, and `runtime`.
 - nested `batch` and `replay` steps are rejected.
 - `--on-error stop` is the supported behavior.
 
@@ -439,7 +447,6 @@ Failure:
     "details": {
       "step": 3,
       "command": "click",
-      "positionals": ["label=\"Privacy & Security\""],
       "executed": 2,
       "total": 4,
       "partialResults": [
@@ -466,17 +473,19 @@ Open app -> open thread -> type -> send
 
 ```json
 [
-  { "command": "open", "positionals": ["com.example.chat"], "flags": { "platform": "android" } },
-  { "command": "wait", "positionals": ["text", "Inbox", "3000"], "flags": {} },
-  { "command": "press", "positionals": ["label=\"Inbox\" role=button"], "flags": {} },
-  { "command": "press", "positionals": ["label=\"Morgan Lee\""], "flags": {} },
+  { "command": "open", "input": { "app": "com.example.chat", "platform": "android" } },
+  { "command": "wait", "input": { "kind": "text", "text": "Inbox", "timeoutMs": 3000 } },
+  { "command": "press", "input": { "target": { "kind": "selector", "selector": "label=\"Inbox\" role=button" } } },
+  { "command": "press", "input": { "target": { "kind": "selector", "selector": "label=\"Morgan Lee\"" } } },
   {
     "command": "fill",
-    "positionals": ["label=\"Message\" role=text-field", "sent the update"],
-    "flags": {}
+    "input": {
+      "target": { "kind": "selector", "selector": "label=\"Message\" role=text-field" },
+      "text": "sent the update"
+    }
   },
-  { "command": "press", "positionals": ["label=\"Send\" role=button"], "flags": {} },
-  { "command": "wait", "positionals": ["text", "sent the update", "3000"], "flags": {} }
+  { "command": "press", "input": { "target": { "kind": "selector", "selector": "label=\"Send\" role=button" } } },
+  { "command": "wait", "input": { "kind": "text", "text": "sent the update", "timeoutMs": 3000 } }
 ]
 ```
 
@@ -484,13 +493,16 @@ Open app -> open action menu -> choose option -> verify
 
 ```json
 [
-  { "command": "open", "positionals": ["com.example.app"], "flags": { "platform": "android" } },
-  { "command": "wait", "positionals": ["text", "Home", "3000"], "flags": {} },
-  { "command": "press", "positionals": ["label=\"More actions\" role=button"], "flags": {} },
-  { "command": "wait", "positionals": ["text", "Scan document", "2000"], "flags": {} },
-  { "command": "press", "positionals": ["label=\"Scan document\""], "flags": {} },
-  { "command": "wait", "positionals": ["text", "Document uploaded", "15000"], "flags": {} },
-  { "command": "is", "positionals": ["visible", "label=\"Document uploaded\""], "flags": {} }
+  { "command": "open", "input": { "app": "com.example.app", "platform": "android" } },
+  { "command": "wait", "input": { "kind": "text", "text": "Home", "timeoutMs": 3000 } },
+  {
+    "command": "press",
+    "input": { "target": { "kind": "selector", "selector": "label=\"More actions\" role=button" } }
+  },
+  { "command": "wait", "input": { "kind": "text", "text": "Scan document", "timeoutMs": 2000 } },
+  { "command": "press", "input": { "target": { "kind": "selector", "selector": "label=\"Scan document\"" } } },
+  { "command": "wait", "input": { "kind": "text", "text": "Document uploaded", "timeoutMs": 15000 } },
+  { "command": "is", "input": { "predicate": "visible", "selector": "label=\"Document uploaded\"" } }
 ]
 ```
 
@@ -533,7 +545,7 @@ Public subpath API exposed for Node consumers:
   - `DEFAULT_BATCH_MAX_STEPS`
   - `BATCH_BLOCKED_COMMANDS`
   - `INHERITED_PARENT_FLAG_KEYS`
-  - types: `BatchInvoke`, `BatchRequest`, `BatchStep`, `BatchStepResult`, `NormalizedBatchStep`
+  - types: `BatchInvoke`, `BatchRequest`, `DaemonBatchStep`, `BatchStepResult`, `NormalizedBatchStep`
 - `agent-device/remote-config`
   - `resolveRemoteConfigPath(options)`
   - `resolveRemoteConfigProfile(options)`
@@ -762,6 +774,11 @@ Additional CLI-backed methods are exposed on their domain groups with typed opti
 `client.observability.perf()` returns daemon-shaped JSON so local and remote transports expose the same metrics payload. On Android and supported Apple targets, `data.metrics.fps.droppedFramePercent` is the primary frame-smoothness value. Android derives it from the current `adb shell dumpsys gfxinfo <package> framestats` window; connected iOS devices derive it from `xcrun xctrace` Animation Hitches for the active app process. Frame samples include `windowStartedAt`, `windowEndedAt`, and `worstWindows` so agents can correlate dropped-frame clusters with logs, network entries, and their own session actions. A successful Android read resets Android frame stats; `open <app>` resets the Android frame window too, so agents can call `perf`, perform a transition or gesture, then call `perf` again to inspect that focused window. iOS simulator and macOS app sessions report frame health as unavailable rather than inventing FPS or dropped-frame values.
 
 `client.recording.record({ action: 'start', path, quality: 5 })` starts a smaller 50% resolution video; omit `quality` to keep native/current resolution.
+
+`client.batch.run({ steps })` accepts structured steps:
+`{ command: 'open', input: { app: 'settings' } }`. Step `input` uses the same fields as the
+matching client command; daemon-shaped `positionals`/`flags` steps are internal to the daemon batch
+executor.
 
 ## Batch orchestration for custom transports
 
@@ -1265,11 +1282,12 @@ See [Replay & E2E](/agent-device/pr-preview/pr-593/docs/replay-e2e.md) for recor
 
 ```bash
 agent-device batch --steps-file /tmp/batch-steps.json --json
-agent-device batch --steps '[{"command":"open","positionals":["settings"]}]'
+agent-device batch --steps '[{"command":"open","input":{"app":"settings"}}]'
 ```
 
 - `batch` runs a JSON array of steps in a single daemon request.
-- Each step has `command`, optional `positionals`, optional `flags`, and optional `runtime`.
+- Each step has `command`, `input`, and optional `runtime`.
+- `input` uses the same fields as the matching MCP/Node command.
 - Unknown top-level step fields are rejected.
 - Stop-on-first-error is the supported behavior (`--on-error stop`).
 - Use `--max-steps <n>` to tighten per-request safety limits.
@@ -2293,11 +2311,20 @@ Example batch payload for a known chat flow:
 
 ```json
 [
-  { "command": "open", "positionals": ["ChatApp"], "flags": { "platform": "android" } },
-  { "command": "click", "positionals": ["label=\"Travel chat\""], "flags": {} },
-  { "command": "wait", "positionals": ["label=\"Message\"", "3000"], "flags": {} },
-  { "command": "fill", "positionals": ["label=\"Message\"", "Sent the update"], "flags": {} },
-  { "command": "press", "positionals": ["label=\"Send\""], "flags": {} }
+  { "command": "open", "input": { "app": "ChatApp", "platform": "android" } },
+  { "command": "click", "input": { "target": { "kind": "selector", "selector": "label=\"Travel chat\"" } } },
+  {
+    "command": "wait",
+    "input": { "kind": "selector", "selector": "label=\"Message\"", "timeoutMs": 3000 }
+  },
+  {
+    "command": "fill",
+    "input": {
+      "target": { "kind": "selector", "selector": "label=\"Message\"" },
+      "text": "Sent the update"
+    }
+  },
+  { "command": "press", "input": { "target": { "kind": "selector", "selector": "label=\"Send\"" } } }
 ]
 ```
 
