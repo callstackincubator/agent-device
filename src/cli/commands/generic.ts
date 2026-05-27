@@ -2,7 +2,7 @@ import type { AgentDeviceClient, CommandRequestResult } from '../../client.ts';
 import { announceReplayTestRun, renderReplayTestResponse } from '../../cli-test.ts';
 import { listCliOutputCommandNames } from '../../commands/cli-output.ts';
 import { runCliCommand, runCliCommandWithOutput } from '../../commands/cli-runner.ts';
-import { listCommandNames, type CliCommand } from '../../commands/command-surface.ts';
+import { listCommandNames, type CommandName } from '../../commands/command-surface.ts';
 import type { CliOutput } from '../../commands/command-contract.ts';
 import type { ReplaySuiteResult } from '../../daemon/types.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';
@@ -19,7 +19,7 @@ type GenericClientCommandRunner = (params: {
 
 const formattedCommandHandlers = Object.fromEntries(
   listCliOutputCommandNames().map((command) => [command, createFormattedHandler(command)]),
-) as Partial<Record<CliCommand, ClientCommandHandler>>;
+) as Partial<Record<CommandName, ClientCommandHandler>>;
 
 export const dedicatedCommandHandlers = formattedCommandHandlers;
 
@@ -80,7 +80,7 @@ function writeGenericCliOutput(
   return 0;
 }
 
-function createFormattedHandler(command: CliCommand): ClientCommandHandler {
+function createFormattedHandler(command: CommandName): ClientCommandHandler {
   return async ({ positionals, flags, client }) => {
     const { cliOutput } = await runCliCommandWithOutput({
       client,
@@ -107,6 +107,6 @@ function writeCliOutput(flags: CliFlags, output: CliOutput): void {
   );
 }
 
-function isGenericCliCommand(command: CliCommand): boolean {
+function isGenericCliCommand(command: CommandName): boolean {
   return !(command in formattedCommandHandlers) && command !== 'screenshot' && command !== 'diff';
 }

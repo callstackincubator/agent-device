@@ -324,7 +324,7 @@ const CLI_COMMAND_OVERRIDES = {
     usageOverride: 'session list',
     positionalArgs: ['list?'],
   },
-} as const satisfies Record<string, CommandSchemaOverride>;
+} as const satisfies Partial<Record<CommandName, CommandSchemaOverride>>;
 
 export function getSchemaOnlyCliCommandSchema(command: string): CommandSchema | undefined {
   return Object.hasOwn(SCHEMA_ONLY_CLI_COMMAND_SCHEMAS, command)

@@ -1,13 +1,13 @@
 import type { AgentDeviceClient, CommandRequestResult } from '../client.ts';
 import { formatCliOutput } from './cli-output.ts';
 import { readInputFromCli } from './cli-grammar.ts';
-import { runCommand, type CliCommand } from './command-surface.ts';
+import { runCommand, type CommandName } from './command-surface.ts';
 import type { CliOutput } from './command-contract.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 
 type CliRunOptions = {
   client: AgentDeviceClient;
-  command: CliCommand;
+  command: CommandName;
   positionals: string[];
   flags: CliFlags;
 };

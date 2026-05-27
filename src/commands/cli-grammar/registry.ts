@@ -1,5 +1,4 @@
 import type { CliFlags } from '../../utils/command-schema.ts';
-import { AppError } from '../../utils/errors.ts';
 import { appCliReaders } from './apps.ts';
 import { captureCliReaders } from './capture.ts';
 import { commonInputFromFlags } from './common.ts';
@@ -11,6 +10,7 @@ import { replayCliReaders } from './replay.ts';
 import { selectorCliReaders } from './selectors.ts';
 import { systemCliReaders } from './system.ts';
 import type { CliReader } from './types.ts';
+import type { CommandName } from '../command-surface.ts';
 
 const cliReaders = {
   ...appCliReaders,
@@ -29,14 +29,12 @@ const cliReaders = {
     maxSteps: flags.batchMaxSteps,
     out: flags.out,
   }),
-} satisfies Record<string, CliReader>;
+} satisfies Record<CommandName, CliReader>;
 
 export function readInputFromCli(
-  command: string,
+  command: CommandName,
   positionals: string[],
   flags: CliFlags,
 ): Record<string, unknown> {
-  const reader = (cliReaders as Record<string, CliReader>)[command];
-  if (!reader) throw new AppError('INVALID_ARGS', `Unknown CLI command: ${command}`);
-  return reader(positionals, flags);
+  return cliReaders[command](positionals, flags);
 }

@@ -1,10 +1,11 @@
 import type { BatchStep } from '../client-types.ts';
 import { readInputFromCli } from '../commands/cli-grammar.ts';
+import { isCommandName, type CommandName } from '../commands/command-surface.ts';
 import type { CliFlags } from '../utils/command-schema.ts';
 import { AppError } from '../utils/errors.ts';
 
 type LegacyCliBatchStep = {
-  command: string;
+  command: CommandName;
   positionals?: string[];
   flags?: Record<string, unknown>;
   runtime?: unknown;
@@ -69,8 +70,7 @@ function readLegacyCliBatchStep(step: unknown, stepNumber: number): LegacyCliBat
   }
   const record = step as Record<string, unknown>;
   assertLegacyBatchStepKeys(record, stepNumber);
-  const command = typeof record.command === 'string' ? record.command.trim().toLowerCase() : '';
-  if (!command) throw new AppError('INVALID_ARGS', `Batch step ${stepNumber} requires command.`);
+  const command = readLegacyCommand(record.command, stepNumber);
   const positionals = readLegacyPositionals(record.positionals, stepNumber);
   const flags = readLegacyFlags(record.flags, stepNumber);
   return {
@@ -79,6 +79,16 @@ function readLegacyCliBatchStep(step: unknown, stepNumber: number): LegacyCliBat
     ...(flags === undefined ? {} : { flags }),
     ...(record.runtime === undefined ? {} : { runtime: record.runtime }),
   };
+}
+
+function readLegacyCommand(value: unknown, stepNumber: number): CommandName {
+  const command = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (!command) throw new AppError('INVALID_ARGS', `Batch step ${stepNumber} requires command.`);
+  if (isCommandName(command)) return command;
+  throw new AppError(
+    'INVALID_ARGS',
+    `Batch step ${stepNumber} command is not available through command batch: ${String(value)}`,
+  );
 }
 
 function assertLegacyBatchStepKeys(record: Record<string, unknown>, stepNumber: number): void {

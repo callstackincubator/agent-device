@@ -22,7 +22,6 @@ const commandSurface = [
 ] as const;
 
 export type CommandName = (typeof commandSurface)[number]['name'];
-export type CliCommand = CommandName;
 export type { BatchCommandName };
 
 const commandMap: ReadonlyMap<CommandName, AnyExecutableCommand> = new Map(
