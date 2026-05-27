@@ -8,7 +8,7 @@ import {
 } from '../commands/command-surface.ts';
 import type { JsonSchema } from '../commands/command-contract.ts';
 
-export type ToolResult = {
+type ToolResult = {
   isError: boolean;
   structuredContent?: unknown;
   content: Array<{ type: 'text'; text: string }>;
@@ -19,7 +19,7 @@ type CommandToolExecutorDeps = {
   runCommand: (client: AgentDeviceClient, name: CommandName, input: unknown) => Promise<unknown>;
 };
 
-export type CommandToolExecutor = {
+type CommandToolExecutor = {
   execute: (name: string, input: unknown) => Promise<ToolResult>;
 };
 
@@ -31,7 +31,7 @@ export function listCommandTools(): Array<{
   return listMcpToolDefinitions().map((definition) => ({
     name: definition.name,
     description: definition.description,
-    inputSchema: definition.inputSchema,
+    inputSchema: withMcpConfigSchema(definition.inputSchema),
   }));
 }
 
@@ -73,6 +73,16 @@ function stripClientConfigFields(input: unknown): unknown {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return input;
   const { stateDir: _stateDir, ...commandInput } = input as Record<string, unknown>;
   return commandInput;
+}
+
+function withMcpConfigSchema(schema: JsonSchema): JsonSchema {
+  return {
+    ...schema,
+    properties: {
+      ...schema.properties,
+      stateDir: { type: 'string', description: 'Agent-device state directory.' },
+    },
+  };
 }
 
 function renderToolText(value: unknown): string {

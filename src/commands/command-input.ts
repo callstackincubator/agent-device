@@ -584,7 +584,6 @@ function commonProperties(): Record<string, JsonSchema> {
       type: 'string',
       description: 'Android serial allowlist used for device resolution.',
     },
-    stateDir: { type: 'string', description: 'Agent-device state directory.' },
     daemonBaseUrl: { type: 'string', description: 'Remote daemon base URL.' },
     daemonAuthToken: { type: 'string', description: 'Remote daemon auth token.' },
     tenant: { type: 'string', description: 'Remote tenant identifier.' },
