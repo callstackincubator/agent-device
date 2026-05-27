@@ -11,7 +11,7 @@ export type {
   BatchFlags,
   BatchInvoke,
   BatchRequest,
-  BatchStep,
+  DaemonBatchStep,
   BatchStepResult,
   NormalizedBatchStep,
 } from './core/batch.ts';

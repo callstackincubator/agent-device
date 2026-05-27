@@ -43,7 +43,7 @@ import { readNotificationPayload } from './dispatch-payload.ts';
 import { parseDeviceRotation } from './device-rotation.ts';
 
 export { resolveTargetDevice } from './dispatch-resolve.ts';
-export type { BatchStep, CommandFlags, DispatchContext } from './dispatch-context.ts';
+export type { CommandFlags, DispatchContext } from './dispatch-context.ts';
 
 export async function dispatchCommand(
   device: DeviceInfo,

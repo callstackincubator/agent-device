@@ -48,7 +48,7 @@ const AGENT_QUICKSTART_LINES = [
   'Clipboard limits: iOS Allow Paste cannot be automated through XCUITest; prefill with clipboard write. Android non-ASCII should use fill/type, not raw adb input.',
   'After mutation: refs are stale. If the next target is known, use its selector directly; otherwise refresh with snapshot -i, scoped with -s when a stable container is known.',
   'Raw coordinates are fallback-only: use snapshot -i -c --json rects when iOS refs no-op or child refs are missing.',
-  'Batch JSON steps use "command", "positionals", "flags"; never "args" or "step".',
+  'Batch JSON steps use "command" and structured "input"; never "positionals", "flags", "args", or "step".',
   'Navigation: app-owned back uses back; system back uses back --system.',
   'Verification commands must name the expected text/selector; bare screenshots/snapshots are not enough.',
   'Debug evidence: logs clear --restart/mark/path; trace start ./path; trace stop ./path; network dump --include headers.',
@@ -205,8 +205,8 @@ Validation and evidence:
   Recording: record start/stop. By default, stop burns touch overlays into the video; use record start --hide-touches for the fastest raw recording. For gesture-heavy iOS simulator proof videos, prefer --hide-touches because overlay timing depends on a stable runner session while gestures are executing. Tracing: trace start ./trace.log, trace stop ./trace.log. Paths are positional.
   Stable known flow: batch ./steps.json, not workflow batch.
   Inline batch JSON example:
-    agent-device batch --steps '[{"command":"open","positionals":["settings"],"flags":{}},{"command":"wait","positionals":["100"],"flags":{}}]'
-  Batch step keys are command, positionals, flags, and optional runtime. Never use args, step, text, or target as batch step fields.
+    agent-device batch --steps '[{"command":"open","input":{"app":"settings"}},{"command":"wait","input":{"kind":"duration","durationMs":100}}]'
+  Batch step keys are command, input, and optional runtime. Put command arguments inside input using the same fields as the MCP/Node command.
   Android animations: settings animations off/on, not animations disable/restore.
   Debug logs: logs clear --restart, logs mark, reproduce, then logs path; do not split clear/restart into separate stop/start commands.
   Network headers: network dump --include headers; do not write network log headers.

@@ -1,6 +1,6 @@
 import type { AgentDeviceClient } from '../client-types.ts';
 import { listMcpExposedCommandNames } from '../command-catalog.ts';
-import { createBatchCommand } from './batch-command-contract.ts';
+import { createBatchCommand } from './batch-command.ts';
 import { clientCommandDefinitions } from './client-command-contracts.ts';
 import type { JsonSchema } from './command-contract.ts';
 import { interactionCommandDefinitions } from './interaction-command-contracts.ts';

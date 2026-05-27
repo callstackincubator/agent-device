@@ -11,7 +11,7 @@ import {
   type RemoteConnectionState,
 } from '../../remote-connection-state.ts';
 import { profileToCliFlags } from '../../utils/remote-config.ts';
-import type { BatchStep } from '../../core/batch.ts';
+import type { BatchStep } from '../../client-types.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { LeaseBackend, SessionRuntimeHints } from '../../contracts.ts';
 import type { CliFlags } from '../../utils/command-schema.ts';

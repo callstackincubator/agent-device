@@ -91,11 +91,20 @@ Example batch payload for a known chat flow:
 
 ```json
 [
-  { "command": "open", "positionals": ["ChatApp"], "flags": { "platform": "android" } },
-  { "command": "click", "positionals": ["label=\"Travel chat\""], "flags": {} },
-  { "command": "wait", "positionals": ["label=\"Message\"", "3000"], "flags": {} },
-  { "command": "fill", "positionals": ["label=\"Message\"", "Sent the update"], "flags": {} },
-  { "command": "press", "positionals": ["label=\"Send\""], "flags": {} }
+  { "command": "open", "input": { "app": "ChatApp", "platform": "android" } },
+  { "command": "click", "input": { "target": { "kind": "selector", "selector": "label=\"Travel chat\"" } } },
+  {
+    "command": "wait",
+    "input": { "kind": "selector", "selector": "label=\"Message\"", "timeoutMs": 3000 }
+  },
+  {
+    "command": "fill",
+    "input": {
+      "target": { "kind": "selector", "selector": "label=\"Message\"" },
+      "text": "Sent the update"
+    }
+  },
+  { "command": "press", "input": { "target": { "kind": "selector", "selector": "label=\"Send\"" } } }
 ]
 ```
 

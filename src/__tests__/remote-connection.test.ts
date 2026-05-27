@@ -489,7 +489,7 @@ test('deferred materialization prepares Metro for batch when a step opens an app
       metroPublicBaseUrl: 'https://sandbox.example.test',
       metroProxyBaseUrl: 'https://proxy.example.test',
     },
-    batchSteps: [{ command: 'open', positionals: ['com.example.demo'] }],
+    batchSteps: [{ command: 'open', input: { app: 'com.example.demo' } }],
     client: createTestClient(),
   });
 

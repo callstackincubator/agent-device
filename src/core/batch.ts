@@ -14,7 +14,7 @@ export const INHERITED_PARENT_FLAG_KEYS = [
   'out',
 ] as const;
 
-export type BatchStep = {
+export type DaemonBatchStep = {
   command: string;
   positionals?: string[];
   flags?: Record<string, unknown>;
@@ -24,7 +24,7 @@ export type BatchStep = {
 export type BatchFlags = Record<string, unknown> & {
   batchOnError?: 'stop';
   batchMaxSteps?: number;
-  batchSteps?: BatchStep[];
+  batchSteps?: DaemonBatchStep[];
 };
 
 export type BatchRequest = Omit<DaemonRequest, 'flags'> & {
@@ -110,19 +110,6 @@ export async function runBatch(
   }
 }
 
-export function parseBatchStepsJson(raw: string): BatchStep[] {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new AppError('INVALID_ARGS', 'Batch steps must be valid JSON.');
-  }
-  if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new AppError('INVALID_ARGS', 'Batch steps must be a non-empty JSON array.');
-  }
-  return parsed as BatchStep[];
-}
-
 export function validateAndNormalizeBatchSteps(
   steps: unknown,
   maxSteps: number,
@@ -139,7 +126,7 @@ export function validateAndNormalizeBatchSteps(
 
   const normalized: NormalizedBatchStep[] = [];
   for (let index = 0; index < steps.length; index += 1) {
-    const step = steps[index] as Partial<BatchStep>;
+    const step = steps[index] as Partial<DaemonBatchStep>;
     if (!step || typeof step !== 'object') {
       throw new AppError('INVALID_ARGS', `Invalid batch step at index ${index}.`);
     }
@@ -192,7 +179,7 @@ export function validateAndNormalizeBatchSteps(
 
 export function buildBatchStepFlags(
   parentFlags: BatchFlags | Record<string, unknown> | undefined,
-  stepFlags: BatchStep['flags'] | Record<string, unknown> | undefined,
+  stepFlags: DaemonBatchStep['flags'] | Record<string, unknown> | undefined,
 ): BatchFlags {
   const {
     batchSteps: _batchSteps,

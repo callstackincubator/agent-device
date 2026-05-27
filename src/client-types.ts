@@ -702,8 +702,7 @@ export type ReplayTestOptions = AgentDeviceRequestOverrides &
 
 export type BatchStep = {
   command: string;
-  positionals?: string[];
-  flags?: Record<string, unknown>;
+  input: Record<string, unknown>;
   runtime?: unknown;
 };
 

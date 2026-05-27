@@ -5,7 +5,7 @@ import { readVersion } from './utils/version.ts';
 import { pathToFileURL } from 'node:url';
 import { sendToDaemon } from './daemon-client.ts';
 import fs from 'node:fs';
-import { parseBatchStepsJson, type BatchStep } from './core/batch.ts';
+import type { BatchStep } from './client-types.ts';
 import {
   createAgentDeviceClient,
   type AgentDeviceClientConfig,
@@ -295,10 +295,10 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           }
           const batchSteps = parsedBatchSteps.map((step, _index) => ({
             ...step,
-            flags:
+            input:
               binding.lockPolicy && flags.platform === undefined
-                ? { ...((step.flags ?? {}) as Partial<typeof flags>) }
-                : applyDefaultPlatformBinding((step.flags ?? {}) as Partial<typeof flags>, {
+                ? { ...step.input }
+                : applyDefaultPlatformBinding(step.input, {
                     policyOverrides: effectiveFlags,
                     configuredPlatform: effectiveFlags.platform,
                     configuredSession: effectiveFlags.session,
@@ -384,7 +384,16 @@ function readBatchSteps(flags: ReturnType<typeof resolveCliOptions>['flags']): B
       );
     }
   }
-  return parseBatchStepsJson(raw);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new AppError('INVALID_ARGS', 'Batch steps must be valid JSON.');
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new AppError('INVALID_ARGS', 'Batch steps must be a non-empty JSON array.');
+  }
+  return parsed as BatchStep[];
 }
 
 function isDaemonStartupFailure(error: AppError): boolean {

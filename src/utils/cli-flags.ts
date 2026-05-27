@@ -95,8 +95,8 @@ export type CliFlags = RemoteConfigMetroOptions &
     batchMaxSteps?: number;
     batchSteps?: Array<{
       command: string;
-      positionals?: string[];
-      flags?: Record<string, unknown>;
+      input: Record<string, unknown>;
+      runtime?: unknown;
     }>;
     help: boolean;
     version: boolean;

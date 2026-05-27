@@ -1823,17 +1823,17 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     ],
   }),
   makeCase({
-    id: 'batch-inline-step-schema-positionals',
+    id: 'batch-inline-step-schema-input',
     contract: [
       'Need one inline batch command',
       'Step 1: open settings',
       'Step 2: wait 100 ms',
-      'Batch step schema supports command, positionals, flags, and runtime',
+      'Batch step schema supports command, input, and runtime',
       'The args field is invalid and must not be used',
     ],
-    task: 'Plan the batch command with inline JSON steps using the supported step field for positional arguments.',
-    outputs: [plannedCommand('batch'), /--steps/i, /"positionals"\s*:/i, /"open"/i, /"wait"/i],
-    forbiddenOutputs: [/"args"\s*:/i, /workflow batch/i],
+    task: 'Plan the batch command with inline JSON steps using the supported structured input field.',
+    outputs: [plannedCommand('batch'), /--steps/i, /"input"\s*:/i, /"open"/i, /"wait"/i],
+    forbiddenOutputs: [/"args"\s*:/i, /"positionals"\s*:/i, /workflow batch/i],
   }),
 ];
 

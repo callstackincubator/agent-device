@@ -1,7 +1,7 @@
 import type { BatchRunOptions, BatchStep } from '../client-types.ts';
-import { DEFAULT_BATCH_MAX_STEPS, validateAndNormalizeBatchSteps } from '../core/batch.ts';
+import { DEFAULT_BATCH_MAX_STEPS } from '../core/batch.ts';
 import { defineCommand, type JsonSchema } from './command-contract.ts';
-import { prepareBatchStep, type DaemonCommandName } from './command-projection.ts';
+import { type DaemonCommandName } from './command-projection.ts';
 import {
   assertAllowedKeys,
   commonToClientOptions,
@@ -44,7 +44,7 @@ function batchFields(nestedCommands: readonly DaemonCommandName[]) {
         {
           type: 'array',
           description:
-            'Structured batch steps. CLI JSON parsing belongs to the CLI normalizer; MCP passes this array directly.',
+            'Structured batch steps. Each step uses a command name and the same input object as that command tool.',
           items: batchStepSchema(nestedCommands),
         },
         (record, key) => readBatchSteps(record[key], nestedCommands),
@@ -74,6 +74,11 @@ function batchStepSchema(nestedCommands: readonly DaemonCommandName[]): JsonSche
         description:
           'Structured command input for the nested command. Use the matching MCP tool schema for this object.',
       },
+      runtime: {
+        type: 'object',
+        additionalProperties: true,
+        description: 'Optional per-step runtime payload.',
+      },
     },
     required: ['command', 'input'],
     additionalProperties: false,
@@ -82,18 +87,15 @@ function batchStepSchema(nestedCommands: readonly DaemonCommandName[]): JsonSche
 
 function readBatchInput(input: unknown, fields: ReturnType<typeof batchFields>): BatchInput {
   const parsed = readFieldInput(input, fields);
-  const normalized = validateAndNormalizeBatchSteps(
-    parsed.steps,
-    parsed.maxSteps ?? DEFAULT_BATCH_MAX_STEPS,
-  );
+  const maxSteps = parsed.maxSteps ?? DEFAULT_BATCH_MAX_STEPS;
+  if (!Number.isInteger(maxSteps) || maxSteps < 1 || maxSteps > 1000) {
+    throw new Error(`Invalid batch maxSteps: ${String(parsed.maxSteps)}`);
+  }
+  if (parsed.steps.length > maxSteps) {
+    throw new Error(`batch has ${parsed.steps.length} steps; max allowed is ${maxSteps}.`);
+  }
   return {
     ...parsed,
-    steps: normalized.map(({ command, positionals, flags, runtime }) => ({
-      command,
-      positionals,
-      flags,
-      runtime,
-    })),
   };
 }
 
@@ -109,15 +111,42 @@ function readBatchStep(
   stepNumber: number,
   nestedCommands: readonly DaemonCommandName[],
 ): BatchStep {
+  const record = readBatchStepRecord(step, stepNumber);
+  assertAllowedKeys(record, ['command', 'input', 'runtime'], `Batch step ${stepNumber}`);
+  return {
+    command: requiredEnum(record, 'command', nestedCommands),
+    input: readBatchStepInput(record, stepNumber),
+    ...readBatchStepRuntimeProperty(record, stepNumber),
+  };
+}
+
+function readBatchStepRecord(step: unknown, stepNumber: number): Record<string, unknown> {
   if (!step || typeof step !== 'object' || Array.isArray(step)) {
     throw new Error(`Invalid batch step ${stepNumber}.`);
   }
-  const record = step as Record<string, unknown>;
-  assertAllowedKeys(record, ['command', 'input'], `Batch step ${stepNumber}`);
-  return prepareBatchStep(
-    requiredEnum(record, 'command', nestedCommands),
-    record.input as Record<string, unknown>,
-  );
+  return step as Record<string, unknown>;
+}
+
+function readBatchStepInput(record: Record<string, unknown>, stepNumber: number) {
+  const input = record.input;
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error(`Batch step ${stepNumber} input must be an object.`);
+  }
+  return input as Record<string, unknown>;
+}
+
+function readBatchStepRuntimeProperty(
+  record: Record<string, unknown>,
+  stepNumber: number,
+): Pick<BatchStep, 'runtime'> {
+  const runtime = record.runtime;
+  if (
+    runtime !== undefined &&
+    (!runtime || typeof runtime !== 'object' || Array.isArray(runtime))
+  ) {
+    throw new Error(`Batch step ${stepNumber} runtime must be an object.`);
+  }
+  return runtime === undefined ? {} : { runtime };
 }
 
 function toBatchOptions(input: BatchInput): BatchRunOptions {

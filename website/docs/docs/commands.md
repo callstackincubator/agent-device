@@ -356,11 +356,12 @@ See [Replay & E2E](/docs/replay-e2e) for recording, Maestro compatibility, and C
 
 ```bash
 agent-device batch --steps-file /tmp/batch-steps.json --json
-agent-device batch --steps '[{"command":"open","positionals":["settings"]}]'
+agent-device batch --steps '[{"command":"open","input":{"app":"settings"}}]'
 ```
 
 - `batch` runs a JSON array of steps in a single daemon request.
-- Each step has `command`, optional `positionals`, optional `flags`, and optional `runtime`.
+- Each step has `command`, `input`, and optional `runtime`.
+- `input` uses the same fields as the matching MCP/Node command.
 - Unknown top-level step fields are rejected.
 - Stop-on-first-error is the supported behavior (`--on-error stop`).
 - Use `--max-steps <n>` to tighten per-request safety limits.
