@@ -9,11 +9,7 @@ import {
   resolveMaestroString,
   unsupportedMaestroSyntax,
 } from './support.ts';
-import {
-  parseAbsolutePoint,
-  parseMaestroPoint,
-  readScrollPositionalsFromPercentSwipe,
-} from './points.ts';
+import { parseAbsolutePoint, parseMaestroPoint } from './points.ts';
 import { MAESTRO_RUNTIME_COMMAND } from './runtime-commands.ts';
 import type { MaestroParseContext } from './types.ts';
 
@@ -148,7 +144,7 @@ export function convertExtendedWaitUntil(
   if (value.notVisible !== undefined) {
     return [action('wait', [timeoutMs]), action('is', ['hidden', selector])];
   }
-  return [action('wait', [selector, timeoutMs])];
+  return [action(MAESTRO_RUNTIME_COMMAND.assertVisible, [selector, timeoutMs])];
 }
 
 export function convertScroll(value: unknown): SessionAction {
@@ -177,7 +173,9 @@ export function convertScrollUntilVisible(
   assertOnlyKeys(value, 'scrollUntilVisible', ['element', 'direction', 'timeout']);
   const selector = maestroSelector(value.element, 'scrollUntilVisible.element', [], context);
   const direction =
-    typeof value.direction === 'string' ? readScrollUntilVisibleDirection(value.direction) : 'down';
+    typeof value.direction === 'string'
+      ? readMaestroDirection(value.direction, 'scrollUntilVisible.direction')
+      : 'down';
   const timeoutMs = String(readTimeoutMs(value, 5000));
   return [action(MAESTRO_RUNTIME_COMMAND.scrollUntilVisible, [selector, timeoutMs, direction])];
 }
@@ -192,7 +190,11 @@ export function convertSwipe(value: unknown, context: MaestroParseContext): Sess
     return convertTargetedSwipe(value, from, context);
   }
   if (typeof value.direction === 'string') {
-    return action('scroll', readScrollPositionalsFromDirectionSwipe(value.direction));
+    return action(MAESTRO_RUNTIME_COMMAND.swipeScreen, [
+      'direction',
+      readSwipeDirection(value.direction),
+      ...swipeDurationPositionals(value),
+    ]);
   }
   return convertCoordinateSwipe(value);
 }
@@ -249,27 +251,21 @@ function convertCoordinateSwipePoints(
     ]);
   }
   if (start.kind === 'percent' && end.kind === 'percent') {
-    return action('scroll', readScrollPositionalsFromPercentSwipe(start, end));
+    return action(MAESTRO_RUNTIME_COMMAND.swipeScreen, [
+      'percent',
+      String(start.x),
+      String(start.y),
+      String(end.x),
+      String(end.y),
+      ...(durationMs ? [durationMs] : []),
+    ]);
   }
   throw unsupportedMaestroSyntax(
     'Maestro swipe start/end must both be absolute pixels or both be percentages.',
   );
 }
 
-function readScrollPositionalsFromDirectionSwipe(direction: string): string[] {
-  switch (readSwipeDirection(direction)) {
-    case 'up':
-      return ['down'];
-    case 'down':
-      return ['up'];
-    case 'left':
-      return ['right'];
-    case 'right':
-      return ['left'];
-  }
-}
-
-function readSwipeDirection(direction: string): SwipeDirection {
+function readMaestroDirection(direction: string, name: string): SwipeDirection {
   const normalized = direction.toLowerCase();
   switch (normalized) {
     case 'up':
@@ -278,22 +274,12 @@ function readSwipeDirection(direction: string): SwipeDirection {
     case 'right':
       return normalized;
     default:
-      throw unsupportedMaestroSyntax('Maestro swipe direction must be UP, DOWN, LEFT, or RIGHT.');
+      throw unsupportedMaestroSyntax(`Maestro ${name} must be UP, DOWN, LEFT, or RIGHT.`);
   }
 }
 
-function readScrollUntilVisibleDirection(direction: string): string {
-  switch (direction.toLowerCase()) {
-    case 'up':
-    case 'down':
-    case 'left':
-    case 'right':
-      return direction.toLowerCase();
-    default:
-      throw unsupportedMaestroSyntax(
-        'Maestro scrollUntilVisible.direction must be UP, DOWN, LEFT, or RIGHT.',
-      );
-  }
+function readSwipeDirection(direction: string): SwipeDirection {
+  return readMaestroDirection(direction, 'swipe direction');
 }
 
 export function convertPressKey(value: unknown): SessionAction {
@@ -317,16 +303,19 @@ export function maestroSelector(
   assertOnlyKeys(value, command, ['id', 'text', 'enabled', 'selected', ...allowedExtraKeys]);
 
   const terms: string[] = [];
-  if (typeof value.id === 'string')
-    terms.push(selectorTerm('id', resolveMaestroString(value.id, context)));
-  if (typeof value.text === 'string')
-    terms.push(selectorTerm('label', resolveMaestroString(value.text, context)));
-  if (typeof value.label === 'string' && terms.length === 0)
-    terms.push(selectorTerm('label', resolveMaestroString(value.label, context)));
+  const stateTerms: string[] = [];
   if (typeof value.enabled === 'boolean')
-    terms.push(selectorTerm('enabled', String(value.enabled)));
+    stateTerms.push(selectorTerm('enabled', String(value.enabled)));
   if (typeof value.selected === 'boolean')
-    terms.push(selectorTerm('selected', String(value.selected)));
+    stateTerms.push(selectorTerm('selected', String(value.selected)));
+  if (typeof value.id === 'string')
+    terms.push(selectorTerm('id', resolveMaestroString(value.id, context)), ...stateTerms);
+  if (typeof value.text === 'string' && terms.length === 0) {
+    return visibleTextSelector(resolveMaestroString(value.text, context), stateTerms);
+  }
+  if (typeof value.label === 'string' && terms.length === 0)
+    terms.push(selectorTerm('label', resolveMaestroString(value.label, context)), ...stateTerms);
+  if (terms.length === 0 && stateTerms.length > 0) terms.push(...stateTerms);
   if (terms.length === 0) {
     throw new AppError(
       'INVALID_ARGS',
@@ -336,11 +325,11 @@ export function maestroSelector(
   return terms.join(' ');
 }
 
-function visibleTextSelector(value: string): string {
+function visibleTextSelector(value: string, extraTerms: readonly string[] = []): string {
   return [
-    selectorTerm('label', value),
-    selectorTerm('text', value),
-    selectorTerm('id', value),
+    [selectorTerm('label', value), ...extraTerms].join(' '),
+    [selectorTerm('text', value), ...extraTerms].join(' '),
+    [selectorTerm('id', value), ...extraTerms].join(' '),
   ].join(' || ');
 }
 
@@ -360,9 +349,8 @@ function maestroTapOnRuntimeOptions(value: unknown, context: MaestroParseContext
 }
 
 function swipeDurationPositionals(value: Record<string, unknown>): string[] {
-  return typeof value.duration === 'number' && Number.isFinite(value.duration)
-    ? [String(Math.max(16, Math.floor(value.duration)))]
-    : [];
+  const durationMs = readSwipeDurationMs(value.duration);
+  return durationMs ? [durationMs] : [];
 }
 
 function selectorTerm(key: string, value: string): string {

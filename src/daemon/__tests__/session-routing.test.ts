@@ -47,4 +47,3 @@ test('reuses lone active session for implicit default session', (t) => {
 
   assert.equal(resolved, 'android');
 });
-

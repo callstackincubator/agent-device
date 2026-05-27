@@ -246,6 +246,9 @@ async function withTempScreenshot(
 
 function mockAndroidSnapshotXml(xml: string, activityDump = ''): void {
   mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (isAndroidSdkVersionCommand(args)) {
+      return { exitCode: 0, stdout: '35', stderr: '' };
+    }
     if (args.includes('exec-out')) {
       return { exitCode: 0, stdout: xml, stderr: '' };
     }
@@ -254,6 +257,12 @@ function mockAndroidSnapshotXml(xml: string, activityDump = ''): void {
     }
     throw new Error(`unexpected args: ${args.join(' ')}`);
   });
+}
+
+function isAndroidSdkVersionCommand(args: string[]): boolean {
+  return (
+    args.includes('shell') && args.includes('getprop') && args.includes('ro.build.version.sdk')
+  );
 }
 
 function adbTimeout(args: string[]): AppError {
@@ -329,7 +338,7 @@ test('snapshotAndroid uses injected helper artifact before stock uiautomator', a
   assert.equal(result.androidSnapshot.installReason, 'current');
   assert.equal(result.androidSnapshot.captureMode, 'interactive-windows');
   assert.equal(result.androidSnapshot.windowCount, 1);
-  assert.deepEqual(timeouts, [30000, 8000]);
+  assert.deepEqual(timeouts, [30000, 30000]);
   assert.equal(mockRunCmd.mock.calls.length, 0);
 });
 
@@ -410,6 +419,9 @@ test('snapshotAndroid resolves helper adb through scoped provider', async () => 
           stderr: '',
         };
       }
+      if (isAndroidSdkVersionCommand(args)) {
+        return { exitCode: 0, stdout: '35', stderr: '' };
+      }
       if (args.includes('instrument')) {
         return {
           exitCode: 0,
@@ -418,6 +430,9 @@ test('snapshotAndroid resolves helper adb through scoped provider', async () => 
           ),
           stderr: '',
         };
+      }
+      if (args[0] === 'shell' && args[1] === 'rm') {
+        return { exitCode: 0, stdout: '', stderr: '' };
       }
       throw new Error(`unexpected scoped helper adb args: ${args.join(' ')}`);
     },
@@ -611,6 +626,52 @@ test('snapshotAndroid skips stock fallback after structured helper timeout', asy
   assert.equal(stockAttempted, false);
 });
 
+test('snapshotAndroid skips stock fallback after killed helper instrumentation', async () => {
+  let stockAttempted = false;
+  const helperAdb = createHelperAdb({
+    instrument: async () => ({ exitCode: 137, stdout: '', stderr: '' }),
+    stock: async () => {
+      stockAttempted = true;
+      throw new Error('stock fallback should not run');
+    },
+  });
+
+  await assert.rejects(
+    () => snapshotAndroidWithHelper(helperAdb),
+    (error) => {
+      assert.match(
+        (error as Error).message,
+        /Android snapshot helper failed before returning parseable output/,
+      );
+      assert.match((error as Error).message, /Stock UIAutomator fallback was skipped/);
+      assert.equal((error as { details?: Record<string, unknown> }).details?.exitCode, 137);
+      return true;
+    },
+  );
+  assert.equal(stockAttempted, false);
+});
+
+test('snapshotAndroid skips stock fallback after unparseable helper output', async () => {
+  let stockAttempted = false;
+  const helperAdb = createHelperAdb({
+    instrument: async () => ({ exitCode: 0, stdout: '', stderr: '' }),
+    stock: async () => {
+      stockAttempted = true;
+      throw new Error('stock fallback should not run');
+    },
+  });
+
+  await assert.rejects(
+    () => snapshotAndroidWithHelper(helperAdb),
+    (error) => {
+      assert.match((error as Error).message, /Android snapshot helper output could not be parsed/);
+      assert.match((error as Error).message, /Stock UIAutomator fallback was skipped/);
+      return true;
+    },
+  );
+  assert.equal(stockAttempted, false);
+});
+
 test('snapshotAndroid falls back to stock dump after helper adb timeout', async () => {
   const stockXml =
     '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="stock" bounds="[0,0][10,10]" /></hierarchy>';
@@ -751,6 +812,33 @@ test('dumpUiHierarchy reads fallback XML when dump exits non-zero', async () => 
   assert.equal(result, xml);
   assert.deepEqual(dumpCall?.[2], { allowFailure: true, timeoutMs: 8000 });
   assert.equal(catCall?.[2], undefined);
+});
+
+test('dumpUiHierarchy does not read a stale fallback file when dump fails without a path', async () => {
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (args.includes('exec-out')) {
+      return { exitCode: 137, stdout: 'Killed', stderr: '' };
+    }
+    if (
+      args.includes('uiautomator') &&
+      args.includes('dump') &&
+      args.includes('/sdcard/window_dump.xml')
+    ) {
+      return { exitCode: 137, stdout: 'Killed', stderr: '' };
+    }
+    if (args.includes('cat') && args.includes('/sdcard/window_dump.xml')) {
+      throw new Error('cat should not read a stale dump file');
+    }
+    throw new Error(`unexpected args: ${args.join(' ')}`);
+  });
+
+  await assert.rejects(
+    dumpUiHierarchy(device),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'COMMAND_FAILED' &&
+      error.message.includes('did not produce a fresh XML file'),
+  );
 });
 
 test('dumpUiHierarchy retries when fallback dump file is temporarily missing', async () => {
@@ -903,6 +991,9 @@ test('snapshotAndroid skips activity dump when snapshot has no scrollable nodes'
 </hierarchy>`;
 
   mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (isAndroidSdkVersionCommand(args)) {
+      return { exitCode: 0, stdout: '35', stderr: '' };
+    }
     if (args.includes('exec-out')) {
       return { exitCode: 0, stdout: xml, stderr: '' };
     }
@@ -929,6 +1020,9 @@ test('snapshotAndroid skips hidden content hints when disabled', async () => {
 </hierarchy>`;
 
   mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (isAndroidSdkVersionCommand(args)) {
+      return { exitCode: 0, stdout: '35', stderr: '' };
+    }
     if (args.includes('exec-out')) {
       return { exitCode: 0, stdout: xml, stderr: '' };
     }

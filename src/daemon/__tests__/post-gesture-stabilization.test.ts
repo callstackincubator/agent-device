@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, test, vi } from 'vitest';
-import { IOS_SIMULATOR } from '../../__tests__/test-utils/device-fixtures.ts';
+import { ANDROID_EMULATOR, IOS_SIMULATOR } from '../../__tests__/test-utils/device-fixtures.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';
 import {
   capturePostGestureStabilizedSnapshot,
@@ -10,6 +10,22 @@ import type { SessionState } from '../types.ts';
 
 afterEach(() => {
   vi.useRealTimers();
+});
+
+test('markPostGestureStabilization marks iOS swipe sessions', () => {
+  const session = makeSession();
+
+  markPostGestureStabilization(session, 'swipe');
+
+  assert.equal(session.postGestureStabilization?.action, 'swipe');
+});
+
+test('markPostGestureStabilization marks Android swipe sessions', () => {
+  const session = makeSession('android');
+
+  markPostGestureStabilization(session, 'swipe');
+
+  assert.equal(session.postGestureStabilization?.action, 'swipe');
 });
 
 test('capturePostGestureStabilizedSnapshot retries until rects stop moving', async () => {
@@ -30,10 +46,10 @@ test('capturePostGestureStabilizedSnapshot retries until rects stop moving', asy
   assert.equal(session.postGestureStabilization, undefined);
 });
 
-function makeSession(): SessionState {
+function makeSession(platform: 'ios' | 'android' = 'ios'): SessionState {
   return {
-    name: 'ios',
-    device: IOS_SIMULATOR,
+    name: platform,
+    device: platform === 'android' ? ANDROID_EMULATOR : IOS_SIMULATOR,
     createdAt: Date.now(),
     actions: [],
   };

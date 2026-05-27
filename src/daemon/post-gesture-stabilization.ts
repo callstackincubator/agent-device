@@ -8,7 +8,7 @@ const STABILIZATION_INTERVAL_MS = 200;
 const RECT_TOLERANCE_PX = 1;
 
 export function markPostGestureStabilization(session: SessionState, action: string): void {
-  if (session.device.platform !== 'ios') return;
+  if (!supportsPostGestureStabilization(session.device.platform)) return;
   if (!isPostGestureStabilizingAction(action)) return;
   session.postGestureStabilization = {
     action,
@@ -27,7 +27,7 @@ export async function capturePostGestureStabilizedSnapshot(params: {
 }): Promise<SnapshotState> {
   const { session, capture } = params;
   const pending = session?.postGestureStabilization;
-  if (!session || session.device.platform !== 'ios' || !pending) {
+  if (!session || !supportsPostGestureStabilization(session.device.platform) || !pending) {
     return await capture();
   }
 
@@ -73,6 +73,10 @@ export async function capturePostGestureStabilizedSnapshot(params: {
 
 function isPostGestureStabilizingAction(action: string): boolean {
   return action === 'swipe' || action === 'scroll';
+}
+
+function supportsPostGestureStabilization(platform: SessionState['device']['platform']): boolean {
+  return platform === 'ios' || platform === 'android';
 }
 
 type StabilityEntry = {

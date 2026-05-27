@@ -58,16 +58,25 @@ env:
       ['__maestroTapOn', ['id="home-open-form"']],
       ['__maestroTapPointPercent', ['20', '20']],
       ['click', ['id="release-notice"']],
-      ['click', ['label="Agent Device Tester"']],
+      [
+        'click',
+        ['label="Agent Device Tester" || text="Agent Device Tester" || id="Agent Device Tester"'],
+      ],
       ['open', ['exp://localhost:8082']],
       ['__maestroTapOn', ['label="Full name" || text="Full name" || id="Full name"']],
       ['type', ['Ada Lovelace']],
-      ['wait', ['label="Checkout form"', '5000']],
-      ['__maestroAssertNotVisible', ['label="Missing banner"']],
-      ['wait', ['id="submit-order"', '7000']],
+      [
+        '__maestroAssertVisible',
+        ['label="Checkout form" || text="Checkout form" || id="Checkout form"', '5000'],
+      ],
+      [
+        '__maestroAssertNotVisible',
+        ['label="Missing banner" || text="Missing banner" || id="Missing banner"'],
+      ],
+      ['__maestroAssertVisible', ['id="submit-order"', '7000']],
       ['scroll', ['down']],
-      ['scroll', ['down', '0.4']],
-      ['scroll', ['right']],
+      ['__maestroSwipeScreen', ['percent', '50', '75', '50', '35', '300']],
+      ['__maestroSwipeScreen', ['direction', 'left']],
       [
         '__maestroScrollUntilVisible',
         ['label="Discover" || text="Discover" || id="Discover"', '5000', 'up'],
@@ -99,25 +108,40 @@ test('parseMaestroReplayFlow maps iOS openLink through the app id when available
   );
 });
 
-test('parseMaestroReplayFlow converts Bluesky Maestro selector compatibility syntax', () => {
+test('parseMaestroReplayFlow maps Android openLink like Maestro without package binding', () => {
+  const parsed = parseMaestroReplayFlow(
+    `appId: com.callstack.agentdevicelab
+---
+- openLink: exp://localhost:8082
+`,
+    { platform: 'android' },
+  );
+
+  assert.deepEqual(
+    parsed.actions.map((entry) => [entry.command, entry.positionals]),
+    [['open', ['exp://localhost:8082']]],
+  );
+});
+
+test('parseMaestroReplayFlow converts Maestro nested selector compatibility syntax', () => {
   const parsed = parseMaestroReplayFlow(`appId: com.callstack.agentdevicelab
 ---
 - eraseText
 - eraseText: 12
 - tapOn:
-    id: likeBtn
+    id: childActionButton
     childOf:
-      id: postThreadItem-by-bob.test
+      id: parent-row-secondary
 - tapOn:
-    id: postDropdownBtn
+    id: overflowButton
     index: 0
 - tapOn:
-    label: Display name metadata
-    text: Display name
+    label: Profile name metadata
+    text: Profile name
 - swipe:
-    label: Drag feed down
+    label: Drag item down
     from:
-      id: feed-drag-handle
+      id: reorder-handle
     direction: UP
     duration: 350
 `);
@@ -129,11 +153,11 @@ test('parseMaestroReplayFlow converts Bluesky Maestro selector compatibility syn
       ['type', ['\b'.repeat(12)]],
       [
         '__maestroTapOn',
-        ['id="likeBtn"', JSON.stringify({ childOf: 'id="postThreadItem-by-bob.test"' })],
+        ['id="childActionButton"', JSON.stringify({ childOf: 'id="parent-row-secondary"' })],
       ],
-      ['__maestroTapOn', ['id="postDropdownBtn"', JSON.stringify({ index: 0 })]],
-      ['__maestroTapOn', ['label="Display name"']],
-      ['__maestroSwipeOn', ['id="feed-drag-handle"', 'up', '350']],
+      ['__maestroTapOn', ['id="overflowButton"', JSON.stringify({ index: 0 })]],
+      ['__maestroTapOn', ['label="Profile name" || text="Profile name" || id="Profile name"']],
+      ['__maestroSwipeOn', ['id="reorder-handle"', 'up', '350']],
     ],
   );
 });
@@ -189,15 +213,15 @@ test('parseMaestroReplayFlow marks tapOn before inputText for snapshot tap focus
   const parsed = parseMaestroReplayFlow(`appId: com.callstack.agentdevicelab
 ---
 - tapOn:
-    id: editListNameInput
-- inputText: Muted Users
+    id: editableNameInput
+- inputText: Saved list
 `);
 
   assert.deepEqual(
     parsed.actions.map((entry) => [entry.command, entry.positionals]),
     [
-      ['__maestroTapOn', ['id="editListNameInput"']],
-      ['type', ['Muted Users']],
+      ['__maestroTapOn', ['id="editableNameInput"']],
+      ['type', ['Saved list']],
     ],
   );
   assert.equal(parsed.actions[0]?.flags?.maestro?.allowNonHittableCoordinateFallback, undefined);
@@ -222,6 +246,25 @@ test('parseMaestroReplayFlow coalesces tapOn inputText while preserving pressKey
   );
   assert.deepEqual(parsed.actionLines, [3, 3, 6]);
   assert.equal(parsed.actions[1]?.flags?.maestro?.allowNonHittableCoordinateFallback, true);
+});
+
+test('parseMaestroReplayFlow does not coalesce text entry for non-input-looking targets', () => {
+  const parsed = parseMaestroReplayFlow(`appId: com.callstack.agentdevicelab
+---
+- tapOn: Continue
+- inputText: unexpected
+- pressKey: Enter
+`);
+
+  assert.deepEqual(
+    parsed.actions.map((entry) => [entry.command, entry.positionals]),
+    [
+      ['__maestroTapOn', ['label="Continue" || text="Continue" || id="Continue"']],
+      ['type', ['unexpected']],
+      ['__maestroPressEnter', []],
+    ],
+  );
+  assert.equal(parsed.actions[0]?.flags?.maestro?.allowNonHittableCoordinateFallback, undefined);
 });
 
 test('parseMaestroReplayFlow rejects relative runScript paths without source path', () => {
@@ -266,7 +309,7 @@ test('parseMaestroReplayFlow preserves selector state and absolute swipe command
   assert.deepEqual(
     parsed.actions.map((entry) => [entry.command, entry.positionals]),
     [
-      ['wait', ['id="shipping-pickup" selected="true"', '5000']],
+      ['__maestroAssertVisible', ['id="shipping-pickup" selected="true"', '5000']],
       ['swipe', ['100', '500', '100', '200', '300']],
     ],
   );
@@ -408,6 +451,50 @@ test('parseMaestroReplayFlow skips platform-gated runFlow commands for other pla
   );
 });
 
+test('parseMaestroReplayFlow treats Web platform gates as non-native branches', () => {
+  const parsed = parseMaestroReplayFlow(
+    `appId: com.callstack.agentdevicelab
+---
+- runFlow:
+    when:
+      platform: Web
+    commands:
+      - tapOn: Web only
+- tapOn: Native
+`,
+    { platform: 'ios' },
+  );
+
+  assert.deepEqual(
+    parsed.actions.map((entry) => [entry.command, entry.positionals]),
+    [['__maestroTapOn', ['label="Native" || text="Native" || id="Native"']]],
+  );
+});
+
+test('parseMaestroReplayFlow evaluates simple runFlow.when.true platform expressions', () => {
+  const parsed = parseMaestroReplayFlow(
+    `appId: com.callstack.agentdevicelab
+---
+- runFlow:
+    when:
+      true: \${maestro.platform == 'android' || maestro.platform == 'ios'}
+    commands:
+      - tapOn: Native
+- runFlow:
+    when:
+      true: \${maestro.platform == 'web' || maestro.platform == 'android'}
+    commands:
+      - tapOn: Not iOS
+`,
+    { platform: 'ios' },
+  );
+
+  assert.deepEqual(
+    parsed.actions.map((entry) => [entry.command, entry.positionals]),
+    [['__maestroTapOn', ['label="Native" || text="Native" || id="Native"']]],
+  );
+});
+
 test('parseMaestroReplayFlow keeps visible-gated runFlow commands for runtime evaluation', () => {
   const parsed = parseMaestroReplayFlow(
     `appId: com.callstack.agentdevicelab
@@ -431,6 +518,36 @@ test('parseMaestroReplayFlow keeps visible-gated runFlow commands for runtime ev
       command: '__maestroTapOn',
       positionals: ['label="Continue" || text="Continue" || id="Continue"'],
       flags: { maestro: { allowNonHittableCoordinateFallback: true } },
+    },
+  ]);
+});
+
+test('parseMaestroReplayFlow keeps retry commands for runtime evaluation', () => {
+  const parsed = parseMaestroReplayFlow(
+    `appId: com.callstack.agentdevicelab
+---
+- retry:
+    maxRetries: 3
+    commands:
+      - openLink:
+          link: \${APP_SCHEME}details
+      - assertVisible: Article
+`,
+    { env: { APP_SCHEME: 'example://' } },
+  );
+
+  assert.equal(parsed.actions[0]?.command, '__maestroRetry');
+  assert.deepEqual(parsed.actions[0]?.positionals, ['3']);
+  assert.deepEqual(parsed.actions[0]?.flags.batchSteps, [
+    {
+      command: 'open',
+      positionals: ['example://details'],
+      flags: {},
+    },
+    {
+      command: '__maestroAssertVisible',
+      positionals: ['label="Article" || text="Article" || id="Article"', '5000'],
+      flags: {},
     },
   ]);
 });
@@ -524,24 +641,24 @@ test('parseMaestroReplayFlow parses the test-app Maestro suite fixture', () => {
   assert.deepEqual(
     parsed.actions.map((entry) => entry.command),
     [
-      'wait',
+      '__maestroAssertVisible',
       '__maestroTapOn',
-      'wait',
-      '__maestroTapOn',
-      'type',
+      '__maestroAssertVisible',
       '__maestroTapOn',
       'type',
       '__maestroTapOn',
-      'wait',
-      'wait',
-      'scroll',
+      'type',
       '__maestroTapOn',
-      'wait',
+      '__maestroAssertVisible',
+      '__maestroAssertVisible',
+      '__maestroSwipeScreen',
       '__maestroTapOn',
-      'wait',
+      '__maestroAssertVisible',
       '__maestroTapOn',
-      'wait',
-      'wait',
+      '__maestroAssertVisible',
+      '__maestroTapOn',
+      '__maestroAssertVisible',
+      '__maestroAssertVisible',
     ],
   );
 });

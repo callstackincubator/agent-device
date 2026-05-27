@@ -41,6 +41,7 @@ export async function runReplayTestSuite(
       inputs: req.positionals,
       cwd: req.meta?.cwd,
       platformFilter: req.flags?.platform,
+      replayBackend: req.flags?.replayBackend,
     });
     const suiteInvocationId = buildReplayTestInvocationId(req.meta?.requestId);
     const suiteArtifactsDir = resolveReplayTestArtifactsDir({

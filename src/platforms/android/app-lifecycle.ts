@@ -291,72 +291,132 @@ async function ensureAndroidLocalhostReverse(device: DeviceInfo, target: string)
   }
 }
 
+export type OpenAndroidAppOptions = {
+  activity?: string;
+  appBundleId?: string;
+  url?: string;
+};
+
 export async function openAndroidApp(
   device: DeviceInfo,
   app: string,
-  activity?: string,
+  optionsOrActivity?: OpenAndroidAppOptions | string,
 ): Promise<void> {
   if (!device.booted) {
     await waitForAndroidBoot(device.id);
   }
+  const options = normalizeOpenAndroidAppOptions(optionsOrActivity);
+  const activity = options.activity;
   const deepLinkTarget = app.trim();
   if (isDeepLinkTarget(deepLinkTarget)) {
-    if (activity) {
-      throw new AppError(
-        'INVALID_ARGS',
-        'Activity override is not supported when opening a deep link URL',
-      );
-    }
-    await ensureAndroidLocalhostReverse(device, deepLinkTarget);
-    await runAndroidAdb(device, [
-      'shell',
-      'am',
-      'start',
-      '-W',
-      '-a',
-      'android.intent.action.VIEW',
-      '-d',
-      deepLinkTarget,
-    ]);
+    await openAndroidDeepLink(device, deepLinkTarget, options);
+    return;
+  }
+  if (options.url !== undefined) {
+    await openAndroidAppBoundDeepLink(device, app, options);
     return;
   }
   const resolved = await resolveAndroidApp(device, app);
   const launchCategory = resolveAndroidLauncherCategory(device);
   if (resolved.type === 'intent') {
-    if (activity) {
-      throw new AppError(
-        'INVALID_ARGS',
-        'Activity override requires a package name, not an intent',
-      );
-    }
-    await runAndroidAdb(device, ['shell', 'am', 'start', '-W', '-a', resolved.value]);
+    await openAndroidIntent(device, resolved.value, activity);
     return;
   }
   if (activity) {
-    const component = activity.includes('/')
-      ? activity
-      : `${resolved.value}/${activity.startsWith('.') ? activity : `.${activity}`}`;
-    try {
-      await runAndroidAdb(device, [
-        'shell',
-        'am',
-        'start',
-        '-W',
-        '-a',
-        'android.intent.action.MAIN',
-        '-c',
-        ANDROID_DEFAULT_CATEGORY,
-        '-c',
-        launchCategory,
-        '-n',
-        component,
-      ]);
-    } catch (error) {
-      await maybeRethrowAndroidMissingPackageError(device, resolved.value, error);
-      throw error;
-    }
+    await openAndroidPackageActivity(device, resolved.value, activity, launchCategory);
     return;
   }
+  await openAndroidPackage(device, resolved.value, launchCategory);
+}
+
+async function openAndroidDeepLink(
+  device: DeviceInfo,
+  target: string,
+  options: OpenAndroidAppOptions,
+): Promise<void> {
+  if (options.activity) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'Activity override is not supported when opening a deep link URL',
+    );
+  }
+  await ensureAndroidLocalhostReverse(device, target);
+  await runAndroidAdb(device, [
+    'shell',
+    'am',
+    'start',
+    '-W',
+    '-a',
+    'android.intent.action.VIEW',
+    '-d',
+    target,
+    ...androidDeepLinkPackageArgs(options.appBundleId),
+  ]);
+}
+
+async function openAndroidAppBoundDeepLink(
+  device: DeviceInfo,
+  app: string,
+  options: OpenAndroidAppOptions,
+): Promise<void> {
+  if (options.activity) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'Activity override is not supported when opening an app-bound deep link URL',
+    );
+  }
+  const deepLinkUrl = options.url?.trim() ?? '';
+  if (!isDeepLinkTarget(deepLinkUrl)) {
+    throw new AppError('INVALID_ARGS', 'Android app-bound open requires a valid URL target');
+  }
+  const resolved = await resolveAndroidPackageForOpen(device, app, 'app-bound open');
+  await runAndroidAdb(device, [
+    'shell',
+    'am',
+    'start',
+    '-W',
+    '-a',
+    'android.intent.action.VIEW',
+    '-d',
+    deepLinkUrl,
+    '-p',
+    resolved,
+  ]);
+}
+
+async function openAndroidIntent(
+  device: DeviceInfo,
+  intent: string,
+  activity: string | undefined,
+): Promise<void> {
+  if (activity) {
+    throw new AppError('INVALID_ARGS', 'Activity override requires a package name, not an intent');
+  }
+  await runAndroidAdb(device, ['shell', 'am', 'start', '-W', '-a', intent]);
+}
+
+async function openAndroidPackageActivity(
+  device: DeviceInfo,
+  packageName: string,
+  activity: string,
+  launchCategory: string,
+): Promise<void> {
+  const component = activity.includes('/')
+    ? activity
+    : `${packageName}/${activity.startsWith('.') ? activity : `.${activity}`}`;
+  try {
+    await runAndroidAdb(device, buildAndroidActivityLaunchArgs(component, launchCategory));
+  } catch (error) {
+    await maybeRethrowAndroidMissingPackageError(device, packageName, error);
+    throw error;
+  }
+}
+
+async function openAndroidPackage(
+  device: DeviceInfo,
+  packageName: string,
+  launchCategory: string,
+): Promise<void> {
   const primaryResult = await runAndroidAdb(
     device,
     [
@@ -371,24 +431,28 @@ export async function openAndroidApp(
       '-c',
       launchCategory,
       '-p',
-      resolved.value,
+      packageName,
     ],
     { allowFailure: true },
   );
   if (primaryResult.exitCode === 0 && !isAmStartError(primaryResult.stdout, primaryResult.stderr)) {
     return;
   }
-  const component = await resolveAndroidLaunchComponent(device, resolved.value);
+  const component = await resolveAndroidLaunchComponent(device, packageName);
   if (!component) {
-    if (!(await isAndroidPackageInstalled(device, resolved.value))) {
-      throw buildAndroidPackageNotInstalledError(resolved.value);
+    if (!(await isAndroidPackageInstalled(device, packageName))) {
+      throw buildAndroidPackageNotInstalledError(packageName);
     }
-    throw new AppError('COMMAND_FAILED', `Failed to launch ${resolved.value}`, {
+    throw new AppError('COMMAND_FAILED', `Failed to launch ${packageName}`, {
       stdout: primaryResult.stdout,
       stderr: primaryResult.stderr,
     });
   }
-  await runAndroidAdb(device, [
+  await runAndroidAdb(device, buildAndroidActivityLaunchArgs(component, launchCategory));
+}
+
+function buildAndroidActivityLaunchArgs(component: string, launchCategory: string): string[] {
+  return [
     'shell',
     'am',
     'start',
@@ -401,7 +465,31 @@ export async function openAndroidApp(
     launchCategory,
     '-n',
     component,
-  ]);
+  ];
+}
+
+async function resolveAndroidPackageForOpen(
+  device: DeviceInfo,
+  app: string,
+  label: string,
+): Promise<string> {
+  const resolved = await resolveAndroidApp(device, app);
+  if (resolved.type === 'intent') {
+    throw new AppError('INVALID_ARGS', `Android ${label} requires a package name, not an intent`);
+  }
+  return resolved.value;
+}
+
+function normalizeOpenAndroidAppOptions(
+  optionsOrActivity: OpenAndroidAppOptions | string | undefined,
+): OpenAndroidAppOptions {
+  if (typeof optionsOrActivity === 'string') return { activity: optionsOrActivity };
+  return optionsOrActivity ?? {};
+}
+
+function androidDeepLinkPackageArgs(packageName: string | undefined): string[] {
+  const normalized = packageName?.trim();
+  return normalized ? ['-p', normalized] : [];
 }
 
 function buildAndroidPackageNotInstalledError(packageName: string): AppError {

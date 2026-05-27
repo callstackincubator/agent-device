@@ -7,7 +7,7 @@ export type RuntimeSessionRecordOptions = {
   metadata?: Record<string, unknown>;
 };
 
-export function toRuntimeSessionRecord(
+function toRuntimeSessionRecord(
   session: SessionState | undefined,
   name: string,
   options: RuntimeSessionRecordOptions = {},

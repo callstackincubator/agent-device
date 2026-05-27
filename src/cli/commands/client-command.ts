@@ -10,6 +10,7 @@ import type {
 import type { CliFlags } from '../../utils/command-schema.ts';
 import { AppError } from '../../utils/errors.ts';
 import { readCommandMessage } from '../../utils/success-text.ts';
+import { isKeyboardAction } from '../../utils/keyboard-actions.ts';
 import { waitCommandCodec } from '../../command-codecs.ts';
 import { parseDeviceRotation } from '../../core/device-rotation.ts';
 import { buildSelectionOptions, writeCommandMessage, writeCommandOutput } from './shared.ts';
@@ -173,13 +174,7 @@ function readKeyboardAction(
 ): KeyboardCommandOptions['action'] | undefined {
   const action = value?.toLowerCase();
   if (action === 'get') return 'status';
-  if (
-    action === undefined ||
-    action === 'status' ||
-    action === 'dismiss' ||
-    action === 'enter' ||
-    action === 'return'
-  ) {
+  if (action === undefined || (isKeyboardAction(action) && action !== 'get')) {
     return action;
   }
   throw new AppError(

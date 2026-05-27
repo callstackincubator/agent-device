@@ -31,6 +31,7 @@ VERSION="$(node -p 'require("./package.json").version')"
 adb install -r -t ".tmp/android-snapshot-helper/agent-device-android-snapshot-helper-$VERSION.apk"
 adb shell am instrument -w \
   -e waitForIdleTimeoutMs 500 \
+  -e waitForIdleQuietMs 100 \
   -e timeoutMs 8000 \
   -e maxDepth 128 \
   -e maxNodes 5000 \
@@ -59,6 +60,7 @@ The final instrumentation result includes:
 - `ok=true`
 - `helperApiVersion=1`
 - `waitForIdleTimeoutMs`
+- `waitForIdleQuietMs`
 - `timeoutMs`
 - `maxDepth`
 - `maxNodes`

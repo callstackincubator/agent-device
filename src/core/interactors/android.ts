@@ -34,7 +34,12 @@ import type { Interactor } from '../interactor-types.ts';
 
 export function createAndroidInteractor(device: DeviceInfo): Interactor {
   return {
-    open: (app, options) => openAndroidApp(device, app, options?.activity),
+    open: (app, options) =>
+      openAndroidApp(device, app, {
+        activity: options?.activity,
+        appBundleId: options?.appBundleId,
+        url: options?.url,
+      }),
     openDevice: () => openAndroidDevice(device),
     close: (app) => closeAndroidApp(device, app),
     tap: (x, y) => pressAndroid(device, x, y),

@@ -375,6 +375,8 @@ extension RunnerTests {
 
   func focusedTextInput(app: XCUIApplication) -> XCUIElement? {
 #if os(iOS)
+    // iOS focus predicates can return stale or misleading text-input matches
+    // under XCUITest, so text entry readiness is driven by tap/keyboard state.
     return nil
 #else
     var focused: XCUIElement?

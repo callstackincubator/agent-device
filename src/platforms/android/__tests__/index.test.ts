@@ -734,6 +734,38 @@ test('openAndroidApp reports localhost reverse failures with port context', asyn
   );
 });
 
+test('openAndroidApp binds deep link URLs to the requested package', async () => {
+  await withMockedAdb(
+    'agent-device-android-open-deep-link-package-',
+    [
+      '#!/bin/sh',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ]; then',
+      '  echo "package:com.example.app"',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "am" ] && [ "$3" = "start" ]; then',
+      '  echo "Status: ok"',
+      '  exit 0',
+      'fi',
+      'exit 0',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      await openAndroidApp(device, 'com.example.app', { url: 'example://bottom-tabs' });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\nam\nstart\n-W\n-a\nandroid\.intent\.action\.VIEW/);
+      assert.match(logged, /-d\nexample:\/\/bottom-tabs/);
+      assert.match(logged, /-p\ncom\.example\.app/);
+    },
+  );
+});
+
 test('setAndroidSetting appearance toggle flips current mode', async () => {
   await withMockedAdb(
     'agent-device-android-appearance-toggle-',

@@ -8,6 +8,10 @@ import android.os.Bundle;
 import android.util.Base64;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
@@ -17,8 +21,9 @@ public final class SnapshotInstrumentation extends Instrumentation {
   private static final String PROTOCOL = "android-snapshot-helper-v1";
   private static final String OUTPUT_FORMAT = "uiautomator-xml";
   private static final String HELPER_API_VERSION = "1";
-  private static final int CHUNK_SIZE = 8 * 1024;
+  private static final int CHUNK_SIZE = 2 * 1024;
   private static final long DEFAULT_WAIT_FOR_IDLE_TIMEOUT_MS = 500;
+  private static final long DEFAULT_WAIT_FOR_IDLE_QUIET_MS = 100;
   private static final long DEFAULT_TIMEOUT_MS = 8_000;
   private static final int DEFAULT_MAX_DEPTH = 128;
   private static final int DEFAULT_MAX_NODES = 5_000;
@@ -36,21 +41,27 @@ public final class SnapshotInstrumentation extends Instrumentation {
     super.onStart();
     long waitForIdleTimeoutMs =
         readLongArgument(arguments, "waitForIdleTimeoutMs", DEFAULT_WAIT_FOR_IDLE_TIMEOUT_MS);
+    long waitForIdleQuietMs =
+        readLongArgument(arguments, "waitForIdleQuietMs", DEFAULT_WAIT_FOR_IDLE_QUIET_MS);
     long timeoutMs = readLongArgument(arguments, "timeoutMs", DEFAULT_TIMEOUT_MS);
     int maxDepth = readIntArgument(arguments, "maxDepth", DEFAULT_MAX_DEPTH);
     int maxNodes = readIntArgument(arguments, "maxNodes", DEFAULT_MAX_NODES);
+    String outputPath = readStringArgument(arguments, "outputPath");
     Bundle result = new Bundle();
     result.putString("agentDeviceProtocol", PROTOCOL);
     result.putString("helperApiVersion", HELPER_API_VERSION);
     result.putString("outputFormat", OUTPUT_FORMAT);
     result.putString("waitForIdleTimeoutMs", Long.toString(waitForIdleTimeoutMs));
+    result.putString("waitForIdleQuietMs", Long.toString(waitForIdleQuietMs));
     result.putString("timeoutMs", Long.toString(timeoutMs));
     result.putString("maxDepth", Integer.toString(maxDepth));
     result.putString("maxNodes", Integer.toString(maxNodes));
 
     try {
       long startedAtMs = System.currentTimeMillis();
-      CaptureResult capture = captureXml(waitForIdleTimeoutMs, maxDepth, maxNodes);
+      CaptureResult capture =
+          captureXml(waitForIdleQuietMs, waitForIdleTimeoutMs, timeoutMs, maxDepth, maxNodes);
+      writeOutputFile(outputPath, capture.xml);
       emitChunks(capture.xml);
       result.putString("ok", "true");
       result.putString("rootPresent", Boolean.toString(capture.rootPresent));
@@ -59,26 +70,111 @@ public final class SnapshotInstrumentation extends Instrumentation {
       result.putString("nodeCount", Integer.toString(capture.nodeCount));
       result.putString("truncated", Boolean.toString(capture.truncated));
       result.putString("elapsedMs", Long.toString(System.currentTimeMillis() - startedAtMs));
-      finish(0, result);
+      finishSafely(0, result);
     } catch (Throwable error) {
       result.putString("ok", "false");
       result.putString("errorType", error.getClass().getName());
       result.putString(
           "message",
           error.getMessage() == null ? error.getClass().getName() : error.getMessage());
-      finish(1, result);
+      finishSafely(1, result);
+    }
+  }
+
+  private static String readStringArgument(Bundle arguments, String key) {
+    if (arguments == null || !arguments.containsKey(key)) {
+      return null;
+    }
+    String value = arguments.getString(key);
+    return value == null || value.trim().isEmpty() ? null : value.trim();
+  }
+
+  private static void writeOutputFile(String outputPath, String xml) throws IOException {
+    if (outputPath == null) {
+      return;
+    }
+    File file = new File(outputPath);
+    File parent = file.getParentFile();
+    if (parent != null) {
+      parent.mkdirs();
+    }
+    try (FileOutputStream stream = new FileOutputStream(file, false)) {
+      stream.write(xml.getBytes(StandardCharsets.UTF_8));
+    }
+  }
+
+  private void finishSafely(int resultCode, Bundle result) {
+    RuntimeException lastError = null;
+    for (int attempt = 0; attempt < 100; attempt += 1) {
+      try {
+        finish(resultCode, result);
+        return;
+      } catch (IllegalStateException error) {
+        if (!isUiAutomationConnectingError(error)) {
+          throw error;
+        }
+        lastError = error;
+        sleep(100);
+      }
+    }
+    detachUiAutomationBeforeFinish();
+    try {
+      finish(resultCode, result);
+      return;
+    } catch (IllegalStateException error) {
+      if (!isUiAutomationConnectingError(error)) {
+        throw error;
+      }
+      lastError = error;
+    }
+    throw lastError;
+  }
+
+  private void detachUiAutomationBeforeFinish() {
+    try {
+      Field field = Instrumentation.class.getDeclaredField("mUiAutomation");
+      field.setAccessible(true);
+      field.set(this, null);
+    } catch (ReflectiveOperationException | RuntimeException ignored) {
+      // If the platform blocks reflection, preserve the original finish failure below.
+    }
+  }
+
+  private static boolean isUiAutomationConnectingError(IllegalStateException error) {
+    String message = error.getMessage();
+    return message != null && message.contains("while connecting");
+  }
+
+  private static boolean isUiAutomationNotConnectedError(IllegalStateException error) {
+    String message = error.getMessage();
+    return message != null && message.toLowerCase(Locale.ROOT).contains("not connected");
+  }
+
+  private static void sleep(long millis) {
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException error) {
+      Thread.currentThread().interrupt();
     }
   }
 
   @SuppressWarnings("deprecation")
-  private CaptureResult captureXml(long waitForIdleTimeoutMs, int maxDepth, int maxNodes)
+  private CaptureResult captureXml(
+      long waitForIdleQuietMs,
+      long waitForIdleTimeoutMs,
+      long timeoutMs,
+      int maxDepth,
+      int maxNodes)
       throws TimeoutException {
-    UiAutomation automation = getUiAutomation();
+    UiAutomation automation = getConnectedUiAutomation(timeoutMs);
     enableInteractiveWindowRetrieval(automation);
     if (waitForIdleTimeoutMs > 0) {
       try {
-        // Best-effort settle: avoids empty roots without inheriting UIAutomator's long idle wait.
-        automation.waitForIdle(waitForIdleTimeoutMs, waitForIdleTimeoutMs);
+        // Best-effort settle: wait for the accessibility stream to become idle, but require only
+        // a short quiet window once it does. Using the full timeout as the quiet window made every
+        // stable snapshot pay a fixed 500 ms tax.
+        long quietMs = Math.min(waitForIdleQuietMs, waitForIdleTimeoutMs);
+        automation.waitForIdle(quietMs, waitForIdleTimeoutMs);
       } catch (TimeoutException ignored) {
         // Busy or animated apps can still expose a usable root; capture whatever is available.
       }
@@ -107,6 +203,30 @@ public final class SnapshotInstrumentation extends Instrumentation {
     xml.append("</hierarchy>");
     return new CaptureResult(
         xml.toString(), windowCount > 0, captureMode, windowCount, stats.nodeCount, stats.truncated);
+  }
+
+  private UiAutomation getConnectedUiAutomation(long timeoutMs) throws TimeoutException {
+    long deadlineMs = System.currentTimeMillis() + Math.max(1, timeoutMs);
+    UiAutomation automation = getUiAutomation();
+    RuntimeException lastError = null;
+    while (System.currentTimeMillis() <= deadlineMs) {
+      try {
+        automation.getServiceInfo();
+        return automation;
+      } catch (IllegalStateException error) {
+        if (!isUiAutomationConnectingError(error) && !isUiAutomationNotConnectedError(error)) {
+          throw error;
+        }
+        lastError = error;
+      }
+      sleep(50);
+    }
+    TimeoutException timeout =
+        new TimeoutException("Timed out waiting for Android UiAutomation to connect");
+    if (lastError != null) {
+      timeout.initCause(lastError);
+    }
+    throw timeout;
   }
 
   private static void enableInteractiveWindowRetrieval(UiAutomation automation) {

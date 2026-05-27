@@ -31,4 +31,3 @@ test('inferAndroidPackageAfterOpen reads foreground package for Android URL open
     inferAndroidPackageAfterOpen(androidDevice, 'exp://127.0.0.1:8082', undefined),
   ).resolves.toBe('host.exp.exponent');
 });
-

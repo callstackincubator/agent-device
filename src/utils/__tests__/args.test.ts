@@ -130,6 +130,26 @@ test('parseArgs recognizes command-specific flag combinations', async () => {
         assert.equal(parsed.flags.timeoutMs, 240000);
       },
     },
+    {
+      label: 'test maestro suite',
+      argv: [
+        'test',
+        './e2e/maestro',
+        '--maestro',
+        '--env',
+        'APP_ID=com.example',
+        '--platform',
+        'android',
+      ],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'test');
+        assert.deepEqual(parsed.positionals, ['./e2e/maestro']);
+        assert.equal(parsed.flags.replayMaestro, true);
+        assert.deepEqual(parsed.flags.replayEnv, ['APP_ID=com.example']);
+        assert.equal(parsed.flags.platform, 'android');
+      },
+    },
   ];
 
   for (const scenario of scenarios) {
@@ -930,6 +950,14 @@ test('usageForCommand includes Maestro replay flag', () => {
   assert.match(help, /issues\/558/);
 });
 
+test('usageForCommand includes Maestro test suite flag', () => {
+  const help = usageForCommand('test');
+  if (help === null) throw new Error('Expected test help text');
+  assert.match(help, /Run one or more replay scripts as a serial test suite/);
+  assert.match(help, /--maestro/);
+  assert.match(help, /Replay\/Test: inject or override/);
+});
+
 test('usageForCommand resolves workflow help topic', () => {
   const help = usageForCommand('workflow');
   if (help === null) throw new Error('Expected workflow help text');
@@ -1323,7 +1351,7 @@ test('usage renders concise commands inline with descriptions', () => {
     /  metro prepare --public-base-url <url> \| --proxy-base-url <url>; metro reload\s{2,}Prepare Metro or reload apps/,
   );
   assert.match(help, /  batch --steps <json> \| --steps-file <path>\s{2,}Run multiple commands/);
-  assert.match(help, /  test <path-or-glob>\.\.\.\s{2,}Run \.ad test suites/);
+  assert.match(help, /  test <path-or-glob>\.\.\.\s{2,}Run replay test suites/);
   assert.match(help, /  session list\s{2,}List active sessions/);
   assert.doesNotMatch(help, /  metro prepare[^\n]*--project-root/);
   assert.doesNotMatch(help, /\n  batch\s{2,}Run multiple commands/);
@@ -1334,7 +1362,8 @@ test('command usage describes test suite flags', () => {
   const help = usageForCommand('test');
   if (help === null) throw new Error('Expected command help text');
   assert.match(help, /Usage:\s+agent-device test <path-or-glob>\.\.\./);
-  assert.match(help, /Run one or more \.ad scripts as a serial test suite/);
+  assert.match(help, /Run one or more replay scripts as a serial test suite/);
+  assert.match(help, /--maestro/);
   assert.match(help, /--fail-fast/);
   assert.match(help, /--timeout <ms>/);
   assert.match(help, /--retries <n>/);

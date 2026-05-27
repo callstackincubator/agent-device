@@ -73,7 +73,7 @@ export async function sampleAndroidMemoryPerf(
   }
 }
 
-export function parseAndroidCpuInfoSample(
+function parseAndroidCpuInfoSample(
   stdout: string,
   packageName: string,
   measuredAt: string,

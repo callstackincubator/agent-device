@@ -478,7 +478,7 @@ test('click simple iOS selector forwards Maestro non-hittable coordinate fallbac
       token: 't',
       session: sessionName,
       command: 'click',
-      positionals: ['id="e2eSignInAlice"'],
+      positionals: ['id="hiddenTestLogin"'],
       flags: { maestro: { allowNonHittableCoordinateFallback: true } },
     },
     sessionName,
@@ -491,10 +491,15 @@ test('click simple iOS selector forwards Maestro non-hittable coordinate fallbac
   expect(pressCalls.length).toBe(1);
   expect((pressCalls[0]?.[4] as Record<string, unknown>)?.directElementSelector).toEqual({
     key: 'id',
-    value: 'e2eSignInAlice',
-    raw: 'id="e2eSignInAlice"',
+    value: 'hiddenTestLogin',
+    raw: 'id="hiddenTestLogin"',
     allowNonHittableCoordinateFallback: true,
   });
+  if (response?.ok) {
+    expect(response.data?.maestroNonHittableCoordinateFallbackAllowed).toBe(true);
+    expect(response.data?.maestroNonHittableCoordinateFallbackUsed).toBe(true);
+    expect(response.data?.maestroFallbackReason).toBe('non-hittable-coordinate');
+  }
 });
 
 test('click simple iOS id selector falls back to snapshot coordinates when direct tap fails', async () => {

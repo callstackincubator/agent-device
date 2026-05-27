@@ -291,4 +291,3 @@ test('strips only conflicting selectors for existing sessions', () => {
   assert.equal(req.flags?.device, 'iPhone 16');
   assert.equal(req.flags?.serial, undefined);
 });
-

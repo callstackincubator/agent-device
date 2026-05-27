@@ -28,7 +28,6 @@ import {
 } from './runner-provider.ts';
 import { ensureXctestrun } from './runner-xctestrun.ts';
 export {
-  isReadOnlyRunnerCommand,
   isRetryableRunnerError,
   resolveRunnerEarlyExitHint,
   resolveRunnerBuildFailureHint,

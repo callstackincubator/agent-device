@@ -1,4 +1,3 @@
-import { AppError } from '../../utils/errors.ts';
 import { unsupportedMaestroSyntax } from './support.ts';
 
 export type MaestroPoint =
@@ -35,23 +34,4 @@ export function parseMaestroPoint(value: string): MaestroPoint {
   throw unsupportedMaestroSyntax(
     'Only Maestro swipe coordinates like "100,200" or "50%,75%" are supported.',
   );
-}
-
-export function readScrollPositionalsFromPercentSwipe(
-  start: Extract<MaestroPoint, { kind: 'percent' }>,
-  end: Extract<MaestroPoint, { kind: 'percent' }>,
-): string[] {
-  const deltaX = end.x - start.x;
-  const deltaY = end.y - start.y;
-  if (Math.abs(deltaX) === 0 && Math.abs(deltaY) === 0) {
-    throw new AppError('INVALID_ARGS', 'swipe start and end cannot be the same point.');
-  }
-  const vertical = Math.abs(deltaY) >= Math.abs(deltaX);
-  const direction = vertical ? (deltaY < 0 ? 'down' : 'up') : deltaX < 0 ? 'right' : 'left';
-  const amount = Math.min(1, Math.max(0.01, Math.abs(vertical ? deltaY : deltaX) / 100));
-  return [direction, formatAmount(amount)];
-}
-
-function formatAmount(value: number): string {
-  return value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 }

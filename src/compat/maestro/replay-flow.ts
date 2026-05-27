@@ -110,6 +110,9 @@ function optimizeTypedAfterTap(
   const tapSelector = readPlainMaestroTapSelector(action);
   if (typedAfterTap === null || tapSelector === null) return null;
   const line = actionLines[index] ?? 1;
+  if (!isLikelyTextEntrySelector(tapSelector)) {
+    return { actions: [clearMaestroNonHittableTap(action)], actionLines: [line], consumed: 1 };
+  }
   if (actions[index + 2]?.command !== MAESTRO_RUNTIME_COMMAND.pressEnter) {
     return { actions: [clearMaestroNonHittableTap(action)], actionLines: [line], consumed: 1 };
   }
@@ -160,6 +163,12 @@ function readPlainTypeText(action: SessionAction | undefined): string | null {
   const [text, ...rest] = action.positionals ?? [];
   if (rest.length > 0 || typeof text !== 'string') return null;
   return text;
+}
+
+function isLikelyTextEntrySelector(selector: string): boolean {
+  return /\b(input|textfield|textarea|field|email|password|username|search|query)\b/i.test(
+    selector.replace(/([a-z])([A-Z])/g, '$1 $2'),
+  );
 }
 
 function parseYamlDocuments(script: string): unknown[] {

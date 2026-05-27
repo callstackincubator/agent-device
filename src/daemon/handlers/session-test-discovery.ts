@@ -27,11 +27,13 @@ export function discoverReplayTestEntries(params: {
   inputs: string[];
   cwd?: string;
   platformFilter?: PlatformSelector;
+  replayBackend?: string;
 }): ReplayTestDiscoveryEntry[] {
-  const { inputs, cwd, platformFilter } = params;
+  const { inputs, cwd, platformFilter, replayBackend } = params;
+  const extensions = replayTestExtensions(replayBackend);
   const resolvedCwd = cwd ?? process.cwd();
   const filePaths = [
-    ...new Set(inputs.flatMap((input) => expandReplayTestInput(input, resolvedCwd))),
+    ...new Set(inputs.flatMap((input) => expandReplayTestInput(input, resolvedCwd, extensions))),
   ]
     .map((entry) => path.normalize(entry))
     .sort((left, right) => left.localeCompare(right));
@@ -45,12 +47,16 @@ export function discoverReplayTestEntries(params: {
       continue;
     }
     if (!metadata.platform) {
-      entries.push({
-        kind: 'skip',
-        path: filePath,
-        reason: 'skipped-by-filter',
-        message: `missing platform metadata for --platform ${platformFilter}`,
-      });
+      if (isMaestroReplayBackend(replayBackend)) {
+        entries.push({ kind: 'run', path: filePath, metadata });
+      } else {
+        entries.push({
+          kind: 'skip',
+          path: filePath,
+          reason: 'skipped-by-filter',
+          message: `missing platform metadata for --platform ${platformFilter}`,
+        });
+      }
       continue;
     }
     if (!matchesPlatformFilter(platformFilter, metadata.platform)) {
@@ -62,7 +68,7 @@ export function discoverReplayTestEntries(params: {
   const runnableCount = entries.filter((entry) => entry.kind === 'run').length;
   if (runnableCount === 0) {
     const suffix = platformFilter ? ` for --platform ${platformFilter}` : '';
-    throw new AppError('INVALID_ARGS', `No .ad tests matched${suffix}.`);
+    throw new AppError('INVALID_ARGS', `No replay tests matched${suffix}.`);
   }
 
   return entries;
@@ -123,18 +129,20 @@ export function resolveReplayTestRetries(
   return Math.max(0, Math.min(MAX_REPLAY_TEST_RETRIES, resolved));
 }
 
-function expandReplayTestInput(input: string, cwd: string): string[] {
+function expandReplayTestInput(input: string, cwd: string, extensions: Set<string>): string[] {
   const expandedInput = SessionStore.expandHome(input, cwd);
   if (fs.existsSync(expandedInput)) {
     const stat = fs.statSync(expandedInput);
     if (stat.isDirectory()) {
-      return fs
-        .globSync('**/*.ad', { cwd: expandedInput })
-        .map((match) => path.join(expandedInput, match));
+      return replayTestGlobPatterns(extensions).flatMap((pattern) =>
+        fs
+          .globSync(pattern, { cwd: expandedInput })
+          .map((match) => path.join(expandedInput, match)),
+      );
     }
     if (stat.isFile()) {
-      if (path.extname(expandedInput) !== '.ad') {
-        throw new AppError('INVALID_ARGS', `test requires .ad files. Received: ${input}`);
+      if (!extensions.has(path.extname(expandedInput))) {
+        throw new AppError('INVALID_ARGS', `test does not support this file type: ${input}`);
       }
       return [expandedInput];
     }
@@ -152,7 +160,21 @@ function expandReplayTestInput(input: string, cwd: string): string[] {
 
   return matches
     .map((match) => (path.isAbsolute(match) ? match : path.resolve(cwd, match)))
-    .filter((match) => path.extname(match) === '.ad' && isExistingFile(match));
+    .filter((match) => extensions.has(path.extname(match)) && isExistingFile(match));
+}
+
+function replayTestExtensions(replayBackend: string | undefined): Set<string> {
+  return isMaestroReplayBackend(replayBackend)
+    ? new Set(['.ad', '.yaml', '.yml'])
+    : new Set(['.ad']);
+}
+
+function replayTestGlobPatterns(extensions: Set<string>): string[] {
+  return [...extensions].map((extension) => `**/*${extension}`);
+}
+
+function isMaestroReplayBackend(replayBackend: string | undefined): boolean {
+  return replayBackend === 'maestro';
 }
 
 function looksLikeGlob(value: string): boolean {

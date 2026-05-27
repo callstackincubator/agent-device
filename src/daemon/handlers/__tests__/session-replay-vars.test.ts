@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { AppError } from '../../../utils/errors.ts';
+import { runCmdBackground, type ExecBackgroundResult } from '../../../utils/exec.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction } from '../../types.ts';
 import type { CommandFlags } from '../../../core/dispatch.ts';
 import { SessionStore } from '../../session-store.ts';
@@ -68,6 +69,34 @@ async function runReplayFixture(params: {
     invoke,
   });
   return { response, calls, root, scriptPath };
+}
+
+async function readFirstStdoutLine(process: ExecBackgroundResult): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    let stdout = '';
+    const cleanup = (): void => {
+      clearTimeout(timer);
+      process.child.stdout?.off('data', onData);
+      process.child.off('exit', onExit);
+    };
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('Timed out waiting for child process stdout.'));
+    }, 5000);
+    const onData = (chunk: Buffer | string): void => {
+      stdout += String(chunk);
+      const lineEnd = stdout.indexOf('\n');
+      if (lineEnd === -1) return;
+      cleanup();
+      resolve(stdout.slice(0, lineEnd));
+    };
+    const onExit = (): void => {
+      cleanup();
+      reject(new Error('Child process exited before writing stdout.'));
+    };
+    process.child.stdout?.on('data', onData);
+    process.child.on('exit', onExit);
+  });
 }
 
 test('resolveReplayString substitutes variables', () => {
@@ -466,6 +495,94 @@ output.result = SERVER_PATH + ':' + json(res.body).appviewDid
   );
 });
 
+test('runReplayScriptFile supports successful Maestro runScript http.post calls', async () => {
+  const serverScript = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-runscript-http-')),
+    'server.cjs',
+  );
+  fs.writeFileSync(
+    serverScript,
+    `
+const http = require('node:http');
+const server = http.createServer((req, res) => {
+  let body = '';
+  req.setEncoding('utf8');
+  req.on('data', chunk => { body += chunk; });
+  req.on('end', () => {
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify({method: req.method, body}));
+  });
+});
+server.listen(0, '127.0.0.1', () => {
+  process.stdout.write(String(server.address().port) + '\\n');
+});
+`,
+  );
+  const server = runCmdBackground(process.execPath, [serverScript], { allowFailure: true });
+  const port = await readFirstStdoutLine(server);
+
+  try {
+    const { response, calls } = await runReplayFixture({
+      label: 'maestro-runscript-http-post',
+      files: {
+        'setup.js': `
+var res = http.post('http://127.0.0.1:${port}/setup', {body: '{"ok":true}'})
+var parsed = json(res.body)
+output.result = parsed.method + ':' + json(parsed.body).ok
+`,
+      },
+      script: [
+        'appId: demo.app',
+        '---',
+        '- runScript: ./setup.js',
+        '- inputText: ${output.result}',
+        '',
+      ].join('\n'),
+      flags: { replayBackend: 'maestro' },
+    });
+
+    assert.equal(response.ok, true);
+    assert.deepEqual(
+      calls.map((call) => [call.command, call.positionals]),
+      [['type', ['POST:true']]],
+    );
+  } finally {
+    server.child.kill();
+    await server.wait.catch(() => undefined);
+  }
+});
+
+test('runReplayScriptFile strips prototype pollution keys from runScript json()', async () => {
+  const { response, calls } = await runReplayFixture({
+    label: 'maestro-runscript-json-prototype-keys',
+    files: {
+      'setup.js': `
+var parsed = json('{"safe":1,"__proto__":{"polluted":true},"constructor":{"polluted":true},"nested":{"prototype":{"polluted":true},"ok":2}}')
+output.result = [
+  Object.prototype.hasOwnProperty.call(parsed, '__proto__'),
+  Object.prototype.hasOwnProperty.call(parsed, 'constructor'),
+  Object.prototype.hasOwnProperty.call(parsed.nested, 'prototype'),
+  parsed.nested.ok
+].join(':')
+`,
+    },
+    script: [
+      'appId: demo.app',
+      '---',
+      '- runScript: ./setup.js',
+      '- inputText: ${output.result}',
+      '',
+    ].join('\n'),
+    flags: { replayBackend: 'maestro' },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [['type', ['false:false:false:2']]],
+  );
+});
+
 test('runReplayScriptFile reports Maestro runScript failures at the runScript step', async () => {
   const { response, calls } = await runReplayFixture({
     label: 'maestro-runscript-fail',
@@ -483,6 +600,27 @@ test('runReplayScriptFile reports Maestro runScript failures at the runScript st
     assert.match(response.error.message, /Replay failed at step 1/);
     assert.match(response.error.message, /runScript failed/);
     assert.match(response.error.message, /http\.post failed/);
+  }
+  assert.equal(calls.length, 0);
+});
+
+test('runReplayScriptFile explains empty Maestro runScript JSON bodies', async () => {
+  const { response, calls } = await runReplayFixture({
+    label: 'maestro-runscript-empty-json',
+    files: {
+      'setup.js': `output.result = json('').value`,
+    },
+    script: ['appId: demo.app', '---', '- runScript: ./setup.js', '- inputText: never', ''].join(
+      '\n',
+    ),
+    flags: { replayBackend: 'maestro' },
+  });
+
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.match(response.error.message, /Replay failed at step 1/);
+    assert.match(response.error.message, /json\(\) received an empty body/);
+    assert.match(response.error.message, /setup server output/);
   }
   assert.equal(calls.length, 0);
 });
@@ -591,11 +729,21 @@ test('runReplayScriptFile lets Maestro tapOn use fuzzy visible text matching', a
     flags: { replayBackend: 'maestro' },
     invoke: async (req) => {
       calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
-      if (req.command === 'find') return { ok: true, data: { found: true } };
-      return {
-        ok: false,
-        error: { code: 'COMMAND_FAILED', message: 'Selector did not match' },
-      };
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 1,
+                label: 'Discover people',
+                rect: { x: 10, y: 600, width: 240, height: 44 },
+              },
+            ],
+          },
+        };
+      }
+      return { ok: true, data: {} };
     },
   });
 
@@ -604,11 +752,62 @@ test('runReplayScriptFile lets Maestro tapOn use fuzzy visible text matching', a
     calls.map((call) => [call.command, call.positionals]),
     [
       ['snapshot', []],
-      ['find', ['Discover', 'click']],
+      ['click', ['130', '622']],
     ],
   );
   assert.equal(calls[0]?.flags?.noRecord, true);
-  assert.equal(calls[1]?.flags?.findFirst, true);
+});
+
+test('runReplayScriptFile reuses successful Maestro visibility snapshot for following tapOn', async () => {
+  let snapshots = 0;
+  const { response, calls } = await runReplayFixture({
+    label: 'maestro-assert-visible-tap-cache',
+    script: ['appId: demo.app', '---', '- assertVisible: Open feed', '- tapOn: Open feed', ''].join(
+      '\n',
+    ),
+    flags: { replayBackend: 'maestro', platform: 'android' },
+    invoke: async (req) => {
+      if (req.command === 'snapshot') {
+        snapshots += 1;
+        return {
+          ok: true,
+          data: {
+            nodes:
+              snapshots === 1
+                ? [
+                    {
+                      index: 1,
+                      label: 'Article',
+                      rect: { x: 10, y: 100, width: 160, height: 44 },
+                    },
+                    {
+                      index: 2,
+                      label: 'Open feed',
+                      rect: { x: 20, y: 180, width: 180, height: 48 },
+                    },
+                  ]
+                : [
+                    {
+                      index: 1,
+                      label: 'AppStack.tsx (42:7)',
+                      rect: { x: 28, y: 1304, width: 1025, height: 44 },
+                    },
+                  ],
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['snapshot', []],
+      ['click', ['110', '204']],
+    ],
+  );
 });
 
 test('runReplayScriptFile lets exact Maestro text tapOn win before fuzzy matching', async () => {
@@ -648,6 +847,241 @@ test('runReplayScriptFile lets exact Maestro text tapOn win before fuzzy matchin
     [
       ['snapshot', []],
       ['click', ['130', '562']],
+    ],
+  );
+});
+
+test('runReplayScriptFile prefers exact Maestro text before actionable target type', async () => {
+  const calls: CapturedInvocation[] = [];
+  const { response } = await runReplayFixture({
+    label: 'maestro-tap-visible-text-exact-before-type-rank',
+    script: ['appId: demo.app', '---', '- tapOn: Search', ''].join('\n'),
+    flags: { platform: 'android', replayBackend: 'maestro' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 1,
+                type: 'android.widget.Button',
+                label: 'search',
+                rect: { x: 673, y: 165, width: 132, height: 132 },
+              },
+              {
+                index: 2,
+                type: 'android.widget.FrameLayout',
+                label: 'Search',
+                rect: { x: 810, y: 2054, width: 270, height: 220 },
+              },
+            ],
+            metadata: { referenceWidth: 1080, referenceHeight: 2340 },
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['snapshot', []],
+      ['click', ['945', '2164']],
+    ],
+  );
+});
+
+test('runReplayScriptFile prefers fuller same-type Maestro text matches', async () => {
+  const calls: CapturedInvocation[] = [];
+  const { response } = await runReplayFixture({
+    label: 'maestro-tap-visible-text-prefers-fuller-same-type',
+    script: ['appId: demo.app', '---', '- tapOn: Open details', ''].join('\n'),
+    flags: { replayBackend: 'maestro' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 1,
+                type: 'android.widget.Button',
+                label: 'Open details',
+                rect: { x: 0, y: 352, width: 109, height: 110 },
+              },
+              {
+                index: 2,
+                type: 'android.widget.Button',
+                label: 'Open details',
+                rect: { x: 33, y: 433, width: 340, height: 110 },
+              },
+            ],
+            metadata: { referenceWidth: 1080, referenceHeight: 2340 },
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['snapshot', []],
+      ['click', ['203', '488']],
+    ],
+  );
+});
+
+test('runReplayScriptFile ignores zero-size Maestro tapOn matches', async () => {
+  const calls: CapturedInvocation[] = [];
+  const { response } = await runReplayFixture({
+    label: 'maestro-tap-visible-text-ignores-zero-size',
+    script: ['appId: demo.app', '---', '- tapOn: Retain', ''].join('\n'),
+    flags: { replayBackend: 'maestro' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 1,
+                type: 'android.widget.ScrollView',
+                rect: { x: 0, y: 319, width: 816, height: 2021 },
+              },
+              {
+                index: 2,
+                parentIndex: 1,
+                type: 'android.widget.Button',
+                label: 'Retain',
+                rect: { x: 0, y: 2340, width: 771, height: 0 },
+              },
+              {
+                index: 3,
+                parentIndex: 2,
+                type: 'android.widget.TextView',
+                label: 'Retain',
+              },
+              {
+                index: 4,
+                type: 'android.widget.Button',
+                label: 'Retain',
+                rect: { x: 418, y: 1385, width: 244, height: 110 },
+              },
+            ],
+            metadata: { referenceWidth: 1080, referenceHeight: 2340 },
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['snapshot', []],
+      ['click', ['540', '1440']],
+    ],
+  );
+});
+
+test('runReplayScriptFile prefers own-rect Maestro tapOn matches over inherited overlay rects', async () => {
+  const calls: CapturedInvocation[] = [];
+  const { response } = await runReplayFixture({
+    label: 'maestro-tap-visible-text-prefers-own-rect',
+    script: ['appId: demo.app', '---', '- tapOn: Library', ''].join('\n'),
+    flags: { replayBackend: 'maestro' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 1,
+                type: 'android.view.View',
+                label: 'Library',
+                rect: { x: 585, y: 319, width: 222, height: 132 },
+              },
+              {
+                index: 2,
+                type: 'android.view.ViewGroup',
+                rect: { x: 0, y: 0, width: 816, height: 2340 },
+              },
+              {
+                index: 3,
+                parentIndex: 2,
+                type: 'android.view.ViewGroup',
+              },
+              {
+                index: 4,
+                parentIndex: 3,
+                type: 'android.widget.TextView',
+                label: 'Library',
+              },
+            ],
+            metadata: { referenceWidth: 1080, referenceHeight: 2340 },
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['snapshot', []],
+      ['click', ['696', '385']],
+    ],
+  );
+});
+
+test('runReplayScriptFile lets Maestro text tapOn match regex labels', async () => {
+  const calls: CapturedInvocation[] = [];
+  const { response } = await runReplayFixture({
+    label: 'maestro-tap-visible-text-regex',
+    script: ['appId: demo.app', '---', "- tapOn: '.*Featured.*'", ''].join('\n'),
+    flags: { replayBackend: 'maestro' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 1,
+                type: 'button',
+                label: 'Featured, selected tab',
+                rect: { x: 20, y: 720, width: 110, height: 44 },
+              },
+            ],
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['snapshot', []],
+      ['click', ['75', '742']],
     ],
   );
 });
@@ -787,41 +1221,17 @@ test('runReplayScriptFile treats absent Maestro assertNotVisible targets as pass
   const calls: CapturedInvocation[] = [];
   const { response } = await runReplayFixture({
     label: 'maestro-assert-not-visible-absent',
-    script: ['appId: demo.app', '---', '- assertNotVisible: Feeds ✨', ''].join('\n'),
+    script: ['appId: demo.app', '---', '- assertNotVisible: Archived banner', ''].join('\n'),
     flags: { replayBackend: 'maestro' },
     invoke: async (req) => {
       calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
       return {
         ok: false,
-        error: { code: 'ELEMENT_NOT_FOUND', message: 'Selector did not match' },
-      };
-    },
-  });
-
-  assert.equal(response.ok, true);
-  assert.deepEqual(
-    calls.map((call) => [call.command, call.positionals]),
-    [['is', ['visible', 'label="Feeds ✨" || text="Feeds ✨" || id="Feeds ✨"']]],
-  );
-  assert.equal(calls[0]?.flags?.noRecord, true);
-});
-
-test('runReplayScriptFile retries Maestro fuzzy tapOn without raw selector fallback', async () => {
-  const calls: CapturedInvocation[] = [];
-  let findAttempts = 0;
-  const { response } = await runReplayFixture({
-    label: 'maestro-tap-visible-text-fuzzy-retry',
-    script: ['appId: demo.app', '---', '- tapOn: Discover', ''].join('\n'),
-    flags: { replayBackend: 'maestro' },
-    invoke: async (req) => {
-      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
-      if (req.command === 'find') {
-        findAttempts += 1;
-        if (findAttempts === 2) return { ok: true, data: { found: true } };
-      }
-      return {
-        ok: false,
-        error: { code: 'ELEMENT_NOT_FOUND', message: 'element not found' },
+        error: {
+          code: 'COMMAND_FAILED',
+          message: 'Selector did not match',
+          details: { command: 'is', reason: 'selector_not_found' },
+        },
       };
     },
   });
@@ -830,10 +1240,157 @@ test('runReplayScriptFile retries Maestro fuzzy tapOn without raw selector fallb
   assert.deepEqual(
     calls.map((call) => [call.command, call.positionals]),
     [
+      [
+        'is',
+        ['visible', 'label="Archived banner" || text="Archived banner" || id="Archived banner"'],
+      ],
+      [
+        'is',
+        ['visible', 'label="Archived banner" || text="Archived banner" || id="Archived banner"'],
+      ],
+    ],
+  );
+  assert.equal(calls[0]?.flags?.noRecord, true);
+});
+
+test('runReplayScriptFile propagates Maestro assertNotVisible infrastructure failures', async () => {
+  const calls: CapturedInvocation[] = [];
+  const { response } = await runReplayFixture({
+    label: 'maestro-assert-not-visible-infra-fail',
+    script: ['appId: demo.app', '---', '- assertNotVisible: Archived banner', ''].join('\n'),
+    flags: { replayBackend: 'maestro' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      return {
+        ok: false,
+        error: { code: 'COMMAND_FAILED', message: 'Snapshot capture failed' },
+      };
+    },
+  });
+
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.match(response.error.message, /Replay failed at step 1/);
+    assert.match(response.error.message, /Snapshot capture failed/);
+  }
+  assert.equal(calls.length, 1);
+});
+
+test('runReplayScriptFile treats duplicate visible Maestro assertVisible matches as passing', async () => {
+  const { response, calls } = await runReplayFixture({
+    label: 'maestro-assert-visible-duplicate-visible',
+    script: ['appId: demo.app', '---', '- assertVisible: Article', ''].join('\n'),
+    flags: { platform: 'android', replayBackend: 'maestro' },
+    invoke: async (req) => {
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 0,
+                type: 'application',
+                rect: { x: 0, y: 0, width: 390, height: 844 },
+              },
+              {
+                index: 1,
+                depth: 1,
+                parentIndex: 0,
+                type: 'statictext',
+                label: 'Article',
+                rect: { x: 16, y: 100, width: 120, height: 24 },
+              },
+              {
+                index: 2,
+                depth: 1,
+                parentIndex: 0,
+                type: 'statictext',
+                label: 'Article',
+                rect: { x: 16, y: 140, width: 120, height: 24 },
+              },
+            ],
+          },
+        };
+      }
+      return {
+        ok: false,
+        error: { code: 'COMMAND_FAILED', message: 'unexpected command' },
+      };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [['snapshot', []]],
+  );
+  assert.equal(calls[0]?.flags?.snapshotRaw, true);
+});
+
+test('runReplayScriptFile waits briefly for Maestro assertNotVisible to stabilize', async () => {
+  const calls: CapturedInvocation[] = [];
+  let visibleChecks = 0;
+  const { response } = await runReplayFixture({
+    label: 'maestro-assert-not-visible-stable',
+    script: ['appId: demo.app', '---', '- assertNotVisible: Archived banner', ''].join('\n'),
+    flags: { replayBackend: 'maestro' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      visibleChecks += 1;
+      if (visibleChecks === 1) return { ok: true, data: { pass: true } };
+      return {
+        ok: false,
+        error: {
+          code: 'COMMAND_FAILED',
+          message: 'is visible failed',
+          details: { command: 'is', reason: 'predicate_failed' },
+        },
+      };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(calls.length, 3);
+});
+
+test('runReplayScriptFile retries Maestro fuzzy tapOn without raw selector fallback', async () => {
+  const calls: CapturedInvocation[] = [];
+  let snapshotAttempts = 0;
+  const { response } = await runReplayFixture({
+    label: 'maestro-tap-visible-text-fuzzy-retry',
+    script: ['appId: demo.app', '---', '- tapOn: Discover', ''].join('\n'),
+    flags: { replayBackend: 'maestro' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'snapshot') {
+        snapshotAttempts += 1;
+        return {
+          ok: true,
+          data: {
+            nodes:
+              snapshotAttempts === 1
+                ? []
+                : [
+                    {
+                      index: 1,
+                      label: 'Discover people',
+                      rect: { x: 10, y: 600, width: 240, height: 44 },
+                    },
+                  ],
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
       ['snapshot', []],
-      ['find', ['Discover', 'click']],
       ['snapshot', []],
-      ['find', ['Discover', 'click']],
+      ['click', ['130', '622']],
     ],
   );
 });
@@ -853,13 +1410,21 @@ test('runReplayScriptFile lets optional Maestro fuzzy tapOn click first visible 
     flags: { replayBackend: 'maestro' },
     invoke: async (req) => {
       calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
-      if (req.command === 'find' && req.flags?.findFirst === true) {
-        return { ok: true, data: { ref: '@e4', x: 220, y: 720 } };
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 1,
+                label: 'Maybe Later',
+                rect: { x: 100, y: 700, width: 240, height: 44 },
+              },
+            ],
+          },
+        };
       }
-      return {
-        ok: false,
-        error: { code: 'AMBIGUOUS_MATCH', message: 'matched multiple elements' },
-      };
+      return { ok: true, data: {} };
     },
   });
 
@@ -868,10 +1433,9 @@ test('runReplayScriptFile lets optional Maestro fuzzy tapOn click first visible 
     calls.map((call) => [call.command, call.positionals]),
     [
       ['snapshot', []],
-      ['find', ['Later', 'click']],
+      ['click', ['220', '722']],
     ],
   );
-  assert.equal(calls[1]?.flags?.findFirst, true);
 });
 
 test('runReplayScriptFile resolves Maestro percentage point taps from snapshot size', async () => {
@@ -969,11 +1533,11 @@ test('runReplayScriptFile resolves Maestro tapOn index and childOf from snapshot
       'appId: demo.app',
       '---',
       '- tapOn:',
-      '    id: likeBtn',
+      '    id: childActionButton',
       '    childOf:',
-      '      id: postThreadItem-by-bob.test',
+      '      id: parent-row-secondary',
       '- tapOn:',
-      '    id: postDropdownBtn',
+      '    id: overflowButton',
       '    index: 1',
       '',
     ].join('\n'),
@@ -985,28 +1549,28 @@ test('runReplayScriptFile resolves Maestro tapOn index and childOf from snapshot
           ok: true,
           data: {
             nodes: [
-              { index: 1, identifier: 'postThreadItem-by-alice.test' },
+              { index: 1, identifier: 'parent-row-primary' },
               {
                 index: 2,
                 parentIndex: 1,
-                identifier: 'likeBtn',
+                identifier: 'childActionButton',
                 rect: { x: 10, y: 10, width: 40, height: 20 },
               },
-              { index: 10, identifier: 'postThreadItem-by-bob.test' },
+              { index: 10, identifier: 'parent-row-secondary' },
               {
                 index: 11,
                 parentIndex: 10,
-                identifier: 'likeBtn',
+                identifier: 'childActionButton',
                 rect: { x: 20, y: 120, width: 40, height: 20 },
               },
               {
                 index: 20,
-                identifier: 'postDropdownBtn',
+                identifier: 'overflowButton',
                 rect: { x: 100, y: 200, width: 40, height: 20 },
               },
               {
                 index: 21,
-                identifier: 'postDropdownBtn',
+                identifier: 'overflowButton',
                 rect: { x: 200, y: 300, width: 40, height: 20 },
               },
             ],
@@ -1034,7 +1598,7 @@ test('runReplayScriptFile lets snapshot id tap handle Maestro one-point edge con
   const calls: CapturedInvocation[] = [];
   const { response } = await runReplayFixture({
     label: 'maestro-tap-edge-rect',
-    script: ['appId: demo.app', '---', '- tapOn:', '    id: e2eSignInAlice', ''].join('\n'),
+    script: ['appId: demo.app', '---', '- tapOn:', '    id: hiddenTestLogin', ''].join('\n'),
     flags: { replayBackend: 'maestro' },
     invoke: async (req) => {
       calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
@@ -1045,7 +1609,7 @@ test('runReplayScriptFile lets snapshot id tap handle Maestro one-point edge con
             nodes: [
               {
                 index: 1,
-                identifier: 'e2eSignInAlice',
+                identifier: 'hiddenTestLogin',
                 rect: { x: 0, y: 0, width: 1, height: 1 },
               },
             ],
@@ -1074,8 +1638,8 @@ test('runReplayScriptFile keeps Maestro text-entry tapOn on the snapshot path', 
       'appId: demo.app',
       '---',
       '- tapOn:',
-      '    id: editListNameInput',
-      '- inputText: Muted Users',
+      '    id: editableNameInput',
+      '- inputText: Saved list',
       '',
     ].join('\n'),
     flags: { replayBackend: 'maestro' },
@@ -1088,7 +1652,7 @@ test('runReplayScriptFile keeps Maestro text-entry tapOn on the snapshot path', 
             nodes: [
               {
                 index: 1,
-                identifier: 'editListNameInput',
+                identifier: 'editableNameInput',
                 rect: { x: 20, y: 100, width: 200, height: 40 },
               },
             ],
@@ -1105,7 +1669,7 @@ test('runReplayScriptFile keeps Maestro text-entry tapOn on the snapshot path', 
     [
       ['snapshot', []],
       ['click', ['120', '120']],
-      ['type', ['Muted Users']],
+      ['type', ['Saved list']],
     ],
   );
   assert.equal(calls[0]?.flags?.noRecord, true);
@@ -1151,6 +1715,54 @@ test('runReplayScriptFile resolves Maestro swipe.label from a labeled element re
     [
       ['snapshot', []],
       ['swipe', ['110', '250', '110', '8', '400']],
+    ],
+  );
+});
+
+test('runReplayScriptFile resolves Maestro screen swipes from the snapshot frame', async () => {
+  const calls: CapturedInvocation[] = [];
+  const { response } = await runReplayFixture({
+    label: 'maestro-screen-swipe',
+    script: [
+      'appId: demo.app',
+      '---',
+      '- swipe:',
+      '    direction: LEFT',
+      '    duration: 300',
+      '- swipe:',
+      '    start: 90%,50%',
+      '    end: 10%,50%',
+      '    duration: 300',
+      '',
+    ].join('\n'),
+    flags: { replayBackend: 'maestro' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 0,
+                type: 'application',
+                rect: { x: 0, y: 0, width: 400, height: 800 },
+              },
+            ],
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['snapshot', []],
+      ['swipe', ['320', '400', '80', '400', '300']],
+      ['swipe', ['360', '400', '40', '400', '300']],
     ],
   );
 });
@@ -1254,6 +1866,20 @@ test('runReplayScriptFile skips Maestro runFlow.when.visible commands when absen
     flags: { replayBackend: 'maestro' },
     invoke: async (req) => {
       calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 0,
+                type: 'application',
+                rect: { x: 0, y: 0, width: 390, height: 844 },
+              },
+            ],
+          },
+        };
+      }
       return {
         ok: false,
         error: {
@@ -1268,8 +1894,71 @@ test('runReplayScriptFile skips Maestro runFlow.when.visible commands when absen
   assert.equal(response.ok, true);
   assert.deepEqual(
     calls.map((call) => [call.command, call.positionals]),
-    [['is', ['visible', 'label="Continue" || text="Continue" || id="Continue"']]],
+    [['snapshot', []]],
   );
+});
+
+test('runReplayScriptFile retries Maestro retry commands until they pass', async () => {
+  const calls: CapturedInvocation[] = [];
+  let openAttempts = 0;
+  const { response } = await runReplayFixture({
+    label: 'maestro-retry',
+    script: [
+      'appId: demo.app',
+      '---',
+      '- retry:',
+      '    maxRetries: 2',
+      '    commands:',
+      '      - openLink:',
+      '          link: demo://details',
+      '      - extendedWaitUntil:',
+      '          visible: Article',
+      '          timeout: 1',
+      '',
+    ].join('\n'),
+    flags: { replayBackend: 'maestro' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'open') openAttempts += 1;
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 0,
+                type: 'application',
+                rect: { x: 0, y: 0, width: 390, height: 844 },
+              },
+              ...(openAttempts > 1
+                ? [
+                    {
+                      index: 1,
+                      depth: 1,
+                      parentIndex: 0,
+                      type: 'statictext',
+                      label: 'Article',
+                      rect: { x: 16, y: 100, width: 120, height: 24 },
+                    },
+                  ]
+                : []),
+            ],
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.filter((call) => call.command === 'open').map((call) => [call.command, call.positionals]),
+    [
+      ['open', ['demo://details']],
+      ['open', ['demo://details']],
+    ],
+  );
+  assert.equal(calls.filter((call) => call.command === 'snapshot').length > 1, true);
 });
 
 test('runReplayScriptFile skips Maestro runFlow.when.visible commands on false predicate', async () => {
@@ -1289,6 +1978,20 @@ test('runReplayScriptFile skips Maestro runFlow.when.visible commands on false p
     flags: { replayBackend: 'maestro' },
     invoke: async (req) => {
       calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 0,
+                type: 'application',
+                rect: { x: 0, y: 0, width: 390, height: 844 },
+              },
+            ],
+          },
+        };
+      }
       return { ok: true, data: { pass: false } };
     },
   });
@@ -1296,7 +1999,7 @@ test('runReplayScriptFile skips Maestro runFlow.when.visible commands on false p
   assert.equal(response.ok, true);
   assert.deepEqual(
     calls.map((call) => [call.command, call.positionals]),
-    [['is', ['visible', 'label="Continue" || text="Continue" || id="Continue"']]],
+    [['snapshot', []]],
   );
 });
 
@@ -1371,7 +2074,28 @@ test('runReplayScriptFile runs Maestro runFlow.when.visible commands when presen
     flags: { replayBackend: 'maestro' },
     invoke: async (req) => {
       calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
-      if (req.command === 'is') return { ok: true, data: { pass: true } };
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 0,
+                type: 'application',
+                rect: { x: 0, y: 0, width: 390, height: 844 },
+              },
+              {
+                index: 1,
+                depth: 1,
+                parentIndex: 0,
+                type: 'button',
+                label: 'Continue',
+                rect: { x: 16, y: 100, width: 120, height: 44 },
+              },
+            ],
+          },
+        };
+      }
       if (req.command === 'click') {
         return {
           ok: false,
@@ -1386,8 +2110,9 @@ test('runReplayScriptFile runs Maestro runFlow.when.visible commands when presen
   assert.deepEqual(
     calls.map((call) => [call.command, call.positionals]),
     [
-      ['is', ['visible', 'label="Continue" || text="Continue" || id="Continue"']],
       ['snapshot', []],
+      ['snapshot', []],
+      ['click', ['76', '122']],
       ['find', ['Continue', 'click']],
     ],
   );
@@ -1413,7 +2138,28 @@ test('runReplayScriptFile runs nested Maestro runtime commands inside runFlow.wh
     flags: { replayBackend: 'maestro' },
     invoke: async (req) => {
       calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
-      if (req.command === 'is') return { ok: true, data: { pass: true } };
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 0,
+                type: 'application',
+                rect: { x: 0, y: 0, width: 390, height: 844 },
+              },
+              {
+                index: 1,
+                depth: 1,
+                parentIndex: 0,
+                type: 'statictext',
+                label: 'Feed',
+                rect: { x: 16, y: 100, width: 120, height: 24 },
+              },
+            ],
+          },
+        };
+      }
       if (req.command === 'wait') return { ok: true, data: { found: true } };
       return { ok: true, data: {} };
     },
@@ -1423,7 +2169,7 @@ test('runReplayScriptFile runs nested Maestro runtime commands inside runFlow.wh
   assert.deepEqual(
     calls.map((call) => [call.command, call.positionals]),
     [
-      ['is', ['visible', 'label="Feed" || text="Feed" || id="Feed"']],
+      ['snapshot', []],
       ['wait', ['label="Done" || text="Done" || id="Done"', '500']],
     ],
   );

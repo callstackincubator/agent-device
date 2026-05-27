@@ -290,4 +290,3 @@ test('appName selector matches nodes with appName field', () => {
   assert.ok(match3);
   assert.equal(match3.matches, 1);
 });
-

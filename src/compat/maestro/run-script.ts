@@ -62,7 +62,7 @@ export function executeRunScriptFile(params: {
 }): Record<string, string> {
   const { scriptPath, env } = params;
   const script = fs.readFileSync(scriptPath, 'utf8');
-  const output: Record<string, unknown> = {};
+  const output: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
 
   try {
     // Compatibility note: node:vm is not a security sandbox. Maestro runScript
@@ -128,12 +128,41 @@ function buildScriptGlobals(
   return {
     ...env,
     output,
-    json: (value: string) => JSON.parse(value) as unknown,
+    json: parseRunScriptJson,
     http: {
       post: (url: string, options?: { headers?: Record<string, string>; body?: string }) =>
         runHttpRequestSync('POST', url, options),
     },
   };
+}
+
+function parseRunScriptJson(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    throw new AppError(
+      'COMMAND_FAILED',
+      `Maestro runScript json() expected a string body, received ${typeof value}.`,
+    );
+  }
+  if (value.trim().length === 0) {
+    throw new AppError(
+      'COMMAND_FAILED',
+      'Maestro runScript json() received an empty body. Check the preceding http response status and setup server output.',
+    );
+  }
+  try {
+    return JSON.parse(value, safeRunScriptJsonReviver) as unknown;
+  } catch (error) {
+    throw new AppError(
+      'COMMAND_FAILED',
+      `Maestro runScript json() could not parse response body: ${error instanceof Error ? error.message : String(error)}`,
+      { bodyPreview: value.slice(0, 1000) },
+      error instanceof Error ? error : undefined,
+    );
+  }
+}
+
+function safeRunScriptJsonReviver(key: string, value: unknown): unknown {
+  return key === '__proto__' || key === 'constructor' || key === 'prototype' ? undefined : value;
 }
 
 function runHttpRequestSync(

@@ -1159,7 +1159,7 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'Platform: Android',
       'Launch context: Expo Go',
       'Project URL: exp://10.0.2.2:8081',
-      'Android does not support open <app> <url>; use a URL target for deep links',
+      'Android Expo URLs can be opened directly when no specific app package must be forced',
     ],
     task: 'Plan the command to launch the Expo project on Android using the project URL.',
     outputs: [plannedCommand('open'), /exp:\/\/10\.0\.2\.2:8081/i, /--platform android/i],

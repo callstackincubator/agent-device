@@ -358,9 +358,11 @@ React Native dev loop:
   There is no open-url command; use open with the URL target or host + URL form.
   Direct iOS URL open remains valid when no host shell is known, but verify that the app UI loaded:
     agent-device open exp://127.0.0.1:8081 --platform ios
-  Android uses the URL target directly; do not write open <app> <url> there:
+  Android Expo URLs can be opened directly when no specific app package must be forced:
     agent-device open exp://127.0.0.1:8081 --platform android
-  Android URL/deep-link opens infer the foreground package after launch when possible, so logs/perf can remain package-bound. If perf still says no package is associated, open the host package/app id first, then open the URL in the same session.
+  Android app-bound deep links can use open <app> <url> when a known package must handle the link:
+    agent-device open com.example.app example://screen --platform android
+  Android URL/deep-link opens infer the foreground package after launch when possible, so logs/perf can remain package-bound. If perf still says no package is associated, use the app-bound form when the package id is known.
   If apps lookup misses the project but shows Expo Go/dev-client and a project URL is available, open the URL/host shell; if no URL is available, ask instead of inventing an app id.
   Expo Dev Client/development builds: open the installed dev-client app id/name; if a dev-client URL is provided, open that URL next. For Metro setup use metro prepare --kind expo.
 
@@ -1263,7 +1265,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '--maestro',
     usageDescription:
-      'Replay: treat input as a Maestro YAML compatibility flow. Supported subset: launchApp with Apple-platform launch arguments and iOS simulator clearState, runFlow file/inline with when.platform/visible/notVisible, ordered trusted runScript file/env steps with http.post/json/output variables, onFlowStart/onFlowComplete, deterministic repeat.times, tapOn including optional, index, childOf, label, and absolute/percentage point taps, doubleTapOn, longPressOn, inputText, eraseText for focused fields, pasteText, openLink, assertVisible, assertNotVisible, extendedWaitUntil, scroll, scrollUntilVisible, absolute/percentage swipe plus swipe.label, takeScreenshot, hideKeyboard, pressKey back/enter/home, back, waitForAnimationToEnd, and stopApp. ' +
+      'Replay: treat input as a Maestro YAML compatibility flow. Supported subset: launchApp with Apple-platform launch arguments and iOS simulator clearState, runFlow file/inline with when.platform/visible/notVisible/true, ordered trusted runScript file/env steps with http.post/json/output variables, onFlowStart/onFlowComplete, deterministic repeat.times, tapOn including optional, index, childOf, label, and absolute/percentage point taps, doubleTapOn, longPressOn, inputText, eraseText for focused fields, pasteText, openLink, assertVisible, assertNotVisible, extendedWaitUntil, scroll, scrollUntilVisible, absolute/percentage swipe plus swipe.label, takeScreenshot, hideKeyboard, pressKey back/enter/home, back, waitForAnimationToEnd, and stopApp. ' +
       'Unsupported syntax fails loudly with a link to https://github.com/callstackincubator/agent-device/issues/558',
   },
   {
@@ -1683,12 +1685,13 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
   test: {
     usageOverride: 'test <path-or-glob>...',
     listUsageOverride: 'test <path-or-glob>...',
-    helpDescription: 'Run one or more .ad scripts as a serial test suite',
-    summary: 'Run .ad test suites',
+    helpDescription: 'Run one or more replay scripts as a serial test suite',
+    summary: 'Run replay test suites',
     positionalArgs: ['pathOrGlob'],
     allowsExtraPositionals: true,
     allowedFlags: [
       'replayUpdate',
+      'replayMaestro',
       'replayEnv',
       'failFast',
       'timeoutMs',

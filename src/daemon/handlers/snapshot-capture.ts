@@ -60,7 +60,10 @@ export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
   androidSnapshot?: AndroidSnapshotBackendMetadata;
   freshness?: AndroidFreshnessCaptureMeta;
 }> {
-  if (params.device.platform === 'ios' && params.session?.postGestureStabilization) {
+  if (
+    (params.device.platform === 'ios' || params.device.platform === 'android') &&
+    params.session?.postGestureStabilization
+  ) {
     return {
       snapshot: await capturePostGestureStabilizedSnapshot({
         session: params.session,

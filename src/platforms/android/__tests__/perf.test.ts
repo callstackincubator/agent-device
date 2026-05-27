@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import {
-  parseAndroidFramePerfSample,
-  parseAndroidMemInfoSample,
-} from '../perf.ts';
+import { parseAndroidFramePerfSample, parseAndroidMemInfoSample } from '../perf.ts';
 
 test('parseAndroidMemInfoSample supports legacy total row layout', () => {
   const sample = parseAndroidMemInfoSample(

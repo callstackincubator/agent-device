@@ -9,4 +9,3 @@ test('parseTriggerAppEventArgs validates event name format', () => {
     (error) => error instanceof AppError && error.code === 'INVALID_ARGS',
   );
 });
-

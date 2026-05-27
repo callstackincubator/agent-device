@@ -456,6 +456,7 @@ export function createAgentDeviceClient(
         await executeCommandRequest(PUBLIC_COMMANDS.test, options.paths, {
           ...options,
           replayUpdate: options.update,
+          replayBackend: options.backend ?? (options.maestro === true ? 'maestro' : undefined),
           replayEnv: options.env,
           replayShellEnv: collectReplayClientShellEnv(process.env),
         }),

@@ -7,6 +7,7 @@ import {
   ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,
   ANDROID_SNAPSHOT_HELPER_PACKAGE,
   ANDROID_SNAPSHOT_HELPER_PROTOCOL,
+  ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_QUIET_MS,
   ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
 } from './snapshot-helper-types.ts';
 import type {
@@ -29,61 +30,28 @@ type AndroidInstrumentationRecordState = {
   currentResult: Record<string, string> | null;
 };
 
+type AndroidSnapshotHelperResolvedCaptureOptions = {
+  waitForIdleTimeoutMs: number;
+  waitForIdleQuietMs: number;
+  timeoutMs: number;
+  commandTimeoutMs: number;
+  maxDepth: number;
+  maxNodes: number;
+  packageName: string;
+  runner: string;
+  outputPath?: string;
+};
+
 export async function captureAndroidSnapshotWithHelper(
   options: AndroidSnapshotHelperCaptureOptions,
 ): Promise<AndroidSnapshotHelperOutput> {
-  const waitForIdleTimeoutMs =
-    options.waitForIdleTimeoutMs ?? ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS;
-  const timeoutMs = options.timeoutMs ?? 8_000;
-  const commandTimeoutMs =
-    options.commandTimeoutMs ?? timeoutMs + ANDROID_SNAPSHOT_HELPER_COMMAND_OVERHEAD_MS;
-  const maxDepth = options.maxDepth ?? 128;
-  const maxNodes = options.maxNodes ?? 5_000;
-  const packageName = options.packageName ?? ANDROID_SNAPSHOT_HELPER_PACKAGE;
-  const runner = options.instrumentationRunner ?? `${packageName}/.SnapshotInstrumentation`;
-  const args = [
-    'shell',
-    'am',
-    'instrument',
-    '-w',
-    '-e',
-    'waitForIdleTimeoutMs',
-    String(waitForIdleTimeoutMs),
-    '-e',
-    'timeoutMs',
-    String(timeoutMs),
-    '-e',
-    'maxDepth',
-    String(maxDepth),
-    '-e',
-    'maxNodes',
-    String(maxNodes),
-    runner,
-  ];
-
-  const result = await options.adb(args, {
+  const resolved = resolveAndroidSnapshotHelperCaptureOptions(options);
+  const result = await options.adb(buildAndroidSnapshotHelperArgs(resolved), {
     allowFailure: true,
-    timeoutMs: commandTimeoutMs,
+    timeoutMs: resolved.commandTimeoutMs,
   });
-  let output: AndroidSnapshotHelperOutput;
-  try {
-    // The helper can report structured ok=false details even when am exits non-zero.
-    output = parseAndroidSnapshotHelperOutput(`${result.stdout}\n${result.stderr}`);
-  } catch (error) {
-    if (error instanceof AppError && result.exitCode !== 0 && error.details?.helper) throw error;
-    throw new AppError(
-      'COMMAND_FAILED',
-      result.exitCode === 0
-        ? 'Android snapshot helper output could not be parsed'
-        : 'Android snapshot helper failed before returning parseable output',
-      {
-        stdout: result.stdout,
-        stderr: result.stderr,
-        exitCode: result.exitCode,
-      },
-      error,
-    );
-  }
+  const output = await readAndroidSnapshotHelperOutput(options, resolved, result);
+  if (resolved.outputPath) await removeHelperOutputFile(options.adb, resolved.outputPath);
   if (result.exitCode !== 0) {
     throw new AppError('COMMAND_FAILED', 'Android snapshot helper failed', {
       stdout: result.stdout,
@@ -93,6 +61,141 @@ export async function captureAndroidSnapshotWithHelper(
     });
   }
   return output;
+}
+
+function resolveAndroidSnapshotHelperCaptureOptions(
+  options: AndroidSnapshotHelperCaptureOptions,
+): AndroidSnapshotHelperResolvedCaptureOptions {
+  const timeoutMs = withDefault(options.timeoutMs, 8_000);
+  const packageName = withDefault(options.packageName, ANDROID_SNAPSHOT_HELPER_PACKAGE);
+  return {
+    waitForIdleTimeoutMs: withDefault(
+      options.waitForIdleTimeoutMs,
+      ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
+    ),
+    waitForIdleQuietMs: withDefault(
+      options.waitForIdleQuietMs,
+      ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_QUIET_MS,
+    ),
+    timeoutMs,
+    commandTimeoutMs: withDefault(
+      options.commandTimeoutMs,
+      timeoutMs + ANDROID_SNAPSHOT_HELPER_COMMAND_OVERHEAD_MS,
+    ),
+    maxDepth: withDefault(options.maxDepth, 128),
+    maxNodes: withDefault(options.maxNodes, 5_000),
+    packageName,
+    runner: withDefault(options.instrumentationRunner, `${packageName}/.SnapshotInstrumentation`),
+    ...(options.outputPath ? { outputPath: options.outputPath } : {}),
+  };
+}
+
+function withDefault<T>(value: T | undefined, fallback: T): T {
+  return value === undefined ? fallback : value;
+}
+
+function buildAndroidSnapshotHelperArgs(
+  options: AndroidSnapshotHelperResolvedCaptureOptions,
+): string[] {
+  return [
+    'shell',
+    'am',
+    'instrument',
+    '-w',
+    '-e',
+    'waitForIdleTimeoutMs',
+    String(options.waitForIdleTimeoutMs),
+    '-e',
+    'waitForIdleQuietMs',
+    String(options.waitForIdleQuietMs),
+    '-e',
+    'timeoutMs',
+    String(options.timeoutMs),
+    '-e',
+    'maxDepth',
+    String(options.maxDepth),
+    '-e',
+    'maxNodes',
+    String(options.maxNodes),
+    ...(options.outputPath ? ['-e', 'outputPath', options.outputPath] : []),
+    options.runner,
+  ];
+}
+
+async function readAndroidSnapshotHelperOutput(
+  options: AndroidSnapshotHelperCaptureOptions,
+  resolved: AndroidSnapshotHelperResolvedCaptureOptions,
+  result: Awaited<ReturnType<AndroidSnapshotHelperCaptureOptions['adb']>>,
+): Promise<AndroidSnapshotHelperOutput> {
+  try {
+    // The helper can report structured ok=false details even when am exits non-zero.
+    return parseAndroidSnapshotHelperOutput(`${result.stdout}\n${result.stderr}`);
+  } catch (error) {
+    return await readFallbackHelperOutputOrThrow(options, resolved, result, error);
+  }
+}
+
+async function readFallbackHelperOutputOrThrow(
+  options: AndroidSnapshotHelperCaptureOptions,
+  resolved: AndroidSnapshotHelperResolvedCaptureOptions,
+  result: Awaited<ReturnType<AndroidSnapshotHelperCaptureOptions['adb']>>,
+  error: unknown,
+): Promise<AndroidSnapshotHelperOutput> {
+  if (resolved.outputPath) {
+    const fileOutput = await readHelperOutputFile(options.adb, resolved.outputPath, {
+      waitForIdleTimeoutMs: resolved.waitForIdleTimeoutMs,
+      waitForIdleQuietMs: resolved.waitForIdleQuietMs,
+      timeoutMs: resolved.timeoutMs,
+      maxDepth: resolved.maxDepth,
+      maxNodes: resolved.maxNodes,
+    });
+    if (fileOutput) return fileOutput;
+  }
+  if (error instanceof AppError && result.exitCode !== 0 && error.details?.helper) throw error;
+  throw new AppError(
+    'COMMAND_FAILED',
+    result.exitCode === 0
+      ? 'Android snapshot helper output could not be parsed'
+      : 'Android snapshot helper failed before returning parseable output',
+    {
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+    },
+    error,
+  );
+}
+
+async function readHelperOutputFile(
+  adb: AndroidSnapshotHelperCaptureOptions['adb'],
+  outputPath: string,
+  metadata: Omit<AndroidSnapshotHelperMetadata, 'outputFormat'>,
+): Promise<AndroidSnapshotHelperOutput | undefined> {
+  const result = await adb(['shell', 'cat', outputPath], {
+    allowFailure: true,
+    timeoutMs: 5_000,
+  });
+  await removeHelperOutputFile(adb, outputPath);
+  if (result.exitCode !== 0) return undefined;
+  const xml = result.stdout.trim();
+  if (!xml.includes('<hierarchy') || !xml.includes('</hierarchy>')) return undefined;
+  return {
+    xml,
+    metadata: {
+      ...metadata,
+      outputFormat: ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,
+    },
+  };
+}
+
+async function removeHelperOutputFile(
+  adb: AndroidSnapshotHelperCaptureOptions['adb'],
+  outputPath: string,
+): Promise<void> {
+  await adb(['shell', 'rm', '-f', outputPath], {
+    allowFailure: true,
+    timeoutMs: 5_000,
+  });
 }
 
 export function parseAndroidSnapshotHelperOutput(output: string): AndroidSnapshotHelperOutput {
@@ -241,6 +344,7 @@ function readHelperMetadata(finalResult: Record<string, string>): AndroidSnapsho
     helperApiVersion: finalResult.helperApiVersion,
     outputFormat: ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,
     waitForIdleTimeoutMs: readOptionalNumber(finalResult.waitForIdleTimeoutMs),
+    waitForIdleQuietMs: readOptionalNumber(finalResult.waitForIdleQuietMs),
     timeoutMs: readOptionalNumber(finalResult.timeoutMs),
     maxDepth: readOptionalNumber(finalResult.maxDepth),
     maxNodes: readOptionalNumber(finalResult.maxNodes),

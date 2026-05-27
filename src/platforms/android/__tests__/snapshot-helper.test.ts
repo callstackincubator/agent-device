@@ -47,6 +47,7 @@ test('parseAndroidSnapshotHelperOutput reconstructs XML chunks and metadata', ()
       helperApiVersion: '1',
       outputFormat: 'uiautomator-xml',
       waitForIdleTimeoutMs: '25',
+      waitForIdleQuietMs: '10',
       timeoutMs: '8000',
       maxDepth: '128',
       maxNodes: '5000',
@@ -66,6 +67,7 @@ test('parseAndroidSnapshotHelperOutput reconstructs XML chunks and metadata', ()
     helperApiVersion: '1',
     outputFormat: 'uiautomator-xml',
     waitForIdleTimeoutMs: 25,
+    waitForIdleQuietMs: 10,
     timeoutMs: 8000,
     maxDepth: 128,
     maxNodes: 5000,
@@ -522,6 +524,11 @@ test('ensureAndroidSnapshotHelper retry install also uses provider install capab
 test('captureAndroidSnapshotWithHelper uses injected adb executor', async () => {
   let capturedArgs: string[] | undefined;
   const adb: AndroidAdbExecutor = async (args, options) => {
+    if (args[0] === 'shell' && args[1] === 'rm') {
+      assert.equal(options?.allowFailure, true);
+      assert.equal(options?.timeoutMs, 5000);
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
     capturedArgs = args;
     assert.equal(options?.allowFailure, true);
     assert.equal(options?.timeoutMs, 14000);
@@ -533,6 +540,7 @@ test('captureAndroidSnapshotWithHelper uses injected adb executor', async () => 
           ok: 'true',
           outputFormat: 'uiautomator-xml',
           waitForIdleTimeoutMs: '10',
+          waitForIdleQuietMs: '5',
           timeoutMs: '9000',
           maxDepth: '64',
           maxNodes: '100',
@@ -545,9 +553,11 @@ test('captureAndroidSnapshotWithHelper uses injected adb executor', async () => 
   const result = await captureAndroidSnapshotWithHelper({
     adb,
     waitForIdleTimeoutMs: 10,
+    waitForIdleQuietMs: 5,
     timeoutMs: 9000,
     maxDepth: 64,
     maxNodes: 100,
+    outputPath: '/sdcard/Android/data/com.callstack.agentdevice.snapshothelper/files/test.xml',
   });
 
   assert.deepEqual(capturedArgs, [
@@ -559,6 +569,9 @@ test('captureAndroidSnapshotWithHelper uses injected adb executor', async () => 
     'waitForIdleTimeoutMs',
     '10',
     '-e',
+    'waitForIdleQuietMs',
+    '5',
+    '-e',
     'timeoutMs',
     '9000',
     '-e',
@@ -567,6 +580,9 @@ test('captureAndroidSnapshotWithHelper uses injected adb executor', async () => 
     '-e',
     'maxNodes',
     '100',
+    '-e',
+    'outputPath',
+    '/sdcard/Android/data/com.callstack.agentdevice.snapshothelper/files/test.xml',
     'com.callstack.agentdevice.snapshothelper/.SnapshotInstrumentation',
   ]);
   assert.equal(result.xml, '<hierarchy><node index="0" /></hierarchy>');
@@ -576,7 +592,10 @@ test('captureAndroidSnapshotWithHelper uses injected adb executor', async () => 
 test('captureAndroidSnapshotWithHelper gives adb command overhead beyond helper timeout', async () => {
   let commandTimeoutMs: number | undefined;
   await captureAndroidSnapshotWithHelper({
-    adb: async (_args, options) => {
+    adb: async (args, options) => {
+      if (args[0] === 'shell' && args[1] === 'rm') {
+        return { exitCode: 0, stdout: '', stderr: '' };
+      }
       commandTimeoutMs = options?.timeoutMs;
       return {
         exitCode: 0,
@@ -620,6 +639,42 @@ test('captureAndroidSnapshotWithHelper wraps unparseable failed output with adb 
       return true;
     },
   );
+});
+
+test('captureAndroidSnapshotWithHelper reads helper output file when instrumentation output is unparseable', async () => {
+  const calls: string[][] = [];
+  const result = await captureAndroidSnapshotWithHelper({
+    adb: async (args) => {
+      calls.push(args);
+      if (args[0] === 'shell' && args[1] === 'am') {
+        return {
+          exitCode: 0,
+          stdout: 'INSTRUMENTATION_RESULT: shortMsg=Process crashed.',
+          stderr: '',
+        };
+      }
+      if (args[0] === 'shell' && args[1] === 'cat') {
+        return {
+          exitCode: 0,
+          stdout: '<hierarchy><node text="file fallback"/></hierarchy>',
+          stderr: '',
+        };
+      }
+      if (args[0] === 'shell' && args[1] === 'rm') {
+        return { exitCode: 0, stdout: '', stderr: '' };
+      }
+      throw new Error(`unexpected args: ${args.join(' ')}`);
+    },
+    outputPath: '/sdcard/Android/data/com.callstack.agentdevice.snapshothelper/files/test.xml',
+  });
+
+  assert.equal(result.xml, '<hierarchy><node text="file fallback"/></hierarchy>');
+  assert.equal(result.metadata.outputFormat, 'uiautomator-xml');
+  assert.deepEqual(calls.at(1), [
+    'shell',
+    'cat',
+    '/sdcard/Android/data/com.callstack.agentdevice.snapshothelper/files/test.xml',
+  ]);
 });
 
 test('prepareAndroidSnapshotHelperArtifactFromManifestUrl downloads and verifies APK', async () => {

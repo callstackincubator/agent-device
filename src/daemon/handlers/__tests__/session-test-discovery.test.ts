@@ -51,7 +51,29 @@ test('discoverReplayTestEntries rejects empty post-filter suites', () => {
     (error: unknown) =>
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
-      error.message === 'No .ad tests matched for --platform android.',
+      error.message === 'No replay tests matched for --platform android.',
   );
 });
 
+test('discoverReplayTestEntries includes Maestro yaml flows for Maestro test suites', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-discovery-maestro-'));
+  fs.writeFileSync(path.join(root, '01-flow.yaml'), 'appId: demo\n---\n- launchApp\n');
+  fs.writeFileSync(path.join(root, '02-flow.yml'), 'appId: demo\n---\n- launchApp\n');
+  fs.writeFileSync(path.join(root, '03-flow.ad'), 'open "Demo"\n');
+
+  const entries = discoverReplayTestEntries({
+    inputs: [root],
+    cwd: root,
+    platformFilter: 'android',
+    replayBackend: 'maestro',
+  });
+
+  assert.deepEqual(
+    entries.map((entry) => path.basename(entry.path)),
+    ['01-flow.yaml', '02-flow.yml', '03-flow.ad'],
+  );
+  assert.deepEqual(
+    entries.map((entry) => entry.kind),
+    ['run', 'run', 'run'],
+  );
+});

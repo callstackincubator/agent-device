@@ -32,9 +32,7 @@ export async function runAgentDeviceMcpServer(): Promise<void> {
   });
 }
 
-export function handleMcpPayload(
-  messageOrBatch: JsonRpcMessage | JsonRpcMessage[],
-): unknown | null {
+function handleMcpPayload(messageOrBatch: JsonRpcMessage | JsonRpcMessage[]): unknown | null {
   if (Array.isArray(messageOrBatch)) {
     const responses = messageOrBatch.flatMap((message) => responseArray(handleMcpMessage(message)));
     return responses.length > 0 ? responses : null;

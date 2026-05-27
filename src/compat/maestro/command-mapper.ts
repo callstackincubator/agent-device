@@ -16,13 +16,15 @@ import {
 } from './interactions.ts';
 import {
   action,
+  assertOnlyKeys,
+  isPlainRecord,
   readTimeoutMs,
   requireAppId,
   requireStringValue,
   resolveMaestroString,
   unsupportedCommand,
 } from './support.ts';
-import { convertRepeat, convertRunFlow } from './flow-control.ts';
+import { convertRepeat, convertRetry, convertRunFlow } from './flow-control.ts';
 import { convertRunScript } from './run-script.ts';
 import { MAESTRO_RUNTIME_COMMAND } from './runtime-commands.ts';
 import type {
@@ -54,7 +56,10 @@ const MAP_COMMAND_HANDLERS: Record<string, MaestroCommandHandler> = {
   ],
   openLink: ({ value, config, context, name }) => [convertOpenLink(value, config, context, name)],
   assertVisible: ({ value, context, name }) => [
-    action('wait', [maestroSelector(value, name, [], context), '5000']),
+    action(MAESTRO_RUNTIME_COMMAND.assertVisible, [
+      maestroSelector(value, name, [], context),
+      '5000',
+    ]),
   ],
   assertNotVisible: ({ value, context, name }) => [
     action(MAESTRO_RUNTIME_COMMAND.assertNotVisible, [maestroSelector(value, name, [], context)]),
@@ -78,6 +83,8 @@ const MAP_COMMAND_HANDLERS: Record<string, MaestroCommandHandler> = {
     convertRunFlow(value, config, context, deps, convertCommandList),
   repeat: ({ value, config, context, deps }) =>
     convertRepeat(value, config, context, deps, convertCommandList),
+  retry: ({ value, config, context, deps }) =>
+    convertRetry(value, config, context, deps, convertCommandList),
 };
 
 const SCALAR_COMMAND_HANDLERS: Record<
@@ -145,11 +152,19 @@ function convertOpenLink(
   context: MaestroParseContext,
   name: string,
 ): SessionAction {
-  const url = resolveMaestroString(requireStringValue(name, value), context);
+  const rawLink = readOpenLink(value, name);
+  const url = resolveMaestroString(rawLink, context);
   if (context.platform === 'ios' && config.appId) {
     return action('open', [resolveMaestroString(requireAppId(config, name), context), url]);
   }
   return action('open', [url]);
+}
+
+function readOpenLink(value: unknown, name: string): string {
+  if (typeof value === 'string') return value;
+  if (!isPlainRecord(value)) return requireStringValue(name, value);
+  assertOnlyKeys(value, name, ['link']);
+  return requireStringValue(`${name}.link`, value.link);
 }
 
 function convertCommandList(

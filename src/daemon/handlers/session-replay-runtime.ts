@@ -198,7 +198,7 @@ function buildReplayMetadataFlags(
   };
 }
 
-export function withReplayFailureContext(
+function withReplayFailureContext(
   response: DaemonResponse,
   action: SessionAction,
   index: number,

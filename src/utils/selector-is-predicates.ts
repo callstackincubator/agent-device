@@ -21,7 +21,8 @@ export function evaluateIsPredicate(params: {
   const actualText = extractNodeText(node);
   const editable = isNodeEditable(node, platform);
   const selected = node.selected === true;
-  const visible = predicate === 'text' ? isNodeVisible(node) : isAssertionVisible(node, nodes);
+  const visible =
+    predicate === 'text' ? isNodeVisible(node) : isAssertionVisible(node, nodes, platform);
   let pass = false;
   switch (predicate) {
     case 'visible':
@@ -54,14 +55,14 @@ export function evaluateIsPredicate(params: {
 function isAssertionVisible(
   node: SnapshotState['nodes'][number],
   nodes: SnapshotState['nodes'],
+  platform: Platform,
 ): boolean {
-  if (node.hittable === true) return true;
   if (hasPositiveRect(node.rect)) return isRectVisibleInViewport(node, nodes);
   if (node.rect) return false;
+  if (platform !== 'android' && node.hittable === true) return true;
   const anchor = resolveVisibilityAnchor(node, nodes);
   if (!anchor) return false;
-  if (anchor.hittable === true) return true;
-  if (!hasPositiveRect(anchor.rect)) return false;
+  if (!hasPositiveRect(anchor.rect)) return platform !== 'android' && anchor.hittable === true;
   return isRectVisibleInViewport(anchor, nodes);
 }
 

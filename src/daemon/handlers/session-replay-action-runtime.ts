@@ -7,7 +7,7 @@ import {
 } from '../../replay/vars.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction } from '../types.ts';
 import { mergeParentFlags } from './handler-utils.ts';
-import { invokeMaestroRuntimeCommand } from './session-replay-maestro-runtime.ts';
+import { invokeMaestroRuntimeCommand } from '../../compat/maestro/runtime.ts';
 
 type ReplayBaseRequest = Omit<DaemonRequest, 'command' | 'positionals'>;
 
@@ -140,7 +140,7 @@ function appendReplayTraceEvent(
   fs.appendFileSync(tracePath, `${JSON.stringify(event)}\n`);
 }
 
-export function buildReplayActionFlags(
+function buildReplayActionFlags(
   parentFlags: CommandFlags | undefined,
   actionFlags: SessionAction['flags'] | undefined,
 ): CommandFlags {

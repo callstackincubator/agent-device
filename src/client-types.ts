@@ -674,20 +674,24 @@ export type FindOptions =
   | (FindBaseOptions & { action: 'wait'; timeoutMs?: number })
   | (FindBaseOptions & { action: 'fill' | 'type'; value: string });
 
-export type ReplayRunOptions = AgentDeviceRequestOverrides & {
-  path: string;
-  update?: boolean;
-  /** @deprecated Use backend: 'maestro'. */
-  maestro?: boolean;
-  backend?: string;
-  env?: string[];
-  timeoutMs?: number;
-};
+export type ReplayRunOptions = AgentDeviceRequestOverrides &
+  AgentDeviceSelectionOptions & {
+    path: string;
+    update?: boolean;
+    /** @deprecated Use backend: 'maestro'. */
+    maestro?: boolean;
+    backend?: string;
+    env?: string[];
+    timeoutMs?: number;
+  };
 
 export type ReplayTestOptions = AgentDeviceRequestOverrides &
   AgentDeviceSelectionOptions & {
     paths: string[];
     update?: boolean;
+    /** @deprecated Use backend: 'maestro'. */
+    maestro?: boolean;
+    backend?: string;
     env?: string[];
     failFast?: boolean;
     timeoutMs?: number;

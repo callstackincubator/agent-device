@@ -9,4 +9,3 @@ test('unsupportedRefSnapshotFlags returns unsupported snapshot flags for @ref fl
   });
   expect(unsupported).toEqual(['--depth', '--scope', '--raw']);
 });
-

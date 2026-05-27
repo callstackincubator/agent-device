@@ -47,4 +47,3 @@ test('runReplayTestAttempt keeps cancellation active until a timed-out replay se
 
   expect(isRequestCanceled('req-timeout-open')).toBe(false);
 });
-

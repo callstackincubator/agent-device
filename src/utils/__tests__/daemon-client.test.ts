@@ -13,6 +13,7 @@ import {
 } from '../../__tests__/test-utils/index.ts';
 import { runCmdBackground } from '../exec.ts';
 import {
+  canConnectSocket,
   cleanupFailedDaemonStartupMetadata,
   computeDaemonCodeSignature,
   downloadRemoteArtifact,
@@ -282,6 +283,40 @@ test('cleanupFailedDaemonStartupMetadata removes stale daemon metadata on timeou
     assert.equal(fs.existsSync(paths.lockPath), false);
   } finally {
     fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('canConnectSocket times out stalled local daemon probes', async () => {
+  const originalCreateConnection = net.createConnection;
+  let timeoutMs: number | undefined;
+  let destroyed = false;
+  const socket = new EventEmitter() as EventEmitter & {
+    destroy: () => void;
+    setTimeout: (ms: number) => typeof socket;
+  };
+  socket.destroy = () => {
+    destroyed = true;
+  };
+  socket.setTimeout = (ms: number) => {
+    timeoutMs = ms;
+    setImmediate(() => socket.emit('timeout'));
+    return socket;
+  };
+
+  (net as unknown as { createConnection: typeof net.createConnection }).createConnection = ((
+    _options: unknown,
+    _listener?: () => void,
+  ) => socket) as typeof net.createConnection;
+
+  try {
+    const reachable = await canConnectSocket(65_530);
+
+    assert.equal(reachable, false);
+    assert.equal(timeoutMs, 500);
+    assert.equal(destroyed, true);
+  } finally {
+    (net as unknown as { createConnection: typeof net.createConnection }).createConnection =
+      originalCreateConnection;
   }
 });
 

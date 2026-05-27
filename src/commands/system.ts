@@ -9,6 +9,7 @@ import type { CommandContext } from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
 import { requireIntInRange } from '../utils/validation.ts';
+import { isKeyboardAction } from '../utils/keyboard-actions.ts';
 import type { RuntimeCommand } from './runtime-types.ts';
 import { toBackendContext } from './selector-read-utils.ts';
 import { normalizeOptionalText } from './text.ts';
@@ -217,30 +218,12 @@ export const keyboardCommand: RuntimeCommand<
   const formattedBackendResult = toBackendResult(state);
   const keyboardState = isKeyboardResult(state) ? state : {};
   if (action === 'enter' || action === 'return') {
-    return {
-      kind: 'keyboardEnterPressed',
-      action: 'enter',
-      state: keyboardState,
-      ...(formattedBackendResult ? { backendResult: formattedBackendResult } : {}),
-      ...successText('Keyboard enter pressed'),
-    };
+    return normalizeKeyboardEnterResult(keyboardState, formattedBackendResult);
   }
   if (action === 'dismiss') {
-    const dismissed = isKeyboardResult(state) ? state.dismissed : undefined;
-    return {
-      kind: 'keyboardDismissed',
-      action,
-      state: keyboardState,
-      ...(formattedBackendResult ? { backendResult: formattedBackendResult } : {}),
-      ...successText(dismissed === false ? 'Keyboard already hidden' : 'Keyboard dismissed'),
-    };
+    return normalizeKeyboardDismissResult(action, keyboardState, formattedBackendResult);
   }
-  return {
-    kind: 'keyboardState',
-    action,
-    state: keyboardState,
-    ...(formattedBackendResult ? { backendResult: formattedBackendResult } : {}),
-  };
+  return normalizeKeyboardStateResult(action, keyboardState, formattedBackendResult);
 };
 
 export const clipboardCommand: RuntimeCommand<
@@ -368,14 +351,53 @@ function normalizeAlertResult(
   action: BackendAlertAction,
   result: BackendAlertResult,
 ): SystemAlertCommandResult {
-  switch (action) {
-    case 'get':
-      return normalizeAlertStatusResult(result);
-    case 'wait':
-      return normalizeAlertWaitResult(result);
-    default:
-      return normalizeAlertHandledResult(action, result);
+  if (action === 'get') {
+    return normalizeAlertStatusResult(result);
   }
+  if (action === 'wait') {
+    return normalizeAlertWaitResult(result);
+  }
+  return normalizeAlertHandledResult(action, result);
+}
+
+function normalizeKeyboardEnterResult(
+  state: BackendKeyboardResult,
+  backendResult: Record<string, unknown> | undefined,
+): SystemKeyboardCommandResult {
+  return {
+    kind: 'keyboardEnterPressed',
+    action: 'enter',
+    state,
+    ...(backendResult ? { backendResult } : {}),
+    ...successText('Keyboard enter pressed'),
+  };
+}
+
+function normalizeKeyboardDismissResult(
+  action: 'dismiss',
+  state: BackendKeyboardResult,
+  backendResult: Record<string, unknown> | undefined,
+): SystemKeyboardCommandResult {
+  return {
+    kind: 'keyboardDismissed',
+    action,
+    state,
+    ...(backendResult ? { backendResult } : {}),
+    ...successText(state.dismissed === false ? 'Keyboard already hidden' : 'Keyboard dismissed'),
+  };
+}
+
+function normalizeKeyboardStateResult(
+  action: 'status' | 'get',
+  state: BackendKeyboardResult,
+  backendResult: Record<string, unknown> | undefined,
+): SystemKeyboardCommandResult {
+  return {
+    kind: 'keyboardState',
+    action,
+    state,
+    ...(backendResult ? { backendResult } : {}),
+  };
 }
 
 function normalizeAlertStatusResult(result: BackendAlertResult): SystemAlertCommandResult {
@@ -400,7 +422,7 @@ function normalizeAlertWaitResult(result: BackendAlertResult): SystemAlertComman
 }
 
 function normalizeAlertHandledResult(
-  action: Extract<BackendAlertAction, 'accept' | 'dismiss'>,
+  action: Exclude<BackendAlertAction, 'get' | 'wait'>,
   result: BackendAlertResult,
 ): SystemAlertCommandResult {
   if (result.kind !== 'alertHandled') {
@@ -417,18 +439,6 @@ function normalizeAlertHandledResult(
     ...(result.button ? { button: result.button } : {}),
     ...successText(result.handled ? `Alert ${action}ed` : 'No alert handled'),
   };
-}
-
-function isKeyboardAction(
-  action: string,
-): action is 'status' | 'get' | 'dismiss' | 'enter' | 'return' {
-  return (
-    action === 'status' ||
-    action === 'get' ||
-    action === 'dismiss' ||
-    action === 'enter' ||
-    action === 'return'
-  );
 }
 
 function isKeyboardResult(value: unknown): value is BackendKeyboardResult {

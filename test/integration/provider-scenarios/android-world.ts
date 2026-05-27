@@ -320,6 +320,13 @@ function androidCaptureAdbResult(
   searchText: string,
   snapshotXml?: () => string,
 ): AndroidAdbResult | undefined {
+  if (key.startsWith('shell am instrument ')) {
+    return {
+      stdout: androidSnapshotHelperOutput(snapshotXml?.() ?? androidSettingsXml(searchText)),
+      stderr: '',
+      exitCode: 0,
+    };
+  }
   if (key === 'exec-out uiautomator dump /dev/tty') {
     return {
       stdout: snapshotXml?.() ?? androidSettingsXml(searchText),
@@ -331,6 +338,22 @@ function androidCaptureAdbResult(
     return { stdout: '', stderr: '', exitCode: 0, stdoutBuffer: validPng() };
   }
   return undefined;
+}
+
+function androidSnapshotHelperOutput(xml: string): string {
+  return [
+    'INSTRUMENTATION_STATUS: agentDeviceProtocol=android-snapshot-helper-v1',
+    'INSTRUMENTATION_STATUS: helperApiVersion=1',
+    'INSTRUMENTATION_STATUS: outputFormat=uiautomator-xml',
+    'INSTRUMENTATION_STATUS: chunkIndex=0',
+    'INSTRUMENTATION_STATUS: chunkCount=1',
+    `INSTRUMENTATION_STATUS: payloadBase64=${Buffer.from(xml, 'utf8').toString('base64')}`,
+    'INSTRUMENTATION_STATUS_CODE: 1',
+    'INSTRUMENTATION_RESULT: agentDeviceProtocol=android-snapshot-helper-v1',
+    'INSTRUMENTATION_RESULT: helperApiVersion=1',
+    'INSTRUMENTATION_RESULT: ok=true',
+    'INSTRUMENTATION_CODE: 0',
+  ].join('\n');
 }
 
 export function androidSettingsXml(

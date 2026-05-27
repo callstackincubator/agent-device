@@ -158,4 +158,3 @@ test('resolveDevice returns physical device when explicitly selected by deviceNa
   });
   assert.equal(result.id, 'phys-1');
 });
-

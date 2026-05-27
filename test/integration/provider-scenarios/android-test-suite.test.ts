@@ -68,3 +68,72 @@ test('Provider-backed integration Android replay test suite covers retries and f
     assert.equal(failFastSuite.notRun, 1, JSON.stringify(failFastSuite));
   });
 });
+
+test('Provider-backed integration Android Maestro replay uses fresh selector snapshots and content-lane swipes', async () => {
+  let snapshots = 0;
+  await withProviderScenarioResource(
+    async () =>
+      await createAndroidSettingsWorld({
+        snapshotXml: () => {
+          snapshots += 1;
+          return androidMaestroReplayXml(
+            snapshots === 1 ? '[16,24][374,80]' : '[100,300][260,360]',
+          );
+        },
+      }),
+    async (world) => {
+      const client = world.daemon.client();
+      const suiteRoot = path.join(world.tempRoot, 'suite-maestro');
+      fs.mkdirSync(suiteRoot, { recursive: true });
+      const flowPath = path.join(suiteRoot, 'maestro-flow.yaml');
+      fs.writeFileSync(
+        flowPath,
+        [
+          'appId: com.android.settings',
+          '---',
+          '- launchApp',
+          '- assertVisible: Apps',
+          '- tapOn: Search',
+          '- swipe:',
+          '    start: 90%, 50%',
+          '    end: 10%, 50%',
+          '    duration: 300',
+          '',
+        ].join('\n'),
+      );
+
+      const suite = await client.replay.test({
+        paths: [flowPath],
+        backend: 'maestro',
+        artifactsDir: path.join(suiteRoot, 'artifacts'),
+        timeoutMs: 30000,
+        ...world.selection,
+      });
+
+      assert.equal(suite.total, 1, JSON.stringify(suite));
+      assert.equal(suite.passed, 1, JSON.stringify(suite));
+      assert.equal(suite.failed, 0, JSON.stringify(suite));
+      assert.deepEqual(
+        world.adbCalls.find((call) => call.slice(0, 3).join(' ') === 'shell input tap'),
+        ['shell', 'input', 'tap', '180', '330'],
+      );
+      assert.deepEqual(
+        world.adbCalls.find((call) => call.slice(0, 3).join(' ') === 'shell input swipe'),
+        ['shell', 'input', 'swipe', '351', '390', '39', '390', '300'],
+      );
+      assert.equal(snapshots >= 2, true);
+    },
+  );
+});
+
+function androidMaestroReplayXml(searchBounds: string): string {
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<hierarchy rotation="0">',
+    '  <node index="0" text="" resource-id="com.android.settings:id/main_content_scrollable_container" class="android.widget.ScrollView" package="com.android.settings" content-desc="" bounds="[0,0][390,600]" clickable="false" enabled="true">',
+    '    <node index="0" text="Apps" resource-id="android:id/title" class="android.widget.TextView" package="com.android.settings" content-desc="" bounds="[24,124][152,178]" clickable="true" enabled="true" focusable="true" focused="false" />',
+    `    <node index="1" text="" resource-id="com.android.settings:id/search" class="android.widget.EditText" package="com.android.settings" content-desc="Search" bounds="${searchBounds}" clickable="true" enabled="true" focusable="true" focused="false" password="false" />`,
+    '  </node>',
+    '</hierarchy>',
+  ].join('\n');
+}

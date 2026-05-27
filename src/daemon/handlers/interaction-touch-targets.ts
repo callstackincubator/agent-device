@@ -110,6 +110,8 @@ export function parseFillTarget(positionals: string[]): ParsedFillTarget {
       ),
     };
   }
+  // Preserve payload whitespace (for example Maestro/keyboard-enter newlines)
+  // while still rejecting selector fills that contain only whitespace.
   if (!parsed.text.trim()) {
     return {
       ok: false,

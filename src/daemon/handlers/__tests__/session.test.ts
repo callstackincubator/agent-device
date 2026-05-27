@@ -4322,7 +4322,7 @@ test('test returns invalid args when no replay scripts match the platform filter
     invoke: noopInvoke,
   });
 
-  assertInvalidArgsMessage(response, 'No .ad tests matched for --platform android.');
+  assertInvalidArgsMessage(response, 'No replay tests matched for --platform android.');
 });
 
 test('test rejects duplicate replay test metadata in the context header', async () => {

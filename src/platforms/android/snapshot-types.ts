@@ -7,6 +7,7 @@ export type AndroidSnapshotBackendMetadata = {
   fallbackReason?: string;
   installReason?: 'missing' | 'outdated' | 'forced' | 'current' | 'skipped';
   waitForIdleTimeoutMs?: number;
+  waitForIdleQuietMs?: number;
   timeoutMs?: number;
   maxDepth?: number;
   maxNodes?: number;

@@ -10,6 +10,7 @@ export const ANDROID_SNAPSHOT_HELPER_RUNNER =
 export const ANDROID_SNAPSHOT_HELPER_PROTOCOL = 'android-snapshot-helper-v1';
 export const ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT = 'uiautomator-xml';
 export const ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS = 500;
+export const ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_QUIET_MS = 100;
 export const ANDROID_SNAPSHOT_HELPER_COMMAND_OVERHEAD_MS = 5_000;
 
 export type { AndroidAdbExecutor } from './adb-executor.ts';
@@ -56,16 +57,19 @@ export type AndroidSnapshotHelperCaptureOptions = {
   packageName?: string;
   instrumentationRunner?: string;
   waitForIdleTimeoutMs?: number;
+  waitForIdleQuietMs?: number;
   timeoutMs?: number;
   commandTimeoutMs?: number;
   maxDepth?: number;
   maxNodes?: number;
+  outputPath?: string;
 };
 
 export type AndroidSnapshotHelperMetadata = {
   helperApiVersion?: string;
   outputFormat: 'uiautomator-xml';
   waitForIdleTimeoutMs?: number;
+  waitForIdleQuietMs?: number;
   timeoutMs?: number;
   maxDepth?: number;
   maxNodes?: number;

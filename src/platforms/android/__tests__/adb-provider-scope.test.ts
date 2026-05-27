@@ -4,9 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import { runCmd } from '../../../utils/exec.ts';
-import {
-  withAndroidAdbProvider,
-} from '../adb-executor.ts';
+import { withAndroidAdbProvider } from '../adb-executor.ts';
 
 const device = {
   platform: 'android',
@@ -65,4 +63,3 @@ test('withAndroidAdbProvider ignores adb commands for another serial', async () 
   assert.equal(result.stdout, 'local -s other-device shell echo local');
   assert.deepEqual(calls, []);
 });
-

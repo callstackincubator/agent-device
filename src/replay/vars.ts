@@ -2,7 +2,7 @@ import { AppError } from '../utils/errors.ts';
 import type { SessionAction } from '../daemon/types.ts';
 
 export type ReplayVarScope = {
-  readonly values: Record<string, string>;
+  values: Readonly<Record<string, string>>;
 };
 
 export type ReplayVarSources = {
@@ -57,7 +57,7 @@ export function mergeReplayVarScopeValues(
   scope: ReplayVarScope,
   values: Record<string, string>,
 ): void {
-  Object.assign(scope.values, values);
+  Object.assign(scope.values as Record<string, string>, values);
 }
 
 export function collectReplayShellEnv(processEnv: NodeJS.ProcessEnv): Record<string, string> {

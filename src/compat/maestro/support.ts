@@ -52,17 +52,6 @@ export function normalizePlatform(value: string | undefined): 'android' | 'ios' 
   return normalizePlatformName(value);
 }
 
-export function normalizePlatformValue(value: unknown, name: string): 'android' | 'ios' {
-  if (typeof value !== 'string') {
-    throw new AppError('INVALID_ARGS', `${name} expects Android or iOS.`);
-  }
-  const platform = normalizePlatformName(value);
-  if (!platform) {
-    throw new AppError('INVALID_ARGS', `${name} expects Android or iOS.`);
-  }
-  return platform;
-}
-
 export function readEnvMap(value: unknown, name: string): Record<string, string> {
   if (value === undefined || value === null) return {};
   if (!isPlainRecord(value)) {

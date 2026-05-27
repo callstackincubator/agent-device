@@ -332,7 +332,10 @@ async function dispatchDirectIosSelectorInteraction(params: {
       fallbackX: point.x,
       fallbackY: point.y,
       referenceFrame: readReferenceFrameFromDirectSelectorTapResult(data),
-      extra,
+      extra: {
+        ...extra,
+        ...directIosSelectorFallbackDetails(selector, data),
+      },
     });
     return finalizeTouchInteraction({
       session,
@@ -359,6 +362,19 @@ async function dispatchDirectIosSelectorInteraction(params: {
     });
     return null;
   }
+}
+
+function directIosSelectorFallbackDetails(
+  selector: DirectIosSelectorTarget,
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!selector.allowNonHittableCoordinateFallback) return {};
+  const used = data.message === 'tapped via non-hittable coordinate fallback';
+  return {
+    maestroNonHittableCoordinateFallbackAllowed: true,
+    maestroNonHittableCoordinateFallbackUsed: used,
+    ...(used ? { maestroFallbackReason: 'non-hittable-coordinate' } : {}),
+  };
 }
 
 function readPointFromDirectSelectorTapResult(data: Record<string, unknown>): {

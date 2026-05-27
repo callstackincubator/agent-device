@@ -17,6 +17,7 @@ import {
   IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
   isAndroidEmulator,
   isIosSimulator,
+  resolveCommandDevice,
   settleIosSimulator,
 } from './session-device-utils.ts';
 import { errorResponse } from './response.ts';
@@ -123,7 +124,7 @@ export async function handleCloseCommand(params: {
   const { req, sessionName, logPath, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   if (!session) {
-    return errorResponse('SESSION_NOT_FOUND', 'No active session');
+    return await closeWithoutSession(req, logPath);
   }
   if (session.appLog) {
     await stopAppLog(session.appLog);
@@ -187,4 +188,26 @@ export async function handleCloseCommand(params: {
     };
   }
   return { ok: true, data: { session: sessionName, ...successText(`Closed: ${sessionName}`) } };
+}
+
+async function closeWithoutSession(req: DaemonRequest, logPath: string): Promise<DaemonResponse> {
+  if (!req.positionals || req.positionals.length === 0) {
+    return errorResponse('SESSION_NOT_FOUND', 'No active session');
+  }
+  const device = await resolveCommandDevice({
+    session: undefined,
+    flags: req.flags,
+    ensureReady: true,
+  });
+  await dispatchCommand(device, 'close', req.positionals, req.flags?.out, {
+    ...contextFromFlags(logPath, req.flags),
+  });
+  await settleIosSimulator(device, IOS_SIMULATOR_POST_CLOSE_SETTLE_MS);
+  return {
+    ok: true,
+    data: {
+      app: req.positionals[0],
+      ...successText(`Closed: ${req.positionals[0]}`),
+    },
+  };
 }
