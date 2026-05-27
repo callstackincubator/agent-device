@@ -85,7 +85,7 @@ export const captureDaemonWriters = {
   ),
 } satisfies Record<string, DaemonWriter>;
 
-export function readWaitOptionsFromPositionals(
+function readWaitOptionsFromPositionals(
   positionals: string[],
   flags: CliFlags,
 ): WaitCommandOptions {

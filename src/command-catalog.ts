@@ -54,7 +54,7 @@ export const INTERNAL_COMMANDS = {
   sessionList: 'session_list',
 } as const;
 
-export const LOCAL_CLI_COMMANDS = {
+const LOCAL_CLI_COMMANDS = {
   auth: 'auth',
   connect: 'connect',
   connection: 'connection',

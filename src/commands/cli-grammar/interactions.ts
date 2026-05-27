@@ -129,7 +129,7 @@ export function readInteractionTargetFromPositionals(positionals: string[]): Int
   return { x: Number(positionals[0]), y: Number(positionals[1]) };
 }
 
-export function readLongPressTargetFromPositionals(positionals: string[]): LongPressOptions {
+function readLongPressTargetFromPositionals(positionals: string[]): LongPressOptions {
   const targetPositionals = readLongPressTargetPositionals(positionals);
   return {
     ...readInteractionTargetFromPositionals(targetPositionals.target),

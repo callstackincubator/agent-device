@@ -1,5 +1,4 @@
 import type {
-  AgentDeviceClient,
   AppCloseOptions,
   ClipboardCommandOptions,
   MetroPrepareOptions,
@@ -11,12 +10,10 @@ import type {
   WaitCommandOptions,
 } from '../client-types.ts';
 import type { DaemonInstallSource } from '../contracts.ts';
-import { defineCommand } from './command-contract.ts';
 import {
   booleanSchema,
   booleanField,
   enumField,
-  fieldsInputSchema,
   integerField,
   integerSchema,
   jsonSchemaField,
@@ -24,14 +21,12 @@ import {
   looseObjectSchema,
   numberField,
   optionalEnum,
-  readFieldInput,
   requiredField,
   stringArrayField,
   stringField,
   stringSchema,
-  type InferCommandInput,
-  type CommandFieldMap,
 } from './command-input.ts';
+import { defineFieldCommand } from './field-command-contract.ts';
 
 const SURFACE_VALUES = ['app', 'frontmost-app', 'desktop', 'menubar'] as const;
 const WAIT_KIND_VALUES = ['duration', 'text', 'ref', 'selector'] as const;
@@ -362,25 +357,6 @@ export const clientCommandDefinitions = [
         : await client.metro.reload(toMetroReloadOptions(input)),
   ),
 ] as const;
-
-function defineFieldCommand<
-  const TName extends string,
-  const TFields extends CommandFieldMap,
-  TResult,
->(
-  name: TName,
-  description: string,
-  fields: TFields,
-  run: (client: AgentDeviceClient, input: InferCommandInput<TFields>) => Promise<TResult>,
-) {
-  return defineCommand({
-    name,
-    description,
-    inputSchema: fieldsInputSchema(fields),
-    readInput: (input) => readFieldInput(input, fields),
-    run,
-  });
-}
 
 function withoutApp(input: AppCloseOptions & { shutdown?: boolean }): { shutdown?: boolean } {
   const { app: _app, ...rest } = input;

@@ -85,7 +85,7 @@ export function stringSchema(description?: string): JsonSchema {
   return { type: 'string', ...(description ? { description } : {}) };
 }
 
-export function numberSchema(description?: string): JsonSchema {
+function numberSchema(description?: string): JsonSchema {
   return { type: 'number', ...(description ? { description } : {}) };
 }
 

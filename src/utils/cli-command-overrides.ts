@@ -60,7 +60,7 @@ const SCHEMA_ONLY_CLI_COMMAND_SCHEMAS = {
   },
 } as const satisfies Record<SchemaOnlyCliCommandName, CommandSchema>;
 
-export const CLI_COMMAND_OVERRIDES = {
+const CLI_COMMAND_OVERRIDES = {
   boot: {
     summary: 'Boot target device/simulator',
     allowedFlags: ['headless'],

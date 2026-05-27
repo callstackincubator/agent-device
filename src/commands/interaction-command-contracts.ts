@@ -1,5 +1,4 @@
 import type {
-  AgentDeviceClient,
   ClickOptions,
   FindOptions,
   FlingOptions,
@@ -44,10 +43,10 @@ import {
   toRepeatedOptions,
   toSelectorSnapshotOptions,
   type CommonCommandInput,
-  type CommandFieldMap,
   type InferCommandInput,
   type PointInput,
 } from './command-input.ts';
+import { defineFieldCommand } from './field-command-contract.ts';
 
 const CLICK_BUTTON_VALUES = ['primary', 'secondary', 'middle'] as const;
 const GESTURE_KIND_VALUES = ['pan', 'fling', 'pinch', 'rotate', 'transform'] as const;
@@ -280,25 +279,6 @@ export const interactionCommandDefinitions = [
     },
   }),
 ] as const;
-
-function defineFieldCommand<
-  const TName extends string,
-  const TFields extends CommandFieldMap,
-  TResult,
->(
-  name: TName,
-  description: string,
-  fields: TFields,
-  run: (client: AgentDeviceClient, input: InferCommandInput<TFields>) => Promise<TResult>,
-) {
-  return defineCommand({
-    name,
-    description,
-    inputSchema: fieldsInputSchema(fields),
-    readInput: (input) => readFieldInput(input, fields),
-    run,
-  });
-}
 
 function readGestureInput(input: unknown): GestureInput {
   const record = readInputRecord(input);
