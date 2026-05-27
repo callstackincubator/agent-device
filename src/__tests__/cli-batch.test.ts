@@ -82,6 +82,16 @@ test('batch accepts legacy positionals/flags steps with deprecation warning', as
   });
 });
 
+test('batch rejects hybrid structured and legacy step shapes', async () => {
+  const result = await runCliCapture([
+    'batch',
+    '--steps',
+    '[{"command":"open","input":{},"positionals":["settings"]}]',
+  ]);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /unknown legacy field\(s\): input/);
+});
+
 test('batch --steps-file returns clear error for missing file', async () => {
   const result = await runCliCapture([
     'batch',

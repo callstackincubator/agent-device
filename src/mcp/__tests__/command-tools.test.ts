@@ -25,7 +25,7 @@ test('MCP command tool executor hides client creation behind an execution adapte
     {
       client,
       name: 'devices',
-      input: { stateDir: '/tmp/agent-device-mcp' },
+      input: {},
     },
   ]);
   assert.deepEqual(result.structuredContent, { name: 'devices', ok: true });

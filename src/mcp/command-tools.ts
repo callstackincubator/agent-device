@@ -47,7 +47,7 @@ export function createCommandToolExecutor(
         throw new Error(`Unknown command tool: ${name}`);
       }
       const client = deps.createClient(readClientConfig(input));
-      const result = await deps.runCommand(client, name, input);
+      const result = await deps.runCommand(client, name, stripClientConfigFields(input));
       return {
         isError: false,
         structuredContent: result,
@@ -67,6 +67,12 @@ function readClientConfig(input: unknown): AgentDeviceClientConfig {
     throw new Error('Expected stateDir to be a non-empty string.');
   }
   return { stateDir };
+}
+
+function stripClientConfigFields(input: unknown): unknown {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return input;
+  const { stateDir: _stateDir, ...commandInput } = input as Record<string, unknown>;
+  return commandInput;
 }
 
 function renderToolText(value: unknown): string {

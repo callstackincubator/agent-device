@@ -1,10 +1,12 @@
 import { handleMcpMessage, type JsonRpcMessage } from './router.ts';
 
 type JsonRpcResponse = Awaited<NonNullable<ReturnType<typeof handleMcpMessage>>>;
+type JsonRpcId = string | number | null;
 type MessageSink = (message: JsonRpcMessage | JsonRpcMessage[]) => void;
 
 export async function runAgentDeviceMcpServer(): Promise<void> {
   const decoder = new McpMessageDecoder((messageOrBatch) => {
+    const fallbackId = fallbackErrorId(messageOrBatch);
     void handleMcpPayload(messageOrBatch)
       .then((response) => {
         if (response) writeMessage(response);
@@ -12,7 +14,7 @@ export async function runAgentDeviceMcpServer(): Promise<void> {
       .catch((error: unknown) => {
         writeMessage({
           jsonrpc: '2.0',
-          id: null,
+          id: fallbackId,
           error: {
             code: -32603,
             message: error instanceof Error ? error.message : String(error),
@@ -44,7 +46,7 @@ export async function runAgentDeviceMcpServer(): Promise<void> {
   });
 }
 
-function handleMcpPayload(
+export function handleMcpPayload(
   messageOrBatch: JsonRpcMessage | JsonRpcMessage[],
 ): Promise<unknown | null> {
   if (Array.isArray(messageOrBatch)) {
@@ -54,10 +56,18 @@ function handleMcpPayload(
 }
 
 async function handleMcpBatch(messages: JsonRpcMessage[]): Promise<JsonRpcResponse[] | null> {
-  const responses = (
-    await Promise.all(messages.map(async (message) => await handleMcpMessage(message)))
-  ).flatMap(responseArray);
+  const responses: JsonRpcResponse[] = [];
+  for (const message of messages) {
+    responses.push(...responseArray(await handleMcpMessage(message)));
+  }
   return responses.length > 0 ? responses : null;
+}
+
+function fallbackErrorId(messageOrBatch: JsonRpcMessage | JsonRpcMessage[]): JsonRpcId {
+  if (Array.isArray(messageOrBatch)) {
+    return messageOrBatch.length === 1 ? (messageOrBatch[0]?.id ?? null) : null;
+  }
+  return messageOrBatch.id ?? null;
 }
 
 class McpMessageDecoder {

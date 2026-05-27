@@ -53,7 +53,14 @@ function legacyStepToStructuredStep(legacyStep: LegacyCliBatchStep): BatchStep {
 }
 
 function isStructuredBatchStep(step: unknown): step is BatchStep {
-  return step !== null && typeof step === 'object' && !Array.isArray(step) && 'input' in step;
+  return (
+    step !== null &&
+    typeof step === 'object' &&
+    !Array.isArray(step) &&
+    'input' in step &&
+    !('positionals' in step) &&
+    !('flags' in step)
+  );
 }
 
 function readLegacyCliBatchStep(step: unknown, stepNumber: number): LegacyCliBatchStep {

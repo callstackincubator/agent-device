@@ -116,7 +116,7 @@ function readBatchStepInput(record: Record<string, unknown>, stepNumber: number)
 function readBatchStepRuntime(
   record: Record<string, unknown>,
   stepNumber: number,
-): unknown | undefined {
+): Record<string, unknown> | undefined {
   const runtime = record.runtime;
   if (
     runtime !== undefined &&
@@ -124,7 +124,7 @@ function readBatchStepRuntime(
   ) {
     throw new AppError('INVALID_ARGS', `Batch step ${stepNumber} runtime must be an object.`);
   }
-  return runtime;
+  return runtime as Record<string, unknown> | undefined;
 }
 
 export function prepareDaemonCommandRequest(

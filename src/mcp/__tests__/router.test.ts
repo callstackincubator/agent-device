@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { listMcpExposedCommandNames } from '../../command-catalog.ts';
 import { handleMcpMessage } from '../router.ts';
+import { handleMcpPayload } from '../server.ts';
 
 test('MCP exposes every automatable CLI command as a structured direct tool', async () => {
   const response = await handleMcpMessage({
@@ -43,4 +44,17 @@ test('MCP exposes every automatable CLI command as a structured direct tool', as
   assert.ok(invalidFillResponse && 'result' in invalidFillResponse);
   assert.equal((invalidFillResponse.result as { isError: boolean }).isError, true);
   assert.match(JSON.stringify(invalidFillResponse.result), /Expected target to be set/);
+});
+
+test('MCP JSON-RPC batches return responses in request order and skip notifications', async () => {
+  const response = await handleMcpPayload([
+    { jsonrpc: '2.0', id: 'first', method: 'ping' },
+    { jsonrpc: '2.0', method: 'notifications/initialized' },
+    { jsonrpc: '2.0', id: 'second', method: 'ping' },
+  ]);
+
+  assert.deepEqual(
+    (response as Array<{ id: string }>).map((entry) => entry.id),
+    ['first', 'second'],
+  );
 });
