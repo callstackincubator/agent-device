@@ -4,7 +4,7 @@ import { createBatchCommand } from './batch-command-contract.ts';
 import { clientCommandDefinitions } from './client-command-contracts.ts';
 import type { JsonSchema } from './command-contract.ts';
 import { interactionCommandDefinitions } from './interaction-command-contracts.ts';
-import { batchCommandNames, type BatchCommandName } from './cli-grammar.ts';
+import { batchCommandNames, type BatchCommandName } from './command-projection.ts';
 
 type AnyExecutableCommand = {
   name: string;

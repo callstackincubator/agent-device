@@ -71,7 +71,8 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
   - command surface and shared schemas: `src/commands/command-surface.ts`, `src/commands/command-contract.ts`, `src/commands/command-input.ts`
   - typed client command execution: `src/commands/client-command-contracts.ts`
   - command families: `src/commands/interaction-command-contracts.ts`, `src/commands/batch-command-contract.ts`, with other typed client contracts in `src/commands/client-command-contracts.ts`
-  - CLI positional/flag grammar and daemon request projection: `src/commands/cli-grammar.ts` and `src/commands/cli-grammar/*`
+  - CLI positional/flag grammar: `src/commands/cli-grammar.ts` and `src/commands/cli-grammar/*`
+  - typed input to daemon request projection: `src/commands/command-projection.ts`
   - CLI/client/runtime output projection: `src/commands/cli-output.ts`, `src/commands/client-output.ts`, `src/commands/runtime-output.ts`
 - Do not reintroduce CLI-shaped command adapters or schemas as a second source of truth. CLI, Node.js, and MCP should project from command contracts.
 - Keep `src/daemon/request-router.ts` as request orchestration: auth, diagnostics scope, request admission, locking, handler chain, and fallback dispatch.
@@ -130,12 +131,13 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
 A new snapshot/command flag touches only the layers that need to understand it. Follow this checklist in order:
 
 1. `src/utils/cli-flags.ts`: add to `CliFlags`, `FLAG_DEFINITIONS`, and the relevant exported flag group (e.g. `SNAPSHOT_FLAGS`). Add the flag to `CLI_COMMAND_OVERRIDES` in `src/utils/cli-command-overrides.ts` for each command that supports it; command names/descriptions come from command contracts unless CLI help needs a specific override.
-2. `src/commands/cli-grammar/*`: read the CLI flag into command input and write it into the daemon request only if the flag affects daemon execution.
-3. `src/commands/*-command-contracts.ts`: add or update the command input schema only if the option should be available through Node.js or MCP as structured input.
-4. `src/client-types.ts`: update the public typed client option only when the Node.js interface exposes the option.
-5. `src/client-normalizers.ts`: update daemon flag normalization only when the request still needs a public-to-internal option translation.
-6. `src/daemon/context.ts` and `src/core/dispatch-context.ts`: add the field only when it flows into platform dispatch.
-7. Handler/platform modules: thread the option only after the command surface and grammar prove it belongs there.
+2. `src/commands/cli-grammar/*`: read the CLI flag into command input when the CLI accepts it.
+3. `src/commands/command-projection.ts` and command-family projection helpers: write the input into the daemon request only if the flag affects daemon execution.
+4. `src/commands/*-command-contracts.ts`: add or update the command input schema only if the option should be available through Node.js or MCP as structured input.
+5. `src/client-types.ts`: update the public typed client option only when the Node.js interface exposes the option.
+6. `src/client-normalizers.ts`: update daemon flag normalization only when the request still needs a public-to-internal option translation.
+7. `src/daemon/context.ts` and `src/core/dispatch-context.ts`: add the field only when it flows into platform dispatch.
+8. Handler/platform modules: thread the option only after the command surface, grammar, and projection prove it belongs there.
 
 Command-only flags (like `find --first`) that do not flow to the platform layer usually stop at steps 1-3.
 
@@ -274,7 +276,8 @@ Command-only flags (like `find --first`) that do not flow to the platform layer 
 - Request routing/policy: `src/daemon/request-router.ts`, `src/daemon/request-admission.ts`, `src/daemon/request-generic-dispatch.ts`
 - Dispatcher + capability map: `src/core/dispatch.ts`, `src/core/dispatch-context.ts`, `src/core/dispatch-interactions.ts`, `src/core/capabilities.ts`
 - Command catalog + command surface: `src/command-catalog.ts`, `src/commands/command-surface.ts`, `src/commands/command-contract.ts`, `src/commands/client-command-contracts.ts`
-- CLI grammar + daemon request projection: `src/commands/cli-grammar.ts`, `src/commands/cli-grammar/*`
+- CLI grammar: `src/commands/cli-grammar.ts`, `src/commands/cli-grammar/*`
+- Daemon request projection: `src/commands/command-projection.ts`
 - Platform backends: `src/platforms/ios/*`, `ios-runner/*`, `src/platforms/android/*`
 
 ## Pull Requests

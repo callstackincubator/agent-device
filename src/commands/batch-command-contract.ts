@@ -1,7 +1,7 @@
 import type { BatchRunOptions, BatchStep } from '../client-types.ts';
 import { DEFAULT_BATCH_MAX_STEPS, validateAndNormalizeBatchSteps } from '../core/batch.ts';
 import { defineCommand, type JsonSchema } from './command-contract.ts';
-import { prepareBatchStep, type DaemonCommandName } from './cli-grammar.ts';
+import { prepareBatchStep, type DaemonCommandName } from './command-projection.ts';
 import {
   assertAllowedKeys,
   commonToClientOptions,

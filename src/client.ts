@@ -1,7 +1,10 @@
 import { sendToDaemon } from './daemon-client.ts';
 import { prepareMetroRuntime, reloadMetro } from './client-metro.ts';
 import { INTERNAL_COMMANDS } from './command-catalog.ts';
-import { prepareDaemonCommandRequest, type DaemonCommandName } from './commands/cli-grammar.ts';
+import {
+  prepareDaemonCommandRequest,
+  type DaemonCommandName,
+} from './commands/command-projection.ts';
 import { throwDaemonError } from './daemon-error.ts';
 import {
   buildFlags,
