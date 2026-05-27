@@ -33,7 +33,7 @@ Set `AGENT_DEVICE_NO_UPDATE_NOTIFIER=1` to disable the notice.
 
 ## Agent clients and MCP
 
-The official MCP server exposes direct semantic tools for installed `agent-device` commands. Tools use semantic command contracts through `AgentDeviceClient`, so app and device automation still uses the same daemon implementation.
+The official MCP server exposes direct structured tools for installed `agent-device` commands. Tools use command contracts through `AgentDeviceClient`, so app and device automation still uses the same daemon implementation.
 
 ```bash
 agent-device mcp
