@@ -31,17 +31,8 @@ const daemonWriters = {
 } satisfies Record<string, DaemonWriter>;
 
 export type DaemonCommandName = keyof typeof daemonWriters;
-type NonBatchCommandName =
-  | 'replay'
-  | 'batch'
-  | 'gesture-pan'
-  | 'gesture-fling'
-  | 'gesture-pinch'
-  | 'gesture-rotate'
-  | 'gesture-transform';
-export type BatchCommandName = Exclude<DaemonCommandName, NonBatchCommandName>;
 
-const nonBatchCommandNames = commandNameSet([
+const NON_BATCH_COMMAND_NAMES = [
   'replay',
   'batch',
   'gesture-pan',
@@ -49,7 +40,11 @@ const nonBatchCommandNames = commandNameSet([
   'gesture-pinch',
   'gesture-rotate',
   'gesture-transform',
-] as const satisfies readonly NonBatchCommandName[]);
+] as const;
+type NonBatchCommandName = (typeof NON_BATCH_COMMAND_NAMES)[number];
+export type BatchCommandName = Exclude<DaemonCommandName, NonBatchCommandName>;
+
+const nonBatchCommandNames = commandNameSet(NON_BATCH_COMMAND_NAMES);
 
 export const batchCommandNames = (Object.keys(daemonWriters) as DaemonCommandName[]).filter(
   (name): name is BatchCommandName => !nonBatchCommandNames.has(name),
