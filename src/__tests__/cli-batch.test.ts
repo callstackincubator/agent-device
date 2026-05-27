@@ -62,6 +62,22 @@ test('batch --steps-file parses file payload', async () => {
   assert.equal((req.flags?.batchSteps ?? [])[0]?.command, 'wait');
 });
 
+test('batch structured interaction target is projected to positionals, not device flags', async () => {
+  const result = await runCliCapture([
+    'batch',
+    '--steps',
+    '[{"command":"press","input":{"target":{"kind":"point","x":10,"y":20},"count":2}}]',
+    '--json',
+  ]);
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls.length, 1);
+  const step = (result.calls[0]?.flags?.batchSteps ?? [])[0];
+  assert.deepEqual(step?.positionals, ['10', '20']);
+  assert.equal(step?.flags?.target, undefined);
+  assert.equal(step?.flags?.count, 2);
+});
+
 test('batch accepts legacy positionals/flags steps with deprecation warning', async () => {
   const result = await runCliCapture([
     'batch',

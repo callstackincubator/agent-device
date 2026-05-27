@@ -207,6 +207,7 @@ Validation and evidence:
   Inline batch JSON example:
     agent-device batch --steps '[{"command":"open","input":{"app":"settings"}},{"command":"wait","input":{"kind":"duration","durationMs":100}}]'
   Batch step keys are command, input, and optional runtime. Put command arguments inside input using the same fields as the MCP/Node command. CLI still accepts legacy positionals/flags steps with a deprecation warning until the next major version.
+  Never use args, step positionals, or flags for new batch JSON; put command inputs under input.
   Android animations: settings animations off/on, not animations disable/restore.
   Debug logs: logs clear --restart, logs mark, reproduce, then logs path; do not split clear/restart into separate stop/start commands.
   Network headers: network dump --include headers; do not write network log headers.

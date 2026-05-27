@@ -26,9 +26,11 @@ export function request(
 }
 
 function normalizeCommonRequestOptions(options: CommandInput): CommandInput {
-  return options.deviceTarget !== undefined && options.target === undefined
-    ? { ...options, target: options.deviceTarget }
-    : options;
+  const normalizedTarget =
+    options.deviceTarget ?? (typeof options.target === 'string' ? options.target : undefined);
+  if (normalizedTarget === undefined && options.target === undefined) return options;
+  const { target: _target, ...rest } = options;
+  return normalizedTarget === undefined ? rest : { ...rest, target: normalizedTarget };
 }
 
 export function commonInputFromFlags(flags: CliFlags): Record<string, unknown> {
@@ -99,15 +101,47 @@ export function targetInputFromClientTarget(
   return { kind: 'point', x: point.x, y: point.y };
 }
 
-export function interactionTargetPositionals(input: InteractionTarget): string[] {
-  if (input.ref !== undefined) return [input.ref, ...optionalString(input.label)];
-  if (input.selector !== undefined) return [input.selector];
-  return [String(input.x), String(input.y)];
+export function interactionTargetPositionals(input: InteractionTarget | CommandInput): string[] {
+  const target = readTargetRecord(input);
+  if (typeof target.ref === 'string') return [target.ref, ...optionalTargetLabel(target.label)];
+  if (typeof target.selector === 'string') return [target.selector];
+  if (target.kind === 'point' || target.x !== undefined || target.y !== undefined) {
+    return [
+      String(requiredTargetNumber(target.x, 'x')),
+      String(requiredTargetNumber(target.y, 'y')),
+    ];
+  }
+  throw new AppError('INVALID_ARGS', 'interaction requires @ref, selector, or point target');
 }
 
-export function elementTargetPositionals(input: ElementTarget): string[] {
-  if (input.ref !== undefined) return [input.ref, ...optionalString(input.label)];
-  return [input.selector];
+export function elementTargetPositionals(input: ElementTarget | CommandInput): string[] {
+  const target = readTargetRecord(input);
+  if (typeof target.ref === 'string') return [target.ref, ...optionalTargetLabel(target.label)];
+  if (typeof target.selector === 'string') return [target.selector];
+  throw new AppError('INVALID_ARGS', 'element command requires @ref or selector target');
+}
+
+function readTargetRecord(input: unknown): Record<string, unknown> {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new AppError('INVALID_ARGS', 'Expected target object.');
+  }
+  const record = input as Record<string, unknown>;
+  const nestedTarget = record.target;
+  if (nestedTarget && typeof nestedTarget === 'object' && !Array.isArray(nestedTarget)) {
+    return nestedTarget as Record<string, unknown>;
+  }
+  return record;
+}
+
+function requiredTargetNumber(value: unknown, field: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new AppError('INVALID_ARGS', `point target requires numeric ${field}.`);
+  }
+  return value;
+}
+
+function optionalTargetLabel(value: unknown): string[] {
+  return typeof value === 'string' && value.length > 0 ? [value] : [];
 }
 
 export function readElementTargetFromPositionals(positionals: string[]): ElementTarget {
