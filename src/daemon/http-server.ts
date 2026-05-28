@@ -18,6 +18,12 @@ import {
   trackUploadedArtifact,
 } from './artifact-tracking.ts';
 import { receiveUpload } from './upload.ts';
+import { type RequestProgressEvent, withRequestProgressSink } from './request-progress.ts';
+import {
+  serializeDaemonProgressEnvelope,
+  serializeDaemonRpcResponseEnvelope,
+  shouldStreamRequestProgress,
+} from './request-progress-protocol.ts';
 
 type JsonRpcRequest = JsonRpcRequestEnvelope;
 
@@ -106,6 +112,23 @@ function sendJson(
   res.statusCode = httpCode;
   res.setHeader('content-type', 'application/json');
   res.end(JSON.stringify(response));
+}
+
+function writeProgressEnvelope(
+  res: http.ServerResponse<http.IncomingMessage>,
+  event: RequestProgressEvent,
+): void {
+  if (res.destroyed) return;
+  res.write(serializeDaemonProgressEnvelope(event));
+}
+
+function writeRpcResponseEnvelope(
+  res: http.ServerResponse<http.IncomingMessage>,
+  response: JsonRpcResponse,
+): void {
+  if (res.destroyed) return;
+  res.write(serializeDaemonRpcResponseEnvelope(response));
+  res.end();
 }
 
 function statusCodeForNormalizedError(code: string): number {
@@ -586,6 +609,30 @@ export async function createDaemonHttpServer(options: {
           };
         }
 
+        const streamProgress = shouldStreamRequestProgress(daemonRequest);
+        if (streamProgress) {
+          res.statusCode = 200;
+          res.setHeader('content-type', 'application/x-ndjson');
+          const daemonResponse = await withRequestProgressSink(
+            (event) => writeProgressEnvelope(res, event),
+            async () => await handleRequest(daemonRequest),
+          );
+          const rpcResponse = daemonResponse.ok
+            ? ({
+                jsonrpc: '2.0',
+                id: rpcRequest.id ?? null,
+                result: daemonResponse,
+              } satisfies JsonRpcResponse)
+            : createRpcError(
+                rpcRequest.id ?? null,
+                -32000,
+                daemonResponse.error.message,
+                daemonResponse.error,
+              );
+          writeRpcResponseEnvelope(res, rpcResponse);
+          return;
+        }
+
         const daemonResponse = await handleRequest(daemonRequest);
         if (daemonResponse.ok) {
           sendJson(res, { jsonrpc: '2.0', id: rpcRequest.id ?? null, result: daemonResponse });
@@ -603,6 +650,13 @@ export async function createDaemonHttpServer(options: {
         );
       } catch (error) {
         const normalized = normalizeError(error);
+        if (res.headersSent) {
+          writeRpcResponseEnvelope(
+            res,
+            createRpcError(rpcRequest.id ?? null, -32000, normalized.message, normalized),
+          );
+          return;
+        }
         sendJson(
           res,
           createRpcError(rpcRequest.id ?? null, -32000, normalized.message, normalized),

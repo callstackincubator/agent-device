@@ -360,6 +360,96 @@ test('sendToDaemon reuses reachable local socket daemon metadata', async (t) => 
   }
 });
 
+test('sendToDaemon prints replay test progress before the socket response', async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-socket-progress-'));
+  let stderr = '';
+  const originalStderrWrite = process.stderr.write.bind(process.stderr);
+  const originalCreateConnection = net.createConnection;
+  let createConnectionCalls = 0;
+  (net as unknown as { createConnection: typeof net.createConnection }).createConnection = ((
+    _options: unknown,
+    connectListener?: () => void,
+  ) => {
+    createConnectionCalls += 1;
+    const socket = new EventEmitter() as EventEmitter & {
+      destroy: () => void;
+      end: () => void;
+      setEncoding: () => void;
+      setTimeout: () => void;
+      write: (_chunk: string) => boolean;
+    };
+    socket.destroy = () => {
+      socket.emit('close');
+    };
+    socket.end = () => {
+      socket.emit('close');
+    };
+    socket.setEncoding = () => {};
+    socket.setTimeout = () => {};
+    socket.write = () => {
+      if (createConnectionCalls === 2) {
+        process.nextTick(() => {
+          socket.emit(
+            'data',
+            `${JSON.stringify({
+              type: 'progress',
+              event: {
+                type: 'replay-test',
+                file: '/tmp/01-login.ad',
+                status: 'fail',
+                index: 1,
+                total: 2,
+                attempt: 1,
+                maxAttempts: 2,
+                retrying: true,
+                message: 'first attempt failed',
+              },
+            })}\n`,
+          );
+          socket.emit(
+            'data',
+            `${JSON.stringify({
+              type: 'response',
+              response: { ok: true, data: { via: 'socket' } },
+            })}\n`,
+          );
+        });
+      }
+      return true;
+    };
+    process.nextTick(() => connectListener?.());
+    return socket as unknown as net.Socket;
+  }) as typeof net.createConnection;
+
+  try {
+    (process.stderr as any).write = ((chunk: unknown) => {
+      stderr += String(chunk);
+      return true;
+    }) as typeof process.stderr.write;
+
+    writeCurrentDaemonInfo(stateDir, { port: 65_530, transport: 'socket' });
+
+    const response = await sendToDaemon({
+      session: 'default',
+      command: 'test',
+      positionals: ['/tmp/replays'],
+      flags: { stateDir, daemonTransport: 'socket' },
+      meta: { requestId: 'req-progress', requestProgress: 'replay-test' },
+    });
+
+    assert.deepEqual(response, { ok: true, data: { via: 'socket' } });
+    assert.match(
+      stderr,
+      /fail 1\/2 \/tmp\/01-login\.ad attempt=1\/2 retry=true first attempt failed/,
+    );
+  } finally {
+    (net as unknown as { createConnection: typeof net.createConnection }).createConnection =
+      originalCreateConnection;
+    process.stderr.write = originalStderrWrite;
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
 test('sendToDaemon reuses reachable local HTTP daemon metadata with token params', async (t) => {
   if (!(await supportsLoopbackBind())) {
     t.skip('loopback listeners are not permitted in this environment');

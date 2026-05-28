@@ -5,6 +5,7 @@ import path from 'node:path';
 import { handleSessionCommands } from '../session.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, DaemonResponseData } from '../../types.ts';
+import { type RequestProgressEvent, withRequestProgressSink } from '../../request-progress.ts';
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-session-test-suite-'));
@@ -90,4 +91,62 @@ test('test discovers Maestro YAML suites when replay backend is set', async () =
   expect(invoked.map((req) => [req.command, req.positionals])).toEqual([['open', ['demo.app']]]);
   expect(data.passed).toBe(1);
   expect(data.failed).toBe(0);
+});
+
+test('test emits progress when attempts retry and pass', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-progress-'));
+  fs.writeFileSync(path.join(root, '01-progress.ad'), 'context platform=ios\nopen "Demo"\n');
+
+  const events: RequestProgressEvent[] = [];
+  let attempts = 0;
+  const response = await withRequestProgressSink(
+    (event) => events.push(event),
+    async () =>
+      await handleSessionCommands({
+        req: {
+          token: 't',
+          session: 'default',
+          command: 'test',
+          positionals: [root],
+          meta: { cwd: root, requestId: 'suite-progress' },
+          flags: { retries: 1 },
+        },
+        sessionName: 'default',
+        logPath: path.join(os.tmpdir(), 'daemon.log'),
+        sessionStore,
+        invoke: async () => {
+          attempts += 1;
+          if (attempts === 1) {
+            return {
+              ok: false,
+              error: { code: 'COMMAND_FAILED', message: 'first attempt failed' },
+            };
+          }
+          return { ok: true, data: { replayed: 1, healed: 0 } };
+        },
+      }),
+  );
+
+  const data = expectOkData(response);
+  expect(data.passed).toBe(1);
+  expect(events.map((event) => event.status)).toEqual(['fail', 'pass']);
+  expect(events[0]).toMatchObject({
+    type: 'replay-test',
+    status: 'fail',
+    index: 1,
+    total: 1,
+    attempt: 1,
+    maxAttempts: 2,
+    retrying: true,
+    message: 'Replay failed at step 1 (open "Demo"): first attempt failed',
+  });
+  expect(events[1]).toMatchObject({
+    type: 'replay-test',
+    status: 'pass',
+    index: 1,
+    total: 1,
+    attempt: 2,
+    maxAttempts: 2,
+  });
 });

@@ -13,6 +13,12 @@ import {
 } from './request-cancel.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
 import { sleep } from '../utils/timeouts.ts';
+import { withRequestProgressSink } from './request-progress.ts';
+import {
+  serializeDaemonProgressEnvelope,
+  serializeDaemonResponseEnvelope,
+  shouldStreamRequestProgress,
+} from './request-progress-protocol.ts';
 
 const disconnectAbortPollIntervalMs = 200;
 const disconnectAbortMaxWindowMs = 15_000;
@@ -81,8 +87,10 @@ export function createSocketServer(
         let response: DaemonResponse;
         inFlightRequests += 1;
         let requestIdForCleanup: string | undefined;
+        let streamProgress = false;
         try {
           const req = JSON.parse(line) as DaemonRequest;
+          streamProgress = shouldStreamRequestProgress(req);
           requestIdForCleanup = resolveRequestTrackingId(req.meta?.requestId, 'socket');
           req.meta = {
             ...req.meta,
@@ -93,7 +101,16 @@ export function createSocketServer(
           if (isRequestCanceled(requestIdForCleanup)) {
             throw createRequestCanceledError();
           }
-          response = await handleRequest(req);
+          response = await withRequestProgressSink(
+            streamProgress
+              ? (event) => {
+                  if (!socket.destroyed) {
+                    socket.write(serializeDaemonProgressEnvelope(event));
+                  }
+                }
+              : undefined,
+            async () => await handleRequest(req),
+          );
         } catch (err) {
           response = { ok: false, error: normalizeError(err) };
         } finally {
@@ -104,7 +121,11 @@ export function createSocketServer(
           }
         }
         if (!socket.destroyed) {
-          socket.write(`${JSON.stringify(response)}\n`);
+          socket.write(
+            streamProgress
+              ? serializeDaemonResponseEnvelope(response)
+              : `${JSON.stringify(response)}\n`,
+          );
         }
         idx = buffer.indexOf('\n');
       }

@@ -14,6 +14,7 @@ import {
   prepareReplayTestAttemptArtifacts,
   resolveReplayTestArtifactsDir,
 } from './session-test-artifacts.ts';
+import { emitRequestProgress } from '../request-progress.ts';
 import {
   buildReplayTestAttemptRequestId,
   buildReplayTestInvocationId,
@@ -57,8 +58,17 @@ export async function runReplayTestSuite(
     const suiteStartedAt = Date.now();
     let executed = 0;
 
-    for (const entry of entries) {
+    for (const [entryIndex, entry] of entries.entries()) {
       if (entry.kind === 'skip') {
+        emitRequestProgress({
+          type: 'replay-test',
+          file: entry.path,
+          status: 'skip',
+          index: entryIndex + 1,
+          total: entries.length,
+          durationMs: 0,
+          message: entry.message,
+        });
         results.push({
           file: entry.path,
           status: 'skipped',
@@ -80,6 +90,8 @@ export async function runReplayTestSuite(
         retries: resolveReplayTestRetries(req.flags?.retries, entry.metadata.retries),
         timeoutMs: resolveReplayTestTimeout(req.flags?.timeoutMs, entry.metadata.timeoutMs),
         suiteArtifactsDir,
+        suiteIndex: entryIndex + 1,
+        suiteTotal: entries.length,
         runReplay,
         cleanupSession,
       });
@@ -112,6 +124,8 @@ async function runReplayTestCase(
     retries: number;
     timeoutMs?: number;
     suiteArtifactsDir: string;
+    suiteIndex: number;
+    suiteTotal: number;
   } & ReplayTestRuntimeDependencies,
 ): Promise<Extract<ReplaySuiteTestResult, { status: 'passed' | 'failed' }>> {
   const {
@@ -124,6 +138,8 @@ async function runReplayTestCase(
     retries,
     timeoutMs,
     suiteArtifactsDir,
+    suiteIndex,
+    suiteTotal,
     runReplay,
     cleanupSession,
   } = params;
@@ -178,10 +194,33 @@ async function runReplayTestCase(
     finalSessionName = testSessionName;
     if (response.ok) break;
     if (isReplayInfrastructureFailure(response)) break;
+    if (attemptIndex >= retries) break;
+    emitRequestProgress({
+      type: 'replay-test',
+      file: entry.path,
+      status: 'fail',
+      index: suiteIndex,
+      total: suiteTotal,
+      attempt: attempts,
+      maxAttempts: retries + 1,
+      retrying: true,
+      message: response.error.message,
+    });
   }
 
   const durationMs = Date.now() - testStartedAt;
   if (finalResponse?.ok) {
+    emitRequestProgress({
+      type: 'replay-test',
+      file: entry.path,
+      status: 'pass',
+      index: suiteIndex,
+      total: suiteTotal,
+      attempt: attempts,
+      maxAttempts: retries + 1,
+      durationMs,
+      artifactsDir: testArtifactsDir,
+    });
     return {
       file: entry.path,
       session: finalSessionName,
@@ -200,6 +239,18 @@ async function runReplayTestCase(
         code: 'COMMAND_FAILED',
         message: 'Unknown replay test failure',
       });
+  emitRequestProgress({
+    type: 'replay-test',
+    file: entry.path,
+    status: 'fail',
+    index: suiteIndex,
+    total: suiteTotal,
+    attempt: attempts,
+    maxAttempts: retries + 1,
+    durationMs,
+    artifactsDir: testArtifactsDir,
+    message: error.message,
+  });
   return {
     file: entry.path,
     session: finalSessionName,

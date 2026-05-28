@@ -103,6 +103,7 @@ test('test command prints suite summary and exits non-zero on failures', async (
 
   assert.equal(result.code, 1);
   assert.equal(result.calls.length, 1);
+  assert.equal(result.calls[0]?.meta?.requestProgress, 'replay-test');
   assert.match(result.stderr, /Running replay suite\.\.\./);
   assert.doesNotMatch(result.stdout, /PASS \/tmp\/01-pass\.ad/);
   assert.match(result.stdout, /FAIL \/tmp\/02-fail\.ad after 2 attempts \(5ms\)/);

@@ -288,7 +288,11 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             ? startDaemonLogTail(daemonPaths.logPath)
             : null;
         const client = createAgentDeviceClient(buildClientConfig(effectiveFlags, resolvedRuntime), {
-          transport: deps.sendToDaemon as AgentDeviceDaemonTransport,
+          transport: createCliDaemonTransport({
+            command,
+            flags: effectiveFlags,
+            transport: deps.sendToDaemon as AgentDeviceDaemonTransport,
+          }),
         });
         if (command === 'batch') {
           if (!parsedBatchSteps) {
@@ -477,6 +481,23 @@ function hasExplicitMetroRuntimeOverrides(explicitFlagKeys: Set<FlagKey>): boole
     }
   }
   return false;
+}
+
+function createCliDaemonTransport(options: {
+  command: string;
+  flags: CliFlags;
+  transport: AgentDeviceDaemonTransport;
+}): AgentDeviceDaemonTransport {
+  const { command, flags, transport } = options;
+  if (command !== 'test' || flags.json) return transport;
+  return async (req) =>
+    await transport({
+      ...req,
+      meta: {
+        ...req.meta,
+        requestProgress: 'replay-test',
+      },
+    });
 }
 
 function guessSessionFromArgv(argv: string[]): string | null {

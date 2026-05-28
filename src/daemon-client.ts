@@ -28,6 +28,15 @@ import {
 import { uploadArtifact } from './upload-client.ts';
 import { computeDaemonCodeSignature } from './daemon/code-signature.ts';
 import { PUBLIC_COMMANDS } from './command-catalog.ts';
+import {
+  readDaemonHttpProgressResponse,
+  shouldReadDaemonProgressStream,
+  writeRequestProgressEvent,
+} from './daemon-client-progress.ts';
+import {
+  isDaemonProgressEnvelope,
+  isDaemonResponseEnvelope,
+} from './daemon/request-progress-protocol.ts';
 export { computeDaemonCodeSignature } from './daemon/code-signature.ts';
 export type DaemonRequest = SharedDaemonRequest;
 export type DaemonResponse = SharedDaemonResponse;
@@ -1152,28 +1161,41 @@ async function sendSocketRequest(
     socket.setEncoding('utf8');
     socket.on('data', (chunk) => {
       buffer += chunk;
-      const idx = buffer.indexOf('\n');
-      if (idx === -1) return;
-      const line = buffer.slice(0, idx).trim();
-      if (!line) return;
-      try {
-        const response = JSON.parse(line) as DaemonResponse;
-        socket.end();
-        if (timeoutHandle) clearTimeout(timeoutHandle);
-        resolve(response);
-      } catch (err) {
-        if (timeoutHandle) clearTimeout(timeoutHandle);
-        reject(
-          new AppError(
-            'COMMAND_FAILED',
-            'Invalid daemon response',
-            {
-              requestId: req.meta?.requestId,
-              line,
-            },
-            err instanceof Error ? err : undefined,
-          ),
-        );
+      let idx = buffer.indexOf('\n');
+      while (idx !== -1) {
+        const line = buffer.slice(0, idx).trim();
+        buffer = buffer.slice(idx + 1);
+        if (!line) {
+          idx = buffer.indexOf('\n');
+          continue;
+        }
+        try {
+          const message = JSON.parse(line) as unknown;
+          if (isDaemonProgressEnvelope(message)) {
+            writeRequestProgressEvent(message.event);
+            idx = buffer.indexOf('\n');
+            continue;
+          }
+          const response = isDaemonResponseEnvelope(message) ? message.response : message;
+          socket.end();
+          if (timeoutHandle) clearTimeout(timeoutHandle);
+          resolve(response as DaemonResponse);
+          return;
+        } catch (err) {
+          if (timeoutHandle) clearTimeout(timeoutHandle);
+          reject(
+            new AppError(
+              'COMMAND_FAILED',
+              'Invalid daemon response',
+              {
+                requestId: req.meta?.requestId,
+                line,
+              },
+              err instanceof Error ? err : undefined,
+            ),
+          );
+          return;
+        }
       }
     });
 
@@ -1220,6 +1242,18 @@ async function sendHttpRequest(
         headers,
       },
       (res) => {
+        if (shouldReadDaemonProgressStream(req, res.headers?.['content-type'])) {
+          readDaemonHttpProgressResponse(res, {
+            req,
+            reject,
+            clearTimeout: () => {
+              if (timeoutHandle) clearTimeout(timeoutHandle);
+            },
+            handleResponseBody: (body) =>
+              handleDaemonHttpResponseBody(body, { info, req, resolve, reject }),
+          });
+          return;
+        }
         void readNodeHttpResponseBody(res)
           .then((body) => {
             if (timeoutHandle) clearTimeout(timeoutHandle);

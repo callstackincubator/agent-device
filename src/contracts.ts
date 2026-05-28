@@ -57,6 +57,7 @@ export type DaemonRequestMeta = {
   materializationId?: string;
   lockPolicy?: DaemonLockPolicy;
   lockPlatform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple';
+  requestProgress?: 'replay-test';
 };
 
 export type DaemonRequest = {
