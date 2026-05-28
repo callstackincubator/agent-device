@@ -1,23 +1,14 @@
-name: Deploy PR previews
+name: Cleanup PR previews
 
 on:
   pull_request:
     types:
-      - opened
-      - reopened
-      - synchronize
-    paths:
-      - "website/**"
-      - ".github/actions/build-docs/action.yml"
-      - ".github/workflows/pr-preview.yml"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
+      - closed
 
 concurrency: preview-${{ github.ref }}
 
 jobs:
-  deploy-preview:
+  cleanup-preview:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
@@ -30,12 +21,7 @@ jobs:
         with:
           persist-credentials: true
 
-      - name: Build docs
-        uses: ./.github/actions/build-docs
-        with:
-          rspress-base: /${{ github.event.repository.name }}/pr-preview/pr-${{ github.event.number }}/
-
-      - name: Deploy preview
+      - name: Remove preview
         uses: rossjrw/pr-preview-action@ffa7509e91a3ec8dfc2e5536c4d5c1acdf7a6de9 # v1.8.1
         with:
           source-dir: website/doc_build
