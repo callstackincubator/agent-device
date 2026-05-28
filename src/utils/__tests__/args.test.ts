@@ -331,6 +331,7 @@ test('usageForCommand documents open --launch-args', () => {
   if (help === null) throw new Error('Expected open help text');
   assert.match(help, /--launch-args <arg>/);
   assert.match(help, /forwarded verbatim/);
+  assert.match(help, /Linux and macOS reject the flag/);
 });
 
 test('parseArgs accepts install-from-source GitHub Actions artifact flag', () => {

@@ -433,10 +433,7 @@ async function openAndroidPackageActivity(
     ? activity
     : `${packageName}/${activity.startsWith('.') ? activity : `.${activity}`}`;
   try {
-    await runAndroidAdb(
-      device,
-      buildAndroidActivityLaunchArgs(component, launchCategory, options),
-    );
+    await runAndroidAdb(device, buildAndroidActivityLaunchArgs(component, launchCategory, options));
   } catch (error) {
     await maybeRethrowAndroidMissingPackageError(device, packageName, error);
     throw error;
@@ -481,10 +478,7 @@ async function openAndroidPackage(
       stderr: primaryResult.stderr,
     });
   }
-  await runAndroidAdb(
-    device,
-    buildAndroidActivityLaunchArgs(component, launchCategory, options),
-  );
+  await runAndroidAdb(device, buildAndroidActivityLaunchArgs(component, launchCategory, options));
 }
 
 function buildAndroidActivityLaunchArgs(

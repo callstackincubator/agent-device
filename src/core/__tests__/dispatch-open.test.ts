@@ -20,8 +20,7 @@ vi.mock('../../platforms/ios/apps.ts', async (importOriginal) => {
 });
 
 vi.mock('../../platforms/android/app-lifecycle.ts', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('../../platforms/android/app-lifecycle.ts')>();
+  const actual = await importOriginal<typeof import('../../platforms/android/app-lifecycle.ts')>();
   return {
     ...actual,
     openAndroidApp: vi.fn(async () => {}),
@@ -58,6 +57,18 @@ test('dispatch open rejects URL as first argument when second URL is provided', 
   );
 });
 
+test('dispatch open rejects launch arguments without an app target', async () => {
+  await assert.rejects(
+    () => dispatchCommand(IOS_SIMULATOR, 'open', [], undefined, { launchArgs: ['-Flag'] }),
+    (error: unknown) => {
+      assert.equal(error instanceof AppError, true);
+      assert.equal((error as AppError).code, 'INVALID_ARGS');
+      assert.match((error as AppError).message, /requires an app target/i);
+      return true;
+    },
+  );
+});
+
 test('dispatch open forwards Android launch arguments to openAndroidApp', async () => {
   const device: DeviceInfo = {
     platform: 'android',
@@ -77,6 +88,29 @@ test('dispatch open forwards Android launch arguments to openAndroidApp', async 
   const optionsArg = mockOpenAndroidApp.mock.calls[0]?.[2];
   assert.ok(optionsArg && typeof optionsArg === 'object', 'expected options object');
   assert.deepEqual(optionsArg.launchArgs, ['--es', 'KEY', 'value']);
+});
+
+test('dispatch open rejects launch arguments on Linux', async () => {
+  const device: DeviceInfo = {
+    platform: 'linux',
+    id: 'linux-local',
+    name: 'Linux',
+    kind: 'device',
+    booted: true,
+  };
+
+  await assert.rejects(
+    () =>
+      dispatchCommand(device, 'open', ['org.example.App'], undefined, {
+        launchArgs: ['--fixture', 'demo'],
+      }),
+    (error: unknown) => {
+      assert.equal(error instanceof AppError, true);
+      assert.equal((error as AppError).code, 'UNSUPPORTED_OPERATION');
+      assert.match((error as AppError).message, /Linux/i);
+      return true;
+    },
+  );
 });
 
 test('dispatch open clears Maestro iOS simulator state and launches once', async () => {
