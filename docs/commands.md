@@ -19,13 +19,13 @@ agent-device help dogfood
 
 Skills are recommended for auto-routing when your agent runtime supports them, but they are not required. The CLI help topics are the version-matched operating contract.
 
-For MCP-aware clients that need discovery instead of direct device control, run:
+For MCP-aware clients that support direct tools, run:
 
 ```bash
 agent-device mcp
 ```
 
-The MCP router exposes only a `status` tool with CLI install, verify, and starting-help guidance. It does not expose device automation or generic shell execution over MCP.
+The MCP server exposes direct structured tools for installed commands. Tools use structured input contracts through `AgentDeviceClient`; local-only workflows stay CLI-only rather than subprocess fallbacks. It does not expose generic shell execution over MCP.
 
 ## Navigation
 
@@ -352,11 +352,13 @@ See [Replay & E2E](/agent-device/docs/replay-e2e.md) for recording, Maestro comp
 
 ```bash
 agent-device batch --steps-file /tmp/batch-steps.json --json
-agent-device batch --steps '[{"command":"open","positionals":["settings"]}]'
+agent-device batch --steps '[{"command":"open","input":{"app":"settings"}}]'
 ```
 
 - `batch` runs a JSON array of steps in a single daemon request.
-- Each step has `command`, optional `positionals`, optional `flags`, and optional `runtime`.
+- Each step has `command`, `input`, and optional `runtime`.
+- `input` uses the same fields as the matching MCP/Node command.
+- Legacy CLI step payloads with `positionals`/`flags` still run with a deprecation warning and will be removed in the next major version.
 - Unknown top-level step fields are rejected.
 - Stop-on-first-error is the supported behavior (`--on-error stop`).
 - Use `--max-steps <n>` to tighten per-request safety limits.

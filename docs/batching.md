@@ -20,7 +20,7 @@ agent-device batch \
 Inline for small payloads:
 
 ```bash
-agent-device batch --steps '[{"command":"open","positionals":["settings"]},{"command":"wait","positionals":["100"]}]'
+agent-device batch --steps '[{"command":"open","input":{"app":"settings"}},{"command":"wait","input":{"kind":"duration","durationMs":100}}]'
 ```
 
 ## Step payload format
@@ -29,18 +29,27 @@ agent-device batch --steps '[{"command":"open","positionals":["settings"]},{"com
 
 ```json
 [
-  { "command": "open", "positionals": ["settings"], "flags": {} },
-  { "command": "wait", "positionals": ["label=\"Privacy & Security\"", "3000"], "flags": {} },
-  { "command": "click", "positionals": ["label=\"Privacy & Security\""], "flags": {} },
-  { "command": "get", "positionals": ["text", "label=\"Tracking\""], "flags": {} }
+  { "command": "open", "input": { "app": "settings" } },
+  {
+    "command": "wait",
+    "input": { "kind": "selector", "selector": "label=\"Privacy & Security\"", "timeoutMs": 3000 }
+  },
+  {
+    "command": "click",
+    "input": { "target": { "kind": "selector", "selector": "label=\"Privacy & Security\"" } }
+  },
+  {
+    "command": "get",
+    "input": { "format": "text", "target": { "kind": "selector", "selector": "label=\"Tracking\"" } }
+  }
 ]
 ```
 
 Notes:
 
-- `positionals` is optional (defaults to `[]`).
-- `flags` is optional (defaults to `{}`).
-- Unknown top-level step fields are rejected. Supported keys are `command`, `positionals`, `flags`, and `runtime`.
+- `input` is required and uses the same fields as the matching MCP/Node command.
+- Unknown top-level step fields are rejected. Supported keys are `command`, `input`, and `runtime`.
+- CLI `--steps` and `--steps-file` still accept the legacy `positionals`/`flags` step shape with a deprecation warning. That compatibility path will be removed in the next major version.
 - nested `batch` and `replay` steps are rejected.
 - `--on-error stop` is the supported behavior.
 
@@ -78,7 +87,6 @@ Failure:
     "details": {
       "step": 3,
       "command": "click",
-      "positionals": ["label=\"Privacy & Security\""],
       "executed": 2,
       "total": 4,
       "partialResults": [
@@ -105,17 +113,19 @@ Open app -> open thread -> type -> send
 
 ```json
 [
-  { "command": "open", "positionals": ["com.example.chat"], "flags": { "platform": "android" } },
-  { "command": "wait", "positionals": ["text", "Inbox", "3000"], "flags": {} },
-  { "command": "press", "positionals": ["label=\"Inbox\" role=button"], "flags": {} },
-  { "command": "press", "positionals": ["label=\"Morgan Lee\""], "flags": {} },
+  { "command": "open", "input": { "app": "com.example.chat", "platform": "android" } },
+  { "command": "wait", "input": { "kind": "text", "text": "Inbox", "timeoutMs": 3000 } },
+  { "command": "press", "input": { "target": { "kind": "selector", "selector": "label=\"Inbox\" role=button" } } },
+  { "command": "press", "input": { "target": { "kind": "selector", "selector": "label=\"Morgan Lee\"" } } },
   {
     "command": "fill",
-    "positionals": ["label=\"Message\" role=text-field", "sent the update"],
-    "flags": {}
+    "input": {
+      "target": { "kind": "selector", "selector": "label=\"Message\" role=text-field" },
+      "text": "sent the update"
+    }
   },
-  { "command": "press", "positionals": ["label=\"Send\" role=button"], "flags": {} },
-  { "command": "wait", "positionals": ["text", "sent the update", "3000"], "flags": {} }
+  { "command": "press", "input": { "target": { "kind": "selector", "selector": "label=\"Send\" role=button" } } },
+  { "command": "wait", "input": { "kind": "text", "text": "sent the update", "timeoutMs": 3000 } }
 ]
 ```
 
@@ -123,13 +133,16 @@ Open app -> open action menu -> choose option -> verify
 
 ```json
 [
-  { "command": "open", "positionals": ["com.example.app"], "flags": { "platform": "android" } },
-  { "command": "wait", "positionals": ["text", "Home", "3000"], "flags": {} },
-  { "command": "press", "positionals": ["label=\"More actions\" role=button"], "flags": {} },
-  { "command": "wait", "positionals": ["text", "Scan document", "2000"], "flags": {} },
-  { "command": "press", "positionals": ["label=\"Scan document\""], "flags": {} },
-  { "command": "wait", "positionals": ["text", "Document uploaded", "15000"], "flags": {} },
-  { "command": "is", "positionals": ["visible", "label=\"Document uploaded\""], "flags": {} }
+  { "command": "open", "input": { "app": "com.example.app", "platform": "android" } },
+  { "command": "wait", "input": { "kind": "text", "text": "Home", "timeoutMs": 3000 } },
+  {
+    "command": "press",
+    "input": { "target": { "kind": "selector", "selector": "label=\"More actions\" role=button" } }
+  },
+  { "command": "wait", "input": { "kind": "text", "text": "Scan document", "timeoutMs": 2000 } },
+  { "command": "press", "input": { "target": { "kind": "selector", "selector": "label=\"Scan document\"" } } },
+  { "command": "wait", "input": { "kind": "text", "text": "Document uploaded", "timeoutMs": 15000 } },
+  { "command": "is", "input": { "predicate": "visible", "selector": "label=\"Document uploaded\"" } }
 ]
 ```
 
