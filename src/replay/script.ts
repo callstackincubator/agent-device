@@ -282,22 +282,21 @@ function parseReplayScriptLine(line: string): SessionAction | null {
   if (command === 'fill') {
     const parsed = parseReplaySeriesFlags(command, args);
     Object.assign(action.flags, parsed.flags);
-    const target = parsed.positionals[0];
-    const text = parsed.positionals[1];
-    if (target === undefined || text === undefined) {
+    if (!hasFillTargetAndText(parsed.positionals)) {
       action.positionals = parsed.positionals;
       return action;
     }
+    const [target, text, ...textRest] = parsed.positionals;
     if (target.startsWith('@')) {
-      if (parsed.positionals.length >= 3) {
-        action.positionals = [target, parsed.positionals.slice(2).join(' ')];
-        action.result = { refLabel: parsed.positionals[1] };
+      if (textRest.length > 0) {
+        action.positionals = [target, textRest.join(' ')];
+        action.result = { refLabel: text };
         return action;
       }
       action.positionals = [target, text];
       return action;
     }
-    action.positionals = [target, parsed.positionals.slice(1).join(' ')];
+    action.positionals = [target, [text, ...textRest].join(' ')];
     return action;
   }
 
@@ -373,6 +372,10 @@ function parseReplayScriptLine(line: string): SessionAction | null {
 
   action.positionals = args;
   return action;
+}
+
+function hasFillTargetAndText(positionals: string[]): positionals is [string, string, ...string[]] {
+  return positionals.length >= 2;
 }
 
 function isNumericToken(token: string | undefined): token is string {
