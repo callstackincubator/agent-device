@@ -27,4 +27,3 @@ jobs:
           source-dir: website/doc_build
           preview-branch: gh-pages
           qr-code: true
-          wait-for-pages-deployment: true
