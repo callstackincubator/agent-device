@@ -266,8 +266,9 @@ function isBlockedIpv4(address: string): boolean {
   if (octets.length !== 4 || octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
     return false;
   }
-  const a = octets[0]!;
-  const b = octets[1]!;
+  const a = octets[0];
+  const b = octets[1];
+  if (a === undefined || b === undefined) return false;
   if (a === 10 || a === 127) return true;
   if (a === 169 && b === 254) return true;
   if (a === 172 && b >= 16 && b <= 31) return true;
@@ -323,10 +324,11 @@ async function resolveInstallableCandidate(
 
   if (stat.isDirectory()) {
     const installables = await collectMatchingPaths(candidatePath, params.isInstallablePath);
-    if (installables.length === 1) {
+    const installable = installables[0];
+    if (installable !== undefined && installables.length === 1) {
       return {
         archivePath: params.archivePath,
-        installablePath: installables[0]!,
+        installablePath: installable,
       };
     }
     if (installables.length > 1) {
@@ -341,8 +343,8 @@ async function resolveInstallableCandidate(
       candidatePath,
       (entryPath, entryStat) => entryStat.isFile() && isArchivePath(entryPath),
     );
-    if (archives.length === 1) {
-      const archive = archives[0]!;
+    const archive = archives[0];
+    if (archive !== undefined && archives.length === 1) {
       if (!params.allowArchiveExtraction) {
         throw new AppError(
           'INVALID_ARGS',

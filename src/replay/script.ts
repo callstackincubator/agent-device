@@ -188,9 +188,8 @@ function parseReplayScriptLine(line: string): SessionAction | null {
   const trimmed = line.trim();
   if (trimmed.length === 0 || trimmed.startsWith('#')) return null;
   const tokens = tokenizeReplayLine(trimmed);
-  if (tokens.length === 0) return null;
-  const command = tokens[0]!;
-  const args = tokens.slice(1);
+  const [command, ...args] = tokens;
+  if (command === undefined) return null;
   if (command === 'context') return null;
 
   const action: SessionAction = {
@@ -260,8 +259,8 @@ function parseReplayScriptLine(line: string): SessionAction | null {
   if (isClickLikeCommand(command)) {
     const parsed = parseReplaySeriesFlags(command, args);
     Object.assign(action.flags, parsed.flags);
-    if (parsed.positionals.length === 0) return action;
-    const target = parsed.positionals[0]!;
+    const target = parsed.positionals[0];
+    if (target === undefined) return action;
     if (target.startsWith('@')) {
       action.positionals = [target];
       if (parsed.positionals[1]) {
@@ -301,12 +300,12 @@ function parseReplayScriptLine(line: string): SessionAction | null {
   }
 
   if (command === 'get') {
-    if (args.length < 2) {
+    const sub = args[0];
+    const target = args[1];
+    if (sub === undefined || target === undefined) {
       action.positionals = args;
       return action;
     }
-    const sub = args[0]!;
-    const target = args[1]!;
     if (target.startsWith('@')) {
       action.positionals = [sub, target];
       if (args[2]) {

@@ -114,8 +114,9 @@ export async function resolveIosApp(device: DeviceInfo, app: string): Promise<st
       ? await listSimulatorApps(device)
       : await listIosDeviceApps(device, 'all');
   const matches = list.filter((entry) => entry.name.toLowerCase() === trimmed.toLowerCase());
-  if (matches.length === 1) {
-    return iosAppResolutionCache.set(cacheScope, trimmed, matches[0]!.bundleId);
+  const match = matches[0];
+  if (match !== undefined && matches.length === 1) {
+    return iosAppResolutionCache.set(cacheScope, trimmed, match.bundleId);
   }
   if (matches.length > 1) {
     throw new AppError('INVALID_ARGS', `Multiple apps matched "${app}"`, { matches });

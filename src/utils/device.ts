@@ -116,7 +116,8 @@ export async function resolveDevice(
     return match;
   }
 
-  if (candidates.length === 1) return candidates[0]!;
+  const onlyCandidate = candidates[0];
+  if (onlyCandidate !== undefined && candidates.length === 1) return onlyCandidate;
 
   if (candidates.length === 0) {
     const simulatorSetPath = context.simulatorSetPath;
@@ -138,9 +139,14 @@ export async function resolveDevice(
   }
 
   const booted = candidates.filter((d) => d.booted);
-  if (booted.length === 1) return booted[0]!;
+  const onlyBooted = booted[0];
+  if (onlyBooted !== undefined && booted.length === 1) return onlyBooted;
 
   // When multiple candidates remain equally valid, preserve discovery order from
   // the underlying platform tools rather than introducing another tie-breaker here.
-  return booted[0] ?? candidates[0]!;
+  const selected = booted[0] ?? candidates[0];
+  if (selected === undefined) {
+    throw new AppError('DEVICE_NOT_FOUND', 'No devices found', { selector });
+  }
+  return selected;
 }

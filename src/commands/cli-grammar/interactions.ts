@@ -140,15 +140,15 @@ function readLongPressTargetFromPositionals(positionals: string[]): LongPressOpt
 }
 
 export function readFillTargetFromPositionals(positionals: string[]): DecodedFillTarget {
-  if (positionals[0]?.startsWith('@')) {
+  const firstPositional = positionals[0];
+  if (firstPositional?.startsWith('@')) {
     const text =
       positionals.length >= 3 ? positionals.slice(2).join(' ') : positionals.slice(1).join(' ');
-    const maybeLabel = positionals[1];
     return {
       kind: 'ref',
       target: {
-        ref: positionals[0]!,
-        label: positionals.length >= 3 ? optionalTrimmedText([maybeLabel!]) : undefined,
+        ref: firstPositional,
+        label: positionals.length >= 3 ? optionalTrimmedText(positionals.slice(1, 2)) : undefined,
       },
       text,
     };

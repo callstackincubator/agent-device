@@ -265,15 +265,12 @@ async function prepareRemoteRequest(
       clientArtifactPaths,
     });
 
-  if (
-    !isRemoteDaemon(info) ||
-    (req.command !== 'install' && req.command !== 'reinstall') ||
-    positionals.length < 2
-  ) {
+  if (!isRemoteDaemon(info) || (req.command !== 'install' && req.command !== 'reinstall')) {
     return baseResult();
   }
 
-  const rawPath = positionals[1]!;
+  const rawPath = positionals[1];
+  if (rawPath === undefined) return baseResult();
   if (rawPath.startsWith('remote:')) {
     positionals[1] = rawPath.slice('remote:'.length);
     return createPreparedRemoteRequest({ positionals, flags, clientArtifactPaths });
@@ -959,7 +956,11 @@ function resolveDaemonLaunchSpec(): DaemonLaunchSpec {
     path.join(root, 'dist', 'src', 'internal', 'daemon.js'),
     path.join(root, 'dist', 'src', 'daemon.js'),
   ];
-  const distPath = distPaths.find((candidate) => fs.existsSync(candidate)) ?? distPaths[0]!;
+  const defaultDistPath = distPaths[0];
+  if (defaultDistPath === undefined) {
+    throw new AppError('COMMAND_FAILED', 'Daemon dist path list is empty');
+  }
+  const distPath = distPaths.find((candidate) => fs.existsSync(candidate)) ?? defaultDistPath;
   const srcPath = path.join(root, 'src', 'daemon.ts');
 
   const hasDist = distPaths.some((candidate) => fs.existsSync(candidate));

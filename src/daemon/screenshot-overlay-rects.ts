@@ -18,7 +18,10 @@ export function rectContains(container: Rect, nested: Rect): boolean {
 }
 
 export function unionRects(rects: Rect[]): Rect {
-  const firstRect = rects[0]!;
+  const firstRect = rects[0];
+  if (firstRect === undefined) {
+    throw new Error('unionRects requires at least one rect');
+  }
   let minX = firstRect.x;
   let minY = firstRect.y;
   let maxRight = firstRect.x + firstRect.width;

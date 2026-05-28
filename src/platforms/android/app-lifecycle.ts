@@ -77,10 +77,11 @@ export async function resolveAndroidApp(
   const matches = packages.filter((pkg: string) =>
     pkg.toLowerCase().includes(trimmed.toLowerCase()),
   );
-  if (matches.length === 1) {
+  const match = matches[0];
+  if (match !== undefined && matches.length === 1) {
     return androidAppResolutionCache.set(cacheScope, trimmed, {
       type: 'package',
-      value: matches[0]!,
+      value: match,
     });
   }
 
@@ -586,9 +587,11 @@ export function parseAndroidLaunchComponent(stdout: string): string | null {
     .map((line: string) => line.trim())
     .filter(Boolean);
   for (let index = lines.length - 1; index >= 0; index -= 1) {
-    const line = lines[index]!;
+    const line = lines[index];
+    if (line === undefined) continue;
     if (!line.includes('/')) continue;
-    return line.split(/\s+/)[0]!;
+    const component = line.split(/\s+/)[0];
+    if (component !== undefined) return component;
   }
   return null;
 }
