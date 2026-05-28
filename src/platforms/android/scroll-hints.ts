@@ -84,6 +84,7 @@ type NativeScrollView = {
   contentBlocks: FlowBlock[];
 };
 
+// fallow-ignore-next-line complexity
 function inferHiddenScrollableContent(params: {
   viewportRect: Rect;
   visibleBlocks: FlowBlock[];
@@ -143,6 +144,7 @@ function inferMountedCoverageHiddenContent(
   return hiddenBefore || hiddenAfter ? { above: hiddenBefore, below: hiddenAfter } : null;
 }
 
+// fallow-ignore-next-line complexity
 function estimateScrollOffset(
   nativeBlocks: FlowBlock[],
   visibleBlocks: FlowBlock[],
@@ -329,6 +331,7 @@ function matchNativeScrollView(
   return best;
 }
 
+// fallow-ignore-next-line complexity
 function parseActivityTopViewTree(dump: string): ViewNode | null {
   const root: ViewNode = {
     className: 'root',

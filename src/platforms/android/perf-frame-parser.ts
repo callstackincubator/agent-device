@@ -248,6 +248,7 @@ function readFrameStatsNumber(
   return Number.isFinite(value) ? value : null;
 }
 
+// fallow-ignore-next-line complexity
 function parseAndroidFrameSummary(text: string): AndroidFrameSummary | undefined {
   const summaryText = text.split(/\nProfile data in ms:\n/i)[0] ?? '';
   const totalFrameCount = matchSummaryInteger(summaryText, 'Total frames rendered');

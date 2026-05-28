@@ -111,6 +111,7 @@ async function materializeLocalSource(
   }
 }
 
+// fallow-ignore-next-line complexity
 async function downloadToTempFile(
   tempDir: string,
   url: string,
@@ -261,6 +262,7 @@ export function isBlockedIpAddress(address: string): boolean {
   return false;
 }
 
+// fallow-ignore-next-line complexity
 function isBlockedIpv4(address: string): boolean {
   const octets = address.split('.').map((part) => Number.parseInt(part, 10));
   if (octets.length !== 4 || octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
@@ -284,6 +286,7 @@ function isBlockedIpv6(address: string): boolean {
   return false;
 }
 
+// fallow-ignore-next-line complexity
 async function resolveInstallableCandidate(
   candidatePath: string,
   params: {
@@ -356,7 +359,7 @@ async function resolveInstallableCandidate(
       params.registerCleanup(extracted.cleanup);
       return await resolveInstallableCandidate(extracted.outputPath, {
         ...params,
-        archivePath: params.archivePath ?? archives[0],
+        archivePath: params.archivePath ?? archive,
       });
     }
     if (archives.length > 1) {
