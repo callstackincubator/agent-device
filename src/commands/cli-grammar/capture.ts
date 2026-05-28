@@ -116,8 +116,8 @@ function readWaitOptionsFromPositionals(
 }
 
 export function parseWaitPositionals(args: string[]): WaitParsed | null {
-  if (args.length === 0) return null;
-  const firstArg = args[0]!;
+  const firstArg = args[0];
+  if (firstArg === undefined) return null;
   const sleepMs = parseTimeout(firstArg);
   if (sleepMs !== null) return { kind: 'sleep', durationMs: sleepMs };
   const timeoutMs = parseTimeout(args[args.length - 1]);
