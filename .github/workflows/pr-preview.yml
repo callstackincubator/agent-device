@@ -9,6 +9,7 @@ on:
     paths:
       - "website/**"
       - ".github/actions/build-docs/action.yml"
+      - ".github/actions/setup-node-pnpm/action.yml"
       - ".github/workflows/pr-preview.yml"
       - "package.json"
       - "pnpm-lock.yaml"
