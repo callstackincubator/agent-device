@@ -1,4 +1,5 @@
 import type { PNG } from './png.ts';
+import { findConnectedMaskComponents } from './screenshot-diff-components.ts';
 import { splitLargeDiffRegions } from './screenshot-diff-region-split.ts';
 import type { MutableDiffRegion } from './screenshot-diff-region-types.ts';
 
@@ -89,62 +90,33 @@ function findConnectedDiffRegions(params: {
 }): MutableDiffRegion[] {
   const { diffMask, baseline, current } = params;
   const { width, height } = baseline;
-  const visited = new Uint8Array(diffMask.length);
-  const queue = new Int32Array(diffMask.length);
-  const regions: MutableDiffRegion[] = [];
+  return findConnectedMaskComponents({
+    mask: diffMask,
+    width,
+    height,
+    hooks: {
+      create: (pixelIndex) => createDiffRegion(pixelIndex, width),
+      visit: (region, pixelIndex) => addPixelToRegion(region, pixelIndex, width, baseline, current),
+    },
+  });
+}
 
-  for (let pixelIndex = 0; pixelIndex < diffMask.length; pixelIndex += 1) {
-    if (diffMask[pixelIndex] !== 1 || visited[pixelIndex] === 1) continue;
-
-    let queueStart = 0;
-    let queueEnd = 0;
-    queue[queueEnd] = pixelIndex;
-    queueEnd += 1;
-    visited[pixelIndex] = 1;
-
-    const startX = pixelIndex % width;
-    const startY = Math.floor(pixelIndex / width);
-    const region: MutableDiffRegion = {
-      minX: startX,
-      minY: startY,
-      maxX: startX,
-      maxY: startY,
-      differentPixels: 0,
-      baselineRed: 0,
-      baselineGreen: 0,
-      baselineBlue: 0,
-      currentRed: 0,
-      currentGreen: 0,
-      currentBlue: 0,
-    };
-
-    while (queueStart < queueEnd) {
-      const currentPixelIndex = queue[queueStart]!;
-      queueStart += 1;
-      addPixelToRegion(region, currentPixelIndex, width, baseline, current);
-
-      const x = currentPixelIndex % width;
-      const y = Math.floor(currentPixelIndex / width);
-      for (let yOffset = -1; yOffset <= 1; yOffset += 1) {
-        const neighborY = y + yOffset;
-        if (neighborY < 0 || neighborY >= height) continue;
-        for (let xOffset = -1; xOffset <= 1; xOffset += 1) {
-          if (xOffset === 0 && yOffset === 0) continue;
-          const neighborX = x + xOffset;
-          if (neighborX < 0 || neighborX >= width) continue;
-          const neighborIndex = neighborY * width + neighborX;
-          if (diffMask[neighborIndex] !== 1 || visited[neighborIndex] === 1) continue;
-          visited[neighborIndex] = 1;
-          queue[queueEnd] = neighborIndex;
-          queueEnd += 1;
-        }
-      }
-    }
-
-    regions.push(region);
-  }
-
-  return regions;
+function createDiffRegion(pixelIndex: number, width: number): MutableDiffRegion {
+  const startX = pixelIndex % width;
+  const startY = Math.floor(pixelIndex / width);
+  return {
+    minX: startX,
+    minY: startY,
+    maxX: startX,
+    maxY: startY,
+    differentPixels: 0,
+    baselineRed: 0,
+    baselineGreen: 0,
+    baselineBlue: 0,
+    currentRed: 0,
+    currentGreen: 0,
+    currentBlue: 0,
+  };
 }
 
 function addPixelToRegion(

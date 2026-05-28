@@ -3,6 +3,7 @@ import type {
   ScreenshotDiffRegionOverlayMatch,
 } from './screenshot-diff-regions.ts';
 import type { Rect, ScreenshotOverlayRef } from './snapshot.ts';
+import { intersectArea } from './screenshot-geometry.ts';
 
 const MAX_MATCHES_PER_REGION = 3;
 
@@ -50,15 +51,6 @@ function findRegionOverlayMatches(
       rect: match.rect,
       regionCoveragePercentage: match.regionCoveragePercentage,
     }));
-}
-
-function intersectArea(left: Rect, right: Rect): number {
-  const minX = Math.max(left.x, right.x);
-  const minY = Math.max(left.y, right.y);
-  const maxX = Math.min(left.x + left.width, right.x + right.width);
-  const maxY = Math.min(left.y + left.height, right.y + right.height);
-  if (maxX <= minX || maxY <= minY) return 0;
-  return (maxX - minX) * (maxY - minY);
 }
 
 function rectArea(rect: Rect): number {

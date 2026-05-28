@@ -1,5 +1,6 @@
 import type { Rect } from './snapshot.ts';
 import { runCmd, whichCmd } from './exec.ts';
+import { rectCenter, squaredDistance, unionRects } from './screenshot-geometry.ts';
 
 export type ScreenshotOcrBlock = {
   text: string;
@@ -333,28 +334,6 @@ function scoreMovementCluster(cluster: ScreenshotOcrMovementCluster): number {
   const averageX = (cluster.xRange.min + cluster.xRange.max) / 2;
   const averageY = (cluster.yRange.min + cluster.yRange.max) / 2;
   return Math.abs(averageX) * 2 + Math.abs(averageY);
-}
-
-function unionRects(rects: Rect[]): Rect {
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  for (const rect of rects) {
-    minX = Math.min(minX, rect.x);
-    minY = Math.min(minY, rect.y);
-    maxX = Math.max(maxX, rect.x + rect.width);
-    maxY = Math.max(maxY, rect.y + rect.height);
-  }
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
-
-function rectCenter(rect: Rect): { x: number; y: number } {
-  return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-}
-
-function squaredDistance(left: { x: number; y: number }, right: { x: number; y: number }): number {
-  return (left.x - right.x) ** 2 + (left.y - right.y) ** 2;
 }
 
 function readTsvString(values: string[], indexByName: Map<string, number>, name: string): string {

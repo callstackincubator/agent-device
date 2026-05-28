@@ -1,6 +1,15 @@
 import type { Rect } from './snapshot.ts';
+import { findConnectedMaskComponents } from './screenshot-diff-components.ts';
 import type { ScreenshotOcrAnalysis, ScreenshotOcrBlock } from './screenshot-diff-ocr.ts';
 import type { ScreenshotDiffRegion } from './screenshot-diff-regions.ts';
+import {
+  clamp,
+  expandRect,
+  intersectArea,
+  rectCenter,
+  squaredDistance,
+  unionRects,
+} from './screenshot-geometry.ts';
 
 export type ScreenshotNonTextDelta = {
   index: number;
@@ -118,56 +127,37 @@ function findConnectedComponents(
   width: number,
   height: number,
 ): MutableComponent[] {
-  const visited = new Uint8Array(mask.length);
-  const queue = new Int32Array(mask.length);
-  const components: MutableComponent[] = [];
-  for (let pixelIndex = 0; pixelIndex < mask.length; pixelIndex += 1) {
-    if (mask[pixelIndex] !== 1 || visited[pixelIndex] === 1) continue;
-    let queueStart = 0;
-    let queueEnd = 0;
-    queue[queueEnd] = pixelIndex;
-    queueEnd += 1;
-    visited[pixelIndex] = 1;
+  return findConnectedMaskComponents({
+    mask,
+    width,
+    height,
+    hooks: {
+      create: (pixelIndex) => createComponent(pixelIndex, width),
+      visit: (component, pixelIndex) => addPixelToComponent(component, pixelIndex, width),
+    },
+  });
+}
 
-    const startX = pixelIndex % width;
-    const startY = Math.floor(pixelIndex / width);
-    const component: MutableComponent = {
-      minX: startX,
-      minY: startY,
-      maxX: startX,
-      maxY: startY,
-      differentPixels: 0,
-    };
+function createComponent(pixelIndex: number, width: number): MutableComponent {
+  const startX = pixelIndex % width;
+  const startY = Math.floor(pixelIndex / width);
+  return {
+    minX: startX,
+    minY: startY,
+    maxX: startX,
+    maxY: startY,
+    differentPixels: 0,
+  };
+}
 
-    while (queueStart < queueEnd) {
-      const currentIndex = queue[queueStart]!;
-      queueStart += 1;
-      const x = currentIndex % width;
-      const y = Math.floor(currentIndex / width);
-      component.minX = Math.min(component.minX, x);
-      component.minY = Math.min(component.minY, y);
-      component.maxX = Math.max(component.maxX, x);
-      component.maxY = Math.max(component.maxY, y);
-      component.differentPixels += 1;
-
-      for (let yOffset = -1; yOffset <= 1; yOffset += 1) {
-        const neighborY = y + yOffset;
-        if (neighborY < 0 || neighborY >= height) continue;
-        for (let xOffset = -1; xOffset <= 1; xOffset += 1) {
-          if (xOffset === 0 && yOffset === 0) continue;
-          const neighborX = x + xOffset;
-          if (neighborX < 0 || neighborX >= width) continue;
-          const neighborIndex = neighborY * width + neighborX;
-          if (mask[neighborIndex] !== 1 || visited[neighborIndex] === 1) continue;
-          visited[neighborIndex] = 1;
-          queue[queueEnd] = neighborIndex;
-          queueEnd += 1;
-        }
-      }
-    }
-    components.push(component);
-  }
-  return components;
+function addPixelToComponent(component: MutableComponent, pixelIndex: number, width: number): void {
+  const x = pixelIndex % width;
+  const y = Math.floor(pixelIndex / width);
+  component.minX = Math.min(component.minX, x);
+  component.minY = Math.min(component.minY, y);
+  component.maxX = Math.max(component.maxX, x);
+  component.maxY = Math.max(component.maxY, y);
+  component.differentPixels += 1;
 }
 
 function mergeNearbyComponents(components: MutableComponent[], gapPx: number): MutableComponent[] {
@@ -397,20 +387,6 @@ function findNearestText(
   return nearest;
 }
 
-function unionRects(rects: Rect[]): Rect {
-  let minX = Number.POSITIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  for (const rect of rects) {
-    minX = Math.min(minX, rect.x);
-    minY = Math.min(minY, rect.y);
-    maxX = Math.max(maxX, rect.x + rect.width);
-    maxY = Math.max(maxY, rect.y + rect.height);
-  }
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-}
-
 function cleanOcrAnchorText(text: string): string {
   return text
     .trim()
@@ -433,15 +409,6 @@ function componentToRect(component: MutableComponent): Rect {
     y: component.minY,
     width: component.maxX - component.minX + 1,
     height: component.maxY - component.minY + 1,
-  };
-}
-
-function expandRect(rect: Rect, padding: number): Rect {
-  return {
-    x: rect.x - padding,
-    y: rect.y - padding,
-    width: rect.width + padding * 2,
-    height: rect.height + padding * 2,
   };
 }
 
@@ -470,30 +437,9 @@ function componentsAreNear(
   );
 }
 
-function intersectArea(left: Rect, right: Rect): number {
-  const minX = Math.max(left.x, right.x);
-  const minY = Math.max(left.y, right.y);
-  const maxX = Math.min(left.x + left.width, right.x + right.width);
-  const maxY = Math.min(left.y + left.height, right.y + right.height);
-  if (maxX <= minX || maxY <= minY) return 0;
-  return (maxX - minX) * (maxY - minY);
-}
-
 function verticalOverlap(left: Rect, right: Rect): number {
   return Math.max(
     0,
     Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y),
   );
-}
-
-function rectCenter(rect: Rect): { x: number; y: number } {
-  return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-}
-
-function squaredDistance(left: { x: number; y: number }, right: { x: number; y: number }): number {
-  return (left.x - right.x) ** 2 + (left.y - right.y) ** 2;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
 }

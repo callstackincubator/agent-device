@@ -38,6 +38,11 @@ type PngMetadata = {
   transparency?: Buffer;
 };
 
+type PngChunk = {
+  type: string;
+  data: Buffer;
+};
+
 export class PNG {
   width: number;
   height: number;
@@ -60,14 +65,54 @@ export class PNG {
 }
 
 function readPng(buffer: Buffer): PNG {
+  const { metadata, idatChunks } = collectPngChunks(buffer);
+  if (!metadata) throw new Error('PNG is missing IHDR');
+  if (idatChunks.length === 0) throw new Error('PNG is missing IDAT');
+  const inflated = inflateSync(Buffer.concat(idatChunks));
+  return new PNG({
+    width: metadata.width,
+    height: metadata.height,
+    data:
+      metadata.interlace === 1
+        ? decodeInterlacedPixels(inflated, metadata)
+        : decodePixels(unfilterPng(inflated, metadata), metadata),
+  });
+}
+
+function collectPngChunks(buffer: Buffer): { metadata?: PngMetadata; idatChunks: Buffer[] } {
+  let metadata: PngMetadata | undefined;
+  const idatChunks: Buffer[] = [];
+
+  for (const chunk of iteratePngChunks(buffer)) {
+    if (chunk.type === 'IHDR') metadata = parseIhdr(chunk.data);
+    else if (chunk.type === 'IDAT') idatChunks.push(Buffer.from(chunk.data));
+    else metadata = applyMetadataChunk(chunk, metadata);
+    if (chunk.type === 'IEND') break;
+  }
+
+  return { metadata, idatChunks };
+}
+
+function applyMetadataChunk(
+  chunk: PngChunk,
+  metadata: PngMetadata | undefined,
+): PngMetadata | undefined {
+  if (chunk.type === 'PLTE') {
+    if (!metadata) throw new Error('PNG PLTE appeared before IHDR');
+    metadata.palette = Buffer.from(chunk.data);
+  } else if (chunk.type === 'tRNS') {
+    if (!metadata) throw new Error('PNG tRNS appeared before IHDR');
+    metadata.transparency = Buffer.from(chunk.data);
+  }
+  return metadata;
+}
+
+function* iteratePngChunks(buffer: Buffer): Generator<PngChunk> {
   if (!buffer.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) {
     throw new Error('Invalid PNG signature');
   }
 
-  let metadata: PngMetadata | undefined;
-  const idatChunks: Buffer[] = [];
   let offset = PNG_SIGNATURE.length;
-
   while (offset < buffer.length) {
     if (offset + 12 > buffer.length) throw new Error('Truncated PNG chunk');
     const length = buffer.readUInt32BE(offset);
@@ -80,29 +125,8 @@ function readPng(buffer: Buffer): PNG {
     const actualCrc = crc32(buffer.subarray(offset + 4, dataEnd));
     if (actualCrc !== expectedCrc) throw new Error(`Invalid PNG ${type} chunk CRC`);
     offset = dataEnd + 4;
-
-    if (type === 'IHDR') metadata = parseIhdr(data);
-    else if (type === 'PLTE') {
-      if (!metadata) throw new Error('PNG PLTE appeared before IHDR');
-      metadata.palette = Buffer.from(data);
-    } else if (type === 'tRNS') {
-      if (!metadata) throw new Error('PNG tRNS appeared before IHDR');
-      metadata.transparency = Buffer.from(data);
-    } else if (type === 'IDAT') idatChunks.push(Buffer.from(data));
-    else if (type === 'IEND') break;
+    yield { type, data };
   }
-
-  if (!metadata) throw new Error('PNG is missing IHDR');
-  if (idatChunks.length === 0) throw new Error('PNG is missing IDAT');
-  const inflated = inflateSync(Buffer.concat(idatChunks));
-  return new PNG({
-    width: metadata.width,
-    height: metadata.height,
-    data:
-      metadata.interlace === 1
-        ? decodeInterlacedPixels(inflated, metadata)
-        : decodePixels(unfilterPng(inflated, metadata), metadata),
-  });
 }
 
 function writePng(png: PNG): Buffer {
