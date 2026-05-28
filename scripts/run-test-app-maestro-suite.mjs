@@ -72,9 +72,14 @@ if (options.openTarget) {
   runAgentDevice(['wait', 'Agent Device Tester', '30000', '--platform', options.platform, ...options.passthrough]);
 }
 
-for (const flow of flows) {
-  runAgentDevice(['replay', flow, '--maestro', '--platform', options.platform, ...options.passthrough]);
-}
+runAgentDevice([
+  'test',
+  options.flowDir,
+  '--maestro',
+  '--platform',
+  options.platform,
+  ...options.passthrough,
+]);
 
 if (options.close) {
   runAgentDevice(['close']);

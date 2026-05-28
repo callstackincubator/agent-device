@@ -1,9 +1,7 @@
 import type { SessionAction } from '../../daemon/types.ts';
 import { AppError } from '../../utils/errors.ts';
+import { MAESTRO_COMPAT_TRACKER_URL, MAESTRO_NEW_ISSUE_URL } from './support-matrix.ts';
 import type { MaestroCommand, MaestroFlowConfig, MaestroParseContext } from './types.ts';
-
-const MAESTRO_COMPAT_TRACKER_URL = 'https://github.com/callstackincubator/agent-device/issues/558';
-const MAESTRO_NEW_ISSUE_URL = 'https://github.com/callstackincubator/agent-device/issues/new';
 
 export function action(
   command: string,

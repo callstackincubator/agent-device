@@ -5,6 +5,10 @@ import {
   SCREENSHOT_SPECIFIC_FLAG_DEFINITIONS,
   type ScreenshotRequestFlags,
 } from '../commands/capture-screenshot-options.ts';
+import {
+  MAESTRO_COMPAT_TRACKER_URL,
+  formatMaestroSupportedSubsetForCli,
+} from '../compat/maestro/support-matrix.ts';
 
 export type CliFlags = RemoteConfigMetroOptions &
   ScreenshotRequestFlags & {
@@ -760,8 +764,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '--maestro',
     usageDescription:
-      'Replay: treat input as a Maestro YAML compatibility flow. Supported subset: launchApp without state-reset side effects, runFlow file/inline with when.platform, onFlowStart/onFlowComplete, deterministic repeat.times, ordered trusted runScript, tapOn, doubleTapOn, longPressOn, inputText, pasteText, openLink, assertVisible, assertNotVisible, assertTrue literal true/false, extendedWaitUntil, scroll, absolute/percentage swipe, takeScreenshot, hideKeyboard, pressKey back/enter/home, back, waitForAnimationToEnd, stopApp/killApp, setAirplaneMode, setLocation, setOrientation, supported setPermissions targets, and startRecording/stopRecording. ' +
-      'Unsupported syntax fails loudly with a link to https://github.com/callstackincubator/agent-device/issues/558',
+      `Replay: treat input as a Maestro YAML compatibility flow. ${formatMaestroSupportedSubsetForCli()} ` +
+      `Unsupported syntax fails loudly with a link to ${MAESTRO_COMPAT_TRACKER_URL}`,
   },
   {
     key: 'replayEnv',
