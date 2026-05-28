@@ -13,6 +13,7 @@ import type { ReplayTestRuntimeDependencies } from './session-test-types.ts';
 const REPLAY_TIMEOUT_CLEANUP_GRACE_MS = 2_000;
 const REPLAY_TEST_TIMEOUT_HINT =
   'Replay test timeouts are cooperative; the active command may take a short grace period to stop.';
+const REPLAY_TIMEOUT_CLEANUP_PENDING_REASON = 'timeout_cleanup_pending';
 
 export async function runReplayTestAttempt(
   params: {
@@ -40,6 +41,7 @@ export async function runReplayTestAttempt(
   const artifactPaths = new Set<string>();
   let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
   let timedOut = false;
+  let response: DaemonResponse | undefined;
   const replayPromise = runReplay({
     filePath,
     sessionName,
@@ -61,7 +63,7 @@ export async function runReplayTestAttempt(
     });
 
   try {
-    const response =
+    response =
       typeof timeoutMs === 'number'
         ? await Promise.race([
             replayPromise,
@@ -80,6 +82,7 @@ export async function runReplayTestAttempt(
     if (timedOut) {
       const settled = await waitForReplayAfterTimeout(replayPromise);
       if (!settled) {
+        markReplayTimeoutCleanupPending(response);
         emitDiagnostic({
           level: 'warn',
           phase: 'test_timeout_cleanup_race',
@@ -88,6 +91,12 @@ export async function runReplayTestAttempt(
             requestId,
             graceMs: REPLAY_TIMEOUT_CLEANUP_GRACE_MS,
           },
+        });
+        void cleanupSessionAfterLateReplay({
+          replayPromise,
+          cleanupSession,
+          sessionName,
+          requestId,
         });
       }
     }
@@ -112,6 +121,42 @@ async function waitForReplayAfterTimeout(replayPromise: Promise<DaemonResponse>)
     replayPromise.then(() => true),
     sleep(REPLAY_TIMEOUT_CLEANUP_GRACE_MS).then(() => false),
   ]);
+}
+
+async function cleanupSessionAfterLateReplay(params: {
+  replayPromise: Promise<DaemonResponse>;
+  cleanupSession: ReplayTestRuntimeDependencies['cleanupSession'];
+  sessionName: string;
+  requestId: string;
+}): Promise<void> {
+  const { replayPromise, cleanupSession, sessionName, requestId } = params;
+  try {
+    await replayPromise;
+  } finally {
+    try {
+      await cleanupSession(sessionName);
+    } catch (error) {
+      const appErr = normalizeError(error);
+      emitDiagnostic({
+        level: 'warn',
+        phase: 'test_late_cleanup_failed',
+        data: {
+          session: sessionName,
+          requestId,
+          error: appErr.message,
+        },
+      });
+    }
+  }
+}
+
+function markReplayTimeoutCleanupPending(response: DaemonResponse | undefined): void {
+  if (!response || response.ok) return;
+  response.error.details = {
+    ...(response.error.details ?? {}),
+    reason: REPLAY_TIMEOUT_CLEANUP_PENDING_REASON,
+    timeoutCleanupPending: true,
+  };
 }
 
 function createReplayTestTimeoutResponse(
