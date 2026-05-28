@@ -388,7 +388,8 @@ export function parseUiHierarchyTree(xml: string): AndroidUiHierarchy {
       continue;
     }
     const attrs = readAndroidUiNodeMetadata(token);
-    const parent = stack[stack.length - 1];
+    const parent = stack.at(-1);
+    if (parent === undefined) continue;
     const node: AndroidUiHierarchy = {
       type: attrs.className,
       label: attrs.text || attrs.desc,

@@ -1199,7 +1199,7 @@ test('compat mode warns and strips unsupported command flags', () => {
   assert.equal(parsed.command, 'press');
   assert.equal(parsed.flags.pauseMs, undefined);
   assert.equal(parsed.warnings.length, 1);
-  assert.match(parsed.warnings[0], /not supported for command press/);
+  assert.match(parsed.warnings[0]!, /not supported for command press/);
 });
 
 test('strict mode rejects unsupported pilot-command flags', () => {
@@ -1314,7 +1314,7 @@ test('command-specific flags without command warn and strip in compat mode', () 
   assert.equal(parsed.command, null);
   assert.equal(parsed.flags.snapshotDepth, undefined);
   assert.equal(parsed.warnings.length, 1);
-  assert.match(parsed.warnings[0], /requires a command that supports/);
+  assert.match(parsed.warnings[0]!, /requires a command that supports/);
 });
 
 test('all commands participate in strict command-flag validation', () => {

@@ -1491,9 +1491,9 @@ test('parseIosDeviceAppsPayload maps devicectl app entries', () => {
     name: 'Maps',
     url: 'file:///Applications/Maps.app/',
   });
-  assert.equal(apps[1].bundleId, 'com.example.NoName');
-  assert.equal(apps[1].name, 'com.example.NoName');
-  assert.equal(apps[1].url, undefined);
+  assert.equal(apps[1]!.bundleId, 'com.example.NoName');
+  assert.equal(apps[1]!.name, 'com.example.NoName');
+  assert.equal(apps[1]!.url, undefined);
 });
 
 test('parseIosDeviceAppsPayload ignores malformed entries', () => {

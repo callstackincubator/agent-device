@@ -127,7 +127,7 @@ export function parseFindArgs(args: string[]): {
   if (actionTokens.length === 0) {
     return { locator, query, action: 'click' };
   }
-  const action = actionTokens[0].toLowerCase();
+  const action = actionTokens[0]?.toLowerCase();
   if (action === 'get') {
     const sub = actionTokens[1]?.toLowerCase();
     if (sub === 'text') return { locator, query, action: 'get_text' };

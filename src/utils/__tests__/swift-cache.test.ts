@@ -5,7 +5,7 @@ import path from 'node:path';
 
 vi.mock('../exec.ts', () => ({
   runCmd: vi.fn(async (_cmd: string, args: string[]) => {
-    const outputPath = args[args.indexOf('-o') + 1];
+    const outputPath = args[args.indexOf('-o') + 1]!;
     fs.writeFileSync(outputPath, 'compiled');
     fs.chmodSync(outputPath, 0o755);
     return { stdout: '', stderr: '', exitCode: 0 };
@@ -38,8 +38,8 @@ test('compileSwiftSourceFile compiles to a unique temp executable before publish
     sourcePath,
   });
 
-  const compileCall = mockRunCmd.mock.calls[0];
-  const outputPath = compileCall[1][compileCall[1].indexOf('-o') + 1];
+  const compileCall = mockRunCmd.mock.calls[0]!;
+  const outputPath = compileCall[1][compileCall[1].indexOf('-o') + 1]!;
 
   expect(outputPath).not.toBe(executablePath);
   expect(path.dirname(outputPath)).toContain(path.join('swift-cache', 'bin'));
@@ -127,7 +127,7 @@ async function expectConcurrentCacheReuse(compile: () => Promise<string>): Promi
       await new Promise<void>((release) => {
         releaseCompile = release;
       });
-      const outputPath = args[args.indexOf('-o') + 1];
+      const outputPath = args[args.indexOf('-o') + 1]!;
       fs.writeFileSync(outputPath, 'compiled once');
       fs.chmodSync(outputPath, 0o755);
       return { stdout: '', stderr: '', exitCode: 0 };

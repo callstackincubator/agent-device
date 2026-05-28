@@ -255,9 +255,14 @@ function parseAndroidFrameSummary(text: string): AndroidFrameSummary | undefined
     /^\s*Janky frames:\s*([0-9][0-9,]*)\s*\(([0-9.]+)%\)/im,
   );
   if (totalFrameCount === undefined || !jankyFrameMatch) return undefined;
+  const droppedFrameToken = jankyFrameMatch[1];
+  const droppedFramePercentToken = jankyFrameMatch[2];
+  if (droppedFrameToken === undefined || droppedFramePercentToken === undefined) {
+    return undefined;
+  }
 
-  const droppedFrameCount = parseNumericToken(jankyFrameMatch[1]) ?? undefined;
-  const droppedFramePercent = Number(jankyFrameMatch[2]);
+  const droppedFrameCount = parseNumericToken(droppedFrameToken) ?? undefined;
+  const droppedFramePercent = Number(droppedFramePercentToken);
   if (
     droppedFrameCount === undefined ||
     !Number.isFinite(droppedFramePercent) ||
@@ -365,5 +370,6 @@ function matchSummaryInteger(text: string, label: string): number | undefined {
   const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = text.match(new RegExp(`^\\s*${escapedLabel}:\\s*([0-9][0-9,]*)`, 'im'));
   if (!match) return undefined;
-  return parseNumericToken(match[1]) ?? undefined;
+  const token = match[1];
+  return token === undefined ? undefined : (parseNumericToken(token) ?? undefined);
 }

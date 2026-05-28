@@ -350,7 +350,7 @@ test('uploadArtifact disables macOS AppleDouble entries when archiving app bundl
       (cmd, args, options) => {
         if (cmd !== 'tar') return undefined;
         tarEnv = options.env;
-        const archivePath = args[1];
+        const archivePath = args[1]!;
         assert.equal(args[0], 'czf');
         assert.equal(typeof archivePath, 'string');
         fs.writeFileSync(archivePath, 'fake-archive');

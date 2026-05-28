@@ -269,11 +269,16 @@ function parseAndroidDeviceEntries(rawOutput: string): AndroidDeviceEntry[] {
   return lines
     .filter((line) => line.length > 0 && !line.startsWith('List of devices'))
     .map((line) => line.split(/\s+/))
-    .filter((parts) => parts[1] === 'device')
-    .map((parts) => ({
-      serial: parts[0],
-      rawModel: (parts.find((entry) => entry.startsWith('model:')) ?? '').replace('model:', ''),
-    }));
+    .flatMap((parts) => {
+      const serial = parts[0];
+      if (serial === undefined || parts[1] !== 'device') return [];
+      return [
+        {
+          serial,
+          rawModel: (parts.find((entry) => entry.startsWith('model:')) ?? '').replace('model:', ''),
+        },
+      ];
+    });
 }
 
 async function listAndroidDeviceEntries(): Promise<AndroidDeviceEntry[]> {

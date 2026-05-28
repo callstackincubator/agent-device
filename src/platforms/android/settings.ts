@@ -237,7 +237,7 @@ async function resolveAndroidAppearanceTarget(
 function parseAndroidAppearance(stdout: string, stderr: string): 'light' | 'dark' | 'auto' | null {
   const match = /night mode:\s*(yes|no|auto)\b/i.exec(`${stdout}\n${stderr}`);
   if (!match) return null;
-  const value = match[1].toLowerCase();
+  const value = match[1]?.toLowerCase();
   if (value === 'yes') return 'dark';
   if (value === 'no') return 'light';
   if (value === 'auto') return 'auto';

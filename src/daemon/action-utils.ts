@@ -7,7 +7,8 @@ export function inferFillText(action: SessionAction): string {
   }
   const positionals = action.positionals ?? [];
   if (positionals.length === 0) return '';
-  if (positionals[0].startsWith('@')) {
+  const first = positionals[0];
+  if (first?.startsWith('@')) {
     if (positionals.length >= 3) return positionals.slice(2).join(' ').trim();
     return positionals.slice(1).join(' ').trim();
   }

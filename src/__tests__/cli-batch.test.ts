@@ -37,7 +37,7 @@ test('batch --steps parses JSON and forwards batchSteps only', async () => {
   ]);
   assert.equal(result.code, null);
   assert.equal(result.calls.length, 1);
-  const req = result.calls[0];
+  const req = result.calls[0]!;
   assert.equal(req.command, 'batch');
   assert.equal(req.session, 'sim');
   assert.equal(req.flags?.platform, 'ios');
@@ -57,7 +57,7 @@ test('batch --steps-file parses file payload', async () => {
   const result = await runCliCapture(['batch', '--steps-file', stepsPath, '--json']);
   assert.equal(result.code, null);
   assert.equal(result.calls.length, 1);
-  const req = result.calls[0];
+  const req = result.calls[0]!;
   assert.equal(req.command, 'batch');
   assert.equal((req.flags?.batchSteps ?? [])[0]?.command, 'wait');
 });

@@ -35,14 +35,10 @@ export async function handleLongPressCommand(
   interactor: Interactor,
   positionals: string[],
 ): Promise<Record<string, unknown>> {
-  const x = Number(positionals[0]);
-  const y = Number(positionals[1]);
+  const { x, y } = readPoint(positionals, 'longpress requires x y [durationMs]', {
+    hint: 'Direct platform longpress requires coordinates. In an open daemon session, use agent-device longpress @ref|selector [durationMs]; otherwise run snapshot -i -c, use the target rect center as x y, then retry longpress x y durationMs.',
+  });
   const durationMs = positionals[2] ? Number(positionals[2]) : undefined;
-  if (Number.isNaN(x) || Number.isNaN(y)) {
-    throw new AppError('INVALID_ARGS', 'longpress requires x y [durationMs]', {
-      hint: 'Direct platform longpress requires coordinates. In an open daemon session, use agent-device longpress @ref|selector [durationMs]; otherwise run snapshot -i -c, use the target rect center as x y, then retry longpress x y durationMs.',
-    });
-  }
   await interactor.longPress(x, y, durationMs);
   return { x, y, durationMs, ...successText(`Long pressed (${x}, ${y})`) };
 }
@@ -51,10 +47,7 @@ export async function handleFocusCommand(
   interactor: Interactor,
   positionals: string[],
 ): Promise<Record<string, unknown>> {
-  const [x, y] = positionals.map(Number);
-  if (Number.isNaN(x) || Number.isNaN(y)) {
-    throw new AppError('INVALID_ARGS', 'focus requires x y');
-  }
+  const { x, y } = readPoint(positionals, 'focus requires x y');
   await interactor.focus(x, y);
   return { x, y, ...successText(`Focused (${x}, ${y})`) };
 }
@@ -184,9 +177,16 @@ type PressSeriesOptions = {
   doubleTap: boolean;
 };
 
-function readPoint(positionals: string[], errorMessage: string): Point {
-  const [x, y] = positionals.map(Number);
-  if (Number.isNaN(x) || Number.isNaN(y)) throw new AppError('INVALID_ARGS', errorMessage);
+function readPoint(
+  positionals: string[],
+  errorMessage: string,
+  details?: Record<string, unknown>,
+): Point {
+  const x = Number(positionals[0]);
+  const y = Number(positionals[1]);
+  if (Number.isNaN(x) || Number.isNaN(y)) {
+    throw new AppError('INVALID_ARGS', errorMessage, details);
+  }
   return { x, y };
 }
 
@@ -817,10 +817,7 @@ export async function handleReadCommand(
   positionals: string[],
   context: DispatchContext | undefined,
 ): Promise<Record<string, unknown>> {
-  const [x, y] = positionals.map(Number);
-  if (Number.isNaN(x) || Number.isNaN(y)) {
-    throw new AppError('INVALID_ARGS', 'read requires x y');
-  }
+  const { x, y } = readPoint(positionals, 'read requires x y');
   if (device.platform === 'android') {
     const text = await readAndroidTextAtPoint(device, x, y);
     return { action: 'read', text: text ?? '' };

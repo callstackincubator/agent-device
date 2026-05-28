@@ -427,6 +427,9 @@ async function handleSettingsCommand(
   context: DispatchContext | undefined,
 ): Promise<Record<string, unknown>> {
   const [setting, state, target, mode] = positionals;
+  if (!setting || !state) {
+    throw new AppError('INVALID_ARGS', 'settings requires setting state');
+  }
   const isLocationSet = setting === 'location' && state === 'set';
   const usesPayloadAppBundleSlot = setting === 'permission' || isLocationSet;
   const appBundleId =

@@ -9,13 +9,13 @@ vi.mock('../../utils/exec.ts', async () => {
   return {
     runCmd: vi.fn(async (cmd: string, args: string[]) => {
       if (cmd === 'xcrun') {
-        const outputPath = args[args.indexOf('-o') + 1];
+        const outputPath = args[args.indexOf('-o') + 1]!;
         fs.writeFileSync(outputPath, 'compiled');
         fs.chmodSync(outputPath, 0o755);
         return { stdout: '', stderr: '', exitCode: 0 };
       }
 
-      const outputPath = args[args.indexOf('--output') + 1];
+      const outputPath = args[args.indexOf('--output') + 1]!;
       fs.writeFileSync(outputPath, `processed ${path.basename(cmd)}`);
       return { stdout: '', stderr: '', exitCode: 0 };
     }),
@@ -64,9 +64,9 @@ test('overlay burns touches through a cached helper and same-directory temp outp
   expect(compileCalls).toHaveLength(1);
   expect(helperCalls).toHaveLength(2);
 
-  const [helperCmd, helperArgs, helperOptions] = helperCalls[0];
-  const inputPath = helperArgs[helperArgs.indexOf('--input') + 1];
-  const outputPath = helperArgs[helperArgs.indexOf('--output') + 1];
+  const [helperCmd, helperArgs, helperOptions] = helperCalls[0]!;
+  const inputPath = helperArgs[helperArgs.indexOf('--input') + 1]!;
+  const outputPath = helperArgs[helperArgs.indexOf('--output') + 1]!;
   expect(inputPath).toBe(videoPath);
   expect(outputPath).not.toBe(videoPath);
   expect(path.dirname(outputPath)).toBe(tmpDir);

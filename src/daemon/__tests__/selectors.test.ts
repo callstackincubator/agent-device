@@ -45,8 +45,8 @@ const nodes: SnapshotState['nodes'] = [
 test('parseSelectorChain parses fallback and boolean terms', () => {
   const chain = parseSelectorChain('id=auth_continue || role=button label="Continue" visible=true');
   assert.equal(chain.selectors.length, 2);
-  assert.equal(chain.selectors[0].terms[0].key, 'id');
-  assert.equal(chain.selectors[1].terms[2].key, 'visible');
+  assert.equal(chain.selectors[0]!.terms[0]!.key, 'id');
+  assert.equal(chain.selectors[1]!.terms[2]!.key, 'visible');
 });
 
 test('resolveSelectorChain resolves unique match', () => {

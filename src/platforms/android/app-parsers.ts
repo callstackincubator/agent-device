@@ -20,9 +20,9 @@ export function parseAndroidLaunchablePackages(stdout: string): string[] {
   for (const line of stdout.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    const firstToken = trimmed.split(/\s+/)[0];
+    const firstToken = trimmed.split(/\s+/)[0] ?? '';
     if (!firstToken.includes('/')) continue;
-    const pkg = firstToken.split('/')[0];
+    const pkg = firstToken.split('/')[0] ?? '';
     if (!pkg.includes('.')) continue;
     if (pkg) packages.add(pkg);
   }

@@ -69,8 +69,7 @@ export async function runBatch(
     const steps = validateAndNormalizeBatchSteps(flags?.batchSteps, batchMaxSteps);
     const startedAt = Date.now();
     const partialResults: BatchStepResult[] = [];
-    for (let index = 0; index < steps.length; index += 1) {
-      const step = steps[index];
+    for (const [index, step] of steps.entries()) {
       const stepResponse = await runBatchStep(req, sessionName, step, invoke, index + 1);
       if (!stepResponse.ok) {
         return {

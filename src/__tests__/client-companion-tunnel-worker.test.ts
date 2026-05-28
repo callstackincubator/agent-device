@@ -121,7 +121,7 @@ function decodeWebSocketPayload(payload: Buffer, mask: Buffer | null): Buffer {
 
   const decoded = Buffer.from(payload);
   for (let index = 0; index < decoded.length; index += 1) {
-    decoded[index] ^= mask[index % 4];
+    decoded[index]! ^= mask[index % 4]!;
   }
   return decoded;
 }

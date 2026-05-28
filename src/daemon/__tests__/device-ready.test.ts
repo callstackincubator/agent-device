@@ -58,7 +58,7 @@ test('ensureDeviceReady caches successful simulator readiness checks', async () 
 
 test('ensureDeviceReady caches successful iOS physical device readiness checks', async () => {
   mockRunCmd.mockImplementation(async (_cmd, args) => {
-    const jsonPath = args[args.indexOf('--json-output') + 1];
+    const jsonPath = args[args.indexOf('--json-output') + 1]!;
     await fs.writeFile(
       jsonPath,
       JSON.stringify({

@@ -177,15 +177,17 @@ function actionFromDismissNode(node: SnapshotNode): ReactNativeOverlayDismissTar
 function chooseCollapsedWarningNode(nodes: SnapshotNode[]): SnapshotNode | null {
   const withRect = nodes.filter((node) => node.rect);
   if (withRect.length === 0) return null;
-  return withRect.sort((a, b) => {
-    const aHittable = a.hittable === true ? 1 : 0;
-    const bHittable = b.hittable === true ? 1 : 0;
-    if (aHittable !== bHittable) return bHittable - aHittable;
-    const aWidth = a.rect?.width ?? 0;
-    const bWidth = b.rect?.width ?? 0;
-    if (aWidth !== bWidth) return bWidth - aWidth;
-    return (b.rect?.y ?? 0) - (a.rect?.y ?? 0);
-  })[0];
+  return (
+    withRect.sort((a, b) => {
+      const aHittable = a.hittable === true ? 1 : 0;
+      const bHittable = b.hittable === true ? 1 : 0;
+      if (aHittable !== bHittable) return bHittable - aHittable;
+      const aWidth = a.rect?.width ?? 0;
+      const bWidth = b.rect?.width ?? 0;
+      if (aWidth !== bWidth) return bWidth - aWidth;
+      return (b.rect?.y ?? 0) - (a.rect?.y ?? 0);
+    })[0] ?? null
+  );
 }
 
 function collapsedBannerClosePoint(node: SnapshotNode): Point {

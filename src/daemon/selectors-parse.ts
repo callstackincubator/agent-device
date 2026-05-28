@@ -92,7 +92,9 @@ export function splitSelectorFromArgs(
   const preferTrailingValue = options.preferTrailingValue ?? false;
   let i = 0;
   const boundaries: number[] = [];
-  while (i < args.length && isSelectorToken(args[i])) {
+  while (i < args.length) {
+    const token = args[i];
+    if (token === undefined || !isSelectorToken(token)) break;
     i += 1;
     const candidate = args.slice(0, i).join(' ').trim();
     if (!candidate) continue;
@@ -101,11 +103,14 @@ export function splitSelectorFromArgs(
     }
   }
   if (boundaries.length === 0) return null;
-  let boundary = boundaries[boundaries.length - 1];
+  const lastBoundary = boundaries.at(-1);
+  if (lastBoundary === undefined) return null;
+  let boundary = lastBoundary;
   if (preferTrailingValue) {
     for (let i = boundaries.length - 1; i >= 0; i -= 1) {
-      if (boundaries[i] < args.length) {
-        boundary = boundaries[i];
+      const candidateBoundary = boundaries[i];
+      if (candidateBoundary !== undefined && candidateBoundary < args.length) {
+        boundary = candidateBoundary;
         break;
       }
     }
@@ -206,7 +211,7 @@ function tokenize(segment: string): string[] {
   let current = '';
   let quote: '"' | "'" | null = null;
   for (let i = 0; i < segment.length; i += 1) {
-    const ch = segment[i];
+    const ch = segment.charAt(i);
     if ((ch === '"' || ch === "'") && !isEscapedQuote(segment, i)) {
       quote = updateQuoteState(quote, ch);
       current += ch;

@@ -434,10 +434,19 @@ export function parseApplePsOutput(stdout: string): AppleProcessSample[] {
   for (const line of splitNonEmptyTrimmedLines(stdout)) {
     const match = line.match(/^(\d+)\s+([0-9]+(?:\.[0-9]+)?)\s+(\d+)\s+(.+)$/);
     if (!match) continue;
-    const pid = Number(match[1]);
-    const cpuPercent = Number(match[2]);
-    const rssKb = Number(match[3]);
-    const command = match[4].trim();
+    const [pidText, cpuText, rssText, commandText] = match.slice(1);
+    if (
+      pidText === undefined ||
+      cpuText === undefined ||
+      rssText === undefined ||
+      commandText === undefined
+    ) {
+      continue;
+    }
+    const pid = Number(pidText);
+    const cpuPercent = Number(cpuText);
+    const rssKb = Number(rssText);
+    const command = commandText.trim();
     if (!Number.isFinite(pid) || !Number.isFinite(cpuPercent) || !Number.isFinite(rssKb)) {
       continue;
     }

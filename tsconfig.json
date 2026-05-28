@@ -4,6 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    "noUncheckedIndexedAccess": true,
     "isolatedModules": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,

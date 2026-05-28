@@ -92,7 +92,8 @@ function resolveArchiveRootName(entries: string[], platform: 'ios' | 'android'):
   const rootEntries = [...roots];
   if (platform === 'ios') {
     const appRoots = rootEntries.filter((entry) => entry.toLowerCase().endsWith('.app'));
-    if (appRoots.length === 1) return appRoots[0];
+    const appRoot = appRoots[0];
+    if (appRoots.length === 1 && appRoot !== undefined) return appRoot;
     if (appRoots.length === 0) {
       throw new AppError(
         'INVALID_ARGS',
@@ -104,7 +105,8 @@ function resolveArchiveRootName(entries: string[], platform: 'ios' | 'android'):
       `iOS app bundle archives must contain exactly one top-level .app directory, found: ${appRoots.join(', ')}`,
     );
   }
-  if (rootEntries.length === 1) return rootEntries[0];
+  const rootEntry = rootEntries[0];
+  if (rootEntries.length === 1 && rootEntry !== undefined) return rootEntry;
   throw new AppError(
     'INVALID_ARGS',
     `Archive must contain a single top-level bundle, found: ${rootEntries.join(', ')}`,

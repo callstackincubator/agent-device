@@ -75,7 +75,7 @@ test('waitForRunner propagates request cancellation without fallback', async () 
 test('waitForRunner reuses cached physical-device tunnel IP across commands', async () => {
   stubSuccessfulFetch();
   mockRunCmd.mockImplementation(async (_cmd: string, args: string[]) => {
-    const jsonPath = args[args.indexOf('--json-output') + 1];
+    const jsonPath = args[args.indexOf('--json-output') + 1]!;
     fs.writeFileSync(
       jsonPath,
       JSON.stringify({
@@ -109,7 +109,7 @@ test('waitForRunner keeps tunnel IP lookup request-local when no tunnel IP is av
 test('waitForRunner invalidates cached tunnel IP when localhost fallback succeeds', async () => {
   const tunnelIps = ['fd00::123', 'fd00::456'];
   mockRunCmd.mockImplementation(async (_cmd: string, args: string[]) => {
-    const jsonPath = args[args.indexOf('--json-output') + 1];
+    const jsonPath = args[args.indexOf('--json-output') + 1]!;
     fs.writeFileSync(
       jsonPath,
       JSON.stringify({

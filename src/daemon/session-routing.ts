@@ -12,7 +12,8 @@ export function resolveEffectiveSessionName(
   if (sessionStore.has(requested)) return requested;
 
   const sessions = sessionStore.toArray();
-  if (sessions.length === 1) return sessions[0].name;
+  const onlySession = sessions[0];
+  if (sessions.length === 1 && onlySession !== undefined) return onlySession.name;
   return requested;
 }
 

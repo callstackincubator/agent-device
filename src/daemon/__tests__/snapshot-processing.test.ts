@@ -15,8 +15,8 @@ test('pruneGroupNodes drops unlabeled group wrappers and rebalances depth', () =
   ];
   const pruned = pruneGroupNodes(raw);
   assert.equal(pruned.length, 2);
-  assert.equal(pruned[1].depth, 1);
-  assert.equal(pruned[1].label, 'Continue');
+  assert.equal(pruned[1]!.depth, 1);
+  assert.equal(pruned[1]!.label, 'Continue');
 });
 
 test('findNearestHittableAncestor walks parents until hittable node', () => {
@@ -30,7 +30,7 @@ test('findNearestHittableAncestor walks parents until hittable node', () => {
     { index: 1, parentIndex: 0, hittable: false, rect: { x: 0, y: 0, width: 50, height: 20 } },
     { index: 2, parentIndex: 1, hittable: false, rect: { x: 0, y: 0, width: 20, height: 20 } },
   ]);
-  const ancestor = findNearestHittableAncestor(nodes, nodes[2]);
+  const ancestor = findNearestHittableAncestor(nodes, nodes[2]!);
   assert.equal(ancestor?.ref, 'e1');
 });
 
@@ -47,6 +47,6 @@ test('extractNodeReadText ignores generic implementation identifiers as fallback
       identifier: '_NS:248',
     },
   ]);
-  assert.equal(extractNodeReadText(nodes[0]), '');
-  assert.equal(extractNodeReadText(nodes[1]), '');
+  assert.equal(extractNodeReadText(nodes[0]!), '');
+  assert.equal(extractNodeReadText(nodes[1]!), '');
 });

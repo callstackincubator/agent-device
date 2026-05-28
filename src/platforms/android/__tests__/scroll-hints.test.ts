@@ -52,8 +52,8 @@ test('annotateAndroidScrollableContentHints marks vertical scroll areas with hid
 
   annotateAndroidScrollableContentHints(nodes, dump);
 
-  assert.equal(nodes[0].hiddenContentAbove, true);
-  assert.equal(nodes[0].hiddenContentBelow, true);
+  assert.equal(nodes[0]!.hiddenContentAbove, true);
+  assert.equal(nodes[0]!.hiddenContentBelow, true);
 });
 
 test('annotateAndroidScrollableContentHints marks bottomed-out scroll areas without hidden content below', () => {
@@ -105,8 +105,8 @@ test('annotateAndroidScrollableContentHints marks bottomed-out scroll areas with
 
   annotateAndroidScrollableContentHints(nodes, dump);
 
-  assert.equal(nodes[0].hiddenContentAbove, true);
-  assert.equal(nodes[0].hiddenContentBelow, undefined);
+  assert.equal(nodes[0]!.hiddenContentAbove, true);
+  assert.equal(nodes[0]!.hiddenContentBelow, undefined);
 });
 
 test('annotateAndroidScrollableContentHints infers bottomed-out scroll areas from a single aligned block', () => {
@@ -142,8 +142,8 @@ test('annotateAndroidScrollableContentHints infers bottomed-out scroll areas fro
 
   annotateAndroidScrollableContentHints(nodes, dump);
 
-  assert.equal(nodes[0].hiddenContentAbove, true);
-  assert.equal(nodes[0].hiddenContentBelow, undefined);
+  assert.equal(nodes[0]!.hiddenContentAbove, true);
+  assert.equal(nodes[0]!.hiddenContentBelow, undefined);
 });
 
 test('annotateAndroidScrollableContentHints infers virtualized scroll coverage without a unique block offset', () => {
@@ -191,8 +191,8 @@ test('annotateAndroidScrollableContentHints infers virtualized scroll coverage w
 
   annotateAndroidScrollableContentHints(nodes, dump);
 
-  assert.equal(nodes[0].hiddenContentAbove, true);
-  assert.equal(nodes[0].hiddenContentBelow, true);
+  assert.equal(nodes[0]!.hiddenContentAbove, true);
+  assert.equal(nodes[0]!.hiddenContentBelow, true);
 });
 
 test('annotateAndroidScrollableContentHints keeps shallow offset matching for fully mounted content', () => {
@@ -252,6 +252,6 @@ test('annotateAndroidScrollableContentHints keeps shallow offset matching for fu
 
   annotateAndroidScrollableContentHints(nodes, dump);
 
-  assert.equal(nodes[0].hiddenContentAbove, true);
-  assert.equal(nodes[0].hiddenContentBelow, undefined);
+  assert.equal(nodes[0]!.hiddenContentAbove, true);
+  assert.equal(nodes[0]!.hiddenContentBelow, undefined);
 });

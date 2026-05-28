@@ -224,18 +224,23 @@ export function parseAndroidSnapshotHelperXml(
 }
 
 function collectHelperChunks(records: Array<Record<string, string>>): AndroidSnapshotHelperChunk[] {
-  return records
-    .filter(
-      (record) =>
-        record.agentDeviceProtocol === ANDROID_SNAPSHOT_HELPER_PROTOCOL &&
-        record.outputFormat === ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT &&
-        typeof record.payloadBase64 === 'string',
-    )
-    .map((record) => ({
+  const chunks: AndroidSnapshotHelperChunk[] = [];
+  for (const record of records) {
+    if (
+      record.agentDeviceProtocol !== ANDROID_SNAPSHOT_HELPER_PROTOCOL ||
+      record.outputFormat !== ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT
+    ) {
+      continue;
+    }
+    const { payloadBase64 } = record;
+    if (payloadBase64 === undefined) continue;
+    chunks.push({
       index: readOptionalNumber(record.chunkIndex),
       count: readOptionalNumber(record.chunkCount),
-      payloadBase64: record.payloadBase64,
-    }));
+      payloadBase64,
+    });
+  }
+  return chunks;
 }
 
 function readFinalHelperResult(records: Array<Record<string, string>>): Record<string, string> {

@@ -118,7 +118,7 @@ test('handleFindCommands click returns deterministic metadata across locator var
     }
 
     expect(invokeCalls.length).toBe(1);
-    expect(invokeCalls[0].positionals?.[0]).toBe(scenario.expectedRef);
+    expect(invokeCalls[0]!.positionals?.[0]).toBe(scenario.expectedRef);
   }
 });
 

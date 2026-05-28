@@ -37,7 +37,7 @@ const nodes: SnapshotNode[] = [
 
 test('public selector subpath exposes platform-aware matching helpers', () => {
   const chain: SelectorChain = parseSelectorChain('role=button label="Continue" visible=true');
-  const firstSelector: Selector = chain.selectors[0];
+  const firstSelector: Selector = chain.selectors[0]!;
   assert.equal(firstSelector.raw, 'role=button label="Continue" visible=true');
   assert.equal(tryParseSelectorChain(chain.raw)?.raw, chain.raw);
   assert.equal(isSelectorToken('visible=true'), true);
@@ -55,8 +55,8 @@ test('public selector subpath exposes platform-aware matching helpers', () => {
   });
   assert.equal(resolved?.node.ref, 'e1');
 
-  assert.equal(isNodeVisible(nodes[0]), true);
-  assert.equal(isNodeEditable(nodes[1], 'android'), true);
+  assert.equal(isNodeVisible(nodes[0]!), true);
+  assert.equal(isNodeEditable(nodes[1]!, 'android'), true);
 });
 
 test('public selector diagnostics format failures', () => {

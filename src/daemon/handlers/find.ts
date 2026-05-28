@@ -199,9 +199,9 @@ function resolveFindMatch(params: {
 
   if (requiresRect && bestMatches.matches.length > 1) {
     if (flags?.findFirst) {
-      bestMatches.matches = [bestMatches.matches[0]];
+      bestMatches.matches = [bestMatches.matches[0]!];
     } else if (flags?.findLast) {
-      bestMatches.matches = [bestMatches.matches[bestMatches.matches.length - 1]];
+      bestMatches.matches = [bestMatches.matches[bestMatches.matches.length - 1]!];
     } else {
       return { ok: false, response: buildAmbiguousMatchError(bestMatches.matches, locator, query) };
     }

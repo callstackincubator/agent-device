@@ -85,8 +85,10 @@ function parseAndroidCpuInfoSample(
     const match = line.match(/^([0-9]+(?:\.[0-9]+)?)%\s+\d+\/([^\s]+):\s/);
     if (!match) continue;
 
-    const percent = Number(match[1]);
+    const percentToken = match[1];
     const processName = match[2];
+    if (percentToken === undefined || processName === undefined) continue;
+    const percent = Number(percentToken);
     if (!Number.isFinite(percent) || !matchesAndroidPackageProcess(processName, packageName)) {
       continue;
     }
@@ -178,7 +180,8 @@ function matchLabeledNumber(text: string, label: string): number | undefined {
   const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = text.match(new RegExp(`${escapedLabel}:\\s*([0-9][0-9,]*)`, 'i'));
   if (!match) return undefined;
-  return parseNumericToken(match[1]) ?? undefined;
+  const token = match[1];
+  return token === undefined ? undefined : (parseNumericToken(token) ?? undefined);
 }
 
 function matchTotalRowPss(text: string): number | undefined {

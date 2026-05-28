@@ -77,10 +77,11 @@ export async function resolveAndroidApp(
   const matches = packages.filter((pkg: string) =>
     pkg.toLowerCase().includes(trimmed.toLowerCase()),
   );
-  if (matches.length === 1) {
+  const match = matches[0];
+  if (matches.length === 1 && match !== undefined) {
     return androidAppResolutionCache.set(cacheScope, trimmed, {
       type: 'package',
-      value: matches[0],
+      value: match,
     });
   }
 
@@ -186,7 +187,7 @@ export function inferAndroidAppName(packageName: string): string {
   let chosen = tokens[tokens.length - 1] ?? packageName;
   for (let index = tokens.length - 1; index >= 0; index -= 1) {
     const token = tokens[index];
-    if (!ignoredTokens.has(token)) {
+    if (token && !ignoredTokens.has(token)) {
       chosen = token;
       break;
     }
@@ -587,8 +588,9 @@ export function parseAndroidLaunchComponent(stdout: string): string | null {
     .filter(Boolean);
   for (let index = lines.length - 1; index >= 0; index -= 1) {
     const line = lines[index];
+    if (line === undefined) continue;
     if (!line.includes('/')) continue;
-    return line.split(/\s+/)[0];
+    return line.split(/\s+/)[0] ?? null;
   }
   return null;
 }

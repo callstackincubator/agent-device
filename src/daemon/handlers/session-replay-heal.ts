@@ -21,7 +21,9 @@ function parseSelectorWaitPositionals(positionals: string[]): {
 } {
   if (positionals.length === 0) return { selectorExpression: null, selectorTimeout: null };
   const maybeTimeout = positionals[positionals.length - 1];
-  const hasTimeout = /^\d+$/.test(maybeTimeout ?? '');
+  const selectorTimeout =
+    maybeTimeout !== undefined && /^\d+$/.test(maybeTimeout) ? maybeTimeout : null;
+  const hasTimeout = selectorTimeout !== null;
   const selectorTokens = hasTimeout ? positionals.slice(0, -1) : positionals.slice();
   const split = splitSelectorFromArgs(selectorTokens);
   if (!split || split.rest.length > 0) {
@@ -29,7 +31,7 @@ function parseSelectorWaitPositionals(positionals: string[]): {
   }
   return {
     selectorExpression: split.selectorExpression,
-    selectorTimeout: hasTimeout ? maybeTimeout : null,
+    selectorTimeout,
   };
 }
 

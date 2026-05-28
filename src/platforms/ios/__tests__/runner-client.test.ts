@@ -371,13 +371,13 @@ test('runner protocol fixtures cover every runner command with JSON-safe samples
     string,
     Record<string, unknown>
   >;
-  assert.equal(roundTrip.tap.command, 'tap');
-  assert.equal(roundTrip.mouseClick.button, 'secondary');
-  assert.equal(roundTrip.snapshot.scope, 'app');
-  assert.equal(roundTrip.screenshot.fullscreen, true);
-  assert.equal(roundTrip.rotate.orientation, 'landscape-left');
-  assert.equal(roundTrip.recordStart.fps, 30);
-  assert.equal(roundTrip.recordStart.quality, 7);
+  assert.equal(roundTrip.tap!.command, 'tap');
+  assert.equal(roundTrip.mouseClick!.button, 'secondary');
+  assert.equal(roundTrip.snapshot!.scope, 'app');
+  assert.equal(roundTrip.screenshot!.fullscreen, true);
+  assert.equal(roundTrip.rotate!.orientation, 'landscape-left');
+  assert.equal(roundTrip.recordStart!.fps, 30);
+  assert.equal(roundTrip.recordStart!.quality, 7);
 });
 
 test('resolveRunnerDestination uses device destination for physical devices', () => {

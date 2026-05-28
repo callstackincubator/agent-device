@@ -114,8 +114,10 @@ export async function resolveIosApp(device: DeviceInfo, app: string): Promise<st
       ? await listSimulatorApps(device)
       : await listIosDeviceApps(device, 'all');
   const matches = list.filter((entry) => entry.name.toLowerCase() === trimmed.toLowerCase());
-  if (matches.length === 1)
-    return iosAppResolutionCache.set(cacheScope, trimmed, matches[0].bundleId);
+  const match = matches[0];
+  if (matches.length === 1 && match !== undefined) {
+    return iosAppResolutionCache.set(cacheScope, trimmed, match.bundleId);
+  }
   if (matches.length > 1) {
     throw new AppError('INVALID_ARGS', `Multiple apps matched "${app}"`, { matches });
   }
@@ -648,7 +650,7 @@ async function resolveIosAppearanceTarget(
 function parseIosAppearance(stdout: string, stderr: string): 'light' | 'dark' | null {
   const match = /\b(light|dark|unsupported|unknown)\b/i.exec(`${stdout}\n${stderr}`);
   if (!match) return null;
-  const value = match[1].toLowerCase();
+  const value = match[1]?.toLowerCase();
   if (value === 'dark') return 'dark';
   if (value === 'light') return 'light';
   return null;
@@ -781,8 +783,9 @@ function parseSimctlPrivacyServices(helpText: string): Set<string> {
     if (!inServiceSection) continue;
     if (trimmed.startsWith('bundle identifier')) break;
     const match = /^([a-z-]+)\s+-\s+/.exec(trimmed);
-    if (match) {
-      services.add(match[1]);
+    const service = match?.[1];
+    if (service !== undefined) {
+      services.add(service);
     }
   }
   return services;

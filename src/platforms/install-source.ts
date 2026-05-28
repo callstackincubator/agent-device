@@ -267,6 +267,7 @@ function isBlockedIpv4(address: string): boolean {
     return false;
   }
   const [a, b] = octets;
+  if (a === undefined || b === undefined) return false;
   if (a === 10 || a === 127) return true;
   if (a === 169 && b === 254) return true;
   if (a === 172 && b >= 16 && b <= 31) return true;
@@ -322,10 +323,11 @@ async function resolveInstallableCandidate(
 
   if (stat.isDirectory()) {
     const installables = await collectMatchingPaths(candidatePath, params.isInstallablePath);
-    if (installables.length === 1) {
+    const installable = installables[0];
+    if (installables.length === 1 && installable !== undefined) {
       return {
         archivePath: params.archivePath,
-        installablePath: installables[0],
+        installablePath: installable,
       };
     }
     if (installables.length > 1) {
@@ -341,14 +343,18 @@ async function resolveInstallableCandidate(
       (entryPath, entryStat) => entryStat.isFile() && isArchivePath(entryPath),
     );
     if (archives.length === 1) {
+      const archive = archives[0];
+      if (archive === undefined) {
+        throw new AppError('INVALID_ARGS', `No ${params.installableLabel} archive found`);
+      }
       if (!params.allowArchiveExtraction) {
         throw new AppError(
           'INVALID_ARGS',
           `URL sources must point directly to a ${params.installableLabel}; nested archives are not allowed`,
-          { path: archives[0] },
+          { path: archive },
         );
       }
-      const extracted = await extractArchive(archives[0]);
+      const extracted = await extractArchive(archive);
       params.registerCleanup(extracted.cleanup);
       return await resolveInstallableCandidate(extracted.outputPath, {
         ...params,
@@ -434,7 +440,7 @@ function isArchivePath(candidatePath: string): boolean {
 }
 
 async function runCleanupTasks(tasks: Array<() => Promise<void>>): Promise<void> {
-  for (let index = tasks.length - 1; index >= 0; index -= 1) {
-    await tasks[index]();
+  for (const task of [...tasks].reverse()) {
+    await task();
   }
 }

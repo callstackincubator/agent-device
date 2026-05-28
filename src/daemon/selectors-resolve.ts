@@ -29,8 +29,7 @@ export function resolveSelectorChain(
   const requireRect = options.requireRect ?? false;
   const requireUnique = options.requireUnique ?? true;
   const diagnostics: SelectorDiagnostics[] = [];
-  for (let i = 0; i < chain.selectors.length; i += 1) {
-    const selector = chain.selectors[i];
+  for (const [i, selector] of chain.selectors.entries()) {
     const summary = analyzeSelectorMatches(nodes, selector, options.platform, requireRect);
     diagnostics.push({ selector: selector.raw, matches: summary.count });
     if (summary.count === 0 || !summary.firstNode) continue;
@@ -70,8 +69,7 @@ export function findSelectorChainMatch(
 } | null {
   const requireRect = options.requireRect ?? false;
   const diagnostics: SelectorDiagnostics[] = [];
-  for (let i = 0; i < chain.selectors.length; i += 1) {
-    const selector = chain.selectors[i];
+  for (const [i, selector] of chain.selectors.entries()) {
     const matches = countSelectorMatchesOnly(nodes, selector, options.platform, requireRect);
     diagnostics.push({ selector: selector.raw, matches });
     if (matches > 0) {

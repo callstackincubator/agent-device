@@ -59,7 +59,7 @@ function tokenizeReplayLine(line: string): string[] {
   const tokens: string[] = [];
   let cursor = 0;
   while (cursor < line.length) {
-    while (cursor < line.length && /\s/.test(line[cursor])) {
+    while (cursor < line.length && /\s/.test(line[cursor]!)) {
       cursor += 1;
     }
     if (cursor >= line.length) break;
@@ -81,7 +81,7 @@ function tokenizeReplayLine(line: string): string[] {
       continue;
     }
     let end = cursor;
-    while (end < line.length && !/\s/.test(line[end])) {
+    while (end < line.length && !/\s/.test(line[end]!)) {
       end += 1;
     }
     tokens.push(line.slice(cursor, end));

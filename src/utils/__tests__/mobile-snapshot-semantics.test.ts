@@ -212,7 +212,7 @@ test('visibility is true for node at exact viewport boundary', () => {
   ];
 
   // Node overlaps viewport by 1 px at the top edge — should be considered visible
-  assert.equal(isNodeVisibleInEffectiveViewport(nodes[1], nodes), true);
+  assert.equal(isNodeVisibleInEffectiveViewport(nodes[1]!, nodes), true);
 });
 
 test('visibility is false for node just outside viewport boundary', () => {
@@ -237,7 +237,7 @@ test('visibility is false for node just outside viewport boundary', () => {
     },
   ];
 
-  assert.equal(isNodeVisibleInEffectiveViewport(nodes[1], nodes), false);
+  assert.equal(isNodeVisibleInEffectiveViewport(nodes[1]!, nodes), false);
 });
 
 test('mobile presentation infers hidden content from vertical scroll indicator value at top', () => {

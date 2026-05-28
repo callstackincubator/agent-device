@@ -201,13 +201,15 @@ export function parseReplaySeriesFlags(
 
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index];
+    if (token === undefined) continue;
 
     if (isClickLikeCommand(command) && token === '--double-tap') {
       flags.doubleTap = true;
       continue;
     }
-    if (isClickLikeCommand(command) && token === '--button' && index + 1 < args.length) {
-      const clickButton = args[index + 1];
+    const nextArg = args[index + 1];
+    if (isClickLikeCommand(command) && token === '--button' && nextArg !== undefined) {
+      const clickButton = nextArg;
       if (clickButton === 'primary' || clickButton === 'secondary' || clickButton === 'middle') {
         flags.clickButton = clickButton;
       }
@@ -216,8 +218,8 @@ export function parseReplaySeriesFlags(
     }
 
     const numericKey = numericFlagMap?.get(token);
-    if (numericKey && index + 1 < args.length) {
-      const parsed = parseNonNegativeIntToken(args[index + 1]);
+    if (numericKey && nextArg !== undefined) {
+      const parsed = parseNonNegativeIntToken(nextArg);
       if (parsed !== null) {
         flags[numericKey] = parsed;
         index += 1;
@@ -225,8 +227,8 @@ export function parseReplaySeriesFlags(
       }
     }
 
-    if (command === 'swipe' && token === '--pattern' && index + 1 < args.length) {
-      const pattern = args[index + 1];
+    if (command === 'swipe' && token === '--pattern' && nextArg !== undefined) {
+      const pattern = nextArg;
       if (pattern === 'one-way' || pattern === 'ping-pong') {
         flags.pattern = pattern;
       }
@@ -262,34 +264,36 @@ export function parseReplayRuntimeFlags(args: string[]): {
 
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index];
-    if (token === '--platform' && index + 1 < args.length) {
-      const platform = args[index + 1];
+    if (token === undefined) continue;
+    const nextArg = args[index + 1];
+    if (token === '--platform' && nextArg !== undefined) {
+      const platform = nextArg;
       if (platform === 'ios' || platform === 'android') {
         flags.platform = platform;
       }
       index += 1;
       continue;
     }
-    if (token === '--metro-host' && index + 1 < args.length) {
-      flags.metroHost = args[index + 1];
+    if (token === '--metro-host' && nextArg !== undefined) {
+      flags.metroHost = nextArg;
       index += 1;
       continue;
     }
-    if (token === '--metro-port' && index + 1 < args.length) {
-      const parsedPort = parseNonNegativeIntToken(args[index + 1]);
+    if (token === '--metro-port' && nextArg !== undefined) {
+      const parsedPort = parseNonNegativeIntToken(nextArg);
       if (parsedPort !== null) {
         flags.metroPort = parsedPort;
       }
       index += 1;
       continue;
     }
-    if (token === '--bundle-url' && index + 1 < args.length) {
-      flags.bundleUrl = args[index + 1];
+    if (token === '--bundle-url' && nextArg !== undefined) {
+      flags.bundleUrl = nextArg;
       index += 1;
       continue;
     }
-    if (token === '--launch-url' && index + 1 < args.length) {
-      flags.launchUrl = args[index + 1];
+    if (token === '--launch-url' && nextArg !== undefined) {
+      flags.launchUrl = nextArg;
       index += 1;
       continue;
     }

@@ -343,13 +343,24 @@ function parseActivityTopViewTree(dump: string): ViewNode | null {
     if (!match) {
       continue;
     }
-    const indent = match[1].length;
-    const x1 = Number(match[3]);
-    const y1 = Number(match[4]);
-    const x2 = Number(match[5]);
-    const y2 = Number(match[6]);
+    const [indentText, className, x1Text, y1Text, x2Text, y2Text] = match.slice(1);
+    if (
+      indentText === undefined ||
+      className === undefined ||
+      x1Text === undefined ||
+      y1Text === undefined ||
+      x2Text === undefined ||
+      y2Text === undefined
+    ) {
+      continue;
+    }
+    const indent = indentText.length;
+    const x1 = Number(x1Text);
+    const y1 = Number(y1Text);
+    const x2 = Number(x2Text);
+    const y2 = Number(y2Text);
     const node: ViewNode = {
-      className: match[2],
+      className,
       rect: {
         x: x1,
         y: y1,
