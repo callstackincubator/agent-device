@@ -175,6 +175,7 @@ export type AppOpenOptions = AgentDeviceRequestOverrides &
     surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
     activity?: string;
     launchConsole?: string;
+    launchArgs?: string[];
     relaunch?: boolean;
     saveScript?: boolean | string;
     noRecord?: boolean;
@@ -844,6 +845,7 @@ export type InternalRequestOptions = AgentDeviceClientConfig &
     surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
     activity?: string;
     launchConsole?: string;
+    launchArgs?: string[];
     relaunch?: boolean;
     shutdown?: boolean;
     saveScript?: boolean | string;

@@ -91,6 +91,7 @@ function contextForRuntimeLaunchUrl(
 ): ReturnType<typeof contextFromFlags> {
   const context = contextFromFlags(logPath, flags, appBundleId, traceLogPath);
   delete context.launchConsole;
+  delete context.launchArgs;
   return context;
 }
 

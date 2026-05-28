@@ -276,6 +276,7 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     surface: options.surface,
     activity: options.activity,
     launchConsole: options.launchConsole,
+    launchArgs: options.launchArgs,
     relaunch: options.relaunch,
     shutdown: options.shutdown,
     saveScript: options.saveScript,

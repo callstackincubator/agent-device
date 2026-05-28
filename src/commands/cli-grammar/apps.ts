@@ -36,6 +36,7 @@ export const appCliReaders = {
     surface: flags.surface,
     activity: flags.activity,
     launchConsole: flags.launchConsole,
+    launchArgs: flags.launchArgs,
     relaunch: flags.relaunch,
     saveScript: flags.saveScript,
     noRecord: flags.noRecord,

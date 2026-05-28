@@ -273,6 +273,66 @@ test('parseArgs accepts install-from-source url and repeated headers', () => {
   assert.equal(parsed.flags.retentionMs, 60000);
 });
 
+test('parseArgs accepts open --launch-args with plain values', () => {
+  const parsed = parseArgs(
+    ['open', 'com.example.app', '--launch-args', 'fixtureMode', '--launch-args', 'verbose'],
+    { strictFlags: true },
+  );
+  assert.equal(parsed.command, 'open');
+  assert.deepEqual(parsed.positionals, ['com.example.app']);
+  assert.deepEqual(parsed.flags.launchArgs, ['fixtureMode', 'verbose']);
+});
+
+test('parseArgs accepts open --launch-args with dash-prefixed values', () => {
+  const parsed = parseArgs(
+    [
+      'open',
+      'com.example.app',
+      '--platform',
+      'ios',
+      '--launch-args',
+      '-FeatureFlag',
+      '--launch-args',
+      'YES',
+    ],
+    { strictFlags: true },
+  );
+  assert.equal(parsed.command, 'open');
+  assert.deepEqual(parsed.flags.launchArgs, ['-FeatureFlag', 'YES']);
+});
+
+test('parseArgs accepts open --launch-args with double-dash-prefixed values', () => {
+  const parsed = parseArgs(
+    [
+      'open',
+      'com.example.app',
+      '--launch-args',
+      '--es',
+      '--launch-args',
+      'EXTRA_CONFIG',
+      '--launch-args',
+      '{"mode":"debug"}',
+    ],
+    { strictFlags: true },
+  );
+  assert.equal(parsed.command, 'open');
+  assert.deepEqual(parsed.flags.launchArgs, ['--es', 'EXTRA_CONFIG', '{"mode":"debug"}']);
+});
+
+test('parseArgs rejects --launch-args on commands that do not allow it', () => {
+  assert.throws(
+    () => parseArgs(['tap', '100', '200', '--launch-args', 'foo'], { strictFlags: true }),
+    (error) => error instanceof AppError && error.code === 'INVALID_ARGS',
+  );
+});
+
+test('usageForCommand documents open --launch-args', () => {
+  const help = usageForCommand('open');
+  if (help === null) throw new Error('Expected open help text');
+  assert.match(help, /--launch-args <arg>/);
+  assert.match(help, /forwarded verbatim/);
+});
+
 test('parseArgs accepts install-from-source GitHub Actions artifact flag', () => {
   const parsed = parseArgs(
     [

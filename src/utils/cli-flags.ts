@@ -70,6 +70,7 @@ export type CliFlags = RemoteConfigMetroOptions &
     pattern?: 'one-way' | 'ping-pong';
     activity?: string;
     launchConsole?: string;
+    launchArgs?: string[];
     header?: string[];
     githubActionsArtifact?: string;
     installSource?: DaemonInstallSource;
@@ -497,6 +498,15 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--launch-console <path>',
     usageDescription: 'open: capture the initial iOS simulator launch console window to a file',
+  },
+  {
+    key: 'launchArgs',
+    names: ['--launch-args'],
+    type: 'string',
+    multiple: true,
+    usageLabel: '--launch-args <arg>',
+    usageDescription:
+      'open: repeatable launch argument forwarded verbatim to the iOS launch command (simctl launch positional args for simulators; devicectl process launch positional args for devices, after `--`). Currently supported only on iOS; Android and macOS reject the flag.',
   },
   {
     key: 'header',

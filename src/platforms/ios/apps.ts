@@ -68,6 +68,8 @@ const ALIASES: Record<string, string> = {
 };
 const IOS_SIMULATOR_CONSOLE_CAPTURE_MS = 25_000;
 const AGENT_DEVICE_RUNNER_BUNDLE_PREFIX = 'com.callstack.agentdevice.runner';
+const IOS_SIMULATOR_LAUNCH_ARGS_WITH_URL_MESSAGE =
+  '--launch-args is not supported with iOS simulator URL opens (simctl openurl ignores launch args). Launch the app first with --launch-args, then issue the URL open in a separate call.';
 
 const iosAppResolutionCache = createAppResolutionCache<string>();
 let cachedSimctlPrivacyServices: Set<string> | null = null;
@@ -171,10 +173,17 @@ export async function openIosApp(
   options?: { appBundleId?: string; launchConsole?: string; launchArgs?: string[]; url?: string },
 ): Promise<void> {
   const launchConsole = options?.launchConsole?.trim();
+  const launchArgs = options?.launchArgs;
   if (launchConsole && (device.platform !== 'ios' || device.kind !== 'simulator')) {
     throw new AppError('UNSUPPORTED_OPERATION', LAUNCH_CONSOLE_IOS_SIMULATOR_ONLY_MESSAGE);
   }
   if (device.platform === 'macos') {
+    if (launchArgs && launchArgs.length > 0) {
+      throw new AppError(
+        'UNSUPPORTED_OPERATION',
+        '--launch-args is not supported on macOS; launch arguments are currently iOS-only.',
+      );
+    }
     await openMacOsApp(device, app, options);
     return;
   }
@@ -187,6 +196,9 @@ export async function openIosApp(
       throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
     }
     if (device.kind === 'simulator') {
+      if (launchArgs && launchArgs.length > 0) {
+        throw new AppError('INVALID_ARGS', IOS_SIMULATOR_LAUNCH_ARGS_WITH_URL_MESSAGE);
+      }
       await ensureBootedSimulator(device);
       await runSimctl(device, ['openurl', device.id, explicitUrl]);
       return;
@@ -199,7 +211,7 @@ export async function openIosApp(
         'Deep link open on iOS devices requires an active app bundle ID. Open the app first, then open the URL.',
       );
     }
-    await launchIosDeviceProcess(device, bundleId, { payloadUrl: explicitUrl });
+    await launchIosDeviceProcess(device, bundleId, { payloadUrl: explicitUrl, launchArgs });
     return;
   }
 
@@ -209,6 +221,9 @@ export async function openIosApp(
       throw new AppError('INVALID_ARGS', LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE);
     }
     if (device.kind === 'simulator') {
+      if (launchArgs && launchArgs.length > 0) {
+        throw new AppError('INVALID_ARGS', IOS_SIMULATOR_LAUNCH_ARGS_WITH_URL_MESSAGE);
+      }
       await ensureBootedSimulator(device);
       await runSimctl(device, ['openurl', device.id, deepLinkTarget]);
       return;
@@ -220,7 +235,7 @@ export async function openIosApp(
         'Deep link open on iOS devices requires an active app bundle ID. Open the app first, then open the URL.',
       );
     }
-    await launchIosDeviceProcess(device, bundleId, { payloadUrl: deepLinkTarget });
+    await launchIosDeviceProcess(device, bundleId, { payloadUrl: deepLinkTarget, launchArgs });
     return;
   }
 
@@ -228,12 +243,12 @@ export async function openIosApp(
   if (device.kind === 'simulator') {
     await launchIosSimulatorApp(device, bundleId, {
       ...(launchConsole ? { launchConsole } : {}),
-      ...(options?.launchArgs ? { launchArgs: options.launchArgs } : {}),
+      ...(launchArgs ? { launchArgs } : {}),
     });
     return;
   }
 
-  await launchIosDeviceProcess(device, bundleId);
+  await launchIosDeviceProcess(device, bundleId, { launchArgs });
 }
 
 export async function openIosDevice(device: DeviceInfo): Promise<void> {
@@ -1116,7 +1131,9 @@ function buildIosSimulatorLaunchArgs(
   const args = ['launch'];
   if (options?.launchConsole) args.push('--console-pty');
   args.push(deviceId, bundleId);
-  if (options?.launchArgs) args.push(...options.launchArgs);
+  if (options?.launchArgs && options.launchArgs.length > 0) {
+    args.push(...options.launchArgs);
+  }
   return args;
 }
 
@@ -1173,11 +1190,16 @@ function joinProcessOutput(stdout: string, stderr: string): string {
 async function launchIosDeviceProcess(
   device: DeviceInfo,
   bundleId: string,
-  options?: { payloadUrl?: string },
+  options?: { payloadUrl?: string; launchArgs?: string[] },
 ): Promise<void> {
   const args = ['device', 'process', 'launch', '--device', device.id, bundleId];
   if (options?.payloadUrl) {
     args.push('--payload-url', options.payloadUrl);
+  }
+  if (options?.launchArgs && options.launchArgs.length > 0) {
+    // `devicectl` uses Swift ArgumentParser; without `--` an arg starting with
+    // `-` / `--` could be re-interpreted as one of devicectl's own options.
+    args.push('--', ...options.launchArgs);
   }
   await runIosDevicectl(args, { action: 'launch iOS app', deviceId: device.id });
 }

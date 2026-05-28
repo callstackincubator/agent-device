@@ -146,13 +146,14 @@ test('open applies stored runtime launchUrl and reports runtime hints', async ()
   }
 });
 
-test('open applies launchConsole only to the direct app launch before runtime launchUrl', async () => {
+test('open applies launch-only flags only to the direct app launch before runtime launchUrl', async () => {
   const sessionStore = makeSessionStore();
   const launchConsolePath = path.join(os.tmpdir(), 'launch-console.log');
   const dispatchCalls: Array<{
     command: string;
     positionals: string[];
     launchConsole?: string;
+    launchArgs?: string[];
   }> = [];
 
   sessionStore.setRuntimeHints('launch-console-runtime', {
@@ -167,7 +168,12 @@ test('open applies launchConsole only to the direct app launch before runtime la
     booted: true,
   });
   mockDispatch.mockImplementation(async (_device, command, positionals, _outPath, context) => {
-    dispatchCalls.push({ command, positionals, launchConsole: context?.launchConsole });
+    dispatchCalls.push({
+      command,
+      positionals,
+      launchConsole: context?.launchConsole,
+      launchArgs: context?.launchArgs,
+    });
     return {};
   });
 
@@ -177,7 +183,7 @@ test('open applies launchConsole only to the direct app launch before runtime la
       session: 'launch-console-runtime',
       command: 'open',
       positionals: ['Demo'],
-      flags: { platform: 'ios', launchConsole: launchConsolePath },
+      flags: { platform: 'ios', launchConsole: launchConsolePath, launchArgs: ['-Flag', 'YES'] },
     },
     sessionName: 'launch-console-runtime',
     logPath: path.join(os.tmpdir(), 'daemon.log'),
@@ -187,8 +193,18 @@ test('open applies launchConsole only to the direct app launch before runtime la
 
   expect(response?.ok).toBe(true);
   expect(dispatchCalls).toEqual([
-    { command: 'open', positionals: ['Demo'], launchConsole: launchConsolePath },
-    { command: 'open', positionals: ['myapp://dev-client'], launchConsole: undefined },
+    {
+      command: 'open',
+      positionals: ['Demo'],
+      launchConsole: launchConsolePath,
+      launchArgs: ['-Flag', 'YES'],
+    },
+    {
+      command: 'open',
+      positionals: ['myapp://dev-client'],
+      launchConsole: undefined,
+      launchArgs: undefined,
+    },
   ]);
 });
 

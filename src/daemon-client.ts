@@ -55,6 +55,7 @@ export type OpenAppOptions = {
   serial?: NonNullable<DaemonRequest['flags']>['serial'];
   activity?: NonNullable<DaemonRequest['flags']>['activity'];
   launchConsole?: NonNullable<DaemonRequest['flags']>['launchConsole'];
+  launchArgs?: NonNullable<DaemonRequest['flags']>['launchArgs'];
   out?: NonNullable<DaemonRequest['flags']>['out'];
   saveScript?: NonNullable<DaemonRequest['flags']>['saveScript'];
   relaunch?: boolean;
@@ -213,6 +214,7 @@ export async function openApp(options: OpenAppOptions = {}): Promise<DaemonRespo
     serial,
     activity,
     launchConsole,
+    launchArgs,
     out,
     saveScript,
     relaunch,
@@ -234,6 +236,7 @@ export async function openApp(options: OpenAppOptions = {}): Promise<DaemonRespo
       ...(serial !== undefined ? { serial } : {}),
       ...(activity !== undefined ? { activity } : {}),
       ...(launchConsole !== undefined ? { launchConsole } : {}),
+      ...(launchArgs !== undefined ? { launchArgs } : {}),
       ...(out !== undefined ? { out } : {}),
       ...(saveScript !== undefined ? { saveScript } : {}),
       ...(relaunch ? { relaunch: true } : {}),

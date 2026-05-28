@@ -195,6 +195,7 @@ export type BackendOpenTarget = {
 };
 
 export type BackendOpenOptions = {
+  launchArgs?: string[];
   relaunch?: boolean;
 };
 

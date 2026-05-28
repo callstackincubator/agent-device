@@ -537,6 +537,7 @@ test('open forwards launch console option to the client apps API', async () => {
       version: false,
       platform: 'ios',
       launchConsole: '/tmp/launch-console.log',
+      launchArgs: ['-FeatureFlag', 'YES'],
     },
     client,
   });
@@ -544,6 +545,7 @@ test('open forwards launch console option to the client apps API', async () => {
   assert.equal(handled, true);
   assert.equal(observed?.platform, 'ios');
   assert.equal(observed?.launchConsole, '/tmp/launch-console.log');
+  assert.deepEqual(observed?.launchArgs, ['-FeatureFlag', 'YES']);
 });
 
 test('apps command defaults to user-installed and prints discovery hint', async () => {

@@ -926,6 +926,177 @@ test('openIosApp captures iOS simulator launch console output when requested', a
   }
 });
 
+test('openIosApp emits a clean simctl launch when launchArgs is an empty array', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-launch-args-empty-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(
+    xcrunPath,
+    '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  try {
+    mockEnsureBootedSimulator.mockResolvedValue();
+    await openIosApp(IOS_TEST_SIMULATOR, 'MyApp', {
+      appBundleId: 'com.example.app',
+      launchArgs: [],
+    });
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
+    assert.deepEqual(args, ['simctl', 'launch', 'sim-1', 'com.example.app']);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('openIosApp appends launchArgs after the bundle id on iOS device', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-launch-args-dev-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(
+    xcrunPath,
+    '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  try {
+    await openIosApp(IOS_TEST_DEVICE, 'MyApp', {
+      appBundleId: 'com.example.app',
+      launchArgs: ['-FeatureFlag', 'YES'],
+    });
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
+    assert.deepEqual(args, [
+      'devicectl',
+      'device',
+      'process',
+      'launch',
+      '--device',
+      'ios-device-1',
+      'com.example.app',
+      '--',
+      '-FeatureFlag',
+      'YES',
+    ]);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('openIosApp appends launchArgs alongside --payload-url for iOS device deep links', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-launch-args-deep-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const argsLogPath = path.join(tmpDir, 'args.log');
+  await fs.writeFile(
+    xcrunPath,
+    '#!/bin/sh\nprintf "%s\\n" "$@" > "$AGENT_DEVICE_TEST_ARGS_FILE"\nexit 0\n',
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  const previousArgsFile = process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+  process.env.AGENT_DEVICE_TEST_ARGS_FILE = argsLogPath;
+
+  try {
+    await openIosApp(IOS_TEST_DEVICE, 'myapp://item/42', {
+      appBundleId: 'com.example.app',
+      launchArgs: ['-Tracking', 'NO'],
+    });
+    const args = (await fs.readFile(argsLogPath, 'utf8')).trim().split('\n').filter(Boolean);
+    assert.deepEqual(args, [
+      'devicectl',
+      'device',
+      'process',
+      'launch',
+      '--device',
+      'ios-device-1',
+      'com.example.app',
+      '--payload-url',
+      'myapp://item/42',
+      '--',
+      '-Tracking',
+      'NO',
+    ]);
+  } finally {
+    process.env.PATH = previousPath;
+    if (previousArgsFile === undefined) {
+      delete process.env.AGENT_DEVICE_TEST_ARGS_FILE;
+    } else {
+      process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
+    }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('openIosApp rejects launchArgs combined with URL deep link on iOS simulator', async () => {
+  mockEnsureBootedSimulator.mockResolvedValue();
+  await assert.rejects(
+    () =>
+      openIosApp(IOS_TEST_SIMULATOR, 'myapp://item/42', {
+        launchArgs: ['-FeatureFlag', 'YES'],
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'INVALID_ARGS');
+      assert.match(String(error.message), /simctl openurl/);
+      return true;
+    },
+  );
+  await assert.rejects(
+    () =>
+      openIosApp(IOS_TEST_SIMULATOR, 'MyApp', {
+        appBundleId: 'com.example.app',
+        url: 'https://example.com/path',
+        launchArgs: ['-FeatureFlag', 'YES'],
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'INVALID_ARGS');
+      return true;
+    },
+  );
+});
+
+test('openIosApp rejects launchArgs on macOS', async () => {
+  await assert.rejects(
+    () =>
+      openIosApp(MACOS_TEST_DEVICE, 'TextEdit', {
+        launchArgs: ['-FeatureFlag', 'YES'],
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'UNSUPPORTED_OPERATION');
+      assert.match(String(error.message), /macOS/);
+      return true;
+    },
+  );
+});
+
 test('readIosClipboardText rejects physical devices', async () => {
   await assert.rejects(
     () => readIosClipboardText(IOS_TEST_DEVICE),

@@ -81,6 +81,7 @@ export const clientCommandDefinitions = [
       surface: enumField(SURFACE_VALUES),
       activity: stringField('Android activity name.'),
       launchConsole: stringField('Launch console mode.'),
+      launchArgs: stringArrayField('iOS launch arguments forwarded verbatim to the app process.'),
       relaunch: booleanField('Force relaunch.'),
       saveScript: jsonSchemaField<boolean | string>({ oneOf: [booleanSchema(), stringSchema()] }),
       noRecord: booleanField('Do not record this action.'),

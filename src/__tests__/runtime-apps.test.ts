@@ -20,6 +20,7 @@ test('runtime app commands call typed backend lifecycle primitives', async () =>
   const opened = await device.apps.open({
     session: 'default',
     app: ' com.example.app ',
+    launchArgs: ['-FeatureFlag', 'YES'],
     relaunch: true,
   });
   assert.deepEqual(opened, {
@@ -61,7 +62,7 @@ test('runtime app commands call typed backend lifecycle primitives', async () =>
     {
       command: 'openApp',
       target: { app: 'com.example.app' },
-      options: { relaunch: true },
+      options: { launchArgs: ['-FeatureFlag', 'YES'], relaunch: true },
       session: 'default',
     },
     { command: 'closeApp', app: 'com.example.app' },

@@ -945,6 +945,7 @@ test('openApp forwards typed runtime hints on open requests', async () => {
       session: 'qa-session',
       app: 'Demo',
       platform: 'android',
+      launchArgs: ['-FeatureFlag', 'YES'],
       relaunch: true,
       runtime,
       meta: { requestId: 'req-open-app' },
@@ -958,6 +959,7 @@ test('openApp forwards typed runtime hints on open requests', async () => {
     assert.deepEqual((rpcRequest as any)?.params?.positionals, ['Demo']);
     assert.deepEqual((rpcRequest as any)?.params?.flags, {
       platform: 'android',
+      launchArgs: ['-FeatureFlag', 'YES'],
       relaunch: true,
     });
     assert.deepEqual((rpcRequest as any)?.params?.runtime, runtime);
