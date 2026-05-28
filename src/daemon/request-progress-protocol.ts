@@ -61,9 +61,14 @@ export function formatRequestProgressEvent(event: RequestProgressEvent): string 
     parts.push(`attempt=${event.attempt}/${event.maxAttempts}`);
   }
   if (event.retrying) parts.push('retry=true');
-  if (event.durationMs !== undefined) parts.push(`durationMs=${event.durationMs}`);
+  if (event.durationMs !== undefined)
+    parts.push(`duration=${formatDurationSeconds(event.durationMs)}`);
   if (event.artifactsDir && event.status === 'fail') parts.push(`artifacts=${event.artifactsDir}`);
   const message = event.message?.replace(/\s+/g, ' ').trim();
   if (message) parts.push(message);
   return parts.join(' ');
+}
+
+function formatDurationSeconds(durationMs: number): string {
+  return `${(Math.max(0, durationMs) / 1000).toFixed(2)}s`;
 }

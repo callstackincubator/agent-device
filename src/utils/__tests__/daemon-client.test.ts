@@ -401,6 +401,7 @@ test('sendToDaemon prints replay test progress before the socket response', asyn
                 total: 2,
                 attempt: 1,
                 maxAttempts: 2,
+                durationMs: 1234,
                 retrying: true,
                 message: 'first attempt failed',
               },
@@ -440,7 +441,7 @@ test('sendToDaemon prints replay test progress before the socket response', asyn
     assert.deepEqual(response, { ok: true, data: { via: 'socket' } });
     assert.match(
       stderr,
-      /fail 1\/2 \/tmp\/01-login\.ad attempt=1\/2 retry=true first attempt failed/,
+      /fail 1\/2 \/tmp\/01-login\.ad attempt=1\/2 retry=true duration=1\.23s first attempt failed/,
     );
   } finally {
     (net as unknown as { createConnection: typeof net.createConnection }).createConnection =
