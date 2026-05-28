@@ -33,6 +33,7 @@ import {
 import { findProjectRoot, readVersion } from '../version.ts';
 
 type MockHttpResponse = EventEmitter & {
+  headers?: Record<string, string>;
   statusCode?: number;
   resume: () => void;
   setEncoding: (_encoding: string) => void;
@@ -448,6 +449,104 @@ test('sendToDaemon prints replay test progress before the socket response', asyn
       originalCreateConnection;
     process.stderr.write = originalStderrWrite;
     fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('sendToDaemon prints replay test progress before the HTTP NDJSON response', async () => {
+  let stderr = '';
+  const seenPaths: string[] = [];
+  const originalStderrWrite = process.stderr.write.bind(process.stderr);
+  const originalHttpRequest = http.request;
+  (http as unknown as { request: typeof http.request }).request = ((
+    options: any,
+    callback: (res: any) => void,
+  ) => {
+    const req = new EventEmitter() as EventEmitter & {
+      write: (chunk: string) => void;
+      end: () => void;
+      destroy: () => void;
+    };
+    let body = '';
+    req.write = (chunk: string) => {
+      body += chunk;
+    };
+    req.destroy = () => {
+      req.emit('close');
+    };
+    req.end = () => {
+      seenPaths.push(`${String(options.method ?? 'GET')} ${String(options.path ?? '')}`);
+      const res = new EventEmitter() as MockHttpResponse;
+      res.statusCode = 200;
+      res.resume = () => {};
+      res.setEncoding = () => {};
+      if (options.method === 'GET') {
+        process.nextTick(() => {
+          callback(res);
+          res.emit('end');
+        });
+        return;
+      }
+
+      const rpcRequest = JSON.parse(body) as { id?: string };
+      res.headers = { 'content-type': 'application/x-ndjson' };
+      process.nextTick(() => {
+        callback(res);
+        res.emit(
+          'data',
+          `${JSON.stringify({
+            type: 'progress',
+            event: {
+              type: 'replay-test',
+              file: '/tmp/02-payments.ad',
+              status: 'pass',
+              index: 2,
+              total: 3,
+              attempt: 1,
+              maxAttempts: 1,
+              durationMs: 2500,
+            },
+          })}\n`,
+        );
+        res.emit(
+          'data',
+          `${JSON.stringify({
+            type: 'response',
+            response: {
+              jsonrpc: '2.0',
+              id: rpcRequest.id,
+              result: { ok: true, data: { via: 'http-progress' } },
+            },
+          })}\n`,
+        );
+        res.emit('data', '{not-json-after-settle}\n');
+        res.emit('end');
+      });
+    };
+    return req as any;
+  }) as typeof http.request;
+
+  try {
+    (process.stderr as any).write = ((chunk: unknown) => {
+      stderr += String(chunk);
+      return true;
+    }) as typeof process.stderr.write;
+
+    await withRemoteDaemonEnv(async () => {
+      const response = await sendToDaemon({
+        session: 'default',
+        command: 'test',
+        positionals: ['/tmp/replays'],
+        flags: {},
+        meta: { requestId: 'req-http-progress', requestProgress: 'replay-test' },
+      });
+
+      assert.deepEqual(response, { ok: true, data: { via: 'http-progress' } });
+    });
+    assert.deepEqual(seenPaths, ['GET /agent-device/health', 'POST /agent-device/rpc']);
+    assert.match(stderr, /pass 2\/3 \/tmp\/02-payments\.ad attempt=1\/1 duration=2\.50s/);
+  } finally {
+    (http as unknown as { request: typeof http.request }).request = originalHttpRequest;
+    process.stderr.write = originalStderrWrite;
   }
 });
 

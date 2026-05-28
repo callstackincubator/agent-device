@@ -150,3 +150,42 @@ test('test emits progress when attempts retry and pass', async () => {
     maxAttempts: 2,
   });
 });
+
+test('test emits skip progress without synthetic duration', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-skip-progress-'));
+  fs.writeFileSync(path.join(root, '01-missing-platform.ad'), 'open "Demo"\n');
+  fs.writeFileSync(path.join(root, '02-android.ad'), 'context platform=android\nopen "Demo"\n');
+
+  const events: RequestProgressEvent[] = [];
+  const response = await withRequestProgressSink(
+    (event) => events.push(event),
+    async () =>
+      await handleSessionCommands({
+        req: {
+          token: 't',
+          session: 'default',
+          command: 'test',
+          positionals: [root],
+          meta: { cwd: root, requestId: 'suite-skip-progress' },
+          flags: { platform: 'android' },
+        },
+        sessionName: 'default',
+        logPath: path.join(os.tmpdir(), 'daemon.log'),
+        sessionStore,
+        invoke: async () => ({ ok: true, data: { replayed: 1, healed: 0 } }),
+      }),
+  );
+
+  const data = expectOkData(response);
+  expect(data.skipped).toBe(1);
+  expect(events.map((event) => event.status)).toEqual(['skip', 'pass']);
+  expect(events[0]).toMatchObject({
+    type: 'replay-test',
+    status: 'skip',
+    index: 1,
+    total: 2,
+    message: 'missing platform metadata for --platform android',
+  });
+  expect(events[0]?.durationMs).toBeUndefined();
+});

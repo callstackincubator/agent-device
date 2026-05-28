@@ -66,7 +66,6 @@ export async function runReplayTestSuite(
           status: 'skip',
           index: entryIndex + 1,
           total: entries.length,
-          durationMs: 0,
           message: entry.message,
         });
         results.push({

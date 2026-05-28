@@ -1140,9 +1140,11 @@ async function sendSocketRequest(
     const statePaths = resolveDaemonPaths(
       req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR,
     );
+    let settled = false;
     const timeoutHandle =
       typeof timeoutMs === 'number'
         ? setTimeout(() => {
+            settled = true;
             socket.destroy();
             reject(
               handleRequestTimeout(
@@ -1160,6 +1162,7 @@ async function sendSocketRequest(
     let buffer = '';
     socket.setEncoding('utf8');
     socket.on('data', (chunk) => {
+      if (settled) return;
       buffer += chunk;
       let idx = buffer.indexOf('\n');
       while (idx !== -1) {
@@ -1177,11 +1180,13 @@ async function sendSocketRequest(
             continue;
           }
           const response = isDaemonResponseEnvelope(message) ? message.response : message;
+          settled = true;
           socket.end();
           if (timeoutHandle) clearTimeout(timeoutHandle);
           resolve(response as DaemonResponse);
           return;
         } catch (err) {
+          settled = true;
           if (timeoutHandle) clearTimeout(timeoutHandle);
           reject(
             new AppError(
@@ -1200,6 +1205,8 @@ async function sendSocketRequest(
     });
 
     socket.on('error', (err) => {
+      if (settled) return;
+      settled = true;
       if (timeoutHandle) clearTimeout(timeoutHandle);
       reject(handleTransportError(err, req.meta?.requestId, false));
     });
