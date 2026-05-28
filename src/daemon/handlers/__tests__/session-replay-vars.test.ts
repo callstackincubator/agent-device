@@ -1473,7 +1473,7 @@ test('runReplayScriptFile uses Android content lane for Maestro horizontal scree
     calls.map((call) => [call.command, call.positionals]),
     [
       ['snapshot', []],
-      ['swipe', ['320', '520', '80', '520', '300']],
+      ['swipe', ['280', '520', '120', '520', '300']],
       ['swipe', ['360', '520', '40', '520', '300']],
     ],
   );

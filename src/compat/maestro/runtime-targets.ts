@@ -476,24 +476,88 @@ function inferMaestroMissingTabSlotMatch(
   query: string,
 ): MaestroResolvedSnapshotMatch | null {
   if (!isMaestroTabStripContainerMatch(match, query)) return null;
-  const children: Array<SnapshotNode & { rect: Rect }> = [];
-  for (const node of nodes) {
-    if (node.parentIndex !== match.node.index || !node.rect) continue;
-    const candidate = node as SnapshotNode & { rect: Rect };
-    if (isMaestroTabStripChildCandidate(candidate, match.rect, query)) {
-      children.push(candidate);
-    }
-  }
-  children.sort((left, right) => left.rect.x - right.rect.x);
+  const children = collectMaestroTabStripChildCandidates(nodes, match, query);
   if (children.length === 0) return null;
   const medianChildWidth = median(children.map((child) => child.rect.width));
-  const gaps = resolveHorizontalGaps(
+  const allGaps = resolveHorizontalGaps(
     match.rect,
     children.map((child) => child.rect),
-  ).filter((gap) => isPlausibleMissingTabSlot(gap.width, medianChildWidth));
-  if (gaps.length !== 1) return null;
-  const gap = gaps[0];
+  );
+  const gap = selectMaestroMissingSlotGap(match, query, allGaps, medianChildWidth);
   if (!gap) return null;
+  return matchWithRect(match, gap);
+}
+
+function collectMaestroTabStripChildCandidates(
+  nodes: SnapshotState['nodes'],
+  match: MaestroResolvedSnapshotMatch,
+  query: string,
+): Array<SnapshotNode & { rect: Rect }> {
+  return nodes
+    .filter((node): node is SnapshotNode & { rect: Rect } => {
+      return (
+        node.parentIndex === match.node.index &&
+        Boolean(node.rect) &&
+        isMaestroTabStripChildCandidate(node as SnapshotNode & { rect: Rect }, match.rect, query)
+      );
+    })
+    .sort((left, right) => left.rect.x - right.rect.x);
+}
+
+function selectMaestroMissingSlotGap(
+  match: MaestroResolvedSnapshotMatch,
+  query: string,
+  gaps: Array<{ x: number; width: number }>,
+  medianChildWidth: number,
+): { x: number; width: number } | null {
+  const plausibleGaps = gaps.filter((gap) => isPlausibleMissingTabSlot(gap.width, medianChildWidth));
+  const leadingTextSlot = inferMaestroLeadingTextSlotGap(match, query, gaps);
+  const hasPlausibleLeadingGap = plausibleGaps.some((gap) => isLeadingGap(match.rect, gap));
+  if (leadingTextSlot && !hasPlausibleLeadingGap) return leadingTextSlot;
+  if (plausibleGaps.length === 1) return plausibleGaps[0] ?? null;
+  return leadingTextSlot;
+}
+
+function inferMaestroLeadingTextSlotGap(
+  match: MaestroResolvedSnapshotMatch,
+  query: string,
+  gaps: Array<{ x: number; width: number }>,
+): { x: number; width: number } | null {
+  const leadingGap = gaps.find((gap) => Math.abs(gap.x - match.rect.x) < 1);
+  const estimatedLabelWidth = Math.max(48, Math.min(220, query.length * 8 + 24));
+  if (!isLeadingTextSlotCandidate(match, query, leadingGap, estimatedLabelWidth)) return null;
+  return {
+    x: match.rect.x,
+    width: Math.min(estimatedLabelWidth, leadingGap.width),
+  };
+}
+
+function isLeadingTextSlotCandidate(
+  match: MaestroResolvedSnapshotMatch,
+  query: string,
+  gap: { x: number; width: number } | undefined,
+  estimatedLabelWidth: number,
+): gap is { x: number; width: number } {
+  if (!gap) return false;
+  return (
+    normalizeType(match.node.type ?? '') === 'scrollview' &&
+    maestroVisibleTextMatchRank(match.node, query) <= 1 &&
+    match.rect.width >= 240 &&
+    match.rect.height >= 32 &&
+    match.rect.height <= 80 &&
+    gap.width <= match.rect.width * 0.55 &&
+    gap.width >= estimatedLabelWidth * 0.6
+  );
+}
+
+function isLeadingGap(rect: Rect, gap: { x: number; width: number }): boolean {
+  return Math.abs(gap.x - rect.x) < 1;
+}
+
+function matchWithRect(
+  match: MaestroResolvedSnapshotMatch,
+  gap: { x: number; width: number },
+): MaestroResolvedSnapshotMatch {
   return {
     ...match,
     rect: {

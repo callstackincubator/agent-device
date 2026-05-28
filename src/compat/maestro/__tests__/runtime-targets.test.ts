@@ -250,6 +250,55 @@ test('resolveMaestroNodeFromSnapshot keeps concrete child matches over tab-strip
   });
 });
 
+test('resolveMaestroNodeFromSnapshot infers leading breadcrumb slot when selected child is omitted', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'ScrollView',
+        label: 'Article by Gandalf',
+        rect: { x: 0, y: 58.33333333333333, width: 402, height: 58.33333333333333 },
+        depth: 4,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'Other',
+        label: 'Feed',
+        rect: { x: 170.3333282470703, y: 65.33333587646484, width: 54, height: 48 },
+        depth: 5,
+        parentIndex: 1,
+      },
+      {
+        index: 3,
+        ref: 'e3',
+        type: 'Other',
+        label: 'Albums',
+        rect: { x: 231.6666717529297, y: 65.33333587646484, width: 75, height: 48 },
+        depth: 5,
+        parentIndex: 1,
+      },
+    ],
+  };
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Article by Gandalf" || text="Article by Gandalf" || id="Article by Gandalf"',
+    {},
+    'ios',
+    { referenceWidth: 402, referenceHeight: 874 },
+    { promoteTapTarget: true },
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 1 }),
+    rect: { x: 0, y: 58.33333333333333, width: 168, height: 58.33333333333333 },
+  });
+});
+
 function makeReactNativeOverlaySnapshot(): SnapshotState {
   return {
     createdAt: Date.now(),
