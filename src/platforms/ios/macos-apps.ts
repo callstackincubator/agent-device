@@ -40,9 +40,12 @@ export async function resolveMacOsApp(app: string): Promise<string> {
 
   const apps = await listMacApps('all');
   const matches = apps.filter((entry) => entry.name.toLowerCase() === trimmed.toLowerCase());
-  const match = matches[0];
-  if (matches.length === 1 && match !== undefined) {
-    return macOsAppResolutionCache.set(MACOS_APP_RESOLUTION_CACHE_SCOPE, trimmed, match.bundleId);
+  if (matches.length === 1) {
+    return macOsAppResolutionCache.set(
+      MACOS_APP_RESOLUTION_CACHE_SCOPE,
+      trimmed,
+      matches[0]!.bundleId,
+    );
   }
   if (matches.length > 1) {
     throw new AppError('INVALID_ARGS', `Multiple apps matched "${app}"`, { matches });

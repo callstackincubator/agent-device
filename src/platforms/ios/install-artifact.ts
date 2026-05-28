@@ -120,9 +120,8 @@ async function resolveIosInstallablePath(
         installPath: path.join(payloadDir, entry.name),
         bundleName: entry.name.replace(/\.app$/i, ''),
       }));
-    const appBundle = appBundles[0];
-    if (appBundles.length === 1 && appBundle !== undefined) {
-      return { installPath: appBundle.installPath, cleanup };
+    if (appBundles.length === 1) {
+      return { installPath: appBundles[0]!.installPath, cleanup };
     }
     if (appBundles.length === 0) {
       throw new AppError(

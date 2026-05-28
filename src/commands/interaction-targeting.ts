@@ -80,9 +80,7 @@ function findPreferredActionableDescendant(
     if (sameRectChildren.length !== 1) {
       break;
     }
-    const next = sameRectChildren[0];
-    if (next === undefined) break;
-    current = next;
+    current = sameRectChildren[0]!;
   }
 
   return current === node ? null : current;

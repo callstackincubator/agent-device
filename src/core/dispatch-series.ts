@@ -34,9 +34,7 @@ export function shouldUseIosDragSeries(device: DeviceInfo, count: number): boole
 
 export function computeDeterministicJitter(index: number, jitterPx: number): [number, number] {
   if (jitterPx <= 0) return [0, 0];
-  const [dx, dy] = DETERMINISTIC_JITTER_PATTERN[index % DETERMINISTIC_JITTER_PATTERN.length] ?? [
-    0, 0,
-  ];
+  const [dx, dy] = DETERMINISTIC_JITTER_PATTERN[index % DETERMINISTIC_JITTER_PATTERN.length]!;
   return [dx * jitterPx, dy * jitterPx];
 }
 

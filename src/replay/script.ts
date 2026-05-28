@@ -189,8 +189,7 @@ function parseReplayScriptLine(line: string): SessionAction | null {
   if (trimmed.length === 0 || trimmed.startsWith('#')) return null;
   const tokens = tokenizeReplayLine(trimmed);
   if (tokens.length === 0) return null;
-  const command = tokens[0];
-  if (command === undefined) return null;
+  const command = tokens[0]!;
   const args = tokens.slice(1);
   if (command === 'context') return null;
 
@@ -262,8 +261,7 @@ function parseReplayScriptLine(line: string): SessionAction | null {
     const parsed = parseReplaySeriesFlags(command, args);
     Object.assign(action.flags, parsed.flags);
     if (parsed.positionals.length === 0) return action;
-    const target = parsed.positionals[0];
-    if (target === undefined) return action;
+    const target = parsed.positionals[0]!;
     if (target.startsWith('@')) {
       action.positionals = [target];
       if (parsed.positionals[1]) {
@@ -288,17 +286,14 @@ function parseReplayScriptLine(line: string): SessionAction | null {
       action.positionals = parsed.positionals;
       return action;
     }
-    const target = parsed.positionals[0];
-    if (target === undefined) return action;
+    const target = parsed.positionals[0]!;
     if (target.startsWith('@')) {
       if (parsed.positionals.length >= 3) {
         action.positionals = [target, parsed.positionals.slice(2).join(' ')];
         action.result = { refLabel: parsed.positionals[1] };
         return action;
       }
-      const text = parsed.positionals[1];
-      if (text === undefined) return action;
-      action.positionals = [target, text];
+      action.positionals = [target, parsed.positionals[1]!];
       return action;
     }
     action.positionals = [target, parsed.positionals.slice(1).join(' ')];
@@ -310,9 +305,8 @@ function parseReplayScriptLine(line: string): SessionAction | null {
       action.positionals = args;
       return action;
     }
-    const sub = args[0];
-    const target = args[1];
-    if (sub === undefined || target === undefined) return action;
+    const sub = args[0]!;
+    const target = args[1]!;
     if (target.startsWith('@')) {
       action.positionals = [sub, target];
       if (args[2]) {
@@ -334,8 +328,7 @@ function parseReplayScriptLine(line: string): SessionAction | null {
   if (command === 'record') {
     const positionals: string[] = [];
     for (let index = 0; index < args.length; index += 1) {
-      const token = args[index];
-      if (token === undefined) continue;
+      const token = args[index]!;
       if (token === '--hide-touches') {
         action.flags.hideTouches = true;
         continue;
@@ -365,8 +358,7 @@ function parseReplayScriptLine(line: string): SessionAction | null {
   if (command === 'screenshot') {
     const positionals: string[] = [];
     for (let index = 0; index < args.length; index += 1) {
-      const token = args[index];
-      if (token === undefined) continue;
+      const token = args[index]!;
       const screenshotFlag = readScreenshotScriptFlag({ args, index, flags: action.flags });
       if (screenshotFlag.handled) {
         index = screenshotFlag.nextIndex;

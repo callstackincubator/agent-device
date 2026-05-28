@@ -200,8 +200,7 @@ export function parseReplaySeriesFlags(
         : undefined;
 
   for (let index = 0; index < args.length; index += 1) {
-    const token = args[index];
-    if (token === undefined) continue;
+    const token = args[index]!;
 
     if (isClickLikeCommand(command) && token === '--double-tap') {
       flags.doubleTap = true;
@@ -263,8 +262,7 @@ export function parseReplayRuntimeFlags(args: string[]): {
   } = {};
 
   for (let index = 0; index < args.length; index += 1) {
-    const token = args[index];
-    if (token === undefined) continue;
+    const token = args[index]!;
     const nextArg = args[index + 1];
     if (token === '--platform' && nextArg !== undefined) {
       const platform = nextArg;

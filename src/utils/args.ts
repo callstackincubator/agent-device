@@ -48,8 +48,7 @@ export function parseRawArgs(argv: string[]): RawParsedArgs {
   let parseFlags = true;
 
   for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === undefined) continue;
+    const arg = argv[i]!;
     if (parseFlags && arg === '--') {
       parseFlags = false;
       continue;

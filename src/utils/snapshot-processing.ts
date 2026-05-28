@@ -63,7 +63,7 @@ export function pruneGroupNodes(nodes: RawSnapshotNode[]): RawSnapshotNode[] {
   const result: RawSnapshotNode[] = [];
   for (const node of nodes) {
     const depth = node.depth ?? 0;
-    while (skippedDepths.length > 0 && depth <= (skippedDepths.at(-1) ?? -1)) {
+    while (skippedDepths.length > 0 && depth <= skippedDepths[skippedDepths.length - 1]!) {
       skippedDepths.pop();
     }
     const type = normalizeType(node.type ?? '');

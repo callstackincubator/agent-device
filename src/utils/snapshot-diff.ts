@@ -99,16 +99,7 @@ function diffComparableLinesMyers(
       const goDown = k === -d || (k !== d && getV(v, k - 1) < getV(v, k + 1));
       let x = goDown ? getV(v, k + 1) : getV(v, k - 1) + 1;
       let y = x - k;
-      while (x < n && y < m) {
-        const previousLine = previous[x];
-        const currentLine = current[y];
-        if (
-          previousLine === undefined ||
-          currentLine === undefined ||
-          previousLine.comparable !== currentLine.comparable
-        ) {
-          break;
-        }
+      while (x < n && y < m && previous[x]!.comparable === current[y]!.comparable) {
         x += 1;
         y += 1;
       }
@@ -134,8 +125,7 @@ function backtrackMyers(
   let y = m;
 
   for (let d = trace.length - 1; d >= 0; d -= 1) {
-    const v = trace[d];
-    if (v === undefined) continue;
+    const v = trace[d]!;
     const k = x - y;
     const goDown = k === -d || (k !== d && getV(v, k - 1) < getV(v, k + 1));
     const prevK = goDown ? k + 1 : k - 1;
@@ -143,9 +133,7 @@ function backtrackMyers(
     const prevY = prevX - prevK;
 
     while (x > prevX && y > prevY) {
-      const line = current[y - 1];
-      if (line === undefined) break;
-      lines.push({ kind: 'unchanged', text: line.text });
+      lines.push({ kind: 'unchanged', text: current[y - 1]!.text });
       x -= 1;
       y -= 1;
     }
@@ -153,12 +141,10 @@ function backtrackMyers(
     if (d === 0) break;
 
     if (x === prevX) {
-      const line = current[prevY];
-      if (line !== undefined) lines.push({ kind: 'added', text: line.text });
+      lines.push({ kind: 'added', text: current[prevY]!.text });
       y = prevY;
     } else {
-      const line = previous[prevX];
-      if (line !== undefined) lines.push({ kind: 'removed', text: line.text });
+      lines.push({ kind: 'removed', text: previous[prevX]!.text });
       x = prevX;
     }
   }
