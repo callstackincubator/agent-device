@@ -384,6 +384,21 @@ test('replay.run forwards timeout budget', async () => {
   assert.equal(setup.calls[0]?.flags?.timeoutMs, 240_000);
 });
 
+test('replay.test keeps backend alias for suite discovery', async () => {
+  const setup = createTransport(async () => ({ ok: true, data: {} }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await client.replay.test({
+    paths: ['./flows/login.yaml'],
+    backend: 'maestro',
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'test');
+  assert.deepEqual(setup.calls[0]?.positionals, ['./flows/login.yaml']);
+  assert.equal(setup.calls[0]?.flags?.replayBackend, 'maestro');
+});
+
 test('client.command.wait prepares selector options and rejects invalid selectors', async () => {
   const setup = createTransport(async () => ({
     ok: true,

@@ -1,7 +1,6 @@
 import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
-import type { ReplayRunOptions } from '../../client-types.ts';
 import { commonInputFromFlags, request, requiredDaemonString, requiredString } from './common.ts';
-import type { CliReader, DaemonWriter } from './types.ts';
+import type { CliReader, CommandInput, DaemonWriter } from './types.ts';
 
 export const replayCliReaders = {
   replay: (positionals, flags) => ({
@@ -15,6 +14,7 @@ export const replayCliReaders = {
     ...commonInputFromFlags(flags),
     paths: positionals,
     update: flags.replayUpdate,
+    backend: flags.replayMaestro ? 'maestro' : undefined,
     env: flags.replayEnv,
     failFast: flags.failFast,
     timeoutMs: flags.timeoutMs,
@@ -29,8 +29,7 @@ export const replayDaemonWriters = {
     request(PUBLIC_COMMANDS.replay, [requiredDaemonString(input.path, 'replay requires path')], {
       ...input,
       replayUpdate: input.update,
-      replayBackend:
-        input.backend ?? ((input as ReplayRunOptions).maestro === true ? 'maestro' : undefined),
+      replayBackend: readReplayBackend(input),
       replayEnv: input.env,
       replayShellEnv: collectReplayClientShellEnv(process.env),
     }),
@@ -38,12 +37,17 @@ export const replayDaemonWriters = {
     request(PUBLIC_COMMANDS.test, input.paths ?? [], {
       ...input,
       replayUpdate: input.update,
+      replayBackend: readReplayBackend(input),
       replayEnv: input.env,
       replayShellEnv: collectReplayClientShellEnv(process.env),
     }),
 } satisfies Record<string, DaemonWriter>;
 
 const REPLAY_SHELL_ENV_PREFIX = 'AD_VAR_';
+
+function readReplayBackend(input: CommandInput): string | undefined {
+  return input.backend ?? (input.maestro === true ? 'maestro' : undefined);
+}
 
 function collectReplayClientShellEnv(env: NodeJS.ProcessEnv): Record<string, string> {
   const result: Record<string, string> = {};
