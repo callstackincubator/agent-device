@@ -22,7 +22,7 @@ import { dispatchScreenshotViaRuntime } from '../screenshot-runtime.ts';
 import type { SessionState } from '../types.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
 import { attachRefs } from '../../utils/snapshot.ts';
-import { PNG } from 'pngjs';
+import { PNG } from '../../utils/png.ts';
 import { ANDROID_EMULATOR, IOS_SIMULATOR } from '../../__tests__/test-utils/device-fixtures.ts';
 import { makeSessionStore } from '../../__tests__/test-utils/store-factory.ts';
 import { makeSession as makeBaseSession } from '../../__tests__/test-utils/session-factories.ts';

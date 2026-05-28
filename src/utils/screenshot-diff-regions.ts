@@ -1,4 +1,4 @@
-import { PNG } from 'pngjs';
+import type { PNG } from './png.ts';
 import { splitLargeDiffRegions } from './screenshot-diff-region-split.ts';
 import type { MutableDiffRegion } from './screenshot-diff-region-types.ts';
 
