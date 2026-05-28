@@ -730,6 +730,96 @@ test('runReplayScriptFile lets Maestro tapOn use fuzzy visible text matching', a
   assert.equal(calls[0]?.flags?.noRecord, true);
 });
 
+test('runReplayScriptFile promotes Maestro text tapOn to an actionable ancestor', async () => {
+  const calls: CapturedInvocation[] = [];
+  const { response } = await runReplayFixture({
+    label: 'maestro-tap-visible-text-actionable-ancestor',
+    script: ['appId: demo.app', '---', '- tapOn: Article', ''].join('\n'),
+    flags: { replayBackend: 'maestro', platform: 'ios' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 1,
+                type: 'XCUIElementTypeButton',
+                rect: { x: 40, y: 100, width: 120, height: 48 },
+                hittable: true,
+              },
+              {
+                index: 2,
+                parentIndex: 1,
+                type: 'XCUIElementTypeStaticText',
+                label: 'Article',
+                rect: { x: 76, y: 114, width: 48, height: 20 },
+                hittable: false,
+              },
+            ],
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['snapshot', []],
+      ['click', ['100', '124']],
+    ],
+  );
+});
+
+test('runReplayScriptFile promotes Maestro id tapOn to an actionable ancestor', async () => {
+  const calls: CapturedInvocation[] = [];
+  const { response } = await runReplayFixture({
+    label: 'maestro-tap-id-actionable-ancestor',
+    script: ['appId: demo.app', '---', '- tapOn:', '    id: album-0', ''].join('\n'),
+    flags: { replayBackend: 'maestro', platform: 'android' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 1,
+                type: 'android.widget.Button',
+                rect: { x: 24, y: 320, width: 312, height: 64 },
+                hittable: true,
+              },
+              {
+                index: 2,
+                parentIndex: 1,
+                type: 'android.widget.TextView',
+                identifier: 'album-0',
+                rect: { x: 44, y: 334, width: 80, height: 24 },
+                hittable: false,
+              },
+            ],
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['snapshot', []],
+      ['click', ['180', '352']],
+    ],
+  );
+});
+
 test('runReplayScriptFile reuses successful Maestro visibility snapshot for following tapOn', async () => {
   let snapshots = 0;
   const { response, calls } = await runReplayFixture({
@@ -1233,6 +1323,59 @@ test('runReplayScriptFile resolves Maestro swipe.label from a labeled element re
   );
 });
 
+test('runReplayScriptFile keeps Maestro swipe.label anchored to the matched label rect', async () => {
+  const calls: CapturedInvocation[] = [];
+  const { response } = await runReplayFixture({
+    label: 'maestro-swipe-label-child-rect',
+    script: [
+      'appId: demo.app',
+      '---',
+      '- swipe:',
+      '    label: Article',
+      '    direction: UP',
+      '    duration: 400',
+      '',
+    ].join('\n'),
+    flags: { replayBackend: 'maestro', platform: 'ios' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 1,
+                type: 'XCUIElementTypeButton',
+                rect: { x: 40, y: 100, width: 120, height: 48 },
+                hittable: true,
+              },
+              {
+                index: 2,
+                parentIndex: 1,
+                type: 'XCUIElementTypeStaticText',
+                label: 'Article',
+                rect: { x: 76, y: 114, width: 48, height: 20 },
+                hittable: false,
+              },
+            ],
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['snapshot', []],
+      ['swipe', ['100', '124', '100', '8', '400']],
+    ],
+  );
+});
+
 test('runReplayScriptFile resolves Maestro screen swipes from the snapshot frame', async () => {
   const calls: CapturedInvocation[] = [];
   const { response } = await runReplayFixture({
@@ -1277,6 +1420,54 @@ test('runReplayScriptFile resolves Maestro screen swipes from the snapshot frame
       ['snapshot', []],
       ['swipe', ['320', '400', '80', '400', '300']],
       ['swipe', ['360', '400', '40', '400', '300']],
+    ],
+  );
+});
+
+test('runReplayScriptFile uses Android content lane for Maestro horizontal screen swipes', async () => {
+  const calls: CapturedInvocation[] = [];
+  const { response } = await runReplayFixture({
+    label: 'maestro-screen-swipe-android-content-lane',
+    script: [
+      'appId: demo.app',
+      '---',
+      '- swipe:',
+      '    direction: LEFT',
+      '    duration: 300',
+      '- swipe:',
+      '    start: 90%,50%',
+      '    end: 10%,50%',
+      '    duration: 300',
+      '',
+    ].join('\n'),
+    flags: { replayBackend: 'maestro', platform: 'android' },
+    invoke: async (req) => {
+      calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 0,
+                type: 'application',
+                rect: { x: 0, y: 0, width: 400, height: 800 },
+              },
+            ],
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['snapshot', []],
+      ['swipe', ['320', '520', '80', '520', '300']],
+      ['swipe', ['360', '520', '40', '520', '300']],
     ],
   );
 });

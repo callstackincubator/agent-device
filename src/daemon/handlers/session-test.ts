@@ -22,9 +22,11 @@ import {
   resolveReplayTestRetries,
   resolveReplayTestTimeout,
 } from './session-test-discovery.ts';
+import { isReplayInfrastructureFailure } from './session-test-infrastructure.ts';
 import { runReplayTestAttempt } from './session-test-runtime.ts';
 import type { ReplayTestRuntimeDependencies } from './session-test-types.ts';
 
+// fallow-ignore-next-line complexity
 export async function runReplayTestSuite(
   params: {
     req: DaemonRequest;
@@ -82,7 +84,7 @@ export async function runReplayTestSuite(
         cleanupSession,
       });
       results.push(result);
-      if (req.flags?.failFast === true) break;
+      if (req.flags?.failFast === true || isReplayInfrastructureFailure(result)) break;
     }
 
     const data = summarizeReplayTestResults(entries.length, results, Date.now() - suiteStartedAt);
@@ -93,6 +95,7 @@ export async function runReplayTestSuite(
   }
 }
 
+// fallow-ignore-next-line complexity
 async function runReplayTestCase(
   params: {
     entry: Extract<
@@ -174,6 +177,7 @@ async function runReplayTestCase(
     finalResponse = response;
     finalSessionName = testSessionName;
     if (response.ok) break;
+    if (isReplayInfrastructureFailure(response)) break;
   }
 
   const durationMs = Date.now() - testStartedAt;

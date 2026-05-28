@@ -4,7 +4,7 @@ import { parseSelectorChain } from '../../daemon/selectors.ts';
 import { matchesSelector } from '../../daemon/selectors-match.ts';
 import { evaluateIsPredicate } from '../../utils/selector-is-predicates.ts';
 import { normalizeText } from '../../utils/finders.ts';
-import { extractNodeText } from '../../utils/snapshot-processing.ts';
+import { extractNodeText, normalizeType } from '../../utils/snapshot-processing.ts';
 import type { TouchReferenceFrame } from '../../daemon/touch-reference-frame.ts';
 import type { DaemonRequest } from '../../daemon/types.ts';
 import type { Selector, SelectorTerm } from '../../daemon/selectors-parse.ts';
@@ -39,6 +39,10 @@ type MaestroResolvedSnapshotMatch = {
   inheritedRect: boolean;
 };
 
+type MaestroMatchResolutionOptions = {
+  promoteTapTarget?: boolean;
+};
+
 type ReactNativeOverlayFilterResult = {
   matches: SnapshotNode[];
   blockedByReactNativeOverlay: boolean;
@@ -52,6 +56,7 @@ export function resolveMaestroNodeFromSnapshot(
   options: MaestroTapOnOptions,
   platform: Platform,
   frame: TouchReferenceFrame | undefined,
+  resolutionOptions: MaestroMatchResolutionOptions = {},
 ): { ok: true; node: SnapshotNode; rect: Rect } | { ok: false; message: string } {
   let matches = findMaestroSelectorMatches(snapshot, selector, platform);
   if (options.childOf) {
@@ -74,6 +79,8 @@ export function resolveMaestroNodeFromSnapshot(
     options.index,
     extractMaestroVisibleTextQuery(selector),
     frame,
+    false,
+    resolutionOptions.promoteTapTarget,
   );
   if (!target) {
     const index = options.index ?? 0;
@@ -91,9 +98,18 @@ export function resolveMaestroFuzzyTextNodeFromSnapshot(
   snapshot: SnapshotState,
   query: string,
   frame: TouchReferenceFrame | undefined,
+  resolutionOptions: MaestroMatchResolutionOptions = {},
 ): { ok: true; node: SnapshotNode; rect: Rect } | { ok: false; message: string } {
   const matches = findMaestroFuzzyTextMatches(snapshot, query);
-  const target = selectMaestroSnapshotMatch(snapshot.nodes, matches, undefined, query, frame);
+  const target = selectMaestroSnapshotMatch(
+    snapshot.nodes,
+    matches,
+    undefined,
+    query,
+    frame,
+    false,
+    resolutionOptions.promoteTapTarget,
+  );
   if (!target) {
     return { ok: false, message: `Maestro fuzzy text did not match: ${query}` };
   }
@@ -308,6 +324,7 @@ function selectMaestroSnapshotMatch(
   visibleTextQuery: string | null,
   frame: TouchReferenceFrame | undefined,
   requireOnScreen = false,
+  promoteTapTarget = false,
 ): { node: SnapshotNode; rect: Rect } | null {
   const nodeByIndex = buildSnapshotNodeByIndex(nodes);
   const resolved = matches
@@ -321,12 +338,24 @@ function selectMaestroSnapshotMatch(
       ? preferOnScreenMatches(resolved, frame, requireOnScreen)
       : resolved;
   if (index !== undefined) {
-    return candidates[index] ?? null;
+    return promoteMaestroSnapshotMatch(
+      nodes,
+      candidates[index] ?? null,
+      nodeByIndex,
+      promoteTapTarget,
+      frame,
+    );
   }
   const sorted = candidates.sort((left, right) =>
     compareMaestroSnapshotMatches(left, right, visibleTextQuery),
   );
-  return sorted[0] ?? null;
+  return promoteMaestroSnapshotMatch(
+    nodes,
+    sorted[0] ?? null,
+    nodeByIndex,
+    promoteTapTarget,
+    frame,
+  );
 }
 
 function preferOnScreenMatches(
@@ -407,7 +436,80 @@ function rectArea(rect: Rect): number {
 }
 
 function maestroTapTargetTypeRank(node: SnapshotNode): number {
-  return MAESTRO_TAP_TARGET_TYPE_RANK.get(node.type?.toLowerCase() ?? '') ?? 3;
+  return MAESTRO_TAP_TARGET_TYPE_RANK.get(normalizeType(node.type ?? '')) ?? 3;
+}
+
+function promoteMaestroSnapshotMatch(
+  nodes: SnapshotState['nodes'],
+  match: MaestroResolvedSnapshotMatch | null,
+  nodeByIndex: SnapshotNodeByIndex,
+  promoteTapTarget: boolean,
+  frame: TouchReferenceFrame | undefined,
+): { node: SnapshotNode; rect: Rect } | null {
+  if (!match) return null;
+  if (!promoteTapTarget) {
+    return { node: match.node, rect: match.rect };
+  }
+  const ancestor = findMaestroTapAncestor(nodes, match, nodeByIndex, frame);
+  return ancestor ?? { node: match.node, rect: match.rect };
+}
+
+function findMaestroTapAncestor(
+  nodes: SnapshotState['nodes'],
+  match: MaestroResolvedSnapshotMatch,
+  nodeByIndex: SnapshotNodeByIndex,
+  frame: TouchReferenceFrame | undefined,
+): { node: SnapshotNode; rect: Rect } | null {
+  if (isActionableMaestroTapTarget(match.node)) return null;
+  return findSnapshotAncestor(nodes, match.node, nodeByIndex, (ancestor) => {
+    if (!isActionableMaestroTapTarget(ancestor)) return null;
+    const ancestorRect = resolveNodeRect(nodes, ancestor, nodeByIndex);
+    if (!ancestorRect || !isUsefulMaestroTapAncestorRect(match.rect, ancestorRect.rect, frame)) {
+      return null;
+    }
+    return { node: ancestor, rect: ancestorRect.rect };
+  });
+}
+
+function isActionableMaestroTapTarget(node: SnapshotNode): boolean {
+  const type = normalizeType(node.type ?? '');
+  return (
+    node.hittable === true ||
+    type === 'button' ||
+    type === 'link' ||
+    type === 'cell' ||
+    type === 'textfield' ||
+    type === 'searchfield' ||
+    type === 'switch' ||
+    type === 'slider'
+  );
+}
+
+function isUsefulMaestroTapAncestorRect(
+  matchRect: Rect,
+  ancestorRect: Rect,
+  frame: TouchReferenceFrame | undefined,
+): boolean {
+  if (!rectContains(ancestorRect, matchRect)) return false;
+  const ancestorArea = rectArea(ancestorRect);
+  const matchArea = rectArea(matchRect);
+  // Keep promotion close to the matched label/id instead of jumping to a broad container.
+  if (matchArea > 0 && ancestorArea > matchArea * 30) return false;
+  if (frame) {
+    const frameArea = frame.referenceWidth * frame.referenceHeight;
+    // Full-screen ancestors are usually layout containers, not meaningful tap targets.
+    if (frameArea > 0 && ancestorArea > frameArea * 0.5) return false;
+  }
+  return true;
+}
+
+function rectContains(container: Rect, child: Rect): boolean {
+  return (
+    child.x >= container.x &&
+    child.y >= container.y &&
+    child.x + child.width <= container.x + container.width &&
+    child.y + child.height <= container.y + container.height
+  );
 }
 
 function maestroVisibleTextMatchRank(node: SnapshotNode, query: string): number {

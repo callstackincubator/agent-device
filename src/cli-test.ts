@@ -59,14 +59,7 @@ function renderVerboseTestResult(result: ReplaySuiteTestResult): void {
     return;
   }
 
-  const prefix =
-    result.status === 'passed'
-      ? isFlakyReplayTestResult(result)
-        ? 'FLAKY'
-        : 'PASS'
-      : result.status === 'skipped'
-        ? 'SKIP'
-        : 'INFO';
+  const prefix = replayResultPrefix(result);
   const attemptSuffix =
     'attempts' in result && result.attempts > 1 ? ` after ${result.attempts} attempts` : '';
   const durationSuffix = result.durationMs > 0 ? ` (${result.durationMs}ms)` : '';
@@ -83,12 +76,26 @@ function renderFailedTestResult(
   const durationSuffix = result.durationMs > 0 ? ` (${result.durationMs}ms)` : '';
   process.stdout.write(`FAIL ${result.file}${attemptSuffix}${durationSuffix}\n`);
   process.stdout.write(`  ${result.error?.message ?? 'Unknown test failure'}\n`);
-  if (result.error?.hint) process.stdout.write(`  hint: ${result.error.hint}\n`);
-  if (result.artifactsDir) process.stdout.write(`  artifacts: ${result.artifactsDir}\n`);
-  if (result.error?.logPath) process.stdout.write(`  log: ${result.error.logPath}\n`);
-  if (result.error?.diagnosticId) {
-    process.stdout.write(`  diagnostic: ${result.error.diagnosticId}\n`);
+  for (const line of replayFailureConsoleLines(result)) {
+    process.stdout.write(`  ${line}\n`);
   }
+}
+
+function replayResultPrefix(result: ReplaySuiteTestResult): string {
+  if (result.status === 'passed') return result.attempts > 1 ? 'FLAKY' : 'PASS';
+  if (result.status === 'skipped') return 'SKIP';
+  return 'INFO';
+}
+
+function replayFailureConsoleLines(
+  result: Extract<ReplaySuiteTestResult, { status: 'failed' }>,
+): string[] {
+  return [
+    result.error?.hint ? `hint: ${result.error.hint}` : '',
+    result.artifactsDir ? `artifacts: ${result.artifactsDir}` : '',
+    result.error?.logPath ? `log: ${result.error.logPath}` : '',
+    result.error?.diagnosticId ? `diagnostic: ${result.error.diagnosticId}` : '',
+  ].filter(Boolean);
 }
 
 function renderFlakyTestResult(result: Extract<ReplaySuiteTestResult, { status: 'passed' }>): void {
@@ -166,24 +173,66 @@ function renderJUnitTestCase(test: ReplaySuiteTestResult): string[] {
 
 function buildFailureDetails(test: Extract<ReplaySuiteTestResult, { status: 'failed' }>): string {
   const lines = [test.error.message];
-  if (test.error.hint) lines.push(`hint: ${test.error.hint}`);
-  if (test.error.diagnosticId) lines.push(`diagnosticId: ${test.error.diagnosticId}`);
-  if (test.error.logPath) lines.push(`logPath: ${test.error.logPath}`);
+  appendReplayErrorMetadata(lines, test.error, { includeDetails: false });
   if (test.artifactsDir) lines.push(`artifactsDir: ${test.artifactsDir}`);
-  const details = test.error.details ? JSON.stringify(test.error.details, null, 2) : undefined;
-  if (details) lines.push(`details: ${details}`);
+  appendReplayErrorDetails(lines, test.error, 2);
   return lines.join('\n');
 }
 
 function buildSystemOut(test: ReplaySuiteTestResult): string {
   const lines = [`status: ${test.status}`, `durationMs: ${test.durationMs}`];
-  if ('attempts' in test) lines.push(`attempts: ${test.attempts}`);
-  if ('session' in test) lines.push(`session: ${test.session}`);
-  if ('replayed' in test) lines.push(`replayed: ${test.replayed}`);
-  if ('healed' in test) lines.push(`healed: ${test.healed}`);
-  if ('artifactsDir' in test && test.artifactsDir) lines.push(`artifactsDir: ${test.artifactsDir}`);
-  if (test.status === 'passed' && test.attempts > 1) lines.push('flaky: true');
+  appendReplaySystemOutMetadata(lines, test);
   return lines.join('\n');
+}
+
+function appendReplaySystemOutMetadata(lines: string[], test: ReplaySuiteTestResult): void {
+  appendOptionalLine(lines, 'attempts' in test ? `attempts: ${test.attempts}` : undefined);
+  appendOptionalLine(lines, 'session' in test ? `session: ${test.session}` : undefined);
+  appendOptionalLine(lines, 'replayed' in test ? `replayed: ${test.replayed}` : undefined);
+  appendOptionalLine(lines, 'healed' in test ? `healed: ${test.healed}` : undefined);
+  appendOptionalLine(
+    lines,
+    'artifactsDir' in test && test.artifactsDir ? `artifactsDir: ${test.artifactsDir}` : undefined,
+  );
+  if (test.status === 'failed') {
+    appendReplayFailureSystemOut(lines, test);
+  }
+  appendOptionalLine(lines, isFlakyReplayTestResult(test) ? 'flaky: true' : undefined);
+}
+
+function appendReplayFailureSystemOut(
+  lines: string[],
+  test: Extract<ReplaySuiteTestResult, { status: 'failed' }>,
+): void {
+  lines.push(`errorCode: ${test.error.code}`);
+  appendReplayErrorMetadata(lines, test.error, { includeMessage: true });
+}
+
+function appendReplayErrorMetadata(
+  lines: string[],
+  error: Extract<ReplaySuiteTestResult, { status: 'failed' }>['error'],
+  options: { includeMessage?: boolean; includeDetails?: boolean; detailsIndent?: number } = {},
+): void {
+  if (options.includeMessage) lines.push(`errorMessage: ${error.message}`);
+  if (error.hint) lines.push(`hint: ${error.hint}`);
+  if (error.diagnosticId) lines.push(`diagnosticId: ${error.diagnosticId}`);
+  if (error.logPath) lines.push(`logPath: ${error.logPath}`);
+  if (options.includeDetails !== false) {
+    appendReplayErrorDetails(lines, error, options.detailsIndent);
+  }
+}
+
+function appendReplayErrorDetails(
+  lines: string[],
+  error: Extract<ReplaySuiteTestResult, { status: 'failed' }>['error'],
+  detailsIndent?: number,
+): void {
+  const details = error.details ? JSON.stringify(error.details, null, detailsIndent) : undefined;
+  if (details) lines.push(`details: ${details}`);
+}
+
+function appendOptionalLine(lines: string[], line: string | undefined): void {
+  if (line) lines.push(line);
 }
 
 function formatJUnitSeconds(durationMs: number): string {

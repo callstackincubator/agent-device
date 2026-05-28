@@ -153,6 +153,44 @@ test('test command reports flaky passed-on-retry cases in the default summary', 
   assert.match(result.stdout, /Test summary: 1 passed, 0 failed, 1 flaky in 25ms/);
 });
 
+test('test --maestro forwards Maestro backend and platform for directory suites', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-cli-maestro-suite-'));
+  await fs.writeFile(
+    path.join(tmpDir, 'auth-flow.yml'),
+    ['appId: demo.app', '---', '- launchApp', ''].join('\n'),
+  );
+
+  try {
+    const result = await runCliCapture(
+      ['test', '--maestro', '--platform', 'android', tmpDir],
+      async () => ({
+        ok: true,
+        data: {
+          total: 1,
+          executed: 1,
+          passed: 1,
+          failed: 0,
+          skipped: 0,
+          notRun: 0,
+          durationMs: 5,
+          failures: [],
+          tests: [],
+        },
+      }),
+    );
+
+    assert.equal(result.code, null);
+    assert.equal(result.calls.length, 1);
+    assert.equal(result.calls[0]?.command, 'test');
+    assert.deepEqual(result.calls[0]?.positionals, [tmpDir]);
+    assert.equal(result.calls[0]?.flags?.replayBackend, 'maestro');
+    assert.equal(result.calls[0]?.flags?.platform, 'android');
+    assert.match(result.stderr, /Running replay suite\.\.\./);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test('test command writes JUnit report with failure metadata', async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-junit-test-'));
   const reportPath = path.join(tmpDir, 'replays.junit.xml');
@@ -179,10 +217,12 @@ test('test command writes JUnit report with failure metadata', async () => {
               attempts: 2,
               artifactsDir: '/tmp/test-artifacts/02-fail',
               error: {
+                code: 'COMMAND_FAILED',
                 message: 'Replay failed at step 1 (open Demo): boom',
                 hint: 'retry me',
                 diagnosticId: 'diag-123',
                 logPath: '/tmp/diag.ndjson',
+                details: { command: 'open', reason: 'selector_not_found' },
               },
             },
           ],
@@ -204,10 +244,12 @@ test('test command writes JUnit report with failure metadata', async () => {
               attempts: 2,
               artifactsDir: '/tmp/test-artifacts/02-fail',
               error: {
+                code: 'COMMAND_FAILED',
                 message: 'Replay failed at step 1 (open Demo): boom',
                 hint: 'retry me',
                 diagnosticId: 'diag-123',
                 logPath: '/tmp/diag.ndjson',
+                details: { command: 'open', reason: 'selector_not_found' },
               },
             },
             {
@@ -236,6 +278,12 @@ test('test command writes JUnit report with failure metadata', async () => {
     assert.match(xml, /diagnosticId: diag-123/);
     assert.match(xml, /logPath: \/tmp\/diag\.ndjson/);
     assert.match(xml, /artifactsDir: \/tmp\/test-artifacts\/02-fail/);
+    assert.match(xml, /errorCode: COMMAND_FAILED/);
+    assert.match(xml, /errorMessage: Replay failed at step 1 \(open Demo\): boom/);
+    assert.match(
+      xml,
+      /details: \{&quot;command&quot;:&quot;open&quot;,&quot;reason&quot;:&quot;selector_not_found&quot;\}/,
+    );
     assert.match(xml, /flaky: true/);
     assert.match(xml, /<skipped message="not runnable" \/>/);
   } finally {
