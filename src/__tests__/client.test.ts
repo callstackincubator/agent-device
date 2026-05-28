@@ -148,6 +148,25 @@ test('structured command input accepts target as deviceTarget alias when no UI t
   assert.equal(setup.calls[0]?.flags?.target, 'tv');
 });
 
+test('structured session command forwards common request options', async () => {
+  const setup = createTransport(async (req) => {
+    if (req.command === 'session_list') {
+      return { ok: true, data: { sessions: [] } };
+    }
+    throw new Error(`Unexpected command: ${req.command}`);
+  });
+  const client = createAgentDeviceClient({}, { transport: setup.transport });
+
+  await runCommand(client, 'session', {
+    action: 'list',
+    daemonBaseUrl: 'http://remote.example.test',
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'session_list');
+  assert.equal(setup.calls[0]?.flags?.daemonBaseUrl, 'http://remote.example.test');
+});
+
 test('structured interaction input keeps UI target separate from deviceTarget', async () => {
   const setup = createTransport(async (req) => {
     if (req.command === 'get' || req.command === 'longpress') {

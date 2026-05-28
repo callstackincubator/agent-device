@@ -68,7 +68,9 @@ export const clientCommandDefinitions = [
     'session',
     'List active sessions.',
     { action: enumField(['list']) },
-    async (client) => ({ sessions: await client.sessions.list() }),
+    async (client, { action: _action, ...input }) => ({
+      sessions: await client.sessions.list(input),
+    }),
   ),
   defineFieldCommand(
     'open',
