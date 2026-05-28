@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-608/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/pr-preview/pr-608/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/pr-preview/pr-608/static/js/649.63df3d8087.js"></script>
-<script defer src="/agent-device/pr-preview/pr-608/static/js/index.984d4d6ed6.js"></script>
+<script defer src="/agent-device/pr-preview/pr-608/static/js/index.bc7fa2aebd.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -305,7 +305,7 @@ When a target only appears in an off-screen summary, use <code>scroll &lt;direct
 <li><code>test --platform &lt;platform&gt;</code> filters suite files by <code>context platform=...</code> metadata instead of overriding the script target.</li>
 <li><code>test --timeout &lt;ms&gt;</code> and <code>test --retries &lt;n&gt;</code> apply per script attempt; <code>context timeout=...</code> and <code>context retries=...</code> can be declared inside the <code>.ad</code> header. Retries are capped at <code>3</code>, duplicate metadata keys are rejected, and timeouts are cooperative.</li>
 <li><code>test --artifacts-dir &lt;path&gt;</code> overrides the default suite artifact root at <code>.agent-device/test-artifacts</code>.</li>
-<li><code>test</code> prints failures and flaky passed-on-retry tests by default, and prints a short <code>Running replay suite...</code> line before dispatch; add <code>--verbose</code> to print pass and skip lines too.</li>
+<li><code>test</code> prints a short <code>Running replay suite...</code> line before dispatch, then streams one-line <code>pass</code>, <code>fail</code>, or <code>skip</code> progress on stderr as each suite entry finishes or retries. Each line includes current/total suite position and elapsed seconds such as <code>pass 3/6 ... duration=12.34s</code>. The final summary still prints failures and flaky passed-on-retry tests by default; add <code>--verbose</code> to print every final result.</li>
 <li><code>replay -u</code> updates stale recorded actions and rewrites the same script.</li>
 <li><code>--save-script</code> records a replay script on <code>close</code>; optional path is a file path and parent directories are created.</li>
 </ul>
