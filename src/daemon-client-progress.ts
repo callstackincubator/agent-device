@@ -6,7 +6,7 @@ import { consumeTextLines } from './utils/line-stream.ts';
 import {
   formatRequestProgressEvent,
   isDaemonProgressEnvelope,
-  isDaemonRpcResponseEnvelope,
+  isDaemonResponseEnvelope,
   shouldStreamRequestProgress,
 } from './daemon/request-progress-protocol.ts';
 
@@ -62,7 +62,7 @@ export function readDaemonHttpProgressResponse(
         writeRequestProgressEvent(message.event);
         return false;
       }
-      if (isDaemonRpcResponseEnvelope(message)) {
+      if (isDaemonResponseEnvelope<unknown>(message)) {
         settled = true;
         clearTimeout();
         handleResponseBody(JSON.stringify(message.response));

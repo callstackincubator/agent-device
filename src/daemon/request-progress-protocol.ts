@@ -6,14 +6,9 @@ export type DaemonProgressEnvelope = {
   event: RequestProgressEvent;
 };
 
-export type DaemonResponseEnvelope = {
+export type DaemonResponseEnvelope<TResponse = DaemonResponse> = {
   type: 'response';
-  response: DaemonResponse;
-};
-
-export type DaemonRpcResponseEnvelope = {
-  type: 'response';
-  response: unknown;
+  response: TResponse;
 };
 
 export function shouldStreamRequestProgress(req: Pick<DaemonRequest, 'meta'>): boolean {
@@ -29,17 +24,15 @@ export function isDaemonProgressEnvelope(value: unknown): value is DaemonProgres
   );
 }
 
-export function isDaemonResponseEnvelope(value: unknown): value is DaemonResponseEnvelope {
+export function isDaemonResponseEnvelope<TResponse = DaemonResponse>(
+  value: unknown,
+): value is DaemonResponseEnvelope<TResponse> {
   return (
     Boolean(value) &&
     typeof value === 'object' &&
     (value as { type?: unknown }).type === 'response' &&
     Boolean((value as { response?: unknown }).response)
   );
-}
-
-export function isDaemonRpcResponseEnvelope(value: unknown): value is DaemonRpcResponseEnvelope {
-  return isDaemonResponseEnvelope(value);
 }
 
 export function serializeDaemonProgressEnvelope(event: RequestProgressEvent): string {
@@ -51,7 +44,7 @@ export function serializeDaemonResponseEnvelope(response: DaemonResponse): strin
 }
 
 export function serializeDaemonRpcResponseEnvelope(response: unknown): string {
-  return `${JSON.stringify({ type: 'response', response } satisfies DaemonRpcResponseEnvelope)}\n`;
+  return `${JSON.stringify({ type: 'response', response } satisfies DaemonResponseEnvelope<unknown>)}\n`;
 }
 
 export function formatRequestProgressEvent(event: RequestProgressEvent): string | undefined {

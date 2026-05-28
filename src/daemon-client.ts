@@ -284,49 +284,32 @@ async function prepareRemoteRequest(
     });
 
   if (req.command !== 'install' && req.command !== 'reinstall') return baseResult();
-  const installPackageResult = await prepareRemoteInstallPackage(
-    req,
-    info,
-    positionals,
-    flags,
-    clientArtifactPaths,
-  );
-  if (installPackageResult?.prepared) return installPackageResult.prepared;
-  uploadedArtifactId = installPackageResult?.uploadedArtifactId ?? uploadedArtifactId;
+  const installPackageResult = await prepareRemoteInstallPackage(req, info, positionals);
+  uploadedArtifactId = installPackageResult ?? uploadedArtifactId;
   return baseResult();
 }
-
-type RemoteInstallPackageResult = {
-  prepared?: PreparedRemoteRequest;
-  uploadedArtifactId?: string;
-};
 
 async function prepareRemoteInstallPackage(
   req: Omit<DaemonRequest, 'token'>,
   info: DaemonInfo,
   positionals: string[],
-  flags: DaemonRequest['flags'] | undefined,
-  clientArtifactPaths: Record<string, string>,
-): Promise<RemoteInstallPackageResult | null> {
+): Promise<string | undefined> {
   const rawPath = positionals[1];
-  if (rawPath === undefined) return null;
+  if (rawPath === undefined) return undefined;
   if (rawPath.startsWith('remote:')) {
     positionals[1] = rawPath.slice('remote:'.length);
-    return { prepared: createPreparedRemoteRequest({ positionals, flags, clientArtifactPaths }) };
+    return undefined;
   }
 
   const localPath = resolveLocalInstallPath(rawPath, req.meta?.cwd);
-  if (!localPath) {
-    return { prepared: createPreparedRemoteRequest({ positionals, flags, clientArtifactPaths }) };
-  }
+  if (!localPath) return undefined;
 
-  const uploadedArtifactId = await uploadArtifact({
+  return await uploadArtifact({
     localPath,
     baseUrl: info.baseUrl!,
     token: info.token,
     platform: req.flags?.platform,
   });
-  return { uploadedArtifactId };
 }
 
 function applyRemoteArtifactCommand(
