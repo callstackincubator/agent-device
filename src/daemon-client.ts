@@ -7,6 +7,7 @@ import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { sleep } from './utils/timeouts.ts';
 import { AppError, toAppErrorCode } from './utils/errors.ts';
+import { consumeTextLines } from './utils/line-stream.ts';
 import { readNodeHttpResponseBody } from './utils/node-http.ts';
 import type {
   DaemonArtifact,
@@ -256,13 +257,21 @@ async function prepareRemoteRequest(
   const clientArtifactPaths: Record<string, string> = {};
   let uploadedArtifactId: string | undefined;
 
-  if (isRemoteDaemon(info)) {
-    flags = applyRemoteArtifactCommand(req, positionals, flags, clientArtifactPaths);
-    const remoteInstallSource = await prepareRemoteInstallSource(req, info);
-    if (remoteInstallSource) {
-      installSource = remoteInstallSource.installSource;
-      uploadedArtifactId = remoteInstallSource.uploadedArtifactId ?? uploadedArtifactId;
-    }
+  if (!isRemoteDaemon(info)) {
+    return createPreparedRemoteRequest({
+      positionals,
+      flags,
+      installSource,
+      uploadedArtifactId,
+      clientArtifactPaths,
+    });
+  }
+
+  flags = applyRemoteArtifactCommand(req, positionals, flags, clientArtifactPaths);
+  const remoteInstallSource = await prepareRemoteInstallSource(req, info);
+  if (remoteInstallSource) {
+    installSource = remoteInstallSource.installSource;
+    uploadedArtifactId = remoteInstallSource.uploadedArtifactId ?? uploadedArtifactId;
   }
 
   const baseResult = (): PreparedRemoteRequest =>
@@ -274,29 +283,50 @@ async function prepareRemoteRequest(
       clientArtifactPaths,
     });
 
-  if (!isRemoteDaemon(info) || (req.command !== 'install' && req.command !== 'reinstall')) {
-    return baseResult();
-  }
+  if (req.command !== 'install' && req.command !== 'reinstall') return baseResult();
+  const installPackageResult = await prepareRemoteInstallPackage(
+    req,
+    info,
+    positionals,
+    flags,
+    clientArtifactPaths,
+  );
+  if (installPackageResult?.prepared) return installPackageResult.prepared;
+  uploadedArtifactId = installPackageResult?.uploadedArtifactId ?? uploadedArtifactId;
+  return baseResult();
+}
 
+type RemoteInstallPackageResult = {
+  prepared?: PreparedRemoteRequest;
+  uploadedArtifactId?: string;
+};
+
+async function prepareRemoteInstallPackage(
+  req: Omit<DaemonRequest, 'token'>,
+  info: DaemonInfo,
+  positionals: string[],
+  flags: DaemonRequest['flags'] | undefined,
+  clientArtifactPaths: Record<string, string>,
+): Promise<RemoteInstallPackageResult | null> {
   const rawPath = positionals[1];
-  if (rawPath === undefined) return baseResult();
+  if (rawPath === undefined) return null;
   if (rawPath.startsWith('remote:')) {
     positionals[1] = rawPath.slice('remote:'.length);
-    return createPreparedRemoteRequest({ positionals, flags, clientArtifactPaths });
+    return { prepared: createPreparedRemoteRequest({ positionals, flags, clientArtifactPaths }) };
   }
 
   const localPath = resolveLocalInstallPath(rawPath, req.meta?.cwd);
   if (!localPath) {
-    return createPreparedRemoteRequest({ positionals, flags, clientArtifactPaths });
+    return { prepared: createPreparedRemoteRequest({ positionals, flags, clientArtifactPaths }) };
   }
 
-  uploadedArtifactId = await uploadArtifact({
+  const uploadedArtifactId = await uploadArtifact({
     localPath,
     baseUrl: info.baseUrl!,
     token: info.token,
     platform: req.flags?.platform,
   });
-  return baseResult();
+  return { uploadedArtifactId };
 }
 
 function applyRemoteArtifactCommand(
@@ -464,16 +494,44 @@ function buildRemoteTempArtifactPath(prefix: string, extension: string): string 
 }
 
 function resolveClientSettings(req: Omit<DaemonRequest, 'token'>): DaemonClientSettings {
-  const explicitStateDir = req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR;
-  const rawRemoteBaseUrl = req.flags?.daemonBaseUrl ?? process.env.AGENT_DEVICE_DAEMON_BASE_URL;
-  const useOwnedReplayStateDir =
-    isOneShotReplayCommand(req.command) && !explicitStateDir && !rawRemoteBaseUrl;
-  const remoteBaseUrl = resolveRemoteDaemonBaseUrl(rawRemoteBaseUrl);
-  const remoteAuthToken = req.flags?.daemonAuthToken ?? process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
-  validateRemoteDaemonTrust(remoteBaseUrl, remoteAuthToken);
+  const explicitStateDir = resolveExplicitStateDir(req);
+  const remote = resolveRemoteClientSettings(req);
+  const transport = resolveTransportClientSettings(req, remote.remoteBaseUrl);
+  const ownedStateDir = shouldUseOwnedReplayStateDir(req, explicitStateDir, remote.rawBaseUrl);
+  const stateDir = ownedStateDir ? createOwnedReplayStateDir() : explicitStateDir;
+  return {
+    paths: resolveDaemonPaths(stateDir),
+    transportPreference: transport.preference,
+    serverMode: transport.serverMode,
+    ownedStateDir,
+    remoteBaseUrl: remote.remoteBaseUrl,
+    remoteAuthToken: remote.authToken,
+  };
+}
+
+function resolveExplicitStateDir(req: Omit<DaemonRequest, 'token'>): string | undefined {
+  return req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR;
+}
+
+function resolveRemoteClientSettings(req: Omit<DaemonRequest, 'token'>): {
+  rawBaseUrl: string | undefined;
+  remoteBaseUrl?: string;
+  authToken?: string;
+} {
+  const rawBaseUrl = req.flags?.daemonBaseUrl ?? process.env.AGENT_DEVICE_DAEMON_BASE_URL;
+  const remoteBaseUrl = resolveRemoteDaemonBaseUrl(rawBaseUrl);
+  const authToken = req.flags?.daemonAuthToken ?? process.env.AGENT_DEVICE_DAEMON_AUTH_TOKEN;
+  validateRemoteDaemonTrust(remoteBaseUrl, authToken);
+  return { rawBaseUrl, remoteBaseUrl, authToken };
+}
+
+function resolveTransportClientSettings(
+  req: Omit<DaemonRequest, 'token'>,
+  remoteBaseUrl: string | undefined,
+): { preference: DaemonTransportPreference; serverMode: DaemonServerMode } {
   const rawTransport = req.flags?.daemonTransport ?? process.env.AGENT_DEVICE_DAEMON_TRANSPORT;
-  const transportPreference = resolveDaemonTransportPreference(rawTransport);
-  if (remoteBaseUrl && transportPreference === 'socket') {
+  const preference = resolveDaemonTransportPreference(rawTransport);
+  if (remoteBaseUrl && preference === 'socket') {
     throw new AppError(
       'INVALID_ARGS',
       'Remote daemon base URL only supports HTTP transport. Remove --daemon-transport socket.',
@@ -484,18 +542,22 @@ function resolveClientSettings(req: Omit<DaemonRequest, 'token'>): DaemonClientS
     req.flags?.daemonServerMode ??
     process.env.AGENT_DEVICE_DAEMON_SERVER_MODE ??
     (rawTransport === 'dual' ? 'dual' : undefined);
-  const serverMode = resolveDaemonServerMode(rawServerMode);
-  const stateDir = useOwnedReplayStateDir
-    ? fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-daemon-'))
-    : explicitStateDir;
   return {
-    paths: resolveDaemonPaths(stateDir),
-    transportPreference,
-    serverMode,
-    ownedStateDir: useOwnedReplayStateDir,
-    remoteBaseUrl,
-    remoteAuthToken,
+    preference,
+    serverMode: resolveDaemonServerMode(rawServerMode),
   };
+}
+
+function shouldUseOwnedReplayStateDir(
+  req: Omit<DaemonRequest, 'token'>,
+  explicitStateDir: string | undefined,
+  rawRemoteBaseUrl: string | undefined,
+): boolean {
+  return isOneShotReplayCommand(req.command) && !explicitStateDir && !rawRemoteBaseUrl;
+}
+
+function createOwnedReplayStateDir(): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-daemon-'));
 }
 
 async function ensureDaemon(settings: DaemonClientSettings): Promise<EnsuredDaemon> {
@@ -1163,20 +1225,13 @@ async function sendSocketRequest(
     socket.setEncoding('utf8');
     socket.on('data', (chunk) => {
       if (settled) return;
-      buffer += chunk;
-      let idx = buffer.indexOf('\n');
-      while (idx !== -1) {
-        const line = buffer.slice(0, idx).trim();
-        buffer = buffer.slice(idx + 1);
-        if (!line) {
-          idx = buffer.indexOf('\n');
-          continue;
-        }
+      const parsed = consumeTextLines(buffer, chunk);
+      buffer = parsed.buffer;
+      for (const line of parsed.lines) {
         try {
           const message = JSON.parse(line) as unknown;
           if (isDaemonProgressEnvelope(message)) {
             writeRequestProgressEvent(message.event);
-            idx = buffer.indexOf('\n');
             continue;
           }
           const response = isDaemonResponseEnvelope(message) ? message.response : message;

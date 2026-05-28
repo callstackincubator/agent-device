@@ -2,6 +2,7 @@ import http from 'node:http';
 import { AppError } from './utils/errors.ts';
 import type { DaemonRequest } from './daemon/types.ts';
 import type { RequestProgressEvent } from './daemon/request-progress.ts';
+import { consumeTextLines } from './utils/line-stream.ts';
 import {
   formatRequestProgressEvent,
   isDaemonProgressEnvelope,
@@ -77,13 +78,10 @@ export function readDaemonHttpProgressResponse(
   res.setEncoding('utf8');
   res.on('data', (chunk) => {
     if (settled) return;
-    buffer += chunk;
-    let idx = buffer.indexOf('\n');
-    while (idx !== -1) {
-      const line = buffer.slice(0, idx).trim();
-      buffer = buffer.slice(idx + 1);
+    const parsed = consumeTextLines(buffer, chunk);
+    buffer = parsed.buffer;
+    for (const line of parsed.lines) {
       if (line && handleLine(line)) return;
-      idx = buffer.indexOf('\n');
     }
   });
   res.on('end', () => {

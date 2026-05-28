@@ -404,28 +404,41 @@ function parseLeaseCommon(
   input: unknown,
   path: string,
 ): {
-  token?: string;
-  session?: string;
+  record: Record<string, unknown>;
   leaseId?: string;
   ttlMs?: number;
 } {
   const record = expectObject(input, path);
   return {
-    token: optionalString(record, 'token', path),
-    session: optionalString(record, 'session', path),
+    record,
     leaseId: optionalString(record, 'leaseId', path),
     ttlMs: optionalInteger(record, 'ttlMs', path),
   };
 }
 
-export const leaseAllocateSchema = schema<LeaseAllocatePayload>((input, path) => {
-  const record = expectObject(input, path);
+function parseLeaseScope(
+  record: Record<string, unknown>,
+  path: string,
+): {
+  token?: string;
+  session?: string;
+  tenantId?: string;
+  tenant?: string;
+  runId?: string;
+} {
   return {
     token: optionalString(record, 'token', path),
     session: optionalString(record, 'session', path),
     tenantId: optionalString(record, 'tenantId', path),
     tenant: optionalString(record, 'tenant', path),
     runId: optionalString(record, 'runId', path),
+  };
+}
+
+export const leaseAllocateSchema = schema<LeaseAllocatePayload>((input, path) => {
+  const record = expectObject(input, path);
+  return {
+    ...parseLeaseScope(record, path),
     ttlMs: optionalInteger(record, 'ttlMs', path),
     backend: optionalEnum(
       record,
@@ -438,13 +451,8 @@ export const leaseAllocateSchema = schema<LeaseAllocatePayload>((input, path) =>
 
 export const leaseHeartbeatSchema = schema<LeaseHeartbeatPayload>((input, path) => {
   const parsed = parseLeaseCommon(input, path);
-  const record = expectObject(input, path);
   return {
-    token: parsed.token,
-    session: parsed.session,
-    tenantId: optionalString(record, 'tenantId', path),
-    tenant: optionalString(record, 'tenant', path),
-    runId: optionalString(record, 'runId', path),
+    ...parseLeaseScope(parsed.record, path),
     leaseId: parsed.leaseId,
     ttlMs: parsed.ttlMs,
   };
@@ -456,11 +464,7 @@ export const leaseReleaseSchema = schema<LeaseReleasePayload>((input, path) => {
     fail(`${path}.ttlMs`, 'Unexpected field');
   }
   return {
-    token: optionalString(record, 'token', path),
-    session: optionalString(record, 'session', path),
-    tenantId: optionalString(record, 'tenantId', path),
-    tenant: optionalString(record, 'tenant', path),
-    runId: optionalString(record, 'runId', path),
+    ...parseLeaseScope(record, path),
     leaseId: optionalString(record, 'leaseId', path),
   };
 });

@@ -12,6 +12,7 @@ import {
   resolveRequestTrackingId,
 } from './request-cancel.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
+import { consumeTextLines } from '../utils/line-stream.ts';
 import { sleep } from '../utils/timeouts.ts';
 import { withRequestProgressSink } from './request-progress.ts';
 import {
@@ -75,15 +76,9 @@ export function createSocketServer(
     socket.on('close', cancelInFlightRunnerSessions);
     socket.on('error', cancelInFlightRunnerSessions);
     socket.on('data', async (chunk) => {
-      buffer += chunk;
-      let idx = buffer.indexOf('\n');
-      while (idx !== -1) {
-        const line = buffer.slice(0, idx).trim();
-        buffer = buffer.slice(idx + 1);
-        if (line.length === 0) {
-          idx = buffer.indexOf('\n');
-          continue;
-        }
+      const parsed = consumeTextLines(buffer, chunk);
+      buffer = parsed.buffer;
+      for (const line of parsed.lines) {
         let response: DaemonResponse;
         inFlightRequests += 1;
         let requestIdForCleanup: string | undefined;
@@ -127,7 +122,6 @@ export function createSocketServer(
               : `${JSON.stringify(response)}\n`,
           );
         }
-        idx = buffer.indexOf('\n');
       }
     });
   });
@@ -141,21 +135,17 @@ export function createSocketServer(
 }
 
 export function listenNetServer(server: net.Server): Promise<number> {
-  return new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      server.off('error', reject);
-      const address = server.address();
-      if (typeof address === 'object' && address?.port) {
-        resolve(address.port);
-        return;
-      }
-      reject(new AppError('COMMAND_FAILED', 'Failed to bind socket server'));
-    });
-  });
+  return listenLoopbackServer(server, 'Failed to bind socket server');
 }
 
 export function listenHttpServer(server: HttpServer): Promise<number> {
+  return listenLoopbackServer(server, 'Failed to bind HTTP server');
+}
+
+function listenLoopbackServer(
+  server: net.Server | HttpServer,
+  errorMessage: string,
+): Promise<number> {
   return new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', () => {
@@ -165,7 +155,7 @@ export function listenHttpServer(server: HttpServer): Promise<number> {
         resolve(address.port);
         return;
       }
-      reject(new AppError('COMMAND_FAILED', 'Failed to bind HTTP server'));
+      reject(new AppError('COMMAND_FAILED', errorMessage));
     });
   });
 }
