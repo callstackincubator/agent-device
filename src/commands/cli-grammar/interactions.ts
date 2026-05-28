@@ -143,11 +143,12 @@ export function readFillTargetFromPositionals(positionals: string[]): DecodedFil
   if (positionals[0]?.startsWith('@')) {
     const text =
       positionals.length >= 3 ? positionals.slice(2).join(' ') : positionals.slice(1).join(' ');
+    const maybeLabel = positionals[1];
     return {
       kind: 'ref',
       target: {
-        ref: positionals[0],
-        label: positionals.length >= 3 ? optionalTrimmedText([positionals[1]]) : undefined,
+        ref: positionals[0]!,
+        label: positionals.length >= 3 ? optionalTrimmedText([maybeLabel!]) : undefined,
       },
       text,
     };

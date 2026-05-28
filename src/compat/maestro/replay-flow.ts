@@ -85,7 +85,7 @@ function optimizeInputTextActions(
   const mergedActions: SessionAction[] = [];
   const mergedLines: number[] = [];
   for (let index = 0; index < actions.length; index += 1) {
-    const action = actions[index];
+    const action = actions[index]!;
     const optimized = optimizeTypedAfterTap(actions, actionLines, index);
     if (optimized) {
       mergedActions.push(...optimized.actions);
@@ -104,16 +104,17 @@ function optimizeTypedAfterTap(
   actionLines: number[],
   index: number,
 ): { actions: SessionAction[]; actionLines: number[]; consumed: number } | null {
-  const action = actions[index];
+  const action = actions[index]!;
   const nextAction = actions[index + 1];
   const typedAfterTap = readPlainTypeText(nextAction);
   const tapSelector = readPlainMaestroTapSelector(action);
-  if (typedAfterTap === null || tapSelector === null) return null;
+  if (!nextAction || typedAfterTap === null || tapSelector === null) return null;
   const line = actionLines[index] ?? 1;
   if (!isLikelyTextEntrySelector(tapSelector)) {
     return { actions: [clearMaestroNonHittableTap(action)], actionLines: [line], consumed: 1 };
   }
-  if (actions[index + 2]?.command !== MAESTRO_RUNTIME_COMMAND.pressEnter) {
+  const pressEnterAction = actions[index + 2];
+  if (pressEnterAction?.command !== MAESTRO_RUNTIME_COMMAND.pressEnter) {
     return { actions: [clearMaestroNonHittableTap(action)], actionLines: [line], consumed: 1 };
   }
   return {
@@ -129,7 +130,7 @@ function optimizeTypedAfterTap(
         positionals: [tapSelector, typedAfterTap],
         flags: action.flags,
       },
-      actions[index + 2] as SessionAction,
+      pressEnterAction,
     ],
     actionLines: [line, line, actionLines[index + 2] ?? line],
     consumed: 3,

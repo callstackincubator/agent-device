@@ -86,7 +86,7 @@ function parseAndroidBlockingDialogFromSegment(
   const respondingMatch = ANDROID_RESPONDING_TITLE_PATTERN.exec(windowText);
   if (!respondingMatch) return null;
 
-  const focusedWindow = respondingMatch[1].trim().replace(/\s+/g, ' ');
+  const focusedWindow = respondingMatch[1]!.trim().replace(/\s+/g, ' ');
   const packageName = ANDROID_PACKAGE_PATTERN.exec(focusedWindow)?.[1];
   return {
     ...(packageName ? { package: packageName } : {}),

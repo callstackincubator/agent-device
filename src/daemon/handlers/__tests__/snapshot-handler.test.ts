@@ -118,7 +118,7 @@ function mockAndroidTimeoutEvidenceDispatch(): void {
   mockDispatch.mockImplementation(async (_device, command, positionals, _out, context) => {
     if (command === 'snapshot') throw androidSnapshotTimeoutError();
     if (command === 'screenshot') {
-      const screenshotPath = positionals[0];
+      const screenshotPath = positionals[0]!;
       expect(context?.screenshotNoStabilize).toBe(true);
       writeSolidPng(screenshotPath);
       return { path: screenshotPath };
