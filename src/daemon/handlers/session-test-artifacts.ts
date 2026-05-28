@@ -35,7 +35,7 @@ export function prepareReplayTestAttemptArtifacts(
   attemptArtifactsDir: string,
 ): void {
   fs.mkdirSync(attemptArtifactsDir, { recursive: true });
-  fs.copyFileSync(filePath, path.join(attemptArtifactsDir, 'replay.ad'));
+  copyReplaySourceFile(filePath, attemptArtifactsDir);
 }
 
 export function materializeReplayTestAttemptArtifacts(params: {
@@ -110,6 +110,24 @@ function copyReplayTestArtifacts(paths: string[], attemptArtifactsDir: string): 
     copiedPaths.push(destinationPath);
   }
   return copiedPaths;
+}
+
+function copyReplaySourceFile(filePath: string, attemptArtifactsDir: string): void {
+  const genericReplayPath = path.join(attemptArtifactsDir, 'replay.ad');
+  fs.copyFileSync(filePath, genericReplayPath);
+
+  if (!isMaestroFlowPath(filePath)) return;
+  // Keep replay.ad for existing artifact consumers, and preserve the original
+  // Maestro filename so CI artifacts point back to the source flow.
+  const originalReplayPath = path.join(attemptArtifactsDir, path.basename(filePath));
+  if (path.resolve(originalReplayPath) !== path.resolve(genericReplayPath)) {
+    fs.copyFileSync(filePath, originalReplayPath);
+  }
+}
+
+function isMaestroFlowPath(filePath: string): boolean {
+  const extension = path.extname(filePath).toLowerCase();
+  return extension === '.yml' || extension === '.yaml';
 }
 
 function buildUniqueArtifactFileName(fileName: string, usedNames: Map<string, number>): string {

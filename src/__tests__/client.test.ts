@@ -418,6 +418,45 @@ test('replay.test keeps backend alias for suite discovery', async () => {
   assert.equal(setup.calls[0]?.flags?.replayBackend, 'maestro');
 });
 
+test('structured replay.test command forwards Maestro backend for suite discovery', async () => {
+  const setup = createTransport(async () => ({ ok: true, data: {} }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await runCommand(client, 'test', {
+    paths: ['./e2e/maestro'],
+    backend: 'maestro',
+    platform: 'android',
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'test');
+  assert.deepEqual(setup.calls[0]?.positionals, ['./e2e/maestro']);
+  assert.equal(setup.calls[0]?.flags?.replayBackend, 'maestro');
+  assert.equal(setup.calls[0]?.flags?.platform, 'android');
+});
+
+test('structured replay commands keep deprecated Maestro boolean alias', async () => {
+  const setup = createTransport(async () => ({ ok: true, data: {} }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await runCommand(client, 'replay', {
+    path: './flows/login.yaml',
+    maestro: true,
+  });
+  await runCommand(client, 'test', {
+    paths: ['./e2e/maestro'],
+    maestro: true,
+    platform: 'android',
+  });
+
+  assert.equal(setup.calls.length, 2);
+  assert.equal(setup.calls[0]?.command, 'replay');
+  assert.equal(setup.calls[0]?.flags?.replayBackend, 'maestro');
+  assert.equal(setup.calls[1]?.command, 'test');
+  assert.equal(setup.calls[1]?.flags?.replayBackend, 'maestro');
+  assert.equal(setup.calls[1]?.flags?.platform, 'android');
+});
+
 test('client.command.wait prepares selector options and rejects invalid selectors', async () => {
   const setup = createTransport(async () => ({
     ok: true,

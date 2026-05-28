@@ -42,6 +42,15 @@ type MaestroTapOnParams = {
   scope?: ReplayVarScope;
 };
 
+type MaestroScreenSwipeResolution =
+  | {
+      ok: true;
+      start: { x: number; y: number };
+      end: { x: number; y: number };
+      durationMs?: string;
+    }
+  | { ok: false; response: DaemonResponse };
+
 export async function invokeMaestroScrollUntilVisible(
   params: MaestroScrollUntilVisibleParams,
 ): Promise<DaemonResponse> {
@@ -163,7 +172,9 @@ export async function invokeMaestroSwipeOn(params: {
 }): Promise<DaemonResponse> {
   const [selector, direction = 'up', durationMs] = params.positionals;
   if (!selector) return errorResponse('INVALID_ARGS', 'swipe.label requires a label selector.');
-  const target = await resolveMaestroSnapshotTarget(params, selector, {}, 'swipe.label');
+  const target = await resolveMaestroSnapshotTarget(params, selector, {}, 'swipe.label', {
+    promoteTapTarget: false,
+  });
   if (!target.ok) return target.response;
   const swipe = swipeCoordinatesFromTarget(target.target, direction);
   if (!swipe.ok) return errorResponse('INVALID_ARGS', swipe.message);
@@ -199,15 +210,7 @@ async function resolveMaestroScreenSwipe(params: {
   positionals: string[];
   invoke: MaestroRuntimeInvoke;
   scope?: ReplayVarScope;
-}): Promise<
-  | {
-      ok: true;
-      start: { x: number; y: number };
-      end: { x: number; y: number };
-      durationMs?: string;
-    }
-  | { ok: false; response: DaemonResponse }
-> {
+}): Promise<MaestroScreenSwipeResolution> {
   const cachedFrame = readCachedMaestroReferenceFrame(params.scope);
   const frame = cachedFrame ?? (await captureFrameForMaestroScreenSwipe(params));
   if (!frame) {
@@ -218,7 +221,13 @@ async function resolveMaestroScreenSwipe(params: {
   }
 
   const [mode, ...args] = params.positionals;
-  if (mode === 'direction') return resolveDirectionalScreenSwipe(args, frame);
+  if (mode === 'direction') {
+    return resolveDirectionalScreenSwipe(
+      args,
+      frame,
+      readMaestroSelectorPlatform(params.baseReq.flags),
+    );
+  }
   if (mode === 'percent') {
     return resolvePercentScreenSwipe(
       args,
@@ -246,14 +255,8 @@ async function captureFrameForMaestroScreenSwipe(params: {
 function resolveDirectionalScreenSwipe(
   args: string[],
   frame: { referenceWidth: number; referenceHeight: number },
-):
-  | {
-      ok: true;
-      start: { x: number; y: number };
-      end: { x: number; y: number };
-      durationMs?: string;
-    }
-  | { ok: false; response: DaemonResponse } {
+  platform: string,
+): MaestroScreenSwipeResolution {
   const [direction, durationMs] = args;
   if (!direction) {
     return {
@@ -267,10 +270,14 @@ function resolveDirectionalScreenSwipe(
       return { ok: true, start: point(50, 80), end: point(50, 20), durationMs };
     case 'down':
       return { ok: true, start: point(50, 20), end: point(50, 80), durationMs };
-    case 'left':
-      return { ok: true, start: point(80, 50), end: point(20, 50), durationMs };
-    case 'right':
-      return { ok: true, start: point(20, 50), end: point(80, 50), durationMs };
+    case 'left': {
+      const yPercent = androidHorizontalContentSwipeY(platform, 80, 50, 20, 50);
+      return { ok: true, start: point(80, yPercent), end: point(20, yPercent), durationMs };
+    }
+    case 'right': {
+      const yPercent = androidHorizontalContentSwipeY(platform, 20, 50, 80, 50);
+      return { ok: true, start: point(20, yPercent), end: point(80, yPercent), durationMs };
+    }
     default:
       return {
         ok: false,
@@ -286,14 +293,7 @@ function resolvePercentScreenSwipe(
   args: string[],
   frame: { referenceWidth: number; referenceHeight: number },
   platform: string,
-):
-  | {
-      ok: true;
-      start: { x: number; y: number };
-      end: { x: number; y: number };
-      durationMs?: string;
-    }
-  | { ok: false; response: DaemonResponse } {
+): MaestroScreenSwipeResolution {
   const [startX, startY, endX, endY, durationMs] = args;
   const values = [startX, startY, endX, endY].map(Number);
   if (values.some((value) => !Number.isFinite(value))) {
@@ -422,7 +422,9 @@ async function invokeMaestroSnapshotTapOn(
   selector: string,
   options: MaestroTapOnOptions,
 ): Promise<{ response: DaemonResponse; targetResolved: boolean }> {
-  const target = await resolveMaestroSnapshotTarget(params, selector, options, 'tapOn');
+  const target = await resolveMaestroSnapshotTarget(params, selector, options, 'tapOn', {
+    promoteTapTarget: true,
+  });
   if (!target.ok) return { response: target.response, targetResolved: false };
   const point = pointForMaestroTapOnTarget(
     target.target,
@@ -467,8 +469,14 @@ async function resolveMaestroSnapshotTarget(
   selector: string,
   options: MaestroTapOnOptions,
   commandLabel: string,
+  resolutionOptions: { promoteTapTarget: boolean },
 ): Promise<{ ok: true; target: MaestroSnapshotTarget } | { ok: false; response: DaemonResponse }> {
-  const cachedTarget = resolveCachedMaestroSnapshotTarget(params, selector, options);
+  const cachedTarget = resolveCachedMaestroSnapshotTarget(
+    params,
+    selector,
+    options,
+    resolutionOptions,
+  );
   if (cachedTarget.ok) return cachedTarget;
 
   const snapshotResponse = await captureMaestroRawSnapshot(params);
@@ -492,6 +500,7 @@ async function resolveMaestroSnapshotTarget(
     options,
     readMaestroSelectorPlatform(params.baseReq.flags),
     frame,
+    resolutionOptions,
   );
   if (!resolution.ok) {
     const fuzzyTextQuery = extractMaestroVisibleTextQuery(selector);
@@ -500,6 +509,7 @@ async function resolveMaestroSnapshotTarget(
         snapshot,
         fuzzyTextQuery,
         frame,
+        resolutionOptions,
       );
       if (fuzzyResolution.ok) {
         return {
@@ -540,6 +550,7 @@ function resolveCachedMaestroSnapshotTarget(
   },
   selector: string,
   options: MaestroTapOnOptions,
+  resolutionOptions: { promoteTapTarget: boolean },
 ): { ok: true; target: MaestroSnapshotTarget } | { ok: false } {
   const cached = consumeMaestroSnapshot(params.scope, selector);
   if (!cached) return { ok: false };
@@ -549,6 +560,7 @@ function resolveCachedMaestroSnapshotTarget(
     options,
     readMaestroSelectorPlatform(params.baseReq.flags),
     cached.frame,
+    resolutionOptions,
   );
   return resolution.ok
     ? {

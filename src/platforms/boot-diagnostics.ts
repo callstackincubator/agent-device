@@ -1,6 +1,6 @@
 import { asAppError } from '../utils/errors.ts';
 
-type BootFailureReason =
+export type BootFailureReason =
   | 'IOS_BOOT_TIMEOUT'
   | 'IOS_RUNNER_CONNECT_TIMEOUT'
   | 'IOS_TOOL_MISSING'
@@ -10,10 +10,23 @@ type BootFailureReason =
   | 'BOOT_COMMAND_FAILED'
   | 'UNKNOWN';
 
+const INFRASTRUCTURE_BOOT_FAILURE_REASONS = new Set<BootFailureReason>([
+  'IOS_BOOT_TIMEOUT',
+  'IOS_RUNNER_CONNECT_TIMEOUT',
+  'IOS_TOOL_MISSING',
+  'ANDROID_BOOT_TIMEOUT',
+  'ADB_TRANSPORT_UNAVAILABLE',
+  'CI_RESOURCE_STARVATION_SUSPECTED',
+]);
+
 type BootDiagnosticContext = {
   platform?: 'ios' | 'android';
   phase?: 'boot' | 'connect' | 'transport';
 };
+
+export function isInfrastructureBootFailureReason(reason: string): boolean {
+  return INFRASTRUCTURE_BOOT_FAILURE_REASONS.has(reason.toUpperCase() as BootFailureReason);
+}
 
 export function classifyBootFailure(input: {
   error?: unknown;

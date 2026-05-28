@@ -36,6 +36,7 @@ test('materializeReplayTestAttemptArtifacts writes replay and result manifests f
   });
 
   assert.equal(fs.existsSync(path.join(attemptDir, 'replay.ad')), true);
+  assert.equal(fs.existsSync(path.join(attemptDir, 'flow.ad')), false);
   assert.equal(fs.existsSync(path.join(attemptDir, 'capture.png')), true);
   assert.equal(fs.existsSync(path.join(attemptDir, 'result.txt')), true);
   assert.equal(fs.existsSync(path.join(attemptDir, 'failure.txt')), false);
@@ -43,6 +44,18 @@ test('materializeReplayTestAttemptArtifacts writes replay and result manifests f
   assert.match(resultText, /status: passed/);
   assert.match(resultText, /replayed: 4/);
   assert.match(resultText, /healed: 1/);
+});
+
+test('prepareReplayTestAttemptArtifacts preserves original Maestro flow filename', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-artifacts-maestro-'));
+  const replayPath = path.join(root, 'auth-flow.yml');
+  const attemptDir = path.join(root, 'attempt-1');
+  fs.writeFileSync(replayPath, 'appId: demo.app\n---\n- assertVisible: Welcome\n');
+
+  prepareReplayTestAttemptArtifacts(replayPath, attemptDir);
+
+  assert.equal(fs.existsSync(path.join(attemptDir, 'replay.ad')), true);
+  assert.equal(fs.existsSync(path.join(attemptDir, 'auth-flow.yml')), true);
 });
 
 test('materializeReplayTestAttemptArtifacts writes failure manifest and copies log artifacts', () => {

@@ -1,7 +1,6 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
-import { asAppError } from '../../utils/errors.ts';
-import { errorResponse } from './response.ts';
+import { normalizeError } from '../../utils/errors.ts';
 import {
   clearRequestCanceled,
   markRequestCanceled,
@@ -51,8 +50,11 @@ export async function runReplayTestAttempt(
     artifactPaths,
   })
     .catch((error) => {
-      const appErr = asAppError(error);
-      return errorResponse(appErr.code, appErr.message);
+      const appErr = normalizeError(error);
+      return {
+        ok: false,
+        error: appErr,
+      } satisfies DaemonResponse;
     })
     .finally(() => {
       clearRequestCanceled(requestId);
@@ -92,7 +94,7 @@ export async function runReplayTestAttempt(
     try {
       await cleanupSession(sessionName);
     } catch (error) {
-      const appErr = asAppError(error);
+      const appErr = normalizeError(error);
       emitDiagnostic({
         level: 'warn',
         phase: 'test_cleanup_failed',
