@@ -68,7 +68,7 @@ function readPng(buffer: Buffer): PNG {
   const { metadata, idatChunks } = collectPngChunks(buffer);
   if (!metadata) throw new Error('PNG is missing IHDR');
   if (idatChunks.length === 0) throw new Error('PNG is missing IDAT');
-  const inflated = inflateSync(Buffer.concat(idatChunks));
+  const inflated = inflatePngData(idatChunks, metadata);
   return new PNG({
     width: metadata.width,
     height: metadata.height,
@@ -126,6 +126,20 @@ function* iteratePngChunks(buffer: Buffer): Generator<PngChunk> {
     if (actualCrc !== expectedCrc) throw new Error(`Invalid PNG ${type} chunk CRC`);
     offset = dataEnd + 4;
     yield { type, data };
+  }
+}
+
+function inflatePngData(idatChunks: Buffer[], metadata: PngMetadata): Buffer {
+  const expectedLength = inflatedByteLength(metadata);
+  try {
+    const inflated = inflateSync(Buffer.concat(idatChunks), { maxOutputLength: expectedLength });
+    if (inflated.length !== expectedLength) throw new Error('PNG pixel data is truncated');
+    return inflated;
+  } catch (error) {
+    if (isZlibOutputLimitError(error)) {
+      throw new Error(`PNG pixel data exceeds expected length ${expectedLength}`);
+    }
+    throw error;
   }
 }
 
@@ -297,6 +311,23 @@ function decodeInterlacedPixels(inflated: Buffer, metadata: PngMetadata): Buffer
   return output;
 }
 
+function inflatedByteLength(metadata: PngMetadata): number {
+  if (metadata.interlace === 0) return filteredScanlineByteLength(metadata, metadata.height);
+
+  let byteLength = 0;
+  for (const pass of ADAM7_PASSES) {
+    const width = interlacePassSize(metadata.width, pass.x, pass.dx);
+    const height = interlacePassSize(metadata.height, pass.y, pass.dy);
+    if (width === 0 || height === 0) continue;
+    byteLength += filteredScanlineByteLength({ ...metadata, width, height }, height);
+  }
+  return byteLength;
+}
+
+function filteredScanlineByteLength(metadata: PngMetadata, height: number): number {
+  return (scanlineByteLength(metadata) + 1) * height;
+}
+
 function interlacePassSize(size: number, start: number, step: number): number {
   if (size <= start) return 0;
   return Math.floor((size - start + step - 1) / step);
@@ -313,25 +344,22 @@ function readPixel(
   const bytesPerSample = metadata.bitDepth === 16 ? 2 : 1;
   const channels = COLOR_CHANNELS.get(metadata.colorType)!;
   const offset = x * channels * bytesPerSample;
-  const sample = (channel: number): number => line[offset + channel * bytesPerSample]!;
-  const fullSample = (channel: number): number =>
-    metadata.bitDepth === 16 ? line.readUInt16BE(offset + channel * 2) : sample(channel);
+  const rawSample = (channel: number): number =>
+    metadata.bitDepth === 16
+      ? line.readUInt16BE(offset + channel * 2)
+      : line[offset + channel * bytesPerSample]!;
+  const sample = (channel: number): number => scaleSample(rawSample(channel), metadata.bitDepth);
 
   if (metadata.colorType === 0) {
     const gray = sample(0);
-    const transparent = matchesTransparentGray(fullSample(0), metadata);
+    const transparent = matchesTransparentGray(rawSample(0), metadata);
     return [gray, gray, gray, transparent ? 0 : 255];
   }
   if (metadata.colorType === 2) {
     const red = sample(0);
     const green = sample(1);
     const blue = sample(2);
-    const transparent = matchesTransparentRgb(
-      fullSample(0),
-      fullSample(1),
-      fullSample(2),
-      metadata,
-    );
+    const transparent = matchesTransparentRgb(rawSample(0), rawSample(1), rawSample(2), metadata);
     return [red, green, blue, transparent ? 0 : 255];
   }
   if (metadata.colorType === 4) {
@@ -391,6 +419,11 @@ function filterBytesPerPixel(metadata: PngMetadata): number {
   return Math.max(1, Math.ceil((channels * metadata.bitDepth) / 8));
 }
 
+function scaleSample(sample: number, bitDepth: number): number {
+  if (bitDepth === 16) return Math.round((sample / 0xffff) * 0xff);
+  return sample;
+}
+
 function matchesTransparentGray(sample: number, metadata: PngMetadata): boolean {
   if (!metadata.transparency || metadata.transparency.length < 2) return false;
   return sample === metadata.transparency.readUInt16BE(0);
@@ -443,4 +476,8 @@ function paeth(left: number, up: number, upLeft: number): number {
 function validateDimension(value: number, label: string): number {
   if (!Number.isInteger(value) || value < 1) throw new Error(`PNG ${label} must be positive`);
   return value;
+}
+
+function isZlibOutputLimitError(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'ERR_BUFFER_TOO_LARGE';
 }

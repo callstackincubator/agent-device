@@ -56,6 +56,56 @@ test('PNG sync reader decodes indexed color and transparency', () => {
   assert.deepEqual(readPngPixel(png, 3, 0), [20, 30, 40, 255]);
 });
 
+test('PNG sync reader decodes RGBA alpha', () => {
+  const png = PNG.sync.read(
+    encodeTestPng({
+      width: 1,
+      height: 1,
+      bitDepth: 8,
+      colorType: 6,
+      rawScanlines: Buffer.from([0, 10, 20, 30, 40]),
+    }),
+  );
+
+  assert.deepEqual(readPngPixel(png, 0, 0), [10, 20, 30, 40]);
+});
+
+test('PNG sync reader scales 16-bit samples to 8-bit output', () => {
+  const rawScanlines = Buffer.alloc(7);
+  rawScanlines[0] = 0;
+  rawScanlines.writeUInt16BE(0x00ff, 1);
+  rawScanlines.writeUInt16BE(0x0100, 3);
+  rawScanlines.writeUInt16BE(0xffff, 5);
+
+  const png = PNG.sync.read(
+    encodeTestPng({
+      width: 1,
+      height: 1,
+      bitDepth: 16,
+      colorType: 2,
+      rawScanlines,
+    }),
+  );
+
+  assert.deepEqual(readPngPixel(png, 0, 0), [1, 1, 255, 255]);
+});
+
+test('PNG sync reader applies packed grayscale transparency', () => {
+  const png = PNG.sync.read(
+    encodeTestPng({
+      width: 2,
+      height: 1,
+      bitDepth: 4,
+      colorType: 0,
+      transparency: Buffer.from([0, 2]),
+      rawScanlines: Buffer.from([0, 0x25]),
+    }),
+  );
+
+  assert.deepEqual(readPngPixel(png, 0, 0), [34, 34, 34, 0]);
+  assert.deepEqual(readPngPixel(png, 1, 0), [85, 85, 85, 255]);
+});
+
 test('PNG sync reader decodes Adam7 interlaced RGB image data', () => {
   const png = PNG.sync.read(
     encodeTestPng({
@@ -103,6 +153,18 @@ test('PNG sync reader rejects invalid chunk CRCs', () => {
   bytes[lastByte] = (bytes[lastByte] ?? 0) ^ 0xff;
 
   assert.throws(() => PNG.sync.read(bytes), /Invalid PNG .* chunk CRC/);
+});
+
+test('PNG sync reader rejects inflated data larger than IHDR scanlines', () => {
+  const bytes = encodeTestPng({
+    width: 1,
+    height: 1,
+    bitDepth: 8,
+    colorType: 6,
+    rawScanlines: Buffer.from([0, 1, 2, 3, 4, 5]),
+  });
+
+  assert.throws(() => PNG.sync.read(bytes), /PNG pixel data exceeds expected length 5/);
 });
 
 function tmpPngPath(prefix: string): string {
