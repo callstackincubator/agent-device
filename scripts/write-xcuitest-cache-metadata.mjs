@@ -85,6 +85,9 @@ function isRunnerSourceFile(fileName, filePath) {
     return filePath.includes(`${path.sep}.xcodeproj${path.sep}`);
   }
   return [
+    '.jpg',
+    '.json',
+    '.png',
     '.swift',
     '.plist',
     '.entitlements',

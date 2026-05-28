@@ -104,4 +104,5 @@ xcodebuild build-for-testing \
   ENABLE_CODE_COVERAGE=NO \
   $SIGNING_BUILD_SETTINGS
 
+node --experimental-strip-types scripts/patch-xcuitest-runner-icon.ts "$DERIVED_PATH"
 node scripts/write-xcuitest-cache-metadata.mjs "$PLATFORM" "$DERIVED_PATH" "$DESTINATION"
