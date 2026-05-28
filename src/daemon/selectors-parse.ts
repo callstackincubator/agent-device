@@ -103,13 +103,12 @@ export function splitSelectorFromArgs(
     }
   }
   if (boundaries.length === 0) return null;
-  const lastBoundary = boundaries.at(-1);
-  if (lastBoundary === undefined) return null;
+  const lastBoundary = boundaries[boundaries.length - 1]!;
   let boundary = lastBoundary;
   if (preferTrailingValue) {
     for (let i = boundaries.length - 1; i >= 0; i -= 1) {
-      const candidateBoundary = boundaries[i];
-      if (candidateBoundary !== undefined && candidateBoundary < args.length) {
+      const candidateBoundary = boundaries[i]!;
+      if (candidateBoundary < args.length) {
         boundary = candidateBoundary;
         break;
       }

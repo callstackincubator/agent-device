@@ -85,7 +85,8 @@ export function requireStringValue(command: string, value: unknown): string {
 
 export function resolveMaestroString(value: string, context: MaestroParseContext): string {
   return value.replace(/\$\{([A-Za-z_][A-Za-z0-9_.]*)\}/g, (match, key: string) => {
-    return context.env[key] ?? match;
+    if (!Object.prototype.hasOwnProperty.call(context.env, key)) return match;
+    return String(context.env[key]);
   });
 }
 

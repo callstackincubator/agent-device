@@ -130,8 +130,9 @@ export function resolveReplayString(
     ) => {
       if (escapedLiteral) return '${';
       if (!key) return match;
-      const value = scope.values[key];
-      if (value !== undefined) return value;
+      if (Object.prototype.hasOwnProperty.call(scope.values, key)) {
+        return String(scope.values[key]);
+      }
       if (fallback !== undefined) {
         return fallback.replace(/\\(.)/g, '$1');
       }

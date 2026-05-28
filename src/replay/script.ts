@@ -282,18 +282,19 @@ function parseReplayScriptLine(line: string): SessionAction | null {
   if (command === 'fill') {
     const parsed = parseReplaySeriesFlags(command, args);
     Object.assign(action.flags, parsed.flags);
-    if (parsed.positionals.length < 2) {
+    const target = parsed.positionals[0];
+    const text = parsed.positionals[1];
+    if (target === undefined || text === undefined) {
       action.positionals = parsed.positionals;
       return action;
     }
-    const target = parsed.positionals[0]!;
     if (target.startsWith('@')) {
       if (parsed.positionals.length >= 3) {
         action.positionals = [target, parsed.positionals.slice(2).join(' ')];
         action.result = { refLabel: parsed.positionals[1] };
         return action;
       }
-      action.positionals = [target, parsed.positionals[1]!];
+      action.positionals = [target, text];
       return action;
     }
     action.positionals = [target, parsed.positionals.slice(1).join(' ')];
