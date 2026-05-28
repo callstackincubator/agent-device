@@ -820,10 +820,10 @@ test('runReplayScriptFile promotes Maestro id tapOn to an actionable ancestor', 
   );
 });
 
-test('runReplayScriptFile reuses successful Maestro visibility snapshot for following tapOn', async () => {
+test('runReplayScriptFile captures a fresh Maestro snapshot for tapOn after assertVisible', async () => {
   let snapshots = 0;
   const { response, calls } = await runReplayFixture({
-    label: 'maestro-assert-visible-tap-cache',
+    label: 'maestro-assert-visible-tap-fresh-snapshot',
     script: ['appId: demo.app', '---', '- assertVisible: Open feed', '- tapOn: Open feed', ''].join(
       '\n',
     ),
@@ -854,6 +854,11 @@ test('runReplayScriptFile reuses successful Maestro visibility snapshot for foll
                       label: 'AppStack.tsx (42:7)',
                       rect: { x: 28, y: 1304, width: 1025, height: 44 },
                     },
+                    {
+                      index: 2,
+                      label: 'Open feed',
+                      rect: { x: 40, y: 240, width: 200, height: 48 },
+                    },
                   ],
           },
         };
@@ -863,11 +868,13 @@ test('runReplayScriptFile reuses successful Maestro visibility snapshot for foll
   });
 
   assert.equal(response.ok, true);
+  assert.equal(snapshots, 2);
   assert.deepEqual(
     calls.map((call) => [call.command, call.positionals]),
     [
       ['snapshot', []],
-      ['click', ['110', '204']],
+      ['snapshot', []],
+      ['click', ['140', '264']],
     ],
   );
 });

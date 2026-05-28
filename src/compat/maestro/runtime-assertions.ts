@@ -6,7 +6,6 @@ import { sleep } from '../../utils/timeouts.ts';
 import {
   captureMaestroRawSnapshot,
   errorResponse,
-  rememberMaestroSnapshot,
   readSnapshotState,
   type MaestroRuntimeInvoke,
   type ReplayBaseRequest,
@@ -57,7 +56,6 @@ export async function invokeMaestroAssertVisible(params: {
         getSnapshotReferenceFrame(snapshot),
       );
       if (target.ok) {
-        rememberMaestroSnapshot(params.scope, response.data, selector);
         return {
           ok: true,
           data: {

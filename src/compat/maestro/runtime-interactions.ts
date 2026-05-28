@@ -5,7 +5,6 @@ import { sleep } from '../../utils/timeouts.ts';
 import { pointForMaestroTapOnTarget, swipeCoordinatesFromTarget } from './runtime-geometry.ts';
 import {
   captureMaestroRawSnapshot,
-  consumeMaestroSnapshot,
   errorResponse,
   readCachedMaestroReferenceFrame,
   readSnapshotState,
@@ -471,14 +470,6 @@ async function resolveMaestroSnapshotTarget(
   commandLabel: string,
   resolutionOptions: { promoteTapTarget: boolean },
 ): Promise<{ ok: true; target: MaestroSnapshotTarget } | { ok: false; response: DaemonResponse }> {
-  const cachedTarget = resolveCachedMaestroSnapshotTarget(
-    params,
-    selector,
-    options,
-    resolutionOptions,
-  );
-  if (cachedTarget.ok) return cachedTarget;
-
   const snapshotResponse = await captureMaestroRawSnapshot(params);
   if (!snapshotResponse.ok) return { ok: false, response: snapshotResponse };
 
@@ -541,37 +532,6 @@ async function resolveMaestroSnapshotTarget(
       frame,
     },
   };
-}
-
-function resolveCachedMaestroSnapshotTarget(
-  params: {
-    baseReq: ReplayBaseRequest;
-    scope?: ReplayVarScope;
-  },
-  selector: string,
-  options: MaestroTapOnOptions,
-  resolutionOptions: { promoteTapTarget: boolean },
-): { ok: true; target: MaestroSnapshotTarget } | { ok: false } {
-  const cached = consumeMaestroSnapshot(params.scope, selector);
-  if (!cached) return { ok: false };
-  const resolution = resolveMaestroNodeFromSnapshot(
-    cached.snapshot,
-    selector,
-    options,
-    readMaestroSelectorPlatform(params.baseReq.flags),
-    cached.frame,
-    resolutionOptions,
-  );
-  return resolution.ok
-    ? {
-        ok: true,
-        target: {
-          node: resolution.node,
-          rect: resolution.rect,
-          frame: cached.frame,
-        },
-      }
-    : { ok: false };
 }
 
 function readMaestroTapOnOptions(

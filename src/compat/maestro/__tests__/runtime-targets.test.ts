@@ -161,6 +161,95 @@ test('resolveVisibleMaestroNodeFromSnapshot requires visible text matches to be 
   });
 });
 
+test('resolveMaestroNodeFromSnapshot infers missing selected tab slot from tab-strip children', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'ScrollView',
+        label: 'Chat',
+        rect: { x: 0, y: 116.66666412353516, width: 402, height: 48 },
+        depth: 3,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'Cell',
+        label: 'Contacts',
+        rect: { x: 134, y: 116.66666412353516, width: 134, height: 48 },
+        depth: 4,
+        parentIndex: 1,
+      },
+      {
+        index: 3,
+        ref: 'e3',
+        type: 'Cell',
+        label: 'Albums',
+        rect: { x: 268, y: 116.66666412353516, width: 134, height: 48 },
+        depth: 4,
+        parentIndex: 1,
+      },
+    ],
+  };
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Chat" || text="Chat" || id="Chat"',
+    {},
+    'ios',
+    { referenceWidth: 402, referenceHeight: 874 },
+    { promoteTapTarget: true },
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 1 }),
+    rect: { x: 0, y: 116.66666412353516, width: 134, height: 48 },
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot keeps concrete child matches over tab-strip inference', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'ScrollView',
+        label: 'Article by Gandalf',
+        rect: { x: 0, y: 58.33333333333333, width: 402, height: 58.33333333333333 },
+        depth: 4,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'Cell',
+        label: 'Article by Gandalf',
+        rect: { x: 8, y: 65.33333587646484, width: 155, height: 48 },
+        depth: 5,
+        parentIndex: 1,
+      },
+    ],
+  };
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Article by Gandalf" || text="Article by Gandalf" || id="Article by Gandalf"',
+    {},
+    'ios',
+    { referenceWidth: 402, referenceHeight: 874 },
+    { promoteTapTarget: true },
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 2 }),
+    rect: { x: 8, y: 65.33333587646484, width: 155, height: 48 },
+  });
+});
+
 function makeReactNativeOverlaySnapshot(): SnapshotState {
   return {
     createdAt: Date.now(),

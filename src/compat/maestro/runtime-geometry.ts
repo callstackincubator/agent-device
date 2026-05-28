@@ -1,4 +1,5 @@
 import type { Rect, SnapshotNode } from '../../utils/snapshot.ts';
+import { normalizeType } from '../../utils/snapshot-processing.ts';
 import type { MaestroSnapshotTarget } from './runtime-targets.ts';
 
 const MAESTRO_GEOMETRY_POLICY = {
@@ -108,14 +109,13 @@ function shouldBiasMaestroVisibleTextTap(
   rect: Rect,
 ): boolean {
   if (!isVisibleTextSelector) return false;
-  if (
-    rect.height < MAESTRO_GEOMETRY_POLICY.largeTextContainerBias.minHeight ||
-    rect.width < MAESTRO_GEOMETRY_POLICY.largeTextContainerBias.minWidth
-  ) {
+  if (rect.width < MAESTRO_GEOMETRY_POLICY.largeTextContainerBias.minWidth) {
     return false;
   }
-  const type = node.type?.toLowerCase();
-  return type === 'cell' || type === 'other' || type === 'scrollview';
+  const type = normalizeType(node.type ?? '');
+  const scrollableTextContainer = type === 'scrollview' || type === 'scroll-area';
+  if (rect.height < MAESTRO_GEOMETRY_POLICY.largeTextContainerBias.minHeight) return false;
+  return type === 'cell' || type === 'other' || scrollableTextContainer;
 }
 
 function interiorCoordinate(origin: number, size: number): number {

@@ -327,34 +327,65 @@ function selectMaestroSnapshotMatch(
   promoteTapTarget = false,
 ): { node: SnapshotNode; rect: Rect } | null {
   const nodeByIndex = buildSnapshotNodeByIndex(nodes);
-  const resolved = matches
-    .map((node) => {
-      const match = resolveNodeRect(nodes, node, nodeByIndex);
-      return match ? { node, rect: match.rect, inheritedRect: match.inherited } : null;
-    })
-    .filter((candidate): candidate is MaestroResolvedSnapshotMatch => Boolean(candidate));
-  const candidates =
-    visibleTextQuery && index === undefined
-      ? preferOnScreenMatches(resolved, frame, requireOnScreen)
-      : resolved;
-  if (index !== undefined) {
-    return promoteMaestroSnapshotMatch(
-      nodes,
-      candidates[index] ?? null,
-      nodeByIndex,
-      promoteTapTarget,
-      frame,
-    );
-  }
-  const sorted = candidates.sort((left, right) =>
-    compareMaestroSnapshotMatches(left, right, visibleTextQuery),
-  );
-  return promoteMaestroSnapshotMatch(
+  const candidates = resolveMaestroSnapshotMatchCandidates(
     nodes,
-    sorted[0] ?? null,
+    matches,
     nodeByIndex,
-    promoteTapTarget,
+    visibleTextQuery,
+    index,
     frame,
+    requireOnScreen,
+  );
+  const target = chooseMaestroSnapshotMatch(nodes, candidates, index, visibleTextQuery, promoteTapTarget);
+  return promoteMaestroSnapshotMatch(nodes, target, nodeByIndex, promoteTapTarget, frame);
+}
+
+function resolveMaestroSnapshotMatchCandidates(
+  nodes: SnapshotState['nodes'],
+  matches: SnapshotNode[],
+  nodeByIndex: SnapshotNodeByIndex,
+  visibleTextQuery: string | null,
+  index: number | undefined,
+  frame: TouchReferenceFrame | undefined,
+  requireOnScreen: boolean,
+): MaestroResolvedSnapshotMatch[] {
+  const resolved = matches
+    .map((node) => resolveMaestroSnapshotMatch(nodes, node, nodeByIndex))
+    .filter((candidate): candidate is MaestroResolvedSnapshotMatch => Boolean(candidate));
+  if (!visibleTextQuery || index !== undefined) return resolved;
+  return preferOnScreenMatches(resolved, frame, requireOnScreen);
+}
+
+function resolveMaestroSnapshotMatch(
+  nodes: SnapshotState['nodes'],
+  node: SnapshotNode,
+  nodeByIndex: SnapshotNodeByIndex,
+): MaestroResolvedSnapshotMatch | null {
+  const match = resolveNodeRect(nodes, node, nodeByIndex);
+  return match ? { node, rect: match.rect, inheritedRect: match.inherited } : null;
+}
+
+function chooseMaestroSnapshotMatch(
+  nodes: SnapshotState['nodes'],
+  candidates: MaestroResolvedSnapshotMatch[],
+  index: number | undefined,
+  visibleTextQuery: string | null,
+  promoteTapTarget: boolean,
+): MaestroResolvedSnapshotMatch | null {
+  if (index !== undefined) return candidates[index] ?? null;
+  const best = selectBestMaestroSnapshotMatch(candidates, visibleTextQuery);
+  if (!promoteTapTarget || !visibleTextQuery || !best) return best;
+  return inferMaestroMissingTabSlotMatch(nodes, best, visibleTextQuery) ?? best;
+}
+
+function selectBestMaestroSnapshotMatch(
+  candidates: MaestroResolvedSnapshotMatch[],
+  visibleTextQuery: string | null,
+): MaestroResolvedSnapshotMatch | null {
+  return (
+    candidates.sort((left, right) =>
+      compareMaestroSnapshotMatches(left, right, visibleTextQuery),
+    )[0] ?? null
   );
 }
 
@@ -437,6 +468,99 @@ function rectArea(rect: Rect): number {
 
 function maestroTapTargetTypeRank(node: SnapshotNode): number {
   return MAESTRO_TAP_TARGET_TYPE_RANK.get(normalizeType(node.type ?? '')) ?? 3;
+}
+
+function inferMaestroMissingTabSlotMatch(
+  nodes: SnapshotState['nodes'],
+  match: MaestroResolvedSnapshotMatch,
+  query: string,
+): MaestroResolvedSnapshotMatch | null {
+  if (!isMaestroTabStripContainerMatch(match, query)) return null;
+  const children: Array<SnapshotNode & { rect: Rect }> = [];
+  for (const node of nodes) {
+    if (node.parentIndex !== match.node.index || !node.rect) continue;
+    const candidate = node as SnapshotNode & { rect: Rect };
+    if (isMaestroTabStripChildCandidate(candidate, match.rect, query)) {
+      children.push(candidate);
+    }
+  }
+  children.sort((left, right) => left.rect.x - right.rect.x);
+  if (children.length === 0) return null;
+  const medianChildWidth = median(children.map((child) => child.rect.width));
+  const gaps = resolveHorizontalGaps(
+    match.rect,
+    children.map((child) => child.rect),
+  ).filter((gap) => isPlausibleMissingTabSlot(gap.width, medianChildWidth));
+  if (gaps.length !== 1) return null;
+  const gap = gaps[0];
+  if (!gap) return null;
+  return {
+    ...match,
+    rect: {
+      x: gap.x,
+      y: match.rect.y,
+      width: gap.width,
+      height: match.rect.height,
+    },
+  };
+}
+
+function isMaestroTabStripContainerMatch(
+  match: MaestroResolvedSnapshotMatch,
+  query: string,
+): boolean {
+  const type = normalizeType(match.node.type ?? '');
+  if (type !== 'other' && type !== 'scrollview' && type !== 'scroll-area') return false;
+  if (match.rect.width < 120 || match.rect.height < 32 || match.rect.height > 80) return false;
+  return maestroVisibleTextMatchRank(match.node, query) <= 1;
+}
+
+function isMaestroTabStripChildCandidate(
+  node: SnapshotNode & { rect: Rect },
+  container: Rect,
+  query: string,
+): boolean {
+  const type = normalizeType(node.type ?? '');
+  if (type !== 'button' && type !== 'cell' && type !== 'other') return false;
+  if (maestroVisibleTextMatchRank(node, query) <= 1) return false;
+  if (node.rect.width < 16 || node.rect.height < 16) return false;
+  if (!rectContains(container, node.rect)) return false;
+  return verticalOverlapRatio(container, node.rect) >= 0.5;
+}
+
+function resolveHorizontalGaps(
+  container: Rect,
+  occupied: Rect[],
+): Array<{ x: number; width: number }> {
+  const gaps: Array<{ x: number; width: number }> = [];
+  let cursor = container.x;
+  const containerRight = container.x + container.width;
+  for (const rect of occupied) {
+    const start = Math.max(container.x, rect.x);
+    const end = Math.min(containerRight, rect.x + rect.width);
+    if (start > cursor) gaps.push({ x: cursor, width: start - cursor });
+    cursor = Math.max(cursor, end);
+  }
+  if (containerRight > cursor) gaps.push({ x: cursor, width: containerRight - cursor });
+  return gaps;
+}
+
+function isPlausibleMissingTabSlot(gapWidth: number, medianChildWidth: number): boolean {
+  if (gapWidth < 24 || medianChildWidth < 24) return false;
+  return gapWidth >= medianChildWidth * 0.4 && gapWidth <= medianChildWidth * 1.6;
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted[middle] ?? 0;
+}
+
+function verticalOverlapRatio(a: Rect, b: Rect): number {
+  const top = Math.max(a.y, b.y);
+  const bottom = Math.min(a.y + a.height, b.y + b.height);
+  const overlap = Math.max(0, bottom - top);
+  return overlap / Math.max(1, Math.min(a.height, b.height));
 }
 
 function promoteMaestroSnapshotMatch(
