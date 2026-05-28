@@ -51,6 +51,7 @@ export const INTERNAL_COMMANDS = {
   leaseHeartbeat: 'lease_heartbeat',
   leaseRelease: 'lease_release',
   releaseMaterializedPaths: 'release_materialized_paths',
+  runtime: 'runtime',
   sessionList: 'session_list',
 } as const;
 
@@ -174,6 +175,49 @@ export const DAEMON_COMMAND_GROUPS = {
     INTERNAL_COMMANDS.leaseAllocate,
     INTERNAL_COMMANDS.leaseHeartbeat,
     INTERNAL_COMMANDS.leaseRelease,
+  ),
+  // Specialized daemon handler families. Commands absent from these sets fall through to
+  // request-generic-dispatch after request admission and provider scoping.
+  leaseHandler: commandSet(
+    INTERNAL_COMMANDS.leaseAllocate,
+    INTERNAL_COMMANDS.leaseHeartbeat,
+    INTERNAL_COMMANDS.leaseRelease,
+  ),
+  sessionHandler: commandSet(
+    INTERNAL_COMMANDS.installSource,
+    INTERNAL_COMMANDS.releaseMaterializedPaths,
+    INTERNAL_COMMANDS.sessionList,
+    PUBLIC_COMMANDS.appState,
+    PUBLIC_COMMANDS.apps,
+    PUBLIC_COMMANDS.batch,
+    PUBLIC_COMMANDS.boot,
+    PUBLIC_COMMANDS.clipboard,
+    PUBLIC_COMMANDS.close,
+    PUBLIC_COMMANDS.devices,
+    PUBLIC_COMMANDS.install,
+    PUBLIC_COMMANDS.keyboard,
+    PUBLIC_COMMANDS.logs,
+    PUBLIC_COMMANDS.network,
+    PUBLIC_COMMANDS.open,
+    PUBLIC_COMMANDS.perf,
+    PUBLIC_COMMANDS.push,
+    PUBLIC_COMMANDS.reinstall,
+    PUBLIC_COMMANDS.replay,
+    PUBLIC_COMMANDS.test,
+    PUBLIC_COMMANDS.triggerAppEvent,
+    INTERNAL_COMMANDS.runtime,
+  ),
+  reactNativeHandler: commandSet(PUBLIC_COMMANDS.reactNative),
+  recordTraceHandler: commandSet(PUBLIC_COMMANDS.record, PUBLIC_COMMANDS.trace),
+  findHandler: commandSet(PUBLIC_COMMANDS.find),
+  interactionHandler: commandSet(
+    PUBLIC_COMMANDS.click,
+    PUBLIC_COMMANDS.fill,
+    PUBLIC_COMMANDS.get,
+    PUBLIC_COMMANDS.is,
+    PUBLIC_COMMANDS.longPress,
+    PUBLIC_COMMANDS.press,
+    PUBLIC_COMMANDS.type,
   ),
 } as const;
 

@@ -1,0 +1,56 @@
+name: Size
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: size-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle-size:
+    name: Bundle Size
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Preserve report script
+        run: cp scripts/size-report.mjs /tmp/agent-device-size-report.mjs
+
+      - name: Measure base size
+        run: |
+          git checkout --detach "${{ github.event.pull_request.base.sha }}"
+          pnpm install --frozen-lockfile
+          pnpm build
+          node /tmp/agent-device-size-report.mjs --json /tmp/agent-device-size-base.json
+
+      - name: Measure PR size
+        run: |
+          git checkout --detach "${{ github.event.pull_request.head.sha }}"
+          pnpm install --frozen-lockfile
+          pnpm build
+          node scripts/size-report.mjs \
+            --compare /tmp/agent-device-size-base.json \
+            --json .tmp/size-report.json \
+            --markdown .tmp/size-report.md
+
+      - name: Add job summary
+        run: cat .tmp/size-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on PR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/size-report.mjs --post-comment .tmp/size-report.md
