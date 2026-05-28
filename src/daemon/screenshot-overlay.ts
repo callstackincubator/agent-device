@@ -1,5 +1,4 @@
 import { promises as fs } from 'node:fs';
-import { PNG } from 'pngjs';
 import {
   centerOfRect,
   type Rect,
@@ -7,7 +6,7 @@ import {
   type SnapshotNode,
   type SnapshotState,
 } from '../utils/snapshot.ts';
-import { decodePng } from '../utils/png.ts';
+import { decodePng, PNG } from '../utils/png.ts';
 import { findNearestAncestor, normalizeType } from './snapshot-processing.ts';
 import { resolveAndroidOverlaySourceRect } from './screenshot-overlay-android.ts';
 import { hasPositiveRect, rectArea, rectContains } from './screenshot-overlay-rects.ts';

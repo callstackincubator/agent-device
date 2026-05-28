@@ -1,6 +1,8 @@
 import { promises as fs } from 'node:fs';
-import { PNG } from 'pngjs';
 import { AppError } from './errors.ts';
+import { PNG } from './png-codec.ts';
+
+export { PNG };
 
 export function decodePng(buffer: Buffer, label: string): PNG {
   try {

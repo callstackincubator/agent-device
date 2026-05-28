@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { PNG } from 'pngjs';
+import { PNG } from '../../src/utils/png.ts';
 import { runCmdSync } from '../../src/utils/exec.ts';
 
 const CLI_TIMEOUT_MS = 120_000;

@@ -1,8 +1,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { PNG } from 'pngjs';
 import { AppError } from '../utils/errors.ts';
-import { decodePng } from './png.ts';
+import { decodePng, PNG } from './png.ts';
 import { annotateDiffRegions } from './screenshot-diff-region-overlay.ts';
 import {
   summarizeNonTextDiffDeltas,

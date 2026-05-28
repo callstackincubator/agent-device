@@ -2,7 +2,7 @@ import { test, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { PNG } from 'pngjs';
+import { PNG } from '../../../utils/png.ts';
 import { handleSnapshotCommands } from '../snapshot.ts';
 import { captureSnapshot } from '../snapshot-capture.ts';
 import { SessionStore } from '../../session-store.ts';

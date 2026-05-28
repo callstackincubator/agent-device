@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { PNG } from 'pngjs';
+import { PNG } from '../utils/png.ts';
 import { tryRunClientBackedCommand } from '../cli/commands/router.ts';
 import type {
   AgentDeviceClient,

@@ -1,4 +1,4 @@
-import { PNG } from 'pngjs';
+import type { PNG } from './png.ts';
 import type { MutableDiffRegion } from './screenshot-diff-region-types.ts';
 
 // Region splitting is based on screen-relative heights so it works on phone,
