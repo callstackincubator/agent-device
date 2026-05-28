@@ -204,7 +204,6 @@
     "detox"
   ],
   "dependencies": {
-    "fast-xml-parser": "^5.7.2",
     "pngjs": "^7.0.0",
     "yaml": "^2.9.0"
   },
