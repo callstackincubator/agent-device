@@ -338,7 +338,7 @@ test('snapshotAndroid uses injected helper artifact before stock uiautomator', a
   assert.equal(result.androidSnapshot.installReason, 'current');
   assert.equal(result.androidSnapshot.captureMode, 'interactive-windows');
   assert.equal(result.androidSnapshot.windowCount, 1);
-  assert.deepEqual(timeouts, [30000, 30000, 5000]);
+  assert.deepEqual(timeouts, [30000, 30000]);
   assert.equal(mockRunCmd.mock.calls.length, 0);
 });
 
@@ -367,10 +367,8 @@ test('snapshotAndroid forwards alert-style helper idle timeout override', async 
 
   assert.ok(instrumentArgs);
   assert.equal(instrumentArgs[instrumentArgs.indexOf('waitForIdleTimeoutMs') + 1], '0');
-  assert.match(
-    instrumentArgs[instrumentArgs.indexOf('outputPath') + 1] ?? '',
-    /^\/sdcard\/Download\/agent-device-snapshot-/,
-  );
+  assert.equal(instrumentArgs.includes('outputPath'), false);
+  assert.equal(instrumentArgs.includes('emitChunks'), false);
 });
 
 test('snapshotAndroid emits helper phase diagnostics', async () => {
@@ -452,7 +450,7 @@ test('snapshotAndroid resolves helper adb through scoped provider', async () => 
   assert.equal(result.androidSnapshot.backend, 'android-helper');
   assert.deepEqual(
     adbCalls.map((args) => args[0]),
-    ['shell', 'shell', 'shell'],
+    ['shell', 'shell'],
   );
   assert.equal(mockRunCmd.mock.calls.length, 0);
 });
@@ -1138,6 +1136,39 @@ test('snapshotAndroid derives hidden content hints for interactive snapshots fro
   );
   assert.equal(scrollArea?.hiddenContentAbove, undefined);
   assert.equal(scrollArea?.hiddenContentBelow, true);
+});
+
+test('snapshotAndroid omits zero-area interactive nodes from interactive snapshots', async () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<hierarchy rotation="0">
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" clickable="false" focusable="false">
+    <node class="android.widget.ScrollView" scrollable="true" can-scroll-forward="true" can-scroll-backward="false" bounds="[0,100][390,600]" clickable="false" focusable="false">
+      <node class="android.view.ViewGroup" bounds="[0,100][390,600]" clickable="false" focusable="false">
+        <node class="android.widget.Button" text="Visible action" bounds="[20,120][200,180]" clickable="true" focusable="true" />
+        <node class="android.widget.Button" text="Collapsed action" bounds="[20,844][200,844]" clickable="true" focusable="true" />
+      </node>
+    </node>
+  </node>
+</hierarchy>`;
+
+  mockAndroidSnapshotXml(xml);
+
+  const result = await snapshotAndroid(device, { interactiveOnly: true });
+
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Visible action'),
+    true,
+  );
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Collapsed action'),
+    false,
+  );
+  assert.equal(
+    result.nodes.some(
+      (node) => node.rect !== undefined && (node.rect.width <= 0 || node.rect.height <= 0),
+    ),
+    false,
+  );
 });
 
 test('snapshotAndroid preserves bottomed-out hidden-above hints in interactive snapshots from a single aligned block', async () => {

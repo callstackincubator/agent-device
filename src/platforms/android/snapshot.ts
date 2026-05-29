@@ -85,32 +85,59 @@ export async function snapshotAndroid(
   }
 
   const tree = parseUiHierarchyTree(xml);
-  const fullSnapshot = buildUiHierarchySnapshot(tree, ANDROID_SNAPSHOT_MAX_NODES, {
-    ...options,
-    interactiveOnly: false,
-  });
   const interactiveSnapshot = buildUiHierarchySnapshot(tree, ANDROID_SNAPSHOT_MAX_NODES, options);
   if (includeHiddenContentHints) {
-    const nativeHints = await deriveScrollableContentHintsIfNeeded(
+    await applyHiddenContentHintsToInteractiveSnapshot({
       device,
-      fullSnapshot.nodes,
+      options,
+      tree,
       xml,
       adb,
-    );
-    applyHiddenContentHintsToInteractiveNodes(nativeHints, fullSnapshot, interactiveSnapshot);
-    if (nativeHints.size === 0) {
-      const presentationHints = deriveMobileSnapshotHiddenContentHints(
-        attachRefs(fullSnapshot.nodes),
-      );
-      applyHiddenContentHintsToInteractiveNodes(
-        presentationHints,
-        fullSnapshot,
-        interactiveSnapshot,
-      );
-    }
+      interactiveSnapshot,
+    });
   }
   const { sourceNodes: _sourceNodes, ...snapshot } = interactiveSnapshot;
   return { ...snapshot, androidSnapshot: capture.metadata };
+}
+
+async function applyHiddenContentHintsToInteractiveSnapshot(params: {
+  device: DeviceInfo;
+  options: AndroidSnapshotOptions;
+  tree: AndroidUiHierarchy;
+  xml: string;
+  adb: AndroidAdbExecutor;
+  interactiveSnapshot: AndroidBuiltSnapshot;
+}): Promise<void> {
+  if (
+    collectExistingHiddenContentHints(params.interactiveSnapshot.nodes).size > 0 ||
+    hasAndroidScrollActionAttributes(params.xml)
+  ) {
+    return;
+  }
+
+  const fullSnapshot = buildUiHierarchySnapshot(params.tree, ANDROID_SNAPSHOT_MAX_NODES, {
+    ...params.options,
+    interactiveOnly: false,
+  });
+  const nativeHints = await deriveScrollableContentHintsIfNeeded(
+    params.device,
+    fullSnapshot.nodes,
+    params.xml,
+    params.adb,
+  );
+  applyHiddenContentHintsToInteractiveNodes(
+    nativeHints,
+    fullSnapshot,
+    params.interactiveSnapshot,
+  );
+  if (nativeHints.size === 0) {
+    const presentationHints = deriveMobileSnapshotHiddenContentHints(attachRefs(fullSnapshot.nodes));
+    applyHiddenContentHintsToInteractiveNodes(
+      presentationHints,
+      fullSnapshot,
+      params.interactiveSnapshot,
+    );
+  }
 }
 
 async function captureAndroidUiHierarchy(
@@ -215,8 +242,6 @@ async function captureAndroidUiHierarchyFromHelper(
           options.helperWaitForIdleTimeoutMs ?? ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
         timeoutMs: HELPER_CAPTURE_TIMEOUT_MS,
         commandTimeoutMs: HELPER_COMMAND_TIMEOUT_MS,
-        outputPath: createAndroidSnapshotHelperOutputPath(),
-        emitChunks: false,
       }),
     {
       packageName: artifact.manifest.packageName,
@@ -225,11 +250,6 @@ async function captureAndroidUiHierarchyFromHelper(
       commandTimeoutMs: HELPER_COMMAND_TIMEOUT_MS,
     },
   );
-}
-
-function createAndroidSnapshotHelperOutputPath(): string {
-  const suffix = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return `/sdcard/Download/agent-device-snapshot-${suffix}.xml`;
 }
 
 function formatAndroidHelperCaptureResult(

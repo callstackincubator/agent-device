@@ -513,6 +513,7 @@ function shouldIncludeInteractiveAndroidNode(
   descendantHittable: boolean,
   ancestorCollection: boolean,
 ): boolean {
+  if (hasNonPositiveRect(node)) return false;
   if (node.hittable) return true;
   if (isScrollableType(info.type) && descendantHittable) return true;
   return shouldIncludeInteractiveProxyNode(
@@ -533,6 +534,10 @@ function shouldIncludeInteractiveProxyNode(
   if (info.isVisual) return false;
   if (info.isStructural && !ancestorCollection) return false;
   return ancestorHittable || descendantHittable || ancestorCollection;
+}
+
+function hasNonPositiveRect(node: AndroidNode): boolean {
+  return Boolean(node.rect && (node.rect.width <= 0 || node.rect.height <= 0));
 }
 
 function shouldIncludeStructuralAndroidNode(

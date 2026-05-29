@@ -335,29 +335,30 @@ public final class SnapshotInstrumentation extends Instrumentation {
     node.getBoundsInScreen(bounds);
     xml.append("<node");
     appendAttribute(xml, "index", Integer.toString(nodeIndex));
-    appendAttribute(xml, "text", node.getText());
-    appendAttribute(xml, "resource-id", node.getViewIdResourceName());
+    appendNonEmptyAttribute(xml, "text", node.getText());
+    appendNonEmptyAttribute(xml, "resource-id", node.getViewIdResourceName());
     appendAttribute(xml, "class", node.getClassName());
-    appendAttribute(xml, "package", node.getPackageName());
-    appendAttribute(xml, "content-desc", node.getContentDescription());
-    appendAttribute(xml, "checkable", Boolean.toString(node.isCheckable()));
-    appendAttribute(xml, "checked", Boolean.toString(node.isChecked()));
-    appendAttribute(xml, "clickable", Boolean.toString(node.isClickable()));
+    appendNonEmptyAttribute(xml, "package", node.getPackageName());
+    appendNonEmptyAttribute(xml, "content-desc", node.getContentDescription());
+    appendTrueAttribute(xml, "clickable", node.isClickable());
     appendAttribute(xml, "enabled", Boolean.toString(node.isEnabled()));
-    appendAttribute(xml, "focusable", Boolean.toString(node.isFocusable()));
-    appendAttribute(xml, "focused", Boolean.toString(node.isFocused()));
-    appendAttribute(xml, "scrollable", Boolean.toString(node.isScrollable()));
-    appendAttribute(
-        xml,
-        "can-scroll-forward",
-        Boolean.toString(hasAccessibilityAction(node, AccessibilityAction.ACTION_SCROLL_FORWARD)));
-    appendAttribute(
-        xml,
-        "can-scroll-backward",
-        Boolean.toString(hasAccessibilityAction(node, AccessibilityAction.ACTION_SCROLL_BACKWARD)));
-    appendAttribute(xml, "long-clickable", Boolean.toString(node.isLongClickable()));
-    appendAttribute(xml, "password", Boolean.toString(node.isPassword()));
-    appendAttribute(xml, "selected", Boolean.toString(node.isSelected()));
+    appendTrueAttribute(xml, "focusable", node.isFocusable());
+    appendTrueAttribute(xml, "focused", node.isFocused());
+    boolean scrollable = node.isScrollable();
+    if (scrollable) {
+      appendAttribute(xml, "scrollable", "true");
+      appendAttribute(
+          xml,
+          "can-scroll-forward",
+          Boolean.toString(
+              hasAccessibilityAction(node, AccessibilityAction.ACTION_SCROLL_FORWARD)));
+      appendAttribute(
+          xml,
+          "can-scroll-backward",
+          Boolean.toString(
+              hasAccessibilityAction(node, AccessibilityAction.ACTION_SCROLL_BACKWARD)));
+    }
+    appendTrueAttribute(xml, "password", node.isPassword());
     appendAttribute(
         xml,
         "bounds",
@@ -395,6 +396,19 @@ public final class SnapshotInstrumentation extends Instrumentation {
       }
     }
     xml.append("</node>");
+  }
+
+  private static void appendNonEmptyAttribute(StringBuilder xml, String name, CharSequence value) {
+    if (value == null || value.length() == 0) {
+      return;
+    }
+    appendAttribute(xml, name, value);
+  }
+
+  private static void appendTrueAttribute(StringBuilder xml, String name, boolean value) {
+    if (value) {
+      appendAttribute(xml, name, "true");
+    }
   }
 
   private static void appendAttribute(StringBuilder xml, String name, CharSequence value) {

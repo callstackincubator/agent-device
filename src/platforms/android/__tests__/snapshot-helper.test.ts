@@ -594,16 +594,13 @@ test('captureAndroidSnapshotWithHelper can read output file when chunks are disa
   const outputPath = '/sdcard/Download/agent-device-snapshot.xml';
   const adb: AndroidAdbExecutor = async (args) => {
     adbCalls.push(args);
-    if (args[0] === 'shell' && args[1] === 'cat') {
-      assert.equal(args[2], outputPath);
+    if (args[0] === 'shell' && args[1] === 'sh') {
+      assert.equal(args.at(-1), outputPath);
       return {
         exitCode: 0,
         stdout: '<hierarchy><node index="0" /></hierarchy>',
         stderr: '',
       };
-    }
-    if (args[0] === 'shell' && args[1] === 'rm') {
-      return { exitCode: 0, stdout: '', stderr: '' };
     }
     return {
       exitCode: 0,
@@ -661,6 +658,14 @@ test('captureAndroidSnapshotWithHelper can read output file when chunks are disa
     'emitChunks',
     'false',
     'com.callstack.agentdevice.snapshothelper/.SnapshotInstrumentation',
+  ]);
+  assert.deepEqual(adbCalls[1], [
+    'shell',
+    'sh',
+    '-c',
+    'cat "$1"; status=$?; rm -f "$1"; exit "$status"',
+    'agent-device-snapshot-helper-output',
+    outputPath,
   ]);
   assert.equal(result.xml, '<hierarchy><node index="0" /></hierarchy>');
   assert.equal(result.metadata.maxNodes, 100);
@@ -730,15 +735,12 @@ test('captureAndroidSnapshotWithHelper reads helper output file when instrumenta
           stderr: '',
         };
       }
-      if (args[0] === 'shell' && args[1] === 'cat') {
+      if (args[0] === 'shell' && args[1] === 'sh') {
         return {
           exitCode: 0,
           stdout: '<hierarchy><node text="file fallback"/></hierarchy>',
           stderr: '',
         };
-      }
-      if (args[0] === 'shell' && args[1] === 'rm') {
-        return { exitCode: 0, stdout: '', stderr: '' };
       }
       throw new Error(`unexpected args: ${args.join(' ')}`);
     },
@@ -749,7 +751,10 @@ test('captureAndroidSnapshotWithHelper reads helper output file when instrumenta
   assert.equal(result.metadata.outputFormat, 'uiautomator-xml');
   assert.deepEqual(calls.at(1), [
     'shell',
-    'cat',
+    'sh',
+    '-c',
+    'cat "$1"; status=$?; rm -f "$1"; exit "$status"',
+    'agent-device-snapshot-helper-output',
     '/sdcard/Android/data/com.callstack.agentdevice.snapshothelper/files/test.xml',
   ]);
 });

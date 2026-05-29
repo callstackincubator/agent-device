@@ -43,6 +43,11 @@ type AndroidSnapshotHelperResolvedCaptureOptions = {
   emitChunks?: boolean;
 };
 
+type AndroidSnapshotHelperReadResult = {
+  output: AndroidSnapshotHelperOutput;
+  cleanupDone: boolean;
+};
+
 export async function captureAndroidSnapshotWithHelper(
   options: AndroidSnapshotHelperCaptureOptions,
 ): Promise<AndroidSnapshotHelperOutput> {
@@ -51,8 +56,10 @@ export async function captureAndroidSnapshotWithHelper(
     allowFailure: true,
     timeoutMs: resolved.commandTimeoutMs,
   });
-  const output = await readAndroidSnapshotHelperOutput(options, resolved, result);
-  if (resolved.outputPath) await removeHelperOutputFile(options.adb, resolved.outputPath);
+  const { output, cleanupDone } = await readAndroidSnapshotHelperOutput(options, resolved, result);
+  if (resolved.outputPath && !cleanupDone) {
+    await removeHelperOutputFile(options.adb, resolved.outputPath);
+  }
   if (result.exitCode !== 0) {
     throw new AppError('COMMAND_FAILED', 'Android snapshot helper failed', {
       stdout: result.stdout,
@@ -129,10 +136,13 @@ async function readAndroidSnapshotHelperOutput(
   options: AndroidSnapshotHelperCaptureOptions,
   resolved: AndroidSnapshotHelperResolvedCaptureOptions,
   result: Awaited<ReturnType<AndroidSnapshotHelperCaptureOptions['adb']>>,
-): Promise<AndroidSnapshotHelperOutput> {
+): Promise<AndroidSnapshotHelperReadResult> {
   try {
     // The helper can report structured ok=false details even when am exits non-zero.
-    return parseAndroidSnapshotHelperOutput(`${result.stdout}\n${result.stderr}`);
+    return {
+      output: parseAndroidSnapshotHelperOutput(`${result.stdout}\n${result.stderr}`),
+      cleanupDone: false,
+    };
   } catch (error) {
     return await readFallbackHelperOutputOrThrow(options, resolved, result, error);
   }
@@ -143,10 +153,10 @@ async function readFallbackHelperOutputOrThrow(
   resolved: AndroidSnapshotHelperResolvedCaptureOptions,
   result: Awaited<ReturnType<AndroidSnapshotHelperCaptureOptions['adb']>>,
   error: unknown,
-): Promise<AndroidSnapshotHelperOutput> {
+): Promise<AndroidSnapshotHelperReadResult> {
   if (error instanceof AppError && result.exitCode !== 0 && error.details?.helper) throw error;
   const fileOutput = await readFallbackHelperOutputFile(options, resolved, result);
-  if (fileOutput) return fileOutput;
+  if (fileOutput) return { output: fileOutput, cleanupDone: true };
   throw new AppError(
     'COMMAND_FAILED',
     result.exitCode === 0
@@ -195,14 +205,12 @@ async function readHelperOutputFile(
 ): Promise<AndroidSnapshotHelperOutput | undefined> {
   let result: Awaited<ReturnType<AndroidSnapshotHelperCaptureOptions['adb']>>;
   try {
-    result = await adb(['shell', 'cat', outputPath], {
+    result = await adb(buildReadAndRemoveHelperOutputArgs(outputPath), {
       allowFailure: true,
       timeoutMs: 5_000,
     });
   } catch {
     return undefined;
-  } finally {
-    await removeHelperOutputFile(adb, outputPath);
   }
   if (result.exitCode !== 0) return undefined;
   const xml = result.stdout.trim();
@@ -211,6 +219,17 @@ async function readHelperOutputFile(
     xml,
     metadata,
   };
+}
+
+function buildReadAndRemoveHelperOutputArgs(outputPath: string): string[] {
+  return [
+    'shell',
+    'sh',
+    '-c',
+    'cat "$1"; status=$?; rm -f "$1"; exit "$status"',
+    'agent-device-snapshot-helper-output',
+    outputPath,
+  ];
 }
 
 function readHelperMetadataFromInstrumentationOutput(
