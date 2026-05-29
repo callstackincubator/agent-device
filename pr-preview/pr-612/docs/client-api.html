@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-612/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/pr-preview/pr-612/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/pr-preview/pr-612/static/js/649.63df3d8087.js"></script>
-<script defer src="/agent-device/pr-preview/pr-612/static/js/index.d3f162e0f4.js"></script>
+<script defer src="/agent-device/pr-preview/pr-612/static/js/index.75b861c94c.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -166,7 +166,10 @@ stdout/stderr. The option mirrors <code>open --launch-console</code> and is not 
 <h2 class="rp-toc-include" id="android-snapshot-helper-providers"><a href="#android-snapshot-helper-providers" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Android snapshot helper providers</h2>
 <p>Remote Android providers should import <code>agent-device/android-snapshot-helper</code> and inject their own
 ADB-shaped executor. The executor receives arguments after <code>adb</code>, so local callers may wrap
-<code>adb -s &lt;serial&gt;</code>, while cloud providers can route the same operations through an ADB tunnel.</p>
+<code>adb -s &lt;serial&gt;</code>, while cloud providers can route the same operations through an ADB tunnel.
+Providers that can keep a long-lived instrumentation process should pass an <code>AndroidAdbProvider</code>
+with <code>spawn</code>; Agent Device will use the persistent helper-session transport and fall back to
+one-shot instrumentation if startup, socket, or protocol validation fails.</p>
 <p>Remote Android providers that expose stronger text entry should attach a provider-native
 <code>AndroidTextInjector</code> to their <code>AndroidAdbProvider</code>. Agent Device prefers that injector for
 <code>fill</code>/<code>type</code>; without one, local Android text entry uses chunk-safe ASCII shell input and
