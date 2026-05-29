@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-612/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/pr-preview/pr-612/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/pr-preview/pr-612/static/js/649.63df3d8087.js"></script>
-<script defer src="/agent-device/pr-preview/pr-612/static/js/index.4189b15f80.js"></script>
+<script defer src="/agent-device/pr-preview/pr-612/static/js/index.d3f162e0f4.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -70,7 +70,6 @@ It does not automatically switch to AX.</p>
 <li>Those summaries intentionally show only a few labels for token efficiency. Use <code>snapshot --raw</code> when you need the full off-screen tree instead of the compact summary.</li>
 <li>Add <code>-s &quot;&lt;label&gt;&quot;</code> (or <code>-s @ref</code>) to keep results screen-local.</li>
 <li>Add <code>-d &lt;depth&gt;</code> when you only need upper hierarchy layers.</li>
-<li>If <code>snapshot -i</code> returns 0 nodes on Android but the screen is visibly populated, trust <code>screenshot</code> as visual truth, wait briefly, then take one fresh <code>snapshot -i</code>.</li>
 <li>If <code>snapshot -i -d &lt;n&gt;</code> says the interactive output is empty at that depth, retry once without <code>-d</code> before taking more shallow snapshots.</li>
 <li>Re-snapshot after any UI mutation before reusing refs.</li>
 <li>On Android after navigation or submit, snapshot capture retries suspicious trees for a short post-action deadline and <code>@ref</code> interactions refresh while that freshness window is active. If <code>snapshot -i</code> still disagrees with the visible screen, trust <code>screenshot</code>, wait briefly, then take one fresh snapshot instead of looping stale snapshots.</li>
