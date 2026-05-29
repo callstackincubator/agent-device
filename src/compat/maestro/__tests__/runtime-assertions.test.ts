@@ -70,21 +70,58 @@ test('invokeMaestroAssertNotVisible passes after a slow hidden sample exhausts t
     invoke: async (req): Promise<DaemonResponse> => {
       calls.push(req);
       return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: 'Selector did not match: id="tab-4"',
-          details: { command: 'is', reason: 'selector_not_found' },
+        ok: true,
+        data: {
+          createdAt: 1,
+          nodes: [],
         },
       };
     },
   });
 
   assert.equal(response.ok, true);
-  assert.deepEqual(calls.map((call) => call.positionals), [['visible', 'id="tab-4"']]);
+  assert.deepEqual(calls.map((call) => [call.command, call.positionals]), [
+    ['snapshot', []],
+  ]);
   if (response.ok) {
     assert.ok(response.data);
     assert.equal(response.data.stableSamples, 1);
     assert.equal(response.data.waitedMs, 3500);
+  }
+});
+
+test('invokeMaestroAssertNotVisible ignores matched nodes without visible rects', async () => {
+  vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(3500);
+
+  const response = await invokeMaestroAssertNotVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'android' },
+    },
+    positionals: ['label="📌" || text="📌" || id="📌"'],
+    invoke: async (): Promise<DaemonResponse> => ({
+      ok: true,
+      data: {
+        createdAt: 1,
+        nodes: [
+          {
+            index: 1,
+            ref: 'e1',
+            type: 'android.widget.TextView',
+            label: '📌',
+            value: '📌',
+            enabled: true,
+            depth: 21,
+          },
+        ],
+      },
+    }),
+  });
+
+  assert.equal(response.ok, true);
+  if (response.ok) {
+    assert.ok(response.data);
+    assert.equal(response.data.stableSamples, 1);
   }
 });

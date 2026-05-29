@@ -428,15 +428,35 @@ function selectLocalizedMaestroVisibleTextMatch(
   query: string,
 ): MaestroResolvedSnapshotMatch | null {
   const exactMatches = candidates.filter(
-    (candidate) => maestroVisibleTextMatchRank(candidate.node, query) <= 1,
+    (candidate) => maestroVisibleTextMatchRank(candidate.node, query) === 0,
   );
-  if (exactMatches.length < 2) return null;
+  if (exactMatches.length >= 2) {
+    const localizedExact = selectLocalizedMaestroVisibleTextMatchFromCandidates(
+      nodes,
+      exactMatches,
+      query,
+    );
+    if (localizedExact) return localizedExact;
+  }
 
+  const normalizedMatches = candidates.filter(
+    (candidate) => maestroVisibleTextMatchRank(candidate.node, query) === 1,
+  );
+  if (exactMatches.length > 0 || normalizedMatches.length < 2) return null;
+
+  return selectLocalizedMaestroVisibleTextMatchFromCandidates(nodes, normalizedMatches, query);
+}
+
+function selectLocalizedMaestroVisibleTextMatchFromCandidates(
+  nodes: SnapshotState['nodes'],
+  candidates: MaestroResolvedSnapshotMatch[],
+  query: string,
+): MaestroResolvedSnapshotMatch | null {
   const nodeByIndex = buildSnapshotNodeByIndex(nodes);
-  const localized = exactMatches.filter(
+  const localized = candidates.filter(
     (candidate) =>
       isLocalizedMaestroVisibleTextCandidate(candidate) &&
-      exactMatches.some((container) =>
+      candidates.some((container) =>
         isMaestroVisibleTextContainerForCandidate(nodes, container, candidate, nodeByIndex),
       ),
   );

@@ -315,6 +315,60 @@ test('resolveMaestroNodeFromSnapshot prefers concrete Android tab rect over hidd
   });
 });
 
+test('resolveMaestroNodeFromSnapshot prefers exact Android tab label over normalized header icon text', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'android.widget.FrameLayout',
+        label: 'Search',
+        rect: { x: 810, y: 2054, width: 270, height: 132 },
+        enabled: true,
+        hittable: true,
+        depth: 16,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'android.widget.Button',
+        label: 'search',
+        rect: { x: 673, y: 165, width: 132, height: 132 },
+        enabled: true,
+        hittable: true,
+        depth: 22,
+      },
+      {
+        index: 3,
+        ref: 'e3',
+        type: 'android.widget.TextView',
+        label: 'search',
+        value: 'search',
+        rect: { x: 706, y: 198, width: 66, height: 66 },
+        enabled: true,
+        depth: 23,
+        parentIndex: 2,
+      },
+    ],
+  };
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Search" || text="Search" || id="Search"',
+    {},
+    'android',
+    { referenceWidth: 1080, referenceHeight: 2340 },
+    { promoteTapTarget: true },
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 1 }),
+    rect: { x: 810, y: 2054, width: 270, height: 132 },
+  });
+});
+
 test('resolveMaestroNodeFromSnapshot infers missing selected tab slot from tab-strip children', () => {
   const snapshot: SnapshotState = {
     createdAt: Date.now(),
