@@ -121,6 +121,9 @@ stdout/stderr. The option mirrors `open --launch-console` and is not valid for U
 Remote Android providers should import `agent-device/android-snapshot-helper` and inject their own
 ADB-shaped executor. The executor receives arguments after `adb`, so local callers may wrap
 `adb -s <serial>`, while cloud providers can route the same operations through an ADB tunnel.
+Providers that can keep a long-lived instrumentation process should pass an `AndroidAdbProvider`
+with `spawn`; Agent Device will use the persistent helper-session transport and fall back to
+one-shot instrumentation if startup, socket, or protocol validation fails.
 
 Remote Android providers that expose stronger text entry should attach a provider-native
 `AndroidTextInjector` to their `AndroidAdbProvider`. Agent Device prefers that injector for
