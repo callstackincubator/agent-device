@@ -25,6 +25,28 @@ const ANDROID_TEXT_VARIATION_VISIBLE_PASSWORD = 0x00000090;
 const ANDROID_KEYBOARD_DISMISS_MAX_ATTEMPTS = 2;
 const ANDROID_KEYBOARD_DISMISS_RETRY_DELAY_MS = 120;
 const ANDROID_KEYCODE_ESCAPE = '111';
+const ANDROID_KEYBOARD_VISIBILITY_KEYS = [
+  'mInputShown',
+  'mIsInputViewShown',
+  'isInputViewShown',
+  'mDecorViewVisible',
+  'mWindowVisible',
+  'mInShowWindow',
+];
+const ANDROID_KEYBOARD_CLASS_BY_INPUT_CLASS = new Map<number, AndroidKeyboardType>([
+  [ANDROID_INPUT_TYPE_CLASS_NUMBER, 'number'],
+  [ANDROID_INPUT_TYPE_CLASS_PHONE, 'phone'],
+  [ANDROID_INPUT_TYPE_CLASS_DATETIME, 'datetime'],
+]);
+const ANDROID_EMAIL_TEXT_VARIATIONS = new Set([
+  ANDROID_TEXT_VARIATION_EMAIL_ADDRESS,
+  ANDROID_TEXT_VARIATION_WEB_EMAIL_ADDRESS,
+]);
+const ANDROID_PASSWORD_TEXT_VARIATIONS = new Set([
+  ANDROID_TEXT_VARIATION_PASSWORD,
+  ANDROID_TEXT_VARIATION_WEB_PASSWORD,
+  ANDROID_TEXT_VARIATION_VISIBLE_PASSWORD,
+]);
 
 type AndroidKeyboardType =
   | 'text'
@@ -122,22 +144,8 @@ export async function dismissAndroidKeyboardWithAdb(
 }
 
 function parseAndroidKeyboardState(stdout: string): AndroidKeyboardState {
-  const visibility = parseAndroidKeyboardVisibility(stdout);
-  let visible = visibility ?? false;
-  if (visibility === null) {
-    const imeWindowVisibility = stdout.match(/\bmImeWindowVis=0x([0-9a-fA-F]+)\b/);
-    if (imeWindowVisibility?.[1]) {
-      const flags = Number.parseInt(imeWindowVisibility[1], 16);
-      if (!Number.isNaN(flags)) {
-        visible = (flags & 0x1) !== 0;
-      }
-    }
-  }
-
-  const inputTypeMatches = Array.from(stdout.matchAll(/\binputType=0x([0-9a-fA-F]+)\b/gi));
-  const lastInputType =
-    inputTypeMatches.length > 0 ? inputTypeMatches[inputTypeMatches.length - 1]?.[1] : undefined;
-  const inputType = lastInputType ? `0x${lastInputType.toLowerCase()}` : undefined;
+  const visible = parseAndroidKeyboardVisibility(stdout) ?? parseLegacyImeWindowVisibility(stdout);
+  const inputType = parseLastAndroidInputType(stdout);
   const focusedPackage = parseLastDumpsysValue(stdout, /\bpackageName=([A-Za-z0-9_.]+)\b/g);
   const focusedResourceId = parseLastDumpsysValue(
     stdout,
@@ -149,23 +157,10 @@ function parseAndroidKeyboardState(stdout: string): AndroidKeyboardState {
     focusedResourceId,
     inputMethodPackage,
   );
-  if (
-    !inputMethodPackage &&
-    (isFallbackAndroidInputMethodPackage(focusedPackage) ||
-      isFallbackAndroidInputMethodResource(focusedResourceId))
-  ) {
-    emitDiagnostic({
-      level: 'warn',
-      phase: 'android_input_ownership_fallback',
-      data: {
-        focusedPackage,
-        focusedResourceId,
-      },
-    });
-  }
+  emitAndroidInputOwnershipFallbackDiagnostic(focusedPackage, focusedResourceId, inputMethodPackage);
 
   return {
-    visible,
+    visible: visible ?? false,
     inputType,
     type: inputType ? classifyAndroidKeyboardType(inputType) : undefined,
     inputMethodPackage,
@@ -173,6 +168,22 @@ function parseAndroidKeyboardState(stdout: string): AndroidKeyboardState {
     focusedResourceId,
     inputOwner,
   };
+}
+
+function parseLegacyImeWindowVisibility(stdout: string): boolean | null {
+  const imeWindowVisibility = stdout.match(/\bmImeWindowVis=0x([0-9a-fA-F]+)\b/);
+  const rawFlags = imeWindowVisibility?.[1];
+  if (!rawFlags) return null;
+
+  const flags = Number.parseInt(rawFlags, 16);
+  if (Number.isNaN(flags)) return null;
+
+  return (flags & 0x1) !== 0;
+}
+
+function parseLastAndroidInputType(stdout: string): string | undefined {
+  const value = parseLastDumpsysValue(stdout, /\binputType=0x([0-9a-fA-F]+)\b/gi);
+  return value ? `0x${value.toLowerCase()}` : undefined;
 }
 
 function parseLastDumpsysValue(stdout: string, pattern: RegExp): string | undefined {
@@ -183,45 +194,90 @@ function parseLastDumpsysValue(stdout: string, pattern: RegExp): string | undefi
   return value;
 }
 
+function emitAndroidInputOwnershipFallbackDiagnostic(
+  focusedPackage: string | undefined,
+  focusedResourceId: string | undefined,
+  inputMethodPackage: string | undefined,
+): void {
+  if (inputMethodPackage) return;
+  if (
+    !isFallbackAndroidInputMethodPackage(focusedPackage) &&
+    !isFallbackAndroidInputMethodResource(focusedResourceId)
+  ) {
+    return;
+  }
+
+  emitDiagnostic({
+    level: 'warn',
+    phase: 'android_input_ownership_fallback',
+    data: {
+      focusedPackage,
+      focusedResourceId,
+    },
+  });
+}
+
 function parseAndroidKeyboardVisibility(stdout: string): boolean | null {
+  const latestByKey = parseLatestBooleanDumpsysValues(stdout, ANDROID_KEYBOARD_VISIBILITY_KEYS);
+  return resolveAndroidKeyboardVisibility(latestByKey);
+}
+
+function parseLatestBooleanDumpsysValues(stdout: string, keys: string[]): Map<string, boolean> {
   const latestByKey = new Map<string, boolean>();
-  const pattern = /\b(mInputShown|mIsInputViewShown|isInputViewShown)=([a-zA-Z]+)\b/g;
+  const pattern = new RegExp(`\\b(${keys.join('|')})=([a-zA-Z]+)\\b`, 'g');
   for (const match of stdout.matchAll(pattern)) {
     const key = match[1];
     const value = match[2]?.toLowerCase();
     if (!key || (value !== 'true' && value !== 'false')) continue;
     latestByKey.set(key, value === 'true');
   }
+  return latestByKey;
+}
+
+function resolveAndroidKeyboardVisibility(latestByKey: Map<string, boolean>): boolean | null {
   if (latestByKey.size === 0) return null;
-  for (const visible of latestByKey.values()) {
-    if (visible) return true;
+
+  const windowVisible = firstDefinedBoolean(latestByKey, [
+    'mWindowVisible',
+    'mDecorViewVisible',
+    'mInShowWindow',
+  ]);
+  if (windowVisible !== undefined) return windowVisible;
+
+  const inputShown = latestByKey.get('mInputShown');
+  if (inputShown !== undefined) return inputShown;
+
+  const inputViewShown = firstDefinedBoolean(latestByKey, [
+    'mIsInputViewShown',
+    'isInputViewShown',
+  ]);
+  return inputViewShown ?? null;
+}
+
+function firstDefinedBoolean(
+  values: Map<string, boolean>,
+  keys: readonly string[],
+): boolean | undefined {
+  for (const key of keys) {
+    const value = values.get(key);
+    if (value !== undefined) return value;
   }
-  return false;
+  return undefined;
 }
 
 function classifyAndroidKeyboardType(inputType: string): AndroidKeyboardType {
   const parsed = Number.parseInt(inputType.replace(/^0x/i, ''), 16);
   if (Number.isNaN(parsed)) return 'unknown';
+
   const inputClass = parsed & ANDROID_INPUT_TYPE_CLASS_MASK;
-  if (inputClass === ANDROID_INPUT_TYPE_CLASS_NUMBER) return 'number';
-  if (inputClass === ANDROID_INPUT_TYPE_CLASS_PHONE) return 'phone';
-  if (inputClass === ANDROID_INPUT_TYPE_CLASS_DATETIME) return 'datetime';
+  const knownInputClass = ANDROID_KEYBOARD_CLASS_BY_INPUT_CLASS.get(inputClass);
+  if (knownInputClass) return knownInputClass;
   if (inputClass !== ANDROID_INPUT_TYPE_CLASS_TEXT) return 'unknown';
 
   const variation = parsed & ANDROID_INPUT_TYPE_VARIATION_MASK;
-  if (
-    variation === ANDROID_TEXT_VARIATION_EMAIL_ADDRESS ||
-    variation === ANDROID_TEXT_VARIATION_WEB_EMAIL_ADDRESS
-  ) {
-    return 'email';
-  }
-  if (
-    variation === ANDROID_TEXT_VARIATION_PASSWORD ||
-    variation === ANDROID_TEXT_VARIATION_WEB_PASSWORD ||
-    variation === ANDROID_TEXT_VARIATION_VISIBLE_PASSWORD
-  ) {
-    return 'password';
-  }
+  if (ANDROID_EMAIL_TEXT_VARIATIONS.has(variation)) return 'email';
+  if (ANDROID_PASSWORD_TEXT_VARIATIONS.has(variation)) return 'password';
+
   return 'text';
 }
 

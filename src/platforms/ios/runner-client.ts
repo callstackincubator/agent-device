@@ -26,7 +26,6 @@ import {
   resolveAppleRunnerProvider,
   type AppleRunnerCommandOptions,
 } from './runner-provider.ts';
-import { ensureXctestrun } from './runner-xctestrun.ts';
 export {
   isRetryableRunnerError,
   resolveRunnerEarlyExitHint,
@@ -65,37 +64,6 @@ export async function runIosRunnerCommand(
     );
   }
   return provider.runCommand(device, command, options);
-}
-
-export function prewarmIosRunnerXctestrun(
-  device: DeviceInfo,
-  options: RunnerSessionOptions = {},
-): Promise<void> | undefined {
-  if (device.platform !== 'ios') {
-    return undefined;
-  }
-  if (hasScopedAppleRunnerProvider(device, { requestId: options.requestId })) {
-    emitDiagnostic({
-      level: 'debug',
-      phase: 'ios_runner_xctestrun_prewarm_skipped_scoped_provider',
-      data: { deviceId: device.id },
-    });
-    return undefined;
-  }
-  const prewarm = ensureXctestrun(device, options)
-    .then(() => {})
-    .catch((error: unknown) => {
-      emitDiagnostic({
-        level: 'warn',
-        phase: 'ios_runner_xctestrun_prewarm_failed',
-        data: {
-          deviceId: device.id,
-          error: error instanceof Error ? error.message : String(error),
-        },
-      });
-    });
-  void prewarm;
-  return prewarm;
 }
 
 export function prewarmIosRunnerSession(

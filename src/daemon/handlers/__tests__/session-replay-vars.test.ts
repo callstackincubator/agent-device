@@ -888,11 +888,10 @@ test('runReplayScriptFile treats absent Maestro assertNotVisible targets as pass
     invoke: async (req) => {
       calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
       return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: 'Selector did not match',
-          details: { command: 'is', reason: 'selector_not_found' },
+        ok: true,
+        data: {
+          createdAt: 1,
+          nodes: [],
         },
       };
     },
@@ -902,14 +901,8 @@ test('runReplayScriptFile treats absent Maestro assertNotVisible targets as pass
   assert.deepEqual(
     calls.map((call) => [call.command, call.positionals]),
     [
-      [
-        'is',
-        ['visible', 'label="Archived banner" || text="Archived banner" || id="Archived banner"'],
-      ],
-      [
-        'is',
-        ['visible', 'label="Archived banner" || text="Archived banner" || id="Archived banner"'],
-      ],
+      ['snapshot', []],
+      ['snapshot', []],
     ],
   );
   assert.equal(calls[0]?.flags?.noRecord, true);
@@ -940,21 +933,34 @@ test('runReplayScriptFile propagates Maestro assertNotVisible infrastructure fai
 
 test('runReplayScriptFile waits briefly for Maestro assertNotVisible to stabilize', async () => {
   const calls: CapturedInvocation[] = [];
-  let visibleChecks = 0;
+  let snapshots = 0;
   const { response } = await runReplayFixture({
     label: 'maestro-assert-not-visible-stable',
     script: ['appId: demo.app', '---', '- assertNotVisible: Archived banner', ''].join('\n'),
     flags: { replayBackend: 'maestro' },
     invoke: async (req) => {
       calls.push({ command: req.command, positionals: req.positionals, flags: req.flags });
-      visibleChecks += 1;
-      if (visibleChecks === 1) return { ok: true, data: { pass: true } };
+      snapshots += 1;
+      if (snapshots === 1) {
+        return {
+          ok: true,
+          data: {
+            createdAt: 1,
+            nodes: [
+              {
+                index: 1,
+                label: 'Archived banner',
+                rect: { x: 10, y: 20, width: 180, height: 44 },
+              },
+            ],
+          },
+        };
+      }
       return {
-        ok: false,
-        error: {
-          code: 'COMMAND_FAILED',
-          message: 'is visible failed',
-          details: { command: 'is', reason: 'predicate_failed' },
+        ok: true,
+        data: {
+          createdAt: snapshots,
+          nodes: [],
         },
       };
     },
@@ -1473,7 +1479,7 @@ test('runReplayScriptFile uses Android content lane for Maestro horizontal scree
     calls.map((call) => [call.command, call.positionals]),
     [
       ['snapshot', []],
-      ['swipe', ['320', '520', '80', '520', '300']],
+      ['swipe', ['280', '520', '120', '520', '300']],
       ['swipe', ['360', '520', '40', '520', '300']],
     ],
   );

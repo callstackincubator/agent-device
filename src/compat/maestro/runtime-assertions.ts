@@ -29,61 +29,111 @@ export async function invokeMaestroAssertVisible(params: {
   invoke: MaestroRuntimeInvoke;
   scope?: ReplayVarScope;
 }): Promise<DaemonResponse> {
-  const [selector, timeoutValue = '5000'] = params.positionals;
-  if (!selector) {
-    return errorResponse('INVALID_ARGS', 'assertVisible requires a selector.');
-  }
-  const timeoutMs = Number(timeoutValue);
-  if (!Number.isFinite(timeoutMs) || timeoutMs < 0) {
-    return errorResponse('INVALID_ARGS', 'assertVisible timeout must be a non-negative number.');
-  }
+  const args = readAssertVisibleArgs(params.positionals);
+  if (!args.ok) return args.response;
 
   const startedAt = Date.now();
-  const deadlineMs = timeoutMs + MAESTRO_ASSERTION_POLICY.assertVisibleGraceMs;
+  const deadlineMs = args.timeoutMs + MAESTRO_ASSERTION_POLICY.assertVisibleGraceMs;
   let lastResponse: DaemonResponse | undefined;
-  do {
-    const response = await captureMaestroRawSnapshot(params);
-    lastResponse = response;
-    if (response.ok) {
-      const snapshot = readSnapshotState(response.data);
-      if (!snapshot) {
-        return errorResponse('COMMAND_FAILED', 'Unable to read snapshot data for assertVisible.');
-      }
-      const target = resolveVisibleMaestroNodeFromSnapshot(
-        snapshot,
-        selector,
-        readMaestroSelectorPlatform(params.baseReq.flags),
-        getSnapshotReferenceFrame(snapshot),
-      );
-      if (target.ok) {
-        return {
-          ok: true,
-          data: {
-            selector,
-            matches: target.matches,
-            nodeIndex: target.node.index,
-            nodeType: target.node.type,
-            nodeLabel: target.node.label,
-            nodeIdentifier: target.node.identifier,
-            rect: target.rect,
-            waitedMs: Date.now() - startedAt,
-          },
-        };
-      }
-      lastResponse = errorResponse('COMMAND_FAILED', target.message, { selector });
-    }
+  let capturedAfterDeadline = false;
+  while (true) {
+    const captureStartedAt = Date.now();
+    const attempt = await readAssertVisibleAttempt(params, args.selector, startedAt);
+    if (attempt.done) return attempt.response;
+    lastResponse = attempt.response;
 
-    if (Date.now() - startedAt >= deadlineMs) break;
+    const elapsedMs = Date.now() - startedAt;
+    if (elapsedMs >= deadlineMs) {
+      if (shouldCaptureOnceAfterDeadline(capturedAfterDeadline, captureStartedAt, startedAt, deadlineMs)) {
+        capturedAfterDeadline = true;
+        continue;
+      }
+      break;
+    }
     await sleep(MAESTRO_ASSERTION_POLICY.assertVisiblePollMs);
-  } while (Date.now() - startedAt <= deadlineMs);
+  }
 
   return (
     lastResponse ??
-    errorResponse('COMMAND_FAILED', `Expected visible but did not match: ${selector}`, {
-      selector,
-      timeoutMs,
+    errorResponse('COMMAND_FAILED', `Expected visible but did not match: ${args.selector}`, {
+      selector: args.selector,
+      timeoutMs: args.timeoutMs,
     })
   );
+}
+
+function readAssertVisibleArgs(
+  positionals: string[],
+):
+  | { ok: true; selector: string; timeoutMs: number }
+  | { ok: false; response: DaemonResponse } {
+  const [selector, timeoutValue = '5000'] = positionals;
+  if (!selector) {
+    return { ok: false, response: errorResponse('INVALID_ARGS', 'assertVisible requires a selector.') };
+  }
+  const timeoutMs = Number(timeoutValue);
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 0) {
+    return {
+      ok: false,
+      response: errorResponse('INVALID_ARGS', 'assertVisible timeout must be a non-negative number.'),
+    };
+  }
+  return { ok: true, selector, timeoutMs };
+}
+
+async function readAssertVisibleAttempt(
+  params: {
+    baseReq: ReplayBaseRequest;
+    positionals: string[];
+    invoke: MaestroRuntimeInvoke;
+    scope?: ReplayVarScope;
+  },
+  selector: string,
+  startedAt: number,
+): Promise<{ done: true; response: DaemonResponse } | { done: false; response: DaemonResponse }> {
+  const response = await captureMaestroRawSnapshot(params);
+  if (!response.ok) return { done: false, response };
+  const snapshot = readSnapshotState(response.data);
+  if (!snapshot) {
+    return {
+      done: true,
+      response: errorResponse('COMMAND_FAILED', 'Unable to read snapshot data for assertVisible.'),
+    };
+  }
+  const target = resolveVisibleMaestroNodeFromSnapshot(
+    snapshot,
+    selector,
+    readMaestroSelectorPlatform(params.baseReq.flags),
+    getSnapshotReferenceFrame(snapshot),
+  );
+  if (!target.ok) {
+    return { done: false, response: errorResponse('COMMAND_FAILED', target.message, { selector }) };
+  }
+  return {
+    done: true,
+    response: {
+      ok: true,
+      data: {
+        selector,
+        matches: target.matches,
+        nodeIndex: target.node.index,
+        nodeType: target.node.type,
+        nodeLabel: target.node.label,
+        nodeIdentifier: target.node.identifier,
+        rect: target.rect,
+        waitedMs: Date.now() - startedAt,
+      },
+    },
+  };
+}
+
+function shouldCaptureOnceAfterDeadline(
+  capturedAfterDeadline: boolean,
+  captureStartedAt: number,
+  startedAt: number,
+  deadlineMs: number,
+): boolean {
+  return !capturedAfterDeadline && captureStartedAt - startedAt < deadlineMs;
 }
 
 export async function invokeMaestroAssertNotVisible(params: {
@@ -99,30 +149,30 @@ export async function invokeMaestroAssertNotVisible(params: {
   let hiddenSamples = 0;
   let lastVisibleResponse: DaemonResponse | undefined;
   while (Date.now() - startedAt <= MAESTRO_ASSERTION_POLICY.assertNotVisibleTimeoutMs) {
-    const response = await params.invoke({
-      ...params.baseReq,
-      command: 'is',
-      positionals: ['visible', selector],
-      flags: { ...params.baseReq.flags, noRecord: true },
-    });
-    if (response.ok) {
+    const attempt = await readAssertNotVisibleAttempt(params, selector);
+    if (attempt.visible) {
       hiddenSamples = 0;
-      lastVisibleResponse = response;
-    } else if (isMaestroVisibilityMiss(response)) {
+      lastVisibleResponse = attempt.response;
+    } else if (attempt.hidden) {
       hiddenSamples += 1;
-      if (hiddenSamples >= 2) {
+      const waitedMs = Date.now() - startedAt;
+      if (
+        hiddenSamples >= 2 ||
+        waitedMs >= MAESTRO_ASSERTION_POLICY.assertNotVisibleTimeoutMs
+      ) {
         return {
           ok: true,
           data: {
             pass: true,
             selector,
             stableSamples: hiddenSamples,
+            waitedMs,
             timeoutMs: MAESTRO_ASSERTION_POLICY.assertNotVisibleTimeoutMs,
           },
         };
       }
     } else {
-      return response;
+      return attempt.response;
     }
     await sleep(MAESTRO_ASSERTION_POLICY.assertNotVisiblePollMs);
   }
@@ -131,6 +181,59 @@ export async function invokeMaestroAssertNotVisible(params: {
     timeoutMs: MAESTRO_ASSERTION_POLICY.assertNotVisibleTimeoutMs,
     lastResponse: lastVisibleResponse,
   });
+}
+
+async function readAssertNotVisibleAttempt(
+  params: {
+    baseReq: ReplayBaseRequest;
+    positionals: string[];
+    invoke: MaestroRuntimeInvoke;
+  },
+  selector: string,
+): Promise<
+  | { visible: true; hidden: false; response: DaemonResponse }
+  | { visible: false; hidden: true; response: DaemonResponse }
+  | { visible: false; hidden: false; response: DaemonResponse }
+> {
+  const response = await captureMaestroRawSnapshot(params);
+  if (!response.ok) return { visible: false, hidden: false, response };
+  const snapshot = readSnapshotState(response.data);
+  if (!snapshot) {
+    return {
+      visible: false,
+      hidden: false,
+      response: errorResponse('COMMAND_FAILED', 'Unable to read snapshot data for assertNotVisible.'),
+    };
+  }
+  const target = resolveVisibleMaestroNodeFromSnapshot(
+    snapshot,
+    selector,
+    readMaestroSelectorPlatform(params.baseReq.flags),
+    getSnapshotReferenceFrame(snapshot),
+  );
+  if (!target.ok) {
+    return {
+      visible: false,
+      hidden: true,
+      response: errorResponse('COMMAND_FAILED', target.message, { selector }),
+    };
+  }
+  return {
+    visible: true,
+    hidden: false,
+    response: {
+      ok: true,
+      data: {
+        selector,
+        matches: target.matches,
+        nodeIndex: target.node.index,
+        nodeType: target.node.type,
+        nodeLabel: target.node.label,
+        nodeIdentifier: target.node.identifier,
+        rect: target.rect,
+      },
+    },
+  };
 }
 
 export async function invokeMaestroWaitForAnimationToEnd(params: {
@@ -158,14 +261,6 @@ export async function invokeMaestroWaitForAnimationToEnd(params: {
   return lastResponse?.ok === false
     ? lastResponse
     : { ok: true, data: { stable: false, timeoutMs } };
-}
-
-function isMaestroVisibilityMiss(response: Extract<DaemonResponse, { ok: false }>): boolean {
-  const details = response.error.details;
-  return (
-    details?.command === 'is' &&
-    (details.reason === 'selector_not_found' || details.reason === 'predicate_failed')
-  );
 }
 
 function readAnimationPollResult(

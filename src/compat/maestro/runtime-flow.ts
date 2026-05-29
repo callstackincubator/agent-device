@@ -1,8 +1,12 @@
 import { type CommandFlags } from '../../core/dispatch.ts';
-import type { DaemonRequest, DaemonResponse, SessionAction } from '../../daemon/types.ts';
+import type { DaemonRequest, DaemonResponse } from '../../daemon/types.ts';
 import { getSnapshotReferenceFrame } from '../../daemon/touch-reference-frame.ts';
 import {
-  batchStepToSessionAction,
+  batchStepsToSessionActions,
+  invokeReplayActionBlock,
+  invokeReplayRetryBlock,
+} from '../../replay/control-flow-runtime.ts';
+import {
   captureMaestroRawSnapshot,
   errorResponse,
   readSnapshotState,
@@ -53,16 +57,13 @@ export async function invokeMaestroRetry(params: {
     return errorResponse('INVALID_ARGS', 'retry.maxRetries must be a non-negative integer.');
   }
 
-  const steps = (params.batchSteps ?? []).map(batchStepToSessionAction);
-  let lastResponse: DaemonResponse | undefined;
-  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-    const response = await invokeMaestroRetryAttempt(params, steps, attempt);
-    if (response.ok) {
-      return { ok: true, data: { attempts: attempt + 1, retried: attempt > 0 } };
-    }
-    lastResponse = response;
-  }
-  return lastResponse ?? errorResponse('COMMAND_FAILED', 'retry commands failed.');
+  return await invokeReplayRetryBlock({
+    actions: batchStepsToSessionActions(params.batchSteps),
+    maxRetries,
+    line: params.line,
+    step: params.step,
+    invokeReplayAction: params.invokeReplayAction,
+  });
 }
 
 function readMaestroRunFlowWhenCondition(positionals: string[]): MaestroRunFlowWhenCondition {
@@ -118,40 +119,16 @@ async function invokeMaestroRunFlowWhenSteps(
   },
   condition: Extract<MaestroRunFlowWhenCondition, { ok: true }>,
 ): Promise<DaemonResponse> {
-  const steps = (params.batchSteps ?? []).map(batchStepToSessionAction);
-  for (const [index, action] of steps.entries()) {
-    // Preserve stable parent-step ordering for nested runtime commands while
-    // keeping the substep distinguishable in traces.
-    const response = await params.invokeReplayAction({
-      action,
-      line: params.line,
-      step: params.step + index / 1000,
-    });
-    if (!response.ok) return response;
-  }
+  const response = await invokeReplayActionBlock({
+    actions: batchStepsToSessionActions(params.batchSteps),
+    line: params.line,
+    step: params.step,
+    invokeReplayAction: params.invokeReplayAction,
+  });
+  if (!response.ok) return response;
 
   return {
     ok: true,
-    data: { ran: steps.length, condition: condition.mode, selector: condition.selector },
+    data: { ran: response.data?.ran, condition: condition.mode, selector: condition.selector },
   };
-}
-
-async function invokeMaestroRetryAttempt(
-  params: {
-    line: number;
-    step: number;
-    invokeReplayAction: MaestroReplayInvoker;
-  },
-  steps: SessionAction[],
-  attempt: number,
-): Promise<DaemonResponse> {
-  for (const [index, action] of steps.entries()) {
-    const response = await params.invokeReplayAction({
-      action,
-      line: params.line,
-      step: params.step + attempt + index / 1000,
-    });
-    if (!response.ok) return response;
-  }
-  return { ok: true, data: { ran: steps.length } };
 }

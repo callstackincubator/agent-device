@@ -21,14 +21,20 @@ import {
   type AndroidSnapshotAnalysis,
   type AndroidUiHierarchy,
 } from './ui-hierarchy.ts';
-import { resolveAndroidAdbExecutor, resolveAndroidAdbProvider } from './adb-executor.ts';
+import {
+  resolveAndroidAdbExecutor,
+  resolveAndroidAdbProvider,
+  type AndroidAdbProvider,
+} from './adb-executor.ts';
 import { deriveAndroidScrollableContentHints } from './scroll-hints.ts';
 import {
   captureAndroidSnapshotWithHelper,
+  captureAndroidSnapshotWithHelperSession,
   ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
   ensureAndroidSnapshotHelper,
   forgetAndroidSnapshotHelperInstall,
   parseAndroidSnapshotHelperManifest,
+  stopAndroidSnapshotHelperSession,
   type AndroidAdbExecutor,
   type AndroidSnapshotHelperArtifact,
   type AndroidSnapshotHelperInstallPolicy,
@@ -54,13 +60,21 @@ const RETRYABLE_ADB_STDERR_PATTERNS = [
   'no such file or directory',
 ] as const;
 
-type AndroidSnapshotOptions = SnapshotOptions & {
+export type AndroidSnapshotOptions = SnapshotOptions & {
   helperArtifact?: AndroidSnapshotHelperArtifact;
   helperInstallPolicy?: AndroidSnapshotHelperInstallPolicy;
-  helperAdb?: AndroidAdbExecutor;
+  helperAdb?: AndroidAdbExecutor | AndroidAdbProvider;
   helperWaitForIdleTimeoutMs?: number;
   includeHiddenContentHints?: boolean;
 };
+
+export async function captureAndroidUiHierarchyXml(
+  device: DeviceInfo,
+  options: AndroidSnapshotOptions = {},
+): Promise<string> {
+  const adb = resolveAndroidAdbProvider(device, options.helperAdb).exec;
+  return (await captureAndroidUiHierarchy(device, options, adb)).xml;
+}
 
 export async function snapshotAndroid(
   device: DeviceInfo,
@@ -71,41 +85,73 @@ export async function snapshotAndroid(
   analysis: AndroidSnapshotAnalysis;
   androidSnapshot: AndroidSnapshotBackendMetadata;
 }> {
-  const adb = resolveAndroidAdbExecutor(device, options.helperAdb);
+  const adb = resolveAndroidAdbProvider(device, options.helperAdb).exec;
   const capture = await captureAndroidUiHierarchy(device, options, adb);
   const xml = capture.xml;
   const includeHiddenContentHints = options.includeHiddenContentHints !== false;
   if (!options.interactiveOnly) {
     const parsed = parseUiHierarchy(xml, ANDROID_SNAPSHOT_MAX_NODES, options);
     if (includeHiddenContentHints) {
-      const nativeHints = await deriveScrollableContentHintsIfNeeded(device, parsed.nodes, adb);
+      const nativeHints = await deriveScrollableContentHintsIfNeeded(device, parsed.nodes, xml, adb);
       applyHiddenContentHintsToNodes(nativeHints, parsed.nodes);
     }
     return { ...parsed, androidSnapshot: capture.metadata };
   }
 
   const tree = parseUiHierarchyTree(xml);
-  const fullSnapshot = buildUiHierarchySnapshot(tree, ANDROID_SNAPSHOT_MAX_NODES, {
-    ...options,
-    interactiveOnly: false,
-  });
   const interactiveSnapshot = buildUiHierarchySnapshot(tree, ANDROID_SNAPSHOT_MAX_NODES, options);
   if (includeHiddenContentHints) {
-    const nativeHints = await deriveScrollableContentHintsIfNeeded(device, fullSnapshot.nodes, adb);
-    applyHiddenContentHintsToInteractiveNodes(nativeHints, fullSnapshot, interactiveSnapshot);
-    if (nativeHints.size === 0) {
-      const presentationHints = deriveMobileSnapshotHiddenContentHints(
-        attachRefs(fullSnapshot.nodes),
-      );
-      applyHiddenContentHintsToInteractiveNodes(
-        presentationHints,
-        fullSnapshot,
-        interactiveSnapshot,
-      );
-    }
+    await applyHiddenContentHintsToInteractiveSnapshot({
+      device,
+      options,
+      tree,
+      xml,
+      adb,
+      interactiveSnapshot,
+    });
   }
   const { sourceNodes: _sourceNodes, ...snapshot } = interactiveSnapshot;
   return { ...snapshot, androidSnapshot: capture.metadata };
+}
+
+async function applyHiddenContentHintsToInteractiveSnapshot(params: {
+  device: DeviceInfo;
+  options: AndroidSnapshotOptions;
+  tree: AndroidUiHierarchy;
+  xml: string;
+  adb: AndroidAdbExecutor;
+  interactiveSnapshot: AndroidBuiltSnapshot;
+}): Promise<void> {
+  if (
+    collectExistingHiddenContentHints(params.interactiveSnapshot.nodes).size > 0 ||
+    hasAndroidScrollActionAttributes(params.xml)
+  ) {
+    return;
+  }
+
+  const fullSnapshot = buildUiHierarchySnapshot(params.tree, ANDROID_SNAPSHOT_MAX_NODES, {
+    ...params.options,
+    interactiveOnly: false,
+  });
+  const nativeHints = await deriveScrollableContentHintsIfNeeded(
+    params.device,
+    fullSnapshot.nodes,
+    params.xml,
+    params.adb,
+  );
+  applyHiddenContentHintsToInteractiveNodes(
+    nativeHints,
+    fullSnapshot,
+    params.interactiveSnapshot,
+  );
+  if (nativeHints.size === 0) {
+    const presentationHints = deriveMobileSnapshotHiddenContentHints(attachRefs(fullSnapshot.nodes));
+    applyHiddenContentHintsToInteractiveNodes(
+      presentationHints,
+      fullSnapshot,
+      params.interactiveSnapshot,
+    );
+  }
 }
 
 async function captureAndroidUiHierarchy(
@@ -136,15 +182,25 @@ async function captureAndroidUiHierarchyWithHelper(
   artifact: AndroidSnapshotHelperArtifact,
 ): Promise<{ xml: string; metadata: AndroidSnapshotBackendMetadata }> {
   const helperDeviceKey = getAndroidSnapshotHelperDeviceKey(device);
+  const adbProvider = resolveAndroidAdbProvider(device, options.helperAdb);
   try {
     const install = await installAndroidSnapshotHelper(
-      device,
       options,
       adb,
+      adbProvider,
       artifact,
       helperDeviceKey,
     );
-    const capture = await captureAndroidUiHierarchyFromHelper(options, adb, artifact);
+    if (install.installed) {
+      await stopAndroidSnapshotHelperSession(helperDeviceKey);
+    }
+    const capture = await captureAndroidUiHierarchyFromHelper(
+      options,
+      adb,
+      adbProvider,
+      artifact,
+      helperDeviceKey,
+    );
     return formatAndroidHelperCaptureResult(capture, artifact, install.reason);
   } catch (error) {
     return await recoverAndroidHelperCaptureFailure({
@@ -158,9 +214,9 @@ async function captureAndroidUiHierarchyWithHelper(
 }
 
 async function installAndroidSnapshotHelper(
-  device: DeviceInfo,
   options: AndroidSnapshotOptions,
   adb: AndroidAdbExecutor,
+  adbProvider: AndroidAdbProvider,
   artifact: AndroidSnapshotHelperArtifact,
   deviceKey: string,
 ): Promise<AndroidSnapshotHelperInstallResult> {
@@ -169,7 +225,7 @@ async function installAndroidSnapshotHelper(
     async () =>
       await ensureAndroidSnapshotHelper({
         adb,
-        adbProvider: resolveAndroidAdbProvider(device, options.helperAdb),
+        adbProvider,
         artifact,
         deviceKey,
         installPolicy: options.helperInstallPolicy,
@@ -197,20 +253,44 @@ async function installAndroidSnapshotHelper(
 async function captureAndroidUiHierarchyFromHelper(
   options: AndroidSnapshotOptions,
   adb: AndroidAdbExecutor,
+  adbProvider: AndroidAdbProvider,
   artifact: AndroidSnapshotHelperArtifact,
+  deviceKey: string,
 ): Promise<AndroidSnapshotHelperOutput> {
+  const captureOptions = {
+    adb,
+    adbProvider,
+    deviceKey,
+    helperVersion: artifact.manifest.version,
+    helperVersionCode: artifact.manifest.versionCode,
+    packageName: artifact.manifest.packageName,
+    instrumentationRunner: artifact.manifest.instrumentationRunner,
+    waitForIdleTimeoutMs:
+      options.helperWaitForIdleTimeoutMs ?? ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
+    timeoutMs: HELPER_CAPTURE_TIMEOUT_MS,
+    commandTimeoutMs: HELPER_COMMAND_TIMEOUT_MS,
+  };
+  try {
+    const sessionCapture = await withDiagnosticTimer(
+      'android_snapshot_helper_session_capture',
+      async () => await captureAndroidSnapshotWithHelperSession(captureOptions),
+      {
+        packageName: artifact.manifest.packageName,
+        version: artifact.manifest.version,
+        timeoutMs: HELPER_CAPTURE_TIMEOUT_MS,
+      },
+    );
+    if (sessionCapture) return sessionCapture;
+  } catch (error) {
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'android_snapshot_helper_session_fallback',
+      data: { reason: normalizeError(error).message },
+    });
+  }
   return await withDiagnosticTimer(
     'android_snapshot_helper_capture',
-    async () =>
-      await captureAndroidSnapshotWithHelper({
-        adb,
-        packageName: artifact.manifest.packageName,
-        instrumentationRunner: artifact.manifest.instrumentationRunner,
-        waitForIdleTimeoutMs:
-          options.helperWaitForIdleTimeoutMs ?? ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
-        timeoutMs: HELPER_CAPTURE_TIMEOUT_MS,
-        commandTimeoutMs: HELPER_COMMAND_TIMEOUT_MS,
-      }),
+    async () => await captureAndroidSnapshotWithHelper(captureOptions),
     {
       packageName: artifact.manifest.packageName,
       version: artifact.manifest.version,
@@ -231,6 +311,8 @@ function formatAndroidHelperCaptureResult(
       backend: 'android-helper',
       helperVersion: artifact.manifest.version,
       helperApiVersion: capture.metadata.helperApiVersion,
+      helperTransport: capture.metadata.transport,
+      helperSessionReused: capture.metadata.sessionReused,
       installReason,
       waitForIdleTimeoutMs: capture.metadata.waitForIdleTimeoutMs,
       waitForIdleQuietMs: capture.metadata.waitForIdleQuietMs,
@@ -262,6 +344,7 @@ async function recoverAndroidHelperCaptureFailure(params: {
     phase: 'android_snapshot_helper_fallback',
     data: { reason: fallbackReason },
   });
+  await stopAndroidSnapshotHelperSession(params.helperDeviceKey);
   forgetAndroidSnapshotHelperInstall({
     deviceKey: params.helperDeviceKey,
     packageName: params.artifact.manifest.packageName,
@@ -287,8 +370,7 @@ function formatAndroidSnapshotHelperBusyError(error: unknown): AppError | undefi
   const normalized = normalizeError(error);
   if (
     !isStructuredHelperTimeout(normalized.details?.helper, normalized.message) &&
-    !isKilledHelperInstrumentationFailure(normalized) &&
-    !isUnsafeStockFallbackHelperReason(normalized.message)
+    !isKilledHelperInstrumentationFailure(normalized)
   ) {
     return undefined;
   }
@@ -314,10 +396,6 @@ function isKilledHelperInstrumentationFailure(error: {
   return /Android snapshot helper (failed before returning parseable output|output could not be parsed)/.test(
     error.message,
   );
-}
-
-function isUnsafeStockFallbackHelperReason(reason: string): boolean {
-  return /Android snapshot helper output could not be parsed/.test(reason);
 }
 
 function readHelperMessage(helper: unknown): string | undefined {
@@ -422,16 +500,44 @@ function getAndroidSnapshotHelperDeviceKey(device: DeviceInfo): string {
 async function deriveScrollableContentHintsIfNeeded(
   device: DeviceInfo,
   nodes: RawSnapshotNode[],
+  xml: string,
   adb?: AndroidAdbExecutor,
 ): Promise<Map<number, HiddenContentHint>> {
   if (!nodes.some((node) => isScrollableType(node.type))) {
     return new Map();
+  }
+  const existingHints = collectExistingHiddenContentHints(nodes);
+  if (existingHints.size > 0 || hasAndroidScrollActionAttributes(xml)) {
+    return existingHints;
   }
   const activityTopDump = await dumpActivityTop(device, adb);
   if (!activityTopDump) {
     return new Map();
   }
   return deriveAndroidScrollableContentHints(nodes, activityTopDump);
+}
+
+function hasAndroidScrollActionAttributes(xml: string): boolean {
+  return xml.includes(' can-scroll-forward=') || xml.includes(' can-scroll-backward=');
+}
+
+function collectExistingHiddenContentHints(
+  nodes: RawSnapshotNode[],
+): Map<number, HiddenContentHint> {
+  const hintsByIndex = new Map<number, HiddenContentHint>();
+  for (const node of nodes) {
+    const hint: HiddenContentHint = {};
+    if (node.hiddenContentAbove) {
+      hint.hiddenContentAbove = true;
+    }
+    if (node.hiddenContentBelow) {
+      hint.hiddenContentBelow = true;
+    }
+    if (hint.hiddenContentAbove || hint.hiddenContentBelow) {
+      hintsByIndex.set(node.index, hint);
+    }
+  }
+  return hintsByIndex;
 }
 
 export async function dumpUiHierarchy(

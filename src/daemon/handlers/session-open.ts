@@ -5,7 +5,6 @@ import { contextFromFlags } from '../context.ts';
 import { createRequestCanceledError, isRequestCanceled } from '../request-cancel.ts';
 import {
   prewarmIosRunnerSession,
-  prewarmIosRunnerXctestrun,
   stopIosRunnerSession,
 } from '../../platforms/ios/runner-client.ts';
 import { applyRuntimeHintsToApp } from '../runtime-hints.ts';
@@ -183,10 +182,6 @@ async function completeOpenCommand(params: {
     timing.runnerPrewarmKind = 'session';
     timing.runnerPrewarmScheduled = true;
     runnerPrewarm = prewarmIosRunnerSession(device, runnerPrewarmOptions);
-  } else if (shouldPrewarmIosRunner) {
-    timing.runnerPrewarmKind = 'xctestrun';
-    timing.runnerPrewarmScheduled = true;
-    runnerPrewarm = prewarmIosRunnerXctestrun(device, runnerPrewarmOptions);
   }
   const openStartedAtMs = Date.now();
   await dispatchCommand(device, 'open', openPositionals, req.flags?.out, {

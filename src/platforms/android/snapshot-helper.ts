@@ -9,6 +9,11 @@ export {
   parseAndroidSnapshotHelperXml,
 } from './snapshot-helper-capture.ts';
 export {
+  captureAndroidSnapshotWithHelperSession,
+  resetAndroidSnapshotHelperSessions,
+  stopAndroidSnapshotHelperSession,
+} from './snapshot-helper-session.ts';
+export {
   ensureAndroidSnapshotHelper,
   forgetAndroidSnapshotHelperInstall,
   resetAndroidSnapshotHelperInstallCache,

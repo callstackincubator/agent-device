@@ -1,4 +1,3 @@
-import type { CommandFlags } from '../../core/dispatch.ts';
 import {
   getSnapshotReferenceFrame,
   type TouchReferenceFrame,
@@ -73,19 +72,4 @@ function rememberMaestroReferenceFrame(scope: ReplayVarScope, data: unknown): vo
   const snapshot = readSnapshotState(data);
   const frame = getSnapshotReferenceFrame(snapshot);
   if (frame) maestroReferenceFrameCache.set(scope, frame);
-}
-
-export function batchStepToSessionAction(
-  step: NonNullable<CommandFlags['batchSteps']>[number],
-): SessionAction {
-  const action: SessionAction = {
-    ts: Date.now(),
-    command: step.command,
-    positionals: step.positionals ?? [],
-    flags: step.flags ?? {},
-  };
-  if (step.runtime && typeof step.runtime === 'object') {
-    action.runtime = step.runtime as SessionAction['runtime'];
-  }
-  return action;
 }

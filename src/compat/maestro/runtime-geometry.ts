@@ -1,4 +1,5 @@
 import type { Rect, SnapshotNode } from '../../utils/snapshot.ts';
+import { interiorCoordinate, pointInsideRect } from '../../utils/rect-center.ts';
 import { normalizeType } from '../../utils/snapshot-processing.ts';
 import type { MaestroSnapshotTarget } from './runtime-targets.ts';
 
@@ -12,6 +13,7 @@ const MAESTRO_GEOMETRY_POLICY = {
   largeTextContainerBias: {
     minWidth: 120,
     minHeight: 70,
+    maxHeight: 200,
     width: 168,
     height: 48,
   },
@@ -96,13 +98,6 @@ function clampCoordinate(value: number, min: number, max: number): number {
   return Math.round(Math.min(max, Math.max(min, value)));
 }
 
-function pointInsideRect(rect: Rect): { x: number; y: number } {
-  return {
-    x: interiorCoordinate(rect.x, rect.width),
-    y: interiorCoordinate(rect.y, rect.height),
-  };
-}
-
 function shouldBiasMaestroVisibleTextTap(
   node: SnapshotNode,
   isVisibleTextSelector: boolean,
@@ -115,15 +110,6 @@ function shouldBiasMaestroVisibleTextTap(
   const type = normalizeType(node.type ?? '');
   const scrollableTextContainer = type === 'scrollview' || type === 'scroll-area';
   if (rect.height < MAESTRO_GEOMETRY_POLICY.largeTextContainerBias.minHeight) return false;
+  if (rect.height > MAESTRO_GEOMETRY_POLICY.largeTextContainerBias.maxHeight) return false;
   return type === 'cell' || type === 'other' || scrollableTextContainer;
-}
-
-function interiorCoordinate(origin: number, size: number): number {
-  // Maestro flows often expose hidden E2E controls as 1x1 views at the screen
-  // edge. Preserve zero-origin taps for those controls instead of nudging them
-  // outside their tiny rect by applying normal center/bounds clamping.
-  if (size <= 1) return Math.floor(origin);
-  const min = Math.ceil(origin);
-  const max = Math.floor(origin + size - 1);
-  return clampCoordinate(origin + size / 2, min, max);
 }

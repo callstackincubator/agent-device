@@ -52,6 +52,7 @@ import {
   readIosClipboardText,
   reinstallIosApp,
   resolveIosApp,
+  resolveIosSimulatorDeepLinkBundleId,
   screenshotIos,
   setIosSetting,
   shouldFallbackToRunnerForIosScreenshot,
@@ -1636,6 +1637,76 @@ test('resolveIosApp caches display-name bundle matches but bypasses exact bundle
     } else {
       process.env.AGENT_DEVICE_TEST_ARGS_FILE = previousArgsFile;
     }
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('resolveIosSimulatorDeepLinkBundleId maps custom URL scheme to installed user app', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-scheme-resolve-'));
+  const xcrunPath = path.join(tmpDir, 'xcrun');
+  const plutilPath = path.join(tmpDir, 'plutil');
+  const appPath = path.join(tmpDir, 'ReactNavigationExample.app');
+  const runnerPath = path.join(tmpDir, 'AgentDeviceRunner.app');
+  await fs.writeFile(
+    xcrunPath,
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "simctl" ] && [ "$2" = "listapps" ]; then',
+      "  cat <<'JSON'",
+      JSON.stringify({
+        'com.callstack.agentdevice.runner': {
+          ApplicationType: 'User',
+          CFBundleDisplayName: 'AgentDeviceRunner',
+          Path: runnerPath,
+        },
+        'org.reactnavigation.playground': {
+          ApplicationType: 'User',
+          CFBundleDisplayName: 'React Navigation Example',
+          Path: appPath,
+        },
+      }),
+      'JSON',
+      '  exit 0',
+      'fi',
+      'exit 1',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.writeFile(
+    plutilPath,
+    [
+      '#!/bin/sh',
+      'case "$5" in',
+      [
+        '  *AgentDeviceRunner.app/Info.plist) echo ',
+        '\'{"CFBundleURLTypes":[{"CFBundleURLSchemes":["rne"]}]}\' ;;',
+      ].join(''),
+      [
+        '  *ReactNavigationExample.app/Info.plist) echo ',
+        '\'{"CFBundleURLTypes":[{"CFBundleURLSchemes":["rne"]}]}\' ;;',
+      ].join(''),
+      '  *) echo "{}" ;;',
+      'esac',
+      'exit 0',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+  await fs.chmod(xcrunPath, 0o755);
+  await fs.chmod(plutilPath, 0o755);
+
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${tmpDir}${path.delimiter}${previousPath ?? ''}`;
+
+  try {
+    const bundleId = await resolveIosSimulatorDeepLinkBundleId(
+      IOS_TEST_SIMULATOR,
+      'rne://navigator-layout',
+    );
+    assert.equal(bundleId, 'org.reactnavigation.playground');
+  } finally {
+    process.env.PATH = previousPath;
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
 });

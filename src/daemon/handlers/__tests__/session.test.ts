@@ -18,7 +18,6 @@ vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
   return {
     ...actual,
     prewarmIosRunnerSession: vi.fn(),
-    prewarmIosRunnerXctestrun: vi.fn(),
     stopIosRunnerSession: vi.fn(async () => {}),
   };
 });
@@ -64,6 +63,7 @@ vi.mock('../../../platforms/ios/apps.ts', async (importOriginal) => {
     ...actual,
     listIosApps: vi.fn(async () => []),
     resolveIosApp: vi.fn(async () => undefined),
+    resolveIosSimulatorDeepLinkBundleId: vi.fn(async () => undefined),
   };
 });
 vi.mock('../../app-log.ts', async (importOriginal) => {
@@ -96,7 +96,6 @@ import { ensureDeviceReady } from '../../device-ready.ts';
 import { applyRuntimeHintsToApp, clearRuntimeHintsFromApp } from '../../runtime-hints.ts';
 import {
   prewarmIosRunnerSession,
-  prewarmIosRunnerXctestrun,
   stopIosRunnerSession,
 } from '../../../platforms/ios/runner-client.ts';
 import { runMacOsAlertAction } from '../../../platforms/ios/macos-helper.ts';
@@ -108,7 +107,7 @@ import {
   ensureAndroidEmulatorBooted,
 } from '../../../platforms/android/devices.ts';
 import { listAppleDevices } from '../../../platforms/ios/devices.ts';
-import { resolveIosApp } from '../../../platforms/ios/apps.ts';
+import { resolveIosApp, resolveIosSimulatorDeepLinkBundleId } from '../../../platforms/ios/apps.ts';
 import { startAppLog, stopAppLog } from '../../app-log.ts';
 import { defaultInstallOps, defaultReinstallOps } from '../session-deploy.ts';
 import { clearRequestCanceled, markRequestCanceled } from '../../request-cancel.ts';
@@ -119,7 +118,6 @@ const mockEnsureDeviceReady = vi.mocked(ensureDeviceReady);
 const mockApplyRuntimeHints = vi.mocked(applyRuntimeHintsToApp);
 const mockClearRuntimeHints = vi.mocked(clearRuntimeHintsFromApp);
 const mockPrewarmIosRunnerSession = vi.mocked(prewarmIosRunnerSession);
-const mockPrewarmIosRunnerXctestrun = vi.mocked(prewarmIosRunnerXctestrun);
 const mockStopIosRunner = vi.mocked(stopIosRunnerSession);
 const mockDismissMacOsAlert = vi.mocked(runMacOsAlertAction);
 const mockSettleSimulator = vi.mocked(settleIosSimulator);
@@ -129,6 +127,7 @@ const mockRunCmd = vi.mocked(runCmd);
 const mockListAndroidDevices = vi.mocked(listAndroidDevices);
 const mockListAppleDevices = vi.mocked(listAppleDevices);
 const mockResolveIosApp = vi.mocked(resolveIosApp);
+const mockResolveIosSimulatorDeepLinkBundleId = vi.mocked(resolveIosSimulatorDeepLinkBundleId);
 const mockEnsureAndroidEmulatorBooted = vi.mocked(ensureAndroidEmulatorBooted);
 const mockStartAppLog = vi.mocked(startAppLog);
 const mockStopAppLog = vi.mocked(stopAppLog);
@@ -149,7 +148,6 @@ beforeEach(() => {
   mockClearRuntimeHints.mockReset();
   mockClearRuntimeHints.mockResolvedValue(undefined);
   mockPrewarmIosRunnerSession.mockReset();
-  mockPrewarmIosRunnerXctestrun.mockReset();
   mockStopIosRunner.mockReset();
   mockStopIosRunner.mockResolvedValue(undefined);
   mockDismissMacOsAlert.mockReset();
@@ -177,6 +175,8 @@ beforeEach(() => {
     }
     return app.includes('.') ? app : `com.example.${normalizedApp}`;
   });
+  mockResolveIosSimulatorDeepLinkBundleId.mockReset();
+  mockResolveIosSimulatorDeepLinkBundleId.mockResolvedValue(undefined);
   mockEnsureAndroidEmulatorBooted.mockReset();
   mockStartAppLog.mockReset();
   mockStopAppLog.mockReset();
@@ -1865,6 +1865,101 @@ test('open URL on existing iOS device session preserves app bundle id context', 
   expect(dispatchedContext?.appBundleId).toBe('com.example.app');
 });
 
+test('open custom URL on existing iOS simulator session preserves app bundle id context', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-simulator-session';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    appName: 'Example App',
+  });
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  });
+
+  let dispatchedContext: Record<string, unknown> | undefined;
+  mockDispatch.mockImplementation(async (_device, _command, _positionals, _out, context) => {
+    dispatchedContext = context as Record<string, unknown> | undefined;
+    return {};
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['myapp://item/42'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  const updated = sessionStore.get(sessionName);
+  expect(updated?.appBundleId).toBe('com.example.app');
+  expect(updated?.appName).toBe('myapp://item/42');
+  expect(dispatchedContext?.appBundleId).toBe('com.example.app');
+});
+
+test('open custom URL on fresh iOS simulator session infers app bundle id from URL scheme', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-simulator-url-session';
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  });
+  mockResolveIosSimulatorDeepLinkBundleId.mockResolvedValue('org.reactnavigation.playground');
+
+  let dispatchedContext: Record<string, unknown> | undefined;
+  mockDispatch.mockImplementation(async (_device, _command, _positionals, _out, context) => {
+    dispatchedContext = context as Record<string, unknown> | undefined;
+    return {};
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['rne://navigator-layout'],
+      flags: { platform: 'ios', udid: 'sim-1' },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(mockResolveIosSimulatorDeepLinkBundleId).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'sim-1', kind: 'simulator' }),
+    'rne://navigator-layout',
+  );
+  const updated = sessionStore.get(sessionName);
+  expect(updated?.appBundleId).toBe('org.reactnavigation.playground');
+  expect(updated?.appName).toBe('rne://navigator-layout');
+  expect(dispatchedContext?.appBundleId).toBe('org.reactnavigation.playground');
+  expect(mockPrewarmIosRunnerSession).toHaveBeenCalledTimes(1);
+});
+
 test('open iOS app session prewarms runner session when app bundle id is known', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-session';
@@ -1901,10 +1996,9 @@ test('open iOS app session prewarms runner session when app bundle id is known',
     expect.objectContaining({ platform: 'ios', id: 'ios-device-1' }),
     expect.objectContaining({ logPath: expect.stringMatching(/daemon\.log$/) }),
   );
-  expect(mockPrewarmIosRunnerXctestrun).not.toHaveBeenCalled();
 });
 
-test('open iOS URL without app bundle id keeps xctestrun-only prewarm', async () => {
+test('open iOS URL without app bundle id skips runner prewarm', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-session';
   sessionStore.set(
@@ -1935,7 +2029,6 @@ test('open iOS URL without app bundle id keeps xctestrun-only prewarm', async ()
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
   expect(mockPrewarmIosRunnerSession).not.toHaveBeenCalled();
-  expect(mockPrewarmIosRunnerXctestrun).toHaveBeenCalledTimes(1);
 });
 
 test('open web URL on iOS device session without active app falls back to Safari', async () => {

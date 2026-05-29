@@ -1720,6 +1720,35 @@ test('getAndroidKeyboardState uses latest visibility value when dumpsys contains
   );
 });
 
+test('getAndroidKeyboardState treats stale input view as hidden when the IME window is hidden', async () => {
+  await withMockedAdb(
+    'agent-device-android-keyboard-stale-input-view-',
+    [
+      '#!/bin/sh',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "dumpsys" ] && [ "$3" = "input_method" ]; then',
+      '  echo "mInputShown=false"',
+      '  echo "mDecorViewVisible=false mWindowVisible=false mInShowWindow=false"',
+      '  echo "mIsInputViewShown=true"',
+      '  echo "inputType=0x21"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ device }) => {
+      const state = await getAndroidKeyboardState(device);
+      assert.equal(state.visible, false);
+      assert.equal(state.inputType, '0x21');
+      assert.equal(state.type, 'email');
+    },
+  );
+});
+
 test('dismissAndroidKeyboard skips keyevent when keyboard is already hidden', async () => {
   await withMockedAdb(
     'agent-device-android-keyboard-dismiss-hidden-',

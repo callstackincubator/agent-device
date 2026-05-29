@@ -270,12 +270,14 @@ function resolveDirectionalScreenSwipe(
     case 'down':
       return { ok: true, start: point(50, 20), end: point(50, 80), durationMs };
     case 'left': {
-      const yPercent = androidHorizontalContentSwipeY(platform, 80, 50, 20, 50);
-      return { ok: true, start: point(80, yPercent), end: point(20, yPercent), durationMs };
+      const [startX, endX] = androidHorizontalDirectionalSwipeX(platform, 80, 20);
+      const yPercent = androidHorizontalContentSwipeY(platform, startX, 50, endX, 50);
+      return { ok: true, start: point(startX, yPercent), end: point(endX, yPercent), durationMs };
     }
     case 'right': {
-      const yPercent = androidHorizontalContentSwipeY(platform, 20, 50, 80, 50);
-      return { ok: true, start: point(20, yPercent), end: point(80, yPercent), durationMs };
+      const [startX, endX] = androidHorizontalDirectionalSwipeX(platform, 20, 80);
+      const yPercent = androidHorizontalContentSwipeY(platform, startX, 50, endX, 50);
+      return { ok: true, start: point(startX, yPercent), end: point(endX, yPercent), durationMs };
     }
     default:
       return {
@@ -286,6 +288,15 @@ function resolveDirectionalScreenSwipe(
         ),
       };
   }
+}
+
+function androidHorizontalDirectionalSwipeX(
+  platform: string,
+  startX: number,
+  endX: number,
+): [number, number] {
+  if (platform !== 'android') return [startX, endX];
+  return startX < endX ? [30, 70] : [70, 30];
 }
 
 function resolvePercentScreenSwipe(
@@ -320,7 +331,7 @@ function androidHorizontalContentSwipeY(
 ): number {
   if (platform !== 'android') return y2;
   if (y1 !== y2 || y1 !== 50) return y2;
-  if (Math.abs(x2 - x1) < 50) return y2;
+  if (Math.abs(x2 - x1) < 30) return y2;
   // Maestro's Android driver treats 50% horizontal swipes as content swipes.
   // Raw `adb input swipe` at the physical screen midpoint can land above
   // horizontally paged content in React Native layouts, so use a lower content

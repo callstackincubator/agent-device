@@ -1,5 +1,5 @@
 import type { RawSnapshotNode } from '../../utils/snapshot.ts';
-import type { AndroidAdbExecutor } from './adb-executor.ts';
+import type { AndroidAdbExecutor, AndroidAdbProvider } from './adb-executor.ts';
 import type { AndroidSnapshotAnalysis } from './ui-hierarchy.ts';
 import type { AndroidSnapshotBackendMetadata } from './snapshot-types.ts';
 
@@ -9,8 +9,8 @@ export const ANDROID_SNAPSHOT_HELPER_RUNNER =
   'com.callstack.agentdevice.snapshothelper/.SnapshotInstrumentation';
 export const ANDROID_SNAPSHOT_HELPER_PROTOCOL = 'android-snapshot-helper-v1';
 export const ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT = 'uiautomator-xml';
-export const ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS = 500;
-export const ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_QUIET_MS = 100;
+export const ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS = 25;
+export const ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_QUIET_MS = 25;
 export const ANDROID_SNAPSHOT_HELPER_COMMAND_OVERHEAD_MS = 5_000;
 
 export type { AndroidAdbExecutor } from './adb-executor.ts';
@@ -54,6 +54,10 @@ export type AndroidSnapshotHelperInstallResult = {
 
 export type AndroidSnapshotHelperCaptureOptions = {
   adb: AndroidAdbExecutor;
+  adbProvider?: AndroidAdbProvider;
+  deviceKey?: string;
+  helperVersion?: string;
+  helperVersionCode?: number;
   packageName?: string;
   instrumentationRunner?: string;
   waitForIdleTimeoutMs?: number;
@@ -63,6 +67,7 @@ export type AndroidSnapshotHelperCaptureOptions = {
   maxDepth?: number;
   maxNodes?: number;
   outputPath?: string;
+  emitChunks?: boolean;
 };
 
 export type AndroidSnapshotHelperMetadata = {
@@ -79,6 +84,8 @@ export type AndroidSnapshotHelperMetadata = {
   nodeCount?: number;
   truncated?: boolean;
   elapsedMs?: number;
+  transport?: 'instrumentation' | 'persistent-session';
+  sessionReused?: boolean;
 };
 
 export type AndroidSnapshotHelperOutput = {

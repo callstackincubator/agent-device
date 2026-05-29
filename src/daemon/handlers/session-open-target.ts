@@ -1,4 +1,8 @@
-import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
+import {
+  isDeepLinkTarget,
+  isWebUrl,
+  resolveIosDeviceDeepLinkBundleId,
+} from '../../core/open-target.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 
 async function resolveIosBundleIdForOpen(
@@ -12,9 +16,26 @@ async function resolveIosBundleIdForOpen(
     if (device.kind === 'device') {
       return resolveIosDeviceDeepLinkBundleId(currentAppBundleId, openTarget);
     }
+    if (!isWebUrl(openTarget)) {
+      return (
+        currentAppBundleId ?? (await tryResolveIosSimulatorDeepLinkBundleId(device, openTarget))
+      );
+    }
     return undefined;
   }
   return await tryResolveIosAppBundleId(device, openTarget);
+}
+
+async function tryResolveIosSimulatorDeepLinkBundleId(
+  device: DeviceInfo,
+  openTarget: string,
+): Promise<string | undefined> {
+  try {
+    const { resolveIosSimulatorDeepLinkBundleId } = await import('../../platforms/ios/apps.ts');
+    return await resolveIosSimulatorDeepLinkBundleId(device, openTarget);
+  } catch {
+    return undefined;
+  }
 }
 
 async function tryResolveIosAppBundleId(

@@ -32,6 +32,7 @@ function readReplayFailureError(
 
 function hasInfrastructureFailureReason(details: Record<string, unknown> | undefined): boolean {
   const reason = typeof details?.reason === 'string' ? details.reason : '';
+  if (reason === 'timeout_cleanup_pending') return true;
   return reason ? isInfrastructureBootFailureReason(reason) : false;
 }
 

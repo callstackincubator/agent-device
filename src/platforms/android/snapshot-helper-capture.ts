@@ -30,7 +30,7 @@ type AndroidInstrumentationRecordState = {
   currentResult: Record<string, string> | null;
 };
 
-type AndroidSnapshotHelperResolvedCaptureOptions = {
+export type AndroidSnapshotHelperResolvedCaptureOptions = {
   waitForIdleTimeoutMs: number;
   waitForIdleQuietMs: number;
   timeoutMs: number;
@@ -40,6 +40,12 @@ type AndroidSnapshotHelperResolvedCaptureOptions = {
   packageName: string;
   runner: string;
   outputPath?: string;
+  emitChunks?: boolean;
+};
+
+type AndroidSnapshotHelperReadResult = {
+  output: AndroidSnapshotHelperOutput;
+  cleanupDone: boolean;
 };
 
 export async function captureAndroidSnapshotWithHelper(
@@ -50,8 +56,10 @@ export async function captureAndroidSnapshotWithHelper(
     allowFailure: true,
     timeoutMs: resolved.commandTimeoutMs,
   });
-  const output = await readAndroidSnapshotHelperOutput(options, resolved, result);
-  if (resolved.outputPath) await removeHelperOutputFile(options.adb, resolved.outputPath);
+  const { output, cleanupDone } = await readAndroidSnapshotHelperOutput(options, resolved, result);
+  if (resolved.outputPath && !cleanupDone) {
+    await removeHelperOutputFile(options.adb, resolved.outputPath);
+  }
   if (result.exitCode !== 0) {
     throw new AppError('COMMAND_FAILED', 'Android snapshot helper failed', {
       stdout: result.stdout,
@@ -63,7 +71,7 @@ export async function captureAndroidSnapshotWithHelper(
   return output;
 }
 
-function resolveAndroidSnapshotHelperCaptureOptions(
+export function resolveAndroidSnapshotHelperCaptureOptions(
   options: AndroidSnapshotHelperCaptureOptions,
 ): AndroidSnapshotHelperResolvedCaptureOptions {
   const timeoutMs = withDefault(options.timeoutMs, 8_000);
@@ -87,6 +95,7 @@ function resolveAndroidSnapshotHelperCaptureOptions(
     packageName,
     runner: withDefault(options.instrumentationRunner, `${packageName}/.SnapshotInstrumentation`),
     ...(options.outputPath ? { outputPath: options.outputPath } : {}),
+    ...(options.emitChunks !== undefined ? { emitChunks: options.emitChunks } : {}),
   };
 }
 
@@ -94,7 +103,7 @@ function withDefault<T>(value: T | undefined, fallback: T): T {
   return value === undefined ? fallback : value;
 }
 
-function buildAndroidSnapshotHelperArgs(
+export function buildAndroidSnapshotHelperArgs(
   options: AndroidSnapshotHelperResolvedCaptureOptions,
 ): string[] {
   return [
@@ -117,7 +126,10 @@ function buildAndroidSnapshotHelperArgs(
     '-e',
     'maxNodes',
     String(options.maxNodes),
+    // Default production snapshots use instrumentation status chunks. File output remains a
+    // fallback/testing transport for devices where status output cannot carry the payload.
     ...(options.outputPath ? ['-e', 'outputPath', options.outputPath] : []),
+    ...(options.emitChunks !== undefined ? ['-e', 'emitChunks', String(options.emitChunks)] : []),
     options.runner,
   ];
 }
@@ -126,10 +138,13 @@ async function readAndroidSnapshotHelperOutput(
   options: AndroidSnapshotHelperCaptureOptions,
   resolved: AndroidSnapshotHelperResolvedCaptureOptions,
   result: Awaited<ReturnType<AndroidSnapshotHelperCaptureOptions['adb']>>,
-): Promise<AndroidSnapshotHelperOutput> {
+): Promise<AndroidSnapshotHelperReadResult> {
   try {
     // The helper can report structured ok=false details even when am exits non-zero.
-    return parseAndroidSnapshotHelperOutput(`${result.stdout}\n${result.stderr}`);
+    return {
+      output: parseAndroidSnapshotHelperOutput(`${result.stdout}\n${result.stderr}`),
+      cleanupDone: false,
+    };
   } catch (error) {
     return await readFallbackHelperOutputOrThrow(options, resolved, result, error);
   }
@@ -140,18 +155,10 @@ async function readFallbackHelperOutputOrThrow(
   resolved: AndroidSnapshotHelperResolvedCaptureOptions,
   result: Awaited<ReturnType<AndroidSnapshotHelperCaptureOptions['adb']>>,
   error: unknown,
-): Promise<AndroidSnapshotHelperOutput> {
-  if (resolved.outputPath) {
-    const fileOutput = await readHelperOutputFile(options.adb, resolved.outputPath, {
-      waitForIdleTimeoutMs: resolved.waitForIdleTimeoutMs,
-      waitForIdleQuietMs: resolved.waitForIdleQuietMs,
-      timeoutMs: resolved.timeoutMs,
-      maxDepth: resolved.maxDepth,
-      maxNodes: resolved.maxNodes,
-    });
-    if (fileOutput) return fileOutput;
-  }
+): Promise<AndroidSnapshotHelperReadResult> {
   if (error instanceof AppError && result.exitCode !== 0 && error.details?.helper) throw error;
+  const fileOutput = await readFallbackHelperOutputFile(options, resolved, result);
+  if (fileOutput) return { output: fileOutput, cleanupDone: true };
   throw new AppError(
     'COMMAND_FAILED',
     result.exitCode === 0
@@ -166,36 +173,91 @@ async function readFallbackHelperOutputOrThrow(
   );
 }
 
+async function readFallbackHelperOutputFile(
+  options: AndroidSnapshotHelperCaptureOptions,
+  resolved: AndroidSnapshotHelperResolvedCaptureOptions,
+  result: Awaited<ReturnType<AndroidSnapshotHelperCaptureOptions['adb']>>,
+): Promise<AndroidSnapshotHelperOutput | undefined> {
+  if (result.exitCode !== 0 || !resolved.outputPath) return undefined;
+  return await readHelperOutputFile(
+    options.adb,
+    resolved.outputPath,
+    readHelperMetadataFromInstrumentationOutput(`${result.stdout}\n${result.stderr}`) ??
+      fallbackAndroidSnapshotHelperMetadata(resolved),
+  );
+}
+
+function fallbackAndroidSnapshotHelperMetadata(
+  resolved: AndroidSnapshotHelperResolvedCaptureOptions,
+): AndroidSnapshotHelperMetadata {
+  return {
+    outputFormat: ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,
+    waitForIdleTimeoutMs: resolved.waitForIdleTimeoutMs,
+    waitForIdleQuietMs: resolved.waitForIdleQuietMs,
+    timeoutMs: resolved.timeoutMs,
+    maxDepth: resolved.maxDepth,
+    maxNodes: resolved.maxNodes,
+    transport: 'instrumentation',
+  };
+}
+
 async function readHelperOutputFile(
   adb: AndroidSnapshotHelperCaptureOptions['adb'],
   outputPath: string,
-  metadata: Omit<AndroidSnapshotHelperMetadata, 'outputFormat'>,
+  metadata: AndroidSnapshotHelperMetadata,
 ): Promise<AndroidSnapshotHelperOutput | undefined> {
-  const result = await adb(['shell', 'cat', outputPath], {
-    allowFailure: true,
-    timeoutMs: 5_000,
-  });
-  await removeHelperOutputFile(adb, outputPath);
+  let result: Awaited<ReturnType<AndroidSnapshotHelperCaptureOptions['adb']>>;
+  try {
+    result = await adb(buildReadAndRemoveHelperOutputArgs(outputPath), {
+      allowFailure: true,
+      timeoutMs: 5_000,
+    });
+  } catch {
+    return undefined;
+  }
   if (result.exitCode !== 0) return undefined;
   const xml = result.stdout.trim();
   if (!xml.includes('<hierarchy') || !xml.includes('</hierarchy>')) return undefined;
   return {
     xml,
-    metadata: {
-      ...metadata,
-      outputFormat: ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,
-    },
+    metadata,
   };
+}
+
+function buildReadAndRemoveHelperOutputArgs(outputPath: string): string[] {
+  return [
+    'shell',
+    'sh',
+    '-c',
+    'cat "$1"; status=$?; rm -f "$1"; exit "$status"',
+    'agent-device-snapshot-helper-output',
+    outputPath,
+  ];
+}
+
+function readHelperMetadataFromInstrumentationOutput(
+  output: string,
+): AndroidSnapshotHelperMetadata | null {
+  try {
+    const records = parseInstrumentationRecords(output);
+    return readHelperMetadata(readFinalHelperResult(records.results));
+  } catch {
+    return null;
+  }
 }
 
 async function removeHelperOutputFile(
   adb: AndroidSnapshotHelperCaptureOptions['adb'],
   outputPath: string,
 ): Promise<void> {
-  await adb(['shell', 'rm', '-f', outputPath], {
-    allowFailure: true,
-    timeoutMs: 5_000,
-  });
+  try {
+    await adb(['shell', 'rm', '-f', outputPath], {
+      allowFailure: true,
+      timeoutMs: 5_000,
+    });
+  } catch {
+    // Cleanup is best-effort; snapshot capture should not fail because a stale temp file survived.
+  }
 }
 
 export function parseAndroidSnapshotHelperOutput(output: string): AndroidSnapshotHelperOutput {
@@ -205,7 +267,7 @@ export function parseAndroidSnapshotHelperOutput(output: string): AndroidSnapsho
 
   return {
     xml,
-    metadata: readHelperMetadata(finalResult),
+    metadata: { ...readHelperMetadata(finalResult), transport: 'instrumentation' },
   };
 }
 
@@ -442,7 +504,9 @@ function readKeyValue(line: string, target: Record<string, string>): void {
   target[line.slice(0, separator)] = line.slice(separator + 1);
 }
 
-function readOptionalNumber(value: string | undefined): number | undefined {
+export function readAndroidSnapshotHelperMetadataNumber(
+  value: string | undefined,
+): number | undefined {
   if (value === undefined) {
     return undefined;
   }
@@ -450,7 +514,9 @@ function readOptionalNumber(value: string | undefined): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function readOptionalBoolean(value: string | undefined): boolean | undefined {
+export function readAndroidSnapshotHelperMetadataBoolean(
+  value: string | undefined,
+): boolean | undefined {
   if (value === 'true') {
     return true;
   }
@@ -459,3 +525,6 @@ function readOptionalBoolean(value: string | undefined): boolean | undefined {
   }
   return undefined;
 }
+
+const readOptionalNumber = readAndroidSnapshotHelperMetadataNumber;
+const readOptionalBoolean = readAndroidSnapshotHelperMetadataBoolean;

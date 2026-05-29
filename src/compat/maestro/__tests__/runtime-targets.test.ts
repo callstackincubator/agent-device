@@ -59,6 +59,42 @@ test('resolveMaestroNodeFromSnapshot blocks taps on app content behind React Nat
   });
 });
 
+test('resolveVisibleMaestroNodeFromSnapshot does not block content behind collapsed React Native warnings', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'android.widget.TextView',
+        label: 'Morning Favorites',
+        rect: { x: 24, y: 420, width: 320, height: 54 },
+        depth: 8,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'android.view.ViewGroup',
+        label: 'Open debugger to view warnings',
+        rect: { x: 0, y: 2190, width: 1080, height: 96 },
+        depth: 6,
+      },
+    ],
+  };
+
+  const appContent = resolveVisibleMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Morning Favorites" || text="Morning Favorites" || id="Morning Favorites"',
+    'android',
+    { referenceWidth: 1080, referenceHeight: 2340 },
+  );
+
+  expect(appContent).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ label: 'Morning Favorites' }),
+  });
+});
+
 test('resolveMaestroNodeFromSnapshot prefers foreground duplicate matches', () => {
   const snapshot: SnapshotState = {
     createdAt: Date.now(),
@@ -161,6 +197,178 @@ test('resolveVisibleMaestroNodeFromSnapshot requires visible text matches to be 
   });
 });
 
+test('resolveVisibleMaestroNodeFromSnapshot ignores Android rectless hidden navigation labels', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'android.view.ViewGroup',
+        label: '',
+        rect: { x: 0, y: 0, width: 1080, height: 2340 },
+        depth: 1,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'android.widget.Button',
+        label: 'Chat',
+        enabled: true,
+        hittable: true,
+        depth: 2,
+        parentIndex: 1,
+      },
+      {
+        index: 3,
+        ref: 'e3',
+        type: 'android.widget.TextView',
+        label: 'Chat',
+        value: 'Chat',
+        depth: 3,
+        parentIndex: 2,
+      },
+    ],
+  };
+
+  const target = resolveVisibleMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Chat" || text="Chat" || id="Chat"',
+    'android',
+    { referenceWidth: 1080, referenceHeight: 2340 },
+  );
+
+  expect(target).toMatchObject({
+    ok: false,
+    message: expect.stringContaining('none were visible'),
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot prefers concrete Android tab rect over hidden drawer label', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'android.view.ViewGroup',
+        label: '',
+        rect: { x: 0, y: 0, width: 1080, height: 2340 },
+        depth: 1,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'android.widget.FrameLayout',
+        label: 'Albums',
+        rect: { x: 540, y: 2054, width: 270, height: 220 },
+        enabled: true,
+        hittable: true,
+        depth: 16,
+        parentIndex: 1,
+      },
+      {
+        index: 3,
+        ref: 'e3',
+        type: 'android.view.ViewGroup',
+        label: '',
+        rect: { x: 0, y: 0, width: 816, height: 2340 },
+        depth: 1,
+      },
+      {
+        index: 4,
+        ref: 'e4',
+        type: 'android.widget.Button',
+        label: '\udb80\udeea, Albums',
+        enabled: true,
+        hittable: true,
+        depth: 18,
+        parentIndex: 3,
+      },
+      {
+        index: 5,
+        ref: 'e5',
+        type: 'android.widget.TextView',
+        label: 'Albums',
+        value: 'Albums',
+        enabled: true,
+        hittable: false,
+        depth: 19,
+        parentIndex: 4,
+      },
+    ],
+  };
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Albums" || text="Albums" || id="Albums"',
+    {},
+    'android',
+    { referenceWidth: 1080, referenceHeight: 2340 },
+    { promoteTapTarget: true },
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 2 }),
+    rect: { x: 540, y: 2054, width: 270, height: 220 },
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot prefers exact Android tab label over normalized header icon text', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'android.widget.FrameLayout',
+        label: 'Search',
+        rect: { x: 810, y: 2054, width: 270, height: 132 },
+        enabled: true,
+        hittable: true,
+        depth: 16,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'android.widget.Button',
+        label: 'search',
+        rect: { x: 673, y: 165, width: 132, height: 132 },
+        enabled: true,
+        hittable: true,
+        depth: 22,
+      },
+      {
+        index: 3,
+        ref: 'e3',
+        type: 'android.widget.TextView',
+        label: 'search',
+        value: 'search',
+        rect: { x: 706, y: 198, width: 66, height: 66 },
+        enabled: true,
+        depth: 23,
+        parentIndex: 2,
+      },
+    ],
+  };
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Search" || text="Search" || id="Search"',
+    {},
+    'android',
+    { referenceWidth: 1080, referenceHeight: 2340 },
+    { promoteTapTarget: true },
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 1 }),
+    rect: { x: 810, y: 2054, width: 270, height: 132 },
+  });
+});
+
 test('resolveMaestroNodeFromSnapshot infers missing selected tab slot from tab-strip children', () => {
   const snapshot: SnapshotState = {
     createdAt: Date.now(),
@@ -247,6 +455,131 @@ test('resolveMaestroNodeFromSnapshot keeps concrete child matches over tab-strip
     ok: true,
     node: expect.objectContaining({ index: 2 }),
     rect: { x: 8, y: 65.33333587646484, width: 155, height: 48 },
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot prefers localized breadcrumb label over broad containers', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'Other',
+        label: 'Article by Gandalf',
+        rect: { x: 0, y: 0, width: 402, height: 116.66666412353516 },
+        depth: 12,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'ScrollView',
+        label: 'Article by Gandalf',
+        rect: { x: 0, y: 0, width: 402, height: 116.66666666666666 },
+        depth: 13,
+        parentIndex: 1,
+      },
+      {
+        index: 3,
+        ref: 'e3',
+        type: 'Other',
+        label: 'Article by Gandalf',
+        rect: { x: 0, y: 0, width: 232.3333282470703, height: 116.33333587646484 },
+        depth: 14,
+        parentIndex: 2,
+      },
+      {
+        index: 4,
+        ref: 'e4',
+        type: 'Other',
+        label: 'Article by Gandalf',
+        rect: { x: 0, y: 0, width: 232.3333282470703, height: 116.33333587646484 },
+        depth: 15,
+        parentIndex: 3,
+      },
+      {
+        index: 5,
+        ref: 'e5',
+        type: 'Other',
+        label: 'Article by Gandalf',
+        rect: { x: 8, y: 65.33333587646484, width: 155, height: 48 },
+        depth: 16,
+        parentIndex: 4,
+      },
+      {
+        index: 6,
+        ref: 'e6',
+        type: 'Other',
+        label: 'Feed',
+        rect: { x: 170.3333282470703, y: 65.33333587646484, width: 54, height: 48 },
+        depth: 16,
+        parentIndex: 4,
+      },
+    ],
+  };
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Article by Gandalf" || text="Article by Gandalf" || id="Article by Gandalf"',
+    {},
+    'ios',
+    { referenceWidth: 402, referenceHeight: 874 },
+    { promoteTapTarget: true },
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 5 }),
+    rect: { x: 8, y: 65.33333587646484, width: 155, height: 48 },
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot infers leading breadcrumb slot when selected child is omitted', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'ScrollView',
+        label: 'Article by Gandalf',
+        rect: { x: 0, y: 58.33333333333333, width: 402, height: 58.33333333333333 },
+        depth: 4,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'Other',
+        label: 'Feed',
+        rect: { x: 170.3333282470703, y: 65.33333587646484, width: 54, height: 48 },
+        depth: 5,
+        parentIndex: 1,
+      },
+      {
+        index: 3,
+        ref: 'e3',
+        type: 'Other',
+        label: 'Albums',
+        rect: { x: 231.6666717529297, y: 65.33333587646484, width: 75, height: 48 },
+        depth: 5,
+        parentIndex: 1,
+      },
+    ],
+  };
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Article by Gandalf" || text="Article by Gandalf" || id="Article by Gandalf"',
+    {},
+    'ios',
+    { referenceWidth: 402, referenceHeight: 874 },
+    { promoteTapTarget: true },
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 1 }),
+    rect: { x: 0, y: 58.33333333333333, width: 168, height: 58.33333333333333 },
   });
 });
 

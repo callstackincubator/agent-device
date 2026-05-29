@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import type { DaemonRequest, DaemonResponse } from '../../../daemon/types.ts';
 import type { SnapshotState } from '../../../utils/snapshot.ts';
-import { invokeMaestroTapOn } from '../runtime-interactions.ts';
+import { invokeMaestroSwipeScreen, invokeMaestroTapOn } from '../runtime-interactions.ts';
 
 test('invokeMaestroTapOn resolves mutating taps from the current raw snapshot', async () => {
   const selector =
@@ -34,6 +34,31 @@ test('invokeMaestroTapOn resolves mutating taps from the current raw snapshot', 
   expect(clicks).toEqual([['86', '89']]);
 });
 
+test('invokeMaestroSwipeScreen uses a conservative Android content-lane directional swipe', async () => {
+  const swipes: string[][] = [];
+  const response = await invokeMaestroSwipeScreen({
+    baseReq: {
+      token: 'test',
+      session: 'pager',
+      flags: { platform: 'android' },
+    },
+    positionals: ['direction', 'left', '300'],
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        return { ok: true, data: fullScreenSnapshot(1080, 2340) };
+      }
+      if (req.command === 'swipe') {
+        swipes.push(req.positionals ?? []);
+        return { ok: true, data: {} };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  expect(response.ok).toBe(true);
+  expect(swipes).toEqual([['756', '1521', '324', '1521', '300']]);
+});
+
 function currentBreadcrumbSnapshot(): SnapshotState {
   return {
     createdAt: Date.now(),
@@ -57,6 +82,30 @@ function currentBreadcrumbSnapshot(): SnapshotState {
         depth: 5,
         parentIndex: 2,
         rect: { x: 8, y: 65.33333587646484, width: 155, height: 48 },
+      },
+    ],
+  };
+}
+
+function fullScreenSnapshot(width: number, height: number): SnapshotState {
+  return {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 0,
+        ref: 'e1',
+        type: 'Application',
+        label: 'Android Test App',
+        depth: 0,
+        rect: { x: 0, y: 0, width, height },
+      },
+      {
+        index: 1,
+        ref: 'e2',
+        type: 'Window',
+        depth: 1,
+        parentIndex: 0,
+        rect: { x: 0, y: 0, width, height },
       },
     ],
   };

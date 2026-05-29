@@ -33,6 +33,8 @@ test('runReplayTestAttempt keeps cancellation active until a timed-out replay se
   expect(result.ok).toBe(false);
   if (!result.ok) {
     expect(result.error.message).toContain('TIMEOUT after 10ms');
+    expect(result.error.details?.reason).toBe('timeout_cleanup_pending');
+    expect(result.error.details?.timeoutCleanupPending).toBe(true);
   }
   expect(cleanupSession).toHaveBeenCalledWith('default:test:timeout');
   expect(isRequestCanceled('req-timeout-open')).toBe(true);
@@ -42,8 +44,10 @@ test('runReplayTestAttempt keeps cancellation active until a timed-out replay se
     error: { code: 'COMMAND_FAILED', message: 'request canceled' },
   });
   await replaySettled;
-  await Promise.resolve();
-  await Promise.resolve();
-
-  expect(isRequestCanceled('req-timeout-open')).toBe(false);
+  await vi.waitFor(() => {
+    expect(isRequestCanceled('req-timeout-open')).toBe(false);
+  });
+  await vi.waitFor(() => {
+    expect(cleanupSession).toHaveBeenCalledTimes(2);
+  });
 });

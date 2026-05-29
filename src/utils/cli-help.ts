@@ -382,6 +382,8 @@ React Native dev loop:
     agent-device find "Home"
   Do not use agent-device reload. Use open --relaunch for native startup reset.
   Android RN/Expo Metro: direct Android localhost URL opens with a port auto-configure host reachability. For app/package launches, use help react-native if the app cannot reach local Metro.
+  Verify Metro from the same host context that owns Metro. If a sandboxed shell cannot curl localhost:8081/status but an unrestricted host shell can, Metro is running and the sandbox probe is not authoritative.
+  adb reverse only affects Android device-to-host traffic. It does not prove host-to-Metro reachability, and it does not fix a redbox caused by a stale or wrong Metro/app state.
   Expo Go/dev clients are host shells. Use provided project URLs, verify with snapshot -i after opening, and ask instead of inventing app ids or URLs. Help workflow owns the full Expo URL command shapes.
 
 Overlays and busy RN UIs:

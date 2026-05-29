@@ -24,7 +24,6 @@ vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
   return {
     ...actual,
     prewarmIosRunnerSession: vi.fn(),
-    prewarmIosRunnerXctestrun: vi.fn(),
     stopIosRunnerSession: vi.fn(async () => {}),
   };
 });

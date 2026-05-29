@@ -7,10 +7,17 @@ import android.graphics.Rect;
 import android.os.Bundle;
 import android.util.Base64;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction;
 import android.view.accessibility.AccessibilityWindowInfo;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -22,8 +29,10 @@ public final class SnapshotInstrumentation extends Instrumentation {
   private static final String OUTPUT_FORMAT = "uiautomator-xml";
   private static final String HELPER_API_VERSION = "1";
   private static final int CHUNK_SIZE = 2 * 1024;
-  private static final long DEFAULT_WAIT_FOR_IDLE_TIMEOUT_MS = 500;
-  private static final long DEFAULT_WAIT_FOR_IDLE_QUIET_MS = 100;
+  // Keep the default quiet window short: RN/animation-heavy apps often never become fully idle,
+  // and callers can still override this for alert-style flows that need a longer settle period.
+  private static final long DEFAULT_WAIT_FOR_IDLE_TIMEOUT_MS = 25;
+  private static final long DEFAULT_WAIT_FOR_IDLE_QUIET_MS = 25;
   private static final long DEFAULT_TIMEOUT_MS = 8_000;
   private static final int DEFAULT_MAX_DEPTH = 128;
   private static final int DEFAULT_MAX_NODES = 5_000;
@@ -47,29 +56,29 @@ public final class SnapshotInstrumentation extends Instrumentation {
     int maxDepth = readIntArgument(arguments, "maxDepth", DEFAULT_MAX_DEPTH);
     int maxNodes = readIntArgument(arguments, "maxNodes", DEFAULT_MAX_NODES);
     String outputPath = readStringArgument(arguments, "outputPath");
+    boolean emitChunks = readBooleanArgument(arguments, "emitChunks", true);
+    int sessionPort = readIntArgument(arguments, "sessionPort", 0);
     Bundle result = new Bundle();
-    result.putString("agentDeviceProtocol", PROTOCOL);
-    result.putString("helperApiVersion", HELPER_API_VERSION);
-    result.putString("outputFormat", OUTPUT_FORMAT);
-    result.putString("waitForIdleTimeoutMs", Long.toString(waitForIdleTimeoutMs));
-    result.putString("waitForIdleQuietMs", Long.toString(waitForIdleQuietMs));
-    result.putString("timeoutMs", Long.toString(timeoutMs));
-    result.putString("maxDepth", Integer.toString(maxDepth));
-    result.putString("maxNodes", Integer.toString(maxNodes));
+    putBaseMetadata(result, waitForIdleTimeoutMs, waitForIdleQuietMs, timeoutMs, maxDepth, maxNodes);
 
     try {
+      if (sessionPort > 0) {
+        runSnapshotSession(
+            sessionPort, waitForIdleQuietMs, waitForIdleTimeoutMs, timeoutMs, maxDepth, maxNodes);
+        result.putString("ok", "true");
+        result.putString("sessionEnded", "true");
+        finishSafely(0, result);
+        return;
+      }
       long startedAtMs = System.currentTimeMillis();
       CaptureResult capture =
           captureXml(waitForIdleQuietMs, waitForIdleTimeoutMs, timeoutMs, maxDepth, maxNodes);
       writeOutputFile(outputPath, capture.xml);
-      emitChunks(capture.xml);
+      if (emitChunks) {
+        emitChunks(capture.xml);
+      }
       result.putString("ok", "true");
-      result.putString("rootPresent", Boolean.toString(capture.rootPresent));
-      result.putString("captureMode", capture.captureMode);
-      result.putString("windowCount", Integer.toString(capture.windowCount));
-      result.putString("nodeCount", Integer.toString(capture.nodeCount));
-      result.putString("truncated", Boolean.toString(capture.truncated));
-      result.putString("elapsedMs", Long.toString(System.currentTimeMillis() - startedAtMs));
+      putCaptureMetadata(result, capture, System.currentTimeMillis() - startedAtMs);
       finishSafely(0, result);
     } catch (Throwable error) {
       result.putString("ok", "false");
@@ -79,6 +88,158 @@ public final class SnapshotInstrumentation extends Instrumentation {
           error.getMessage() == null ? error.getClass().getName() : error.getMessage());
       finishSafely(1, result);
     }
+  }
+
+  private static void putBaseMetadata(
+      Bundle result,
+      long waitForIdleTimeoutMs,
+      long waitForIdleQuietMs,
+      long timeoutMs,
+      int maxDepth,
+      int maxNodes) {
+    result.putString("agentDeviceProtocol", PROTOCOL);
+    result.putString("helperApiVersion", HELPER_API_VERSION);
+    result.putString("outputFormat", OUTPUT_FORMAT);
+    result.putString("waitForIdleTimeoutMs", Long.toString(waitForIdleTimeoutMs));
+    result.putString("waitForIdleQuietMs", Long.toString(waitForIdleQuietMs));
+    result.putString("timeoutMs", Long.toString(timeoutMs));
+    result.putString("maxDepth", Integer.toString(maxDepth));
+    result.putString("maxNodes", Integer.toString(maxNodes));
+  }
+
+  private static void putCaptureMetadata(Bundle result, CaptureResult capture, long elapsedMs) {
+    result.putString("rootPresent", Boolean.toString(capture.rootPresent));
+    result.putString("captureMode", capture.captureMode);
+    result.putString("windowCount", Integer.toString(capture.windowCount));
+    result.putString("nodeCount", Integer.toString(capture.nodeCount));
+    result.putString("truncated", Boolean.toString(capture.truncated));
+    result.putString("elapsedMs", Long.toString(elapsedMs));
+  }
+
+  private void runSnapshotSession(
+      int sessionPort,
+      long waitForIdleQuietMs,
+      long waitForIdleTimeoutMs,
+      long timeoutMs,
+      int maxDepth,
+      int maxNodes)
+      throws IOException {
+    try (ServerSocket server =
+        new ServerSocket(sessionPort, 1, InetAddress.getByName("127.0.0.1"))) {
+      Bundle ready = new Bundle();
+      putBaseMetadata(
+          ready, waitForIdleTimeoutMs, waitForIdleQuietMs, timeoutMs, maxDepth, maxNodes);
+      ready.putString("sessionReady", "true");
+      ready.putString("sessionPort", Integer.toString(sessionPort));
+      sendStatus(2, ready);
+
+      while (!Thread.currentThread().isInterrupted()) {
+        try (Socket socket = server.accept()) {
+          String command =
+              new BufferedReader(
+                      new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))
+                  .readLine();
+          if (command == null) {
+            writeSessionError(socket.getOutputStream(), "", "java.io.EOFException", "empty command");
+            continue;
+          }
+          String[] parts = command.trim().split("\\s+", 2);
+          String action = parts.length > 0 ? parts[0] : "";
+          String requestId = parts.length > 1 ? parts[1] : "";
+          if ("quit".equals(action)) {
+            writeSessionOk(socket.getOutputStream(), requestId);
+            return;
+          }
+          if (!"snapshot".equals(action)) {
+            writeSessionError(
+                socket.getOutputStream(),
+                requestId,
+                "java.lang.IllegalArgumentException",
+                "unknown session command");
+            continue;
+          }
+          writeSessionSnapshot(
+              socket.getOutputStream(),
+              requestId,
+              waitForIdleQuietMs,
+              waitForIdleTimeoutMs,
+              timeoutMs,
+              maxDepth,
+              maxNodes);
+        }
+      }
+    }
+  }
+
+  private void writeSessionSnapshot(
+      OutputStream output,
+      String requestId,
+      long waitForIdleQuietMs,
+      long waitForIdleTimeoutMs,
+      long timeoutMs,
+      int maxDepth,
+      int maxNodes)
+      throws IOException {
+    Bundle result = new Bundle();
+    putBaseMetadata(result, waitForIdleTimeoutMs, waitForIdleQuietMs, timeoutMs, maxDepth, maxNodes);
+    result.putString("requestId", requestId);
+    try {
+      long startedAtMs = System.currentTimeMillis();
+      CaptureResult capture =
+          captureXml(waitForIdleQuietMs, waitForIdleTimeoutMs, timeoutMs, maxDepth, maxNodes);
+      result.putString("ok", "true");
+      putCaptureMetadata(result, capture, System.currentTimeMillis() - startedAtMs);
+      result.putString("byteLength", Integer.toString(capture.xml.getBytes(StandardCharsets.UTF_8).length));
+      writeSessionResponse(output, result, capture.xml);
+    } catch (Throwable error) {
+      writeSessionError(
+          output,
+          requestId,
+          error.getClass().getName(),
+          error.getMessage() == null ? error.getClass().getName() : error.getMessage());
+    }
+  }
+
+  private static void writeSessionOk(OutputStream output, String requestId) throws IOException {
+    Bundle result = new Bundle();
+    result.putString("agentDeviceProtocol", PROTOCOL);
+    result.putString("helperApiVersion", HELPER_API_VERSION);
+    result.putString("outputFormat", OUTPUT_FORMAT);
+    result.putString("requestId", requestId);
+    result.putString("ok", "true");
+    writeSessionResponse(output, result, "");
+  }
+
+  private static void writeSessionError(
+      OutputStream output, String requestId, String errorType, String message) throws IOException {
+    Bundle result = new Bundle();
+    result.putString("agentDeviceProtocol", PROTOCOL);
+    result.putString("helperApiVersion", HELPER_API_VERSION);
+    result.putString("outputFormat", OUTPUT_FORMAT);
+    result.putString("requestId", requestId);
+    result.putString("ok", "false");
+    result.putString("errorType", errorType);
+    result.putString("message", message);
+    writeSessionResponse(output, result, "");
+  }
+
+  private static void writeSessionResponse(OutputStream output, Bundle result, String body)
+      throws IOException {
+    StringBuilder headers = new StringBuilder();
+    for (String key : result.keySet()) {
+      Object value = result.get(key);
+      if (value != null) {
+        headers.append(key).append('=').append(sanitizeHeaderValue(value.toString())).append('\n');
+      }
+    }
+    headers.append('\n');
+    output.write(headers.toString().getBytes(StandardCharsets.UTF_8));
+    output.write(body.getBytes(StandardCharsets.UTF_8));
+    output.flush();
+  }
+
+  private static String sanitizeHeaderValue(String value) {
+    return value.replace('\r', ' ').replace('\n', ' ');
   }
 
   private static String readStringArgument(Bundle arguments, String key) {
@@ -330,22 +491,34 @@ public final class SnapshotInstrumentation extends Instrumentation {
     Rect bounds = new Rect();
     node.getBoundsInScreen(bounds);
     xml.append("<node");
+    // Emit only fields consumed by the host parser. Extra boolean attrs made every node larger
+    // without affecting current snapshot semantics; add fields back here when TS starts reading
+    // them.
     appendAttribute(xml, "index", Integer.toString(nodeIndex));
-    appendAttribute(xml, "text", node.getText());
-    appendAttribute(xml, "resource-id", node.getViewIdResourceName());
+    appendNonEmptyAttribute(xml, "text", node.getText());
+    appendNonEmptyAttribute(xml, "resource-id", node.getViewIdResourceName());
     appendAttribute(xml, "class", node.getClassName());
-    appendAttribute(xml, "package", node.getPackageName());
-    appendAttribute(xml, "content-desc", node.getContentDescription());
-    appendAttribute(xml, "checkable", Boolean.toString(node.isCheckable()));
-    appendAttribute(xml, "checked", Boolean.toString(node.isChecked()));
-    appendAttribute(xml, "clickable", Boolean.toString(node.isClickable()));
+    appendNonEmptyAttribute(xml, "package", node.getPackageName());
+    appendNonEmptyAttribute(xml, "content-desc", node.getContentDescription());
+    appendTrueAttribute(xml, "clickable", node.isClickable());
     appendAttribute(xml, "enabled", Boolean.toString(node.isEnabled()));
-    appendAttribute(xml, "focusable", Boolean.toString(node.isFocusable()));
-    appendAttribute(xml, "focused", Boolean.toString(node.isFocused()));
-    appendAttribute(xml, "scrollable", Boolean.toString(node.isScrollable()));
-    appendAttribute(xml, "long-clickable", Boolean.toString(node.isLongClickable()));
-    appendAttribute(xml, "password", Boolean.toString(node.isPassword()));
-    appendAttribute(xml, "selected", Boolean.toString(node.isSelected()));
+    appendTrueAttribute(xml, "focusable", node.isFocusable());
+    appendTrueAttribute(xml, "focused", node.isFocused());
+    boolean scrollable = node.isScrollable();
+    if (scrollable) {
+      appendAttribute(xml, "scrollable", "true");
+      appendAttribute(
+          xml,
+          "can-scroll-forward",
+          Boolean.toString(
+              hasAccessibilityAction(node, AccessibilityAction.ACTION_SCROLL_FORWARD)));
+      appendAttribute(
+          xml,
+          "can-scroll-backward",
+          Boolean.toString(
+              hasAccessibilityAction(node, AccessibilityAction.ACTION_SCROLL_BACKWARD)));
+    }
+    appendTrueAttribute(xml, "password", node.isPassword());
     appendAttribute(
         xml,
         "bounds",
@@ -385,6 +558,19 @@ public final class SnapshotInstrumentation extends Instrumentation {
     xml.append("</node>");
   }
 
+  private static void appendNonEmptyAttribute(StringBuilder xml, String name, CharSequence value) {
+    if (value == null || value.length() == 0) {
+      return;
+    }
+    appendAttribute(xml, name, value);
+  }
+
+  private static void appendTrueAttribute(StringBuilder xml, String name, boolean value) {
+    if (value) {
+      appendAttribute(xml, name, "true");
+    }
+  }
+
   private static void appendAttribute(StringBuilder xml, String name, CharSequence value) {
     String stringValue = value == null ? "" : value.toString();
     xml.append(' ');
@@ -392,6 +578,12 @@ public final class SnapshotInstrumentation extends Instrumentation {
     xml.append("=\"");
     appendEscaped(xml, stringValue);
     xml.append('"');
+  }
+
+  private static boolean hasAccessibilityAction(
+      AccessibilityNodeInfo node, AccessibilityAction action) {
+    List<AccessibilityAction> actions = node.getActionList();
+    return actions != null && actions.contains(action);
   }
 
   private static void appendEscaped(StringBuilder xml, String value) {
@@ -457,6 +649,17 @@ public final class SnapshotInstrumentation extends Instrumentation {
     } catch (NumberFormatException error) {
       return fallback;
     }
+  }
+
+  private static boolean readBooleanArgument(Bundle arguments, String name, boolean fallback) {
+    if (arguments == null) {
+      return fallback;
+    }
+    String raw = arguments.getString(name);
+    if (raw == null || raw.trim().isEmpty()) {
+      return fallback;
+    }
+    return Boolean.parseBoolean(raw.trim());
   }
 
   private static final class CaptureStats {

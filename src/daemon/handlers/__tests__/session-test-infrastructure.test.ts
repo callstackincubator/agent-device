@@ -28,6 +28,19 @@ test('isReplayInfrastructureFailure keeps message fallback for legacy errors', (
   assert.equal(isReplayInfrastructureFailure(response), true);
 });
 
+test('isReplayInfrastructureFailure accepts replay timeout cleanup races', () => {
+  const response: DaemonResponse = {
+    ok: false,
+    error: {
+      code: 'COMMAND_FAILED',
+      message: 'TIMEOUT after 120000ms',
+      details: { reason: 'timeout_cleanup_pending', timeoutCleanupPending: true },
+    },
+  };
+
+  assert.equal(isReplayInfrastructureFailure(response), true);
+});
+
 test('isReplayInfrastructureFailure rejects normal replay failures', () => {
   const response: DaemonResponse = {
     ok: false,
