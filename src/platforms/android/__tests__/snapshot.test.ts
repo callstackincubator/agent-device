@@ -338,7 +338,7 @@ test('snapshotAndroid uses injected helper artifact before stock uiautomator', a
   assert.equal(result.androidSnapshot.installReason, 'current');
   assert.equal(result.androidSnapshot.captureMode, 'interactive-windows');
   assert.equal(result.androidSnapshot.windowCount, 1);
-  assert.deepEqual(timeouts, [30000, 30000]);
+  assert.deepEqual(timeouts, [30000, 30000, 5000]);
   assert.equal(mockRunCmd.mock.calls.length, 0);
 });
 
@@ -367,6 +367,10 @@ test('snapshotAndroid forwards alert-style helper idle timeout override', async 
 
   assert.ok(instrumentArgs);
   assert.equal(instrumentArgs[instrumentArgs.indexOf('waitForIdleTimeoutMs') + 1], '0');
+  assert.match(
+    instrumentArgs[instrumentArgs.indexOf('outputPath') + 1] ?? '',
+    /^\/sdcard\/Download\/agent-device-snapshot-/,
+  );
 });
 
 test('snapshotAndroid emits helper phase diagnostics', async () => {
@@ -448,7 +452,7 @@ test('snapshotAndroid resolves helper adb through scoped provider', async () => 
   assert.equal(result.androidSnapshot.backend, 'android-helper');
   assert.deepEqual(
     adbCalls.map((args) => args[0]),
-    ['shell', 'shell'],
+    ['shell', 'shell', 'shell'],
   );
   assert.equal(mockRunCmd.mock.calls.length, 0);
 });
@@ -651,25 +655,21 @@ test('snapshotAndroid skips stock fallback after killed helper instrumentation',
   assert.equal(stockAttempted, false);
 });
 
-test('snapshotAndroid skips stock fallback after unparseable helper output', async () => {
-  let stockAttempted = false;
+test('snapshotAndroid falls back to stock dump after unparseable helper output', async () => {
+  const stockXml =
+    '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="stock" bounds="[0,0][10,10]" /></hierarchy>';
   const helperAdb = createHelperAdb({
     instrument: async () => ({ exitCode: 0, stdout: '', stderr: '' }),
-    stock: async () => {
-      stockAttempted = true;
-      throw new Error('stock fallback should not run');
-    },
+    stock: async () => ({ exitCode: 0, stdout: stockXml, stderr: '' }),
   });
 
-  await assert.rejects(
-    () => snapshotAndroidWithHelper(helperAdb),
-    (error) => {
-      assert.match((error as Error).message, /Android snapshot helper output could not be parsed/);
-      assert.match((error as Error).message, /Stock UIAutomator fallback was skipped/);
-      return true;
-    },
+  const result = await snapshotAndroidWithHelper(helperAdb);
+
+  assert.equal(result.androidSnapshot.backend, 'uiautomator-dump');
+  assert.match(
+    result.androidSnapshot.fallbackReason ?? '',
+    /Android snapshot helper output could not be parsed/,
   );
-  assert.equal(stockAttempted, false);
 });
 
 test('snapshotAndroid falls back to stock dump after helper adb timeout', async () => {
@@ -1039,6 +1039,74 @@ test('snapshotAndroid skips hidden content hints when disabled', async () => {
     result.nodes.some((node) => node.type === 'android.widget.ScrollView'),
     true,
   );
+});
+
+test('snapshotAndroid uses helper scroll action hints without activity dump', async () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<hierarchy rotation="0">
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" clickable="false" focusable="false">
+    <node class="android.widget.ScrollView" scrollable="true" can-scroll-forward="true" can-scroll-backward="false" bounds="[0,100][390,600]" clickable="false" focusable="false">
+      <node class="android.view.ViewGroup" bounds="[0,100][390,600]" clickable="false" focusable="false">
+        <node class="android.widget.Button" text="Continue" bounds="[20,120][200,180]" clickable="true" focusable="true" />
+      </node>
+    </node>
+  </node>
+</hierarchy>`;
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (isAndroidSdkVersionCommand(args)) {
+      return { exitCode: 0, stdout: '35', stderr: '' };
+    }
+    if (args.includes('exec-out')) {
+      return { exitCode: 0, stdout: xml, stderr: '' };
+    }
+    if (args.includes('dumpsys') && args.includes('activity') && args.includes('top')) {
+      throw new Error('dumpsys activity top should not run when helper action hints exist');
+    }
+    throw new Error(`unexpected args: ${args.join(' ')}`);
+  });
+
+  const result = await snapshotAndroid(device);
+  const scrollArea = result.nodes.find((node) => node.type === 'android.widget.ScrollView');
+
+  assert.ok(scrollArea);
+  assert.equal(scrollArea.hiddenContentBelow, true);
+  assert.equal(scrollArea.hiddenContentAbove, undefined);
+});
+
+test('snapshotAndroid does not convert horizontal helper scroll action to vertical hints', async () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<hierarchy rotation="0">
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" clickable="false" focusable="false">
+    <node class="android.widget.HorizontalScrollView" scrollable="true" can-scroll-forward="true" can-scroll-backward="false" bounds="[0,100][390,220]" clickable="false" focusable="false">
+      <node class="android.view.ViewGroup" bounds="[0,100][800,220]" clickable="false" focusable="false">
+        <node class="android.widget.Button" text="First" bounds="[20,120][200,180]" clickable="true" focusable="true" />
+      </node>
+    </node>
+  </node>
+</hierarchy>`;
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    if (isAndroidSdkVersionCommand(args)) {
+      return { exitCode: 0, stdout: '35', stderr: '' };
+    }
+    if (args.includes('exec-out')) {
+      return { exitCode: 0, stdout: xml, stderr: '' };
+    }
+    if (args.includes('dumpsys') && args.includes('activity') && args.includes('top')) {
+      throw new Error('dumpsys activity top should not run when helper action hints exist');
+    }
+    throw new Error(`unexpected args: ${args.join(' ')}`);
+  });
+
+  const result = await snapshotAndroid(device);
+  const scrollArea = result.nodes.find(
+    (node) => node.type === 'android.widget.HorizontalScrollView',
+  );
+
+  assert.ok(scrollArea);
+  assert.equal(scrollArea.hiddenContentBelow, undefined);
+  assert.equal(scrollArea.hiddenContentAbove, undefined);
 });
 
 test('snapshotAndroid derives hidden content hints for interactive snapshots from shared visibility semantics', async () => {

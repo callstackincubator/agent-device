@@ -41,7 +41,9 @@ export async function invokeMaestroAssertVisible(params: {
   const startedAt = Date.now();
   const deadlineMs = timeoutMs + MAESTRO_ASSERTION_POLICY.assertVisibleGraceMs;
   let lastResponse: DaemonResponse | undefined;
-  do {
+  let capturedAfterDeadline = false;
+  while (true) {
+    const captureStartedAt = Date.now();
     const response = await captureMaestroRawSnapshot(params);
     lastResponse = response;
     if (response.ok) {
@@ -73,9 +75,16 @@ export async function invokeMaestroAssertVisible(params: {
       lastResponse = errorResponse('COMMAND_FAILED', target.message, { selector });
     }
 
-    if (Date.now() - startedAt >= deadlineMs) break;
+    const elapsedMs = Date.now() - startedAt;
+    if (elapsedMs >= deadlineMs) {
+      if (!capturedAfterDeadline && captureStartedAt - startedAt < deadlineMs) {
+        capturedAfterDeadline = true;
+        continue;
+      }
+      break;
+    }
     await sleep(MAESTRO_ASSERTION_POLICY.assertVisiblePollMs);
-  } while (Date.now() - startedAt <= deadlineMs);
+  }
 
   return (
     lastResponse ??
@@ -110,13 +119,18 @@ export async function invokeMaestroAssertNotVisible(params: {
       lastVisibleResponse = response;
     } else if (isMaestroVisibilityMiss(response)) {
       hiddenSamples += 1;
-      if (hiddenSamples >= 2) {
+      const waitedMs = Date.now() - startedAt;
+      if (
+        hiddenSamples >= 2 ||
+        waitedMs >= MAESTRO_ASSERTION_POLICY.assertNotVisibleTimeoutMs
+      ) {
         return {
           ok: true,
           data: {
             pass: true,
             selector,
             stableSamples: hiddenSamples,
+            waitedMs,
             timeoutMs: MAESTRO_ASSERTION_POLICY.assertNotVisibleTimeoutMs,
           },
         };

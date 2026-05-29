@@ -589,6 +589,83 @@ test('captureAndroidSnapshotWithHelper uses injected adb executor', async () => 
   assert.equal(result.metadata.maxNodes, 100);
 });
 
+test('captureAndroidSnapshotWithHelper can read output file when chunks are disabled', async () => {
+  const adbCalls: string[][] = [];
+  const outputPath = '/sdcard/Download/agent-device-snapshot.xml';
+  const adb: AndroidAdbExecutor = async (args) => {
+    adbCalls.push(args);
+    if (args[0] === 'shell' && args[1] === 'cat') {
+      assert.equal(args[2], outputPath);
+      return {
+        exitCode: 0,
+        stdout: '<hierarchy><node index="0" /></hierarchy>',
+        stderr: '',
+      };
+    }
+    if (args[0] === 'shell' && args[1] === 'rm') {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    return {
+      exitCode: 0,
+      stdout: helperOutput({
+        chunks: [],
+        result: {
+          ok: 'true',
+          outputFormat: 'uiautomator-xml',
+          waitForIdleTimeoutMs: '10',
+          waitForIdleQuietMs: '5',
+          timeoutMs: '9000',
+          maxDepth: '64',
+          maxNodes: '100',
+        },
+      }),
+      stderr: '',
+    };
+  };
+
+  const result = await captureAndroidSnapshotWithHelper({
+    adb,
+    waitForIdleTimeoutMs: 10,
+    waitForIdleQuietMs: 5,
+    timeoutMs: 9000,
+    maxDepth: 64,
+    maxNodes: 100,
+    outputPath,
+    emitChunks: false,
+  });
+
+  assert.deepEqual(adbCalls[0], [
+    'shell',
+    'am',
+    'instrument',
+    '-w',
+    '-e',
+    'waitForIdleTimeoutMs',
+    '10',
+    '-e',
+    'waitForIdleQuietMs',
+    '5',
+    '-e',
+    'timeoutMs',
+    '9000',
+    '-e',
+    'maxDepth',
+    '64',
+    '-e',
+    'maxNodes',
+    '100',
+    '-e',
+    'outputPath',
+    outputPath,
+    '-e',
+    'emitChunks',
+    'false',
+    'com.callstack.agentdevice.snapshothelper/.SnapshotInstrumentation',
+  ]);
+  assert.equal(result.xml, '<hierarchy><node index="0" /></hierarchy>');
+  assert.equal(result.metadata.maxNodes, 100);
+});
+
 test('captureAndroidSnapshotWithHelper gives adb command overhead beyond helper timeout', async () => {
   let commandTimeoutMs: number | undefined;
   await captureAndroidSnapshotWithHelper({

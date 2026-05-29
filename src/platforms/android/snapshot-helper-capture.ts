@@ -40,6 +40,7 @@ type AndroidSnapshotHelperResolvedCaptureOptions = {
   packageName: string;
   runner: string;
   outputPath?: string;
+  emitChunks?: boolean;
 };
 
 export async function captureAndroidSnapshotWithHelper(
@@ -87,6 +88,7 @@ function resolveAndroidSnapshotHelperCaptureOptions(
     packageName,
     runner: withDefault(options.instrumentationRunner, `${packageName}/.SnapshotInstrumentation`),
     ...(options.outputPath ? { outputPath: options.outputPath } : {}),
+    ...(options.emitChunks !== undefined ? { emitChunks: options.emitChunks } : {}),
   };
 }
 
@@ -118,6 +120,7 @@ function buildAndroidSnapshotHelperArgs(
     'maxNodes',
     String(options.maxNodes),
     ...(options.outputPath ? ['-e', 'outputPath', options.outputPath] : []),
+    ...(options.emitChunks !== undefined ? ['-e', 'emitChunks', String(options.emitChunks)] : []),
     options.runner,
   ];
 }
@@ -141,17 +144,23 @@ async function readFallbackHelperOutputOrThrow(
   result: Awaited<ReturnType<AndroidSnapshotHelperCaptureOptions['adb']>>,
   error: unknown,
 ): Promise<AndroidSnapshotHelperOutput> {
-  if (resolved.outputPath) {
+  if (error instanceof AppError && result.exitCode !== 0 && error.details?.helper) throw error;
+  if (result.exitCode === 0 && resolved.outputPath) {
+    const resultMetadata =
+      readHelperMetadataFromInstrumentationOutput(`${result.stdout}\n${result.stderr}`) ??
+      undefined;
     const fileOutput = await readHelperOutputFile(options.adb, resolved.outputPath, {
-      waitForIdleTimeoutMs: resolved.waitForIdleTimeoutMs,
-      waitForIdleQuietMs: resolved.waitForIdleQuietMs,
-      timeoutMs: resolved.timeoutMs,
-      maxDepth: resolved.maxDepth,
-      maxNodes: resolved.maxNodes,
+      ...(resultMetadata ?? {
+        outputFormat: ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,
+        waitForIdleTimeoutMs: resolved.waitForIdleTimeoutMs,
+        waitForIdleQuietMs: resolved.waitForIdleQuietMs,
+        timeoutMs: resolved.timeoutMs,
+        maxDepth: resolved.maxDepth,
+        maxNodes: resolved.maxNodes,
+      }),
     });
     if (fileOutput) return fileOutput;
   }
-  if (error instanceof AppError && result.exitCode !== 0 && error.details?.helper) throw error;
   throw new AppError(
     'COMMAND_FAILED',
     result.exitCode === 0
@@ -169,33 +178,51 @@ async function readFallbackHelperOutputOrThrow(
 async function readHelperOutputFile(
   adb: AndroidSnapshotHelperCaptureOptions['adb'],
   outputPath: string,
-  metadata: Omit<AndroidSnapshotHelperMetadata, 'outputFormat'>,
+  metadata: AndroidSnapshotHelperMetadata,
 ): Promise<AndroidSnapshotHelperOutput | undefined> {
-  const result = await adb(['shell', 'cat', outputPath], {
-    allowFailure: true,
-    timeoutMs: 5_000,
-  });
-  await removeHelperOutputFile(adb, outputPath);
+  let result: Awaited<ReturnType<AndroidSnapshotHelperCaptureOptions['adb']>>;
+  try {
+    result = await adb(['shell', 'cat', outputPath], {
+      allowFailure: true,
+      timeoutMs: 5_000,
+    });
+  } catch {
+    return undefined;
+  } finally {
+    await removeHelperOutputFile(adb, outputPath);
+  }
   if (result.exitCode !== 0) return undefined;
   const xml = result.stdout.trim();
   if (!xml.includes('<hierarchy') || !xml.includes('</hierarchy>')) return undefined;
   return {
     xml,
-    metadata: {
-      ...metadata,
-      outputFormat: ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,
-    },
+    metadata,
   };
+}
+
+function readHelperMetadataFromInstrumentationOutput(
+  output: string,
+): AndroidSnapshotHelperMetadata | null {
+  try {
+    const records = parseInstrumentationRecords(output);
+    return readHelperMetadata(readFinalHelperResult(records.results));
+  } catch {
+    return null;
+  }
 }
 
 async function removeHelperOutputFile(
   adb: AndroidSnapshotHelperCaptureOptions['adb'],
   outputPath: string,
 ): Promise<void> {
-  await adb(['shell', 'rm', '-f', outputPath], {
-    allowFailure: true,
-    timeoutMs: 5_000,
-  });
+  try {
+    await adb(['shell', 'rm', '-f', outputPath], {
+      allowFailure: true,
+      timeoutMs: 5_000,
+    });
+  } catch {
+    // Cleanup is best-effort; snapshot capture should not fail because a stale temp file survived.
+  }
 }
 
 export function parseAndroidSnapshotHelperOutput(output: string): AndroidSnapshotHelperOutput {

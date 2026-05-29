@@ -355,8 +355,10 @@ function resolveMaestroSnapshotMatchCandidates(
   const resolved = matches
     .map((node) => resolveMaestroSnapshotMatch(nodes, node, nodeByIndex))
     .filter((candidate): candidate is MaestroResolvedSnapshotMatch => Boolean(candidate));
+  const concrete = resolved.filter((candidate) => !candidate.inheritedRect);
+  const candidates = concrete.length > 0 ? concrete : resolved;
   if (!visibleTextQuery || index !== undefined) return resolved;
-  return preferOnScreenMatches(resolved, frame, requireOnScreen);
+  return preferOnScreenMatches(candidates, frame, requireOnScreen);
 }
 
 function resolveMaestroSnapshotMatch(
@@ -376,7 +378,11 @@ function chooseMaestroSnapshotMatch(
   promoteTapTarget: boolean,
 ): MaestroResolvedSnapshotMatch | null {
   if (index !== undefined) return candidates[index] ?? null;
-  const best = selectBestMaestroSnapshotMatch(candidates, visibleTextQuery);
+  const best =
+    promoteTapTarget && visibleTextQuery
+      ? selectLocalizedMaestroVisibleTextMatch(nodes, candidates, visibleTextQuery) ??
+        selectBestMaestroSnapshotMatch(candidates, visibleTextQuery)
+      : selectBestMaestroSnapshotMatch(candidates, visibleTextQuery);
   if (!promoteTapTarget || !visibleTextQuery || !best) return best;
   return inferMaestroMissingTabSlotMatch(nodes, best, visibleTextQuery) ?? best;
 }
@@ -390,6 +396,49 @@ function selectBestMaestroSnapshotMatch(
       compareMaestroSnapshotMatches(left, right, visibleTextQuery),
     )[0] ?? null
   );
+}
+
+function selectLocalizedMaestroVisibleTextMatch(
+  nodes: SnapshotState['nodes'],
+  candidates: MaestroResolvedSnapshotMatch[],
+  query: string,
+): MaestroResolvedSnapshotMatch | null {
+  const exactMatches = candidates.filter(
+    (candidate) => maestroVisibleTextMatchRank(candidate.node, query) <= 1,
+  );
+  if (exactMatches.length < 2) return null;
+
+  const nodeByIndex = buildSnapshotNodeByIndex(nodes);
+  const localized = exactMatches.filter(
+    (candidate) =>
+      isLocalizedMaestroVisibleTextCandidate(candidate) &&
+      exactMatches.some((container) =>
+        isMaestroVisibleTextContainerForCandidate(nodes, container, candidate, nodeByIndex),
+      ),
+  );
+
+  return selectBestMaestroSnapshotMatch(localized, query);
+}
+
+function isLocalizedMaestroVisibleTextCandidate(match: MaestroResolvedSnapshotMatch): boolean {
+  return (
+    match.rect.width >= 16 &&
+    match.rect.width <= 260 &&
+    match.rect.height >= 24 &&
+    match.rect.height <= 80
+  );
+}
+
+function isMaestroVisibleTextContainerForCandidate(
+  nodes: SnapshotState['nodes'],
+  container: MaestroResolvedSnapshotMatch,
+  candidate: MaestroResolvedSnapshotMatch,
+  nodeByIndex: SnapshotNodeByIndex,
+): boolean {
+  if (container.node.index === candidate.node.index) return false;
+  if (!rectContains(container.rect, candidate.rect)) return false;
+  if (rectArea(container.rect) < rectArea(candidate.rect) * 2) return false;
+  return isDescendantOfSnapshotNode(nodes, candidate.node, container.node, nodeByIndex);
 }
 
 function preferOnScreenMatches(

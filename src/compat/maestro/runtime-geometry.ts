@@ -13,6 +13,7 @@ const MAESTRO_GEOMETRY_POLICY = {
   largeTextContainerBias: {
     minWidth: 120,
     minHeight: 70,
+    maxHeight: 200,
     width: 168,
     height: 48,
   },
@@ -109,5 +110,6 @@ function shouldBiasMaestroVisibleTextTap(
   const type = normalizeType(node.type ?? '');
   const scrollableTextContainer = type === 'scrollview' || type === 'scroll-area';
   if (rect.height < MAESTRO_GEOMETRY_POLICY.largeTextContainerBias.minHeight) return false;
+  if (rect.height > MAESTRO_GEOMETRY_POLICY.largeTextContainerBias.maxHeight) return false;
   return type === 'cell' || type === 'other' || scrollableTextContainer;
 }

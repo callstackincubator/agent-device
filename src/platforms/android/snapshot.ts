@@ -78,7 +78,7 @@ export async function snapshotAndroid(
   if (!options.interactiveOnly) {
     const parsed = parseUiHierarchy(xml, ANDROID_SNAPSHOT_MAX_NODES, options);
     if (includeHiddenContentHints) {
-      const nativeHints = await deriveScrollableContentHintsIfNeeded(device, parsed.nodes, adb);
+      const nativeHints = await deriveScrollableContentHintsIfNeeded(device, parsed.nodes, xml, adb);
       applyHiddenContentHintsToNodes(nativeHints, parsed.nodes);
     }
     return { ...parsed, androidSnapshot: capture.metadata };
@@ -91,7 +91,12 @@ export async function snapshotAndroid(
   });
   const interactiveSnapshot = buildUiHierarchySnapshot(tree, ANDROID_SNAPSHOT_MAX_NODES, options);
   if (includeHiddenContentHints) {
-    const nativeHints = await deriveScrollableContentHintsIfNeeded(device, fullSnapshot.nodes, adb);
+    const nativeHints = await deriveScrollableContentHintsIfNeeded(
+      device,
+      fullSnapshot.nodes,
+      xml,
+      adb,
+    );
     applyHiddenContentHintsToInteractiveNodes(nativeHints, fullSnapshot, interactiveSnapshot);
     if (nativeHints.size === 0) {
       const presentationHints = deriveMobileSnapshotHiddenContentHints(
@@ -210,6 +215,8 @@ async function captureAndroidUiHierarchyFromHelper(
           options.helperWaitForIdleTimeoutMs ?? ANDROID_SNAPSHOT_HELPER_WAIT_FOR_IDLE_TIMEOUT_MS,
         timeoutMs: HELPER_CAPTURE_TIMEOUT_MS,
         commandTimeoutMs: HELPER_COMMAND_TIMEOUT_MS,
+        outputPath: createAndroidSnapshotHelperOutputPath(),
+        emitChunks: false,
       }),
     {
       packageName: artifact.manifest.packageName,
@@ -218,6 +225,11 @@ async function captureAndroidUiHierarchyFromHelper(
       commandTimeoutMs: HELPER_COMMAND_TIMEOUT_MS,
     },
   );
+}
+
+function createAndroidSnapshotHelperOutputPath(): string {
+  const suffix = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `/sdcard/Download/agent-device-snapshot-${suffix}.xml`;
 }
 
 function formatAndroidHelperCaptureResult(
@@ -287,8 +299,7 @@ function formatAndroidSnapshotHelperBusyError(error: unknown): AppError | undefi
   const normalized = normalizeError(error);
   if (
     !isStructuredHelperTimeout(normalized.details?.helper, normalized.message) &&
-    !isKilledHelperInstrumentationFailure(normalized) &&
-    !isUnsafeStockFallbackHelperReason(normalized.message)
+    !isKilledHelperInstrumentationFailure(normalized)
   ) {
     return undefined;
   }
@@ -314,10 +325,6 @@ function isKilledHelperInstrumentationFailure(error: {
   return /Android snapshot helper (failed before returning parseable output|output could not be parsed)/.test(
     error.message,
   );
-}
-
-function isUnsafeStockFallbackHelperReason(reason: string): boolean {
-  return /Android snapshot helper output could not be parsed/.test(reason);
 }
 
 function readHelperMessage(helper: unknown): string | undefined {
@@ -422,16 +429,44 @@ function getAndroidSnapshotHelperDeviceKey(device: DeviceInfo): string {
 async function deriveScrollableContentHintsIfNeeded(
   device: DeviceInfo,
   nodes: RawSnapshotNode[],
+  xml: string,
   adb?: AndroidAdbExecutor,
 ): Promise<Map<number, HiddenContentHint>> {
   if (!nodes.some((node) => isScrollableType(node.type))) {
     return new Map();
+  }
+  const existingHints = collectExistingHiddenContentHints(nodes);
+  if (existingHints.size > 0 || hasAndroidScrollActionAttributes(xml)) {
+    return existingHints;
   }
   const activityTopDump = await dumpActivityTop(device, adb);
   if (!activityTopDump) {
     return new Map();
   }
   return deriveAndroidScrollableContentHints(nodes, activityTopDump);
+}
+
+function hasAndroidScrollActionAttributes(xml: string): boolean {
+  return xml.includes(' can-scroll-forward=') || xml.includes(' can-scroll-backward=');
+}
+
+function collectExistingHiddenContentHints(
+  nodes: RawSnapshotNode[],
+): Map<number, HiddenContentHint> {
+  const hintsByIndex = new Map<number, HiddenContentHint>();
+  for (const node of nodes) {
+    const hint: HiddenContentHint = {};
+    if (node.hiddenContentAbove) {
+      hint.hiddenContentAbove = true;
+    }
+    if (node.hiddenContentBelow) {
+      hint.hiddenContentBelow = true;
+    }
+    if (hint.hiddenContentAbove || hint.hiddenContentBelow) {
+      hintsByIndex.set(node.index, hint);
+    }
+  }
+  return hintsByIndex;
 }
 
 export async function dumpUiHierarchy(

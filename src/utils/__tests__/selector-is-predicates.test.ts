@@ -96,3 +96,47 @@ test('visible predicate uses visible Android ancestor geometry for rectless text
 
   assert.equal(result.pass, true);
 });
+
+test('visible predicate does not use non-hittable Android layout ancestors for rectless text', () => {
+  const nodes: SnapshotNode[] = [
+    {
+      index: 0,
+      ref: 'e0',
+      type: 'android.widget.FrameLayout',
+      rect: { x: 0, y: 0, width: 1080, height: 2340 },
+    },
+    {
+      index: 1,
+      ref: 'e1',
+      parentIndex: 0,
+      type: 'android.view.ViewGroup',
+      rect: { x: 0, y: 0, width: 816, height: 2340 },
+      hittable: false,
+    },
+    {
+      index: 2,
+      ref: 'e2',
+      parentIndex: 1,
+      type: 'android.widget.Button',
+      label: 'Albums',
+      hittable: true,
+    },
+    {
+      index: 3,
+      ref: 'e3',
+      parentIndex: 2,
+      type: 'android.widget.TextView',
+      label: 'Albums',
+      value: 'Albums',
+    },
+  ];
+
+  const result = evaluateIsPredicate({
+    predicate: 'visible',
+    node: nodes[3]!,
+    nodes,
+    platform: 'android',
+  });
+
+  assert.equal(result.pass, false);
+});

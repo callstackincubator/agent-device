@@ -60,7 +60,7 @@ function isAssertionVisible(
   if (hasPositiveRect(node.rect)) return isRectVisibleInViewport(node, nodes);
   if (node.rect) return false;
   if (platform !== 'android' && node.hittable === true) return true;
-  const anchor = resolveVisibilityAnchor(node, nodes);
+  const anchor = resolveVisibilityAnchor(node, nodes, platform);
   if (!anchor) return false;
   if (!hasPositiveRect(anchor.rect)) return platform !== 'android' && anchor.hittable === true;
   return isRectVisibleInViewport(anchor, nodes);
@@ -76,6 +76,7 @@ function isRectVisibleInViewport(
 function resolveVisibilityAnchor(
   node: SnapshotState['nodes'][number],
   nodes: SnapshotState['nodes'],
+  platform: Platform,
 ): SnapshotState['nodes'][number] | null {
   const nodesByIndex = new Map(nodes.map((entry) => [entry.index, entry]));
   let current = node;
@@ -84,13 +85,13 @@ function resolveVisibilityAnchor(
     visited.add(current.index);
     const parent = nodesByIndex.get(current.parentIndex);
     if (!parent) break;
-    if (isUsefulVisibilityAnchor(parent)) return parent;
+    if (isUsefulVisibilityAnchor(parent, platform)) return parent;
     current = parent;
   }
   return null;
 }
 
-function isUsefulVisibilityAnchor(node: SnapshotState['nodes'][number]): boolean {
+function isUsefulVisibilityAnchor(node: SnapshotState['nodes'][number], platform: Platform): boolean {
   const type = normalizeType(node.type ?? '');
   // These containers often report the full content frame, not the clipped on-screen geometry.
   if (
@@ -104,6 +105,9 @@ function isUsefulVisibilityAnchor(node: SnapshotState['nodes'][number]): boolean
     type === 'listview'
   ) {
     return false;
+  }
+  if (platform === 'android') {
+    return node.hittable === true && hasPositiveRect(node.rect);
   }
   return node.hittable === true || hasPositiveRect(node.rect);
 }

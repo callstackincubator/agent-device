@@ -1130,6 +1130,9 @@ test('usageForCommand resolves react-native help topic', () => {
   assert.match(help, /help debugging/);
   assert.match(help, /help react-devtools/);
   assert.match(help, /Help workflow owns the full Expo URL command shapes/);
+  assert.match(help, /same host context that owns Metro/);
+  assert.match(help, /sandbox probe is not authoritative/);
+  assert.match(help, /adb reverse only affects Android device-to-host traffic/);
   assert.match(help, /Keep the agent-device react-devtools prefix/);
   assert.match(help, /Use help react-devtools for status\/wait/);
   assert.match(help, /logs clear --restart/);

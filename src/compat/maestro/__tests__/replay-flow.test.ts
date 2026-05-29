@@ -108,10 +108,24 @@ test('parseMaestroReplayFlow maps iOS openLink through the app id when available
   );
 });
 
-test('parseMaestroReplayFlow maps Android openLink like Maestro without package binding', () => {
+test('parseMaestroReplayFlow maps Android openLink through the app id when available', () => {
   const parsed = parseMaestroReplayFlow(
     `appId: com.callstack.agentdevicelab
 ---
+- openLink: exp://localhost:8082
+`,
+    { platform: 'android' },
+  );
+
+  assert.deepEqual(
+    parsed.actions.map((entry) => [entry.command, entry.positionals]),
+    [['open', ['com.callstack.agentdevicelab', 'exp://localhost:8082']]],
+  );
+});
+
+test('parseMaestroReplayFlow maps Android openLink without package binding when appId is absent', () => {
+  const parsed = parseMaestroReplayFlow(
+    `---
 - openLink: exp://localhost:8082
 `,
     { platform: 'android' },

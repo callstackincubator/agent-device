@@ -154,7 +154,7 @@ function convertOpenLink(
 ): SessionAction {
   const rawLink = readOpenLink(value, name);
   const url = resolveMaestroString(rawLink, context);
-  if (context.platform === 'ios' && config.appId) {
+  if ((context.platform === 'ios' || context.platform === 'android') && config.appId) {
     return action('open', [resolveMaestroString(requireAppId(config, name), context), url]);
   }
   return action('open', [url]);

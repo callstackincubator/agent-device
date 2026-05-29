@@ -7,6 +7,7 @@ import android.graphics.Rect;
 import android.os.Bundle;
 import android.util.Base64;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction;
 import android.view.accessibility.AccessibilityWindowInfo;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -22,8 +23,8 @@ public final class SnapshotInstrumentation extends Instrumentation {
   private static final String OUTPUT_FORMAT = "uiautomator-xml";
   private static final String HELPER_API_VERSION = "1";
   private static final int CHUNK_SIZE = 2 * 1024;
-  private static final long DEFAULT_WAIT_FOR_IDLE_TIMEOUT_MS = 500;
-  private static final long DEFAULT_WAIT_FOR_IDLE_QUIET_MS = 100;
+  private static final long DEFAULT_WAIT_FOR_IDLE_TIMEOUT_MS = 25;
+  private static final long DEFAULT_WAIT_FOR_IDLE_QUIET_MS = 25;
   private static final long DEFAULT_TIMEOUT_MS = 8_000;
   private static final int DEFAULT_MAX_DEPTH = 128;
   private static final int DEFAULT_MAX_NODES = 5_000;
@@ -47,6 +48,7 @@ public final class SnapshotInstrumentation extends Instrumentation {
     int maxDepth = readIntArgument(arguments, "maxDepth", DEFAULT_MAX_DEPTH);
     int maxNodes = readIntArgument(arguments, "maxNodes", DEFAULT_MAX_NODES);
     String outputPath = readStringArgument(arguments, "outputPath");
+    boolean emitChunks = readBooleanArgument(arguments, "emitChunks", true);
     Bundle result = new Bundle();
     result.putString("agentDeviceProtocol", PROTOCOL);
     result.putString("helperApiVersion", HELPER_API_VERSION);
@@ -62,7 +64,9 @@ public final class SnapshotInstrumentation extends Instrumentation {
       CaptureResult capture =
           captureXml(waitForIdleQuietMs, waitForIdleTimeoutMs, timeoutMs, maxDepth, maxNodes);
       writeOutputFile(outputPath, capture.xml);
-      emitChunks(capture.xml);
+      if (emitChunks) {
+        emitChunks(capture.xml);
+      }
       result.putString("ok", "true");
       result.putString("rootPresent", Boolean.toString(capture.rootPresent));
       result.putString("captureMode", capture.captureMode);
@@ -343,6 +347,14 @@ public final class SnapshotInstrumentation extends Instrumentation {
     appendAttribute(xml, "focusable", Boolean.toString(node.isFocusable()));
     appendAttribute(xml, "focused", Boolean.toString(node.isFocused()));
     appendAttribute(xml, "scrollable", Boolean.toString(node.isScrollable()));
+    appendAttribute(
+        xml,
+        "can-scroll-forward",
+        Boolean.toString(hasAccessibilityAction(node, AccessibilityAction.ACTION_SCROLL_FORWARD)));
+    appendAttribute(
+        xml,
+        "can-scroll-backward",
+        Boolean.toString(hasAccessibilityAction(node, AccessibilityAction.ACTION_SCROLL_BACKWARD)));
     appendAttribute(xml, "long-clickable", Boolean.toString(node.isLongClickable()));
     appendAttribute(xml, "password", Boolean.toString(node.isPassword()));
     appendAttribute(xml, "selected", Boolean.toString(node.isSelected()));
@@ -392,6 +404,12 @@ public final class SnapshotInstrumentation extends Instrumentation {
     xml.append("=\"");
     appendEscaped(xml, stringValue);
     xml.append('"');
+  }
+
+  private static boolean hasAccessibilityAction(
+      AccessibilityNodeInfo node, AccessibilityAction action) {
+    List<AccessibilityAction> actions = node.getActionList();
+    return actions != null && actions.contains(action);
   }
 
   private static void appendEscaped(StringBuilder xml, String value) {
@@ -457,6 +475,17 @@ public final class SnapshotInstrumentation extends Instrumentation {
     } catch (NumberFormatException error) {
       return fallback;
     }
+  }
+
+  private static boolean readBooleanArgument(Bundle arguments, String name, boolean fallback) {
+    if (arguments == null) {
+      return fallback;
+    }
+    String raw = arguments.getString(name);
+    if (raw == null || raw.trim().isEmpty()) {
+      return fallback;
+    }
+    return Boolean.parseBoolean(raw.trim());
   }
 
   private static final class CaptureStats {

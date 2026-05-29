@@ -19,6 +19,9 @@ export type AndroidUiNodeMetadata = {
   focusable?: boolean;
   focused?: boolean;
   password?: boolean;
+  scrollable?: boolean;
+  canScrollForward?: boolean;
+  canScrollBackward?: boolean;
 };
 
 export function* androidUiNodes(xml: string): IterableIterator<AndroidUiNodeMetadata> {
@@ -202,6 +205,9 @@ function readNodeAttributes(node: string): Omit<AndroidUiNodeMetadata, 'rect'> {
     focusable: boolAttr('focusable'),
     focused: boolAttr('focused'),
     password: boolAttr('password'),
+    scrollable: boolAttr('scrollable'),
+    canScrollForward: boolAttr('can-scroll-forward'),
+    canScrollBackward: boolAttr('can-scroll-backward'),
   };
 }
 
@@ -354,6 +360,9 @@ export type AndroidUiHierarchy = {
   parentIndex?: number;
   hiddenContentAbove?: boolean;
   hiddenContentBelow?: boolean;
+  scrollable?: boolean;
+  canScrollForward?: boolean;
+  canScrollBackward?: boolean;
   children: AndroidNode[];
 };
 
@@ -398,6 +407,9 @@ export function parseUiHierarchyTree(xml: string): AndroidUiHierarchy {
       rect: attrs.rect,
       enabled: attrs.enabled,
       hittable: attrs.clickable ?? attrs.focusable,
+      scrollable: attrs.scrollable,
+      canScrollForward: attrs.canScrollForward,
+      canScrollBackward: attrs.canScrollBackward,
       depth: parent.depth + 1,
       parentIndex: undefined,
       children: [],
@@ -408,7 +420,44 @@ export function parseUiHierarchyTree(xml: string): AndroidUiHierarchy {
     }
     match = tokenRegex.exec(xml);
   }
+  applyAndroidScrollActionHints(root);
   return root;
+}
+
+function applyAndroidScrollActionHints(root: AndroidUiHierarchy): void {
+  const stack = [...root.children];
+  while (stack.length > 0) {
+    const node = stack.pop() as AndroidNode;
+    stack.push(...node.children);
+    if (!isVerticalScrollableNode(node)) continue;
+    if (node.canScrollBackward) node.hiddenContentAbove = true;
+    if (node.canScrollForward) node.hiddenContentBelow = true;
+  }
+}
+
+function isVerticalScrollableNode(node: AndroidNode): boolean {
+  if (!node.scrollable || !isScrollableType(node.type)) return false;
+  const type = `${node.type ?? ''}`.toLowerCase();
+  if (type.includes('horizontalscrollview')) return false;
+  const overflow = estimateChildOverflow(node);
+  if (overflow && overflow.horizontal > overflow.vertical && overflow.horizontal > 16) {
+    return false;
+  }
+  return true;
+}
+
+function estimateChildOverflow(node: AndroidNode): { horizontal: number; vertical: number } | null {
+  if (!node.rect || node.children.length === 0) return null;
+  const childRects = node.children.map((child) => child.rect).filter((rect) => rect !== undefined);
+  if (childRects.length === 0) return null;
+  const minX = Math.min(...childRects.map((rect) => rect.x));
+  const maxX = Math.max(...childRects.map((rect) => rect.x + rect.width));
+  const minY = Math.min(...childRects.map((rect) => rect.y));
+  const maxY = Math.max(...childRects.map((rect) => rect.y + rect.height));
+  return {
+    horizontal: Math.max(0, maxX - minX - node.rect.width),
+    vertical: Math.max(0, maxY - minY - node.rect.height),
+  };
 }
 
 function shouldIncludeAndroidNode(
