@@ -437,7 +437,7 @@ export function optionalEnum<const T extends readonly string[]>(
 export function commonToClientOptions(
   input: CommonCommandInput,
 ): AgentDeviceRequestOverrides & AgentDeviceSelectionOptions {
-  return {
+  return compactRecord({
     session: input.session,
     platform: input.platform,
     target: input.deviceTarget,
@@ -453,7 +453,7 @@ export function commonToClientOptions(
     leaseId: input.leaseId,
     cwd: input.cwd,
     debug: input.debug,
-  };
+  }) as AgentDeviceRequestOverrides & AgentDeviceSelectionOptions;
 }
 
 export function toClientInteractionTarget(target: InteractionTargetInput): InteractionTarget {
