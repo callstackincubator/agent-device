@@ -55,9 +55,15 @@ type SnapshotDiffLine = {
   text?: string;
 };
 
+type SnapshotTextOptions = {
+  raw?: boolean;
+  flatten?: boolean;
+  scoped?: boolean;
+};
+
 export function formatSnapshotText(
   data: Record<string, unknown>,
-  options: { raw?: boolean; flatten?: boolean } = {},
+  options: SnapshotTextOptions = {},
 ): string {
   const rawNodes = data.nodes;
   const nodes = Array.isArray(rawNodes) ? (rawNodes as SnapshotNode[]) : [];
@@ -606,10 +612,12 @@ function formatMuted(text: string, useColor: boolean): string {
 function buildSnapshotNotices(
   data: Record<string, unknown>,
   nodes: SnapshotNode[],
-  options: { raw?: boolean; flatten?: boolean },
+  options: SnapshotTextOptions,
   helperPresentation: AndroidHelperPresentationInput = { nodes, filteredCount: 0 },
 ): string[] {
   const notices = readSnapshotWarnings(data);
+  const sparseSnapshotHint = formatSparseSnapshotHint(nodes, options);
+  if (sparseSnapshotHint) notices.push(sparseSnapshotHint);
   if (!options.raw && helperPresentation.filteredCount > 0) {
     notices.push(
       `Collapsed ${helperPresentation.filteredCount} Android helper node${helperPresentation.filteredCount === 1 ? '' : 's'} from the agent-facing text snapshot; use --raw or --json for the full hierarchy.`,
@@ -620,6 +628,15 @@ function buildSnapshotNotices(
     notices.push('Warning: possible repeated nav subtree detected.');
   }
   return notices;
+}
+
+function formatSparseSnapshotHint(
+  nodes: SnapshotNode[],
+  options: Pick<SnapshotTextOptions, 'scoped'>,
+): string | null {
+  if (options.scoped === true || nodes.length > 3) return null;
+  const noun = nodes.length === 1 ? 'node' : 'nodes';
+  return `Hint: sparse accessibility snapshot returned ${nodes.length} ${noun}. The app may expose limited accessibility metadata; run screenshot --overlay-refs for visual context.`;
 }
 
 function readSnapshotWarnings(data: Record<string, unknown>): string[] {

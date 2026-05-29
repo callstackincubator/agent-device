@@ -62,6 +62,7 @@ const cliOutputFormatters: Partial<Record<CommandName, CliOutputFormatter>> = {
       result: result as Parameters<typeof snapshotCliOutput>[0]['result'],
       raw: input.raw as boolean | undefined,
       interactiveOnly: input.interactiveOnly as boolean | undefined,
+      scope: input.scope as string | undefined,
     }),
   wait: messageOutput,
   alert: messageOutput,
