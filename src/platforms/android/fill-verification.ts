@@ -11,7 +11,7 @@ import {
 import { sleep } from './adb.ts';
 import { getAndroidKeyboardState } from './device-input-state.ts';
 import { isAndroidInputMethodOwnedNode } from './input-ownership.ts';
-import { dumpUiHierarchy } from './snapshot.ts';
+import { captureAndroidUiHierarchyXml } from './snapshot.ts';
 import { androidUiNodes, type AndroidUiNodeMetadata } from './ui-hierarchy.ts';
 
 export type AndroidFillVerificationNode = FillDiagnosticNode & {
@@ -90,7 +90,7 @@ export async function readAndroidTextAtPoint(
   x: number,
   y: number,
 ): Promise<string | null> {
-  return readAndroidTextAtPointInHierarchy(await dumpUiHierarchy(device), x, y);
+  return readAndroidTextAtPointInHierarchy(await captureAndroidUiHierarchyXml(device), x, y);
 }
 
 export function verifyAndroidFilledTextInHierarchy(
@@ -154,7 +154,13 @@ async function inspectAndroidFilledText(
   expected: string,
   context: AndroidFillVerificationContext,
 ): Promise<AndroidFillVerification> {
-  return verifyAndroidFilledTextInHierarchy(await dumpUiHierarchy(device), x, y, expected, context);
+  return verifyAndroidFilledTextInHierarchy(
+    await captureAndroidUiHierarchyXml(device),
+    x,
+    y,
+    expected,
+    context,
+  );
 }
 
 function inspectAndroidTextAtPointInHierarchy(

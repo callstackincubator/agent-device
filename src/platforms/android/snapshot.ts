@@ -60,13 +60,21 @@ const RETRYABLE_ADB_STDERR_PATTERNS = [
   'no such file or directory',
 ] as const;
 
-type AndroidSnapshotOptions = SnapshotOptions & {
+export type AndroidSnapshotOptions = SnapshotOptions & {
   helperArtifact?: AndroidSnapshotHelperArtifact;
   helperInstallPolicy?: AndroidSnapshotHelperInstallPolicy;
   helperAdb?: AndroidAdbExecutor | AndroidAdbProvider;
   helperWaitForIdleTimeoutMs?: number;
   includeHiddenContentHints?: boolean;
 };
+
+export async function captureAndroidUiHierarchyXml(
+  device: DeviceInfo,
+  options: AndroidSnapshotOptions = {},
+): Promise<string> {
+  const adb = resolveAndroidAdbProvider(device, options.helperAdb).exec;
+  return (await captureAndroidUiHierarchy(device, options, adb)).xml;
+}
 
 export async function snapshotAndroid(
   device: DeviceInfo,

@@ -185,7 +185,8 @@ function parseLastDumpsysValue(stdout: string, pattern: RegExp): string | undefi
 
 function parseAndroidKeyboardVisibility(stdout: string): boolean | null {
   const latestByKey = new Map<string, boolean>();
-  const pattern = /\b(mInputShown|mIsInputViewShown|isInputViewShown)=([a-zA-Z]+)\b/g;
+  const pattern =
+    /\b(mInputShown|mIsInputViewShown|isInputViewShown|mDecorViewVisible|mWindowVisible|mInShowWindow)=([a-zA-Z]+)\b/g;
   for (const match of stdout.matchAll(pattern)) {
     const key = match[1];
     const value = match[2]?.toLowerCase();
@@ -193,10 +194,19 @@ function parseAndroidKeyboardVisibility(stdout: string): boolean | null {
     latestByKey.set(key, value === 'true');
   }
   if (latestByKey.size === 0) return null;
-  for (const visible of latestByKey.values()) {
-    if (visible) return true;
-  }
-  return false;
+
+  const windowVisible =
+    latestByKey.get('mWindowVisible') ??
+    latestByKey.get('mDecorViewVisible') ??
+    latestByKey.get('mInShowWindow');
+  if (windowVisible !== undefined) return windowVisible;
+
+  const inputShown = latestByKey.get('mInputShown');
+  if (inputShown !== undefined) return inputShown;
+
+  const inputViewShown =
+    latestByKey.get('mIsInputViewShown') ?? latestByKey.get('isInputViewShown');
+  return inputViewShown ?? null;
 }
 
 function classifyAndroidKeyboardType(inputType: string): AndroidKeyboardType {
