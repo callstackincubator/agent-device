@@ -1296,6 +1296,71 @@ test('formatSnapshotText prints snapshot warnings ahead of empty output', () => 
   assert.match(text, /Interactive snapshot is empty after filtering 42 raw Android nodes/);
 });
 
+test('formatSnapshotText hints to use screenshot overlay refs for sparse snapshots', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText({
+      nodes: [
+        {
+          ref: 'e1',
+          index: 0,
+          depth: 0,
+          type: 'Window',
+          label: 'Main',
+        },
+      ],
+      truncated: false,
+    }),
+  );
+
+  assert.match(text, /Snapshot: 1 node/);
+  assert.match(text, /Hint: sparse accessibility snapshot returned 1 node/);
+  assert.match(text, /screenshot --overlay-refs/);
+});
+
+test('formatSnapshotText suppresses sparse snapshot hint for scoped reads', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText(
+      {
+        nodes: [
+          {
+            ref: 'e1',
+            index: 0,
+            depth: 0,
+            type: 'StaticText',
+            label: 'Expanded details',
+          },
+        ],
+        truncated: false,
+      },
+      { scoped: true },
+    ),
+  );
+
+  assert.doesNotMatch(text, /sparse accessibility snapshot/);
+});
+
+test('formatSnapshotText suppresses sparse snapshot hint for depth-limited reads', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText(
+      {
+        nodes: [
+          {
+            ref: 'e1',
+            index: 0,
+            depth: 0,
+            type: 'Application',
+            label: 'Main',
+          },
+        ],
+        truncated: false,
+      },
+      { depthLimited: true },
+    ),
+  );
+
+  assert.doesNotMatch(text, /sparse accessibility snapshot/);
+});
+
 test('formatSnapshotText keeps flattened output and adds duplicate nav warning', () => {
   const nodes = Array.from({ length: 24 }, (_, index) => ({
     ref: `e${index + 1}`,

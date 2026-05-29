@@ -107,6 +107,8 @@ export function snapshotCliOutput(params: {
   result: CaptureSnapshotResult;
   raw?: boolean;
   interactiveOnly?: boolean;
+  scope?: string;
+  depth?: number;
 }): CliOutput {
   const data = serializeSnapshotResult(params.result);
   return {
@@ -116,6 +118,8 @@ export function snapshotCliOutput(params: {
     text: formatSnapshotText(data, {
       raw: params.raw,
       flatten: params.interactiveOnly,
+      scoped: typeof params.scope === 'string' && params.scope.trim().length > 0,
+      depthLimited: typeof params.depth === 'number',
     }),
   };
 }
