@@ -59,6 +59,42 @@ test('resolveMaestroNodeFromSnapshot blocks taps on app content behind React Nat
   });
 });
 
+test('resolveVisibleMaestroNodeFromSnapshot does not block content behind collapsed React Native warnings', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'android.widget.TextView',
+        label: 'Morning Favorites',
+        rect: { x: 24, y: 420, width: 320, height: 54 },
+        depth: 8,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'android.view.ViewGroup',
+        label: 'Open debugger to view warnings',
+        rect: { x: 0, y: 2190, width: 1080, height: 96 },
+        depth: 6,
+      },
+    ],
+  };
+
+  const appContent = resolveVisibleMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Morning Favorites" || text="Morning Favorites" || id="Morning Favorites"',
+    'android',
+    { referenceWidth: 1080, referenceHeight: 2340 },
+  );
+
+  expect(appContent).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ label: 'Morning Favorites' }),
+  });
+});
+
 test('resolveMaestroNodeFromSnapshot prefers foreground duplicate matches', () => {
   const snapshot: SnapshotState = {
     createdAt: Date.now(),

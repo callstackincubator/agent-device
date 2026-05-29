@@ -184,6 +184,9 @@ function filterReactNativeOverlayBlockedMatches(
   if (!overlay.detected) {
     return { matches, blockedByReactNativeOverlay: false };
   }
+  if (!overlay.redBox) {
+    return { matches, blockedByReactNativeOverlay: false };
+  }
   const overlayNodeIndexes = new Set(
     [...overlay.dismissNodes, ...overlay.minimizeNodes, ...overlay.collapsedNodes].map(
       (node) => node.index,
