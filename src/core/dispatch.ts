@@ -2,16 +2,8 @@ import { promises as fs } from 'node:fs';
 import pathModule from 'node:path';
 import { AppError } from '../utils/errors.ts';
 import type { DeviceInfo } from '../utils/device.ts';
-import {
-  dismissAndroidKeyboard,
-  getAndroidKeyboardState,
-} from '../platforms/android/device-input-state.ts';
-import { pressAndroidEnter } from '../platforms/android/input-actions.ts';
-import { pushAndroidNotification } from '../platforms/android/notifications.ts';
 import { getInteractor } from './interactors.ts';
 import type { Interactor, RunnerContext } from './interactor-types.ts';
-import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
-import { clearIosSimulatorAppState, pushIosNotification } from '../platforms/ios/apps.ts';
 import { isDeepLinkTarget } from './open-target.ts';
 import { parseTriggerAppEventArgs, resolveAppEventUrl } from './app-events.ts';
 import {
@@ -59,7 +51,7 @@ export async function dispatchCommand(
     logPath: context?.logPath,
     traceLogPath: context?.traceLogPath,
   };
-  const interactor = getInteractor(device, runnerCtx);
+  const interactor = await getInteractor(device, runnerCtx);
   emitDiagnostic({
     level: 'debug',
     phase: 'platform_command_prepare',
@@ -238,6 +230,7 @@ async function handleOpenCommand(
         'Clearing app state is currently supported only on iOS simulators.',
       );
     }
+    const { clearIosSimulatorAppState } = await import('../platforms/ios/apps.ts');
     await clearIosSimulatorAppState(device, app);
   }
   await interactor.open(app, {
@@ -342,6 +335,7 @@ async function handleAndroidKeyboardCommand(
   action: KeyboardAction,
 ): Promise<Record<string, unknown>> {
   if (action === 'enter' || action === 'return') {
+    const { pressAndroidEnter } = await import('../platforms/android/input-actions.ts');
     await pressAndroidEnter(device);
     return {
       platform: 'android',
@@ -350,6 +344,7 @@ async function handleAndroidKeyboardCommand(
     };
   }
   if (action === 'dismiss') {
+    const { dismissAndroidKeyboard } = await import('../platforms/android/device-input-state.ts');
     const result = await dismissAndroidKeyboard(device);
     return {
       platform: 'android',
@@ -366,6 +361,7 @@ async function handleAndroidKeyboardCommand(
       inputOwner: result.inputOwner,
     };
   }
+  const { getAndroidKeyboardState } = await import('../platforms/android/device-input-state.ts');
   const state = await getAndroidKeyboardState(device);
   return {
     platform: 'android',
@@ -393,6 +389,7 @@ async function handleIosKeyboardCommand(
     );
   }
   if (action === 'enter' || action === 'return') {
+    const { runIosRunnerCommand } = await import('../platforms/ios/runner-client.ts');
     const result = await runIosRunnerCommand(
       device,
       { command: 'keyboardReturn', appBundleId: context?.appBundleId },
@@ -406,6 +403,7 @@ async function handleIosKeyboardCommand(
       ...successText('Keyboard enter pressed'),
     };
   }
+  const { runIosRunnerCommand } = await import('../platforms/ios/runner-client.ts');
   const result = await runIosRunnerCommand(
     device,
     { command: 'keyboardDismiss', appBundleId: context?.appBundleId },
@@ -484,6 +482,7 @@ async function handlePushCommand(
   }
   const payload = await readNotificationPayload(payloadArg);
   if (device.platform === 'ios') {
+    const { pushIosNotification } = await import('../platforms/ios/apps.ts');
     await pushIosNotification(device, target, payload);
     return {
       platform: 'ios',
@@ -491,6 +490,7 @@ async function handlePushCommand(
       ...successText(`Pushed notification to ${target}`),
     };
   }
+  const { pushAndroidNotification } = await import('../platforms/android/notifications.ts');
   const androidResult = await pushAndroidNotification(device, target, payload);
   return {
     platform: 'android',

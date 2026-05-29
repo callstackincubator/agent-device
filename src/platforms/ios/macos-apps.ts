@@ -6,7 +6,7 @@ import { parseAppearanceAction } from '../appearance.ts';
 import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';
 import { quitMacOsApp } from './macos-helper.ts';
 import { resolveAppleToolProvider, type AppleMacOsHostProvider } from './tool-provider.ts';
-import type { IosAppInfo } from './devicectl.ts';
+import type { IosAppInfo } from './app-info.ts';
 
 const MACOS_ALIASES: Record<string, string> = {
   settings: 'com.apple.systempreferences',

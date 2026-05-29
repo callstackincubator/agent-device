@@ -34,8 +34,8 @@ import {
   listIosDeviceApps,
   resolveIosDevicectlHint,
   runIosDevicectl,
-  type IosAppInfo,
 } from './devicectl.ts';
+import type { IosAppInfo } from './app-info.ts';
 import {
   isSimulatorLaunchFBSError,
   probeSimulatorLaunchContext,

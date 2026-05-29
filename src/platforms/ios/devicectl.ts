@@ -7,12 +7,8 @@ import { AppError } from '../../utils/errors.ts';
 
 import { IOS_DEVICECTL_TIMEOUT_MS } from './config.ts';
 import { runXcrun } from './tool-provider.ts';
-
-export type IosAppInfo = {
-  bundleId: string;
-  name: string;
-  url?: string;
-};
+import type { IosAppInfo } from './app-info.ts';
+import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
 
 type IosDeviceAppsPayload = {
   result?: {
@@ -169,10 +165,7 @@ export function parseIosDeviceProcessesPayload(payload: unknown): IosDeviceProce
 }
 
 function filterIosDeviceApps(apps: IosAppInfo[], filter: 'user-installed' | 'all'): IosAppInfo[] {
-  if (filter === 'user-installed') {
-    return apps.filter((app) => !app.bundleId.startsWith('com.apple.'));
-  }
-  return apps;
+  return filterAppleAppsByBundlePrefix(apps, filter);
 }
 
 export const IOS_DEVICECTL_DEFAULT_HINT =

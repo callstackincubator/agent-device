@@ -1,7 +1,7 @@
 import type { BatchStep } from '../client-types.ts';
 import { readInputFromCli } from '../commands/cli-grammar.ts';
-import { isCommandName, type CommandName } from '../commands/command-surface.ts';
-import type { CliFlags } from '../utils/command-schema.ts';
+import { isCommandName, type CommandName } from '../commands/command-metadata.ts';
+import type { CliFlags } from '../utils/cli-flags.ts';
 import { AppError } from '../utils/errors.ts';
 
 type LegacyCliBatchStep = {

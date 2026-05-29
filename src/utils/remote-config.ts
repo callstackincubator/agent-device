@@ -1,4 +1,4 @@
-import type { CliFlags } from './command-schema.ts';
+import type { CliFlags } from './cli-flags.ts';
 import { REMOTE_CONFIG_FIELD_SPECS, type RemoteConfigProfile } from '../remote-config-schema.ts';
 import { resolveRemoteConfigProfile } from '../remote-config-core.ts';
 

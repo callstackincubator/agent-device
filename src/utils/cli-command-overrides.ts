@@ -1,5 +1,5 @@
 import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
-import type { CommandName } from '../commands/command-surface.ts';
+import type { CommandName } from '../commands/command-metadata.ts';
 import { DEFAULT_APPS_FILTER } from '../commands/app-inventory-contract.ts';
 import { SCREENSHOT_COMMAND_FLAG_KEYS } from '../commands/capture-screenshot-options.ts';
 import type { LocalCliCommandName } from '../command-catalog.ts';

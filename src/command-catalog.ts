@@ -72,6 +72,55 @@ export const GESTURE_SUBCOMMAND_ERROR = `gesture requires one of: ${GESTURE_SUBC
 export type PublicCommandName = (typeof PUBLIC_COMMANDS)[keyof typeof PUBLIC_COMMANDS];
 export type LocalCliCommandName = (typeof LOCAL_CLI_COMMANDS)[keyof typeof LOCAL_CLI_COMMANDS];
 export type CliCommandName = PublicCommandName | LocalCliCommandName;
+export type ClientBackedCliCommandName =
+  | PublicCommandName
+  | typeof LOCAL_CLI_COMMANDS.metro
+  | typeof LOCAL_CLI_COMMANDS.session;
+
+export const BATCH_COMMAND_NAMES = [
+  PUBLIC_COMMANDS.devices,
+  PUBLIC_COMMANDS.boot,
+  PUBLIC_COMMANDS.apps,
+  PUBLIC_COMMANDS.open,
+  PUBLIC_COMMANDS.close,
+  PUBLIC_COMMANDS.install,
+  PUBLIC_COMMANDS.reinstall,
+  PUBLIC_COMMANDS.installFromSource,
+  PUBLIC_COMMANDS.push,
+  PUBLIC_COMMANDS.triggerAppEvent,
+  PUBLIC_COMMANDS.snapshot,
+  PUBLIC_COMMANDS.screenshot,
+  PUBLIC_COMMANDS.diff,
+  PUBLIC_COMMANDS.wait,
+  PUBLIC_COMMANDS.alert,
+  PUBLIC_COMMANDS.settings,
+  PUBLIC_COMMANDS.click,
+  PUBLIC_COMMANDS.press,
+  PUBLIC_COMMANDS.longPress,
+  PUBLIC_COMMANDS.swipe,
+  PUBLIC_COMMANDS.focus,
+  PUBLIC_COMMANDS.type,
+  PUBLIC_COMMANDS.fill,
+  PUBLIC_COMMANDS.scroll,
+  PUBLIC_COMMANDS.get,
+  PUBLIC_COMMANDS.gesture,
+  PUBLIC_COMMANDS.is,
+  PUBLIC_COMMANDS.find,
+  PUBLIC_COMMANDS.perf,
+  PUBLIC_COMMANDS.logs,
+  PUBLIC_COMMANDS.network,
+  PUBLIC_COMMANDS.record,
+  PUBLIC_COMMANDS.trace,
+  PUBLIC_COMMANDS.test,
+  PUBLIC_COMMANDS.appState,
+  PUBLIC_COMMANDS.back,
+  PUBLIC_COMMANDS.home,
+  PUBLIC_COMMANDS.rotate,
+  PUBLIC_COMMANDS.appSwitcher,
+  PUBLIC_COMMANDS.keyboard,
+  PUBLIC_COMMANDS.clipboard,
+  PUBLIC_COMMANDS.reactNative,
+] as const;
 
 const MCP_UNEXPOSED_CLI_COMMANDS = commandSet(
   LOCAL_CLI_COMMANDS.auth,
@@ -227,6 +276,16 @@ function commandSet(...commands: readonly string[]): ReadonlySet<string> {
 
 export function listCliCommandNames(): CliCommandName[] {
   return [...Object.values(PUBLIC_COMMANDS), ...Object.values(LOCAL_CLI_COMMANDS)].sort();
+}
+
+export function isClientBackedCliCommandName(
+  command: string,
+): command is ClientBackedCliCommandName {
+  return (
+    Object.values(PUBLIC_COMMANDS).includes(command as PublicCommandName) ||
+    command === LOCAL_CLI_COMMANDS.metro ||
+    command === LOCAL_CLI_COMMANDS.session
+  );
 }
 
 export function listMcpExposedCommandNames(): CliCommandName[] {

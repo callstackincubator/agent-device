@@ -11,7 +11,7 @@ if (runFastPath(argv)) {
 }
 
 function runFastPath(argv: string[]): boolean {
-  return runVersionFastPath(argv) || runHelpFastPath(argv);
+  return runVersionFastPath(argv) || runNoCommandFastPath(argv) || runHelpFastPath(argv);
 }
 
 function runVersionFastPath(argv: string[]): boolean {
@@ -19,6 +19,17 @@ function runVersionFastPath(argv: string[]): boolean {
   import('./utils/version.ts')
     .then(({ readVersion }) => {
       process.stdout.write(`${readVersion()}\n`);
+    })
+    .catch(handleStartupError);
+  return true;
+}
+
+function runNoCommandFastPath(argv: string[]): boolean {
+  if (argv.length !== 0) return false;
+  import('./utils/args.ts')
+    .then(({ usage }) => {
+      process.stdout.write(`${usage()}\n`);
+      process.exit(1);
     })
     .catch(handleStartupError);
   return true;

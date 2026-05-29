@@ -1,6 +1,6 @@
 import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
 import type { FlingOptions, RotateGestureOptions } from '../../client-types.ts';
-import type { CliFlags } from '../../utils/command-schema.ts';
+import type { CliFlags } from '../../utils/cli-flags.ts';
 import { AppError } from '../../utils/errors.ts';
 import {
   commonInputFromFlags,

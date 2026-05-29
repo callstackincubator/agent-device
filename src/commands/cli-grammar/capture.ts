@@ -7,7 +7,7 @@ import type {
 } from '../../client-types.ts';
 import { parseTimeout } from '../../daemon/handlers/parse-utils.ts';
 import { splitSelectorFromArgs, tryParseSelectorChain } from '../../daemon/selectors.ts';
-import type { CliFlags } from '../../utils/command-schema.ts';
+import type { CliFlags } from '../../utils/cli-flags.ts';
 import { AppError } from '../../utils/errors.ts';
 import { readLocationCoordinate } from '../../utils/location-coordinates.ts';
 import {

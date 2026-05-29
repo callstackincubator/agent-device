@@ -1,8 +1,7 @@
 import crypto from 'node:crypto';
 import { asAppError, AppError } from './utils/errors.ts';
-import { stopAllIosRunnerSessions } from './platforms/ios/runner-client.ts';
 import { SessionStore } from './daemon/session-store.ts';
-import { cleanupStaleAppLogProcesses } from './daemon/app-log.ts';
+import { cleanupStaleAppLogProcesses } from './daemon/app-log-process.ts';
 import { resolveDaemonPaths, resolveDaemonServerMode } from './daemon/config.ts';
 import { createDaemonHttpServer } from './daemon/http-server.ts';
 import { trackDownloadableArtifact } from './daemon/artifact-tracking.ts';
@@ -212,6 +211,7 @@ export async function startDaemonRuntime(
     }
     await closeDaemonServers(servers);
     await teardownDaemonSessions();
+    const { stopAllIosRunnerSessions } = await import('./platforms/ios/runner-client.ts');
     await stopAllIosRunnerSessions();
     removeInfo(infoPath);
     releaseDaemonLock(lockPath);

@@ -1,24 +1,18 @@
 import { resolveTargetDevice } from '../core/dispatch-resolve.ts';
-import {
-  type AndroidAdbExecutor,
-  type AndroidAdbProvider,
-  withAndroidAdbProvider,
-} from '../platforms/android/adb-executor.ts';
-import {
-  type AppleRunnerCommandExecutor,
-  type AppleRunnerProvider,
-  withAppleRunnerProvider,
+import type { AndroidAdbExecutor, AndroidAdbProvider } from '../platforms/android/adb-executor.ts';
+import type {
+  AppleRunnerCommandExecutor,
+  AppleRunnerProvider,
 } from '../platforms/ios/runner-provider.ts';
-import {
-  type AppleToolCommandExecutor,
-  type AppleToolProvider,
-  withAppleToolProvider,
+import type {
+  AppleToolCommandExecutor,
+  AppleToolProvider,
 } from '../platforms/ios/tool-provider.ts';
-import { type LinuxToolProvider, withLinuxToolProvider } from '../platforms/linux/tool-provider.ts';
+import type { LinuxToolProvider } from '../platforms/linux/tool-provider.ts';
 import { isApplePlatform, type DeviceInfo } from '../utils/device.ts';
-import { type AppLogProvider, withAppLogProvider } from './app-log.ts';
+import type { AppLogProvider } from './app-log.ts';
 import { hasExplicitDeviceSelector } from './handlers/session-device-utils.ts';
-import { type RecordingProvider, withRecordingProvider } from './recording-provider.ts';
+import type { RecordingProvider } from './recording-provider.ts';
 import type { DaemonRequest, SessionState } from './types.ts';
 import { PUBLIC_COMMANDS } from '../command-catalog.ts';
 
@@ -124,7 +118,7 @@ type RequestPlatformProviderDescriptor = {
   appendWrapper: (
     scopedProviders: ResolvedRequestPlatformProviders,
     wrappers: RequestPlatformProviderScopeWrapper[],
-  ) => void;
+  ) => Promise<void>;
 };
 
 const REQUEST_PLATFORM_PROVIDER_DESCRIPTORS = [
@@ -137,7 +131,9 @@ const REQUEST_PLATFORM_PROVIDER_DESCRIPTORS = [
       const executor = typeof provider === 'function' ? provider : provider?.exec;
       return { androidAdb: { provider, executor, serial: context.device.id } };
     },
-    appendWrapper(scopedProviders, wrappers) {
+    async appendWrapper(scopedProviders, wrappers) {
+      if (!scopedProviders.androidAdb?.provider) return;
+      const { withAndroidAdbProvider } = await import('../platforms/android/adb-executor.ts');
       appendRequestProviderWrapper(wrappers, scopedProviders.androidAdb, (provider, task) =>
         withAndroidAdbProvider(
           provider,
@@ -161,7 +157,9 @@ const REQUEST_PLATFORM_PROVIDER_DESCRIPTORS = [
         },
       };
     },
-    appendWrapper(scopedProviders, wrappers) {
+    async appendWrapper(scopedProviders, wrappers) {
+      if (!scopedProviders.appleRunner?.provider) return;
+      const { withAppleRunnerProvider } = await import('../platforms/ios/runner-provider.ts');
       appendRequestProviderWrapper(wrappers, scopedProviders.appleRunner, (provider, task) =>
         withAppleRunnerProvider(
           provider,
@@ -181,7 +179,9 @@ const REQUEST_PLATFORM_PROVIDER_DESCRIPTORS = [
       if (!appleToolProvider || !isApplePlatform(context.device.platform)) return {};
       return { appleTool: { provider: appleToolProvider(context) } };
     },
-    appendWrapper(scopedProviders, wrappers) {
+    async appendWrapper(scopedProviders, wrappers) {
+      if (!scopedProviders.appleTool?.provider) return;
+      const { withAppleToolProvider } = await import('../platforms/ios/tool-provider.ts');
       appendRequestProviderWrapper(wrappers, scopedProviders.appleTool, withAppleToolProvider);
     },
   },
@@ -192,7 +192,9 @@ const REQUEST_PLATFORM_PROVIDER_DESCRIPTORS = [
       if (!linuxToolProvider || context.device.platform !== 'linux') return {};
       return { linuxTool: { provider: linuxToolProvider(context) } };
     },
-    appendWrapper(scopedProviders, wrappers) {
+    async appendWrapper(scopedProviders, wrappers) {
+      if (!scopedProviders.linuxTool?.provider) return;
+      const { withLinuxToolProvider } = await import('../platforms/linux/tool-provider.ts');
       appendRequestProviderWrapper(wrappers, scopedProviders.linuxTool, withLinuxToolProvider);
     },
   },
@@ -203,7 +205,9 @@ const REQUEST_PLATFORM_PROVIDER_DESCRIPTORS = [
       if (!appLogProvider) return {};
       return { appLog: { provider: appLogProvider(context) } };
     },
-    appendWrapper(scopedProviders, wrappers) {
+    async appendWrapper(scopedProviders, wrappers) {
+      if (!scopedProviders.appLog?.provider) return;
+      const { withAppLogProvider } = await import('./app-log.ts');
       appendRequestProviderWrapper(wrappers, scopedProviders.appLog, withAppLogProvider);
     },
   },
@@ -214,7 +218,9 @@ const REQUEST_PLATFORM_PROVIDER_DESCRIPTORS = [
       if (!recordingProvider) return {};
       return { recording: { provider: recordingProvider(context) } };
     },
-    appendWrapper(scopedProviders, wrappers) {
+    async appendWrapper(scopedProviders, wrappers) {
+      if (!scopedProviders.recording?.provider) return;
+      const { withRecordingProvider } = await import('./recording-provider.ts');
       appendRequestProviderWrapper(wrappers, scopedProviders.recording, withRecordingProvider);
     },
   },
@@ -228,7 +234,7 @@ export async function withRequestPlatformProviderScope<T>(
   const scope: RequestPlatformProviderScope = {
     androidAdbExecutor: scopedProviders.androidAdb?.executor,
   };
-  const wrappers = requestPlatformProviderScopeWrappers(scopedProviders);
+  const wrappers = await requestPlatformProviderScopeWrappers(scopedProviders);
 
   return await runRequestPlatformProviderScopes(wrappers, async () => await task(scope));
 }
@@ -291,12 +297,12 @@ function usesSessionlessDefaultDevice(req: DaemonRequest): boolean {
   );
 }
 
-function requestPlatformProviderScopeWrappers(
+async function requestPlatformProviderScopeWrappers(
   scopedProviders: ResolvedRequestPlatformProviders,
-): RequestPlatformProviderScopeWrapper[] {
+): Promise<RequestPlatformProviderScopeWrapper[]> {
   const wrappers: RequestPlatformProviderScopeWrapper[] = [];
   for (const descriptor of REQUEST_PLATFORM_PROVIDER_DESCRIPTORS) {
-    descriptor.appendWrapper(scopedProviders, wrappers);
+    await descriptor.appendWrapper(scopedProviders, wrappers);
   }
   return wrappers;
 }

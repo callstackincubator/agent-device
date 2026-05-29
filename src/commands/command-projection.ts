@@ -1,4 +1,4 @@
-import { PUBLIC_COMMANDS } from '../command-catalog.ts';
+import { BATCH_COMMAND_NAMES, PUBLIC_COMMANDS } from '../command-catalog.ts';
 import { buildFlags } from '../client-normalizers.ts';
 import type { DaemonBatchStep } from '../core/batch.ts';
 import { AppError } from '../utils/errors.ts';
@@ -33,23 +33,9 @@ const daemonWriters = {
 
 export type DaemonCommandName = keyof typeof daemonWriters;
 
-const NON_BATCH_COMMAND_NAMES = [
-  'replay',
-  'batch',
-  'gesture-pan',
-  'gesture-fling',
-  'gesture-pinch',
-  'gesture-rotate',
-  'gesture-transform',
-] as const;
-type NonBatchCommandName = (typeof NON_BATCH_COMMAND_NAMES)[number];
-export type BatchCommandName = Exclude<DaemonCommandName, NonBatchCommandName>;
+export type BatchCommandName = (typeof BATCH_COMMAND_NAMES)[number];
 
-const nonBatchCommandNames = commandNameSet(NON_BATCH_COMMAND_NAMES);
-
-export const batchCommandNames = (Object.keys(daemonWriters) as DaemonCommandName[]).filter(
-  (name): name is BatchCommandName => !nonBatchCommandNames.has(name),
-);
+export const batchCommandNames = BATCH_COMMAND_NAMES satisfies readonly DaemonCommandName[];
 
 const batchNames = commandNameSet(batchCommandNames);
 

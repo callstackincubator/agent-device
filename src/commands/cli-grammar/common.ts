@@ -4,7 +4,7 @@ import type {
   InternalRequestOptions,
 } from '../../client-types.ts';
 import { splitSelectorFromArgs } from '../../daemon/selectors.ts';
-import type { CliFlags } from '../../utils/command-schema.ts';
+import type { CliFlags } from '../../utils/cli-flags.ts';
 import { AppError } from '../../utils/errors.ts';
 import { compactRecord } from '../command-input.ts';
 import type {

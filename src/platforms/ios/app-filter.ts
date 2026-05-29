@@ -1,4 +1,4 @@
-import type { IosAppInfo } from './devicectl.ts';
+import type { IosAppInfo } from './app-info.ts';
 
 export function filterAppleAppsByBundlePrefix(
   apps: IosAppInfo[],

@@ -1,152 +1,15 @@
-import type { BatchRunOptions, BatchStep } from '../client-types.ts';
-import { DEFAULT_BATCH_MAX_STEPS } from '../core/batch.ts';
-import { defineCommand, type JsonSchema } from './command-contract.ts';
+import type { BatchRunOptions } from '../client-types.ts';
+import { defineExecutableCommand } from './command-contract.ts';
 import { type DaemonCommandName } from './command-projection.ts';
-import {
-  assertAllowedKeys,
-  commonToClientOptions,
-  customField,
-  enumField,
-  fieldsInputSchema,
-  integerField,
-  readFieldInput,
-  requiredEnum,
-  requiredField,
-  stringField,
-  type InferCommandInput,
-  type CommandFieldMap,
-} from './command-input.ts';
-
-type BatchInput = InferCommandInput<CommandFieldMap> & {
-  steps: BatchStep[];
-  onError?: 'stop';
-  maxSteps?: number;
-  out?: string;
-};
+import { commonToClientOptions } from './command-input.ts';
+import { createBatchCommandMetadata, type BatchInput } from './batch-command-metadata.ts';
 
 export function createBatchCommand<const TCommand extends DaemonCommandName>(
   nestedCommands: readonly TCommand[],
 ) {
-  const fields = batchFields(nestedCommands);
-  return defineCommand({
-    name: 'batch',
-    description: 'Run multiple structured command steps in one daemon request.',
-    inputSchema: fieldsInputSchema(fields),
-    readInput: (input) => readBatchInput(input, fields),
-    run: (client, input) => client.batch.run(toBatchOptions(input)),
-  });
-}
-
-function batchFields(nestedCommands: readonly DaemonCommandName[]) {
-  return {
-    steps: requiredField(
-      customField<BatchStep[]>(
-        {
-          type: 'array',
-          description:
-            'Structured batch steps. Each step uses a command name and the same input object as that command tool.',
-          items: batchStepSchema(nestedCommands),
-        },
-        (record, key) => readBatchSteps(record[key], nestedCommands),
-      ),
-    ),
-    onError: enumField(['stop'] as const, 'Batch failure policy.'),
-    maxSteps: integerField('Maximum number of steps accepted for this batch.', {
-      min: 1,
-      max: 1000,
-    }),
-    out: stringField('Optional output path for command artifacts.'),
-  };
-}
-
-function batchStepSchema(nestedCommands: readonly DaemonCommandName[]): JsonSchema {
-  return {
-    type: 'object',
-    properties: {
-      command: {
-        type: 'string',
-        enum: nestedCommands,
-        description: 'Command name to run with structured input.',
-      },
-      input: {
-        type: 'object',
-        additionalProperties: true,
-        description:
-          'Structured command input for the nested command. Use the matching MCP tool schema for this object.',
-      },
-      runtime: {
-        type: 'object',
-        additionalProperties: true,
-        description: 'Optional per-step runtime payload.',
-      },
-    },
-    required: ['command', 'input'],
-    additionalProperties: false,
-  };
-}
-
-function readBatchInput(input: unknown, fields: ReturnType<typeof batchFields>): BatchInput {
-  const parsed = readFieldInput(input, fields);
-  const maxSteps = parsed.maxSteps ?? DEFAULT_BATCH_MAX_STEPS;
-  if (!Number.isInteger(maxSteps) || maxSteps < 1 || maxSteps > 1000) {
-    throw new Error(`Invalid batch maxSteps: ${String(parsed.maxSteps)}`);
-  }
-  if (parsed.steps.length > maxSteps) {
-    throw new Error(`batch has ${parsed.steps.length} steps; max allowed is ${maxSteps}.`);
-  }
-  return {
-    ...parsed,
-  };
-}
-
-function readBatchSteps(steps: unknown, nestedCommands: readonly DaemonCommandName[]): BatchStep[] {
-  if (!Array.isArray(steps)) {
-    throw new Error('Expected steps to be an array.');
-  }
-  return steps.map((step, index) => readBatchStep(step, index + 1, nestedCommands));
-}
-
-function readBatchStep(
-  step: unknown,
-  stepNumber: number,
-  nestedCommands: readonly DaemonCommandName[],
-): BatchStep {
-  const record = readBatchStepRecord(step, stepNumber);
-  assertAllowedKeys(record, ['command', 'input', 'runtime'], `Batch step ${stepNumber}`);
-  return {
-    command: requiredEnum(record, 'command', nestedCommands),
-    input: readBatchStepInput(record, stepNumber),
-    ...readBatchStepRuntimeProperty(record, stepNumber),
-  };
-}
-
-function readBatchStepRecord(step: unknown, stepNumber: number): Record<string, unknown> {
-  if (!step || typeof step !== 'object' || Array.isArray(step)) {
-    throw new Error(`Invalid batch step ${stepNumber}.`);
-  }
-  return step as Record<string, unknown>;
-}
-
-function readBatchStepInput(record: Record<string, unknown>, stepNumber: number) {
-  const input = record.input;
-  if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    throw new Error(`Batch step ${stepNumber} input must be an object.`);
-  }
-  return input as Record<string, unknown>;
-}
-
-function readBatchStepRuntimeProperty(
-  record: Record<string, unknown>,
-  stepNumber: number,
-): Pick<BatchStep, 'runtime'> {
-  const runtime = record.runtime;
-  if (
-    runtime !== undefined &&
-    (!runtime || typeof runtime !== 'object' || Array.isArray(runtime))
-  ) {
-    throw new Error(`Batch step ${stepNumber} runtime must be an object.`);
-  }
-  return runtime === undefined ? {} : { runtime };
+  return defineExecutableCommand(createBatchCommandMetadata(nestedCommands), (client, input) =>
+    client.batch.run(toBatchOptions(input)),
+  );
 }
 
 function toBatchOptions(input: BatchInput): BatchRunOptions {

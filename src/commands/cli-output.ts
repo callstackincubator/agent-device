@@ -1,5 +1,5 @@
 import type { CommandRequestResult } from '../client.ts';
-import type { CommandName } from './command-surface.ts';
+import type { CommandName } from './command-metadata.ts';
 import type { CliOutput } from './command-contract.ts';
 import {
   appStateCliOutput,
@@ -88,10 +88,6 @@ const cliOutputFormatters: Partial<Record<CommandName, CliOutputFormatter>> = {
   metro: ({ input, result }) =>
     metroCliOutput({ result, action: input.action as string | undefined }),
 };
-
-export function listCliOutputCommandNames(): CommandName[] {
-  return Object.keys(cliOutputFormatters) as CommandName[];
-}
 
 export function formatCliOutput(params: {
   name: CommandName;

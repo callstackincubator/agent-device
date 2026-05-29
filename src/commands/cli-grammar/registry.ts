@@ -1,4 +1,4 @@
-import type { CliFlags } from '../../utils/command-schema.ts';
+import type { CliFlags } from '../../utils/cli-flags.ts';
 import { appCliReaders } from './apps.ts';
 import { captureCliReaders } from './capture.ts';
 import { commonInputFromFlags } from './common.ts';
@@ -10,7 +10,7 @@ import { replayCliReaders } from './replay.ts';
 import { selectorCliReaders } from './selectors.ts';
 import { systemCliReaders } from './system.ts';
 import type { CliReader } from './types.ts';
-import type { CommandName } from '../command-surface.ts';
+import type { CommandName } from '../command-metadata.ts';
 
 const cliReaders = {
   ...appCliReaders,

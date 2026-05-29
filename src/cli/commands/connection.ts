@@ -22,7 +22,7 @@ import {
 } from './connection-runtime.ts';
 import { writeCommandOutput } from './shared.ts';
 import type { LeaseBackend } from '../../contracts.ts';
-import type { CliFlags } from '../../utils/command-schema.ts';
+import type { CliFlags } from '../../utils/cli-flags.ts';
 import type { ClientCommandHandler } from './router-types.ts';
 
 export const connectCommand: ClientCommandHandler = async ({ flags, client }) => {

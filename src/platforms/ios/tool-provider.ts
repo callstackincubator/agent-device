@@ -1,43 +1,24 @@
 import { runCmd, whichCmd, type ExecOptions, type ExecResult } from '../../utils/exec.ts';
 import { createScopedProvider } from '../../utils/scoped-provider.ts';
-import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
-import type { IosAppInfo } from './devicectl.ts';
 import { createLocalAppleMacOsHostProvider } from './macos-host-provider.ts';
+import type {
+  AppleMacOsHelperProvider,
+  AppleMacOsHostProvider,
+  ApplePlistProvider,
+  AppleToolAvailabilityChecker,
+  AppleToolCommandExecutor,
+  AppleXcrunToolProvider,
+} from './tool-provider-types.ts';
 
-export type AppleToolCommandExecutor = (
-  cmd: string,
-  args: string[],
-  options?: ExecOptions,
-) => Promise<ExecResult>;
-
-export type AppleToolSubcommandExecutor = (
-  args: string[],
-  options?: ExecOptions,
-) => Promise<ExecResult>;
-
-export type AppleToolAvailabilityChecker = (cmd: string) => Promise<boolean>;
-
-export type AppleXcrunToolProvider = {
-  run: AppleToolSubcommandExecutor;
-};
-
-export type AppleMacOsHelperProvider = {
-  run: AppleToolSubcommandExecutor;
-};
-
-export type ApplePlistProvider = {
-  readJson(path: string): Promise<Record<string, unknown> | null>;
-};
-
-export type AppleMacOsHostProvider = {
-  openBundle(bundleId: string, url?: string): Promise<void>;
-  openTarget(target: string): Promise<void>;
-  readClipboard(): Promise<string>;
-  writeClipboard(text: string): Promise<void>;
-  readDarkMode(): Promise<boolean>;
-  setDarkMode(enabled: boolean): Promise<void>;
-  listApps(filter: AppsFilter): Promise<IosAppInfo[]>;
-};
+export type {
+  AppleMacOsHelperProvider,
+  AppleMacOsHostProvider,
+  ApplePlistProvider,
+  AppleToolAvailabilityChecker,
+  AppleToolCommandExecutor,
+  AppleToolSubcommandExecutor,
+  AppleXcrunToolProvider,
+} from './tool-provider-types.ts';
 
 export type AppleToolProvider = {
   runCommand: AppleToolCommandExecutor;

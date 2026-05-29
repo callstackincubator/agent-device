@@ -4,7 +4,7 @@ import path from 'node:path';
 import { resolveRemoteConfigPath, resolveRemoteConfigProfile } from './remote-config-core.ts';
 import { AppError } from './utils/errors.ts';
 import { emitDiagnostic } from './utils/diagnostics.ts';
-import type { CliFlags } from './utils/command-schema.ts';
+import type { CliFlags } from './utils/cli-flags.ts';
 import type { LeaseBackend, SessionRuntimeHints } from './contracts.ts';
 
 export type RemoteConnectionState = {

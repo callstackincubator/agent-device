@@ -14,7 +14,7 @@ import { profileToCliFlags } from '../../utils/remote-config.ts';
 import type { BatchStep } from '../../client-types.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { LeaseBackend, SessionRuntimeHints } from '../../contracts.ts';
-import type { CliFlags } from '../../utils/command-schema.ts';
+import type { CliFlags } from '../../utils/cli-flags.ts';
 import type { AgentDeviceClient, Lease } from '../../client.ts';
 
 const leaseDeferredCommands = new Set([

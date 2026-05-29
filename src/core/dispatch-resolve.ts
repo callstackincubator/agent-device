@@ -8,17 +8,12 @@ import {
   type DeviceTarget,
   type PlatformSelector,
 } from '../utils/device.ts';
-import { listAndroidDevices } from '../platforms/android/devices.ts';
-import { ensureAdb } from '../platforms/android/adb.ts';
-import { findBootableIosSimulator, listAppleDevices } from '../platforms/ios/devices.ts';
-import { listLinuxDevices } from '../platforms/linux/devices.ts';
-import { listMacosDevices } from '../platforms/macos/devices.ts';
 import { withDiagnosticTimer } from '../utils/diagnostics.ts';
 import {
   resolveAndroidSerialAllowlist,
   resolveIosSimulatorDeviceSetPath,
 } from '../utils/device-isolation.ts';
-import type { CliFlags } from '../utils/command-schema.ts';
+import type { CliFlags } from '../utils/cli-flags.ts';
 type ResolveDeviceFlags = Pick<
   CliFlags,
   | 'platform'
@@ -70,6 +65,7 @@ async function resolveAppleDevice(
   const selected = await resolveAppleDeviceCandidate(devices, selector, context);
 
   if (shouldUseAppleSimulatorFallback(selector, selected)) {
+    const { findBootableIosSimulator } = await import('../platforms/ios/devices.ts');
     const simulator = await findBootableIosSimulator({
       simulatorSetPath: context.simulatorSetPath,
       target: selector.target,
@@ -193,6 +189,7 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
       }
 
       if (selector.platform === 'android') {
+        const { ensureAdb } = await import('../platforms/android/adb.ts');
         await ensureAdb();
       }
 
@@ -271,14 +268,17 @@ async function readInjectedDeviceInventory(
 
 async function listLocalDeviceInventory(request: DeviceInventoryRequest): Promise<DeviceInfo[]> {
   if (shouldUseHostMacFastPath(request)) {
+    const { listMacosDevices } = await import('../platforms/macos/devices.ts');
     return await listMacosDevices();
   }
 
   if (request.platform === 'linux') {
+    const { listLinuxDevices } = await import('../platforms/linux/devices.ts');
     return await listLinuxDevices();
   }
 
   if (request.platform === 'android') {
+    const { listAndroidDevices } = await import('../platforms/android/devices.ts');
     return await listAndroidDevices({
       serialAllowlist: request.androidSerialAllowlist
         ? new Set(request.androidSerialAllowlist)
@@ -287,6 +287,7 @@ async function listLocalDeviceInventory(request: DeviceInventoryRequest): Promis
   }
 
   if (request.platform) {
+    const { listAppleDevices } = await import('../platforms/ios/devices.ts');
     return await listAppleDevices({
       simulatorSetPath: request.iosSimulatorSetPath,
       udid: request.udid,
@@ -295,6 +296,7 @@ async function listLocalDeviceInventory(request: DeviceInventoryRequest): Promis
 
   const devices: DeviceInfo[] = [];
   try {
+    const { listAndroidDevices } = await import('../platforms/android/devices.ts');
     devices.push(
       ...(await listAndroidDevices({
         serialAllowlist: request.androidSerialAllowlist
@@ -304,6 +306,7 @@ async function listLocalDeviceInventory(request: DeviceInventoryRequest): Promis
     );
   } catch {}
   try {
+    const { listAppleDevices } = await import('../platforms/ios/devices.ts');
     devices.push(
       ...(await listAppleDevices({
         simulatorSetPath: request.iosSimulatorSetPath,
@@ -314,6 +317,7 @@ async function listLocalDeviceInventory(request: DeviceInventoryRequest): Promis
   // Linux local device is appended last so it does not displace
   // connected Android/Apple devices in implicit auto-selection.
   try {
+    const { listLinuxDevices } = await import('../platforms/linux/devices.ts');
     devices.push(...(await listLinuxDevices()));
   } catch {}
   return devices;

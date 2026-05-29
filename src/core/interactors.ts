@@ -1,19 +1,25 @@
 import type { DeviceInfo } from '../utils/device.ts';
 import { AppError } from '../utils/errors.ts';
 import type { Interactor, RunnerContext } from './interactor-types.ts';
-import { createAndroidInteractor } from './interactors/android.ts';
-import { createAppleInteractor } from './interactors/apple.ts';
-import { createLinuxInteractor } from './interactors/linux.ts';
 
-export function getInteractor(device: DeviceInfo, runnerContext: RunnerContext): Interactor {
+export async function getInteractor(
+  device: DeviceInfo,
+  runnerContext: RunnerContext,
+): Promise<Interactor> {
   switch (device.platform) {
-    case 'android':
+    case 'android': {
+      const { createAndroidInteractor } = await import('./interactors/android.ts');
       return createAndroidInteractor(device);
-    case 'linux':
+    }
+    case 'linux': {
+      const { createLinuxInteractor } = await import('./interactors/linux.ts');
       return createLinuxInteractor();
+    }
     case 'ios':
-    case 'macos':
+    case 'macos': {
+      const { createAppleInteractor } = await import('./interactors/apple.ts');
       return createAppleInteractor(device, runnerContext);
+    }
     default:
       throw new AppError('UNSUPPORTED_PLATFORM', `Unsupported platform: ${device.platform}`);
   }

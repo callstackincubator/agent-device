@@ -2,7 +2,7 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { DAEMON_COMMAND_GROUPS, PUBLIC_COMMANDS } from '../command-catalog.ts';
 import { readInputFromCli } from '../commands/cli-grammar.ts';
-import type { CliFlags } from '../utils/command-schema.ts';
+import type { CliFlags } from '../utils/cli-flags.ts';
 
 const BASE_FLAGS: CliFlags = {
   json: false,

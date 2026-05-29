@@ -569,6 +569,7 @@ test('apps command defaults to user-installed and prints discovery hint', async 
         help: false,
         version: false,
         platform: 'android',
+        appsFilter: 'user-installed',
       },
       client,
     });

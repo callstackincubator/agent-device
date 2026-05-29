@@ -15,19 +15,18 @@ export type JsonSchema = {
   maximum?: number;
 };
 
-type CommandContract<Name extends string, Input, Result> = {
+export type CommandMetadata<Name extends string, Input> = {
   name: Name;
   description: string;
   inputSchema: JsonSchema;
   readInput: (input: unknown) => Input;
-  run: (client: AgentDeviceClient, input: Input) => Promise<Result>;
 };
 
-export type ExecutableCommandContract<Name extends string, Input, Result> = CommandContract<
+export type ExecutableCommandContract<Name extends string, Input, Result> = CommandMetadata<
   Name,
-  Input,
-  Result
+  Input
 > & {
+  run: (client: AgentDeviceClient, input: Input) => Promise<Result>;
   invoke: (client: AgentDeviceClient, input: unknown) => Promise<Result>;
 };
 
@@ -38,11 +37,19 @@ export type CliOutput = {
   stderr?: string | null;
 };
 
-export function defineCommand<Name extends string, Input, Result>(
-  definition: CommandContract<Name, Input, Result>,
+export function defineCommandMetadata<Name extends string, Input>(
+  definition: CommandMetadata<Name, Input>,
+): CommandMetadata<Name, Input> {
+  return definition;
+}
+
+export function defineExecutableCommand<Name extends string, Input, Result>(
+  metadata: CommandMetadata<Name, Input>,
+  run: (client: AgentDeviceClient, input: Input) => Promise<Result>,
 ): ExecutableCommandContract<Name, Input, Result> {
   return {
-    ...definition,
-    invoke: async (client, input) => await definition.run(client, definition.readInput(input)),
+    ...metadata,
+    run,
+    invoke: async (client, input) => await run(client, metadata.readInput(input)),
   };
 }

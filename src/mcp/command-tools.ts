@@ -1,12 +1,10 @@
-import { createAgentDeviceClient } from '../client.ts';
 import type { AgentDeviceClient, AgentDeviceClientConfig } from '../client-types.ts';
+import type { JsonSchema } from '../commands/command-contract.ts';
 import {
   isCommandName,
-  listMcpToolDefinitions,
-  runCommand,
+  listMcpCommandMetadata,
   type CommandName,
-} from '../commands/command-surface.ts';
-import type { JsonSchema } from '../commands/command-contract.ts';
+} from '../commands/command-metadata.ts';
 
 type ToolResult = {
   isError: boolean;
@@ -15,8 +13,10 @@ type ToolResult = {
 };
 
 type CommandToolExecutorDeps = {
-  createClient: (config: AgentDeviceClientConfig) => AgentDeviceClient;
-  runCommand: (client: AgentDeviceClient, name: CommandName, input: unknown) => Promise<unknown>;
+  createClient?: (
+    config: AgentDeviceClientConfig,
+  ) => AgentDeviceClient | Promise<AgentDeviceClient>;
+  runCommand?: (client: AgentDeviceClient, name: CommandName, input: unknown) => Promise<unknown>;
 };
 
 type CommandToolExecutor = {
@@ -28,26 +28,25 @@ export function listCommandTools(): Array<{
   description: string;
   inputSchema: JsonSchema;
 }> {
-  return listMcpToolDefinitions().map((definition) => ({
+  return listMcpCommandMetadata().map((definition) => ({
     name: definition.name,
     description: definition.description,
     inputSchema: withMcpConfigSchema(definition.inputSchema),
   }));
 }
 
-export function createCommandToolExecutor(
-  deps: CommandToolExecutorDeps = {
-    createClient: createAgentDeviceClient,
-    runCommand: runCommand,
-  },
-): CommandToolExecutor {
+export function createCommandToolExecutor(deps: CommandToolExecutorDeps = {}): CommandToolExecutor {
   return {
     execute: async (name, input) => {
       if (!isCommandName(name)) {
         throw new Error(`Unknown command tool: ${name}`);
       }
-      const client = deps.createClient(readClientConfig(input));
-      const result = await deps.runCommand(client, name, stripClientConfigFields(input));
+      const client = await createClient(deps, readClientConfig(input));
+      const result = await (deps.runCommand ?? runCommand)(
+        client,
+        name,
+        stripClientConfigFields(input),
+      );
       return {
         isError: false,
         structuredContent: result,
@@ -58,6 +57,24 @@ export function createCommandToolExecutor(
 }
 
 export const commandToolExecutor = createCommandToolExecutor();
+
+async function createClient(
+  deps: CommandToolExecutorDeps,
+  config: AgentDeviceClientConfig,
+): Promise<AgentDeviceClient> {
+  if (deps.createClient) return await deps.createClient(config);
+  const { createAgentDeviceClient } = await import('../client.ts');
+  return createAgentDeviceClient(config);
+}
+
+async function runCommand(
+  client: AgentDeviceClient,
+  name: CommandName,
+  input: unknown,
+): Promise<unknown> {
+  const commandSurface = await import('../commands/command-surface.ts');
+  return await commandSurface.runCommand(client, name, input);
+}
 
 function readClientConfig(input: unknown): AgentDeviceClientConfig {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return {};

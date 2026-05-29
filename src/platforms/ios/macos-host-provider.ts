@@ -4,8 +4,8 @@ import path from 'node:path';
 import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
 import { AppError } from '../../utils/errors.ts';
 import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
-import type { IosAppInfo } from './devicectl.ts';
-import type { AppleMacOsHostProvider, AppleToolCommandExecutor } from './tool-provider.ts';
+import type { IosAppInfo } from './app-info.ts';
+import type { AppleMacOsHostProvider, AppleToolCommandExecutor } from './tool-provider-types.ts';
 
 type ApplePlistJsonReader = (plistPath: string) => Promise<Record<string, unknown> | null>;
 

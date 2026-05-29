@@ -2,7 +2,6 @@ import net from 'node:net';
 import type { Server as HttpServer } from 'node:http';
 import { AppError, normalizeError } from '../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse } from './types.ts';
-import { abortAllIosRunnerSessions } from '../platforms/ios/runner-client.ts';
 import {
   clearRequestCanceled,
   createRequestCanceledError,
@@ -56,6 +55,7 @@ export function createSocketServer(
         try {
           const deadline = Date.now() + disconnectAbortMaxWindowMs;
           while (inFlightRequests > 0 && Date.now() < deadline) {
+            const { abortAllIosRunnerSessions } = await import('../platforms/ios/runner-client.ts');
             await abortAllIosRunnerSessions();
             if (inFlightRequests <= 0) break;
             await sleep(disconnectAbortPollIntervalMs);

@@ -1,10 +1,5 @@
 import { AppError } from '../utils/errors.ts';
 import type { DeviceInfo } from '../utils/device.ts';
-import { readAndroidTextAtPoint } from '../platforms/android/input-actions.ts';
-import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
-import { runMacOsPressAction, runMacOsReadTextAction } from '../platforms/ios/macos-helper.ts';
-import { rightClickLinux, middleClickLinux } from '../platforms/linux/input-actions.ts';
-import { readLinuxTextAtPoint } from '../platforms/linux/snapshot.ts';
 import { successText, withSuccessText } from '../utils/success-text.ts';
 import { findMistargetedTypeRefToken } from '../utils/type-target-warning.ts';
 import { parseScrollDirection } from './scroll-gesture.ts';
@@ -202,6 +197,7 @@ async function handleMacOsSurfacePress(
       `${clickButton} click is not supported on macOS ${context.surface} sessions.`,
     );
   }
+  const { runMacOsPressAction } = await import('../platforms/ios/macos-helper.ts');
   await runMacOsPressAction(x, y, {
     bundleId: context.appBundleId,
     surface: context.surface,
@@ -220,6 +216,7 @@ async function handleAlternateClick(
   if (device.platform === 'linux') {
     return await runLinuxAlternateClick(x, y, button);
   }
+  const { runIosRunnerCommand } = await import('../platforms/ios/runner-client.ts');
   await runIosRunnerCommand(
     device,
     {
@@ -265,8 +262,10 @@ async function runLinuxAlternateClick(
   button: ClickButton,
 ): Promise<Record<string, unknown>> {
   if (button === 'secondary') {
+    const { rightClickLinux } = await import('../platforms/linux/input-actions.ts');
     await rightClickLinux(x, y);
   } else {
+    const { middleClickLinux } = await import('../platforms/linux/input-actions.ts');
     await middleClickLinux(x, y);
   }
   return {
@@ -313,6 +312,7 @@ async function runIosTapSeries(
   series: PressSeriesOptions,
   context: DispatchContext | undefined,
 ): Promise<Record<string, unknown>> {
+  const { runIosRunnerCommand } = await import('../platforms/ios/runner-client.ts');
   const runnerResult = await runIosRunnerCommand(
     device,
     {
@@ -418,6 +418,7 @@ export async function handleSwipeCommand(
   }
 
   if (shouldUseIosDragSeries(device, count)) {
+    const { runIosRunnerCommand } = await import('../platforms/ios/runner-client.ts');
     const runnerResult = await runIosRunnerCommand(
       device,
       {
@@ -819,14 +820,17 @@ export async function handleReadCommand(
 ): Promise<Record<string, unknown>> {
   const { x, y } = readPoint(positionals, 'read requires x y');
   if (device.platform === 'android') {
+    const { readAndroidTextAtPoint } = await import('../platforms/android/input-actions.ts');
     const text = await readAndroidTextAtPoint(device, x, y);
     return { action: 'read', text: text ?? '' };
   }
   if (device.platform === 'linux') {
+    const { readLinuxTextAtPoint } = await import('../platforms/linux/snapshot.ts');
     const text = await readLinuxTextAtPoint(x, y, context?.surface);
     return { action: 'read', text };
   }
   if (device.platform === 'macos' && context?.surface && context.surface !== 'app') {
+    const { runMacOsReadTextAction } = await import('../platforms/ios/macos-helper.ts');
     const result = await runMacOsReadTextAction(x, y, {
       bundleId: context.appBundleId,
       surface: context.surface,
@@ -834,6 +838,7 @@ export async function handleReadCommand(
     return { action: 'read', text: result.text };
   }
   // macOS app sessions run through the XCUITest runner; only desktop/menubar surfaces use the helper.
+  const { runIosRunnerCommand } = await import('../platforms/ios/runner-client.ts');
   const result = await runIosRunnerCommand(
     device,
     {

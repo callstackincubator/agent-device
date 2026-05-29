@@ -4,7 +4,7 @@ import {
   stopReactDevtoolsCompanion,
 } from '../../client-react-devtools-companion.ts';
 import { AppError } from '../../utils/errors.ts';
-import type { CliFlags } from '../../utils/command-schema.ts';
+import type { CliFlags } from '../../utils/cli-flags.ts';
 
 const AGENT_REACT_DEVTOOLS_VERSION = '0.4.0';
 export const AGENT_REACT_DEVTOOLS_PACKAGE = `agent-react-devtools@${AGENT_REACT_DEVTOOLS_VERSION}`;

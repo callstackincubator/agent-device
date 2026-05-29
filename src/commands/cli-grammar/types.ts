@@ -1,5 +1,5 @@
 import type { InteractionTarget, InternalRequestOptions } from '../../client-types.ts';
-import type { CliFlags } from '../../utils/command-schema.ts';
+import type { CliFlags } from '../../utils/cli-flags.ts';
 
 export type DaemonCommandRequest = {
   command: string;

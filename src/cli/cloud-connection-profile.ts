@@ -5,7 +5,7 @@ import { resolveRemoteConfigProfile } from '../remote-config.ts';
 import type { RemoteConfigProfile, ResolvedRemoteConfigProfile } from '../remote-config-schema.ts';
 import { profileToCliFlags } from '../utils/remote-config.ts';
 import { AppError, asAppError } from '../utils/errors.ts';
-import type { CliFlags } from '../utils/command-schema.ts';
+import type { CliFlags } from '../utils/cli-flags.ts';
 import { resolveCloudAccessForConnect } from './auth-session.ts';
 
 const CONNECTION_PROFILE_PATH = '/api/control-plane/connection-profile';

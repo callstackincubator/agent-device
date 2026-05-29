@@ -1,0 +1,239 @@
+import type { MetroPrepareOptions, RecordOptions } from '../client-types.ts';
+import type { DaemonInstallSource } from '../contracts.ts';
+import { getCommandDescription } from './command-descriptions.ts';
+import {
+  booleanField,
+  booleanSchema,
+  enumField,
+  integerField,
+  integerSchema,
+  jsonSchemaField,
+  looseObjectField,
+  looseObjectSchema,
+  numberField,
+  requiredField,
+  stringArrayField,
+  stringField,
+  stringSchema,
+  type CommandFieldMap,
+} from './command-input.ts';
+import { defineFieldCommandMetadata } from './field-command-contract.ts';
+
+const SURFACE_VALUES = ['app', 'frontmost-app', 'desktop', 'menubar'] as const;
+const WAIT_KIND_VALUES = ['duration', 'text', 'ref', 'selector'] as const;
+const ALERT_ACTION_VALUES = ['get', 'accept', 'dismiss', 'wait'] as const;
+const BACK_MODE_VALUES = ['in-app', 'system'] as const;
+const ORIENTATION_VALUES = [
+  'portrait',
+  'portrait-upside-down',
+  'landscape-left',
+  'landscape-right',
+] as const;
+const CLIPBOARD_ACTION_VALUES = ['read', 'write'] as const;
+const LOG_ACTION_VALUES = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
+const NETWORK_ACTION_VALUES = ['dump', 'log'] as const;
+const NETWORK_INCLUDE_VALUES = ['summary', 'headers', 'body', 'all'] as const;
+const START_STOP_VALUES = ['start', 'stop'] as const;
+const REACT_NATIVE_ACTION_VALUES = ['dismiss-overlay'] as const;
+const METRO_ACTION_VALUES = ['prepare', 'reload'] as const;
+
+export const clientCommandMetadata = [
+  defineClientCommandMetadata('devices', {}),
+  defineClientCommandMetadata('boot', {
+    headless: booleanField('Boot without showing simulator UI when supported.'),
+  }),
+  defineClientCommandMetadata('apps', {
+    appsFilter: enumField(['user-installed', 'all']),
+  }),
+  defineClientCommandMetadata('session', {
+    action: enumField(['list']),
+  }),
+  defineClientCommandMetadata('open', {
+    app: stringField('App name, bundle id, package, or URL.'),
+    url: stringField('Optional URL passed with an app shell.'),
+    surface: enumField(SURFACE_VALUES),
+    activity: stringField('Android activity name.'),
+    launchConsole: stringField('Launch console mode.'),
+    launchArgs: stringArrayField(
+      'Launch arguments forwarded verbatim to the platform launch command.',
+    ),
+    relaunch: booleanField('Force relaunch.'),
+    saveScript: jsonSchemaField<boolean | string>({ oneOf: [booleanSchema(), stringSchema()] }),
+    noRecord: booleanField('Do not record this action.'),
+  }),
+  defineClientCommandMetadata('close', {
+    app: stringField('Optional app to close.'),
+    shutdown: booleanField('Shutdown the session/device where supported.'),
+    saveScript: jsonSchemaField<boolean | string>({ oneOf: [booleanSchema(), stringSchema()] }),
+  }),
+  defineClientCommandMetadata('install', {
+    app: requiredField(stringField()),
+    appPath: requiredField(stringField('Path to app binary.')),
+  }),
+  defineClientCommandMetadata('reinstall', {
+    app: requiredField(stringField()),
+    appPath: requiredField(stringField('Path to app binary.')),
+  }),
+  defineClientCommandMetadata('install-from-source', {
+    source: requiredField(
+      jsonSchemaField<DaemonInstallSource>(looseObjectSchema('Install source object.')),
+    ),
+    retainPaths: booleanField(),
+    retentionMs: integerField(),
+  }),
+  defineClientCommandMetadata('push', {
+    app: requiredField(stringField()),
+    payload: requiredField(
+      jsonSchemaField<string | Record<string, unknown>>({
+        oneOf: [stringSchema(), looseObjectSchema()],
+      }),
+    ),
+  }),
+  defineClientCommandMetadata('trigger-app-event', {
+    event: requiredField(stringField()),
+    payload: looseObjectField(),
+  }),
+  defineClientCommandMetadata('snapshot', {
+    interactiveOnly: booleanField(),
+    compact: booleanField(),
+    depth: integerField(),
+    scope: stringField(),
+    raw: booleanField(),
+    forceFull: booleanField(),
+  }),
+  defineClientCommandMetadata('screenshot', {
+    path: stringField('Output path.'),
+    overlayRefs: booleanField(),
+    fullscreen: booleanField(),
+    maxSize: integerField(),
+    stabilize: booleanField(),
+    surface: enumField(SURFACE_VALUES),
+  }),
+  defineClientCommandMetadata('diff', {
+    kind: requiredField(jsonSchemaField<'snapshot'>({ type: 'string', const: 'snapshot' })),
+    out: stringField(),
+    interactiveOnly: booleanField(),
+    compact: booleanField(),
+    depth: integerField(),
+    scope: stringField(),
+    raw: booleanField(),
+  }),
+  defineClientCommandMetadata('wait', {
+    kind: enumField(WAIT_KIND_VALUES),
+    durationMs: integerField(),
+    text: stringField(),
+    ref: stringField(),
+    selector: stringField(),
+    timeoutMs: integerField(),
+    depth: integerField(),
+    scope: stringField(),
+    raw: booleanField(),
+  }),
+  defineClientCommandMetadata('alert', {
+    action: enumField(ALERT_ACTION_VALUES),
+    timeoutMs: integerField(),
+  }),
+  defineClientCommandMetadata('appstate', {}),
+  defineClientCommandMetadata('back', {
+    mode: enumField(BACK_MODE_VALUES),
+  }),
+  defineClientCommandMetadata('home', {}),
+  defineClientCommandMetadata('rotate', {
+    orientation: requiredField(enumField(ORIENTATION_VALUES)),
+  }),
+  defineClientCommandMetadata('app-switcher', {}),
+  defineClientCommandMetadata('keyboard', {
+    action: enumField(['status', 'dismiss']),
+  }),
+  defineClientCommandMetadata('clipboard', {
+    action: requiredField(enumField(CLIPBOARD_ACTION_VALUES)),
+    text: stringField(),
+  }),
+  defineClientCommandMetadata('react-native', {
+    action: requiredField(enumField(REACT_NATIVE_ACTION_VALUES)),
+  }),
+  defineClientCommandMetadata('replay', {
+    path: requiredField(stringField()),
+    update: booleanField(),
+    backend: stringField(),
+    maestro: booleanField(),
+    env: stringArrayField(),
+  }),
+  defineClientCommandMetadata('test', {
+    paths: requiredField(stringArrayField()),
+    update: booleanField(),
+    backend: stringField(),
+    maestro: booleanField(),
+    env: stringArrayField(),
+    failFast: booleanField(),
+    timeoutMs: integerField(),
+    retries: integerField(),
+    artifactsDir: stringField(),
+    reportJunit: stringField(),
+  }),
+  defineClientCommandMetadata('perf', {}),
+  defineClientCommandMetadata('logs', {
+    action: enumField(LOG_ACTION_VALUES),
+    message: stringField(),
+    restart: booleanField(),
+  }),
+  defineClientCommandMetadata('network', {
+    action: enumField(NETWORK_ACTION_VALUES),
+    limit: integerField(),
+    include: enumField(NETWORK_INCLUDE_VALUES),
+  }),
+  defineClientCommandMetadata('record', {
+    action: requiredField(enumField(START_STOP_VALUES)),
+    path: stringField(),
+    fps: integerField(),
+    quality: jsonSchemaField<RecordOptions['quality']>(integerSchema()),
+    hideTouches: booleanField(),
+  }),
+  defineClientCommandMetadata('trace', {
+    action: requiredField(enumField(START_STOP_VALUES)),
+    path: stringField(),
+  }),
+  defineClientCommandMetadata('settings', {
+    setting: requiredField(stringField()),
+    state: requiredField(stringField()),
+    latitude: numberField(),
+    longitude: numberField(),
+    permission: stringField(),
+    mode: enumField(['full', 'limited']),
+  }),
+  defineClientCommandMetadata('metro', {
+    action: requiredField(enumField(METRO_ACTION_VALUES)),
+    projectRoot: stringField(),
+    kind: jsonSchemaField<MetroPrepareOptions['kind']>(stringSchema()),
+    publicBaseUrl: stringField(),
+    proxyBaseUrl: stringField(),
+    bearerToken: stringField(),
+    bridgeScope: jsonSchemaField<MetroPrepareOptions['bridgeScope']>({
+      type: 'object',
+      additionalProperties: true,
+    }),
+    launchUrl: stringField(),
+    port: integerField(),
+    listenHost: stringField(),
+    statusHost: stringField(),
+    startupTimeoutMs: integerField(),
+    probeTimeoutMs: integerField(),
+    reuseExisting: booleanField(),
+    installDependenciesIfNeeded: booleanField(),
+    runtimeFilePath: stringField(),
+    logPath: stringField(),
+    metroHost: stringField(),
+    metroPort: integerField(),
+    bundleUrl: stringField(),
+    timeoutMs: integerField(),
+  }),
+] as const;
+
+function defineClientCommandMetadata<
+  const TName extends string,
+  const TFields extends CommandFieldMap,
+>(name: TName, fields: TFields) {
+  const description = getCommandDescription(name);
+  if (!description) throw new Error(`Missing command description for ${name}`);
+  return defineFieldCommandMetadata(name, description, fields);
+}

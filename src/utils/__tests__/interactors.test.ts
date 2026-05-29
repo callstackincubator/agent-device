@@ -58,7 +58,7 @@ test('ios scroll reports planned pixels without recomputing from runner coordina
     }
     throw new Error(`Unexpected runner command: ${command.command}`);
   });
-  const interactor = getInteractor(iosSimulator, { appBundleId: 'com.example.app' });
+  const interactor = await getInteractor(iosSimulator, { appBundleId: 'com.example.app' });
   const result = await interactor.scroll('down', { pixels: 120 });
 
   const pixels =
@@ -72,7 +72,7 @@ test('ios fill sends one verified replacement text-entry command at the target c
     commands.push(command);
     return {};
   });
-  const interactor = getInteractor(iosSimulator, { appBundleId: 'com.example.app' });
+  const interactor = await getInteractor(iosSimulator, { appBundleId: 'com.example.app' });
 
   await interactor.fill(120, 240, 'hunter2');
 
@@ -95,7 +95,7 @@ test('ios type uses verified append text-entry mode', async () => {
     commands.push(command);
     return {};
   });
-  const interactor = getInteractor(iosSimulator, { appBundleId: 'com.example.app' });
+  const interactor = await getInteractor(iosSimulator, { appBundleId: 'com.example.app' });
 
   await interactor.type('hello', 25);
 

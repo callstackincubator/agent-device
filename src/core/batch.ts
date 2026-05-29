@@ -1,7 +1,8 @@
 import type { DaemonRequest, DaemonResponse } from '../contracts.ts';
 import { AppError, asAppError } from '../utils/errors.ts';
+import { DEFAULT_BATCH_MAX_STEPS } from '../batch-contract.ts';
 
-export const DEFAULT_BATCH_MAX_STEPS = 100;
+export { DEFAULT_BATCH_MAX_STEPS };
 export const BATCH_BLOCKED_COMMANDS: ReadonlySet<string> = new Set(['batch', 'replay']);
 const BATCH_ALLOWED_STEP_KEYS = new Set(['command', 'positionals', 'flags', 'runtime']);
 export const INHERITED_PARENT_FLAG_KEYS = [

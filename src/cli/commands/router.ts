@@ -1,10 +1,13 @@
-import { applyCommandDefaults, type CliFlags } from '../../utils/command-schema.ts';
+import type { CliFlags } from '../../utils/cli-flags.ts';
 import type { AgentDeviceClient } from '../../client.ts';
+import {
+  isClientBackedCliCommandName,
+  type ClientBackedCliCommandName,
+} from '../../command-catalog.ts';
 import { connectCommand, connectionCommand, disconnectCommand } from './connection.ts';
 import { authCommand } from './auth.ts';
 import { screenshotCommand, diffCommand } from './screenshot.ts';
-import { dedicatedCommandHandlers, genericClientCommandHandlers } from './generic.ts';
-import type { ClientCommandHandlerMap } from './router-types.ts';
+import type { ClientCommandHandlerMap, ClientCommandParams } from './router-types.ts';
 
 export type {
   ClientCommandHandler,
@@ -21,21 +24,29 @@ const dedicatedCliCommandHandlers = {
   diff: diffCommand,
 } satisfies ClientCommandHandlerMap;
 
-const clientCommandHandlers: ClientCommandHandlerMap = {
-  ...dedicatedCliCommandHandlers,
-  ...dedicatedCommandHandlers,
-  ...genericClientCommandHandlers,
-};
-
 export async function tryRunClientBackedCommand(params: {
   command: string;
   positionals: string[];
   flags: CliFlags;
   client: AgentDeviceClient;
 }): Promise<boolean> {
-  const handler = clientCommandHandlers[params.command as keyof typeof clientCommandHandlers];
-  if (!handler) return false;
   const flags = { ...params.flags };
-  applyCommandDefaults(params.command, flags);
-  return await handler({ ...params, flags });
+  const dedicatedHandler =
+    dedicatedCliCommandHandlers[params.command as keyof typeof dedicatedCliCommandHandlers];
+  if (dedicatedHandler) {
+    return await dedicatedHandler({ ...params, flags });
+  }
+  if (isClientBackedCliCommandName(params.command)) {
+    return await runGenericClientBackedCommand({ ...params, command: params.command, flags });
+  }
+  return false;
+}
+
+async function runGenericClientBackedCommand(
+  params: {
+    command: ClientBackedCliCommandName;
+  } & ClientCommandParams,
+): Promise<boolean> {
+  const { runGenericClientBackedCommand } = await import('./generic.ts');
+  return await runGenericClientBackedCommand(params);
 }

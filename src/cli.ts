@@ -28,7 +28,7 @@ import { resolveCliOptions } from './utils/cli-options.ts';
 import { maybeRunUpgradeNotifier } from './utils/update-check.ts';
 import { resolveRemoteConnectionDefaults } from './remote-connection-state.ts';
 import { resolveRemoteAuthForCli } from './cli/auth-session.ts';
-import type { CliFlags, FlagKey } from './utils/command-schema.ts';
+import type { CliFlags, FlagKey } from './utils/cli-flags.ts';
 import type { SessionRuntimeHints } from './contracts.ts';
 
 type CliDeps = {
