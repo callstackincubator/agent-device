@@ -59,6 +59,7 @@ type SnapshotTextOptions = {
   raw?: boolean;
   flatten?: boolean;
   scoped?: boolean;
+  depthLimited?: boolean;
 };
 
 export function formatSnapshotText(
@@ -632,9 +633,9 @@ function buildSnapshotNotices(
 
 function formatSparseSnapshotHint(
   nodes: SnapshotNode[],
-  options: Pick<SnapshotTextOptions, 'scoped'>,
+  options: Pick<SnapshotTextOptions, 'scoped' | 'depthLimited'>,
 ): string | null {
-  if (options.scoped === true || nodes.length > 3) return null;
+  if (options.scoped === true || options.depthLimited === true || nodes.length > 3) return null;
   const noun = nodes.length === 1 ? 'node' : 'nodes';
   return `Hint: sparse accessibility snapshot returned ${nodes.length} ${noun}. The app may expose limited accessibility metadata; run screenshot --overlay-refs for visual context.`;
 }

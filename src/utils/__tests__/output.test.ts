@@ -1339,6 +1339,28 @@ test('formatSnapshotText suppresses sparse snapshot hint for scoped reads', () =
   assert.doesNotMatch(text, /sparse accessibility snapshot/);
 });
 
+test('formatSnapshotText suppresses sparse snapshot hint for depth-limited reads', () => {
+  const text = withNoColor(() =>
+    formatSnapshotText(
+      {
+        nodes: [
+          {
+            ref: 'e1',
+            index: 0,
+            depth: 0,
+            type: 'Application',
+            label: 'Main',
+          },
+        ],
+        truncated: false,
+      },
+      { depthLimited: true },
+    ),
+  );
+
+  assert.doesNotMatch(text, /sparse accessibility snapshot/);
+});
+
 test('formatSnapshotText keeps flattened output and adds duplicate nav warning', () => {
   const nodes = Array.from({ length: 24 }, (_, index) => ({
     ref: `e${index + 1}`,

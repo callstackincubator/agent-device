@@ -63,6 +63,7 @@ const cliOutputFormatters: Partial<Record<CommandName, CliOutputFormatter>> = {
       raw: input.raw as boolean | undefined,
       interactiveOnly: input.interactiveOnly as boolean | undefined,
       scope: input.scope as string | undefined,
+      depth: input.depth as number | undefined,
     }),
   wait: messageOutput,
   alert: messageOutput,
