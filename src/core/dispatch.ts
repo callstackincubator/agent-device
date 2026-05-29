@@ -22,6 +22,7 @@ import { readLocationCoordinate } from '../utils/location-coordinates.ts';
 import { successText, withSuccessText } from '../utils/success-text.ts';
 import { screenshotOptionsFromFlags } from '../commands/capture-screenshot-options.ts';
 import type { DispatchContext } from './dispatch-context.ts';
+import { analyzeSnapshotForCognition, formatCognitionMapForLLM } from './cognition-analyzer.ts';
 import {
   handleFillCommand,
   handleFocusCommand,
@@ -35,6 +36,7 @@ import {
 } from './dispatch-interactions.ts';
 import { readNotificationPayload } from './dispatch-payload.ts';
 import { parseDeviceRotation } from './device-rotation.ts';
+import { dismissHarmonySystemDialogs } from '../platforms/harmonyos/alert.ts';
 
 export { resolveTargetDevice } from './dispatch-resolve.ts';
 export type { BatchStep, CommandFlags, DispatchContext } from './dispatch-context.ts';
@@ -146,6 +148,8 @@ export async function dispatchCommand(
           return handlePushCommand(device, positionals, context);
         case 'snapshot':
           return await handleSnapshotCommand(interactor, context);
+        case 'cognition':
+          return await handleCognitionCommand(interactor, device, context);
         case 'read':
           return handleReadCommand(device, positionals, context);
         default:
@@ -204,6 +208,7 @@ async function handleOpenCommand(
     }
     await interactor.open(app, {
       activity: context?.activity,
+      module: context?.module,
       appBundleId: context?.appBundleId,
       url,
     });
@@ -214,6 +219,7 @@ async function handleOpenCommand(
   }
   await interactor.open(app, {
     activity: context?.activity,
+    module: context?.module,
     appBundleId: context?.appBundleId,
     launchConsole,
   });
@@ -289,6 +295,28 @@ async function handleKeyboardCommand(
       focusedPackage: state.focusedPackage,
       focusedResourceId: state.focusedResourceId,
       inputOwner: state.inputOwner,
+    };
+  }
+  if (device.platform === 'harmonyos') {
+    const { getHarmonyKeyboardState, dismissHarmonyKeyboard } = await import(
+      '../platforms/harmonyos/input-actions.ts'
+    );
+    if (action === 'dismiss') {
+      await dismissHarmonyKeyboard(device);
+      return {
+        platform: 'harmonyos',
+        action: 'dismiss',
+        dismissed: true,
+        visible: false,
+        ...successText('Keyboard dismissed'),
+      };
+    }
+    const state = await getHarmonyKeyboardState(device);
+    return {
+      platform: 'harmonyos',
+      action: 'status',
+      visible: state.visible,
+      height: state.height,
     };
   }
   if (device.platform === 'ios') {
@@ -405,6 +433,37 @@ async function handleSnapshotCommand(
     raw: context?.snapshotRaw,
     surface: context?.surface,
   });
+}
+
+async function handleCognitionCommand(
+  interactor: Interactor,
+  device: DeviceInfo,
+  context: DispatchContext | undefined,
+): Promise<Record<string, unknown>> {
+  // For HarmonyOS, auto-dismiss system dialogs before generating cognition map
+  if (device.platform === 'harmonyos') {
+    try {
+      await dismissHarmonySystemDialogs(device, 2);
+    } catch {
+      // Proceed with cognition map generation even if dialog dismissal fails
+    }
+  }
+
+  // 获取当前UI快照
+  const snapshotResult = await interactor.snapshot({
+    appBundleId: context?.appBundleId,
+    raw: true, // 获取完整数据用于分析
+  });
+
+  // 分析UI结构生成认知地图
+  const cognitionMap = analyzeSnapshotForCognition(snapshotResult.nodes ?? [], device.platform);
+
+  // 返回结构化认知地图
+  return {
+    cognition: cognitionMap,
+    llmReport: formatCognitionMapForLLM(cognitionMap),
+    message: 'Cognition map generated for AI planning',
+  };
 }
 
 function readResultMessage(result: Record<string, unknown>): string | undefined {

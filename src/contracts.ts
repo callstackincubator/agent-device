@@ -2,7 +2,7 @@ export type { AppErrorCode } from './utils/errors.ts';
 export { defaultHintForCode, normalizeError } from './utils/errors.ts';
 
 export type SessionRuntimeHints = {
-  platform?: 'ios' | 'android';
+  platform?: 'ios' | 'android' | 'harmonyos';
   metroHost?: string;
   metroPort?: number;
   bundleUrl?: string;
@@ -56,7 +56,7 @@ export type DaemonRequestMeta = {
   materializedPathRetentionMs?: number;
   materializationId?: string;
   lockPolicy?: DaemonLockPolicy;
-  lockPlatform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple';
+  lockPlatform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple' | 'harmonyos';
 };
 
 export type DaemonRequest = {
@@ -319,7 +319,7 @@ function parseDaemonInstallSource(input: unknown, path: string): DaemonInstallSo
 export const daemonRuntimeSchema = schema<SessionRuntimeHints>((input, path) => {
   const record = expectObject(input, path);
   return {
-    platform: optionalEnum(record, 'platform', ['ios', 'android'] as const, path),
+    platform: optionalEnum(record, 'platform', ['ios', 'android', 'harmonyos'] as const, path),
     metroHost: optionalString(record, 'metroHost', path),
     metroPort: optionalInteger(record, 'metroPort', path),
     bundleUrl: optionalString(record, 'bundleUrl', path),
@@ -392,7 +392,7 @@ export const daemonCommandRequestSchema = schema<DaemonRequest>((input, path) =>
             lockPlatform: optionalEnum(
               meta,
               'lockPlatform',
-              ['ios', 'macos', 'android', 'linux', 'apple'] as const,
+              ['ios', 'macos', 'android', 'linux', 'apple', 'harmonyos'] as const,
               `${path}.meta`,
             ),
           },

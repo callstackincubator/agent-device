@@ -72,6 +72,12 @@ export function createAgentDeviceCommandClient(
         positionals: [options.action],
         options,
       }),
+    cognition: async (options = {}) =>
+      await run<'cognition'>({
+        command: PUBLIC_COMMANDS.cognition,
+        positionals: [],
+        options,
+      }),
   };
 }
 

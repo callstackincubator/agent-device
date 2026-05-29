@@ -41,6 +41,8 @@ import type {
   AppDeployOptions,
   AppInstallFromSourceOptions,
   AppListOptions,
+  AppListEntry,
+  AppListResult,
   AppOpenOptions,
   CaptureScreenshotOptions,
   CaptureSnapshotOptions,
@@ -145,11 +147,13 @@ export function createAgentDeviceClient(
           }),
           resolveRequestSession(options),
         ),
-      list: async (options: AppListOptions = {}) => {
+      list: async (options: AppListOptions = {}): Promise<AppListResult> => {
         const data = await execute(PUBLIC_COMMANDS.apps, [], options);
-        return Array.isArray(data.apps)
+        const apps = Array.isArray(data.apps)
           ? data.apps.filter((app): app is string => typeof app === 'string')
           : [];
+        const appDetails = parseAppListDetails(data.appDetails);
+        return appDetails.length > 0 ? { apps, appDetails } : { apps };
       },
       open: async (options: AppOpenOptions) => {
         const session = resolveRequestSession(options);
@@ -524,6 +528,26 @@ function mergeClientOptions(
   options: InternalRequestOptions,
 ): InternalRequestOptions {
   return { ...config, ...options };
+}
+
+function parseAppListDetails(value: unknown): AppListEntry[] {
+  if (!Array.isArray(value)) return [];
+  const entries: AppListEntry[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const row = item as Record<string, unknown>;
+    const id = readOptionalString(row, 'id');
+    const bundleId = readOptionalString(row, 'bundleId') ?? id;
+    if (!bundleId) continue;
+    entries.push({
+      id: id ?? bundleId,
+      bundleId,
+      name: readOptionalString(row, 'name'),
+      launchAbility: readOptionalString(row, 'launchAbility'),
+      label: readOptionalString(row, 'label'),
+    });
+  }
+  return entries;
 }
 
 function normalizeLease(data: Record<string, unknown>): Lease {

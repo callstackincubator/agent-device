@@ -4,6 +4,7 @@ import { sleep } from '../../utils/timeouts.ts';
 import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
 import { handleAndroidAlert } from '../../platforms/android/alert.ts';
+import { handleHarmonyAlert } from '../../platforms/harmonyos/alert.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
@@ -53,6 +54,15 @@ export async function handleAlertCommand(
     return recordAlertResponse(
       params,
       await handleAndroidAlert(device, action, {
+        timeoutMs,
+      }),
+    );
+  }
+  if (device.platform === 'harmonyos') {
+    const timeoutMs = parseTimeout(req.positionals?.[1]) ?? DEFAULT_TIMEOUT_MS;
+    return recordAlertResponse(
+      params,
+      await handleHarmonyAlert(device, action, {
         timeoutMs,
       }),
     );

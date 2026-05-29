@@ -198,6 +198,12 @@ function formatAppState(data: AppStateCommandResult): string | null {
     if (data.activity) lines.push(`Activity: ${data.activity}`);
     return lines.join('\n');
   }
+  if (data.platform === 'harmonyos') {
+    const lines = [`Foreground app: ${data.appBundleId ?? data.package ?? 'unknown'}`];
+    if (data.state) lines.push(`State: ${data.state}`);
+    if (data.source) lines.push(`Source: ${data.source}`);
+    return lines.join('\n');
+  }
   return null;
 }
 

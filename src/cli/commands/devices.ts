@@ -10,9 +10,10 @@ export const devicesCommand: ClientCommandHandler = async ({ flags, client }) =>
   return true;
 };
 
-function formatDeviceLine(device: AgentDeviceDevice): string {
+export function formatDeviceLine(device: AgentDeviceDevice): string {
   const kind = device.kind ? ` ${device.kind}` : '';
   const target = device.target ? ` target=${device.target}` : '';
   const booted = typeof device.booted === 'boolean' ? ` booted=${device.booted}` : '';
-  return `${device.name} (${device.platform}${kind}${target})${booted}`;
+  const label = device.platform === 'harmonyos' ? device.id : device.name;
+  return `${label} (${device.platform}${kind}${target})${booted}`;
 }

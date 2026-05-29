@@ -5,6 +5,7 @@ export const ALL_DEVICE_COMMAND_CAPABILITY = {
   apple: { simulator: true, device: true },
   android: { emulator: true, device: true, unknown: true },
   linux: { device: true },
+  harmonyos: { device: true },
 } as const satisfies CommandCapability;
 
 export type CommandCodec<TOptions = unknown> = {

@@ -190,6 +190,7 @@ const genericClientCommandRunners = {
     client.interactions.is(isCommandCodec.decode(positionals, flags)),
   settings: ({ client, positionals, flags }) =>
     client.settings.update(settingsCommandCodec.decode(positionals, flags)),
+  cognition: ({ client, flags }) => client.command.cognition(buildSelectionOptions(flags)),
 } satisfies Partial<Record<PublicCommandName, GenericClientCommandRunner>>;
 
 export const genericClientCommandHandlers = Object.fromEntries(

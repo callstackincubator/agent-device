@@ -118,16 +118,38 @@ async function handleAppStateCommand(params: {
     return errorResponse('SESSION_NOT_FOUND', MACOS_APPSTATE_SESSION_REQUIRED_MESSAGE);
   }
 
-  const { getAndroidAppState } = await import('../../platforms/android/app-lifecycle.ts');
-  const state = await getAndroidAppState(device);
-  return {
-    ok: true,
-    data: {
-      platform: 'android',
-      package: state.package,
-      activity: state.activity,
-    },
-  };
+  if (device.platform === 'harmonyos') {
+    const { getHarmonyAppState } = await import('../../platforms/harmonyos/app-lifecycle.ts');
+    const state = await getHarmonyAppState(device);
+    return {
+      ok: true,
+      data: {
+        platform: 'harmonyos',
+        appBundleId: state.bundleId,
+        package: state.bundleId,
+        state: state.state,
+        source: 'device',
+      },
+    };
+  }
+
+  if (device.platform === 'android') {
+    const { getAndroidAppState } = await import('../../platforms/android/app-lifecycle.ts');
+    const state = await getAndroidAppState(device);
+    return {
+      ok: true,
+      data: {
+        platform: 'android',
+        package: state.package,
+        activity: state.activity,
+      },
+    };
+  }
+
+  return errorResponse(
+    'UNSUPPORTED_OPERATION',
+    `appstate is not supported on platform ${device.platform}`,
+  );
 }
 
 export async function handleSessionStateCommands(params: {

@@ -343,7 +343,45 @@ test('apps.list forwards filters and returns daemon app names', async () => {
   assert.equal(setup.calls[0]?.flags?.platform, 'ios');
   assert.equal(setup.calls[0]?.flags?.device, 'iPhone 16');
   assert.equal(setup.calls[0]?.flags?.appsFilter, 'user-installed');
-  assert.deepEqual(apps, ['Settings (com.apple.Preferences)', 'Demo (com.example.demo)']);
+  assert.deepEqual(apps, {
+    apps: ['Settings (com.apple.Preferences)', 'Demo (com.example.demo)'],
+  });
+});
+
+test('apps.list forwards HarmonyOS appDetails with launchAbility', async () => {
+  const setup = createTransport(async () => ({
+    ok: true,
+    data: {
+      apps: ['psnger (com.sdu.didi.hmos.psnger)'],
+      appDetails: [
+        {
+          id: 'com.sdu.didi.hmos.psnger',
+          bundleId: 'com.sdu.didi.hmos.psnger',
+          name: 'psnger',
+          label: 'psnger (com.sdu.didi.hmos.psnger)',
+          launchAbility: 'EntryAbility',
+        },
+      ],
+    },
+  }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  const result = await client.apps.list({
+    platform: 'harmonyos',
+    device: '22M0223824043030',
+    appsFilter: 'user-installed',
+  });
+
+  assert.deepEqual(result.apps, ['psnger (com.sdu.didi.hmos.psnger)']);
+  assert.deepEqual(result.appDetails, [
+    {
+      id: 'com.sdu.didi.hmos.psnger',
+      bundleId: 'com.sdu.didi.hmos.psnger',
+      name: 'psnger',
+      label: 'psnger (com.sdu.didi.hmos.psnger)',
+      launchAbility: 'EntryAbility',
+    },
+  ]);
 });
 
 test('materializations.release forwards materialization identity through the daemon request', async () => {

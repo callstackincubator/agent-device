@@ -13,6 +13,8 @@ import { ensureAdb } from '../platforms/android/adb.ts';
 import { findBootableIosSimulator, listAppleDevices } from '../platforms/ios/devices.ts';
 import { listLinuxDevices } from '../platforms/linux/devices.ts';
 import { listMacosDevices } from '../platforms/macos/devices.ts';
+import { listHarmonyDevices } from '../platforms/harmonyos/devices.ts';
+import { ensureHdc } from '../platforms/harmonyos/hdc.ts';
 import { withDiagnosticTimer } from '../utils/diagnostics.ts';
 import {
   resolveAndroidSerialAllowlist,
@@ -196,6 +198,10 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
         await ensureAdb();
       }
 
+      if (selector.platform === 'harmonyos') {
+        await ensureHdc();
+      }
+
       const devices = await listLocalDeviceInventory({
         ...selector,
         iosSimulatorSetPath,
@@ -286,6 +292,11 @@ async function listLocalDeviceInventory(request: DeviceInventoryRequest): Promis
     });
   }
 
+  if (request.platform === 'harmonyos') {
+    await ensureHdc();
+    return await listHarmonyDevices();
+  }
+
   if (request.platform) {
     return await listAppleDevices({
       simulatorSetPath: request.iosSimulatorSetPath,
@@ -311,8 +322,11 @@ async function listLocalDeviceInventory(request: DeviceInventoryRequest): Promis
       })),
     );
   } catch {}
+  try {
+    devices.push(...(await listHarmonyDevices()));
+  } catch {}
   // Linux local device is appended last so it does not displace
-  // connected Android/Apple devices in implicit auto-selection.
+  // connected Android/Apple/HarmonyOS devices in implicit auto-selection.
   try {
     devices.push(...(await listLinuxDevices()));
   } catch {}
@@ -323,7 +337,12 @@ function isAppleResolutionSelector(selector: {
   platform?: PlatformSelector;
   target?: DeviceTarget;
 }): boolean {
-  return !!selector.platform && selector.platform !== 'android' && selector.platform !== 'linux';
+  return (
+    !!selector.platform &&
+    selector.platform !== 'android' &&
+    selector.platform !== 'linux' &&
+    selector.platform !== 'harmonyos'
+  );
 }
 
 function readResolveTargetDeviceCache(cacheKey: string): DeviceInfo | undefined {

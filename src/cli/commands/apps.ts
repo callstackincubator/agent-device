@@ -4,11 +4,11 @@ import type { ClientCommandHandler } from './router-types.ts';
 
 export const appsCommand: ClientCommandHandler = async ({ flags, client }) => {
   const appsFilter = assertResolvedAppsFilter(flags.appsFilter);
-  const apps = await client.apps.list({
+  const { apps, appDetails } = await client.apps.list({
     ...buildSelectionOptions(flags),
     appsFilter,
   });
-  const data = { apps };
+  const data = flags.json && appDetails && appDetails.length > 0 ? { apps: appDetails } : { apps };
   writeCommandOutput(flags, data, () => {
     if (!flags.json) {
       process.stderr.write(

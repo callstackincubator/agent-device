@@ -27,7 +27,7 @@ export type RemoteConfigProfile = RemoteConfigMetroOptions & {
   runId?: string;
   leaseId?: string;
   leaseBackend?: 'ios-simulator' | 'ios-instance' | 'android-instance';
-  platform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple';
+  platform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple' | 'harmonyos';
   target?: 'mobile' | 'tv' | 'desktop';
   device?: string;
   udid?: string;
@@ -73,7 +73,11 @@ export const REMOTE_CONFIG_FIELD_SPECS = [
     type: 'enum',
     enumValues: ['ios-simulator', 'ios-instance', 'android-instance'],
   },
-  { key: 'platform', type: 'enum', enumValues: ['ios', 'macos', 'android', 'linux', 'apple'] },
+  {
+    key: 'platform',
+    type: 'enum',
+    enumValues: ['ios', 'macos', 'android', 'linux', 'apple', 'harmonyos'],
+  },
   { key: 'target', type: 'enum', enumValues: ['mobile', 'tv', 'desktop'] },
   { key: 'device', type: 'string' },
   { key: 'udid', type: 'string' },

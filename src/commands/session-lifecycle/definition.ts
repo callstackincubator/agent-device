@@ -7,18 +7,21 @@ const APP_RUNTIME_CAPABILITY = {
   apple: { simulator: true, device: true },
   android: { emulator: true, device: true, unknown: true },
   linux: { device: true },
+  harmonyos: { device: true },
 } as const satisfies CommandCapability;
 
 const APP_INVENTORY_CAPABILITY = {
   apple: { simulator: true, device: true },
   android: { emulator: true, device: true, unknown: true },
   linux: {},
+  harmonyos: { device: true },
 } as const satisfies CommandCapability;
 
 const APP_INSTALL_CAPABILITY = {
   apple: { simulator: true, device: true },
   android: { emulator: true, device: true, unknown: true },
   linux: {},
+  harmonyos: { device: true },
   supports: (device) => device.platform !== 'macos',
 } as const satisfies CommandCapability;
 
@@ -29,7 +32,7 @@ const openCommandDefinition = defineCommand({
       'Boot device/simulator; optionally launch app or deep link URL (macOS also supports --surface app|frontmost-app|desktop|menubar)',
     summary: 'Open an app, deep link or URL, save replays',
     positionalArgs: ['appOrUrl?', 'url?'],
-    allowedFlags: ['activity', 'launchConsole', 'saveScript', 'relaunch', 'surface'],
+    allowedFlags: ['activity', 'module', 'launchConsole', 'saveScript', 'relaunch', 'surface'],
   },
   capability: APP_RUNTIME_CAPABILITY,
 });
@@ -90,7 +93,8 @@ const installFromSourceCommandDefinition = defineCommand({
 const appsCommandDefinition = defineCommand({
   name: PUBLIC_COMMANDS.apps,
   schema: {
-    helpDescription: 'List user-installed apps; use --all to include system/OEM apps',
+    helpDescription:
+      'List user-installed apps; use --all to include system/OEM apps. HarmonyOS --json includes launchAbility per bundle (from device wukong appinfo).',
     summary: 'List installed apps',
     positionalArgs: [],
     allowedFlags: ['appsFilter'],

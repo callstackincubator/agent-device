@@ -20,6 +20,7 @@ const REPLAY_METADATA_PLATFORMS = new Set<ReplayScriptPlatform>([
   'android',
   'macos',
   'linux',
+  'harmonyos',
 ]);
 const REPLAY_METADATA_TARGETS = new Set<DeviceTarget>(['mobile', 'tv', 'desktop']);
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.15.3
+
+- Added HarmonyOS platform support with full device automation capabilities.
+- Added HDC (HarmonyOS Device Connector) backend for device discovery, app lifecycle, and UI automation.
+- Added `--platform harmonyos` flag to all relevant commands (devices, apps, open, close, snapshot, screenshot, press, etc.).
+- Added `--module` flag to `open` command for HarmonyOS apps that require explicit module name (e.g., Xiaohongshu needs `--module redbook`).
+- Added ArkUI hierarchy parser for HarmonyOS accessibility snapshots (dumpLayout JSON output).
+- Added HarmonyOS alert detection based on snapshot analysis (dialog/alert/popup patterns).
+- Added HarmonyOS clipboard support via uitest uiInput getClipboard/setClipboard.
+- Added HarmonyOS settings control via param tool (wifi, airplane, location, animations, bluetooth, etc.).
+- Added HarmonyOS device discovery via `hdc list targets` command.
+- Added uitest-based input actions: press, swipe, scroll, longPress, type, key events.
+- Added uitest-based screenshot capture with display id detection.
+
 ## 0.15.0
 
 - Breaking: `apps` discovery and public app-list helpers now default to user-installed apps. Use `--all` or `filter: 'all'` to include system/OEM apps.

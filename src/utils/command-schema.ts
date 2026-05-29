@@ -10,6 +10,7 @@ import {
   SELECTOR_SNAPSHOT_FLAGS,
 } from '../commands/selectors-definition.ts';
 import { SESSION_LIFECYCLE_COMMAND_SCHEMAS } from '../commands/session-lifecycle/definition.ts';
+import { COGNITION_COMMAND_SCHEMAS } from '../commands/cognition-map.ts';
 import {
   SCREENSHOT_SPECIFIC_FLAG_DEFINITIONS,
   type ScreenshotRequestFlags,
@@ -35,7 +36,7 @@ export type CliFlags = RemoteConfigMetroOptions &
     sessionLock?: 'reject' | 'strip';
     sessionLocked?: boolean;
     sessionLockConflicts?: 'reject' | 'strip';
-    platform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple';
+    platform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple' | 'harmonyos';
     target?: 'mobile' | 'tv' | 'desktop';
     device?: string;
     udid?: string;
@@ -74,6 +75,7 @@ export type CliFlags = RemoteConfigMetroOptions &
     pauseMs?: number;
     pattern?: 'one-way' | 'ping-pong';
     activity?: string;
+    module?: string;
     launchConsole?: string;
     header?: string[];
     githubActionsArtifact?: string;
@@ -216,6 +218,7 @@ const EXAMPLE_LINES = [
   'agent-device fill @e3 "test@example.com"',
   'agent-device replay ./session.ad',
   'agent-device test ./suite --platform android',
+  'agent-device open com.example.app --platform harmonyos --device <hdc-serial>',
 ] as const;
 
 const HELP_TOPICS = {
@@ -250,6 +253,14 @@ Bootstrap:
   If app id is unknown, plan devices, apps, then open <discovered-app-id>. Discovery is not enough when the task asks to open/start the app.
   Install arguments are app/package id then artifact path. If the task says install, use install; use reinstall only when explicitly requested. Fresh runtime state is open --relaunch after install.
   Do not open artifact paths or invent package ids. If apps lookup misses the target and no URL/artifact is provided, ask or stop.
+
+HarmonyOS discovery and launch:
+  agent-device devices --platform harmonyos
+  agent-device apps --platform harmonyos --device <hdc-serial> --json
+  jq -r '.data.apps[] | select(.bundleId=="com.example.app") | .launchAbility'
+  agent-device open com.example.app --platform harmonyos --device <hdc-serial>
+  open resolves launchAbility via wukong appinfo when --activity is omitted; apps --json exposes the same field for planning.
+  Use --activity <launchAbility> only when auto-resolution is insufficient.
 
 Snapshots and refs:
   snapshot reads visible state. snapshot -i gets current interactive refs only; it is the fast path when the next step is an interaction.
@@ -786,8 +797,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     key: 'platform',
     names: ['--platform'],
     type: 'enum',
-    enumValues: ['ios', 'macos', 'android', 'linux', 'apple'],
-    usageLabel: '--platform ios|macos|android|linux|apple',
+    enumValues: ['ios', 'macos', 'android', 'linux', 'apple', 'harmonyos'],
+    usageLabel: '--platform ios|macos|android|linux|apple|harmonyos',
     usageDescription: 'Platform to target (`apple` aliases the Apple automation backend)',
   },
   {
@@ -980,7 +991,14 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--activity'],
     type: 'string',
     usageLabel: '--activity <component>',
-    usageDescription: 'Android app launch activity (package/Activity); not for URL opens',
+    usageDescription: 'Android/HarmonyOS app launch activity (package/Activity); not for URL opens',
+  },
+  {
+    key: 'module',
+    names: ['--module'],
+    type: 'string',
+    usageLabel: '--module <name>',
+    usageDescription: 'HarmonyOS app launch module name (for apps requiring explicit module)',
   },
   {
     key: 'launchConsole',
@@ -1473,6 +1491,7 @@ const COMMAND_SCHEMAS: Record<string, CommandSchema> = {
     allowedFlags: ['headless'],
   },
   ...SESSION_LIFECYCLE_COMMAND_SCHEMAS,
+  ...COGNITION_COMMAND_SCHEMAS,
   connect: {
     usageOverride:
       'connect [--remote-config <path>] [--tenant <id>] [--run-id <id>] [--lease-backend <backend>] [--force] [--no-login]',
@@ -1911,7 +1930,7 @@ function buildCommandListUsage(commandName: string, schema: CommandSchema): stri
 function renderUsageText(): string {
   const header = `agent-device <command> [args] [--json]
 
-CLI to control iOS and Android devices for AI agents.
+CLI to control iOS, Android, and HarmonyOS devices for AI agents.
 `;
 
   const commands = getCliCommandNames().map((name) => {

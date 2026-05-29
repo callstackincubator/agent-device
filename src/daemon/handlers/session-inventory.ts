@@ -14,7 +14,9 @@ import {
 } from '../../utils/device-isolation.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
+import type { BackendAppInfo } from '../../backend.ts';
 import { listAndroidApps } from '../../platforms/android/app-lifecycle.ts';
+import { listHarmonyApps } from '../../platforms/harmonyos/app-lifecycle.ts';
 import { listIosApps } from '../../platforms/ios/apps.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
 import { errorResponse } from './response.ts';
@@ -116,6 +118,19 @@ export async function handleSessionInventoryCommands(params: {
       };
     }
 
+    if (device.platform === 'harmonyos') {
+      const apps = await listHarmonyApps(device, appsFilter);
+      const labels = apps.map((app) => formatHarmonyAppLabel(app));
+      const appDetails = apps.map((app) => toHarmonyAppListEntry(app));
+      return {
+        ok: true,
+        data: {
+          apps: labels,
+          appDetails,
+        },
+      };
+    }
+
     const apps = await listAndroidApps(device, appsFilter);
     return {
       ok: true,
@@ -137,4 +152,26 @@ function matchesRequestedPlatform(
   if (!requestedPlatform) return true;
   if (requestedPlatform === 'apple') return isApplePlatform(device.platform);
   return device.platform === requestedPlatform;
+}
+
+function formatHarmonyAppLabel(app: BackendAppInfo): string {
+  const bundleId = app.bundleId ?? app.id;
+  return app.name && app.name !== bundleId ? `${app.name} (${bundleId})` : bundleId;
+}
+
+function toHarmonyAppListEntry(app: BackendAppInfo): {
+  id: string;
+  bundleId: string;
+  name?: string;
+  launchAbility?: string;
+  label: string;
+} {
+  const bundleId = app.bundleId ?? app.id;
+  return {
+    id: app.id,
+    bundleId,
+    name: app.name,
+    label: formatHarmonyAppLabel(app),
+    ...(app.activity ? { launchAbility: app.activity } : {}),
+  };
 }

@@ -19,6 +19,7 @@ const reactNativeCommandDefinition = defineCommand({
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
     linux: {},
+    harmonyos: { device: true },
   },
 });
 

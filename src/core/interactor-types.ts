@@ -38,13 +38,19 @@ export type SnapshotOptions = BaseSnapshotOptions & {
 
 export type SnapshotResult = Omit<BackendSnapshotResult, 'backend' | 'nodes'> & {
   nodes?: RawSnapshotNode[];
-  backend: Extract<SnapshotBackend, 'android' | 'xctest' | 'linux-atspi'>;
+  backend: Extract<SnapshotBackend, 'android' | 'xctest' | 'linux-atspi' | 'harmonyos-arkui'>;
 };
 
 export type Interactor = {
   open(
     app: string,
-    options?: { activity?: string; appBundleId?: string; launchConsole?: string; url?: string },
+    options?: {
+      activity?: string;
+      module?: string;
+      appBundleId?: string;
+      launchConsole?: string;
+      url?: string;
+    },
   ): Promise<void>;
   openDevice(): Promise<void>;
   close(app: string): Promise<void>;

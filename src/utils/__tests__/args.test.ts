@@ -911,6 +911,8 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /Discovery is not enough when the task asks to open\/start/);
   assert.match(help, /If the task says install, use install/);
   assert.match(help, /Do not open artifact paths or invent package ids/);
+  assert.match(help, /HarmonyOS discovery and launch:/);
+  assert.match(help, /launchAbility via wukong appinfo/);
   assert.match(help, /agent-device get attrs @e4/);
   assert.match(help, /Ambiguous find: add --first or --last/);
   assert.match(help, /report that gap instead of typing\/searching\/navigating/);

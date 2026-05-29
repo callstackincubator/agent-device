@@ -223,3 +223,33 @@ test('resolveDevice returns physical device when it is the only candidate (no si
   assert.equal(result.id, 'phys-1');
   assert.equal(result.kind, 'device');
 });
+
+test('resolveDevice returns harmony device when explicitly selected by hdc serial', async () => {
+  const harmony: DeviceInfo = {
+    platform: 'harmonyos',
+    id: '22M0223824043030',
+    name: '22M0223824043030',
+    kind: 'device',
+    booted: true,
+  };
+  const result = await resolveDevice([harmony], {
+    platform: 'harmonyos',
+    deviceName: '22M0223824043030',
+  });
+  assert.equal(result.id, '22M0223824043030');
+});
+
+test('resolveDevice returns harmony device when --serial is used', async () => {
+  const harmony: DeviceInfo = {
+    platform: 'harmonyos',
+    id: '23E0223A12009511',
+    name: '23E0223A12009511',
+    kind: 'device',
+    booted: true,
+  };
+  const result = await resolveDevice([harmony], {
+    platform: 'harmonyos',
+    serial: '23E0223A12009511',
+  });
+  assert.equal(result.id, '23E0223A12009511');
+});

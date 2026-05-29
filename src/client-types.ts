@@ -228,6 +228,20 @@ export type AppListOptions = AgentDeviceRequestOverrides &
     appsFilter?: AppsFilter;
   };
 
+/** Structured HarmonyOS app row returned by `apps --json`. */
+export type AppListEntry = {
+  id: string;
+  bundleId: string;
+  name?: string;
+  launchAbility?: string;
+  label?: string;
+};
+
+export type AppListResult = {
+  apps: string[];
+  appDetails?: AppListEntry[];
+};
+
 export type MaterializationReleaseOptions = AgentDeviceRequestOverrides & {
   materializationId: string;
 };
@@ -476,6 +490,42 @@ export type ReactNativeCommandOptions = ClientCommandBaseOptions & {
   action: 'dismiss-overlay';
 };
 
+export type CognitionCommandOptions = ClientCommandBaseOptions;
+
+export type CognitionCommandResult = DaemonResponseData & {
+  cognition?: {
+    overview: {
+      platform: string;
+      screenResolution: { width: number; height: number };
+      totalNodes: number;
+      treeDepth: number;
+      complexity: 'simple' | 'medium' | 'complex';
+    };
+    structure: {
+      layoutPattern: string[];
+      mainContainers: number;
+    };
+    interactions: {
+      clickableElements: number;
+      buttons: number;
+      inputFields: number;
+      tabs: number;
+    };
+    features: {
+      hasScroll: boolean;
+      hasTabs: boolean;
+      hasModal: boolean;
+      hasList: boolean;
+      hasForm: boolean;
+      hasUnlabeledIcons: boolean;
+    };
+    suggestions: string[];
+    testPriority: 'high' | 'medium' | 'low';
+  };
+  llmReport?: string;
+  message?: string;
+};
+
 export type AgentDeviceCommandClient = {
   wait: (options: WaitCommandOptions) => Promise<WaitCommandResult>;
   alert: (options?: AlertCommandOptions) => Promise<AlertCommandResult>;
@@ -487,6 +537,7 @@ export type AgentDeviceCommandClient = {
   keyboard: (options?: KeyboardCommandOptions) => Promise<KeyboardCommandResult>;
   clipboard: (options: ClipboardCommandOptions) => Promise<ClipboardCommandResult>;
   reactNative: (options: ReactNativeCommandOptions) => Promise<CommandRequestResult>;
+  cognition: (options?: CognitionCommandOptions) => Promise<CognitionCommandResult>;
 };
 
 type SelectorSnapshotCommandOptions = Pick<CaptureSnapshotOptions, 'depth' | 'scope' | 'raw'>;
@@ -848,7 +899,7 @@ export type AgentDeviceClient = {
     installFromSource: (
       options: AppInstallFromSourceOptions,
     ) => Promise<AppInstallFromSourceResult>;
-    list: (options?: AppListOptions) => Promise<string[]>;
+    list: (options?: AppListOptions) => Promise<AppListResult>;
     open: (options: AppOpenOptions) => Promise<AppOpenResult>;
     close: (options?: AppCloseOptions) => Promise<AppCloseResult>;
     push: (options: AppPushOptions) => Promise<CommandRequestResult>;

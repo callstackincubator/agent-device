@@ -9,6 +9,7 @@ export const PUBLIC_COMMANDS = {
   click: 'click',
   close: 'close',
   clipboard: 'clipboard',
+  cognition: 'cognition',
   devices: 'devices',
   diff: 'diff',
   fill: 'fill',

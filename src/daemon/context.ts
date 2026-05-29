@@ -20,6 +20,7 @@ export function contextFromFlags(
     requestId: effectiveRequestId,
     appBundleId,
     activity: flags?.activity,
+    module: flags?.module,
     launchConsole: flags?.launchConsole,
     verbose: flags?.verbose,
     logPath,

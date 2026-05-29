@@ -5,6 +5,7 @@ import { runIosRunnerCommand } from '../platforms/ios/runner-client.ts';
 import { runMacOsPressAction, runMacOsReadTextAction } from '../platforms/ios/macos-helper.ts';
 import { rightClickLinux, middleClickLinux } from '../platforms/linux/input-actions.ts';
 import { readLinuxTextAtPoint } from '../platforms/linux/snapshot.ts';
+import { readHarmonyTextAtPoint } from '../platforms/harmonyos/input-actions.ts';
 import { successText, withSuccessText } from '../utils/success-text.ts';
 import { findMistargetedTypeRefToken } from '../utils/type-target-warning.ts';
 import { parseScrollDirection } from './scroll-gesture.ts';
@@ -588,6 +589,10 @@ export async function handleReadCommand(
   if (device.platform === 'android') {
     const text = await readAndroidTextAtPoint(device, x, y);
     return { action: 'read', text: text ?? '' };
+  }
+  if (device.platform === 'harmonyos') {
+    const text = await readHarmonyTextAtPoint(device, x, y);
+    return { action: 'read', text };
   }
   if (device.platform === 'linux') {
     const text = await readLinuxTextAtPoint(x, y, context?.surface);
