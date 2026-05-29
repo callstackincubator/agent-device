@@ -49,8 +49,14 @@ const COMMAND_DESCRIPTIONS = {
 
 export type DescribedCommandName = keyof typeof COMMAND_DESCRIPTIONS;
 
-export function getCommandDescription(command: string): string | undefined {
+function getCommandDescription(command: string): string | undefined {
   return COMMAND_DESCRIPTIONS[command as DescribedCommandName];
+}
+
+export function requireCommandDescription(command: string): string {
+  const description = getCommandDescription(command);
+  if (!description) throw new Error(`Missing command description for ${command}`);
+  return description;
 }
 
 export function listCommandDescriptionMetadata(): Array<{

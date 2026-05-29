@@ -1,4 +1,4 @@
-import { getCommandDescription } from './command-descriptions.ts';
+import { requireCommandDescription } from './command-descriptions.ts';
 import { defineCommandMetadata } from './command-contract.ts';
 import {
   booleanField,
@@ -185,19 +185,19 @@ export type GestureInput = PanInput | FlingInput | PinchInput | RotateInput | Tr
 export const interactionCommandMetadata = [
   defineCommandMetadata({
     name: 'click',
-    description: descriptionFor('click'),
+    description: requireCommandDescription('click'),
     inputSchema: fieldsInputSchema(clickFields),
     readInput: (input) => readFieldInput(input, clickFields),
   }),
   defineCommandMetadata({
     name: 'press',
-    description: descriptionFor('press'),
+    description: requireCommandDescription('press'),
     inputSchema: fieldsInputSchema(pressFields),
     readInput: (input) => readFieldInput(input, pressFields),
   }),
   defineCommandMetadata({
     name: 'fill',
-    description: descriptionFor('fill'),
+    description: requireCommandDescription('fill'),
     inputSchema: fieldsInputSchema(fillFields),
     readInput: (input) => readFieldInput(input, fillFields),
   }),
@@ -211,7 +211,7 @@ export const interactionCommandMetadata = [
   defineInteractionCommandMetadata('find', findFields),
   defineCommandMetadata({
     name: 'gesture',
-    description: descriptionFor('gesture'),
+    description: requireCommandDescription('gesture'),
     inputSchema: fieldsInputSchema(gestureFields),
     readInput: readGestureInput,
   }),
@@ -272,13 +272,7 @@ function defineInteractionCommandMetadata<
   const TName extends string,
   const TFields extends CommandFieldMap,
 >(name: TName, fields: TFields) {
-  return defineFieldCommandMetadata(name, descriptionFor(name), fields);
-}
-
-function descriptionFor(name: string): string {
-  const description = getCommandDescription(name);
-  if (!description) throw new Error(`Missing command description for ${name}`);
-  return description;
+  return defineFieldCommandMetadata(name, requireCommandDescription(name), fields);
 }
 
 function optionalPoint(record: Record<string, unknown>, key: string): PointInput | undefined {

@@ -1,6 +1,6 @@
 import type { MetroPrepareOptions, RecordOptions } from '../client-types.ts';
 import type { DaemonInstallSource } from '../contracts.ts';
-import { getCommandDescription } from './command-descriptions.ts';
+import { requireCommandDescription } from './command-descriptions.ts';
 import {
   booleanField,
   booleanSchema,
@@ -233,7 +233,5 @@ function defineClientCommandMetadata<
   const TName extends string,
   const TFields extends CommandFieldMap,
 >(name: TName, fields: TFields) {
-  const description = getCommandDescription(name);
-  if (!description) throw new Error(`Missing command description for ${name}`);
-  return defineFieldCommandMetadata(name, description, fields);
+  return defineFieldCommandMetadata(name, requireCommandDescription(name), fields);
 }

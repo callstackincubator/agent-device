@@ -149,17 +149,9 @@ function resolveRemoteConnectFlags(flags: CliFlags): {
 }
 
 export const disconnectCommand: ClientCommandHandler = async ({ flags, client }) => {
-  const session = flags.session ?? 'default';
-  const stateDir = resolveDaemonPaths(flags.stateDir).baseDir;
-  const state =
-    readRemoteConnectionState({ stateDir, session }) ??
-    (flags.session ? null : readActiveConnectionState({ stateDir }));
+  const { session, stateDir, state } = readRequestedConnectionState(flags);
   if (!state) {
-    writeCommandOutput(
-      flags,
-      { connected: false, session },
-      () => `No remote connection for "${session}".`,
-    );
+    writeNoRemoteConnectionOutput(flags, session);
     return true;
   }
   const connectedSession = state.session;
@@ -197,17 +189,9 @@ export const connectionCommand: ClientCommandHandler = async ({ positionals, fla
   if (positionals[0] !== 'status') {
     throw new AppError('INVALID_ARGS', 'connection accepts only: status');
   }
-  const session = flags.session ?? 'default';
-  const stateDir = resolveDaemonPaths(flags.stateDir).baseDir;
-  const state =
-    readRemoteConnectionState({ stateDir, session }) ??
-    (flags.session ? null : readActiveConnectionState({ stateDir }));
+  const { session, state } = readRequestedConnectionState(flags);
   if (!state) {
-    writeCommandOutput(
-      flags,
-      { connected: false, session },
-      () => `No remote connection for "${session}".`,
-    );
+    writeNoRemoteConnectionOutput(flags, session);
     return true;
   }
   const leasePreparation = buildLeasePreparationNotice(state);
@@ -235,6 +219,30 @@ function createRemoteSessionName(stateDir: string): string {
     }
   }
   return `adc-${Date.now().toString(36)}-${crypto.randomBytes(2).toString('hex')}`;
+}
+
+function readRequestedConnectionState(flags: CliFlags): {
+  session: string;
+  stateDir: string;
+  state: RemoteConnectionState | null;
+} {
+  const session = flags.session ?? 'default';
+  const stateDir = resolveDaemonPaths(flags.stateDir).baseDir;
+  return {
+    session,
+    stateDir,
+    state:
+      readRemoteConnectionState({ stateDir, session }) ??
+      (flags.session ? null : readActiveConnectionState({ stateDir })),
+  };
+}
+
+function writeNoRemoteConnectionOutput(flags: CliFlags, session: string): void {
+  writeCommandOutput(
+    flags,
+    { connected: false, session },
+    () => `No remote connection for "${session}".`,
+  );
 }
 
 function isCompatibleConnection(

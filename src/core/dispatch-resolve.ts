@@ -181,11 +181,6 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
         );
       }
 
-      if (selector.platform === 'android') {
-        const { ensureAdb } = await import('../platforms/android/adb.ts');
-        await ensureAdb();
-      }
-
       const devices = await listLocalDeviceInventory({
         ...selector,
         iosSimulatorSetPath,
