@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (implementation pending)
+Accepted
 
 ## Context
 
@@ -48,8 +48,8 @@ The session pattern is:
 For Android snapshots, productize a persistent helper mode that keeps `UiAutomation` alive and
 serves fresh snapshot requests over an `adb forward` socket. Do not add snapshot result caching as
 part of that first step. The first reliable win is infrastructure reuse, not data reuse. The current
-PR only lands one-shot snapshot improvements and this decision record; the persistent Android
-session implementation is follow-up work.
+implementation keeps the existing one-shot instrumentation helper as the fallback for startup,
+socket, protocol, and request failures.
 
 For iOS, keep the XCTest runner session as the reference implementation for lifecycle and
 invalidation behavior. Android does not need to copy iOS internals, but it should reuse the same

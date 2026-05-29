@@ -4,6 +4,8 @@ export type AndroidSnapshotBackendMetadata = {
   backend: 'android-helper' | 'uiautomator-dump';
   helperVersion?: string;
   helperApiVersion?: string;
+  helperTransport?: 'instrumentation' | 'persistent-session';
+  helperSessionReused?: boolean;
   fallbackReason?: string;
   installReason?: 'missing' | 'outdated' | 'forced' | 'current' | 'skipped';
   waitForIdleTimeoutMs?: number;

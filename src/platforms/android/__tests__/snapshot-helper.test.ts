@@ -77,6 +77,7 @@ test('parseAndroidSnapshotHelperOutput reconstructs XML chunks and metadata', ()
     nodeCount: 1,
     truncated: false,
     elapsedMs: 42,
+    transport: 'instrumentation',
   });
 });
 

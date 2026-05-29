@@ -1,5 +1,5 @@
 import type { RawSnapshotNode } from '../../utils/snapshot.ts';
-import type { AndroidAdbExecutor } from './adb-executor.ts';
+import type { AndroidAdbExecutor, AndroidAdbProvider } from './adb-executor.ts';
 import type { AndroidSnapshotAnalysis } from './ui-hierarchy.ts';
 import type { AndroidSnapshotBackendMetadata } from './snapshot-types.ts';
 
@@ -54,6 +54,10 @@ export type AndroidSnapshotHelperInstallResult = {
 
 export type AndroidSnapshotHelperCaptureOptions = {
   adb: AndroidAdbExecutor;
+  adbProvider?: AndroidAdbProvider;
+  deviceKey?: string;
+  helperVersion?: string;
+  helperVersionCode?: number;
   packageName?: string;
   instrumentationRunner?: string;
   waitForIdleTimeoutMs?: number;
@@ -80,6 +84,8 @@ export type AndroidSnapshotHelperMetadata = {
   nodeCount?: number;
   truncated?: boolean;
   elapsedMs?: number;
+  transport?: 'instrumentation' | 'persistent-session';
+  sessionReused?: boolean;
 };
 
 export type AndroidSnapshotHelperOutput = {

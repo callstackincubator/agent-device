@@ -30,7 +30,7 @@ type AndroidInstrumentationRecordState = {
   currentResult: Record<string, string> | null;
 };
 
-type AndroidSnapshotHelperResolvedCaptureOptions = {
+export type AndroidSnapshotHelperResolvedCaptureOptions = {
   waitForIdleTimeoutMs: number;
   waitForIdleQuietMs: number;
   timeoutMs: number;
@@ -71,7 +71,7 @@ export async function captureAndroidSnapshotWithHelper(
   return output;
 }
 
-function resolveAndroidSnapshotHelperCaptureOptions(
+export function resolveAndroidSnapshotHelperCaptureOptions(
   options: AndroidSnapshotHelperCaptureOptions,
 ): AndroidSnapshotHelperResolvedCaptureOptions {
   const timeoutMs = withDefault(options.timeoutMs, 8_000);
@@ -103,7 +103,7 @@ function withDefault<T>(value: T | undefined, fallback: T): T {
   return value === undefined ? fallback : value;
 }
 
-function buildAndroidSnapshotHelperArgs(
+export function buildAndroidSnapshotHelperArgs(
   options: AndroidSnapshotHelperResolvedCaptureOptions,
 ): string[] {
   return [
@@ -197,6 +197,7 @@ function fallbackAndroidSnapshotHelperMetadata(
     timeoutMs: resolved.timeoutMs,
     maxDepth: resolved.maxDepth,
     maxNodes: resolved.maxNodes,
+    transport: 'instrumentation',
   };
 }
 
@@ -266,7 +267,7 @@ export function parseAndroidSnapshotHelperOutput(output: string): AndroidSnapsho
 
   return {
     xml,
-    metadata: readHelperMetadata(finalResult),
+    metadata: { ...readHelperMetadata(finalResult), transport: 'instrumentation' },
   };
 }
 
@@ -503,7 +504,9 @@ function readKeyValue(line: string, target: Record<string, string>): void {
   target[line.slice(0, separator)] = line.slice(separator + 1);
 }
 
-function readOptionalNumber(value: string | undefined): number | undefined {
+export function readAndroidSnapshotHelperMetadataNumber(
+  value: string | undefined,
+): number | undefined {
   if (value === undefined) {
     return undefined;
   }
@@ -511,7 +514,9 @@ function readOptionalNumber(value: string | undefined): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function readOptionalBoolean(value: string | undefined): boolean | undefined {
+export function readAndroidSnapshotHelperMetadataBoolean(
+  value: string | undefined,
+): boolean | undefined {
   if (value === 'true') {
     return true;
   }
@@ -520,3 +525,6 @@ function readOptionalBoolean(value: string | undefined): boolean | undefined {
   }
   return undefined;
 }
+
+const readOptionalNumber = readAndroidSnapshotHelperMetadataNumber;
+const readOptionalBoolean = readAndroidSnapshotHelperMetadataBoolean;
