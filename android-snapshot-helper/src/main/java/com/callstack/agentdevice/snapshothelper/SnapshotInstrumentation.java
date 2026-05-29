@@ -23,6 +23,8 @@ public final class SnapshotInstrumentation extends Instrumentation {
   private static final String OUTPUT_FORMAT = "uiautomator-xml";
   private static final String HELPER_API_VERSION = "1";
   private static final int CHUNK_SIZE = 2 * 1024;
+  // Keep the default quiet window short: RN/animation-heavy apps often never become fully idle,
+  // and callers can still override this for alert-style flows that need a longer settle period.
   private static final long DEFAULT_WAIT_FOR_IDLE_TIMEOUT_MS = 25;
   private static final long DEFAULT_WAIT_FOR_IDLE_QUIET_MS = 25;
   private static final long DEFAULT_TIMEOUT_MS = 8_000;
@@ -334,6 +336,9 @@ public final class SnapshotInstrumentation extends Instrumentation {
     Rect bounds = new Rect();
     node.getBoundsInScreen(bounds);
     xml.append("<node");
+    // Emit only fields consumed by the host parser. Extra boolean attrs made every node larger
+    // without affecting current snapshot semantics; add fields back here when TS starts reading
+    // them.
     appendAttribute(xml, "index", Integer.toString(nodeIndex));
     appendNonEmptyAttribute(xml, "text", node.getText());
     appendNonEmptyAttribute(xml, "resource-id", node.getViewIdResourceName());

@@ -18,7 +18,6 @@ vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
   return {
     ...actual,
     prewarmIosRunnerSession: vi.fn(),
-    prewarmIosRunnerXctestrun: vi.fn(),
     stopIosRunnerSession: vi.fn(async () => {}),
   };
 });
@@ -97,7 +96,6 @@ import { ensureDeviceReady } from '../../device-ready.ts';
 import { applyRuntimeHintsToApp, clearRuntimeHintsFromApp } from '../../runtime-hints.ts';
 import {
   prewarmIosRunnerSession,
-  prewarmIosRunnerXctestrun,
   stopIosRunnerSession,
 } from '../../../platforms/ios/runner-client.ts';
 import { runMacOsAlertAction } from '../../../platforms/ios/macos-helper.ts';
@@ -120,7 +118,6 @@ const mockEnsureDeviceReady = vi.mocked(ensureDeviceReady);
 const mockApplyRuntimeHints = vi.mocked(applyRuntimeHintsToApp);
 const mockClearRuntimeHints = vi.mocked(clearRuntimeHintsFromApp);
 const mockPrewarmIosRunnerSession = vi.mocked(prewarmIosRunnerSession);
-const mockPrewarmIosRunnerXctestrun = vi.mocked(prewarmIosRunnerXctestrun);
 const mockStopIosRunner = vi.mocked(stopIosRunnerSession);
 const mockDismissMacOsAlert = vi.mocked(runMacOsAlertAction);
 const mockSettleSimulator = vi.mocked(settleIosSimulator);
@@ -151,7 +148,6 @@ beforeEach(() => {
   mockClearRuntimeHints.mockReset();
   mockClearRuntimeHints.mockResolvedValue(undefined);
   mockPrewarmIosRunnerSession.mockReset();
-  mockPrewarmIosRunnerXctestrun.mockReset();
   mockStopIosRunner.mockReset();
   mockStopIosRunner.mockResolvedValue(undefined);
   mockDismissMacOsAlert.mockReset();
@@ -1962,7 +1958,6 @@ test('open custom URL on fresh iOS simulator session infers app bundle id from U
   expect(updated?.appName).toBe('rne://navigator-layout');
   expect(dispatchedContext?.appBundleId).toBe('org.reactnavigation.playground');
   expect(mockPrewarmIosRunnerSession).toHaveBeenCalledTimes(1);
-  expect(mockPrewarmIosRunnerXctestrun).not.toHaveBeenCalled();
 });
 
 test('open iOS app session prewarms runner session when app bundle id is known', async () => {
@@ -2001,7 +1996,6 @@ test('open iOS app session prewarms runner session when app bundle id is known',
     expect.objectContaining({ platform: 'ios', id: 'ios-device-1' }),
     expect.objectContaining({ logPath: expect.stringMatching(/daemon\.log$/) }),
   );
-  expect(mockPrewarmIosRunnerXctestrun).not.toHaveBeenCalled();
 });
 
 test('open iOS URL without app bundle id skips runner prewarm', async () => {
@@ -2035,7 +2029,6 @@ test('open iOS URL without app bundle id skips runner prewarm', async () => {
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
   expect(mockPrewarmIosRunnerSession).not.toHaveBeenCalled();
-  expect(mockPrewarmIosRunnerXctestrun).not.toHaveBeenCalled();
 });
 
 test('open web URL on iOS device session without active app falls back to Safari', async () => {

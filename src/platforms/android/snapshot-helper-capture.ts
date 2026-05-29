@@ -126,6 +126,8 @@ function buildAndroidSnapshotHelperArgs(
     '-e',
     'maxNodes',
     String(options.maxNodes),
+    // Default production snapshots use instrumentation status chunks. File output remains a
+    // fallback/testing transport for devices where status output cannot carry the payload.
     ...(options.outputPath ? ['-e', 'outputPath', options.outputPath] : []),
     ...(options.emitChunks !== undefined ? ['-e', 'emitChunks', String(options.emitChunks)] : []),
     options.runner,
