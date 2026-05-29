@@ -193,6 +193,13 @@ function readNodeAttributes(node: string): Omit<AndroidUiNodeMetadata, 'rect'> {
     if (raw === null) return undefined;
     return raw === 'true';
   };
+  const optionalBoolAttr = <Key extends keyof AndroidUiNodeMetadata>(
+    key: Key,
+    name: string,
+  ): Pick<AndroidUiNodeMetadata, Key> | {} => {
+    const value = boolAttr(name);
+    return value === undefined ? {} : { [key]: value };
+  };
   return {
     text: getAttr('text'),
     desc: getAttr('content-desc'),
@@ -205,9 +212,9 @@ function readNodeAttributes(node: string): Omit<AndroidUiNodeMetadata, 'rect'> {
     focusable: boolAttr('focusable'),
     focused: boolAttr('focused'),
     password: boolAttr('password'),
-    scrollable: boolAttr('scrollable'),
-    canScrollForward: boolAttr('can-scroll-forward'),
-    canScrollBackward: boolAttr('can-scroll-backward'),
+    ...optionalBoolAttr('scrollable', 'scrollable'),
+    ...optionalBoolAttr('canScrollForward', 'can-scroll-forward'),
+    ...optionalBoolAttr('canScrollBackward', 'can-scroll-backward'),
   };
 }
 

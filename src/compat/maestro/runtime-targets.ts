@@ -378,13 +378,37 @@ function chooseMaestroSnapshotMatch(
   promoteTapTarget: boolean,
 ): MaestroResolvedSnapshotMatch | null {
   if (index !== undefined) return candidates[index] ?? null;
-  const best =
-    promoteTapTarget && visibleTextQuery
-      ? selectLocalizedMaestroVisibleTextMatch(nodes, candidates, visibleTextQuery) ??
-        selectBestMaestroSnapshotMatch(candidates, visibleTextQuery)
-      : selectBestMaestroSnapshotMatch(candidates, visibleTextQuery);
-  if (!promoteTapTarget || !visibleTextQuery || !best) return best;
-  return inferMaestroMissingTabSlotMatch(nodes, best, visibleTextQuery) ?? best;
+  const best = selectPreferredMaestroSnapshotMatch(
+    nodes,
+    candidates,
+    visibleTextQuery,
+    promoteTapTarget,
+  );
+  if (!shouldInferMaestroTabSlot(best, visibleTextQuery, promoteTapTarget)) return best;
+  return inferMaestroMissingTabSlotMatch(nodes, best, visibleTextQuery!) ?? best;
+}
+
+function selectPreferredMaestroSnapshotMatch(
+  nodes: SnapshotState['nodes'],
+  candidates: MaestroResolvedSnapshotMatch[],
+  visibleTextQuery: string | null,
+  promoteTapTarget: boolean,
+): MaestroResolvedSnapshotMatch | null {
+  if (!promoteTapTarget || !visibleTextQuery) {
+    return selectBestMaestroSnapshotMatch(candidates, visibleTextQuery);
+  }
+  return (
+    selectLocalizedMaestroVisibleTextMatch(nodes, candidates, visibleTextQuery) ??
+    selectBestMaestroSnapshotMatch(candidates, visibleTextQuery)
+  );
+}
+
+function shouldInferMaestroTabSlot(
+  match: MaestroResolvedSnapshotMatch | null,
+  visibleTextQuery: string | null,
+  promoteTapTarget: boolean,
+): match is MaestroResolvedSnapshotMatch {
+  return Boolean(promoteTapTarget && visibleTextQuery && match);
 }
 
 function selectBestMaestroSnapshotMatch(

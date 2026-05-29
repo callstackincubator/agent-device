@@ -145,22 +145,8 @@ async function readFallbackHelperOutputOrThrow(
   error: unknown,
 ): Promise<AndroidSnapshotHelperOutput> {
   if (error instanceof AppError && result.exitCode !== 0 && error.details?.helper) throw error;
-  if (result.exitCode === 0 && resolved.outputPath) {
-    const resultMetadata =
-      readHelperMetadataFromInstrumentationOutput(`${result.stdout}\n${result.stderr}`) ??
-      undefined;
-    const fileOutput = await readHelperOutputFile(options.adb, resolved.outputPath, {
-      ...(resultMetadata ?? {
-        outputFormat: ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,
-        waitForIdleTimeoutMs: resolved.waitForIdleTimeoutMs,
-        waitForIdleQuietMs: resolved.waitForIdleQuietMs,
-        timeoutMs: resolved.timeoutMs,
-        maxDepth: resolved.maxDepth,
-        maxNodes: resolved.maxNodes,
-      }),
-    });
-    if (fileOutput) return fileOutput;
-  }
+  const fileOutput = await readFallbackHelperOutputFile(options, resolved, result);
+  if (fileOutput) return fileOutput;
   throw new AppError(
     'COMMAND_FAILED',
     result.exitCode === 0
@@ -173,6 +159,33 @@ async function readFallbackHelperOutputOrThrow(
     },
     error,
   );
+}
+
+async function readFallbackHelperOutputFile(
+  options: AndroidSnapshotHelperCaptureOptions,
+  resolved: AndroidSnapshotHelperResolvedCaptureOptions,
+  result: Awaited<ReturnType<AndroidSnapshotHelperCaptureOptions['adb']>>,
+): Promise<AndroidSnapshotHelperOutput | undefined> {
+  if (result.exitCode !== 0 || !resolved.outputPath) return undefined;
+  return await readHelperOutputFile(
+    options.adb,
+    resolved.outputPath,
+    readHelperMetadataFromInstrumentationOutput(`${result.stdout}\n${result.stderr}`) ??
+      fallbackAndroidSnapshotHelperMetadata(resolved),
+  );
+}
+
+function fallbackAndroidSnapshotHelperMetadata(
+  resolved: AndroidSnapshotHelperResolvedCaptureOptions,
+): AndroidSnapshotHelperMetadata {
+  return {
+    outputFormat: ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,
+    waitForIdleTimeoutMs: resolved.waitForIdleTimeoutMs,
+    waitForIdleQuietMs: resolved.waitForIdleQuietMs,
+    timeoutMs: resolved.timeoutMs,
+    maxDepth: resolved.maxDepth,
+    maxNodes: resolved.maxNodes,
+  };
 }
 
 async function readHelperOutputFile(
