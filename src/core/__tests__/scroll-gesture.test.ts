@@ -4,6 +4,7 @@ import { AppError } from '../../utils/errors.ts';
 import {
   buildScrollGesturePlan,
   buildSwipeGesturePlan,
+  clampGestureCoordinate,
   pointFromPercent,
 } from '../scroll-gesture.ts';
 
@@ -85,4 +86,11 @@ test('pointFromPercent preserves unclamped percentages and clamps when a margin 
 
   assert.deepEqual(pointFromPercent(frame, 125, -10), { x: 500, y: -80 });
   assert.deepEqual(pointFromPercent(frame, 100, 0, { marginPx: 8 }), { x: 392, y: 8 });
+});
+
+test('clampGestureCoordinate rounds values and clamps them into the safe gesture band', () => {
+  assert.equal(clampGestureCoordinate(10.4, 8, 100), 10);
+  assert.equal(clampGestureCoordinate(10.6, 8, 100), 11);
+  assert.equal(clampGestureCoordinate(2.6, 8, 100), 8);
+  assert.equal(clampGestureCoordinate(97.6, 8, 100), 92);
 });

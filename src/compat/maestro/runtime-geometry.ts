@@ -1,4 +1,4 @@
-import { clampGestureCoordinate } from '../../core/scroll-gesture.ts';
+import { clampToRange } from '../../core/scroll-gesture.ts';
 import type { Rect, SnapshotNode } from '../../utils/snapshot.ts';
 import { interiorCoordinate, pointInsideRect } from '../../utils/rect-center.ts';
 import { normalizeType } from '../../utils/snapshot-processing.ts';
@@ -42,7 +42,7 @@ export function swipeCoordinatesFromTarget(
         start: center,
         end: {
           x: center.x,
-          y: clampGestureCoordinate(center.y - verticalDistance, minY, maxY + minY),
+          y: clampToRange(center.y - verticalDistance, minY, maxY),
         },
       };
     case 'down':
@@ -51,7 +51,7 @@ export function swipeCoordinatesFromTarget(
         start: center,
         end: {
           x: center.x,
-          y: clampGestureCoordinate(center.y + verticalDistance, minY, maxY + minY),
+          y: clampToRange(center.y + verticalDistance, minY, maxY),
         },
       };
     case 'left':
@@ -59,7 +59,7 @@ export function swipeCoordinatesFromTarget(
         ok: true,
         start: center,
         end: {
-          x: clampGestureCoordinate(center.x - horizontalDistance, minX, maxX + minX),
+          x: clampToRange(center.x - horizontalDistance, minX, maxX),
           y: center.y,
         },
       };
@@ -68,7 +68,7 @@ export function swipeCoordinatesFromTarget(
         ok: true,
         start: center,
         end: {
-          x: clampGestureCoordinate(center.x + horizontalDistance, minX, maxX + minX),
+          x: clampToRange(center.x + horizontalDistance, minX, maxX),
           y: center.y,
         },
       };

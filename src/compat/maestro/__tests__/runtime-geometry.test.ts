@@ -61,3 +61,26 @@ test('swipeCoordinatesFromTarget preserves Maestro target-relative swipe distanc
     end: { x: 300, y: 240 },
   });
 });
+
+test('swipeCoordinatesFromTarget clamps swipe endpoints to the viewport margin', () => {
+  const swipe = swipeCoordinatesFromTarget(
+    {
+      node: {
+        index: 12,
+        ref: 'e12',
+        type: 'Cell',
+        label: 'Card',
+        rect: { x: 340, y: 200, width: 100, height: 80 },
+      },
+      rect: { x: 340, y: 200, width: 100, height: 80 },
+      frame: { referenceWidth: 402, referenceHeight: 874 },
+    },
+    'right',
+  );
+
+  expect(swipe).toEqual({
+    ok: true,
+    start: { x: 390, y: 240 },
+    end: { x: 394, y: 240 },
+  });
+});

@@ -157,6 +157,11 @@ function normalizeRequestedPixels(pixels: number): number {
 }
 
 export function clampGestureCoordinate(value: number, marginPx: number, size: number): number {
-  const max = Math.max(marginPx, size - marginPx);
-  return Math.min(max, Math.max(marginPx, value));
+  const min = marginPx;
+  const max = Math.max(min, size - marginPx);
+  return clampToRange(value, min, max);
+}
+
+export function clampToRange(value: number, min: number, max: number): number {
+  return Math.min(Math.round(max), Math.max(Math.round(min), Math.round(value)));
 }
