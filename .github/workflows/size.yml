@@ -34,7 +34,9 @@ jobs:
           git checkout --detach "${{ github.event.pull_request.base.sha }}"
           pnpm install --frozen-lockfile
           pnpm build
-          node /tmp/agent-device-size-report.mjs --json /tmp/agent-device-size-base.json
+          node /tmp/agent-device-size-report.mjs \
+            --startup-runs 7 \
+            --json /tmp/agent-device-size-base.json
 
       - name: Measure PR size
         run: |
@@ -43,6 +45,7 @@ jobs:
           pnpm build
           node scripts/size-report.mjs \
             --compare /tmp/agent-device-size-base.json \
+            --startup-runs 7 \
             --json .tmp/size-report.json \
             --markdown .tmp/size-report.md
 

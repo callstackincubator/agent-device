@@ -514,6 +514,7 @@ function readClientCommandMethods() {
 
 function readCommandContractBlocks(text) {
   const starts = [
+    ...text.matchAll(/defineExecutableCommand\(\s*metadata\(\s*['"]([^'"]+)['"]\s*\)/g),
     ...text.matchAll(/defineFieldCommand\(\s*['"]([^'"]+)['"]/g),
     ...text.matchAll(/defineCommand\(\s*\{[\s\S]*?\bname:\s*['"]([^'"]+)['"]/g),
   ]

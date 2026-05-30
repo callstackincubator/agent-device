@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { performance } from 'node:perf_hooks';
 import { gzipSync } from 'node:zlib';
 
 const COMMENT_MARKER = '<!-- agent-device-size-report -->';
@@ -12,7 +13,13 @@ const VALUE_ARGS = new Map([
   ['--compare', 'compare'],
   ['--post-comment', 'postComment'],
   ['--pr', 'pr'],
+  ['--startup-runs', 'startupRuns'],
 ]);
+
+const STARTUP_BENCHMARKS = [
+  { name: 'CLI --version', args: ['--version'] },
+  { name: 'CLI --help', args: ['--help'] },
+];
 
 const args = parseArgs(process.argv.slice(2));
 const cwd = path.resolve(args.cwd ?? process.cwd());
@@ -22,7 +29,9 @@ if (args.postComment) {
   process.exit(0);
 }
 
-const report = collectReport(cwd);
+const report = collectReport(cwd, {
+  startupRuns: parseNonNegativeInteger(args.startupRuns ?? '0', '--startup-runs'),
+});
 const baseReport = args.compare ? JSON.parse(fs.readFileSync(args.compare, 'utf8')) : null;
 
 if (args.json) {
@@ -67,6 +76,7 @@ Options:
   --json <path>            Write the raw size report JSON.
   --markdown <path>        Write the markdown report.
   --compare <path>         Compare against a previously written JSON report.
+  --startup-runs <count>   Measure startup medians for side-effect-free CLI commands.
   --post-comment <path>    Post or update the markdown report on the current PR.
   --pr <number>            Pull request number for --post-comment.
 `);
@@ -81,7 +91,15 @@ function readValue(argv, index, flag) {
   return value;
 }
 
-function collectReport(root) {
+function parseNonNegativeInteger(value, flag) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`${flag} must be a non-negative integer`);
+  }
+  return parsed;
+}
+
+function collectReport(root, options) {
   const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   const jsFiles = walk(path.join(root, 'dist', 'src')).filter((file) => file.endsWith('.js'));
   if (jsFiles.length === 0) {
@@ -114,8 +132,52 @@ function collectReport(root) {
     generatedAt: new Date().toISOString(),
     js,
     npmPack: collectNpmPack(root),
+    ...(options.startupRuns > 0 ? { startup: collectStartupBenchmarks(root, options.startupRuns) } : {}),
     chunks: chunks.slice(0, 20),
   };
+}
+
+function collectStartupBenchmarks(root, runs) {
+  return {
+    runs,
+    benchmarks: STARTUP_BENCHMARKS.map((benchmark) =>
+      measureStartupBenchmark(root, benchmark, runs),
+    ),
+  };
+}
+
+function measureStartupBenchmark(root, benchmark, runs) {
+  const samplesMs = [];
+  runStartupCommand(root, benchmark.args);
+  for (let index = 0; index < runs; index += 1) {
+    const start = performance.now();
+    runStartupCommand(root, benchmark.args);
+    samplesMs.push(performance.now() - start);
+  }
+  const sortedSamples = [...samplesMs].sort((left, right) => left - right);
+  return {
+    name: benchmark.name,
+    command: `agent-device ${benchmark.args.join(' ')}`,
+    medianMs: median(sortedSamples),
+    minMs: sortedSamples[0],
+    maxMs: sortedSamples.at(-1),
+    samplesMs,
+  };
+}
+
+function runStartupCommand(root, args) {
+  execFileSync(process.execPath, ['bin/agent-device.mjs', ...args], {
+    cwd: root,
+    stdio: 'ignore',
+    timeout: 5_000,
+  });
+}
+
+function median(sortedValues) {
+  const midpoint = Math.floor(sortedValues.length / 2);
+  return sortedValues.length % 2 === 0
+    ? (sortedValues[midpoint - 1] + sortedValues[midpoint]) / 2
+    : sortedValues[midpoint];
 }
 
 function walk(root) {
@@ -165,6 +227,7 @@ function formatMarkdown(report, baseReport) {
   const changedChunks = baseReport
     ? formatChangedChunks(report.chunks, baseReport.chunks ?? [])
     : formatTopChunks(report.chunks);
+  const startup = formatStartupBenchmarks(report.startup, baseReport?.startup);
 
   return `${COMMENT_MARKER}
 ## Size Report
@@ -173,6 +236,7 @@ function formatMarkdown(report, baseReport) {
 |---|---:|---:|---:|
 ${rows.join('\n')}
 
+${startup}
 ${changedChunks}
 `;
 }
@@ -229,6 +293,38 @@ function formatMaybeBytes(value) {
 
 function formatDiff(base, current) {
   return typeof base === 'number' ? formatSignedBytes(current - base) : '-';
+}
+
+function formatStartupBenchmarks(startup, baseStartup) {
+  if (!startup) return '';
+  const baseByName = new Map((baseStartup?.benchmarks ?? []).map((benchmark) => [benchmark.name, benchmark]));
+  const rows = startup.benchmarks.map((benchmark) => {
+    const base = baseByName.get(benchmark.name);
+    return `| ${benchmark.name} | ${formatMaybeMs(base?.medianMs)} | ${formatMs(benchmark.medianMs)} | ${formatMsDiff(base?.medianMs, benchmark.medianMs)} |`;
+  });
+  return `Startup median (${startup.runs} runs, lower is better):
+
+| Scenario | Base | Current | Diff |
+|---|---:|---:|---:|
+${rows.join('\n')}
+
+`;
+}
+
+function formatMaybeMs(value) {
+  return typeof value === 'number' ? formatMs(value) : '-';
+}
+
+function formatMsDiff(base, current) {
+  if (typeof base !== 'number') return '-';
+  const diff = current - base;
+  if (diff === 0) return '0 ms';
+  const sign = diff > 0 ? '+' : '-';
+  return `${sign}${formatMs(Math.abs(diff))}`;
+}
+
+function formatMs(value) {
+  return value < 1000 ? `${value.toFixed(1)} ms` : `${(value / 1000).toFixed(2)} s`;
 }
 
 function formatBytes(value) {
