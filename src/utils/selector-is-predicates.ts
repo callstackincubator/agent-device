@@ -2,7 +2,12 @@ import type { Platform } from './device.ts';
 import type { SnapshotState } from './snapshot.ts';
 import { isNodeVisibleInEffectiveViewport } from './mobile-snapshot-semantics.ts';
 import { isNodeEditable, isNodeVisible } from './selector-node.ts';
-import { extractNodeText, normalizeType } from './snapshot-processing.ts';
+import {
+  buildSnapshotNodeByIndex,
+  extractNodeText,
+  findSnapshotAncestor,
+  normalizeType,
+} from './snapshot-processing.ts';
 
 type IsPredicate = 'visible' | 'hidden' | 'exists' | 'editable' | 'selected' | 'text';
 
@@ -78,20 +83,16 @@ function resolveVisibilityAnchor(
   nodes: SnapshotState['nodes'],
   platform: Platform,
 ): SnapshotState['nodes'][number] | null {
-  const nodesByIndex = new Map(nodes.map((entry) => [entry.index, entry]));
-  let current = node;
-  const visited = new Set<number>();
-  while (typeof current.parentIndex === 'number' && !visited.has(current.index)) {
-    visited.add(current.index);
-    const parent = nodesByIndex.get(current.parentIndex);
-    if (!parent) break;
-    if (isUsefulVisibilityAnchor(parent, platform)) return parent;
-    current = parent;
-  }
-  return null;
+  const nodesByIndex = buildSnapshotNodeByIndex(nodes);
+  return findSnapshotAncestor(nodes, node, nodesByIndex, (parent) =>
+    isUsefulVisibilityAnchor(parent, platform) ? parent : null,
+  );
 }
 
-function isUsefulVisibilityAnchor(node: SnapshotState['nodes'][number], platform: Platform): boolean {
+function isUsefulVisibilityAnchor(
+  node: SnapshotState['nodes'][number],
+  platform: Platform,
+): boolean {
   const type = normalizeType(node.type ?? '');
   // These containers often report the full content frame, not the clipped on-screen geometry.
   if (

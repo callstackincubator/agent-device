@@ -1,5 +1,5 @@
 import type { Platform } from './device.ts';
-import type { RawSnapshotNode, SnapshotState } from './snapshot.ts';
+import type { RawSnapshotNode, SnapshotNode, SnapshotState } from './snapshot.ts';
 import { extractReadableText, normalizeType } from './text-surface.ts';
 
 export { normalizeType };
@@ -105,22 +105,50 @@ export function findNearestHittableAncestor(
   return findNearestAncestor(nodes, node, (parent) => parent.hittable === true);
 }
 
+export function buildSnapshotNodeByIndex(nodes: SnapshotState['nodes']): Map<number, SnapshotNode> {
+  return new Map(nodes.map((candidate) => [candidate.index, candidate]));
+}
+
+export function findSnapshotAncestor<T>(
+  nodes: SnapshotState['nodes'],
+  node: SnapshotNode,
+  nodeByIndex: ReadonlyMap<number, SnapshotNode>,
+  resolve: (ancestor: SnapshotNode) => T | null,
+): T | null {
+  let current: SnapshotNode | undefined = node;
+  const visited = new Set<number>();
+  while (typeof current.parentIndex === 'number' && !visited.has(current.index)) {
+    visited.add(current.index);
+    current = nodeByIndex.get(current.parentIndex) ?? nodes[current.parentIndex];
+    if (!current) return null;
+    const result = resolve(current);
+    if (result !== null) return result;
+  }
+  return null;
+}
+
+export function isDescendantOfSnapshotNode(
+  nodes: SnapshotState['nodes'],
+  node: SnapshotNode,
+  ancestor: SnapshotNode,
+  nodeByIndex: ReadonlyMap<number, SnapshotNode>,
+): boolean {
+  return Boolean(
+    findSnapshotAncestor(nodes, node, nodeByIndex, (candidate) =>
+      candidate === ancestor || candidate.index === ancestor.index ? candidate : null,
+    ),
+  );
+}
+
 export function findNearestAncestor(
   nodes: SnapshotState['nodes'],
   node: SnapshotState['nodes'][number],
   predicate: (node: SnapshotState['nodes'][number]) => boolean,
 ): SnapshotState['nodes'][number] | null {
-  let current = node;
-  const visited = new Set<string>();
-  while (current.parentIndex !== undefined) {
-    if (visited.has(current.ref)) break;
-    visited.add(current.ref);
-    const parent = nodes[current.parentIndex];
-    if (!parent) break;
-    if (predicate(parent)) return parent;
-    current = parent;
-  }
-  return null;
+  const nodesByIndex = buildSnapshotNodeByIndex(nodes);
+  return findSnapshotAncestor(nodes, node, nodesByIndex, (parent) =>
+    predicate(parent) ? parent : null,
+  );
 }
 
 export function extractNodeText(node: SnapshotState['nodes'][number]): string {

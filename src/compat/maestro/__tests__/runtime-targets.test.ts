@@ -95,6 +95,53 @@ test('resolveVisibleMaestroNodeFromSnapshot does not block content behind collap
   });
 });
 
+test('resolveMaestroNodeFromSnapshot childOf resolves parent links by node index', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 7,
+        ref: 'e7',
+        identifier: 'other-row',
+        rect: { x: 0, y: 0, width: 320, height: 80 },
+      },
+      {
+        index: 99,
+        ref: 'e99',
+        parentIndex: 42,
+        identifier: 'childActionButton',
+        rect: { x: 240, y: 120, width: 64, height: 48 },
+      },
+      {
+        index: 42,
+        ref: 'e42',
+        identifier: 'parent-row-secondary',
+        rect: { x: 0, y: 96, width: 320, height: 80 },
+      },
+      {
+        index: 8,
+        ref: 'e8',
+        parentIndex: 7,
+        identifier: 'childActionButton',
+        rect: { x: 240, y: 16, width: 64, height: 48 },
+      },
+    ],
+  };
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'id="childActionButton"',
+    { childOf: 'id="parent-row-secondary"' },
+    'ios',
+    { referenceWidth: 320, referenceHeight: 640 },
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 99 }),
+  });
+});
+
 test('resolveMaestroNodeFromSnapshot prefers foreground duplicate matches', () => {
   const snapshot: SnapshotState = {
     createdAt: Date.now(),

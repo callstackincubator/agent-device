@@ -4,7 +4,13 @@ import { parseSelectorChain } from '../../daemon/selectors.ts';
 import { matchesSelector } from '../../daemon/selectors-match.ts';
 import { evaluateIsPredicate } from '../../utils/selector-is-predicates.ts';
 import { normalizeText } from '../../utils/finders.ts';
-import { extractNodeText, normalizeType } from '../../utils/snapshot-processing.ts';
+import {
+  buildSnapshotNodeByIndex,
+  extractNodeText,
+  findSnapshotAncestor,
+  isDescendantOfSnapshotNode,
+  normalizeType,
+} from '../../utils/snapshot-processing.ts';
 import type { TouchReferenceFrame } from '../../daemon/touch-reference-frame.ts';
 import type { DaemonRequest } from '../../daemon/types.ts';
 import type { Selector, SelectorTerm } from '../../daemon/selectors-parse.ts';
@@ -48,7 +54,7 @@ type ReactNativeOverlayFilterResult = {
   blockedByReactNativeOverlay: boolean;
 };
 
-type SnapshotNodeByIndex = Map<number, SnapshotNode>;
+type SnapshotNodeByIndex = ReturnType<typeof buildSnapshotNodeByIndex>;
 
 type MaestroMatchWithScreenContainer = {
   candidate: MaestroResolvedSnapshotMatch;
@@ -344,7 +350,13 @@ function selectMaestroSnapshotMatch(
     frame,
     requireOnScreen,
   );
-  const target = chooseMaestroSnapshotMatch(nodes, candidates, index, visibleTextQuery, promoteTapTarget);
+  const target = chooseMaestroSnapshotMatch(
+    nodes,
+    candidates,
+    index,
+    visibleTextQuery,
+    promoteTapTarget,
+  );
   return promoteMaestroSnapshotMatch(nodes, target, nodeByIndex, promoteTapTarget, frame);
 }
 
@@ -683,7 +695,9 @@ function selectMaestroMissingSlotGap(
   gaps: Array<{ x: number; width: number }>,
   medianChildWidth: number,
 ): { x: number; width: number } | null {
-  const plausibleGaps = gaps.filter((gap) => isPlausibleMissingTabSlot(gap.width, medianChildWidth));
+  const plausibleGaps = gaps.filter((gap) =>
+    isPlausibleMissingTabSlot(gap.width, medianChildWidth),
+  );
   const leadingTextSlot = inferMaestroLeadingTextSlotGap(match, query, gaps);
   const hasPlausibleLeadingGap = plausibleGaps.some((gap) => isLeadingGap(match.rect, gap));
   if (leadingTextSlot && !hasPlausibleLeadingGap) return leadingTextSlot;
@@ -890,37 +904,4 @@ function maestroVisibleTextMatchRank(node: SnapshotNode, query: string): number 
   if (values.some((value) => normalizeText(value) === normalizeText(query))) return 1;
   if (values.some((value) => textEqualsOrRegex(value, query))) return 2;
   return 3;
-}
-
-function isDescendantOfSnapshotNode(
-  nodes: SnapshotState['nodes'],
-  node: SnapshotNode,
-  ancestor: SnapshotNode,
-  nodeByIndex: SnapshotNodeByIndex,
-): boolean {
-  return Boolean(
-    findSnapshotAncestor(nodes, node, nodeByIndex, (candidate) =>
-      candidate === ancestor || candidate.index === ancestor.index ? candidate : null,
-    ),
-  );
-}
-
-function findSnapshotAncestor<T>(
-  nodes: SnapshotState['nodes'],
-  node: SnapshotNode,
-  nodeByIndex: SnapshotNodeByIndex,
-  resolve: (ancestor: SnapshotNode) => T | null,
-): T | null {
-  let current: SnapshotNode | undefined = node;
-  while (typeof current.parentIndex === 'number') {
-    current = nodeByIndex.get(current.parentIndex) ?? nodes[current.parentIndex];
-    if (!current) return null;
-    const result = resolve(current);
-    if (result) return result;
-  }
-  return null;
-}
-
-function buildSnapshotNodeByIndex(nodes: SnapshotState['nodes']): SnapshotNodeByIndex {
-  return new Map(nodes.map((candidate) => [candidate.index, candidate]));
 }
