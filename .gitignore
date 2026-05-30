@@ -1,4 +1,5 @@
 node_modules/
+scripts/perf/.results/
 .pnpm-store/
 .fallow/
 dist/

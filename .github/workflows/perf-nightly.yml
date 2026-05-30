@@ -1,0 +1,127 @@
+name: Perf Nightly
+
+# End-to-end command perf benchmark (scripts/perf). Scheduled + manual only — perf timing on
+# shared CI runners is noisy, so treat this as a trend/regression signal, not absolute numbers.
+# Reuses the same build artifacts as the device suites: the cached iOS XCUITest runner
+# (setup-apple-replay, ios-runner-prebuilt cache) and the Android replay host, and runs the CLI
+# from source via --experimental-strip-types (no dist build), matching the replay workflows.
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    inputs:
+      rounds:
+        description: "Measured rounds per command (samples)"
+        required: false
+        default: "5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AGENT_DEVICE_PERF_CLI: "--experimental-strip-types src/bin.ts"
+  PERF_ROUNDS: ${{ github.event.inputs.rounds || '5' }}
+
+jobs:
+  perf-ios:
+    name: iOS Command Perf
+    runs-on: macos-26
+    timeout-minutes: 80
+    env:
+      IOS_RUNTIME_VERSION: "26.2"
+      AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: ${{ github.workspace }}/.tmp/ios-runner-derived
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Setup Apple replay
+        id: apple-replay
+        uses: ./.github/actions/setup-apple-replay
+        with:
+          derived-path: ${{ env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH }}
+          cache-key-prefix: ios-runner-prebuilt
+          cache-key-suffix: -ios-${{ env.IOS_RUNTIME_VERSION }}
+          build-command: sh ./scripts/build-xcuitest-apple.sh
+          xcuitest-platform: ios
+          xcuitest-destination: generic/platform=iOS Simulator
+          clean-derived: "1"
+
+      - name: Boot iOS test simulator
+        uses: ./.github/actions/boot-ios-test-simulator
+        with:
+          runtime-version: ${{ env.IOS_RUNTIME_VERSION }}
+          preferred-device-name: iPhone 17 Pro
+
+      - name: Run iOS command perf benchmark
+        run: |
+          pnpm clean:daemon
+          node --experimental-strip-types scripts/perf/run.ts \
+            --platform ios \
+            --device "iPhone 17 Pro" \
+            --n "$PERF_ROUNDS" --warmup 1 \
+            --out-dir "$GITHUB_WORKSPACE/perf-results"
+
+      - name: Upload iOS perf report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: perf-ios
+          path: perf-results/
+          if-no-files-found: warn
+
+  perf-android:
+    name: Android Command Perf
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Setup Android replay host
+        id: android-replay-host
+        uses: ./.github/actions/setup-android-replay-host
+
+      - name: Package npm-bundled Android helpers
+        run: |
+          pnpm package:android-snapshot-helper:npm
+          pnpm package:android-multitouch-helper:npm
+
+      - name: Run Android command perf benchmark
+        uses: reactivecircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
+        with:
+          api-level: 36
+          arch: x86_64
+          profile: pixel_7
+          target: google_apis_playstore
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
+          script: |
+            set -e
+            # Disable animations up front so accessibility dumps don't time out (the harness
+            # also runs `settings animations off`, this is belt-and-suspenders).
+            adb -s emulator-5554 shell settings put global window_animation_scale 0 || true
+            adb -s emulator-5554 shell settings put global transition_animation_scale 0 || true
+            adb -s emulator-5554 shell settings put global animator_duration_scale 0 || true
+            node --experimental-strip-types scripts/perf/run.ts \
+              --platform android \
+              --serial emulator-5554 \
+              --n "$PERF_ROUNDS" --warmup 1 \
+              --out-dir "$GITHUB_WORKSPACE/perf-results"
+
+      - name: Upload Android perf report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: perf-android
+          path: perf-results/
+          if-no-files-found: warn
