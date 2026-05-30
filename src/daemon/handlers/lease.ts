@@ -1,11 +1,18 @@
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import type { LeaseRegistry } from '../lease-registry.ts';
 import { resolveLeaseScope } from '../lease-context.ts';
+import { INTERNAL_COMMANDS } from '../../command-catalog.ts';
 
 type LeaseHandlerArgs = {
   req: DaemonRequest;
   leaseRegistry: LeaseRegistry;
 };
+
+export const LEASE_COMMAND_HANDLERS = {
+  [INTERNAL_COMMANDS.leaseAllocate]: true,
+  [INTERNAL_COMMANDS.leaseHeartbeat]: true,
+  [INTERNAL_COMMANDS.leaseRelease]: true,
+} as const satisfies Record<string, true>;
 
 export async function handleLeaseCommands(args: LeaseHandlerArgs): Promise<DaemonResponse | null> {
   const { req, leaseRegistry } = args;

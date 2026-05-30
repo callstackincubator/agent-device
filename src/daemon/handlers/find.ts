@@ -17,8 +17,13 @@ import { setSessionSnapshot } from '../session-snapshot.ts';
 import { errorResponse } from './response.ts';
 import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
 import { dispatchFindReadOnlyViaRuntime } from '../selector-runtime.ts';
+import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
 
 export { parseFindArgs } from '../../utils/finders.ts';
+
+export const FIND_COMMAND_HANDLERS = {
+  [PUBLIC_COMMANDS.find]: true,
+} as const satisfies Record<string, true>;
 
 type FindContext = {
   req: DaemonRequest;

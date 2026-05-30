@@ -29,6 +29,10 @@ export function listMcpCommandMetadata(): AnyCommandMetadata[] {
   });
 }
 
+export function listCommandMetadataNames(): CommandName[] {
+  return [...commandMetadataMap.keys()].sort();
+}
+
 export function isCommandName(name: string): name is CommandName {
   return commandMetadataMap.has(name as CommandName);
 }

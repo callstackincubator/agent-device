@@ -76,6 +76,7 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
   - CLI/client/runtime output projection: `src/commands/cli-output.ts`, `src/commands/client-output.ts`, `src/commands/runtime-output.ts`
 - Do not reintroduce CLI-shaped command adapters or schemas as a second source of truth. CLI, Node.js, and MCP should project from command contracts.
 - Keep `src/daemon/request-router.ts` as request orchestration: auth, diagnostics scope, request admission, locking, handler chain, and fallback dispatch.
+- New daemon handler-family commands must update the relevant `DAEMON_COMMAND_GROUPS.*Handler` entry and the handler module's exported `*_COMMAND_HANDLERS` coverage table; `src/daemon/__tests__/request-handler-catalog.test.ts` guards drift and overlap.
 - Put request policies in focused request modules:
   - tenant/lease/selector/lock admission: `src/daemon/request-admission.ts`
   - artifact/error finalization: `src/daemon/request-finalization.ts`

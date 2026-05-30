@@ -5,6 +5,12 @@ import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { handleRecordCommand } from './record-trace-recording.ts';
 import { errorResponse } from './response.ts';
+import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
+
+export const RECORD_TRACE_COMMAND_HANDLERS = {
+  [PUBLIC_COMMANDS.record]: true,
+  [PUBLIC_COMMANDS.trace]: true,
+} as const satisfies Record<string, true>;
 
 export async function handleRecordTraceCommands(params: {
   req: DaemonRequest;

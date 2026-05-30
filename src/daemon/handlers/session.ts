@@ -41,6 +41,25 @@ const STATE_COMMANDS = DAEMON_COMMAND_GROUPS.state;
 const OBSERVABILITY_COMMANDS = DAEMON_COMMAND_GROUPS.observability;
 const REPLAY_COMMANDS = DAEMON_COMMAND_GROUPS.replay;
 
+export const SESSION_COMMAND_HANDLERS = {
+  ...Object.fromEntries([...INVENTORY_COMMANDS].map((command) => [command, true] as const)),
+  ...Object.fromEntries([...STATE_COMMANDS].map((command) => [command, true] as const)),
+  ...Object.fromEntries([...OBSERVABILITY_COMMANDS].map((command) => [command, true] as const)),
+  ...Object.fromEntries([...REPLAY_COMMANDS].map((command) => [command, true] as const)),
+  [INTERNAL_COMMANDS.runtime]: true,
+  [PUBLIC_COMMANDS.clipboard]: true,
+  [PUBLIC_COMMANDS.keyboard]: true,
+  [PUBLIC_COMMANDS.install]: true,
+  [PUBLIC_COMMANDS.reinstall]: true,
+  [INTERNAL_COMMANDS.installSource]: true,
+  [INTERNAL_COMMANDS.releaseMaterializedPaths]: true,
+  [PUBLIC_COMMANDS.push]: true,
+  [PUBLIC_COMMANDS.triggerAppEvent]: true,
+  [PUBLIC_COMMANDS.open]: true,
+  [PUBLIC_COMMANDS.batch]: true,
+  [PUBLIC_COMMANDS.close]: true,
+} as const satisfies Record<string, true>;
+
 // fallow-ignore-next-line complexity
 async function runSessionOrSelectorDispatch(params: {
   req: DaemonRequest;

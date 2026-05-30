@@ -35,6 +35,10 @@ export async function runCommand(
   return await getCommandDefinition(name).invoke(client, input);
 }
 
+export function listExecutableCommandNames(): CommandName[] {
+  return [...commandMap.keys()].sort();
+}
+
 function getCommandDefinition(name: CommandName): AnyExecutableCommand {
   return commandMap.get(name)!;
 }
