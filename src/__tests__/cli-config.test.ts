@@ -134,6 +134,51 @@ test('command-specific config defaults are ignored for commands that do not supp
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test('interaction commands preserve remote config defaults', async () => {
+  const { root, home, project } = makeTempWorkspace();
+  fs.mkdirSync(path.join(home, '.agent-device'), { recursive: true });
+  fs.writeFileSync(
+    path.join(project, 'agent-device.json'),
+    JSON.stringify({
+      daemonBaseUrl: 'https://daemon.example.test',
+      daemonAuthToken: 'token-123',
+      daemonTransport: 'http',
+      tenant: 'tenant-123',
+      runId: 'run-123',
+      leaseId: 'lease-123',
+      platform: 'ios',
+    }),
+    'utf8',
+  );
+
+  const commands = [
+    ['press', '10', '20'],
+    ['click', '10', '20'],
+    ['fill', '10', '20', 'hello'],
+    ['longpress', '10', '20'],
+    ['get', 'text', '@e1'],
+  ];
+
+  for (const command of commands) {
+    const result = await runCliCapture([...command, '--json'], {
+      cwd: project,
+      env: { HOME: home },
+    });
+
+    assert.equal(result.code, null, command.join(' '));
+    assert.equal(result.calls.length, 1, command.join(' '));
+    assert.equal(result.calls[0]?.flags?.daemonBaseUrl, 'https://daemon.example.test');
+    assert.equal(result.calls[0]?.flags?.daemonAuthToken, 'token-123');
+    assert.equal(result.calls[0]?.flags?.daemonTransport, 'http');
+    assert.equal(result.calls[0]?.flags?.tenant, 'tenant-123');
+    assert.equal(result.calls[0]?.flags?.runId, 'run-123');
+    assert.equal(result.calls[0]?.flags?.leaseId, 'lease-123');
+    assert.equal(result.calls[0]?.flags?.platform, 'ios');
+  }
+
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('explicit --config path overrides default config discovery', async () => {
   const { root, home, project } = makeTempWorkspace();
   fs.mkdirSync(path.join(home, '.agent-device'), { recursive: true });
