@@ -90,7 +90,7 @@ env:
   assert.equal(parsed.actions[3]?.flags.intervalMs, 150);
   assert.equal(parsed.actions[4]?.flags.holdMs, 3000);
   assert.equal(parsed.actions[1]?.flags.maestro?.allowNonHittableCoordinateFallback, true);
-  assert.equal(parsed.actions[6]?.flags?.maestro?.allowNonHittableCoordinateFallback, undefined);
+  assert.equal(parsed.actions[6]?.flags?.maestro?.allowNonHittableCoordinateFallback, true);
 });
 
 test('parseMaestroReplayFlow maps iOS openLink through the app id when available', () => {
@@ -223,7 +223,7 @@ test('parseMaestroReplayFlow keeps focused inputText and pressKey Enter as separ
   assert.deepEqual(parsed.actionLines, [3, 4, 5]);
 });
 
-test('parseMaestroReplayFlow coalesces tapOn inputText through native fill', () => {
+test('parseMaestroReplayFlow keeps tapOn inputText without Enter on Maestro path', () => {
   const parsed = parseMaestroReplayFlow(`appId: com.callstack.agentdevicelab
 ---
 - tapOn:
@@ -234,12 +234,33 @@ test('parseMaestroReplayFlow coalesces tapOn inputText through native fill', () 
   assert.deepEqual(
     parsed.actions.map((entry) => [entry.command, entry.positionals]),
     [
-      ['wait', ['id="editableNameInput"', '30000']],
-      ['fill', ['id="editableNameInput"', 'Saved list']],
+      ['__maestroTapOn', ['id="editableNameInput"']],
+      ['type', ['Saved list']],
     ],
   );
-  assert.deepEqual(parsed.actionLines, [3, 3]);
-  assert.equal(parsed.actions[1]?.flags?.maestro?.allowNonHittableCoordinateFallback, true);
+  assert.deepEqual(parsed.actionLines, [3, 5]);
+  assert.equal(parsed.actions[0]?.flags?.maestro?.allowNonHittableCoordinateFallback, true);
+});
+
+test('parseMaestroReplayFlow preserves optional tapOn before inputText without Enter', () => {
+  const parsed = parseMaestroReplayFlow(`appId: com.callstack.agentdevicelab
+---
+- tapOn:
+    id: editableNameInput
+    optional: true
+- inputText: Saved list
+`);
+
+  assert.deepEqual(
+    parsed.actions.map((entry) => [entry.command, entry.positionals]),
+    [
+      ['__maestroTapOn', ['id="editableNameInput"']],
+      ['type', ['Saved list']],
+    ],
+  );
+  assert.deepEqual(parsed.actionLines, [3, 6]);
+  assert.equal(parsed.actions[0]?.flags?.maestro?.optional, true);
+  assert.equal(parsed.actions[0]?.flags?.maestro?.allowNonHittableCoordinateFallback, true);
 });
 
 test('parseMaestroReplayFlow coalesces tapOn inputText while preserving pressKey Enter submit', () => {
@@ -680,10 +701,10 @@ test('parseMaestroReplayFlow parses the test-app Maestro suite fixture', () => {
       '__maestroAssertVisible',
       '__maestroTapOn',
       '__maestroAssertVisible',
-      'wait',
-      'fill',
-      'wait',
-      'fill',
+      '__maestroTapOn',
+      'type',
+      '__maestroTapOn',
+      'type',
       '__maestroTapOn',
       '__maestroAssertVisible',
       '__maestroAssertVisible',

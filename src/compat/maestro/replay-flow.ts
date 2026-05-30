@@ -104,17 +104,12 @@ function optimizeTypedAfterTap(
   actionLines: number[],
   index: number,
 ): { actions: SessionAction[]; actionLines: number[]; consumed: number } | null {
-  const action = actions[index]!;
-  const nextAction = actions[index + 1];
-  const typedAfterTap = readPlainTypeText(nextAction);
-  const tapSelector = readPlainMaestroTapSelector(action);
-  if (!nextAction || typedAfterTap === null || tapSelector === null) return null;
-  const line = actionLines[index] ?? 1;
+  const candidate = readTypedAfterTapCandidate(actions, actionLines, index);
+  if (!candidate) return null;
+  const { action, nextAction, pressEnterAction, tapSelector, typedAfterTap, line } = candidate;
   if (!isLikelyTextEntrySelector(tapSelector)) {
     return { actions: [clearMaestroNonHittableTap(action)], actionLines: [line], consumed: 1 };
   }
-  const pressEnterAction = actions[index + 2];
-  const shouldKeepEnter = pressEnterAction?.command === MAESTRO_RUNTIME_COMMAND.pressEnter;
   return {
     actions: [
       {
@@ -128,10 +123,40 @@ function optimizeTypedAfterTap(
         positionals: [tapSelector, typedAfterTap],
         flags: action.flags,
       },
-      ...(shouldKeepEnter ? [pressEnterAction] : []),
+      pressEnterAction,
     ],
-    actionLines: [line, line, ...(shouldKeepEnter ? [actionLines[index + 2] ?? line] : [])],
-    consumed: shouldKeepEnter ? 3 : 2,
+    actionLines: [line, line, actionLines[index + 2] ?? line],
+    consumed: 3,
+  };
+}
+
+function readTypedAfterTapCandidate(
+  actions: SessionAction[],
+  actionLines: number[],
+  index: number,
+): {
+  action: SessionAction;
+  nextAction: SessionAction;
+  pressEnterAction: SessionAction;
+  tapSelector: string;
+  typedAfterTap: string;
+  line: number;
+} | null {
+  const action = actions[index]!;
+  const nextAction = actions[index + 1];
+  const pressEnterAction = actions[index + 2];
+  if (pressEnterAction?.command !== MAESTRO_RUNTIME_COMMAND.pressEnter) return null;
+  if (action.flags?.maestro?.optional === true) return null;
+  const typedAfterTap = readPlainTypeText(nextAction);
+  const tapSelector = readPlainMaestroTapSelector(action);
+  if (!nextAction || typedAfterTap === null || tapSelector === null) return null;
+  return {
+    action,
+    nextAction,
+    pressEnterAction,
+    tapSelector,
+    typedAfterTap,
+    line: actionLines[index] ?? 1,
   };
 }
 

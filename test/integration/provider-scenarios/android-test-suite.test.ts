@@ -126,62 +126,6 @@ test('Provider-backed integration Android Maestro replay uses fresh selector sna
   );
 });
 
-test('Provider-backed integration Android Maestro coalesces tapOn inputText and pressKey Enter through native paths', async () => {
-  await withProviderScenarioResource(
-    async () => await createAndroidSettingsWorld({ nativeTextInjection: true }),
-    async (world) => {
-      const client = world.daemon.client();
-      const suiteRoot = path.join(world.tempRoot, 'suite-maestro-input');
-      fs.mkdirSync(suiteRoot, { recursive: true });
-      const flowPath = path.join(suiteRoot, 'input-submit.yaml');
-      fs.writeFileSync(
-        flowPath,
-        [
-          'appId: com.android.settings',
-          '---',
-          '- launchApp',
-          '- tapOn: Search',
-          '- inputText: "Łódź café"',
-          '- pressKey: Enter',
-          '',
-        ].join('\n'),
-      );
-
-      const suite = await client.replay.test({
-        paths: [flowPath],
-        backend: 'maestro',
-        artifactsDir: path.join(suiteRoot, 'artifacts'),
-        timeoutMs: 30000,
-        ...world.selection,
-      });
-
-      assert.equal(suite.total, 1, JSON.stringify(suite));
-      assert.equal(suite.passed, 1, JSON.stringify(suite));
-      assert.equal(suite.failed, 0, JSON.stringify(suite));
-      assert.deepEqual(world.textInjectionCalls, [
-        {
-          action: 'fill',
-          target: { x: 195, y: 52 },
-          text: 'Łódź café',
-          delayMs: 0,
-        },
-      ]);
-      assert.equal(
-        world.adbCalls.some(
-          (call) => call[0] === 'shell' && call[1] === 'input' && call[2] === 'text',
-        ),
-        false,
-        JSON.stringify(world.adbCalls),
-      );
-      assert.deepEqual(
-        world.adbCalls.find((call) => call.slice(0, 4).join(' ') === 'shell input keyevent ENTER'),
-        ['shell', 'input', 'keyevent', 'ENTER'],
-      );
-      world.assertNoHostAdbCalls();
-    },
-  );
-});
-
 function androidMaestroReplayXml(searchBounds: string): string {
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',

@@ -1257,6 +1257,7 @@ test('runReplayScriptFile coalesces Maestro text-entry tapOn into native fill', 
       '- tapOn:',
       '    id: editableNameInput',
       '- inputText: Saved list',
+      '- pressKey: Enter',
       '',
     ].join('\n'),
     flags: { replayBackend: 'maestro' },
@@ -1286,6 +1287,7 @@ test('runReplayScriptFile coalesces Maestro text-entry tapOn into native fill', 
     [
       ['wait', ['id="editableNameInput"', '30000']],
       ['fill', ['id="editableNameInput"', 'Saved list']],
+      ['keyboard', ['enter']],
     ],
   );
   assert.equal(calls[1]?.flags?.maestro?.allowNonHittableCoordinateFallback, true);
