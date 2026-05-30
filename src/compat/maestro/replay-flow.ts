@@ -113,32 +113,27 @@ function optimizeTypedAfterTap(
   if (!isLikelyTextEntrySelector(tapSelector)) {
     return { actions: [clearMaestroNonHittableTap(action)], actionLines: [line], consumed: 1 };
   }
-  const fillActions: SessionAction[] = [
-    {
-      ...action,
-      command: 'wait',
-      positionals: [tapSelector, '30000'],
-    },
-    {
-      ...nextAction,
-      command: 'fill',
-      positionals: [tapSelector, typedAfterTap],
-      flags: action.flags,
-    },
-  ];
-  const fillActionLines = [line, line];
   const pressEnterAction = actions[index + 2];
-  if (pressEnterAction?.command === MAESTRO_RUNTIME_COMMAND.pressEnter) {
-    return {
-      actions: [...fillActions, pressEnterAction],
-      actionLines: [...fillActionLines, actionLines[index + 2] ?? line],
-      consumed: 3,
-    };
+  if (pressEnterAction?.command !== MAESTRO_RUNTIME_COMMAND.pressEnter) {
+    return { actions: [clearMaestroNonHittableTap(action)], actionLines: [line], consumed: 1 };
   }
   return {
-    actions: fillActions,
-    actionLines: fillActionLines,
-    consumed: 2,
+    actions: [
+      {
+        ...action,
+        command: 'wait',
+        positionals: [tapSelector, '30000'],
+      },
+      {
+        ...nextAction,
+        command: 'fill',
+        positionals: [tapSelector, typedAfterTap],
+        flags: action.flags,
+      },
+      pressEnterAction,
+    ],
+    actionLines: [line, line, actionLines[index + 2] ?? line],
+    consumed: 3,
   };
 }
 

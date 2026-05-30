@@ -223,7 +223,7 @@ test('parseMaestroReplayFlow keeps focused inputText and pressKey Enter as separ
   assert.deepEqual(parsed.actionLines, [3, 4, 5]);
 });
 
-test('parseMaestroReplayFlow coalesces tapOn inputText without requiring Enter', () => {
+test('parseMaestroReplayFlow marks tapOn before inputText for snapshot tap focus', () => {
   const parsed = parseMaestroReplayFlow(`appId: com.callstack.agentdevicelab
 ---
 - tapOn:
@@ -234,12 +234,11 @@ test('parseMaestroReplayFlow coalesces tapOn inputText without requiring Enter',
   assert.deepEqual(
     parsed.actions.map((entry) => [entry.command, entry.positionals]),
     [
-      ['wait', ['id="editableNameInput"', '30000']],
-      ['fill', ['id="editableNameInput"', 'Saved list']],
+      ['__maestroTapOn', ['id="editableNameInput"']],
+      ['type', ['Saved list']],
     ],
   );
-  assert.deepEqual(parsed.actionLines, [3, 3]);
-  assert.equal(parsed.actions[1]?.flags?.maestro?.allowNonHittableCoordinateFallback, true);
+  assert.equal(parsed.actions[0]?.flags?.maestro?.allowNonHittableCoordinateFallback, undefined);
 });
 
 test('parseMaestroReplayFlow coalesces tapOn inputText while preserving pressKey Enter submit', () => {
@@ -659,10 +658,10 @@ test('parseMaestroReplayFlow parses the test-app Maestro suite fixture', () => {
       '__maestroAssertVisible',
       '__maestroTapOn',
       '__maestroAssertVisible',
-      'wait',
-      'fill',
-      'wait',
-      'fill',
+      '__maestroTapOn',
+      'type',
+      '__maestroTapOn',
+      'type',
       '__maestroTapOn',
       '__maestroAssertVisible',
       '__maestroAssertVisible',

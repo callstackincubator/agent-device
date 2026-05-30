@@ -172,7 +172,7 @@ test('Provider-backed integration Android Maestro replay test suite discovers YA
   );
 });
 
-test('Provider-backed integration Android Maestro fills tapOn inputText without trailing Enter', async () => {
+test('Provider-backed integration Android Maestro types after tapOn inputText without trailing Enter', async () => {
   await withProviderScenarioResource(
     async () => await createAndroidSettingsWorld({ nativeTextInjection: true }),
     async (world) => {
@@ -205,12 +205,15 @@ test('Provider-backed integration Android Maestro fills tapOn inputText without 
       assert.equal(suite.failed, 0, JSON.stringify(suite));
       assert.deepEqual(world.textInjectionCalls, [
         {
-          action: 'fill',
-          target: { x: 195, y: 52 },
+          action: 'type',
           text: 'Łódź café',
           delayMs: 0,
         },
       ]);
+      assert.deepEqual(
+        world.adbCalls.find((call) => call.slice(0, 3).join(' ') === 'shell input tap'),
+        ['shell', 'input', 'tap', '195', '52'],
+      );
       assert.equal(
         world.adbCalls.some(
           (call) => call[0] === 'shell' && call[1] === 'input' && call[2] === 'text',
