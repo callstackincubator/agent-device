@@ -109,6 +109,11 @@ export function buildSnapshotNodeByIndex(nodes: SnapshotState['nodes']): Map<num
   return new Map(nodes.map((candidate) => [candidate.index, candidate]));
 }
 
+/**
+ * Walks from the given node through its parent chain and returns the first
+ * non-null value produced by `resolve`. Returning null from `resolve` skips
+ * that ancestor and continues walking toward the root.
+ */
 export function findSnapshotAncestor<T>(
   nodes: SnapshotState['nodes'],
   node: SnapshotNode,
@@ -140,6 +145,9 @@ export function isDescendantOfSnapshotNode(
   );
 }
 
+/**
+ * Returns the nearest ancestor matching `predicate`; false means keep walking.
+ */
 export function findNearestAncestor(
   nodes: SnapshotState['nodes'],
   node: SnapshotState['nodes'][number],
