@@ -50,6 +50,11 @@ type ReactNativeOverlayFilterResult = {
 
 type SnapshotNodeByIndex = Map<number, SnapshotNode>;
 
+type MaestroMatchWithScreenContainer = {
+  candidate: MaestroResolvedSnapshotMatch;
+  container: SnapshotNode & { rect: Rect };
+};
+
 export function resolveMaestroNodeFromSnapshot(
   snapshot: SnapshotState,
   selector: string,
@@ -395,11 +400,11 @@ function selectPreferredMaestroSnapshotMatch(
   promoteTapTarget: boolean,
 ): MaestroResolvedSnapshotMatch | null {
   if (!promoteTapTarget || !visibleTextQuery) {
-    return selectBestMaestroSnapshotMatch(candidates, visibleTextQuery);
+    return selectBestMaestroSnapshotMatch(nodes, candidates, visibleTextQuery);
   }
   return (
     selectLocalizedMaestroVisibleTextMatch(nodes, candidates, visibleTextQuery) ??
-    selectBestMaestroSnapshotMatch(candidates, visibleTextQuery)
+    selectBestMaestroSnapshotMatch(nodes, candidates, visibleTextQuery)
   );
 }
 
@@ -412,11 +417,17 @@ function shouldInferMaestroTabSlot(
 }
 
 function selectBestMaestroSnapshotMatch(
+  nodes: SnapshotState['nodes'],
   candidates: MaestroResolvedSnapshotMatch[],
   visibleTextQuery: string | null,
 ): MaestroResolvedSnapshotMatch | null {
+  const foregroundCandidates = preferForegroundContainerDuplicateMatches(
+    nodes,
+    candidates,
+    visibleTextQuery,
+  );
   return (
-    candidates.sort((left, right) =>
+    foregroundCandidates.sort((left, right) =>
       compareMaestroSnapshotMatches(left, right, visibleTextQuery),
     )[0] ?? null
   );
@@ -461,7 +472,73 @@ function selectLocalizedMaestroVisibleTextMatchFromCandidates(
       ),
   );
 
-  return selectBestMaestroSnapshotMatch(localized, query);
+  return selectBestMaestroSnapshotMatch(nodes, localized, query);
+}
+
+function preferForegroundContainerDuplicateMatches(
+  nodes: SnapshotState['nodes'],
+  candidates: MaestroResolvedSnapshotMatch[],
+  visibleTextQuery: string | null,
+): MaestroResolvedSnapshotMatch[] {
+  if (!visibleTextQuery || candidates.length < 2) return candidates;
+  const exact = candidates.filter(
+    (candidate) => maestroVisibleTextMatchRank(candidate.node, visibleTextQuery) === 0,
+  );
+  if (exact.length < 2) return candidates;
+
+  const nodeByIndex = buildSnapshotNodeByIndex(nodes);
+  const withContainers = exact
+    .map((candidate) => ({
+      candidate,
+      container: findMaestroScreenContainer(nodes, candidate.node, nodeByIndex),
+    }))
+    .filter((entry): entry is MaestroMatchWithScreenContainer => Boolean(entry.container));
+  if (withContainers.length < 2 || withContainers.length !== exact.length) return candidates;
+
+  const overlapping = withContainers.filter((entry) =>
+    hasOverlappingScreenContainer(entry, withContainers),
+  );
+  if (overlapping.length < 2) return candidates;
+
+  // UIAutomator reports foreground transparent-stack screens later in the
+  // hierarchy while preserving both screens. Prefer the later overlapping
+  // screen only for exact duplicate text, so ordinary duplicate rows keep
+  // Maestro's read-order behavior.
+  const foregroundContainerIndex = Math.max(...overlapping.map((entry) => entry.container.index));
+  const foreground = overlapping
+    .filter((entry) => entry.container.index === foregroundContainerIndex)
+    .map((entry) => entry.candidate);
+  return foreground.length > 0 ? foreground : candidates;
+}
+
+function hasOverlappingScreenContainer(
+  entry: MaestroMatchWithScreenContainer,
+  candidates: MaestroMatchWithScreenContainer[],
+): boolean {
+  return candidates.some(
+    (other) =>
+      other !== entry &&
+      entry.container.index !== other.container.index &&
+      rectOverlapRatio(entry.container.rect, other.container.rect) >= 0.6,
+  );
+}
+
+function findMaestroScreenContainer(
+  nodes: SnapshotState['nodes'],
+  node: SnapshotNode,
+  nodeByIndex: SnapshotNodeByIndex,
+): (SnapshotNode & { rect: Rect }) | null {
+  return findSnapshotAncestor(nodes, node, nodeByIndex, (ancestor) => {
+    if (!ancestor.rect) return null;
+    if (!isMaestroScreenContainerType(ancestor)) return null;
+    if (ancestor.rect.width < 240 || ancestor.rect.height < 320) return null;
+    return ancestor as SnapshotNode & { rect: Rect };
+  });
+}
+
+function isMaestroScreenContainerType(node: SnapshotNode): boolean {
+  const type = normalizeType(node.type ?? '');
+  return type === 'scrollview' || type === 'scroll-area' || type === 'list';
 }
 
 function isLocalizedMaestroVisibleTextCandidate(match: MaestroResolvedSnapshotMatch): boolean {
@@ -794,6 +871,15 @@ function rectContains(container: Rect, child: Rect): boolean {
     child.x + child.width <= container.x + container.width &&
     child.y + child.height <= container.y + container.height
   );
+}
+
+function rectOverlapRatio(a: Rect, b: Rect): number {
+  const left = Math.max(a.x, b.x);
+  const right = Math.min(a.x + a.width, b.x + b.width);
+  const top = Math.max(a.y, b.y);
+  const bottom = Math.min(a.y + a.height, b.y + b.height);
+  const overlapArea = Math.max(0, right - left) * Math.max(0, bottom - top);
+  return overlapArea / Math.max(1, Math.min(rectArea(a), rectArea(b)));
 }
 
 function maestroVisibleTextMatchRank(node: SnapshotNode, query: string): number {

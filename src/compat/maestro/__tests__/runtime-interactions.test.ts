@@ -34,7 +34,7 @@ test('invokeMaestroTapOn resolves mutating taps from the current raw snapshot', 
   expect(clicks).toEqual([['86', '89']]);
 });
 
-test('invokeMaestroSwipeScreen uses a conservative Android content-lane directional swipe', async () => {
+test('invokeMaestroSwipeScreen uses an Android content-lane directional swipe', async () => {
   const swipes: string[][] = [];
   const response = await invokeMaestroSwipeScreen({
     baseReq: {
@@ -56,7 +56,7 @@ test('invokeMaestroSwipeScreen uses a conservative Android content-lane directio
   });
 
   expect(response.ok).toBe(true);
-  expect(swipes).toEqual([['756', '1521', '324', '1521', '300']]);
+  expect(swipes).toEqual([['864', '1521', '216', '1521', '300']]);
 });
 
 function currentBreadcrumbSnapshot(): SnapshotState {

@@ -296,7 +296,7 @@ function androidHorizontalDirectionalSwipeX(
   endX: number,
 ): [number, number] {
   if (platform !== 'android') return [startX, endX];
-  return startX < endX ? [30, 70] : [70, 30];
+  return startX < endX ? [20, 80] : [80, 20];
 }
 
 function resolvePercentScreenSwipe(

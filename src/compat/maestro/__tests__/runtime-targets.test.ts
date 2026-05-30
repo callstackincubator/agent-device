@@ -169,6 +169,67 @@ test('resolveMaestroNodeFromSnapshot preserves read order for duplicate matches 
   });
 });
 
+test('resolveMaestroNodeFromSnapshot prefers duplicate text on foreground overlapping screen', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'android.widget.ScrollView',
+        label: 'Article, Go back, Show Dialog',
+        rect: { x: 0, y: 120, width: 1080, height: 1800 },
+        depth: 6,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'android.widget.Button',
+        label: 'Show Dialog',
+        rect: { x: 720, y: 980, width: 280, height: 88 },
+        enabled: true,
+        hittable: true,
+        depth: 14,
+        parentIndex: 1,
+      },
+      {
+        index: 30,
+        ref: 'e30',
+        type: 'android.widget.ScrollView',
+        label: 'NewsFeed, Push NewsFeed, Show Dialog',
+        rect: { x: 0, y: 120, width: 1080, height: 1800 },
+        depth: 6,
+      },
+      {
+        index: 31,
+        ref: 'e31',
+        type: 'android.widget.Button',
+        label: 'Show Dialog',
+        rect: { x: 720, y: 1320, width: 280, height: 88 },
+        enabled: true,
+        hittable: true,
+        depth: 14,
+        parentIndex: 30,
+      },
+    ],
+  };
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Show Dialog" || text="Show Dialog" || id="Show Dialog"',
+    {},
+    'android',
+    { referenceWidth: 1080, referenceHeight: 2340 },
+    { promoteTapTarget: true },
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 31 }),
+    rect: { x: 720, y: 1320, width: 280, height: 88 },
+  });
+});
+
 test('resolveVisibleMaestroNodeFromSnapshot requires visible text matches to be on screen', () => {
   const snapshot: SnapshotState = {
     createdAt: Date.now(),

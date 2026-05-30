@@ -31,6 +31,7 @@ import { runCmd, runCmdBackground } from '../../../utils/exec.ts';
 
 const mockRunCmd = vi.mocked(runCmd);
 const mockRunCmdBackground = vi.mocked(runCmdBackground);
+const localAdbExecOptions = { detached: process.platform !== 'win32' };
 
 test('createDeviceAdbExecutor routes local commands through adb with the device serial', async () => {
   const adb = createDeviceAdbExecutor({
@@ -45,7 +46,11 @@ test('createDeviceAdbExecutor routes local commands through adb with the device 
 
   assert.deepEqual(result, { stdout: 'ok', stderr: '', exitCode: 0 });
   assert.deepEqual(mockRunCmd.mock.calls, [
-    ['adb', ['-s', 'emulator-5554', 'shell', 'getprop', 'sys.boot_completed'], { timeoutMs: 1000 }],
+    [
+      'adb',
+      ['-s', 'emulator-5554', 'shell', 'getprop', 'sys.boot_completed'],
+      { timeoutMs: 1000, ...localAdbExecOptions },
+    ],
   ]);
 });
 
@@ -72,7 +77,7 @@ test('createDeviceAdbExecutor remains a local adb executor inside provider scope
   assert.equal(result.stdout, 'ok');
   assert.deepEqual(providerCalls, []);
   assert.deepEqual(mockRunCmd.mock.calls, [
-    ['adb', ['-s', 'emulator-5554', 'shell', 'echo', 'local'], undefined],
+    ['adb', ['-s', 'emulator-5554', 'shell', 'echo', 'local'], localAdbExecOptions],
   ]);
 });
 
@@ -168,12 +173,12 @@ test('createLocalAndroidAdbProvider exposes local pull and install capabilities'
     [
       'adb',
       ['-s', 'emulator-5554', 'pull', '/sdcard/video.mp4', '/tmp/video.mp4'],
-      { allowFailure: true },
+      { allowFailure: true, ...localAdbExecOptions },
     ],
     [
       'adb',
       ['-s', 'emulator-5554', 'install', '-r', '-t', '-d', '-g', '/tmp/app.apk'],
-      { timeoutMs: 2000 },
+      { timeoutMs: 2000, ...localAdbExecOptions },
     ],
   ]);
 });

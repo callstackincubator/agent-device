@@ -34,6 +34,7 @@ const VALID_PNG = Buffer.from(
 );
 const mockRunCmd = vi.mocked(runCmd);
 const mockSleep = vi.mocked(sleep);
+const localAdbExecOptions = { detached: process.platform !== 'win32' };
 
 const device: DeviceInfo = {
   platform: 'android',
@@ -303,7 +304,11 @@ test('dumpUiHierarchy returns streamed XML even when exec-out exits non-zero', a
 
   assert.equal(result, xml);
   assert.equal(mockRunCmd.mock.calls.length, 1);
-  assert.deepEqual(mockRunCmd.mock.calls[0]?.[2], { allowFailure: true, timeoutMs: 8000 });
+  assert.deepEqual(mockRunCmd.mock.calls[0]?.[2], {
+    allowFailure: true,
+    timeoutMs: 8000,
+    ...localAdbExecOptions,
+  });
 });
 
 test('snapshotAndroid uses injected helper artifact before stock uiautomator', async () => {
@@ -808,8 +813,12 @@ test('dumpUiHierarchy reads fallback XML when dump exits non-zero', async () => 
   );
 
   assert.equal(result, xml);
-  assert.deepEqual(dumpCall?.[2], { allowFailure: true, timeoutMs: 8000 });
-  assert.equal(catCall?.[2], undefined);
+  assert.deepEqual(dumpCall?.[2], {
+    allowFailure: true,
+    timeoutMs: 8000,
+    ...localAdbExecOptions,
+  });
+  assert.deepEqual(catCall?.[2], localAdbExecOptions);
 });
 
 test('dumpUiHierarchy does not read a stale fallback file when dump fails without a path', async () => {

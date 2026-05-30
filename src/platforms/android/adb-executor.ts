@@ -184,7 +184,14 @@ function createSerialAdbExecutor(serial: string): AndroidAdbExecutor {
     // Local adb execution must escape any active provider scope to avoid routing
     // tunnel-backed providers back into themselves when they shell out to adb.
     await withoutCommandExecutorOverride(
-      async () => await runCmd('adb', ['-s', serial, ...args], options),
+      async () =>
+        await runCmd('adb', ['-s', serial, ...args], {
+          ...options,
+          // Some `adb shell` children can survive killing the adb parent and keep
+          // requests open past timeout. Give each adb call its own process group
+          // so timeout/abort cleanup can tear down the whole local command tree.
+          detached: process.platform !== 'win32',
+        }),
     );
 }
 
