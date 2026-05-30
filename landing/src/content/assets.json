@@ -1,0 +1,82 @@
+[
+  {
+    "path": "/figma/hero-shader.webp",
+    "logicalWidth": 1440,
+    "logicalHeight": 806,
+    "density": 2,
+    "maxBytes": 180000,
+    "usedBy": "Shared dark hero and noise panels"
+  },
+  {
+    "path": "/figma/solution-media.webp",
+    "logicalWidth": 1088,
+    "logicalHeight": 612,
+    "density": 2,
+    "maxBytes": 180000,
+    "usedBy": "Home video poster"
+  },
+  {
+    "path": "/figma/lane-interact.webp",
+    "logicalWidth": 528,
+    "logicalHeight": 868,
+    "density": 2,
+    "maxBytes": 100000,
+    "usedBy": "Interact toolkit lane"
+  },
+  {
+    "path": "/figma/lane-debug.webp",
+    "logicalWidth": 528,
+    "logicalHeight": 868,
+    "density": 2,
+    "maxBytes": 100000,
+    "usedBy": "Debug toolkit lane"
+  },
+  {
+    "path": "/figma/lane-profile.webp",
+    "logicalWidth": 528,
+    "logicalHeight": 868,
+    "density": 2,
+    "maxBytes": 100000,
+    "usedBy": "Profile toolkit lane"
+  },
+  {
+    "path": "/figma/lane-capture.webp",
+    "logicalWidth": 528,
+    "logicalHeight": 868,
+    "density": 2,
+    "maxBytes": 100000,
+    "usedBy": "Capture toolkit lane"
+  },
+  {
+    "path": "/figma/lane-test.webp",
+    "logicalWidth": 528,
+    "logicalHeight": 868,
+    "density": 2,
+    "maxBytes": 100000,
+    "usedBy": "Test E2E toolkit lane"
+  },
+  {
+    "path": "/figma/logos/evernote.png",
+    "logicalWidth": 111,
+    "logicalHeight": 24,
+    "density": 2,
+    "maxBytes": 12000,
+    "usedBy": "Callstack proof logo"
+  },
+  {
+    "path": "/figma/logos/ticketmaster.png",
+    "logicalWidth": 101,
+    "logicalHeight": 14,
+    "density": 2,
+    "maxBytes": 8000,
+    "usedBy": "Callstack proof logo"
+  },
+  {
+    "path": "/figma/logos/expensify.png",
+    "logicalWidth": 76,
+    "logicalHeight": 18,
+    "density": 2,
+    "maxBytes": 10000,
+    "usedBy": "Callstack proof logo"
+  }
+]

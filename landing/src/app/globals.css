@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Switzer", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-display: "Alliance No.2", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-switzer), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.font-display {
+  font-family: var(--font-alliance-no2), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss04" 1, "ss02" 1, "lnum" 1, "tnum" 1;
+  letter-spacing: 0;
+}
+
+.font-mono {
+  font-family:
+    var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    monospace;
+  letter-spacing: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@keyframes copy-confirmation-pop {
+  0% {
+    transform: translateY(2px);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.copy-confirmation {
+  animation: copy-confirmation-pop 160ms ease-out;
+}
+
+.hero-carousel-viewport {
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+.hero-carousel-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.hero-carousel-card {
+  flex: 0 0 min(360px, calc(100vw - 40px));
+}
+
+@media (min-width: 768px) {
+  .hero-carousel-card {
+    flex-basis: calc((100% - 24px) / 2);
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-carousel-card {
+    flex-basis: calc((100% - 48px) / 3);
+  }
+}
+
+.noise-bg {
+  background-image:
+    linear-gradient(rgba(130, 50, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(130, 50, 255, 0.08) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.noise-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(90deg, rgba(130, 50, 255, 0.12), transparent 18%),
+    radial-gradient(circle at 50% 40%, rgba(130, 50, 255, 0.28), transparent 28%);
+  opacity: 0.9;
+}
