@@ -436,6 +436,7 @@ async function stopRecording(params: {
 function buildRecordStopResponse(
   recording: NonNullable<SessionState['recording']>,
 ): DaemonResponse {
+  const chunks = recording.platform === 'android' ? recording.chunks : undefined;
   const artifacts: DaemonArtifact[] = [
     {
       field: 'outPath',
@@ -444,6 +445,16 @@ function buildRecordStopResponse(
       fileName: path.basename(recording.clientOutPath ?? recording.outPath),
     },
   ];
+  if (chunks && chunks.length > 1) {
+    artifacts.push(
+      ...chunks.slice(1).map((chunk) => ({
+        field: 'chunkPath',
+        path: chunk.path,
+        localPath: chunk.clientPath,
+        fileName: path.basename(chunk.clientPath ?? chunk.path),
+      })),
+    );
+  }
   if (recording.telemetryPath) {
     artifacts.push({
       field: 'telemetryPath',
@@ -461,7 +472,14 @@ function buildRecordStopResponse(
       telemetryPath: recording.telemetryPath,
       artifacts,
       showTouches: recording.showTouches,
+      warning: recording.warning,
       overlayWarning: recording.overlayWarning,
+      chunks: chunks?.map((chunk) => ({
+        index: chunk.index,
+        path: chunk.clientPath ?? chunk.path,
+        startedAt: chunk.startedAt,
+        stoppedAt: chunk.stoppedAt,
+      })),
     },
   };
 }

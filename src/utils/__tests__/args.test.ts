@@ -1440,6 +1440,7 @@ test('command usage shows record touch-overlay opt-out flag', () => {
   assert.match(help, /--quality <5-10>/);
   assert.match(help, /--hide-touches/);
   assert.match(help, /skip touch-overlay post-processing/);
+  assert.match(help, /multiple MP4 chunks/);
 });
 
 test('command usage keeps detailed descriptions', () => {
