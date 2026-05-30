@@ -580,18 +580,26 @@ test('parseMaestroReplayFlow keeps visible-gated runFlow commands for runtime ev
     { platform: 'ios' },
   );
 
-  assert.equal(parsed.actions[0]?.command, '__maestroRunFlowWhen');
+  assert.equal(parsed.actions[0]?.command, 'runFlow.when');
   assert.deepEqual(parsed.actions[0]?.positionals, [
     'visible',
     'label="Continue" || text="Continue" || id="Continue"',
   ]);
-  assert.deepEqual(parsed.actions[0]?.flags.batchSteps, [
-    {
-      command: '__maestroTapOn',
-      positionals: ['label="Continue" || text="Continue" || id="Continue"'],
-      flags: { maestro: { allowNonHittableCoordinateFallback: true } },
-    },
-  ]);
+  const control = parsed.actions[0]?.replayControl;
+  assert.equal(control?.kind, 'maestroRunFlowWhen');
+  if (control?.kind !== 'maestroRunFlowWhen') throw new Error('expected runFlow.when control');
+  assert.equal(control.mode, 'visible');
+  assert.equal(control.selector, 'label="Continue" || text="Continue" || id="Continue"');
+  assert.deepEqual(
+    control.actions.map((entry) => [entry.command, entry.positionals, entry.flags]),
+    [
+      [
+        '__maestroTapOn',
+        ['label="Continue" || text="Continue" || id="Continue"'],
+        { maestro: { allowNonHittableCoordinateFallback: true } },
+      ],
+    ],
+  );
 });
 
 test('parseMaestroReplayFlow keeps retry commands for runtime evaluation', () => {
@@ -608,20 +616,19 @@ test('parseMaestroReplayFlow keeps retry commands for runtime evaluation', () =>
     { env: { APP_SCHEME: 'example://' } },
   );
 
-  assert.equal(parsed.actions[0]?.command, '__maestroRetry');
+  assert.equal(parsed.actions[0]?.command, 'retry');
   assert.deepEqual(parsed.actions[0]?.positionals, ['3']);
-  assert.deepEqual(parsed.actions[0]?.flags.batchSteps, [
-    {
-      command: 'open',
-      positionals: ['example://details'],
-      flags: {},
-    },
-    {
-      command: '__maestroAssertVisible',
-      positionals: ['label="Article" || text="Article" || id="Article"', '5000'],
-      flags: {},
-    },
-  ]);
+  const control = parsed.actions[0]?.replayControl;
+  assert.equal(control?.kind, 'retry');
+  if (control?.kind !== 'retry') throw new Error('expected retry control');
+  assert.equal(control.maxRetries, 3);
+  assert.deepEqual(
+    control.actions.map((entry) => [entry.command, entry.positionals, entry.flags]),
+    [
+      ['open', ['example://details'], {}],
+      ['__maestroAssertVisible', ['label="Article" || text="Article" || id="Article"', '5000'], {}],
+    ],
+  );
 });
 
 test('parseMaestroReplayFlow accepts launchApp reset options', () => {

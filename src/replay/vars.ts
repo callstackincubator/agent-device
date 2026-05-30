@@ -154,6 +154,7 @@ export function resolveReplayAction(
     positionals: (action.positionals ?? []).map((token) => resolveReplayString(token, scope, loc)),
     flags: resolveStringProps(action.flags, scope, loc) ?? {},
     runtime: resolveStringProps(action.runtime, scope, loc),
+    replayControl: resolveStringProps(action.replayControl, scope, loc),
   };
 }
 

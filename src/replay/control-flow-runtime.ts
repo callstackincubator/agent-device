@@ -1,4 +1,3 @@
-import type { CommandFlags } from '../core/dispatch.ts';
 import type { DaemonResponse, SessionAction } from '../daemon/types.ts';
 
 export type ReplayActionBlockInvoker = (params: {
@@ -6,27 +5,6 @@ export type ReplayActionBlockInvoker = (params: {
   line: number;
   step: number;
 }) => Promise<DaemonResponse>;
-
-function batchStepToSessionAction(
-  step: NonNullable<CommandFlags['batchSteps']>[number],
-): SessionAction {
-  const action: SessionAction = {
-    ts: Date.now(),
-    command: step.command,
-    positionals: step.positionals ?? [],
-    flags: step.flags ?? {},
-  };
-  if (step.runtime && typeof step.runtime === 'object') {
-    action.runtime = step.runtime as SessionAction['runtime'];
-  }
-  return action;
-}
-
-export function batchStepsToSessionActions(
-  batchSteps: CommandFlags['batchSteps'] | undefined,
-): SessionAction[] {
-  return (batchSteps ?? []).map(batchStepToSessionAction);
-}
 
 export async function invokeReplayActionBlock(params: {
   actions: SessionAction[];

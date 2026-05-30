@@ -1,4 +1,3 @@
-import { type CommandFlags } from '../../core/dispatch.ts';
 import { asAppError } from '../../utils/errors.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
 import type { DaemonRequest, DaemonResponse } from '../../daemon/types.ts';
@@ -9,7 +8,6 @@ import {
   invokeMaestroAssertVisible,
   invokeMaestroWaitForAnimationToEnd,
 } from './runtime-assertions.ts';
-import { invokeMaestroRetry, invokeMaestroRunFlowWhen } from './runtime-flow.ts';
 import {
   errorResponse,
   type MaestroReplayInvoker,
@@ -28,7 +26,6 @@ export async function invokeMaestroRuntimeCommand(params: {
   command: string;
   baseReq: ReplayBaseRequest;
   positionals: string[];
-  batchSteps: CommandFlags['batchSteps'] | undefined;
   scope: ReplayVarScope;
   line: number;
   step: number;
@@ -40,8 +37,6 @@ export async function invokeMaestroRuntimeCommand(params: {
       return await invokeMaestroAssertVisible(params);
     case MAESTRO_RUNTIME_COMMAND.assertNotVisible:
       return await invokeMaestroAssertNotVisible(params);
-    case MAESTRO_RUNTIME_COMMAND.retry:
-      return await invokeMaestroRetry(params);
     case MAESTRO_RUNTIME_COMMAND.pressEnter:
       return await invokeMaestroPressEnter(params);
     case MAESTRO_RUNTIME_COMMAND.waitForAnimationToEnd:
@@ -56,8 +51,6 @@ export async function invokeMaestroRuntimeCommand(params: {
       return await invokeMaestroTapOn(params);
     case MAESTRO_RUNTIME_COMMAND.tapPointPercent:
       return await invokeMaestroTapPointPercent(params);
-    case MAESTRO_RUNTIME_COMMAND.runFlowWhen:
-      return await invokeMaestroRunFlowWhen(params);
     case MAESTRO_RUNTIME_COMMAND.runScript:
       return invokeMaestroRunScript(params);
     default:

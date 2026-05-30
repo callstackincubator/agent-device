@@ -1,6 +1,4 @@
 export const MAESTRO_RUNTIME_COMMAND = {
-  runFlowWhen: '__maestroRunFlowWhen',
-  retry: '__maestroRetry',
   runScript: '__maestroRunScript',
   assertVisible: '__maestroAssertVisible',
   assertNotVisible: '__maestroAssertNotVisible',

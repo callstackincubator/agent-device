@@ -229,11 +229,25 @@ export type SessionState = {
   };
 };
 
+export type SessionReplayControl =
+  | {
+      kind: 'maestroRunFlowWhen';
+      mode: 'visible' | 'notVisible';
+      selector: string;
+      actions: SessionAction[];
+    }
+  | {
+      kind: 'retry';
+      maxRetries: number;
+      actions: SessionAction[];
+    };
+
 export type SessionAction = {
   ts: number;
   command: string;
   positionals: string[];
   runtime?: SessionRuntimeHints;
+  replayControl?: SessionReplayControl;
   flags: Partial<CommandFlags> & {
     snapshotInteractiveOnly?: boolean;
     snapshotCompact?: boolean;

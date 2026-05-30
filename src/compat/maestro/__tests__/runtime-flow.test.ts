@@ -1,24 +1,27 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import type { CommandFlags } from '../../../core/dispatch.ts';
 import type { DaemonRequest, DaemonResponse, SessionAction } from '../../../daemon/types.ts';
-import { invokeMaestroRunFlowWhen } from '../runtime-flow.ts';
+import { invokeMaestroRunFlowWhenControl } from '../runtime-flow.ts';
 
-test('invokeMaestroRunFlowWhen waits briefly for visible conditions', async () => {
+test('invokeMaestroRunFlowWhenControl waits briefly for visible conditions', async () => {
   let snapshots = 0;
   const invokedActions: SessionAction[] = [];
-  const batchSteps: CommandFlags['batchSteps'] = [
-    { command: 'click', positionals: ['label="Dismiss"'] },
+  const actions: SessionAction[] = [
+    { ts: Date.now(), command: 'click', positionals: ['label="Dismiss"'], flags: {} },
   ];
 
-  const response = await invokeMaestroRunFlowWhen({
+  const response = await invokeMaestroRunFlowWhenControl({
     baseReq: {
       token: 't',
       session: 's',
       flags: { platform: 'android' },
     },
-    positionals: ['visible', 'label="Dismiss" || text="Dismiss" || id="Dismiss"'],
-    batchSteps,
+    control: {
+      kind: 'maestroRunFlowWhen',
+      mode: 'visible',
+      selector: 'label="Dismiss" || text="Dismiss" || id="Dismiss"',
+      actions,
+    },
     line: 12,
     step: 4,
     invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
@@ -61,16 +64,20 @@ test('invokeMaestroRunFlowWhen waits briefly for visible conditions', async () =
   }
 });
 
-test('invokeMaestroRunFlowWhen keeps notVisible conditions immediate', async () => {
+test('invokeMaestroRunFlowWhenControl keeps notVisible conditions immediate', async () => {
   let snapshots = 0;
-  const response = await invokeMaestroRunFlowWhen({
+  const response = await invokeMaestroRunFlowWhenControl({
     baseReq: {
       token: 't',
       session: 's',
       flags: { platform: 'android' },
     },
-    positionals: ['notVisible', 'label="Loading" || text="Loading" || id="Loading"'],
-    batchSteps: [{ command: 'click', positionals: ['label="Continue"'] }],
+    control: {
+      kind: 'maestroRunFlowWhen',
+      mode: 'notVisible',
+      selector: 'label="Loading" || text="Loading" || id="Loading"',
+      actions: [{ ts: Date.now(), command: 'click', positionals: ['label="Continue"'], flags: {} }],
+    },
     line: 14,
     step: 7,
     invoke: async (): Promise<DaemonResponse> => {

@@ -8,6 +8,8 @@ import {
 import type { DaemonRequest, DaemonResponse, SessionAction } from '../types.ts';
 import { mergeParentFlags } from './handler-utils.ts';
 import { invokeMaestroRuntimeCommand } from '../../compat/maestro/runtime.ts';
+import { invokeMaestroRunFlowWhenControl } from '../../compat/maestro/runtime-flow.ts';
+import { invokeReplayRetryBlock } from '../../replay/control-flow-runtime.ts';
 
 type ReplayBaseRequest = Omit<DaemonRequest, 'command' | 'positionals'>;
 
@@ -99,11 +101,18 @@ async function invokeResolvedReplayAction(params: {
     meta: req.meta,
   };
   const response =
+    (await invokeReplayControl({
+      control: resolved.replayControl,
+      baseReq,
+      line,
+      step,
+      invoke,
+      invokeReplayAction,
+    })) ??
     (await invokeMaestroRuntimeCommand({
       command: resolved.command,
       baseReq,
       positionals: resolved.positionals ?? [],
-      batchSteps: resolved.flags?.batchSteps,
       scope,
       line,
       step,
@@ -120,6 +129,38 @@ async function invokeResolvedReplayAction(params: {
     if (outputEnv) mergeReplayVarScopeValues(scope, outputEnv);
   }
   return response;
+}
+
+async function invokeReplayControl(params: {
+  control: SessionAction['replayControl'] | undefined;
+  baseReq: ReplayBaseRequest;
+  line: number;
+  step: number;
+  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invokeReplayAction: ReplayActionInvoker;
+}): Promise<DaemonResponse | undefined> {
+  const { control, baseReq, line, step, invoke, invokeReplayAction } = params;
+  if (!control) return undefined;
+  switch (control.kind) {
+    case 'retry':
+      return await invokeReplayRetryBlock({
+        actions: control.actions,
+        maxRetries: control.maxRetries,
+        line,
+        step,
+        invokeReplayAction,
+      });
+    case 'maestroRunFlowWhen':
+      return await invokeMaestroRunFlowWhenControl({
+        baseReq,
+        control,
+        line,
+        step,
+        invoke,
+        invokeReplayAction,
+      });
+  }
+  return undefined;
 }
 
 function readReplayOutputEnv(data: unknown): Record<string, string> | null {
