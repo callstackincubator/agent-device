@@ -1415,6 +1415,8 @@ agent-device settings touchid enroll
 agent-device settings touchid unenroll
 agent-device settings fingerprint match
 agent-device settings fingerprint nonmatch
+agent-device settings clear-app-state
+agent-device settings clear-app-state com.example.app
 agent-device settings permission grant camera
 agent-device settings permission deny microphone
 agent-device settings permission grant photos limited
@@ -1429,6 +1431,7 @@ agent-device settings permission reset screen-recording --platform macos
 - Android `settings animations off|on` toggles the global `window_animation_scale`, `transition_animation_scale`, and `animator_duration_scale` values. Use it as an opt-in stabilizer for automation runs with heavy system or app animations, then restore with `settings animations on` when needed.
 - `settings appearance` maps to macOS appearance, iOS simulator appearance, and Android night mode.
 - `settings location set <lat> <lon>` sets precise coordinates on iOS simulators and Android emulators.
+- `settings clear-app-state [app-id]` clears the active session app data, or the provided app id. Android uses `pm clear`, which removes SharedPreferences, databases, files, and cache. iOS simulator removes the app data container contents. iOS physical devices and macOS are unsupported.
 - Face ID and Touch ID controls are iOS simulator-only.
 - Fingerprint simulation is supported on Android targets where `cmd fingerprint` or `adb emu finger` is available.
   On physical Android devices, only `cmd fingerprint` is attempted.
@@ -2372,6 +2375,7 @@ Toggle device settings directly:
 agent-device settings wifi on
 agent-device settings airplane on
 agent-device settings appearance toggle
+agent-device settings clear-app-state
 agent-device settings location off
 agent-device settings location set 37.3349 -122.009
 agent-device settings permission grant camera
@@ -2456,7 +2460,7 @@ Maestro compatibility translates supported YAML commands into Agent Device repla
 - Supported and unsupported capabilities: [https://github.com/callstackincubator/agent-device/issues/558](https://github.com/callstackincubator/agent-device/issues/558)
 - New focused compatibility request: [https://github.com/callstackincubator/agent-device/issues/new](https://github.com/callstackincubator/agent-device/issues/new)
 
-Currently supported areas include app launch with Apple-platform launch arguments and iOS simulator `clearState`, `runFlow` file/inline with `when.platform`, `when.visible`, `when.notVisible`, and limited `when.true` boolean/platform expressions, `onFlowStart` and `onFlowComplete` hooks, deterministic `repeat.times`, `tapOn` including `optional`, `index`, `childOf`, `label`, and absolute/percentage point taps, `doubleTapOn` and `longPressOn`, `inputText`, focused-field `eraseText`, and `pasteText`, `openLink`, visibility assertions and `extendedWaitUntil`, `scroll` and `scrollUntilVisible`, absolute/percentage `swipe` and `swipe.label`, screenshots, keyboard dismiss, basic `pressKey`, `back`, animation waits, and `stopApp`, and ordered trusted `runScript` file/env scripts with `http.post`, `json`, and `output` variables. `runScript` is supported only as an ordered Maestro compatibility step for trusted file/env scripts; it can make network requests, and is not a native `.ad` command or security sandbox. Script execution uses Node `vm` only for compatibility isolation, not for security; the script timeout bounds synchronous execution, while `http.post` requests are bounded by the helper process timeout. Output keys cannot contain `.` because exported variables are addressed as `output.<key>`.
+Currently supported areas include app launch with Apple-platform launch arguments and Android/iOS simulator `clearState`, `runFlow` file/inline with `when.platform`, `when.visible`, `when.notVisible`, and limited `when.true` boolean/platform expressions, `onFlowStart` and `onFlowComplete` hooks, deterministic `repeat.times`, `tapOn` including `optional`, `index`, `childOf`, `label`, and absolute/percentage point taps, `doubleTapOn` and `longPressOn`, `inputText`, focused-field `eraseText`, and `pasteText`, `openLink`, visibility assertions and `extendedWaitUntil`, `scroll` and `scrollUntilVisible`, absolute/percentage `swipe` and `swipe.label`, screenshots, keyboard dismiss, basic `pressKey`, `back`, animation waits, and `stopApp`, and ordered trusted `runScript` file/env scripts with `http.post`, `json`, and `output` variables. `runScript` is supported only as an ordered Maestro compatibility step for trusted file/env scripts; it can make network requests, and is not a native `.ad` command or security sandbox. Script execution uses Node `vm` only for compatibility isolation, not for security; the script timeout bounds synchronous execution, while `http.post` requests are bounded by the helper process timeout. Output keys cannot contain `.` because exported variables are addressed as `output.<key>`.
 
 Maestro `env` values use the same replay precedence as `.ad` files: flow `env` is the default, shell `AD_VAR_*` values override it, and CLI `-e KEY=VALUE` wins over both.
 
@@ -2475,7 +2479,8 @@ agent-device test ./workflows --artifacts-dir ./tmp/agent-device-artifacts
 - `context platform=...` inside each `.ad` file is the target source of truth for suite execution.
 - `--platform` is a filter for suite discovery; files without platform metadata are skipped when a filter is present.
 - `context timeout=...` and `context retries=...` can be declared per script; CLI flags override metadata. Retries are capped at `3`, and duplicate keys in the context header fail fast instead of silently overriding each other.
-- By default, suite artifacts are written under `.agent-device/test-artifacts/<run-id>/...`. Each attempt writes `replay.ad` and `result.txt`; failed attempts also keep copied logs and artifact files when the replay produced them.
+- By default, suite artifacts are written under `.agent-device/test-artifacts/<run-id>/...`. Each attempt writes `replay.ad`, `result.txt`, and `replay-timing.ndjson`. Failed attempts also keep copied logs and artifact files when the replay produced them.
+- `replay-timing.ndjson` records attempt, cleanup, and per-step start/stop events with durations. Upload it from CI even for passing runs when comparing local and CI performance.
 - Timeouts are cooperative: the runner marks the attempt failed at the timeout boundary, then gives the underlying replay a short grace period to stop before session cleanup.
 - The default text reporter streams one-line `pass`, `fail`, or `skip` progress on stderr as each suite entry finishes or retries. Each line includes current/total suite position and elapsed seconds such as `pass 3/6 ... duration=12.34s`, then the final summary prints failed tests and passed-on-retry flaky tests; use `--verbose` to print every final result.
 - When `--fail-fast` and retries are both set, the current test still consumes its retries before the suite stops.
