@@ -126,6 +126,201 @@ test('Provider-backed integration Android Maestro replay uses fresh selector sna
   );
 });
 
+test('Provider-backed integration Android Maestro replay test suite discovers YAML flows in directories', async () => {
+  let snapshots = 0;
+  await withProviderScenarioResource(
+    async () =>
+      await createAndroidSettingsWorld({
+        snapshotXml: () => {
+          snapshots += 1;
+          return androidMaestroReplayXml('[100,300][260,360]');
+        },
+      }),
+    async (world) => {
+      const client = world.daemon.client();
+      const suiteRoot = path.join(world.tempRoot, 'suite-maestro-directory');
+      fs.mkdirSync(suiteRoot, { recursive: true });
+      fs.writeFileSync(
+        path.join(suiteRoot, '01-visible.yaml'),
+        ['appId: com.android.settings', '---', '- launchApp', '- assertVisible: Apps', ''].join(
+          '\n',
+        ),
+      );
+      fs.writeFileSync(
+        path.join(suiteRoot, '02-tap.yml'),
+        ['appId: com.android.settings', '---', '- tapOn: Search', ''].join('\n'),
+      );
+
+      const suite = await client.replay.test({
+        paths: [suiteRoot],
+        backend: 'maestro',
+        artifactsDir: path.join(suiteRoot, 'artifacts'),
+        timeoutMs: 30000,
+        ...world.selection,
+      });
+
+      assert.equal(suite.total, 2, JSON.stringify(suite));
+      assert.equal(suite.executed, 2, JSON.stringify(suite));
+      assert.equal(suite.passed, 2, JSON.stringify(suite));
+      assert.equal(suite.failed, 0, JSON.stringify(suite));
+      assert.deepEqual(
+        world.adbCalls.find((call) => call.slice(0, 3).join(' ') === 'shell input tap'),
+        ['shell', 'input', 'tap', '180', '330'],
+      );
+      assert.equal(snapshots >= 2, true);
+    },
+  );
+});
+
+test('Provider-backed integration Android Maestro coalesces tapOn inputText and pressKey Enter through native paths', async () => {
+  await withProviderScenarioResource(
+    async () => await createAndroidSettingsWorld({ nativeTextInjection: true }),
+    async (world) => {
+      const client = world.daemon.client();
+      const suiteRoot = path.join(world.tempRoot, 'suite-maestro-input');
+      fs.mkdirSync(suiteRoot, { recursive: true });
+      const flowPath = path.join(suiteRoot, 'input-submit.yaml');
+      fs.writeFileSync(
+        flowPath,
+        [
+          'appId: com.android.settings',
+          '---',
+          '- launchApp',
+          '- tapOn: Search',
+          '- inputText: "Łódź café"',
+          '- pressKey: Enter',
+          '',
+        ].join('\n'),
+      );
+
+      const suite = await client.replay.test({
+        paths: [flowPath],
+        backend: 'maestro',
+        artifactsDir: path.join(suiteRoot, 'artifacts'),
+        timeoutMs: 30000,
+        ...world.selection,
+      });
+
+      assert.equal(suite.total, 1, JSON.stringify(suite));
+      assert.equal(suite.passed, 1, JSON.stringify(suite));
+      assert.equal(suite.failed, 0, JSON.stringify(suite));
+      assert.deepEqual(world.textInjectionCalls, [
+        {
+          action: 'fill',
+          target: { x: 195, y: 52 },
+          text: 'Łódź café',
+          delayMs: 0,
+        },
+      ]);
+      assert.equal(
+        world.adbCalls.some(
+          (call) => call[0] === 'shell' && call[1] === 'input' && call[2] === 'text',
+        ),
+        false,
+        JSON.stringify(world.adbCalls),
+      );
+      assert.deepEqual(
+        world.adbCalls.find((call) => call.slice(0, 4).join(' ') === 'shell input keyevent ENTER'),
+        ['shell', 'input', 'keyevent', 'ENTER'],
+      );
+      world.assertNoHostAdbCalls();
+    },
+  );
+});
+
+test('Provider-backed integration Android Maestro executes runFlow conditions and retry batches at runtime', async () => {
+  let snapshots = 0;
+  await withProviderScenarioResource(
+    async () =>
+      await createAndroidSettingsWorld({
+        snapshotXml: () => {
+          snapshots += 1;
+          return androidMaestroReplayXml('[100,300][260,360]');
+        },
+      }),
+    async (world) => {
+      const client = world.daemon.client();
+      const suiteRoot = path.join(world.tempRoot, 'suite-maestro-runtime-flow');
+      fs.mkdirSync(suiteRoot, { recursive: true });
+      const flowPath = path.join(suiteRoot, 'runtime-flow.yaml');
+      fs.writeFileSync(
+        flowPath,
+        [
+          'appId: com.android.settings',
+          '---',
+          '- launchApp',
+          '- runFlow:',
+          '    when:',
+          '      visible: Apps',
+          '    commands:',
+          '      - tapOn: Search',
+          '- retry:',
+          '    maxRetries: 1',
+          '    commands:',
+          '      - assertVisible: Apps',
+          '',
+        ].join('\n'),
+      );
+
+      const suite = await client.replay.test({
+        paths: [flowPath],
+        backend: 'maestro',
+        artifactsDir: path.join(suiteRoot, 'artifacts'),
+        timeoutMs: 30000,
+        ...world.selection,
+      });
+
+      assert.equal(suite.total, 1, JSON.stringify(suite));
+      assert.equal(suite.passed, 1, JSON.stringify(suite));
+      assert.equal(suite.failed, 0, JSON.stringify(suite));
+      assert.deepEqual(
+        world.adbCalls.find((call) => call.slice(0, 3).join(' ') === 'shell input tap'),
+        ['shell', 'input', 'tap', '180', '330'],
+      );
+      assert.equal(snapshots >= 3, true);
+    },
+  );
+});
+
+test('Provider-backed integration Android Maestro optional tap misses without touching the device', async () => {
+  await withProviderScenarioResource(createAndroidSettingsWorld, async (world) => {
+    const client = world.daemon.client();
+    const suiteRoot = path.join(world.tempRoot, 'suite-maestro-optional');
+    fs.mkdirSync(suiteRoot, { recursive: true });
+    const flowPath = path.join(suiteRoot, 'optional-miss.yaml');
+    fs.writeFileSync(
+      flowPath,
+      [
+        'appId: com.android.settings',
+        '---',
+        '- launchApp',
+        '- tapOn:',
+        '    text: Missing target',
+        '    optional: true',
+        '- assertVisible: Apps',
+        '',
+      ].join('\n'),
+    );
+
+    const suite = await client.replay.test({
+      paths: [flowPath],
+      backend: 'maestro',
+      artifactsDir: path.join(suiteRoot, 'artifacts'),
+      timeoutMs: 30000,
+      ...world.selection,
+    });
+
+    assert.equal(suite.total, 1, JSON.stringify(suite));
+    assert.equal(suite.passed, 1, JSON.stringify(suite));
+    assert.equal(suite.failed, 0, JSON.stringify(suite));
+    assert.equal(
+      world.adbCalls.some((call) => call.slice(0, 3).join(' ') === 'shell input tap'),
+      false,
+      JSON.stringify(world.adbCalls),
+    );
+  });
+});
+
 function androidMaestroReplayXml(searchBounds: string): string {
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
