@@ -121,7 +121,7 @@ test('Provider-backed integration Android Maestro replay uses fresh selector sna
         world.adbCalls.find((call) => call.slice(0, 3).join(' ') === 'shell input swipe'),
         ['shell', 'input', 'swipe', '351', '390', '39', '390', '300'],
       );
-      assert.equal(snapshots >= 2, true);
+      assert.equal(snapshots, 2);
     },
   );
 });
@@ -167,17 +167,73 @@ test('Provider-backed integration Android Maestro replay test suite discovers YA
         world.adbCalls.find((call) => call.slice(0, 3).join(' ') === 'shell input tap'),
         ['shell', 'input', 'tap', '180', '330'],
       );
-      assert.equal(snapshots >= 2, true);
+      assert.equal(snapshots, 2);
     },
   );
 });
 
-test('Provider-backed integration Android Maestro coalesces tapOn inputText and pressKey Enter through native paths', async () => {
+test('Provider-backed integration Android Maestro fills tapOn inputText without trailing Enter', async () => {
   await withProviderScenarioResource(
     async () => await createAndroidSettingsWorld({ nativeTextInjection: true }),
     async (world) => {
       const client = world.daemon.client();
       const suiteRoot = path.join(world.tempRoot, 'suite-maestro-input');
+      fs.mkdirSync(suiteRoot, { recursive: true });
+      const flowPath = path.join(suiteRoot, 'input-only.yaml');
+      fs.writeFileSync(
+        flowPath,
+        [
+          'appId: com.android.settings',
+          '---',
+          '- launchApp',
+          '- tapOn: Search',
+          '- inputText: "Łódź café"',
+          '',
+        ].join('\n'),
+      );
+
+      const suite = await client.replay.test({
+        paths: [flowPath],
+        backend: 'maestro',
+        artifactsDir: path.join(suiteRoot, 'artifacts'),
+        timeoutMs: 30000,
+        ...world.selection,
+      });
+
+      assert.equal(suite.total, 1, JSON.stringify(suite));
+      assert.equal(suite.passed, 1, JSON.stringify(suite));
+      assert.equal(suite.failed, 0, JSON.stringify(suite));
+      assert.deepEqual(world.textInjectionCalls, [
+        {
+          action: 'fill',
+          target: { x: 195, y: 52 },
+          text: 'Łódź café',
+          delayMs: 0,
+        },
+      ]);
+      assert.equal(
+        world.adbCalls.some(
+          (call) => call[0] === 'shell' && call[1] === 'input' && call[2] === 'text',
+        ),
+        false,
+        JSON.stringify(world.adbCalls),
+      );
+      assert.equal(
+        world.adbCalls.some((call) => call.slice(0, 4).join(' ') === 'shell input keyevent ENTER'),
+        false,
+        JSON.stringify(world.adbCalls),
+      );
+      world.assertNoHostAdbCalls();
+    },
+  );
+});
+
+test('Provider-backed integration Android Maestro preserves pressKey Enter after native fill', async () => {
+  await withProviderScenarioResource(
+    async () => await createAndroidSettingsWorld({ nativeTextInjection: true }),
+    async (world) => {
+      const client = world.daemon.client();
+      const suiteRoot = path.join(world.tempRoot, 'suite-maestro-input-submit');
       fs.mkdirSync(suiteRoot, { recursive: true });
       const flowPath = path.join(suiteRoot, 'input-submit.yaml');
       fs.writeFileSync(
@@ -277,7 +333,7 @@ test('Provider-backed integration Android Maestro executes runFlow conditions an
         world.adbCalls.find((call) => call.slice(0, 3).join(' ') === 'shell input tap'),
         ['shell', 'input', 'tap', '180', '330'],
       );
-      assert.equal(snapshots >= 3, true);
+      assert.equal(snapshots, 3);
     },
   );
 });
