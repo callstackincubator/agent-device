@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-628/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/pr-preview/pr-628/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/pr-preview/pr-628/static/js/649.63df3d8087.js"></script>
-<script defer src="/agent-device/pr-preview/pr-628/static/js/index.c92c4c8c2f.js"></script>
+<script defer src="/agent-device/pr-preview/pr-628/static/js/index.d778afd3ec.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -423,8 +423,8 @@ When a target only appears in an off-screen summary, use <code>scroll &lt;direct
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> touchid</span><span style="color:var(--shiki-token-string)"> unenroll</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> fingerprint</span><span style="color:var(--shiki-token-string)"> match</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> fingerprint</span><span style="color:var(--shiki-token-string)"> nonmatch</span></span>
-<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> clean-user-data</span></span>
-<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> clean-user-data</span><span style="color:var(--shiki-token-string)"> com.example.app</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> clear-app-state</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> clear-app-state</span><span style="color:var(--shiki-token-string)"> com.example.app</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> permission</span><span style="color:var(--shiki-token-string)"> grant</span><span style="color:var(--shiki-token-string)"> camera</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> permission</span><span style="color:var(--shiki-token-string)"> deny</span><span style="color:var(--shiki-token-string)"> microphone</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> settings</span><span style="color:var(--shiki-token-string)"> permission</span><span style="color:var(--shiki-token-string)"> grant</span><span style="color:var(--shiki-token-string)"> photos</span><span style="color:var(--shiki-token-string)"> limited</span></span>
@@ -438,7 +438,7 @@ When a target only appears in an off-screen summary, use <code>scroll &lt;direct
 <li>Android <code>settings animations off|on</code> toggles the global <code>window_animation_scale</code>, <code>transition_animation_scale</code>, and <code>animator_duration_scale</code> values. Use it as an opt-in stabilizer for automation runs with heavy system or app animations, then restore with <code>settings animations on</code> when needed.</li>
 <li><code>settings appearance</code> maps to macOS appearance, iOS simulator appearance, and Android night mode.</li>
 <li><code>settings location set &lt;lat&gt; &lt;lon&gt;</code> sets precise coordinates on iOS simulators and Android emulators.</li>
-<li><code>settings clean-user-data [app-id]</code> clears the active session app data, or the provided app id. Android uses <code>pm clear</code>, which removes SharedPreferences, databases, files, and cache. iOS simulator removes the app data container contents. iOS physical devices and macOS are unsupported.</li>
+<li><code>settings clear-app-state [app-id]</code> clears the active session app data, or the provided app id. Android uses <code>pm clear</code>, which removes SharedPreferences, databases, files, and cache. iOS simulator removes the app data container contents. iOS physical devices and macOS are unsupported.</li>
 <li>Face ID and Touch ID controls are iOS simulator-only.</li>
 <li>Fingerprint simulation is supported on Android targets where <code>cmd fingerprint</code> or <code>adb emu finger</code> is available.
 On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li>
