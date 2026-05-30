@@ -412,17 +412,8 @@ function wrapRunFlowCondition(
   actions: SessionAction[],
   condition: RunFlowCondition,
 ): SessionAction[] {
-  const control = buildRunFlowConditionReplayControl(condition, actions);
-  if (!control) return actions;
-  return [replayControlAction('runFlow.when', [control.mode, control.selector], control)];
-}
-
-function buildRunFlowConditionReplayControl(
-  condition: RunFlowCondition,
-  actions: SessionAction[],
-): Extract<NonNullable<SessionAction['replayControl']>, { kind: 'maestroRunFlowWhen' }> | null {
   const { visibleSelector, notVisibleSelector } = condition;
-  if (!visibleSelector && !notVisibleSelector) return null;
+  if (!visibleSelector && !notVisibleSelector) return actions;
   if (visibleSelector && notVisibleSelector) {
     throw unsupportedMaestroSyntax(
       'Maestro runFlow.when cannot combine visible and notVisible yet.',
@@ -430,7 +421,14 @@ function buildRunFlowConditionReplayControl(
   }
   const mode = visibleSelector ? 'visible' : 'notVisible';
   const selector = visibleSelector ?? notVisibleSelector ?? '';
-  return { kind: 'maestroRunFlowWhen', mode, selector, actions };
+  return [
+    replayControlAction('runFlow.when', [mode, selector], {
+      kind: 'maestroRunFlowWhen',
+      mode,
+      selector,
+      actions,
+    }),
+  ];
 }
 
 function replayControlAction(

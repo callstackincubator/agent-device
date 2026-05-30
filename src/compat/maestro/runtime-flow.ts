@@ -19,8 +19,6 @@ const MAESTRO_RUN_FLOW_WHEN_POLICY = {
   visiblePollMs: 250,
 } as const;
 
-type MaestroRunFlowWhenCondition = { mode: 'visible' | 'notVisible'; selector: string };
-
 type MaestroRunFlowWhenControl = Extract<SessionReplayControl, { kind: 'maestroRunFlowWhen' }>;
 
 export async function invokeMaestroRunFlowWhenControl(params: {
@@ -31,25 +29,15 @@ export async function invokeMaestroRunFlowWhenControl(params: {
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
   invokeReplayAction: MaestroReplayInvoker;
 }): Promise<DaemonResponse> {
-  const condition = readMaestroRunFlowWhenCondition(params.control);
-  const conditionResult = await evaluateMaestroRunFlowWhenCondition(params, condition);
+  const conditionResult = await evaluateMaestroRunFlowWhenCondition(params, params.control);
   if (!conditionResult.ok) return conditionResult.response;
   if (!conditionResult.matched) {
     return {
       ok: true,
-      data: { skipped: true, condition: condition.mode, selector: condition.selector },
+      data: { skipped: true, condition: params.control.mode, selector: params.control.selector },
     };
   }
-  return await invokeMaestroRunFlowWhenSteps(params, condition);
-}
-
-function readMaestroRunFlowWhenCondition(
-  control: MaestroRunFlowWhenControl,
-): MaestroRunFlowWhenCondition {
-  return {
-    mode: control.mode,
-    selector: control.selector,
-  };
+  return await invokeMaestroRunFlowWhenSteps(params);
 }
 
 async function evaluateMaestroRunFlowWhenCondition(
@@ -57,7 +45,7 @@ async function evaluateMaestroRunFlowWhenCondition(
     baseReq: ReplayBaseRequest;
     invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
   },
-  condition: MaestroRunFlowWhenCondition,
+  condition: MaestroRunFlowWhenControl,
 ): Promise<{ ok: true; matched: boolean } | { ok: false; response: DaemonResponse }> {
   if (condition.mode === 'visible') {
     return await waitForMaestroRunFlowVisibleCondition(params, condition);
@@ -80,7 +68,7 @@ async function waitForMaestroRunFlowVisibleCondition(
     baseReq: ReplayBaseRequest;
     invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
   },
-  condition: MaestroRunFlowWhenCondition,
+  condition: MaestroRunFlowWhenControl,
 ): Promise<{ ok: true; matched: boolean } | { ok: false; response: DaemonResponse }> {
   // Maestro conditionals commonly guard UI that appears immediately after the
   // previous command. Keep this bounded and only for visible; notVisible stays
@@ -122,15 +110,12 @@ function readMaestroRunFlowVisibleCondition(
   return { ok: true, matched };
 }
 
-async function invokeMaestroRunFlowWhenSteps(
-  params: {
-    control: MaestroRunFlowWhenControl;
-    line: number;
-    step: number;
-    invokeReplayAction: MaestroReplayInvoker;
-  },
-  condition: MaestroRunFlowWhenCondition,
-): Promise<DaemonResponse> {
+async function invokeMaestroRunFlowWhenSteps(params: {
+  control: MaestroRunFlowWhenControl;
+  line: number;
+  step: number;
+  invokeReplayAction: MaestroReplayInvoker;
+}): Promise<DaemonResponse> {
   const response = await invokeReplayActionBlock({
     actions: params.control.actions,
     line: params.line,
@@ -141,6 +126,10 @@ async function invokeMaestroRunFlowWhenSteps(
 
   return {
     ok: true,
-    data: { ran: response.data?.ran, condition: condition.mode, selector: condition.selector },
+    data: {
+      ran: response.data?.ran,
+      condition: params.control.mode,
+      selector: params.control.selector,
+    },
   };
 }
