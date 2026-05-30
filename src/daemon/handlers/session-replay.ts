@@ -55,6 +55,7 @@ export async function handleSessionReplayCommands(params: {
         requestId,
         artifactsDir,
         artifactPaths,
+        tracePath,
       }) => {
         const captureArtifacts = (response: DaemonResponse): DaemonResponse => {
           if (!artifactPaths) return response;
@@ -81,6 +82,7 @@ export async function handleSessionReplayCommands(params: {
           sessionName: testSessionName,
           logPath,
           sessionStore,
+          tracePath,
           invoke: async (nestedReq) => captureArtifacts(await invoke(nestedReq)),
         });
       },

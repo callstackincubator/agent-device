@@ -9,6 +9,7 @@ export type ReplayTestRunReplayParams = {
   requestId?: string;
   artifactsDir?: string;
   artifactPaths?: Set<string>;
+  tracePath?: string;
 };
 
 export type ReplayTestRunReplay = (params: ReplayTestRunReplayParams) => Promise<DaemonResponse>;

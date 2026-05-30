@@ -595,6 +595,11 @@ export type FlingOptions = ClientCommandBaseOptions & {
   durationMs?: number;
 };
 
+export type SwipeGestureOptions = ClientCommandBaseOptions & {
+  preset: 'left' | 'right' | 'left-edge' | 'right-edge';
+  durationMs?: number;
+};
+
 export type FocusOptions = ClientCommandBaseOptions & {
   x: number;
   y: number;
@@ -764,6 +769,11 @@ export type PermissionTarget =
 
 export type SettingsUpdateOptions =
   | (ClientCommandBaseOptions & {
+      setting: 'clear-app-state';
+      state: 'clear';
+      app?: string;
+    })
+  | (ClientCommandBaseOptions & {
       setting: 'wifi' | 'airplane' | 'location';
       state: 'on' | 'off';
     })
@@ -915,6 +925,7 @@ export type AgentDeviceClient = {
     swipe: (options: SwipeOptions) => Promise<CommandRequestResult>;
     pan: (options: PanOptions) => Promise<CommandRequestResult>;
     fling: (options: FlingOptions) => Promise<CommandRequestResult>;
+    swipeGesture: (options: SwipeGestureOptions) => Promise<CommandRequestResult>;
     focus: (options: FocusOptions) => Promise<CommandRequestResult>;
     type: (options: TypeTextOptions) => Promise<CommandRequestResult>;
     fill: (options: FillOptions) => Promise<CommandRequestResult>;

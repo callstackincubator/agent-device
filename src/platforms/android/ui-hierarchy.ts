@@ -16,12 +16,19 @@ export type AndroidUiNodeMetadata = {
   rect?: Rect;
   clickable?: boolean;
   enabled?: boolean;
+  visibleToUser?: boolean;
   focusable?: boolean;
   focused?: boolean;
   password?: boolean;
   scrollable?: boolean;
   canScrollForward?: boolean;
   canScrollBackward?: boolean;
+  windowIndex?: number;
+  windowType?: number;
+  windowLayer?: number;
+  windowActive?: boolean;
+  windowFocused?: boolean;
+  windowRect?: Rect;
 };
 
 export function* androidUiNodes(xml: string): IterableIterator<AndroidUiNodeMetadata> {
@@ -163,6 +170,7 @@ function appendAndroidSnapshotNode(
     bundleId: node.packageName ?? undefined,
     rect: node.rect,
     enabled: node.enabled,
+    visibleToUser: node.visibleToUser,
     hittable: node.hittable,
     depth,
     parentIndex,
@@ -176,7 +184,10 @@ function hasInteractiveDescendant(state: AndroidSnapshotBuildState, node: Androi
   const cached = state.interactiveDescendantMemo.get(node);
   if (cached !== undefined) return cached;
   for (const child of node.children) {
-    if (child.hittable || hasInteractiveDescendant(state, child)) {
+    if (
+      child.visibleToUser !== false &&
+      (child.hittable || hasInteractiveDescendant(state, child))
+    ) {
       state.interactiveDescendantMemo.set(node, true);
       return true;
     }
@@ -192,6 +203,26 @@ function readNodeAttributes(node: string): Omit<AndroidUiNodeMetadata, 'rect'> {
     const raw = getAttr(name);
     if (raw === null) return undefined;
     return raw === 'true';
+  };
+  const numberAttr = (name: string): number | undefined => {
+    const raw = getAttr(name);
+    if (raw === null || raw.trim() === '') return undefined;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : undefined;
+  };
+  const optionalNumberAttr = <Key extends keyof AndroidUiNodeMetadata>(
+    key: Key,
+    name: string,
+  ): Pick<AndroidUiNodeMetadata, Key> | {} => {
+    const value = numberAttr(name);
+    return value === undefined ? {} : { [key]: value };
+  };
+  const optionalRectAttr = <Key extends keyof AndroidUiNodeMetadata>(
+    key: Key,
+    name: string,
+  ): Pick<AndroidUiNodeMetadata, Key> | {} => {
+    const value = parseBounds(getAttr(name));
+    return value === undefined ? {} : { [key]: value };
   };
   const optionalBoolAttr = <Key extends keyof AndroidUiNodeMetadata>(
     key: Key,
@@ -212,9 +243,16 @@ function readNodeAttributes(node: string): Omit<AndroidUiNodeMetadata, 'rect'> {
     focusable: boolAttr('focusable'),
     focused: boolAttr('focused'),
     password: boolAttr('password'),
+    ...optionalBoolAttr('visibleToUser', 'visible-to-user'),
     ...optionalBoolAttr('scrollable', 'scrollable'),
     ...optionalBoolAttr('canScrollForward', 'can-scroll-forward'),
     ...optionalBoolAttr('canScrollBackward', 'can-scroll-backward'),
+    ...optionalNumberAttr('windowIndex', 'window-index'),
+    ...optionalNumberAttr('windowType', 'window-type'),
+    ...optionalNumberAttr('windowLayer', 'window-layer'),
+    ...optionalBoolAttr('windowActive', 'window-active'),
+    ...optionalBoolAttr('windowFocused', 'window-focused'),
+    ...optionalRectAttr('windowRect', 'window-bounds'),
   };
 }
 
@@ -362,6 +400,7 @@ export type AndroidUiHierarchy = {
   packageName: string | null;
   rect?: Rect;
   enabled?: boolean;
+  visibleToUser?: boolean;
   hittable?: boolean;
   depth: number;
   parentIndex?: number;
@@ -370,6 +409,12 @@ export type AndroidUiHierarchy = {
   scrollable?: boolean;
   canScrollForward?: boolean;
   canScrollBackward?: boolean;
+  windowIndex?: number;
+  windowType?: number;
+  windowLayer?: number;
+  windowActive?: boolean;
+  windowFocused?: boolean;
+  windowRect?: Rect;
   children: AndroidNode[];
 };
 
@@ -382,6 +427,8 @@ type AndroidNodeInclusionInfo = {
   isStructural: boolean;
   isVisual: boolean;
 };
+
+const ANDROID_WINDOW_TYPE_APPLICATION = 1;
 
 export function parseUiHierarchyTree(xml: string): AndroidUiHierarchy {
   const root: AndroidUiHierarchy = {
@@ -413,10 +460,17 @@ export function parseUiHierarchyTree(xml: string): AndroidUiHierarchy {
       packageName: attrs.packageName,
       rect: attrs.rect,
       enabled: attrs.enabled,
+      visibleToUser: attrs.visibleToUser,
       hittable: attrs.clickable ?? attrs.focusable,
       scrollable: attrs.scrollable,
       canScrollForward: attrs.canScrollForward,
       canScrollBackward: attrs.canScrollBackward,
+      windowIndex: attrs.windowIndex,
+      windowType: attrs.windowType,
+      windowLayer: attrs.windowLayer,
+      windowActive: attrs.windowActive,
+      windowFocused: attrs.windowFocused,
+      windowRect: attrs.windowRect,
       depth: parent.depth + 1,
       parentIndex: undefined,
       children: [],
@@ -427,6 +481,7 @@ export function parseUiHierarchyTree(xml: string): AndroidUiHierarchy {
     }
     match = tokenRegex.exec(xml);
   }
+  discardInactiveAndroidApplicationWindows(root);
   applyAndroidScrollActionHints(root);
   return root;
 }
@@ -440,6 +495,45 @@ function applyAndroidScrollActionHints(root: AndroidUiHierarchy): void {
     if (node.canScrollBackward) node.hiddenContentAbove = true;
     if (node.canScrollForward) node.hiddenContentBelow = true;
   }
+}
+
+function discardInactiveAndroidApplicationWindows(root: AndroidUiHierarchy): void {
+  const windows = root.children.filter(isAndroidWindowRoot);
+  if (windows.length < 2) return;
+
+  // Android can keep stale application windows in the accessibility tree after drawer and
+  // navigation transitions. Keep dialogs/system windows, but expose only the foreground
+  // application layer so agents do not act on content that is hidden from users.
+  const foregroundApplicationWindows = windows.filter(
+    (window) => isAndroidApplicationWindow(window) && isAndroidForegroundWindow(window),
+  );
+  if (foregroundApplicationWindows.length === 0) return;
+  const foregroundLayer = highestAndroidWindowLayer(foregroundApplicationWindows);
+
+  root.children = root.children.filter((window) => {
+    if (!isAndroidApplicationWindow(window)) return true;
+    if (!isAndroidForegroundWindow(window)) return false;
+    return foregroundLayer === undefined || window.windowLayer === foregroundLayer;
+  });
+}
+
+function highestAndroidWindowLayer(windows: AndroidNode[]): number | undefined {
+  const layers = windows
+    .map((window) => window.windowLayer)
+    .filter((layer): layer is number => layer !== undefined);
+  return layers.length > 0 ? Math.max(...layers) : undefined;
+}
+
+function isAndroidWindowRoot(node: AndroidNode): boolean {
+  return node.windowIndex !== undefined || node.windowType !== undefined;
+}
+
+function isAndroidApplicationWindow(node: AndroidNode): boolean {
+  return node.windowType === ANDROID_WINDOW_TYPE_APPLICATION;
+}
+
+function isAndroidForegroundWindow(node: AndroidNode): boolean {
+  return node.windowActive === true || node.windowFocused === true;
 }
 
 function isVerticalScrollableNode(node: AndroidNode): boolean {
@@ -474,6 +568,7 @@ function shouldIncludeAndroidNode(
   descendantHittable: boolean,
   ancestorCollection: boolean,
 ): boolean {
+  if (node.visibleToUser === false) return false;
   const info = getAndroidNodeInclusionInfo(node);
   if (options.interactiveOnly) {
     return shouldIncludeInteractiveAndroidNode(

@@ -231,10 +231,17 @@ function readSettingsOptionsFromPositionals(
       mode: readPermissionMode(positionals[3]),
     };
   }
+  if (setting === 'clear-app-state') {
+    const app = state === 'clear' ? positionals[2] : state;
+    return { ...base, setting, state: 'clear', app };
+  }
   throw new AppError('INVALID_ARGS', 'Invalid settings arguments.');
 }
 
 function settingsPositionals(input: SettingsUpdateOptions): string[] {
+  if (input.setting === 'clear-app-state') {
+    return [input.setting, ...optionalString(input.app)];
+  }
   if (input.setting === 'location' && input.state === 'set') {
     return [input.setting, input.state, String(input.latitude), String(input.longitude)];
   }

@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { normalizeError } from '../../utils/errors.ts';
@@ -42,6 +44,17 @@ export async function runReplayTestAttempt(
   let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
   let timedOut = false;
   let response: DaemonResponse | undefined;
+  const attemptStartedAt = Date.now();
+  const tracePath = prepareReplayTestTimingTrace({
+    artifactsDir,
+    artifactPaths,
+    filePath,
+    sessionName,
+    requestId,
+    timeoutMs,
+    platform,
+    target,
+  });
   const replayPromise = runReplay({
     filePath,
     sessionName,
@@ -50,6 +63,7 @@ export async function runReplayTestAttempt(
     requestId,
     artifactsDir,
     artifactPaths,
+    tracePath,
   })
     .catch((error) => {
       const appErr = normalizeError(error);
@@ -76,6 +90,15 @@ export async function runReplayTestAttempt(
             }),
           ])
         : await replayPromise;
+    appendReplayTestTimingEvent(tracePath, {
+      type: 'replay_test_attempt_stop',
+      ts: new Date().toISOString(),
+      session: sessionName,
+      ok: response.ok,
+      timedOut,
+      durationMs: Date.now() - attemptStartedAt,
+      errorCode: response.ok ? undefined : response.error.code,
+    });
     return response;
   } finally {
     if (timeoutHandle) clearTimeout(timeoutHandle);
@@ -100,10 +123,31 @@ export async function runReplayTestAttempt(
         });
       }
     }
+    const cleanupStartedAt = Date.now();
     try {
+      appendReplayTestTimingEvent(tracePath, {
+        type: 'replay_test_cleanup_start',
+        ts: new Date().toISOString(),
+        session: sessionName,
+      });
       await cleanupSession(sessionName);
+      appendReplayTestTimingEvent(tracePath, {
+        type: 'replay_test_cleanup_stop',
+        ts: new Date().toISOString(),
+        session: sessionName,
+        ok: true,
+        durationMs: Date.now() - cleanupStartedAt,
+      });
     } catch (error) {
       const appErr = normalizeError(error);
+      appendReplayTestTimingEvent(tracePath, {
+        type: 'replay_test_cleanup_stop',
+        ts: new Date().toISOString(),
+        session: sessionName,
+        ok: false,
+        durationMs: Date.now() - cleanupStartedAt,
+        errorCode: appErr.code,
+      });
       emitDiagnostic({
         level: 'warn',
         phase: 'test_cleanup_failed',
@@ -157,6 +201,52 @@ function markReplayTimeoutCleanupPending(response: DaemonResponse | undefined): 
     reason: REPLAY_TIMEOUT_CLEANUP_PENDING_REASON,
     timeoutCleanupPending: true,
   };
+}
+
+function prepareReplayTestTimingTrace(params: {
+  artifactsDir?: string;
+  artifactPaths: Set<string>;
+  filePath: string;
+  sessionName: string;
+  requestId: string;
+  timeoutMs?: number;
+  platform?: ReplayScriptMetadata['platform'];
+  target?: ReplayScriptMetadata['target'];
+}): string | undefined {
+  const {
+    artifactsDir,
+    artifactPaths,
+    filePath,
+    sessionName,
+    requestId,
+    timeoutMs,
+    platform,
+    target,
+  } = params;
+  if (!artifactsDir) return undefined;
+  const tracePath = path.join(artifactsDir, 'replay-timing.ndjson');
+  fs.mkdirSync(path.dirname(tracePath), { recursive: true });
+  fs.writeFileSync(tracePath, '');
+  artifactPaths.add(tracePath);
+  appendReplayTestTimingEvent(tracePath, {
+    type: 'replay_test_attempt_start',
+    ts: new Date().toISOString(),
+    replayPath: filePath,
+    session: sessionName,
+    requestId,
+    timeoutMs,
+    platform,
+    target,
+  });
+  return tracePath;
+}
+
+function appendReplayTestTimingEvent(
+  tracePath: string | undefined,
+  event: Record<string, unknown>,
+): void {
+  if (!tracePath) return;
+  fs.appendFileSync(tracePath, `${JSON.stringify(event)}\n`);
 }
 
 function createReplayTestTimeoutResponse(

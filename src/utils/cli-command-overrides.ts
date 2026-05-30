@@ -242,12 +242,12 @@ const CLI_COMMAND_OVERRIDES = {
     allowedFlags: ['count', 'pauseMs', 'pattern'],
   },
   gesture: {
-    usageOverride: 'gesture <pan|fling|pinch|rotate|transform> ...',
-    listUsageOverride: 'gesture <pan|fling|pinch|rotate|transform> ...',
+    usageOverride: 'gesture <pan|fling|swipe|pinch|rotate|transform> ...',
+    listUsageOverride: 'gesture <pan|fling|swipe|pinch|rotate|transform> ...',
     helpDescription:
-      'Run touch gestures: pan <x> <y> <dx> <dy> [durationMs], fling <up|down|left|right> <x> <y> [distance] [durationMs], pinch <scale> [x] [y], rotate <degrees> [x] [y] [velocity], or transform <x> <y> <dx> <dy> <scale> <degrees> [durationMs]',
-    summary: 'Run pan, fling, pinch, rotate, or transform gestures',
-    positionalArgs: ['pan|fling|pinch|rotate|transform', 'args?'],
+      'Run touch gestures: pan <x> <y> <dx> <dy> [durationMs], fling <up|down|left|right> <x> <y> [distance] [durationMs], swipe <left|right|left-edge|right-edge> [durationMs], pinch <scale> [x] [y], rotate <degrees> [x] [y] [velocity], or transform <x> <y> <dx> <dy> <scale> <degrees> [durationMs]',
+    summary: 'Run pan, fling, swipe, pinch, rotate, or transform gestures',
+    positionalArgs: ['pan|fling|swipe|pinch|rotate|transform', 'args?'],
     allowsExtraPositionals: true,
   },
   focus: {

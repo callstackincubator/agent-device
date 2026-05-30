@@ -29,10 +29,10 @@ public final class SnapshotInstrumentation extends Instrumentation {
   private static final String OUTPUT_FORMAT = "uiautomator-xml";
   private static final String HELPER_API_VERSION = "1";
   private static final int CHUNK_SIZE = 2 * 1024;
-  // Keep the default quiet window short: RN/animation-heavy apps often never become fully idle,
-  // and callers can still override this for alert-style flows that need a longer settle period.
-  private static final long DEFAULT_WAIT_FOR_IDLE_TIMEOUT_MS = 25;
-  private static final long DEFAULT_WAIT_FOR_IDLE_QUIET_MS = 25;
+  // Match the host defaults: long enough to avoid mid-transition RN snapshots, but still bounded
+  // below the stock uiautomator idle wait so busy apps do not stall every capture.
+  private static final long DEFAULT_WAIT_FOR_IDLE_TIMEOUT_MS = 500;
+  private static final long DEFAULT_WAIT_FOR_IDLE_QUIET_MS = 100;
   private static final long DEFAULT_TIMEOUT_MS = 8_000;
   private static final int DEFAULT_MAX_DEPTH = 128;
   private static final int DEFAULT_MAX_NODES = 5_000;
@@ -351,7 +351,7 @@ public final class SnapshotInstrumentation extends Instrumentation {
       AccessibilityNodeInfo root = automation.getRootInActiveWindow();
       try {
         if (root != null) {
-          appendNode(xml, root, 0, 0, maxDepth, maxNodes, stats);
+          appendNode(xml, root, 0, 0, maxDepth, maxNodes, stats, null);
           windowCount = 1;
         }
         captureMode = "active-window";
@@ -439,7 +439,15 @@ public final class SnapshotInstrumentation extends Instrumentation {
         }
         StringBuilder windowXml = new StringBuilder();
         CaptureStats windowStats = stats.copy();
-        appendNode(windowXml, root, windowCount, 0, maxDepth, maxNodes, windowStats);
+        appendNode(
+            windowXml,
+            root,
+            windowCount,
+            0,
+            maxDepth,
+            maxNodes,
+            windowStats,
+            readWindowMetadata(window, windowCount));
         xml.append(windowXml);
         stats.copyFrom(windowStats);
         windowCount += 1;
@@ -482,7 +490,8 @@ public final class SnapshotInstrumentation extends Instrumentation {
       int depth,
       int maxDepth,
       int maxNodes,
-      CaptureStats stats) {
+      CaptureStats stats,
+      WindowMetadata windowMetadata) {
     if (stats.nodeCount >= maxNodes) {
       stats.truncated = true;
       return;
@@ -495,11 +504,15 @@ public final class SnapshotInstrumentation extends Instrumentation {
     // without affecting current snapshot semantics; add fields back here when TS starts reading
     // them.
     appendAttribute(xml, "index", Integer.toString(nodeIndex));
+    if (windowMetadata != null) {
+      appendWindowMetadata(xml, windowMetadata);
+    }
     appendNonEmptyAttribute(xml, "text", node.getText());
     appendNonEmptyAttribute(xml, "resource-id", node.getViewIdResourceName());
     appendAttribute(xml, "class", node.getClassName());
     appendNonEmptyAttribute(xml, "package", node.getPackageName());
     appendNonEmptyAttribute(xml, "content-desc", node.getContentDescription());
+    appendAttribute(xml, "visible-to-user", Boolean.toString(node.isVisibleToUser()));
     appendTrueAttribute(xml, "clickable", node.isClickable());
     appendAttribute(xml, "enabled", Boolean.toString(node.isEnabled()));
     appendTrueAttribute(xml, "focusable", node.isFocusable());
@@ -550,7 +563,7 @@ public final class SnapshotInstrumentation extends Instrumentation {
         continue;
       }
       try {
-        appendNode(xml, child, index, depth + 1, maxDepth, maxNodes, stats);
+        appendNode(xml, child, index, depth + 1, maxDepth, maxNodes, stats, null);
       } finally {
         child.recycle();
       }
@@ -569,6 +582,32 @@ public final class SnapshotInstrumentation extends Instrumentation {
     if (value) {
       appendAttribute(xml, name, "true");
     }
+  }
+
+  private static void appendWindowMetadata(StringBuilder xml, WindowMetadata metadata) {
+    appendAttribute(xml, "window-index", Integer.toString(metadata.index));
+    appendAttribute(xml, "window-type", Integer.toString(metadata.type));
+    appendAttribute(xml, "window-layer", Integer.toString(metadata.layer));
+    appendAttribute(xml, "window-active", Boolean.toString(metadata.active));
+    appendAttribute(xml, "window-focused", Boolean.toString(metadata.focused));
+    appendAttribute(
+        xml,
+        "window-bounds",
+        String.format(
+            Locale.ROOT,
+            "[%d,%d][%d,%d]",
+            metadata.bounds.left,
+            metadata.bounds.top,
+            metadata.bounds.right,
+            metadata.bounds.bottom));
+  }
+
+  @SuppressWarnings("deprecation")
+  private static WindowMetadata readWindowMetadata(AccessibilityWindowInfo window, int index) {
+    Rect bounds = new Rect();
+    window.getBoundsInScreen(bounds);
+    return new WindowMetadata(
+        index, window.getType(), window.getLayer(), window.isActive(), window.isFocused(), bounds);
   }
 
   private static void appendAttribute(StringBuilder xml, String name, CharSequence value) {
@@ -700,6 +739,24 @@ public final class SnapshotInstrumentation extends Instrumentation {
       this.windowCount = windowCount;
       this.nodeCount = nodeCount;
       this.truncated = truncated;
+    }
+  }
+
+  private static final class WindowMetadata {
+    final int index;
+    final int type;
+    final int layer;
+    final boolean active;
+    final boolean focused;
+    final Rect bounds;
+
+    WindowMetadata(int index, int type, int layer, boolean active, boolean focused, Rect bounds) {
+      this.index = index;
+      this.type = type;
+      this.layer = layer;
+      this.active = active;
+      this.focused = focused;
+      this.bounds = bounds;
     }
   }
 }

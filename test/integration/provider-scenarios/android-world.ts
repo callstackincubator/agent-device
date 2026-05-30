@@ -59,8 +59,8 @@ export async function createAndroidSettingsWorld(options?: {
   const inventoryRequests: DeviceInventoryRequest[] = [];
   const apkInstallCalls: Array<{ apkPath: string; replace?: boolean }> = [];
   const bundleInstallCalls: Array<{ bundlePath: string; mode: string }> = [];
-  let searchText = '';
-  let clipboardText = 'hello';
+  const shellState = createAndroidProviderShellState();
+  const appState = createAndroidProviderAppState();
   const spawnedLogcat: AndroidAdbProcess[] = [];
   const tempRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), 'agent-device-provider-scenario-android-deploy-'),
@@ -80,15 +80,14 @@ export async function createAndroidSettingsWorld(options?: {
     exec: async (args) => {
       adbCalls.push([...args]);
       options?.onAdbExec?.([...args]);
-      if (args[0] === 'shell' && args[1] === 'input' && args[2] === 'text') {
-        searchText = String(args[3] ?? '').replaceAll('%s', ' ');
-      }
-      if (args.join(' ') === 'shell cmd clipboard set text android otp') {
-        clipboardText = 'android otp';
-      }
-      return androidAdbResult(args, searchText, clipboardText, {
+      updateAndroidProviderShellState(args, shellState);
+      const stateResult = updateAndroidProviderAppState(args, appState);
+      if (stateResult) return stateResult;
+      return androidAdbResult(args, shellState.searchText, shellState.clipboardText, {
         snapshotXml: options?.snapshotXml,
-        dumpsysWindow: options?.dumpsysWindow,
+        dumpsysWindow:
+          options?.dumpsysWindow ?? (() => androidForegroundWindowDump(appState.foreground)),
+        pidof: (packageName) => androidPidofResult(appState, packageName),
       });
     },
     install: async (apk, options) => {
@@ -102,8 +101,8 @@ export async function createAndroidSettingsWorld(options?: {
       const child = makeMockAdbProcess();
       spawnedLogcat.push(child);
       queueMicrotask(() => {
-        child.stdout?.push(`I/AgentDevice(4242): ${args.join(' ')}\n`);
         if (args.includes('logcat')) {
+          child.stdout?.push(`I/AgentDevice(4242): ${args.join(' ')}\n`);
           child.stdout?.push(
             [
               '04-01 10:00:15.000 D/Network(4242):',
@@ -118,7 +117,13 @@ export async function createAndroidSettingsWorld(options?: {
               '\n',
             ].join(' '),
           );
+          return;
         }
+        child.stdout?.push(`I/AgentDevice(4242): ${args.join(' ')}\n`);
+        child.stdout?.push(null);
+        child.stderr?.push(null);
+        child.emit('exit', 0, null);
+        child.emit('close', 0, null);
       });
       return child;
     },
@@ -126,7 +131,7 @@ export async function createAndroidSettingsWorld(options?: {
   if (options?.nativeTextInjection) {
     adbProvider.text = async (request) => {
       textInjectionCalls.push({ ...request });
-      searchText = request.text;
+      shellState.searchText = request.text;
     };
   }
   if (options?.nativeTouchInjection) {
@@ -199,11 +204,12 @@ function androidAdbResult(
   options: {
     snapshotXml?: () => string;
     dumpsysWindow?: () => string;
+    pidof?: (packageName: string) => AndroidAdbResult | undefined;
   },
 ): { stdout: string; stderr: string; exitCode: number; stdoutBuffer?: Buffer } {
   const key = args.join(' ');
   return (
-    androidDeviceStateAdbResult(key, clipboardText) ??
+    androidDeviceStateAdbResult(key, args, clipboardText, options.pidof) ??
     androidMetricsAdbResult(key) ??
     androidPackageAdbResult(key, args, options.dumpsysWindow) ??
     androidCaptureAdbResult(key, searchText, options.snapshotXml) ?? {
@@ -221,9 +227,30 @@ type AndroidAdbResult = {
   stdoutBuffer?: Buffer;
 };
 
+type AndroidProviderShellState = {
+  searchText: string;
+  clipboardText: string;
+};
+
+function createAndroidProviderShellState(): AndroidProviderShellState {
+  return { searchText: '', clipboardText: 'hello' };
+}
+
+function updateAndroidProviderShellState(args: string[], state: AndroidProviderShellState): void {
+  if (args[0] === 'shell' && args[1] === 'input' && args[2] === 'text') {
+    state.searchText = String(args[3] ?? '').replaceAll('%s', ' ');
+    return;
+  }
+  if (args.join(' ') === 'shell cmd clipboard set text android otp') {
+    state.clipboardText = 'android otp';
+  }
+}
+
 function androidDeviceStateAdbResult(
   key: string,
+  args: string[],
   clipboardText: string,
+  pidof?: (packageName: string) => AndroidAdbResult | undefined,
 ): AndroidAdbResult | undefined {
   if (key === 'shell getprop sys.boot_completed') {
     return { stdout: '1\n', stderr: '', exitCode: 0 };
@@ -234,10 +261,78 @@ function androidDeviceStateAdbResult(
   if (key === 'shell dumpsys input_method') {
     return { stdout: 'mInputShown=false inputType=0x1\n', stderr: '', exitCode: 0 };
   }
-  if (key === 'shell pidof com.example.demo') {
-    return { stdout: '4242\n', stderr: '', exitCode: 0 };
+  if (args[0] === 'shell' && args[1] === 'pidof' && args[2]) {
+    return pidof?.(args[2]) ?? { stdout: '4242\n', stderr: '', exitCode: 0 };
   }
   return undefined;
+}
+
+type AndroidProviderAppState = {
+  foreground: string | null;
+  runningPackages: Set<string>;
+};
+
+function createAndroidProviderAppState(): AndroidProviderAppState {
+  return {
+    foreground: 'com.android.settings/.Settings',
+    runningPackages: new Set(['com.android.settings', 'com.example.demo']),
+  };
+}
+
+function updateAndroidProviderAppState(
+  args: string[],
+  state: AndroidProviderAppState,
+): AndroidAdbResult | undefined {
+  if (args[0] !== 'shell' || args[1] !== 'am') return undefined;
+  return stopAndroidProviderApp(args, state) ?? startAndroidProviderApp(args, state);
+}
+
+function stopAndroidProviderApp(
+  args: string[],
+  state: AndroidProviderAppState,
+): AndroidAdbResult | undefined {
+  if (args[2] !== 'force-stop' || !args[3]) return undefined;
+  const packageName = args[3];
+  state.runningPackages.delete(packageName);
+  if (state.foreground?.startsWith(`${packageName}/`)) {
+    state.foreground = null;
+  }
+  return { stdout: '', stderr: '', exitCode: 0 };
+}
+
+function startAndroidProviderApp(args: string[], state: AndroidProviderAppState): undefined {
+  if (args[2] !== 'start' && args[2] !== 'start-activity') return undefined;
+
+  const componentIndex = args.indexOf('-n');
+  const component = componentIndex >= 0 ? args[componentIndex + 1] : undefined;
+  if (component) {
+    foregroundAndroidComponent(state, component);
+    return undefined;
+  }
+  if (args.includes('android.settings.SETTINGS')) {
+    foregroundAndroidComponent(state, 'com.android.settings/.Settings');
+  }
+  return undefined;
+}
+
+function foregroundAndroidComponent(state: AndroidProviderAppState, component: string): void {
+  const packageName = component.split('/')[0];
+  if (!packageName) return;
+  state.runningPackages.add(packageName);
+  state.foreground = component;
+}
+
+function androidPidofResult(
+  state: AndroidProviderAppState,
+  packageName: string,
+): AndroidAdbResult | undefined {
+  return state.runningPackages.has(packageName)
+    ? { stdout: '4242\n', stderr: '', exitCode: 0 }
+    : { stdout: '', stderr: '', exitCode: 1 };
+}
+
+function androidForegroundWindowDump(foreground: string | null): string {
+  return foreground ? `mCurrentFocus=Window{42 u0 ${foreground}}\n` : 'mCurrentFocus=null\n';
 }
 
 function androidMetricsAdbResult(key: string): AndroidAdbResult | undefined {
@@ -428,7 +523,7 @@ function escapeXml(value: string): string {
     .replaceAll('>', '&gt;');
 }
 
-function makeMockAdbProcess(): AndroidAdbProcess {
+function makeMockAdbProcess(): EventEmitter & AndroidAdbProcess {
   const child = new EventEmitter() as EventEmitter & AndroidAdbProcess;
   child.stdin = null;
   child.stdout = new PassThrough();

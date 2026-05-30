@@ -900,7 +900,7 @@ test('usage includes concise top-level commands', () => {
   assert.match(usageText, /clipboard read \| clipboard write <text>/);
   assert.match(usageText, /keyboard \[action\]/);
   assert.match(usageText, /trigger-app-event <event> \[payloadJson\]/);
-  assert.match(usageText, /gesture <pan\|fling\|pinch\|rotate\|transform> \.\.\./);
+  assert.match(usageText, /gesture <pan\|fling\|swipe\|pinch\|rotate\|transform> \.\.\./);
   assert.doesNotMatch(usageText, /^  pan <x> <y> <dx> <dy> \[durationMs\]/m);
   assert.doesNotMatch(usageText, /^  fling <up\|down\|left\|right>/m);
   assert.doesNotMatch(usageText, /^  pinch <scale> \[x\] \[y\]/m);
@@ -1552,6 +1552,7 @@ test('settings usage documents canonical faceid states', () => {
   const help = usageForCommand('settings');
   if (help === null) throw new Error('Expected command help text');
   assert.match(help, /location set <lat> <lon>/);
+  assert.match(help, /clear-app-state \[app-id\]/);
   assert.match(help, /light\|dark\|toggle/);
   assert.match(help, /match\|nonmatch\|enroll\|unenroll/);
   assert.match(

@@ -6,6 +6,7 @@ import { sleep } from '../../utils/timeouts.ts';
 import {
   captureMaestroRawSnapshot,
   errorResponse,
+  rememberMaestroVisibleContext,
   readSnapshotState,
   type MaestroRuntimeInvoke,
   type ReplayBaseRequest,
@@ -134,6 +135,7 @@ async function readMaestroVisibilitySample(
       infrastructureFailure: false,
     };
   }
+  rememberMaestroVisibleContext(params.scope, selector);
   return {
     visible: true,
     response: {

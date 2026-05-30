@@ -196,11 +196,7 @@ export async function openIosApp(
       throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
     }
     if (device.kind === 'simulator') {
-      if (launchArgs && launchArgs.length > 0) {
-        throw new AppError('INVALID_ARGS', IOS_SIMULATOR_LAUNCH_ARGS_WITH_URL_MESSAGE);
-      }
-      await ensureBootedSimulator(device);
-      await runSimctl(device, ['openurl', device.id, explicitUrl]);
+      await openIosSimulatorUrl(device, explicitUrl, launchArgs);
       return;
     }
     const appBundleId = options?.appBundleId ?? (await resolveIosApp(device, app));
@@ -221,11 +217,7 @@ export async function openIosApp(
       throw new AppError('INVALID_ARGS', LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE);
     }
     if (device.kind === 'simulator') {
-      if (launchArgs && launchArgs.length > 0) {
-        throw new AppError('INVALID_ARGS', IOS_SIMULATOR_LAUNCH_ARGS_WITH_URL_MESSAGE);
-      }
-      await ensureBootedSimulator(device);
-      await runSimctl(device, ['openurl', device.id, deepLinkTarget]);
+      await openIosSimulatorUrl(device, deepLinkTarget, launchArgs);
       return;
     }
     const bundleId = resolveIosDeviceDeepLinkBundleId(options?.appBundleId, deepLinkTarget);
@@ -249,6 +241,18 @@ export async function openIosApp(
   }
 
   await launchIosDeviceProcess(device, bundleId, { launchArgs });
+}
+
+async function openIosSimulatorUrl(
+  device: DeviceInfo,
+  url: string,
+  launchArgs: string[] | undefined,
+): Promise<void> {
+  if (launchArgs && launchArgs.length > 0) {
+    throw new AppError('INVALID_ARGS', IOS_SIMULATOR_LAUNCH_ARGS_WITH_URL_MESSAGE);
+  }
+  await ensureBootedSimulator(device);
+  await runSimctl(device, ['openurl', device.id, url]);
 }
 
 export async function openIosDevice(device: DeviceInfo): Promise<void> {
@@ -294,7 +298,7 @@ export async function closeIosApp(device: DeviceInfo, app: string): Promise<void
   });
 }
 
-export async function clearIosSimulatorAppState(
+async function clearIosSimulatorAppState(
   device: DeviceInfo,
   app: string,
 ): Promise<{ bundleId: string; containerPath: string }> {
@@ -530,6 +534,19 @@ export async function setIosSetting(
   const normalized = setting.toLowerCase();
 
   switch (normalized) {
+    case 'clear-app-state': {
+      if (state.toLowerCase() !== 'clear') {
+        throw new AppError('INVALID_ARGS', 'settings clear-app-state only supports clear.');
+      }
+      if (!appBundleId) {
+        throw new AppError(
+          'INVALID_ARGS',
+          'settings clear-app-state requires an app id or an active app session.',
+        );
+      }
+      const result = await clearIosSimulatorAppState(device, appBundleId);
+      return { bundleId: result.bundleId, containerPath: result.containerPath, cleared: true };
+    }
     case 'wifi': {
       const enabled = parseSettingState(state);
       const mode = enabled ? 'active' : 'failed';

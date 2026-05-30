@@ -107,12 +107,13 @@ test('snapshot replay script parses full refresh flags', () => {
   assert.equal(parsed[0]?.flags.snapshotScope, '@e1');
 });
 
-test('gesture replay script parses pan, fling, pinch, and rotate gesture commands', () => {
+test('gesture replay script parses pan, fling, swipe, pinch, and rotate gesture commands', () => {
   const parsed = parseReplayScript(
     [
       'gesture pan 195 443 80 0',
       'wait "pan changed yes" 5000',
       'gesture fling right 195 443 180',
+      'gesture swipe right-edge 300',
       'gesture pinch 1.25 195 443',
       'gesture rotate 35 195 443',
       '',
@@ -121,12 +122,13 @@ test('gesture replay script parses pan, fling, pinch, and rotate gesture command
 
   assert.deepEqual(
     parsed.map((action) => action.command),
-    ['gesture', 'wait', 'gesture', 'gesture', 'gesture'],
+    ['gesture', 'wait', 'gesture', 'gesture', 'gesture', 'gesture'],
   );
   assert.deepEqual(parsed[0]?.positionals, ['pan', '195', '443', '80', '0']);
   assert.deepEqual(parsed[2]?.positionals, ['fling', 'right', '195', '443', '180']);
-  assert.deepEqual(parsed[3]?.positionals, ['pinch', '1.25', '195', '443']);
-  assert.deepEqual(parsed[4]?.positionals, ['rotate', '35', '195', '443']);
+  assert.deepEqual(parsed[3]?.positionals, ['swipe', 'right-edge', '300']);
+  assert.deepEqual(parsed[4]?.positionals, ['pinch', '1.25', '195', '443']);
+  assert.deepEqual(parsed[5]?.positionals, ['rotate', '35', '195', '443']);
 });
 
 test('type and fill replay scripts round-trip typing delay flags', () => {

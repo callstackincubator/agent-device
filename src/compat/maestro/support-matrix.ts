@@ -1,5 +1,5 @@
 export const MAESTRO_COMPAT_SUPPORTED_CAPABILITIES = [
-  'app launch with Apple-platform launch arguments and iOS simulator clearState',
+  'app launch with Apple-platform launch arguments and Android/iOS simulator clearState',
   'runFlow file/inline with when.platform, when.visible, when.notVisible, and limited when.true boolean/platform expressions',
   'onFlowStart and onFlowComplete hooks',
   'deterministic repeat.times',

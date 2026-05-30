@@ -270,6 +270,7 @@ export function createAgentDeviceClient(
       swipe: async (options) => await executeCommand('swipe', options),
       pan: async (options) => await executeCommand('gesture-pan', options),
       fling: async (options) => await executeCommand('gesture-fling', options),
+      swipeGesture: async (options) => await executeCommand('gesture-swipe', options),
       focus: async (options) => await executeCommand('focus', options),
       type: async (options) => await executeCommand('type', options),
       fill: async (options) => await executeCommand('fill', options),

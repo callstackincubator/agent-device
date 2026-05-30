@@ -104,7 +104,7 @@ Command shape:
   Snapshot refs look like @e12. After snapshot -i, use the exact @eN ref from that output.
   If the exact ref is not known yet, first output snapshot -i, then use a concrete example shape like press @e12 in the next command; do not write @<ref>, @ref, @Label_Name, or @eN placeholders.
   Close means agent-device close. App-owned back means back; system back means back --system.
-  Taps are press or click. Gestures use swipe, longpress, or gesture <pan|fling|pinch|rotate|transform>. Android pinch, rotate, and transform use provider-native touch injection when available, then the bundled multi-touch helper. iOS simulator transform uses private XCTest synthesis for a continuous two-finger pan/scale/rotation path; otherwise it reports UNSUPPORTED_OPERATION.
+  Taps are press or click. Gestures use swipe, longpress, or gesture <pan|fling|swipe|pinch|rotate|transform>. Use gesture swipe left|right for reliable in-page horizontal swipes, and gesture swipe right-edge for left-edge navigation/back gestures. Android pinch, rotate, and transform use provider-native touch injection when available, then the bundled multi-touch helper. iOS simulator transform uses private XCTest synthesis for a continuous two-finger pan/scale/rotation path; otherwise it reports UNSUPPORTED_OPERATION.
 
 Bootstrap:
   agent-device devices --platform ios

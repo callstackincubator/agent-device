@@ -97,6 +97,29 @@ test('visible predicate uses visible Android ancestor geometry for rectless text
   assert.equal(result.pass, true);
 });
 
+test('visible predicate treats Android nodes hidden from users as hidden', () => {
+  const nodes: SnapshotNode[] = [
+    {
+      index: 0,
+      ref: 'e0',
+      type: 'android.widget.Button',
+      label: 'Drawer item',
+      rect: { x: 0, y: 0, width: 200, height: 80 },
+      hittable: true,
+      visibleToUser: false,
+    },
+  ];
+
+  const result = evaluateIsPredicate({
+    predicate: 'visible',
+    node: nodes[0]!,
+    nodes,
+    platform: 'android',
+  });
+
+  assert.equal(result.pass, false);
+});
+
 test('visible predicate does not use non-hittable Android layout ancestors for rectless text', () => {
   const nodes: SnapshotNode[] = [
     {

@@ -71,9 +71,7 @@ test('lease handler coverage table points at executable commands', async () => {
         flags: {
           tenant: 'tenant-a',
           runId: 'run-a',
-          ...(command === INTERNAL_COMMANDS.leaseAllocate
-            ? {}
-            : { leaseId: allocated.leaseId }),
+          ...(command === INTERNAL_COMMANDS.leaseAllocate ? {} : { leaseId: allocated.leaseId }),
         },
         positionals: [],
       },

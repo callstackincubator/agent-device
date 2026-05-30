@@ -5,6 +5,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  closeAndroidApp,
   inferAndroidAppName,
   installAndroidApp,
   installAndroidInstallablePath,
@@ -84,6 +85,32 @@ function androidOpenAdbScript(): string {
   ].join('\n');
 }
 
+function androidSnapshotHelperStateFileScript(): string[] {
+  return [
+    'if [ "$1" = "shell" ] && [ "$2" = "cmd" ] && [ "$3" = "package" ] && [ "$4" = "list" ] && [ "$5" = "packages" ] && [ "$6" = "--show-versioncode" ] && [ "$7" = "com.callstack.agentdevice.snapshothelper" ]; then',
+    '  printf "package:com.callstack.agentdevice.snapshothelper versionCode:999999\\n"',
+    '  exit 0',
+    'fi',
+    'if [ "$1" = "shell" ] && [ "$2" = "am" ] && [ "$3" = "instrument" ]; then',
+    '  text="$(cat "$STATE_FILE" 2>/dev/null)"',
+    '  xml="$(printf "<?xml version=\\"1.0\\" encoding=\\"UTF-8\\"?><hierarchy><node class=\\"android.widget.EditText\\" text=\\"%s\\" focused=\\"true\\" bounds=\\"[0,0][200,100]\\"/></hierarchy>" "$text")"',
+    '  payload="$(printf "%s" "$xml" | base64 | tr -d "\\n")"',
+    '  printf "INSTRUMENTATION_STATUS: agentDeviceProtocol=android-snapshot-helper-v1\\n"',
+    '  printf "INSTRUMENTATION_STATUS: helperApiVersion=1\\n"',
+    '  printf "INSTRUMENTATION_STATUS: outputFormat=uiautomator-xml\\n"',
+    '  printf "INSTRUMENTATION_STATUS: chunkIndex=0\\n"',
+    '  printf "INSTRUMENTATION_STATUS: chunkCount=1\\n"',
+    '  printf "INSTRUMENTATION_STATUS: payloadBase64=%s\\n" "$payload"',
+    '  printf "INSTRUMENTATION_STATUS_CODE: 1\\n"',
+    '  printf "INSTRUMENTATION_RESULT: agentDeviceProtocol=android-snapshot-helper-v1\\n"',
+    '  printf "INSTRUMENTATION_RESULT: helperApiVersion=1\\n"',
+    '  printf "INSTRUMENTATION_RESULT: ok=true\\n"',
+    '  printf "INSTRUMENTATION_CODE: 0\\n"',
+    '  exit 0',
+    'fi',
+  ];
+}
+
 test('parseUiHierarchy reads double-quoted Android node attributes', () => {
   const xml =
     '<hierarchy><node class="android.widget.TextView" text="Hello" content-desc="Greeting" resource-id="com.demo:id/title" bounds="[10,20][110,60]" clickable="true" enabled="true"/></hierarchy>';
@@ -96,6 +123,7 @@ test('parseUiHierarchy reads double-quoted Android node attributes', () => {
   assert.deepEqual(result.nodes[0]!.rect, { x: 10, y: 20, width: 100, height: 40 });
   assert.equal(result.nodes[0]!.hittable, true);
   assert.equal(result.nodes[0]!.enabled, true);
+  assert.equal(result.nodes[0]!.visibleToUser, undefined);
 });
 
 test('parseUiHierarchy reads single-quoted Android node attributes', () => {
@@ -135,7 +163,7 @@ test('parseUiHierarchy decodes XML entities in Android node attributes', () => {
 
 test('androidUiNodes exposes decoded Android hierarchy metadata', () => {
   const xml =
-    '<hierarchy><node package="com.example.app" class="android.widget.EditText" text="Fish &amp; Chips" content-desc="Search&#10;field" resource-id="com.example.app:id/search" bounds="[10,20][110,70]" clickable="false" enabled="true" focusable="true" focused="true" password="true"/></hierarchy>';
+    '<hierarchy><node package="com.example.app" class="android.widget.EditText" text="Fish &amp; Chips" content-desc="Search&#10;field" resource-id="com.example.app:id/search" bounds="[10,20][110,70]" clickable="false" enabled="true" visible-to-user="true" focusable="true" focused="true" password="true" window-index="0" window-type="1" window-layer="3" window-active="true" window-focused="false" window-bounds="[0,0][390,844]"/></hierarchy>';
 
   assert.deepEqual(Array.from(androidUiNodes(xml)), [
     {
@@ -148,11 +176,113 @@ test('androidUiNodes exposes decoded Android hierarchy metadata', () => {
       rect: { x: 10, y: 20, width: 100, height: 50 },
       clickable: false,
       enabled: true,
+      visibleToUser: true,
       focusable: true,
       focused: true,
       password: true,
+      windowIndex: 0,
+      windowType: 1,
+      windowLayer: 3,
+      windowActive: true,
+      windowFocused: false,
+      windowRect: { x: 0, y: 0, width: 390, height: 844 },
     },
   ]);
+});
+
+test('parseUiHierarchy discards stale inactive Android application windows', () => {
+  const xml = `<hierarchy>
+  <node class="android.widget.FrameLayout" package="com.example.app" bounds="[0,0][390,844]" window-index="0" window-type="1" window-layer="10" window-active="true" window-focused="true" window-bounds="[0,0][390,844]">
+    <node class="android.widget.TextView" text="Foreground article" bounds="[10,20][200,60]" enabled="true"/>
+  </node>
+  <node class="android.widget.FrameLayout" package="com.example.app" bounds="[0,0][300,844]" window-index="1" window-type="1" window-layer="9" window-active="false" window-focused="false" window-bounds="[0,0][300,844]">
+    <node class="android.widget.TextView" text="Stale drawer item" bounds="[10,20][200,60]" enabled="true"/>
+  </node>
+</hierarchy>`;
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Foreground article'),
+    true,
+  );
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Stale drawer item'),
+    false,
+  );
+});
+
+test('parseUiHierarchy keeps the active Android application overlay window', () => {
+  const xml = `<hierarchy>
+  <node class="android.widget.FrameLayout" package="com.example.app" bounds="[0,0][390,844]" window-index="0" window-type="1" window-layer="9" window-active="false" window-focused="false" window-bounds="[0,0][390,844]">
+    <node class="android.widget.TextView" text="Covered content" bounds="[10,20][200,60]" enabled="true"/>
+  </node>
+  <node class="android.widget.FrameLayout" package="com.example.app" bounds="[0,0][300,844]" window-index="1" window-type="1" window-layer="10" window-active="true" window-focused="true" window-bounds="[0,0][300,844]">
+    <node class="android.widget.TextView" text="Foreground drawer item" bounds="[10,20][200,60]" enabled="true"/>
+  </node>
+</hierarchy>`;
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Covered content'),
+    false,
+  );
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Foreground drawer item'),
+    true,
+  );
+});
+
+test('parseUiHierarchy keeps only the top active Android application window', () => {
+  const xml = `<hierarchy>
+  <node class="android.widget.FrameLayout" package="com.example.app" bounds="[0,0][390,844]" window-index="0" window-type="1" window-layer="9" window-active="true" window-focused="false" window-bounds="[0,0][390,844]">
+    <node class="android.widget.TextView" text="Active stale content" bounds="[10,20][200,60]" enabled="true"/>
+  </node>
+  <node class="android.widget.FrameLayout" package="com.example.app" bounds="[0,0][390,844]" window-index="1" window-type="1" window-layer="10" window-active="true" window-focused="true" window-bounds="[0,0][390,844]">
+    <node class="android.widget.TextView" text="Top active content" bounds="[10,20][200,60]" enabled="true"/>
+  </node>
+</hierarchy>`;
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Active stale content'),
+    false,
+  );
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Top active content'),
+    true,
+  );
+});
+
+test('parseUiHierarchy excludes Android nodes that are not visible to the user', () => {
+  const xml = `<hierarchy>
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" enabled="true" visible-to-user="true">
+    <node class="android.widget.Button" text="Visible action" bounds="[10,20][200,60]" clickable="true" enabled="true" visible-to-user="true"/>
+    <node class="android.widget.Button" text="Hidden drawer action" bounds="[10,80][200,120]" clickable="true" enabled="true" visible-to-user="false"/>
+  </node>
+</hierarchy>`;
+
+  const result = parseUiHierarchy(xml, 800, { interactiveOnly: true });
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Visible action'),
+    true,
+  );
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Hidden drawer action'),
+    false,
+  );
+});
+
+test('parseUiHierarchy preserves Android visible-to-user metadata in raw snapshots', () => {
+  const xml = `<hierarchy>
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" enabled="true" visible-to-user="true">
+    <node class="android.widget.Button" text="Hidden drawer action" bounds="[10,80][200,120]" clickable="true" enabled="true" visible-to-user="false"/>
+  </node>
+</hierarchy>`;
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.equal(result.nodes[0]!.visibleToUser, true);
+  assert.equal(result.nodes[1]!.label, 'Hidden drawer action');
+  assert.equal(result.nodes[1]!.visibleToUser, false);
 });
 
 test('parseUiHierarchy ignores attribute-name prefix spoofing', () => {
@@ -534,6 +664,145 @@ test('openAndroidApp rejects activity override for deep link URLs', async () => 
   );
 });
 
+test('closeAndroidApp waits until package is no longer foreground', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+  const calls: string[][] = [];
+  let focusPolls = 0;
+
+  await withAndroidAdbProvider(
+    {
+      exec: async (args) => {
+        calls.push(args);
+        if (args.join(' ') === 'shell dumpsys window windows') {
+          focusPolls += 1;
+          return {
+            stdout:
+              focusPolls === 1
+                ? 'mCurrentFocus=Window{42 u0 com.example.app/.MainActivity}\n'
+                : 'mCurrentFocus=Window{43 u0 com.android.launcher/.Launcher}\n',
+            stderr: '',
+            exitCode: 0,
+          };
+        }
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      reverse: {
+        ensure: async () => {},
+        remove: async () => {},
+        removeAllOwned: async () => {},
+      },
+    },
+    { serial: 'emulator-5554' },
+    async () => await closeAndroidApp(device, 'com.example.app'),
+  );
+
+  assert.deepEqual(calls, [
+    ['shell', 'am', 'force-stop', 'com.example.app'],
+    ['shell', 'dumpsys', 'window', 'windows'],
+    ['shell', 'dumpsys', 'window', 'windows'],
+    ['shell', 'pidof', 'com.example.app'],
+    ['shell', 'pidof', 'com.example.app'],
+  ]);
+});
+
+test('closeAndroidApp returns after force-stop when package is already not foreground', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+  const calls: string[][] = [];
+
+  await withAndroidAdbProvider(
+    {
+      exec: async (args) => {
+        calls.push(args);
+        if (args.join(' ') === 'shell dumpsys window windows') {
+          return {
+            stdout: 'mCurrentFocus=Window{43 u0 com.android.launcher/.Launcher}\n',
+            stderr: '',
+            exitCode: 0,
+          };
+        }
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      reverse: {
+        ensure: async () => {},
+        remove: async () => {},
+        removeAllOwned: async () => {},
+      },
+    },
+    { serial: 'emulator-5554' },
+    async () => await closeAndroidApp(device, 'com.example.app'),
+  );
+
+  assert.deepEqual(calls, [
+    ['shell', 'am', 'force-stop', 'com.example.app'],
+    ['shell', 'dumpsys', 'window', 'windows'],
+    ['shell', 'pidof', 'com.example.app'],
+    ['shell', 'pidof', 'com.example.app'],
+  ]);
+});
+
+test('closeAndroidApp waits until package process exits after force-stop', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+  const calls: string[][] = [];
+  let processPolls = 0;
+
+  await withAndroidAdbProvider(
+    {
+      exec: async (args) => {
+        calls.push(args);
+        if (args.join(' ') === 'shell dumpsys window windows') {
+          return {
+            stdout: 'mCurrentFocus=Window{43 u0 com.android.launcher/.Launcher}\n',
+            stderr: '',
+            exitCode: 0,
+          };
+        }
+        if (args.join(' ') === 'shell pidof com.example.app') {
+          processPolls += 1;
+          return {
+            stdout: processPolls === 1 ? '12345\n' : '',
+            stderr: '',
+            exitCode: processPolls === 1 ? 0 : 1,
+          };
+        }
+        return { stdout: '', stderr: '', exitCode: 0 };
+      },
+      reverse: {
+        ensure: async () => {},
+        remove: async () => {},
+        removeAllOwned: async () => {},
+      },
+    },
+    { serial: 'emulator-5554' },
+    async () => await closeAndroidApp(device, 'com.example.app'),
+  );
+
+  assert.deepEqual(calls, [
+    ['shell', 'am', 'force-stop', 'com.example.app'],
+    ['shell', 'dumpsys', 'window', 'windows'],
+    ['shell', 'pidof', 'com.example.app'],
+    ['shell', 'pidof', 'com.example.app'],
+    ['shell', 'pidof', 'com.example.app'],
+  ]);
+});
+
 test('openAndroidApp ensures Android reverse before localhost deep link launch', async () => {
   const device: DeviceInfo = {
     platform: 'android',
@@ -870,6 +1139,38 @@ test('rotateAndroid locks auto-rotate and sets user rotation', async () => {
       const logged = lines.join(' ');
       assert.match(logged, /shell settings put system accelerometer_rotation 0/);
       assert.match(logged, /shell settings put system user_rotation 1/);
+    },
+  );
+});
+
+test('setAndroidSetting clear-app-state force stops and clears package data', async () => {
+  await withMockedAdb(
+    'agent-device-android-clear-app-state-',
+    [
+      '#!/bin/sh',
+      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+      'if [ "$1" = "-s" ]; then',
+      '  shift',
+      '  shift',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "am" ] && [ "$3" = "force-stop" ] && [ "$4" = "com.example.app" ]; then',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "clear" ] && [ "$4" = "com.example.app" ]; then',
+      '  echo "Success"',
+      '  exit 0',
+      'fi',
+      'echo "unexpected args: $@" >&2',
+      'exit 1',
+      '',
+    ].join('\n'),
+    async ({ argsLogPath, device }) => {
+      const result = await setAndroidSetting(device, 'clear-app-state', 'clear', 'com.example.app');
+      assert.deepEqual(result, { package: 'com.example.app', cleared: true });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /shell\nam\nforce-stop\ncom\.example\.app/);
+      assert.match(logged, /shell\npm\nclear\ncom\.example\.app/);
     },
   );
 });
@@ -1446,6 +1747,7 @@ test('fillAndroid uses chunk-safe shell input and retries when verification stil
       '  shift',
       '  shift',
       'fi',
+      ...androidSnapshotHelperStateFileScript(),
       'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "tap" ]; then',
       '  exit 0',
       'fi',
@@ -1499,6 +1801,7 @@ test('fillAndroid keeps delayed typing in typed-input mode', async () => {
       '  shift',
       '  shift',
       'fi',
+      ...androidSnapshotHelperStateFileScript(),
       'if [ "$1" = "shell" ] && [ "$2" = "input" ] && [ "$3" = "tap" ]; then',
       '  exit 0',
       'fi',

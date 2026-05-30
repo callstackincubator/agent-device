@@ -20,6 +20,7 @@ import {
 
 const SESSION_READY_TIMEOUT_MS = 10_000;
 const SESSION_STOP_TIMEOUT_MS = 1_000;
+const SESSION_PROCESS_EXIT_TIMEOUT_MS = 2_000;
 const FORWARD_TIMEOUT_MS = 5_000;
 
 type AndroidSnapshotHelperSession = {
@@ -33,6 +34,7 @@ type AndroidSnapshotHelperSession = {
 };
 
 const sessions = new Map<string, AndroidSnapshotHelperSession>();
+const disabledSessionIdentities = new Map<string, string>();
 
 export async function captureAndroidSnapshotWithHelperSession(
   options: AndroidSnapshotHelperCaptureOptions,
@@ -43,18 +45,34 @@ export async function captureAndroidSnapshotWithHelperSession(
   const resolved = resolveAndroidSnapshotHelperCaptureOptions(options);
   const deviceKey = options.deviceKey ?? 'android:default';
   const identity = createSessionIdentity(deviceKey, resolved, options);
+  if (disabledSessionIdentities.get(deviceKey) === identity) {
+    return undefined;
+  }
   let session = sessions.get(deviceKey);
   if (session && session.identity !== identity) {
     await stopAndroidSnapshotHelperSession(deviceKey);
     session = undefined;
   }
   if (!session) {
-    session = await startAndroidSnapshotHelperSession({
-      deviceKey,
-      identity,
-      options,
-      resolved,
-    });
+    try {
+      session = await startAndroidSnapshotHelperSession({
+        deviceKey,
+        identity,
+        options,
+        resolved,
+      });
+    } catch (error) {
+      disabledSessionIdentities.set(deviceKey, identity);
+      emitDiagnostic({
+        level: 'warn',
+        phase: 'android_snapshot_helper_session_disabled',
+        data: {
+          deviceKey,
+          reason: error instanceof Error ? error.message : String(error),
+        },
+      });
+      return undefined;
+    }
   }
   try {
     const reused = session.capturedCount > 0;
@@ -88,6 +106,7 @@ export async function stopAndroidSnapshotHelperSession(deviceKey: string): Promi
   } catch {
     // Best effort. A completed instrumentation process can reject/ignore kill.
   }
+  await waitForProcessExit(session.process, SESSION_PROCESS_EXIT_TIMEOUT_MS);
   try {
     await removeForward(session);
   } catch {
@@ -105,7 +124,10 @@ export async function stopAndroidSnapshotHelperSession(deviceKey: string): Promi
 }
 
 export async function resetAndroidSnapshotHelperSessions(): Promise<void> {
-  await Promise.all([...sessions.keys()].map((deviceKey) => stopAndroidSnapshotHelperSession(deviceKey)));
+  await Promise.all(
+    [...sessions.keys()].map((deviceKey) => stopAndroidSnapshotHelperSession(deviceKey)),
+  );
+  disabledSessionIdentities.clear();
 }
 
 async function startAndroidSnapshotHelperSession(params: {
@@ -128,13 +150,7 @@ async function startAndroidSnapshotHelperSession(params: {
   if (!runner) {
     throw new AppError('INVALID_ARGS', 'Android snapshot helper runner was not resolved');
   }
-  const sessionArgs = [
-    ...args.slice(0, -1),
-    '-e',
-    'sessionPort',
-    String(port),
-    runner,
-  ];
+  const sessionArgs = [...args.slice(0, -1), '-e', 'sessionPort', String(port), runner];
   const process = params.options.adbProvider!.spawn!(sessionArgs, {
     allowFailure: true,
     captureOutput: false,
@@ -168,8 +184,23 @@ async function startAndroidSnapshotHelperSession(params: {
     } catch {
       // Best effort after startup failure.
     }
+    await waitForProcessExit(process, SESSION_PROCESS_EXIT_TIMEOUT_MS);
     throw error;
   }
+}
+
+function waitForProcessExit(process: AndroidAdbProcess, timeoutMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, timeoutMs);
+    process.once('close', () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    process.once('exit', () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
 }
 
 function waitForSessionReady(process: AndroidAdbProcess, timeoutMs: number): Promise<void> {
@@ -270,9 +301,13 @@ function parseSessionSnapshotResponse(
 function splitSessionResponse(response: string): { headers: Record<string, string>; xml: string } {
   const separator = response.indexOf('\n\n');
   if (separator < 0) {
-    throw new AppError('COMMAND_FAILED', 'Android snapshot helper session returned malformed output', {
-      response,
-    });
+    throw new AppError(
+      'COMMAND_FAILED',
+      'Android snapshot helper session returned malformed output',
+      {
+        response,
+      },
+    );
   }
   return {
     headers: parseSessionHeaders(response.slice(0, separator)),
@@ -282,9 +317,13 @@ function splitSessionResponse(response: string): { headers: Record<string, strin
 
 function validateSessionHeaders(headers: Record<string, string>, requestId: string): void {
   if (headers.agentDeviceProtocol !== ANDROID_SNAPSHOT_HELPER_PROTOCOL) {
-    throw new AppError('COMMAND_FAILED', 'Android snapshot helper session returned wrong protocol', {
-      headers,
-    });
+    throw new AppError(
+      'COMMAND_FAILED',
+      'Android snapshot helper session returned wrong protocol',
+      {
+        headers,
+      },
+    );
   }
   if (headers.outputFormat !== ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT) {
     throw new AppError(
@@ -311,11 +350,10 @@ function validateSessionHeaders(headers: Record<string, string>, requestId: stri
 function validateSessionXml(headers: Record<string, string>, xml: string): void {
   const byteLength = readAndroidSnapshotHelperMetadataNumber(headers.byteLength);
   if (byteLength !== undefined && Buffer.byteLength(xml, 'utf8') !== byteLength) {
-    throw new AppError(
-      'COMMAND_FAILED',
-      'Android snapshot helper session returned truncated XML',
-      { headers, actualByteLength: Buffer.byteLength(xml, 'utf8') },
-    );
+    throw new AppError('COMMAND_FAILED', 'Android snapshot helper session returned truncated XML', {
+      headers,
+      actualByteLength: Buffer.byteLength(xml, 'utf8'),
+    });
   }
   if (!xml.includes('<hierarchy') || !xml.includes('</hierarchy>')) {
     throw new AppError('COMMAND_FAILED', 'Android snapshot helper session did not return XML', {

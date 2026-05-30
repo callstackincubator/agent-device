@@ -19,6 +19,7 @@ export type MaestroRuntimeInvoke = (req: DaemonRequest) => Promise<DaemonRespons
 export type FailedDaemonResponse = Extract<DaemonResponse, { ok: false }>;
 
 const maestroReferenceFrameCache = new WeakMap<ReplayVarScope, TouchReferenceFrame>();
+const maestroVisibleContextCache = new WeakMap<ReplayVarScope, { selector: string }>();
 
 export function errorResponse(
   code: string,
@@ -66,6 +67,23 @@ export function readCachedMaestroReferenceFrame(
   scope: ReplayVarScope | undefined,
 ): TouchReferenceFrame | undefined {
   return scope ? maestroReferenceFrameCache.get(scope) : undefined;
+}
+
+export function rememberMaestroVisibleContext(
+  scope: ReplayVarScope | undefined,
+  selector: string,
+): void {
+  if (scope) maestroVisibleContextCache.set(scope, { selector });
+}
+
+export function readMaestroVisibleContext(
+  scope: ReplayVarScope | undefined,
+): { selector: string } | undefined {
+  return scope ? maestroVisibleContextCache.get(scope) : undefined;
+}
+
+export function clearMaestroVisibleContext(scope: ReplayVarScope | undefined): void {
+  if (scope) maestroVisibleContextCache.delete(scope);
 }
 
 function rememberMaestroReferenceFrame(scope: ReplayVarScope, data: unknown): void {

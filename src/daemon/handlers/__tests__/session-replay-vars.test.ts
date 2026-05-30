@@ -1519,8 +1519,8 @@ test('runReplayScriptFile resolves Maestro screen swipes from the snapshot frame
   assert.deepEqual(
     calls.map((call) => [call.command, call.positionals]),
     [
+      ['gesture', ['swipe', 'left', '300']],
       ['snapshot', []],
-      ['swipe', ['320', '400', '80', '400', '300']],
       ['swipe', ['360', '400', '40', '400', '300']],
     ],
   );
@@ -1567,8 +1567,8 @@ test('runReplayScriptFile uses Android content lane for Maestro horizontal scree
   assert.deepEqual(
     calls.map((call) => [call.command, call.positionals]),
     [
+      ['gesture', ['swipe', 'left', '300']],
       ['snapshot', []],
-      ['swipe', ['320', '520', '80', '520', '300']],
       ['swipe', ['360', '520', '40', '520', '300']],
     ],
   );
@@ -2042,7 +2042,13 @@ test('runReplayScriptFile writes per-action timing events to active trace', asyn
     sessionName: 's',
     logPath: path.join(root, 'log'),
     sessionStore,
-    invoke: async () => ({ ok: true, data: {} }),
+    invoke: async (req) => ({
+      ok: true,
+      data:
+        req.command === 'click'
+          ? { timing: { totalDurationMs: 12, internal: { ignored: true } } }
+          : {},
+    }),
   });
 
   assert.equal(response.ok, true);
@@ -2061,6 +2067,7 @@ test('runReplayScriptFile writes per-action timing events to active trace', asyn
     ],
   );
   assert.equal(typeof events[1]?.durationMs, 'number');
+  assert.deepEqual(events[1]?.resultTiming, { totalDurationMs: 12 });
 });
 
 test('AD_ARTIFACTS resolves to per-attempt dir when artifactsDir flag is set by the test runner', async () => {

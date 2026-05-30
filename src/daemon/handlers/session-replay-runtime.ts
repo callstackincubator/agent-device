@@ -24,9 +24,10 @@ export async function runReplayScriptFile(params: {
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
+  tracePath?: string;
   invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
 }): Promise<DaemonResponse> {
-  const { req, sessionName, logPath, sessionStore, invoke } = params;
+  const { req, sessionName, logPath, sessionStore, tracePath, invoke } = params;
   const filePath = req.positionals?.[0];
   if (!filePath) {
     return errorResponse('INVALID_ARGS', 'replay requires a path');
@@ -80,6 +81,7 @@ export async function runReplayScriptFile(params: {
       cliEnv: parseReplayCliEnvEntries(readReplayCliEnvEntries(req.flags?.replayEnv)),
     });
     const shouldUpdate = req.flags?.replayUpdate === true;
+    const actionTracePath = tracePath ?? sessionStore.get(sessionName)?.trace?.outPath;
     let healed = 0;
     for (let index = 0; index < actions.length; index += 1) {
       const action = actions[index];
@@ -93,7 +95,7 @@ export async function runReplayScriptFile(params: {
         filePath: resolved,
         line: actionLines[index] ?? 0,
         step: index + 1,
-        tracePath: sessionStore.get(sessionName)?.trace?.outPath,
+        tracePath: actionTracePath,
         invoke,
       });
       if (response.ok) {
@@ -123,7 +125,7 @@ export async function runReplayScriptFile(params: {
         filePath: resolved,
         line: actionLines[index] ?? 0,
         step: index + 1,
-        tracePath: sessionStore.get(sessionName)?.trace?.outPath,
+        tracePath: actionTracePath,
         invoke,
       });
       if (!response.ok) {

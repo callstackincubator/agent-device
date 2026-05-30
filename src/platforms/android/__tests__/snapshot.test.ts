@@ -81,6 +81,9 @@ function createHelperAdb(
 ): AndroidAdbExecutor {
   return async (args, options) => {
     if (args.includes('--show-versioncode')) return installedHelperProbe;
+    if (args[0] === 'shell' && args[1] === 'am' && args[2] === 'force-stop') {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
     if (args.includes('instrument') && handlers.instrument) {
       return await handlers.instrument(args, options);
     }
@@ -476,6 +479,9 @@ test('snapshotAndroid falls back to stock uiautomator when helper fails', async 
     if (args.includes('exec-out')) {
       return { exitCode: 0, stdout: stockXml, stderr: '' };
     }
+    if (args[0] === 'shell' && args[1] === 'am' && args[2] === 'force-stop') {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
     return { exitCode: 1, stdout: '', stderr: 'instrumentation failed' };
   };
 
@@ -492,7 +498,7 @@ test('snapshotAndroid falls back to stock uiautomator when helper fails', async 
   );
   assert.deepEqual(
     adbCalls.map((args) => args[0]),
-    ['shell', 'shell', 'exec-out'],
+    ['shell', 'shell', 'shell', 'exec-out'],
   );
   assert.equal(mockRunCmd.mock.calls.length, 0);
 });
@@ -661,10 +667,17 @@ test('snapshotAndroid skips stock fallback after killed helper instrumentation',
 test('snapshotAndroid falls back to stock dump after unparseable helper output', async () => {
   const stockXml =
     '<?xml version="1.0" encoding="UTF-8"?><hierarchy><node text="stock" bounds="[0,0][10,10]" /></hierarchy>';
-  const helperAdb = createHelperAdb({
-    instrument: async () => ({ exitCode: 0, stdout: '', stderr: '' }),
-    stock: async () => ({ exitCode: 0, stdout: stockXml, stderr: '' }),
-  });
+  const calls: string[][] = [];
+  const helperAdb: AndroidAdbExecutor = async (args) => {
+    calls.push(args);
+    if (args.includes('--show-versioncode')) return installedHelperProbe;
+    if (args.includes('instrument')) return { exitCode: 0, stdout: '', stderr: '' };
+    if (args[0] === 'shell' && args[1] === 'am' && args[2] === 'force-stop') {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    if (args.includes('exec-out')) return { exitCode: 0, stdout: stockXml, stderr: '' };
+    throw new Error(`unexpected helper adb args: ${args.join(' ')}`);
+  };
 
   const result = await snapshotAndroidWithHelper(helperAdb);
 
@@ -673,6 +686,21 @@ test('snapshotAndroid falls back to stock dump after unparseable helper output',
     result.androidSnapshot.fallbackReason ?? '',
     /Android snapshot helper output could not be parsed/,
   );
+  assert.equal(
+    calls.some((args) => args.includes('instrument')),
+    true,
+  );
+  assert.equal(
+    calls.some(
+      (args) => args.join(' ') === 'shell am force-stop com.callstack.agentdevice.snapshothelper',
+    ),
+    true,
+  );
+  assert.equal(
+    calls.some((args) => args.includes('exec-out')),
+    true,
+  );
+  assert.equal(mockSleep.mock.calls.at(-1)?.[0], 150);
 });
 
 test('snapshotAndroid falls back to stock dump after helper adb timeout', async () => {

@@ -2,7 +2,13 @@ import { AppError } from '../utils/errors.ts';
 import type { DeviceInfo } from '../utils/device.ts';
 import { successText, withSuccessText } from '../utils/success-text.ts';
 import { findMistargetedTypeRefToken } from '../utils/type-target-warning.ts';
-import { parseScrollDirection } from './scroll-gesture.ts';
+import {
+  buildSwipePresetGesturePlan,
+  inferGestureReferenceFrame,
+  parseScrollDirection,
+  parseSwipePreset,
+  type SwipePreset,
+} from './scroll-gesture.ts';
 import {
   getClickButtonValidationError,
   resolveClickButton,
@@ -407,6 +413,58 @@ export async function handleSwipeCommand(
   }
 
   const requestedDurationMs = positionals[4] ? Number(positionals[4]) : 250;
+  return await runSwipeCoordinates({
+    device,
+    interactor,
+    context,
+    x1,
+    y1,
+    x2,
+    y2,
+    requestedDurationMs,
+  });
+}
+
+export async function handleSwipePresetCommand(
+  device: DeviceInfo,
+  interactor: Interactor,
+  positionals: string[],
+  context: DispatchContext | undefined,
+): Promise<Record<string, unknown>> {
+  const preset = parseSwipePreset(positionals[0]);
+  const requestedDurationMs = positionals[1] ? Number(positionals[1]) : 300;
+  const snapshot = await interactor.snapshot({ appBundleId: context?.appBundleId, compact: true });
+  const frame = inferGestureReferenceFrame(snapshot.nodes ?? []);
+  if (!frame) {
+    throw new AppError('COMMAND_FAILED', 'Cannot infer viewport for gesture swipe preset');
+  }
+  const plan = buildSwipePresetGesturePlan(preset, frame, { platform: device.platform });
+  return await runSwipeCoordinates({
+    device,
+    interactor,
+    context,
+    x1: plan.x1,
+    y1: plan.y1,
+    x2: plan.x2,
+    y2: plan.y2,
+    requestedDurationMs,
+    preset,
+  });
+}
+
+// fallow-ignore-next-line complexity
+async function runSwipeCoordinates(params: {
+  device: DeviceInfo;
+  interactor: Interactor;
+  context: DispatchContext | undefined;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  requestedDurationMs: number;
+  preset?: SwipePreset;
+}): Promise<Record<string, unknown>> {
+  const { device, interactor, context, x1, y1, x2, y2, requestedDurationMs, preset } = params;
   const durationMs = requireIntInRange(requestedDurationMs, 'durationMs', 16, 10_000);
   const effectiveDurationMs =
     device.platform === 'ios' ? clampIosSwipeDuration(durationMs) : durationMs;
@@ -445,6 +503,7 @@ export async function handleSwipeCommand(
       y1,
       x2,
       y2,
+      ...(preset ? { preset } : {}),
       durationMs,
       effectiveDurationMs,
       timingMode: 'runner-series',
@@ -468,6 +527,7 @@ export async function handleSwipeCommand(
       y1,
       x2,
       y2,
+      ...(preset ? { preset } : {}),
       durationMs,
       effectiveDurationMs,
       timingMode: device.platform === 'ios' ? 'safe-normalized' : 'direct',
@@ -475,7 +535,7 @@ export async function handleSwipeCommand(
       pauseMs,
       pattern,
     },
-    formatSwipeMessage(count, pattern),
+    preset ? `Swiped ${preset}` : formatSwipeMessage(count, pattern),
   );
 }
 

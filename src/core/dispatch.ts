@@ -28,6 +28,7 @@ import {
   handleRotateGestureCommand,
   handleScrollCommand,
   handleSwipeCommand,
+  handleSwipePresetCommand,
   handleTransformGestureCommand,
   handleTypeCommand,
 } from './dispatch-interactions.ts';
@@ -104,6 +105,8 @@ async function dispatchKnownCommand(
       return await handlePressCommand(device, interactor, positionals, context);
     case 'swipe':
       return await handleSwipeCommand(device, interactor, positionals, context);
+    case 'swipe-preset':
+      return await handleSwipePresetCommand(device, interactor, positionals, context);
     case 'pan':
       return await handlePanCommand(interactor, positionals);
     case 'fling':
@@ -224,14 +227,7 @@ async function handleOpenCommand(
         'Clearing app state requires an app target, not a deep link.',
       );
     }
-    if (device.platform !== 'ios' || device.kind !== 'simulator') {
-      throw new AppError(
-        'UNSUPPORTED_OPERATION',
-        'Clearing app state is currently supported only on iOS simulators.',
-      );
-    }
-    const { clearIosSimulatorAppState } = await import('../platforms/ios/apps.ts');
-    await clearIosSimulatorAppState(device, app);
+    await interactor.setSetting('clear-app-state', 'clear', app);
   }
   await interactor.open(app, {
     activity: context?.activity,
@@ -426,7 +422,31 @@ async function handleSettingsCommand(
   context: DispatchContext | undefined,
 ): Promise<Record<string, unknown>> {
   const [setting, state, target, mode] = positionals;
-  if (!setting || !state) {
+  if (!setting || (!state && setting !== 'clear-app-state')) {
+    throw new AppError('INVALID_ARGS', 'settings requires setting state');
+  }
+  if (setting === 'clear-app-state') {
+    const appBundleId = (state === 'clear' ? target : state) ?? context?.appBundleId;
+    if (!appBundleId) {
+      throw new AppError(
+        'INVALID_ARGS',
+        'settings clear-app-state requires an app id or an active app session.',
+      );
+    }
+    emitDiagnostic({
+      level: 'debug',
+      phase: 'settings_apply',
+      data: { setting, state: 'clear', appBundleId, platform: device.platform },
+    });
+    const result = await interactor.setSetting(setting, 'clear', appBundleId);
+    return result && typeof result === 'object'
+      ? withSuccessText(
+          { setting, state: 'clear', ...result },
+          readResultMessage(result) ?? `Cleared user data for ${appBundleId}`,
+        )
+      : { setting, state: 'clear', ...successText(`Cleared user data for ${appBundleId}`) };
+  }
+  if (!state) {
     throw new AppError('INVALID_ARGS', 'settings requires setting state');
   }
   const isLocationSet = setting === 'location' && state === 'set';

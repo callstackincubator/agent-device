@@ -38,6 +38,7 @@ export type RawSnapshotNode = {
   enabled?: boolean;
   selected?: boolean;
   focused?: boolean;
+  visibleToUser?: boolean;
   hittable?: boolean;
   depth?: number;
   parentIndex?: number;

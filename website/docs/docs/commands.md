@@ -483,6 +483,8 @@ agent-device settings touchid enroll
 agent-device settings touchid unenroll
 agent-device settings fingerprint match
 agent-device settings fingerprint nonmatch
+agent-device settings clear-app-state
+agent-device settings clear-app-state com.example.app
 agent-device settings permission grant camera
 agent-device settings permission deny microphone
 agent-device settings permission grant photos limited
@@ -497,6 +499,7 @@ agent-device settings permission reset screen-recording --platform macos
 - Android `settings animations off|on` toggles the global `window_animation_scale`, `transition_animation_scale`, and `animator_duration_scale` values. Use it as an opt-in stabilizer for automation runs with heavy system or app animations, then restore with `settings animations on` when needed.
 - `settings appearance` maps to macOS appearance, iOS simulator appearance, and Android night mode.
 - `settings location set <lat> <lon>` sets precise coordinates on iOS simulators and Android emulators.
+- `settings clear-app-state [app-id]` clears the active session app data, or the provided app id. Android uses `pm clear`, which removes SharedPreferences, databases, files, and cache. iOS simulator removes the app data container contents. iOS physical devices and macOS are unsupported.
 - Face ID and Touch ID controls are iOS simulator-only.
 - Fingerprint simulation is supported on Android targets where `cmd fingerprint` or `adb emu finger` is available.
   On physical Android devices, only `cmd fingerprint` is attempted.

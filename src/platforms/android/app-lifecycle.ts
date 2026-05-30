@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { resolveFileOverridePath, runCmd, whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
+import { sleep } from '../../utils/timeouts.ts';
 import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
@@ -45,6 +46,11 @@ const ANDROID_APPS_DISCOVERY_HINT =
 const ANDROID_AMBIGUOUS_APP_HINT =
   'Run agent-device apps --platform android to see the exact installed package names before retrying open.';
 const ANDROID_LOCALHOST_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+const ANDROID_CLOSE_FOCUS_TIMEOUT_MS = 2_000;
+const ANDROID_CLOSE_FOCUS_POLL_MS = 50;
+const ANDROID_CLOSE_PROCESS_TIMEOUT_MS = 2_000;
+const ANDROID_CLOSE_PROCESS_POLL_MS = 50;
+const ANDROID_CLOSE_PROCESS_GONE_STABLE_MS = 150;
 
 type AndroidAppResolution = { type: 'intent' | 'package'; value: string };
 
@@ -640,6 +646,7 @@ export async function closeAndroidApp(device: DeviceInfo, app: string): Promise<
   const trimmed = app.trim();
   if (trimmed.toLowerCase() === 'settings') {
     await runAndroidAdb(device, ['shell', 'am', 'force-stop', 'com.android.settings']);
+    await waitForAndroidPackageStopped(device, 'com.android.settings');
     return;
   }
   const resolved = await resolveAndroidApp(device, app);
@@ -647,6 +654,65 @@ export async function closeAndroidApp(device: DeviceInfo, app: string): Promise<
     throw new AppError('INVALID_ARGS', 'Close requires a package name, not an intent');
   }
   await runAndroidAdb(device, ['shell', 'am', 'force-stop', resolved.value]);
+  await waitForAndroidPackageStopped(device, resolved.value);
+}
+
+async function waitForAndroidPackageStopped(
+  device: DeviceInfo,
+  packageName: string,
+): Promise<void> {
+  await waitForAndroidPackageNotForeground(device, packageName);
+  await waitForAndroidPackageProcessGone(device, packageName);
+}
+
+async function waitForAndroidPackageNotForeground(
+  device: DeviceInfo,
+  packageName: string,
+): Promise<void> {
+  const deadline = Date.now() + ANDROID_CLOSE_FOCUS_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const foreground = await readAndroidForegroundApp(device);
+    if (foreground?.package !== packageName) return;
+    await sleep(ANDROID_CLOSE_FOCUS_POLL_MS);
+  }
+}
+
+async function readAndroidForegroundApp(device: DeviceInfo): Promise<AndroidForegroundApp | null> {
+  for (const args of [
+    ['shell', 'dumpsys', 'window', 'windows'],
+    ['shell', 'dumpsys', 'window'],
+    ['shell', 'dumpsys', 'activity', 'activities'],
+    ['shell', 'dumpsys', 'activity'],
+  ]) {
+    const result = await runAndroidAdb(device, args, { allowFailure: true });
+    const parsed = parseAndroidForegroundApp(result.stdout ?? '');
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+async function waitForAndroidPackageProcessGone(
+  device: DeviceInfo,
+  packageName: string,
+): Promise<void> {
+  const deadline = Date.now() + ANDROID_CLOSE_PROCESS_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    if (!(await isAndroidPackageProcessRunning(device, packageName))) {
+      await sleep(ANDROID_CLOSE_PROCESS_GONE_STABLE_MS);
+      if (!(await isAndroidPackageProcessRunning(device, packageName))) return;
+    }
+    await sleep(ANDROID_CLOSE_PROCESS_POLL_MS);
+  }
+}
+
+async function isAndroidPackageProcessRunning(
+  device: DeviceInfo,
+  packageName: string,
+): Promise<boolean> {
+  const result = await runAndroidAdb(device, ['shell', 'pidof', packageName], {
+    allowFailure: true,
+  });
+  return (result.stdout ?? '').trim().length > 0;
 }
 
 async function uninstallAndroidApp(device: DeviceInfo, app: string): Promise<{ package: string }> {

@@ -45,8 +45,14 @@ type MaestroResolvedSnapshotMatch = {
   inheritedRect: boolean;
 };
 
+export type MaestroPreferredContext = {
+  node: SnapshotNode;
+  rect: Rect;
+};
+
 type MaestroMatchResolutionOptions = {
   promoteTapTarget?: boolean;
+  preferredContext?: MaestroPreferredContext;
 };
 
 type ReactNativeOverlayFilterResult = {
@@ -82,24 +88,31 @@ export function resolveMaestroNodeFromSnapshot(
       ),
     );
   }
-  const filteredMatches = filterReactNativeOverlayBlockedMatches(snapshot.nodes, matches);
+  const visibleMatchesResult = filterVisibleMaestroMatches({
+    nodes: snapshot.nodes,
+    matches,
+    platform,
+  });
 
   const target = selectMaestroSnapshotMatch(
     snapshot.nodes,
-    filteredMatches.matches,
+    visibleMatchesResult.matches,
     options.index,
     extractMaestroVisibleTextQuery(selector),
     frame,
     false,
     resolutionOptions.promoteTapTarget,
+    resolutionOptions.preferredContext,
   );
   if (!target) {
     const index = options.index ?? 0;
     return {
       ok: false,
-      message: filteredMatches.blockedByReactNativeOverlay
+      message: visibleMatchesResult.blockedByReactNativeOverlay
         ? `Maestro selector matched ${matches.length} element(s), but React Native overlay is covering app content: ${selector}`
-        : `Maestro selector did not match index ${index}: ${selector}`,
+        : matches.length > 0 && visibleMatchesResult.matches.length === 0
+          ? `Maestro selector matched ${matches.length} element(s), but none were visible: ${selector}`
+          : `Maestro selector did not match index ${index}: ${selector}`,
     };
   }
   return { ok: true, node: target.node, rect: target.rect };
@@ -108,18 +121,25 @@ export function resolveMaestroNodeFromSnapshot(
 export function resolveMaestroFuzzyTextNodeFromSnapshot(
   snapshot: SnapshotState,
   query: string,
+  platform: Platform,
   frame: TouchReferenceFrame | undefined,
   resolutionOptions: MaestroMatchResolutionOptions = {},
 ): { ok: true; node: SnapshotNode; rect: Rect } | { ok: false; message: string } {
   const matches = findMaestroFuzzyTextMatches(snapshot, query);
+  const visibleMatchesResult = filterVisibleMaestroMatches({
+    nodes: snapshot.nodes,
+    matches,
+    platform,
+  });
   const target = selectMaestroSnapshotMatch(
     snapshot.nodes,
-    matches,
+    visibleMatchesResult.matches,
     undefined,
     query,
     frame,
     false,
     resolutionOptions.promoteTapTarget,
+    resolutionOptions.preferredContext,
   );
   if (!target) {
     return { ok: false, message: `Maestro fuzzy text did not match: ${query}` };
@@ -295,12 +315,27 @@ function readMaestroTextTermValue(
 
 function textEqualsOrRegex(value: string | undefined, query: string): boolean {
   const text = value ?? '';
-  if (normalizeText(text) === normalizeText(query)) return true;
+  const normalizedText = normalizeText(text);
+  const normalizedQuery = normalizeText(query);
+  if (normalizedText === normalizedQuery) return true;
+  if (isLeadingCompositeLabelMatch(normalizedText, normalizedQuery)) return true;
+  if (!looksLikeMaestroRegex(query)) return false;
   try {
     return new RegExp(query).test(text);
   } catch {
     return false;
   }
+}
+
+function isLeadingCompositeLabelMatch(normalizedText: string, normalizedQuery: string): boolean {
+  if (!normalizedText || !normalizedQuery) return false;
+  if (!normalizedText.startsWith(normalizedQuery)) return false;
+  const next = normalizedText.at(normalizedQuery.length);
+  return next === ',' || next === ':' || next === ';';
+}
+
+function looksLikeMaestroRegex(query: string): boolean {
+  return /(?:\.\*|\.\+|\[[^\]]+\]|\([^)]*\)|\||\^|\$|\\[dDsSwWbB])/.test(query);
 }
 
 function resolveNodeRect(
@@ -339,6 +374,7 @@ function selectMaestroSnapshotMatch(
   frame: TouchReferenceFrame | undefined,
   requireOnScreen = false,
   promoteTapTarget = false,
+  preferredContext?: MaestroPreferredContext,
 ): { node: SnapshotNode; rect: Rect } | null {
   const nodeByIndex = buildSnapshotNodeByIndex(nodes);
   const candidates = resolveMaestroSnapshotMatchCandidates(
@@ -356,6 +392,7 @@ function selectMaestroSnapshotMatch(
     index,
     visibleTextQuery,
     promoteTapTarget,
+    preferredContext,
   );
   return promoteMaestroSnapshotMatch(nodes, target, nodeByIndex, promoteTapTarget, frame);
 }
@@ -393,6 +430,7 @@ function chooseMaestroSnapshotMatch(
   index: number | undefined,
   visibleTextQuery: string | null,
   promoteTapTarget: boolean,
+  preferredContext?: MaestroPreferredContext,
 ): MaestroResolvedSnapshotMatch | null {
   if (index !== undefined) return candidates[index] ?? null;
   const best = selectPreferredMaestroSnapshotMatch(
@@ -400,6 +438,7 @@ function chooseMaestroSnapshotMatch(
     candidates,
     visibleTextQuery,
     promoteTapTarget,
+    preferredContext,
   );
   if (!shouldInferMaestroTabSlot(best, visibleTextQuery, promoteTapTarget)) return best;
   return inferMaestroMissingTabSlotMatch(nodes, best, visibleTextQuery!) ?? best;
@@ -410,13 +449,14 @@ function selectPreferredMaestroSnapshotMatch(
   candidates: MaestroResolvedSnapshotMatch[],
   visibleTextQuery: string | null,
   promoteTapTarget: boolean,
+  preferredContext?: MaestroPreferredContext,
 ): MaestroResolvedSnapshotMatch | null {
   if (!promoteTapTarget || !visibleTextQuery) {
-    return selectBestMaestroSnapshotMatch(nodes, candidates, visibleTextQuery);
+    return selectBestMaestroSnapshotMatch(nodes, candidates, visibleTextQuery, preferredContext);
   }
   return (
-    selectLocalizedMaestroVisibleTextMatch(nodes, candidates, visibleTextQuery) ??
-    selectBestMaestroSnapshotMatch(nodes, candidates, visibleTextQuery)
+    selectLocalizedMaestroVisibleTextMatch(nodes, candidates, visibleTextQuery, preferredContext) ??
+    selectBestMaestroSnapshotMatch(nodes, candidates, visibleTextQuery, preferredContext)
   );
 }
 
@@ -432,11 +472,13 @@ function selectBestMaestroSnapshotMatch(
   nodes: SnapshotState['nodes'],
   candidates: MaestroResolvedSnapshotMatch[],
   visibleTextQuery: string | null,
+  preferredContext?: MaestroPreferredContext,
 ): MaestroResolvedSnapshotMatch | null {
   const foregroundCandidates = preferForegroundContainerDuplicateMatches(
     nodes,
     candidates,
     visibleTextQuery,
+    preferredContext,
   );
   return (
     foregroundCandidates.sort((left, right) =>
@@ -449,6 +491,7 @@ function selectLocalizedMaestroVisibleTextMatch(
   nodes: SnapshotState['nodes'],
   candidates: MaestroResolvedSnapshotMatch[],
   query: string,
+  preferredContext?: MaestroPreferredContext,
 ): MaestroResolvedSnapshotMatch | null {
   const exactMatches = candidates.filter(
     (candidate) => maestroVisibleTextMatchRank(candidate.node, query) === 0,
@@ -458,6 +501,7 @@ function selectLocalizedMaestroVisibleTextMatch(
       nodes,
       exactMatches,
       query,
+      preferredContext,
     );
     if (localizedExact) return localizedExact;
   }
@@ -467,13 +511,19 @@ function selectLocalizedMaestroVisibleTextMatch(
   );
   if (exactMatches.length > 0 || normalizedMatches.length < 2) return null;
 
-  return selectLocalizedMaestroVisibleTextMatchFromCandidates(nodes, normalizedMatches, query);
+  return selectLocalizedMaestroVisibleTextMatchFromCandidates(
+    nodes,
+    normalizedMatches,
+    query,
+    preferredContext,
+  );
 }
 
 function selectLocalizedMaestroVisibleTextMatchFromCandidates(
   nodes: SnapshotState['nodes'],
   candidates: MaestroResolvedSnapshotMatch[],
   query: string,
+  preferredContext?: MaestroPreferredContext,
 ): MaestroResolvedSnapshotMatch | null {
   const nodeByIndex = buildSnapshotNodeByIndex(nodes);
   const localized = candidates.filter(
@@ -484,13 +534,15 @@ function selectLocalizedMaestroVisibleTextMatchFromCandidates(
       ),
   );
 
-  return selectBestMaestroSnapshotMatch(nodes, localized, query);
+  return selectBestMaestroSnapshotMatch(nodes, localized, query, preferredContext);
 }
 
+// fallow-ignore-next-line complexity
 function preferForegroundContainerDuplicateMatches(
   nodes: SnapshotState['nodes'],
   candidates: MaestroResolvedSnapshotMatch[],
   visibleTextQuery: string | null,
+  preferredContext?: MaestroPreferredContext,
 ): MaestroResolvedSnapshotMatch[] {
   if (!visibleTextQuery || candidates.length < 2) return candidates;
   const exact = candidates.filter(
@@ -512,6 +564,17 @@ function preferForegroundContainerDuplicateMatches(
   );
   if (overlapping.length < 2) return candidates;
 
+  const foregroundByArea = selectLargestOverlappingScreenContainerMatches(overlapping);
+  if (foregroundByArea.length > 0) return foregroundByArea;
+
+  const foregroundByContext = selectContextualOverlappingScreenContainerMatches(
+    nodes,
+    overlapping,
+    preferredContext,
+    nodeByIndex,
+  );
+  if (foregroundByContext.length > 0) return foregroundByContext;
+
   // UIAutomator reports foreground transparent-stack screens later in the
   // hierarchy while preserving both screens. Prefer the later overlapping
   // screen only for exact duplicate text, so ordinary duplicate rows keep
@@ -521,6 +584,56 @@ function preferForegroundContainerDuplicateMatches(
     .filter((entry) => entry.container.index === foregroundContainerIndex)
     .map((entry) => entry.candidate);
   return foreground.length > 0 ? foreground : candidates;
+}
+
+function selectContextualOverlappingScreenContainerMatches(
+  nodes: SnapshotState['nodes'],
+  entries: MaestroMatchWithScreenContainer[],
+  context: MaestroPreferredContext | undefined,
+  nodeByIndex: SnapshotNodeByIndex,
+): MaestroResolvedSnapshotMatch[] {
+  if (!context) return [];
+  const rawContextContainer = findMaestroScreenContainer(nodes, context.node, nodeByIndex);
+  const contextContainer =
+    rawContextContainer && rectContains(rawContextContainer.rect, context.rect)
+      ? rawContextContainer
+      : null;
+  const scored = entries.map((entry) => ({
+    entry,
+    score: scoreScreenContainerAgainstContext(entry.container, context, contextContainer),
+  }));
+  const bestScore = Math.min(...scored.map((entry) => entry.score));
+  if (!Number.isFinite(bestScore)) return [];
+  return scored.filter((entry) => entry.score === bestScore).map((entry) => entry.entry.candidate);
+}
+
+function scoreScreenContainerAgainstContext(
+  container: SnapshotNode & { rect: Rect },
+  context: MaestroPreferredContext,
+  contextContainer: (SnapshotNode & { rect: Rect }) | null,
+): number {
+  if (contextContainer) {
+    if (container.index === contextContainer.index) return 0;
+    if (rectOverlapRatio(container.rect, contextContainer.rect) < 0.6)
+      return Number.POSITIVE_INFINITY;
+    return Math.abs(container.index - contextContainer.index);
+  }
+
+  if (rectOverlapRatio(container.rect, context.rect) >= 0.6) return 0;
+  const orderDistance = container.index - context.node.index;
+  return orderDistance >= 0 ? orderDistance : 100_000 + Math.abs(orderDistance);
+}
+
+function selectLargestOverlappingScreenContainerMatches(
+  entries: MaestroMatchWithScreenContainer[],
+): MaestroResolvedSnapshotMatch[] {
+  const areas = entries.map((entry) => rectArea(entry.container.rect));
+  const largestArea = Math.max(...areas);
+  const smallestArea = Math.min(...areas);
+  if (smallestArea <= 0 || largestArea < smallestArea * 1.2) return [];
+  return entries
+    .filter((entry) => rectArea(entry.container.rect) === largestArea)
+    .map((entry) => entry.candidate);
 }
 
 function hasOverlappingScreenContainer(

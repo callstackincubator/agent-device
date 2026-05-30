@@ -4347,8 +4347,21 @@ test('test applies per-script timeout and writes attempt artifacts', async () =>
     const attemptDir = path.join(artifactsDir as string, 'attempt-1');
     expect(fs.existsSync(path.join(attemptDir, 'replay.ad'))).toBe(true);
     expect(fs.existsSync(path.join(attemptDir, 'capture.png'))).toBe(true);
+    expect(fs.existsSync(path.join(attemptDir, 'replay-timing.ndjson'))).toBe(true);
     expect(fs.existsSync(path.join(attemptDir, 'result.txt'))).toBe(true);
     expect(fs.existsSync(path.join(attemptDir, 'failure.txt'))).toBe(true);
+    const timingLines = fs
+      .readFileSync(path.join(attemptDir, 'replay-timing.ndjson'), 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    expect(timingLines.some((line) => line.type === 'replay_test_attempt_start')).toBe(true);
+    expect(timingLines.some((line) => line.type === 'replay_action_start')).toBe(true);
+    expect(
+      timingLines.some(
+        (line) => line.type === 'replay_test_attempt_stop' && line.timedOut === true,
+      ),
+    ).toBe(true);
     const resultText = fs.readFileSync(path.join(attemptDir, 'result.txt'), 'utf8');
     expect(resultText).toMatch(/status: failed/);
     expect(resultText).toMatch(/timeoutMode: cooperative/);

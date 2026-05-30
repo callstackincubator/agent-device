@@ -2,6 +2,7 @@ import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   handleRotateGestureCommand,
+  handleSwipePresetCommand,
   handleTransformGestureCommand,
 } from '../dispatch-interactions.ts';
 import type { Interactor } from '../interactor-types.ts';
@@ -70,6 +71,49 @@ test('handleRotateGestureCommand defaults velocity sign to match degrees', async
     y: 420,
     velocity: -1,
     message: 'Rotated gesture -215 degrees',
+  });
+});
+
+test('handleSwipePresetCommand resolves Android in-page swipe to content lane', async () => {
+  const calls: unknown[][] = [];
+  const interactor = {
+    ...makeUnusedInteractor(),
+    snapshot: async () => ({
+      backend: 'android' as const,
+      nodes: [
+        {
+          index: 0,
+          type: 'application',
+          rect: { x: 0, y: 0, width: 400, height: 800 },
+        },
+      ],
+    }),
+    swipe: async (...args: unknown[]) => {
+      calls.push(args);
+    },
+  };
+
+  const result = await handleSwipePresetCommand(
+    ANDROID_EMULATOR,
+    interactor,
+    ['left', '300'],
+    undefined,
+  );
+
+  assert.deepEqual(calls, [[360, 520, 40, 520, 300]]);
+  assert.deepEqual(result, {
+    x1: 360,
+    y1: 520,
+    x2: 40,
+    y2: 520,
+    preset: 'left',
+    durationMs: 300,
+    effectiveDurationMs: 300,
+    timingMode: 'direct',
+    count: 1,
+    pauseMs: 0,
+    pattern: 'one-way',
+    message: 'Swiped left',
   });
 });
 

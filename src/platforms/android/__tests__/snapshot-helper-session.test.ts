@@ -46,6 +46,39 @@ test('returns undefined when the adb provider cannot spawn a helper process', as
   assert.deepEqual(calls, []);
 });
 
+test('disables repeated persistent session attempts after startup failure', async () => {
+  const calls: string[][] = [];
+  const spawnArgs: string[][] = [];
+  const provider: AndroidAdbProvider = {
+    exec: async (args) => {
+      calls.push(args);
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+    spawn: (args) => {
+      spawnArgs.push(args);
+      const process = new FakeAndroidProcess();
+      queueMicrotask(() => process.emitExit(0, null));
+      return process;
+    },
+  };
+
+  const first = await captureAndroidSnapshotWithHelperSession({
+    adb: provider.exec,
+    adbProvider: provider,
+    deviceKey: 'android:emulator-5554',
+  });
+  const second = await captureAndroidSnapshotWithHelperSession({
+    adb: provider.exec,
+    adbProvider: provider,
+    deviceKey: 'android:emulator-5554',
+  });
+
+  assert.equal(first, undefined);
+  assert.equal(second, undefined);
+  assert.equal(spawnArgs.length, 1);
+  assert.equal(calls.filter((args) => args[0] === 'forward').length, 2);
+});
+
 test('starts and reuses a persistent Android snapshot helper session', async () => {
   const calls: string[][] = [];
   const spawnArgs: string[][] = [];
@@ -74,7 +107,10 @@ test('starts and reuses a persistent Android snapshot helper session', async () 
   assert.equal(second?.metadata.transport, 'persistent-session');
   assert.equal(second?.metadata.sessionReused, true);
   assert.equal(spawnArgs.length, 1);
-  assert.equal(calls.filter((args) => args[0] === 'forward' && args[1]?.startsWith('tcp:')).length, 1);
+  assert.equal(
+    calls.filter((args) => args[0] === 'forward' && args[1]?.startsWith('tcp:')).length,
+    1,
+  );
 });
 
 test('restarts the helper session when capture options change', async () => {
@@ -97,7 +133,10 @@ test('restarts the helper session when capture options change', async () => {
 
   assert.equal(restarted?.metadata.sessionReused, false);
   assert.equal(spawnArgs.length, 2);
-  assert.equal(calls.some((args) => args[0] === 'forward' && args[1] === '--remove'), true);
+  assert.equal(
+    calls.some((args) => args[0] === 'forward' && args[1] === '--remove'),
+    true,
+  );
 });
 
 test('invalidates the helper session after a malformed response', async () => {
@@ -116,7 +155,10 @@ test('invalidates the helper session after a malformed response', async () => {
     },
   );
 
-  assert.equal(calls.some((args) => args[0] === 'forward' && args[1] === '--remove'), true);
+  assert.equal(
+    calls.some((args) => args[0] === 'forward' && args[1] === '--remove'),
+    true,
+  );
 });
 
 function createSessionProvider(options: {

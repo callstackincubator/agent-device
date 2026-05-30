@@ -62,6 +62,7 @@ function isAssertionVisible(
   nodes: SnapshotState['nodes'],
   platform: Platform,
 ): boolean {
+  if (platform === 'android' && node.visibleToUser === false) return false;
   if (hasPositiveRect(node.rect)) return isRectVisibleInViewport(node, nodes);
   if (node.rect) return false;
   if (platform !== 'android' && node.hittable === true) return true;
@@ -89,10 +90,12 @@ function resolveVisibilityAnchor(
   );
 }
 
+// fallow-ignore-next-line complexity
 function isUsefulVisibilityAnchor(
   node: SnapshotState['nodes'][number],
   platform: Platform,
 ): boolean {
+  if (platform === 'android' && node.visibleToUser === false) return false;
   const type = normalizeType(node.type ?? '');
   // These containers often report the full content frame, not the clipped on-screen geometry.
   if (

@@ -13,6 +13,7 @@ import {
 import { parseAppearanceAction } from '../appearance.ts';
 import { parseSettingState } from '../setting-state.ts';
 import { runAndroidAdb } from './adb.ts';
+import { resolveAndroidApp } from './app-lifecycle.ts';
 
 const ANDROID_ANIMATION_SCALE_SETTINGS = [
   'window_animation_scale',
@@ -20,6 +21,7 @@ const ANDROID_ANIMATION_SCALE_SETTINGS = [
   'animator_duration_scale',
 ] as const;
 
+// fallow-ignore-next-line complexity
 export async function setAndroidSetting(
   device: DeviceInfo,
   setting: string,
@@ -90,6 +92,43 @@ export async function setAndroidSetting(
         target === 'dark' ? 'yes' : 'no',
       ]);
       return;
+    }
+    case 'clear-app-state': {
+      if (state.toLowerCase() !== 'clear') {
+        throw new AppError('INVALID_ARGS', 'settings clear-app-state only supports clear.');
+      }
+      if (!appPackage) {
+        throw new AppError(
+          'INVALID_ARGS',
+          'settings clear-app-state requires an app id or an active app session.',
+        );
+      }
+      const resolved = await resolveAndroidApp(device, appPackage);
+      if (resolved.type === 'intent') {
+        throw new AppError(
+          'INVALID_ARGS',
+          'settings clear-app-state requires a package name, not an intent.',
+        );
+      }
+      await runAndroidAdb(device, ['shell', 'am', 'force-stop', resolved.value], {
+        allowFailure: true,
+      });
+      const result = await runAndroidAdb(device, ['shell', 'pm', 'clear', resolved.value], {
+        allowFailure: true,
+      });
+      if (result.exitCode !== 0 || !/\bSuccess\b/i.test(result.stdout)) {
+        throw new AppError(
+          'COMMAND_FAILED',
+          `Failed to clear Android app data for ${resolved.value}`,
+          {
+            package: resolved.value,
+            stdout: result.stdout,
+            stderr: result.stderr,
+            exitCode: result.exitCode,
+          },
+        );
+      }
+      return { package: resolved.value, cleared: true };
     }
     case 'fingerprint': {
       const action = parseAndroidFingerprintAction(state);

@@ -59,6 +59,64 @@ test('resolveMaestroNodeFromSnapshot blocks taps on app content behind React Nat
   });
 });
 
+test('resolveMaestroNodeFromSnapshot does not match plain text as a substring', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'android.widget.Button',
+        label: 'Push feed',
+        rect: { x: 32, y: 320, width: 280, height: 96 },
+        enabled: true,
+        hittable: true,
+        depth: 5,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'StaticText',
+        label: 'Albums, back',
+        rect: { x: 120, y: 80, width: 180, height: 48 },
+        depth: 5,
+      },
+    ],
+  };
+
+  const plain = resolveVisibleMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Feed" || text="Feed" || id="Feed"',
+    'android',
+    { referenceWidth: 1080, referenceHeight: 2340 },
+  );
+  const regex = resolveVisibleMaestroNodeFromSnapshot(
+    snapshot,
+    'label=".*feed" || text=".*feed" || id=".*feed"',
+    'android',
+    { referenceWidth: 1080, referenceHeight: 2340 },
+  );
+  const composite = resolveVisibleMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Albums" || text="Albums" || id="Albums"',
+    'ios',
+    { referenceWidth: 402, referenceHeight: 874 },
+  );
+
+  expect(plain).toMatchObject({
+    ok: false,
+    message: expect.stringContaining('Feed'),
+  });
+  expect(regex).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ label: 'Push feed' }),
+  });
+  expect(composite).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ label: 'Albums, back' }),
+  });
+});
+
 test('resolveVisibleMaestroNodeFromSnapshot does not block content behind collapsed React Native warnings', () => {
   const snapshot: SnapshotState = {
     createdAt: Date.now(),
@@ -277,6 +335,184 @@ test('resolveMaestroNodeFromSnapshot prefers duplicate text on foreground overla
   });
 });
 
+test('resolveMaestroNodeFromSnapshot prefers full-width screen over stale side navigation duplicate', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'android.widget.ScrollView',
+        label: 'Article, Go back, Replace params',
+        rect: { x: 0, y: 319, width: 1080, height: 2021 },
+        depth: 17,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'android.widget.Button',
+        label: 'Go back',
+        rect: { x: 33, y: 667, width: 1014, height: 110 },
+        enabled: true,
+        hittable: true,
+        depth: 19,
+        parentIndex: 1,
+      },
+      {
+        index: 30,
+        ref: 'e30',
+        type: 'android.widget.ScrollView',
+        label: 'Albums, Go back, Go to Article',
+        rect: { x: 0, y: 319, width: 816, height: 2021 },
+        depth: 17,
+      },
+      {
+        index: 31,
+        ref: 'e31',
+        type: 'android.widget.Button',
+        label: 'Go back',
+        rect: { x: 0, y: 581, width: 783, height: 110 },
+        enabled: true,
+        hittable: true,
+        depth: 19,
+        parentIndex: 30,
+      },
+    ],
+  };
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Go back" || text="Go back" || id="Go back"',
+    {},
+    'android',
+    { referenceWidth: 1080, referenceHeight: 2340 },
+    { promoteTapTarget: true },
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 2 }),
+    rect: { x: 33, y: 667, width: 1014, height: 110 },
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot uses visible assertion context for equal overlapping screens', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 6,
+        ref: 'e6',
+        type: 'android.view.View',
+        label: 'Albums',
+        value: 'Albums',
+        rect: { x: 154, y: 194, width: 188, height: 74 },
+        depth: 22,
+        parentIndex: 25,
+      },
+      {
+        index: 7,
+        ref: 'e7',
+        type: 'android.widget.ScrollView',
+        rect: { x: 0, y: 319, width: 1080, height: 2021 },
+        depth: 17,
+      },
+      {
+        index: 8,
+        ref: 'e8',
+        type: 'android.widget.Button',
+        label: 'Push albums',
+        rect: { x: 33, y: 352, width: 361, height: 110 },
+        enabled: true,
+        hittable: true,
+        depth: 19,
+        parentIndex: 7,
+      },
+      {
+        index: 12,
+        ref: 'e12',
+        type: 'android.widget.Button',
+        label: 'Push article',
+        rect: { x: 33, y: 495, width: 340, height: 110 },
+        enabled: true,
+        hittable: true,
+        depth: 19,
+        parentIndex: 7,
+      },
+      {
+        index: 13,
+        ref: 'e13',
+        type: 'android.widget.TextView',
+        label: 'Push article',
+        value: 'Push article',
+        rect: { x: 99, y: 523, width: 208, height: 55 },
+        depth: 20,
+        parentIndex: 12,
+      },
+      {
+        index: 25,
+        ref: 'e25',
+        type: 'android.widget.ScrollView',
+        rect: { x: 0, y: 319, width: 1080, height: 2021 },
+        depth: 17,
+      },
+      {
+        index: 26,
+        ref: 'e26',
+        type: 'android.widget.Button',
+        label: 'Push article',
+        rect: { x: 33, y: 352, width: 340, height: 110 },
+        enabled: true,
+        hittable: true,
+        depth: 19,
+        parentIndex: 25,
+      },
+      {
+        index: 27,
+        ref: 'e27',
+        type: 'android.widget.TextView',
+        label: 'Push article',
+        value: 'Push article',
+        rect: { x: 99, y: 380, width: 208, height: 55 },
+        depth: 20,
+        parentIndex: 26,
+      },
+      {
+        index: 30,
+        ref: 'e30',
+        type: 'android.widget.Button',
+        label: 'Push albums',
+        rect: { x: 33, y: 495, width: 361, height: 110 },
+        enabled: true,
+        hittable: true,
+        depth: 19,
+        parentIndex: 25,
+      },
+    ],
+  };
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Push article" || text="Push article" || id="Push article"',
+    {},
+    'android',
+    { referenceWidth: 1080, referenceHeight: 2340 },
+    {
+      promoteTapTarget: true,
+      preferredContext: {
+        node: snapshot.nodes[0]!,
+        rect: snapshot.nodes[0]!.rect!,
+      },
+    },
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 12 }),
+    rect: { x: 33, y: 495, width: 340, height: 110 },
+  });
+});
+
 test('resolveVisibleMaestroNodeFromSnapshot requires visible text matches to be on screen', () => {
   const snapshot: SnapshotState = {
     createdAt: Date.now(),
@@ -420,6 +656,49 @@ test('resolveMaestroNodeFromSnapshot prefers concrete Android tab rect over hidd
     ok: true,
     node: expect.objectContaining({ index: 2 }),
     rect: { x: 540, y: 2054, width: 270, height: 220 },
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot ignores Android nodes hidden from users', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'android.widget.Button',
+        label: 'Settings',
+        rect: { x: 0, y: 0, width: 200, height: 80 },
+        enabled: true,
+        hittable: true,
+        visibleToUser: false,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'android.widget.Button',
+        label: 'Settings',
+        rect: { x: 300, y: 700, width: 200, height: 80 },
+        enabled: true,
+        hittable: true,
+        visibleToUser: true,
+      },
+    ],
+  };
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Settings"',
+    {},
+    'android',
+    { referenceWidth: 1080, referenceHeight: 2340 },
+    { promoteTapTarget: true },
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 2 }),
+    rect: { x: 300, y: 700, width: 200, height: 80 },
   });
 });
 

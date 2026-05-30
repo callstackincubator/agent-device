@@ -29,6 +29,7 @@ import { normalizeError } from '../utils/errors.ts';
 const GESTURE_PLATFORM_COMMANDS: Readonly<Record<string, string>> = {
   pan: 'pan',
   fling: 'fling',
+  swipe: 'swipe-preset',
   pinch: 'pinch',
   rotate: 'rotate-gesture',
   transform: 'transform-gesture',
@@ -225,7 +226,8 @@ function resolveDispatchCommand(req: DaemonRequest): DispatchCommandResolution {
   ) {
     return {
       ok: false,
-      message: 'Use gesture pan, gesture fling, gesture rotate, or gesture transform.',
+      message:
+        'Use gesture pan, gesture fling, gesture swipe, gesture rotate, or gesture transform.',
     };
   }
   if (req.command !== 'gesture') {

@@ -28,8 +28,9 @@ import {
 import { defineFieldCommandMetadata } from './field-command-contract.ts';
 
 const CLICK_BUTTON_VALUES = ['primary', 'secondary', 'middle'] as const;
-const GESTURE_KIND_VALUES = ['pan', 'fling', 'pinch', 'rotate', 'transform'] as const;
+const GESTURE_KIND_VALUES = ['pan', 'fling', 'swipe', 'pinch', 'rotate', 'transform'] as const;
 const GESTURE_DIRECTION_VALUES = ['up', 'down', 'left', 'right'] as const;
+const GESTURE_SWIPE_PRESET_VALUES = ['left', 'right', 'left-edge', 'right-edge'] as const;
 const FIND_ACTION_VALUES = [
   'click',
   'focus',
@@ -128,6 +129,7 @@ const findFields = {
 const gestureFields = {
   kind: requiredField(enumField(GESTURE_KIND_VALUES, 'Gesture variant.')),
   direction: enumField(GESTURE_DIRECTION_VALUES, 'Fling direction.'),
+  preset: enumField(GESTURE_SWIPE_PRESET_VALUES, 'Swipe preset.'),
   origin: pointField('Gesture origin point.'),
   delta: pointField('Movement delta for pan or transform gestures.'),
   distance: integerField('Fling distance.', { min: 0 }),
@@ -158,6 +160,12 @@ export type FlingInput = CommonCommandInput & {
   durationMs?: number;
 };
 
+export type SwipeGestureInput = CommonCommandInput & {
+  kind: 'swipe';
+  preset: 'left' | 'right' | 'left-edge' | 'right-edge';
+  durationMs?: number;
+};
+
 export type PinchInput = CommonCommandInput & {
   kind: 'pinch';
   scale: number;
@@ -180,7 +188,13 @@ export type TransformInput = CommonCommandInput & {
   durationMs?: number;
 };
 
-export type GestureInput = PanInput | FlingInput | PinchInput | RotateInput | TransformInput;
+export type GestureInput =
+  | PanInput
+  | FlingInput
+  | SwipeGestureInput
+  | PinchInput
+  | RotateInput
+  | TransformInput;
 
 export const interactionCommandMetadata = [
   defineCommandMetadata({
@@ -237,6 +251,14 @@ function readGestureInput(input: unknown): GestureInput {
       direction: requiredEnum(record, 'direction', GESTURE_DIRECTION_VALUES),
       origin: readPoint(record, 'origin'),
       distance: optionalInteger(record, 'distance', { min: 0 }),
+      durationMs: optionalInteger(record, 'durationMs', { min: 0 }),
+    };
+  }
+  if (kind === 'swipe') {
+    return {
+      ...common,
+      kind,
+      preset: requiredEnum(record, 'preset', GESTURE_SWIPE_PRESET_VALUES),
       durationMs: optionalInteger(record, 'durationMs', { min: 0 }),
     };
   }

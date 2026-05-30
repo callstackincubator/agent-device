@@ -21,6 +21,7 @@ export const gestureDaemonWriters = {
   'gesture-fling': direct(PUBLIC_COMMANDS.gesture, (input) =>
     flingPositionals(input as FlingOptions),
   ),
+  'gesture-swipe': direct(PUBLIC_COMMANDS.gesture, swipePresetPositionals),
   'gesture-pinch': direct(PUBLIC_COMMANDS.gesture, pinchPositionals),
   'gesture-rotate': direct(PUBLIC_COMMANDS.gesture, (input) =>
     rotateGesturePositionals(input as RotateGestureOptions),
@@ -49,6 +50,8 @@ function gesturePositionals(input: CommandInput): string[] {
         ...optionalNumber(input.distance),
         ...optionalNumber(input.durationMs),
       ];
+    case 'swipe':
+      return swipePresetPositionals(input);
     case 'pinch':
       return [
         'pinch',
@@ -78,9 +81,17 @@ function gesturePositionals(input: CommandInput): string[] {
     default:
       throw new AppError(
         'INVALID_ARGS',
-        'gesture requires pan, fling, pinch, rotate, or transform',
+        'gesture requires pan, fling, swipe, pinch, rotate, or transform',
       );
   }
+}
+
+function swipePresetPositionals(input: CommandInput): string[] {
+  return [
+    'swipe',
+    requiredDaemonString(input.preset, 'gesture swipe requires preset'),
+    ...optionalNumber(input.durationMs),
+  ];
 }
 
 function panPositionals(input: CommandInput): string[] {
@@ -153,6 +164,13 @@ function gestureInputFromCli(positionals: string[], flags: CliFlags): Record<str
         distance: optionalCliNumber(args[3]),
         durationMs: optionalCliNumber(args[4]),
       };
+    case 'swipe':
+      return {
+        ...common,
+        kind: subcommand,
+        preset: args[0],
+        durationMs: optionalCliNumber(args[1]),
+      };
     case 'pinch':
       return {
         ...common,
@@ -187,7 +205,7 @@ function gestureInputFromCli(positionals: string[], flags: CliFlags): Record<str
     default:
       throw new AppError(
         'INVALID_ARGS',
-        'gesture requires pan, fling, pinch, rotate, or transform',
+        'gesture requires pan, fling, swipe, pinch, rotate, or transform',
       );
   }
 }

@@ -76,6 +76,7 @@ export async function invokeReplayAction(params: {
     command: resolved.command,
     ok: response.ok,
     durationMs: finishedAt - startedAt,
+    resultTiming: response.ok ? readResponseTiming(response.data) : undefined,
     errorCode: response.ok ? undefined : response.error.code,
   });
   return response;
@@ -172,6 +173,18 @@ function readReplayOutputEnv(data: unknown): Record<string, string> | null {
     (entry): entry is [string, string] => typeof entry[1] === 'string',
   );
   return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
+
+function readResponseTiming(data: unknown): Record<string, unknown> | undefined {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return undefined;
+  const timing = (data as { timing?: unknown }).timing;
+  if (!timing || typeof timing !== 'object' || Array.isArray(timing)) return undefined;
+  return Object.fromEntries(
+    Object.entries(timing).filter(([, value]) => {
+      const kind = typeof value;
+      return kind === 'number' || kind === 'string' || kind === 'boolean';
+    }),
+  );
 }
 
 function appendReplayTraceEvent(

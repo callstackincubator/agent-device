@@ -589,6 +589,36 @@ test('runtime directional swipe uses the visible viewport instead of off-screen 
   assert.deepEqual(calls, [{ from: { x: 50, y: 50 }, to: { x: 25, y: 50 } }]);
 });
 
+test('runtime gesture swipe presets use stable viewport lanes', async () => {
+  const calls: unknown[] = [];
+  const device = createInteractionDevice(snapshotWithOffscreenContent(), {
+    platform: 'android',
+    swipe: async (_context, from, to, options) => {
+      calls.push({ from, to, durationMs: options?.durationMs });
+    },
+  });
+
+  const pageSwipe = await device.interactions.swipe({
+    preset: 'left',
+    durationMs: 300,
+    session: 'default',
+  });
+  const edgeSwipe = await device.interactions.swipe({
+    preset: 'right-edge',
+    durationMs: 350,
+    session: 'default',
+  });
+
+  assert.deepEqual(pageSwipe.from, { x: 90, y: 65 });
+  assert.deepEqual(pageSwipe.to, { x: 10, y: 65 });
+  assert.deepEqual(edgeSwipe.from, { x: 8, y: 50 });
+  assert.deepEqual(edgeSwipe.to, { x: 85, y: 50 });
+  assert.deepEqual(calls, [
+    { from: { x: 90, y: 65 }, to: { x: 10, y: 65 }, durationMs: 300 },
+    { from: { x: 8, y: 50 }, to: { x: 85, y: 50 }, durationMs: 350 },
+  ]);
+});
+
 test('runtime viewport gestures reject inspect-only macOS surfaces', async () => {
   for (const surface of ['desktop', 'menubar'] as const) {
     const device = createInteractionDevice(selectorSnapshot(), {

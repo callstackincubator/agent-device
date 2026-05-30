@@ -7,12 +7,15 @@ import {
   type ScrollDirection,
 } from '../../core/scroll-gesture.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
+import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { pointForMaestroTapOnTarget, swipeCoordinatesFromTarget } from './runtime-geometry.ts';
 import {
   captureMaestroRawSnapshot,
+  clearMaestroVisibleContext,
   errorResponse,
   readCachedMaestroReferenceFrame,
+  readMaestroVisibleContext,
   readSnapshotState,
   type FailedDaemonResponse,
   type MaestroRuntimeInvoke,
@@ -23,6 +26,8 @@ import {
   readMaestroSelectorPlatform,
   resolveMaestroFuzzyTextNodeFromSnapshot,
   resolveMaestroNodeFromSnapshot,
+  resolveVisibleMaestroNodeFromSnapshot,
+  type MaestroPreferredContext,
   type MaestroSnapshotTarget,
   type MaestroTapOnOptions,
 } from './runtime-targets.ts';
@@ -142,10 +147,26 @@ export async function invokeMaestroSwipeScreen(params: {
   invoke: MaestroRuntimeInvoke;
   scope?: ReplayVarScope;
 }): Promise<DaemonResponse> {
+  const presetResponse = await maybeInvokeMaestroDirectionalSwipePreset(params);
+  if (presetResponse) return presetResponse;
   const swipe = await resolveMaestroScreenSwipe(params);
   if (!swipe.ok) return swipe.response;
 
   return await invokeSwipeGesture(params, swipe, swipe.durationMs);
+}
+
+async function maybeInvokeMaestroDirectionalSwipePreset(params: {
+  baseReq: ReplayBaseRequest;
+  positionals: string[];
+  invoke: MaestroRuntimeInvoke;
+}): Promise<DaemonResponse | undefined> {
+  const [mode, direction, durationMs] = params.positionals;
+  if (mode !== 'direction' || (direction !== 'left' && direction !== 'right')) return undefined;
+  return await params.invoke({
+    ...params.baseReq,
+    command: 'gesture',
+    positionals: ['swipe', direction, ...(durationMs ? [durationMs] : [])],
+  });
 }
 
 export async function invokeMaestroTapOn(params: MaestroTapOnParams): Promise<DaemonResponse> {
@@ -225,11 +246,7 @@ async function resolveMaestroScreenSwipe(params: {
 
   const [mode, ...args] = params.positionals;
   if (mode === 'direction') {
-    return resolveDirectionalScreenSwipe(
-      args,
-      frame,
-      readMaestroSelectorPlatform(params.baseReq.flags),
-    );
+    return resolveDirectionalScreenSwipe(args, frame);
   }
   if (mode === 'percent') {
     return resolvePercentScreenSwipe(
@@ -258,7 +275,6 @@ async function captureFrameForMaestroScreenSwipe(params: {
 function resolveDirectionalScreenSwipe(
   args: string[],
   frame: { referenceWidth: number; referenceHeight: number },
-  platform: string,
 ): MaestroScreenSwipeResolution {
   const [direction, durationMs] = args;
   if (!direction) {
@@ -270,9 +286,7 @@ function resolveDirectionalScreenSwipe(
   switch (direction) {
     case 'up':
     case 'down':
-    case 'left':
-    case 'right':
-      return buildMaestroDirectionalScreenSwipe(direction, frame, platform, durationMs);
+      return buildMaestroDirectionalScreenSwipe(direction, frame, durationMs);
     default:
       return {
         ok: false,
@@ -287,7 +301,6 @@ function resolveDirectionalScreenSwipe(
 function buildMaestroDirectionalScreenSwipe(
   direction: ScrollDirection,
   frame: { referenceWidth: number; referenceHeight: number },
-  platform: string,
   durationMs: string | undefined,
 ): MaestroScreenSwipeResolution {
   const plan = buildSwipeGesturePlan({
@@ -298,13 +311,6 @@ function buildMaestroDirectionalScreenSwipe(
   });
   const start = clampGesturePoint({ x: plan.x1, y: plan.y1 }, frame, 8);
   const end = clampGesturePoint({ x: plan.x2, y: plan.y2 }, frame, 8);
-
-  if ((direction === 'left' || direction === 'right') && platform === 'android') {
-    const contentLaneY = pointFromPercent(frame, 50, 65, { marginPx: 8 }).y;
-    start.y = contentLaneY;
-    end.y = contentLaneY;
-  }
-
   return {
     ok: true,
     start,
@@ -429,11 +435,29 @@ async function invokeMaestroSnapshotTapOn(
     target.target,
     extractMaestroVisibleTextQuery(selector) !== null,
   );
+  emitDiagnostic({
+    level: 'debug',
+    phase: 'maestro_tap_target',
+    data: {
+      selector,
+      node: {
+        index: target.target.node.index,
+        type: target.target.node.type,
+        label: target.target.node.label,
+        value: target.target.node.value,
+        identifier: target.target.node.identifier,
+        visibleToUser: target.target.node.visibleToUser,
+      },
+      rect: target.target.rect,
+      point,
+    },
+  });
   const response = await params.invoke({
     ...params.baseReq,
     command: 'click',
     positionals: [String(point.x), String(point.y)],
   });
+  if (response.ok) clearMaestroVisibleContext(params.scope);
   return {
     response,
     targetResolved: true,
@@ -485,22 +509,21 @@ async function resolveMaestroSnapshotTarget(
   }
 
   const frame = getSnapshotReferenceFrame(snapshot);
-  const resolution = resolveMaestroNodeFromSnapshot(
-    snapshot,
-    selector,
-    options,
-    readMaestroSelectorPlatform(params.baseReq.flags),
-    frame,
-    resolutionOptions,
-  );
+  const platform = readMaestroSelectorPlatform(params.baseReq.flags);
+  const preferredContext = resolvePreferredMaestroContext(params, snapshot, platform, frame);
+  const resolution = resolveMaestroNodeFromSnapshot(snapshot, selector, options, platform, frame, {
+    ...resolutionOptions,
+    preferredContext,
+  });
   if (!resolution.ok) {
     const fuzzyTextQuery = extractMaestroVisibleTextQuery(selector);
     if (fuzzyTextQuery) {
       const fuzzyResolution = resolveMaestroFuzzyTextNodeFromSnapshot(
         snapshot,
         fuzzyTextQuery,
+        platform,
         frame,
-        resolutionOptions,
+        { ...resolutionOptions, preferredContext },
       );
       if (fuzzyResolution.ok) {
         return {
@@ -532,6 +555,34 @@ async function resolveMaestroSnapshotTarget(
       frame,
     },
   };
+}
+
+function resolvePreferredMaestroContext(
+  params: { baseReq: ReplayBaseRequest; scope?: ReplayVarScope },
+  snapshot: NonNullable<ReturnType<typeof readSnapshotState>>,
+  platform: ReturnType<typeof readMaestroSelectorPlatform>,
+  frame: ReturnType<typeof getSnapshotReferenceFrame>,
+): MaestroPreferredContext | undefined {
+  const context = readMaestroVisibleContext(params.scope);
+  if (!context) return undefined;
+  const target = resolveVisibleMaestroNodeFromSnapshot(snapshot, context.selector, platform, frame);
+  if (!target.ok) return undefined;
+  emitDiagnostic({
+    level: 'debug',
+    phase: 'maestro_preferred_context',
+    data: {
+      selector: context.selector,
+      node: {
+        index: target.node.index,
+        type: target.node.type,
+        label: target.node.label,
+        value: target.node.value,
+        identifier: target.node.identifier,
+      },
+      rect: target.rect,
+    },
+  });
+  return { node: target.node, rect: target.rect };
 }
 
 function readMaestroTapOnOptions(

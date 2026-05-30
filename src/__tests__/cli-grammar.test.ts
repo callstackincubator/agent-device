@@ -79,4 +79,13 @@ test('settings grammar owns positional parsing for CLI commands', () => {
   assert.equal(location.state, 'set');
   assert.equal(location.latitude, 37.3349);
   assert.equal(location.longitude, -122.009);
+
+  const clearAppState = readInputFromCli('settings', ['clear-app-state', 'com.example.app'], {
+    ...BASE_FLAGS,
+    platform: 'android',
+  });
+  assert.equal(clearAppState.platform, 'android');
+  assert.equal(clearAppState.setting, 'clear-app-state');
+  assert.equal(clearAppState.state, 'clear');
+  assert.equal(clearAppState.app, 'com.example.app');
 });

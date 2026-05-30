@@ -66,7 +66,7 @@ const LOCAL_CLI_COMMANDS = {
   session: 'session',
 } as const;
 
-const GESTURE_SUBCOMMANDS = ['pan', 'fling', 'pinch', 'rotate', 'transform'] as const;
+const GESTURE_SUBCOMMANDS = ['pan', 'fling', 'swipe', 'pinch', 'rotate', 'transform'] as const;
 export const GESTURE_SUBCOMMAND_ERROR = `gesture requires one of: ${GESTURE_SUBCOMMANDS.join(', ')}`;
 
 export type PublicCommandName = (typeof PUBLIC_COMMANDS)[keyof typeof PUBLIC_COMMANDS];

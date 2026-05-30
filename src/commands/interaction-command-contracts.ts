@@ -12,6 +12,7 @@ import type {
   LongPressOptions,
   RotateGestureOptions,
   ScrollOptions,
+  SwipeGestureOptions,
   SwipeOptions,
   TransformGestureOptions,
   TypeTextOptions,
@@ -35,6 +36,7 @@ import {
   type PinchInput,
   type PressInput,
   type RotateInput,
+  type SwipeGestureInput,
   type TransformInput,
 } from './interaction-command-metadata.ts';
 
@@ -81,6 +83,8 @@ export const interactionCommandDefinitions = [
         return await client.interactions.pan(toPanOptions(input));
       case 'fling':
         return await client.interactions.fling(toFlingOptions(input));
+      case 'swipe':
+        return await client.interactions.swipeGesture(toSwipeGestureOptions(input));
       case 'pinch':
         return await client.interactions.pinch(toPinchOptions(input));
       case 'rotate':
@@ -164,6 +168,14 @@ function toFlingOptions(input: FlingInput): FlingOptions {
     x: input.origin.x,
     y: input.origin.y,
     distance: input.distance,
+    durationMs: input.durationMs,
+  };
+}
+
+function toSwipeGestureOptions(input: SwipeGestureInput): SwipeGestureOptions {
+  return {
+    ...commonToClientOptions(input),
+    preset: input.preset,
     durationMs: input.durationMs,
   };
 }

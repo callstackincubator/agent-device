@@ -1,6 +1,8 @@
 import { AppError } from '../utils/errors.ts';
+import type { Rect, SnapshotNode } from '../utils/snapshot.ts';
 
 export type ScrollDirection = 'up' | 'down' | 'left' | 'right';
+export type SwipePreset = 'left' | 'right' | 'left-edge' | 'right-edge';
 
 export type GestureReferenceFrame = {
   referenceWidth: number;
@@ -36,6 +38,16 @@ export type SwipeGestureOptions = ScrollGestureOptions;
 
 export type SwipeGesturePlan = Omit<ScrollGesturePlan, 'direction'> & {
   direction: ScrollDirection;
+};
+
+export type SwipePresetGesturePlan = {
+  preset: SwipePreset;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  referenceWidth: number;
+  referenceHeight: number;
 };
 
 const DEFAULT_SCROLL_AMOUNT = 0.6;
@@ -91,6 +103,60 @@ export function buildSwipeGesturePlan(options: SwipeGestureOptions): SwipeGestur
   };
 }
 
+export function buildSwipePresetGesturePlan(
+  preset: SwipePreset,
+  frame: GestureReferenceFrame,
+  options: { platform?: string; marginPx?: number } = {},
+): SwipePresetGesturePlan {
+  const marginPx = options.marginPx ?? 8;
+  const horizontalLanePercent = options.platform === 'android' ? 65 : 50;
+  const [startPercent, endPercent, yPercent] =
+    preset === 'left'
+      ? [90, 10, horizontalLanePercent]
+      : preset === 'right'
+        ? [10, 90, horizontalLanePercent]
+        : preset === 'left-edge'
+          ? [99, 15, 50]
+          : [1, 85, 50];
+  const start = pointFromPercent(frame, startPercent, yPercent, { marginPx });
+  const end = pointFromPercent(frame, endPercent, yPercent, { marginPx });
+  return {
+    preset,
+    x1: start.x,
+    y1: start.y,
+    x2: end.x,
+    y2: end.y,
+    referenceWidth: frame.referenceWidth,
+    referenceHeight: frame.referenceHeight,
+  };
+}
+
+export function parseSwipePreset(input: string | undefined): SwipePreset {
+  switch (input) {
+    case 'left':
+    case 'right':
+    case 'left-edge':
+    case 'right-edge':
+      return input;
+    default:
+      throw new AppError(
+        'INVALID_ARGS',
+        'gesture swipe requires left, right, left-edge, or right-edge',
+      );
+  }
+}
+
+export function inferGestureReferenceFrame(
+  nodes: Array<Pick<SnapshotNode, 'type' | 'rect'>>,
+): GestureReferenceFrame | undefined {
+  const viewportRect = inferViewportRect(nodes);
+  if (!viewportRect) return undefined;
+  return {
+    referenceWidth: viewportRect.width,
+    referenceHeight: viewportRect.height,
+  };
+}
+
 export function pointFromPercent(
   frame: GestureReferenceFrame,
   xPercent: number,
@@ -139,6 +205,35 @@ function scrollDirectionForFingerSwipe(direction: ScrollDirection): ScrollDirect
     case 'right':
       return 'left';
   }
+}
+
+function inferViewportRect(nodes: Array<Pick<SnapshotNode, 'type' | 'rect'>>): Rect | undefined {
+  const candidate = nodes
+    .filter((node) => isViewportNode(node.type) && isValidRect(node.rect))
+    .map((node) => node.rect)
+    .sort(
+      (left, right) =>
+        (right?.width ?? 0) * (right?.height ?? 0) - (left?.width ?? 0) * (left?.height ?? 0),
+    )[0];
+  if (candidate) return candidate;
+
+  const rects = nodes.map((node) => node.rect).filter(isValidRect);
+  if (rects.length === 0) return undefined;
+
+  const width = Math.max(...rects.map((rect) => rect.x + rect.width));
+  const height = Math.max(...rects.map((rect) => rect.y + rect.height));
+  if (width <= 0 || height <= 0) return undefined;
+  return { x: 0, y: 0, width, height };
+}
+
+function isViewportNode(type: string | undefined): boolean {
+  if (!type) return false;
+  const normalized = type.toLowerCase();
+  return normalized.includes('application') || normalized.includes('window');
+}
+
+function isValidRect(rect: Rect | undefined): rect is Rect {
+  return !!rect && rect.width > 0 && rect.height > 0;
 }
 
 function resolveRequestedAmount(amount: number | undefined): number {

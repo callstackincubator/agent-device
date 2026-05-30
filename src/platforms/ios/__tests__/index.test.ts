@@ -2403,6 +2403,56 @@ exit 1
   );
 });
 
+test('setIosSetting clear-app-state wipes iOS simulator app data container', async () => {
+  await withMockedXcrun(
+    'agent-device-ios-clear-app-state-test-',
+    `#!/bin/sh
+printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"
+if [ "$1" = "simctl" ] && [ "$2" = "list" ] && [ "$3" = "devices" ] && [ "$4" = "-j" ]; then
+  cat <<'JSON'
+{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-0":[{"udid":"sim-1","state":"Booted"}]}}
+JSON
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "terminate" ] && [ "$3" = "sim-1" ] && [ "$4" = "com.example.app" ]; then
+  exit 0
+fi
+if [ "$1" = "simctl" ] && [ "$2" = "get_app_container" ] && [ "$3" = "sim-1" ] && [ "$4" = "com.example.app" ] && [ "$5" = "data" ]; then
+  echo "$AGENT_DEVICE_TEST_CONTAINER"
+  exit 0
+fi
+echo "unexpected xcrun args: $@" >&2
+exit 1
+`,
+    async ({ tmpDir, argsLogPath }) => {
+      const containerPath = path.join(tmpDir, 'container');
+      await fs.mkdir(path.join(containerPath, 'Documents'), { recursive: true });
+      await fs.writeFile(path.join(containerPath, 'Documents', 'db.sqlite'), 'db');
+      await fs.writeFile(path.join(containerPath, 'Library.plist'), 'prefs');
+      const previousContainer = process.env.AGENT_DEVICE_TEST_CONTAINER;
+      process.env.AGENT_DEVICE_TEST_CONTAINER = containerPath;
+      try {
+        const result = await setIosSetting(
+          IOS_TEST_SIMULATOR,
+          'clear-app-state',
+          'clear',
+          'com.example.app',
+        );
+        assert.equal(result?.cleared, true);
+        assert.equal(result?.bundleId, 'com.example.app');
+        assert.deepEqual(await fs.readdir(containerPath), []);
+      } finally {
+        if (previousContainer === undefined) delete process.env.AGENT_DEVICE_TEST_CONTAINER;
+        else process.env.AGENT_DEVICE_TEST_CONTAINER = previousContainer;
+      }
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /simctl\nterminate\nsim-1\ncom\.example\.app/);
+      assert.match(logged, /simctl\nget_app_container\nsim-1\ncom\.example\.app\ndata/);
+    },
+  );
+});
+
 test('setIosSetting permission grant photos limited maps to photos-add', async () => {
   await withMockedXcrun(
     'agent-device-ios-permission-photos-test-',

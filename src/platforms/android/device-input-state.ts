@@ -157,7 +157,11 @@ function parseAndroidKeyboardState(stdout: string): AndroidKeyboardState {
     focusedResourceId,
     inputMethodPackage,
   );
-  emitAndroidInputOwnershipFallbackDiagnostic(focusedPackage, focusedResourceId, inputMethodPackage);
+  emitAndroidInputOwnershipFallbackDiagnostic(
+    focusedPackage,
+    focusedResourceId,
+    inputMethodPackage,
+  );
 
   return {
     visible: visible ?? false,
