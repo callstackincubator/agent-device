@@ -373,6 +373,21 @@ test('parseMaestroReplayFlow preserves selector state and absolute swipe command
   assert.deepEqual(parsed.actionLines, [3, 6]);
 });
 
+test('parseMaestroReplayFlow maps extendedWaitUntil.notVisible through Maestro visibility assertions', () => {
+  const parsed = parseMaestroReplayFlow(`appId: com.callstack.agentdevicelab
+---
+- extendedWaitUntil:
+    notVisible:
+      text: Loading
+    timeout: 1200
+`);
+
+  assert.deepEqual(
+    parsed.actions.map((entry) => [entry.command, entry.positionals]),
+    [['__maestroAssertNotVisible', ['label="Loading" || text="Loading" || id="Loading"', '1200']]],
+  );
+});
+
 test('parseMaestroReplayFlow rejects deferred Maestro utility commands loudly', () => {
   assert.throws(
     () => parseMaestroReplayFlow('---\n- assertTrue: "${READY}"\n'),

@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import { afterEach, test, vi } from 'vitest';
-import { invokeMaestroAssertNotVisible, invokeMaestroAssertVisible } from '../runtime-assertions.ts';
+import {
+  invokeMaestroAssertNotVisible,
+  invokeMaestroAssertVisible,
+} from '../runtime-assertions.ts';
 import type { DaemonRequest, DaemonResponse } from '../../../daemon/types.ts';
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 test('invokeMaestroAssertVisible takes a terminal snapshot when the last miss started before the deadline', async () => {
@@ -56,6 +60,56 @@ test('invokeMaestroAssertVisible takes a terminal snapshot when the last miss st
   }
 });
 
+test('invokeMaestroAssertVisible retries transient snapshot failures until a later match', async () => {
+  vi.useFakeTimers();
+
+  let snapshots = 0;
+  const responsePromise = invokeMaestroAssertVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'android' },
+    },
+    positionals: ['label="Ready"', '1000'],
+    invoke: async (): Promise<DaemonResponse> => {
+      snapshots += 1;
+      if (snapshots === 1) {
+        return {
+          ok: false,
+          error: { code: 'SNAPSHOT_FAILED', message: 'Snapshot temporarily unavailable.' },
+        };
+      }
+      return {
+        ok: true,
+        data: {
+          createdAt: 2,
+          nodes: [
+            {
+              index: 1,
+              ref: 'e1',
+              type: 'android.widget.TextView',
+              label: 'Ready',
+              rect: { x: 10, y: 20, width: 120, height: 40 },
+              depth: 8,
+            },
+          ],
+        },
+      };
+    },
+  });
+
+  await vi.advanceTimersByTimeAsync(250);
+  const response = await responsePromise;
+
+  assert.equal(response.ok, true);
+  assert.equal(snapshots, 2);
+  if (response.ok) {
+    assert.ok(response.data);
+    assert.equal(response.data.nodeLabel, 'Ready');
+    assert.equal(response.data.waitedMs, 250);
+  }
+});
+
 test('invokeMaestroAssertNotVisible passes after a slow hidden sample exhausts the timeout', async () => {
   vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(3500);
 
@@ -80,9 +134,10 @@ test('invokeMaestroAssertNotVisible passes after a slow hidden sample exhausts t
   });
 
   assert.equal(response.ok, true);
-  assert.deepEqual(calls.map((call) => [call.command, call.positionals]), [
-    ['snapshot', []],
-  ]);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [['snapshot', []]],
+  );
   if (response.ok) {
     assert.ok(response.data);
     assert.equal(response.data.stableSamples, 1);
@@ -123,5 +178,32 @@ test('invokeMaestroAssertNotVisible ignores matched nodes without visible rects'
   if (response.ok) {
     assert.ok(response.data);
     assert.equal(response.data.stableSamples, 1);
+  }
+});
+
+test('invokeMaestroAssertNotVisible accepts timeout overrides for short extended waits', async () => {
+  vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(300);
+
+  const response = await invokeMaestroAssertNotVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: {},
+    },
+    positionals: ['id="toast"', '1'],
+    invoke: async (): Promise<DaemonResponse> => ({
+      ok: true,
+      data: {
+        createdAt: 1,
+        nodes: [],
+      },
+    }),
+  });
+
+  assert.equal(response.ok, true);
+  if (response.ok) {
+    assert.ok(response.data);
+    assert.equal(response.data.stableSamples, 1);
+    assert.equal(response.data.timeoutMs, 1);
   }
 });

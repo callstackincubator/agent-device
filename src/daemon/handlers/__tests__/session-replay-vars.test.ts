@@ -970,6 +970,35 @@ test('runReplayScriptFile waits briefly for Maestro assertNotVisible to stabiliz
   assert.equal(calls.length, 3);
 });
 
+test('runReplayScriptFile treats absent Maestro extendedWaitUntil.notVisible targets as passing', async () => {
+  const { response, calls } = await runReplayFixture({
+    label: 'maestro-extended-wait-not-visible-absent',
+    script: [
+      'appId: demo.app',
+      '---',
+      '- extendedWaitUntil:',
+      '    notVisible: Archived banner',
+      '    timeout: 1',
+      '',
+    ].join('\n'),
+    flags: { replayBackend: 'maestro' },
+    invoke: async () => ({
+      ok: true,
+      data: {
+        createdAt: 1,
+        nodes: [],
+      },
+    }),
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [['snapshot', []]],
+  );
+  assert.equal(calls[0]?.flags?.noRecord, true);
+});
+
 test('runReplayScriptFile retries Maestro fuzzy tapOn without raw selector fallback', async () => {
   const calls: CapturedInvocation[] = [];
   let snapshotAttempts = 0;
