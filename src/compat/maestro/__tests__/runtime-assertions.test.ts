@@ -8,6 +8,7 @@ import type { DaemonRequest, DaemonResponse } from '../../../daemon/types.ts';
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 test('invokeMaestroAssertVisible takes a terminal snapshot when the last miss started before the deadline', async () => {
@@ -56,6 +57,56 @@ test('invokeMaestroAssertVisible takes a terminal snapshot when the last miss st
     assert.ok(response.data);
     assert.equal(response.data.nodeLabel, 'Details is preloaded!');
     assert.equal(response.data.waitedMs, 6600);
+  }
+});
+
+test('invokeMaestroAssertVisible retries transient snapshot failures until a later match', async () => {
+  vi.useFakeTimers();
+
+  let snapshots = 0;
+  const responsePromise = invokeMaestroAssertVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'android' },
+    },
+    positionals: ['label="Ready"', '1000'],
+    invoke: async (): Promise<DaemonResponse> => {
+      snapshots += 1;
+      if (snapshots === 1) {
+        return {
+          ok: false,
+          error: { code: 'SNAPSHOT_FAILED', message: 'Snapshot temporarily unavailable.' },
+        };
+      }
+      return {
+        ok: true,
+        data: {
+          createdAt: 2,
+          nodes: [
+            {
+              index: 1,
+              ref: 'e1',
+              type: 'android.widget.TextView',
+              label: 'Ready',
+              rect: { x: 10, y: 20, width: 120, height: 40 },
+              depth: 8,
+            },
+          ],
+        },
+      };
+    },
+  });
+
+  await vi.advanceTimersByTimeAsync(250);
+  const response = await responsePromise;
+
+  assert.equal(response.ok, true);
+  assert.equal(snapshots, 2);
+  if (response.ok) {
+    assert.ok(response.data);
+    assert.equal(response.data.nodeLabel, 'Ready');
+    assert.equal(response.data.waitedMs, 250);
   }
 });
 

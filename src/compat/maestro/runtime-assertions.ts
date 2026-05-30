@@ -49,7 +49,6 @@ export async function invokeMaestroAssertVisible(params: {
     const captureStartedAt = Date.now();
     const sample = await readMaestroVisibilitySample(params, args.selector, 'assertVisible');
     if (sample.visible) return visibleAssertionResponse(sample.response, args.selector, startedAt);
-    if (!sample.visible && sample.infrastructureFailure) return sample.response;
     lastResponse = sample.response;
 
     const elapsedMs = Date.now() - startedAt;
