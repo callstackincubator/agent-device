@@ -223,7 +223,7 @@ test('parseMaestroReplayFlow keeps focused inputText and pressKey Enter as separ
   assert.deepEqual(parsed.actionLines, [3, 4, 5]);
 });
 
-test('parseMaestroReplayFlow marks tapOn before inputText for snapshot tap focus', () => {
+test('parseMaestroReplayFlow coalesces tapOn inputText through native fill', () => {
   const parsed = parseMaestroReplayFlow(`appId: com.callstack.agentdevicelab
 ---
 - tapOn:
@@ -234,11 +234,12 @@ test('parseMaestroReplayFlow marks tapOn before inputText for snapshot tap focus
   assert.deepEqual(
     parsed.actions.map((entry) => [entry.command, entry.positionals]),
     [
-      ['__maestroTapOn', ['id="editableNameInput"']],
-      ['type', ['Saved list']],
+      ['wait', ['id="editableNameInput"', '30000']],
+      ['fill', ['id="editableNameInput"', 'Saved list']],
     ],
   );
-  assert.equal(parsed.actions[0]?.flags?.maestro?.allowNonHittableCoordinateFallback, undefined);
+  assert.deepEqual(parsed.actionLines, [3, 3]);
+  assert.equal(parsed.actions[1]?.flags?.maestro?.allowNonHittableCoordinateFallback, true);
 });
 
 test('parseMaestroReplayFlow coalesces tapOn inputText while preserving pressKey Enter submit', () => {
@@ -279,6 +280,27 @@ test('parseMaestroReplayFlow does not coalesce text entry for non-input-looking 
     ],
   );
   assert.equal(parsed.actions[0]?.flags?.maestro?.allowNonHittableCoordinateFallback, undefined);
+});
+
+test('parseMaestroReplayFlow maps focused input commands to native type and keyboard actions', () => {
+  const parsed = parseMaestroReplayFlow(`appId: com.callstack.agentdevicelab
+---
+- inputText: hello
+- eraseText:
+    charactersToErase: 3
+- pasteText: pasted
+- pressKey: Return
+`);
+
+  assert.deepEqual(
+    parsed.actions.map((entry) => [entry.command, entry.positionals]),
+    [
+      ['type', ['hello']],
+      ['type', ['\b'.repeat(3)]],
+      ['type', ['pasted']],
+      ['__maestroPressEnter', []],
+    ],
+  );
 });
 
 test('parseMaestroReplayFlow rejects relative runScript paths without source path', () => {
@@ -658,10 +680,10 @@ test('parseMaestroReplayFlow parses the test-app Maestro suite fixture', () => {
       '__maestroAssertVisible',
       '__maestroTapOn',
       '__maestroAssertVisible',
-      '__maestroTapOn',
-      'type',
-      '__maestroTapOn',
-      'type',
+      'wait',
+      'fill',
+      'wait',
+      'fill',
       '__maestroTapOn',
       '__maestroAssertVisible',
       '__maestroAssertVisible',

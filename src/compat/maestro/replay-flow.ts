@@ -114,9 +114,7 @@ function optimizeTypedAfterTap(
     return { actions: [clearMaestroNonHittableTap(action)], actionLines: [line], consumed: 1 };
   }
   const pressEnterAction = actions[index + 2];
-  if (pressEnterAction?.command !== MAESTRO_RUNTIME_COMMAND.pressEnter) {
-    return { actions: [clearMaestroNonHittableTap(action)], actionLines: [line], consumed: 1 };
-  }
+  const shouldKeepEnter = pressEnterAction?.command === MAESTRO_RUNTIME_COMMAND.pressEnter;
   return {
     actions: [
       {
@@ -130,10 +128,10 @@ function optimizeTypedAfterTap(
         positionals: [tapSelector, typedAfterTap],
         flags: action.flags,
       },
-      pressEnterAction,
+      ...(shouldKeepEnter ? [pressEnterAction] : []),
     ],
-    actionLines: [line, line, actionLines[index + 2] ?? line],
-    consumed: 3,
+    actionLines: [line, line, ...(shouldKeepEnter ? [actionLines[index + 2] ?? line] : [])],
+    consumed: shouldKeepEnter ? 3 : 2,
   };
 }
 

@@ -27,7 +27,7 @@ const LOC = { file: 'test.ad', line: 1 };
 type CapturedInvocation = {
   command: string;
   positionals?: string[];
-  flags?: Record<string, unknown>;
+  flags?: CommandFlags;
 };
 
 async function runReplayFixture(params: {
@@ -1247,7 +1247,7 @@ test('runReplayScriptFile lets snapshot id tap handle Maestro one-point edge con
   );
 });
 
-test('runReplayScriptFile keeps Maestro text-entry tapOn on the snapshot path', async () => {
+test('runReplayScriptFile coalesces Maestro text-entry tapOn into native fill', async () => {
   const calls: CapturedInvocation[] = [];
   const { response } = await runReplayFixture({
     label: 'maestro-tap-input-text-snapshot',
@@ -1284,12 +1284,11 @@ test('runReplayScriptFile keeps Maestro text-entry tapOn on the snapshot path', 
   assert.deepEqual(
     calls.map((call) => [call.command, call.positionals]),
     [
-      ['snapshot', []],
-      ['click', ['120', '120']],
-      ['type', ['Saved list']],
+      ['wait', ['id="editableNameInput"', '30000']],
+      ['fill', ['id="editableNameInput"', 'Saved list']],
     ],
   );
-  assert.equal(calls[0]?.flags?.noRecord, true);
+  assert.equal(calls[1]?.flags?.maestro?.allowNonHittableCoordinateFallback, true);
 });
 
 test('runReplayScriptFile resolves Maestro swipe.label from a labeled element rect', async () => {
