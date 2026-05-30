@@ -202,7 +202,7 @@ Validation and evidence:
   If task says snapshot, use snapshot. If it asks visual evidence, use screenshot.
   Icon/tappable visual proof: screenshot --overlay-refs. Flag is --overlay-refs.
   Startup/frame health/CPU/memory: perf --json or metrics. Replay maintenance: replay -u ./flow.ad.
-  Recording: record start/stop. By default, stop burns touch overlays into the video; use record start --hide-touches for the fastest raw recording. For gesture-heavy iOS simulator proof videos, prefer --hide-touches because overlay timing depends on a stable runner session while gestures are executing. Tracing: trace start ./trace.log, trace stop ./trace.log. Paths are positional.
+  Recording: record start/stop. By default, stop burns touch overlays into the video; use record start --hide-touches for the fastest raw recording. Android adb screenrecord has a 180s platform limit, so longer Android recordings are returned as multiple MP4 chunks. For gesture-heavy iOS simulator proof videos, prefer --hide-touches because overlay timing depends on a stable runner session while gestures are executing. Tracing: trace start ./trace.log, trace stop ./trace.log. Paths are positional.
   Stable known flow: batch ./steps.json, not workflow batch.
   Inline batch JSON example:
     agent-device batch --steps '[{"command":"open","input":{"app":"settings"}},{"command":"wait","input":{"kind":"duration","durationMs":100}}]'

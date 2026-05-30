@@ -279,7 +279,8 @@ const CLI_COMMAND_OVERRIDES = {
     usageOverride:
       'record start [path] [--fps <n>] [--quality <5-10>] [--hide-touches] | record stop',
     listUsageOverride: 'record start [path] | record stop',
-    helpDescription: 'Start/stop screen recording',
+    helpDescription:
+      'Start/stop screen recording; Android recordings longer than the 180s adb screenrecord limit are returned as multiple MP4 chunks',
     summary: 'Start or stop screen recording',
     positionalArgs: ['start|stop', 'path?'],
     allowedFlags: ['fps', 'quality', 'hideTouches'],

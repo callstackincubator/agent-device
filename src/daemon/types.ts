@@ -146,6 +146,7 @@ type SessionRecordingBase = {
   outPath: string;
   clientOutPath?: string;
   telemetryPath?: string;
+  warning?: string;
   overlayWarning?: string;
   startedAt: number;
   quality?: number;
@@ -159,6 +160,12 @@ type SessionRecordingBase = {
   gestureClockOriginUptimeMs?: number;
   runnerSessionId?: string;
   invalidatedReason?: string;
+};
+
+export type RecordingChunk = {
+  index: number;
+  path: string;
+  remotePath: string;
 };
 
 type SessionRecordingProcessChild = Pick<ExecBackgroundResult['child'], 'kill' | 'pid'>;
@@ -194,6 +201,11 @@ export type SessionState = {
         platform: 'android';
         remotePath: string;
         remotePid: string;
+        chunks?: RecordingChunk[];
+        rotationTimer?: NodeJS.Timeout;
+        rotationPromise?: Promise<void>;
+        rotationFailedReason?: string;
+        stopping?: boolean;
       })
     | (SessionRecordingBase & {
         platform: 'ios-device-runner';

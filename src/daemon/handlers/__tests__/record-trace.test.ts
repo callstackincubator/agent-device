@@ -1331,6 +1331,164 @@ test('record stop force-kills Android screenrecord when SIGINT fails but process
   ).toBe(true);
 });
 
+test('record stop warns when Android screenrecord hit the 180s platform limit', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-screenrecord-limit';
+  sessionStore.set(
+    sessionName,
+    makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Android',
+      kind: 'device',
+      booted: true,
+    }),
+  );
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    const command = args.join(' ');
+    if (
+      /^-s emulator-5554 shell screenrecord \/sdcard\/agent-device-recording-\d+\.mp4 >\/dev\/null 2>&1 & echo \$!$/.test(
+        command,
+      )
+    ) {
+      return { stdout: '4321\n', stderr: '', exitCode: 0 };
+    }
+    if (
+      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
+    ) {
+      return { stdout: '1024\n', stderr: '', exitCode: 0 };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './android-limit.mp4'],
+  });
+
+  const recording = sessionStore.get(sessionName)?.recording;
+  if (recording) {
+    recording.startedAt = Date.now() - 181_000;
+  }
+
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    const command = args.join(' ');
+    if (command === '-s emulator-5554 shell ps -o pid= -p 4321') {
+      return { stdout: '', stderr: '', exitCode: 1 };
+    }
+    if (command === '-s emulator-5554 shell kill -2 4321') {
+      return { stdout: '', stderr: 'No such process', exitCode: 1 };
+    }
+    if (
+      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
+    ) {
+      return { stdout: '2048\n', stderr: '', exitCode: 0 };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(response?.ok).toBe(true);
+  expect((response as any).data?.warning).toMatch(/180s platform limit/);
+});
+
+test('record stop returns multiple Android recording chunks', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-screenrecord-chunks';
+  const session = makeSession(sessionName, {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Android',
+    kind: 'device',
+    booted: true,
+  });
+  session.recording = {
+    platform: 'android',
+    outPath: path.resolve('./android-long.mp4'),
+    startedAt: Date.now() - 172_000,
+    showTouches: true,
+    gestureEvents: [{ kind: 'tap', tMs: 120, x: 90, y: 180 }],
+    remotePath: '/sdcard/agent-device-recording-2.mp4',
+    remotePid: '4322',
+    warning:
+      'Android adb screenrecord is capped at 180s, so this recording was split into multiple MP4 chunks.',
+    chunks: [
+      {
+        index: 1,
+        path: path.resolve('./android-long.mp4'),
+        remotePath: '/sdcard/agent-device-recording-1.mp4',
+      },
+      {
+        index: 2,
+        path: path.resolve('./android-long.part-002.mp4'),
+        remotePath: '/sdcard/agent-device-recording-2.mp4',
+      },
+    ],
+  };
+  sessionStore.set(sessionName, session);
+
+  const adbCommands: string[] = [];
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    const command = args.join(' ');
+    adbCommands.push(command);
+    if (command === '-s emulator-5554 shell ps -o pid= -p 4322') {
+      return adbCommands.includes('-s emulator-5554 shell kill -2 4322')
+        ? { stdout: '', stderr: '', exitCode: 1 }
+        : { stdout: '4322\n', stderr: '', exitCode: 0 };
+    }
+    if (command === '-s emulator-5554 shell kill -2 4322') {
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    if (
+      /^-s emulator-5554 shell stat -c %s \/sdcard\/agent-device-recording-\d+\.mp4$/.test(command)
+    ) {
+      return { stdout: '2048\n', stderr: '', exitCode: 0 };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok !== true) {
+    throw new Error('expected successful Android record stop response');
+  }
+  expect(response.data?.warning).toMatch(/split into multiple MP4 chunks/);
+  expect(response.data?.overlayWarning).toMatch(/skipped for chunked Android recordings/);
+  expect(response.data?.chunks).toEqual([
+    expect.objectContaining({ index: 1, path: path.resolve('./android-long.mp4') }),
+    expect.objectContaining({ index: 2, path: path.resolve('./android-long.part-002.mp4') }),
+  ]);
+  expect(response.data?.artifacts).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ field: 'outPath', path: path.resolve('./android-long.mp4') }),
+      expect.objectContaining({
+        field: 'chunkPath',
+        path: path.resolve('./android-long.part-002.mp4'),
+      }),
+    ]),
+  );
+  expect(adbCommands).toEqual(
+    expect.arrayContaining([
+      '-s emulator-5554 pull /sdcard/agent-device-recording-1.mp4 ' +
+        path.resolve('./android-long.mp4'),
+      '-s emulator-5554 pull /sdcard/agent-device-recording-2.mp4 ' +
+        path.resolve('./android-long.part-002.mp4'),
+    ]),
+  );
+});
+
 test('record stop keeps iOS simulator video when touch overlay recording was invalidated', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-invalidated-recording';

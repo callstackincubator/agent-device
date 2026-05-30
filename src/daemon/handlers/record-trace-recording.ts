@@ -21,6 +21,7 @@ import { resolveRecordingProvider } from '../recording-provider.ts';
 import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
 import { errorResponse } from './response.ts';
 import { startAndroidRecording, stopAndroidRecording } from './record-trace-android.ts';
+import { deriveAndroidChunkOutPath } from './record-trace-android-chunks.ts';
 import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import {
   getIosRunnerOptions,
@@ -436,6 +437,7 @@ async function stopRecording(params: {
 function buildRecordStopResponse(
   recording: NonNullable<SessionState['recording']>,
 ): DaemonResponse {
+  const chunks = recording.platform === 'android' ? recording.chunks : undefined;
   const artifacts: DaemonArtifact[] = [
     {
       field: 'outPath',
@@ -444,6 +446,16 @@ function buildRecordStopResponse(
       fileName: path.basename(recording.clientOutPath ?? recording.outPath),
     },
   ];
+  if (chunks && chunks.length > 1) {
+    artifacts.push(
+      ...chunks.slice(1).map((chunk) => ({
+        field: 'chunkPath',
+        path: chunk.path,
+        localPath: deriveAndroidChunkClientPath(recording, chunk.index),
+        fileName: path.basename(deriveAndroidChunkClientPath(recording, chunk.index) ?? chunk.path),
+      })),
+    );
+  }
   if (recording.telemetryPath) {
     artifacts.push({
       field: 'telemetryPath',
@@ -461,9 +473,24 @@ function buildRecordStopResponse(
       telemetryPath: recording.telemetryPath,
       artifacts,
       showTouches: recording.showTouches,
+      warning: recording.warning,
       overlayWarning: recording.overlayWarning,
+      chunks: chunks?.map((chunk) => ({
+        index: chunk.index,
+        path: deriveAndroidChunkClientPath(recording, chunk.index) ?? chunk.path,
+      })),
     },
   };
+}
+
+function deriveAndroidChunkClientPath(
+  recording: NonNullable<SessionState['recording']>,
+  chunkIndex: number,
+): string | undefined {
+  if (recording.platform !== 'android' || !recording.clientOutPath) {
+    return undefined;
+  }
+  return deriveAndroidChunkOutPath(recording.clientOutPath, chunkIndex);
 }
 
 function deriveClientTelemetryPath(
