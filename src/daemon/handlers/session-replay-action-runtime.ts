@@ -160,7 +160,8 @@ async function invokeReplayControl(params: {
         invokeReplayAction,
       });
   }
-  return undefined;
+  const _exhaustive: never = control;
+  return _exhaustive;
 }
 
 function readReplayOutputEnv(data: unknown): Record<string, string> | null {

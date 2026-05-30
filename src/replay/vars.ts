@@ -154,8 +154,27 @@ export function resolveReplayAction(
     positionals: (action.positionals ?? []).map((token) => resolveReplayString(token, scope, loc)),
     flags: resolveStringProps(action.flags, scope, loc) ?? {},
     runtime: resolveStringProps(action.runtime, scope, loc),
-    replayControl: resolveStringProps(action.replayControl, scope, loc),
+    replayControl: resolveReplayControl(action.replayControl, scope, loc),
   };
+}
+
+function resolveReplayControl(
+  control: SessionAction['replayControl'] | undefined,
+  scope: ReplayVarScope,
+  loc: { file: string; line: number },
+): SessionAction['replayControl'] | undefined {
+  if (!control) return control;
+  switch (control.kind) {
+    case 'maestroRunFlowWhen':
+      return {
+        ...control,
+        selector: resolveReplayString(control.selector, scope, loc),
+      };
+    case 'retry':
+      return control;
+  }
+  const _exhaustive: never = control;
+  return _exhaustive;
 }
 
 function resolveStringProps<T extends object>(
