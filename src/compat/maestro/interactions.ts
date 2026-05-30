@@ -142,7 +142,7 @@ export function convertExtendedWaitUntil(
   const selector = maestroSelector(target, 'extendedWaitUntil', [], context);
   const timeoutMs = String(readTimeoutMs(value, 30000));
   if (value.notVisible !== undefined) {
-    return [action('wait', [timeoutMs]), action('is', ['hidden', selector])];
+    return [action(MAESTRO_RUNTIME_COMMAND.assertNotVisible, [selector, timeoutMs])];
   }
   return [action(MAESTRO_RUNTIME_COMMAND.assertVisible, [selector, timeoutMs])];
 }

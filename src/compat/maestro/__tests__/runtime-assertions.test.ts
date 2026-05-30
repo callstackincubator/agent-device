@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { afterEach, test, vi } from 'vitest';
-import { invokeMaestroAssertNotVisible, invokeMaestroAssertVisible } from '../runtime-assertions.ts';
+import {
+  invokeMaestroAssertNotVisible,
+  invokeMaestroAssertVisible,
+} from '../runtime-assertions.ts';
 import type { DaemonRequest, DaemonResponse } from '../../../daemon/types.ts';
 
 afterEach(() => {
@@ -80,9 +83,10 @@ test('invokeMaestroAssertNotVisible passes after a slow hidden sample exhausts t
   });
 
   assert.equal(response.ok, true);
-  assert.deepEqual(calls.map((call) => [call.command, call.positionals]), [
-    ['snapshot', []],
-  ]);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [['snapshot', []]],
+  );
   if (response.ok) {
     assert.ok(response.data);
     assert.equal(response.data.stableSamples, 1);
@@ -123,5 +127,32 @@ test('invokeMaestroAssertNotVisible ignores matched nodes without visible rects'
   if (response.ok) {
     assert.ok(response.data);
     assert.equal(response.data.stableSamples, 1);
+  }
+});
+
+test('invokeMaestroAssertNotVisible accepts timeout overrides for short extended waits', async () => {
+  vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(300);
+
+  const response = await invokeMaestroAssertNotVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: {},
+    },
+    positionals: ['id="toast"', '1'],
+    invoke: async (): Promise<DaemonResponse> => ({
+      ok: true,
+      data: {
+        createdAt: 1,
+        nodes: [],
+      },
+    }),
+  });
+
+  assert.equal(response.ok, true);
+  if (response.ok) {
+    assert.ok(response.data);
+    assert.equal(response.data.stableSamples, 1);
+    assert.equal(response.data.timeoutMs, 1);
   }
 });
