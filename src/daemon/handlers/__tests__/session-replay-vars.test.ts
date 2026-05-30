@@ -337,6 +337,33 @@ test('runReplayScriptFile rejects replay -u on scripts with env directives', asy
   }
 });
 
+test('runReplayScriptFile rejects replay -u for Maestro compat flow controls before serialization', async () => {
+  const { response } = await runReplayFixture({
+    label: 'maestro-replay-update-flow-control',
+    script: [
+      'appId: demo.app',
+      '---',
+      '- runFlow:',
+      '    when:',
+      '      visible: Feed',
+      '    commands:',
+      '      - tapOn: Continue',
+      '- retry:',
+      '    maxRetries: 1',
+      '    commands:',
+      '      - assertVisible: Feed',
+      '',
+    ].join('\n'),
+    flags: { replayBackend: 'maestro', replayUpdate: true },
+  });
+
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /replay -u is not supported for compat flow input/);
+  }
+});
+
 test('resolveReplayAction produces dispatch-ready literals for a realistic fixture', () => {
   const script = [
     'context platform=android',

@@ -287,6 +287,60 @@ test('Provider-backed integration Android Maestro preserves pressKey Enter after
   );
 });
 
+test('Provider-backed integration Android Maestro executes runFlow conditions and retry batches at runtime', async () => {
+  let snapshots = 0;
+  await withProviderScenarioResource(
+    async () =>
+      await createAndroidSettingsWorld({
+        snapshotXml: () => {
+          snapshots += 1;
+          return androidMaestroReplayXml('[100,300][260,360]');
+        },
+      }),
+    async (world) => {
+      const client = world.daemon.client();
+      const suiteRoot = path.join(world.tempRoot, 'suite-maestro-runtime-flow');
+      fs.mkdirSync(suiteRoot, { recursive: true });
+      const flowPath = path.join(suiteRoot, 'runtime-flow.yaml');
+      fs.writeFileSync(
+        flowPath,
+        [
+          'appId: com.android.settings',
+          '---',
+          '- launchApp',
+          '- runFlow:',
+          '    when:',
+          '      visible: Apps',
+          '    commands:',
+          '      - tapOn: Search',
+          '- retry:',
+          '    maxRetries: 1',
+          '    commands:',
+          '      - assertVisible: Apps',
+          '',
+        ].join('\n'),
+      );
+
+      const suite = await client.replay.test({
+        paths: [flowPath],
+        backend: 'maestro',
+        artifactsDir: path.join(suiteRoot, 'artifacts'),
+        timeoutMs: 30000,
+        ...world.selection,
+      });
+
+      assert.equal(suite.total, 1, JSON.stringify(suite));
+      assert.equal(suite.passed, 1, JSON.stringify(suite));
+      assert.equal(suite.failed, 0, JSON.stringify(suite));
+      assert.deepEqual(
+        world.adbCalls.find((call) => call.slice(0, 3).join(' ') === 'shell input tap'),
+        ['shell', 'input', 'tap', '180', '330'],
+      );
+      assert.equal(snapshots, 3);
+    },
+  );
+});
+
 test('Provider-backed integration Android Maestro optional tap misses without touching the device', async () => {
   await withProviderScenarioResource(createAndroidSettingsWorld, async (world) => {
     const client = world.daemon.client();
