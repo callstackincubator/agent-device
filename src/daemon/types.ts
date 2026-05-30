@@ -165,10 +165,7 @@ type SessionRecordingBase = {
 export type RecordingChunk = {
   index: number;
   path: string;
-  clientPath?: string;
   remotePath: string;
-  startedAt: number;
-  stoppedAt?: number;
 };
 
 type SessionRecordingProcessChild = Pick<ExecBackgroundResult['child'], 'kill' | 'pid'>;

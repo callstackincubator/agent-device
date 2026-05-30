@@ -304,9 +304,7 @@ export async function startAndroidRecording(params: {
       {
         index: 1,
         path: recordingBase.outPath,
-        clientPath: recordingBase.clientOutPath,
         remotePath: chunk.remotePath,
-        startedAt: chunk.startedAt,
       },
     ],
     ...recordingBase,
@@ -345,8 +343,6 @@ async function finishCurrentAndroidRecordingChunk(params: {
   waitForRemoteFileStability?: boolean;
 }): Promise<string | undefined> {
   const { device, recording, waitForRemoteFileStability = true } = params;
-  const chunks = ensureAndroidRecordingChunks(recording);
-  const chunk = chunks.at(-1);
   const wasRunningBeforeStop = await isAndroidProcessRunning(device.id, recording.remotePid);
   if (!wasRunningBeforeStop) {
     recording.warning ??= resolveAndroidScreenrecordLimitWarning(recording);
@@ -388,9 +384,6 @@ async function finishCurrentAndroidRecordingChunk(params: {
   if (!stopError) {
     if (waitForRemoteFileStability) {
       await waitForAndroidRemoteFileStability(device.id, recording.remotePath);
-    }
-    if (chunk) {
-      chunk.stoppedAt = Date.now();
     }
   }
   return stopError;

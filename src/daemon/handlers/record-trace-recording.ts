@@ -21,6 +21,7 @@ import { resolveRecordingProvider } from '../recording-provider.ts';
 import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
 import { errorResponse } from './response.ts';
 import { startAndroidRecording, stopAndroidRecording } from './record-trace-android.ts';
+import { deriveAndroidChunkOutPath } from './record-trace-android-chunks.ts';
 import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import {
   getIosRunnerOptions,
@@ -450,8 +451,8 @@ function buildRecordStopResponse(
       ...chunks.slice(1).map((chunk) => ({
         field: 'chunkPath',
         path: chunk.path,
-        localPath: chunk.clientPath,
-        fileName: path.basename(chunk.clientPath ?? chunk.path),
+        localPath: deriveAndroidChunkClientPath(recording, chunk.index),
+        fileName: path.basename(deriveAndroidChunkClientPath(recording, chunk.index) ?? chunk.path),
       })),
     );
   }
@@ -476,12 +477,20 @@ function buildRecordStopResponse(
       overlayWarning: recording.overlayWarning,
       chunks: chunks?.map((chunk) => ({
         index: chunk.index,
-        path: chunk.clientPath ?? chunk.path,
-        startedAt: chunk.startedAt,
-        stoppedAt: chunk.stoppedAt,
+        path: deriveAndroidChunkClientPath(recording, chunk.index) ?? chunk.path,
       })),
     },
   };
+}
+
+function deriveAndroidChunkClientPath(
+  recording: NonNullable<SessionState['recording']>,
+  chunkIndex: number,
+): string | undefined {
+  if (recording.platform !== 'android' || !recording.clientOutPath) {
+    return undefined;
+  }
+  return deriveAndroidChunkOutPath(recording.clientOutPath, chunkIndex);
 }
 
 function deriveClientTelemetryPath(

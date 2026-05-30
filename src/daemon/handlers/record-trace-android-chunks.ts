@@ -35,9 +35,7 @@ export function ensureAndroidRecordingChunks(
     {
       index: 1,
       path: recording.outPath,
-      clientPath: recording.clientOutPath,
       remotePath: recording.remotePath,
-      startedAt: recording.startedAt,
     },
   ];
   return recording.chunks;
@@ -100,12 +98,7 @@ async function rotateAndroidRecordingChunk(params: {
   chunks.push({
     index: nextIndex,
     path: deriveAndroidChunkOutPath(recording.outPath, nextIndex),
-    clientPath:
-      recording.clientOutPath === undefined
-        ? undefined
-        : deriveAndroidChunkOutPath(recording.clientOutPath, nextIndex),
     remotePath: nextChunk.remotePath,
-    startedAt: nextChunk.startedAt,
   });
   recording.warning ??=
     'Android adb screenrecord is capped at 180s, so this recording was split into multiple MP4 chunks.';

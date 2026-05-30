@@ -1424,14 +1424,11 @@ test('record stop returns multiple Android recording chunks', async () => {
         index: 1,
         path: path.resolve('./android-long.mp4'),
         remotePath: '/sdcard/agent-device-recording-1.mp4',
-        startedAt: Date.now() - 172_000,
-        stoppedAt: Date.now() - 2_000,
       },
       {
         index: 2,
         path: path.resolve('./android-long.part-002.mp4'),
         remotePath: '/sdcard/agent-device-recording-2.mp4',
-        startedAt: Date.now() - 2_000,
       },
     ],
   };
