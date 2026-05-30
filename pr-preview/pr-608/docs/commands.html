@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-608/static/js/lib-react.fa7a1e5d11.js"></script>
 <script defer src="/agent-device/pr-preview/pr-608/static/js/lib-router.b86c200df3.js"></script>
 <script defer src="/agent-device/pr-preview/pr-608/static/js/649.63df3d8087.js"></script>
-<script defer src="/agent-device/pr-preview/pr-608/static/js/index.bc7fa2aebd.js"></script>
+<script defer src="/agent-device/pr-preview/pr-608/static/js/index.5888371ca7.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.10">
 <meta property="og:url" content="https://incubator.callstack.com/agent-device">
@@ -186,11 +186,14 @@ non-simulator targets.</li>
 <li>iOS snapshots use XCTest on simulators and physical devices.</li>
 <li>Android snapshots use the bundled Android snapshot helper when the npm package includes it. The
 first helper-backed snapshot verifies and installs the helper APK if it is missing or outdated;
-helper failures fall back to stock UIAutomator and include <code>androidSnapshot.fallbackReason</code> in
-typed results. Source checkouts without a bundled helper use stock UIAutomator. The helper
-serializes Android interactive window roots when available, so keyboard and system-overlay nodes
-can appear alongside the app root; <code>androidSnapshot.captureMode</code> and
-<code>androidSnapshot.windowCount</code> describe the capture.</li>
+helper failures fall back to one-shot helper capture, then stock UIAutomator, and include
+<code>androidSnapshot.fallbackReason</code> in typed results. Local ADB-backed sessions keep the helper
+process warm over an <code>adb forward</code> socket and report <code>androidSnapshot.helperTransport</code> as
+<code>persistent-session</code>; set <code>AGENT_DEVICE_ANDROID_SNAPSHOT_HELPER_SESSION=0</code> to disable that fast
+path. Source checkouts without a bundled helper use stock UIAutomator. The helper serializes
+Android interactive window roots when available, so keyboard and system-overlay nodes can appear
+alongside the app root; <code>androidSnapshot.captureMode</code> and <code>androidSnapshot.windowCount</code> describe
+the capture.</li>
 <li><code>diff snapshot</code> compares the current snapshot with the previous session baseline and then updates baseline.</li>
 <li><code>snapshot --diff</code> is an alias for <code>diff snapshot</code>.</li>
 <li>Default snapshot text is an agent-facing, token-efficient view for planning and targeting actions. It may collapse helper/accessibility noise; use <code>--raw</code> or <code>--json</code> when you need the full provider tree.</li>
