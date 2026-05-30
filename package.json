@@ -104,6 +104,7 @@
     "check:quick": "pnpm lint && pnpm typecheck",
     "sync:mcp-metadata": "node scripts/sync-mcp-metadata.mjs",
     "check:mcp-metadata": "node scripts/sync-mcp-metadata.mjs --check",
+    "version": "node scripts/sync-mcp-metadata.mjs && git add server.json",
     "check:tooling": "pnpm lint && pnpm typecheck && pnpm check:mcp-metadata && pnpm build",
     "check:unit": "pnpm test:unit && pnpm test:smoke",
     "check": "pnpm check:tooling && pnpm check:fallow && pnpm check:unit",

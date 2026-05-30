@@ -1,0 +1,70 @@
+name: Publish MCP Registry
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: GitHub Release tag to publish metadata for, for example v0.16.5.
+        required: true
+        type: string
+      checkout_ref:
+        description: Optional branch, tag, or commit SHA to publish from. Defaults to the selected workflow ref.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish-mcp-registry:
+    name: Publish MCP Registry
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.inputs.checkout_ref || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: "22"
+
+      - name: Resolve release metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          PACKAGE_VERSION="$(node -p "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version")"
+          SERVER_VERSION="$(node -p "JSON.parse(require('node:fs').readFileSync('server.json', 'utf8')).version")"
+          TAG_NAME="${{ github.event.release.tag_name || github.event.inputs.release_tag }}"
+          VERSION="${TAG_NAME#v}"
+          if [ "$VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Release tag $TAG_NAME does not match package.json version $PACKAGE_VERSION" >&2
+            exit 1
+          fi
+          if [ "$VERSION" != "$SERVER_VERSION" ]; then
+            echo "Release tag $TAG_NAME does not match server.json version $SERVER_VERSION" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Check MCP metadata sync
+        run: node scripts/sync-mcp-metadata.mjs --check
+
+      - name: Install mcp-publisher
+        run: |
+          set -euo pipefail
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+        shell: bash
+
+      - name: Authenticate to MCP Registry
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish server to MCP Registry
+        run: ./mcp-publisher publish server.json
