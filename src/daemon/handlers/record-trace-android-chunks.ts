@@ -4,8 +4,8 @@ import type { RecordTraceDeps } from './record-trace-types.ts';
 import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
 import { persistRecordingTelemetry } from '../recording-telemetry.ts';
 
-export const ANDROID_SCREENRECORD_TIME_LIMIT_MS = 180_000;
-export const ANDROID_SCREENRECORD_TIME_LIMIT_GRACE_MS = 2_000;
+const ANDROID_SCREENRECORD_TIME_LIMIT_MS = 180_000;
+const ANDROID_SCREENRECORD_TIME_LIMIT_GRACE_MS = 2_000;
 const ANDROID_SCREENRECORD_CHUNK_MS = 170_000;
 
 type AndroidRecording = Extract<NonNullable<SessionState['recording']>, { platform: 'android' }>;

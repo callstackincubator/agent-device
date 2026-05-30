@@ -368,25 +368,45 @@ async function finishCurrentAndroidRecordingChunk(params: {
     },
   });
 
-  let stopError: string | undefined;
   if (stopResult.exitCode !== 0) {
-    if (await isAndroidProcessRunning(device.id, recording.remotePid)) {
-      if (!(await forceStopAndroidProcess(device.id, recording.remotePid))) {
-        stopError = `failed to stop recording: ${formatRecordTraceExecFailure(stopResult, 'adb shell kill')}`;
-      }
-    }
-  } else if (!(await waitForAndroidProcessExit(device.id, recording.remotePid))) {
-    if (!(await forceStopAndroidProcess(device.id, recording.remotePid))) {
-      stopError = `failed to stop recording: Android screenrecord pid ${recording.remotePid} did not exit`;
-    }
+    return await recoverAndroidStopSignalFailure(device.id, recording.remotePid, stopResult);
+  }
+  const exitError = await waitForAndroidStopExit(device.id, recording.remotePid);
+  if (exitError) {
+    return exitError;
   }
 
-  if (!stopError) {
-    if (waitForRemoteFileStability) {
-      await waitForAndroidRemoteFileStability(device.id, recording.remotePath);
-    }
+  if (waitForRemoteFileStability) {
+    await waitForAndroidRemoteFileStability(device.id, recording.remotePath);
   }
-  return stopError;
+  return undefined;
+}
+
+async function recoverAndroidStopSignalFailure(
+  deviceId: string,
+  remotePid: string,
+  stopResult: AndroidAdbExecutorResult,
+): Promise<string | undefined> {
+  if (!(await isAndroidProcessRunning(deviceId, remotePid))) {
+    return undefined;
+  }
+  if (await forceStopAndroidProcess(deviceId, remotePid)) {
+    return undefined;
+  }
+  return `failed to stop recording: ${formatRecordTraceExecFailure(stopResult, 'adb shell kill')}`;
+}
+
+async function waitForAndroidStopExit(
+  deviceId: string,
+  remotePid: string,
+): Promise<string | undefined> {
+  if (await waitForAndroidProcessExit(deviceId, remotePid)) {
+    return undefined;
+  }
+  if (await forceStopAndroidProcess(deviceId, remotePid)) {
+    return undefined;
+  }
+  return `failed to stop recording: Android screenrecord pid ${remotePid} did not exit`;
 }
 
 export async function stopAndroidRecording(params: {
