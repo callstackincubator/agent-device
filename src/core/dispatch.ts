@@ -181,6 +181,7 @@ async function handleOpenCommand(
   const app = positionals[0];
   const url = positionals[1];
   const launchConsole = context?.launchConsole;
+  const launchArgs = context?.launchArgs;
   if (positionals.length > 2) {
     throw new AppError('INVALID_ARGS', 'open accepts at most two arguments: <app|url> [url]');
   }
@@ -188,11 +189,17 @@ async function handleOpenCommand(
     if (launchConsole) {
       throw new AppError('INVALID_ARGS', '--launch-console requires an app target');
     }
+    if (launchArgs && launchArgs.length > 0) {
+      throw new AppError('INVALID_ARGS', '--launch-args requires an app target');
+    }
     await interactor.openDevice();
     return { app: null, ...successText('Opened device') };
   }
   if (launchConsole && (device.platform !== 'ios' || device.kind !== 'simulator')) {
     throw new AppError('UNSUPPORTED_OPERATION', LAUNCH_CONSOLE_IOS_SIMULATOR_ONLY_MESSAGE);
+  }
+  if (device.platform === 'linux' && launchArgs && launchArgs.length > 0) {
+    throw new AppError('UNSUPPORTED_OPERATION', '--launch-args is not supported on Linux.');
   }
   if (url !== undefined) {
     if (isDeepLinkTarget(app)) {
@@ -210,19 +217,13 @@ async function handleOpenCommand(
     await interactor.open(app, {
       activity: context?.activity,
       appBundleId: context?.appBundleId,
-      launchArgs: context?.launchArgs,
+      launchArgs,
       url,
     });
     return { app, url, ...successText(`Opened: ${app}`) };
   }
   if (launchConsole && isDeepLinkTarget(app)) {
     throw new AppError('INVALID_ARGS', LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE);
-  }
-  if (device.platform === 'android' && context?.launchArgs && context.launchArgs.length > 0) {
-    throw new AppError(
-      'UNSUPPORTED_OPERATION',
-      'Launch arguments are currently supported only on Apple platforms.',
-    );
   }
   if (context?.clearAppState) {
     if (isDeepLinkTarget(app)) {
@@ -243,7 +244,7 @@ async function handleOpenCommand(
     activity: context?.activity,
     appBundleId: context?.appBundleId,
     launchConsole,
-    launchArgs: context?.launchArgs,
+    launchArgs,
   });
   return { app, ...(launchConsole ? { launchConsole } : {}), ...successText(`Opened: ${app}`) };
 }

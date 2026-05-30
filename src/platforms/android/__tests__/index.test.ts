@@ -66,6 +66,24 @@ async function withMockedAdb(
   }
 }
 
+function androidOpenAdbScript(): string {
+  return [
+    '#!/bin/sh',
+    'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+    'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
+    'if [ "$1" = "-s" ]; then',
+    '  shift',
+    '  shift',
+    'fi',
+    'if [ "$1" = "shell" ] && [ "$2" = "am" ] && [ "$3" = "start" ]; then',
+    '  echo "Status: ok"',
+    '  exit 0',
+    'fi',
+    'exit 0',
+    '',
+  ].join('\n');
+}
+
 test('parseUiHierarchy reads double-quoted Android node attributes', () => {
   const xml =
     '<hierarchy><node class="android.widget.TextView" text="Hello" content-desc="Greeting" resource-id="com.demo:id/title" bounds="[10,20][110,60]" clickable="true" enabled="true"/></hierarchy>';
@@ -1121,30 +1139,93 @@ test('installAndroidInstallablePath invalidates cached display-name package matc
 test('openAndroidApp default launch uses -p package flag', async () => {
   await withMockedAdb(
     'agent-device-android-open-default-',
-    [
-      '#!/bin/sh',
-      'printf "__CMD__\\n" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
-      'printf "%s\\n" "$@" >> "$AGENT_DEVICE_TEST_ARGS_FILE"',
-      'if [ "$1" = "-s" ]; then',
-      '  shift',
-      '  shift',
-      'fi',
-      'if [ "$1" = "shell" ] && [ "$2" = "pm" ] && [ "$3" = "list" ]; then',
-      '  echo "package:com.example.app"',
-      '  exit 0',
-      'fi',
-      'if [ "$1" = "shell" ] && [ "$2" = "am" ] && [ "$3" = "start" ]; then',
-      '  echo "Status: ok"',
-      '  exit 0',
-      'fi',
-      'exit 0',
-      '',
-    ].join('\n'),
+    androidOpenAdbScript(),
     async ({ argsLogPath, device }) => {
       await openAndroidApp(device, 'com.example.app');
       const logged = await fs.readFile(argsLogPath, 'utf8');
       assert.match(logged, /shell\nam\nstart\n-W\n-a\nandroid\.intent\.action\.MAIN/);
       assert.match(logged, /-p\ncom\.example\.app/);
+    },
+  );
+});
+
+test('openAndroidApp appends launchArgs to am start when launching by package', async () => {
+  await withMockedAdb(
+    'agent-device-android-open-launch-args-',
+    androidOpenAdbScript(),
+    async ({ argsLogPath, device }) => {
+      await openAndroidApp(device, 'com.example.app', {
+        launchArgs: ['--es', 'screen', 'home', '--ez', 'fresh', 'true'],
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /-p\ncom\.example\.app\n--es\nscreen\nhome\n--ez\nfresh\ntrue/);
+    },
+  );
+});
+
+test('openAndroidApp appends launchArgs to am start when activity override is set', async () => {
+  await withMockedAdb(
+    'agent-device-android-open-launch-args-activity-',
+    androidOpenAdbScript(),
+    async ({ argsLogPath, device }) => {
+      await openAndroidApp(device, 'com.example.app', {
+        activity: '.MainActivity',
+        launchArgs: ['--es', 'mode', 'debug'],
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /-n\ncom\.example\.app\/\.MainActivity\n--es\nmode\ndebug/);
+    },
+  );
+});
+
+test('openAndroidApp appends launchArgs to am start for deep link URL opens', async () => {
+  await withMockedAdb(
+    'agent-device-android-open-launch-args-url-',
+    androidOpenAdbScript(),
+    async ({ argsLogPath, device }) => {
+      await openAndroidApp(device, 'myapp://item/42', {
+        launchArgs: ['--es', 'ref', 'campaign'],
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(logged, /-d\nmyapp:\/\/item\/42\n--es\nref\ncampaign/);
+    },
+  );
+});
+
+test('openAndroidApp appends launchArgs to am start for app-bound URL opens', async () => {
+  await withMockedAdb(
+    'agent-device-android-open-launch-args-app-bound-url-',
+    androidOpenAdbScript(),
+    async ({ argsLogPath, device }) => {
+      await openAndroidApp(device, 'com.example.app', {
+        url: 'https://example.com/promo',
+        launchArgs: ['--es', 'ref', 'campaign'],
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      assert.match(
+        logged,
+        /-d\nhttps:\/\/example\.com\/promo\n-p\ncom\.example\.app\n--es\nref\ncampaign/,
+      );
+    },
+  );
+});
+
+test('openAndroidApp shell-quotes launchArgs containing JSON or shell metacharacters', async () => {
+  await withMockedAdb(
+    'agent-device-android-open-launch-args-quoting-',
+    androidOpenAdbScript(),
+    async ({ argsLogPath, device }) => {
+      // Value contains characters the device shell would otherwise re-interpret:
+      // `#` (comment), `;` (statement separator), `&` (background), `*` (glob),
+      // ` ` (word separator), `\` (escape).
+      const jsonPayload = '{"a":"x #y;z&w","b":"path/*"}';
+      await openAndroidApp(device, 'com.example.app', {
+        launchArgs: ['--es', 'EXTRA_CONFIG', jsonPayload],
+      });
+      const logged = await fs.readFile(argsLogPath, 'utf8');
+      // `--es` and the safe extra key pass through unquoted; the JSON value
+      // is single-quoted so `adb shell` re-tokenisation preserves it.
+      assert.match(logged, /--es\nEXTRA_CONFIG\n'\{"a":"x #y;z&w","b":"path\/\*"\}'/);
     },
   );
 });

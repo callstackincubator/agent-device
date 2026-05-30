@@ -295,8 +295,24 @@ async function ensureAndroidLocalhostReverse(device: DeviceInfo, target: string)
 export type OpenAndroidAppOptions = {
   activity?: string;
   appBundleId?: string;
+  launchArgs?: string[];
   url?: string;
 };
+
+// `adb shell` joins its argv with spaces and feeds the result to a device
+// shell, which re-tokenises. The other `am start` arguments (action, category,
+// component, etc.) are well-known and never contain shell-significant
+// characters, so they round-trip untouched. Launch arguments are user-supplied
+// and may contain JSON, spaces, `#`, etc.; each is single-quoted unless it
+// consists entirely of safe shell characters.
+function quoteAndroidShellArg(arg: string): string {
+  if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(arg)) return arg;
+  return `'${arg.replace(/'/g, `'\\''`)}'`;
+}
+
+function androidLaunchArgs(options: OpenAndroidAppOptions): string[] {
+  return (options.launchArgs ?? []).map(quoteAndroidShellArg);
+}
 
 export async function openAndroidApp(
   device: DeviceInfo,
@@ -320,14 +336,14 @@ export async function openAndroidApp(
   const resolved = await resolveAndroidApp(device, app);
   const launchCategory = resolveAndroidLauncherCategory(device);
   if (resolved.type === 'intent') {
-    await openAndroidIntent(device, resolved.value, activity);
+    await openAndroidIntent(device, resolved.value, options);
     return;
   }
   if (activity) {
-    await openAndroidPackageActivity(device, resolved.value, activity, launchCategory);
+    await openAndroidPackageActivity(device, resolved.value, activity, launchCategory, options);
     return;
   }
-  await openAndroidPackage(device, resolved.value, launchCategory);
+  await openAndroidPackage(device, resolved.value, launchCategory, options);
 }
 
 async function openAndroidDeepLink(
@@ -352,6 +368,7 @@ async function openAndroidDeepLink(
     '-d',
     target,
     ...androidDeepLinkPackageArgs(options.appBundleId),
+    ...androidLaunchArgs(options),
   ]);
 }
 
@@ -382,18 +399,27 @@ async function openAndroidAppBoundDeepLink(
     deepLinkUrl,
     '-p',
     resolved,
+    ...androidLaunchArgs(options),
   ]);
 }
 
 async function openAndroidIntent(
   device: DeviceInfo,
   intent: string,
-  activity: string | undefined,
+  options: OpenAndroidAppOptions,
 ): Promise<void> {
-  if (activity) {
+  if (options.activity) {
     throw new AppError('INVALID_ARGS', 'Activity override requires a package name, not an intent');
   }
-  await runAndroidAdb(device, ['shell', 'am', 'start', '-W', '-a', intent]);
+  await runAndroidAdb(device, [
+    'shell',
+    'am',
+    'start',
+    '-W',
+    '-a',
+    intent,
+    ...androidLaunchArgs(options),
+  ]);
 }
 
 async function openAndroidPackageActivity(
@@ -401,12 +427,13 @@ async function openAndroidPackageActivity(
   packageName: string,
   activity: string,
   launchCategory: string,
+  options: OpenAndroidAppOptions,
 ): Promise<void> {
   const component = activity.includes('/')
     ? activity
     : `${packageName}/${activity.startsWith('.') ? activity : `.${activity}`}`;
   try {
-    await runAndroidAdb(device, buildAndroidActivityLaunchArgs(component, launchCategory));
+    await runAndroidAdb(device, buildAndroidActivityLaunchArgs(component, launchCategory, options));
   } catch (error) {
     await maybeRethrowAndroidMissingPackageError(device, packageName, error);
     throw error;
@@ -417,6 +444,7 @@ async function openAndroidPackage(
   device: DeviceInfo,
   packageName: string,
   launchCategory: string,
+  options: OpenAndroidAppOptions,
 ): Promise<void> {
   const primaryResult = await runAndroidAdb(
     device,
@@ -433,6 +461,7 @@ async function openAndroidPackage(
       launchCategory,
       '-p',
       packageName,
+      ...androidLaunchArgs(options),
     ],
     { allowFailure: true },
   );
@@ -449,10 +478,14 @@ async function openAndroidPackage(
       stderr: primaryResult.stderr,
     });
   }
-  await runAndroidAdb(device, buildAndroidActivityLaunchArgs(component, launchCategory));
+  await runAndroidAdb(device, buildAndroidActivityLaunchArgs(component, launchCategory, options));
 }
 
-function buildAndroidActivityLaunchArgs(component: string, launchCategory: string): string[] {
+function buildAndroidActivityLaunchArgs(
+  component: string,
+  launchCategory: string,
+  options: OpenAndroidAppOptions,
+): string[] {
   return [
     'shell',
     'am',
@@ -466,6 +499,7 @@ function buildAndroidActivityLaunchArgs(component: string, launchCategory: strin
     launchCategory,
     '-n',
     component,
+    ...androidLaunchArgs(options),
   ];
 }
 
