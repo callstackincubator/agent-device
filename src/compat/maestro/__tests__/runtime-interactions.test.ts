@@ -1,7 +1,11 @@
 import { expect, test } from 'vitest';
 import type { DaemonRequest, DaemonResponse } from '../../../daemon/types.ts';
 import type { SnapshotState } from '../../../utils/snapshot.ts';
-import { invokeMaestroSwipeScreen, invokeMaestroTapOn } from '../runtime-interactions.ts';
+import {
+  invokeMaestroSwipeScreen,
+  invokeMaestroTapOn,
+  invokeMaestroTapPointPercent,
+} from '../runtime-interactions.ts';
 
 test('invokeMaestroTapOn resolves mutating taps from the current raw snapshot', async () => {
   const selector =
@@ -57,6 +61,81 @@ test('invokeMaestroSwipeScreen uses an Android content-lane directional swipe', 
 
   expect(response.ok).toBe(true);
   expect(swipes).toEqual([['864', '1521', '216', '1521', '300']]);
+});
+
+test('invokeMaestroSwipeScreen preserves vertical percentage endpoints', async () => {
+  const swipes: string[][] = [];
+  const response = await invokeMaestroSwipeScreen({
+    baseReq: {
+      token: 'test',
+      session: 'article',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['percent', '50', '75', '50', '35', '300'],
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        return { ok: true, data: fullScreenSnapshot(400, 800) };
+      }
+      if (req.command === 'swipe') {
+        swipes.push(req.positionals ?? []);
+        return { ok: true, data: {} };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  expect(response.ok).toBe(true);
+  expect(swipes).toEqual([['200', '600', '200', '280', '300']]);
+});
+
+test('invokeMaestroSwipeScreen keeps Android horizontal percentage swipes on the content lane', async () => {
+  const swipes: string[][] = [];
+  const response = await invokeMaestroSwipeScreen({
+    baseReq: {
+      token: 'test',
+      session: 'pager',
+      flags: { platform: 'android' },
+    },
+    positionals: ['percent', '90', '50', '10', '50', '300'],
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        return { ok: true, data: fullScreenSnapshot(390, 600) };
+      }
+      if (req.command === 'swipe') {
+        swipes.push(req.positionals ?? []);
+        return { ok: true, data: {} };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  expect(response.ok).toBe(true);
+  expect(swipes).toEqual([['351', '390', '39', '390', '300']]);
+});
+
+test('invokeMaestroTapPointPercent shares percentage point geometry without clamping', async () => {
+  const clicks: string[][] = [];
+  const response = await invokeMaestroTapPointPercent({
+    baseReq: {
+      token: 'test',
+      session: 'article',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['125', '-10'],
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        return { ok: true, data: fullScreenSnapshot(400, 800) };
+      }
+      if (req.command === 'click') {
+        clicks.push(req.positionals ?? []);
+        return { ok: true, data: {} };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  expect(response.ok).toBe(true);
+  expect(clicks).toEqual([['500', '-80']]);
 });
 
 function currentBreadcrumbSnapshot(): SnapshotState {

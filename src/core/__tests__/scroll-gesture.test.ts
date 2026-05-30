@@ -1,7 +1,11 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { AppError } from '../../utils/errors.ts';
-import { buildScrollGesturePlan } from '../scroll-gesture.ts';
+import {
+  buildScrollGesturePlan,
+  buildSwipeGesturePlan,
+  pointFromPercent,
+} from '../scroll-gesture.ts';
 
 test('buildScrollGesturePlan maps relative amount to viewport travel', () => {
   const plan = buildScrollGesturePlan({
@@ -53,4 +57,32 @@ test('buildScrollGesturePlan rejects invalid amounts', () => {
       error.code === 'INVALID_ARGS' &&
       /amount must be a positive number/i.test(error.message),
   );
+});
+
+test('buildSwipeGesturePlan maps finger direction through the shared scroll planner', () => {
+  const plan = buildSwipeGesturePlan({
+    direction: 'left',
+    amount: 0.6,
+    referenceWidth: 400,
+    referenceHeight: 800,
+  });
+
+  assert.deepEqual(plan, {
+    direction: 'left',
+    x1: 320,
+    y1: 400,
+    x2: 80,
+    y2: 400,
+    referenceWidth: 400,
+    referenceHeight: 800,
+    amount: 0.6,
+    pixels: 240,
+  });
+});
+
+test('pointFromPercent preserves unclamped percentages and clamps when a margin is requested', () => {
+  const frame = { referenceWidth: 400, referenceHeight: 800 };
+
+  assert.deepEqual(pointFromPercent(frame, 125, -10), { x: 500, y: -80 });
+  assert.deepEqual(pointFromPercent(frame, 100, 0, { marginPx: 8 }), { x: 392, y: 8 });
 });

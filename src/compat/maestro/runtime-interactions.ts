@@ -1,5 +1,11 @@
 import { getSnapshotReferenceFrame } from '../../daemon/touch-reference-frame.ts';
 import type { DaemonRequest, DaemonResponse } from '../../daemon/types.ts';
+import {
+  buildSwipeGesturePlan,
+  clampGesturePoint,
+  pointFromPercent,
+  type ScrollDirection,
+} from '../../core/scroll-gesture.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { pointForMaestroTapOnTarget, swipeCoordinatesFromTarget } from './runtime-geometry.ts';
@@ -122,13 +128,11 @@ export async function invokeMaestroTapPointPercent(params: {
     );
   }
 
+  const point = pointFromPercent(frame, xPercent, yPercent);
   return await params.invoke({
     ...params.baseReq,
     command: 'click',
-    positionals: [
-      String(Math.round((frame.referenceWidth * xPercent) / 100)),
-      String(Math.round((frame.referenceHeight * yPercent) / 100)),
-    ],
+    positionals: [String(point.x), String(point.y)],
   });
 }
 
@@ -263,22 +267,12 @@ function resolveDirectionalScreenSwipe(
       response: errorResponse('INVALID_ARGS', 'Maestro direction swipe requires a direction.'),
     };
   }
-  const point = (xPercent: number, yPercent: number) => percentPoint(frame, xPercent, yPercent, 8);
   switch (direction) {
     case 'up':
-      return { ok: true, start: point(50, 80), end: point(50, 20), durationMs };
     case 'down':
-      return { ok: true, start: point(50, 20), end: point(50, 80), durationMs };
-    case 'left': {
-      const [startX, endX] = androidHorizontalDirectionalSwipeX(platform, 80, 20);
-      const yPercent = androidHorizontalContentSwipeY(platform, startX, 50, endX, 50);
-      return { ok: true, start: point(startX, yPercent), end: point(endX, yPercent), durationMs };
-    }
-    case 'right': {
-      const [startX, endX] = androidHorizontalDirectionalSwipeX(platform, 20, 80);
-      const yPercent = androidHorizontalContentSwipeY(platform, startX, 50, endX, 50);
-      return { ok: true, start: point(startX, yPercent), end: point(endX, yPercent), durationMs };
-    }
+    case 'left':
+    case 'right':
+      return buildMaestroDirectionalScreenSwipe(direction, frame, platform, durationMs);
     default:
       return {
         ok: false,
@@ -290,13 +284,33 @@ function resolveDirectionalScreenSwipe(
   }
 }
 
-function androidHorizontalDirectionalSwipeX(
+function buildMaestroDirectionalScreenSwipe(
+  direction: ScrollDirection,
+  frame: { referenceWidth: number; referenceHeight: number },
   platform: string,
-  startX: number,
-  endX: number,
-): [number, number] {
-  if (platform !== 'android') return [startX, endX];
-  return startX < endX ? [20, 80] : [80, 20];
+  durationMs: string | undefined,
+): MaestroScreenSwipeResolution {
+  const plan = buildSwipeGesturePlan({
+    direction,
+    amount: 0.6,
+    referenceWidth: frame.referenceWidth,
+    referenceHeight: frame.referenceHeight,
+  });
+  const start = clampGesturePoint({ x: plan.x1, y: plan.y1 }, frame, 8);
+  const end = clampGesturePoint({ x: plan.x2, y: plan.y2 }, frame, 8);
+
+  if ((direction === 'left' || direction === 'right') && platform === 'android') {
+    const contentLaneY = pointFromPercent(frame, 50, 65, { marginPx: 8 }).y;
+    start.y = contentLaneY;
+    end.y = contentLaneY;
+  }
+
+  return {
+    ok: true,
+    start,
+    end,
+    durationMs,
+  };
 }
 
 function resolvePercentScreenSwipe(
@@ -313,55 +327,30 @@ function resolvePercentScreenSwipe(
     };
   }
   const [x1, y1, x2, y2] = values as [number, number, number, number];
-  const adjustedY = androidHorizontalContentSwipeY(platform, x1, y1, x2, y2);
+  const lane = maestroHorizontalContentSwipeLanePercent(platform, x1, y1, x2, y2);
   return {
     ok: true,
-    start: percentPoint(frame, x1, adjustedY, 1),
-    end: percentPoint(frame, x2, adjustedY, 1),
+    start: pointFromPercent(frame, x1, lane.startY, { marginPx: 1 }),
+    end: pointFromPercent(frame, x2, lane.endY, { marginPx: 1 }),
     durationMs,
   };
 }
 
-function androidHorizontalContentSwipeY(
+function maestroHorizontalContentSwipeLanePercent(
   platform: string,
   x1: number,
   y1: number,
   x2: number,
   y2: number,
-): number {
-  if (platform !== 'android') return y2;
-  if (y1 !== y2 || y1 !== 50) return y2;
-  if (Math.abs(x2 - x1) < 30) return y2;
+): { startY: number; endY: number } {
+  if (platform !== 'android') return { startY: y1, endY: y2 };
+  if (y1 !== y2 || y1 !== 50) return { startY: y1, endY: y2 };
+  if (Math.abs(x2 - x1) < 30) return { startY: y1, endY: y2 };
   // Maestro's Android driver treats 50% horizontal swipes as content swipes.
   // Raw `adb input swipe` at the physical screen midpoint can land above
   // horizontally paged content in React Native layouts, so use a lower content
   // lane for full-width horizontal Maestro percentage swipes.
-  return 65;
-}
-
-function percentPoint(
-  frame: { referenceWidth: number; referenceHeight: number },
-  xPercent: number,
-  yPercent: number,
-  marginPx: number,
-): { x: number; y: number } {
-  return {
-    x: clampPoint(
-      Math.round((frame.referenceWidth * xPercent) / 100),
-      marginPx,
-      frame.referenceWidth,
-    ),
-    y: clampPoint(
-      Math.round((frame.referenceHeight * yPercent) / 100),
-      marginPx,
-      frame.referenceHeight,
-    ),
-  };
-}
-
-function clampPoint(value: number, marginPx: number, size: number): number {
-  const max = Math.max(marginPx, size - marginPx);
-  return Math.min(max, Math.max(marginPx, value));
+  return { startY: 65, endY: 65 };
 }
 
 async function probeMaestroScrollVisibility(
