@@ -33,13 +33,19 @@ describe('readTextForNode', () => {
   beforeEach(() => mockDispatch.mockClear());
 
   it('returns snapshot text without a backend read for non-editable nodes', async () => {
-    const text = await readTextForNode({ ...baseParams, node: node({ type: 'button', label: 'General' }) });
+    const text = await readTextForNode({
+      ...baseParams,
+      node: node({ type: 'button', label: 'General' }),
+    });
     expect(text).toBe('General');
     expect(mockDispatch).not.toHaveBeenCalled();
   });
 
   it('still re-reads via the backend for editable text inputs (live value may exceed snapshot)', async () => {
-    const text = await readTextForNode({ ...baseParams, node: node({ type: 'textfield', value: 'snap' }) });
+    const text = await readTextForNode({
+      ...baseParams,
+      node: node({ type: 'textfield', value: 'snap' }),
+    });
     expect(mockDispatch).toHaveBeenCalledOnce();
     expect(text).toBe('backend-text');
   });
@@ -50,7 +56,10 @@ describe('readTextForNode', () => {
   });
 
   it('returns snapshot text without a backend read when the node has no resolvable center', async () => {
-    const text = await readTextForNode({ ...baseParams, node: node({ type: 'button', label: 'General', rect: undefined }) });
+    const text = await readTextForNode({
+      ...baseParams,
+      node: node({ type: 'button', label: 'General', rect: undefined }),
+    });
     expect(text).toBe('General');
     expect(mockDispatch).not.toHaveBeenCalled();
   });

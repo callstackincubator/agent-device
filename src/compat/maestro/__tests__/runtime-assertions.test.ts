@@ -5,6 +5,7 @@ import {
   invokeMaestroAssertVisible,
 } from '../runtime-assertions.ts';
 import type { DaemonRequest, DaemonResponse } from '../../../daemon/types.ts';
+import type { SnapshotState } from '../../../utils/snapshot.ts';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -36,16 +37,7 @@ test('invokeMaestroAssertVisible takes a terminal snapshot when the last miss st
         ok: true,
         data: {
           createdAt: 2,
-          nodes: [
-            {
-              index: 1,
-              ref: 'e1',
-              type: 'android.widget.TextView',
-              label: 'Details is preloaded!',
-              rect: { x: 120, y: 900, width: 300, height: 60 },
-              depth: 8,
-            },
-          ],
+          nodes: [node('Details is preloaded!')],
         },
       };
     },
@@ -83,16 +75,7 @@ test('invokeMaestroAssertVisible retries transient snapshot failures until a lat
         ok: true,
         data: {
           createdAt: 2,
-          nodes: [
-            {
-              index: 1,
-              ref: 'e1',
-              type: 'android.widget.TextView',
-              label: 'Ready',
-              rect: { x: 10, y: 20, width: 120, height: 40 },
-              depth: 8,
-            },
-          ],
+          nodes: [node('Ready')],
         },
       };
     },
@@ -108,6 +91,168 @@ test('invokeMaestroAssertVisible retries transient snapshot failures until a lat
     assert.equal(response.data.nodeLabel, 'Ready');
     assert.equal(response.data.waitedMs, 250);
   }
+});
+
+test('invokeMaestroAssertVisible dismisses React Native overlays before retrying native iOS wait', async () => {
+  const calls: Array<[string, string[] | undefined]> = [];
+  let waits = 0;
+  const response = await invokeMaestroAssertVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['label="Ready" || text="Ready" || id="Ready"', '60000'],
+    invoke: async (req): Promise<DaemonResponse> => {
+      calls.push([req.command, req.positionals]);
+      if (req.command === 'wait') {
+        waits += 1;
+        if (waits === 1) {
+          return {
+            ok: false,
+            error: {
+              code: 'COMMAND_FAILED',
+              message: 'wait timed out for text: Ready. Current surface: Uncaught error',
+            },
+          };
+        }
+        return { ok: true, data: { matches: 1 } };
+      }
+      if (req.command === 'react-native') {
+        return { ok: true, data: { dismissed: true } };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(calls, [
+    ['wait', ['Ready', '60000']],
+    ['react-native', ['dismiss-overlay']],
+    ['wait', ['Ready', '60000']],
+  ]);
+});
+
+test('invokeMaestroAssertVisible uses snapshot resolution for short iOS assertions', async () => {
+  const calls: Array<[string, string[] | undefined]> = [];
+  const response = await invokeMaestroAssertVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['label="Ready" || text="Ready" || id="Ready"', '1000'],
+    invoke: async (req): Promise<DaemonResponse> => {
+      calls.push([req.command, req.positionals]);
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: snapshot([node('Ready')]),
+        };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(calls, [['snapshot', []]]);
+});
+
+test('invokeMaestroAssertVisible dismisses React Native overlays during snapshot assertions', async () => {
+  const calls: Array<[string, string[] | undefined]> = [];
+  let snapshots = 0;
+  const response = await invokeMaestroAssertVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['label="Ready" || text="Ready" || id="Ready"', '1000'],
+    invoke: async (req): Promise<DaemonResponse> => {
+      calls.push([req.command, req.positionals]);
+      if (req.command === 'snapshot') {
+        snapshots += 1;
+        return {
+          ok: true,
+          data: snapshot(
+            snapshots === 1
+              ? [
+                  node('Ready'),
+                  node('Runtime Error', {
+                    index: 2,
+                    ref: 'e2',
+                    rect: { x: 0, y: 0, width: 390, height: 80 },
+                  }),
+                  node('Minimize', {
+                    index: 3,
+                    ref: 'e3',
+                    type: 'Button',
+                    rect: { x: 300, y: 20, width: 80, height: 44 },
+                  }),
+                ]
+              : [node('Ready')],
+            snapshots,
+          ),
+        };
+      }
+      if (req.command === 'react-native') {
+        return { ok: true, data: { dismissed: true } };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(calls, [
+    ['snapshot', []],
+    ['react-native', ['dismiss-overlay']],
+    ['snapshot', []],
+  ]);
+});
+
+test('invokeMaestroAssertVisible fails fast when a RedBox has no dismiss target', async () => {
+  const calls: Array<[string, string[] | undefined]> = [];
+  const response = await invokeMaestroAssertVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['label="Ready" || text="Ready" || id="Ready"', '1000'],
+    invoke: async (req): Promise<DaemonResponse> => {
+      calls.push([req.command, req.positionals]);
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: snapshot([
+            node("Uncaught (in promise): Error: Unable to download asset from url: 'x'", {
+              type: 'Other',
+              rect: { x: 0, y: 0, width: 390, height: 80 },
+            }),
+          ]),
+        };
+      }
+      if (req.command === 'react-native') {
+        return {
+          ok: false,
+          error: {
+            code: 'COMMAND_FAILED',
+            message: 'React Native overlay detected, but no safe dismiss target was found',
+          },
+        };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.match(response.error.message, /React Native overlay is covering app content/);
+  }
+  assert.deepEqual(calls, [
+    ['snapshot', []],
+    ['react-native', ['dismiss-overlay']],
+  ]);
 });
 
 test('invokeMaestroAssertNotVisible passes after a slow hidden sample exhausts the timeout', async () => {
@@ -159,17 +304,7 @@ test('invokeMaestroAssertNotVisible ignores matched nodes without visible rects'
       ok: true,
       data: {
         createdAt: 1,
-        nodes: [
-          {
-            index: 1,
-            ref: 'e1',
-            type: 'android.widget.TextView',
-            label: '📌',
-            value: '📌',
-            enabled: true,
-            depth: 21,
-          },
-        ],
+        nodes: [node('📌', { value: '📌', enabled: true, depth: 21, rect: undefined })],
       },
     }),
   });
@@ -180,6 +315,25 @@ test('invokeMaestroAssertNotVisible ignores matched nodes without visible rects'
     assert.equal(response.data.stableSamples, 1);
   }
 });
+
+function snapshot(nodes: SnapshotState['nodes'], createdAt = 1): SnapshotState {
+  return { createdAt, nodes };
+}
+
+function node(
+  label: string,
+  overrides: Partial<SnapshotState['nodes'][number]> = {},
+): SnapshotState['nodes'][number] {
+  return {
+    index: 1,
+    ref: 'e1',
+    type: 'android.widget.TextView',
+    label,
+    rect: { x: 20, y: 80, width: 120, height: 40 },
+    depth: 8,
+    ...overrides,
+  };
+}
 
 test('invokeMaestroAssertNotVisible accepts timeout overrides for short extended waits', async () => {
   vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(300);

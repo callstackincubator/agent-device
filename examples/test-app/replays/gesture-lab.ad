@@ -4,6 +4,7 @@ env APP_TARGET="Agent Device Tester"
 env APP_URL=""
 
 open "${APP_TARGET}" --relaunch --launch-url "${APP_URL}"
+react-native dismiss-overlay
 wait "Gesture lab" 30000
 
 gesture fling left 195 443 180

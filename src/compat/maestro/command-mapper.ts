@@ -155,7 +155,11 @@ function convertOpenLink(
   const rawLink = readOpenLink(value, name);
   const url = resolveMaestroString(rawLink, context);
   if ((context.platform === 'ios' || context.platform === 'android') && config.appId) {
-    return action('open', [resolveMaestroString(requireAppId(config, name), context), url]);
+    return action(
+      'open',
+      [resolveMaestroString(requireAppId(config, name), context), url],
+      context.platform === 'ios' ? { maestro: { prewarmRunnerBeforeOpen: true } } : undefined,
+    );
   }
   return action('open', [url]);
 }

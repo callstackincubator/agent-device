@@ -1998,6 +1998,69 @@ test('open iOS app session prewarms runner session when app bundle id is known',
   );
 });
 
+test('open iOS Maestro app link waits for runner prewarm before launching app', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-maestro-open-link';
+  const events: string[] = [];
+  let finishPrewarm: (() => void) | undefined;
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'ios-device-1',
+      name: 'iPhone Device',
+      kind: 'device',
+      booted: true,
+    }),
+    appBundleId: 'com.example.previous',
+    appName: 'Previous App',
+  });
+
+  mockPrewarmIosRunnerSession.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        events.push('prewarm-start');
+        finishPrewarm = () => {
+          events.push('prewarm-finish');
+          resolve();
+        };
+      }),
+  );
+  mockDispatch.mockImplementation(async (_device, command) => {
+    events.push(`dispatch:${command}`);
+    return {};
+  });
+
+  const responsePromise = handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: ['com.example.app', 'rne://screen-layout'],
+      flags: {
+        maestro: { prewarmRunnerBeforeOpen: true },
+      },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  await vi.waitFor(() => expect(events).toEqual(['prewarm-start']));
+
+  finishPrewarm?.();
+  const response = await responsePromise;
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(events).toEqual(['prewarm-start', 'prewarm-finish', 'dispatch:open']);
+  expect((response as any).data?.timing).toMatchObject({
+    runnerPrewarmKind: 'session',
+    runnerPrewarmScheduled: true,
+    runnerPrewarmWaited: true,
+  });
+});
+
 test('open iOS URL without app bundle id skips runner prewarm', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-session';

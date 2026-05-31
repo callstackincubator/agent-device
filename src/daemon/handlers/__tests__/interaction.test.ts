@@ -303,6 +303,77 @@ test('get text simple iOS id selector uses runner query without snapshot', async
   expect(recorded?.result?.selectorChain).toEqual(['id="field-name"']);
 });
 
+test('get text iOS label selector uses snapshot disambiguation instead of runner query', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'get-text-ios-label-selector';
+  sessionStore.set(sessionName, makeIosSession(sessionName, { appBundleId: 'com.example.app' }));
+  mockDispatch.mockResolvedValue({
+    backend: 'xctest',
+    nodes: [
+      {
+        index: 0,
+        depth: 0,
+        type: 'Application',
+        rect: { x: 0, y: 0, width: 393, height: 852 },
+        enabled: true,
+        hittable: true,
+      },
+      {
+        index: 1,
+        depth: 1,
+        parentIndex: 0,
+        type: 'Cell',
+        label: 'General',
+        rect: { x: 0, y: 100, width: 393, height: 48 },
+        enabled: true,
+        hittable: true,
+      },
+      {
+        index: 2,
+        depth: 2,
+        parentIndex: 1,
+        type: 'Button',
+        label: 'General',
+        rect: { x: 0, y: 100, width: 393, height: 48 },
+        enabled: true,
+        hittable: true,
+      },
+      {
+        index: 3,
+        depth: 2,
+        parentIndex: 1,
+        type: 'StaticText',
+        label: 'General',
+        rect: { x: 18, y: 112, width: 80, height: 24 },
+        enabled: true,
+        hittable: false,
+      },
+    ],
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'get',
+      positionals: ['text', 'label="General"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockRunIosRunnerCommand).not.toHaveBeenCalled();
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  expect(mockDispatch.mock.calls[0]?.[1]).toBe('snapshot');
+  if (response?.ok) {
+    expect(response.data?.text).toBe('General');
+    expect(response.data?.selector).toBe('label="General"');
+  }
+});
+
 test('get text simple iOS id selector does not snapshot-fallback on ambiguous runner match', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'get-text-ios-direct-selector-ambiguous';
@@ -502,9 +573,9 @@ test('click simple iOS selector forwards Maestro non-hittable coordinate fallbac
   }
 });
 
-test('click simple iOS id selector falls back to snapshot coordinates when direct tap fails', async () => {
+test('click simple iOS id selector falls back to snapshot coordinates on transport failure', async () => {
   const sessionStore = makeSessionStore();
-  const sessionName = 'ios-direct-selector-fallback';
+  const sessionName = 'ios-direct-selector-fallback-transport';
   sessionStore.set(sessionName, makeIosSession(sessionName, { appBundleId: 'com.example.app' }));
 
   mockDispatch.mockImplementation(async (_device, command, positionals, _out, context) => {
@@ -559,6 +630,41 @@ test('click simple iOS id selector falls back to snapshot coordinates when direc
   if (response?.ok) {
     expect(response.data?.selectorChain).toContain('id="submit"');
   }
+});
+
+test('click simple iOS id selector does not snapshot-fallback on runner element miss', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-direct-selector-element-miss';
+  sessionStore.set(sessionName, makeIosSession(sessionName, { appBundleId: 'com.example.app' }));
+
+  mockDispatch.mockImplementation(async (_device, command, _positionals, _out, context) => {
+    if (command === 'press' && (context as Record<string, unknown>)?.directElementSelector) {
+      throw new AppError('ELEMENT_NOT_FOUND', 'element not found');
+    }
+    if (command === 'snapshot') {
+      throw new Error('snapshot fallback should not run');
+    }
+    return {};
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'click',
+      positionals: ['id="submit"'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(false);
+  if (response?.ok === false) {
+    expect(response.error.code).toBe('ELEMENT_NOT_FOUND');
+  }
+  expect(mockDispatch.mock.calls.filter((call) => call[1] === 'snapshot')).toHaveLength(0);
 });
 
 test('click simple iOS id selector does not snapshot-fallback on ambiguous runner match', async () => {

@@ -277,9 +277,17 @@ async function dispatchDirectIosSelectorGet(
   property: 'text' | 'attrs',
   selectorExpression: string,
 ): Promise<DaemonResponse | null> {
-  const directQuery = await resolveDirectIosSelectorQuery(params, selectorExpression);
-  if (isDirectIosSelectorErrorResult(directQuery)) return directQuery.response;
-  if (!directQuery) return null;
+  const session = params.sessionStore.get(params.sessionName);
+  const selector = readSimpleIosSelectorTarget({ session, selectorExpression });
+  if (!session || !selector) return null;
+  // get text intentionally disambiguates label/text/value triplets from snapshots; the runner
+  // direct query rejects those ambiguous matches before the shared selector resolver can rank them.
+  if (property === 'text' && selector.key !== 'id') return null;
+
+  const result = await queryDirectIosSelectorOrFallback(params, session, selector);
+  if (isDirectIosSelectorErrorResult(result)) return result.response;
+  if (!result) return null;
+  const directQuery = { session, selector, result };
   const payload = buildDirectIosGetResult(property, directQuery.selector.raw, directQuery.result);
   if (!payload) return null;
   recordIfSession(
@@ -404,7 +412,7 @@ async function queryDirectIosSelectorOrFallback(
   try {
     return await queryDirectIosSelector(params, session, selector);
   } catch (error) {
-    if (isDirectIosSelectorFallbackError(error)) return null;
+    if (isDirectIosSelectorFallbackError(error, { allowElementNotFound: true })) return null;
     return { kind: 'error', response: { ok: false, error: normalizeError(error) } };
   }
 }

@@ -6,7 +6,9 @@ import type { SessionSurface } from './session-surface.ts';
 
 export type MaestroRuntimeFlags = {
   allowNonHittableCoordinateFallback?: boolean;
+  allowAlreadyPastLoading?: boolean;
   optional?: boolean;
+  prewarmRunnerBeforeOpen?: boolean;
   runScriptEnv?: Record<string, string>;
 };
 

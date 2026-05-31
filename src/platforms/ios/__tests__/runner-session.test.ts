@@ -178,6 +178,28 @@ test('runner session skips readiness preflight for tap commands after a recent s
   assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
 });
 
+test('runner session skips readiness preflight for selector taps after a recent successful response', async () => {
+  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+
+  const result = await executeRunnerCommandWithSession(
+    IOS_SIMULATOR,
+    session,
+    {
+      command: 'tap',
+      selectorKey: 'label',
+      selectorValue: 'Navigate to article',
+      appBundleId: 'com.example.demo',
+    },
+    '/tmp/runner.log',
+    30_000,
+  );
+
+  assert.deepEqual(result, { tapped: true });
+  assert.equal(mockWaitForRunner.mock.calls.length, 0);
+  assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
+});
+
 test('runner session skips readiness preflight for tapSeries after a recent successful response', async () => {
   const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
   mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));

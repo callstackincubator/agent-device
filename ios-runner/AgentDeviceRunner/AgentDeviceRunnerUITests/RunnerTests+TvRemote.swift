@@ -110,9 +110,23 @@ extension RunnerTests {
 #if os(tvOS)
     return .unsupported("element tap is not supported on tvOS; move focus with swipe or scroll, then select the focused element")
 #else
-    element.tap()
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      element.tap()
+    })
+    if let exceptionMessage {
+      NSLog("AGENT_DEVICE_RUNNER_ELEMENT_TAP_IGNORED_EXCEPTION=%@", exceptionMessage)
+      if isPostTapElementDisappearance(exceptionMessage) {
+        return .performed
+      }
+      return .unsupported("element tap failed: \(exceptionMessage)")
+    }
     return .performed
 #endif
+  }
+
+  private func isPostTapElementDisappearance(_ message: String) -> Bool {
+    message.contains("No matches found")
+      || message.contains("Failed to get matching snapshot")
   }
 
   private func selectFocusedTvElement(app: XCUIApplication, element: XCUIElement, action: String) -> RunnerInteractionOutcome? {

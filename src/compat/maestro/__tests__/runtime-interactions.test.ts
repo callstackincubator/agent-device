@@ -11,31 +11,53 @@ test('invokeMaestroTapOn resolves mutating taps from the current raw snapshot', 
   const selector =
     'label="Article by Gandalf" || text="Article by Gandalf" || id="Article by Gandalf"';
 
-  const clicks: string[][] = [];
-  let snapshots = 0;
-  const response = await invokeMaestroTapOn({
-    baseReq: {
-      token: 'test',
-      session: 'nav',
-      flags: { platform: 'ios' },
-    },
-    positionals: [selector],
-    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
-      if (req.command === 'snapshot') {
-        snapshots += 1;
-        return { ok: true, data: currentBreadcrumbSnapshot() };
-      }
-      if (req.command === 'click') {
-        clicks.push(req.positionals ?? []);
-        return { ok: true, data: {} };
-      }
-      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
-    },
-  });
+  const { response, clicks, snapshots } = await runTapOn(selector, () =>
+    currentBreadcrumbSnapshot(),
+  );
 
   expect(response.ok).toBe(true);
   expect(snapshots).toBe(1);
   expect(clicks).toEqual([['86', '89']]);
+});
+
+test('invokeMaestroTapOn taps resolved iOS buttons by coordinates', async () => {
+  const { response, clicks } = await runTapOn(
+    'label="Pop to top" || text="Pop to top" || id="Pop to top"',
+    () => buttonSnapshot('Pop to top'),
+  );
+
+  expect(response.ok).toBe(true);
+  expect(clicks).toEqual([['201', '149']]);
+});
+
+test('invokeMaestroTapOn clicks normal Close/Dismiss buttons when no React Native overlay is present', async () => {
+  const { response, commands } = await runTapOn(
+    'label="Dismiss" || text="Dismiss" || id="Dismiss"',
+    () => buttonSnapshot('Dismiss'),
+  );
+
+  expect(response.ok).toBe(true);
+  expect(commands).toEqual(['snapshot', 'click']);
+});
+
+test('invokeMaestroTapOn uses React Native overlay dismissal for overlay controls', async () => {
+  const { response, commands } = await runTapOn(
+    'label="Dismiss" || text="Dismiss" || id="Dismiss"',
+    () => overlayDismissButtonSnapshot(),
+  );
+
+  expect(response.ok).toBe(true);
+  expect(commands).toEqual(['snapshot', 'react-native']);
+});
+
+test('invokeMaestroTapOn dismisses React Native overlays blocking app content and retries', async () => {
+  const { response, commands, clicks } = await runTapOn('id="article"', (snapshotIndex) =>
+    snapshotIndex === 1 ? overlayBlockingArticleSnapshot() : articleButtonSnapshot(),
+  );
+
+  expect(response.ok).toBe(true);
+  expect(commands).toEqual(['snapshot', 'react-native', 'snapshot', 'click']);
+  expect(clicks).toEqual([['201', '149']]);
 });
 
 test('invokeMaestroSwipeScreen maps horizontal directional swipes to native gesture presets', async () => {
@@ -185,6 +207,44 @@ function currentBreadcrumbSnapshot(): SnapshotState {
   };
 }
 
+async function runTapOn(
+  selector: string,
+  readSnapshot: (snapshotIndex: number) => SnapshotState,
+): Promise<{
+  response: DaemonResponse;
+  commands: string[];
+  clicks: string[][];
+  snapshots: number;
+}> {
+  const commands: string[] = [];
+  const clicks: string[][] = [];
+  let snapshots = 0;
+  const response = await invokeMaestroTapOn({
+    baseReq: {
+      token: 'test',
+      session: 'nav',
+      flags: { platform: 'ios' },
+    },
+    positionals: [selector],
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      commands.push(req.command);
+      if (req.command === 'snapshot') {
+        snapshots += 1;
+        return { ok: true, data: readSnapshot(snapshots) };
+      }
+      if (req.command === 'react-native') {
+        return { ok: true, data: { dismissed: true } };
+      }
+      if (req.command === 'click') {
+        clicks.push(req.positionals ?? []);
+        return { ok: true, data: {} };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+  return { response, commands, clicks, snapshots };
+}
+
 function fullScreenSnapshot(width: number, height: number): SnapshotState {
   return {
     createdAt: Date.now(),
@@ -204,6 +264,118 @@ function fullScreenSnapshot(width: number, height: number): SnapshotState {
         depth: 1,
         parentIndex: 0,
         rect: { x: 0, y: 0, width, height },
+      },
+    ],
+  };
+}
+
+function buttonSnapshot(label: string): SnapshotState {
+  return {
+    createdAt: Date.now(),
+    nodes: [
+      appNode(),
+      windowNode(),
+      {
+        index: 2,
+        ref: 'e3',
+        type: 'Button',
+        label,
+        depth: 4,
+        parentIndex: 1,
+        rect: { x: 142, y: 128.66666412353516, width: 118, height: 40 },
+      },
+    ],
+  };
+}
+
+function articleButtonSnapshot(): SnapshotState {
+  return {
+    createdAt: Date.now(),
+    nodes: [
+      appNode(),
+      windowNode(),
+      {
+        index: 2,
+        ref: 'e3',
+        type: 'Button',
+        identifier: 'article',
+        label: 'Article',
+        depth: 4,
+        parentIndex: 1,
+        rect: { x: 142, y: 128.66666412353516, width: 118, height: 40 },
+      },
+    ],
+  };
+}
+
+function overlayBlockingArticleSnapshot(): SnapshotState {
+  return {
+    createdAt: Date.now(),
+    nodes: [
+      ...articleButtonSnapshot().nodes,
+      {
+        index: 10,
+        ref: 'e10',
+        type: 'StaticText',
+        label: 'Runtime Error',
+        depth: 2,
+        parentIndex: 1,
+        rect: { x: 0, y: 0, width: 402, height: 40 },
+      },
+      {
+        index: 11,
+        ref: 'e11',
+        type: 'Button',
+        label: 'Minimize',
+        depth: 2,
+        parentIndex: 1,
+        rect: { x: 320, y: 12, width: 70, height: 36 },
+      },
+      {
+        index: 12,
+        ref: 'e12',
+        type: 'StaticText',
+        label: 'Call Stack',
+        depth: 2,
+        parentIndex: 1,
+        rect: { x: 0, y: 52, width: 402, height: 40 },
+      },
+    ],
+  };
+}
+
+function overlayDismissButtonSnapshot(): SnapshotState {
+  return {
+    createdAt: Date.now(),
+    nodes: [
+      appNode(),
+      windowNode(),
+      {
+        index: 10,
+        ref: 'e10',
+        type: 'StaticText',
+        label: 'Runtime Error',
+        depth: 2,
+        parentIndex: 1,
+        rect: { x: 0, y: 0, width: 402, height: 40 },
+      },
+      {
+        index: 11,
+        ref: 'e11',
+        type: 'Button',
+        label: 'Dismiss',
+        depth: 2,
+        parentIndex: 1,
+        rect: { x: 320, y: 12, width: 70, height: 36 },
+      },
+      {
+        index: 12,
+        ref: 'e12',
+        type: 'StaticText',
+        label: 'Call Stack',
+        depth: 2,
+        parentIndex: 1,
+        rect: { x: 0, y: 52, width: 402, height: 40 },
       },
     ],
   };

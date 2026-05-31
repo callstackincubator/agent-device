@@ -32,8 +32,12 @@ function isRunnerNativeSelectorKey(key: string): key is DirectIosSelectorTarget[
   return key === 'id' || key === 'label' || key === 'text' || key === 'value';
 }
 
-export function isDirectIosSelectorFallbackError(error: unknown): boolean {
+export function isDirectIosSelectorFallbackError(
+  error: unknown,
+  options: { allowElementNotFound?: boolean } = {},
+): boolean {
   const appError = asAppError(error);
+  if (appError.code === 'ELEMENT_NOT_FOUND') return options.allowElementNotFound === true;
   if (appError.code !== 'COMMAND_FAILED') return false;
   const message = appError.message.toLowerCase();
   return (

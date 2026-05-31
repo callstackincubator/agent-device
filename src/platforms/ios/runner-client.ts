@@ -149,6 +149,33 @@ async function executeRunnerCommand(
         throw retryErr;
       }
     }
+    if (session && shouldRestartAfterReadinessPreflightError(appErr)) {
+      assertRunnerRequestActive(options.requestId);
+      await invalidateRunnerSession(
+        session,
+        'runner_readiness_preflight_failed_before_command_send',
+      );
+      session = await ensureRunnerSession(device, { ...options, cleanStaleBundles: true });
+      try {
+        return await executeRunnerCommandWithSession(
+          device,
+          session,
+          command,
+          options.logPath,
+          RUNNER_STARTUP_TIMEOUT_MS,
+          signal,
+        );
+      } catch (retryErr) {
+        const retryAppErr =
+          retryErr instanceof AppError
+            ? retryErr
+            : new AppError('COMMAND_FAILED', String(retryErr));
+        if (isRetryableRunnerError(retryAppErr)) {
+          await invalidateRunnerSession(session, 'transport_error_after_retry_command_send');
+        }
+        throw retryErr;
+      }
+    }
     if (!session && appErr.message.includes('Runner did not accept connection')) {
       await stopIosRunnerSession(device.id);
     }
@@ -157,6 +184,22 @@ async function executeRunnerCommand(
     }
     throw err;
   }
+}
+
+function isRunnerReadinessPreflightError(error: AppError): boolean {
+  return error.details?.runnerReadinessPreflightFailed === true;
+}
+
+function shouldRestartAfterReadinessPreflightError(error: AppError): boolean {
+  return (
+    isRunnerReadinessPreflightError(error) &&
+    (isRetryableRunnerError(error) || isRunnerReadinessPreflightTimeout(error))
+  );
+}
+
+function isRunnerReadinessPreflightTimeout(error: AppError): boolean {
+  const message = error.message.toLowerCase();
+  return message.includes('timeout') || message.includes('timed out');
 }
 
 export {

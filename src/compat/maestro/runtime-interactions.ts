@@ -1,5 +1,6 @@
 import { getSnapshotReferenceFrame } from '../../daemon/touch-reference-frame.ts';
 import type { DaemonRequest, DaemonResponse } from '../../daemon/types.ts';
+import { detectReactNativeOverlay } from '../../commands/react-native/overlay.ts';
 import {
   buildSwipeGesturePlan,
   clampGesturePoint,
@@ -8,11 +9,13 @@ import {
 } from '../../core/scroll-gesture.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
+import type { SnapshotState } from '../../utils/snapshot.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { pointForMaestroTapOnTarget, swipeCoordinatesFromTarget } from './runtime-geometry.ts';
 import {
   captureMaestroRawSnapshot,
   clearMaestroVisibleContext,
+  dismissReactNativeOverlayIfPresent,
   errorResponse,
   readCachedMaestroReferenceFrame,
   readMaestroVisibleContext,
@@ -60,6 +63,10 @@ type MaestroScreenSwipeResolution =
       durationMs?: string;
     }
   | { ok: false; response: DaemonResponse };
+
+type ResolvedMaestroSnapshotTarget = MaestroSnapshotTarget & {
+  snapshot: SnapshotState;
+};
 
 export async function invokeMaestroScrollUntilVisible(
   params: MaestroScrollUntilVisibleParams,
@@ -427,12 +434,51 @@ async function invokeMaestroSnapshotTapOn(
   selector: string,
   options: MaestroTapOnOptions,
 ): Promise<{ response: DaemonResponse; targetResolved: boolean }> {
+  const target = await resolveMaestroTapTargetWithOverlayRetry(params, selector, options);
+  if (!target.ok) return { response: target.response, targetResolved: false };
+  const overlayResponse = await maybeDismissReactNativeOverlayTapTarget(
+    params,
+    selector,
+    target.target,
+  );
+  if (overlayResponse) {
+    if (overlayResponse.ok) clearMaestroVisibleContext(params.scope);
+    return {
+      response: overlayResponse,
+      targetResolved: true,
+    };
+  }
+  return await clickMaestroSnapshotTarget(params, selector, target.target);
+}
+
+async function resolveMaestroTapTargetWithOverlayRetry(
+  params: MaestroTapOnParams,
+  selector: string,
+  options: MaestroTapOnOptions,
+): Promise<
+  { ok: true; target: ResolvedMaestroSnapshotTarget } | { ok: false; response: DaemonResponse }
+> {
   const target = await resolveMaestroSnapshotTarget(params, selector, options, 'tapOn', {
     promoteTapTarget: true,
   });
-  if (!target.ok) return { response: target.response, targetResolved: false };
+  if (target.ok || !isReactNativeOverlayBlockedResponse(target.response)) return target;
+
+  const overlayResponse = await dismissReactNativeOverlayIfPresent(params);
+  if (overlayResponse?.ok) clearMaestroVisibleContext(params.scope);
+  if (!overlayResponse) return target;
+
+  return await resolveMaestroSnapshotTarget(params, selector, options, 'tapOn', {
+    promoteTapTarget: true,
+  });
+}
+
+async function clickMaestroSnapshotTarget(
+  params: MaestroTapOnParams,
+  selector: string,
+  target: MaestroSnapshotTarget,
+): Promise<{ response: DaemonResponse; targetResolved: true }> {
   const point = pointForMaestroTapOnTarget(
-    target.target,
+    target,
     extractMaestroVisibleTextQuery(selector) !== null,
   );
   emitDiagnostic({
@@ -441,14 +487,14 @@ async function invokeMaestroSnapshotTapOn(
     data: {
       selector,
       node: {
-        index: target.target.node.index,
-        type: target.target.node.type,
-        label: target.target.node.label,
-        value: target.target.node.value,
-        identifier: target.target.node.identifier,
-        visibleToUser: target.target.node.visibleToUser,
+        index: target.node.index,
+        type: target.node.type,
+        label: target.node.label,
+        value: target.node.value,
+        identifier: target.node.identifier,
+        visibleToUser: target.node.visibleToUser,
       },
-      rect: target.target.rect,
+      rect: target.rect,
       point,
     },
   });
@@ -462,6 +508,33 @@ async function invokeMaestroSnapshotTapOn(
     response,
     targetResolved: true,
   };
+}
+
+async function maybeDismissReactNativeOverlayTapTarget(
+  params: MaestroTapOnParams,
+  selector: string,
+  target: ResolvedMaestroSnapshotTarget,
+): Promise<DaemonResponse | null> {
+  const query = extractMaestroVisibleTextQuery(selector)?.trim().toLowerCase();
+  if (query !== 'dismiss' && query !== 'minimize' && query !== 'close') return null;
+  if (!isReactNativeOverlayControlTarget(target)) return null;
+  return await dismissReactNativeOverlayIfPresent(params);
+}
+
+function isReactNativeOverlayControlTarget(target: ResolvedMaestroSnapshotTarget): boolean {
+  const overlay = detectReactNativeOverlay(target.snapshot.nodes);
+  if (!overlay.detected) return false;
+  return [...overlay.dismissNodes, ...overlay.minimizeNodes, ...overlay.collapsedNodes].some(
+    (node) => node.index === target.node.index,
+  );
+}
+
+function isReactNativeOverlayBlockedResponse(response: DaemonResponse): boolean {
+  return (
+    !response.ok &&
+    response.error.code === 'ELEMENT_NOT_FOUND' &&
+    response.error.message.includes('React Native overlay is covering app content')
+  );
 }
 
 async function invokeMaestroFuzzyTapOn(
@@ -493,7 +566,9 @@ async function resolveMaestroSnapshotTarget(
   options: MaestroTapOnOptions,
   commandLabel: string,
   resolutionOptions: { promoteTapTarget: boolean },
-): Promise<{ ok: true; target: MaestroSnapshotTarget } | { ok: false; response: DaemonResponse }> {
+): Promise<
+  { ok: true; target: ResolvedMaestroSnapshotTarget } | { ok: false; response: DaemonResponse }
+> {
   const snapshotResponse = await captureMaestroRawSnapshot(params);
   if (!snapshotResponse.ok) return { ok: false, response: snapshotResponse };
 
@@ -532,6 +607,7 @@ async function resolveMaestroSnapshotTarget(
             node: fuzzyResolution.node,
             rect: fuzzyResolution.rect,
             frame,
+            snapshot,
           },
         };
       }
@@ -553,6 +629,7 @@ async function resolveMaestroSnapshotTarget(
       node: resolution.node,
       rect: resolution.rect,
       frame,
+      snapshot,
     },
   };
 }

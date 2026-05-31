@@ -5,6 +5,7 @@ import type { SnapshotState } from '../../utils/snapshot.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import {
   captureMaestroRawSnapshot,
+  dismissReactNativeOverlayIfPresent,
   errorResponse,
   rememberMaestroVisibleContext,
   readSnapshotState,
@@ -12,6 +13,7 @@ import {
   type ReplayBaseRequest,
 } from './runtime-support.ts';
 import {
+  extractMaestroVisibleTextQuery,
   readMaestroSelectorPlatform,
   resolveVisibleMaestroNodeFromSnapshot,
 } from './runtime-targets.ts';
@@ -22,11 +24,22 @@ const MAESTRO_ASSERTION_POLICY = {
   assertVisiblePollMs: 250,
   assertNotVisiblePollMs: 250,
   defaultAssertNotVisibleTimeoutMs: 3000,
+  minNativeVisibleWaitTimeoutMs: 30000,
 } as const;
 
 type MaestroVisibilitySample =
   | { visible: true; response: DaemonResponse }
-  | { visible: false; response: DaemonResponse; infrastructureFailure: boolean };
+  | {
+      visible: false;
+      response: DaemonResponse;
+      infrastructureFailure: boolean;
+      snapshot?: SnapshotState;
+    };
+
+type MaestroVisibilityAssertionArgs = {
+  selector: string;
+  timeoutMs: number;
+};
 
 export async function invokeMaestroAssertVisible(params: {
   baseReq: ReplayBaseRequest;
@@ -40,33 +53,100 @@ export async function invokeMaestroAssertVisible(params: {
   });
   if (!args.ok) return args.response;
 
+  const nativeWaitQuery = readNativeVisibleWaitQuery(params.baseReq, args.selector, args.timeoutMs);
+  if (nativeWaitQuery) {
+    return await invokeNativeMaestroVisibleWait(params, args, nativeWaitQuery);
+  }
+
+  return await invokeSnapshotMaestroAssertVisible(params, args);
+}
+
+async function invokeNativeMaestroVisibleWait(
+  params: {
+    baseReq: ReplayBaseRequest;
+    invoke: MaestroRuntimeInvoke;
+  },
+  args: MaestroVisibilityAssertionArgs,
+  nativeWaitQuery: string,
+): Promise<DaemonResponse> {
+  const nativeStartedAt = Date.now();
+  let nativeResponse = await runNativeVisibleWait(params, args, nativeWaitQuery);
+  if (!nativeResponse.ok && shouldRetryNativeWaitAfterOverlayDismiss(nativeResponse)) {
+    const overlayResponse = await dismissReactNativeOverlayIfPresent(params);
+    if (overlayResponse) nativeResponse = await runNativeVisibleWait(params, args, nativeWaitQuery);
+  }
+  if (!nativeResponse.ok) return nativeResponse;
+  return visibleAssertionResponse(
+    {
+      ok: true,
+      data: {
+        selector: args.selector,
+        nativeWait: true,
+        query: nativeWaitQuery,
+        response: nativeResponse.data,
+      },
+    },
+    args.selector,
+    nativeStartedAt,
+  );
+}
+
+async function runNativeVisibleWait(
+  params: {
+    baseReq: ReplayBaseRequest;
+    invoke: MaestroRuntimeInvoke;
+  },
+  args: MaestroVisibilityAssertionArgs,
+  nativeWaitQuery: string,
+): Promise<DaemonResponse> {
+  return await params.invoke({
+    ...params.baseReq,
+    command: 'wait',
+    positionals: [nativeWaitQuery, String(args.timeoutMs)],
+  });
+}
+
+async function invokeSnapshotMaestroAssertVisible(
+  params: {
+    baseReq: ReplayBaseRequest;
+    invoke: MaestroRuntimeInvoke;
+    scope?: ReplayVarScope;
+  },
+  args: MaestroVisibilityAssertionArgs,
+): Promise<DaemonResponse> {
   // Native wait/is cannot replace this loop: wait only proves existence, while
   // is requires unique resolution and does not apply Maestro overlay filtering.
   const startedAt = Date.now();
   const deadlineMs = args.timeoutMs + MAESTRO_ASSERTION_POLICY.assertVisibleGraceMs;
   let lastResponse: DaemonResponse | undefined;
   let capturedAfterDeadline = false;
+  let dismissedOverlay = false;
   while (true) {
     const captureStartedAt = Date.now();
     const sample = await readMaestroVisibilitySample(params, args.selector, 'assertVisible');
     if (sample.visible) return visibleAssertionResponse(sample.response, args.selector, startedAt);
     lastResponse = sample.response;
-
-    const elapsedMs = Date.now() - startedAt;
-    if (elapsedMs >= deadlineMs) {
-      if (
-        shouldCaptureOnceAfterDeadline(
-          capturedAfterDeadline,
-          captureStartedAt,
-          startedAt,
-          deadlineMs,
-        )
-      ) {
-        capturedAfterDeadline = true;
-        continue;
-      }
-      break;
+    const failedSample = await handleFailedVisibleSample(params, args, sample, {
+      dismissedOverlay,
+      startedAt,
+    });
+    if (failedSample.kind === 'retry-after-overlay-dismiss') {
+      dismissedOverlay = true;
+      continue;
     }
+    if (failedSample.kind === 'return') return failedSample.response;
+
+    const deadline = readVisibleAssertionDeadlineAction({
+      captureStartedAt,
+      capturedAfterDeadline,
+      startedAt,
+      deadlineMs,
+    });
+    if (deadline === 'capture-again') {
+      capturedAfterDeadline = true;
+      continue;
+    }
+    if (deadline === 'finish') break;
     await sleep(MAESTRO_ASSERTION_POLICY.assertVisiblePollMs);
   }
 
@@ -77,6 +157,124 @@ export async function invokeMaestroAssertVisible(params: {
       timeoutMs: args.timeoutMs,
     })
   );
+}
+
+async function handleFailedVisibleSample(
+  params: {
+    baseReq: ReplayBaseRequest;
+    invoke: MaestroRuntimeInvoke;
+  },
+  args: MaestroVisibilityAssertionArgs,
+  sample: Exclude<MaestroVisibilitySample, { visible: true }>,
+  state: { dismissedOverlay: boolean; startedAt: number },
+): Promise<
+  | { kind: 'continue' }
+  | { kind: 'retry-after-overlay-dismiss' }
+  | { kind: 'return'; response: DaemonResponse }
+> {
+  const overlayRetry = await maybeDismissOverlayAfterSnapshotFailure(
+    params,
+    sample.response,
+    state.dismissedOverlay,
+  );
+  if (overlayRetry === 'dismissed') return { kind: 'retry-after-overlay-dismiss' };
+  if (overlayRetry === 'blocked') return { kind: 'return', response: sample.response };
+  if (shouldPassAlreadyPastLoading(params.baseReq, args.selector, sample.snapshot)) {
+    return {
+      kind: 'return',
+      response: alreadyPastLoadingResponse(args.selector, args.timeoutMs, state.startedAt),
+    };
+  }
+  return { kind: 'continue' };
+}
+
+function shouldPassAlreadyPastLoading(
+  baseReq: ReplayBaseRequest,
+  selector: string,
+  snapshot: SnapshotState | undefined,
+): boolean {
+  return (
+    baseReq.flags?.maestro?.allowAlreadyPastLoading === true &&
+    snapshot !== undefined &&
+    isAlreadyPastLoadingState(selector, snapshot)
+  );
+}
+
+function readVisibleAssertionDeadlineAction(params: {
+  captureStartedAt: number;
+  capturedAfterDeadline: boolean;
+  startedAt: number;
+  deadlineMs: number;
+}): 'wait' | 'capture-again' | 'finish' {
+  const elapsedMs = Date.now() - params.startedAt;
+  if (elapsedMs < params.deadlineMs) return 'wait';
+  return shouldCaptureOnceAfterDeadline(
+    params.capturedAfterDeadline,
+    params.captureStartedAt,
+    params.startedAt,
+    params.deadlineMs,
+  )
+    ? 'capture-again'
+    : 'finish';
+}
+
+async function maybeDismissOverlayAfterSnapshotFailure(
+  params: {
+    baseReq: ReplayBaseRequest;
+    invoke: MaestroRuntimeInvoke;
+  },
+  response: DaemonResponse,
+  dismissedOverlay: boolean,
+): Promise<'dismissed' | 'blocked' | 'none'> {
+  if (dismissedOverlay || !shouldRetrySnapshotAssertionAfterOverlayDismiss(response)) {
+    return 'none';
+  }
+  const overlayResponse = await dismissReactNativeOverlayIfPresent(params);
+  return overlayResponse ? 'dismissed' : 'blocked';
+}
+
+function shouldRetryNativeWaitAfterOverlayDismiss(response: DaemonResponse): boolean {
+  return (
+    !response.ok &&
+    response.error.code === 'COMMAND_FAILED' &&
+    (response.error.message.includes('Current surface:') ||
+      response.error.message.includes('React Native overlay'))
+  );
+}
+
+function shouldRetrySnapshotAssertionAfterOverlayDismiss(response: DaemonResponse): boolean {
+  return (
+    !response.ok &&
+    response.error.code === 'COMMAND_FAILED' &&
+    response.error.message.includes('React Native overlay')
+  );
+}
+
+function readNativeVisibleWaitQuery(
+  baseReq: ReplayBaseRequest,
+  selector: string,
+  timeoutMs: number,
+): string | null {
+  if (baseReq.flags?.platform !== 'ios') return null;
+  if (baseReq.flags?.maestro?.allowAlreadyPastLoading === true) return null;
+  if (timeoutMs < MAESTRO_ASSERTION_POLICY.minNativeVisibleWaitTimeoutMs) return null;
+  return extractMaestroVisibleTextQuery(selector);
+}
+
+function alreadyPastLoadingResponse(
+  selector: string,
+  timeoutMs: number,
+  startedAt: number,
+): DaemonResponse {
+  return {
+    ok: true,
+    data: {
+      selector,
+      alreadyPastLoading: true,
+      waitedMs: Date.now() - startedAt,
+      timeoutMs,
+    },
+  };
 }
 
 function readVisibilityAssertionArgs(
@@ -133,6 +331,7 @@ async function readMaestroVisibilitySample(
       visible: false,
       response: errorResponse('COMMAND_FAILED', target.message, { selector }),
       infrastructureFailure: false,
+      snapshot,
     };
   }
   rememberMaestroVisibleContext(params.scope, selector);
@@ -151,6 +350,35 @@ async function readMaestroVisibilitySample(
       },
     },
   };
+}
+
+function isAlreadyPastLoadingState(selector: string, snapshot: SnapshotState): boolean {
+  const query = normalizeLoadingText(extractMaestroVisibleTextQuery(selector));
+  if (!isLoadingText(query)) return false;
+
+  // Maestro extendedWaitUntil is commonly used as a loading gate. If the exact
+  // loading label is already gone and the current surface has other content,
+  // treat the flow as past the transient state instead of timing out on stale text.
+  const currentTexts = snapshot.nodes
+    .flatMap((node) => [node.label, node.value, node.identifier])
+    .filter((value): value is string => Boolean(value?.trim()))
+    .map((value) => normalizeLoadingText(value));
+
+  if (currentTexts.some((text) => text.includes('something went wrong'))) return false;
+  return currentTexts.some((text) => text !== query && !isLoadingText(text));
+}
+
+function normalizeLoadingText(value: string | null | undefined): string {
+  return (
+    value
+      ?.trim()
+      .toLowerCase()
+      .replace(/\.\.\./g, '...') ?? ''
+  );
+}
+
+function isLoadingText(value: string): boolean {
+  return value === 'loading' || value === 'loading...' || value === 'loading…';
 }
 
 function visibleAssertionResponse(

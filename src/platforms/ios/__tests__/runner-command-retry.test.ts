@@ -81,6 +81,56 @@ test('mutating commands retry startup sessions with stale bundle cleanup', async
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[1]?.[1], freshSession);
 });
 
+test('mutating commands restart stale sessions when readiness preflight fails before command send', async () => {
+  const staleSession = makeRunnerSession({ port: 8100, ready: true });
+  const freshSession = makeRunnerSession({ port: 8101, ready: false });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(staleSession).mockResolvedValueOnce(freshSession);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(
+      new AppError('COMMAND_FAILED', 'fetch failed', {
+        runnerReadinessPreflightFailed: true,
+      }),
+    )
+    .mockResolvedValueOnce({ message: 'tapped' });
+
+  const result = await runIosRunnerCommand(IOS_SIMULATOR, { command: 'tap', x: 120, y: 240 });
+
+  assert.deepEqual(result, { message: 'tapped' });
+  assert.equal(mockEnsureRunnerSession.mock.calls.length, 2);
+  assert.deepEqual(mockInvalidateRunnerSession.mock.calls[0], [
+    staleSession,
+    'runner_readiness_preflight_failed_before_command_send',
+  ]);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[1]?.[1], freshSession);
+});
+
+test('mutating commands restart stale sessions when readiness preflight times out before command send', async () => {
+  const staleSession = makeRunnerSession({ port: 8100, ready: true });
+  const freshSession = makeRunnerSession({ port: 8101, ready: false });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(staleSession).mockResolvedValueOnce(freshSession);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(
+      new AppError('COMMAND_FAILED', 'Runner readiness timed out', {
+        runnerReadinessPreflightFailed: true,
+      }),
+    )
+    .mockResolvedValueOnce({ message: 'tapped' });
+
+  const result = await runIosRunnerCommand(IOS_SIMULATOR, { command: 'tap', x: 120, y: 240 });
+
+  assert.deepEqual(result, { message: 'tapped' });
+  assert.equal(mockEnsureRunnerSession.mock.calls.length, 2);
+  assert.deepEqual(mockInvalidateRunnerSession.mock.calls[0], [
+    staleSession,
+    'runner_readiness_preflight_failed_before_command_send',
+  ]);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[1]?.[1], freshSession);
+});
+
 test('mutating commands do not restart or replay after command send failure', async () => {
   const session = makeRunnerSession({ port: 8100, ready: true });
 

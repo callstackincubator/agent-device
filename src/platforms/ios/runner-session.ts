@@ -449,21 +449,25 @@ export async function executeRunnerCommandWithSession(
     const readinessTimeoutMs = session.ready
       ? Math.min(RUNNER_READY_PREFLIGHT_TIMEOUT_MS, deadline.remainingMs())
       : Math.min(RUNNER_STARTUP_TIMEOUT_MS, deadline.remainingMs());
-    const readinessResponse = await withDiagnosticTimer(
-      'ios_runner_readiness_preflight',
-      async () =>
-        await waitForRunner(
-          device,
-          session.port,
-          { command: 'uptime' },
-          logPath,
-          readinessTimeoutMs,
-          session,
-          signal,
-        ),
-      { command: command.command, sessionReady: session.ready, timeoutMs: readinessTimeoutMs },
-    );
-    await parseRunnerResponse(readinessResponse, session, logPath);
+    try {
+      const readinessResponse = await withDiagnosticTimer(
+        'ios_runner_readiness_preflight',
+        async () =>
+          await waitForRunner(
+            device,
+            session.port,
+            { command: 'uptime' },
+            logPath,
+            readinessTimeoutMs,
+            session,
+            signal,
+          ),
+        { command: command.command, sessionReady: session.ready, timeoutMs: readinessTimeoutMs },
+      );
+      await parseRunnerResponse(readinessResponse, session, logPath);
+    } catch (error) {
+      throw markRunnerReadinessPreflightError(error);
+    }
   } else {
     emitDiagnostic({
       level: 'debug',
@@ -544,6 +548,27 @@ function shouldPreflightMutatingRunnerCommand(
   return (
     lastSuccessAt === undefined ||
     Date.now() - lastSuccessAt > RUNNER_TAP_PREFLIGHT_SKIP_FRESHNESS_MS
+  );
+}
+
+function markRunnerReadinessPreflightError(error: unknown): AppError {
+  const appErr =
+    error instanceof AppError
+      ? error
+      : new AppError(
+          'COMMAND_FAILED',
+          error instanceof Error ? error.message : String(error),
+          undefined,
+          error,
+        );
+  return new AppError(
+    appErr.code,
+    appErr.message,
+    {
+      ...(appErr.details ?? {}),
+      runnerReadinessPreflightFailed: true,
+    },
+    appErr.cause ?? error,
   );
 }
 
