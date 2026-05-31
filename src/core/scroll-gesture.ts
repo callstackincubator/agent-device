@@ -109,12 +109,14 @@ export function buildSwipePresetGesturePlan(
   options: { platform?: string; marginPx?: number } = {},
 ): SwipePresetGesturePlan {
   const marginPx = options.marginPx ?? 8;
-  const horizontalLanePercent = options.platform === 'android' ? 65 : 50;
+  const horizontalLanePercent = 65;
+  const inPageStartPercent = 85;
+  const inPageEndPercent = 15;
   const [startPercent, endPercent, yPercent] =
     preset === 'left'
-      ? [90, 10, horizontalLanePercent]
+      ? [inPageStartPercent, inPageEndPercent, horizontalLanePercent]
       : preset === 'right'
-        ? [10, 90, horizontalLanePercent]
+        ? [inPageEndPercent, inPageStartPercent, horizontalLanePercent]
         : preset === 'left-edge'
           ? [99, 15, 50]
           : [1, 85, 50];

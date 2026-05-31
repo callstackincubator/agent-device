@@ -609,14 +609,34 @@ test('runtime gesture swipe presets use stable viewport lanes', async () => {
     session: 'default',
   });
 
-  assert.deepEqual(pageSwipe.from, { x: 90, y: 65 });
-  assert.deepEqual(pageSwipe.to, { x: 10, y: 65 });
+  assert.deepEqual(pageSwipe.from, { x: 85, y: 65 });
+  assert.deepEqual(pageSwipe.to, { x: 15, y: 65 });
   assert.deepEqual(edgeSwipe.from, { x: 8, y: 50 });
   assert.deepEqual(edgeSwipe.to, { x: 85, y: 50 });
   assert.deepEqual(calls, [
-    { from: { x: 90, y: 65 }, to: { x: 10, y: 65 }, durationMs: 300 },
+    { from: { x: 85, y: 65 }, to: { x: 15, y: 65 }, durationMs: 300 },
     { from: { x: 8, y: 50 }, to: { x: 85, y: 50 }, durationMs: 350 },
   ]);
+});
+
+test('runtime iOS in-page swipe presets avoid edge-navigation lanes', async () => {
+  const calls: unknown[] = [];
+  const device = createInteractionDevice(snapshotWithOffscreenContent(), {
+    platform: 'ios',
+    swipe: async (_context, from, to, options) => {
+      calls.push({ from, to, durationMs: options?.durationMs });
+    },
+  });
+
+  const pageSwipe = await device.interactions.swipe({
+    preset: 'right',
+    durationMs: 300,
+    session: 'default',
+  });
+
+  assert.deepEqual(pageSwipe.from, { x: 15, y: 65 });
+  assert.deepEqual(pageSwipe.to, { x: 85, y: 65 });
+  assert.deepEqual(calls, [{ from: { x: 15, y: 65 }, to: { x: 85, y: 65 }, durationMs: 300 }]);
 });
 
 test('runtime viewport gestures reject inspect-only macOS surfaces', async () => {
