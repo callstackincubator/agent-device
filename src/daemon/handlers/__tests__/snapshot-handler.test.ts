@@ -918,6 +918,34 @@ test('settings rejects unsupported iOS physical devices', async () => {
   }
 });
 
+test('settings clear-app-state dispatches explicit app id without an active app session', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-clear-state';
+  sessionStore.set(sessionName, makeSession(sessionName, iosSimulatorDevice));
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'settings',
+      positionals: ['clear-app-state', 'org.reactnavigation.playground'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch).toHaveBeenCalledWith(
+    iosSimulatorDevice,
+    'settings',
+    ['clear-app-state', 'clear', 'org.reactnavigation.playground'],
+    undefined,
+    expect.objectContaining({ appBundleId: 'org.reactnavigation.playground' }),
+  );
+});
+
 test('settings usage hint documents canonical faceid states', async () => {
   const sessionStore = makeSessionStore();
   const response = await handleSnapshotCommands({

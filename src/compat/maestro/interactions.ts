@@ -144,7 +144,11 @@ export function convertExtendedWaitUntil(
   if (value.notVisible !== undefined) {
     return [action(MAESTRO_RUNTIME_COMMAND.assertNotVisible, [selector, timeoutMs])];
   }
-  return [action(MAESTRO_RUNTIME_COMMAND.assertVisible, [selector, timeoutMs])];
+  return [
+    action(MAESTRO_RUNTIME_COMMAND.assertVisible, [selector, timeoutMs], {
+      maestro: { allowAlreadyPastLoading: true },
+    }),
+  ];
 }
 
 export function convertScroll(value: unknown): SessionAction {

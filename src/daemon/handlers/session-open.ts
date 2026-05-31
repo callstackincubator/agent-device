@@ -184,6 +184,12 @@ async function completeOpenCommand(params: {
     timing.runnerPrewarmScheduled = true;
     runnerPrewarm = prewarmIosRunnerSession(device, runnerPrewarmOptions);
   }
+  if (runnerPrewarm && req.flags?.maestro?.prewarmRunnerBeforeOpen === true) {
+    const runnerPrewarmStartedAtMs = Date.now();
+    await runnerPrewarm;
+    timing.runnerPrewarmWaited = true;
+    timing.runnerPrewarmDurationMs = Math.max(0, Date.now() - runnerPrewarmStartedAtMs);
+  }
   const openStartedAtMs = Date.now();
   await dispatchCommand(device, 'open', openPositionals, req.flags?.out, {
     ...contextFromFlags(logPath, req.flags, sessionAppBundleId),
@@ -200,12 +206,12 @@ async function completeOpenCommand(params: {
     openPositionals,
   });
   timing.launchUrlDurationMs = Math.max(0, Date.now() - launchUrlStartedAtMs);
-  if (shouldRelaunch && runnerPrewarm) {
+  if (shouldRelaunch && runnerPrewarm && timing.runnerPrewarmWaited !== true) {
     const runnerPrewarmStartedAtMs = Date.now();
     await runnerPrewarm;
     timing.runnerPrewarmWaited = true;
     timing.runnerPrewarmDurationMs = Math.max(0, Date.now() - runnerPrewarmStartedAtMs);
-  } else if (runnerPrewarm) {
+  } else if (runnerPrewarm && timing.runnerPrewarmWaited !== true) {
     timing.runnerPrewarmWaited = false;
   }
   sessionAppBundleId = await inferAndroidPackageAfterOpen(device, openTarget, sessionAppBundleId);

@@ -55,12 +55,14 @@ export function buildSettingsTour(p: ResolvedProfile, ctx: StepContext): Scenari
         // iOS: editable search field exists at root; fill it directly (freshRoot resets scroll).
         bat('fill search', 'fill', { command: 'fill', positionals: [s.searchFieldEditable, 'general'] }, { freshRoot: true }),
         bat('type', 'type', { command: 'type', positionals: ['wifi'] }),
+        bat('get editable text', 'get', { command: 'get', positionals: ['text', s.searchFieldEditable] }),
       ]
     : [
         // Android: tap the search entry first to reveal the editable, then type/fill it.
         bat('press search field', 'press', { command: 'press', positionals: [s.searchField] }, { freshRoot: true }),
         bat('type', 'type', { command: 'type', positionals: ['wifi'] }),
         bat('fill search', 'fill', { command: 'fill', positionals: [s.searchFieldEditable, 'general'] }),
+        bat('get editable text', 'get', { command: 'get', positionals: ['text', s.searchFieldEditable] }),
       ];
 
   return [

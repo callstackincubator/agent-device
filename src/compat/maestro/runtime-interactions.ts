@@ -13,6 +13,7 @@ import { pointForMaestroTapOnTarget, swipeCoordinatesFromTarget } from './runtim
 import {
   captureMaestroRawSnapshot,
   clearMaestroVisibleContext,
+  dismissReactNativeOverlayIfPresent,
   errorResponse,
   readCachedMaestroReferenceFrame,
   readMaestroVisibleContext,
@@ -427,10 +428,27 @@ async function invokeMaestroSnapshotTapOn(
   selector: string,
   options: MaestroTapOnOptions,
 ): Promise<{ response: DaemonResponse; targetResolved: boolean }> {
-  const target = await resolveMaestroSnapshotTarget(params, selector, options, 'tapOn', {
+  let target = await resolveMaestroSnapshotTarget(params, selector, options, 'tapOn', {
     promoteTapTarget: true,
   });
+  if (!target.ok && isReactNativeOverlayBlockedResponse(target.response)) {
+    const overlayResponse = await dismissReactNativeOverlayIfPresent(params);
+    if (overlayResponse?.ok) clearMaestroVisibleContext(params.scope);
+    if (overlayResponse) {
+      target = await resolveMaestroSnapshotTarget(params, selector, options, 'tapOn', {
+        promoteTapTarget: true,
+      });
+    }
+  }
   if (!target.ok) return { response: target.response, targetResolved: false };
+  const overlayResponse = await maybeDismissReactNativeOverlayTapTarget(params, selector);
+  if (overlayResponse) {
+    if (overlayResponse.ok) clearMaestroVisibleContext(params.scope);
+    return {
+      response: overlayResponse,
+      targetResolved: true,
+    };
+  }
   const point = pointForMaestroTapOnTarget(
     target.target,
     extractMaestroVisibleTextQuery(selector) !== null,
@@ -462,6 +480,23 @@ async function invokeMaestroSnapshotTapOn(
     response,
     targetResolved: true,
   };
+}
+
+async function maybeDismissReactNativeOverlayTapTarget(
+  params: MaestroTapOnParams,
+  selector: string,
+): Promise<DaemonResponse | null> {
+  const query = extractMaestroVisibleTextQuery(selector)?.trim().toLowerCase();
+  if (query !== 'dismiss' && query !== 'minimize' && query !== 'close') return null;
+  return await dismissReactNativeOverlayIfPresent(params);
+}
+
+function isReactNativeOverlayBlockedResponse(response: DaemonResponse): boolean {
+  return (
+    !response.ok &&
+    response.error.code === 'ELEMENT_NOT_FOUND' &&
+    response.error.message.includes('React Native overlay is covering app content')
+  );
 }
 
 async function invokeMaestroFuzzyTapOn(
