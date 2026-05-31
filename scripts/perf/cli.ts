@@ -61,7 +61,15 @@ export function invokeCli(args: string[], baseFlags: string[]): CliResult {
 
 // Wrap a single command in its own `batch` invocation to read per-step durationMs.
 export function invokeBatchStep(spec: BatchStepSpec, baseFlags: string[]): CliResult {
-  return invokeCli(['batch', '--steps', JSON.stringify([spec])], baseFlags);
+  const result = invokeCli(['batch', '--steps', JSON.stringify([spec])], baseFlags);
+  // Defensive: today's stop-only batch surfaces a failed step as a top-level non-zero/ok:false
+  // (already caught by invokeCli). But if a future on-error mode keeps the batch ok while a step
+  // fails, don't silently count that step as a success — downgrade ok from the step's own ok.
+  const stepOk = firstBatchResult(result.json)?.ok;
+  if (result.ok && stepOk === false) {
+    return { ...result, ok: false };
+  }
+  return result;
 }
 
 function firstBatchResult(json: unknown): Record<string, unknown> | undefined {
