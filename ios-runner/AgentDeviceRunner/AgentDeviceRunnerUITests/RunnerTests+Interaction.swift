@@ -416,6 +416,12 @@ extension RunnerTests {
       if let focused = focusedTextInput(app: app) {
         return focused
       }
+      // focusedTextInput is intentionally nil on iOS, so the software keyboard becoming
+      // visible is the reliable readiness signal. Exit as soon as it is up instead of
+      // always burning the full focusTimeout.
+      if isKeyboardVisible(app: app) {
+        return latest
+      }
       sleepFor(TextEntryTiming.pollInterval)
     }
     return latest
@@ -877,6 +883,13 @@ extension RunnerTests {
         if isKeyboardVisible(app: app) {
           return focused
         }
+      }
+      // The software keyboard being visible is the reliable readiness signal on iOS
+      // (focusedTextInput is intentionally nil there). Once it is up the field is accepting
+      // input, so return immediately rather than burning the full readinessTimeout — the
+      // warmup-first-char echo check and post-type verify/repair remain as drop safety nets.
+      if isKeyboardVisible(app: app) {
+        return latest
       }
       sawSoftwareKeyboard = sawSoftwareKeyboard || keyboardElementExists(app: app)
       if !sawSoftwareKeyboard && Date() >= hardwareKeyboardFallback && latest != nil {
