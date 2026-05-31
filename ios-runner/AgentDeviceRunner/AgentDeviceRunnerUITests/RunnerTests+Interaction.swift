@@ -316,13 +316,16 @@ extension RunnerTests {
   }
 
   func clearTextInput(_ element: XCUIElement) {
-    // Nothing to clear: skip both the delete burst and the moveCaretToEnd edge-tap. The
-    // edge-tap computes a point from the element frame, which can be stale after the field
-    // repositions on focus (e.g. the Settings search bar jumps bottom->top and reveals a
-    // "Suggestions" list) — tapping there navigates away instead of clearing. Replacing into
-    // an already-empty field is a no-op, so returning early is also semantically correct.
-    let existing = editableTextValue(for: element, treatingPlaceholderAsEmpty: true) ?? ""
-    if existing.isEmpty {
+    // Skip the clear (delete burst + moveCaretToEnd edge-tap) ONLY when we can confirm the
+    // field is empty. Why skip: the edge-tap computes a point from the element frame, which can
+    // be stale after the field repositions on focus (e.g. the Settings search bar jumps
+    // bottom->top and reveals a "Suggestions" list) — tapping there navigates away instead of
+    // clearing; and replacing into an already-empty field is a no-op anyway.
+    // editableTextValue returns nil for secure (and unknown) fields, where we CANNOT confirm
+    // emptiness — those must still be cleared, or replace would concatenate stale + new text.
+    // So distinguish nil (clear) from "" (skip).
+    if let existing = editableTextValue(for: element, treatingPlaceholderAsEmpty: true),
+       existing.isEmpty {
       return
     }
 #if !os(tvOS)
@@ -425,15 +428,15 @@ extension RunnerTests {
     return target
 #else
     let latest = target
+    let keyboardVisibleAtEntry = isKeyboardVisible(app: app)
     let deadline = Date().addingTimeInterval(TextEntryTiming.focusTimeout)
     while Date() < deadline {
       if let focused = focusedTextInput(app: app) {
         return focused
       }
-      // focusedTextInput is intentionally nil on iOS, so the software keyboard becoming
-      // visible is the reliable readiness signal. Exit as soon as it is up instead of
-      // always burning the full focusTimeout.
-      if isKeyboardVisible(app: app) {
+      // focusedTextInput is intentionally nil on iOS; treat the keyboard transitioning to
+      // visible after our tap as the focus-moved signal. Don't fast-path when it was already up.
+      if keyboardBecameVisible(app: app, wasVisibleAtEntry: keyboardVisibleAtEntry) {
         return latest
       }
       sleepFor(TextEntryTiming.pollInterval)
@@ -886,6 +889,7 @@ extension RunnerTests {
   ) -> XCUIElement? {
 #if os(iOS)
     var latest = resolveTextEntryElement(app: app, target: target)
+    let keyboardVisibleAtEntry = isKeyboardVisible(app: app)
     let deadline = Date().addingTimeInterval(timeout)
     let hardwareKeyboardFallback = Date().addingTimeInterval(
       min(TextEntryTiming.hardwareKeyboardFallbackTimeout, timeout)
@@ -898,11 +902,12 @@ extension RunnerTests {
           return focused
         }
       }
-      // The software keyboard being visible is the reliable readiness signal on iOS
-      // (focusedTextInput is intentionally nil there). Once it is up the field is accepting
-      // input, so return immediately rather than burning the full readinessTimeout — the
-      // warmup-first-char echo check and post-type verify/repair remain as drop safety nets.
-      if isKeyboardVisible(app: app) {
+      // Fast-path on a keyboard hidden->visible transition: our tapped field gained focus, so
+      // return immediately instead of burning the full readinessTimeout (warmup-first-char echo
+      // + post-type verify/repair remain as drop safety nets). When the keyboard was ALREADY up
+      // (back-to-back fills), this isn't a focus signal — fall through to the settle/timeout so
+      // text isn't sent to the previously-focused field.
+      if keyboardBecameVisible(app: app, wasVisibleAtEntry: keyboardVisibleAtEntry) {
         return latest
       }
       sawSoftwareKeyboard = sawSoftwareKeyboard || keyboardElementExists(app: app)
@@ -959,6 +964,15 @@ extension RunnerTests {
 
   func isKeyboardVisible(app: XCUIApplication) -> Bool {
     return visibleKeyboardFrame(app: app) != nil
+  }
+
+  /// A focus-moved signal for iOS text entry, where `focusedTextInput` is intentionally nil.
+  /// The software keyboard TRANSITIONING from hidden (at entry) to visible means the field we
+  /// just tapped gained first-responder. If the keyboard was ALREADY up (e.g. back-to-back
+  /// fills into different fields), its visibility is not evidence focus moved to the new field,
+  /// so callers must keep waiting rather than typing into the previously-focused field.
+  private func keyboardBecameVisible(app: XCUIApplication, wasVisibleAtEntry: Bool) -> Bool {
+    return !wasVisibleAtEntry && isKeyboardVisible(app: app)
   }
 
   private func keyboardElementExists(app: XCUIApplication) -> Bool {
