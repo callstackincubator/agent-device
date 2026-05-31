@@ -283,6 +283,13 @@ extension RunnerTests {
 
   func readTextAt(app: XCUIApplication, x: Double, y: Double) -> String? {
     let point = CGPoint(x: x, y: y)
+    let textInputCandidates = textInputCandidatesAt(app: app, point: point)
+    for element in textInputCandidates where prefersExpandedTextRead(element) {
+      if let text = readableText(for: element) {
+        return text
+      }
+    }
+
     let candidates = app.descendants(matching: .any).allElementsBoundByIndex
       .filter { element in
         element.exists && !element.frame.isEmpty && element.frame.contains(point)
@@ -337,15 +344,18 @@ extension RunnerTests {
   }
 
   func textInputAt(app: XCUIApplication, x: Double, y: Double) -> XCUIElement? {
-    let point = CGPoint(x: x, y: y)
-    var matched: XCUIElement?
+    return textInputCandidatesAt(app: app, point: CGPoint(x: x, y: y)).first
+  }
+
+  private func textInputCandidatesAt(app: XCUIApplication, point: CGPoint) -> [XCUIElement] {
+    var candidates: [XCUIElement] = []
     let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
       // Query the text-input element types directly instead of enumerating the entire tree
       // (app.descendants(.any).allElementsBoundByIndex snapshots every element and is ~10x
       // slower — it dominated fill latency because resolveTextEntryElement re-runs this on
       // each verify/repair poll once the focused field reference goes stale).
       // Prefer the smallest matching field so nested editable controls win over large containers.
-      let candidates = [
+      candidates = [
         app.textFields,
         app.secureTextFields,
         app.searchFields,
@@ -371,16 +381,15 @@ extension RunnerTests {
           }
           return left.elementType.rawValue < right.elementType.rawValue
         }
-      matched = candidates.first
     })
     if let exceptionMessage {
       NSLog(
         "AGENT_DEVICE_RUNNER_TEXT_INPUT_AT_POINT_IGNORED_EXCEPTION=%@",
         exceptionMessage
       )
-      return nil
+      return []
     }
-    return matched
+    return candidates
   }
 
   private func frameContainsPoint(_ frame: CGRect, _ point: CGPoint, tolerance: CGFloat) -> Bool {
@@ -1019,6 +1028,14 @@ extension RunnerTests {
       return (wasVisible: true, dismissed: !visible, visible: visible)
     }
 
+    if tapKeyboardReturnControl(app: app, allowCoordinateFallback: true) {
+      sleepFor(0.2)
+      let visible = isKeyboardVisible(app: app)
+      if !visible {
+        return (wasVisible: true, dismissed: true, visible: false)
+      }
+    }
+
     return (wasVisible: true, dismissed: false, visible: isKeyboardVisible(app: app))
 #endif
   }
@@ -1139,7 +1156,10 @@ extension RunnerTests {
 #endif
   }
 
-  private func tapKeyboardReturnControl(app: XCUIApplication) -> Bool {
+  private func tapKeyboardReturnControl(
+    app: XCUIApplication,
+    allowCoordinateFallback: Bool = false
+  ) -> Bool {
 #if os(iOS)
     for label in ["return", "Return", "Enter", "Go", "Search", "Next", "Done", "Send", "Join"] {
       let candidates = [
@@ -1149,6 +1169,21 @@ extension RunnerTests {
       if let hittable = candidates.first(where: { $0.exists && $0.isHittable }) {
         hittable.tap()
         return true
+      }
+      if allowCoordinateFallback,
+         let keyboardFrame = visibleKeyboardFrame(app: app),
+         let framed = candidates.first(where: {
+           guard $0.exists else { return false }
+           let frame = $0.frame
+           return !frame.isEmpty && keyboardFrame.contains(CGPoint(x: frame.midX, y: frame.midY))
+         }) {
+        let frame = framed.frame
+        switch tapAt(app: app, x: frame.midX, y: frame.midY) {
+        case .performed:
+          return true
+        case .unsupported:
+          return false
+        }
       }
     }
 #endif

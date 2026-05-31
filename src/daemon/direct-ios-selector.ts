@@ -34,6 +34,7 @@ function isRunnerNativeSelectorKey(key: string): key is DirectIosSelectorTarget[
 
 export function isDirectIosSelectorFallbackError(error: unknown): boolean {
   const appError = asAppError(error);
+  if (appError.code === 'ELEMENT_NOT_FOUND') return true;
   if (appError.code !== 'COMMAND_FAILED') return false;
   const message = appError.message.toLowerCase();
   return (

@@ -196,6 +196,7 @@ export const clientCommandMetadata = [
   defineClientCommandMetadata('settings', {
     setting: requiredField(stringField()),
     state: requiredField(stringField()),
+    app: stringField(),
     latitude: numberField(),
     longitude: numberField(),
     permission: stringField(),

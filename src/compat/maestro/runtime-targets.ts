@@ -55,6 +55,10 @@ type MaestroMatchResolutionOptions = {
   preferredContext?: MaestroPreferredContext;
 };
 
+type MaestroSelectorMatchOptions = {
+  allowLeadingCompositeLabelMatch?: boolean;
+};
+
 type ReactNativeOverlayFilterResult = {
   matches: SnapshotNode[];
   blockedByReactNativeOverlay: boolean;
@@ -109,7 +113,7 @@ export function resolveMaestroNodeFromSnapshot(
     return {
       ok: false,
       message: visibleMatchesResult.blockedByReactNativeOverlay
-        ? `Maestro selector matched ${matches.length} element(s), but React Native overlay is covering app content: ${selector}`
+        ? `React Native overlay is covering app content: ${selector}`
         : matches.length > 0 && visibleMatchesResult.matches.length === 0
           ? `Maestro selector matched ${matches.length} element(s), but none were visible: ${selector}`
           : `Maestro selector did not match index ${index}: ${selector}`,
@@ -153,7 +157,9 @@ export function resolveVisibleMaestroNodeFromSnapshot(
   platform: Platform,
   frame: TouchReferenceFrame | undefined,
 ): { ok: true; node: SnapshotNode; rect: Rect; matches: number } | { ok: false; message: string } {
-  const matches = findMaestroSelectorMatches(snapshot, selector, platform);
+  const matches = findMaestroSelectorMatches(snapshot, selector, platform, {
+    allowLeadingCompositeLabelMatch: false,
+  });
   const visibleMatchesResult = filterVisibleMaestroMatches({
     nodes: snapshot.nodes,
     matches,
@@ -170,11 +176,10 @@ export function resolveVisibleMaestroNodeFromSnapshot(
   if (!target) {
     return {
       ok: false,
-      message:
-        matches.length > 0
-          ? visibleMatchesResult.blockedByReactNativeOverlay
-            ? `Maestro selector matched ${matches.length} element(s), but React Native overlay is covering app content: ${selector}`
-            : `Maestro selector matched ${matches.length} element(s), but none were visible: ${selector}`
+      message: visibleMatchesResult.blockedByReactNativeOverlay
+        ? `React Native overlay is covering app content: ${selector}`
+        : matches.length > 0
+          ? `Maestro selector matched ${matches.length} element(s), but none were visible: ${selector}`
           : `Maestro selector did not match: ${selector}`,
     };
   }
@@ -200,7 +205,11 @@ function filterVisibleMaestroMatches(params: {
         platform: params.platform,
       }).pass,
   );
-  const overlayFilter = filterReactNativeOverlayBlockedMatches(params.nodes, visibleMatches);
+  const overlayFilter = filterReactNativeOverlayBlockedMatches(
+    params.nodes,
+    visibleMatches,
+    params.platform,
+  );
   return {
     matches: overlayFilter.matches,
     blockedByReactNativeOverlay: overlayFilter.blockedByReactNativeOverlay,
@@ -210,6 +219,7 @@ function filterVisibleMaestroMatches(params: {
 function filterReactNativeOverlayBlockedMatches(
   nodes: SnapshotState['nodes'],
   matches: SnapshotNode[],
+  platform: Platform,
 ): ReactNativeOverlayFilterResult {
   const overlay = detectReactNativeOverlay(nodes);
   if (!overlay.detected) {
@@ -218,16 +228,43 @@ function filterReactNativeOverlayBlockedMatches(
   if (!overlay.redBox) {
     return { matches, blockedByReactNativeOverlay: false };
   }
-  const overlayNodeIndexes = new Set(
-    [...overlay.dismissNodes, ...overlay.minimizeNodes, ...overlay.collapsedNodes].map(
-      (node) => node.index,
-    ),
+  const visibleOverlayControls = [
+    ...overlay.dismissNodes,
+    ...overlay.minimizeNodes,
+    ...overlay.collapsedNodes,
+  ].filter(
+    (node) =>
+      evaluateIsPredicate({
+        predicate: 'visible',
+        node,
+        nodes,
+        platform,
+      }).pass,
   );
+  if (visibleOverlayControls.length === 0) {
+    if (overlay.redBox && !hasReactNativeOverlayDismissCandidates(overlay)) {
+      return { matches: [], blockedByReactNativeOverlay: true };
+    }
+    return { matches, blockedByReactNativeOverlay: false };
+  }
+  const overlayNodeIndexes = new Set(visibleOverlayControls.map((node) => node.index));
   const overlayMatches = matches.filter((node) => overlayNodeIndexes.has(node.index));
   return {
     matches: overlayMatches,
     blockedByReactNativeOverlay: matches.length > 0 && overlayMatches.length === 0,
   };
+}
+
+function hasReactNativeOverlayDismissCandidates(overlay: {
+  dismissNodes: SnapshotNode[];
+  minimizeNodes: SnapshotNode[];
+  collapsedNodes: SnapshotNode[];
+}): boolean {
+  return (
+    overlay.dismissNodes.length > 0 ||
+    overlay.minimizeNodes.length > 0 ||
+    overlay.collapsedNodes.length > 0
+  );
 }
 
 export function readMaestroSelectorPlatform(flags: DaemonRequest['flags']): Platform {
@@ -252,11 +289,12 @@ function findMaestroSelectorMatches(
   snapshot: SnapshotState,
   selectorExpression: string,
   platform: Platform,
+  options: MaestroSelectorMatchOptions = {},
 ): SnapshotNode[] {
   const chain = parseSelectorChain(selectorExpression);
   for (const selector of chain.selectors) {
     const matches = snapshot.nodes.filter((node) =>
-      matchesMaestroSelector(node, selector, platform),
+      matchesMaestroSelector(node, selector, platform, options),
     );
     if (matches.length > 0) return matches;
   }
@@ -286,17 +324,23 @@ function matchesMaestroSelector(
   node: SnapshotNode,
   selector: Selector,
   platform: Platform,
+  options: MaestroSelectorMatchOptions,
 ): boolean {
   if (matchesSelector(node, selector, platform)) return true;
-  return selector.terms.every((term) => matchesMaestroTerm(node, term, platform));
+  return selector.terms.every((term) => matchesMaestroTerm(node, term, platform, options));
 }
 
-function matchesMaestroTerm(node: SnapshotNode, term: SelectorTerm, platform: Platform): boolean {
+function matchesMaestroTerm(
+  node: SnapshotNode,
+  term: SelectorTerm,
+  platform: Platform,
+  options: MaestroSelectorMatchOptions,
+): boolean {
   if (typeof term.value !== 'string' || !isMaestroRegexTextKey(term.key)) {
     return matchesSelector(node, { raw: term.key, terms: [term] }, platform);
   }
   const value = readMaestroTextTermValue(node, term.key);
-  return textEqualsOrRegex(value, term.value);
+  return textEqualsOrRegex(value, term.value, options);
 }
 
 function isMaestroRegexTextKey(key: SelectorTerm['key']): key is 'id' | 'label' | 'text' | 'value' {
@@ -313,12 +357,21 @@ function readMaestroTextTermValue(
   return extractNodeText(node);
 }
 
-function textEqualsOrRegex(value: string | undefined, query: string): boolean {
+function textEqualsOrRegex(
+  value: string | undefined,
+  query: string,
+  options: MaestroSelectorMatchOptions = {},
+): boolean {
   const text = value ?? '';
   const normalizedText = normalizeText(text);
   const normalizedQuery = normalizeText(query);
   if (normalizedText === normalizedQuery) return true;
-  if (isLeadingCompositeLabelMatch(normalizedText, normalizedQuery)) return true;
+  if (
+    options.allowLeadingCompositeLabelMatch !== false &&
+    isLeadingCompositeLabelMatch(normalizedText, normalizedQuery)
+  ) {
+    return true;
+  }
   if (!looksLikeMaestroRegex(query)) return false;
   try {
     return new RegExp(query).test(text);

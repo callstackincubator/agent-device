@@ -91,6 +91,7 @@ env:
   assert.equal(parsed.actions[4]?.flags.holdMs, 3000);
   assert.equal(parsed.actions[1]?.flags.maestro?.allowNonHittableCoordinateFallback, true);
   assert.equal(parsed.actions[6]?.flags?.maestro?.allowNonHittableCoordinateFallback, true);
+  assert.equal(parsed.actions[10]?.flags.maestro?.allowAlreadyPastLoading, true);
 });
 
 test('parseMaestroReplayFlow maps iOS openLink through the app id when available', () => {
@@ -106,6 +107,7 @@ test('parseMaestroReplayFlow maps iOS openLink through the app id when available
     parsed.actions.map((entry) => [entry.command, entry.positionals]),
     [['open', ['com.callstack.agentdevicelab', 'exp://localhost:8082']]],
   );
+  assert.equal(parsed.actions[0]?.flags.maestro?.prewarmRunnerBeforeOpen, true);
 });
 
 test('parseMaestroReplayFlow maps Android openLink through the app id when available', () => {

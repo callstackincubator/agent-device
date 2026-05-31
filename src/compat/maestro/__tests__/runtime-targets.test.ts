@@ -59,6 +59,64 @@ test('resolveMaestroNodeFromSnapshot blocks taps on app content behind React Nat
   });
 });
 
+test('resolveVisibleMaestroNodeFromSnapshot ignores hidden React Native overlay controls', () => {
+  const snapshot = makeReactNativeOverlaySnapshot();
+  snapshot.nodes = snapshot.nodes.map((node) =>
+    node.label === 'Dismiss' || node.label === 'Minimize'
+      ? { ...node, visibleToUser: false }
+      : node,
+  );
+
+  const appContent = resolveVisibleMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Article title" || text="Article title" || id="Article title"',
+    'android',
+    { referenceWidth: 1080, referenceHeight: 2340 },
+  );
+
+  expect(appContent).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ label: 'Article title' }),
+  });
+});
+
+test('resolveVisibleMaestroNodeFromSnapshot blocks content behind control-less RedBox text', () => {
+  const snapshot: SnapshotState = {
+    createdAt: Date.now(),
+    nodes: [
+      {
+        index: 1,
+        ref: 'e1',
+        type: 'StaticText',
+        label: 'Article title',
+        rect: { x: 24, y: 120, width: 200, height: 44 },
+        depth: 4,
+      },
+      {
+        index: 2,
+        ref: 'e2',
+        type: 'Other',
+        label:
+          "Uncaught (in promise): Error: Unable to download asset from url: 'http://localhost:8081/assets/icon.ttf'",
+        rect: { x: 0, y: 0, width: 402, height: 100 },
+        depth: 2,
+      },
+    ],
+  };
+
+  const target = resolveVisibleMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Article title" || text="Article title" || id="Article title"',
+    'ios',
+    { referenceWidth: 402, referenceHeight: 874 },
+  );
+
+  expect(target).toMatchObject({
+    ok: false,
+    message: expect.stringContaining('React Native overlay is covering app content'),
+  });
+});
+
 test('resolveMaestroNodeFromSnapshot does not match plain text as a substring', () => {
   const snapshot: SnapshotState = {
     createdAt: Date.now(),
@@ -96,9 +154,16 @@ test('resolveMaestroNodeFromSnapshot does not match plain text as a substring', 
     'android',
     { referenceWidth: 1080, referenceHeight: 2340 },
   );
-  const composite = resolveVisibleMaestroNodeFromSnapshot(
+  const compositeAssertion = resolveVisibleMaestroNodeFromSnapshot(
     snapshot,
     'label="Albums" || text="Albums" || id="Albums"',
+    'ios',
+    { referenceWidth: 402, referenceHeight: 874 },
+  );
+  const compositeTap = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Albums" || text="Albums" || id="Albums"',
+    {},
     'ios',
     { referenceWidth: 402, referenceHeight: 874 },
   );
@@ -111,7 +176,11 @@ test('resolveMaestroNodeFromSnapshot does not match plain text as a substring', 
     ok: true,
     node: expect.objectContaining({ label: 'Push feed' }),
   });
-  expect(composite).toMatchObject({
+  expect(compositeAssertion).toMatchObject({
+    ok: false,
+    message: expect.stringContaining('Albums'),
+  });
+  expect(compositeTap).toMatchObject({
     ok: true,
     node: expect.objectContaining({ label: 'Albums, back' }),
   });

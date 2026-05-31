@@ -59,14 +59,18 @@ export function detectReactNativeOverlay(nodes: SnapshotNode[]): ReactNativeOver
   const minimizeRefs = refsOf(minimizeNodes);
   const collapsedRefs = refsOf(collapsedNodes);
   const hasReactNativeStackFrame = isReactNativeStackFrame(text);
+  const hasControllessRedBoxText =
+    /\buncaught\b/.test(text) && /unable to download asset/.test(text);
   const hasOverlayControl =
     dismissRefs.length > 0 || minimizeRefs.length > 0 || /\b(reload js|copy stack)\b/.test(text);
   const redBox =
     /\b(redbox|runtime error|reload js|copy stack|component stack|call stack)\b/.test(text) ||
+    hasControllessRedBoxText ||
     (hasReactNativeStackFrame && hasOverlayControl);
   const detected =
     collapsedRefs.length > 0 ||
     openDebuggerWarningNodes.length > 0 ||
+    hasControllessRedBoxText ||
     (hasOverlayControl && (hasKnownReactNativeOverlayText(text) || hasReactNativeStackFrame));
   return {
     detected,

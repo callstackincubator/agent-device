@@ -31,11 +31,7 @@ export async function readTextForNode(params: {
   // Restricted to iOS because other backends read differently — macOS helper and Linux reads
   // are value-first (AXValue/title/description), unlike the label-first snapshot readable text,
   // so skipping their backend read would change the returned text.
-  if (
-    device.platform === 'ios' &&
-    fallbackText &&
-    !prefersValueForReadableText(node.type ?? '')
-  ) {
+  if (device.platform === 'ios' && fallbackText && !prefersValueForReadableText(node.type ?? '')) {
     return fallbackText;
   }
 
