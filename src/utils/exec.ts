@@ -23,6 +23,8 @@ export type ExecOptions = {
   timeoutMs?: number;
   detached?: boolean;
   signal?: AbortSignal;
+  /** Max stdout/stderr bytes for synchronous runs (default Node ~1MB). */
+  maxBuffer?: number;
 };
 
 type ExecStreamOptions = ExecOptions & {
@@ -251,6 +253,7 @@ export function runCmdSync(cmd: string, args: string[], options: ExecOptions = {
     timeout: normalizeTimeoutMs(options.timeoutMs),
     windowsHide: true,
     shell: false,
+    ...(options.maxBuffer !== undefined ? { maxBuffer: options.maxBuffer } : {}),
   });
 
   if (result.error) {

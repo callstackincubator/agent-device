@@ -1,5 +1,5 @@
-import { spawnSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
+import { runCmdSync } from '../../src/utils/exec.ts';
 import { resolveCliArgv, REPO_ROOT } from './config.ts';
 import type { BatchStepSpec } from './scenario.ts';
 import type { CliResult } from './types.ts';
@@ -36,16 +36,26 @@ function jsonOk(json: unknown): boolean {
 export function invokeCli(args: string[], baseFlags: string[]): CliResult {
   const full = [...CLI_ARGV, ...args, ...baseFlags, '--json'];
   const t0 = performance.now();
-  const r = spawnSync(process.execPath, full, {
-    encoding: 'utf8',
-    cwd: REPO_ROOT,
-    maxBuffer: MAX_BUFFER,
-  });
+  let stdout = '';
+  let stderr = '';
+  let exitCode = -1;
+  try {
+    // allowFailure so non-zero exits are recorded as samples instead of thrown; maxBuffer
+    // raised because snapshot payloads exceed Node's ~1MB default.
+    const r = runCmdSync(process.execPath, full, {
+      cwd: REPO_ROOT,
+      maxBuffer: MAX_BUFFER,
+      allowFailure: true,
+    });
+    stdout = r.stdout;
+    stderr = r.stderr;
+    exitCode = r.exitCode;
+  } catch (error) {
+    // Spawn-level failures (missing executable, timeout) — record as a failed sample.
+    stderr = error instanceof Error ? error.message : String(error);
+  }
   const wallClockMs = performance.now() - t0;
-  const stdout = r.stdout ?? '';
-  const stderr = r.stderr ?? '';
   const json = tryParseJson(stdout);
-  const exitCode = r.status ?? -1;
   return { exitCode, wallClockMs, stdout, stderr, json, ok: exitCode === 0 && jsonOk(json) };
 }
 
