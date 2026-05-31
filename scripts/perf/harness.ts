@@ -65,10 +65,18 @@ function sampleError(r: ReturnType<typeof invokeCli>): Pick<Sample, 'errorCode' 
   };
 }
 
+// The first interaction after open/relaunch pays the iOS XCUITest runner startup (~10s+ cold)
+// and a per-relaunch first-AX-query settle cost. Run an untimed throwaway interaction so that
+// cost is never attributed to a measured command.
+function warmRunner(ctx: IsolationContext): void {
+  invokeCli(['snapshot', '-i'], ctx.baseFlags);
+}
+
 function runStep(step: ScenarioStep, ctx: IsolationContext, round: number): Sample {
   // Untimed reset to root for steps whose precondition is a clean, top-of-list root.
   if (step.freshRoot) {
     invokeCli(['open', ctx.profile.appTarget, '--relaunch'], ctx.baseFlags);
+    warmRunner(ctx);
   }
   const r =
     step.execMode === 'standalone'
@@ -151,6 +159,8 @@ export function runScenario(ctx: IsolationContext, cfg: PerfConfig): Measurement
 
   const boot = bootOnce(ctx);
   const establish = establishSession(ctx);
+  // Absorb the one-time runner startup before any round so it isn't charged to a measurement.
+  warmRunner(ctx);
 
   // Android accessibility dumps time out while the UI is animating; disable animations
   // up front (untimed) so snapshot/get/is/fill can read an idle hierarchy.
@@ -166,6 +176,11 @@ export function runScenario(ctx: IsolationContext, cfg: PerfConfig): Measurement
     for (const step of steps) {
       const sample = runStep(step, ctx, round);
       if (measured) acc.get(step.label)!.push(sample);
+      // After the round's reset-open relaunch, warm the runner (untimed) so the first measured
+      // read (snapshot -i) doesn't pay the post-relaunch first-AX-query cost.
+      if (step.command === 'open' && step.execMode === 'standalone') {
+        warmRunner(ctx);
+      }
     }
   }
 
