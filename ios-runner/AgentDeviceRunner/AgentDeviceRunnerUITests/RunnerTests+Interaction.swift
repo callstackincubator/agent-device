@@ -337,17 +337,22 @@ extension RunnerTests {
     let point = CGPoint(x: x, y: y)
     var matched: XCUIElement?
     let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      // Query the text-input element types directly instead of enumerating the entire tree
+      // (app.descendants(.any).allElementsBoundByIndex snapshots every element and is ~10x
+      // slower — it dominated fill latency because resolveTextEntryElement re-runs this on
+      // each verify/repair poll once the focused field reference goes stale).
       // Prefer the smallest matching field so nested editable controls win over large containers.
-      let candidates = app.descendants(matching: .any).allElementsBoundByIndex
+      let candidates = [
+        app.textFields,
+        app.secureTextFields,
+        app.searchFields,
+        app.textViews,
+      ]
+        .flatMap { $0.allElementsBoundByIndex }
         .filter { element in
           guard element.exists else { return false }
-          switch element.elementType {
-          case .textField, .secureTextField, .searchField, .textView:
-            let frame = element.frame
-            return !frame.isEmpty && frameContainsPoint(frame, point, tolerance: 2)
-          default:
-            return false
-          }
+          let frame = element.frame
+          return !frame.isEmpty && frameContainsPoint(frame, point, tolerance: 2)
         }
         .sorted { left, right in
           let leftArea = max(1, left.frame.width * left.frame.height)
