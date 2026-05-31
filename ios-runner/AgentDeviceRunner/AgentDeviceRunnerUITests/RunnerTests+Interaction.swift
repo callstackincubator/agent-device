@@ -1510,7 +1510,27 @@ extension RunnerTests {
   }
 
   func pinch(app: XCUIApplication, scale: Double, x: Double?, y: Double?) -> RunnerInteractionOutcome {
+#if os(iOS)
+    // A coordinate tap+drag is a single-finger gesture: React Native reads it as a pan
+    // and the pinch scale never changes (#629). Drive the two-finger XCTest synthesis
+    // path (the same one transformGesture uses) with zero translation/rotation so RN's
+    // pinch recognizer actually fires.
+    let frame = interactionRoot(app: app).frame
+    let centerX = x ?? Double(frame.midX)
+    let centerY = y ?? Double(frame.midY)
+    return transformGesture(
+      app: app,
+      x: centerX,
+      y: centerY,
+      dx: 0,
+      dy: 0,
+      scale: scale,
+      degrees: 0,
+      durationMs: 300
+    )
+#else
     return performCoordinatePinch(app: app, scale: scale, x: x, y: y)
+#endif
   }
 
   func rotateGesture(app: XCUIApplication, degrees: Double, x: Double?, y: Double?, velocity: Double) -> RunnerInteractionOutcome {
