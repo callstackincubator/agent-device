@@ -1,9 +1,10 @@
 import type { PerfConfig } from './config.ts';
 import type { Platform } from './types.ts';
 
-// Idle "iPhone 17" simulator (NOT the other agent's booted "iPhone 17 Pro").
+// Local-convenience defaults for ad-hoc runs; CI always overrides them (--device / --serial).
+// The iOS UDID is a specific local "iPhone 17" sim; the Android serial is a dedicated emulator
+// port. Pass --udid/--device/--serial to target your own device.
 const DEFAULT_IOS_UDID = 'D74E0B66-57EB-4EC1-92DC-DA0A30581FE7';
-// Dedicated Android API-37 instance on a separate port from the other agent's emulator-5554.
 const DEFAULT_ANDROID_SERIAL = 'emulator-5556';
 
 export type ProfileSelectors = {
@@ -28,7 +29,7 @@ export type ResolvedProfile = {
   deviceName: string;
   udid?: string;
   serial?: string;
-  platformFlags: string[]; // safe on every call (only conflicts if platform mismatches lock)
+  platformFlags: string[]; // --platform; applied to every call (only conflicts if it mismatches a locked session)
   selectorFlags: string[]; // device selectors — ONLY on the session-establishing open / selectorless boot
   appTarget: string; // `open` target for Settings
   selectors: ProfileSelectors;

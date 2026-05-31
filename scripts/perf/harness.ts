@@ -12,7 +12,7 @@ import type { PerfConfig } from './config.ts';
 import { resolveProfile, type ResolvedProfile } from './platform-profiles.ts';
 import { buildSettingsTour, type ScenarioStep } from './scenario.ts';
 import { summarize } from './stats.ts';
-import type { Measurement, Sample } from './types.ts';
+import type { CliResult, Measurement, Sample } from './types.ts';
 
 export type IsolationContext = {
   stateDir: string;
@@ -57,12 +57,19 @@ export function teardownIsolation(ctx: IsolationContext, cfg: PerfConfig): void 
   }
 }
 
-function sampleError(r: ReturnType<typeof invokeCli>): Pick<Sample, 'errorCode' | 'errorMessage'> {
+function sampleError(r: CliResult): Pick<Sample, 'errorCode' | 'errorMessage'> {
   const err = readBatchStepError(r);
   return {
     errorCode: err.code ?? `exit:${r.exitCode}`,
     errorMessage: (err.message ?? r.stderr.trim().split('\n').pop() ?? '').slice(0, 200),
   };
+}
+
+// Base sample (timing + ok + error note on failure) shared by every measured invocation.
+function toSample(r: CliResult, round: number): Sample {
+  const sample: Sample = { round, wallClockMs: r.wallClockMs, ok: r.ok };
+  if (!r.ok) Object.assign(sample, sampleError(r));
+  return sample;
 }
 
 // The first interaction after open/relaunch pays the iOS XCUITest runner startup (~10s+ cold)
@@ -80,14 +87,13 @@ function runStep(step: ScenarioStep, ctx: IsolationContext, round: number): Samp
   }
   const r =
     step.execMode === 'standalone'
-      ? invokeCli(step.args ?? [], ctx.baseFlags)
-      : invokeBatchStep(step.step!, ctx.baseFlags);
-  const sample: Sample = { round, wallClockMs: r.wallClockMs, ok: r.ok };
+      ? invokeCli(step.args, ctx.baseFlags)
+      : invokeBatchStep(step.step, ctx.baseFlags);
+  const sample = toSample(r, round);
   if (step.execMode === 'batch') {
     sample.daemonDurationMs = readBatchStepDurationMs(r);
     if (step.isSnapshot) sample.elementCount = countElements(r);
   }
-  if (!r.ok) Object.assign(sample, sampleError(r));
   return sample;
 }
 
@@ -126,8 +132,7 @@ function bootOnce(ctx: IsolationContext): Measurement {
   log('booting device (no session lock; sampled once)');
   const bootFlags = ['--state-dir', ctx.stateDir, ...ctx.profile.platformFlags];
   const r = invokeCli(['boot', ...ctx.profile.selectorFlags], bootFlags);
-  const sample: Sample = { round: 0, wallClockMs: r.wallClockMs, ok: r.ok };
-  if (!r.ok) Object.assign(sample, sampleError(r));
+  const sample = toSample(r, 0);
   return buildMeasurement(
     { command: 'boot', label: 'boot device', execMode: 'standalone' },
     ctx.profile.platform,
@@ -142,8 +147,7 @@ function bootOnce(ctx: IsolationContext): Measurement {
 function establishSession(ctx: IsolationContext): Measurement {
   log('establishing session (open with device selectors)');
   const r = invokeCli(['open', ctx.profile.appTarget, ...ctx.profile.selectorFlags], ctx.baseFlags);
-  const sample: Sample = { round: 0, wallClockMs: r.wallClockMs, ok: r.ok };
-  if (!r.ok) Object.assign(sample, sampleError(r));
+  const sample = toSample(r, 0);
   return buildMeasurement(
     { command: 'open', label: 'open (establish + cold)', execMode: 'standalone' },
     ctx.profile.platform,

@@ -4,8 +4,8 @@ import type { Platform } from './types.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(HERE, '..', '..');
-export const CLI_BIN = path.join(REPO_ROOT, 'bin', 'agent-device.mjs');
-export const DEFAULT_OUT_DIR = path.join(HERE, '.results');
+const CLI_BIN = path.join(REPO_ROOT, 'bin', 'agent-device.mjs');
+const DEFAULT_OUT_DIR = path.join(HERE, '.results');
 
 export type PerfConfig = {
   platform: Platform;
@@ -38,6 +38,15 @@ function readValue(argv: string[], i: number, flag: string): string {
   return v;
 }
 
+function readIntValue(argv: string[], i: number, flag: string, min: number): number {
+  const raw = readValue(argv, i, flag);
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < min) {
+    throw new Error(`${flag} must be an integer >= ${min} (got ${JSON.stringify(raw)})`);
+  }
+  return n;
+}
+
 export function parseConfig(argv: string[]): PerfConfig {
   const cfg: PerfConfig = {
     platform: 'ios',
@@ -57,10 +66,10 @@ export function parseConfig(argv: string[]): PerfConfig {
       }
       case '--n':
       case '--rounds':
-        cfg.rounds = Number(readValue(argv, i++, a));
+        cfg.rounds = readIntValue(argv, i++, a, 1);
         break;
       case '--warmup':
-        cfg.warmup = Number(readValue(argv, i++, a));
+        cfg.warmup = readIntValue(argv, i++, a, 0);
         break;
       case '--keep-artifacts':
         cfg.keepArtifacts = true;
@@ -81,7 +90,5 @@ export function parseConfig(argv: string[]): PerfConfig {
         throw new Error(`Unknown flag: ${a}`);
     }
   }
-  if (!Number.isInteger(cfg.rounds) || cfg.rounds < 1) throw new Error('--n must be >= 1');
-  if (!Number.isInteger(cfg.warmup) || cfg.warmup < 0) throw new Error('--warmup must be >= 0');
   return cfg;
 }

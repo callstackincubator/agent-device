@@ -153,27 +153,29 @@ function runSpawnedCommand(
     child.on('error', (err) => {
       if (timeoutHandle) clearTimeout(timeoutHandle);
       abort.dispose();
-      reject(
-        abort.didAbort
-          ? createCommandCanceledError(executable, cmd, args)
-          : createSpawnError(executable, cmd, args, err),
-      );
+      reject(spawnRejectionError(abort, executable, cmd, args, err));
     });
 
     child.on('close', (code) => {
       if (timeoutHandle) clearTimeout(timeoutHandle);
       abort.dispose();
       const exitCode = code ?? 1;
-      if (abort.didAbort) {
-        reject(createCommandCanceledError(executable, cmd, args));
-        return;
-      }
-      if (didTimeout && timeoutMs) {
+      if (!abort.didAbort && didTimeout && timeoutMs) {
         reject(createTimeoutError(executable, cmd, args, timeoutMs, exitCode, stdout, stderr));
         return;
       }
-      if (exitCode !== 0 && !options.allowFailure) {
-        reject(createExitError(executable, cmd, args, exitCode, stdout, stderr));
+      const failure = commandCloseFailure(
+        abort,
+        executable,
+        cmd,
+        args,
+        exitCode,
+        options.allowFailure,
+        stdout,
+        stderr,
+      );
+      if (failure) {
+        reject(failure);
         return;
       }
       resolve({
@@ -350,21 +352,23 @@ export function runCmdBackground(
   const wait = new Promise<ExecResult>((resolve, reject) => {
     child.on('error', (err) => {
       abort.dispose();
-      reject(
-        abort.didAbort
-          ? createCommandCanceledError(executable, cmd, args)
-          : createSpawnError(executable, cmd, args, err),
-      );
+      reject(spawnRejectionError(abort, executable, cmd, args, err));
     });
     child.on('close', (code) => {
       abort.dispose();
       const exitCode = code ?? 1;
-      if (abort.didAbort) {
-        reject(createCommandCanceledError(executable, cmd, args));
-        return;
-      }
-      if (exitCode !== 0 && !options.allowFailure) {
-        reject(createExitError(executable, cmd, args, exitCode, stdout, stderr));
+      const failure = commandCloseFailure(
+        abort,
+        executable,
+        cmd,
+        args,
+        exitCode,
+        options.allowFailure,
+        stdout,
+        stderr,
+      );
+      if (failure) {
+        reject(failure);
         return;
       }
       resolve({ stdout, stderr, exitCode });
@@ -464,6 +468,40 @@ function createExitError(
     exitCode,
     processExitError: true,
   });
+}
+
+type CommandAbort = { readonly didAbort: boolean };
+
+// Error to reject a spawned child's `error` event with: canceled if we aborted, else a spawn error.
+function spawnRejectionError(
+  abort: CommandAbort,
+  executable: string,
+  cmd: string,
+  args: string[],
+  err: Error,
+): AppError {
+  return abort.didAbort
+    ? createCommandCanceledError(executable, cmd, args)
+    : createSpawnError(executable, cmd, args, err);
+}
+
+// Failure (if any) for a spawned child's `close` event: canceled if we aborted, an exit error on
+// a non-zero code unless allowed, otherwise null (the command resolves successfully).
+function commandCloseFailure(
+  abort: CommandAbort,
+  executable: string,
+  cmd: string,
+  args: string[],
+  exitCode: number,
+  allowFailure: boolean | undefined,
+  stdout: string,
+  stderr: string,
+): AppError | null {
+  if (abort.didAbort) return createCommandCanceledError(executable, cmd, args);
+  if (exitCode !== 0 && !allowFailure) {
+    return createExitError(executable, cmd, args, exitCode, stdout, stderr);
+  }
+  return null;
 }
 
 function normalizeOverridePath(

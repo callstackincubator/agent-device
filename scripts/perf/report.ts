@@ -34,7 +34,7 @@ function toMarkdown(run: RunResult): string {
   lines.push('');
   lines.push('All times in milliseconds. `wall-clock` includes process spawn + socket overhead;');
   lines.push('`daemon` is the batch step round-trip (spawn overhead ≈ wall-median − daemon-median).');
-  lines.push('`elements` = distinct interactive @eN refs in the snapshot payload (tree-size proxy).');
+  lines.push('`elements` = node count in the snapshot payload (tree-size proxy).');
   lines.push('An untimed warmup interaction runs after each open/relaunch, so measured commands');
   lines.push('do not pay the one-time iOS-runner startup or post-relaunch first-AX-query cost.');
   lines.push('');

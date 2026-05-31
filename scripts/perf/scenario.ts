@@ -1,6 +1,5 @@
 import path from 'node:path';
 import type { ResolvedProfile } from './platform-profiles.ts';
-import type { ExecMode } from './types.ts';
 
 // A legacy-form batch step: maps through the exact documented CLI grammar.
 // `flags` uses internal CliFlags field names (e.g. snapshotInteractiveOnly).
@@ -10,20 +9,20 @@ export type BatchStepSpec = {
   flags?: Record<string, unknown>;
 };
 
-export type ScenarioStep = {
+type ScenarioStepBase = {
   label: string;
   command: string;
-  execMode: ExecMode;
-  isSnapshot?: boolean;
   // When set, the harness runs an untimed `open --relaunch` (reset to root, top of list)
   // before timing this step. Used for steps whose precondition is a clean root, since
   // earlier commands (find/is, search) leave the list scrolled or in a different surface.
   freshRoot?: boolean;
-  // standalone: full CLI args including the command name (base device/state flags are appended by the invoker).
-  args?: string[];
-  // batch: a single legacy batch step wrapped in its own `batch` invocation.
-  step?: BatchStepSpec;
 };
+
+// Discriminated on execMode so the invoker gets the right payload without `!`/`?? []`:
+// standalone carries full CLI args; batch carries one legacy batch step.
+export type ScenarioStep =
+  | (ScenarioStepBase & { execMode: 'standalone'; args: string[] })
+  | (ScenarioStepBase & { execMode: 'batch'; step: BatchStepSpec; isSnapshot?: boolean });
 
 export type StepContext = { artifactsDir: string };
 
@@ -37,7 +36,7 @@ function bat(
   step: BatchStepSpec,
   opts: { isSnapshot?: boolean; freshRoot?: boolean } = {},
 ): ScenarioStep {
-  return { label, command, execMode: 'batch', step, ...opts };
+  return { label, command, execMode: 'batch' as const, step, ...opts };
 }
 
 // One ordered pass over Settings. The harness repeats this N (+warmup) times;
