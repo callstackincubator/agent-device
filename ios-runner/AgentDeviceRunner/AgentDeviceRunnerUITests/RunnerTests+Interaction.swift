@@ -316,6 +316,15 @@ extension RunnerTests {
   }
 
   func clearTextInput(_ element: XCUIElement) {
+    // Nothing to clear: skip both the delete burst and the moveCaretToEnd edge-tap. The
+    // edge-tap computes a point from the element frame, which can be stale after the field
+    // repositions on focus (e.g. the Settings search bar jumps bottom->top and reveals a
+    // "Suggestions" list) — tapping there navigates away instead of clearing. Replacing into
+    // an already-empty field is a no-op, so returning early is also semantically correct.
+    let existing = editableTextValue(for: element, treatingPlaceholderAsEmpty: true) ?? ""
+    if existing.isEmpty {
+      return
+    }
 #if !os(tvOS)
     moveCaretToEnd(element: element)
 #endif
