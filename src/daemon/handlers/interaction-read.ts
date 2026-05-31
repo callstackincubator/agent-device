@@ -3,6 +3,7 @@ import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { extractNodeReadText } from '../snapshot-processing.ts';
 import type { SessionState } from '../types.ts';
 import type { SnapshotNode } from '../../utils/snapshot.ts';
+import { prefersValueForReadableText } from '../../utils/text-surface.ts';
 import type { ContextFromFlags } from './interaction-common.ts';
 import { resolveRectCenter } from './interaction-targeting.ts';
 
@@ -19,6 +20,22 @@ export async function readTextForNode(params: {
   const fallbackText = extractNodeReadText(node);
   const center = resolveRectCenter(node.rect);
   if (!center) {
+    return fallbackText;
+  }
+
+  // iOS only: the XCUITest backend `read` re-resolves the element at a point by enumerating
+  // the full element tree (allElementsBoundByIndex), which is ~20x slower than the snapshot we
+  // already captured to resolve this node. That re-read only recovers fuller text for
+  // editable/expandable inputs (textField/searchField/textView/…), where the live value can
+  // exceed the snapshot; for every other element type the snapshot node text is authoritative.
+  // Restricted to iOS because other backends read differently — macOS helper and Linux reads
+  // are value-first (AXValue/title/description), unlike the label-first snapshot readable text,
+  // so skipping their backend read would change the returned text.
+  if (
+    device.platform === 'ios' &&
+    fallbackText &&
+    !prefersValueForReadableText(node.type ?? '')
+  ) {
     return fallbackText;
   }
 

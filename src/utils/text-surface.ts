@@ -85,7 +85,12 @@ export function normalizeType(type: string): string {
   return normalized;
 }
 
-function prefersValueForReadableText(type: string): boolean {
+/**
+ * Editable / expandable text-bearing element types whose live on-screen value can exceed
+ * the captured snapshot text. For these the readable text prefers `value`, and a backend
+ * (e.g. iOS XCUITest) re-read at the element can recover fuller text than the snapshot node.
+ */
+export function prefersValueForReadableText(type: string): boolean {
   const normalized = normalizeType(type);
   return (
     normalized.includes('textfield') ||
