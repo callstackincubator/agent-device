@@ -54,4 +54,17 @@ describe('readTextForNode', () => {
     expect(text).toBe('General');
     expect(mockDispatch).not.toHaveBeenCalled();
   });
+
+  it('does NOT skip the backend read on non-iOS platforms (value-first read semantics differ)', async () => {
+    for (const platform of ['android', 'macos', 'linux'] as const) {
+      mockDispatch.mockClear();
+      const text = await readTextForNode({
+        ...baseParams,
+        device: { platform } as never,
+        node: node({ type: 'button', label: 'General' }),
+      });
+      expect(mockDispatch).toHaveBeenCalledOnce();
+      expect(text).toBe('backend-text');
+    }
+  });
 });

@@ -23,13 +23,19 @@ export async function readTextForNode(params: {
     return fallbackText;
   }
 
-  // The backend `read` re-resolves the element at a point, which on iOS XCUITest enumerates
-  // the full element tree (allElementsBoundByIndex) and is ~20x slower than the snapshot we
+  // iOS only: the XCUITest backend `read` re-resolves the element at a point by enumerating
+  // the full element tree (allElementsBoundByIndex), which is ~20x slower than the snapshot we
   // already captured to resolve this node. That re-read only recovers fuller text for
   // editable/expandable inputs (textField/searchField/textView/…), where the live value can
-  // exceed the snapshot. For every other element type the snapshot node text is authoritative,
-  // so return it directly and skip the expensive round-trip.
-  if (fallbackText && !prefersValueForReadableText(node.type ?? '')) {
+  // exceed the snapshot; for every other element type the snapshot node text is authoritative.
+  // Restricted to iOS because other backends read differently — macOS helper and Linux reads
+  // are value-first (AXValue/title/description), unlike the label-first snapshot readable text,
+  // so skipping their backend read would change the returned text.
+  if (
+    device.platform === 'ios' &&
+    fallbackText &&
+    !prefersValueForReadableText(node.type ?? '')
+  ) {
     return fallbackText;
   }
 
