@@ -53,6 +53,9 @@ struct CommandTraits {
   enum ReadOnly {
     case always
     case never
+    /// Alert-only today. Resolved in `isReadOnlyCommand` with alert's rule (read-only for the
+    /// `get` action, mutating otherwise). A new `.conditional` command would inherit that rule
+    /// until the resolver is generalized — give it explicit handling there if its semantics differ.
     case conditional
   }
 }
