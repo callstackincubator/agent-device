@@ -1604,13 +1604,51 @@ extension RunnerTests {
       degrees: 0,
       durationMs: 300
     )
+#elseif os(tvOS)
+    return .unsupported(
+      message: "pinch is not supported on tvOS",
+      hint: "tvOS has no touch input; pinch requires a touchscreen (run on iOS)."
+    )
 #else
-    return performCoordinatePinch(app: app, scale: scale, x: x, y: y)
+    return .unsupported(
+      message: "pinch is not supported on macOS",
+      hint: "macOS automation has no multi-touch input; pinch requires a touchscreen (run on iOS)."
+    )
 #endif
   }
 
   func rotateGesture(app: XCUIApplication, degrees: Double, x: Double?, y: Double?, velocity: Double) -> RunnerInteractionOutcome {
-    return performCoordinateRotateGesture(app: app, degrees: degrees, x: x, y: y, velocity: velocity)
+#if os(iOS)
+    // Drive the two-finger XCTest synthesis path (the same one pinch/transformGesture use, #634)
+    // with zero translation/scale so React Native's rotation recognizer actually fires. The native
+    // XCUIElement.rotate(withVelocity:) injects a single synthetic rotation that RN's gesture
+    // handler does not read reliably — the same class of problem #629/#634 fixed for pinch.
+    // velocity is unused on iOS (synthesis speed is governed by durationMs); the wire contract
+    // keeps it for compatibility and direction is carried entirely by the sign of `degrees`.
+    let frame = interactionRoot(app: app).frame
+    let centerX = x ?? Double(frame.midX)
+    let centerY = y ?? Double(frame.midY)
+    return transformGesture(
+      app: app,
+      x: centerX,
+      y: centerY,
+      dx: 0,
+      dy: 0,
+      scale: 1,
+      degrees: degrees,
+      durationMs: 300
+    )
+#elseif os(tvOS)
+    return .unsupported(
+      message: "rotate-gesture is not supported on tvOS",
+      hint: "tvOS has no touch input; rotation gestures require a touchscreen (run on iOS)."
+    )
+#else
+    return .unsupported(
+      message: "rotate-gesture is not supported on macOS",
+      hint: "macOS automation has no multi-touch input; rotation gestures require a touchscreen (run on iOS)."
+    )
+#endif
   }
 
   func transformGesture(
@@ -1636,13 +1674,22 @@ extension RunnerTests {
       radius: transformGestureRadius(frame: target.frame, scale: scale),
       durationMs: durationMs
     ) {
-      return .unsupported(message)
+      return .unsupported(
+        message: message,
+        hint: "This gesture uses private XCTest event-synthesis APIs; rebuild the runner with a supported Xcode (these APIs can change across Xcode versions)."
+      )
     }
     return .performed
 #elseif os(tvOS)
-    return .unsupported("transformGesture is not supported on tvOS")
+    return .unsupported(
+      message: "transformGesture is not supported on tvOS",
+      hint: "tvOS has no touch input; transform gestures require a touchscreen (run on iOS)."
+    )
 #else
-    return .unsupported("transformGesture is not supported on macOS")
+    return .unsupported(
+      message: "transformGesture is not supported on macOS",
+      hint: "macOS automation has no multi-touch input; transform gestures require a touchscreen (run on iOS)."
+    )
 #endif
   }
 
@@ -1652,57 +1699,6 @@ extension RunnerTests {
     let minimumEndRadius = shorterSide * 0.08
     let scaleAdjustedRadius = scale < 1.0 ? max(frameRadius, minimumEndRadius / scale) : frameRadius
     return min(max(scaleAdjustedRadius, 48.0), shorterSide * 0.35)
-  }
-
-  private func performCoordinatePinch(app: XCUIApplication, scale: Double, x: Double?, y: Double?) -> RunnerInteractionOutcome {
-#if os(tvOS)
-    return .unsupported("pinch is not supported on tvOS")
-#else
-    let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
-
-    // Use double-tap + drag gesture for reliable map zoom
-    // Zoom in (scale > 1): tap then drag UP
-    // Zoom out (scale < 1): tap then drag DOWN
-
-    // Determine center point (use provided x/y or screen center)
-    let centerX = x.map { $0 / target.frame.width } ?? 0.5
-    let centerY = y.map { $0 / target.frame.height } ?? 0.5
-    let center = target.coordinate(withNormalizedOffset: CGVector(dx: centerX, dy: centerY))
-
-    // Calculate drag distance based on scale (clamped to reasonable range)
-    // Larger scale = more drag distance
-    let dragAmount: CGFloat
-    if scale > 1.0 {
-      // Zoom in: drag up (negative Y direction in normalized coords)
-      dragAmount = min(0.4, CGFloat(scale - 1.0) * 0.2)
-    } else {
-      // Zoom out: drag down (positive Y direction)
-      dragAmount = min(0.4, CGFloat(1.0 - scale) * 0.4)
-    }
-
-    let endY = scale > 1.0 ? (centerY - Double(dragAmount)) : (centerY + Double(dragAmount))
-    let endPoint = target.coordinate(withNormalizedOffset: CGVector(dx: centerX, dy: max(0.1, min(0.9, endY))))
-
-    // Tap first (first tap of double-tap)
-    center.tap()
-
-    // Immediately press and drag (second tap + drag)
-    center.press(forDuration: 0.05, thenDragTo: endPoint)
-    return .performed
-#endif
-  }
-
-  private func performCoordinateRotateGesture(app: XCUIApplication, degrees: Double, x: Double?, y: Double?, velocity: Double) -> RunnerInteractionOutcome {
-#if os(iOS)
-    let target = app.windows.firstMatch.exists ? app.windows.firstMatch : app
-    let radians = CGFloat(degrees * .pi / 180.0)
-    target.rotate(radians, withVelocity: CGFloat(velocity))
-    return .performed
-#elseif os(tvOS)
-    return .unsupported("rotate-gesture is not supported on tvOS")
-#else
-    return .unsupported("rotate-gesture is not supported on macOS")
-#endif
   }
 
   private func interactionRoot(app: XCUIApplication) -> XCUIElement {
@@ -1715,7 +1711,10 @@ extension RunnerTests {
 
   private func performCoordinateTap(app: XCUIApplication, x: Double, y: Double) -> RunnerInteractionOutcome {
 #if os(tvOS)
-    return .unsupported("coordinate tap is not supported on tvOS; move focus with swipe or scroll, then select the focused element")
+    return .unsupported(
+      message: "coordinate tap is not supported on tvOS; move focus with swipe or scroll, then select the focused element",
+      hint: "tvOS has no coordinate input; move focus with swipe/scroll to the target, then select it."
+    )
 #else
     interactionCoordinate(app: app, x: x, y: y).tap()
     return .performed
@@ -1724,7 +1723,10 @@ extension RunnerTests {
 
   private func performCoordinateDoubleTap(app: XCUIApplication, x: Double, y: Double) -> RunnerInteractionOutcome {
 #if os(tvOS)
-    return .unsupported("coordinate double tap is not supported on tvOS; move focus with swipe or scroll, then select the focused element")
+    return .unsupported(
+      message: "coordinate double tap is not supported on tvOS; move focus with swipe or scroll, then select the focused element",
+      hint: "tvOS has no coordinate input; move focus with swipe/scroll to the target, then select it."
+    )
 #else
     interactionCoordinate(app: app, x: x, y: y).doubleTap()
     return .performed
@@ -1733,7 +1735,10 @@ extension RunnerTests {
 
   private func performCoordinateLongPress(app: XCUIApplication, x: Double, y: Double, duration: TimeInterval) -> RunnerInteractionOutcome {
 #if os(tvOS)
-    return .unsupported("coordinate long press is not supported on tvOS; move focus with swipe or scroll, then long-select the focused element")
+    return .unsupported(
+      message: "coordinate long press is not supported on tvOS; move focus with swipe or scroll, then long-select the focused element",
+      hint: "tvOS has no coordinate input; move focus with swipe/scroll to the target, then long-select it."
+    )
 #else
     interactionCoordinate(app: app, x: x, y: y).press(forDuration: duration)
     return .performed
@@ -1749,7 +1754,10 @@ extension RunnerTests {
     holdDuration: TimeInterval
   ) -> RunnerInteractionOutcome {
 #if os(tvOS)
-    return .unsupported("coordinate drag is not supported on tvOS")
+    return .unsupported(
+      message: "coordinate drag is not supported on tvOS",
+      hint: "tvOS has no coordinate input; use remote-driven swipe/scroll to move focus instead."
+    )
 #else
     let start = interactionCoordinate(app: app, x: x, y: y)
     let end = interactionCoordinate(app: app, x: x2, y: y2)

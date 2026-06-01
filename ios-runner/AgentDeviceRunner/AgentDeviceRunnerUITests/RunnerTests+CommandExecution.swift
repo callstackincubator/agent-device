@@ -17,10 +17,10 @@ extension RunnerTests {
     switch outcome {
     case .performed:
       return nil
-    case .unsupported(let message):
+    case .unsupported(let message, let hint):
       return Response(
         ok: false,
-        error: ErrorPayload(code: "UNSUPPORTED_OPERATION", message: message)
+        error: ErrorPayload(code: "UNSUPPORTED_OPERATION", message: message, hint: hint)
       )
     }
   }

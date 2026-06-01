@@ -2,7 +2,9 @@ import XCTest
 
 enum RunnerInteractionOutcome {
   case performed
-  case unsupported(String)
+  /// A capability/state gap, surfaced to the caller as an UNSUPPORTED_OPERATION error.
+  /// `hint` is an optional actionable next step (mapped to ErrorPayload.hint).
+  case unsupported(message: String, hint: String?)
 }
 
 enum TvRemoteButton {
@@ -85,7 +87,10 @@ extension RunnerTests {
   func selectFocusedTvElement(app: XCUIApplication, point: CGPoint, action: String) -> RunnerInteractionOutcome? {
 #if os(tvOS)
     guard let focused = focusedTvElement(app: app), !focused.frame.isEmpty, focused.frame.contains(point) else {
-      return .unsupported("\(action) is supported on tvOS only when the requested point is inside the focused element")
+      return .unsupported(
+        message: "\(action) is supported on tvOS only when the requested point is inside the focused element",
+        hint: "Move focus with swipe or scroll until the target is focused, then retry."
+      )
     }
     _ = pressTvRemote(.select)
     return .performed
@@ -97,7 +102,10 @@ extension RunnerTests {
   func longSelectFocusedTvElement(app: XCUIApplication, point: CGPoint, duration: TimeInterval) -> RunnerInteractionOutcome? {
 #if os(tvOS)
     guard let focused = focusedTvElement(app: app), !focused.frame.isEmpty, focused.frame.contains(point) else {
-      return .unsupported("long press is supported on tvOS only when the requested point is inside the focused element")
+      return .unsupported(
+        message: "long press is supported on tvOS only when the requested point is inside the focused element",
+        hint: "Move focus with swipe or scroll until the target is focused, then retry."
+      )
     }
     _ = pressTvRemote(.select, duration: duration)
     return .performed
@@ -108,7 +116,10 @@ extension RunnerTests {
 
   private func performElementTap(_ element: XCUIElement) -> RunnerInteractionOutcome {
 #if os(tvOS)
-    return .unsupported("element tap is not supported on tvOS; move focus with swipe or scroll, then select the focused element")
+    return .unsupported(
+      message: "element tap is not supported on tvOS; move focus with swipe or scroll, then select the focused element",
+      hint: "Use swipe/scroll to move focus to the target, then select it; tvOS has no coordinate tap."
+    )
 #else
     let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
       element.tap()
@@ -118,7 +129,7 @@ extension RunnerTests {
       if isPostTapElementDisappearance(exceptionMessage) {
         return .performed
       }
-      return .unsupported("element tap failed: \(exceptionMessage)")
+      return .unsupported(message: "element tap failed: \(exceptionMessage)", hint: nil)
     }
     return .performed
 #endif
@@ -132,7 +143,10 @@ extension RunnerTests {
   private func selectFocusedTvElement(app: XCUIApplication, element: XCUIElement, action: String) -> RunnerInteractionOutcome? {
 #if os(tvOS)
     guard tvFocusedElementMatches(app: app, target: element) else {
-      return .unsupported("\(action) is supported on tvOS only when the requested element is focused")
+      return .unsupported(
+        message: "\(action) is supported on tvOS only when the requested element is focused",
+        hint: "Move focus to the target element first, then retry."
+      )
     }
     _ = pressTvRemote(.select)
     return .performed
