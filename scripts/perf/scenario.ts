@@ -53,35 +53,102 @@ export function buildSettingsTour(p: ResolvedProfile, ctx: StepContext): Scenari
   const textEntry: ScenarioStep[] = p.selectors.searchEditableAtRoot
     ? [
         // iOS: editable search field exists at root; fill it directly (freshRoot resets scroll).
-        bat('fill search', 'fill', { command: 'fill', positionals: [s.searchFieldEditable, 'general'] }, { freshRoot: true }),
+        bat(
+          'fill search',
+          'fill',
+          { command: 'fill', positionals: [s.searchFieldEditable, 'general'] },
+          { freshRoot: true },
+        ),
         bat('type', 'type', { command: 'type', positionals: ['wifi'] }),
-        bat('get editable text', 'get', { command: 'get', positionals: ['text', s.searchFieldEditable] }),
+        bat('get editable text', 'get', {
+          command: 'get',
+          positionals: ['text', s.searchFieldEditable],
+        }),
+        bat('keyboard return', 'keyboard', { command: 'keyboard', positionals: ['return'] }),
       ]
     : [
         // Android: tap the search entry first to reveal the editable, then type/fill it.
-        bat('press search field', 'press', { command: 'press', positionals: [s.searchField] }, { freshRoot: true }),
+        bat(
+          'press search field',
+          'press',
+          { command: 'press', positionals: [s.searchField] },
+          { freshRoot: true },
+        ),
         bat('type', 'type', { command: 'type', positionals: ['wifi'] }),
-        bat('fill search', 'fill', { command: 'fill', positionals: [s.searchFieldEditable, 'general'] }),
-        bat('get editable text', 'get', { command: 'get', positionals: ['text', s.searchFieldEditable] }),
+        bat('fill search', 'fill', {
+          command: 'fill',
+          positionals: [s.searchFieldEditable, 'general'],
+        }),
+        bat('get editable text', 'get', {
+          command: 'get',
+          positionals: ['text', s.searchFieldEditable],
+        }),
       ];
+
+  // These iOS-only repeated gesture forms route to dedicated XCTest runner commands:
+  // press --count > 1 -> tapSeries; swipe --count > 1 -> dragSeries.
+  const iosRunnerSeries: ScenarioStep[] =
+    p.platform === 'ios'
+      ? [
+          bat(
+            'press series (tapSeries)',
+            'press',
+            { command: 'press', positionals: ['200', '95'], flags: { count: 2, intervalMs: 50 } },
+            { freshRoot: true },
+          ),
+          bat(
+            'swipe series (dragSeries)',
+            'swipe',
+            {
+              command: 'swipe',
+              positionals: ['200', '650', '200', '450', '120'],
+              flags: { count: 2, pauseMs: 50, pattern: 'ping-pong' },
+            },
+            { freshRoot: true },
+          ),
+        ]
+      : [];
 
   return [
     // --- reset to root via relaunch ---
     std('open (relaunch → root)', 'open', ['open', p.appTarget, '--relaunch']),
 
     // --- reads on the root tree (snapshots first; anchor label is visible here) ---
-    bat('snapshot -i (root)', 'snapshot', { command: 'snapshot', flags: { snapshotInteractiveOnly: true } }, { isSnapshot: true }),
+    bat(
+      'snapshot -i (root)',
+      'snapshot',
+      { command: 'snapshot', flags: { snapshotInteractiveOnly: true } },
+      { isSnapshot: true },
+    ),
     bat('snapshot (root)', 'snapshot', { command: 'snapshot' }, { isSnapshot: true }),
 
     // --- navigate into a sub-screen from a fresh root (freshRoot resets scroll so the
     //     deep-screen row is in view), read it, then return ---
-    bat('press → deep screen', 'press', { command: 'press', positionals: [s.deepScreen] }, { freshRoot: true }),
+    bat(
+      'press → deep screen',
+      'press',
+      { command: 'press', positionals: [s.deepScreen] },
+      { freshRoot: true },
+    ),
     bat('snapshot (deep)', 'snapshot', { command: 'snapshot' }, { isSnapshot: true }),
-    bat('snapshot -i (deep)', 'snapshot', { command: 'snapshot', flags: { snapshotInteractiveOnly: true } }, { isSnapshot: true }),
+    bat(
+      'snapshot -i (deep)',
+      'snapshot',
+      { command: 'snapshot', flags: { snapshotInteractiveOnly: true } },
+      { isSnapshot: true },
+    ),
     bat('back', 'back', { command: 'back' }),
 
+    // --- iOS runner series commands surfaced by PR #643 ---
+    ...iosRunnerSeries,
+
     // --- targeted reads against the visible anchor (freshRoot so the anchor is on screen) ---
-    bat('wait text', 'wait', { command: 'wait', positionals: ['text', s.anchorText, '3000'] }, { freshRoot: true }),
+    bat(
+      'wait text',
+      'wait',
+      { command: 'wait', positionals: ['text', s.anchorText, '3000'] },
+      { freshRoot: true },
+    ),
     bat('find', 'find', { command: 'find', positionals: [s.anchorText] }),
     bat('get text', 'get', { command: 'get', positionals: ['text', s.anchorLabel] }),
     bat('is visible', 'is', { command: 'is', positionals: ['visible', s.anchorLabel] }),
