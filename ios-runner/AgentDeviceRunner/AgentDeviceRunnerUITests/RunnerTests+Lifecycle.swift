@@ -216,14 +216,14 @@ extension RunnerTests {
   // MARK: - Command Classification
 
   func isReadOnlyCommand(_ command: Command) -> Bool {
-    switch command.command {
-    case .interactionFrame, .findText, .readText, .snapshot, .screenshot:
+    switch command.command.traits.readOnly {
+    case .always:
       return true
-    case .alert:
-      let action = (command.action ?? "get").lowercased()
-      return action == "get"
-    default:
+    case .never:
       return false
+    case .conditional:
+      // Today only `alert` is conditional: read-only when getting, mutating otherwise.
+      return (command.action ?? "get").lowercased() == "get"
     }
   }
 
@@ -234,36 +234,11 @@ extension RunnerTests {
   }
 
   func isInteractionCommand(_ command: CommandType) -> Bool {
-    switch command {
-    case
-      .tap,
-      .longPress,
-      .drag,
-      .remotePress,
-      .type,
-      .swipe,
-      .back,
-      .backInApp,
-      .backSystem,
-      .rotate,
-      .appSwitcher,
-      .keyboardDismiss,
-      .pinch,
-      .rotateGesture,
-      .transformGesture:
-      return true
-    default:
-      return false
-    }
+    return command.traits.isInteraction
   }
 
   func isRunnerLifecycleCommand(_ command: CommandType) -> Bool {
-    switch command {
-    case .shutdown, .recordStop, .screenshot, .uptime:
-      return true
-    default:
-      return false
-    }
+    return command.traits.isLifecycle
   }
 
   // MARK: - Interaction Stabilization
