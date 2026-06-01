@@ -48,7 +48,7 @@ export async function invokeMaestroAssertVisible(params: {
 }): Promise<DaemonResponse> {
   const args = readVisibilityAssertionArgs(params.positionals, {
     command: 'assertVisible',
-    defaultTimeoutMs: 5000,
+    defaultTimeoutMs: 7000,
   });
   if (!args.ok) return args.response;
 

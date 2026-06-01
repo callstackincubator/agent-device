@@ -67,7 +67,7 @@ env:
       ['type', ['Ada Lovelace']],
       [
         '__maestroAssertVisible',
-        ['label="Checkout form" || text="Checkout form" || id="Checkout form"', '5000'],
+        ['label="Checkout form" || text="Checkout form" || id="Checkout form"', '7000'],
       ],
       [
         '__maestroAssertNotVisible',
@@ -368,7 +368,7 @@ test('parseMaestroReplayFlow preserves selector state and absolute swipe command
   assert.deepEqual(
     parsed.actions.map((entry) => [entry.command, entry.positionals]),
     [
-      ['__maestroAssertVisible', ['id="shipping-pickup" selected="true"', '5000']],
+      ['__maestroAssertVisible', ['id="shipping-pickup" selected="true"', '7000']],
       ['swipe', ['100', '500', '100', '200', '300']],
     ],
   );
@@ -628,7 +628,7 @@ test('parseMaestroReplayFlow keeps retry commands for runtime evaluation', () =>
     control.actions.map((entry) => [entry.command, entry.positionals, entry.flags]),
     [
       ['open', ['example://details'], {}],
-      ['__maestroAssertVisible', ['label="Article" || text="Article" || id="Article"', '5000'], {}],
+      ['__maestroAssertVisible', ['label="Article" || text="Article" || id="Article"', '7000'], {}],
     ],
   );
 });
