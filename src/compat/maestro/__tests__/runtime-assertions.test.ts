@@ -158,6 +158,33 @@ test('invokeMaestroAssertVisible uses snapshot resolution for short iOS assertio
   assert.deepEqual(calls, [['snapshot', []]]);
 });
 
+test('invokeMaestroAssertVisible treats an elapsed ellipsis loading gate as already past loading', async () => {
+  vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(250);
+
+  const response = await invokeMaestroAssertVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: {
+        platform: 'ios',
+        maestro: { allowAlreadyPastLoading: true },
+      },
+    },
+    positionals: ['label="Loading…" || text="Loading…" || id="Loading…"', '1000'],
+    invoke: async (): Promise<DaemonResponse> => ({
+      ok: true,
+      data: snapshot([node('Dashboard')]),
+    }),
+  });
+
+  assert.equal(response.ok, true);
+  if (response.ok) {
+    assert.ok(response.data);
+    assert.equal(response.data.alreadyPastLoading, true);
+    assert.equal(response.data.waitedMs, 250);
+  }
+});
+
 test('invokeMaestroAssertVisible dismisses React Native overlays during snapshot assertions', async () => {
   const calls: Array<[string, string[] | undefined]> = [];
   let snapshots = 0;
