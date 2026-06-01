@@ -86,19 +86,6 @@ export function clearMaestroVisibleContext(scope: ReplayVarScope | undefined): v
   if (scope) maestroVisibleContextCache.delete(scope);
 }
 
-export async function dismissReactNativeOverlayIfPresent(params: {
-  baseReq: ReplayBaseRequest;
-  invoke: MaestroRuntimeInvoke;
-}): Promise<DaemonResponse | null> {
-  const response = await params.invoke({
-    ...params.baseReq,
-    command: 'react-native',
-    positionals: ['dismiss-overlay'],
-  });
-  if (response.ok && response.data?.dismissed === true) return response;
-  return null;
-}
-
 function rememberMaestroReferenceFrame(scope: ReplayVarScope, data: unknown): void {
   const snapshot = readSnapshotState(data);
   const frame = getSnapshotReferenceFrame(snapshot);

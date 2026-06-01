@@ -1,10 +1,6 @@
 import { getSnapshotReferenceFrame } from '../../daemon/touch-reference-frame.ts';
 import type { DaemonRequest, DaemonResponse } from '../../daemon/types.ts';
 import {
-  detectReactNativeOverlay,
-  readReactNativeOverlayActionNodes,
-} from '../../commands/react-native/overlay.ts';
-import {
   buildSwipeGesturePlan,
   clampGesturePoint,
   pointFromPercent,
@@ -18,7 +14,6 @@ import { pointForMaestroTapOnTarget, swipeCoordinatesFromTarget } from './runtim
 import {
   captureMaestroRawSnapshot,
   clearMaestroVisibleContext,
-  dismissReactNativeOverlayIfPresent,
   errorResponse,
   readCachedMaestroReferenceFrame,
   readMaestroVisibleContext,
@@ -437,42 +432,11 @@ async function invokeMaestroSnapshotTapOn(
   selector: string,
   options: MaestroTapOnOptions,
 ): Promise<{ response: DaemonResponse; targetResolved: boolean }> {
-  const target = await resolveMaestroTapTargetWithOverlayRetry(params, selector, options);
-  if (!target.ok) return { response: target.response, targetResolved: false };
-  const overlayResponse = await maybeDismissReactNativeOverlayTapTarget(
-    params,
-    selector,
-    target.target,
-  );
-  if (overlayResponse) {
-    if (overlayResponse.ok) clearMaestroVisibleContext(params.scope);
-    return {
-      response: overlayResponse,
-      targetResolved: true,
-    };
-  }
-  return await clickMaestroSnapshotTarget(params, selector, target.target);
-}
-
-async function resolveMaestroTapTargetWithOverlayRetry(
-  params: MaestroTapOnParams,
-  selector: string,
-  options: MaestroTapOnOptions,
-): Promise<
-  { ok: true; target: ResolvedMaestroSnapshotTarget } | { ok: false; response: DaemonResponse }
-> {
   const target = await resolveMaestroSnapshotTarget(params, selector, options, 'tapOn', {
     promoteTapTarget: true,
   });
-  if (target.ok || !isReactNativeOverlayBlockedResponse(target.response)) return target;
-
-  const overlayResponse = await dismissReactNativeOverlayIfPresent(params);
-  if (overlayResponse?.ok) clearMaestroVisibleContext(params.scope);
-  if (!overlayResponse) return target;
-
-  return await resolveMaestroSnapshotTarget(params, selector, options, 'tapOn', {
-    promoteTapTarget: true,
-  });
+  if (!target.ok) return { response: target.response, targetResolved: false };
+  return await clickMaestroSnapshotTarget(params, selector, target.target);
 }
 
 async function clickMaestroSnapshotTarget(
@@ -517,32 +481,6 @@ async function clickMaestroSnapshotTarget(
   };
 }
 
-async function maybeDismissReactNativeOverlayTapTarget(
-  params: MaestroTapOnParams,
-  selector: string,
-  target: ResolvedMaestroSnapshotTarget,
-): Promise<DaemonResponse | null> {
-  const query = extractMaestroVisibleTextQuery(selector)?.trim().toLowerCase();
-  if (query !== 'dismiss' && query !== 'minimize' && query !== 'close') return null;
-  if (!isReactNativeOverlayControlTarget(target)) return null;
-  return await dismissReactNativeOverlayIfPresent(params);
-}
-
-function isReactNativeOverlayControlTarget(target: ResolvedMaestroSnapshotTarget): boolean {
-  const overlay = detectReactNativeOverlay(target.snapshot.nodes);
-  if (!overlay.detected) return false;
-  return readReactNativeOverlayActionNodes(overlay).some(
-    (node) => node.index === target.node.index,
-  );
-}
-
-function isReactNativeOverlayBlockedResponse(response: DaemonResponse): boolean {
-  return (
-    !response.ok &&
-    response.error.code === 'ELEMENT_NOT_FOUND' &&
-    response.error.message.includes('React Native overlay is covering app content')
-  );
-}
 
 async function invokeMaestroFuzzyTapOn(
   params: MaestroTapOnParams,

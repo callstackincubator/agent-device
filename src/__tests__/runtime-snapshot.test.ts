@@ -190,7 +190,7 @@ test('runtime snapshot does not suggest full-screen React Native warning parents
   assert.doesNotMatch(result.warnings?.[0] ?? '', /@e1/);
 });
 
-test('runtime snapshot prefers TextView Minimize over Dismiss on Android React Native stack overlays', async () => {
+test('runtime snapshot recognizes Android React Native stack overlays with Dismiss and Minimize controls', async () => {
   const result = await createSnapshotOnlyDevice({
     nodes: [
       { ref: 'e1', index: 0, depth: 0, type: 'android.widget.TextView', label: 'useOnyx.ts:80:43' },
@@ -204,7 +204,7 @@ test('runtime snapshot prefers TextView Minimize over Dismiss on Android React N
   assertReactNativeOverlayWarning(result.warnings);
 });
 
-test('runtime snapshot does not suggest Dismiss for Android RedBox stacks without Minimize', async () => {
+test('runtime snapshot recognizes Android RedBox stacks without Minimize', async () => {
   const result = await createSnapshotOnlyDevice({
     nodes: [
       { ref: 'e1', index: 0, depth: 0, type: 'android.widget.TextView', label: 'useOnyx.ts:80:43' },
@@ -215,7 +215,6 @@ test('runtime snapshot does not suggest Dismiss for Android RedBox stacks withou
   }).capture.snapshot({ session: 'default', interactiveOnly: true });
 
   assertReactNativeOverlayWarning(result.warnings);
-  assert.doesNotMatch(result.warnings?.[0] ?? '', /Dismiss before continuing|press @e2/);
 });
 
 test('runtime snapshot warns when iOS hierarchy looks like a React Native overlay', async () => {

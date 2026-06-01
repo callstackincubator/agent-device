@@ -1002,7 +1002,7 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     contract: [
       'App name: Agent Device Tester',
       'Current screen after opening will trigger console.warn',
-      'Fresh interactive snapshot should show the minimized React Native warning overlay',
+      'Fresh interactive snapshot should show the React Native warning overlay',
       'Fresh interactive snapshot shows @e4 label="×" for the small close icon',
       'The warning overlay can obscure UI and intercept taps',
       'Target selector after dismissing overlay: id="submit-order"',
@@ -1076,7 +1076,7 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     ],
   }),
   makeCase({
-    id: 'rn-redbox-stack-minimize-before-continuing',
+    id: 'rn-redbox-stack-dismiss-before-continuing',
     contract: [
       'App name: Agent Device Tester',
       'Platform: Android',
@@ -1084,15 +1084,15 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'Stack includes useOnyx.ts:80:43 and LHNOptionsList.tsx:77',
       'Overlay controls include Dismiss and Minimize',
       'The RedBox may be caused by an infinite render loop',
-      'Target selector after minimizing overlay: id="submit-order"',
+      'Target selector after dismissing overlay: id="submit-order"',
     ],
-    task: 'Plan commands to recognize the RedBox stack trace, run the React Native overlay command so it prefers Minimize over Dismiss, re-snapshot, then continue to id="submit-order" while reporting the RedBox later.',
+    task: 'Plan commands to recognize the RedBox stack trace, run the React Native overlay command so it dismisses the overlay, re-snapshot, then continue to id="submit-order" while reporting the RedBox later.',
     outputs: [
       /snapshot -i[\s\S]*react-native\s+dismiss-overlay[\s\S]*snapshot -i[\s\S]*submit-order/i,
     ],
     forbiddenOutputs: [
       RAW_COORDINATE_TARGET,
-      /(?:press|click)\b[^\n]*Dismiss/i,
+      /(?:press|click)\b[^\n]*(?:Dismiss|Minimize)/i,
       /alert accept/i,
       /failed nav|navigation failed/i,
     ],

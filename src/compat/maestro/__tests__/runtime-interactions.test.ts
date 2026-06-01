@@ -40,24 +40,15 @@ test('invokeMaestroTapOn clicks normal Close/Dismiss buttons when no React Nativ
   expect(commands).toEqual(['snapshot', 'click']);
 });
 
-test('invokeMaestroTapOn uses React Native overlay dismissal for overlay controls', async () => {
-  const { response, commands } = await runTapOn(
+test('invokeMaestroTapOn clicks explicit React Native overlay controls directly', async () => {
+  const { response, commands, clicks } = await runTapOn(
     'label="Dismiss" || text="Dismiss" || id="Dismiss"',
     () => overlayDismissButtonSnapshot(),
   );
 
   expect(response.ok).toBe(true);
-  expect(commands).toEqual(['snapshot', 'react-native']);
-});
-
-test('invokeMaestroTapOn dismisses React Native overlays blocking app content and retries', async () => {
-  const { response, commands, clicks } = await runTapOn('id="article"', (snapshotIndex) =>
-    snapshotIndex === 1 ? overlayBlockingArticleSnapshot() : articleButtonSnapshot(),
-  );
-
-  expect(response.ok).toBe(true);
-  expect(commands).toEqual(['snapshot', 'react-native', 'snapshot', 'click']);
-  expect(clicks).toEqual([['201', '149']]);
+  expect(commands).toEqual(['snapshot', 'click']);
+  expect(clicks).toEqual([['355', '30']]);
 });
 
 test('invokeMaestroSwipeScreen maps horizontal directional swipes to native gesture presets', async () => {
@@ -232,9 +223,6 @@ async function runTapOn(
         snapshots += 1;
         return { ok: true, data: readSnapshot(snapshots) };
       }
-      if (req.command === 'react-native') {
-        return { ok: true, data: { dismissed: true } };
-      }
       if (req.command === 'click') {
         clicks.push(req.positionals ?? []);
         return { ok: true, data: {} };
@@ -283,62 +271,6 @@ function buttonSnapshot(label: string): SnapshotState {
         depth: 4,
         parentIndex: 1,
         rect: { x: 142, y: 128.66666412353516, width: 118, height: 40 },
-      },
-    ],
-  };
-}
-
-function articleButtonSnapshot(): SnapshotState {
-  return {
-    createdAt: Date.now(),
-    nodes: [
-      appNode(),
-      windowNode(),
-      {
-        index: 2,
-        ref: 'e3',
-        type: 'Button',
-        identifier: 'article',
-        label: 'Article',
-        depth: 4,
-        parentIndex: 1,
-        rect: { x: 142, y: 128.66666412353516, width: 118, height: 40 },
-      },
-    ],
-  };
-}
-
-function overlayBlockingArticleSnapshot(): SnapshotState {
-  return {
-    createdAt: Date.now(),
-    nodes: [
-      ...articleButtonSnapshot().nodes,
-      {
-        index: 10,
-        ref: 'e10',
-        type: 'StaticText',
-        label: 'Runtime Error',
-        depth: 2,
-        parentIndex: 1,
-        rect: { x: 0, y: 0, width: 402, height: 40 },
-      },
-      {
-        index: 11,
-        ref: 'e11',
-        type: 'Button',
-        label: 'Minimize',
-        depth: 2,
-        parentIndex: 1,
-        rect: { x: 320, y: 12, width: 70, height: 36 },
-      },
-      {
-        index: 12,
-        ref: 'e12',
-        type: 'StaticText',
-        label: 'Call Stack',
-        depth: 2,
-        parentIndex: 1,
-        rect: { x: 0, y: 52, width: 402, height: 40 },
       },
     ],
   };

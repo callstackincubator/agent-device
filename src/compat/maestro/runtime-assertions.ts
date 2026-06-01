@@ -5,7 +5,6 @@ import type { SnapshotState } from '../../utils/snapshot.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import {
   captureMaestroRawSnapshot,
-  dismissReactNativeOverlayIfPresent,
   errorResponse,
   rememberMaestroVisibleContext,
   readSnapshotState,
@@ -70,11 +69,7 @@ async function invokeNativeMaestroVisibleWait(
   nativeWaitQuery: string,
 ): Promise<DaemonResponse> {
   const nativeStartedAt = Date.now();
-  let nativeResponse = await runNativeVisibleWait(params, args, nativeWaitQuery);
-  if (!nativeResponse.ok && shouldRetryNativeWaitAfterOverlayDismiss(nativeResponse)) {
-    const overlayResponse = await dismissReactNativeOverlayIfPresent(params);
-    if (overlayResponse) nativeResponse = await runNativeVisibleWait(params, args, nativeWaitQuery);
-  }
+  const nativeResponse = await runNativeVisibleWait(params, args, nativeWaitQuery);
   if (!nativeResponse.ok) return nativeResponse;
   return visibleAssertionResponse(
     {
@@ -120,20 +115,12 @@ async function invokeSnapshotMaestroAssertVisible(
   const deadlineMs = args.timeoutMs + MAESTRO_ASSERTION_POLICY.assertVisibleGraceMs;
   let lastResponse: DaemonResponse | undefined;
   let capturedAfterDeadline = false;
-  let dismissedOverlay = false;
   while (true) {
     const captureStartedAt = Date.now();
     const sample = await readMaestroVisibilitySample(params, args.selector, 'assertVisible');
     if (sample.visible) return visibleAssertionResponse(sample.response, args.selector, startedAt);
     lastResponse = sample.response;
-    const failedSample = await handleFailedVisibleSample(params, args, sample, {
-      dismissedOverlay,
-      startedAt,
-    });
-    if (failedSample.kind === 'retry-after-overlay-dismiss') {
-      dismissedOverlay = true;
-      continue;
-    }
+    const failedSample = handleFailedVisibleSample(params.baseReq, args, sample, startedAt);
     if (failedSample.kind === 'return') return failedSample.response;
 
     const deadline = readVisibleAssertionDeadlineAction({
@@ -159,30 +146,21 @@ async function invokeSnapshotMaestroAssertVisible(
   );
 }
 
-async function handleFailedVisibleSample(
-  params: {
-    baseReq: ReplayBaseRequest;
-    invoke: MaestroRuntimeInvoke;
-  },
+function handleFailedVisibleSample(
+  baseReq: ReplayBaseRequest,
   args: MaestroVisibilityAssertionArgs,
   sample: Exclude<MaestroVisibilitySample, { visible: true }>,
-  state: { dismissedOverlay: boolean; startedAt: number },
-): Promise<
+  startedAt: number,
+):
   | { kind: 'continue' }
-  | { kind: 'retry-after-overlay-dismiss' }
-  | { kind: 'return'; response: DaemonResponse }
-> {
-  const overlayRetry = await maybeDismissOverlayAfterSnapshotFailure(
-    params,
-    sample.response,
-    state.dismissedOverlay,
-  );
-  if (overlayRetry === 'dismissed') return { kind: 'retry-after-overlay-dismiss' };
-  if (overlayRetry === 'blocked') return { kind: 'return', response: sample.response };
-  if (shouldPassAlreadyPastLoading(params.baseReq, args.selector, sample.snapshot)) {
+  | { kind: 'return'; response: DaemonResponse } {
+  if (isReactNativeOverlayBlockingAssertion(sample.response)) {
+    return { kind: 'return', response: sample.response };
+  }
+  if (shouldPassAlreadyPastLoading(baseReq, args.selector, sample.snapshot)) {
     return {
       kind: 'return',
-      response: alreadyPastLoadingResponse(args.selector, args.timeoutMs, state.startedAt),
+      response: alreadyPastLoadingResponse(args.selector, args.timeoutMs, startedAt),
     };
   }
   return { kind: 'continue' };
@@ -218,31 +196,7 @@ function readVisibleAssertionDeadlineAction(params: {
     : 'finish';
 }
 
-async function maybeDismissOverlayAfterSnapshotFailure(
-  params: {
-    baseReq: ReplayBaseRequest;
-    invoke: MaestroRuntimeInvoke;
-  },
-  response: DaemonResponse,
-  dismissedOverlay: boolean,
-): Promise<'dismissed' | 'blocked' | 'none'> {
-  if (dismissedOverlay || !shouldRetrySnapshotAssertionAfterOverlayDismiss(response)) {
-    return 'none';
-  }
-  const overlayResponse = await dismissReactNativeOverlayIfPresent(params);
-  return overlayResponse ? 'dismissed' : 'blocked';
-}
-
-function shouldRetryNativeWaitAfterOverlayDismiss(response: DaemonResponse): boolean {
-  return (
-    !response.ok &&
-    response.error.code === 'COMMAND_FAILED' &&
-    (response.error.message.includes('Current surface:') ||
-      response.error.message.includes('React Native overlay'))
-  );
-}
-
-function shouldRetrySnapshotAssertionAfterOverlayDismiss(response: DaemonResponse): boolean {
+function isReactNativeOverlayBlockingAssertion(response: DaemonResponse): boolean {
   return (
     !response.ok &&
     response.error.code === 'COMMAND_FAILED' &&

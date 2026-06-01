@@ -93,7 +93,7 @@ test('invokeMaestroAssertVisible retries transient snapshot failures until a lat
   }
 });
 
-test('invokeMaestroAssertVisible dismisses React Native overlays before retrying native iOS wait', async () => {
+test('invokeMaestroAssertVisible does not dismiss React Native overlays during native iOS wait', async () => {
   const calls: Array<[string, string[] | undefined]> = [];
   let waits = 0;
   const response = await invokeMaestroAssertVisible({
@@ -118,17 +118,12 @@ test('invokeMaestroAssertVisible dismisses React Native overlays before retrying
         }
         return { ok: true, data: { matches: 1 } };
       }
-      if (req.command === 'react-native') {
-        return { ok: true, data: { dismissed: true } };
-      }
       return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
     },
   });
 
-  assert.equal(response.ok, true);
+  assert.equal(response.ok, false);
   assert.deepEqual(calls, [
-    ['wait', ['Ready', '60000']],
-    ['react-native', ['dismiss-overlay']],
     ['wait', ['Ready', '60000']],
   ]);
 });
@@ -185,7 +180,7 @@ test('invokeMaestroAssertVisible treats an elapsed ellipsis loading gate as alre
   }
 });
 
-test('invokeMaestroAssertVisible dismisses React Native overlays during snapshot assertions', async () => {
+test('invokeMaestroAssertVisible reports React Native overlays during snapshot assertions', async () => {
   const calls: Array<[string, string[] | undefined]> = [];
   let snapshots = 0;
   const response = await invokeMaestroAssertVisible({
@@ -222,19 +217,15 @@ test('invokeMaestroAssertVisible dismisses React Native overlays during snapshot
           ),
         };
       }
-      if (req.command === 'react-native') {
-        return { ok: true, data: { dismissed: true } };
-      }
       return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
     },
   });
 
-  assert.equal(response.ok, true);
-  assert.deepEqual(calls, [
-    ['snapshot', []],
-    ['react-native', ['dismiss-overlay']],
-    ['snapshot', []],
-  ]);
+  assert.equal(response.ok, false);
+  if (!response.ok) {
+    assert.match(response.error.message, /React Native overlay is covering app content/);
+  }
+  assert.deepEqual(calls, [['snapshot', []]]);
 });
 
 test('invokeMaestroAssertVisible fails fast when a RedBox has no dismiss target', async () => {
@@ -278,7 +269,6 @@ test('invokeMaestroAssertVisible fails fast when a RedBox has no dismiss target'
   }
   assert.deepEqual(calls, [
     ['snapshot', []],
-    ['react-native', ['dismiss-overlay']],
   ]);
 });
 

@@ -105,7 +105,7 @@ async function dismissReactNativeOverlayTarget(
       params.contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
     )) ?? {};
   const actionFinishedAt = Date.now();
-  const verification = await verifyReactNativeOverlayDismissal(params, session, target.action);
+  const verification = await verifyReactNativeOverlayDismissal(params, session);
   const responseData = stripUndefined({
     ...readSnapshotNodesReferenceFrame(snapshot.nodes),
     ...data,
@@ -116,13 +116,12 @@ async function dismissReactNativeOverlayTarget(
     ref: target.ref,
     label: target.label,
     warning: target.warning,
-    dismissed: target.action === 'minimize' ? undefined : true,
-    minimized: target.action === 'minimize' ? verification.verified : undefined,
+    dismissed: true,
     verified: verification.verified,
     verificationRequired: !verification.verified,
     verificationWarning: verification.verificationWarning,
     nextCommand: verification.nextCommand,
-    ...successText(formatDismissMessage(target, verification)),
+    ...successText(formatDismissMessage(verification)),
   });
   return finalizeTouchInteraction({
     session,
@@ -140,7 +139,6 @@ async function dismissReactNativeOverlayTarget(
 async function verifyReactNativeOverlayDismissal(
   params: InteractionHandlerParams,
   session: SessionState,
-  action: ReactNativeOverlayDismissTarget['action'],
 ): Promise<{
   verified: boolean;
   verificationWarning?: string;
@@ -155,9 +153,6 @@ async function verifyReactNativeOverlayDismissal(
     { interactiveOnly: true },
   );
   const overlay = analyzeReactNativeOverlay(verificationSnapshot.nodes);
-  if (action === 'minimize') {
-    return verifyReactNativeRedBoxMinimized(overlay);
-  }
   if (!overlay.detected) {
     return {
       verified: true,
@@ -171,31 +166,7 @@ async function verifyReactNativeOverlayDismissal(
   };
 }
 
-function verifyReactNativeRedBoxMinimized(overlay: ReturnType<typeof analyzeReactNativeOverlay>): {
-  verified: boolean;
-  verificationWarning?: string;
-  nextCommand?: string;
-} {
-  if (overlay.minimizeNodes.length === 0 && overlay.dismissNodes.length === 0) {
-    return { verified: true };
-  }
-  return {
-    verified: false,
-    verificationWarning:
-      'React Native RedBox controls are still detected after minimize. Use screenshot --overlay-refs for visual evidence and report the overlay instead of pressing the warning body.',
-    nextCommand: 'agent-device screenshot --overlay-refs',
-  };
-}
-
-function formatDismissMessage(
-  target: ReactNativeOverlayDismissTarget,
-  verification: { verified: boolean },
-): string {
-  if (target.action === 'minimize') {
-    return verification.verified
-      ? 'React Native RedBox minimize action sent and verified minimized'
-      : 'React Native RedBox minimize action sent, but full RedBox controls are still detected';
-  }
+function formatDismissMessage(verification: { verified: boolean }): string {
   if (verification.verified) {
     return 'React Native overlay dismiss action sent and verified gone';
   }

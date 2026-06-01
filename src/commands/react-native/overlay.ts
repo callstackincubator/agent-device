@@ -21,7 +21,7 @@ export type ReactNativeOverlayState = {
 };
 
 export type ReactNativeOverlayDismissTarget = {
-  action: 'close' | 'dismiss' | 'minimize' | 'close-collapsed-banner';
+  action: 'close' | 'dismiss' | 'close-collapsed-banner';
   point: Point;
   rect?: Rect;
   ref?: string;
@@ -149,18 +149,6 @@ function collectReactNativeOverlayFacts(nodes: SnapshotNode[]): ReactNativeOverl
 function resolveSafeDismissAction(
   facts: ReactNativeOverlayFacts,
 ): ReactNativeOverlayDismissTarget | null {
-  if (facts.redBox) {
-    const minimize = firstControlNodeWithRect(facts.minimizeNodes);
-    if (minimize) return targetFromNode(minimize, 'minimize');
-    const dismiss = firstControlNodeWithRect(facts.dismissNodes);
-    return dismiss
-      ? {
-          ...targetFromNode(dismiss, actionFromDismissNode(dismiss)),
-          warning: 'RedBox Minimize control was not exposed; used Dismiss fallback',
-        }
-      : null;
-  }
-
   const dismiss = firstControlNodeWithRect(facts.dismissNodes);
   if (dismiss) return targetFromNode(dismiss, actionFromDismissNode(dismiss));
 

@@ -270,11 +270,11 @@ test('react-native dismiss-overlay rejects unsafe collapsed warning coordinate f
   });
 });
 
-test('react-native dismiss-overlay minimizes RedBox error overlays instead of dismissing them', async () => {
+test('react-native dismiss-overlay dismisses RedBox error overlays instead of minimizing them', async () => {
   const sessionName = 'rn-redbox-session';
   const sessionStore = makeSessionStore();
   sessionStore.set(sessionName, makeSession(sessionName));
-  mockDispatchCommand.mockResolvedValue({ x: 265, y: 752 });
+  mockDispatchCommand.mockResolvedValue({ x: 95, y: 752 });
   mockCaptureSnapshot
     .mockResolvedValueOnce({
       snapshot: {
@@ -303,14 +303,7 @@ test('react-native dismiss-overlay minimizes RedBox error overlays instead of di
     })
     .mockResolvedValueOnce({
       snapshot: {
-        nodes: [
-          {
-            index: 0,
-            ref: 'e20',
-            label: '!, Runtime Error: NativeModule is null',
-            rect: { x: 10, y: 786, width: 382, height: 67 },
-          },
-        ],
+        nodes: [],
         createdAt: Date.now(),
       },
     });
@@ -333,29 +326,29 @@ test('react-native dismiss-overlay minimizes RedBox error overlays instead of di
   expect(mockDispatchCommand).toHaveBeenCalledWith(
     expect.objectContaining({ platform: 'ios' }),
     'press',
-    ['265', '752'],
+    ['95', '752'],
     undefined,
     expect.any(Object),
   );
   expect(response?.ok && response.data).toMatchObject({
     action: 'dismiss-overlay',
-    overlayAction: 'minimize',
-    ref: 'e3',
-    minimized: true,
+    overlayAction: 'dismiss',
+    ref: 'e2',
+    dismissed: true,
     verified: true,
     verificationRequired: false,
-    message: 'React Native RedBox minimize action sent and verified minimized',
-    x: 265,
+    message: 'React Native overlay dismiss action sent and verified gone',
+    x: 95,
     y: 752,
   });
-  expect(response?.ok && response.data?.dismissed).toBeUndefined();
+  expect(response?.ok && response.data?.minimized).toBeUndefined();
 });
 
-test('react-native dismiss-overlay reports unverified minimize when RedBox controls remain', async () => {
+test('react-native dismiss-overlay reports unverified dismiss when RedBox controls remain', async () => {
   const sessionName = 'rn-redbox-still-full-session';
   const sessionStore = makeSessionStore();
   sessionStore.set(sessionName, makeSession(sessionName));
-  mockDispatchCommand.mockResolvedValue({ x: 265, y: 752 });
+  mockDispatchCommand.mockResolvedValue({ x: 95, y: 752 });
   const fullRedBoxSnapshot = {
     snapshot: {
       nodes: [
@@ -402,18 +395,17 @@ test('react-native dismiss-overlay reports unverified minimize when RedBox contr
   expect(response?.ok).toBe(true);
   expect(response?.ok && response.data).toMatchObject({
     action: 'dismiss-overlay',
-    overlayAction: 'minimize',
-    minimized: false,
+    overlayAction: 'dismiss',
+    dismissed: true,
     verified: false,
     verificationRequired: true,
-    verificationWarning: expect.stringContaining('RedBox controls are still detected'),
+    verificationWarning: expect.stringContaining('React Native overlay is still detected'),
     nextCommand: 'agent-device screenshot --overlay-refs',
-    message:
-      'React Native RedBox minimize action sent, but full RedBox controls are still detected',
+    message: 'React Native overlay dismiss action sent, but verification still detects an overlay',
   });
 });
 
-test('react-native dismiss-overlay falls back to Dismiss when RedBox Minimize is absent', async () => {
+test('react-native dismiss-overlay uses Dismiss when RedBox Minimize is absent', async () => {
   const sessionName = 'rn-redbox-dismiss-session';
   const sessionStore = makeSessionStore();
   sessionStore.set(sessionName, makeSession(sessionName));
@@ -464,8 +456,8 @@ test('react-native dismiss-overlay falls back to Dismiss when RedBox Minimize is
     action: 'dismiss-overlay',
     overlayAction: 'dismiss',
     ref: 'e2',
-    warning: 'RedBox Minimize control was not exposed; used Dismiss fallback',
   });
+  expect(response?.ok && response.data?.warning).toBeUndefined();
 });
 
 test('react-native dismiss-overlay accepts RedBox control labels with keyboard shortcut suffixes', async () => {
@@ -519,8 +511,8 @@ test('react-native dismiss-overlay accepts RedBox control labels with keyboard s
     action: 'dismiss-overlay',
     overlayAction: 'dismiss',
     ref: 'e2',
-    warning: 'RedBox Minimize control was not exposed; used Dismiss fallback',
   });
+  expect(response?.ok && response.data?.warning).toBeUndefined();
 });
 
 test('react-native dismiss-overlay prefers concrete RedBox buttons over labeled wrappers', async () => {
