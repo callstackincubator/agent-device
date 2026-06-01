@@ -67,9 +67,12 @@ extension CommandType {
   var traits: CommandTraits {
     switch self {
     // Interaction commands: require the foreground-guard + stabilization preflight.
-    case .tap, .longPress, .drag, .remotePress, .type, .swipe,
+    // tapSeries/dragSeries are the series forms of tap/drag; keyboardReturn is the sibling
+    // of keyboardDismiss — all three were missing from the historical switch (drift the
+    // table now prevents) and are classified as interactions here.
+    case .tap, .tapSeries, .longPress, .drag, .dragSeries, .remotePress, .type, .swipe,
          .back, .backInApp, .backSystem, .rotate, .appSwitcher,
-         .keyboardDismiss, .pinch, .rotateGesture, .transformGesture:
+         .keyboardDismiss, .keyboardReturn, .pinch, .rotateGesture, .transformGesture:
       return CommandTraits(isInteraction: true, readOnly: .never, isLifecycle: false)
 
     // Read-only reads: eligible for the session-invalidating retry.
@@ -89,12 +92,11 @@ extension CommandType {
       return CommandTraits(isInteraction: false, readOnly: .never, isLifecycle: true)
 
     // Normal preflight, not retried.
-    // NOTE — pre-existing classifications preserved verbatim (candidates for a later, separate
-    // normalization PR, not this refactor): mouseClick / tapSeries / dragSeries are NOT interaction
-    // commands; keyboardReturn is NOT an interaction command (unlike its sibling keyboardDismiss);
-    // querySelector is NOT read-only; recordStart is NOT a lifecycle command.
-    case .mouseClick, .tapSeries, .dragSeries, .querySelector,
-         .home, .keyboardReturn, .recordStart:
+    // NOTE: mouseClick stays non-interaction for now — it is macOS-only and the foreground
+    // guard interacts with bespoke macOS activation, so classifying it needs a macOS smoke
+    // check first (tracked as a follow-up). Also preserved: querySelector is NOT read-only;
+    // recordStart is NOT a lifecycle command; home/alert remain non-interaction by design.
+    case .mouseClick, .querySelector, .home, .recordStart:
       return CommandTraits(isInteraction: false, readOnly: .never, isLifecycle: false)
     }
   }
