@@ -7,6 +7,7 @@ import {
   type SnapshotState,
 } from '../utils/snapshot.ts';
 import { decodePng, PNG } from '../utils/png.ts';
+import { analyzeReactNativeOverlay } from '../commands/react-native/overlay.ts';
 import { findNearestAncestor, normalizeType } from './snapshot-processing.ts';
 import { resolveAndroidOverlaySourceRect } from './screenshot-overlay-android.ts';
 import { hasPositiveRect, rectArea, rectContains } from './screenshot-overlay-rects.ts';
@@ -115,6 +116,13 @@ export function buildScreenshotOverlayRefs(
       });
     }
   }
+  addReactNativeOverlayActionCandidates(
+    snapshot,
+    snapshotBounds,
+    candidatesByRef,
+    screenshotWidth,
+    screenshotHeight,
+  );
 
   const ranked = suppressContainedCandidates([...candidatesByRef.values()])
     .sort(compareOverlayCandidatesByScore)
@@ -128,6 +136,44 @@ export function buildScreenshotOverlayRefs(
     overlayRect: candidate.overlayRect,
     center: centerOfRect(candidate.overlayRect),
   }));
+}
+
+function addReactNativeOverlayActionCandidates(
+  snapshot: SnapshotState,
+  snapshotBounds: Rect | null,
+  candidatesByRef: Map<string, OverlayCandidate>,
+  screenshotWidth: number,
+  screenshotHeight: number,
+): void {
+  const overlay = analyzeReactNativeOverlay(snapshot.nodes);
+  const action = overlay.primaryAction;
+  if (!action?.ref || !action.rect || !hasPositiveRect(action.rect)) return;
+
+  const overlayRect = projectRectToScreenshot(
+    snapshot,
+    snapshotBounds,
+    action.rect,
+    screenshotWidth,
+    screenshotHeight,
+  );
+  if (!hasPositiveRect(overlayRect)) return;
+  const candidate: OverlayCandidate = {
+    ref: action.ref,
+    label: action.label,
+    rect: action.rect,
+    overlayRect,
+    score: 100,
+  };
+  const existing = candidatesByRef.get(action.ref);
+  candidatesByRef.set(
+    action.ref,
+    existing
+      ? {
+          ...existing,
+          score: Math.max(existing.score, candidate.score),
+        }
+      : candidate,
+  );
 }
 
 function resolveOverlaySourceRect(

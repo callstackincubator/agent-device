@@ -1,6 +1,9 @@
 import { getSnapshotReferenceFrame } from '../../daemon/touch-reference-frame.ts';
 import type { DaemonRequest, DaemonResponse } from '../../daemon/types.ts';
-import { detectReactNativeOverlay } from '../../commands/react-native/overlay.ts';
+import {
+  detectReactNativeOverlay,
+  readReactNativeOverlayActionNodes,
+} from '../../commands/react-native/overlay.ts';
 import {
   buildSwipeGesturePlan,
   clampGesturePoint,
@@ -524,7 +527,7 @@ async function maybeDismissReactNativeOverlayTapTarget(
 function isReactNativeOverlayControlTarget(target: ResolvedMaestroSnapshotTarget): boolean {
   const overlay = detectReactNativeOverlay(target.snapshot.nodes);
   if (!overlay.detected) return false;
-  return [...overlay.dismissNodes, ...overlay.minimizeNodes, ...overlay.collapsedNodes].some(
+  return readReactNativeOverlayActionNodes(overlay).some(
     (node) => node.index === target.node.index,
   );
 }

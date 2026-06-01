@@ -14,7 +14,10 @@ import {
 import type { TouchReferenceFrame } from '../../daemon/touch-reference-frame.ts';
 import type { DaemonRequest } from '../../daemon/types.ts';
 import type { Selector, SelectorTerm } from '../../daemon/selectors-parse.ts';
-import { detectReactNativeOverlay } from '../../commands/react-native/overlay.ts';
+import {
+  detectReactNativeOverlay,
+  readReactNativeOverlayActionNodes,
+} from '../../commands/react-native/overlay.ts';
 
 const MAESTRO_TAP_TARGET_TYPE_RANK = new Map([
   ['button', 0],
@@ -228,11 +231,8 @@ function filterReactNativeOverlayBlockedMatches(
   if (!overlay.redBox) {
     return { matches, blockedByReactNativeOverlay: false };
   }
-  const visibleOverlayControls = [
-    ...overlay.dismissNodes,
-    ...overlay.minimizeNodes,
-    ...overlay.collapsedNodes,
-  ].filter(
+  const overlayControls = readReactNativeOverlayActionNodes(overlay);
+  const visibleOverlayControls = overlayControls.filter(
     (node) =>
       evaluateIsPredicate({
         predicate: 'visible',
@@ -242,7 +242,7 @@ function filterReactNativeOverlayBlockedMatches(
       }).pass,
   );
   if (visibleOverlayControls.length === 0) {
-    if (overlay.redBox && !hasReactNativeOverlayDismissCandidates(overlay)) {
+    if (overlayControls.length === 0) {
       return { matches: [], blockedByReactNativeOverlay: true };
     }
     return { matches, blockedByReactNativeOverlay: false };
@@ -253,18 +253,6 @@ function filterReactNativeOverlayBlockedMatches(
     matches: overlayMatches,
     blockedByReactNativeOverlay: matches.length > 0 && overlayMatches.length === 0,
   };
-}
-
-function hasReactNativeOverlayDismissCandidates(overlay: {
-  dismissNodes: SnapshotNode[];
-  minimizeNodes: SnapshotNode[];
-  collapsedNodes: SnapshotNode[];
-}): boolean {
-  return (
-    overlay.dismissNodes.length > 0 ||
-    overlay.minimizeNodes.length > 0 ||
-    overlay.collapsedNodes.length > 0
-  );
 }
 
 export function readMaestroSelectorPlatform(flags: DaemonRequest['flags']): Platform {

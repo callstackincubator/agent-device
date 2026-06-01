@@ -1,5 +1,8 @@
 import type { RawSnapshotNode } from '../../../utils/snapshot.ts';
-import { isReactNativeCollapsedWarningLabel } from '../../../utils/react-native-overlay-signals.ts';
+import {
+  isReactNativeCollapsedWarningWrapperCandidate,
+  isReactNativeCollapsedWarningWrapperWithVisibleBanner,
+} from '../../../commands/react-native/overlay.ts';
 import { normalizeType } from '../../snapshot-processing.ts';
 import { collectIosScrollIndicatorPresentation } from './scroll.ts';
 import {
@@ -31,37 +34,25 @@ function collectIosReactNativeOverlayWrapperSuppression(
   nodes: RawSnapshotNode[],
   suppressedIndexes: Set<number>,
 ): void {
-  forEachOtherNodeWithLabel(nodes, (node, nodeLabel, position) => {
-    if (!isReactNativeCollapsedWarningLabel(nodeLabel) || !isFullScreenOverlayRect(node.rect)) {
-      return;
-    }
-
-    const hasVisibleBannerDescendant = Boolean(
-      findDescendant(
-        nodes,
-        position,
-        (descendant) =>
-          descendant.label?.trim() === nodeLabel && isReactNativeCollapsedWarningBanner(descendant),
-      ),
-    );
-    if (hasVisibleBannerDescendant) {
+  forEachOtherNodeWithLabel(nodes, (node, _nodeLabel, position) => {
+    if (!isReactNativeCollapsedWarningWrapperCandidate(node)) return;
+    if (
+      isReactNativeCollapsedWarningWrapperWithVisibleBanner(
+        node,
+        collectDescendantNodes(nodes, position),
+      )
+    ) {
       suppressedIndexes.add(node.index);
     }
   });
 }
 
-function isFullScreenOverlayRect(rect: RawSnapshotNode['rect']): boolean {
-  if (!rect) {
-    return false;
-  }
-  return rect.x <= 1 && rect.y <= 1 && rect.width >= 300 && rect.height >= 600;
-}
-
-function isReactNativeCollapsedWarningBanner(node: RawSnapshotNode): boolean {
-  if (!node.rect) {
-    return false;
-  }
-  return node.rect.width >= 120 && node.rect.height >= 36 && node.rect.height <= 180;
+function collectDescendantNodes(nodes: RawSnapshotNode[], position: number): RawSnapshotNode[] {
+  const descendants: RawSnapshotNode[] = [];
+  forEachDescendant(nodes, position, (descendant) => {
+    descendants.push(descendant);
+  });
+  return descendants;
 }
 
 function collectIosRepeatedStaticSuppression(

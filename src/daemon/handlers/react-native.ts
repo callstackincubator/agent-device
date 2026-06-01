@@ -2,11 +2,11 @@ import { dispatchCommand } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
 import {
-  detectReactNativeOverlay,
-  resolveReactNativeOverlayDismissTarget,
+  analyzeReactNativeOverlay,
   type ReactNativeOverlayDismissTarget,
 } from '../../commands/react-native/overlay.ts';
 import { normalizeError } from '../../utils/errors.ts';
+import { stripUndefined } from '../../utils/parsing.ts';
 import { successText } from '../../utils/success-text.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
@@ -44,9 +44,10 @@ export async function handleReactNativeCommands(
       params.contextFromFlags,
       { interactiveOnly: true },
     );
-    const target = resolveReactNativeOverlayDismissTarget(snapshot.nodes);
+    const overlay = analyzeReactNativeOverlay(snapshot.nodes);
+    const target = overlay.primaryAction;
     if (!target) {
-      return responseForMissingReactNativeOverlayTarget(snapshot);
+      return responseForMissingReactNativeOverlayTarget(overlay.detected);
     }
     return await dismissReactNativeOverlayTarget(params, session, snapshot, target);
   } catch (error) {
@@ -66,9 +67,8 @@ function parseReactNativeArgs(
   };
 }
 
-function responseForMissingReactNativeOverlayTarget(snapshot: SnapshotState): DaemonResponse {
-  const overlay = detectReactNativeOverlay(snapshot.nodes);
-  if (!overlay.detected) {
+function responseForMissingReactNativeOverlayTarget(overlayDetected: boolean): DaemonResponse {
+  if (!overlayDetected) {
     return {
       ok: true,
       data: {
@@ -105,22 +105,25 @@ async function dismissReactNativeOverlayTarget(
       params.contextFromFlags(req.flags, session.appBundleId, session.trace?.outPath),
     )) ?? {};
   const actionFinishedAt = Date.now();
-  const responseData = {
+  const verification = await verifyReactNativeOverlayDismissal(params, session, target.action);
+  const responseData = stripUndefined({
     ...readSnapshotNodesReferenceFrame(snapshot.nodes),
     ...data,
     action: 'dismiss-overlay',
     overlayAction: target.action,
     x: target.point.x,
     y: target.point.y,
-    ...(target.ref ? { ref: target.ref } : {}),
-    ...(target.label ? { label: target.label } : {}),
-    ...(target.warning ? { warning: target.warning } : {}),
-    dismissed: true,
-    verified: false,
-    verificationRequired: true,
-    nextCommand: 'agent-device snapshot -i -c',
-    ...successText(formatDismissMessage(target)),
-  };
+    ref: target.ref,
+    label: target.label,
+    warning: target.warning,
+    dismissed: target.action === 'minimize' ? undefined : true,
+    minimized: target.action === 'minimize' ? verification.verified : undefined,
+    verified: verification.verified,
+    verificationRequired: !verification.verified,
+    verificationWarning: verification.verificationWarning,
+    nextCommand: verification.nextCommand,
+    ...successText(formatDismissMessage(target, verification)),
+  });
   return finalizeTouchInteraction({
     session,
     sessionStore,
@@ -134,9 +137,67 @@ async function dismissReactNativeOverlayTarget(
   });
 }
 
-function formatDismissMessage(target: ReactNativeOverlayDismissTarget): string {
-  if (target.action === 'minimize') {
-    return 'React Native RedBox minimize action sent; run snapshot -i before continuing';
+async function verifyReactNativeOverlayDismissal(
+  params: InteractionHandlerParams,
+  session: SessionState,
+  action: ReactNativeOverlayDismissTarget['action'],
+): Promise<{
+  verified: boolean;
+  verificationWarning?: string;
+  nextCommand?: string;
+}> {
+  const { req, sessionStore } = params;
+  const verificationSnapshot = await captureSnapshotForSession(
+    session,
+    req.flags,
+    sessionStore,
+    params.contextFromFlags,
+    { interactiveOnly: true },
+  );
+  const overlay = analyzeReactNativeOverlay(verificationSnapshot.nodes);
+  if (action === 'minimize') {
+    return verifyReactNativeRedBoxMinimized(overlay);
   }
-  return 'React Native overlay dismiss action sent; run snapshot -i before continuing';
+  if (!overlay.detected) {
+    return {
+      verified: true,
+    };
+  }
+  return {
+    verified: false,
+    verificationWarning:
+      'React Native overlay is still detected after dismissal. Use screenshot --overlay-refs for visual evidence and report the overlay instead of pressing the warning body.',
+    nextCommand: 'agent-device screenshot --overlay-refs',
+  };
+}
+
+function verifyReactNativeRedBoxMinimized(overlay: ReturnType<typeof analyzeReactNativeOverlay>): {
+  verified: boolean;
+  verificationWarning?: string;
+  nextCommand?: string;
+} {
+  if (overlay.minimizeNodes.length === 0 && overlay.dismissNodes.length === 0) {
+    return { verified: true };
+  }
+  return {
+    verified: false,
+    verificationWarning:
+      'React Native RedBox controls are still detected after minimize. Use screenshot --overlay-refs for visual evidence and report the overlay instead of pressing the warning body.',
+    nextCommand: 'agent-device screenshot --overlay-refs',
+  };
+}
+
+function formatDismissMessage(
+  target: ReactNativeOverlayDismissTarget,
+  verification: { verified: boolean },
+): string {
+  if (target.action === 'minimize') {
+    return verification.verified
+      ? 'React Native RedBox minimize action sent and verified minimized'
+      : 'React Native RedBox minimize action sent, but full RedBox controls are still detected';
+  }
+  if (verification.verified) {
+    return 'React Native overlay dismiss action sent and verified gone';
+  }
+  return 'React Native overlay dismiss action sent, but verification still detects an overlay';
 }
