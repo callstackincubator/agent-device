@@ -502,6 +502,10 @@ async function clickMaestroSnapshotTarget(
     ...params.baseReq,
     command: 'click',
     positionals: [String(point.x), String(point.y)],
+    flags: {
+      ...params.baseReq.flags,
+      interactionOutcome: { retryOnNoChange: true },
+    },
   });
   if (response.ok) clearMaestroVisibleContext(params.scope);
   return {
@@ -550,6 +554,7 @@ async function invokeMaestroFuzzyTapOn(
     flags: {
       ...params.baseReq.flags,
       findFirst: true,
+      interactionOutcome: { retryOnNoChange: true },
     },
   });
   if (findResponse.ok) return { retry: false, response: findResponse };

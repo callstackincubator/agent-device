@@ -16,6 +16,7 @@ import { captureSnapshot } from './snapshot-capture.ts';
 import { setSessionSnapshot } from '../session-snapshot.ts';
 import { errorResponse } from './response.ts';
 import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
+import { stripInternalInteractionOutcomeFlags } from '../interaction-outcome-policy.ts';
 import { dispatchFindReadOnlyViaRuntime } from '../selector-runtime.ts';
 import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
 
@@ -44,6 +45,7 @@ type ResolvedMatch = {
   ref: string;
   nodes: SnapshotState['nodes'];
   actionFlags: Record<string, unknown>;
+  recordFlags: Record<string, unknown>;
 };
 
 type FindMatchResult =
@@ -159,7 +161,8 @@ export async function handleFindCommands(params: {
   const resolvedNode = requiresRect ? resolveInteractiveMatchNode(nodes, node) : node;
   const ref = `@${resolvedNode.ref}`;
   const actionFlags = { ...(req.flags ?? {}), noRecord: true };
-  const match: ResolvedMatch = { node, resolvedNode, ref, nodes, actionFlags };
+  const recordFlags = { ...(stripInternalInteractionOutcomeFlags(req.flags) ?? {}) };
+  const match: ResolvedMatch = { node, resolvedNode, ref, nodes, actionFlags, recordFlags };
 
   const actionHandlers: Record<string, () => Promise<DaemonResponse | null>> = {
     exists: () => handleFindExists(ctx),
@@ -318,7 +321,7 @@ async function handleFindWait(
         sessionStore.recordAction(session, {
           command,
           positionals: req.positionals ?? [],
-          flags: req.flags ?? {},
+          flags: publicFindFlags(req.flags),
           result: { found: true, waitedMs: Date.now() - start },
         });
       }
@@ -335,7 +338,7 @@ async function handleFindExists(ctx: FindContext): Promise<DaemonResponse> {
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
-      flags: req.flags ?? {},
+      flags: publicFindFlags(req.flags),
       result: { found: true },
     });
   }
@@ -358,7 +361,7 @@ async function handleFindGetText(ctx: FindContext, match: ResolvedMatch): Promis
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
-      flags: req.flags ?? {},
+      flags: publicFindFlags(req.flags),
       result: { ref: match.ref, action: 'get text', text },
     });
   }
@@ -371,7 +374,7 @@ async function handleFindGetAttrs(ctx: FindContext, match: ResolvedMatch): Promi
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
-      flags: req.flags ?? {},
+      flags: publicFindFlags(req.flags),
       result: { ref: match.ref, action: 'get attrs' },
     });
   }
@@ -402,7 +405,7 @@ async function handleFindClick(ctx: FindContext, match: ResolvedMatch): Promise<
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
-      flags: req.flags ?? {},
+      flags: match.recordFlags,
       result: { ref: match.ref, action: 'click', locator, query },
     });
   }
@@ -430,7 +433,7 @@ async function handleFindFill(
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
-      flags: req.flags ?? {},
+      flags: match.recordFlags,
       result: { ref: match.ref, action: 'fill' },
     });
   }
@@ -489,13 +492,17 @@ function recordFindAction(ctx: FindContext, match: ResolvedMatch, action: string
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
-      flags: req.flags ?? {},
+      flags: match.recordFlags,
       result: { ref: match.ref, action },
     });
   }
 }
 
 // --- Helpers ---
+
+function publicFindFlags(flags: DaemonRequest['flags']): Record<string, unknown> {
+  return { ...(stripInternalInteractionOutcomeFlags(flags) ?? {}) };
+}
 
 function buildAmbiguousMatchError(
   matches: SnapshotState['nodes'],

@@ -720,6 +720,87 @@ test('Android ref refresh mode does not retry narrow snapshots as sharp drops', 
   expect(session.androidSnapshotFreshness).toBeUndefined();
 });
 
+test('captureSnapshot lazily retries pending no-change touch before returning fresh state', async () => {
+  const sessionName = 'ios-lazy-outcome-retry';
+  const session = makeSession(sessionName, iosSimulatorDevice);
+  const baselineNodes = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'Button',
+      label: 'Open feed',
+      identifier: 'open-feed',
+      hittable: true,
+      rect: { x: 20, y: 120, width: 160, height: 48 },
+    },
+  ];
+  session.snapshot = {
+    nodes: baselineNodes,
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  session.pendingInteractionOutcome = {
+    action: 'click',
+    command: 'click',
+    positionals: ['100', '144'],
+    flags: { platform: 'ios' },
+    markedAt: Date.now(),
+    attemptsRemaining: 2,
+    preSignature: [
+      {
+        key: 'open-feed|Open feed||Button||enabled|unselected|hittable|#0',
+        x: 20,
+        y: 120,
+        width: 160,
+        height: 48,
+      },
+    ],
+  };
+
+  mockDispatch
+    .mockResolvedValueOnce({
+      nodes: baselineNodes,
+      backend: 'xctest',
+    })
+    .mockResolvedValueOnce({ clicked: true })
+    .mockResolvedValueOnce({
+      nodes: [
+        {
+          index: 0,
+          depth: 0,
+          type: 'Button',
+          label: 'Back',
+          identifier: 'back',
+          hittable: true,
+          rect: { x: 20, y: 60, width: 90, height: 44 },
+        },
+        {
+          index: 1,
+          depth: 0,
+          type: 'StaticText',
+          label: 'Feed',
+          rect: { x: 20, y: 140, width: 160, height: 48 },
+        },
+      ],
+      backend: 'xctest',
+    });
+
+  const result = await captureSnapshot({
+    device: iosSimulatorDevice,
+    session,
+    flags: { snapshotInteractiveOnly: true },
+    logPath: '/tmp/daemon.log',
+  });
+
+  expect(result.snapshot.nodes).toEqual(
+    expect.arrayContaining([expect.objectContaining({ label: 'Feed' })]),
+  );
+  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['snapshot', 'click', 'snapshot']);
+  expect(mockDispatch.mock.calls[1]?.[2]).toEqual(['100', '144']);
+  expect(session.pendingInteractionOutcome).toBeUndefined();
+});
+
 test('wait text on Android uses freshness-aware capture instead of one-shot snapshot polling', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-wait-freshness';

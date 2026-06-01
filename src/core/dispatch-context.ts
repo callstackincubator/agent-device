@@ -15,6 +15,9 @@ export type MaestroRuntimeFlags = {
 export type CommandFlags = Omit<CliFlags, DaemonExcludedCliFlag> & {
   batchSteps?: DaemonBatchStep[];
   clearAppState?: boolean;
+  interactionOutcome?: {
+    retryOnNoChange?: boolean;
+  };
   launchArgs?: string[];
   maestro?: MaestroRuntimeFlags;
   replayBackend?: string;

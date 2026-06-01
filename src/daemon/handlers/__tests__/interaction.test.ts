@@ -1163,6 +1163,49 @@ test('press @ref preserves native timing in recorded result and touch visualizat
   expect(stored?.recording?.gestureEvents[0]?.tMs).toBe(570);
 });
 
+test('press @ref stores resolved coordinate retry payload for lazy outcome retry', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'retry-ref';
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'XCUIElementTypeButton',
+        label: 'Continue',
+        identifier: 'auth_continue',
+        rect: { x: 10, y: 20, width: 100, height: 40 },
+        enabled: true,
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
+  sessionStore.set(sessionName, session);
+  mockDispatch.mockResolvedValue({});
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['@e1'],
+      flags: { interactionOutcome: { retryOnNoChange: true } },
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  const stored = sessionStore.get(sessionName);
+  expect(stored?.pendingInteractionOutcome?.command).toBe('press');
+  expect(stored?.pendingInteractionOutcome?.positionals).toEqual(['60', '40']);
+  expect(stored?.actions[0]?.positionals).toEqual(['@e1']);
+  expect(stored?.actions[0]?.flags).toEqual({});
+});
+
 test('longpress @ref resolves the target and dispatches coordinate longpress', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'longpress-ref';

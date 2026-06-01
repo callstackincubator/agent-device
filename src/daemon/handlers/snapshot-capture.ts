@@ -28,6 +28,13 @@ import {
   type AndroidFreshnessCaptureMeta,
 } from '../android-snapshot-freshness.ts';
 import { contextFromFlags } from '../context.ts';
+import {
+  clearPendingInteractionOutcome,
+  emitInteractionSettled,
+  emitInteractionSettleTimeout,
+  getActivePendingInteractionOutcome,
+  retryPendingInteractionOutcome,
+} from '../interaction-outcome-policy.ts';
 import { capturePostGestureStabilizedSnapshot } from '../post-gesture-stabilization.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
@@ -71,6 +78,13 @@ export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
       }),
     };
   }
+  const pendingInteractionOutcome = getActivePendingInteractionOutcome(params.session);
+  if (pendingInteractionOutcome && params.session) {
+    return await captureInteractionOutcomeAwareSnapshot(
+      { ...params, session: params.session },
+      pendingInteractionOutcome,
+    );
+  }
   const freshness = getActiveAndroidSnapshotFreshness(params.session);
   if (freshness && params.device.platform === 'android') {
     return await captureAndroidFreshnessAwareSnapshot(params, freshness);
@@ -81,6 +95,59 @@ export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
     snapshot: buildSnapshotState(data, resolveSnapshotStateFlags(params)),
     analysis: data.analysis,
     androidSnapshot: data.androidSnapshot,
+  };
+}
+
+async function captureInteractionOutcomeAwareSnapshot(
+  params: CaptureSnapshotParams & { session: SessionState },
+  pending: NonNullable<SessionState['pendingInteractionOutcome']>,
+): Promise<{
+  snapshot: SnapshotState;
+  analysis?: AndroidSnapshotAnalysis;
+  androidSnapshot?: AndroidSnapshotBackendMetadata;
+}> {
+  const session = params.session;
+
+  const startedAt = Date.now();
+  let retryAttempts = 0;
+  let latest = await captureSnapshotAttempt(params);
+  let outcome = await retryPendingInteractionOutcome({
+    session,
+    pending,
+    requestFlags: params.flags,
+    logPath: params.logPath,
+    snapshot: latest.snapshot,
+  });
+
+  while (outcome.retried) {
+    retryAttempts += 1;
+    latest = await captureSnapshotAttempt(params);
+    outcome = await retryPendingInteractionOutcome({
+      session,
+      pending,
+      requestFlags: params.flags,
+      logPath: params.logPath,
+      snapshot: latest.snapshot,
+    });
+  }
+
+  clearPendingInteractionOutcome(session);
+  clearAndroidSnapshotFreshness(session);
+  if (outcome.change === 'unchanged') {
+    emitInteractionSettleTimeout({ pending, attempts: retryAttempts, startedAt });
+  } else {
+    emitInteractionSettled({
+      pending,
+      change: outcome.change,
+      attempts: retryAttempts,
+      startedAt,
+    });
+  }
+
+  return {
+    snapshot: latest.snapshot,
+    analysis: latest.data.analysis,
+    androidSnapshot: latest.data.androidSnapshot,
   };
 }
 

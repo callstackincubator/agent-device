@@ -1886,6 +1886,12 @@ test('runReplayScriptFile runs Maestro runFlow.when.visible commands when presen
       ['find', ['Continue', 'click']],
     ],
   );
+  assert.deepEqual(calls.find((call) => call.command === 'click')?.flags?.interactionOutcome, {
+    retryOnNoChange: true,
+  });
+  assert.deepEqual(calls.find((call) => call.command === 'find')?.flags?.interactionOutcome, {
+    retryOnNoChange: true,
+  });
 });
 
 test('runReplayScriptFile runs nested Maestro runtime commands inside runFlow.when', async () => {

@@ -1,11 +1,14 @@
 import { emitDiagnostic } from '../utils/diagnostics.ts';
-import type { SnapshotNode, SnapshotState } from '../utils/snapshot.ts';
+import type { SnapshotState } from '../utils/snapshot.ts';
 import { sleep } from '../utils/timeouts.ts';
+import {
+  areInteractionSurfaceSignaturesStable,
+  buildInteractionSurfaceSignature,
+} from './interaction-outcome-policy.ts';
 import type { SessionState } from './types.ts';
 
 const STABILIZATION_DEADLINE_MS = 1_500;
 const STABILIZATION_INTERVAL_MS = 200;
-const RECT_TOLERANCE_PX = 1;
 
 export function markPostGestureStabilization(session: SessionState, action: string): void {
   if (!supportsPostGestureStabilization(session.device.platform)) return;
@@ -34,14 +37,14 @@ export async function capturePostGestureStabilizedSnapshot(params: {
   const startedAt = Date.now();
   let attempts = 1;
   let previous = await capture();
-  let previousSignature = buildStabilitySignature(previous.nodes);
+  let previousSignature = buildInteractionSurfaceSignature(previous.nodes);
 
   while (Date.now() - startedAt < STABILIZATION_DEADLINE_MS) {
     await sleep(STABILIZATION_INTERVAL_MS);
     attempts += 1;
     const current = await capture();
-    const currentSignature = buildStabilitySignature(current.nodes);
-    if (areSignaturesStable(previousSignature, currentSignature)) {
+    const currentSignature = buildInteractionSurfaceSignature(current.nodes);
+    if (areInteractionSurfaceSignaturesStable(previousSignature, currentSignature)) {
       clearPostGestureStabilization(session);
       emitDiagnostic({
         level: attempts > 2 ? 'info' : 'debug',
@@ -77,63 +80,4 @@ function isPostGestureStabilizingAction(action: string): boolean {
 
 function supportsPostGestureStabilization(platform: SessionState['device']['platform']): boolean {
   return platform === 'ios' || platform === 'android';
-}
-
-type StabilityEntry = {
-  key: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-function buildStabilitySignature(nodes: SnapshotNode[]): StabilityEntry[] {
-  const occurrenceCounts = new Map<string, number>();
-  const entries: StabilityEntry[] = [];
-
-  for (const node of nodes) {
-    if (!node.rect) continue;
-    if (!isFiniteRect(node.rect)) continue;
-    if (isScrollIndicator(node)) continue;
-    const semanticKey = [node.identifier, node.label, node.value, node.type]
-      .map((value) => (typeof value === 'string' ? value.trim() : ''))
-      .join('|');
-    if (!semanticKey.replaceAll('|', '')) continue;
-    const occurrence = occurrenceCounts.get(semanticKey) ?? 0;
-    occurrenceCounts.set(semanticKey, occurrence + 1);
-    entries.push({
-      key: `${semanticKey}|#${occurrence}`,
-      x: node.rect.x,
-      y: node.rect.y,
-      width: node.rect.width,
-      height: node.rect.height,
-    });
-  }
-
-  return entries;
-}
-
-// fallow-ignore-next-line complexity
-function areSignaturesStable(left: StabilityEntry[], right: StabilityEntry[]): boolean {
-  if (left.length !== right.length) return false;
-  for (let index = 0; index < left.length; index += 1) {
-    const a = left[index];
-    const b = right[index];
-    if (!a || !b || a.key !== b.key) return false;
-    if (Math.abs(a.x - b.x) > RECT_TOLERANCE_PX) return false;
-    if (Math.abs(a.y - b.y) > RECT_TOLERANCE_PX) return false;
-    if (Math.abs(a.width - b.width) > RECT_TOLERANCE_PX) return false;
-    if (Math.abs(a.height - b.height) > RECT_TOLERANCE_PX) return false;
-  }
-  return true;
-}
-
-function isFiniteRect(rect: NonNullable<SnapshotNode['rect']>): boolean {
-  const values = [rect.x, rect.y, rect.width, rect.height];
-  return values.every((value) => Number.isFinite(value)) && rect.width > 0 && rect.height > 0;
-}
-
-function isScrollIndicator(node: SnapshotNode): boolean {
-  const label = `${node.label ?? ''} ${node.identifier ?? ''}`.toLowerCase();
-  return label.includes('scroll bar');
 }

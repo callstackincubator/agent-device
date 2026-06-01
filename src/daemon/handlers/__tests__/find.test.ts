@@ -36,10 +36,12 @@ async function runFindClickScenario(options: {
 }): Promise<{
   response: NonNullable<Awaited<ReturnType<typeof handleFindCommands>>>;
   invokeCalls: DaemonRequest[];
+  session: SessionState;
 }> {
   const sessionStore = makeSessionStore();
   const sessionName = 'default';
-  sessionStore.set(sessionName, options.session ?? makeSession(sessionName));
+  const session = options.session ?? makeSession(sessionName);
+  sessionStore.set(sessionName, session);
 
   if (options.nodes !== undefined) {
     mockDispatch.mockImplementation(async (_device, command) => {
@@ -70,7 +72,7 @@ async function runFindClickScenario(options: {
   });
 
   expect(response).toBeTruthy();
-  return { response: response!, invokeCalls };
+  return { response: response!, invokeCalls, session };
 }
 
 test('handleFindCommands click returns deterministic metadata across locator variants', async () => {
@@ -211,6 +213,36 @@ test('handleFindCommands click prefers semantic controls over matching container
 
   expect(response.ok).toBe(true);
   expect(invokeCalls[0]!.positionals?.[0]).toBe('@e5');
+});
+
+test('handleFindCommands forwards internal interaction outcome flags only to delegated click', async () => {
+  const { response, invokeCalls, session } = await runFindClickScenario({
+    positionals: ['Continue', 'click'],
+    flags: {
+      findFirst: true,
+      interactionOutcome: { retryOnNoChange: true },
+    },
+    nodes: [
+      {
+        index: 0,
+        ref: 'e1',
+        type: 'Application',
+        rect: { x: 0, y: 0, width: 440, height: 956 },
+      },
+      {
+        index: 1,
+        ref: 'e2',
+        type: 'Button',
+        label: 'Continue',
+        rect: { x: 40, y: 870, width: 360, height: 44 },
+        parentIndex: 0,
+      },
+    ],
+  });
+
+  expect(response.ok).toBe(true);
+  expect(invokeCalls[0]!.flags?.interactionOutcome).toEqual({ retryOnNoChange: true });
+  expect(session.actions.at(-1)?.flags).toEqual({});
 });
 
 test('handleFindCommands wait bypasses snapshot cache while Android freshness recovery is active', async () => {

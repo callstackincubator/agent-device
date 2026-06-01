@@ -342,6 +342,7 @@ async function dispatchDirectIosSelectorInteraction(params: {
       sessionStore: handlerParams.sessionStore,
       command: handlerParams.req.command,
       positionals: handlerParams.req.positionals ?? [],
+      retryPositionals: pointPositionals(point),
       flags: handlerParams.req.flags,
       result: responseData,
       responseData,
@@ -555,6 +556,7 @@ async function dispatchRuntimeInteraction<
       sessionStore: params.sessionStore,
       command: params.req.command,
       positionals: params.req.positionals ?? [],
+      retryPositionals: retryPositionalsForRuntimeResult(params.req.command, runtimeResult),
       flags: params.req.flags,
       result,
       responseData,
@@ -601,4 +603,18 @@ async function refreshAndroidRefSnapshotIfFreshnessActive(
 
 function appErrorResponse(error: unknown): DaemonResponse {
   return { ok: false, error: normalizeError(error) };
+}
+
+function retryPositionalsForRuntimeResult(
+  command: string,
+  result: PressCommandResult | FillCommandResult | LongPressCommandResult,
+): string[] | undefined {
+  if (command === 'click' || command === 'press') {
+    return pointPositionals(result.point);
+  }
+  return undefined;
+}
+
+function pointPositionals(point: { x: number; y: number }): string[] {
+  return [String(point.x), String(point.y)];
 }

@@ -142,6 +142,22 @@ export type PostGestureStabilization = {
   markedAt: number;
 };
 
+export type PendingInteractionOutcome = {
+  action: string;
+  command: string;
+  positionals: string[];
+  flags?: CommandFlags;
+  markedAt: number;
+  attemptsRemaining: number;
+  preSignature: Array<{
+    key: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>;
+};
+
 type SessionRecordingBase = {
   outPath: string;
   clientOutPath?: string;
@@ -182,6 +198,7 @@ export type SessionState = {
   snapshotScopeSource?: SnapshotState;
   androidSnapshotFreshness?: AndroidSnapshotFreshness;
   postGestureStabilization?: PostGestureStabilization;
+  pendingInteractionOutcome?: PendingInteractionOutcome;
   trace?: {
     outPath: string;
     startedAt: number;

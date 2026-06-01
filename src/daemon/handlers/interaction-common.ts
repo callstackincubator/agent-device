@@ -9,6 +9,10 @@ import {
   isNavigationSensitiveAction,
   markAndroidSnapshotFreshness,
 } from '../android-snapshot-freshness.ts';
+import {
+  markPendingInteractionOutcome,
+  stripInternalInteractionOutcomeFlags,
+} from '../interaction-outcome-policy.ts';
 
 export type ContextFromFlags = (
   flags: CommandFlags | undefined,
@@ -73,6 +77,7 @@ export function finalizeTouchInteraction(params: {
   sessionStore: SessionStore;
   command: string;
   positionals: string[];
+  retryPositionals?: string[];
   flags: CommandFlags | undefined;
   result: Record<string, unknown>;
   responseData: Record<string, unknown>;
@@ -85,6 +90,7 @@ export function finalizeTouchInteraction(params: {
     sessionStore,
     command,
     positionals,
+    retryPositionals,
     flags,
     result,
     responseData,
@@ -92,11 +98,19 @@ export function finalizeTouchInteraction(params: {
     actionFinishedAt,
     androidFreshnessBaseline,
   } = params;
+  const actionFlags = stripInternalInteractionOutcomeFlags(flags);
   sessionStore.recordAction(session, {
     command,
     positionals,
-    flags: flags ?? {},
+    flags: actionFlags ?? {},
     result,
+  });
+  markPendingInteractionOutcome({
+    session,
+    command,
+    positionals: retryPositionals ?? positionals,
+    flags,
+    preSnapshot: session.snapshot,
   });
   if (isNavigationSensitiveAction(command)) {
     markAndroidSnapshotFreshness(session, command, androidFreshnessBaseline ?? session.snapshot);
@@ -106,7 +120,7 @@ export function finalizeTouchInteraction(params: {
     command,
     positionals,
     result,
-    (flags ?? {}) as Record<string, unknown>,
+    (actionFlags ?? {}) as Record<string, unknown>,
     actionStartedAt,
     actionFinishedAt,
   );
