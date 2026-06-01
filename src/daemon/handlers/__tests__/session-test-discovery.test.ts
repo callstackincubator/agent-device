@@ -57,7 +57,10 @@ test('discoverReplayTestEntries rejects empty post-filter suites', () => {
 
 test('discoverReplayTestEntries includes Maestro yaml flows for Maestro test suites', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-discovery-maestro-'));
-  fs.writeFileSync(path.join(root, '01-flow.yaml'), 'appId: demo\n---\n- launchApp\n');
+  fs.writeFileSync(
+    path.join(root, '01-flow.yaml'),
+    'appId: demo\nname: Bottom Tabs - Dynamic\n---\n- launchApp\n',
+  );
   fs.writeFileSync(path.join(root, '02-flow.yml'), 'appId: demo\n---\n- launchApp\n');
   fs.writeFileSync(path.join(root, '03-flow.ad'), 'open "Demo"\n');
 
@@ -76,4 +79,8 @@ test('discoverReplayTestEntries includes Maestro yaml flows for Maestro test sui
     entries.map((entry) => entry.kind),
     ['run', 'run', 'run'],
   );
+  assert.equal(entries[0]?.kind, 'run');
+  if (entries[0]?.kind === 'run') {
+    assert.equal(entries[0].title, 'Bottom Tabs - Dynamic');
+  }
 });

@@ -1442,6 +1442,7 @@ test('command usage describes test suite flags', () => {
   assert.match(help, /--timeout <ms>/);
   assert.match(help, /--retries <n>/);
   assert.match(help, /--artifacts-dir <path>/);
+  assert.match(help, /test --verbose prints per-test step timings without debug logs/);
 });
 
 test('command usage describes delayed typing flags', () => {

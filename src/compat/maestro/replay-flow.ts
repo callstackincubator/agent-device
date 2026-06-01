@@ -21,6 +21,12 @@ export function parseMaestroReplayFlow(
   return parseMaestroReplayFlowInternal(script, createParseContext(options));
 }
 
+export function readMaestroFlowName(script: string): string | undefined {
+  const values = parseYamlDocuments(script);
+  const { config } = splitMaestroDocuments(values);
+  return config.name;
+}
+
 function parseMaestroReplayFlowInternal(
   script: string,
   context: MaestroParseContext,
@@ -259,6 +265,7 @@ function normalizeConfig(value: unknown): MaestroFlowConfig {
     throw new AppError('INVALID_ARGS', 'Maestro flow config must be a YAML map.');
   }
   return {
+    ...(typeof value.name === 'string' && value.name.length > 0 ? { name: value.name } : {}),
     ...(typeof value.appId === 'string' && value.appId.length > 0 ? { appId: value.appId } : {}),
     ...(isPlainRecord(value.env) ? { env: readEnvMap(value.env, 'env') } : {}),
     ...(Array.isArray(value.onFlowStart)

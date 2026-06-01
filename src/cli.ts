@@ -1,4 +1,4 @@
-import { usage, usageForCommand } from './utils/args.ts';
+import { parseRawArgs, usage, usageForCommand } from './utils/args.ts';
 import { asAppError, AppError, normalizeError } from './utils/errors.ts';
 import { printHumanError, printJson } from './utils/output.ts';
 import { readVersion } from './utils/version.ts';
@@ -68,8 +68,7 @@ const REMOTE_MATERIALIZATION_DEFERRED_COMMANDS = new Set([
 export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): Promise<void> {
   const requestId = createRequestId();
   const version = readVersion();
-  const debugEnabled =
-    argv.includes('--debug') || argv.includes('--verbose') || argv.includes('-v');
+  const debugEnabled = isDebugRequested(argv);
   const jsonRequested = argv.includes('--json');
   // Best-effort session guess used only for pre-parse diagnostics scope.
   // After parse succeeds, request dispatch uses parsed flags/session resolution.
@@ -144,6 +143,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       }
 
       const { command, positionals } = parsed;
+      const debugOutputEnabled = isParsedDebugRequested(command, parsed.providedFlags);
       let binding: ReturnType<typeof resolveBindingSettings>;
       let flags: typeof parsed.flags;
       let daemonPaths: ReturnType<typeof resolveDaemonPaths>;
@@ -186,7 +186,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         if (parsed.flags.json) {
           printJson({ success: false, error: normalized });
         } else {
-          printHumanError(normalized, { showDetails: parsed.flags.verbose });
+          printHumanError(normalized, { showDetails: debugOutputEnabled });
         }
         process.exit(1);
         return;
@@ -231,7 +231,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           lockPolicy: binding.lockPolicy,
           lockPlatform: binding.defaultPlatform,
           cwd: process.cwd(),
-          debug: Boolean(currentFlags.verbose),
+          debug: debugOutputEnabled,
         });
         let parsedBatchSteps: BatchStep[] | undefined;
         if (command === 'batch') {
@@ -284,7 +284,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         }
         const remoteDaemonBaseUrl = effectiveFlags.daemonBaseUrl;
         logTailStopper =
-          effectiveFlags.verbose && !effectiveFlags.json && !remoteDaemonBaseUrl
+          debugOutputEnabled && !effectiveFlags.json && !remoteDaemonBaseUrl
             ? startDaemonLogTail(daemonPaths.logPath)
             : null;
         const client = createAgentDeviceClient(buildClientConfig(effectiveFlags, resolvedRuntime), {
@@ -350,8 +350,8 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
             error: normalized,
           });
         } else {
-          printHumanError(normalized, { showDetails: effectiveFlags.verbose });
-          if (effectiveFlags.verbose) {
+          printHumanError(normalized, { showDetails: debugOutputEnabled });
+          if (debugOutputEnabled) {
             try {
               const logPath = daemonPaths.logPath;
               if (fs.existsSync(logPath)) {
@@ -371,6 +371,26 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
         if (logTailStopper) logTailStopper();
       }
     },
+  );
+}
+
+function isDebugRequested(argv: string[]): boolean {
+  try {
+    const parsed = parseRawArgs(argv);
+    return isParsedDebugRequested(parsed.command ?? '', parsed.providedFlags);
+  } catch {
+    return argv.includes('--debug') || argv.includes('-v') || argv.includes('--verbose');
+  }
+}
+
+function isParsedDebugRequested(
+  command: string,
+  providedFlags: Array<{ key: FlagKey; token: string }>,
+): boolean {
+  return providedFlags.some(
+    (entry) =>
+      entry.key === 'verbose' &&
+      (entry.token === '--debug' || entry.token === '-v' || command !== 'test'),
   );
 }
 

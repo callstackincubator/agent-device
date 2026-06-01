@@ -38,17 +38,21 @@ export type ReplaySuiteTestSkipReason = 'skipped-by-filter';
 
 export type ReplaySuiteTestPassed = {
   file: string;
+  title?: string;
   session: string;
   status: 'passed';
   durationMs: number;
+  finalAttemptDurationMs?: number;
   attempts: number;
   artifactsDir?: string;
   replayed: number;
   healed: number;
+  attemptFailures?: ReplaySuiteAttemptFailure[];
 };
 
 export type ReplaySuiteTestFailed = {
   file: string;
+  title?: string;
   session: string;
   status: 'failed';
   durationMs: number;
@@ -66,10 +70,17 @@ export type ReplaySuiteTestFailed = {
 
 export type ReplaySuiteTestSkipped = {
   file: string;
+  title?: string;
   status: 'skipped';
   durationMs: 0;
   reason: ReplaySuiteTestSkipReason;
   message: string;
+};
+
+export type ReplaySuiteAttemptFailure = {
+  attempt: number;
+  message: string;
+  durationMs?: number;
 };
 
 export type ReplaySuiteTestResult =

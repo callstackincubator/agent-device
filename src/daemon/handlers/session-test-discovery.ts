@@ -5,6 +5,7 @@ import type { PlatformSelector } from '../../utils/device.ts';
 import { resolveRequestTrackingId } from '../request-cancel.ts';
 import { SessionStore } from '../session-store.ts';
 import { readReplayScriptMetadata, type ReplayScriptMetadata } from '../../replay/script.ts';
+import { readMaestroFlowName } from '../../compat/maestro/replay-flow.ts';
 
 const GLOB_PATTERN_CHARS = /[*?[\]{}]/;
 
@@ -14,6 +15,7 @@ export type ReplayTestDiscoveryEntry =
   | {
       kind: 'run';
       path: string;
+      title?: string;
       metadata: ReplayScriptMetadata;
     }
   | {
@@ -42,13 +44,14 @@ export function discoverReplayTestEntries(params: {
   for (const filePath of filePaths) {
     const script = fs.readFileSync(filePath, 'utf8');
     const metadata = readReplayScriptMetadata(script);
+    const title = readReplayTestTitle(script, filePath, replayBackend);
     if (!platformFilter) {
-      entries.push({ kind: 'run', path: filePath, metadata });
+      entries.push({ kind: 'run', path: filePath, title, metadata });
       continue;
     }
     if (!metadata.platform) {
       if (isMaestroReplayBackend(replayBackend)) {
-        entries.push({ kind: 'run', path: filePath, metadata });
+        entries.push({ kind: 'run', path: filePath, title, metadata });
       } else {
         entries.push({
           kind: 'skip',
@@ -62,7 +65,7 @@ export function discoverReplayTestEntries(params: {
     if (!matchesPlatformFilter(platformFilter, metadata.platform)) {
       continue;
     }
-    entries.push({ kind: 'run', path: filePath, metadata });
+    entries.push({ kind: 'run', path: filePath, title, metadata });
   }
 
   const runnableCount = entries.filter((entry) => entry.kind === 'run').length;
@@ -175,6 +178,16 @@ function replayTestGlobPatterns(extensions: Set<string>): string[] {
 
 function isMaestroReplayBackend(replayBackend: string | undefined): boolean {
   return replayBackend === 'maestro';
+}
+
+function readReplayTestTitle(
+  script: string,
+  filePath: string,
+  replayBackend: string | undefined,
+): string | undefined {
+  return isMaestroReplayBackend(replayBackend) && path.extname(filePath) !== '.ad'
+    ? readMaestroFlowName(script)
+    : undefined;
 }
 
 function looksLikeGlob(value: string): boolean {
