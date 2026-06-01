@@ -12,6 +12,8 @@ export type CommandCapability = {
   android?: KindMatrix;
   linux?: KindMatrix;
   supports?: (device: DeviceInfo) => boolean;
+  /** Optional actionable hint surfaced when this command is rejected at admission for `device`. */
+  unsupportedHint?: (device: DeviceInfo) => string | undefined;
 };
 
 const isNotMacOs = (device: DeviceInfo): boolean => device.platform !== 'macos';
@@ -19,6 +21,19 @@ const isMacOsOrAppleSimulator = (device: DeviceInfo): boolean =>
   device.platform === 'macos' || device.kind === 'simulator';
 const isIosMobileSimulator = (device: DeviceInfo): boolean =>
   device.platform === 'ios' && device.kind === 'simulator' && device.target !== 'tv';
+
+// Two-finger gesture synthesis (RunnerSynthesizedGesture) is iOS-simulator-only (plus Android).
+// When such a gesture is rejected at admission, explain where it IS available so an agent can
+// redirect instead of getting a bare "not supported on this device".
+const synthesisGestureUnsupportedHint = (device: DeviceInfo): string | undefined => {
+  if (device.platform === 'macos')
+    return 'macOS automation has no multi-touch input — this gesture is supported on Android and the iOS simulator only.';
+  if (device.platform === 'ios' && device.target === 'tv')
+    return 'tvOS has no touch input — this gesture is supported on Android and the iOS simulator only.';
+  if (device.platform === 'ios' && device.kind === 'device')
+    return 'Two-finger gesture synthesis is iOS-simulator only — not available on physical iOS devices.';
+  return undefined;
+};
 
 // Linux desktop supports these commands via xdotool/ydotool + AT-SPI2.
 // Linux device kind is always 'device' (local desktop).
@@ -61,18 +76,21 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     // it is excluded and fails fast at admission rather than round-tripping to an unsupported
     // runner. Matches rotate-gesture / transform-gesture.
     supports: (device) => device.platform === 'android' || isIosMobileSimulator(device),
+    unsupportedHint: synthesisGestureUnsupportedHint,
   },
   'rotate-gesture': {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,
     supports: (device) => device.platform === 'android' || isIosMobileSimulator(device),
+    unsupportedHint: synthesisGestureUnsupportedHint,
   },
   'transform-gesture': {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,
     supports: (device) => device.platform === 'android' || isIosMobileSimulator(device),
+    unsupportedHint: synthesisGestureUnsupportedHint,
   },
   'app-switcher': {
     apple: { simulator: true, device: true },
@@ -238,6 +256,10 @@ export function isCommandSupportedOnDevice(command: string, device: DeviceInfo):
   if (capability.supports && !capability.supports(device)) return false;
   const kind = (device.kind ?? 'unknown') as keyof KindMatrix;
   return byPlatform[kind] === true;
+}
+
+export function unsupportedHintForDevice(command: string, device: DeviceInfo): string | undefined {
+  return COMMAND_CAPABILITY_MATRIX[command]?.unsupportedHint?.(device);
 }
 
 export function listCapabilityCommands(): string[] {

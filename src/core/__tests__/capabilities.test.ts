@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { isCommandSupportedOnDevice } from '../capabilities.ts';
+import { isCommandSupportedOnDevice, unsupportedHintForDevice } from '../capabilities.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 
 const iosSimulator: DeviceInfo = {
@@ -359,4 +359,34 @@ test('unknown commands default to supported', () => {
   assert.equal(isCommandSupportedOnDevice('some-future-cmd', iosSimulator), true);
   assert.equal(isCommandSupportedOnDevice('some-future-cmd', androidDevice), true);
   assert.equal(isCommandSupportedOnDevice('some-future-cmd', linuxDevice), true);
+});
+
+test('synthesis gestures carry an actionable unsupported hint at admission', () => {
+  // macOS / tvOS / physical iOS are rejected at admission; the hint redirects to where the
+  // two-finger synthesis path actually works, so callers do not just see a bare "not supported".
+  for (const command of ['pinch', 'rotate-gesture', 'transform-gesture']) {
+    assert.match(
+      unsupportedHintForDevice(command, macOsDevice) ?? '',
+      /multi-touch/i,
+      `${command} macOS hint`,
+    );
+    assert.match(
+      unsupportedHintForDevice(command, tvOsSimulator) ?? '',
+      /touch/i,
+      `${command} tvOS hint`,
+    );
+    assert.match(
+      unsupportedHintForDevice(command, iosDevice) ?? '',
+      /simulator/i,
+      `${command} iOS device hint`,
+    );
+    // Where the gesture IS supported there is nothing to hint.
+    assert.equal(
+      unsupportedHintForDevice(command, iosSimulator),
+      undefined,
+      `${command} iOS sim (supported) hint`,
+    );
+  }
+  // Commands without a hint hook return undefined (admission keeps its generic message).
+  assert.equal(unsupportedHintForDevice('tap', macOsDevice), undefined);
 });

@@ -1,6 +1,6 @@
 import { dispatchCommand, type CommandFlags } from '../core/dispatch.ts';
 import { DAEMON_COMMAND_GROUPS, GESTURE_SUBCOMMAND_ERROR } from '../command-catalog.ts';
-import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
+import { isCommandSupportedOnDevice, unsupportedHintForDevice } from '../core/capabilities.ts';
 import { SessionStore } from './session-store.ts';
 import type { DaemonCommandContext } from './context.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from './types.ts';
@@ -154,11 +154,13 @@ async function ensureGenericCommandReady(
   platformCommand: string,
 ): Promise<DaemonResponse | null> {
   if (!isCommandSupportedOnDevice(platformCommand, session.device)) {
+    const hint = unsupportedHintForDevice(platformCommand, session.device);
     return {
       ok: false,
       error: {
         code: 'UNSUPPORTED_OPERATION',
         message: `${platformCommand} is not supported on this device`,
+        ...(hint ? { hint } : {}),
       },
     };
   }
