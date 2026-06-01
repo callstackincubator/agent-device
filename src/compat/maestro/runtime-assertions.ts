@@ -373,12 +373,12 @@ function normalizeLoadingText(value: string | null | undefined): string {
     value
       ?.trim()
       .toLowerCase()
-      .replace(/\.\.\./g, '...') ?? ''
+      .replace(/\u2026/g, '...') ?? ''
   );
 }
 
 function isLoadingText(value: string): boolean {
-  return value === 'loading' || value === 'loading...' || value === 'loading…';
+  return value === 'loading' || value === 'loading...';
 }
 
 function visibleAssertionResponse(
