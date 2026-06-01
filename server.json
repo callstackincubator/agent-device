@@ -7,12 +7,12 @@
     "url": "https://github.com/callstackincubator/agent-device",
     "source": "github"
   },
-  "version": "0.16.7",
+  "version": "0.16.8",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "agent-device",
-      "version": "0.16.7",
+      "version": "0.16.8",
       "transport": {
         "type": "stdio"
       }
