@@ -141,16 +141,19 @@ test('test emits progress when attempts retry and pass', async () => {
   expect(events.map((event) => event.status)).toEqual(['fail', 'pass']);
   expect(events[0]).toMatchObject({
     type: 'replay-test',
+    title: undefined,
     status: 'fail',
     index: 1,
     total: 1,
     attempt: 1,
     maxAttempts: 2,
+    durationMs: expect.any(Number),
     retrying: true,
     message: 'Replay failed at step 1 (open "Demo"): first attempt failed',
   });
   expect(events[1]).toMatchObject({
     type: 'replay-test',
+    title: undefined,
     status: 'pass',
     index: 1,
     total: 1,

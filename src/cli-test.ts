@@ -37,8 +37,8 @@ function renderReplayTestSummary(
       renderVerboseTestResult(entry);
     }
   } else {
-    for (const entry of data.failures) {
-      renderFailedTestResult(entry);
+    for (const entry of data.tests) {
+      renderDefaultTestResult(entry);
     }
   }
 
@@ -50,6 +50,18 @@ function renderReplayTestSummary(
   );
   renderFlakyTestSummary(flaky);
   return getReplayTestExitCode(data);
+}
+
+function renderDefaultTestResult(result: ReplaySuiteTestResult): void {
+  if (result.status === 'failed') {
+    renderFailedTestResult(result);
+    return;
+  }
+  if (result.status !== 'passed') return;
+
+  process.stdout.write(
+    `PASS ${replayTestDisplayName(result)}${formatReplayTestDurationSuffix(result)}\n`,
+  );
 }
 
 function renderVerboseTestResult(result: ReplaySuiteTestResult): void {
@@ -139,7 +151,7 @@ function replayTestStepLines(result: ReplaySuiteTestResult): string[] {
   if (stops.length === 0) return [];
 
   return [
-    `steps (attempt ${result.attempts}):`,
+    result.attempts > 1 ? `steps (attempt ${result.attempts}):` : 'steps:',
     ...stops.map((stop) => renderReplayStepTrace(stop, starts.get(stop.step))),
   ];
 }
@@ -211,8 +223,8 @@ function renderReplayStepTrace(
   start: ReplayActionStartTrace | undefined,
 ): string {
   const failed = stop.ok === false;
-  const status = failed ? '[FAIL]' : stop.ok === true ? '[ok]' : '[info]';
-  return `  ${status} ${formatReplayStepCommand(start, stop)}${formatReplayStepDetails(stop, start)}`;
+  const status = failed ? '[FAIL] ' : stop.ok === true ? '' : '[info] ';
+  return `  ${status}${formatReplayStepCommand(start, stop)}${formatReplayStepDetails(stop, start)}`;
 }
 
 function formatReplayStepDetails(

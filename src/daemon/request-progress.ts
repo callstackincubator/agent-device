@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 export type ReplayTestProgressEvent = {
   type: 'replay-test';
   file: string;
+  title?: string;
   status: 'pass' | 'fail' | 'skip';
   index: number;
   total: number;
