@@ -1,3 +1,11 @@
+# This file exists so examples/test-app is treated as its own pnpm workspace
+# root. pnpm only honors `overrides` from a workspace root, and because this
+# app is nested under the repo-root pnpm-workspace.yaml (without being a member)
+# its overrides were silently ignored when declared in package.json, letting the
+# lockfile drift back to vulnerable transitive versions (see PR #649). Keeping
+# them here ensures they actually apply. These pin transitive deps to versions
+# that clear Dependabot security alerts; ws/brace-expansion are scoped to the
+# vulnerable major so the non-vulnerable ws@7 / brace-expansion@1 copies stay.
 overrides:
   '@xmldom/xmldom': 0.8.13
   postcss: 8.5.12
