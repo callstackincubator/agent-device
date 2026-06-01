@@ -208,11 +208,13 @@ async function runReplayTestCase(
     emitRequestProgress({
       type: 'replay-test',
       file: entry.path,
+      title: entry.title,
       status: 'fail',
       index: suiteIndex,
       total: suiteTotal,
       attempt: attempts,
       maxAttempts: retries + 1,
+      durationMs: finalAttemptDurationMs,
       retrying: true,
       message: response.error.message,
     });
@@ -223,6 +225,7 @@ async function runReplayTestCase(
     emitRequestProgress({
       type: 'replay-test',
       file: entry.path,
+      title: entry.title,
       status: 'pass',
       index: suiteIndex,
       total: suiteTotal,
@@ -255,6 +258,7 @@ async function runReplayTestCase(
   emitRequestProgress({
     type: 'replay-test',
     file: entry.path,
+    title: entry.title,
     status: 'fail',
     index: suiteIndex,
     total: suiteTotal,

@@ -397,6 +397,7 @@ test('sendToDaemon prints replay test progress before the socket response', asyn
               event: {
                 type: 'replay-test',
                 file: '/tmp/01-login.ad',
+                title: 'Login flow',
                 status: 'fail',
                 index: 1,
                 total: 2,
@@ -440,10 +441,8 @@ test('sendToDaemon prints replay test progress before the socket response', asyn
     });
 
     assert.deepEqual(response, { ok: true, data: { via: 'socket' } });
-    assert.match(
-      stderr,
-      /fail 1\/2 \/tmp\/01-login\.ad attempt=1\/2 retry=true duration=1\.23s first attempt failed/,
-    );
+    assert.match(stderr, /FAIL "Login flow" attempt 1\/2 retrying \(1\.23s\)/);
+    assert.match(stderr, /  first attempt failed/);
   } finally {
     (net as unknown as { createConnection: typeof net.createConnection }).createConnection =
       originalCreateConnection;
@@ -498,6 +497,7 @@ test('sendToDaemon prints replay test progress before the HTTP NDJSON response',
             event: {
               type: 'replay-test',
               file: '/tmp/02-payments.ad',
+              title: 'Payments flow',
               status: 'pass',
               index: 2,
               total: 3,
@@ -543,7 +543,7 @@ test('sendToDaemon prints replay test progress before the HTTP NDJSON response',
       assert.deepEqual(response, { ok: true, data: { via: 'http-progress' } });
     });
     assert.deepEqual(seenPaths, ['GET /agent-device/health', 'POST /agent-device/rpc']);
-    assert.match(stderr, /pass 2\/3 \/tmp\/02-payments\.ad attempt=1\/1 duration=2\.50s/);
+    assert.match(stderr, /PASS "Payments flow" \(2\.50s\)/);
   } finally {
     (http as unknown as { request: typeof http.request }).request = originalHttpRequest;
     process.stderr.write = originalStderrWrite;

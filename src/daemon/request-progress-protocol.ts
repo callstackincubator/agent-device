@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { DaemonRequest, DaemonResponse } from './types.ts';
 import type { RequestProgressEvent } from './request-progress.ts';
 
@@ -49,19 +50,51 @@ export function serializeDaemonRpcResponseEnvelope(response: unknown): string {
 
 export function formatRequestProgressEvent(event: RequestProgressEvent): string | undefined {
   if (event.type !== 'replay-test') return undefined;
-  const parts = [event.status, `${event.index}/${event.total}`, event.file];
-  if (event.attempt !== undefined && event.maxAttempts !== undefined) {
-    parts.push(`attempt=${event.attempt}/${event.maxAttempts}`);
-  }
-  if (event.retrying) parts.push('retry=true');
-  if (event.durationMs !== undefined)
-    parts.push(`duration=${formatDurationSeconds(event.durationMs)}`);
-  if (event.artifactsDir && event.status === 'fail') parts.push(`artifacts=${event.artifactsDir}`);
+  const name = formatReplayTestProgressName(event);
+  const durationSuffix =
+    event.durationMs !== undefined ? ` (${formatReplayProgressDuration(event)})` : '';
+  const attemptSuffix = formatReplayProgressAttemptSuffix(event);
   const message = event.message?.replace(/\s+/g, ' ').trim();
-  if (message) parts.push(message);
-  return parts.join(' ');
+
+  if (event.status === 'pass') {
+    return `PASS ${name}${attemptSuffix}${durationSuffix}`;
+  }
+  if (event.status === 'skip') {
+    return [`SKIP ${name}`, message ? `  ${message}` : ''].filter(Boolean).join('\n');
+  }
+
+  return [
+    `FAIL ${name}${attemptSuffix}${durationSuffix}`,
+    message ? `  ${message}` : '',
+    event.artifactsDir ? `  artifacts: ${event.artifactsDir}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+function formatReplayTestProgressName(event: RequestProgressEvent): string {
+  const title = event.title?.trim();
+  if (title) return JSON.stringify(title);
+  return path.basename(event.file);
+}
+
+function formatReplayProgressAttemptSuffix(event: RequestProgressEvent): string {
+  if (event.attempt === undefined) return '';
+  if (event.status === 'fail' && event.retrying && event.maxAttempts !== undefined) {
+    return ` attempt ${event.attempt}/${event.maxAttempts} retrying`;
+  }
+  if (event.attempt > 1) return ` after ${event.attempt} attempts`;
+  return '';
+}
+
+function formatReplayProgressDuration(event: RequestProgressEvent): string {
+  const duration = formatDurationSeconds(event.durationMs ?? 0);
+  return event.attempt && event.attempt > 1 && !event.retrying ? `total ${duration}` : duration;
 }
 
 function formatDurationSeconds(durationMs: number): string {
-  return `${(Math.max(0, durationMs) / 1000).toFixed(2)}s`;
+  const seconds = Math.max(0, durationMs) / 1000;
+  if (seconds >= 10) return `${seconds.toFixed(1)}s`;
+  if (seconds >= 1) return `${seconds.toFixed(2)}s`;
+  return `${seconds.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}s`;
 }

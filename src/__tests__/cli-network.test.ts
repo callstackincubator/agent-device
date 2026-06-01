@@ -106,7 +106,7 @@ test('test command prints suite summary and exits non-zero on failures', async (
   assert.equal(result.calls.length, 1);
   assert.equal(result.calls[0]?.meta?.requestProgress, 'replay-test');
   assert.match(result.stderr, /Running replay suite\.\.\./);
-  assert.doesNotMatch(result.stdout, /PASS \/tmp\/01-pass\.ad/);
+  assert.match(result.stdout, /PASS 01-pass\.ad \(0\.01s\)/);
   assert.match(
     result.stdout,
     /FAIL "Checkout failure" in 02-fail\.ad after 2 attempts \(total 0\.005s\)/,
@@ -204,9 +204,9 @@ test('test command --verbose prints step telemetry for passing tests without deb
     assert.equal(result.code, null);
     assert.equal(result.calls[0]?.meta?.debug, false);
     assert.match(result.stdout, /PASS "Authentication flow" \(0\.5s\)/);
-    assert.match(result.stdout, /steps \(attempt 1\):/);
-    assert.match(result.stdout, /\[ok\] tapOn "text=\\"Log in\\"" \(line 3, 0\.25s\)/);
-    assert.match(result.stdout, /\[ok\] assertVisible "text=\\"Home\\"" \(line 4, 0\.075s\)/);
+    assert.match(result.stdout, /steps:/);
+    assert.match(result.stdout, /tapOn "text=\\"Log in\\"" \(line 3, 0\.25s\)/);
+    assert.match(result.stdout, /assertVisible "text=\\"Home\\"" \(line 4, 0\.075s\)/);
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
@@ -248,6 +248,10 @@ test('test command reports flaky passed-on-retry cases in the default summary', 
   assert.equal(result.code, null);
   assert.match(result.stderr, /Running replay suite\.\.\./);
   assert.doesNotMatch(result.stdout, /FLAKY/);
+  assert.match(
+    result.stdout,
+    /PASS "Authentication flow" after 2 attempts \(passed attempt 17\.5s, total 112\.2s\)/,
+  );
   assert.match(result.stdout, /Test summary: 1 passed, 0 failed, 1 flaky in 0\.025s/);
   assert.match(result.stdout, /Flaky tests:/);
   assert.match(
@@ -336,10 +340,7 @@ test('test command prints failed attempt step telemetry when timing trace exists
 
     assert.equal(result.code, 1);
     assert.match(result.stdout, /steps \(attempt 2\):/);
-    assert.match(
-      result.stdout,
-      /\[ok\] open "Demo" \(line 3, 0\.125s, timing \{"launchMs":100\}\)/,
-    );
+    assert.match(result.stdout, /open "Demo" \(line 3, 0\.125s, timing \{"launchMs":100\}\)/);
     assert.match(
       result.stdout,
       /\[FAIL\] tapOn "text=\\"Pay\\"" \(line 4, 1\.50s, ASSERTION_FAILED\)/,
@@ -381,6 +382,7 @@ test('test --maestro forwards Maestro backend and platform for directory suites'
     assert.deepEqual(result.calls[0]?.positionals, [tmpDir]);
     assert.equal(result.calls[0]?.flags?.replayBackend, 'maestro');
     assert.equal(result.calls[0]?.flags?.platform, 'android');
+    assert.equal(result.calls[0]?.meta?.requestProgress, 'replay-test');
     assert.match(result.stderr, /Running replay suite\.\.\./);
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
