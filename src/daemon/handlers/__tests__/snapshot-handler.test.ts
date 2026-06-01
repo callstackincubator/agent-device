@@ -742,7 +742,7 @@ test('captureSnapshot lazily retries pending no-change touch before returning fr
   };
   session.pendingInteractionOutcome = {
     action: 'click',
-    command: 'click',
+    command: 'press',
     positionals: ['100', '144'],
     flags: { platform: 'ios' },
     markedAt: Date.now(),
@@ -796,7 +796,7 @@ test('captureSnapshot lazily retries pending no-change touch before returning fr
   expect(result.snapshot.nodes).toEqual(
     expect.arrayContaining([expect.objectContaining({ label: 'Feed' })]),
   );
-  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['snapshot', 'click', 'snapshot']);
+  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['snapshot', 'press', 'snapshot']);
   expect(mockDispatch.mock.calls[1]?.[2]).toEqual(['100', '144']);
   expect(session.pendingInteractionOutcome).toBeUndefined();
 });

@@ -14,7 +14,7 @@ export type InteractionSurfaceSignature = NonNullable<
 
 export type InteractionSurfaceChange = 'changed' | 'unchanged' | 'ambiguous';
 
-export function shouldRetryTouchOnNoChange(flags: CommandFlags | undefined): boolean {
+function shouldRetryTouchOnNoChange(flags: CommandFlags | undefined): boolean {
   return flags?.interactionOutcome?.retryOnNoChange === true;
 }
 
@@ -28,13 +28,14 @@ export function markPendingInteractionOutcome(params: {
   const { session, command, positionals, flags, preSnapshot } = params;
   if (!shouldRetryTouchOnNoChange(flags)) return;
   if (!supportsInteractionOutcomePolicy(session)) return;
-  if (!isRetryableTapCommand(command)) return;
+  const retryCommand = retryCommandForTap(command);
+  if (!retryCommand) return;
   if (!isCoordinatePair(positionals)) return;
   const preSignature = buildInteractionSurfaceSignature(preSnapshot?.nodes ?? []);
   if (preSignature.length === 0) return;
   session.pendingInteractionOutcome = {
     action: command,
-    command,
+    command: retryCommand,
     positionals,
     flags: stripInternalInteractionOutcomeFlags(flags),
     markedAt: Date.now(),
@@ -67,11 +68,10 @@ export function clearPendingInteractionOutcome(session: SessionState | undefined
 export async function retryPendingInteractionOutcome(params: {
   session: SessionState;
   pending: NonNullable<SessionState['pendingInteractionOutcome']>;
-  requestFlags: CommandFlags | undefined;
   logPath: string;
   snapshot: SnapshotState;
 }): Promise<{ retried: boolean; change: InteractionSurfaceChange }> {
-  const { session, pending, requestFlags, snapshot } = params;
+  const { session, pending, snapshot } = params;
   const change = classifyInteractionSurfaceChange(
     pending.preSignature,
     buildInteractionSurfaceSignature(snapshot.nodes),
@@ -92,12 +92,7 @@ export async function retryPendingInteractionOutcome(params: {
     },
   });
   await dispatchCommand(session.device, pending.command, pending.positionals, pending.flags?.out, {
-    ...contextFromFlags(
-      params.logPath,
-      mergeRetryDispatchFlags(pending.flags, requestFlags),
-      session.appBundleId,
-      session.trace?.outPath,
-    ),
+    ...contextFromFlags(params.logPath, pending.flags, session.appBundleId, session.trace?.outPath),
     surface: session.surface,
   });
   return { retried: true, change };
@@ -156,31 +151,8 @@ export function buildInteractionSurfaceSignature(nodes: SnapshotNode[]): Array<{
   const entries: InteractionSurfaceSignature = [];
 
   for (const node of nodes) {
-    if (!node.rect) continue;
-    if (!isFiniteRect(node.rect)) continue;
-    if (isScrollIndicator(node)) continue;
-    const semanticKey = [
-      node.identifier,
-      node.label,
-      node.value,
-      node.type,
-      node.role,
-      node.enabled === false ? 'disabled' : 'enabled',
-      node.selected === true ? 'selected' : 'unselected',
-      node.hittable === true ? 'hittable' : 'not-hittable',
-    ]
-      .map((value) => (typeof value === 'string' ? value.trim() : ''))
-      .join('|');
-    if (!semanticKey.replaceAll('|', '')) continue;
-    const occurrence = occurrenceCounts.get(semanticKey) ?? 0;
-    occurrenceCounts.set(semanticKey, occurrence + 1);
-    entries.push({
-      key: `${semanticKey}|#${occurrence}`,
-      x: Math.round(node.rect.x),
-      y: Math.round(node.rect.y),
-      width: Math.round(node.rect.width),
-      height: Math.round(node.rect.height),
-    });
+    const entry = buildInteractionSurfaceEntry(node, occurrenceCounts);
+    if (entry) entries.push(entry);
   }
 
   return entries;
@@ -212,26 +184,50 @@ export function areInteractionSurfaceSignaturesStable(
   return true;
 }
 
-function mergeRetryDispatchFlags(
-  pendingFlags: CommandFlags | undefined,
-  requestFlags: CommandFlags | undefined,
-): CommandFlags | undefined {
-  return {
-    ...(pendingFlags ?? {}),
-    platform: requestFlags?.platform ?? pendingFlags?.platform,
-    target: requestFlags?.target ?? pendingFlags?.target,
-    device: requestFlags?.device ?? pendingFlags?.device,
-    udid: requestFlags?.udid ?? pendingFlags?.udid,
-    serial: requestFlags?.serial ?? pendingFlags?.serial,
-  };
-}
-
 function supportsInteractionOutcomePolicy(session: SessionState): boolean {
   return session.device.platform === 'ios' || session.device.platform === 'android';
 }
 
-function isRetryableTapCommand(command: string): boolean {
-  return command === 'click' || command === 'press';
+function retryCommandForTap(command: string): string | undefined {
+  if (command === 'click') return 'press';
+  if (command === 'press') return 'press';
+  return undefined;
+}
+
+function buildInteractionSurfaceEntry(
+  node: SnapshotNode,
+  occurrenceCounts: Map<string, number>,
+): InteractionSurfaceSignature[number] | undefined {
+  if (!node.rect) return undefined;
+  if (!isFiniteRect(node.rect)) return undefined;
+  if (isScrollIndicator(node)) return undefined;
+  const semanticKey = interactionSurfaceSemanticKey(node);
+  if (!semanticKey) return undefined;
+  const occurrence = occurrenceCounts.get(semanticKey) ?? 0;
+  occurrenceCounts.set(semanticKey, occurrence + 1);
+  return {
+    key: `${semanticKey}|#${occurrence}`,
+    x: Math.round(node.rect.x),
+    y: Math.round(node.rect.y),
+    width: Math.round(node.rect.width),
+    height: Math.round(node.rect.height),
+  };
+}
+
+function interactionSurfaceSemanticKey(node: SnapshotNode): string | undefined {
+  const semanticKey = [
+    node.identifier,
+    node.label,
+    node.value,
+    node.type,
+    node.role,
+    node.enabled === false ? 'disabled' : 'enabled',
+    node.selected === true ? 'selected' : 'unselected',
+    node.hittable === true ? 'hittable' : 'not-hittable',
+  ]
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .join('|');
+  return semanticKey.replaceAll('|', '') ? semanticKey : undefined;
 }
 
 function isCoordinatePair(positionals: string[]): boolean {

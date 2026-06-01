@@ -58,7 +58,8 @@ test('markPendingInteractionOutcome stores retry state only for explicit retry f
     preSnapshot: makeSnapshot('Inbox'),
   });
 
-  assert.equal(retrySession.pendingInteractionOutcome?.command, 'click');
+  assert.equal(retrySession.pendingInteractionOutcome?.action, 'click');
+  assert.equal(retrySession.pendingInteractionOutcome?.command, 'press');
   assert.equal(retrySession.pendingInteractionOutcome?.attemptsRemaining, 2);
   assert.equal(retrySession.pendingInteractionOutcome?.flags?.interactionOutcome, undefined);
 

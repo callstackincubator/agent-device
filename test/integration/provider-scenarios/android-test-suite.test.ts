@@ -333,10 +333,14 @@ test('Provider-backed integration Android Maestro executes runFlow conditions an
       assert.equal(suite.passed, 1, JSON.stringify(suite));
       assert.equal(suite.failed, 0, JSON.stringify(suite));
       assert.deepEqual(
-        world.adbCalls.find((call) => call.slice(0, 3).join(' ') === 'shell input tap'),
-        ['shell', 'input', 'tap', '180', '330'],
+        world.adbCalls.filter((call) => call.slice(0, 3).join(' ') === 'shell input tap'),
+        [
+          ['shell', 'input', 'tap', '180', '330'],
+          ['shell', 'input', 'tap', '180', '330'],
+          ['shell', 'input', 'tap', '180', '330'],
+        ],
       );
-      assert.equal(snapshots, 3);
+      assert.equal(snapshots, 5);
     },
   );
 });

@@ -114,7 +114,6 @@ async function captureInteractionOutcomeAwareSnapshot(
   let outcome = await retryPendingInteractionOutcome({
     session,
     pending,
-    requestFlags: params.flags,
     logPath: params.logPath,
     snapshot: latest.snapshot,
   });
@@ -125,7 +124,6 @@ async function captureInteractionOutcomeAwareSnapshot(
     outcome = await retryPendingInteractionOutcome({
       session,
       pending,
-      requestFlags: params.flags,
       logPath: params.logPath,
       snapshot: latest.snapshot,
     });
