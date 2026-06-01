@@ -49,6 +49,7 @@ type SnapshotData = {
   backend?: SnapshotBackend;
   analysis?: AndroidSnapshotAnalysis;
   androidSnapshot?: AndroidSnapshotBackendMetadata;
+  warnings?: string[];
 };
 
 type AndroidFreshnessReason = 'empty-interactive' | 'sharp-drop' | 'stuck-route';
@@ -59,6 +60,7 @@ export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
   analysis?: AndroidSnapshotAnalysis;
   androidSnapshot?: AndroidSnapshotBackendMetadata;
   freshness?: AndroidFreshnessCaptureMeta;
+  warnings?: string[];
 }> {
   if (
     (params.device.platform === 'ios' || params.device.platform === 'android') &&
@@ -81,6 +83,7 @@ export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
     snapshot: buildSnapshotState(data, resolveSnapshotStateFlags(params)),
     analysis: data.analysis,
     androidSnapshot: data.androidSnapshot,
+    warnings: data.warnings,
   };
 }
 
@@ -125,6 +128,7 @@ async function captureAndroidFreshnessAwareSnapshot(
   analysis?: AndroidSnapshotAnalysis;
   androidSnapshot?: AndroidSnapshotBackendMetadata;
   freshness?: AndroidFreshnessCaptureMeta;
+  warnings?: string[];
 }> {
   let latest = await captureSnapshotAttempt(params);
   let suspiciousReason = getAndroidFreshnessReason(latest, freshness, params);
@@ -149,6 +153,7 @@ async function captureAndroidFreshnessAwareSnapshot(
     snapshot: latest.snapshot,
     analysis: latest.data.analysis,
     androidSnapshot: latest.data.androidSnapshot,
+    warnings: latest.data.warnings,
     freshness:
       retryCount > 0 || Boolean(suspiciousReason)
         ? {

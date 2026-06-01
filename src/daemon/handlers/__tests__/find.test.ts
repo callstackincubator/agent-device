@@ -16,15 +16,27 @@ vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   };
 });
 
+vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/ios/runner-client.ts')>();
+  return {
+    ...actual,
+    runIosRunnerCommand: vi.fn(async () => ({})),
+  };
+});
+
 import { dispatchCommand } from '../../../core/dispatch.ts';
+import { runIosRunnerCommand } from '../../../platforms/ios/runner-client.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
+const mockRunnerCommand = vi.mocked(runIosRunnerCommand);
 
 beforeEach(() => {
   mockDispatch.mockReset();
   mockDispatch.mockImplementation(async (_device: unknown, command: string) => {
     return command === 'snapshot' ? { nodes: [] } : {};
   });
+  mockRunnerCommand.mockReset();
+  mockRunnerCommand.mockResolvedValue({});
 });
 
 async function runFindClickScenario(options: {
@@ -120,6 +132,89 @@ test('handleFindCommands click returns deterministic metadata across locator var
     expect(invokeCalls.length).toBe(1);
     expect(invokeCalls[0]!.positionals?.[0]).toBe(scenario.expectedRef);
   }
+});
+
+test('handleFindCommands click tries direct iOS id selector before snapshot', async () => {
+  mockRunnerCommand.mockResolvedValue({ found: true });
+  const session = {
+    ...makeSession('default'),
+    appBundleId: 'com.example.app',
+  };
+  const { response, invokeCalls } = await runFindClickScenario({
+    session,
+    positionals: ['id', 'continue-button', 'click'],
+    invoke: async () => ({ x: 10, y: 20 }),
+  });
+
+  expect(response.ok).toBe(true);
+  if (response.ok) {
+    expect(response.data).toMatchObject({
+      selector: 'id="continue-button"',
+      locator: 'id',
+      query: 'continue-button',
+      x: 10,
+      y: 20,
+    });
+  }
+  expect(mockRunnerCommand).toHaveBeenCalledTimes(1);
+  expect(mockRunnerCommand.mock.calls[0]?.[1]).toMatchObject({
+    command: 'querySelector',
+    selectorKey: 'id',
+    selectorValue: 'continue-button',
+    appBundleId: 'com.example.app',
+  });
+  expect(mockDispatch).not.toHaveBeenCalledWith(
+    expect.anything(),
+    'snapshot',
+    expect.anything(),
+    expect.anything(),
+    expect.anything(),
+  );
+  expect(invokeCalls[0]).toMatchObject({
+    command: 'click',
+    positionals: ['id="continue-button"'],
+    flags: expect.objectContaining({ noRecord: true }),
+  });
+});
+
+test('handleFindCommands click falls back to snapshot when direct iOS id selector misses', async () => {
+  mockRunnerCommand.mockResolvedValue({ found: false });
+  const { response, invokeCalls } = await runFindClickScenario({
+    session: {
+      ...makeSession('default'),
+      appBundleId: 'com.example.app',
+    },
+    positionals: ['id', 'continue-button', 'click'],
+    nodes: [
+      {
+        index: 0,
+        ref: 'e1',
+        type: 'Application',
+        hittable: true,
+        rect: { x: 0, y: 0, width: 390, height: 844 },
+      },
+      {
+        index: 1,
+        ref: 'e2',
+        type: 'Button',
+        identifier: 'continue-button',
+        hittable: true,
+        rect: { x: 20, y: 30, width: 100, height: 40 },
+        parentIndex: 0,
+      },
+    ],
+  });
+
+  expect(response.ok).toBe(true);
+  expect(mockRunnerCommand).toHaveBeenCalledTimes(1);
+  expect(mockDispatch).toHaveBeenCalledWith(
+    expect.anything(),
+    'snapshot',
+    [],
+    undefined,
+    expect.anything(),
+  );
+  expect(invokeCalls[0]?.positionals).toEqual(['@e2']);
 });
 
 test('handleFindCommands click prefers on-screen duplicate text matches', async () => {

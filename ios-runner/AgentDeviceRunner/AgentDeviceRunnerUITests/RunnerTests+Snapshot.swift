@@ -1,6 +1,10 @@
 import XCTest
 
 extension RunnerTests {
+  private static let appleSnapshotMaxDepth = 60
+  private static let axSnapshotErrorCode = "IOS_AX_SNAPSHOT_FAILED"
+  private static let axSnapshotHint =
+    "This can happen with a React Native deep accessibility tree. Flatten app-side if this screen must be fully inspectable; screenshot, logs, appstate, and open --relaunch can still be used in the same session."
   private static let collapsedTabCandidateTypes: Set<XCUIElement.ElementType> = [
     .button,
     .link,
@@ -21,6 +25,8 @@ extension RunnerTests {
     let flatSnapshots: [XCUIElementSnapshot]
     let snapshotRanges: [ObjectIdentifier: (Int, Int)]
     let maxDepth: Int
+    let partial: Bool
+    let warnings: [String]
   }
 
   private struct SnapshotEvaluation {
@@ -31,6 +37,34 @@ extension RunnerTests {
     let focused: Bool
     let selected: Bool
     let visible: Bool
+  }
+
+  struct SnapshotCaptureFailure: Error {
+    let code: String
+    let message: String
+    let hint: String
+  }
+
+  private struct SnapshotRootCandidate {
+    let label: String
+    let element: XCUIElement
+  }
+
+  private struct SnapshotRootFailure: Error {
+    let rootLabel: String
+    let message: String
+
+    var isAxIllegalArgument: Bool {
+      RunnerTests.isAxIllegalArgument(message)
+    }
+  }
+
+  private struct SnapshotRootCapture {
+    let queryRoot: XCUIElement
+    let rootSnapshot: XCUIElementSnapshot
+    let maxDepth: Int
+    let partial: Bool
+    let warnings: [String]
   }
 
   // MARK: - Snapshot Entry
@@ -75,12 +109,12 @@ extension RunnerTests {
     }
   }
 
-  func snapshotFast(app: XCUIApplication, options: SnapshotOptions) -> DataPayload {
+  func snapshotFast(app: XCUIApplication, options: SnapshotOptions) throws -> DataPayload {
     if let blocking = blockingSystemAlertSnapshot() {
       return blocking
     }
 
-    guard let context = makeSnapshotTraversalContext(app: app, options: options) else {
+    guard let context = try makeSnapshotTraversalContext(app: app, options: options) else {
       return DataPayload(nodes: [], truncated: false)
     }
 
@@ -108,6 +142,9 @@ extension RunnerTests {
         parentIndex: nil
       )
     )
+    if context.maxDepth == 0 && !context.rootSnapshot.children.isEmpty {
+      truncated = true
+    }
     if context.maxDepth > 0 {
       let didTruncateFallback = appendCollapsedTabFallbackNodes(
         to: &nodes,
@@ -130,7 +167,7 @@ extension RunnerTests {
         truncated = true
         break
       }
-      if let limit = options.depth, depth > limit { continue }
+      if depth > context.maxDepth { continue }
 
       let evaluation = evaluateSnapshot(snapshot, in: context)
       let include = shouldInclude(
@@ -155,6 +192,8 @@ extension RunnerTests {
         for child in snapshot.children.reversed() {
           stack.append((child, depth + 1, nextVisibleDepth, currentIndex))
         }
+      } else if !snapshot.children.isEmpty {
+        truncated = true
       }
 
       if !include || isDuplicate { continue }
@@ -183,15 +222,19 @@ extension RunnerTests {
 
     }
 
-    return DataPayload(nodes: nodes, truncated: truncated)
+    return DataPayload(
+      nodes: nodes,
+      truncated: truncated || context.partial,
+      warnings: snapshotWarnings(context)
+    )
   }
 
-  func snapshotRaw(app: XCUIApplication, options: SnapshotOptions) -> DataPayload {
+  func snapshotRaw(app: XCUIApplication, options: SnapshotOptions) throws -> DataPayload {
     if let blocking = blockingSystemAlertSnapshot() {
       return blocking
     }
 
-    guard let context = makeSnapshotTraversalContext(app: app, options: options) else {
+    guard let context = try makeSnapshotTraversalContext(app: app, options: options) else {
       return DataPayload(nodes: [], truncated: false)
     }
 
@@ -203,7 +246,7 @@ extension RunnerTests {
         truncated = true
         return
       }
-      if let limit = options.depth, depth > limit { return }
+      if depth > context.maxDepth { return }
 
       let evaluation = evaluateSnapshot(snapshot, in: context)
       let include = shouldInclude(
@@ -229,6 +272,10 @@ extension RunnerTests {
       }
 
       let children = snapshot.children
+      if depth >= context.maxDepth && !children.isEmpty {
+        truncated = true
+        return
+      }
       for child in children {
         walk(child, depth: depth + 1, parentIndex: currentIndex)
         if truncated { return }
@@ -236,7 +283,11 @@ extension RunnerTests {
     }
 
     walk(context.rootSnapshot, depth: 0, parentIndex: nil)
-    return DataPayload(nodes: nodes, truncated: truncated)
+    return DataPayload(
+      nodes: nodes,
+      truncated: truncated || context.partial,
+      warnings: snapshotWarnings(context)
+    )
   }
 
   func snapshotRect(from frame: CGRect) -> SnapshotRect {
@@ -304,26 +355,178 @@ extension RunnerTests {
   private func makeSnapshotTraversalContext(
     app: XCUIApplication,
     options: SnapshotOptions
-  ) -> SnapshotTraversalContext? {
-    let viewport = snapshotViewport(app: app)
-    let queryRoot = options.scope.flatMap { findScopeElement(app: app, scope: $0) } ?? app
-
-    let rootSnapshot: XCUIElementSnapshot
-    do {
-      rootSnapshot = try queryRoot.snapshot()
-    } catch {
+  ) throws -> SnapshotTraversalContext? {
+    let viewport = safeSnapshotViewport(app: app)
+    guard let capture = try captureSnapshotRoot(app: app, options: options) else {
       return nil
     }
 
-    let (flatSnapshots, snapshotRanges) = flattenedSnapshots(rootSnapshot)
+    let (flatSnapshots, snapshotRanges) = flattenedSnapshots(
+      capture.rootSnapshot,
+      maxDepth: capture.maxDepth
+    )
     return SnapshotTraversalContext(
-      queryRoot: queryRoot,
-      rootSnapshot: rootSnapshot,
+      queryRoot: capture.queryRoot,
+      rootSnapshot: capture.rootSnapshot,
       viewport: viewport,
       flatSnapshots: flatSnapshots,
       snapshotRanges: snapshotRanges,
-      maxDepth: options.depth ?? Int.max
+      maxDepth: capture.maxDepth,
+      partial: capture.partial,
+      warnings: capture.warnings
     )
+  }
+
+  private func captureSnapshotRoot(
+    app: XCUIApplication,
+    options: SnapshotOptions
+  ) throws -> SnapshotRootCapture? {
+    let requestedDepth = max(options.depth ?? Self.appleSnapshotMaxDepth, 0)
+    let maxDepth = min(requestedDepth, Self.appleSnapshotMaxDepth)
+    var warnings: [String] = []
+    if requestedDepth > Self.appleSnapshotMaxDepth {
+      warnings.append(
+        "iOS XCTest snapshot depth \(requestedDepth) was clamped to \(Self.appleSnapshotMaxDepth) to stay below Apple's depth limit."
+      )
+    }
+
+    let scopedRoot = options.scope.flatMap { findScopeElement(app: app, scope: $0) }
+    let queryRoot = scopedRoot ?? app
+    let primaryLabel = scopedRoot == nil ? "app" : "scope"
+    switch captureElementSnapshot(queryRoot, label: primaryLabel) {
+    case .success(let snapshot):
+      return SnapshotRootCapture(
+        queryRoot: queryRoot,
+        rootSnapshot: snapshot,
+        maxDepth: maxDepth,
+        partial: false,
+        warnings: warnings
+      )
+    case .failure(let primaryFailure):
+      guard primaryFailure.isAxIllegalArgument else {
+        return nil
+      }
+      if scopedRoot != nil {
+        throw axSnapshotFailure([primaryFailure])
+      }
+
+      var failures = [primaryFailure]
+      for candidate in fallbackSnapshotRootCandidates(app: app) {
+        switch captureElementSnapshot(candidate.element, label: candidate.label) {
+        case .success(let snapshot):
+          var partialWarnings = warnings
+          partialWarnings.append(axSnapshotPartialWarning(from: primaryFailure, recoveredWith: candidate.label))
+          return SnapshotRootCapture(
+            queryRoot: candidate.element,
+            rootSnapshot: snapshot,
+            maxDepth: maxDepth,
+            partial: true,
+            warnings: partialWarnings
+          )
+        case .failure(let failure):
+          failures.append(failure)
+        }
+      }
+      throw axSnapshotFailure(failures)
+    }
+  }
+
+  private func captureElementSnapshot(
+    _ element: XCUIElement,
+    label: String
+  ) -> Result<XCUIElementSnapshot, SnapshotRootFailure> {
+    var rootSnapshot: XCUIElementSnapshot?
+    var swiftErrorMessage: String?
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      do {
+        rootSnapshot = try element.snapshot()
+      } catch {
+        swiftErrorMessage = describeSnapshotError(error)
+      }
+    })
+
+    if let rootSnapshot {
+      return .success(rootSnapshot)
+    }
+    return .failure(
+      SnapshotRootFailure(
+        rootLabel: label,
+        message: exceptionMessage ?? swiftErrorMessage ?? "snapshot returned no root"
+      )
+    )
+  }
+
+  private func fallbackSnapshotRootCandidates(app: XCUIApplication) -> [SnapshotRootCandidate] {
+    var candidates: [SnapshotRootCandidate] = []
+    let window = app.windows.firstMatch
+    if safeElementExists(window) {
+      candidates.append(SnapshotRootCandidate(label: "window", element: window))
+    }
+    let firstChild = app.children(matching: .any).firstMatch
+    if safeElementExists(firstChild) {
+      candidates.append(SnapshotRootCandidate(label: "first child", element: firstChild))
+    }
+    let firstOther = app.children(matching: .other).firstMatch
+    if safeElementExists(firstOther) {
+      candidates.append(SnapshotRootCandidate(label: "first other subtree", element: firstOther))
+    }
+    return candidates
+  }
+
+  private func safeElementExists(_ element: XCUIElement) -> Bool {
+    var exists = false
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      exists = element.exists
+    })
+    if let exceptionMessage {
+      NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_FALLBACK_EXISTS_IGNORED_EXCEPTION=%@", exceptionMessage)
+    }
+    return exists
+  }
+
+  private func safeSnapshotViewport(app: XCUIApplication) -> CGRect {
+    var viewport = CGRect.infinite
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      viewport = snapshotViewport(app: app)
+    })
+    if let exceptionMessage {
+      NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_VIEWPORT_IGNORED_EXCEPTION=%@", exceptionMessage)
+    }
+    return viewport
+  }
+
+  private func describeSnapshotError(_ error: Error) -> String {
+    let localized = error.localizedDescription
+    let debug = String(describing: error)
+    if localized.isEmpty { return debug }
+    if debug == localized { return localized }
+    return "\(localized) (\(debug))"
+  }
+
+  private func axSnapshotFailure(_ failures: [SnapshotRootFailure]) -> SnapshotCaptureFailure {
+    let roots = failures.map { "\($0.rootLabel): \($0.message)" }.joined(separator: "; ")
+    return SnapshotCaptureFailure(
+      code: Self.axSnapshotErrorCode,
+      message: "iOS XCTest snapshot failed with kAXErrorIllegalArgument. \(roots)",
+      hint: Self.axSnapshotHint
+    )
+  }
+
+  private func axSnapshotPartialWarning(
+    from failure: SnapshotRootFailure,
+    recoveredWith rootLabel: String
+  ) -> String {
+    return "iOS XCTest snapshot hit kAXErrorIllegalArgument at \(failure.rootLabel); returned a partial shallow snapshot from \(rootLabel). React Native deep accessibility tree detected; flatten app-side if this screen must be fully inspectable."
+  }
+
+  private static func isAxIllegalArgument(_ message: String) -> Bool {
+    let normalized = message.lowercased()
+    return normalized.contains("kaxerrorillegalargument")
+      || (normalized.contains("illegal argument") && normalized.contains("snapshot"))
+  }
+
+  private func snapshotWarnings(_ context: SnapshotTraversalContext) -> [String]? {
+    return context.warnings.isEmpty ? nil : context.warnings
   }
 
   private func evaluateSnapshot(
@@ -384,24 +587,27 @@ extension RunnerTests {
   }
 
   private func flattenedSnapshots(
-    _ root: XCUIElementSnapshot
+    _ root: XCUIElementSnapshot,
+    maxDepth: Int
   ) -> ([XCUIElementSnapshot], [ObjectIdentifier: (Int, Int)]) {
     var ordered: [XCUIElementSnapshot] = []
     var ranges: [ObjectIdentifier: (Int, Int)] = [:]
 
     @discardableResult
-    func visit(_ snapshot: XCUIElementSnapshot) -> Int {
+    func visit(_ snapshot: XCUIElementSnapshot, depth: Int) -> Int {
       let start = ordered.count
       ordered.append(snapshot)
       var end = start
-      for child in snapshot.children {
-        end = max(end, visit(child))
+      if depth < maxDepth {
+        for child in snapshot.children {
+          end = max(end, visit(child, depth: depth + 1))
+        }
       }
       ranges[ObjectIdentifier(snapshot)] = (start, end)
       return end
     }
 
-    _ = visit(root)
+    _ = visit(root, depth: 0)
     return (ordered, ranges)
   }
 

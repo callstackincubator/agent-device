@@ -2,6 +2,7 @@ import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { findBestMatchesByLocator, parseFindArgs, type FindLocator } from '../../utils/finders.ts';
 import { centerOfRect, type SnapshotState } from '../../utils/snapshot.ts';
+import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
@@ -18,6 +19,11 @@ import { errorResponse } from './response.ts';
 import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
 import { dispatchFindReadOnlyViaRuntime } from '../selector-runtime.ts';
 import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
+import {
+  isDirectIosSelectorFallbackError,
+  type DirectIosSelectorTarget,
+} from '../direct-ios-selector.ts';
+import { normalizeError } from '../../utils/errors.ts';
 
 export { parseFindArgs } from '../../utils/finders.ts';
 
@@ -145,6 +151,9 @@ export async function handleFindCommands(params: {
   if (action === 'wait') {
     return handleFindWait(ctx, fetchNodes, locator, query, timeoutMs);
   }
+
+  const directIosResponse = await handleDirectIosFindAction(ctx, action);
+  if (directIosResponse) return directIosResponse;
 
   const { nodes } = await fetchNodes();
   const matchResult = resolveFindMatch({
@@ -407,6 +416,94 @@ async function handleFindClick(ctx: FindContext, match: ResolvedMatch): Promise<
     });
   }
   return { ok: true, data: matchData };
+}
+
+async function handleDirectIosFindAction(
+  ctx: FindContext,
+  action: string,
+): Promise<DaemonResponse | null> {
+  if (action !== 'click') return null;
+  if (!ctx.session || ctx.session.device.platform !== 'ios') return null;
+  if (ctx.req.flags?.findFirst || ctx.req.flags?.findLast) return null;
+  const selector = directIosSelectorForFind(ctx.locator, ctx.query);
+  if (!selector) return null;
+
+  const query = await queryDirectIosFindSelector(ctx, selector);
+  if (!query) return null;
+  if (!query.ok) return query.response;
+  if (!query.found) return null;
+
+  const response = await ctx.invoke({
+    token: ctx.req.token,
+    session: ctx.sessionName,
+    command: 'click',
+    positionals: [selector.raw],
+    flags: { ...(ctx.req.flags ?? {}), noRecord: true },
+  });
+  if (!response.ok) return response;
+
+  const responseData = response.data && typeof response.data === 'object' ? response.data : {};
+  const data: Record<string, unknown> = {
+    ...responseData,
+    selector: selector.raw,
+    locator: ctx.locator,
+    query: ctx.query,
+  };
+  ctx.sessionStore.recordAction(ctx.session, {
+    command: ctx.command,
+    positionals: ctx.req.positionals ?? [],
+    flags: ctx.req.flags ?? {},
+    result: { selector: selector.raw, action: 'click', locator: ctx.locator, query: ctx.query },
+  });
+  return { ok: true, data };
+}
+
+async function queryDirectIosFindSelector(
+  ctx: FindContext,
+  selector: DirectIosSelectorTarget,
+): Promise<{ ok: true; found: boolean } | { ok: false; response: DaemonResponse } | null> {
+  if (!ctx.session) return null;
+  try {
+    const result = await runIosRunnerCommand(
+      ctx.session.device,
+      {
+        command: 'querySelector',
+        selectorKey: selector.key,
+        selectorValue: selector.value,
+        appBundleId: ctx.session.appBundleId,
+      },
+      {
+        verbose: Boolean(ctx.req.flags?.verbose),
+        logPath: ctx.logPath,
+        traceLogPath: ctx.session.trace?.outPath,
+        requestId: ctx.req.meta?.requestId,
+      },
+    );
+    return { ok: true, found: result.found === true };
+  } catch (error) {
+    if (isDirectIosSelectorFallbackError(error)) return null;
+    return { ok: false, response: { ok: false, error: normalizeError(error) } };
+  }
+}
+
+function directIosSelectorForFind(
+  locator: FindLocator,
+  query: string,
+): DirectIosSelectorTarget | null {
+  if (locator !== 'id' && locator !== 'label' && locator !== 'text' && locator !== 'value') {
+    return null;
+  }
+  const value = query.trim();
+  if (!value) return null;
+  return {
+    key: locator,
+    value,
+    raw: `${locator}="${escapeSelectorValue(value)}"`,
+  };
+}
+
+function escapeSelectorValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 async function handleFindFill(

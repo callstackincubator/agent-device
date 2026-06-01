@@ -350,6 +350,59 @@ test('snapshot surfaces filtered-to-zero Android guidance for interactive snapsh
   }
 });
 
+test('snapshot carries iOS AX partial snapshot warnings from the runner', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-ax-partial';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, iosSimulatorDevice),
+    appBundleId: 'com.example.app',
+  });
+
+  mockDispatch.mockResolvedValue({
+    nodes: [
+      {
+        index: 0,
+        depth: 0,
+        type: 'Window',
+        rect: { x: 0, y: 0, width: 390, height: 844 },
+      },
+    ],
+    truncated: true,
+    warnings: [
+      'iOS XCTest snapshot hit kAXErrorIllegalArgument at app; returned a partial shallow snapshot from window. React Native deep accessibility tree detected; flatten app-side if this screen must be fully inspectable.',
+    ],
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'snapshot',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    const warnings = response.data?.warnings as string[] | undefined;
+    expect(response.data?.truncated).toBe(true);
+    expect(warnings).toEqual([expect.stringContaining('kAXErrorIllegalArgument')]);
+    expect(warnings?.[0]).toContain('React Native deep accessibility tree');
+    expect(warnings?.[0]).toContain('flatten app-side');
+  }
+  expect(mockDispatch).toHaveBeenCalledWith(
+    expect.anything(),
+    'snapshot',
+    [],
+    undefined,
+    expect.anything(),
+  );
+});
+
 test('snapshot timeout captures Android screenshot evidence with overlay refs', async () => {
   const sessionName = 'android-timeout-evidence';
   const sessionStore = makeAndroidTimeoutEvidenceSession(sessionName);

@@ -70,7 +70,12 @@ export function createAppleInteractor(
       if (nodes.length === 0 && device.kind === 'simulator') {
         throw new AppError('COMMAND_FAILED', 'XCTest snapshot returned 0 nodes on iOS simulator.');
       }
-      return { nodes, truncated: result.truncated ?? false, backend: 'xctest' };
+      return {
+        nodes,
+        truncated: result.truncated ?? false,
+        backend: 'xctest',
+        ...(result.warnings ? { warnings: result.warnings } : {}),
+      };
     },
     back: async (mode) => {
       if (device.target === 'tv') {
@@ -129,9 +134,16 @@ export function createAppleInteractor(
 
 function readAppleSnapshotResult(
   result: Record<string, unknown>,
-): Pick<SnapshotResult, 'nodes' | 'truncated'> {
+): Pick<SnapshotResult, 'nodes' | 'truncated' | 'warnings'> {
   return {
     nodes: Array.isArray(result.nodes) ? (result.nodes as RawSnapshotNode[]) : undefined,
     truncated: typeof result.truncated === 'boolean' ? result.truncated : undefined,
+    warnings: readStringArray(result.warnings),
   };
+}
+
+function readStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const strings = value.filter((entry): entry is string => typeof entry === 'string');
+  return strings.length > 0 ? strings : undefined;
 }

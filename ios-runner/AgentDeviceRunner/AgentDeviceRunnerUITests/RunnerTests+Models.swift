@@ -94,6 +94,7 @@ struct DataPayload: Codable {
   let items: [String]?
   let nodes: [SnapshotNode]?
   let truncated: Bool?
+  let warnings: [String]?
   let gestureStartUptimeMs: Double?
   let gestureEndUptimeMs: Double?
   let x: Double?
@@ -115,6 +116,7 @@ struct DataPayload: Codable {
     items: [String]? = nil,
     nodes: [SnapshotNode]? = nil,
     truncated: Bool? = nil,
+    warnings: [String]? = nil,
     gestureStartUptimeMs: Double? = nil,
     gestureEndUptimeMs: Double? = nil,
     x: Double? = nil,
@@ -135,6 +137,7 @@ struct DataPayload: Codable {
     self.items = items
     self.nodes = nodes
     self.truncated = truncated
+    self.warnings = warnings
     self.gestureStartUptimeMs = gestureStartUptimeMs
     self.gestureEndUptimeMs = gestureEndUptimeMs
     self.x = x
@@ -154,10 +157,12 @@ struct DataPayload: Codable {
 struct ErrorPayload: Codable {
   let code: String?
   let message: String
+  let hint: String?
 
-  init(code: String? = nil, message: String) {
+  init(code: String? = nil, message: String, hint: String? = nil) {
     self.code = code
     self.message = message
+    self.hint = hint
   }
 }
 

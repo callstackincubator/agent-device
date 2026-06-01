@@ -274,6 +274,7 @@ function createDaemonSnapshotBackend(params: {
         analysis: capture.analysis,
         androidSnapshot: capture.androidSnapshot,
         freshness: capture.freshness,
+        warnings: capture.warnings,
         appName: session?.appBundleId ? (session.appName ?? session.appBundleId) : undefined,
         appBundleId: session?.appBundleId,
       };
