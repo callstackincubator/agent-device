@@ -1,6 +1,9 @@
 import XCTest
 
 extension RunnerTests {
+  private static let axSnapshotErrorCode = "IOS_AX_SNAPSHOT_FAILED"
+  private static let axSnapshotHint =
+    "XCTest could not serialize this iOS accessibility tree. Try a smaller read such as snapshot -s <visible label or id> -d 8, use direct selector commands such as find id <value> click, or use screenshot/logs/appstate in the same session. If you own the app and need full-tree inspection, consider flagging this screen for accessibility-tree simplification: reduce unnecessary accessible wrapper nesting and expose stable ids on actionable controls."
   private static let collapsedTabCandidateTypes: Set<XCUIElement.ElementType> = [
     .button,
     .link,
@@ -31,6 +34,12 @@ extension RunnerTests {
     let focused: Bool
     let selected: Bool
     let visible: Bool
+  }
+
+  struct SnapshotCaptureFailure: Error {
+    let code: String
+    let message: String
+    let hint: String
   }
 
   // MARK: - Snapshot Entry
@@ -75,12 +84,12 @@ extension RunnerTests {
     }
   }
 
-  func snapshotFast(app: XCUIApplication, options: SnapshotOptions) -> DataPayload {
+  func snapshotFast(app: XCUIApplication, options: SnapshotOptions) throws -> DataPayload {
     if let blocking = blockingSystemAlertSnapshot() {
       return blocking
     }
 
-    guard let context = makeSnapshotTraversalContext(app: app, options: options) else {
+    guard let context = try makeSnapshotTraversalContext(app: app, options: options) else {
       return DataPayload(nodes: [], truncated: false)
     }
 
@@ -186,12 +195,12 @@ extension RunnerTests {
     return DataPayload(nodes: nodes, truncated: truncated)
   }
 
-  func snapshotRaw(app: XCUIApplication, options: SnapshotOptions) -> DataPayload {
+  func snapshotRaw(app: XCUIApplication, options: SnapshotOptions) throws -> DataPayload {
     if let blocking = blockingSystemAlertSnapshot() {
       return blocking
     }
 
-    guard let context = makeSnapshotTraversalContext(app: app, options: options) else {
+    guard let context = try makeSnapshotTraversalContext(app: app, options: options) else {
       return DataPayload(nodes: [], truncated: false)
     }
 
@@ -304,14 +313,11 @@ extension RunnerTests {
   private func makeSnapshotTraversalContext(
     app: XCUIApplication,
     options: SnapshotOptions
-  ) -> SnapshotTraversalContext? {
-    let viewport = snapshotViewport(app: app)
+  ) throws -> SnapshotTraversalContext? {
+    let viewport = safeSnapshotViewport(app: app)
     let queryRoot = options.scope.flatMap { findScopeElement(app: app, scope: $0) } ?? app
 
-    let rootSnapshot: XCUIElementSnapshot
-    do {
-      rootSnapshot = try queryRoot.snapshot()
-    } catch {
+    guard let rootSnapshot = try captureSnapshotRoot(queryRoot) else {
       return nil
     }
 
@@ -324,6 +330,70 @@ extension RunnerTests {
       snapshotRanges: snapshotRanges,
       maxDepth: options.depth ?? Int.max
     )
+  }
+
+  private func captureSnapshotRoot(_ element: XCUIElement) throws -> XCUIElementSnapshot? {
+    var rootSnapshot: XCUIElementSnapshot?
+    var swiftErrorMessage: String?
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      do {
+        rootSnapshot = try element.snapshot()
+      } catch {
+        swiftErrorMessage = describeSnapshotError(error)
+      }
+    })
+
+    if let rootSnapshot {
+      return rootSnapshot
+    }
+    let message = exceptionMessage ?? swiftErrorMessage ?? "snapshot returned no root"
+    if Self.isAxIllegalArgument(message) {
+      throw axSnapshotFailure(message)
+    }
+    return nil
+  }
+
+  private func safeSnapshotViewport(app: XCUIApplication) -> CGRect {
+    var viewport = CGRect.infinite
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      viewport = snapshotViewport(app: app)
+    })
+    if let exceptionMessage {
+      NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_VIEWPORT_IGNORED_EXCEPTION=%@", exceptionMessage)
+    }
+    return viewport
+  }
+
+  private func describeSnapshotError(_ error: Error) -> String {
+    let localized = error.localizedDescription
+    let debug = String(describing: error)
+    if localized.isEmpty { return debug }
+    if debug == localized { return localized }
+    return "\(localized) (\(debug))"
+  }
+
+  private func axSnapshotFailure(_ message: String) -> SnapshotCaptureFailure {
+    let failureMessage: String
+    if Self.hasAxIllegalArgumentCode(message) {
+      failureMessage = "iOS XCTest snapshot failed with kAXErrorIllegalArgument. \(message)"
+    } else {
+      failureMessage = "iOS XCTest snapshot failed while serializing the accessibility tree. \(message)"
+    }
+    return SnapshotCaptureFailure(
+      code: Self.axSnapshotErrorCode,
+      message: failureMessage,
+      hint: Self.axSnapshotHint
+    )
+  }
+
+  private static func isAxIllegalArgument(_ message: String) -> Bool {
+    let normalized = message.lowercased()
+    return hasAxIllegalArgumentCode(normalized)
+      || (normalized.contains("illegal argument") && normalized.contains("snapshot"))
+  }
+
+  private static func hasAxIllegalArgumentCode(_ message: String) -> Bool {
+    return message.lowercased().contains("kaxerrorillegalargument")
   }
 
   private func evaluateSnapshot(

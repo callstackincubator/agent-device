@@ -585,6 +585,36 @@ test('parseRunnerResponse preserves runner unsupported-operation codes', async (
   );
 });
 
+test('parseRunnerResponse preserves iOS AX snapshot failure code and hint', async () => {
+  const hint =
+    'Try a smaller read such as snapshot -s <visible label or id> -d 8, or use direct selector commands such as find id <value> click.';
+  const response = new Response(
+    JSON.stringify({
+      ok: false,
+      error: {
+        code: 'IOS_AX_SNAPSHOT_FAILED',
+        message: 'iOS XCTest snapshot failed with kAXErrorIllegalArgument.',
+        hint,
+      },
+    }),
+  );
+  const session = {
+    ready: true,
+  } as any;
+
+  await assert.rejects(
+    () => parseRunnerResponse(response, session, '/tmp/runner.log'),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'IOS_AX_SNAPSHOT_FAILED');
+      assert.match(error.message, /kAXErrorIllegalArgument/);
+      assert.equal(error.details?.hint, hint);
+      assert.equal(isRetryableRunnerError(error), false);
+      return true;
+    },
+  );
+});
+
 test('isRetryableRunnerError does not retry xcodebuild early-exit errors', () => {
   const err = new AppError(
     'COMMAND_FAILED',

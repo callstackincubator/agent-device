@@ -496,7 +496,7 @@ export async function executeRunnerCommandWithSession(
 
 type RunnerResponsePayload = {
   ok?: unknown;
-  error?: { code?: unknown; message?: unknown };
+  error?: { code?: unknown; message?: unknown; hint?: unknown };
   data?: unknown;
 };
 
@@ -520,6 +520,7 @@ export async function parseRunnerResponse(
         ? toAppErrorCode(rawCode)
         : 'COMMAND_FAILED';
     const errorMessage = typeof json.error?.message === 'string' ? json.error.message : undefined;
+    const hint = typeof json.error?.hint === 'string' ? json.error.hint : undefined;
     throw new AppError(errorCode, errorMessage ?? 'Runner error', {
       runner: json,
       xcodebuild: {
@@ -527,6 +528,7 @@ export async function parseRunnerResponse(
         stdout: '',
         stderr: '',
       },
+      hint,
       logPath,
     });
   }

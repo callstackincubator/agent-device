@@ -154,10 +154,12 @@ struct DataPayload: Codable {
 struct ErrorPayload: Codable {
   let code: String?
   let message: String
+  let hint: String?
 
-  init(code: String? = nil, message: String) {
+  init(code: String? = nil, message: String, hint: String? = nil) {
     self.code = code
     self.message = message
+    self.hint = hint
   }
 }
 

@@ -646,12 +646,26 @@ extension RunnerTests {
         scope: command.scope,
         raw: command.raw ?? false
       )
-      if options.raw {
+      do {
+        let payload: DataPayload
+        if options.raw {
+          payload = try snapshotRaw(app: activeApp, options: options)
+        } else {
+          payload = try snapshotFast(app: activeApp, options: options)
+        }
         needsPostSnapshotInteractionDelay = true
-        return Response(ok: true, data: snapshotRaw(app: activeApp, options: options))
+        return Response(ok: true, data: payload)
+      } catch let failure as SnapshotCaptureFailure {
+        // Other thrown errors fall through to executeOnMainSafely's generic error response.
+        return Response(
+          ok: false,
+          error: ErrorPayload(
+            code: failure.code,
+            message: failure.message,
+            hint: failure.hint
+          )
+        )
       }
-      needsPostSnapshotInteractionDelay = true
-      return Response(ok: true, data: snapshotFast(app: activeApp, options: options))
     case .screenshot:
       let screenshot: XCUIScreenshot
 #if os(macOS)
