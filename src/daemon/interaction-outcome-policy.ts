@@ -82,6 +82,12 @@ export async function retryPendingInteractionOutcome(params: {
 
   const startedAt = Date.now();
   pending.attemptsRemaining -= 1;
+  // Opt-in Maestro retries intentionally re-fire the same coordinate tap; delayed or
+  // non-visual side effects can duplicate, but unchanged visual taps are the target gap.
+  await dispatchCommand(session.device, pending.command, pending.positionals, pending.flags?.out, {
+    ...contextFromFlags(params.logPath, pending.flags, session.appBundleId, session.trace?.outPath),
+    surface: session.surface,
+  });
   emitDiagnostic({
     level: 'info',
     phase: 'interaction_no_change_retry',
@@ -90,10 +96,6 @@ export async function retryPendingInteractionOutcome(params: {
       attemptsRemaining: pending.attemptsRemaining,
       durationMs: Date.now() - startedAt,
     },
-  });
-  await dispatchCommand(session.device, pending.command, pending.positionals, pending.flags?.out, {
-    ...contextFromFlags(params.logPath, pending.flags, session.appBundleId, session.trace?.outPath),
-    surface: session.surface,
   });
   return { retried: true, change };
 }

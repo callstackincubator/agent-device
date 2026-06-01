@@ -37,6 +37,7 @@ type FindContext = {
   command: string;
   locator: FindLocator;
   query: string;
+  publicFlags: Record<string, unknown>;
 };
 
 type ResolvedMatch = {
@@ -45,7 +46,6 @@ type ResolvedMatch = {
   ref: string;
   nodes: SnapshotState['nodes'];
   actionFlags: Record<string, unknown>;
-  recordFlags: Record<string, unknown>;
 };
 
 type FindMatchResult =
@@ -142,6 +142,7 @@ export async function handleFindCommands(params: {
     command,
     locator,
     query,
+    publicFlags: publicFindFlags(req.flags),
   };
 
   if (action === 'wait') {
@@ -161,8 +162,7 @@ export async function handleFindCommands(params: {
   const resolvedNode = requiresRect ? resolveInteractiveMatchNode(nodes, node) : node;
   const ref = `@${resolvedNode.ref}`;
   const actionFlags = { ...(req.flags ?? {}), noRecord: true };
-  const recordFlags = { ...(stripInternalInteractionOutcomeFlags(req.flags) ?? {}) };
-  const match: ResolvedMatch = { node, resolvedNode, ref, nodes, actionFlags, recordFlags };
+  const match: ResolvedMatch = { node, resolvedNode, ref, nodes, actionFlags };
 
   const actionHandlers: Record<string, () => Promise<DaemonResponse | null>> = {
     exists: () => handleFindExists(ctx),
@@ -309,7 +309,7 @@ async function handleFindWait(
   query: string,
   timeoutMs: number | undefined,
 ): Promise<DaemonResponse> {
-  const { req, sessionStore, session, command } = ctx;
+  const { req, sessionStore, session, command, publicFlags } = ctx;
   const timeout = timeoutMs ?? 10000;
   const start = Date.now();
   while (Date.now() - start < timeout) {
@@ -321,7 +321,7 @@ async function handleFindWait(
         sessionStore.recordAction(session, {
           command,
           positionals: req.positionals ?? [],
-          flags: publicFindFlags(req.flags),
+          flags: publicFlags,
           result: { found: true, waitedMs: Date.now() - start },
         });
       }
@@ -333,12 +333,12 @@ async function handleFindWait(
 }
 
 async function handleFindExists(ctx: FindContext): Promise<DaemonResponse> {
-  const { req, sessionStore, session, command } = ctx;
+  const { req, sessionStore, session, command, publicFlags } = ctx;
   if (session) {
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
-      flags: publicFindFlags(req.flags),
+      flags: publicFlags,
       result: { found: true },
     });
   }
@@ -346,7 +346,7 @@ async function handleFindExists(ctx: FindContext): Promise<DaemonResponse> {
 }
 
 async function handleFindGetText(ctx: FindContext, match: ResolvedMatch): Promise<DaemonResponse> {
-  const { req, sessionStore, session, command, device, logPath } = ctx;
+  const { req, sessionStore, session, command, device, logPath, publicFlags } = ctx;
   const text = await readTextForNode({
     device,
     node: match.node,
@@ -361,7 +361,7 @@ async function handleFindGetText(ctx: FindContext, match: ResolvedMatch): Promis
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
-      flags: publicFindFlags(req.flags),
+      flags: publicFlags,
       result: { ref: match.ref, action: 'get text', text },
     });
   }
@@ -369,12 +369,12 @@ async function handleFindGetText(ctx: FindContext, match: ResolvedMatch): Promis
 }
 
 async function handleFindGetAttrs(ctx: FindContext, match: ResolvedMatch): Promise<DaemonResponse> {
-  const { req, sessionStore, session, command } = ctx;
+  const { req, sessionStore, session, command, publicFlags } = ctx;
   if (session) {
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
-      flags: publicFindFlags(req.flags),
+      flags: publicFlags,
       result: { ref: match.ref, action: 'get attrs' },
     });
   }
@@ -382,7 +382,8 @@ async function handleFindGetAttrs(ctx: FindContext, match: ResolvedMatch): Promi
 }
 
 async function handleFindClick(ctx: FindContext, match: ResolvedMatch): Promise<DaemonResponse> {
-  const { req, sessionName, sessionStore, session, invoke, command, locator, query } = ctx;
+  const { req, sessionName, sessionStore, session, invoke, command, locator, query, publicFlags } =
+    ctx;
   const response = await invoke({
     token: req.token,
     session: sessionName,
@@ -405,7 +406,7 @@ async function handleFindClick(ctx: FindContext, match: ResolvedMatch): Promise<
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
-      flags: match.recordFlags,
+      flags: publicFlags,
       result: { ref: match.ref, action: 'click', locator, query },
     });
   }
@@ -417,7 +418,7 @@ async function handleFindFill(
   match: ResolvedMatch,
   value: string | undefined,
 ): Promise<DaemonResponse> {
-  const { req, sessionName, sessionStore, session, invoke, command } = ctx;
+  const { req, sessionName, sessionStore, session, invoke, command, publicFlags } = ctx;
   if (!value) {
     return errorResponse('INVALID_ARGS', 'find fill requires text');
   }
@@ -433,7 +434,7 @@ async function handleFindFill(
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
-      flags: match.recordFlags,
+      flags: publicFlags,
       result: { ref: match.ref, action: 'fill' },
     });
   }
@@ -487,12 +488,12 @@ async function dispatchFocusForFindMatch(
 }
 
 function recordFindAction(ctx: FindContext, match: ResolvedMatch, action: string): void {
-  const { req, sessionStore, session, command } = ctx;
+  const { req, sessionStore, session, command, publicFlags } = ctx;
   if (session) {
     sessionStore.recordAction(session, {
       command,
       positionals: req.positionals ?? [],
-      flags: match.recordFlags,
+      flags: publicFlags,
       result: { ref: match.ref, action },
     });
   }

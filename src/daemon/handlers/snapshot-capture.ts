@@ -58,6 +58,12 @@ type SnapshotData = {
   androidSnapshot?: AndroidSnapshotBackendMetadata;
 };
 
+type SnapshotAttempt = {
+  data: SnapshotData;
+  snapshot: SnapshotState;
+  freshness?: AndroidFreshnessCaptureMeta;
+};
+
 type AndroidFreshnessReason = 'empty-interactive' | 'sharp-drop' | 'stuck-route';
 type AndroidFreshnessMode = 'default' | 'ref-refresh';
 
@@ -105,12 +111,13 @@ async function captureInteractionOutcomeAwareSnapshot(
   snapshot: SnapshotState;
   analysis?: AndroidSnapshotAnalysis;
   androidSnapshot?: AndroidSnapshotBackendMetadata;
+  freshness?: AndroidFreshnessCaptureMeta;
 }> {
   const session = params.session;
 
   const startedAt = Date.now();
   let retryAttempts = 0;
-  let latest = await captureSnapshotAttempt(params);
+  let latest = await captureSnapshotAttemptForInteractionOutcome(params);
   let outcome = await retryPendingInteractionOutcome({
     session,
     pending,
@@ -120,7 +127,7 @@ async function captureInteractionOutcomeAwareSnapshot(
 
   while (outcome.retried) {
     retryAttempts += 1;
-    latest = await captureSnapshotAttempt(params);
+    latest = await captureSnapshotAttemptForInteractionOutcome(params);
     outcome = await retryPendingInteractionOutcome({
       session,
       pending,
@@ -130,7 +137,9 @@ async function captureInteractionOutcomeAwareSnapshot(
   }
 
   clearPendingInteractionOutcome(session);
-  clearAndroidSnapshotFreshness(session);
+  if (outcome.change !== 'ambiguous' && latest.freshness?.staleAfterRetries !== true) {
+    clearAndroidSnapshotFreshness(session);
+  }
   if (outcome.change === 'unchanged') {
     emitInteractionSettleTimeout({ pending, attempts: retryAttempts, startedAt });
   } else {
@@ -146,6 +155,7 @@ async function captureInteractionOutcomeAwareSnapshot(
     snapshot: latest.snapshot,
     analysis: latest.data.analysis,
     androidSnapshot: latest.data.androidSnapshot,
+    freshness: latest.freshness,
   };
 }
 
@@ -191,6 +201,19 @@ async function captureAndroidFreshnessAwareSnapshot(
   androidSnapshot?: AndroidSnapshotBackendMetadata;
   freshness?: AndroidFreshnessCaptureMeta;
 }> {
+  const latest = await captureAndroidFreshnessAwareAttempt(params, freshness);
+  return {
+    snapshot: latest.snapshot,
+    analysis: latest.data.analysis,
+    androidSnapshot: latest.data.androidSnapshot,
+    freshness: latest.freshness,
+  };
+}
+
+async function captureAndroidFreshnessAwareAttempt(
+  params: CaptureSnapshotParams,
+  freshness: NonNullable<SessionState['androidSnapshotFreshness']>,
+): Promise<SnapshotAttempt> {
   let latest = await captureSnapshotAttempt(params);
   let suspiciousReason = getAndroidFreshnessReason(latest, freshness, params);
   let retryCount = 0;
@@ -211,9 +234,7 @@ async function captureAndroidFreshnessAwareSnapshot(
   }
 
   return {
-    snapshot: latest.snapshot,
-    analysis: latest.data.analysis,
-    androidSnapshot: latest.data.androidSnapshot,
+    ...latest,
     freshness:
       retryCount > 0 || Boolean(suspiciousReason)
         ? {
@@ -226,9 +247,17 @@ async function captureAndroidFreshnessAwareSnapshot(
   };
 }
 
-async function captureSnapshotAttempt(
-  params: CaptureSnapshotParams,
-): Promise<{ data: SnapshotData; snapshot: SnapshotState }> {
+async function captureSnapshotAttemptForInteractionOutcome(
+  params: CaptureSnapshotParams & { session: SessionState },
+): Promise<SnapshotAttempt> {
+  const freshness = getActiveAndroidSnapshotFreshness(params.session);
+  if (freshness && params.device.platform === 'android') {
+    return await captureAndroidFreshnessAwareAttempt(params, freshness);
+  }
+  return await captureSnapshotAttempt(params);
+}
+
+async function captureSnapshotAttempt(params: CaptureSnapshotParams): Promise<SnapshotAttempt> {
   const data = await captureSnapshotData(params);
   return {
     data,
