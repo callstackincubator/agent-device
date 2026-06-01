@@ -65,7 +65,7 @@ test('test discovers Maestro YAML suites when replay backend is set', async () =
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-maestro-'));
   fs.writeFileSync(
     path.join(root, 'auth-flow.yml'),
-    ['appId: demo.app', '---', '- launchApp', ''].join('\n'),
+    ['appId: demo.app', 'name: Authentication flow', '---', '- launchApp', ''].join('\n'),
   );
 
   const invoked: DaemonRequest[] = [];
@@ -91,6 +91,7 @@ test('test discovers Maestro YAML suites when replay backend is set', async () =
   expect(invoked.map((req) => [req.command, req.positionals])).toEqual([['open', ['demo.app']]]);
   expect(data.passed).toBe(1);
   expect(data.failed).toBe(0);
+  expect((data.tests as Array<Record<string, unknown>>)[0]?.title).toBe('Authentication flow');
 });
 
 test('test emits progress when attempts retry and pass', async () => {
@@ -130,6 +131,13 @@ test('test emits progress when attempts retry and pass', async () => {
 
   const data = expectOkData(response);
   expect(data.passed).toBe(1);
+  expect((data.tests as Array<Record<string, unknown>>)[0]?.attemptFailures).toEqual([
+    {
+      attempt: 1,
+      message: 'Replay failed at step 1 (open "Demo"): first attempt failed',
+      durationMs: expect.any(Number),
+    },
+  ]);
   expect(events.map((event) => event.status)).toEqual(['fail', 'pass']);
   expect(events[0]).toMatchObject({
     type: 'replay-test',

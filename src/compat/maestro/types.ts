@@ -1,6 +1,7 @@
 import type { ParsedReplayScript, ReplayScriptMetadata } from '../../replay/script.ts';
 
 export type MaestroFlowConfig = {
+  name?: string;
   appId?: string;
   env?: Record<string, string>;
   onFlowStart?: MaestroCommand[];

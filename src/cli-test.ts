@@ -40,16 +40,15 @@ function renderReplayTestSummary(
     for (const entry of data.failures) {
       renderFailedTestResult(entry);
     }
-    for (const entry of flaky) {
-      renderFlakyTestResult(entry);
-    }
   }
 
   const durationMs = typeof data.durationMs === 'number' ? data.durationMs : undefined;
   const flakySuffix = flaky.length > 0 ? `, ${flaky.length} flaky` : '';
+  const durationSuffix = durationMs !== undefined ? ` in ${formatDurationSeconds(durationMs)}` : '';
   process.stdout.write(
-    `Test summary: ${data.passed} passed, ${data.failed} failed${flakySuffix}${durationMs !== undefined ? ` in ${durationMs}ms` : ''}\n`,
+    `Test summary: ${data.passed} passed, ${data.failed} failed${flakySuffix}${durationSuffix}\n`,
   );
+  renderFlakyTestSummary(flaky);
   return getReplayTestExitCode(data);
 }
 
@@ -59,13 +58,15 @@ function renderVerboseTestResult(result: ReplaySuiteTestResult): void {
     return;
   }
 
-  const prefix = replayResultPrefix(result);
-  const attemptSuffix =
-    'attempts' in result && result.attempts > 1 ? ` after ${result.attempts} attempts` : '';
-  const durationSuffix = result.durationMs > 0 ? ` (${result.durationMs}ms)` : '';
-  process.stdout.write(`${prefix} ${result.file}${attemptSuffix}${durationSuffix}\n`);
+  const durationSuffix = formatReplayTestDurationSuffix(result);
+  process.stdout.write(
+    `${replayResultPrefix(result)} ${replayTestDisplayName(result)}${durationSuffix}\n`,
+  );
   if (result.status === 'skipped') {
     process.stdout.write(`  ${result.message ?? 'skipped'}\n`);
+  }
+  for (const line of replayTestStepLines(result)) {
+    process.stdout.write(`  ${line}\n`);
   }
 }
 
@@ -73,16 +74,21 @@ function renderFailedTestResult(
   result: Extract<ReplaySuiteTestResult, { status: 'failed' }>,
 ): void {
   const attemptSuffix = result.attempts > 1 ? ` after ${result.attempts} attempts` : '';
-  const durationSuffix = result.durationMs > 0 ? ` (${result.durationMs}ms)` : '';
-  process.stdout.write(`FAIL ${result.file}${attemptSuffix}${durationSuffix}\n`);
+  const durationSuffix = formatReplayTestDurationSuffix(result);
+  process.stdout.write(
+    `FAIL ${replayFailedTestDisplayName(result)}${attemptSuffix}${durationSuffix}\n`,
+  );
   process.stdout.write(`  ${result.error?.message ?? 'Unknown test failure'}\n`);
   for (const line of replayFailureConsoleLines(result)) {
+    process.stdout.write(`  ${line}\n`);
+  }
+  for (const line of replayTestStepLines(result)) {
     process.stdout.write(`  ${line}\n`);
   }
 }
 
 function replayResultPrefix(result: ReplaySuiteTestResult): string {
-  if (result.status === 'passed') return result.attempts > 1 ? 'FLAKY' : 'PASS';
+  if (result.status === 'passed') return 'PASS';
   if (result.status === 'skipped') return 'SKIP';
   return 'INFO';
 }
@@ -98,15 +104,232 @@ function replayFailureConsoleLines(
   ].filter(Boolean);
 }
 
-function renderFlakyTestResult(result: Extract<ReplaySuiteTestResult, { status: 'passed' }>): void {
-  const durationSuffix = result.durationMs > 0 ? ` (${result.durationMs}ms)` : '';
-  process.stdout.write(`FLAKY ${result.file} after ${result.attempts} attempts${durationSuffix}\n`);
+type ReplayActionStartTrace = {
+  type: 'replay_action_start';
+  step: number;
+  line?: number;
+  command?: string;
+  positionals?: unknown[];
+};
+
+type ReplayActionStopTrace = {
+  type: 'replay_action_stop';
+  step: number;
+  line?: number;
+  command?: string;
+  ok?: boolean;
+  durationMs?: number;
+  errorCode?: string;
+  resultTiming?: Record<string, unknown>;
+};
+
+function replayTestStepLines(result: ReplaySuiteTestResult): string[] {
+  if (result.status === 'skipped') return [];
+  const tracePath = replayTestTimingTracePath(result);
+  if (!tracePath) return [];
+  const events = readReplayTimingTrace(tracePath);
+  if (events.length === 0) return [];
+
+  const starts = new Map<number, ReplayActionStartTrace>();
+  const stops: ReplayActionStopTrace[] = [];
+  for (const event of events) {
+    if (isReplayActionStartTrace(event)) starts.set(event.step, event);
+    if (isReplayActionStopTrace(event)) stops.push(event);
+  }
+  if (stops.length === 0) return [];
+
+  return [
+    `steps (attempt ${result.attempts}):`,
+    ...stops.map((stop) => renderReplayStepTrace(stop, starts.get(stop.step))),
+  ];
+}
+
+function replayTestTimingTracePath(
+  result: Extract<ReplaySuiteTestResult, { status: 'passed' | 'failed' }>,
+): string | undefined {
+  return result.artifactsDir
+    ? path.join(result.artifactsDir, `attempt-${result.attempts}`, 'replay-timing.ndjson')
+    : undefined;
+}
+
+function readReplayTimingTrace(tracePath: string): Record<string, unknown>[] {
+  try {
+    return fs
+      .readFileSync(tracePath, 'utf8')
+      .split(/\r?\n/)
+      .filter((line) => line.trim().length > 0)
+      .flatMap((line) => {
+        try {
+          const parsed = JSON.parse(line) as unknown;
+          return isPlainRecord(parsed) ? [parsed] : [];
+        } catch {
+          return [];
+        }
+      });
+  } catch {
+    return [];
+  }
+}
+
+function isReplayActionStartTrace(event: Record<string, unknown>): event is ReplayActionStartTrace {
+  return (
+    event.type === 'replay_action_start' &&
+    hasTraceStep(event) &&
+    hasOptionalNumber(event, 'line') &&
+    hasOptionalString(event, 'command') &&
+    (event.positionals === undefined || Array.isArray(event.positionals))
+  );
+}
+
+function isReplayActionStopTrace(event: Record<string, unknown>): event is ReplayActionStopTrace {
+  return (
+    event.type === 'replay_action_stop' &&
+    hasTraceStep(event) &&
+    hasOptionalNumber(event, 'line') &&
+    hasOptionalString(event, 'command') &&
+    (event.ok === undefined || typeof event.ok === 'boolean') &&
+    hasOptionalNumber(event, 'durationMs') &&
+    hasOptionalString(event, 'errorCode') &&
+    (event.resultTiming === undefined || isPlainRecord(event.resultTiming))
+  );
+}
+
+function hasTraceStep(event: Record<string, unknown>): boolean {
+  return typeof event.step === 'number';
+}
+
+function hasOptionalNumber(event: Record<string, unknown>, key: string): boolean {
+  return event[key] === undefined || typeof event[key] === 'number';
+}
+
+function hasOptionalString(event: Record<string, unknown>, key: string): boolean {
+  return event[key] === undefined || typeof event[key] === 'string';
+}
+
+function renderReplayStepTrace(
+  stop: ReplayActionStopTrace,
+  start: ReplayActionStartTrace | undefined,
+): string {
+  const failed = stop.ok === false;
+  const status = failed ? '[FAIL]' : stop.ok === true ? '[ok]' : '[info]';
+  return `  ${status} ${formatReplayStepCommand(start, stop)}${formatReplayStepDetails(stop, start)}`;
+}
+
+function formatReplayStepDetails(
+  stop: ReplayActionStopTrace,
+  start: ReplayActionStartTrace | undefined,
+): string {
+  const line = start?.line ?? stop.line;
+  const details = [
+    typeof line === 'number' ? `line ${line}` : '',
+    typeof stop.durationMs === 'number' ? formatDurationSeconds(stop.durationMs) : '',
+    stop.errorCode ?? '',
+    stop.resultTiming ? `timing ${JSON.stringify(stop.resultTiming)}` : '',
+  ].filter(Boolean);
+  return details.length > 0 ? ` (${details.join(', ')})` : '';
+}
+
+function formatReplayStepCommand(
+  start: ReplayActionStartTrace | undefined,
+  stop: ReplayActionStopTrace,
+): string {
+  const command = formatReplayStepCommandName(start?.command ?? stop.command);
+  const positionals = start?.positionals ?? [];
+  return [command, ...positionals.map(formatReplayStepArg)].join(' ');
+}
+
+function formatReplayStepCommandName(command: string | undefined): string {
+  if (!command) return 'unknown';
+  if (!command.startsWith('__maestro')) return command;
+  const name = command.slice('__maestro'.length);
+  return name.length > 0 ? name[0]!.toLowerCase() + name.slice(1) : command;
+}
+
+function formatReplayStepArg(value: unknown): string {
+  if (typeof value === 'string') return JSON.stringify(value);
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return JSON.stringify(value);
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 function isFlakyReplayTestResult(
   result: ReplaySuiteTestResult,
 ): result is Extract<ReplaySuiteTestResult, { status: 'passed' }> {
   return result.status === 'passed' && result.attempts > 1;
+}
+
+function renderFlakyTestSummary(
+  results: Array<Extract<ReplaySuiteTestResult, { status: 'passed' }>>,
+): void {
+  if (results.length === 0) return;
+  process.stdout.write('Flaky tests:\n');
+  for (const result of results) {
+    process.stdout.write(
+      `  PASS ${replayTestDisplayName(result)} after ${result.attempts} attempts${formatFlakyReplayDurationSuffix(result)}\n`,
+    );
+    for (const failure of result.attemptFailures ?? []) {
+      const attemptDuration =
+        typeof failure.durationMs === 'number'
+          ? ` (${formatDurationSeconds(failure.durationMs)})`
+          : '';
+      process.stdout.write(
+        `    attempt ${failure.attempt} failed${attemptDuration}: ${failure.message}\n`,
+      );
+    }
+  }
+}
+
+function replayTestDisplayName(result: ReplaySuiteTestResult): string {
+  const title = replayTestTitle(result);
+  if (title && title.length > 0) return JSON.stringify(title);
+  return path.basename(result.file);
+}
+
+function replayFailedTestDisplayName(
+  result: Extract<ReplaySuiteTestResult, { status: 'failed' }>,
+): string {
+  const title = replayTestTitle(result);
+  const filename = path.basename(result.file);
+  return title && title.length > 0 ? `${JSON.stringify(title)} in ${filename}` : filename;
+}
+
+function replayTestCaseName(result: ReplaySuiteTestResult): string {
+  return replayTestTitle(result) ?? path.basename(result.file);
+}
+
+function replayTestTitle(result: ReplaySuiteTestResult): string | undefined {
+  const title = result.title?.trim();
+  return title && title.length > 0 ? title : undefined;
+}
+
+function formatReplayTestDurationSuffix(result: ReplaySuiteTestResult): string {
+  if (result.status === 'passed' && result.attempts > 1) {
+    return formatFlakyReplayDurationSuffix(result);
+  }
+  if (result.status === 'failed' && result.attempts > 1 && result.durationMs > 0) {
+    return ` (total ${formatDurationSeconds(result.durationMs)})`;
+  }
+
+  const durationMs =
+    result.status === 'passed' && typeof result.finalAttemptDurationMs === 'number'
+      ? result.finalAttemptDurationMs
+      : result.durationMs;
+  return durationMs > 0 ? ` (${formatDurationSeconds(durationMs)})` : '';
+}
+
+function formatFlakyReplayDurationSuffix(
+  result: Extract<ReplaySuiteTestResult, { status: 'passed' }>,
+): string {
+  const timings = [
+    typeof result.finalAttemptDurationMs === 'number'
+      ? `passed attempt ${formatDurationSeconds(result.finalAttemptDurationMs)}`
+      : '',
+    result.durationMs > 0 ? `total ${formatDurationSeconds(result.durationMs)}` : '',
+  ].filter(Boolean);
+  return timings.length > 0 ? ` (${timings.join(', ')})` : '';
 }
 
 function getReplayTestExitCode(data: ReplaySuiteResult): number {
@@ -144,7 +367,7 @@ function buildReplayJunitXml(suite: ReplaySuiteResult): string {
 }
 
 function renderJUnitTestCase(test: ReplaySuiteTestResult): string[] {
-  const name = xmlEscape(path.basename(test.file));
+  const name = xmlEscape(replayTestCaseName(test));
   const className = xmlEscape(
     path.dirname(test.file) === '.' ? test.file : path.dirname(test.file),
   );
@@ -237,6 +460,13 @@ function appendOptionalLine(lines: string[], line: string | undefined): void {
 
 function formatJUnitSeconds(durationMs: number): string {
   return (Math.max(0, durationMs) / 1000).toFixed(3);
+}
+
+function formatDurationSeconds(durationMs: number): string {
+  const seconds = Math.max(0, durationMs) / 1000;
+  if (seconds >= 10) return `${seconds.toFixed(1)}s`;
+  if (seconds >= 1) return `${seconds.toFixed(2)}s`;
+  return `${seconds.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}s`;
 }
 
 function xmlEscape(value: string): string {

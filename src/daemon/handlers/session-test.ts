@@ -150,9 +150,14 @@ async function runReplayTestCase(
   let finalResponse: DaemonResponse | undefined;
   let finalSessionName = '';
   let attempts = 0;
+  let finalAttemptDurationMs = 0;
+  const attemptFailures: NonNullable<
+    Extract<ReplaySuiteTestResult, { status: 'passed' }>['attemptFailures']
+  > = [];
 
   for (let attemptIndex = 0; attemptIndex <= retries; attemptIndex += 1) {
     attempts = attemptIndex + 1;
+    const attemptStartedAt = Date.now();
     const testSessionName = buildReplayTestSessionName(
       sessionName,
       suiteInvocationId,
@@ -181,6 +186,7 @@ async function runReplayTestCase(
       runReplay,
       cleanupSession,
     });
+    finalAttemptDurationMs = Date.now() - attemptStartedAt;
     materializeReplayTestAttemptArtifacts({
       response,
       filePath: entry.path,
@@ -192,6 +198,11 @@ async function runReplayTestCase(
     finalResponse = response;
     finalSessionName = testSessionName;
     if (response.ok) break;
+    attemptFailures.push({
+      attempt: attempts,
+      message: response.error.message,
+      durationMs: finalAttemptDurationMs,
+    });
     if (isReplayInfrastructureFailure(response)) break;
     if (attemptIndex >= retries) break;
     emitRequestProgress({
@@ -222,13 +233,16 @@ async function runReplayTestCase(
     });
     return {
       file: entry.path,
+      title: entry.title,
       session: finalSessionName,
       status: 'passed',
       durationMs,
+      finalAttemptDurationMs,
       attempts,
       artifactsDir: testArtifactsDir,
       replayed: typeof finalResponse.data?.replayed === 'number' ? finalResponse.data.replayed : 0,
       healed: typeof finalResponse.data?.healed === 'number' ? finalResponse.data.healed : 0,
+      ...(attemptFailures.length > 0 ? { attemptFailures } : {}),
     };
   }
 
@@ -252,6 +266,7 @@ async function runReplayTestCase(
   });
   return {
     file: entry.path,
+    title: entry.title,
     session: finalSessionName,
     status: 'failed',
     durationMs,

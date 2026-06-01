@@ -673,7 +673,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--debug', '--verbose', '-v'],
     type: 'boolean',
     usageLabel: '--debug, --verbose, -v',
-    usageDescription: 'Enable debug diagnostics and stream daemon/runner logs',
+    usageDescription:
+      'Enable debug diagnostics; test --verbose prints per-test step timings without debug logs',
   },
   {
     key: 'json',
