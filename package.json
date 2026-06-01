@@ -163,11 +163,6 @@
     "README.md",
     "LICENSE"
   ],
-  "pnpm": {
-    "overrides": {
-      "lodash-es": "4.18.1"
-    }
-  },
   "keywords": [
     "agent",
     "device",
