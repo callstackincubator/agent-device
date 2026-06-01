@@ -64,6 +64,7 @@ import {
   overlayRecordingTouches,
 } from '../../../recording/overlay.ts';
 import { runCmd, runCmdBackground } from '../../../utils/exec.ts';
+import { isPlayableVideo, waitForStableFile } from '../../../utils/video.ts';
 
 type RunnerCall = {
   command: string;
@@ -81,6 +82,8 @@ const mockRunIosRunnerCommand = vi.mocked(runIosRunnerCommand);
 const mockResizeRecording = vi.mocked(resizeRecording);
 const mockTrimRecordingStart = vi.mocked(trimRecordingStart);
 const mockOverlayRecordingTouches = vi.mocked(overlayRecordingTouches);
+const mockWaitForStableFile = vi.mocked(waitForStableFile);
+const mockIsPlayableVideo = vi.mocked(isPlayableVideo);
 
 const overlaySupportWarning = getRecordingOverlaySupportWarning();
 
@@ -183,6 +186,8 @@ beforeEach(() => {
   mockResizeRecording.mockImplementation(async () => {});
   mockTrimRecordingStart.mockImplementation(async () => {});
   mockOverlayRecordingTouches.mockImplementation(async () => {});
+  mockWaitForStableFile.mockImplementation(async () => {});
+  mockIsPlayableVideo.mockImplementation(async () => true);
 });
 
 afterEach(() => {
@@ -594,6 +599,138 @@ test('record stop leaves a short visual tail after iOS simulator gestures', asyn
 
   expect(response?.ok).toBe(true);
   expect(kill).toHaveBeenCalledWith('SIGINT');
+});
+
+test('record stop reports too-short iOS simulator recordings without leaving invalid output', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-too-short';
+  const outPath = path.join(os.tmpdir(), `agent-device-too-short-${Date.now()}.mp4`);
+  fs.writeFileSync(outPath, 'not-a-video');
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'Simulator',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.recording = {
+    platform: 'ios',
+    outPath,
+    startedAt: Date.now(),
+    showTouches: false,
+    gestureEvents: [],
+    child: { kill: vi.fn() },
+    wait: Promise.resolve({ stdout: '', stderr: 'failed to finalize', exitCode: 1 }),
+  };
+  sessionStore.set(sessionName, session);
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(response?.ok).toBe(false);
+  expect((response as any).error?.message).toMatch(/wait at least 1000ms/i);
+  expect((response as any).error?.message).toMatch(/failed to finalize/i);
+  expect(fs.existsSync(outPath)).toBe(false);
+});
+
+test('record stop measures too-short iOS simulator recordings from stop request time', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(10_000);
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-too-short-delayed-finalize';
+  const outPath = path.join(os.tmpdir(), `agent-device-too-short-delayed-${Date.now()}.mp4`);
+  fs.writeFileSync(outPath, 'not-a-video');
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'Simulator',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.recording = {
+    platform: 'ios',
+    outPath,
+    startedAt: Date.now() - 500,
+    showTouches: false,
+    gestureEvents: [],
+    child: { kill: vi.fn() },
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  };
+  sessionStore.set(sessionName, session);
+  mockWaitForStableFile.mockImplementation(async () => {
+    vi.setSystemTime(11_300);
+  });
+  mockIsPlayableVideo.mockImplementation(async () => false);
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(response?.ok).toBe(false);
+  expect((response as any).error?.message).toMatch(/Recording stopped after 500ms/i);
+  expect((response as any).error?.message).toMatch(/wait at least 1000ms/i);
+  expect(fs.existsSync(outPath)).toBe(false);
+});
+
+test('record stop measures too-short Android failures from stop request time', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(20_000);
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-too-short-delayed-stop';
+  const session = makeSession(sessionName, {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Android',
+    kind: 'device',
+    booted: true,
+  });
+  session.recording = {
+    platform: 'android',
+    outPath: path.resolve('./android-too-short.mp4'),
+    startedAt: Date.now() - 500,
+    showTouches: true,
+    gestureEvents: [],
+    remotePath: '/sdcard/agent-device-recording-too-short.mp4',
+    remotePid: '4322',
+    chunks: [
+      {
+        index: 1,
+        path: path.resolve('./android-too-short.mp4'),
+        remotePath: '/sdcard/agent-device-recording-too-short.mp4',
+      },
+    ],
+  };
+  sessionStore.set(sessionName, session);
+  mockRunCmd.mockImplementation(async (_cmd, args) => {
+    const command = args.join(' ');
+    if (command === '-s emulator-5554 shell ps -o pid= -p 4322') {
+      return { stdout: '4322\n', stderr: '', exitCode: 0 };
+    }
+    if (command === '-s emulator-5554 shell kill -2 4322') {
+      vi.setSystemTime(21_300);
+      return { stdout: '', stderr: 'failed to stop', exitCode: 1 };
+    }
+    if (command === '-s emulator-5554 shell kill -9 4322') {
+      return { stdout: '', stderr: 'failed to force stop', exitCode: 1 };
+    }
+    return { stdout: '', stderr: '', exitCode: 0 };
+  });
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(response?.ok).toBe(false);
+  expect((response as any).error?.message).toMatch(/Recording stopped after 500ms/i);
+  expect((response as any).error?.message).toMatch(/wait at least 1000ms/i);
+  expect((response as any).error?.message).toMatch(/failed to stop/i);
 });
 
 test('record start stores iOS simulator recorder pid for scoped cleanup', async () => {

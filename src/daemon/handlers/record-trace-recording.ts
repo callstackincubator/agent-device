@@ -16,7 +16,11 @@ import {
   resizeRecording,
   trimRecordingStart,
 } from '../../recording/overlay.ts';
-import { formatRecordTraceError, formatRecordTraceExecFailure } from '../record-trace-errors.ts';
+import {
+  buildRecordStopFailure,
+  formatRecordTraceError,
+  formatRecordTraceExecFailure,
+} from '../record-trace-errors.ts';
 import { resolveRecordingProvider } from '../recording-provider.ts';
 import { finalizeRecordingOverlay } from './record-trace-finalize.ts';
 import { errorResponse } from './response.ts';
@@ -304,10 +308,11 @@ async function stopNonRunnerRecording(params: {
   deps: RecordTraceDeps;
   device: SessionState['device'];
   recording: Extract<NonNullable<SessionState['recording']>, { platform: 'ios' | 'android' }>;
+  stopRequestedAt: number;
 }): Promise<DaemonResponse | null> {
-  const { deps, device, recording } = params;
+  const { deps, device, recording, stopRequestedAt } = params;
   if (recording.platform === 'android') {
-    return await stopAndroidRecording({ deps, device, recording });
+    return await stopAndroidRecording({ deps, device, recording, stopRequestedAt });
   }
 
   await withDiagnosticTimer('record_stop_tail_settle', () => deps.waitForRecordingTail(recording), {
@@ -322,15 +327,17 @@ async function stopNonRunnerRecording(params: {
     },
   );
   if (!stopResult) {
-    return errorResponse(
-      'COMMAND_FAILED',
+    return buildIosSimulatorRecordingStopFailure(
       `failed to stop recording: simctl recordVideo did not exit after ${IOS_SIMULATOR_RECORDING_STOP_TIMEOUT_MS}ms and forced cleanup`,
+      recording,
+      stopRequestedAt,
     );
   }
   if (stopResult.exitCode !== 0) {
-    return errorResponse(
-      'COMMAND_FAILED',
+    return buildIosSimulatorRecordingStopFailure(
       `failed to stop recording: ${formatRecordTraceExecFailure(stopResult, 'simctl recordVideo')}`,
+      recording,
+      stopRequestedAt,
     );
   }
 
@@ -353,9 +360,10 @@ async function stopNonRunnerRecording(params: {
     },
   );
   if (!playable) {
-    return errorResponse(
-      'COMMAND_FAILED',
+    return buildIosSimulatorRecordingStopFailure(
       `failed to stop recording: ${recording.outPath} was not finalized into a playable video`,
+      recording,
+      stopRequestedAt,
     );
   }
 
@@ -398,6 +406,24 @@ async function stopNonRunnerRecording(params: {
   return null;
 }
 
+function buildIosSimulatorRecordingStopFailure(
+  message: string,
+  recording: Extract<NonNullable<SessionState['recording']>, { platform: 'ios' }>,
+  stopRequestedAt: number,
+): DaemonResponse {
+  const failure = buildRecordStopFailure(message, recording, stopRequestedAt);
+  removeInvalidRecordingOutput(recording.outPath);
+  return errorResponse('COMMAND_FAILED', failure.message);
+}
+
+function removeInvalidRecordingOutput(outPath: string): void {
+  try {
+    fs.rmSync(outPath, { force: true });
+  } catch {
+    // Best effort: the error response still reports the failed finalization.
+  }
+}
+
 async function stopRecording(params: {
   req: DaemonRequest;
   activeSession: SessionState;
@@ -412,6 +438,7 @@ async function stopRecording(params: {
   }
 
   const recording = activeSession.recording;
+  const stopRequestedAt = Date.now();
   const invalidatedReason = recording.invalidatedReason;
   activeSession.recording = undefined;
 
@@ -420,7 +447,7 @@ async function stopRecording(params: {
       ? await stopIosDeviceRecording({ req, activeSession, device, logPath, deps, recording })
       : recording.platform === 'macos-runner'
         ? await stopMacOsRecording({ req, activeSession, device, logPath, deps, recording })
-        : await stopNonRunnerRecording({ deps, device, recording });
+        : await stopNonRunnerRecording({ deps, device, recording, stopRequestedAt });
   if (stopError) {
     return stopError;
   }

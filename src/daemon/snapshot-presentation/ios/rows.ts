@@ -30,15 +30,16 @@ function collectIosRowPresentationForNode(
   rowLabel: string,
   context: SnapshotTreeRuleContext,
 ): void {
-  const descendants = collectDescendants(nodes, position);
   const rowType = normalizeType(row.type ?? '');
   if (rowType === 'button') {
+    const descendants = collectDescendants(nodes, position);
     suppressRepeatedRowDescendants(descendants, rowLabel, context.suppressedIndexes, row);
     return;
   }
   if (rowType !== 'cell') {
     return;
   }
+  const descendants = collectDescendants(nodes, position);
   if (collectSwitchRowPresentation(descendants, row, rowLabel, context)) {
     return;
   }

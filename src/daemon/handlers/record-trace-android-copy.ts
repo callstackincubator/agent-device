@@ -43,11 +43,7 @@ async function copyAndroidRecordingWithValidation(params: {
   let lastCopyError: string | undefined;
 
   for (let attempt = 0; attempt < ANDROID_LOCAL_VIDEO_ATTEMPTS; attempt += 1) {
-    try {
-      fs.rmSync(outPath, { force: true });
-    } catch {
-      // Ignore stale local file cleanup issues and let adb pull report the real failure.
-    }
+    removeLocalRecordingCandidate(outPath);
 
     const device = androidDeviceForSerial(deviceId);
     const pullResult = await pullAndroidAdbFile(remotePath, outPath, {
@@ -98,6 +94,7 @@ async function copyAndroidRecordingWithValidation(params: {
   if (lastCopyError) {
     return `failed to copy recording from device: ${lastCopyError}`;
   }
+  removeLocalRecordingCandidate(outPath);
   return 'failed to copy recording from device: pulled file is not a playable MP4';
 }
 
@@ -106,5 +103,13 @@ function readFileSize(filePath: string): number {
     return fs.statSync(filePath).size;
   } catch {
     return 0;
+  }
+}
+
+function removeLocalRecordingCandidate(filePath: string): void {
+  try {
+    fs.rmSync(filePath, { force: true });
+  } catch {
+    // Ignore local cleanup issues and let the caller report the validation failure.
   }
 }

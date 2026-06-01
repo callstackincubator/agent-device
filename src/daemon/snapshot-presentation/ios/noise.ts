@@ -4,8 +4,9 @@ import { normalizeType } from '../../snapshot-processing.ts';
 import { collectIosScrollIndicatorPresentation } from './scroll.ts';
 import {
   areRectsApproximatelyEqual,
-  collectDescendants,
+  findDescendant,
   findLargestViewportRect,
+  forEachDescendant,
   isRepeatedStaticNode,
   isScrollableSnapshotType,
   isSemanticActionNode,
@@ -35,9 +36,13 @@ function collectIosReactNativeOverlayWrapperSuppression(
       return;
     }
 
-    const hasVisibleBannerDescendant = collectDescendants(nodes, position).some(
-      (descendant) =>
-        descendant.label?.trim() === nodeLabel && isReactNativeCollapsedWarningBanner(descendant),
+    const hasVisibleBannerDescendant = Boolean(
+      findDescendant(
+        nodes,
+        position,
+        (descendant) =>
+          descendant.label?.trim() === nodeLabel && isReactNativeCollapsedWarningBanner(descendant),
+      ),
     );
     if (hasVisibleBannerDescendant) {
       suppressedIndexes.add(node.index);
@@ -81,45 +86,48 @@ function collectRepeatedStaticSuppressionForNode(
   nodeLabel: string,
   suppressedIndexes: Set<number>,
 ): void {
-  const descendants = collectDescendants(nodes, position);
   const type = normalizeType(node.type ?? '');
   if (type === 'statictext' || type === 'link') {
-    suppressRepeatedStaticDescendants(descendants, nodeLabel, suppressedIndexes);
+    suppressRepeatedStaticDescendants(nodes, position, nodeLabel, suppressedIndexes);
     return;
   }
   if (type !== 'other') {
     return;
   }
-  if (hasEquivalentSemanticDescendant(descendants, nodeLabel)) {
+  if (hasEquivalentSemanticDescendant(nodes, position, nodeLabel)) {
     suppressedIndexes.add(node.index);
     return;
   }
-  suppressRepeatedStaticDescendants(descendants, nodeLabel, suppressedIndexes);
+  suppressRepeatedStaticDescendants(nodes, position, nodeLabel, suppressedIndexes);
 }
 
 function hasEquivalentSemanticDescendant(
-  descendants: RawSnapshotNode[],
+  nodes: RawSnapshotNode[],
+  position: number,
   nodeLabel: string,
 ): boolean {
-  return descendants.some((descendant) => {
-    const type = normalizeType(descendant.type ?? '');
-    return (
-      (type === 'link' || type === 'searchfield' || isScrollableSnapshotType(descendant.type)) &&
-      descendant.label?.trim() === nodeLabel
-    );
-  });
+  return Boolean(
+    findDescendant(nodes, position, (descendant) => {
+      const type = normalizeType(descendant.type ?? '');
+      return (
+        (type === 'link' || type === 'searchfield' || isScrollableSnapshotType(descendant.type)) &&
+        descendant.label?.trim() === nodeLabel
+      );
+    }),
+  );
 }
 
 function suppressRepeatedStaticDescendants(
-  descendants: RawSnapshotNode[],
+  nodes: RawSnapshotNode[],
+  position: number,
   label: string,
   suppressedIndexes: Set<number>,
 ): void {
-  for (const descendant of descendants) {
+  forEachDescendant(nodes, position, (descendant) => {
     if (isRepeatedStaticNode(descendant, label)) {
       suppressedIndexes.add(descendant.index);
     }
-  }
+  });
 }
 
 function collectIosActionWrapperSuppression(
@@ -127,13 +135,14 @@ function collectIosActionWrapperSuppression(
   suppressedIndexes: Set<number>,
 ): void {
   forEachOtherNodeWithLabel(nodes, (node, nodeLabel, position) => {
-    const semanticDescendant = collectDescendants(nodes, position).find(
-      (descendant) =>
+    const semanticDescendant = findDescendant(nodes, position, (descendant) => {
+      return (
         isSemanticActionNode(descendant) &&
         descendant.label?.trim() === nodeLabel &&
         (areRectsApproximatelyEqual(descendant.rect, node.rect) ||
-          isIosBackdropDismissWrapper(node, descendant)),
-    );
+          isIosBackdropDismissWrapper(node, descendant))
+      );
+    });
     if (semanticDescendant) {
       suppressedIndexes.add(node.index);
     }
@@ -193,9 +202,9 @@ function collectIosOffscreenKeyboardSuppression(
     }
     suppressedIndexes.add(node.index);
     suppressOffscreenKeyboardAncestors(node, nodes, suppressedIndexes, screenBottom);
-    for (const descendant of collectDescendants(nodes, position)) {
+    forEachDescendant(nodes, position, (descendant) => {
       suppressedIndexes.add(descendant.index);
-    }
+    });
   }
 }
 
@@ -255,8 +264,9 @@ function collectIosSearchToolbarSuppression(
     if (node.label !== 'Toolbar') {
       continue;
     }
-    const descendants = collectDescendants(nodes, position);
-    const innerSearch = descendants.find(
+    const innerSearch = findDescendant(
+      nodes,
+      position,
       (candidate) =>
         normalizeType(candidate.type ?? '') === 'searchfield' && candidate.label === 'Search',
     );
@@ -276,14 +286,14 @@ function suppressSearchToolbarDescendants(
   keptSearchIndex: number | null,
   suppressedIndexes: Set<number>,
 ): void {
-  for (const descendant of collectDescendants(nodes, position)) {
+  forEachDescendant(nodes, position, (descendant) => {
     if (descendant.index === keptSearchIndex) {
-      continue;
+      return;
     }
     if (shouldSuppressIosSearchToolbarDescendant(descendant)) {
       suppressedIndexes.add(descendant.index);
     }
-  }
+  });
 }
 
 function suppressToolbarAncestors(

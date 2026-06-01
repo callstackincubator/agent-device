@@ -2,7 +2,7 @@ import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { androidDeviceForSerial, runAndroidAdb } from '../../platforms/android/adb.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
-import { formatRecordTraceExecFailure } from '../record-trace-errors.ts';
+import { buildRecordStopFailure, formatRecordTraceExecFailure } from '../record-trace-errors.ts';
 import type { RecordTraceDeps } from './record-trace-types.ts';
 import { errorResponse } from './response.ts';
 import type {
@@ -413,8 +413,9 @@ export async function stopAndroidRecording(params: {
   deps: RecordTraceDeps;
   device: AndroidDevice;
   recording: AndroidRecording;
+  stopRequestedAt: number;
 }): Promise<DaemonResponse | null> {
-  const { deps, device, recording } = params;
+  const { deps, device, recording, stopRequestedAt } = params;
   emitDiagnostic({
     level: 'debug',
     phase: 'record_stop_android_enter',
@@ -444,7 +445,10 @@ export async function stopAndroidRecording(params: {
     });
     if (copyError) {
       await cleanupRemoteRecording();
-      return errorResponse('COMMAND_FAILED', copyError);
+      return errorResponse(
+        'COMMAND_FAILED',
+        formatAndroidStopFailure(copyError, recording, stopRequestedAt),
+      );
     }
 
     await finalizeAndroidRecordingOutput({ recording, deps });
@@ -453,7 +457,10 @@ export async function stopAndroidRecording(params: {
   await cleanupRemoteRecording();
 
   if (stopError) {
-    return errorResponse('COMMAND_FAILED', stopError);
+    return errorResponse(
+      'COMMAND_FAILED',
+      formatAndroidStopFailure(stopError, recording, stopRequestedAt),
+    );
   }
 
   if (cleanupError) {
@@ -487,4 +494,12 @@ export async function stopAndroidRecording(params: {
       }
     }
   }
+}
+
+function formatAndroidStopFailure(
+  error: string,
+  recording: AndroidRecording,
+  stopRequestedAt: number,
+): string {
+  return buildRecordStopFailure(error, recording, stopRequestedAt).message;
 }

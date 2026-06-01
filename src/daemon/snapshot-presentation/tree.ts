@@ -7,24 +7,68 @@ export type SnapshotTreeRuleContext = {
 };
 
 const RECT_FIELDS = ['x', 'y', 'width', 'height'] as const;
+const descendantEndPositionCache = new WeakMap<RawSnapshotNode[], number[]>();
 
 export function collectDescendants(
   nodes: RawSnapshotNode[],
   startPosition: number,
 ): RawSnapshotNode[] {
-  const startDepth = nodes[startPosition]?.depth ?? 0;
-  const descendants: RawSnapshotNode[] = [];
-  for (let position = startPosition + 1; position < nodes.length; position += 1) {
+  const node = nodes[startPosition];
+  if (!node) return [];
+  const endPosition = getDescendantEndPositions(nodes)[startPosition] ?? startPosition + 1;
+  return nodes.slice(startPosition + 1, endPosition);
+}
+
+export function findDescendant(
+  nodes: RawSnapshotNode[],
+  startPosition: number,
+  predicate: (node: RawSnapshotNode) => boolean,
+): RawSnapshotNode | undefined {
+  const endPosition = getDescendantEndPositions(nodes)[startPosition] ?? startPosition + 1;
+  for (let position = startPosition + 1; position < endPosition; position += 1) {
     const node = nodes[position];
-    if (!node) {
-      continue;
+    if (node && predicate(node)) {
+      return node;
     }
-    if ((node.depth ?? 0) <= startDepth) {
-      break;
-    }
-    descendants.push(node);
   }
-  return descendants;
+  return undefined;
+}
+
+export function forEachDescendant(
+  nodes: RawSnapshotNode[],
+  startPosition: number,
+  visitor: (node: RawSnapshotNode) => void,
+): void {
+  const endPosition = getDescendantEndPositions(nodes)[startPosition] ?? startPosition + 1;
+  for (let position = startPosition + 1; position < endPosition; position += 1) {
+    const node = nodes[position];
+    if (node) {
+      visitor(node);
+    }
+  }
+}
+
+function getDescendantEndPositions(nodes: RawSnapshotNode[]): number[] {
+  const cached = descendantEndPositionCache.get(nodes);
+  if (cached) {
+    return cached;
+  }
+
+  const endPositions = new Array<number>(nodes.length);
+  const stack: Array<{ depth: number; position: number }> = [];
+  for (const [position, node] of nodes.entries()) {
+    const depth = node?.depth ?? 0;
+    while (stack.length > 0 && depth <= stack[stack.length - 1]!.depth) {
+      const previous = stack.pop()!;
+      endPositions[previous.position] = position;
+    }
+    stack.push({ depth, position });
+  }
+  for (const entry of stack) {
+    endPositions[entry.position] = nodes.length;
+  }
+  descendantEndPositionCache.set(nodes, endPositions);
+  return endPositions;
 }
 
 function collectAncestors(

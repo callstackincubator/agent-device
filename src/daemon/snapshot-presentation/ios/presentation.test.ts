@@ -423,7 +423,6 @@ test('buildSnapshotState collapses iOS backdrop dismiss wrappers', () => {
       parentIndex: 0,
       type: 'Other',
       label: 'Dismiss',
-      rect: { x: 0, y: 458, width: 402, height: 416 },
     },
     {
       index: 2,
