@@ -158,7 +158,7 @@ agent-device snapshot -i --platform apple --target desktop
 - Status-item apps often expose little or no useful UI through the default macOS `app` surface. Prefer `--surface menubar` for discovery when the app lives in the top menu bar.
 - Use `frontmost-app`, `desktop`, and `menubar` mainly for `snapshot`, `get`, `is`, and `wait`.
 - If you inspect with `desktop` or `menubar` and then need to click or fill inside one app, open that app in a normal `app` session.
-- macOS also supports `clipboard read|write`, `trigger-app-event`, `logs`, `network dump`, `alert`, `gesture pinch` in app sessions, `settings appearance`, and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`.
+- macOS also supports `clipboard read|write`, `trigger-app-event`, `logs`, `network dump`, `alert`, `settings appearance`, and `settings permission <grant|reset> <accessibility|screen-recording|input-monitoring>`.
 - In macOS app sessions, `screenshot` captures the target app window bounds rather than the full desktop.
 - Prefer selector or `@ref`-driven interactions on macOS. Window position can shift between runs, so raw x/y point commands are less stable than snapshot-derived targets.
 - Use `click --button secondary` for context menus on macOS, then run `snapshot -i` again.
@@ -302,8 +302,8 @@ done
 ```
 
 `longpress` is supported on iOS and Android.
-`gesture pinch` is supported on Android, Apple simulators, and macOS app sessions.
-`gesture rotate` is supported on Android and iOS simulator app sessions. Use `rotate` for device orientation.
+`gesture pinch` is supported on Android and iOS simulator app sessions.
+`gesture rotate` is supported on Android and iOS simulator app sessions. Use `rotate` for device orientation. On iOS the optional `velocity` argument is ignored — rotation is synthesized over a fixed duration and direction is taken from the sign of `degrees`.
 `gesture transform` is supported on Android and iOS simulator app sessions.
 
 ## Find (semantic)

@@ -17,8 +17,6 @@ export type CommandCapability = {
 const isNotMacOs = (device: DeviceInfo): boolean => device.platform !== 'macos';
 const isMacOsOrAppleSimulator = (device: DeviceInfo): boolean =>
   device.platform === 'macos' || device.kind === 'simulator';
-const isMacOsOrMobileAppleSimulator = (device: DeviceInfo): boolean =>
-  device.platform === 'macos' || (device.kind === 'simulator' && device.target !== 'tv');
 const isIosMobileSimulator = (device: DeviceInfo): boolean =>
   device.platform === 'ios' && device.kind === 'simulator' && device.target !== 'tv';
 
@@ -55,12 +53,14 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     supports: (device) => device.platform === 'android' || isMacOsOrAppleSimulator(device),
   },
   pinch: {
-    // macOS desktop targets report kind=device, so this stays enabled here and the
-    // supports() guard excludes iOS physical devices.
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,
-    supports: (device) => device.platform === 'android' || isMacOsOrMobileAppleSimulator(device),
+    // iOS-simulator-only (plus Android): pinch is driven by the two-finger XCTest synthesis
+    // path (RunnerSynthesizedGesture), which is iOS-only. macOS has no multi-touch synthesis, so
+    // it is excluded and fails fast at admission rather than round-tripping to an unsupported
+    // runner. Matches rotate-gesture / transform-gesture.
+    supports: (device) => device.platform === 'android' || isIosMobileSimulator(device),
   },
   'rotate-gesture': {
     apple: { simulator: true, device: true },
