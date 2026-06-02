@@ -14,7 +14,6 @@ struct RunnerCommandJournalEntry {
   var responseOk: Bool?
   var responseJson: String?
   var error: ErrorPayload?
-  var updatedAtMs: Double
 }
 
 final class RunnerCommandJournal {
@@ -34,8 +33,7 @@ final class RunnerCommandJournal {
       state: .accepted,
       responseOk: nil,
       responseJson: nil,
-      error: nil,
-      updatedAtMs: currentTimeMs()
+      error: nil
     )
     order.removeAll { $0 == commandId }
     order.append(commandId)
@@ -104,14 +102,12 @@ final class RunnerCommandJournal {
       state: .accepted,
       responseOk: nil,
       responseJson: nil,
-      error: nil,
-      updatedAtMs: currentTimeMs()
+      error: nil
     )
     entry.state = state
     entry.responseOk = responseOk
     entry.responseJson = responseJson
     entry.error = error
-    entry.updatedAtMs = currentTimeMs()
     entries[commandId] = entry
     order.removeAll { $0 == commandId }
     order.append(commandId)
@@ -131,11 +127,8 @@ final class RunnerCommandJournal {
     return trimmed.isEmpty ? nil : trimmed
   }
 
-  private func currentTimeMs() -> Double {
-    Date().timeIntervalSince1970 * 1000
-  }
-
   private func encodeResponseJson(_ response: Response) -> String? {
+    guard response.data?.nodes == nil else { return nil }
     guard let data = try? JSONEncoder().encode(response) else { return nil }
     guard data.count <= maxResponseJsonBytes else { return nil }
     return String(data: data, encoding: .utf8)
