@@ -47,10 +47,24 @@ const runnerSessionLocks = new Map<string, Promise<unknown>>();
 const RUNNER_STOP_WAIT_TIMEOUT_MS = 10_000;
 const RUNNER_INVALIDATE_WAIT_TIMEOUT_MS = 1_000;
 const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 5_000;
-// Hot tap loops can skip one uptime preflight only while the runner has just responded.
-// Failed mutating taps still invalidate the session instead of being replayed.
 const RUNNER_TAP_PREFLIGHT_SKIP_FRESHNESS_MS = 10_000;
 const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
+
+type RunnerReadinessPreflightDecision =
+  | {
+      action: 'run';
+      reason:
+        | 'startup'
+        | 'conservative_command'
+        | 'no_successful_response'
+        | 'successful_response_stale';
+      lastSuccessfulRunnerResponseAgeMs?: number;
+    }
+  | {
+      action: 'skip';
+      reason: 'recent_successful_response';
+      lastSuccessfulRunnerResponseAgeMs: number;
+    };
 
 function withRunnerSessionLock<T>(deviceId: string, task: () => Promise<T>): Promise<T> {
   return withKeyedLock(runnerSessionLocks, deviceId, task);
@@ -463,8 +477,8 @@ export async function executeRunnerCommandWithSession(
   }
 
   const deadline = Deadline.fromTimeoutMs(timeoutMs);
-  const shouldPreflight = shouldPreflightMutatingRunnerCommand(session, runnerCommand);
-  if (shouldPreflight) {
+  const preflightDecision = resolveRunnerReadinessPreflightDecision(session, runnerCommand);
+  if (preflightDecision.action === 'run') {
     const readinessTimeoutMs = session.ready
       ? Math.min(RUNNER_READY_PREFLIGHT_TIMEOUT_MS, deadline.remainingMs())
       : Math.min(RUNNER_STARTUP_TIMEOUT_MS, deadline.remainingMs());
@@ -484,6 +498,8 @@ export async function executeRunnerCommandWithSession(
         {
           command: runnerCommand.command,
           commandId: runnerCommand.commandId,
+          lastSuccessfulRunnerResponseAgeMs: preflightDecision.lastSuccessfulRunnerResponseAgeMs,
+          reason: preflightDecision.reason,
           sessionReady: session.ready,
           timeoutMs: readinessTimeoutMs,
         },
@@ -499,10 +515,8 @@ export async function executeRunnerCommandWithSession(
       data: {
         command: command.command,
         commandId: runnerCommand.commandId,
-        lastSuccessfulRunnerResponseAgeMs:
-          session.lastSuccessfulRunnerResponseAtMs === undefined
-            ? undefined
-            : Date.now() - session.lastSuccessfulRunnerResponseAtMs,
+        lastSuccessfulRunnerResponseAgeMs: preflightDecision.lastSuccessfulRunnerResponseAgeMs,
+        reason: preflightDecision.reason,
         sessionReady: session.ready,
       },
     });
@@ -516,7 +530,12 @@ export async function executeRunnerCommandWithSession(
     async () =>
       await sendRunnerCommandOnce(device, session.port, runnerCommand, remainingMs, signal),
     { command: runnerCommand.command, commandId: runnerCommand.commandId },
-  );
+  ).catch((error: unknown) => {
+    if (preflightDecision.action === 'skip') {
+      throw markRunnerSkippedReadinessPreflightError(error, preflightDecision);
+    }
+    throw error;
+  });
   return await parseRunnerResponse(response, session, logPath);
 }
 
@@ -566,17 +585,42 @@ export async function parseRunnerResponse(
   return {};
 }
 
-function shouldPreflightMutatingRunnerCommand(
+function resolveRunnerReadinessPreflightDecision(
   session: RunnerSession,
   command: RunnerCommand,
-): boolean {
-  if (!session.ready) return true;
-  if (command.command !== 'tap' && command.command !== 'tapSeries') return true;
+): RunnerReadinessPreflightDecision {
+  if (!session.ready) {
+    return {
+      action: 'run',
+      reason: 'startup',
+    };
+  }
+  if (command.command !== 'tap' && command.command !== 'tapSeries') {
+    return {
+      action: 'run',
+      reason: 'conservative_command',
+    };
+  }
   const lastSuccessAt = session.lastSuccessfulRunnerResponseAtMs;
-  return (
-    lastSuccessAt === undefined ||
-    Date.now() - lastSuccessAt > RUNNER_TAP_PREFLIGHT_SKIP_FRESHNESS_MS
-  );
+  if (lastSuccessAt === undefined) {
+    return {
+      action: 'run',
+      reason: 'no_successful_response',
+    };
+  }
+  const lastSuccessfulRunnerResponseAgeMs = Date.now() - lastSuccessAt;
+  if (lastSuccessfulRunnerResponseAgeMs > RUNNER_TAP_PREFLIGHT_SKIP_FRESHNESS_MS) {
+    return {
+      action: 'run',
+      reason: 'successful_response_stale',
+      lastSuccessfulRunnerResponseAgeMs,
+    };
+  }
+  return {
+    action: 'skip',
+    reason: 'recent_successful_response',
+    lastSuccessfulRunnerResponseAgeMs,
+  };
 }
 
 function markRunnerReadinessPreflightError(error: unknown): AppError {
@@ -595,6 +639,32 @@ function markRunnerReadinessPreflightError(error: unknown): AppError {
     {
       ...(appErr.details ?? {}),
       runnerReadinessPreflightFailed: true,
+    },
+    appErr.cause ?? error,
+  );
+}
+
+function markRunnerSkippedReadinessPreflightError(
+  error: unknown,
+  decision: Extract<RunnerReadinessPreflightDecision, { action: 'skip' }>,
+): AppError {
+  const appErr =
+    error instanceof AppError
+      ? error
+      : new AppError(
+          'COMMAND_FAILED',
+          error instanceof Error ? error.message : String(error),
+          undefined,
+          error,
+        );
+  return new AppError(
+    appErr.code,
+    appErr.message,
+    {
+      ...(appErr.details ?? {}),
+      runnerReadinessPreflightSkipped: true,
+      runnerReadinessPreflightSkipReason: decision.reason,
+      runnerReadinessPreflightSkippedAgeMs: decision.lastSuccessfulRunnerResponseAgeMs,
     },
     appErr.cause ?? error,
   );
