@@ -123,9 +123,7 @@ test('invokeMaestroAssertVisible does not dismiss React Native overlays during n
   });
 
   assert.equal(response.ok, false);
-  assert.deepEqual(calls, [
-    ['wait', ['Ready', '60000']],
-  ]);
+  assert.deepEqual(calls, [['wait', ['Ready', '60000']]]);
 });
 
 test('invokeMaestroAssertVisible uses snapshot resolution for short iOS assertions', async () => {
@@ -267,9 +265,7 @@ test('invokeMaestroAssertVisible fails fast when a RedBox has no dismiss target'
   if (!response.ok) {
     assert.match(response.error.message, /React Native overlay is covering app content/);
   }
-  assert.deepEqual(calls, [
-    ['snapshot', []],
-  ]);
+  assert.deepEqual(calls, [['snapshot', []]]);
 });
 
 test('invokeMaestroAssertNotVisible passes after a slow hidden sample exhausts the timeout', async () => {
