@@ -273,11 +273,13 @@ async function tryRecoverRunnerCommandAfterTransportError(
     }
     throw new AppError(
       'COMMAND_FAILED',
-      'Runner command completed, but its response was not retained for recovery.',
+      `Runner command "${command.command}" completed after the transport response was lost, but no recoverable response was retained.`,
       {
         command: command.command,
         commandId: command.commandId,
         lifecycleState,
+        recovery: 'completed_without_retained_response',
+        hint: completedWithoutRetainedResponseHint(command.command),
         logPath: options.logPath,
         transportError: transportError.message,
       },
@@ -301,7 +303,8 @@ async function tryRecoverRunnerCommandAfterTransportError(
         command: command.command,
         commandId: command.commandId,
         lifecycleState,
-        hint,
+        recovery: 'runner_reported_failure',
+        hint: hint ?? runnerReportedFailureHint(command.command),
         logPath: options.logPath,
         transportError: transportError.message,
       },
@@ -312,11 +315,13 @@ async function tryRecoverRunnerCommandAfterTransportError(
   if (lifecycleState === 'accepted' || lifecycleState === 'started') {
     throw new AppError(
       'COMMAND_FAILED',
-      `Runner command is ${lifecycleState}, but its response was lost.`,
+      `Runner command "${command.command}" is still ${lifecycleState} after the transport response was lost.`,
       {
         command: command.command,
         commandId: command.commandId,
         lifecycleState,
+        recovery: 'command_still_in_flight',
+        hint: inFlightAfterLostResponseHint(command.command),
         logPath: options.logPath,
         transportError: transportError.message,
       },
@@ -341,6 +346,18 @@ function parseLifecycleResponseJson(value: unknown): Record<string, unknown> | u
     return parsed.data as Record<string, unknown>;
   }
   return {};
+}
+
+function completedWithoutRetainedResponseHint(command: string): string {
+  return `The runner reports "${command}" already completed, so agent-device will not replay it. Run snapshot -i to inspect the current UI, then continue from that observed state. If the session is stale, close and reopen the session before retrying.`;
+}
+
+function runnerReportedFailureHint(command: string): string {
+  return `The runner observed "${command}" fail after the transport response was lost, so agent-device did not replay it. Run snapshot -i to inspect the current UI and retry with a selector visible in that snapshot. If the session is stale, close and reopen the session before retrying.`;
+}
+
+function inFlightAfterLostResponseHint(command: string): string {
+  return `The runner has accepted "${command}" and it may still finish, so agent-device will not replay it. Wait briefly, run snapshot -i to inspect the current UI, then continue from that observed state. If the session stops responding, close and reopen the session before retrying.`;
 }
 
 function isRunnerReadinessPreflightError(error: AppError): boolean {

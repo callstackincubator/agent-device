@@ -213,6 +213,86 @@ test('read-only commands retry when completed status has no retained response', 
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[2]?.[2].command, 'snapshot');
 });
 
+test('mutating commands report recovery guidance when completed status has no retained response', async () => {
+  const session = makeRunnerSession({ port: 8100, ready: true });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(session);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'fetch failed'))
+    .mockResolvedValueOnce({ lifecycleState: 'completed' });
+
+  await assert.rejects(
+    () => runIosRunnerCommand(IOS_SIMULATOR, { command: 'tap', x: 120, y: 240 }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.match(error.message, /"tap" completed after the transport response was lost/);
+      assert.equal(error.details?.recovery, 'completed_without_retained_response');
+      assert.match(String(error.details?.hint), /will not replay/);
+      assert.match(String(error.details?.hint), /snapshot -i/);
+      assert.equal(error.details?.transportError, 'fetch failed');
+      return true;
+    },
+  );
+
+  assert.equal(mockInvalidateRunnerSession.mock.calls.length, 0);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
+});
+
+test('mutating commands preserve runner failure details from status recovery', async () => {
+  const session = makeRunnerSession({ port: 8100, ready: true });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(session);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'fetch failed'))
+    .mockResolvedValueOnce({
+      lifecycleState: 'failed',
+      lifecycleErrorCode: 'AMBIGUOUS_MATCH',
+      lifecycleErrorMessage: 'Found 2 matching buttons',
+      lifecycleErrorHint: 'Use a more specific selector.',
+    });
+
+  await assert.rejects(
+    () => runIosRunnerCommand(IOS_SIMULATOR, { command: 'tap', x: 120, y: 240 }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'AMBIGUOUS_MATCH');
+      assert.equal(error.message, 'Found 2 matching buttons');
+      assert.equal(error.details?.recovery, 'runner_reported_failure');
+      assert.equal(error.details?.hint, 'Use a more specific selector.');
+      assert.equal(error.details?.transportError, 'fetch failed');
+      return true;
+    },
+  );
+
+  assert.equal(mockInvalidateRunnerSession.mock.calls.length, 0);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
+});
+
+test('mutating commands report wait-and-inspect guidance when status shows in-flight work', async () => {
+  const session = makeRunnerSession({ port: 8100, ready: true });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(session);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'fetch failed'))
+    .mockResolvedValueOnce({ lifecycleState: 'started' });
+
+  await assert.rejects(
+    () => runIosRunnerCommand(IOS_SIMULATOR, { command: 'tap', x: 120, y: 240 }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.match(error.message, /"tap" is still started/);
+      assert.equal(error.details?.recovery, 'command_still_in_flight');
+      assert.match(String(error.details?.hint), /may still finish/);
+      assert.match(String(error.details?.hint), /snapshot -i/);
+      assert.equal(error.details?.transportError, 'fetch failed');
+      return true;
+    },
+  );
+
+  assert.equal(mockInvalidateRunnerSession.mock.calls.length, 0);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
+});
+
 test('mutating commands invalidate the retry session without replaying again', async () => {
   const staleSession = makeRunnerSession({ port: 8100, ready: true });
   const freshSession = makeRunnerSession({ port: 8101, ready: false });
