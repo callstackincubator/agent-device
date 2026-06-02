@@ -967,8 +967,8 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /fill 'id="field-email"' "qa@example\.com" replaces/);
   assert.match(usageText, /do not use fill <target> ""/);
   assert.match(usageText, /Android IME capture: if fill says input was captured/);
-  assert.match(usageText, /Run mutating commands serially against one session/);
-  assert.match(usageText, /run session list and reuse the active session name/);
+  assert.match(usageText, /Implicit default sessions are scoped to the current worktree/);
+  assert.match(usageText, /Run mutating commands serially within one session/);
   assert.match(usageText, /After mutation: refs are stale/);
   assert.match(usageText, /use its selector directly; otherwise refresh with snapshot -i/);
   assert.match(usageText, /app-owned back uses back/);
@@ -1002,7 +1002,7 @@ test('usage includes agent workflows, config, environment, and examples footers'
     /Use --config <path> or AGENT_DEVICE_CONFIG to load one explicit config file\./,
   );
   assert.match(usageText, /Environment:/);
-  assert.match(usageText, /AGENT_DEVICE_SESSION\s+Default session name/);
+  assert.match(usageText, /AGENT_DEVICE_SESSION\s+Explicit session name/);
   assert.match(usageText, /AGENT_DEVICE_PLATFORM\s+Default platform binding/);
   assert.match(usageText, /AGENT_DEVICE_SESSION_LOCK\s+Bound-session conflict mode/);
   assert.match(usageText, /AGENT_DEVICE_DAEMON_BASE_URL\s+Connect to remote daemon/);
@@ -1078,7 +1078,7 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /do not plan fill <target> ""/);
   assert.match(help, /prefer keyboard dismiss before manually pressing visible Done/);
   assert.match(help, /UNSUPPORTED_OPERATION/);
-  assert.match(help, /Stateful commands against one --session must run serially/);
+  assert.match(help, /Stateful commands within one session must run serially/);
   assert.match(
     help,
     /Do not run open\/press\/fill\/type\/scroll\/back\/alert\/replay\/batch\/close commands in parallel/,
@@ -1213,7 +1213,7 @@ test('usageForCommand resolves react-devtools help topic', () => {
   assert.match(help, /Do not write agent-devtools/);
   assert.match(help, /agent-device network dump --include headers/);
   assert.match(help, /@c refs reset after reload\/remount/);
-  assert.match(help, /isolated --state-dir/);
+  assert.match(help, /use separate sessions\/devices/);
   assert.match(help, /local service tunnel/);
   assert.match(help, /Remote iOS apps attempt the legacy React DevTools websocket/);
 });

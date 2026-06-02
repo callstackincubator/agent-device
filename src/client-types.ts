@@ -184,6 +184,7 @@ export type AppOpenOptions = AgentDeviceRequestOverrides &
 
 export type AppOpenResult = {
   session: string;
+  sessionStateDir?: string;
   appName?: string;
   appBundleId?: string;
   appId?: string;

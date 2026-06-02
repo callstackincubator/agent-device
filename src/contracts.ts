@@ -43,6 +43,7 @@ export type DaemonRequestMeta = {
   requestId?: string;
   debug?: boolean;
   cwd?: string;
+  sessionExplicit?: boolean;
   tenantId?: string;
   runId?: string;
   leaseId?: string;
@@ -348,6 +349,7 @@ export const daemonCommandRequestSchema = schema<DaemonRequest>((input, path) =>
             requestId: optionalString(meta, 'requestId', `${path}.meta`),
             debug: optionalBoolean(meta, 'debug', `${path}.meta`),
             cwd: optionalString(meta, 'cwd', `${path}.meta`),
+            sessionExplicit: optionalBoolean(meta, 'sessionExplicit', `${path}.meta`),
             tenantId: optionalString(meta, 'tenantId', `${path}.meta`),
             runId: optionalString(meta, 'runId', `${path}.meta`),
             leaseId: optionalString(meta, 'leaseId', `${path}.meta`),

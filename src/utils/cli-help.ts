@@ -47,8 +47,8 @@ const AGENT_QUICKSTART_LINES = [
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
   'Clearing text: do not use fill <target> ""; use a visible clear/reset control or report that clearing is unsupported.',
   'Android IME capture: if fill says input was captured by the keyboard/IME, inspect keyboard state and switch/disable handwriting before retrying; do not loop fill/type.',
-  'Run mutating commands serially against one session; parallelize only read-only commands or separate sessions.',
-  'Before taking over a shared device, run session list and reuse the active session name when one already owns the device.',
+  'Implicit default sessions are scoped to the current worktree; use --session only when intentionally sharing a named session.',
+  'Run mutating commands serially within one session; parallelize only read-only commands or separate sessions/devices.',
   'Clipboard limits: iOS Allow Paste cannot be automated through XCUITest; prefill with clipboard write. Android non-ASCII should use fill/type, not raw adb input.',
   'After mutation: refs are stale. If the next target is known, use its selector directly; otherwise refresh with snapshot -i, scoped with -s when a stable container is known.',
   'Raw coordinates are fallback-only: use snapshot -i -c --json rects when iOS refs no-op or child refs are missing.',
@@ -66,7 +66,7 @@ const CONFIGURATION_LINES = [
 ] as const;
 
 const ENVIRONMENT_LINES = [
-  { label: 'AGENT_DEVICE_SESSION', description: 'Default session name' },
+  { label: 'AGENT_DEVICE_SESSION', description: 'Explicit session name' },
   { label: 'AGENT_DEVICE_PLATFORM', description: 'Default platform binding' },
   { label: 'AGENT_DEVICE_SESSION_LOCK', description: 'Bound-session conflict mode' },
   { label: 'AGENT_DEVICE_DAEMON_BASE_URL', description: 'Connect to remote daemon' },
@@ -166,7 +166,7 @@ Text entry:
   Android text entry is owned by agent-device: provider-native text injection when available, then chunk-safe ASCII shell input. Do not switch to raw adb, clipboard, or paste as an agent fallback. If non-ASCII is unsupported in the current backend, report the tool/device gap.
 
 Session ordering:
-  Stateful commands against one --session must run serially. Do not run open/press/fill/type/scroll/back/alert/replay/batch/close commands in parallel against the same session.
+  Stateful commands within one session must run serially. Do not run open/press/fill/type/scroll/back/alert/replay/batch/close commands in parallel against the same session.
   It is fine to parallelize independent read-only collection or commands that use different sessions/devices.
 
 Read-only and waits:
@@ -346,7 +346,7 @@ Rules:
   Keep the profile window narrow; unrelated navigation makes render data noisy.
   Do not repeatedly raise broad profile slow limits such as --limit 50, --limit 200, or --limit 500. Drill into a specific @c ref with profile report unless you have a specific target that needs more rows.
   For network evidence, use agent-device network dump --include headers; headers is not a positional argument.
-  For cross-platform validation with explicit device selectors, prefer isolated --state-dir and restart react-devtools between platforms.
+  For cross-platform validation with explicit device selectors, use separate sessions/devices and restart react-devtools between platforms.
   Remote Android and iOS bridge runs normally through agent-device react-devtools; the CLI keeps the needed local service tunnel alive until agent-device react-devtools stop or disconnect. Expo support depends on the SDK's bundled React Native runtime.
   Remote iOS apps attempt the legacy React DevTools websocket during JavaScript startup. If the app was already open before react-devtools start, run open <bundle-id> --platform ios --relaunch, then wait --connected.
 
@@ -406,7 +406,7 @@ React DevTools routing:
   If React DevTools cannot connect, report status and continue with logs, network, perf, screenshot, and trace evidence instead of blocking the whole flow.
 
 Slow-flow investigation:
-  Keep one named session, start with session list, open, and snapshot -i.
+  Keep one session, open the app, and snapshot -i.
   Use help react-devtools for the narrow React profile window.
   Use help debugging for logs clear --restart, logs mark, network dump --include headers, perf --json, traces, and runtime failure evidence.
   For 15-20s async work, use wait with the exact expected text or selector instead of repeated snapshots.
@@ -519,7 +519,7 @@ Goal:
 
 Loop:
   1. Identify target app/platform; ask only if missing.
-  2. Create output dirs and open a named session. If auth or OTP is required, sign in or ask the user for the code.
+  2. Create output dirs and open the app. If auth or OTP is required, sign in or ask the user for the code.
   3. Capture baseline snapshot -i and screenshot.
   4. Map top-level navigation, then exercise primary flows and edge states.
   5. For each issue, capture evidence and write the finding immediately, then continue.
@@ -536,17 +536,17 @@ Coverage:
 
 Evidence commands:
   mkdir -p ./dogfood-output/screenshots ./dogfood-output/videos ./dogfood-output/traces
-  agent-device --session qa open <app> --platform ios
-  agent-device --session qa snapshot -i
-  agent-device --session qa screenshot ./dogfood-output/screenshots/initial.png
-  agent-device --session qa screenshot ./dogfood-output/screenshots/issue-001.png --overlay-refs
-  agent-device --session qa logs clear --restart
-  agent-device --session qa logs mark "issue-001 repro"
-  agent-device --session qa logs path
-  agent-device --session qa record start ./dogfood-output/videos/issue-001.mp4
-  agent-device --session qa record start ./dogfood-output/videos/benchmark.mp4 --hide-touches
-  agent-device --session qa record stop
-  agent-device --session qa close
+  agent-device open <app> --platform ios
+  agent-device snapshot -i
+  agent-device screenshot ./dogfood-output/screenshots/initial.png
+  agent-device screenshot ./dogfood-output/screenshots/issue-001.png --overlay-refs
+  agent-device logs clear --restart
+  agent-device logs mark "issue-001 repro"
+  agent-device logs path
+  agent-device record start ./dogfood-output/videos/issue-001.mp4
+  agent-device record start ./dogfood-output/videos/benchmark.mp4 --hide-touches
+  agent-device record stop
+  agent-device close
 
 Evidence rules:
   Interactive/behavioral issues need step screenshots and usually a repro video.

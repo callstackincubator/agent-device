@@ -140,6 +140,7 @@ export function serializeOpenResult(result: AppOpenResult): Record<string, unkno
   return withSuccessText(
     {
       session: result.session,
+      ...(result.sessionStateDir ? { sessionStateDir: result.sessionStateDir } : {}),
       ...(result.appName ? { appName: result.appName } : {}),
       ...(result.appBundleId ? { appBundleId: result.appBundleId } : {}),
       ...(result.startup ? { startup: result.startup } : {}),

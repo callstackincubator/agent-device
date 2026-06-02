@@ -32,6 +32,12 @@ import {
   validateResolvedOpenRequest,
 } from './session-open-prepare.ts';
 import { errorResponse } from './response.ts';
+import { buildSessionRecoveryHint } from '../session-recovery-hints.ts';
+import {
+  isImplicitSessionScopeConflict,
+  resolveImplicitSessionScope,
+  resolvePublicSessionName,
+} from '../session-routing.ts';
 
 const firstSessionOpenLocks = new Map<string, Promise<unknown>>();
 
@@ -236,7 +242,8 @@ async function completeOpenCommand(params: {
   }
   const nextSession = buildNextOpenSession({
     existingSession,
-    sessionName,
+    sessionName: existingSession?.name ?? resolvePublicSessionName(req),
+    sessionScope: existingSession?.sessionScope ?? resolveImplicitSessionScope(req),
     device,
     surface,
     appBundleId: sessionAppBundleId,
@@ -246,9 +253,11 @@ async function completeOpenCommand(params: {
   if (req.runtime !== undefined) {
     setSessionRuntimeHintsForOpen(sessionStore, sessionName, runtime);
   }
+  const sessionStateDir = sessionStore.ensureSessionDir(sessionName);
   timing.totalDurationMs = Math.max(0, Date.now() - openCommandStartedAtMs);
   const openResult = buildOpenResult({
-    sessionName,
+    sessionName: nextSession.name,
+    sessionStateDir,
     appName,
     appBundleId: sessionAppBundleId,
     surface,
@@ -277,11 +286,8 @@ export async function handleOpenCommand(params: {
 }): Promise<DaemonResponse> {
   const { req, sessionName, logPath, sessionStore } = params;
 
-  if (sessionStore.has(sessionName)) {
-    const session = sessionStore.get(sessionName);
-    if (!session) {
-      return errorResponse('SESSION_NOT_FOUND', `Session "${sessionName}" not found.`);
-    }
+  const session = sessionStore.get(sessionName);
+  if (session) {
     const shouldRelaunch = req.flags?.relaunch === true;
     const requestedOpenTarget = req.positionals?.[0];
     const openTarget = requestedOpenTarget ?? (shouldRelaunch ? session.appName : undefined);
@@ -380,6 +386,17 @@ export async function handleOpenCommand(params: {
       .toArray()
       .find((activeSession) => activeSession.device.id === device.id);
     if (inUse) {
+      if (isImplicitSessionScopeConflict(req, inUse)) {
+        return errorResponse(
+          'DEVICE_IN_USE',
+          'Device is already in use by another workspace session.',
+          {
+            deviceId: device.id,
+            deviceName: device.name,
+            hint: 'Use a different device selector, wait for the other workspace to close its session, or run agent-device devices to choose another target.',
+          },
+        );
+      }
       return errorResponse(
         'DEVICE_IN_USE',
         `Device is already in use by session "${inUse.name}".`,
@@ -387,7 +404,7 @@ export async function handleOpenCommand(params: {
           session: inUse.name,
           deviceId: device.id,
           deviceName: device.name,
-          hint: `Run agent-device session list and reuse --session ${inUse.name}, or close that session before opening a new one on this device.`,
+          hint: buildSessionRecoveryHint(inUse, 'device-in-use'),
         },
       );
     }

@@ -18,6 +18,7 @@ import { listAndroidApps } from '../../platforms/android/app-lifecycle.ts';
 import { listIosApps } from '../../platforms/ios/apps.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
 import { errorResponse } from './response.ts';
+import { resolveImplicitSessionScope, sessionMatchesScope } from '../session-routing.ts';
 
 export async function handleSessionInventoryCommands(params: {
   req: DaemonRequest;
@@ -27,23 +28,27 @@ export async function handleSessionInventoryCommands(params: {
   const { req, sessionName, sessionStore } = params;
 
   if (req.command === 'session_list') {
+    const scope = resolveImplicitSessionScope(req);
     return {
       ok: true,
       data: {
-        sessions: sessionStore.toArray().map((session) => ({
-          name: session.name,
-          platform: session.device.platform,
-          target: session.device.target ?? 'mobile',
-          surface: session.surface ?? 'app',
-          device: session.device.name,
-          id: session.device.id,
-          device_id: session.device.id,
-          createdAt: session.createdAt,
-          ...(session.device.platform === 'ios' && {
-            device_udid: session.device.id,
-            ios_simulator_device_set: session.device.simulatorSetPath ?? null,
-          }),
-        })),
+        sessions: sessionStore
+          .toArray()
+          .filter((session) => sessionMatchesScope(session, scope))
+          .map((session) => ({
+            name: session.name,
+            platform: session.device.platform,
+            target: session.device.target ?? 'mobile',
+            surface: session.surface ?? 'app',
+            device: session.device.name,
+            id: session.device.id,
+            device_id: session.device.id,
+            createdAt: session.createdAt,
+            ...(session.device.platform === 'ios' && {
+              device_udid: session.device.id,
+              ios_simulator_device_set: session.device.simulatorSetPath ?? null,
+            }),
+          })),
       },
     };
   }

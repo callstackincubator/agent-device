@@ -3228,6 +3228,62 @@ test('open on in-use device returns DEVICE_IN_USE before readiness checks', asyn
     expect(response.error.code).toBe('DEVICE_IN_USE');
     expect(response.error.details?.hint).toContain('agent-device session list');
     expect(response.error.details?.hint).toContain('--session busy-session');
+    expect(response.error.details?.hint).toContain('agent-device close --session busy-session');
+  }
+  expect(mockEnsureDeviceReady).not.toHaveBeenCalled();
+});
+
+test('open on device owned by recording session returns recording recovery hint', async () => {
+  const sessionStore = makeSessionStore();
+  const recordingSession = makeSession('default', {
+    platform: 'ios',
+    id: 'ios-device-1',
+    name: 'iPhone Device',
+    kind: 'device',
+    booted: true,
+  });
+  recordingSession.recordOnlySession = true;
+  recordingSession.recording = {
+    platform: 'ios',
+    child: { kill: vi.fn(), pid: 123 },
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    outPath: '/tmp/recording.mp4',
+    startedAt: Date.now(),
+    showTouches: false,
+    gestureEvents: [],
+  };
+  sessionStore.set('default', recordingSession);
+
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'ios-device-1',
+    name: 'iPhone Device',
+    kind: 'device',
+    booted: true,
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'test-attempt',
+      command: 'open',
+      positionals: ['settings'],
+      flags: { platform: 'ios' },
+    },
+    sessionName: 'test-attempt',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  if (response && !response.ok) {
+    expect(response.error.code).toBe('DEVICE_IN_USE');
+    expect(response.error.details?.hint).toContain('Recording session "default" owns this device');
+    expect(response.error.details?.hint).toContain('agent-device record stop --session default');
+    expect(response.error.details?.hint).toContain('agent-device close --session default');
+    expect(response.error.details?.hint).toContain('agent-device session list');
   }
   expect(mockEnsureDeviceReady).not.toHaveBeenCalled();
 });
@@ -4582,7 +4638,7 @@ test('open does not retain a session when the request was canceled before comple
       expect(response.error.code).toBe('COMMAND_FAILED');
       expect(response.error.message).toBe('request canceled');
     }
-    expect(sessionStore.has('default')).toBe(false);
+    expect(sessionStore.get('default')).toBeUndefined();
   } finally {
     clearRequestCanceled(requestId);
   }

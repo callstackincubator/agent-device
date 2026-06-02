@@ -43,6 +43,23 @@ test('rejects mismatched platform selector', () => {
   );
 });
 
+test('selector mismatch explains session recovery commands', () => {
+  const session = makeSession();
+  assert.throws(
+    () => assertSessionSelectorMatches(session, { platform: 'ios' }),
+    (err: unknown) => {
+      assert.ok(err instanceof AppError);
+      assert.equal(err.code, 'INVALID_ARGS');
+      assert.match(err.message, /Session "default" is already bound to android device "Pixel 9"/i);
+      assert.match(err.message, /--platform=ios/i);
+      assert.match(err.details?.hint ?? '', /agent-device session list/i);
+      assert.match(err.details?.hint ?? '', /--session default/i);
+      assert.match(err.details?.hint ?? '', /agent-device close --session default/i);
+      return true;
+    },
+  );
+});
+
 test('accepts --platform apple alias for ios sessions', () => {
   const session = makeSession({
     device: {

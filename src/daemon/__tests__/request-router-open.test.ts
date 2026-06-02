@@ -1,4 +1,5 @@
 import { test, expect, vi, beforeEach } from 'vitest';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { getResolveTargetDeviceMock } from './request-router-dispatch-mocks.ts';
@@ -55,6 +56,23 @@ beforeEach(() => {
   mockResolveTargetDevice.mockReset();
   mockEnsureDeviceReady.mockReset();
   mockEnsureDeviceReady.mockResolvedValue(undefined);
+});
+
+test('open returns and creates the session state directory', async () => {
+  const sessionStore = makeSessionStore('agent-device-router-open-');
+  const device = makeIosDevice('SIM-STATE');
+  mockResolveTargetDevice.mockResolvedValue(device);
+
+  const handler = createOpenHandler(sessionStore);
+
+  const response = await handler(openRequest('session-a', { platform: 'ios' }, 'req-open-state'));
+
+  expect(response.ok).toBe(true);
+  if (response.ok) {
+    expect(response.data?.session).toBe('session-a');
+    expect(response.data?.sessionStateDir).toEqual(expect.stringContaining('session-a'));
+    expect(fs.existsSync(String(response.data?.sessionStateDir))).toBe(true);
+  }
 });
 
 test('router serializes same-device open requests before first session creation finishes', async () => {

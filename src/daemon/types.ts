@@ -199,6 +199,10 @@ type SessionRecordingProcessChild = Pick<ExecBackgroundResult['child'], 'kill' |
 
 export type SessionState = {
   name: string;
+  sessionScope?: {
+    kind: 'cwd';
+    id: string;
+  };
   device: DeviceInfo;
   createdAt: number;
   surface?: SessionSurface;
@@ -214,6 +218,8 @@ export type SessionState = {
     outPath: string;
     startedAt: number;
   };
+  /** Session was created by record start and should be released when recording stops. */
+  recordOnlySession?: boolean;
   recordSession?: boolean;
   saveScriptPath?: string;
   actions: SessionAction[];

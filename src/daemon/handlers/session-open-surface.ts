@@ -8,6 +8,7 @@ import type { StartupPerfSample } from './session-startup-metrics.ts';
 
 export function buildOpenResult(params: {
   sessionName: string;
+  sessionStateDir?: string;
   appName?: string;
   appBundleId?: string;
   surface: SessionSurface;
@@ -19,6 +20,7 @@ export function buildOpenResult(params: {
 }): Record<string, unknown> {
   const {
     sessionName,
+    sessionStateDir,
     appName,
     appBundleId,
     surface,
@@ -29,6 +31,7 @@ export function buildOpenResult(params: {
     runtimeHintCount,
   } = params;
   const result: Record<string, unknown> = { session: sessionName, surface };
+  if (sessionStateDir) result.sessionStateDir = sessionStateDir;
   if (appName) result.appName = appName;
   if (appBundleId) result.appBundleId = appBundleId;
   if (startup) result.startup = startup;
@@ -59,14 +62,23 @@ export function buildOpenResult(params: {
 export function buildNextOpenSession(params: {
   existingSession?: SessionState;
   sessionName: string;
+  sessionScope?: SessionState['sessionScope'];
   device: DeviceInfo;
   surface: SessionSurface;
   appBundleId?: string;
   appName?: string;
   saveScript: boolean;
 }): SessionState {
-  const { existingSession, sessionName, device, surface, appBundleId, appName, saveScript } =
-    params;
+  const {
+    existingSession,
+    sessionName,
+    sessionScope,
+    device,
+    surface,
+    appBundleId,
+    appName,
+    saveScript,
+  } = params;
   if (existingSession) {
     return {
       ...existingSession,
@@ -80,6 +92,7 @@ export function buildNextOpenSession(params: {
   }
   return {
     name: sessionName,
+    sessionScope,
     device,
     createdAt: Date.now(),
     surface,

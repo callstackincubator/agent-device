@@ -1,4 +1,5 @@
 import path from 'node:path';
+import fs from 'node:fs';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
 import type { SessionRuntimeHints, SessionState } from './types.ts';
 import { recordActionEntry, type RecordActionEntry } from './session-action-recorder.ts';
@@ -18,10 +19,6 @@ export class SessionStore {
 
   get(name: string): SessionState | undefined {
     return this.sessions.get(name);
-  }
-
-  has(name: string): boolean {
-    return this.sessions.has(name);
   }
 
   set(name: string, session: SessionState): void {
@@ -74,13 +71,23 @@ export class SessionStore {
     return path.join(this.sessionsDir, `${safeName}-${timestamp}.trace.log`);
   }
 
+  resolveSessionDir(sessionName: string): string {
+    return path.join(this.sessionsDir, safeSessionName(sessionName));
+  }
+
+  ensureSessionDir(sessionName: string): string {
+    const sessionDir = this.resolveSessionDir(sessionName);
+    fs.mkdirSync(sessionDir, { recursive: true });
+    return sessionDir;
+  }
+
   /** Path to session-scoped app log file. Agent can grep this for token-efficient debugging. */
   resolveAppLogPath(sessionName: string): string {
-    return path.join(this.sessionsDir, safeSessionName(sessionName), 'app.log');
+    return path.join(this.resolveSessionDir(sessionName), 'app.log');
   }
 
   resolveAppLogPidPath(sessionName: string): string {
-    return path.join(this.sessionsDir, safeSessionName(sessionName), 'app-log.pid');
+    return path.join(this.resolveSessionDir(sessionName), 'app-log.pid');
   }
 
   static expandHome(filePath: string, cwd?: string): string {

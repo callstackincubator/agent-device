@@ -115,6 +115,44 @@ function makeIosDeviceSession(name: string, appBundleId?: string): SessionState 
   return session;
 }
 
+function makeIosSimulatorSession(name: string): SessionState {
+  return makeSession(name, {
+    platform: 'ios',
+    id: 'ios-sim-1',
+    name: 'iPhone 16',
+    kind: 'simulator',
+    booted: true,
+  });
+}
+
+function makeIosSimulatorRecordingSession(
+  name: string,
+  options: {
+    appBundleId?: string;
+    outPath?: string;
+    recordOnlySession?: boolean;
+    startedAt?: number;
+  } = {},
+): SessionState {
+  const session = makeIosSimulatorSession(name);
+  if (options.appBundleId) {
+    session.appBundleId = options.appBundleId;
+  }
+  if (options.recordOnlySession) {
+    session.recordOnlySession = true;
+  }
+  session.recording = {
+    platform: 'ios',
+    child: { kill: vi.fn(), pid: 123 },
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    outPath: options.outPath ?? path.join(os.tmpdir(), `${name}.mp4`),
+    startedAt: options.startedAt ?? Date.now(),
+    showTouches: false,
+    gestureEvents: [],
+  };
+  return session;
+}
+
 async function runRecordCommand(params: {
   sessionStore: SessionStore;
   sessionName: string;
@@ -224,6 +262,48 @@ test('record stop derives telemetry artifact local path from client outPath', as
     deriveRecordingTelemetryPath(finalOut),
   );
   expect((responseStop as any).data?.telemetryPath).toBe(deriveRecordingTelemetryPath(finalOut));
+});
+
+test('record stop releases session created only for recording', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'record-only-session';
+  const session = makeIosSimulatorRecordingSession(sessionName, { recordOnlySession: true });
+  sessionStore.set(sessionName, session);
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(sessionStore.get(sessionName)).toBeUndefined();
+});
+
+test('record stop keeps normal app session open when stop validation fails', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(20_000);
+  const sessionStore = makeSessionStore();
+  const sessionName = 'app-session-failed-stop';
+  const outPath = path.join(os.tmpdir(), 'app-session-failed-stop.mp4');
+  fs.writeFileSync(outPath, 'not playable');
+  const session = makeIosSimulatorRecordingSession(sessionName, {
+    appBundleId: 'com.apple.Preferences',
+    outPath,
+    startedAt: Date.now() - 500,
+  });
+  sessionStore.set(sessionName, session);
+  mockIsPlayableVideo.mockImplementation(async () => false);
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(response?.ok).toBe(false);
+  expect(sessionStore.get(sessionName)).toBe(session);
+  expect(sessionStore.get(sessionName)?.recording).toBeUndefined();
 });
 
 test('record start resolves relative output path from request cwd', async () => {

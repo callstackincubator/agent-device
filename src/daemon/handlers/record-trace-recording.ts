@@ -40,6 +40,7 @@ import {
   IOS_SIMULATOR_RECORDING_STOP_TIMEOUT_MS,
   stopIosSimulatorRecordingProcess,
 } from './record-trace-ios-simulator.ts';
+import { resolveImplicitSessionScope, resolvePublicSessionName } from '../session-routing.ts';
 
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
 const IOS_DEVICE_RECORD_MAX_FPS = 120;
@@ -285,6 +286,7 @@ async function startRecording(params: {
 
   activeSession.recording = recording;
   sessionStore.set(sessionName, activeSession);
+  const sessionStateDir = sessionStore.ensureSessionDir(sessionName);
   sessionStore.recordAction(activeSession, {
     command: req.command,
     positionals: req.positionals ?? [],
@@ -297,6 +299,7 @@ async function startRecording(params: {
     data: {
       recording: 'started',
       outPath: recording.clientOutPath ?? outPath,
+      sessionStateDir,
       showTouches: recording.showTouches,
     },
   };
@@ -529,6 +532,21 @@ function deriveClientTelemetryPath(
   return deriveRecordingTelemetryPath(recording.clientOutPath);
 }
 
+function releaseRecordOnlySession(
+  sessionStore: SessionStore,
+  sessionName: string,
+  session: SessionState,
+  options: { writeLog?: boolean } = {},
+): void {
+  if (!session.recordOnlySession) {
+    return;
+  }
+  if (options.writeLog) {
+    sessionStore.writeSessionLog(session);
+  }
+  sessionStore.delete(sessionName);
+}
+
 // --- Main command handler ---
 
 export async function handleRecordCommand(params: {
@@ -548,9 +566,11 @@ export async function handleRecordCommand(params: {
   const activeSession =
     session ??
     ({
-      name: sessionName,
+      name: resolvePublicSessionName(req),
+      sessionScope: resolveImplicitSessionScope(req),
       device,
       createdAt: Date.now(),
+      recordOnlySession: true,
       actions: [],
     } satisfies SessionState);
 
@@ -565,6 +585,7 @@ export async function handleRecordCommand(params: {
 
   const response = await stopRecording({ req, activeSession, device, logPath, deps });
   if (!response.ok) {
+    releaseRecordOnlySession(sessionStore, sessionName, activeSession);
     return response;
   }
 
@@ -578,5 +599,6 @@ export async function handleRecordCommand(params: {
       showTouches: response.data?.showTouches,
     },
   });
+  releaseRecordOnlySession(sessionStore, sessionName, activeSession, { writeLog: true });
   return response;
 }
