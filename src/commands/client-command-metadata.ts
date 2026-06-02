@@ -36,11 +36,16 @@ const NETWORK_INCLUDE_VALUES = ['summary', 'headers', 'body', 'all'] as const;
 const START_STOP_VALUES = ['start', 'stop'] as const;
 const REACT_NATIVE_ACTION_VALUES = ['dismiss-overlay'] as const;
 const METRO_ACTION_VALUES = ['prepare', 'reload'] as const;
+const PREPARE_ACTION_VALUES = ['ios-runner'] as const;
 
 export const clientCommandMetadata = [
   defineClientCommandMetadata('devices', {}),
   defineClientCommandMetadata('boot', {
     headless: booleanField('Boot without showing simulator UI when supported.'),
+  }),
+  defineClientCommandMetadata('prepare', {
+    action: requiredField(enumField(PREPARE_ACTION_VALUES)),
+    timeoutMs: integerField('Maximum wall-clock time for the prepare command.'),
   }),
   defineClientCommandMetadata('apps', {
     appsFilter: enumField(['user-installed', 'all']),

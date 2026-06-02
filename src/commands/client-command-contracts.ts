@@ -62,6 +62,7 @@ export const clientCommandDefinitions = [
   defineExecutableCommand(metadata('react-native'), (client, input) =>
     client.command.reactNative(input),
   ),
+  defineExecutableCommand(metadata('prepare'), (client, input) => client.command.prepare(input)),
   defineExecutableCommand(metadata('replay'), (client, input) => client.replay.run(input)),
   defineExecutableCommand(metadata('test'), (client, input) => client.replay.test(input)),
   defineExecutableCommand(metadata('perf'), (client, input) => client.observability.perf(input)),

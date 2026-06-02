@@ -96,6 +96,7 @@ export function createAgentDeviceClient(
       keyboard: async (options = {}) => await executeCommand('keyboard', options),
       clipboard: async (options) => await executeCommand('clipboard', options),
       reactNative: async (options) => await executeCommand('react-native', options),
+      prepare: async (options) => await executeCommand('prepare', options),
     },
     devices: {
       list: async (options = {}) => {

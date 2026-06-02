@@ -29,6 +29,11 @@ export const appCliReaders = {
     ...commonInputFromFlags(flags),
     headless: flags.headless,
   }),
+  prepare: (positionals, flags) => ({
+    ...commonInputFromFlags(flags),
+    action: requiredString(positionals[0], 'prepare requires subcommand'),
+    timeoutMs: flags.timeoutMs,
+  }),
   open: (positionals, flags) => ({
     ...commonInputFromFlags(flags),
     app: positionals[0],
@@ -72,6 +77,9 @@ export const appCliReaders = {
 export const appDaemonWriters = {
   devices: direct(PUBLIC_COMMANDS.devices),
   boot: direct(PUBLIC_COMMANDS.boot),
+  prepare: direct(PUBLIC_COMMANDS.prepare, (input) => [
+    requiredDaemonString(input.action, 'prepare requires subcommand'),
+  ]),
   apps: direct(PUBLIC_COMMANDS.apps),
   open: direct(PUBLIC_COMMANDS.open, openPositionals),
   close: direct(PUBLIC_COMMANDS.close, (input) => optionalString(input.app)),

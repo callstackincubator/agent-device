@@ -18,6 +18,7 @@ vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
   return {
     ...actual,
     prewarmIosRunnerSession: vi.fn(),
+    runIosRunnerCommand: vi.fn(async () => ({ currentUptimeMs: 42 })),
     stopIosRunnerSession: vi.fn(async () => {}),
   };
 });
@@ -96,6 +97,7 @@ import { ensureDeviceReady } from '../../device-ready.ts';
 import { applyRuntimeHintsToApp, clearRuntimeHintsFromApp } from '../../runtime-hints.ts';
 import {
   prewarmIosRunnerSession,
+  runIosRunnerCommand,
   stopIosRunnerSession,
 } from '../../../platforms/ios/runner-client.ts';
 import { runMacOsAlertAction } from '../../../platforms/ios/macos-helper.ts';
@@ -118,6 +120,7 @@ const mockEnsureDeviceReady = vi.mocked(ensureDeviceReady);
 const mockApplyRuntimeHints = vi.mocked(applyRuntimeHintsToApp);
 const mockClearRuntimeHints = vi.mocked(clearRuntimeHintsFromApp);
 const mockPrewarmIosRunnerSession = vi.mocked(prewarmIosRunnerSession);
+const mockRunIosRunnerCommand = vi.mocked(runIosRunnerCommand);
 const mockStopIosRunner = vi.mocked(stopIosRunnerSession);
 const mockDismissMacOsAlert = vi.mocked(runMacOsAlertAction);
 const mockSettleSimulator = vi.mocked(settleIosSimulator);
@@ -148,6 +151,8 @@ beforeEach(() => {
   mockClearRuntimeHints.mockReset();
   mockClearRuntimeHints.mockResolvedValue(undefined);
   mockPrewarmIosRunnerSession.mockReset();
+  mockRunIosRunnerCommand.mockReset();
+  mockRunIosRunnerCommand.mockResolvedValue({ currentUptimeMs: 42 });
   mockStopIosRunner.mockReset();
   mockStopIosRunner.mockResolvedValue(undefined);
   mockDismissMacOsAlert.mockReset();
@@ -2092,6 +2097,118 @@ test('open iOS URL without app bundle id skips runner prewarm', async () => {
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
   expect(mockPrewarmIosRunnerSession).not.toHaveBeenCalled();
+});
+
+test('prepare ios-runner starts the XCTest runner on an explicit iOS selector', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'prepare-ios-runner';
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'prepare',
+      positionals: ['ios-runner'],
+      flags: { platform: 'ios', udid: 'sim-1', timeoutMs: 240000 },
+      meta: { requestId: 'prepare-request' },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(mockEnsureDeviceReady).toHaveBeenCalledWith(
+    expect.objectContaining({ platform: 'ios', id: 'sim-1' }),
+  );
+  expect(mockRunIosRunnerCommand).toHaveBeenCalledTimes(1);
+  expect(mockRunIosRunnerCommand).toHaveBeenCalledWith(
+    expect.objectContaining({ platform: 'ios', id: 'sim-1' }),
+    { command: 'uptime' },
+    expect.objectContaining({
+      logPath: expect.stringMatching(/daemon\.log$/),
+      requestId: 'prepare-request',
+    }),
+  );
+  expect((response as any).data).toMatchObject({
+    action: 'ios-runner',
+    platform: 'ios',
+    deviceId: 'sim-1',
+    deviceName: 'iPhone 17 Pro',
+    kind: 'simulator',
+    runner: { currentUptimeMs: 42 },
+    message: 'Prepared iOS runner: iPhone 17 Pro',
+  });
+  expect(sessionStore.get(sessionName)).toBeUndefined();
+});
+
+test('prepare ios-runner rejects non-iOS devices', async () => {
+  const sessionStore = makeSessionStore();
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel 9 Pro XL',
+    kind: 'emulator',
+    booted: true,
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'prepare-android',
+      command: 'prepare',
+      positionals: ['ios-runner'],
+      flags: { platform: 'android', serial: 'emulator-5554' },
+    },
+    sessionName: 'prepare-android',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  if (response && !response.ok) {
+    expect(response.error.code).toBe('UNSUPPORTED_OPERATION');
+    expect(response.error.message).toBe('prepare ios-runner is only supported on iOS');
+  }
+  expect(mockRunIosRunnerCommand).not.toHaveBeenCalled();
+});
+
+test('prepare requires the ios-runner subcommand', async () => {
+  const sessionStore = makeSessionStore();
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'prepare-invalid',
+      command: 'prepare',
+      positionals: [],
+      flags: { platform: 'ios' },
+    },
+    sessionName: 'prepare-invalid',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  if (response && !response.ok) {
+    expect(response.error.code).toBe('INVALID_ARGS');
+    expect(response.error.message).toBe('prepare requires a subcommand: ios-runner');
+  }
+  expect(mockResolveTargetDevice).not.toHaveBeenCalled();
+  expect(mockRunIosRunnerCommand).not.toHaveBeenCalled();
 });
 
 test('open web URL on iOS device session without active app falls back to Safari', async () => {

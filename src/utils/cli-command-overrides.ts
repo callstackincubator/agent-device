@@ -65,6 +65,15 @@ const CLI_COMMAND_OVERRIDES = {
     summary: 'Boot target device/simulator',
     allowedFlags: ['headless'],
   },
+  prepare: {
+    usageOverride: 'prepare ios-runner --platform ios [--timeout <ms>]',
+    listUsageOverride: 'prepare ios-runner --platform ios',
+    helpDescription:
+      'Prepare platform helper infrastructure. ios-runner builds/reuses and starts the XCTest runner so later iOS snapshots and interactions do not pay first-use startup cost.',
+    summary: 'Prepare platform helpers',
+    positionalArgs: ['ios-runner'],
+    allowedFlags: ['timeoutMs'],
+  },
   open: {
     helpDescription:
       'Boot device/simulator; optionally launch app or deep link URL (macOS also supports --surface app|frontmost-app|desktop|menubar)',

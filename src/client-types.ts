@@ -478,6 +478,11 @@ export type ReactNativeCommandOptions = ClientCommandBaseOptions & {
   action: 'dismiss-overlay';
 };
 
+export type PrepareCommandOptions = ClientCommandBaseOptions & {
+  action: 'ios-runner';
+  timeoutMs?: number;
+};
+
 export type AgentDeviceCommandClient = {
   wait: (options: WaitCommandOptions) => Promise<WaitCommandResult>;
   alert: (options?: AlertCommandOptions) => Promise<AlertCommandResult>;
@@ -489,6 +494,7 @@ export type AgentDeviceCommandClient = {
   keyboard: (options?: KeyboardCommandOptions) => Promise<KeyboardCommandResult>;
   clipboard: (options: ClipboardCommandOptions) => Promise<ClipboardCommandResult>;
   reactNative: (options: ReactNativeCommandOptions) => Promise<CommandRequestResult>;
+  prepare: (options: PrepareCommandOptions) => Promise<CommandRequestResult>;
 };
 
 type SelectorSnapshotCommandOptions = Pick<CaptureSnapshotOptions, 'depth' | 'scope' | 'raw'>;

@@ -4,6 +4,7 @@ const COMMAND_DESCRIPTIONS = {
   apps: 'List installed apps.',
   session: 'List active sessions.',
   open: 'Open an app, deep link, URL, or platform surface.',
+  prepare: 'Prepare platform helper infrastructure.',
   close: 'Close an app or end the active session.',
   install: 'Install an app binary.',
   reinstall: 'Reinstall an app binary.',

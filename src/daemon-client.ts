@@ -194,7 +194,10 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
 
 function resolveDaemonRequestTimeoutMs(req: Omit<DaemonRequest, 'token'>): number | undefined {
   if (req.command === PUBLIC_COMMANDS.test) return undefined;
-  if (req.command === PUBLIC_COMMANDS.replay && typeof req.flags?.timeoutMs === 'number') {
+  if (
+    (req.command === PUBLIC_COMMANDS.replay || req.command === PUBLIC_COMMANDS.prepare) &&
+    typeof req.flags?.timeoutMs === 'number'
+  ) {
     return req.flags.timeoutMs;
   }
   return REQUEST_TIMEOUT_MS;

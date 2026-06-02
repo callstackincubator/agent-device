@@ -82,6 +82,7 @@ const cliOutputFormatters: Partial<Record<CommandName, CliOutputFormatter>> = {
   is: resultOutput(isCliOutput),
   find: resultOutput(findCliOutput),
   perf: resultOutput(perfCliOutput),
+  prepare: messageOutput,
   logs: resultOutput(logsCliOutput),
   network: resultOutput(networkCliOutput),
   record: resultOutput(recordCliOutput),

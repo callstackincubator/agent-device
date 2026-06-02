@@ -800,7 +800,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'int',
     min: 1,
     usageLabel: '--timeout <ms>',
-    usageDescription: 'Test: maximum wall-clock time per script attempt',
+    usageDescription: 'Prepare/Replay/Test: maximum wall-clock time for the command or attempt',
   },
   {
     key: 'retries',

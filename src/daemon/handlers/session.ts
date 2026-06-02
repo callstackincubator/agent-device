@@ -7,6 +7,7 @@ import {
 } from '../../command-catalog.ts';
 import { resolvePayloadInput } from '../../utils/payload-input.ts';
 import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
+import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { normalizePlatformSelector } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
@@ -56,9 +57,80 @@ export const SESSION_COMMAND_HANDLERS = {
   [PUBLIC_COMMANDS.push]: true,
   [PUBLIC_COMMANDS.triggerAppEvent]: true,
   [PUBLIC_COMMANDS.open]: true,
+  [PUBLIC_COMMANDS.prepare]: true,
   [PUBLIC_COMMANDS.batch]: true,
   [PUBLIC_COMMANDS.close]: true,
 } as const satisfies Record<string, true>;
+
+async function handlePrepareCommand(params: {
+  req: DaemonRequest;
+  sessionName: string;
+  logPath: string;
+  sessionStore: SessionStore;
+}): Promise<DaemonResponse> {
+  const { req, sessionName, logPath, sessionStore } = params;
+  const action = req.positionals?.[0] ?? '';
+  if (action !== 'ios-runner') {
+    return errorResponse('INVALID_ARGS', 'prepare requires a subcommand: ios-runner');
+  }
+
+  const session = sessionStore.get(sessionName);
+  const flags = req.flags ?? {};
+  const guard = requireSessionOrExplicitSelector(PUBLIC_COMMANDS.prepare, session, flags);
+  if (guard) return guard;
+
+  const device = await resolveCommandDevice({
+    session,
+    flags,
+    ensureReady: true,
+  });
+  if (device.platform !== 'ios') {
+    return errorResponse('UNSUPPORTED_OPERATION', 'prepare ios-runner is only supported on iOS');
+  }
+
+  const startedAtMs = Date.now();
+  const result = await runIosRunnerCommand(
+    device,
+    { command: 'uptime' },
+    buildPrepareIosRunnerOptions(req, session, logPath),
+  );
+  const durationMs = Math.max(0, Date.now() - startedAtMs);
+  return {
+    ok: true,
+    data: prepareIosRunnerResponseData(action, device, durationMs, result),
+  };
+}
+
+function buildPrepareIosRunnerOptions(
+  req: DaemonRequest,
+  session: SessionState | undefined,
+  logPath: string,
+): Parameters<typeof runIosRunnerCommand>[2] {
+  return {
+    verbose: req.flags?.verbose,
+    logPath,
+    traceLogPath: session?.trace?.outPath,
+    requestId: req.meta?.requestId,
+  };
+}
+
+function prepareIosRunnerResponseData(
+  action: string,
+  device: DeviceInfo,
+  durationMs: number,
+  runner: Awaited<ReturnType<typeof runIosRunnerCommand>>,
+): Record<string, unknown> {
+  return {
+    action,
+    platform: device.platform,
+    deviceId: device.id,
+    deviceName: device.name,
+    kind: device.kind,
+    durationMs,
+    runner,
+    message: `Prepared iOS runner: ${device.name}`,
+  };
+}
 
 // fallow-ignore-next-line complexity
 async function runSessionOrSelectorDispatch(params: {
@@ -250,6 +322,15 @@ export async function handleSessionCommands(params: {
       sessionName,
       sessionStore,
       androidAdbExecutor,
+    });
+  }
+
+  if (req.command === PUBLIC_COMMANDS.prepare) {
+    return await handlePrepareCommand({
+      req,
+      sessionName,
+      logPath,
+      sessionStore,
     });
   }
 

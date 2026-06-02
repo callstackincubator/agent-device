@@ -44,6 +44,17 @@ test('parseArgs recognizes command-specific flag combinations', async () => {
       },
     },
     {
+      label: 'prepare ios-runner',
+      argv: ['prepare', 'ios-runner', '--platform', 'ios', '--timeout', '240000'],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'prepare');
+        assert.deepEqual(parsed.positionals, ['ios-runner']);
+        assert.equal(parsed.flags.platform, 'ios');
+        assert.equal(parsed.flags.timeoutMs, 240000);
+      },
+    },
+    {
       label: 'back --in-app',
       argv: ['back', '--in-app'],
       strictFlags: true,
@@ -894,6 +905,7 @@ test('usage includes concise top-level commands', () => {
     usageText,
     /install-from-source <url> \| install-from-source --github-actions-artifact/,
   );
+  assert.match(usageText, /prepare ios-runner --platform ios/);
   assert.match(usageText, /metro prepare --public-base-url <url>/);
   assert.match(usageText, /batch --steps <json> \| --steps-file <path>/);
   assert.match(usageText, /network dump/);
@@ -1020,6 +1032,15 @@ test('usageForCommand includes Maestro test suite flag', () => {
   assert.match(help, /Replay\/Test: inject or override/);
 });
 
+test('usageForCommand documents prepare ios-runner', () => {
+  const help = usageForCommand('prepare');
+  if (help === null) throw new Error('Expected prepare help text');
+  assert.match(help, /Usage:\s+agent-device prepare ios-runner --platform ios/);
+  assert.match(help, /Prepare platform helper infrastructure/);
+  assert.match(help, /--timeout <ms>/);
+  assert.match(help, /XCTest runner/);
+});
+
 test('usageForCommand resolves workflow help topic', () => {
   const help = usageForCommand('workflow');
   if (help === null) throw new Error('Expected workflow help text');
@@ -1082,6 +1103,8 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /agent-device open exp:\/\/127\.0\.0\.1:8081 --platform android/);
   assert.match(help, /apps lookup misses the project but shows Expo Go\/dev-client/);
   assert.match(help, /metro prepare --kind expo/);
+  assert.match(help, /agent-device prepare ios-runner --platform ios --timeout 240000/);
+  assert.match(help, /prepare ios-runner builds\/reuses the XCTest runner/);
   assert.match(help, /help react-devtools/);
   assert.match(help, /help react-native/);
   assert.doesNotMatch(help, /agent-device react-devtools profile/);
@@ -1420,6 +1443,7 @@ test('usage includes swipe and press series options', () => {
 test('usage renders concise commands inline with descriptions', () => {
   const help = usage();
   assert.match(help, /Commands:[\s\S]*\n  boot\s{2,}Boot target device\/simulator/);
+  assert.match(help, /  prepare ios-runner --platform ios\s{2,}Prepare platform helpers/);
   assert.match(
     help,
     /  metro prepare --public-base-url <url> \| --proxy-base-url <url>; metro reload\s{2,}Prepare Metro or reload apps/,
