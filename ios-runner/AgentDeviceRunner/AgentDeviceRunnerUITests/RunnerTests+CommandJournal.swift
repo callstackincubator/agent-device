@@ -11,7 +11,8 @@ struct RunnerCommandJournalEntry {
   let commandId: String
   let command: String
   var state: RunnerCommandLifecycleState
-  var response: Response?
+  var responseOk: Bool?
+  var responseJson: String?
   var error: ErrorPayload?
   var updatedAtMs: Double
 }
@@ -19,6 +20,7 @@ struct RunnerCommandJournalEntry {
 final class RunnerCommandJournal {
   private let lock = NSLock()
   private let maxEntries = 64
+  private let maxResponseJsonBytes = 16 * 1024
   private var entries: [String: RunnerCommandJournalEntry] = [:]
   private var order: [String] = []
 
@@ -30,7 +32,8 @@ final class RunnerCommandJournal {
       commandId: commandId,
       command: command.command.rawValue,
       state: .accepted,
-      response: nil,
+      responseOk: nil,
+      responseJson: nil,
       error: nil,
       updatedAtMs: currentTimeMs()
     )
@@ -40,14 +43,15 @@ final class RunnerCommandJournal {
   }
 
   func start(command: Command) {
-    update(command: command, state: .started, response: nil, error: nil)
+    update(command: command, state: .started, responseOk: nil, responseJson: nil, error: nil)
   }
 
   func finish(command: Command, response: Response) {
     update(
       command: command,
       state: response.ok ? .completed : .failed,
-      response: response,
+      responseOk: response.ok,
+      responseJson: encodeResponseJson(response),
       error: response.error
     )
   }
@@ -56,7 +60,8 @@ final class RunnerCommandJournal {
     update(
       command: command,
       state: .failed,
-      response: nil,
+      responseOk: nil,
+      responseJson: nil,
       error: ErrorPayload(message: error.localizedDescription)
     )
   }
@@ -75,8 +80,8 @@ final class RunnerCommandJournal {
       commandId: entry.commandId,
       lifecycleState: entry.state.rawValue,
       lifecycleCommand: entry.command,
-      lifecycleResponseOk: entry.response?.ok,
-      lifecycleResponseJson: encodeResponseJson(entry.response),
+      lifecycleResponseOk: entry.responseOk,
+      lifecycleResponseJson: entry.responseJson,
       lifecycleErrorCode: entry.error?.code,
       lifecycleErrorMessage: entry.error?.message,
       lifecycleErrorHint: entry.error?.hint
@@ -86,7 +91,8 @@ final class RunnerCommandJournal {
   private func update(
     command: Command,
     state: RunnerCommandLifecycleState,
-    response: Response?,
+    responseOk: Bool?,
+    responseJson: String?,
     error: ErrorPayload?
   ) {
     guard let commandId = normalizedCommandId(command.commandId) else { return }
@@ -96,12 +102,14 @@ final class RunnerCommandJournal {
       commandId: commandId,
       command: command.command.rawValue,
       state: .accepted,
-      response: nil,
+      responseOk: nil,
+      responseJson: nil,
       error: nil,
       updatedAtMs: currentTimeMs()
     )
     entry.state = state
-    entry.response = response
+    entry.responseOk = responseOk
+    entry.responseJson = responseJson
     entry.error = error
     entry.updatedAtMs = currentTimeMs()
     entries[commandId] = entry
@@ -127,9 +135,9 @@ final class RunnerCommandJournal {
     Date().timeIntervalSince1970 * 1000
   }
 
-  private func encodeResponseJson(_ response: Response?) -> String? {
-    guard let response else { return nil }
+  private func encodeResponseJson(_ response: Response) -> String? {
     guard let data = try? JSONEncoder().encode(response) else { return nil }
+    guard data.count <= maxResponseJsonBytes else { return nil }
     return String(data: data, encoding: .utf8)
   }
 }
