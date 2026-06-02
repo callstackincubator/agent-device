@@ -214,6 +214,7 @@ export type SessionState = {
     outPath: string;
     startedAt: number;
   };
+  /** Session was created by record start and should be released when recording stops. */
   recordOnlySession?: boolean;
   recordSession?: boolean;
   saveScriptPath?: string;
