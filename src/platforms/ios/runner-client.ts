@@ -264,90 +264,134 @@ async function tryRecoverRunnerCommandAfterTransportError(
       lifecycleState,
     },
   });
+  return handleRunnerCommandStatusRecovery(
+    status,
+    lifecycleState,
+    command,
+    transportError,
+    options,
+  );
+}
 
+function handleRunnerCommandStatusRecovery(
+  status: Record<string, unknown>,
+  lifecycleState: string,
+  command: RunnerCommand,
+  transportError: AppError,
+  options: AppleRunnerCommandOptions,
+): Record<string, unknown> | undefined {
   if (lifecycleState === 'completed') {
-    const recovered = parseLifecycleResponseJson(status.lifecycleResponseJson);
-    if (recovered) return recovered;
-    if (isReadOnlyRunnerCommand(command.command)) {
-      throw transportError;
-    }
-    throw new AppError(
-      'COMMAND_FAILED',
-      `Runner command "${command.command}" completed after the transport response was lost, but no recoverable response was retained.`,
-      {
-        command: command.command,
-        commandId: command.commandId,
-        lifecycleState,
-        recovery: 'completed_without_retained_response',
-        hint: completedWithoutRetainedResponseHint(command.command),
-        logPath: options.logPath,
-        transportError: transportError.message,
-      },
-      transportError,
-    );
+    return handleCompletedRunnerStatus(status, command, transportError, options);
   }
 
   if (lifecycleState === 'failed') {
-    const errorCode =
-      typeof status.lifecycleErrorCode === 'string' ? status.lifecycleErrorCode : undefined;
-    const errorMessage =
-      typeof status.lifecycleErrorMessage === 'string'
-        ? status.lifecycleErrorMessage
-        : 'Runner command failed';
-    const hint =
-      typeof status.lifecycleErrorHint === 'string' ? status.lifecycleErrorHint : undefined;
-    throw new AppError(
-      toAppErrorCode(errorCode),
-      errorMessage,
-      {
-        command: command.command,
-        commandId: command.commandId,
-        lifecycleState,
-        recovery: 'runner_reported_failure',
-        hint: hint ?? runnerReportedFailureHint(command.command),
-        logPath: options.logPath,
-        transportError: transportError.message,
-      },
-      transportError,
-    );
+    throw runnerStatusFailureError(status, command, transportError, options);
   }
 
   if (lifecycleState === 'accepted' || lifecycleState === 'started') {
-    if (isReadOnlyRunnerCommand(command.command)) {
-      throw transportError;
-    }
-    throw new AppError(
-      'COMMAND_FAILED',
-      `Runner command "${command.command}" is still ${lifecycleState} after the transport response was lost.`,
-      {
-        command: command.command,
-        commandId: command.commandId,
-        lifecycleState,
-        recovery: 'command_still_in_flight',
-        hint: inFlightAfterLostResponseHint(command.command),
-        logPath: options.logPath,
-        transportError: transportError.message,
-      },
-      transportError,
-    );
+    throw runnerStatusInFlightError(lifecycleState, command, transportError, options);
   }
 
   return undefined;
 }
 
+function handleCompletedRunnerStatus(
+  status: Record<string, unknown>,
+  command: RunnerCommand,
+  transportError: AppError,
+  options: AppleRunnerCommandOptions,
+): Record<string, unknown> | undefined {
+  const recovered = parseLifecycleResponseJson(status.lifecycleResponseJson);
+  if (recovered) return recovered;
+  if (isReadOnlyRunnerCommand(command.command)) {
+    throw transportError;
+  }
+  throw new AppError(
+    'COMMAND_FAILED',
+    `Runner command "${command.command}" completed after the transport response was lost, but no recoverable response was retained.`,
+    {
+      command: command.command,
+      commandId: command.commandId,
+      lifecycleState: 'completed',
+      recovery: 'completed_without_retained_response',
+      hint: completedWithoutRetainedResponseHint(command.command),
+      logPath: options.logPath,
+      transportError: transportError.message,
+    },
+    transportError,
+  );
+}
+
+function runnerStatusFailureError(
+  status: Record<string, unknown>,
+  command: RunnerCommand,
+  transportError: AppError,
+  options: AppleRunnerCommandOptions,
+): AppError {
+  const errorCode =
+    typeof status.lifecycleErrorCode === 'string' ? status.lifecycleErrorCode : undefined;
+  const errorMessage =
+    typeof status.lifecycleErrorMessage === 'string'
+      ? status.lifecycleErrorMessage
+      : 'Runner command failed';
+  const hint =
+    typeof status.lifecycleErrorHint === 'string' ? status.lifecycleErrorHint : undefined;
+  return new AppError(
+    toAppErrorCode(errorCode),
+    errorMessage,
+    {
+      command: command.command,
+      commandId: command.commandId,
+      lifecycleState: 'failed',
+      recovery: 'runner_reported_failure',
+      hint: hint ?? runnerReportedFailureHint(command.command),
+      logPath: options.logPath,
+      transportError: transportError.message,
+    },
+    transportError,
+  );
+}
+
+function runnerStatusInFlightError(
+  lifecycleState: string,
+  command: RunnerCommand,
+  transportError: AppError,
+  options: AppleRunnerCommandOptions,
+): AppError {
+  if (isReadOnlyRunnerCommand(command.command)) {
+    return transportError;
+  }
+  return new AppError(
+    'COMMAND_FAILED',
+    `Runner command "${command.command}" is still ${lifecycleState} after the transport response was lost.`,
+    {
+      command: command.command,
+      commandId: command.commandId,
+      lifecycleState,
+      recovery: 'command_still_in_flight',
+      hint: inFlightAfterLostResponseHint(command.command),
+      logPath: options.logPath,
+      transportError: transportError.message,
+    },
+    transportError,
+  );
+}
+
 function parseLifecycleResponseJson(value: unknown): Record<string, unknown> | undefined {
   if (typeof value !== 'string' || value.trim().length === 0) return undefined;
-  let parsed: LifecycleResponsePayload;
-  try {
-    const raw: unknown = JSON.parse(value);
-    parsed = raw && typeof raw === 'object' ? (raw as LifecycleResponsePayload) : {};
-  } catch {
-    return undefined;
-  }
+  const parsed = parseLifecycleResponsePayload(value);
   if (!parsed.ok) return undefined;
   if (parsed.data && typeof parsed.data === 'object' && !Array.isArray(parsed.data)) {
     return parsed.data as Record<string, unknown>;
   }
+  return {};
+}
+
+function parseLifecycleResponsePayload(value: string): LifecycleResponsePayload {
+  try {
+    const raw: unknown = JSON.parse(value);
+    if (raw && typeof raw === 'object') return raw as LifecycleResponsePayload;
+  } catch {}
   return {};
 }
 
