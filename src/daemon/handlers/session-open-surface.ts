@@ -8,6 +8,7 @@ import type { StartupPerfSample } from './session-startup-metrics.ts';
 
 export function buildOpenResult(params: {
   sessionName: string;
+  sessionStateDir?: string;
   appName?: string;
   appBundleId?: string;
   surface: SessionSurface;
@@ -19,6 +20,7 @@ export function buildOpenResult(params: {
 }): Record<string, unknown> {
   const {
     sessionName,
+    sessionStateDir,
     appName,
     appBundleId,
     surface,
@@ -29,6 +31,7 @@ export function buildOpenResult(params: {
     runtimeHintCount,
   } = params;
   const result: Record<string, unknown> = { session: sessionName, surface };
+  if (sessionStateDir) result.sessionStateDir = sessionStateDir;
   if (appName) result.appName = appName;
   if (appBundleId) result.appBundleId = appBundleId;
   if (startup) result.startup = startup;

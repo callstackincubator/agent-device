@@ -253,9 +253,11 @@ async function completeOpenCommand(params: {
   if (req.runtime !== undefined) {
     setSessionRuntimeHintsForOpen(sessionStore, sessionName, runtime);
   }
+  const sessionStateDir = sessionStore.ensureSessionDir(sessionName);
   timing.totalDurationMs = Math.max(0, Date.now() - openCommandStartedAtMs);
   const openResult = buildOpenResult({
     sessionName: nextSession.name,
+    sessionStateDir,
     appName,
     appBundleId: sessionAppBundleId,
     surface,

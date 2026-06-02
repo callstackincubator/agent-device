@@ -286,6 +286,7 @@ async function startRecording(params: {
 
   activeSession.recording = recording;
   sessionStore.set(sessionName, activeSession);
+  const sessionStateDir = sessionStore.ensureSessionDir(sessionName);
   sessionStore.recordAction(activeSession, {
     command: req.command,
     positionals: req.positionals ?? [],
@@ -298,6 +299,7 @@ async function startRecording(params: {
     data: {
       recording: 'started',
       outPath: recording.clientOutPath ?? outPath,
+      sessionStateDir,
       showTouches: recording.showTouches,
     },
   };

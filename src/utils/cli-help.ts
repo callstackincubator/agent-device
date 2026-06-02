@@ -62,7 +62,7 @@ const CONFIGURATION_LINES = [
 ] as const;
 
 const ENVIRONMENT_LINES = [
-  { label: 'AGENT_DEVICE_SESSION', description: 'Default session name' },
+  { label: 'AGENT_DEVICE_SESSION', description: 'Explicit session name' },
   { label: 'AGENT_DEVICE_PLATFORM', description: 'Default platform binding' },
   { label: 'AGENT_DEVICE_SESSION_LOCK', description: 'Bound-session conflict mode' },
   { label: 'AGENT_DEVICE_DAEMON_BASE_URL', description: 'Connect to remote daemon' },
@@ -340,7 +340,7 @@ Rules:
   Keep the profile window narrow; unrelated navigation makes render data noisy.
   Do not repeatedly raise broad profile slow limits such as --limit 50, --limit 200, or --limit 500. Drill into a specific @c ref with profile report unless you have a specific target that needs more rows.
   For network evidence, use agent-device network dump --include headers; headers is not a positional argument.
-  For cross-platform validation with explicit device selectors, prefer isolated --state-dir and restart react-devtools between platforms.
+  For cross-platform validation with explicit device selectors, use separate sessions/devices and restart react-devtools between platforms.
   Remote Android and iOS bridge runs normally through agent-device react-devtools; the CLI keeps the needed local service tunnel alive until agent-device react-devtools stop or disconnect. Expo support depends on the SDK's bundled React Native runtime.
   Remote iOS apps attempt the legacy React DevTools websocket during JavaScript startup. If the app was already open before react-devtools start, run open <bundle-id> --platform ios --relaunch, then wait --connected.
 

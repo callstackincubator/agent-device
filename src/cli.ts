@@ -215,7 +215,7 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           currentFlags: CliFlags,
           runtime: SessionRuntimeHints | undefined,
         ): AgentDeviceClientConfig => ({
-          session: currentFlags.session ?? sessionName,
+          session: currentFlags.session,
           requestId,
           stateDir: currentFlags.stateDir,
           daemonBaseUrl: currentFlags.daemonBaseUrl,
@@ -231,7 +231,6 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           lockPolicy: binding.lockPolicy,
           lockPlatform: binding.defaultPlatform,
           cwd: process.cwd(),
-          sessionExplicit: currentFlags.session !== undefined,
           debug: debugOutputEnabled,
         });
         let parsedBatchSteps: BatchStep[] | undefined;

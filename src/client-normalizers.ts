@@ -333,7 +333,7 @@ export function buildMeta(options: InternalRequestOptions): DaemonRequest['meta'
   return stripUndefined({
     requestId: options.requestId,
     cwd: options.cwd,
-    sessionExplicit: options.sessionExplicit ?? options.session !== undefined,
+    sessionExplicit: options.session !== undefined,
     debug: options.debug,
     lockPolicy: options.lockPolicy,
     lockPlatform: options.lockPlatform,

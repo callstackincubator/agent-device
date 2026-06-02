@@ -1,7 +1,39 @@
 import { describe, expect, test } from 'vitest';
-import { recordCliOutput } from '../client-output.ts';
+import { openCliOutput, recordCliOutput } from '../client-output.ts';
+
+describe('openCliOutput', () => {
+  test('prints session state directory on a second line', () => {
+    const output = openCliOutput({
+      session: 'default',
+      sessionStateDir: '/tmp/agent-device/sessions/cwd_123_default',
+      identifiers: { session: 'default' },
+    });
+
+    expect(output.text).toBe(
+      ['Opened: default', 'Session state: /tmp/agent-device/sessions/cwd_123_default'].join('\n'),
+    );
+    expect(output.data).toMatchObject({
+      session: 'default',
+      sessionStateDir: '/tmp/agent-device/sessions/cwd_123_default',
+    });
+  });
+});
 
 describe('recordCliOutput', () => {
+  test('prints session state directory for record-created sessions', () => {
+    const output = recordCliOutput({
+      recording: 'started',
+      outPath: '/tmp/recording.mp4',
+      sessionStateDir: '/tmp/agent-device/sessions/cwd_123_default',
+    });
+
+    expect(output.text).toBe(
+      ['/tmp/recording.mp4', 'Session state: /tmp/agent-device/sessions/cwd_123_default'].join(
+        '\n',
+      ),
+    );
+  });
+
   test('prints chunked Android recording paths clearly for human stdout', () => {
     const output = recordCliOutput({
       recording: 'stopped',

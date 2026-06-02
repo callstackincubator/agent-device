@@ -56,7 +56,12 @@ export function sessionCliOutput(result: { sessions: AgentDeviceSession[] }): Cl
 }
 
 export function openCliOutput(result: AppOpenResult): CliOutput {
-  return messageOutput(serializeOpenResult(result));
+  const data = serializeOpenResult(result);
+  const lines = [readCommandMessage(data)].filter((line): line is string => Boolean(line));
+  if (typeof data.sessionStateDir === 'string') {
+    lines.push(`Session state: ${data.sessionStateDir}`);
+  }
+  return { data, text: lines.join('\n') || null };
 }
 
 export function closeCliOutput(result: AppCloseResult | SessionCloseResult): CliOutput {
@@ -207,6 +212,8 @@ function defaultCommandCliOutput(result: CommandRequestResult): CliOutput {
 function formatRecordSingleOutput(data: Record<string, unknown>, outPath: string): string {
   const lines: string[] = [];
   if (outPath) lines.push(outPath);
+  if (typeof data.sessionStateDir === 'string')
+    lines.push(`Session state: ${data.sessionStateDir}`);
   if (typeof data.warning === 'string') lines.push(`Warning: ${data.warning}`);
   if (typeof data.overlayWarning === 'string')
     lines.push(`Overlay warning: ${data.overlayWarning}`);

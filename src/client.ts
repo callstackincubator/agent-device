@@ -151,6 +151,7 @@ export function createAgentDeviceClient(
         const appId = appBundleId;
         return {
           session,
+          sessionStateDir: readOptionalString(data, 'sessionStateDir'),
           appName: readOptionalString(data, 'appName'),
           appBundleId,
           appId,

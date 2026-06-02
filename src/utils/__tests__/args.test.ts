@@ -986,7 +986,7 @@ test('usage includes agent workflows, config, environment, and examples footers'
     /Use --config <path> or AGENT_DEVICE_CONFIG to load one explicit config file\./,
   );
   assert.match(usageText, /Environment:/);
-  assert.match(usageText, /AGENT_DEVICE_SESSION\s+Default session name/);
+  assert.match(usageText, /AGENT_DEVICE_SESSION\s+Explicit session name/);
   assert.match(usageText, /AGENT_DEVICE_PLATFORM\s+Default platform binding/);
   assert.match(usageText, /AGENT_DEVICE_SESSION_LOCK\s+Bound-session conflict mode/);
   assert.match(usageText, /AGENT_DEVICE_DAEMON_BASE_URL\s+Connect to remote daemon/);
@@ -1176,7 +1176,7 @@ test('usageForCommand resolves react-devtools help topic', () => {
   assert.match(help, /Do not write agent-devtools/);
   assert.match(help, /agent-device network dump --include headers/);
   assert.match(help, /@c refs reset after reload\/remount/);
-  assert.match(help, /isolated --state-dir/);
+  assert.match(help, /use separate sessions\/devices/);
   assert.match(help, /local service tunnel/);
   assert.match(help, /Remote iOS apps attempt the legacy React DevTools websocket/);
 });
