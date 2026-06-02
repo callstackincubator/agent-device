@@ -40,6 +40,18 @@ type LifecycleResponsePayload = {
   data?: unknown;
 };
 
+type RunnerTransportRecovery =
+  | { type: 'recovered'; data: Record<string, unknown>; reason: string; lifecycleState?: string }
+  | { type: 'skipInvalidation'; error: AppError; reason: string; lifecycleState?: string }
+  | { type: 'retainInvalidation'; error?: AppError; reason: string; lifecycleState?: string };
+
+type RunnerTransportRecoveryContext = {
+  command: RunnerCommand;
+  session: RunnerSession;
+  transportError: AppError;
+  invalidationReason: string;
+};
+
 const RUNNER_STATUS_RECOVERY_TIMEOUT_MS = 3_000;
 
 // --- Runner command execution ---
@@ -153,16 +165,15 @@ async function executeRunnerCommand(
             ? retryErr
             : new AppError('COMMAND_FAILED', String(retryErr));
         if (isRetryableRunnerError(retryAppErr)) {
-          const recovered = await tryRecoverRunnerCommandAfterTransportError(
+          return await handleRunnerTransportErrorAfterCommandSend(
             device,
             session,
             command,
             retryAppErr,
             options,
             signal,
+            'transport_error_after_retry_command_send',
           );
-          if (recovered) return recovered;
-          await invalidateRunnerSession(session, 'transport_error_after_retry_command_send');
         }
         throw retryErr;
       }
@@ -189,16 +200,15 @@ async function executeRunnerCommand(
             ? retryErr
             : new AppError('COMMAND_FAILED', String(retryErr));
         if (isRetryableRunnerError(retryAppErr)) {
-          const recovered = await tryRecoverRunnerCommandAfterTransportError(
+          return await handleRunnerTransportErrorAfterCommandSend(
             device,
             session,
             command,
             retryAppErr,
             options,
             signal,
+            'transport_error_after_retry_command_send',
           );
-          if (recovered) return recovered;
-          await invalidateRunnerSession(session, 'transport_error_after_retry_command_send');
         }
         throw retryErr;
       }
@@ -207,19 +217,106 @@ async function executeRunnerCommand(
       await stopIosRunnerSession(device.id);
     }
     if (session && isRetryableRunnerError(appErr)) {
-      const recovered = await tryRecoverRunnerCommandAfterTransportError(
+      return await handleRunnerTransportErrorAfterCommandSend(
         device,
         session,
         command,
         appErr,
         options,
         signal,
+        'transport_error_after_command_send',
       );
-      if (recovered) return recovered;
-      await invalidateRunnerSession(session, 'transport_error_after_command_send');
     }
     throw err;
   }
+}
+
+async function handleRunnerTransportErrorAfterCommandSend(
+  device: DeviceInfo,
+  session: RunnerSession,
+  command: RunnerCommand,
+  transportError: AppError,
+  options: AppleRunnerCommandOptions,
+  signal: AbortSignal | undefined,
+  invalidationReason: string,
+): Promise<Record<string, unknown>> {
+  const recovery = await tryRecoverRunnerCommandAfterTransportError(
+    device,
+    session,
+    command,
+    transportError,
+    options,
+    signal,
+  );
+  return await applyRunnerTransportRecovery(recovery, {
+    command,
+    session,
+    transportError,
+    invalidationReason,
+  });
+}
+
+async function applyRunnerTransportRecovery(
+  recovery: RunnerTransportRecovery | undefined,
+  context: RunnerTransportRecoveryContext,
+): Promise<Record<string, unknown>> {
+  if (!recovery) return await retainRunnerInvalidation(context, 'status_recovery_unavailable');
+  if (recovery.type === 'recovered') return recoverRunnerResponse(recovery, context);
+  if (recovery.type === 'skipInvalidation') throw skipRunnerInvalidation(recovery, context);
+  return await retainRunnerInvalidation(
+    context,
+    recovery.reason,
+    recovery.lifecycleState,
+    recovery.error,
+  );
+}
+
+function recoverRunnerResponse(
+  recovery: Extract<RunnerTransportRecovery, { type: 'recovered' }>,
+  context: RunnerTransportRecoveryContext,
+): Record<string, unknown> {
+  emitRunnerInvalidationDecision({
+    command: context.command,
+    session: context.session,
+    transportError: context.transportError,
+    decision: 'skipped',
+    reason: recovery.reason,
+    lifecycleState: recovery.lifecycleState,
+  });
+  return recovery.data;
+}
+
+function skipRunnerInvalidation(
+  recovery: Extract<RunnerTransportRecovery, { type: 'skipInvalidation' }>,
+  context: RunnerTransportRecoveryContext,
+): AppError {
+  emitRunnerInvalidationDecision({
+    command: context.command,
+    session: context.session,
+    transportError: context.transportError,
+    decision: 'skipped',
+    reason: recovery.reason,
+    lifecycleState: recovery.lifecycleState,
+  });
+  return recovery.error;
+}
+
+async function retainRunnerInvalidation(
+  context: RunnerTransportRecoveryContext,
+  reason: string,
+  lifecycleState?: string,
+  error?: AppError,
+): Promise<never> {
+  emitRunnerInvalidationDecision({
+    command: context.command,
+    session: context.session,
+    transportError: context.transportError,
+    decision: 'retained',
+    reason,
+    lifecycleState,
+  });
+  await invalidateRunnerSession(context.session, context.invalidationReason);
+  throw error ?? context.transportError;
 }
 
 async function tryRecoverRunnerCommandAfterTransportError(
@@ -229,7 +326,7 @@ async function tryRecoverRunnerCommandAfterTransportError(
   transportError: AppError,
   options: AppleRunnerCommandOptions,
   signal?: AbortSignal,
-): Promise<Record<string, unknown> | undefined> {
+): Promise<RunnerTransportRecovery | undefined> {
   if (command.command === 'status' || !command.commandId?.trim()) return undefined;
   let status: Record<string, unknown>;
   try {
@@ -251,7 +348,7 @@ async function tryRecoverRunnerCommandAfterTransportError(
         error: error instanceof Error ? error.message : String(error),
       },
     });
-    return undefined;
+    return { type: 'retainInvalidation', reason: 'status_probe_failed' };
   }
 
   const lifecycleState = typeof status.lifecycleState === 'string' ? status.lifecycleState : '';
@@ -279,20 +376,48 @@ function handleRunnerCommandStatusRecovery(
   command: RunnerCommand,
   transportError: AppError,
   options: AppleRunnerCommandOptions,
-): Record<string, unknown> | undefined {
+): RunnerTransportRecovery | undefined {
   if (lifecycleState === 'completed') {
     return handleCompletedRunnerStatus(status, command, transportError, options);
   }
 
   if (lifecycleState === 'failed') {
-    throw runnerStatusFailureError(status, command, transportError, options);
+    return {
+      type: 'skipInvalidation',
+      reason: 'runner_reported_failure',
+      lifecycleState,
+      error: runnerStatusFailureError(status, command, transportError, options),
+    };
   }
 
   if (lifecycleState === 'accepted' || lifecycleState === 'started') {
-    throw runnerStatusInFlightError(lifecycleState, command, transportError, options);
+    return {
+      type: 'skipInvalidation',
+      reason: 'command_still_in_flight',
+      lifecycleState,
+      error: runnerStatusInFlightError(lifecycleState, command, transportError, options),
+    };
   }
 
-  return undefined;
+  return {
+    type: 'retainInvalidation',
+    reason: lifecycleState ? 'unknown_lifecycle_state' : 'missing_lifecycle_state',
+    lifecycleState,
+    error: new AppError(
+      'COMMAND_FAILED',
+      `Runner command "${command.command}" lost its transport response and lifecycle status was ${lifecycleState ? `"${lifecycleState}"` : 'missing'}, so agent-device invalidated the runner session instead of replaying the command.`,
+      {
+        command: command.command,
+        commandId: command.commandId,
+        lifecycleState,
+        recovery: 'lifecycle_state_not_recoverable',
+        hint: unknownLifecycleStateHint(command.command),
+        logPath: options.logPath,
+        transportError: transportError.message,
+      },
+      transportError,
+    ),
+  };
 }
 
 function handleCompletedRunnerStatus(
@@ -300,26 +425,43 @@ function handleCompletedRunnerStatus(
   command: RunnerCommand,
   transportError: AppError,
   options: AppleRunnerCommandOptions,
-): Record<string, unknown> | undefined {
+): RunnerTransportRecovery {
   const recovered = parseLifecycleResponseJson(status.lifecycleResponseJson);
-  if (recovered) return recovered;
-  if (isReadOnlyRunnerCommand(command.command)) {
-    throw transportError;
-  }
-  throw new AppError(
-    'COMMAND_FAILED',
-    `Runner command "${command.command}" completed after the transport response was lost, but no recoverable response was retained.`,
-    {
-      command: command.command,
-      commandId: command.commandId,
+  if (recovered) {
+    return {
+      type: 'recovered',
+      data: recovered,
+      reason: 'completed_with_retained_response',
       lifecycleState: 'completed',
-      recovery: 'completed_without_retained_response',
-      hint: completedWithoutRetainedResponseHint(command.command),
-      logPath: options.logPath,
-      transportError: transportError.message,
-    },
-    transportError,
-  );
+    };
+  }
+  if (isReadOnlyRunnerCommand(command.command)) {
+    return {
+      type: 'skipInvalidation',
+      error: transportError,
+      reason: 'read_only_completed_without_retained_response',
+      lifecycleState: 'completed',
+    };
+  }
+  return {
+    type: 'skipInvalidation',
+    reason: 'completed_without_retained_response',
+    lifecycleState: 'completed',
+    error: new AppError(
+      'COMMAND_FAILED',
+      `Runner command "${command.command}" completed after the transport response was lost, but no recoverable response was retained.`,
+      {
+        command: command.command,
+        commandId: command.commandId,
+        lifecycleState: 'completed',
+        recovery: 'completed_without_retained_response',
+        hint: completedWithoutRetainedResponseHint(command.command),
+        logPath: options.logPath,
+        transportError: transportError.message,
+      },
+      transportError,
+    ),
+  };
 }
 
 function runnerStatusFailureError(
@@ -369,7 +511,7 @@ function runnerStatusInFlightError(
       commandId: command.commandId,
       lifecycleState,
       recovery: 'command_still_in_flight',
-      hint: inFlightAfterLostResponseHint(command.command),
+      hint: inFlightAfterLostResponseHint(command.command, lifecycleState),
       logPath: options.logPath,
       transportError: transportError.message,
     },
@@ -396,15 +538,44 @@ function parseLifecycleResponsePayload(value: string): LifecycleResponsePayload 
 }
 
 function completedWithoutRetainedResponseHint(command: string): string {
-  return `The runner reports "${command}" already completed, so agent-device will not replay it. Run snapshot -i to inspect the current UI, then continue from that observed state. If the session is stale, close and reopen the session before retrying.`;
+  return `The runner is still reachable and reports "${command}" already completed, so agent-device kept the session open and will not replay it. Run snapshot -i to inspect the current UI, then continue from that observed state.`;
 }
 
 function runnerReportedFailureHint(command: string): string {
-  return `The runner observed "${command}" fail after the transport response was lost, so agent-device did not replay it. Run snapshot -i to inspect the current UI and retry with a selector visible in that snapshot. If the session is stale, close and reopen the session before retrying.`;
+  return `The runner is still reachable and reports "${command}" failed after the transport response was lost, so agent-device kept the session open and did not replay it. Run snapshot -i to inspect the current UI and retry with a selector visible in that snapshot.`;
 }
 
-function inFlightAfterLostResponseHint(command: string): string {
-  return `The runner has accepted "${command}" and it may still finish, so agent-device will not replay it. Wait briefly, run snapshot -i to inspect the current UI, then continue from that observed state. If the session stops responding, close and reopen the session before retrying.`;
+function inFlightAfterLostResponseHint(command: string, lifecycleState: string): string {
+  return `The runner is still reachable and reports "${command}" is ${lifecycleState}, so agent-device kept the session open and will not replay it. Wait briefly, run snapshot -i to inspect the current UI, then continue from that observed state.`;
+}
+
+function unknownLifecycleStateHint(command: string): string {
+  return `The runner did not confirm that "${command}" reached a safe terminal state, so agent-device kept the conservative invalidation path. Run snapshot -i before retrying if the UI may have changed.`;
+}
+
+function emitRunnerInvalidationDecision(params: {
+  command: RunnerCommand;
+  session: RunnerSession;
+  transportError: AppError;
+  decision: 'skipped' | 'retained';
+  reason: string;
+  lifecycleState?: string;
+}): void {
+  const { command, session, transportError, decision, reason, lifecycleState } = params;
+  emitDiagnostic({
+    level: decision === 'retained' ? 'warn' : 'debug',
+    phase: 'ios_runner_command_invalidation_decision',
+    data: {
+      command: command.command,
+      commandId: command.commandId,
+      decision,
+      reason,
+      lifecycleState,
+      runnerReachable: lifecycleState !== undefined,
+      sessionId: session.sessionId,
+      transportError: transportError.message,
+    },
+  });
 }
 
 function isRunnerReadinessPreflightError(error: AppError): boolean {
