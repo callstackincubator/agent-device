@@ -29,6 +29,13 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
   const { tempRoot, appPath } = createDemoIosApp('agent-device-provider-scenario-ios-deploy-');
   const inventoryRequests: DeviceInventoryRequest[] = [];
   const runnerTranscript = createProviderTranscript([
+    {
+      command: 'ios.runner.uptime',
+      deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
+      platform: 'ios',
+      request: { command: 'uptime' },
+      result: { uptimeMs: 42 },
+    },
     runnerSnapshot(),
     runnerSnapshot(),
     {

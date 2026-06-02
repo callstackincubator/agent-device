@@ -45,6 +45,18 @@ test('Provider-backed integration iOS Settings flow uses scripted simctl and run
           },
         },
         {
+          name: 'prepare iOS runner',
+          command: 'prepare',
+          positionals: ['ios-runner'],
+          flags: { platform: 'ios', udid: PROVIDER_SCENARIO_IOS_SIMULATOR.id },
+          expectData: {
+            action: 'ios-runner',
+            platform: 'ios',
+            deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
+            runner: { uptimeMs: 42 },
+          },
+        },
+        {
           name: 'capture settings snapshot',
           command: 'snapshot',
           flags: { snapshotInteractiveOnly: true },
