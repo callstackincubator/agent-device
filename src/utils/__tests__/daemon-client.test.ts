@@ -18,6 +18,7 @@ import {
   computeDaemonCodeSignature,
   downloadRemoteArtifact,
   openApp,
+  resolveDaemonRequestTimeoutMs,
   resolveDaemonStartupHint,
   sendToDaemon,
   shouldResetDaemonAfterRequestTimeout,
@@ -163,6 +164,28 @@ test('snapshot request timeout preserves daemon metadata for follow-up evidence 
   assert.equal(shouldResetDaemonAfterRequestTimeout('snapshot'), false);
   assert.equal(shouldResetDaemonAfterRequestTimeout('screenshot'), true);
   assert.equal(shouldResetDaemonAfterRequestTimeout(undefined), true);
+});
+
+test('snapshot uses a shorter daemon request timeout than runner prepare', () => {
+  const base = {
+    session: 'default',
+    positionals: [],
+    flags: {},
+    meta: {},
+  };
+
+  assert.equal(resolveDaemonRequestTimeoutMs({ ...base, command: 'snapshot' }), 30_000);
+  assert.equal(resolveDaemonRequestTimeoutMs({ ...base, command: 'screenshot' }), 90_000);
+  assert.equal(
+    resolveDaemonRequestTimeoutMs({
+      ...base,
+      command: 'prepare',
+      positionals: ['ios-runner'],
+      flags: { timeoutMs: 240_000 },
+    }),
+    240_000,
+  );
+  assert.equal(resolveDaemonRequestTimeoutMs({ ...base, command: 'test' }), undefined);
 });
 
 test('cleanupFailedDaemonStartupMetadata removes partial startup metadata', async () => {
