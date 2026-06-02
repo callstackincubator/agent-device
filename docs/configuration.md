@@ -85,11 +85,11 @@ Command-specific defaults are supported too, for example `snapshotDepth`, `snaps
 
 Use a numeric `artifact` value for an artifact ID. Use a string `artifact` value for an artifact name.
 
-Bound-session defaults use the same config and env mapping too:
+Explicit named-session lock defaults use the same config and env mapping too:
 
 - `sessionLock` -> `AGENT_DEVICE_SESSION_LOCK`
 
-Older bound-session lock config aliases remain accepted for compatibility, but new configs and automation should use `sessionLock`, `--session-lock`, or `AGENT_DEVICE_SESSION_LOCK`.
+Older bound-session lock config aliases remain accepted for compatibility. Most local automation can omit this because implicit `default` sessions are workspace-scoped; use `sessionLock`, `--session-lock`, or `AGENT_DEVICE_SESSION_LOCK` when intentionally running an explicitly named session.
 
 ## Supported environment variables
 

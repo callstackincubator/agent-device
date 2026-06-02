@@ -66,10 +66,10 @@ agent-device app-switcher
 - `rotate <orientation>` forces a mobile device into `portrait`, `portrait-upside-down`, `landscape-left`, or `landscape-right`.
 - `rotate` is supported on iOS and Android mobile targets. macOS and tvOS do not expose it.
 - On iOS devices, `http(s)://` URLs open in Safari when no app is active. Custom scheme URLs require an active app in the session.
-- `AGENT_DEVICE_SESSION` and `AGENT_DEVICE_PLATFORM` can pre-bind a default session/platform for CLI automation runs, so normal commands (`open`, `snapshot`, `press`, `fill`, `screenshot`, `devices`, and `batch`) do not need those flags repeated on every call.
+- Commands that omit `--session` use an implicit `default` session scoped to the caller's current git worktree or working directory. This keeps independent local agents from accidentally attaching to each other's default session.
+- `--session <name>` or `AGENT_DEVICE_SESSION` opt into an explicitly named session when a script intentionally wants to share or reuse that session name.
 - A configured `AGENT_DEVICE_SESSION` implies bound-session lock mode by default. The CLI forwards that policy to the daemon, which enforces the same conflict handling for CLI, typed client, and direct RPC requests.
-- `--session-lock reject|strip` sets the lock policy for a single CLI invocation, including nested batch steps.
-- `AGENT_DEVICE_SESSION_LOCK=reject|strip` sets the default lock policy for bound-session automation runs. Older lock aliases remain accepted for compatibility, but new automation should use `--session-lock` or `AGENT_DEVICE_SESSION_LOCK`.
+- `--session-lock reject|strip` and `AGENT_DEVICE_SESSION_LOCK=reject|strip` remain available for explicit named-session automation. Older lock aliases remain accepted for compatibility.
 - Direct RPC callers can pass `meta.lockPolicy` and optional `meta.lockPlatform` on `agent_device.command` requests for the same daemon-enforced behavior.
 - In `batch`, steps that omit `platform` still inherit the parent batch `--platform`; lock-mode defaults do not override that parent setting.
 - Tenant-scoped daemon runs can pass `--tenant`, `--session-isolation tenant`, `--run-id`, and `--lease-id` to enforce lease admission.
@@ -613,7 +613,7 @@ agent-device react-devtools profile report @c5
 - For Android and iOS sessions connected through a remote bridge profile, `react-devtools` registers a lease-scoped companion tunnel to the sandbox-local DevTools daemon at `127.0.0.1:8097`. Android bridge profiles use the bridge-owned remote `adb reverse` mapping; iOS bridge profiles use the bridge-owned wildcard Metro host tunnel. The CLI keeps the companion alive until `agent-device react-devtools stop` or `agent-device disconnect`.
 - For remote iOS bridge sessions, open the app once to create the bridge session, run `agent-device react-devtools start`, then relaunch the same bundle id with `agent-device open <bundle-id> --platform ios --relaunch` before `wait --connected`. React Native attempts the legacy DevTools websocket during JavaScript startup, so starting DevTools after the first launch can miss that connection attempt.
 - Remote bridge React DevTools assumes the React Native-bundled DevTools behavior in React Native 0.83+. Older browser/Chromium DevTools workflows are not assumed to exist inside remote sandboxes. Expo projects should be verified against the SDK's bundled React Native version before relying on this path; this release does not claim a separately verified Expo SDK version.
-- For cross-platform validation with explicit target selectors, prefer an isolated `--state-dir` over separate named sessions. Named sessions enable bound-session locks during setup. Restart `react-devtools` between iOS and Android runs.
+- For cross-platform validation with explicit target selectors, use separate sessions/devices and restart `react-devtools` between iOS and Android runs.
 
 ## Metro reload
 
@@ -813,7 +813,7 @@ agent-device session list
 agent-device session list --json
 ```
 
-- `session list` shows active daemon sessions and their tracked device/app context.
+- `session list` shows active daemon sessions for the caller's implicit workspace scope, or the explicitly named session scope when `--session` / `AGENT_DEVICE_SESSION` is configured.
 - Use `--json` when you want to inspect or script against the raw session metadata.
 
 ## iOS physical-device prerequisites
