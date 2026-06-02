@@ -17,6 +17,7 @@ export type AndroidUiNodeMetadata = {
   clickable?: boolean;
   enabled?: boolean;
   visibleToUser?: boolean;
+  drawingOrder?: number;
   focusable?: boolean;
   focused?: boolean;
   password?: boolean;
@@ -244,6 +245,7 @@ function readNodeAttributes(node: string): Omit<AndroidUiNodeMetadata, 'rect'> {
     focused: boolAttr('focused'),
     password: boolAttr('password'),
     ...optionalBoolAttr('visibleToUser', 'visible-to-user'),
+    ...optionalNumberAttr('drawingOrder', 'drawing-order'),
     ...optionalBoolAttr('scrollable', 'scrollable'),
     ...optionalBoolAttr('canScrollForward', 'can-scroll-forward'),
     ...optionalBoolAttr('canScrollBackward', 'can-scroll-backward'),
@@ -383,7 +385,7 @@ function readXmlAttr(attrs: Map<string, string>, name: string): string | null {
 
 function parseBounds(bounds: string | null): Rect | undefined {
   if (!bounds) return undefined;
-  const match = /\[(\d+),(\d+)\]\[(\d+),(\d+)\]/.exec(bounds);
+  const match = /\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]/.exec(bounds);
   if (!match) return undefined;
   const x1 = Number(match[1]);
   const y1 = Number(match[2]);
@@ -401,6 +403,7 @@ export type AndroidUiHierarchy = {
   rect?: Rect;
   enabled?: boolean;
   visibleToUser?: boolean;
+  drawingOrder?: number;
   hittable?: boolean;
   depth: number;
   parentIndex?: number;
@@ -426,6 +429,15 @@ type AndroidNodeInclusionInfo = {
   hasMeaningfulId: boolean;
   isStructural: boolean;
   isVisual: boolean;
+};
+
+type AndroidTreePruneState = {
+  agentVisibleContentMemo: WeakMap<AndroidNode, boolean>;
+};
+
+type AndroidCoveringCandidate = AndroidNode & {
+  rect: Rect;
+  drawingOrder: number;
 };
 
 const ANDROID_WINDOW_TYPE_APPLICATION = 1;
@@ -461,6 +473,7 @@ export function parseUiHierarchyTree(xml: string): AndroidUiHierarchy {
       rect: attrs.rect,
       enabled: attrs.enabled,
       visibleToUser: attrs.visibleToUser,
+      drawingOrder: attrs.drawingOrder,
       hittable: attrs.clickable ?? attrs.focusable,
       scrollable: attrs.scrollable,
       canScrollForward: attrs.canScrollForward,
@@ -481,9 +494,115 @@ export function parseUiHierarchyTree(xml: string): AndroidUiHierarchy {
     }
     match = tokenRegex.exec(xml);
   }
+  // Raw Android snapshots are uncollapsed, but still agent-visible. The helper can expose
+  // aria-hidden/no-hide-descendants children, so prune nodes Android marks hidden to users.
+  pruneAndroidInvisibleSubtrees(root);
   discardInactiveAndroidApplicationWindows(root);
+  // UiAutomation can expose covered React Native navigation surfaces in the same accessibility
+  // window. If a higher drawing-order sibling covers them, agents should see the foreground surface.
+  pruneAndroidCoveredSubtrees(root, { agentVisibleContentMemo: new WeakMap() });
   applyAndroidScrollActionHints(root);
   return root;
+}
+
+function pruneAndroidInvisibleSubtrees(node: AndroidNode): void {
+  let keptCount = 0;
+  for (const child of node.children) {
+    if (child.visibleToUser === false) continue;
+    pruneAndroidInvisibleSubtrees(child);
+    node.children[keptCount] = child;
+    keptCount += 1;
+  }
+  if (keptCount < node.children.length) {
+    node.children.length = keptCount;
+  }
+}
+
+function pruneAndroidCoveredSubtrees(node: AndroidNode, state: AndroidTreePruneState): void {
+  for (const child of node.children) {
+    pruneAndroidCoveredSubtrees(child, state);
+  }
+  if (node.children.length < 2) {
+    return;
+  }
+  const siblings = node.children;
+  const coveringCandidates = siblings.filter((sibling) => canCoverSibling(sibling, state));
+  if (coveringCandidates.length === 0) return;
+  node.children = siblings.filter(
+    (child) => !isCoveredByHigherDrawingOrderSibling(child, coveringCandidates),
+  );
+}
+
+function isCoveredByHigherDrawingOrderSibling(
+  node: AndroidNode,
+  coveringCandidates: AndroidCoveringCandidate[],
+): boolean {
+  if (node.visibleToUser === false || node.drawingOrder === undefined || !hasPositiveRect(node)) {
+    return false;
+  }
+
+  for (const sibling of coveringCandidates) {
+    if (sibling === node || sibling.drawingOrder <= node.drawingOrder) {
+      continue;
+    }
+    if (rectCoverage(sibling.rect, node.rect) >= 0.9) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function canCoverSibling(
+  node: AndroidNode,
+  state: AndroidTreePruneState,
+): node is AndroidCoveringCandidate {
+  return (
+    node.visibleToUser !== false &&
+    node.drawingOrder !== undefined &&
+    hasPositiveRect(node) &&
+    hasAgentVisibleContent(node, state)
+  );
+}
+
+function hasAgentVisibleContent(node: AndroidNode, state: AndroidTreePruneState): boolean {
+  const cached = state.agentVisibleContentMemo.get(node);
+  if (cached !== undefined) return cached;
+
+  const result = computeHasAgentVisibleContent(node, state);
+  state.agentVisibleContentMemo.set(node, result);
+  return result;
+}
+
+function computeHasAgentVisibleContent(node: AndroidNode, state: AndroidTreePruneState): boolean {
+  if (node.visibleToUser === false) return false;
+  if (node.hittable) return true;
+  const label = node.label?.trim() ?? '';
+  if (label && !isGenericAndroidId(label)) return true;
+  const identifier = node.identifier?.trim() ?? '';
+  if (identifier && !isGenericAndroidId(identifier)) return true;
+  return node.children.some((child) => hasAgentVisibleContent(child, state));
+}
+
+function hasPositiveRect(node: AndroidNode): node is AndroidNode & { rect: Rect } {
+  return Boolean(node.rect && node.rect.width > 0 && node.rect.height > 0);
+}
+
+function rectCoverage(coveringRect: Rect, targetRect: Rect): number {
+  const targetArea = targetRect.width * targetRect.height;
+  if (targetArea <= 0) return 0;
+  return intersectionArea(coveringRect, targetRect) / targetArea;
+}
+
+function intersectionArea(left: Rect, right: Rect): number {
+  const xOverlap = Math.max(
+    0,
+    Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x),
+  );
+  const yOverlap = Math.max(
+    0,
+    Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y),
+  );
+  return xOverlap * yOverlap;
 }
 
 function applyAndroidScrollActionHints(root: AndroidUiHierarchy): void {

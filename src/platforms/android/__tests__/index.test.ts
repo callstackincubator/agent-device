@@ -161,9 +161,17 @@ test('parseUiHierarchy decodes XML entities in Android node attributes', () => {
   assert.equal(result.nodes[0]!.label, 'Line 1\nLine 2\t&<>"\'');
 });
 
+test('parseUiHierarchy reads Android bounds with negative coordinates', () => {
+  const xml =
+    '<hierarchy><node class="android.widget.TextView" text="Clipped" bounds="[0,935][-67,994]"/></hierarchy>';
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.deepEqual(result.nodes[0]!.rect, { x: 0, y: 935, width: 0, height: 59 });
+});
+
 test('androidUiNodes exposes decoded Android hierarchy metadata', () => {
   const xml =
-    '<hierarchy><node package="com.example.app" class="android.widget.EditText" text="Fish &amp; Chips" content-desc="Search&#10;field" resource-id="com.example.app:id/search" bounds="[10,20][110,70]" clickable="false" enabled="true" visible-to-user="true" focusable="true" focused="true" password="true" window-index="0" window-type="1" window-layer="3" window-active="true" window-focused="false" window-bounds="[0,0][390,844]"/></hierarchy>';
+    '<hierarchy><node package="com.example.app" class="android.widget.EditText" text="Fish &amp; Chips" content-desc="Search&#10;field" resource-id="com.example.app:id/search" bounds="[10,20][110,70]" clickable="false" enabled="true" visible-to-user="true" drawing-order="4" focusable="true" focused="true" password="true" window-index="0" window-type="1" window-layer="3" window-active="true" window-focused="false" window-bounds="[0,0][390,844]"/></hierarchy>';
 
   assert.deepEqual(Array.from(androidUiNodes(xml)), [
     {
@@ -177,6 +185,7 @@ test('androidUiNodes exposes decoded Android hierarchy metadata', () => {
       clickable: false,
       enabled: true,
       visibleToUser: true,
+      drawingOrder: 4,
       focusable: true,
       focused: true,
       password: true,
@@ -272,7 +281,7 @@ test('parseUiHierarchy excludes Android nodes that are not visible to the user',
   );
 });
 
-test('parseUiHierarchy preserves Android visible-to-user metadata in raw snapshots', () => {
+test('parseUiHierarchy prunes Android nodes that are not visible to the user in raw snapshots', () => {
   const xml = `<hierarchy>
   <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" enabled="true" visible-to-user="true">
     <node class="android.widget.Button" text="Hidden drawer action" bounds="[10,80][200,120]" clickable="true" enabled="true" visible-to-user="false"/>
@@ -281,8 +290,114 @@ test('parseUiHierarchy preserves Android visible-to-user metadata in raw snapsho
 
   const result = parseUiHierarchy(xml, 800, { raw: true });
   assert.equal(result.nodes[0]!.visibleToUser, true);
-  assert.equal(result.nodes[1]!.label, 'Hidden drawer action');
-  assert.equal(result.nodes[1]!.visibleToUser, false);
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Hidden drawer action'),
+    false,
+  );
+});
+
+test('parseUiHierarchy prunes descendants of Android nodes that are not visible to the user', () => {
+  const xml = `<hierarchy>
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" enabled="true" visible-to-user="true">
+    <node class="android.view.ViewGroup" bounds="[0,0][390,844]" enabled="true" visible-to-user="false">
+      <node class="android.widget.Button" text="Hidden drawer action" bounds="[10,80][200,120]" clickable="true" enabled="true" visible-to-user="true"/>
+    </node>
+  </node>
+</hierarchy>`;
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Hidden drawer action'),
+    false,
+  );
+});
+
+test('parseUiHierarchy prunes lower drawing-order subtrees covered by a foreground sibling', () => {
+  const xml = `<hierarchy>
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" visible-to-user="true" drawing-order="0">
+    <node class="android.view.ViewGroup" bounds="[0,0][390,844]" visible-to-user="true" drawing-order="2">
+      <node class="android.widget.Button" text="Foreground action" bounds="[24,420][366,480]" clickable="true" enabled="true" visible-to-user="true" drawing-order="1"/>
+    </node>
+    <node class="android.view.ViewGroup" bounds="[0,0][390,844]" visible-to-user="true" drawing-order="1">
+      <node class="android.widget.ScrollView" bounds="[0,120][300,844]" scrollable="true" clickable="true" enabled="true" visible-to-user="true" drawing-order="1">
+        <node class="android.widget.Button" text="Hidden drawer action" bounds="[0,220][280,280]" clickable="true" enabled="true" visible-to-user="true" drawing-order="1"/>
+      </node>
+    </node>
+  </node>
+</hierarchy>`;
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Foreground action'),
+    true,
+  );
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Hidden drawer action'),
+    false,
+  );
+});
+
+test('parseUiHierarchy keeps visible side-by-side drawer and content subtrees', () => {
+  const xml = `<hierarchy>
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" visible-to-user="true" drawing-order="0">
+    <node class="android.view.ViewGroup" bounds="[0,0][120,844]" visible-to-user="true" drawing-order="2">
+      <node class="android.widget.Button" text="Visible drawer action" bounds="[0,220][110,280]" clickable="true" enabled="true" visible-to-user="true" drawing-order="1"/>
+    </node>
+    <node class="android.view.ViewGroup" bounds="[120,0][390,844]" visible-to-user="true" drawing-order="1">
+      <node class="android.widget.Button" text="Visible content action" bounds="[150,420][366,480]" clickable="true" enabled="true" visible-to-user="true" drawing-order="1"/>
+    </node>
+  </node>
+</hierarchy>`;
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Visible drawer action'),
+    true,
+  );
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Visible content action'),
+    true,
+  );
+});
+
+test('parseUiHierarchy keeps lower siblings when drawing-order metadata is unavailable', () => {
+  const xml = `<hierarchy>
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" visible-to-user="true">
+    <node class="android.view.ViewGroup" bounds="[0,0][390,844]" visible-to-user="true">
+      <node class="android.widget.Button" text="Foreground action" bounds="[24,420][366,480]" clickable="true" enabled="true" visible-to-user="true"/>
+    </node>
+    <node class="android.view.ViewGroup" bounds="[0,0][390,844]" visible-to-user="true">
+      <node class="android.widget.Button" text="Legacy drawer action" bounds="[0,220][280,280]" clickable="true" enabled="true" visible-to-user="true"/>
+    </node>
+  </node>
+</hierarchy>`;
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Foreground action'),
+    true,
+  );
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Legacy drawer action'),
+    true,
+  );
+});
+
+test('parseUiHierarchy keeps lower siblings covered only by non-agent-visible overlays', () => {
+  const xml = `<hierarchy>
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" visible-to-user="true" drawing-order="0">
+    <node class="android.view.ViewGroup" bounds="[0,0][390,844]" visible-to-user="true" drawing-order="2"/>
+    <node class="android.view.ViewGroup" bounds="[0,0][390,844]" visible-to-user="true" drawing-order="1">
+      <node class="android.widget.Button" text="Still visible action" bounds="[0,220][280,280]" clickable="true" enabled="true" visible-to-user="true" drawing-order="1"/>
+    </node>
+  </node>
+</hierarchy>`;
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Still visible action'),
+    true,
+  );
 });
 
 test('parseUiHierarchy ignores attribute-name prefix spoofing', () => {

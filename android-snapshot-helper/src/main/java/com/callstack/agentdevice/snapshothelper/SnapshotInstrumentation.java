@@ -513,6 +513,7 @@ public final class SnapshotInstrumentation extends Instrumentation {
     appendNonEmptyAttribute(xml, "package", node.getPackageName());
     appendNonEmptyAttribute(xml, "content-desc", node.getContentDescription());
     appendAttribute(xml, "visible-to-user", Boolean.toString(node.isVisibleToUser()));
+    appendAttribute(xml, "drawing-order", Integer.toString(node.getDrawingOrder()));
     appendTrueAttribute(xml, "clickable", node.isClickable());
     appendAttribute(xml, "enabled", Boolean.toString(node.isEnabled()));
     appendTrueAttribute(xml, "focusable", node.isFocusable());
