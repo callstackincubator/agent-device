@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.Instrumentation;
 import android.app.UiAutomation;
 import android.graphics.Rect;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Base64;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -513,7 +514,7 @@ public final class SnapshotInstrumentation extends Instrumentation {
     appendNonEmptyAttribute(xml, "package", node.getPackageName());
     appendNonEmptyAttribute(xml, "content-desc", node.getContentDescription());
     appendAttribute(xml, "visible-to-user", Boolean.toString(node.isVisibleToUser()));
-    appendAttribute(xml, "drawing-order", Integer.toString(node.getDrawingOrder()));
+    appendDrawingOrderAttribute(xml, node);
     appendTrueAttribute(xml, "clickable", node.isClickable());
     appendAttribute(xml, "enabled", Boolean.toString(node.isEnabled()));
     appendTrueAttribute(xml, "focusable", node.isFocusable());
@@ -582,6 +583,12 @@ public final class SnapshotInstrumentation extends Instrumentation {
   private static void appendTrueAttribute(StringBuilder xml, String name, boolean value) {
     if (value) {
       appendAttribute(xml, name, "true");
+    }
+  }
+
+  private static void appendDrawingOrderAttribute(StringBuilder xml, AccessibilityNodeInfo node) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+      appendAttribute(xml, "drawing-order", Integer.toString(node.getDrawingOrder()));
     }
   }
 

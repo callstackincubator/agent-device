@@ -383,6 +383,52 @@ test('parseUiHierarchy keeps lower siblings when drawing-order metadata is unava
   );
 });
 
+test('parseUiHierarchy keeps overlapping siblings when drawing-order ties', () => {
+  const xml = `<hierarchy>
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" visible-to-user="true" drawing-order="0">
+    <node class="android.view.ViewGroup" bounds="[0,0][390,844]" visible-to-user="true" drawing-order="1">
+      <node class="android.widget.Button" text="First tied action" bounds="[24,420][366,480]" clickable="true" enabled="true" visible-to-user="true" drawing-order="1"/>
+    </node>
+    <node class="android.view.ViewGroup" bounds="[0,0][390,844]" visible-to-user="true" drawing-order="1">
+      <node class="android.widget.Button" text="Second tied action" bounds="[0,220][280,280]" clickable="true" enabled="true" visible-to-user="true" drawing-order="1"/>
+    </node>
+  </node>
+</hierarchy>`;
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.equal(
+    result.nodes.some((node) => node.label === 'First tied action'),
+    true,
+  );
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Second tied action'),
+    true,
+  );
+});
+
+test('parseUiHierarchy keeps lower siblings below the covered-area threshold', () => {
+  const xml = `<hierarchy>
+  <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" visible-to-user="true" drawing-order="0">
+    <node class="android.view.ViewGroup" bounds="[0,0][390,717]" visible-to-user="true" drawing-order="2">
+      <node class="android.widget.Button" text="Partial overlay action" bounds="[24,420][366,480]" clickable="true" enabled="true" visible-to-user="true" drawing-order="1"/>
+    </node>
+    <node class="android.view.ViewGroup" bounds="[0,0][390,844]" visible-to-user="true" drawing-order="1">
+      <node class="android.widget.Button" text="Mostly visible action" bounds="[0,760][280,820]" clickable="true" enabled="true" visible-to-user="true" drawing-order="1"/>
+    </node>
+  </node>
+</hierarchy>`;
+
+  const result = parseUiHierarchy(xml, 800, { raw: true });
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Partial overlay action'),
+    true,
+  );
+  assert.equal(
+    result.nodes.some((node) => node.label === 'Mostly visible action'),
+    true,
+  );
+});
+
 test('parseUiHierarchy keeps lower siblings covered only by non-agent-visible overlays', () => {
   const xml = `<hierarchy>
   <node class="android.widget.FrameLayout" bounds="[0,0][390,844]" visible-to-user="true" drawing-order="0">
