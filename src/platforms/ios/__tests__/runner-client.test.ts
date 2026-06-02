@@ -389,6 +389,12 @@ test('withRunnerCommandId replaces blank command ids', () => {
   assert.match(command.commandId ?? '', /^runner-/);
 });
 
+test('withRunnerCommandId preserves existing command ids', () => {
+  const command = withRunnerCommandId({ command: 'uptime', commandId: 'runner-existing' });
+
+  assert.deepEqual(command, { command: 'uptime', commandId: 'runner-existing' });
+});
+
 test('withRunnerCommandId does not add command ids to status probes', () => {
   const command = withRunnerCommandId({
     command: 'status',

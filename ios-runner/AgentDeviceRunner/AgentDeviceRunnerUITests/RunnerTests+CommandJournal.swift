@@ -1,6 +1,7 @@
 import Foundation
 
 enum RunnerCommandLifecycleState: String {
+  case notAccepted
   case accepted
   case started
   case completed
@@ -66,13 +67,16 @@ final class RunnerCommandJournal {
 
   func status(commandId: String) -> DataPayload {
     guard let normalized = normalizedCommandId(commandId) else {
-      return DataPayload(lifecycleState: "notAccepted")
+      return DataPayload(lifecycleState: RunnerCommandLifecycleState.notAccepted.rawValue)
     }
     lock.lock()
     let entry = entries[normalized]
     lock.unlock()
     guard let entry else {
-      return DataPayload(commandId: normalized, lifecycleState: "notAccepted")
+      return DataPayload(
+        commandId: normalized,
+        lifecycleState: RunnerCommandLifecycleState.notAccepted.rawValue
+      )
     }
     return DataPayload(
       commandId: entry.commandId,
