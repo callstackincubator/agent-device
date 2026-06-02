@@ -36,6 +36,9 @@ extension RunnerTests {
   /// (the default) to run inside the scroll idle-timeout + quiescence-skip wrapper; synthesis
   /// gestures (pinch/rotate/transform) pass `false` because RunnerSynthesizedGesture governs its
   /// own timing. Returns the captured timing and the action's outcome.
+  ///
+  /// NOTE: a new SYNTHESIS gesture must pass `idleTimeout: false` — the default `true` would wrap
+  /// it in the scroll idle-timeout/quiescence-skip path and change its runtime behavior.
   private func performGesture(
     _ app: XCUIApplication,
     idleTimeout: Bool = true,
@@ -411,6 +414,8 @@ extension RunnerTests {
       }
       let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
       do {
+        // mouseClick throws (it has no RunnerInteractionOutcome), so it keeps raw measureGesture
+        // and only routes the success payload through gestureResponse.
         var clickError: Error?
         let timing = measureGesture {
           do {
@@ -580,6 +585,8 @@ extension RunnerTests {
       guard let direction = command.direction else {
         return Response(ok: false, error: ErrorPayload(message: "swipe requires direction"))
       }
+      // swipe returns an optional frame (tvOS-only) rather than a RunnerInteractionOutcome, so it
+      // keeps raw measureGesture and only routes the success payload through gestureResponse.
       var executedFrame: DragVisualizationFrame?
       let timing = measureGesture {
         withTemporaryScrollIdleTimeoutIfSupported(activeApp) {
