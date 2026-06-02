@@ -28,7 +28,11 @@ import {
   type CommandAttemptFailure,
 } from '../command-attempts.ts';
 
-import { IOS_APP_LAUNCH_TIMEOUT_MS, IOS_DEVICECTL_TIMEOUT_MS } from './config.ts';
+import {
+  IOS_APP_LAUNCH_TIMEOUT_MS,
+  IOS_DEVICECTL_TIMEOUT_MS,
+  IOS_SIMULATOR_TERMINATE_TIMEOUT_MS,
+} from './config.ts';
 import {
   IOS_DEVICECTL_DEFAULT_HINT,
   listIosDeviceApps,
@@ -277,6 +281,7 @@ export async function closeIosApp(device: DeviceInfo, app: string): Promise<void
     const terminateArgs = simctlArgs(device, ['terminate', device.id, bundleId]);
     const result = await runXcrun(terminateArgs, {
       allowFailure: true,
+      timeoutMs: IOS_SIMULATOR_TERMINATE_TIMEOUT_MS,
     });
     if (result.exitCode !== 0) {
       const stderr = result.stderr.toLowerCase();

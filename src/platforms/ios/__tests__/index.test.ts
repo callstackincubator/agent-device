@@ -71,6 +71,7 @@ import { ensureBootedSimulator, openIosSimulatorApp } from '../simulator.ts';
 import { prepareSimulatorStatusBarForScreenshot as prepareStatusBarForScreenshot } from '../screenshot-status-bar.ts';
 import { runIosRunnerCommand } from '../runner-client.ts';
 import { iosRunnerOverrides } from '../interactions.ts';
+import { IOS_SIMULATOR_TERMINATE_TIMEOUT_MS } from '../config.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { withDiagnosticsScope } from '../../../utils/diagnostics.ts';
 import { AppError } from '../../../utils/errors.ts';
@@ -1134,6 +1135,24 @@ test('closeIosApp on macOS uses helper quit for bundle identifiers', async () =>
     },
     { tempPrefix: 'agent-device-macos-close-helper-test-' },
   );
+});
+
+test('closeIosApp on iOS simulator bounds simctl terminate', async () => {
+  mockEnsureBootedSimulator.mockResolvedValue(undefined);
+  mockRunCmd.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 });
+
+  await closeIosApp(IOS_TEST_SIMULATOR, 'com.example.foobar');
+
+  assert.equal(mockRunCmd.mock.calls.length, 1);
+  assert.equal(mockRunCmd.mock.calls[0]?.[0], 'xcrun');
+  assert.deepEqual(mockRunCmd.mock.calls[0]?.[1], [
+    'simctl',
+    'terminate',
+    'sim-1',
+    'com.example.foobar',
+  ]);
+  assert.equal(mockRunCmd.mock.calls[0]?.[2]?.allowFailure, true);
+  assert.equal(mockRunCmd.mock.calls[0]?.[2]?.timeoutMs, IOS_SIMULATOR_TERMINATE_TIMEOUT_MS);
 });
 
 test('quitMacOsApp rejects invalid bundle identifiers before invoking helper', async () => {
