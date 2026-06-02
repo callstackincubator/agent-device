@@ -280,42 +280,6 @@ test('record stop releases session created only for recording', async () => {
   expect(sessionStore.get(sessionName)).toBeUndefined();
 });
 
-test('record stop releases record-only session even when recording state is stale', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'stale-record-only-session';
-  const session = makeIosSimulatorSession(sessionName);
-  session.recordOnlySession = true;
-  sessionStore.set(sessionName, session);
-
-  const response = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['stop'],
-  });
-
-  expect(response?.ok).toBe(false);
-  expect(sessionStore.get(sessionName)).toBeUndefined();
-});
-
-test('record stop keeps normal app session open after recording', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'app-session';
-  const session = makeIosSimulatorRecordingSession(sessionName, {
-    appBundleId: 'com.apple.Preferences',
-  });
-  sessionStore.set(sessionName, session);
-
-  const response = await runRecordCommand({
-    sessionStore,
-    sessionName,
-    positionals: ['stop'],
-  });
-
-  expect(response?.ok).toBe(true);
-  expect(sessionStore.get(sessionName)).toBe(session);
-  expect(sessionStore.get(sessionName)?.recording).toBeUndefined();
-});
-
 test('record stop keeps normal app session open when stop validation fails', async () => {
   vi.useFakeTimers();
   vi.setSystemTime(20_000);

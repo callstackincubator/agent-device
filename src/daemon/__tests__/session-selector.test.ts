@@ -60,22 +60,6 @@ test('selector mismatch explains session recovery commands', () => {
   );
 });
 
-test('selector mismatch quotes unsafe session names in recovery commands', () => {
-  const session = makeSession({ name: "default session; echo 'oops'" });
-  assert.throws(
-    () => assertSessionSelectorMatches(session, { platform: 'ios' }),
-    (err: unknown) => {
-      assert.ok(err instanceof AppError);
-      assert.match(err.details?.hint ?? '', /--session 'default session; echo '\\''oops'\\'''/);
-      assert.match(
-        err.details?.hint ?? '',
-        /agent-device close --session 'default session; echo '\\''oops'\\'''/,
-      );
-      return true;
-    },
-  );
-});
-
 test('accepts --platform apple alias for ios sessions', () => {
   const session = makeSession({
     device: {

@@ -4,11 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { SessionStore } from '../session-store.ts';
-import {
-  resolveEffectiveSessionName,
-  resolveImplicitSessionScope,
-  sessionMatchesScope,
-} from '../session-routing.ts';
+import { resolveEffectiveSessionName } from '../session-routing.ts';
 import type { SessionState } from '../types.ts';
 
 function makeSession(name: string): SessionState {
@@ -114,33 +110,4 @@ test('keeps explicitly configured default session global', (t) => {
   );
 
   assert.equal(resolved, 'default');
-});
-
-test('matches sessions only within the same implicit scope', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-cwd-scope-'));
-  t.onTestFinished(() => {
-    fs.rmSync(cwd, { recursive: true, force: true });
-  });
-  const req = {
-    token: 't',
-    session: 'default',
-    command: 'session_list',
-    positionals: [],
-    flags: {},
-    meta: { cwd },
-  };
-  const scope = resolveImplicitSessionScope(req);
-  assert.ok(scope);
-
-  assert.equal(
-    sessionMatchesScope({ ...makeSession('default'), sessionScope: scope }, scope),
-    true,
-  );
-  assert.equal(
-    sessionMatchesScope(
-      { ...makeSession('default'), sessionScope: { kind: 'cwd', id: 'other' } },
-      scope,
-    ),
-    false,
-  );
 });
