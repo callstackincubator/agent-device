@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { beforeEach, test, vi } from 'vitest';
 import { IOS_SIMULATOR } from '../../../__tests__/test-utils/index.ts';
 import { AppError } from '../../../utils/errors.ts';
+import { flushDiagnosticsToSessionFile, withDiagnosticsScope } from '../../../utils/diagnostics.ts';
 import type { RunnerSession } from '../runner-session-types.ts';
 
 const {
@@ -196,6 +200,25 @@ test('runner session probes readiness before mutating commands', async () => {
   });
 });
 
+test('runner session emits reason diagnostics when readiness preflight is used', async () => {
+  const session = makeRunnerSession({ ready: false });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+
+  const diagnostics = await captureDiagnostics(async () => {
+    await executeRunnerCommandWithSession(
+      IOS_SIMULATOR,
+      session,
+      { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.demo' },
+      '/tmp/runner.log',
+      30_000,
+    );
+  });
+
+  assert.match(diagnostics, /"reason":"startup"/);
+  assert.match(diagnostics, /ios_runner_readiness_preflight/);
+});
+
 test('runner session skips readiness preflight for tap commands after a recent successful response', async () => {
   const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
   mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
@@ -211,6 +234,74 @@ test('runner session skips readiness preflight for tap commands after a recent s
   assert.deepEqual(result, { tapped: true });
   assert.equal(mockWaitForRunner.mock.calls.length, 0);
   assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
+});
+
+test('runner session emits explicit diagnostics when readiness preflight is skipped', async () => {
+  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+
+  const diagnostics = await captureDiagnostics(async () => {
+    await executeRunnerCommandWithSession(
+      IOS_SIMULATOR,
+      session,
+      { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.demo' },
+      '/tmp/runner.log',
+      30_000,
+    );
+  });
+
+  assert.match(diagnostics, /ios_runner_readiness_preflight_skipped/);
+  assert.match(diagnostics, /"reason":"recent_successful_response"/);
+  assert.doesNotMatch(diagnostics, /ios_runner_readiness_preflight_used/);
+});
+
+test('runner session marks transport failures after skipped readiness preflight', async () => {
+  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
+  mockSendRunnerCommandOnce.mockRejectedValueOnce(new Error('fetch failed'));
+
+  await assert.rejects(
+    () =>
+      executeRunnerCommandWithSession(
+        IOS_SIMULATOR,
+        session,
+        { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.demo' },
+        '/tmp/runner.log',
+        30_000,
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.details?.runnerReadinessPreflightSkipped, true);
+      assert.equal(error.details?.runnerReadinessPreflightSkipReason, 'recent_successful_response');
+      return true;
+    },
+  );
+});
+
+test('runner session does not mark runner response failures as skipped preflight transport failures', async () => {
+  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(
+    runnerError({
+      code: 'COMMAND_FAILED',
+      message: 'Runner failed after receiving command',
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      executeRunnerCommandWithSession(
+        IOS_SIMULATOR,
+        session,
+        { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.demo' },
+        '/tmp/runner.log',
+        30_000,
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.message, 'Runner failed after receiving command');
+      assert.equal(error.details?.runnerReadinessPreflightSkipped, undefined);
+      return true;
+    },
+  );
 });
 
 test('runner session skips readiness preflight for selector taps after a recent successful response', async () => {
@@ -487,6 +578,24 @@ function runnerResponse(data: Record<string, unknown>): Response {
 
 function runnerError(error: { code: string; message: string }): Response {
   return new Response(JSON.stringify({ ok: false, error }));
+}
+
+async function captureDiagnostics(callback: () => Promise<void>): Promise<string> {
+  const previousHome = process.env.HOME;
+  process.env.HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-runner-diag-'));
+  try {
+    return await withDiagnosticsScope(
+      { session: 'runner-session-test', requestId: 'request-1', command: 'tap' },
+      async () => {
+        await callback();
+        const diagnosticsPath = flushDiagnosticsToSessionFile({ force: true });
+        assert.ok(diagnosticsPath);
+        return fs.readFileSync(diagnosticsPath, 'utf8');
+      },
+    );
+  } finally {
+    process.env.HOME = previousHome;
+  }
 }
 
 function assertRunnerCommand(

@@ -143,6 +143,28 @@ test('mutating commands restart stale sessions when readiness preflight times ou
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[1]?.[1], freshSession);
 });
 
+test('mutating commands emit readiness recovery diagnostics after failed preflight restart succeeds', async () => {
+  const staleSession = makeRunnerSession({ port: 8100, ready: true });
+  const freshSession = makeRunnerSession({ port: 8101, ready: false });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(staleSession).mockResolvedValueOnce(freshSession);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(
+      new AppError('COMMAND_FAILED', 'fetch failed', {
+        runnerReadinessPreflightFailed: true,
+      }),
+    )
+    .mockResolvedValueOnce({ message: 'tapped' });
+
+  const diagnostics = await captureDiagnostics(async () => {
+    const result = await runIosRunnerCommand(IOS_SIMULATOR, { command: 'tap', x: 120, y: 240 });
+    assert.deepEqual(result, { message: 'tapped' });
+  });
+
+  assert.match(diagnostics, /ios_runner_readiness_preflight_recovered/);
+  assert.match(diagnostics, /"recovery":"session_restarted"/);
+});
+
 test('mutating commands do not restart or replay after command send failure', async () => {
   const session = makeRunnerSession({ port: 8100, ready: true });
 
@@ -195,6 +217,35 @@ test('mutating commands recover cached responses before invalidating after comma
   const statusCommand = mockExecuteRunnerCommandWithSession.mock.calls[1]?.[2];
   assert.equal(statusCommand.command, 'status');
   assert.equal(statusCommand.statusCommandId, sentCommand.commandId);
+});
+
+test('mutating commands run status recovery after transport failure when readiness preflight was skipped', async () => {
+  const session = makeRunnerSession({ port: 8100, ready: true });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(session);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(
+      new AppError('COMMAND_FAILED', 'fetch failed', {
+        runnerReadinessPreflightSkipped: true,
+        runnerReadinessPreflightSkipReason: 'recent_successful_response',
+      }),
+    )
+    .mockResolvedValueOnce({
+      lifecycleState: 'completed',
+      lifecycleResponseJson: JSON.stringify({ ok: true, data: { message: 'tapped' } }),
+    });
+
+  const diagnostics = await captureDiagnostics(async () => {
+    const result = await runIosRunnerCommand(IOS_SIMULATOR, { command: 'tap', x: 120, y: 240 });
+    assert.deepEqual(result, { message: 'tapped' });
+  });
+
+  assert.equal(mockInvalidateRunnerSession.mock.calls.length, 0);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[1]?.[2].command, 'status');
+  assert.match(diagnostics, /ios_runner_command_status_recovery/);
+  assert.match(diagnostics, /"readinessPreflightSkipped":true/);
+  assert.match(diagnostics, /"readinessPreflightSkipReason":"recent_successful_response"/);
 });
 
 test('mutating commands keep invalidating when status cannot find the command', async () => {
@@ -346,6 +397,36 @@ test('mutating commands report recovery guidance when completed status has no re
     reason: 'completed_without_retained_response',
     lifecycleState: 'completed',
   });
+});
+
+test('mutating commands include skipped readiness context in lost-response guidance', async () => {
+  const session = makeRunnerSession({ port: 8100, ready: true });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(session);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(
+      new AppError('COMMAND_FAILED', 'fetch failed', {
+        runnerReadinessPreflightSkipped: true,
+        runnerReadinessPreflightSkipReason: 'recent_successful_response',
+        runnerReadinessPreflightSkippedAgeMs: 4,
+      }),
+    )
+    .mockResolvedValueOnce({ lifecycleState: 'completed' });
+
+  await assert.rejects(
+    () => runIosRunnerCommand(IOS_SIMULATOR, { command: 'tap', x: 120, y: 240 }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.details?.recovery, 'completed_without_retained_response');
+      assert.equal(error.details?.readinessPreflightSkipped, true);
+      assert.equal(error.details?.readinessPreflightSkipReason, 'recent_successful_response');
+      assert.equal(error.details?.readinessPreflightSkippedAgeMs, 4);
+      assert.match(String(error.details?.hint), /skipped the uptime preflight/);
+      assert.match(String(error.details?.hint), /status recovery confirmed/);
+      assert.match(String(error.details?.hint), /snapshot -i/);
+      return true;
+    },
+  );
 });
 
 test('mutating commands preserve runner failure details from status recovery', async () => {
@@ -501,4 +582,9 @@ function makeRunnerSession(overrides: Partial<RunnerSession> = {}): RunnerSessio
     ready: true,
     ...overrides,
   } as RunnerSession;
+}
+
+async function captureDiagnostics(callback: () => Promise<void>): Promise<string> {
+  await callback();
+  return JSON.stringify(mockEmitDiagnostic.mock.calls.map(([event]) => event));
 }
