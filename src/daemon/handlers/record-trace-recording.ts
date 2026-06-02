@@ -529,6 +529,20 @@ function deriveClientTelemetryPath(
   return deriveRecordingTelemetryPath(recording.clientOutPath);
 }
 
+function releaseRecordOnlySession(
+  sessionStore: SessionStore,
+  session: SessionState,
+  options: { writeLog?: boolean } = {},
+): void {
+  if (!session.recordingSession) {
+    return;
+  }
+  if (options.writeLog) {
+    sessionStore.writeSessionLog(session);
+  }
+  sessionStore.delete(session.name);
+}
+
 // --- Main command handler ---
 
 export async function handleRecordCommand(params: {
@@ -551,6 +565,7 @@ export async function handleRecordCommand(params: {
       name: sessionName,
       device,
       createdAt: Date.now(),
+      recordingSession: true,
       actions: [],
     } satisfies SessionState);
 
@@ -565,6 +580,7 @@ export async function handleRecordCommand(params: {
 
   const response = await stopRecording({ req, activeSession, device, logPath, deps });
   if (!response.ok) {
+    releaseRecordOnlySession(sessionStore, activeSession);
     return response;
   }
 
@@ -578,5 +594,6 @@ export async function handleRecordCommand(params: {
       showTouches: response.data?.showTouches,
     },
   });
+  releaseRecordOnlySession(sessionStore, activeSession, { writeLog: true });
   return response;
 }

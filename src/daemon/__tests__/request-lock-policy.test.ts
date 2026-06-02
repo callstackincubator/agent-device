@@ -2,6 +2,7 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { applyRequestLockPolicy } from '../request-lock-policy.ts';
 import type { SessionState } from '../types.ts';
+import { AppError } from '../../utils/errors.ts';
 
 const IOS_SESSION: SessionState = {
   name: 'qa-ios',
@@ -32,6 +33,21 @@ const ANDROID_SESSION: SessionState = {
   },
 };
 
+const RECORDING_SESSION: SessionState = {
+  ...ANDROID_SESSION,
+  name: 'default',
+  recordingSession: true,
+  recording: {
+    platform: 'android',
+    outPath: '/tmp/recording.mp4',
+    remotePath: '/sdcard/recording.mp4',
+    remotePid: '1234',
+    startedAt: Date.now(),
+    showTouches: false,
+    gestureEvents: [],
+  },
+};
+
 test('rejects fresh-session selector conflicts under request lock policy', () => {
   assert.throws(
     () =>
@@ -49,6 +65,37 @@ test('rejects fresh-session selector conflicts under request lock policy', () =>
         },
       }),
     /--device=Pixel 9/i,
+  );
+});
+
+test('reject lock policy explains fresh-session recovery commands', () => {
+  assert.throws(
+    () =>
+      applyRequestLockPolicy({
+        token: 'token',
+        session: 'qa-ios',
+        command: 'snapshot',
+        positionals: [],
+        flags: {
+          device: 'Pixel 9',
+        },
+        meta: {
+          lockPolicy: 'reject',
+          lockPlatform: 'ios',
+        },
+      }),
+    (error) => {
+      assert.ok(error instanceof AppError);
+      assert.match(error.message, /snapshot is using a bound-session lock for ios/i);
+      assert.match(error.message, /--device=Pixel 9/i);
+      assert.match(error.details?.hint ?? '', /Remove conflicting device selectors/i);
+      assert.match(
+        error.details?.hint ?? '',
+        /agent-device open <app> --session qa-ios --platform ios/i,
+      );
+      assert.match(error.details?.hint ?? '', /agent-device session list/i);
+      return true;
+    },
   );
 });
 
@@ -115,6 +162,66 @@ test('rejects existing-session selector conflicts under request lock policy', ()
         IOS_SESSION,
       ),
     /--serial=emulator-5554/i,
+  );
+});
+
+test('reject lock policy explains existing-session recovery commands', () => {
+  assert.throws(
+    () =>
+      applyRequestLockPolicy(
+        {
+          token: 'token',
+          session: 'qa-ios',
+          command: 'snapshot',
+          positionals: [],
+          flags: {
+            serial: 'emulator-5554',
+          },
+          meta: {
+            lockPolicy: 'reject',
+          },
+        },
+        IOS_SESSION,
+      ),
+    (error) => {
+      assert.ok(error instanceof AppError);
+      assert.match(error.message, /locked to session "qa-ios"/i);
+      assert.match(error.message, /ios device "iPhone 16" \(SIM-001\)/i);
+      assert.match(error.message, /--serial=emulator-5554/i);
+      assert.match(error.details?.hint ?? '', /agent-device session list/i);
+      assert.match(error.details?.hint ?? '', /--session qa-ios/i);
+      assert.match(error.details?.hint ?? '', /agent-device close --session qa-ios/i);
+      return true;
+    },
+  );
+});
+
+test('reject lock policy explains recording-session recovery commands', () => {
+  assert.throws(
+    () =>
+      applyRequestLockPolicy(
+        {
+          token: 'token',
+          session: 'default',
+          command: 'snapshot',
+          positionals: [],
+          flags: {
+            device: 'Pixel 8',
+          },
+          meta: {
+            lockPolicy: 'reject',
+          },
+        },
+        RECORDING_SESSION,
+      ),
+    (error) => {
+      assert.ok(error instanceof AppError);
+      assert.match(error.message, /locked to session "default"/i);
+      assert.match(error.details?.hint ?? '', /recording session "default"/i);
+      assert.match(error.details?.hint ?? '', /agent-device record stop --session default/i);
+      assert.match(error.details?.hint ?? '', /agent-device close --session default/i);
+      return true;
+    },
   );
 });
 

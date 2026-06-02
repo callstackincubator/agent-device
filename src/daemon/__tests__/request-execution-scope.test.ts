@@ -88,7 +88,7 @@ test('prepareLockedRequestScope preserves existing-session selector validation',
       sessionStore,
       trackDownloadableArtifact: () => 'artifact-id',
     }),
-  ).toThrow(/cannot be used with --platform=ios/i);
+  ).toThrow(/already bound to android device "Pixel" \(emulator-5554\).*--platform=ios/i);
 });
 
 test('prepareLockedRequestScope blocks commands for invalidated recordings before handlers run', async () => {

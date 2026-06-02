@@ -226,6 +226,94 @@ test('record stop derives telemetry artifact local path from client outPath', as
   expect((responseStop as any).data?.telemetryPath).toBe(deriveRecordingTelemetryPath(finalOut));
 });
 
+test('record stop releases session created only for recording', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'record-only-session';
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'ios-sim-1',
+    name: 'iPhone 16',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.recordingSession = true;
+  session.recording = {
+    platform: 'ios',
+    child: { kill: vi.fn(), pid: 123 },
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    outPath: path.join(os.tmpdir(), 'record-only.mp4'),
+    startedAt: Date.now(),
+    showTouches: false,
+    gestureEvents: [],
+  };
+  sessionStore.set(sessionName, session);
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(sessionStore.get(sessionName)).toBeUndefined();
+});
+
+test('record stop releases record-only session even when recording state is stale', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'stale-record-only-session';
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'ios-sim-1',
+    name: 'iPhone 16',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.recordingSession = true;
+  sessionStore.set(sessionName, session);
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(response?.ok).toBe(false);
+  expect(sessionStore.get(sessionName)).toBeUndefined();
+});
+
+test('record stop keeps normal app session open after recording', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'app-session';
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'ios-sim-1',
+    name: 'iPhone 16',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.appBundleId = 'com.apple.Preferences';
+  session.recording = {
+    platform: 'ios',
+    child: { kill: vi.fn(), pid: 123 },
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    outPath: path.join(os.tmpdir(), 'app-session.mp4'),
+    startedAt: Date.now(),
+    showTouches: false,
+    gestureEvents: [],
+  };
+  sessionStore.set(sessionName, session);
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(sessionStore.get(sessionName)).toBe(session);
+  expect(sessionStore.get(sessionName)?.recording).toBeUndefined();
+});
+
 test('record start resolves relative output path from request cwd', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-device-cwd';

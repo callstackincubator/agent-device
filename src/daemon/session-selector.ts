@@ -3,6 +3,7 @@ import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionState } from './types.ts';
 import { matchesPlatformSelector, normalizePlatformSelector } from '../utils/device.ts';
 import { parseSerialAllowlist } from '../utils/device-isolation.ts';
+import { buildSessionRecoveryHint, describeSessionDevice } from './session-recovery-hints.ts';
 
 export type SessionSelectorConflictKey =
   | 'platform'
@@ -24,7 +25,12 @@ export function assertSessionSelectorMatches(session: SessionState, flags?: Comm
 
   throw new AppError(
     'INVALID_ARGS',
-    `Session "${session.name}" is bound to ${describeDevice(session)} and cannot be used with ${mismatches.map(formatSessionSelectorConflict).join(', ')}. Use a different --session name or close this session first.`,
+    `Session "${session.name}" is already bound to ${describeSessionDevice(session)}, but this request selected ${mismatches.map(formatSessionSelectorConflict).join(', ')}.`,
+    {
+      session: session.name,
+      conflicts: mismatches.map(formatSessionSelectorConflict),
+      hint: buildSessionRecoveryHint(session, 'selector-conflict'),
+    },
   );
 }
 
@@ -81,13 +87,6 @@ export function listSessionSelectorConflicts(
 
 export function formatSessionSelectorConflict(conflict: SessionSelectorConflict): string {
   return `${flagNameForConflictKey(conflict.key)}=${conflict.value}`;
-}
-
-function describeDevice(session: SessionState): string {
-  const platform = session.device.platform;
-  const name = session.device.name.trim();
-  const id = session.device.id;
-  return `${platform} device "${name}" (${id})`;
 }
 
 function flagNameForConflictKey(key: SessionSelectorConflictKey): string {

@@ -26,7 +26,11 @@ export function finalizeDaemonResponse(
     const normalizedError = normalizeError(
       new AppError(toAppErrorCode(response.error.code), response.error.message, {
         ...(response.error.details ?? {}),
-        hint: response.error.hint,
+        hint:
+          response.error.hint ??
+          (typeof response.error.details?.hint === 'string'
+            ? response.error.details.hint
+            : undefined),
         diagnosticId: response.error.diagnosticId,
         logPath: response.error.logPath,
       }),

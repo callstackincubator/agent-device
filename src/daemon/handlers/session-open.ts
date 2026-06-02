@@ -32,6 +32,7 @@ import {
   validateResolvedOpenRequest,
 } from './session-open-prepare.ts';
 import { errorResponse } from './response.ts';
+import { buildSessionRecoveryHint } from '../session-recovery-hints.ts';
 
 const firstSessionOpenLocks = new Map<string, Promise<unknown>>();
 
@@ -387,7 +388,7 @@ export async function handleOpenCommand(params: {
           session: inUse.name,
           deviceId: device.id,
           deviceName: device.name,
-          hint: `Run agent-device session list and reuse --session ${inUse.name}, or close that session before opening a new one on this device.`,
+          hint: buildSessionRecoveryHint(inUse, 'device-in-use'),
         },
       );
     }

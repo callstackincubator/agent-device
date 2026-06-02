@@ -1765,11 +1765,23 @@ export function resolveDaemonStartupHint(
     process.env.AGENT_DEVICE_STATE_DIR,
   ),
 ): string {
+  const cleanupCommand = buildDaemonMetadataCleanupCommand(paths);
   if (state.hasLock && !state.hasInfo) {
-    return `agent-device attempted to clean stale daemon metadata automatically, but ${paths.lockPath} still exists without ${paths.infoPath}. Retry with --debug; if this persists, remove ${paths.lockPath} after confirming no agent-device daemon process is running.`;
+    return `agent-device attempted to clean stale daemon metadata automatically, but ${paths.lockPath} still exists without ${paths.infoPath}. Retry with --debug; if this persists after confirming no agent-device daemon process is running, run: ${cleanupCommand}`;
   }
   if (state.hasLock && state.hasInfo) {
-    return `agent-device attempted to clean stale daemon metadata automatically, but ${paths.infoPath} and ${paths.lockPath} still remain. Retry with --debug; if this persists, remove both files after confirming no agent-device daemon process is running.`;
+    return `agent-device attempted to clean stale daemon metadata automatically, but ${paths.infoPath} and ${paths.lockPath} still remain. Retry with --debug; if this persists after confirming no agent-device daemon process is running, run: ${cleanupCommand}`;
   }
-  return `agent-device did not observe reachable daemon metadata after retrying. Stale metadata was cleaned automatically when safe; retry with --debug and check daemon diagnostics logs.`;
+  if (state.hasInfo) {
+    return `agent-device did not observe reachable daemon metadata after retrying, and ${paths.infoPath} still remains. Stale metadata was cleaned automatically when safe; retry with --debug. If this persists after confirming no agent-device daemon process is running, run: ${cleanupCommand}`;
+  }
+  return `agent-device did not observe reachable daemon metadata after retrying. Stale metadata was cleaned automatically when safe; retry with --debug and check daemon diagnostics logs. If stale metadata returns after confirming no agent-device daemon process is running, run: ${cleanupCommand}`;
+}
+
+function buildDaemonMetadataCleanupCommand(paths: Pick<DaemonPaths, 'infoPath' | 'lockPath'>) {
+  return `rm -f ${shellQuote(paths.infoPath)} ${shellQuote(paths.lockPath)}`;
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`;
 }
