@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { AppError } from '../../utils/errors.ts';
 import type { ClickButton } from '../../core/click-button.ts';
 import type { DeviceRotation } from '../../core/device-rotation.ts';
@@ -39,8 +40,11 @@ export type RunnerCommand = {
     | 'pinch'
     | 'recordStart'
     | 'recordStop'
+    | 'status'
     | 'uptime'
     | 'shutdown';
+  commandId?: string;
+  statusCommandId?: string;
   appBundleId?: string;
   text?: string;
   selectorKey?: 'id' | 'label' | 'text' | 'value';
@@ -199,8 +203,18 @@ export function isReadOnlyRunnerCommand(command: RunnerCommand['command']): bool
     command === 'querySelector' ||
     command === 'readText' ||
     command === 'alert' ||
+    command === 'status' ||
     command === 'uptime'
   );
+}
+
+export function withRunnerCommandId(command: RunnerCommand): RunnerCommand {
+  if (command.commandId) return command;
+  return { ...command, commandId: createRunnerCommandId() };
+}
+
+function createRunnerCommandId(): string {
+  return `runner-${crypto.randomUUID()}`;
 }
 
 export function assertRunnerRequestActive(requestId: string | undefined): void {

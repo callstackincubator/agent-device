@@ -26,6 +26,19 @@ extension RunnerTests {
   }
 
   func execute(command: Command) throws -> Response {
+    commandJournal.accept(command: command)
+    commandJournal.start(command: command)
+    do {
+      let response = try executeDispatched(command: command)
+      commandJournal.finish(command: command, response: response)
+      return response
+    } catch {
+      commandJournal.fail(command: command, error: error)
+      throw error
+    }
+  }
+
+  private func executeDispatched(command: Command) throws -> Response {
     if Thread.isMainThread {
       return try executeOnMainSafely(command: command)
     }
@@ -183,6 +196,15 @@ extension RunnerTests {
     }
 
     switch command.command {
+    case .status:
+      guard
+        let statusCommandId = command.statusCommandId?
+          .trimmingCharacters(in: .whitespacesAndNewlines),
+        !statusCommandId.isEmpty
+      else {
+        return Response(ok: false, error: ErrorPayload(message: "status requires statusCommandId"))
+      }
+      return Response(ok: true, data: commandJournal.status(commandId: statusCommandId))
     case .shutdown:
       stopRecordingIfNeeded()
       return Response(ok: true, data: DataPayload(message: "shutdown"))

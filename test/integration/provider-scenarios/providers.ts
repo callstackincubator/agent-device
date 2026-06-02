@@ -1,4 +1,5 @@
 import type { AppleRunnerProvider } from '../../../src/platforms/ios/runner-provider.ts';
+import type { RunnerCommand } from '../../../src/platforms/ios/runner-contract.ts';
 import type {
   AppleMacOsHostProvider,
   ApplePlistProvider,
@@ -24,11 +25,18 @@ export function createAppleRunnerProviderFromTranscript(
 ): AppleRunnerProvider {
   return {
     runCommand: async (device, command) =>
-      transcript.next(`${commandPrefix}.${command.command}`, command, {
+      transcript.next(`${commandPrefix}.${command.command}`, stripRunnerCommandId(command), {
         deviceId: device.id,
         platform: device.platform,
       }) as Record<string, unknown>,
   };
+}
+
+function stripRunnerCommandId(command: RunnerCommand): RunnerCommand {
+  if (command.commandId === undefined) return command;
+  const normalized = { ...command };
+  delete normalized.commandId;
+  return normalized;
 }
 
 export function createRecordingAppleToolProvider(handlers: RecordingAppleToolHandlers = {}): {

@@ -30,6 +30,7 @@ enum CommandType: String, Codable {
   case transformGesture
   case recordStart
   case recordStop
+  case status
   case uptime
   case shutdown
 }
@@ -91,6 +92,9 @@ extension CommandType {
     case .recordStop, .uptime, .shutdown:
       return CommandTraits(isInteraction: false, readOnly: .never, isLifecycle: true)
 
+    case .status:
+      return CommandTraits(isInteraction: false, readOnly: .always, isLifecycle: true)
+
     // Normal preflight, not retried.
     // NOTE: mouseClick stays non-interaction for now — it is macOS-only and the foreground
     // guard interacts with bespoke macOS activation, so classifying it needs a macOS smoke
@@ -104,6 +108,8 @@ extension CommandType {
 
 struct Command: Codable {
   let command: CommandType
+  let commandId: String?
+  let statusCommandId: String?
   let appBundleId: String?
   let text: String?
   let selectorKey: String?
@@ -171,6 +177,14 @@ struct DataPayload: Codable {
   let referenceWidth: Double?
   let referenceHeight: Double?
   let currentUptimeMs: Double?
+  let commandId: String?
+  let lifecycleState: String?
+  let lifecycleCommand: String?
+  let lifecycleResponseOk: Bool?
+  let lifecycleResponseJson: String?
+  let lifecycleErrorCode: String?
+  let lifecycleErrorMessage: String?
+  let lifecycleErrorHint: String?
   let visible: Bool?
   let wasVisible: Bool?
   let dismissed: Bool?
@@ -192,6 +206,14 @@ struct DataPayload: Codable {
     referenceWidth: Double? = nil,
     referenceHeight: Double? = nil,
     currentUptimeMs: Double? = nil,
+    commandId: String? = nil,
+    lifecycleState: String? = nil,
+    lifecycleCommand: String? = nil,
+    lifecycleResponseOk: Bool? = nil,
+    lifecycleResponseJson: String? = nil,
+    lifecycleErrorCode: String? = nil,
+    lifecycleErrorMessage: String? = nil,
+    lifecycleErrorHint: String? = nil,
     visible: Bool? = nil,
     wasVisible: Bool? = nil,
     dismissed: Bool? = nil,
@@ -212,6 +234,14 @@ struct DataPayload: Codable {
     self.referenceWidth = referenceWidth
     self.referenceHeight = referenceHeight
     self.currentUptimeMs = currentUptimeMs
+    self.commandId = commandId
+    self.lifecycleState = lifecycleState
+    self.lifecycleCommand = lifecycleCommand
+    self.lifecycleResponseOk = lifecycleResponseOk
+    self.lifecycleResponseJson = lifecycleResponseJson
+    self.lifecycleErrorCode = lifecycleErrorCode
+    self.lifecycleErrorMessage = lifecycleErrorMessage
+    self.lifecycleErrorHint = lifecycleErrorHint
     self.visible = visible
     self.wasVisible = wasVisible
     self.dismissed = dismissed

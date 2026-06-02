@@ -18,6 +18,7 @@ import {
   isReadOnlyRunnerCommand,
   isRetryableRunnerError,
   shouldRetryRunnerConnectError,
+  withRunnerCommandId,
   type RunnerCommand,
 } from './runner-contract.ts';
 import {
@@ -43,17 +44,18 @@ export async function runIosRunnerCommand(
 ): Promise<Record<string, unknown>> {
   validateRunnerDevice(device);
   assertRunnerRequestActive(options.requestId);
+  const runnerCommand = withRunnerCommandId(command);
   const provider = resolveAppleRunnerProvider(
     device,
     createLocalAppleRunnerProvider(executeRunnerCommand),
     undefined,
     { requestId: options.requestId },
   );
-  if (isReadOnlyRunnerCommand(command.command)) {
+  if (isReadOnlyRunnerCommand(runnerCommand.command)) {
     return withRetry(
       () => {
         assertRunnerRequestActive(options.requestId);
-        return provider.runCommand(device, command, options);
+        return provider.runCommand(device, runnerCommand, options);
       },
       {
         shouldRetry: (error) => {
@@ -63,7 +65,7 @@ export async function runIosRunnerCommand(
       },
     );
   }
-  return provider.runCommand(device, command, options);
+  return provider.runCommand(device, runnerCommand, options);
 }
 
 export function prewarmIosRunnerSession(

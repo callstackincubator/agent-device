@@ -25,7 +25,11 @@ import {
   resolveRunnerMaxConcurrentDestinationsFlag,
   runnerPrepProcesses,
 } from './runner-xctestrun.ts';
-import { isReadOnlyRunnerCommand, type RunnerCommand } from './runner-contract.ts';
+import {
+  isReadOnlyRunnerCommand,
+  withRunnerCommandId,
+  type RunnerCommand,
+} from './runner-contract.ts';
 import type { RunnerSession } from './runner-session-types.ts';
 
 export type { RunnerSession } from './runner-session-types.ts';
@@ -259,9 +263,9 @@ async function stopRunnerSessionInternal(
       await waitForRunner(
         session.device,
         session.port,
-        {
+        withRunnerCommandId({
           command: 'shutdown',
-        } as RunnerCommand,
+        } as RunnerCommand),
         undefined,
         RUNNER_SHUTDOWN_TIMEOUT_MS,
       );
@@ -432,19 +436,34 @@ export async function executeRunnerCommandWithSession(
   signal?: AbortSignal,
 ): Promise<Record<string, unknown>> {
   emitRunnerStartupTimings(session, command.command);
-  const readOnlyCommand = isReadOnlyRunnerCommand(command.command);
+  const runnerCommand = withRunnerCommandId(command);
+  const readOnlyCommand = isReadOnlyRunnerCommand(runnerCommand.command);
   if (readOnlyCommand) {
     const response = await withDiagnosticTimer(
       'ios_runner_command_send',
       async () =>
-        await waitForRunner(device, session.port, command, logPath, timeoutMs, session, signal),
-      { command: command.command, readOnly: true, sessionReady: session.ready, timeoutMs },
+        await waitForRunner(
+          device,
+          session.port,
+          runnerCommand,
+          logPath,
+          timeoutMs,
+          session,
+          signal,
+        ),
+      {
+        command: runnerCommand.command,
+        commandId: runnerCommand.commandId,
+        readOnly: true,
+        sessionReady: session.ready,
+        timeoutMs,
+      },
     );
     return await parseRunnerResponse(response, session, logPath);
   }
 
   const deadline = Deadline.fromTimeoutMs(timeoutMs);
-  const shouldPreflight = shouldPreflightMutatingRunnerCommand(session, command);
+  const shouldPreflight = shouldPreflightMutatingRunnerCommand(session, runnerCommand);
   if (shouldPreflight) {
     const readinessTimeoutMs = session.ready
       ? Math.min(RUNNER_READY_PREFLIGHT_TIMEOUT_MS, deadline.remainingMs())
@@ -456,13 +475,18 @@ export async function executeRunnerCommandWithSession(
           await waitForRunner(
             device,
             session.port,
-            { command: 'uptime' },
+            withRunnerCommandId({ command: 'uptime' }),
             logPath,
             readinessTimeoutMs,
             session,
             signal,
           ),
-        { command: command.command, sessionReady: session.ready, timeoutMs: readinessTimeoutMs },
+        {
+          command: runnerCommand.command,
+          commandId: runnerCommand.commandId,
+          sessionReady: session.ready,
+          timeoutMs: readinessTimeoutMs,
+        },
       );
       await parseRunnerResponse(readinessResponse, session, logPath);
     } catch (error) {
@@ -474,6 +498,7 @@ export async function executeRunnerCommandWithSession(
       phase: 'ios_runner_readiness_preflight_skipped',
       data: {
         command: command.command,
+        commandId: runnerCommand.commandId,
         lastSuccessfulRunnerResponseAgeMs:
           session.lastSuccessfulRunnerResponseAtMs === undefined
             ? undefined
@@ -488,8 +513,9 @@ export async function executeRunnerCommandWithSession(
   }
   const response = await withDiagnosticTimer(
     'ios_runner_command_send',
-    async () => await sendRunnerCommandOnce(device, session.port, command, remainingMs, signal),
-    { command: command.command },
+    async () =>
+      await sendRunnerCommandOnce(device, session.port, runnerCommand, remainingMs, signal),
+    { command: runnerCommand.command, commandId: runnerCommand.commandId },
   );
   return await parseRunnerResponse(response, session, logPath);
 }

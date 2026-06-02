@@ -53,6 +53,7 @@ final class RunnerTests: XCTestCase {
   var needsPostSnapshotInteractionDelay = false
   var needsFirstInteractionDelay = false
   var activeRecording: ScreenRecorder?
+  let commandJournal = RunnerCommandJournal()
   let interactiveTypes: Set<XCUIElement.ElementType> = [
     .button,
     .cell,
