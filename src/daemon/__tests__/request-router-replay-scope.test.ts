@@ -43,7 +43,7 @@ test('replay runs active-session actions inside the parent request provider scop
     session: 'default',
     command: 'replay',
     positionals: [replayPath],
-    meta: { cwd: root, requestId: 'replay-scope-1' },
+    meta: { cwd: root, requestId: 'replay-scope-1', sessionExplicit: true },
   });
 
   expect(response).toMatchObject({ ok: true });
@@ -73,7 +73,7 @@ test('replay routes session-changing actions through the full request path', asy
     session: 'default',
     command: 'replay',
     positionals: [replayPath],
-    meta: { cwd: root, requestId: 'replay-scope-2' },
+    meta: { cwd: root, requestId: 'replay-scope-2', sessionExplicit: true },
   });
 
   expect(response).toMatchObject({ ok: true });

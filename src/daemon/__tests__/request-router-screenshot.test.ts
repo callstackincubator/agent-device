@@ -97,7 +97,7 @@ test('screenshot resolves relative positional path against request cwd', async (
     session: 'default',
     command: 'screenshot',
     positionals: ['evidence/test.png'],
-    meta: { cwd: callerCwd, requestId: 'req-1' },
+    meta: { cwd: callerCwd, requestId: 'req-1', sessionExplicit: true },
   });
 
   expect(capturedPath).toBeTruthy();
@@ -287,7 +287,7 @@ test('screenshot keeps absolute positional path unchanged', async () => {
     session: 'default',
     command: 'screenshot',
     positionals: [absolutePath],
-    meta: { cwd: '/some/other/dir', requestId: 'req-2' },
+    meta: { cwd: '/some/other/dir', requestId: 'req-2', sessionExplicit: true },
   });
 
   expect(capturedPath).toBe(absolutePath);
@@ -359,7 +359,7 @@ test('screenshot resolves --out flag path against request cwd', async () => {
     command: 'screenshot',
     positionals: [],
     flags: { out: 'evidence/test.png' },
-    meta: { cwd: callerCwd, requestId: 'req-3' },
+    meta: { cwd: callerCwd, requestId: 'req-3', sessionExplicit: true },
   });
 
   expect(capturedOut).toBeTruthy();

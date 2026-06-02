@@ -40,6 +40,7 @@ import {
   IOS_SIMULATOR_RECORDING_STOP_TIMEOUT_MS,
   stopIosSimulatorRecordingProcess,
 } from './record-trace-ios-simulator.ts';
+import { resolveImplicitSessionScope, resolvePublicSessionName } from '../session-routing.ts';
 
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
 const IOS_DEVICE_RECORD_MAX_FPS = 120;
@@ -531,6 +532,7 @@ function deriveClientTelemetryPath(
 
 function releaseRecordOnlySession(
   sessionStore: SessionStore,
+  sessionName: string,
   session: SessionState,
   options: { writeLog?: boolean } = {},
 ): void {
@@ -540,7 +542,7 @@ function releaseRecordOnlySession(
   if (options.writeLog) {
     sessionStore.writeSessionLog(session);
   }
-  sessionStore.delete(session.name);
+  sessionStore.delete(sessionName);
 }
 
 // --- Main command handler ---
@@ -562,7 +564,8 @@ export async function handleRecordCommand(params: {
   const activeSession =
     session ??
     ({
-      name: sessionName,
+      name: resolvePublicSessionName(req),
+      sessionScope: resolveImplicitSessionScope(req),
       device,
       createdAt: Date.now(),
       recordOnlySession: true,
@@ -580,7 +583,7 @@ export async function handleRecordCommand(params: {
 
   const response = await stopRecording({ req, activeSession, device, logPath, deps });
   if (!response.ok) {
-    releaseRecordOnlySession(sessionStore, activeSession);
+    releaseRecordOnlySession(sessionStore, sessionName, activeSession);
     return response;
   }
 
@@ -594,6 +597,6 @@ export async function handleRecordCommand(params: {
       showTouches: response.data?.showTouches,
     },
   });
-  releaseRecordOnlySession(sessionStore, activeSession, { writeLog: true });
+  releaseRecordOnlySession(sessionStore, sessionName, activeSession, { writeLog: true });
   return response;
 }

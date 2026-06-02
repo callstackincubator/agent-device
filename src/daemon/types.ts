@@ -199,6 +199,10 @@ type SessionRecordingProcessChild = Pick<ExecBackgroundResult['child'], 'kill' |
 
 export type SessionState = {
   name: string;
+  sessionScope?: {
+    kind: 'cwd';
+    id: string;
+  };
   device: DeviceInfo;
   createdAt: number;
   surface?: SessionSurface;

@@ -57,6 +57,7 @@ export type AgentDeviceClientConfig = {
   leaseBackend?: LeaseBackend;
   runtime?: SessionRuntimeHints;
   cwd?: string;
+  sessionExplicit?: boolean;
   debug?: boolean;
 };
 
@@ -76,6 +77,7 @@ export type AgentDeviceRequestOverrides = Pick<
   | 'leaseId'
   | 'leaseBackend'
   | 'cwd'
+  | 'sessionExplicit'
   | 'debug'
 >;
 

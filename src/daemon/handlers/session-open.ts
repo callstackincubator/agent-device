@@ -33,6 +33,11 @@ import {
 } from './session-open-prepare.ts';
 import { errorResponse } from './response.ts';
 import { buildSessionRecoveryHint } from '../session-recovery-hints.ts';
+import {
+  isImplicitSessionScopeConflict,
+  resolveImplicitSessionScope,
+  resolvePublicSessionName,
+} from '../session-routing.ts';
 
 const firstSessionOpenLocks = new Map<string, Promise<unknown>>();
 
@@ -237,7 +242,8 @@ async function completeOpenCommand(params: {
   }
   const nextSession = buildNextOpenSession({
     existingSession,
-    sessionName,
+    sessionName: existingSession?.name ?? resolvePublicSessionName(req),
+    sessionScope: existingSession?.sessionScope ?? resolveImplicitSessionScope(req),
     device,
     surface,
     appBundleId: sessionAppBundleId,
@@ -249,7 +255,7 @@ async function completeOpenCommand(params: {
   }
   timing.totalDurationMs = Math.max(0, Date.now() - openCommandStartedAtMs);
   const openResult = buildOpenResult({
-    sessionName,
+    sessionName: nextSession.name,
     appName,
     appBundleId: sessionAppBundleId,
     surface,
@@ -381,6 +387,17 @@ export async function handleOpenCommand(params: {
       .toArray()
       .find((activeSession) => activeSession.device.id === device.id);
     if (inUse) {
+      if (isImplicitSessionScopeConflict(req, inUse)) {
+        return errorResponse(
+          'DEVICE_IN_USE',
+          'Device is already in use by another workspace session.',
+          {
+            deviceId: device.id,
+            deviceName: device.name,
+            hint: 'Use a different device selector, wait for the other workspace to close its session, or run agent-device devices to choose another target.',
+          },
+        );
+      }
       return errorResponse(
         'DEVICE_IN_USE',
         `Device is already in use by session "${inUse.name}".`,

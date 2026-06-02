@@ -166,7 +166,7 @@ export async function handleCloseCommand(params: {
     command: 'close',
     positionals: req.positionals ?? [],
     flags: req.flags ?? {},
-    result: { session: sessionName, ...successText(`Closed: ${sessionName}`) },
+    result: { session: session.name, ...successText(`Closed: ${session.name}`) },
   });
   if (req.flags?.saveScript) {
     session.recordSession = true;
@@ -182,12 +182,12 @@ export async function handleCloseCommand(params: {
     return {
       ok: true,
       data: withSuccessText(
-        { session: sessionName, shutdown: shutdownResult },
-        `Closed: ${sessionName}`,
+        { session: session.name, shutdown: shutdownResult },
+        `Closed: ${session.name}`,
       ),
     };
   }
-  return { ok: true, data: { session: sessionName, ...successText(`Closed: ${sessionName}`) } };
+  return { ok: true, data: { session: session.name, ...successText(`Closed: ${session.name}`) } };
 }
 
 async function closeWithoutSession(req: DaemonRequest, logPath: string): Promise<DaemonResponse> {
