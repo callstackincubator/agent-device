@@ -354,14 +354,7 @@ extension RunnerTests {
   }
 
   private func safeSnapshotViewport(app: XCUIApplication) -> CGRect {
-    var viewport = CGRect.infinite
-    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
-      viewport = snapshotViewport(app: app)
-    })
-    if let exceptionMessage {
-      NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_VIEWPORT_IGNORED_EXCEPTION=%@", exceptionMessage)
-    }
-    return viewport
+    safely("SNAPSHOT_VIEWPORT", CGRect.infinite) { snapshotViewport(app: app) }
   }
 
   private func describeSnapshotError(_ error: Error) -> String {
@@ -718,18 +711,7 @@ extension RunnerTests {
   }
 
   private func safeSnapshotElementsQuery(_ fetch: () -> [XCUIElement]) -> [XCUIElement] {
-    var elements: [XCUIElement] = []
-    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
-      elements = fetch()
-    })
-    if let exceptionMessage {
-      NSLog(
-        "AGENT_DEVICE_RUNNER_SNAPSHOT_QUERY_IGNORED_EXCEPTION=%@",
-        exceptionMessage
-      )
-      return []
-    }
-    return elements
+    safely("SNAPSHOT_QUERY", [], fetch)
   }
 
   private func isScrollableContainer(_ snapshot: XCUIElementSnapshot, visible: Bool) -> Bool {

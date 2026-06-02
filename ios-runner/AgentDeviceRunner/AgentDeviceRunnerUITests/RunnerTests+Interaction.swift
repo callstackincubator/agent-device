@@ -285,14 +285,13 @@ extension RunnerTests {
   }
 
   private func textInputCandidatesAt(app: XCUIApplication, point: CGPoint) -> [XCUIElement] {
-    var candidates: [XCUIElement] = []
-    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+    safely("TEXT_INPUT_AT_POINT", []) {
       // Query the text-input element types directly instead of enumerating the entire tree
       // (app.descendants(.any).allElementsBoundByIndex snapshots every element and is ~10x
       // slower — it dominated fill latency because resolveTextEntryElement re-runs this on
       // each verify/repair poll once the focused field reference goes stale).
       // Prefer the smallest matching field so nested editable controls win over large containers.
-      candidates = [
+      [
         app.textFields,
         app.secureTextFields,
         app.searchFields,
@@ -318,15 +317,7 @@ extension RunnerTests {
           }
           return left.elementType.rawValue < right.elementType.rawValue
         }
-    })
-    if let exceptionMessage {
-      NSLog(
-        "AGENT_DEVICE_RUNNER_TEXT_INPUT_AT_POINT_IGNORED_EXCEPTION=%@",
-        exceptionMessage
-      )
-      return []
     }
-    return candidates
   }
 
   private func frameContainsPoint(_ frame: CGRect, _ point: CGPoint, tolerance: CGFloat) -> Bool {
@@ -431,9 +422,8 @@ extension RunnerTests {
 
   private func singleTextEntryElement(app: XCUIApplication) -> XCUIElement? {
 #if os(iOS)
-    var matches: [XCUIElement] = []
-    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
-      matches = app.descendants(matching: .any).allElementsBoundByIndex.filter { element in
+    let matches = safely("KEYBOARD_RETURN_TEXT_ENTRY_QUERY", []) {
+      app.descendants(matching: .any).allElementsBoundByIndex.filter { element in
         guard element.exists else { return false }
         switch element.elementType {
         case .textField, .secureTextField, .searchField, .textView:
@@ -442,13 +432,6 @@ extension RunnerTests {
           return false
         }
       }
-    })
-    if let exceptionMessage {
-      NSLog(
-        "AGENT_DEVICE_RUNNER_KEYBOARD_RETURN_TEXT_ENTRY_QUERY_IGNORED_EXCEPTION=%@",
-        exceptionMessage
-      )
-      return nil
     }
     return matches.count == 1 ? matches[0] : nil
 #else
@@ -784,22 +767,13 @@ extension RunnerTests {
 
   private func visibleKeyboardFrame(app: XCUIApplication) -> CGRect? {
 #if os(iOS)
-    var frame: CGRect?
-    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+    return safely("KEYBOARD_FRAME") {
       let keyboard = app.keyboards.firstMatch
-      guard keyboard.exists else { return }
+      guard keyboard.exists else { return nil }
       let keyboardFrame = keyboard.frame
-      guard !keyboardFrame.isEmpty else { return }
-      frame = keyboardFrame
-    })
-    if let exceptionMessage {
-      NSLog(
-        "AGENT_DEVICE_RUNNER_KEYBOARD_FRAME_IGNORED_EXCEPTION=%@",
-        exceptionMessage
-      )
-      return nil
+      guard !keyboardFrame.isEmpty else { return nil }
+      return keyboardFrame
     }
-    return frame
 #else
     return nil
 #endif

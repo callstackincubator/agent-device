@@ -73,8 +73,7 @@ extension RunnerTests {
     // under XCUITest, so text entry readiness is driven by tap/keyboard state.
     return nil
 #else
-    var focused: XCUIElement?
-    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+    return safely("FOCUSED_INPUT_QUERY") {
       let candidates = app
         .descendants(matching: .any)
         .matching(NSPredicate(format: "hasKeyboardFocus == 1"))
@@ -82,21 +81,13 @@ extension RunnerTests {
       for candidate in candidates where candidate.exists {
         switch candidate.elementType {
         case .textField, .secureTextField, .searchField, .textView:
-          focused = candidate
-          return
+          return candidate
         default:
           continue
         }
       }
-    })
-    if let exceptionMessage {
-      NSLog(
-        "AGENT_DEVICE_RUNNER_FOCUSED_INPUT_QUERY_IGNORED_EXCEPTION=%@",
-        exceptionMessage
-      )
       return nil
     }
-    return focused
 #endif
   }
 
@@ -650,18 +641,7 @@ extension RunnerTests {
 
   private func keyboardElementExists(app: XCUIApplication) -> Bool {
 #if os(iOS)
-    var exists = false
-    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
-      exists = app.keyboards.firstMatch.exists
-    })
-    if let exceptionMessage {
-      NSLog(
-        "AGENT_DEVICE_RUNNER_KEYBOARD_EXISTS_IGNORED_EXCEPTION=%@",
-        exceptionMessage
-      )
-      return false
-    }
-    return exists
+    return safely("KEYBOARD_EXISTS", false) { app.keyboards.firstMatch.exists }
 #else
     return false
 #endif
