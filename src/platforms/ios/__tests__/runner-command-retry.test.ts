@@ -213,6 +213,24 @@ test('read-only commands retry when completed status has no retained response', 
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[2]?.[2].command, 'snapshot');
 });
 
+test('read-only commands retry when status shows in-flight work', async () => {
+  const session = makeRunnerSession({ port: 8100, ready: true });
+
+  mockEnsureRunnerSession.mockResolvedValue(session);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'fetch failed'))
+    .mockResolvedValueOnce({ lifecycleState: 'started' })
+    .mockResolvedValueOnce({ nodes: [], truncated: false });
+
+  const result = await runIosRunnerCommand(IOS_SIMULATOR, { command: 'snapshot' });
+
+  assert.deepEqual(result, { nodes: [], truncated: false });
+  assert.equal(mockInvalidateRunnerSession.mock.calls.length, 0);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 3);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[1]?.[2].command, 'status');
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[2]?.[2].command, 'snapshot');
+});
+
 test('mutating commands report recovery guidance when completed status has no retained response', async () => {
   const session = makeRunnerSession({ port: 8100, ready: true });
 

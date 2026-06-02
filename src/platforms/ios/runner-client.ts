@@ -313,6 +313,9 @@ async function tryRecoverRunnerCommandAfterTransportError(
   }
 
   if (lifecycleState === 'accepted' || lifecycleState === 'started') {
+    if (isReadOnlyRunnerCommand(command.command)) {
+      throw transportError;
+    }
     throw new AppError(
       'COMMAND_FAILED',
       `Runner command "${command.command}" is still ${lifecycleState} after the transport response was lost.`,
