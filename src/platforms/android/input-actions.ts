@@ -6,8 +6,6 @@ import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-
 import { runAndroidAdb, sleep } from './adb.ts';
 import { resolveAndroidTextInjector } from './adb-executor.ts';
 import { getAndroidKeyboardState, type AndroidKeyboardState } from './device-input-state.ts';
-import { captureAndroidUiHierarchyXml } from './snapshot.ts';
-import { androidUiNodes } from './ui-hierarchy.ts';
 import {
   androidFillFailureDetails,
   androidFillFailureMessage,
@@ -208,7 +206,7 @@ export async function scrollAndroid(
   direction: ScrollDirection,
   options?: { amount?: number; pixels?: number },
 ): Promise<Record<string, unknown>> {
-  const size = await getAndroidGestureViewportSize(device);
+  const size = await getAndroidScreenSize(device);
   const plan = buildScrollGesturePlan({
     direction,
     amount: options?.amount,
@@ -290,38 +288,6 @@ export async function getAndroidScreenSize(
   const match = result.stdout.match(/Physical size:\s*(\d+)x(\d+)/);
   if (!match) throw new AppError('COMMAND_FAILED', 'Unable to read screen size');
   return { width: Number(match[1]), height: Number(match[2]) };
-}
-
-async function getAndroidGestureViewportSize(
-  device: DeviceInfo,
-): Promise<{ width: number; height: number }> {
-  try {
-    const xml = await captureAndroidUiHierarchyXml(device);
-    const viewport = largestAndroidUiNodeRect(xml);
-    if (viewport) return viewport;
-  } catch (error) {
-    emitDiagnostic({
-      level: 'warn',
-      phase: 'android_gesture_viewport_probe_failed',
-      data: {
-        error: error instanceof Error ? error.message : String(error),
-      },
-    });
-  }
-  return await getAndroidScreenSize(device);
-}
-
-function largestAndroidUiNodeRect(xml: string): { width: number; height: number } | null {
-  let largest: { width: number; height: number; area: number } | null = null;
-  for (const node of androidUiNodes(xml)) {
-    const rect = node.rect;
-    if (!rect || rect.width <= 0 || rect.height <= 0) continue;
-    const area = rect.width * rect.height;
-    if (!largest || area > largest.area) {
-      largest = { width: rect.x + rect.width, height: rect.y + rect.height, area };
-    }
-  }
-  return largest ? { width: largest.width, height: largest.height } : null;
 }
 
 const ANDROID_INPUT_TEXT_CHUNK_SIZE = 8;

@@ -316,6 +316,7 @@ test('scrollAndroid supports explicit pixel travel distance', async () => {
       const args = await fs.readFile(argsLogPath, 'utf8');
 
       assert.match(args, /shell\ninput\nswipe\n540\n1080\n540\n840\n300\n/);
+      assert.doesNotMatch(args, /uiautomator|dump/);
       assert.equal(result.pixels, 240);
       assert.equal(result.referenceWidth, 1080);
       assert.equal(result.referenceHeight, 1920);
