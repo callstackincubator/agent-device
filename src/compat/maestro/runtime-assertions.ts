@@ -151,9 +151,7 @@ function handleFailedVisibleSample(
   args: MaestroVisibilityAssertionArgs,
   sample: Exclude<MaestroVisibilitySample, { visible: true }>,
   startedAt: number,
-):
-  | { kind: 'continue' }
-  | { kind: 'return'; response: DaemonResponse } {
+): { kind: 'continue' } | { kind: 'return'; response: DaemonResponse } {
   if (isReactNativeOverlayBlockingAssertion(sample.response)) {
     return { kind: 'return', response: sample.response };
   }

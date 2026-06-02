@@ -481,7 +481,6 @@ async function clickMaestroSnapshotTarget(
   };
 }
 
-
 async function invokeMaestroFuzzyTapOn(
   params: MaestroTapOnParams,
   query: string,
