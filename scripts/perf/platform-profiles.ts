@@ -2,10 +2,10 @@ import type { PerfConfig } from './config.ts';
 import type { Platform } from './types.ts';
 
 // Local-convenience defaults for ad-hoc runs; CI always overrides them (--device / --serial).
-// The iOS UDID is a specific local "iPhone 17" sim; the Android serial is a dedicated emulator
-// port. Pass --udid/--device/--serial to target your own device.
+// The iOS UDID is a specific local "iPhone 17" sim; the Android default is an AVD name that
+// `boot` can launch. Pass --udid/--device/--serial to target your own device.
 const DEFAULT_IOS_UDID = 'D74E0B66-57EB-4EC1-92DC-DA0A30581FE7';
-const DEFAULT_ANDROID_SERIAL = 'emulator-5556';
+const DEFAULT_ANDROID_AVD = 'Pixel_9_Pro_XL_API_37';
 
 export type ProfileSelectors = {
   // A row on the Settings root that pushes a large sub-screen (big a11y tree).
@@ -57,13 +57,16 @@ export function resolveProfile(cfg: PerfConfig): ResolvedProfile {
       },
     };
   }
-  const serial = cfg.serial ?? DEFAULT_ANDROID_SERIAL;
+  const avdName = cfg.device ?? DEFAULT_ANDROID_AVD;
+  const serialFlags = cfg.serial
+    ? ['--serial', cfg.serial, '--android-device-allowlist', cfg.serial]
+    : [];
   return {
     platform: 'android',
-    deviceName: cfg.serial ? `android (${serial})` : 'Pixel_9_Pro_XL_API_37',
-    serial,
+    deviceName: cfg.serial ? `android (${cfg.serial})` : avdName,
+    serial: cfg.serial,
     platformFlags: ['--platform', 'android'],
-    selectorFlags: ['--serial', serial, '--android-device-allowlist', serial],
+    selectorFlags: ['--device', avdName, ...serialFlags],
     appTarget: 'com.android.settings',
     selectors: {
       deepScreen: 'text="Network & internet"',

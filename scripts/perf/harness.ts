@@ -126,6 +126,10 @@ function buildMeasurement(
   };
 }
 
+function setupMeasurementFailed(measurement: Measurement): boolean {
+  return measurement.samples.some((sample) => !sample.ok);
+}
+
 // Boot the device once and time it. Runs WITHOUT --session so no session lock policy
 // applies and the device selectors are honored (selectors are rejected on locked sessions).
 function bootOnce(ctx: IsolationContext): Measurement {
@@ -163,6 +167,10 @@ export function runScenario(ctx: IsolationContext, cfg: PerfConfig): Measurement
 
   const boot = bootOnce(ctx);
   const establish = establishSession(ctx);
+  if (setupMeasurementFailed(boot) || setupMeasurementFailed(establish)) {
+    log('setup failed; skipping timed tour');
+    return [boot, establish];
+  }
   // Absorb the one-time runner startup before any round so it isn't charged to a measurement.
   warmRunner(ctx);
 
