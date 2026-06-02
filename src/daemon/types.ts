@@ -214,7 +214,7 @@ export type SessionState = {
     outPath: string;
     startedAt: number;
   };
-  recordingSession?: boolean;
+  recordOnlySession?: boolean;
   recordSession?: boolean;
   saveScriptPath?: string;
   actions: SessionAction[];

@@ -36,7 +36,7 @@ const ANDROID_SESSION: SessionState = {
 const RECORDING_SESSION: SessionState = {
   ...ANDROID_SESSION,
   name: 'default',
-  recordingSession: true,
+  recordOnlySession: true,
   recording: {
     platform: 'android',
     outPath: '/tmp/recording.mp4',
@@ -94,6 +94,33 @@ test('reject lock policy explains fresh-session recovery commands', () => {
         /agent-device open <app> --session qa-ios --platform ios/i,
       );
       assert.match(error.details?.hint ?? '', /agent-device session list/i);
+      return true;
+    },
+  );
+});
+
+test('reject lock policy quotes unsafe fresh session names in recovery commands', () => {
+  assert.throws(
+    () =>
+      applyRequestLockPolicy({
+        token: 'token',
+        session: "qa ios; echo 'oops'",
+        command: 'snapshot',
+        positionals: [],
+        flags: {
+          device: 'Pixel 9',
+        },
+        meta: {
+          lockPolicy: 'reject',
+          lockPlatform: 'ios',
+        },
+      }),
+    (error) => {
+      assert.ok(error instanceof AppError);
+      assert.match(
+        error.details?.hint ?? '',
+        /agent-device open <app> --session 'qa ios; echo '\\''oops'\\''' --platform ios/i,
+      );
       return true;
     },
   );
@@ -185,7 +212,7 @@ test('reject lock policy explains existing-session recovery commands', () => {
       ),
     (error) => {
       assert.ok(error instanceof AppError);
-      assert.match(error.message, /locked to session "qa-ios"/i);
+      assert.match(error.message, /already bound to session "qa-ios"/i);
       assert.match(error.message, /ios device "iPhone 16" \(SIM-001\)/i);
       assert.match(error.message, /--serial=emulator-5554/i);
       assert.match(error.details?.hint ?? '', /agent-device session list/i);
@@ -216,7 +243,7 @@ test('reject lock policy explains recording-session recovery commands', () => {
       ),
     (error) => {
       assert.ok(error instanceof AppError);
-      assert.match(error.message, /locked to session "default"/i);
+      assert.match(error.message, /already bound to session "default"/i);
       assert.match(error.details?.hint ?? '', /recording session "default"/i);
       assert.match(error.details?.hint ?? '', /agent-device record stop --session default/i);
       assert.match(error.details?.hint ?? '', /agent-device close --session default/i);

@@ -29,6 +29,7 @@ import {
 import { uploadArtifact } from './upload-client.ts';
 import { computeDaemonCodeSignature } from './daemon/code-signature.ts';
 import { PUBLIC_COMMANDS } from './command-catalog.ts';
+import { shellQuote } from './utils/shell-quote.ts';
 import {
   readDaemonHttpProgressResponse,
   shouldReadDaemonProgressStream,
@@ -1780,8 +1781,4 @@ export function resolveDaemonStartupHint(
 
 function buildDaemonMetadataCleanupCommand(paths: Pick<DaemonPaths, 'infoPath' | 'lockPath'>) {
   return `rm -f ${shellQuote(paths.infoPath)} ${shellQuote(paths.lockPath)}`;
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", "'\\''")}'`;
 }

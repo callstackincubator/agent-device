@@ -236,7 +236,7 @@ test('record stop releases session created only for recording', async () => {
     kind: 'simulator',
     booted: true,
   });
-  session.recordingSession = true;
+  session.recordOnlySession = true;
   session.recording = {
     platform: 'ios',
     child: { kill: vi.fn(), pid: 123 },
@@ -268,7 +268,7 @@ test('record stop releases record-only session even when recording state is stal
     kind: 'simulator',
     booted: true,
   });
-  session.recordingSession = true;
+  session.recordOnlySession = true;
   sessionStore.set(sessionName, session);
 
   const response = await runRecordCommand({
@@ -310,6 +310,44 @@ test('record stop keeps normal app session open after recording', async () => {
   });
 
   expect(response?.ok).toBe(true);
+  expect(sessionStore.get(sessionName)).toBe(session);
+  expect(sessionStore.get(sessionName)?.recording).toBeUndefined();
+});
+
+test('record stop keeps normal app session open when stop validation fails', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(20_000);
+  const sessionStore = makeSessionStore();
+  const sessionName = 'app-session-failed-stop';
+  const outPath = path.join(os.tmpdir(), 'app-session-failed-stop.mp4');
+  fs.writeFileSync(outPath, 'not playable');
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'ios-sim-1',
+    name: 'iPhone 16',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.appBundleId = 'com.apple.Preferences';
+  session.recording = {
+    platform: 'ios',
+    child: { kill: vi.fn(), pid: 123 },
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    outPath,
+    startedAt: Date.now() - 500,
+    showTouches: false,
+    gestureEvents: [],
+  };
+  sessionStore.set(sessionName, session);
+  mockIsPlayableVideo.mockImplementation(async () => false);
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['stop'],
+  });
+
+  expect(response?.ok).toBe(false);
   expect(sessionStore.get(sessionName)).toBe(session);
   expect(sessionStore.get(sessionName)?.recording).toBeUndefined();
 });

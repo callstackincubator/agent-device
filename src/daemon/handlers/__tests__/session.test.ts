@@ -3125,7 +3125,7 @@ test('open on device owned by recording session returns recording recovery hint'
     kind: 'device',
     booted: true,
   });
-  recordingSession.recordingSession = true;
+  recordingSession.recordOnlySession = true;
   recordingSession.recording = {
     platform: 'ios',
     child: { kill: vi.fn(), pid: 123 },

@@ -10,6 +10,7 @@ import {
 } from './session-selector.ts';
 import { isApplePlatform, normalizePlatformSelector } from '../utils/device.ts';
 import { buildSessionRecoveryHint, describeSessionDevice } from './session-recovery-hints.ts';
+import { shellQuoteIfNeeded } from '../utils/shell-quote.ts';
 
 type LockPlatform = NonNullable<DaemonRequest['meta']>['lockPlatform'];
 
@@ -84,7 +85,7 @@ function buildLockPolicyConflictMessage(
   const conflictList = conflicts.map(formatSessionSelectorConflict).join(', ');
   if (existingSession) {
     return (
-      `${req.command} is locked to session "${existingSession.name}" on ${describeSessionDevice(existingSession)}, ` +
+      `${req.command} is already bound to session "${existingSession.name}" on ${describeSessionDevice(existingSession)}, ` +
       `but this request selected ${conflictList}.`
     );
   }
@@ -101,7 +102,7 @@ function buildLockPolicyConflictHint(
     return buildSessionRecoveryHint(existingSession, 'selector-conflict');
   }
   const lockPlatform = req.meta?.lockPlatform;
-  const sessionText = req.session ? ` --session ${req.session}` : '';
+  const sessionText = req.session ? ` --session ${shellQuoteIfNeeded(req.session)}` : '';
   const openText = lockPlatform
     ? `Run agent-device open <app>${sessionText} --platform ${lockPlatform} first if no session is active. `
     : `Run agent-device open <app>${sessionText} first if no session is active. `;

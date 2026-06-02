@@ -534,7 +534,7 @@ function releaseRecordOnlySession(
   session: SessionState,
   options: { writeLog?: boolean } = {},
 ): void {
-  if (!session.recordingSession) {
+  if (!session.recordOnlySession) {
     return;
   }
   if (options.writeLog) {
@@ -565,7 +565,7 @@ export async function handleRecordCommand(params: {
       name: sessionName,
       device,
       createdAt: Date.now(),
-      recordingSession: true,
+      recordOnlySession: true,
       actions: [],
     } satisfies SessionState);
 
