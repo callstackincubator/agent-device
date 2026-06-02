@@ -209,6 +209,7 @@ export function isReadOnlyRunnerCommand(command: RunnerCommand['command']): bool
 }
 
 export function withRunnerCommandId(command: RunnerCommand): RunnerCommand {
+  if (command.command === 'status') return command;
   if (command.commandId?.trim()) return command;
   return { ...command, commandId: createRunnerCommandId() };
 }

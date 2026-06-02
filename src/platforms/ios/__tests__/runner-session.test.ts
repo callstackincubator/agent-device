@@ -159,10 +159,14 @@ test('runner session executes status command as read-only lifecycle command', as
     lifecycleResponseOk: true,
   });
   assert.equal(mockWaitForRunner.mock.calls.length, 1);
-  assertRunnerCommand(mockWaitForRunner.mock.calls[0]?.[2], {
-    command: 'status',
-    statusCommandId: 'runner-command-1',
-  });
+  assertRunnerCommand(
+    mockWaitForRunner.mock.calls[0]?.[2],
+    {
+      command: 'status',
+      statusCommandId: 'runner-command-1',
+    },
+    { commandId: false },
+  );
   assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 0);
 });
 
@@ -488,11 +492,17 @@ function runnerError(error: { code: string; message: string }): Response {
 function assertRunnerCommand(
   actual: unknown,
   expected: Record<string, unknown>,
+  options: { commandId?: boolean } = {},
 ): asserts actual is Record<string, unknown> {
   assert.equal(typeof actual, 'object');
   assert.notEqual(actual, null);
   const command = actual as Record<string, unknown>;
   const commandId = command.commandId;
+  if (options.commandId === false) {
+    assert.equal(commandId, undefined);
+    assert.deepEqual(command, expected);
+    return;
+  }
   if (typeof commandId !== 'string') {
     assert.fail('expected runner commandId');
   }

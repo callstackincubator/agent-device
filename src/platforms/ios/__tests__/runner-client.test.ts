@@ -389,6 +389,15 @@ test('withRunnerCommandId replaces blank command ids', () => {
   assert.match(command.commandId ?? '', /^runner-/);
 });
 
+test('withRunnerCommandId does not add command ids to status probes', () => {
+  const command = withRunnerCommandId({
+    command: 'status',
+    statusCommandId: 'runner-command-1',
+  });
+
+  assert.deepEqual(command, { command: 'status', statusCommandId: 'runner-command-1' });
+});
+
 test('resolveRunnerDestination uses device destination for physical devices', () => {
   assert.equal(resolveRunnerDestination(iosDevice), 'platform=iOS,id=00008110-000E12341234002E');
 });
