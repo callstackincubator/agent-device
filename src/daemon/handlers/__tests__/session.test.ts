@@ -4521,7 +4521,7 @@ test('open does not retain a session when the request was canceled before comple
       expect(response.error.code).toBe('COMMAND_FAILED');
       expect(response.error.message).toBe('request canceled');
     }
-    expect(sessionStore.has('default')).toBe(false);
+    expect(sessionStore.get('default')).toBeUndefined();
   } finally {
     clearRequestCanceled(requestId);
   }

@@ -286,11 +286,8 @@ export async function handleOpenCommand(params: {
 }): Promise<DaemonResponse> {
   const { req, sessionName, logPath, sessionStore } = params;
 
-  if (sessionStore.has(sessionName)) {
-    const session = sessionStore.get(sessionName);
-    if (!session) {
-      return errorResponse('SESSION_NOT_FOUND', `Session "${sessionName}" not found.`);
-    }
+  const session = sessionStore.get(sessionName);
+  if (session) {
     const shouldRelaunch = req.flags?.relaunch === true;
     const requestedOpenTarget = req.positionals?.[0];
     const openTarget = requestedOpenTarget ?? (shouldRelaunch ? session.appName : undefined);

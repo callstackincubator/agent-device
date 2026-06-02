@@ -21,10 +21,6 @@ export class SessionStore {
     return this.sessions.get(name);
   }
 
-  has(name: string): boolean {
-    return this.sessions.has(name);
-  }
-
   set(name: string, session: SessionState): void {
     this.sessions.set(name, session);
   }
