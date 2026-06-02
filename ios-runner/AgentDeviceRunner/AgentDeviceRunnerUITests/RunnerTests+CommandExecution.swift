@@ -26,6 +26,9 @@ extension RunnerTests {
   }
 
   func execute(command: Command) throws -> Response {
+    if command.command == .status {
+      return try executeDispatched(command: command)
+    }
     commandJournal.accept(command: command)
     commandJournal.start(command: command)
     do {
