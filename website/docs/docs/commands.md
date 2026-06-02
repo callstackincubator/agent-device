@@ -811,17 +811,21 @@ agent-device session list --json
 - `session list` shows active daemon sessions and their tracked device/app context.
 - Use `--json` when you want to inspect or script against the raw session metadata.
 
-## iOS device prerequisites
+## iOS physical-device prerequisites
+
+For CLI-discoverable setup guidance, run `agent-device help physical-device`.
 
 - Xcode + `xcrun devicectl` available.
-- Paired physical device with Developer Mode enabled.
-- Use Automatic Signing in Xcode, or pass optional env overrides:
+- Paired/trusted physical device, connected, unlocked when needed, with Developer Mode enabled.
+- The `AgentDeviceRunner` XCTest host must be signed before commands can run on a physical device.
+- Start with Automatic Signing and only these env vars:
   - `AGENT_DEVICE_IOS_TEAM_ID`
-  - `AGENT_DEVICE_IOS_SIGNING_IDENTITY` (optional)
-  - `AGENT_DEVICE_IOS_PROVISIONING_PROFILE`
   - `AGENT_DEVICE_IOS_BUNDLE_ID` (runner bundle-id base; tests use `<id>.uitests`)
-- Free Apple Developer (Personal Team) accounts can fail on unavailable generic bundle IDs; set `AGENT_DEVICE_IOS_BUNDLE_ID` to a unique reverse-DNS value.
-- First-run XCTest setup/build can take longer than normal commands; keep the device connected and inspect daemon diagnostics if setup times out.
+- Find team ids and Apple Development signing certificates with `security find-identity -v -p codesigning`.
+- If Xcode cannot choose a profile, set `AGENT_DEVICE_IOS_PROVISIONING_PROFILE` to the profile name/specifier, not a file path.
+- `AGENT_DEVICE_IOS_SIGNING_IDENTITY` is optional; omit it unless `xcodebuild` asks for a specific identity.
+- The profile/team must allow `AGENT_DEVICE_IOS_BUNDLE_ID` and `<id>.uitests`.
+- First-run XCTest setup/build can take longer than normal commands; keep the device connected and use `--debug` to inspect signing/build diagnostics if setup times out.
 - If you override the iOS runner derived-data path and also force cleanup, keep `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH` under the project `.tmp/` directory. Other cleanup override paths are rejected with a recovery hint.
 - For daemon startup troubleshooting:
   - follow stale metadata hints for `<state-dir>/daemon.json` and `<state-dir>/daemon.lock` (`state-dir` defaults to `~/.agent-device`)

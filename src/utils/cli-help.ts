@@ -21,6 +21,10 @@ const AGENT_WORKFLOWS = [
     description: 'React Native performance, profiling, component tree, and renders',
   },
   {
+    label: 'help physical-device',
+    description: 'Connected phone/tablet setup and iOS signing prerequisites',
+  },
+  {
     label: 'help remote',
     description: 'Remote/cloud config, tenants, leases, and local service tunnels',
   },
@@ -406,6 +410,36 @@ Slow-flow investigation:
   For 15-20s async work, use wait with the exact expected text or selector instead of repeated snapshots.
   Report React render offenders separately from network/backend waits and device frame/CPU/memory findings.`,
   },
+  'physical-device': {
+    summary: 'Connected phone/tablet setup and iOS signing prerequisites',
+    body: `agent-device help physical-device
+
+Use this when the target is connected hardware instead of a simulator/emulator.
+For simulator/emulator workflows, use help workflow.
+
+Discovery:
+  agent-device devices --platform ios
+  agent-device devices --platform android
+  Use --device <name-or-udid> only when multiple devices are present.
+
+iOS physical-device prerequisites:
+  Xcode and xcrun devicectl must be available from the selected Xcode.
+  The device must be paired/trusted, connected, unlocked when needed, and have Developer Mode enabled.
+  The AgentDeviceRunner XCTest host must be signed before commands can run on a physical device.
+  Start with Automatic Signing and only these env vars:
+    AGENT_DEVICE_IOS_TEAM_ID=ABCDE12345
+    AGENT_DEVICE_IOS_BUNDLE_ID=com.yourname.agentdevice.runner
+  Find team ids and Apple Development signing certificates with:
+    security find-identity -v -p codesigning
+  If Xcode cannot choose a profile, set AGENT_DEVICE_IOS_PROVISIONING_PROFILE to the profile name/specifier, not a file path.
+  AGENT_DEVICE_IOS_SIGNING_IDENTITY is optional; omit it unless xcodebuild asks for a specific identity.
+  The profile/team must allow AGENT_DEVICE_IOS_BUNDLE_ID and <id>.uitests.
+  First-run XCTest setup/build can take longer than normal commands; keep the device connected and use --debug to inspect signing/build diagnostics if setup times out.
+
+Android physical-device prerequisites:
+  Enable USB debugging and confirm the device appears in agent-device devices --platform android.
+  Android does not need the iOS runner signing setup. For React Native/Expo Metro reachability, read help react-native.`,
+  },
   remote: {
     summary: 'Remote config, tenant, lease, and remote host flow',
     body: `agent-device help remote
@@ -436,6 +470,7 @@ Rules:
   For self-contained scripts, pass the same --remote-config to every operational command, including disconnect; a preceding connect is optional but not required.
   For remote artifact installs, use install-from-source <url> or install-from-source --github-actions-artifact org/repo:artifact; do not download CI artifacts locally first.
   After connect, let the active remote connection supply runtime hints.
+  For connected phone/tablet setup and iOS signing prerequisites, read agent-device help physical-device.
   For remote Android and iOS bridge React DevTools, run agent-device react-devtools normally. The CLI opens the needed local service tunnel for the DevTools daemon and keeps it alive until agent-device react-devtools stop or disconnect.
   Use --debug when remote connection or transport errors need diagnostic ids and remote log hints.`,
   },

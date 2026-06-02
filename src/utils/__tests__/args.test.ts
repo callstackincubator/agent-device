@@ -974,6 +974,10 @@ test('usage includes agent workflows, config, environment, and examples footers'
   );
   assert.match(
     usageText,
+    /help physical-device\s+Connected phone\/tablet setup and iOS signing prerequisites/,
+  );
+  assert.match(
+    usageText,
     /help react-native\s+React Native app automation hazards, overlays, Metro, and routing/,
   );
   assert.match(usageText, /Configuration:/);
@@ -1120,6 +1124,16 @@ test('usageForCommand resolves remote help topic', () => {
   assert.match(help, /Script flow, per-command config/);
   assert.match(help, /same --remote-config to every operational command/);
   assert.match(help, /install-from-source --github-actions-artifact org\/repo:artifact/);
+});
+
+test('usageForCommand resolves physical-device help topic', () => {
+  const help = usageForCommand('physical-device');
+  if (help === null) throw new Error('Expected physical-device help text');
+  assert.match(help, /agent-device help physical-device/);
+  assert.match(help, /Start with Automatic Signing and only these env vars/);
+  assert.match(help, /AGENT_DEVICE_IOS_TEAM_ID=ABCDE12345/);
+  assert.match(help, /AGENT_DEVICE_IOS_BUNDLE_ID=com\.yourname\.agentdevice\.runner/);
+  assert.match(help, /profile name\/specifier, not a file path/);
 });
 
 test('usageForCommand resolves macos help topic', () => {
