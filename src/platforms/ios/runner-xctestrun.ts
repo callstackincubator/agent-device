@@ -33,6 +33,7 @@ const RUNNER_CACHE_SCHEMA_VERSION = 1;
 const XCTEST_DEVICE_SET_LOCK_TIMEOUT_MS = 30_000;
 const XCTEST_DEVICE_SET_LOCK_POLL_MS = 100;
 const XCTEST_DEVICE_SET_LOCK_OWNER_GRACE_MS = 5_000;
+const RUNNER_XCTESTRUN_CACHE_LOCK_TIMEOUT_MS = 10 * 60_000;
 const RUNNER_XCTESTRUN_CAPTURE_OPTIONS = {
   PreferredScreenCaptureFormat: 'screenshots',
   SystemAttachmentLifetime: 'keepNever',
@@ -99,12 +100,14 @@ export type RunnerXctestrunCacheMetadata = {
 type RunnerXctestrunCacheArtifacts = {
   xctestrunPath: string;
   xctestrunMtimeMs: number;
+  xctestrunSize: number;
   productPaths: RunnerXctestrunCacheProductArtifact[];
 };
 
 type RunnerXctestrunCacheProductArtifact = {
   path: string;
   mtimeMs: number;
+  size: number;
 };
 
 function normalizeBundleId(value: string | undefined): string {
@@ -357,10 +360,15 @@ function sameResolvedPath(left: string, right: string): boolean {
 async function acquireXcodebuildSimulatorSetLock(params: {
   lockDirPath: string;
   owner: XcodebuildSimulatorSetLockOwner;
+  timeoutMs?: number;
+  pollMs?: number;
+  description?: string;
 }): Promise<() => Promise<void>> {
   const { lockDirPath, owner } = params;
   const ownerFilePath = path.join(lockDirPath, 'owner.json');
-  const deadline = Date.now() + XCTEST_DEVICE_SET_LOCK_TIMEOUT_MS;
+  const deadline = Date.now() + (params.timeoutMs ?? XCTEST_DEVICE_SET_LOCK_TIMEOUT_MS);
+  const pollMs = params.pollMs ?? XCTEST_DEVICE_SET_LOCK_POLL_MS;
+  const description = params.description ?? 'XCTest device set lock';
 
   fs.mkdirSync(path.dirname(lockDirPath), { recursive: true });
 
@@ -384,13 +392,32 @@ async function acquireXcodebuildSimulatorSetLock(params: {
       if (clearStaleXcodebuildSimulatorSetLock(lockDirPath, ownerFilePath)) {
         continue;
       }
-      await sleep(XCTEST_DEVICE_SET_LOCK_POLL_MS);
+      await sleep(pollMs);
     }
   }
 
-  throw new AppError('COMMAND_FAILED', 'Timed out waiting for XCTest device set lock', {
+  throw new AppError('COMMAND_FAILED', `Timed out waiting for ${description}`, {
     lockDirPath,
   });
+}
+
+export async function acquireRunnerXctestrunCacheLock(
+  derived: string,
+): Promise<() => Promise<void>> {
+  return await acquireXcodebuildSimulatorSetLock({
+    lockDirPath: resolveRunnerXctestrunCacheLockPath(derived),
+    owner: {
+      pid: process.pid,
+      startTime: readProcessStartTime(process.pid),
+      acquiredAtMs: Date.now(),
+    },
+    timeoutMs: RUNNER_XCTESTRUN_CACHE_LOCK_TIMEOUT_MS,
+    description: 'iOS runner cache lock',
+  });
+}
+
+function resolveRunnerXctestrunCacheLockPath(derived: string): string {
+  return path.join(path.dirname(derived), `${path.basename(derived)}.lock`);
 }
 
 function writeXcodebuildSimulatorSetLockOwner(
@@ -452,102 +479,120 @@ export async function ensureXctestrun(
   device: DeviceInfo,
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string },
 ): Promise<string> {
-  const derived = resolveRunnerDerivedPath(device);
   const projectRoot = findProjectRoot();
-  // fallow-ignore-next-line complexity
+  const expectedCacheMetadata = resolveExpectedRunnerCacheMetadata(device, projectRoot);
+  const derived = resolveRunnerDerivedPath(device, expectedCacheMetadata);
   return await withKeyedLock(runnerXctestrunBuildLocks, derived, async () => {
-    const expectedCacheMetadata = resolveExpectedRunnerCacheMetadata(device, projectRoot);
-    if (shouldCleanDerived()) {
-      emitRunnerXctestrunDecision('clean', 'forced_clean', { derived });
-      assertSafeDerivedCleanup(derived);
-      cleanRunnerDerivedArtifacts(derived);
+    const releaseCacheLock = await acquireRunnerXctestrunCacheLock(derived);
+    try {
+      return await ensureXctestrunUnderCacheLock({
+        device,
+        options,
+        projectRoot,
+        expectedCacheMetadata,
+        derived,
+      });
+    } finally {
+      await releaseCacheLock();
     }
-    const existing = await evaluateExistingXctestrun({
+  });
+}
+
+// fallow-ignore-next-line complexity
+async function ensureXctestrunUnderCacheLock(params: {
+  device: DeviceInfo;
+  options: { verbose?: boolean; logPath?: string; traceLogPath?: string };
+  projectRoot: string;
+  expectedCacheMetadata: RunnerXctestrunCacheMetadata;
+  derived: string;
+}): Promise<string> {
+  const { device, options, projectRoot, expectedCacheMetadata, derived } = params;
+  if (shouldCleanDerived()) {
+    emitRunnerXctestrunDecision('clean', 'forced_clean', { derived });
+    assertSafeDerivedCleanup(derived);
+    cleanRunnerDerivedArtifacts(derived);
+  }
+  const existing = await evaluateExistingXctestrun({
+    derived,
+    projectRoot,
+    expectedCacheMetadata,
+    findXctestrun: (root) => findXctestrun(root, device),
+    xctestrunReferencesProjectRoot,
+    resolveExistingXctestrunProductPaths,
+  });
+  if (existing.reason !== 'reuse_ready') {
+    emitRunnerXctestrunDecision('rebuild', existing.reason, {
       derived,
-      projectRoot,
-      expectedCacheMetadata,
-      findXctestrun: (root) => findXctestrun(root, device),
-      xctestrunReferencesProjectRoot,
-      resolveExistingXctestrunProductPaths,
+      xctestrunPath: existing.xctestrunPath,
     });
-    if (existing.reason !== 'reuse_ready') {
-      emitRunnerXctestrunDecision('rebuild', existing.reason, {
+  }
+  if (existing.reason === 'reuse_ready') {
+    try {
+      await repairMacOsRunnerProductsIfNeeded(device, existing.productPaths, existing.xctestrunPath);
+      emitRunnerXctestrunDecision('reuse', 'reuse_ready', {
         derived,
         xctestrunPath: existing.xctestrunPath,
       });
-    }
-    if (existing.reason === 'reuse_ready') {
-      try {
-        await repairMacOsRunnerProductsIfNeeded(
-          device,
-          existing.productPaths,
+      writeRunnerCacheMetadata(
+        derived,
+        withRunnerCacheArtifacts(
+          expectedCacheMetadata,
           existing.xctestrunPath,
-        );
-        emitRunnerXctestrunDecision('reuse', 'reuse_ready', {
-          derived,
-          xctestrunPath: existing.xctestrunPath,
-        });
-        writeRunnerCacheMetadata(
-          derived,
-          withRunnerCacheArtifacts(
-            expectedCacheMetadata,
-            existing.xctestrunPath,
-            existing.productPaths,
-          ),
-        );
-        return existing.xctestrunPath;
-      } catch (error) {
-        if (!isExpectedRunnerRepairFailure(error)) {
-          throw error;
-        }
-        emitRunnerXctestrunDecision('rebuild', 'repair_failed', {
-          derived,
-          xctestrunPath: existing.xctestrunPath,
-        });
-        // Fall through and rebuild from a clean derived state.
+          existing.productPaths,
+        ),
+      );
+      return existing.xctestrunPath;
+    } catch (error) {
+      if (!isExpectedRunnerRepairFailure(error)) {
+        throw error;
       }
-    }
-    if (existing.xctestrunPath) {
-      assertSafeDerivedCleanup(derived);
-      cleanRunnerDerivedArtifacts(derived);
-    }
-    const projectPath = path.join(
-      projectRoot,
-      'ios-runner',
-      'AgentDeviceRunner',
-      'AgentDeviceRunner.xcodeproj',
-    );
-
-    if (!fs.existsSync(projectPath)) {
-      throw new AppError('COMMAND_FAILED', 'iOS runner project not found', { projectPath });
-    }
-
-    await buildRunnerXctestrun(device, projectPath, derived, options);
-
-    const built = findXctestrun(derived, device);
-    if (!built) {
-      throw new AppError('COMMAND_FAILED', 'Failed to locate .xctestrun after build');
-    }
-    const builtProductPaths = await resolveExistingXctestrunProductPaths(built);
-    if (!builtProductPaths) {
-      throw new AppError('COMMAND_FAILED', 'Runner build is missing expected products', {
-        xctestrunPath: built,
+      emitRunnerXctestrunDecision('rebuild', 'repair_failed', {
+        derived,
+        xctestrunPath: existing.xctestrunPath,
       });
+      // Fall through and rebuild from a clean derived state.
     }
-    await repairMacOsRunnerProductsIfNeeded(device, builtProductPaths, built);
-    // Release/dev script builds patch the synthesized XCTest runner app in scripts/.
-    // This covers direct local xcodebuilds triggered by ensureXctestrun on cache miss.
-    await applyXctestRunnerAppIcon(builtProductPaths);
-    writeRunnerCacheMetadata(
-      derived,
-      withRunnerCacheArtifacts(expectedCacheMetadata, built, builtProductPaths),
-    );
-    emitRunnerXctestrunDecision('build', 'built_new', {
-      derived,
+  }
+  if (existing.xctestrunPath) {
+    assertSafeDerivedCleanup(derived);
+    cleanRunnerDerivedArtifacts(derived);
+  }
+  const projectPath = path.join(
+    projectRoot,
+    'ios-runner',
+    'AgentDeviceRunner',
+    'AgentDeviceRunner.xcodeproj',
+  );
+
+  if (!fs.existsSync(projectPath)) {
+    throw new AppError('COMMAND_FAILED', 'iOS runner project not found', { projectPath });
+  }
+
+  await buildRunnerXctestrun(device, projectPath, derived, options);
+
+  const built = findXctestrun(derived, device);
+  if (!built) {
+    throw new AppError('COMMAND_FAILED', 'Failed to locate .xctestrun after build');
+  }
+  const builtProductPaths = await resolveExistingXctestrunProductPaths(built);
+  if (!builtProductPaths) {
+    throw new AppError('COMMAND_FAILED', 'Runner build is missing expected products', {
       xctestrunPath: built,
     });
-    return built;
+  }
+  await repairMacOsRunnerProductsIfNeeded(device, builtProductPaths, built);
+  // Release/dev script builds patch the synthesized XCTest runner app in scripts/.
+  // This covers direct local xcodebuilds triggered by ensureXctestrun on cache miss.
+  await applyXctestRunnerAppIcon(builtProductPaths);
+  writeRunnerCacheMetadata(
+    derived,
+    withRunnerCacheArtifacts(expectedCacheMetadata, built, builtProductPaths),
+  );
+  emitRunnerXctestrunDecision('build', 'built_new', {
+    derived,
+    xctestrunPath: built,
   });
+  return built;
 }
 
 function cleanRunnerDerivedArtifacts(derived: string): void {
@@ -658,6 +703,14 @@ function comparableRunnerCacheMetadata(
   return comparable;
 }
 
+function resolveRunnerDerivedCacheKey(metadata: RunnerXctestrunCacheMetadata): string {
+  const hash = crypto
+    .createHash('sha256')
+    .update(JSON.stringify(comparableRunnerCacheMetadata(metadata)))
+    .digest('hex');
+  return `cache-${hash.slice(0, 16)}`;
+}
+
 function withRunnerCacheArtifacts(
   metadata: RunnerXctestrunCacheMetadata,
   xctestrunPath: string,
@@ -671,38 +724,51 @@ function buildRunnerCacheArtifacts(
   xctestrunPath: string,
   productPaths: readonly string[],
 ): RunnerXctestrunCacheArtifacts | null {
-  const xctestrunMtimeMs = readFileMtimeMs(xctestrunPath);
-  if (xctestrunMtimeMs === null || productPaths.length === 0) {
+  const xctestrunStats = readPathSignature(xctestrunPath);
+  if (xctestrunStats === null || productPaths.length === 0) {
     return null;
   }
   const productArtifacts: RunnerXctestrunCacheProductArtifact[] = [];
   for (const productPath of productPaths) {
-    const mtimeMs = readFileMtimeMs(productPath);
-    if (mtimeMs === null) {
+    const stats = readPathSignature(productPath);
+    if (stats === null) {
       return null;
     }
-    productArtifacts.push({ path: productPath, mtimeMs });
+    productArtifacts.push({ path: productPath, ...stats });
   }
   return {
     xctestrunPath,
-    xctestrunMtimeMs,
+    xctestrunMtimeMs: xctestrunStats.mtimeMs,
+    xctestrunSize: xctestrunStats.size,
     productPaths: productArtifacts,
   };
 }
 
 function readValidatedRunnerCacheArtifacts(
+  derived: string,
   metadata: RunnerXctestrunCacheMetadata | null,
 ): { xctestrunPath: string; productPaths: string[] } | null {
   const artifacts = metadata?.artifacts;
   if (!isRunnerCacheArtifacts(artifacts)) {
     return null;
   }
-  if (readFileMtimeMs(artifacts.xctestrunPath) !== artifacts.xctestrunMtimeMs) {
+  if (!isPathInsideDirectory(artifacts.xctestrunPath, derived)) {
+    return null;
+  }
+  if (
+    !pathSignatureMatches(artifacts.xctestrunPath, {
+      mtimeMs: artifacts.xctestrunMtimeMs,
+      size: artifacts.xctestrunSize,
+    })
+  ) {
     return null;
   }
   const productPaths: string[] = [];
   for (const product of artifacts.productPaths) {
-    if (readFileMtimeMs(product.path) !== product.mtimeMs) {
+    if (!isPathInsideDirectory(product.path, derived)) {
+      return null;
+    }
+    if (!pathSignatureMatches(product.path, product)) {
       return null;
     }
     productPaths.push(product.path);
@@ -718,6 +784,7 @@ function isRunnerCacheArtifacts(value: unknown): value is RunnerXctestrunCacheAr
   return (
     typeof artifacts.xctestrunPath === 'string' &&
     Number.isInteger(artifacts.xctestrunMtimeMs) &&
+    Number.isInteger(artifacts.xctestrunSize) &&
     Array.isArray(artifacts.productPaths) &&
     artifacts.productPaths.length > 0 &&
     artifacts.productPaths.every(isRunnerCacheProductArtifact)
@@ -731,15 +798,33 @@ function isRunnerCacheProductArtifact(
     return false;
   }
   const product = value as Partial<RunnerXctestrunCacheProductArtifact>;
-  return typeof product.path === 'string' && Number.isInteger(product.mtimeMs);
+  return (
+    typeof product.path === 'string' &&
+    Number.isInteger(product.mtimeMs) &&
+    Number.isInteger(product.size)
+  );
 }
 
-function readFileMtimeMs(filePath: string): number | null {
+function readPathSignature(filePath: string): { mtimeMs: number; size: number } | null {
   try {
-    return Math.trunc(fs.statSync(filePath).mtimeMs);
+    const stat = fs.statSync(filePath);
+    return { mtimeMs: Math.trunc(stat.mtimeMs), size: stat.size };
   } catch {
     return null;
   }
+}
+
+function pathSignatureMatches(
+  filePath: string,
+  expected: { mtimeMs: number; size: number },
+): boolean {
+  const actual = readPathSignature(filePath);
+  return actual?.mtimeMs === expected.mtimeMs && actual.size === expected.size;
+}
+
+function isPathInsideDirectory(targetPath: string, directoryPath: string): boolean {
+  const relativePath = path.relative(path.resolve(directoryPath), path.resolve(targetPath));
+  return relativePath !== '' && !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
 }
 
 type RunnerSourceFingerprintCacheEntry = {
@@ -1158,18 +1243,34 @@ async function buildRunnerXctestrun(
   }
 }
 
-function resolveRunnerDerivedPath(device: DeviceInfo): string {
+export function resolveRunnerDerivedPath(
+  device: DeviceInfo,
+  metadata: RunnerXctestrunCacheMetadata,
+): string {
   const override = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH?.trim();
   if (override) {
     return path.resolve(override);
   }
+  const cacheKey = resolveRunnerDerivedCacheKey(metadata);
+  const base = resolveRunnerDerivedBasePath(device);
+  return path.join(base, cacheKey);
+}
+
+function resolveRunnerDerivedBasePath(device: DeviceInfo): string {
   if (device.platform === 'macos') {
     return path.join(RUNNER_DERIVED_ROOT, 'derived', 'macos');
   }
-  if (device.kind === 'simulator') {
-    return path.join(RUNNER_DERIVED_ROOT, 'derived');
+  if (device.target === 'tv') {
+    return path.join(
+      RUNNER_DERIVED_ROOT,
+      'derived',
+      device.kind === 'simulator' ? 'tvos-simulator' : 'tvos-device',
+    );
   }
-  return path.join(RUNNER_DERIVED_ROOT, 'derived', device.kind);
+  if (device.kind === 'simulator') {
+    return path.join(RUNNER_DERIVED_ROOT, 'derived', 'ios-simulator');
+  }
+  return path.join(RUNNER_DERIVED_ROOT, 'derived', 'ios-device');
 }
 
 export function resolveRunnerDestination(device: DeviceInfo): string {
@@ -1332,20 +1433,23 @@ async function evaluateExistingXctestrun(options: {
 }): Promise<ExistingXctestrunState> {
   const cacheMetadata = evaluateRunnerCacheMetadata(options.derived, options.expectedCacheMetadata);
   const manifest = cacheMetadata.ok
-    ? readValidatedRunnerCacheArtifacts(cacheMetadata.metadata)
+    ? readValidatedRunnerCacheArtifacts(options.derived, cacheMetadata.metadata)
     : null;
   const xctestrunPath = manifest?.xctestrunPath ?? options.findXctestrun(options.derived);
   if (!xctestrunPath) {
     return { reason: 'missing_xctestrun', xctestrunPath: null };
   }
-  const productPaths =
-    manifest?.xctestrunPath === xctestrunPath
-      ? manifest.productPaths
-      : await options.resolveExistingXctestrunProductPaths(xctestrunPath);
+  const hasValidatedManifest = manifest?.xctestrunPath === xctestrunPath;
+  const productPaths = hasValidatedManifest
+    ? manifest.productPaths
+    : await options.resolveExistingXctestrunProductPaths(xctestrunPath);
   if (!productPaths) {
     return { reason: 'missing_products', xctestrunPath, productPaths: [] };
   }
-  if (!options.xctestrunReferencesProjectRoot(xctestrunPath, options.projectRoot)) {
+  if (
+    !options.xctestrunReferencesProjectRoot(xctestrunPath, options.projectRoot) &&
+    !hasValidatedManifest
+  ) {
     return { reason: 'project_root_mismatch', xctestrunPath, productPaths };
   }
   if (!cacheMetadata.ok) {

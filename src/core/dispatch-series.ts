@@ -14,11 +14,6 @@ const DETERMINISTIC_JITTER_PATTERN: ReadonlyArray<readonly [number, number]> = [
   [-1, -1],
 ];
 
-export function clampIosSwipeDuration(durationMs: number): number {
-  // Keep iOS swipes stable while allowing explicit fast durations for scroll-heavy flows.
-  return Math.min(60, Math.max(16, Math.round(durationMs)));
-}
-
 export function shouldUseIosTapSeries(
   device: DeviceInfo,
   count: number,

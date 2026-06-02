@@ -2,7 +2,6 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   requireIntInRange,
-  clampIosSwipeDuration,
   shouldUseIosTapSeries,
   shouldUseIosDragSeries,
 } from '../dispatch-series.ts';
@@ -40,30 +39,6 @@ test('requireIntInRange throws for non-finite values', () => {
       (e: unknown) => e instanceof AppError && e.code === 'INVALID_ARGS',
     );
   }
-});
-
-// --- clampIosSwipeDuration ---
-
-test('clampIosSwipeDuration returns value within bounds unchanged', () => {
-  assert.equal(clampIosSwipeDuration(30), 30);
-});
-
-test('clampIosSwipeDuration clamps below-minimum to 16', () => {
-  assert.equal(clampIosSwipeDuration(5), 16);
-});
-
-test('clampIosSwipeDuration clamps above-maximum to 60', () => {
-  assert.equal(clampIosSwipeDuration(100), 60);
-});
-
-test('clampIosSwipeDuration returns exact boundary values unchanged', () => {
-  assert.equal(clampIosSwipeDuration(16), 16);
-  assert.equal(clampIosSwipeDuration(60), 60);
-});
-
-test('clampIosSwipeDuration rounds fractional input before clamping', () => {
-  assert.equal(clampIosSwipeDuration(30.4), 30);
-  assert.equal(clampIosSwipeDuration(15.6), 16);
 });
 
 // --- shouldUseIosTapSeries ---

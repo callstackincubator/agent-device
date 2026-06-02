@@ -23,7 +23,6 @@ import {
 } from '../utils/scroll-edge-state.ts';
 import {
   requireIntInRange,
-  clampIosSwipeDuration,
   shouldUseIosTapSeries,
   shouldUseIosDragSeries,
   computeDeterministicJitter,
@@ -466,8 +465,7 @@ async function runSwipeCoordinates(params: {
 }): Promise<Record<string, unknown>> {
   const { device, interactor, context, x1, y1, x2, y2, requestedDurationMs, preset } = params;
   const durationMs = requireIntInRange(requestedDurationMs, 'durationMs', 16, 10_000);
-  const effectiveDurationMs =
-    device.platform === 'ios' ? clampIosSwipeDuration(durationMs) : durationMs;
+  const effectiveDurationMs = durationMs;
   const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
   const pauseMs = requireIntInRange(context?.pauseMs ?? 0, 'pause-ms', 0, 10_000);
   const pattern = context?.pattern ?? 'one-way';
@@ -530,7 +528,7 @@ async function runSwipeCoordinates(params: {
       ...(preset ? { preset } : {}),
       durationMs,
       effectiveDurationMs,
-      timingMode: device.platform === 'ios' ? 'safe-normalized' : 'direct',
+      timingMode: 'direct',
       count,
       pauseMs,
       pattern,

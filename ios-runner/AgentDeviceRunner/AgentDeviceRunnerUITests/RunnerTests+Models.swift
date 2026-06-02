@@ -147,6 +147,7 @@ struct Command: Codable {
   let scope: String?
   let raw: Bool?
   let fullscreen: Bool?
+  let synthesized: Bool?
 }
 
 struct Response: Codable {

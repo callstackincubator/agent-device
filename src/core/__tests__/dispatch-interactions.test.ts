@@ -2,6 +2,7 @@ import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   handleRotateGestureCommand,
+  handleSwipeCommand,
   handleSwipePresetCommand,
   handleTransformGestureCommand,
 } from '../dispatch-interactions.ts';
@@ -114,6 +115,38 @@ test('handleSwipePresetCommand resolves Android in-page swipe to content lane', 
     pauseMs: 0,
     pattern: 'one-way',
     message: 'Swiped left',
+  });
+});
+
+test('handleSwipeCommand preserves iOS swipe duration through dispatch', async () => {
+  const calls: unknown[][] = [];
+  const interactor = {
+    ...makeUnusedInteractor(),
+    swipe: async (...args: unknown[]) => {
+      calls.push(args);
+    },
+  };
+
+  const result = await handleSwipeCommand(
+    IOS_SIMULATOR,
+    interactor,
+    ['100', '200', '180', '200', '300'],
+    undefined,
+  );
+
+  assert.deepEqual(calls, [[100, 200, 180, 200, 300]]);
+  assert.deepEqual(result, {
+    x1: 100,
+    y1: 200,
+    x2: 180,
+    y2: 200,
+    durationMs: 300,
+    effectiveDurationMs: 300,
+    timingMode: 'direct',
+    count: 1,
+    pauseMs: 0,
+    pattern: 'one-way',
+    message: 'Swiped',
   });
 });
 

@@ -81,6 +81,7 @@ export type RunnerCommand = {
   scope?: string;
   raw?: boolean;
   fullscreen?: boolean;
+  synthesized?: boolean;
   /**
    * @deprecated Use textEntryMode: 'replace'. Kept for compatibility with older local runner clients.
    */

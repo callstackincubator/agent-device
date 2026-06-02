@@ -13,6 +13,10 @@ extension RunnerTests {
     return (gestureStartUptimeMs, currentUptimeMs())
   }
 
+  private func synthesizedSwipeFallbackHoldDuration(durationMs: Double) -> TimeInterval {
+    min(max((durationMs / 5.0) / 1000.0, 0.016), 0.120)
+  }
+
   func unsupportedResponse(for outcome: RunnerInteractionOutcome) -> Response? {
     switch outcome {
     case .performed:
@@ -495,7 +499,6 @@ extension RunnerTests {
       guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
         return Response(ok: false, error: ErrorPayload(message: "drag requires x, y, x2, and y2"))
       }
-      let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
       let dragPoints = keyboardAvoidingDragPoints(app: activeApp, x: x, y: y, x2: x2, y2: y2)
       let dragFrame = resolvedDragVisualizationFrame(
         app: activeApp,
@@ -504,6 +507,25 @@ extension RunnerTests {
         x2: dragPoints.x2,
         y2: dragPoints.y2
       )
+      if command.synthesized == true {
+        let durationMs = min(max(command.durationMs ?? 250, 16), 10000)
+        let (timing, outcome) = performGesture(activeApp, idleTimeout: false) {
+          synthesizedDragAt(
+            app: activeApp,
+            x: dragPoints.x,
+            y: dragPoints.y,
+            x2: dragPoints.x2,
+            y2: dragPoints.y2,
+            durationMs: durationMs
+          )
+        }
+        if case .performed = outcome {
+          return gestureResponse(message: "dragged", timing: timing, frame: .drag(dragFrame))
+        }
+      }
+      let holdDuration = command.synthesized == true
+        ? synthesizedSwipeFallbackHoldDuration(durationMs: command.durationMs ?? 250)
+        : min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
       let (timing, outcome) = performGesture(activeApp) {
         dragAt(
           app: activeApp,

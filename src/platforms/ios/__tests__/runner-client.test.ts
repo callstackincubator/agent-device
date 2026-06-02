@@ -46,8 +46,10 @@ import {
   shouldRetryRunnerConnectError,
 } from '../runner-client.ts';
 import {
+  acquireRunnerXctestrunCacheLock,
   ensureXctestrun,
   resolveExpectedRunnerCacheMetadata,
+  resolveRunnerDerivedPath,
   resolveRunnerCacheMetadataPath,
   resolveRunnerPerformanceBuildSettings,
   shouldDeleteRunnerDerivedRootEntry,
@@ -185,6 +187,10 @@ async function makeProjectTmpDir(): Promise<string> {
   return tmpDir;
 }
 
+async function waitMs(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function writeXctestrunFixture(
   xctestrunPath: string,
   options: { projectRoot: string; productRelativePaths: string[] },
@@ -267,6 +273,14 @@ function withRunnerDerivedPathEnv(derivedPath: string): void {
   });
 }
 
+function withoutRunnerDerivedPathEnv(): void {
+  const previousDerivedPath = process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
+  delete process.env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH;
+  onTestFinished(() => {
+    restoreEnvVar('AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH', previousDerivedPath);
+  });
+}
+
 function restoreEnvVar(name: string, value: string | undefined): void {
   if (value === undefined) {
     delete process.env[name];
@@ -294,9 +308,11 @@ function writeRunnerCacheMetadataWithArtifacts(params: {
         artifacts: {
           xctestrunPath: params.xctestrunPath,
           xctestrunMtimeMs: Math.trunc(fs.statSync(params.xctestrunPath).mtimeMs),
+          xctestrunSize: fs.statSync(params.xctestrunPath).size,
           productPaths: params.productPaths.map((productPath) => ({
             path: productPath,
             mtimeMs: Math.trunc(fs.statSync(productPath).mtimeMs),
+            size: fs.statSync(productPath).size,
           })),
         },
       },
@@ -685,6 +701,184 @@ test('xctestrunReferencesExistingProducts accepts xctestruns when referenced pro
   });
 
   assert.equal(await xctestrunReferencesExistingProducts(xctestrunPath), true);
+});
+
+test('resolveRunnerDerivedPath keys default cache by runner metadata', () => {
+  withoutRunnerDerivedPathEnv();
+  const metadata = resolveExpectedRunnerCacheMetadata(iosSimulator, repoRoot);
+  const iosPath = resolveRunnerDerivedPath(iosSimulator, metadata);
+  const tvPath = resolveRunnerDerivedPath(tvOsSimulator, {
+    ...metadata,
+    platformName: 'tvOS',
+    target: 'tv',
+    buildDestinationFamily: 'appletvsimulator',
+  });
+  const staleVersionPath = resolveRunnerDerivedPath(iosSimulator, {
+    ...metadata,
+    packageVersion: '0.0.0-stale',
+  });
+
+  assert.match(iosPath, /\/ios-runner\/derived\/ios-simulator\/cache-[a-f0-9]{16}$/);
+  assert.match(tvPath, /\/ios-runner\/derived\/tvos-simulator\/cache-[a-f0-9]{16}$/);
+  assert.notEqual(iosPath, staleVersionPath);
+});
+
+test('resolveRunnerDerivedPath reuses cache path for identical runner source fingerprints', async () => {
+  withoutRunnerDerivedPathEnv();
+  const tmpDir = await makeTmpDir();
+  const firstRoot = path.join(tmpDir, 'first');
+  const secondRoot = path.join(tmpDir, 'second');
+  const runnerRelativePath = path.join(
+    'ios-runner',
+    'AgentDeviceRunner',
+    'AgentDeviceRunnerUITests',
+    'RunnerTests.swift',
+  );
+  await fs.promises.mkdir(path.dirname(path.join(firstRoot, runnerRelativePath)), {
+    recursive: true,
+  });
+  await fs.promises.mkdir(path.dirname(path.join(secondRoot, runnerRelativePath)), {
+    recursive: true,
+  });
+  await fs.promises.writeFile(path.join(firstRoot, runnerRelativePath), 'final class RunnerTests {}\n');
+  await fs.promises.writeFile(path.join(secondRoot, runnerRelativePath), 'final class RunnerTests {}\n');
+
+  const firstPath = resolveRunnerDerivedPath(
+    iosSimulator,
+    resolveExpectedRunnerCacheMetadata(iosSimulator, firstRoot),
+  );
+  const secondPath = resolveRunnerDerivedPath(
+    iosSimulator,
+    resolveExpectedRunnerCacheMetadata(iosSimulator, secondRoot),
+  );
+  await fs.promises.writeFile(
+    path.join(secondRoot, runnerRelativePath),
+    'final class RunnerTests { let changed = true }\n',
+  );
+  const changedPath = resolveRunnerDerivedPath(
+    iosSimulator,
+    resolveExpectedRunnerCacheMetadata(iosSimulator, secondRoot),
+  );
+
+  assert.equal(firstPath, secondPath);
+  assert.notEqual(firstPath, changedPath);
+});
+
+test('acquireRunnerXctestrunCacheLock serializes cache access across acquirers', async () => {
+  const tmpDir = await makeTmpDir();
+  const derivedPath = path.join(tmpDir, 'derived');
+  const releaseFirst = await acquireRunnerXctestrunCacheLock(derivedPath);
+  let secondAcquired = false;
+  const second = acquireRunnerXctestrunCacheLock(derivedPath).then(async (releaseSecond) => {
+    secondAcquired = true;
+    await releaseSecond();
+  });
+
+  await waitMs(50);
+  assert.equal(secondAcquired, false);
+  await releaseFirst();
+  await second;
+  assert.equal(secondAcquired, true);
+});
+
+test('ensureXctestrun reuses matching manifest artifacts from another project root', async () => {
+  const tmpDir = await makeTmpDir();
+  const derivedPath = path.join(tmpDir, 'custom-derived');
+  const productPath = path.join(derivedPath, 'Runner.app');
+  const xctestrunPath = path.join(derivedPath, 'manifest.xctestrun');
+  await fs.promises.mkdir(productPath, { recursive: true });
+  writeXctestrunFixture(xctestrunPath, {
+    projectRoot: '/tmp/other-agent-device-worktree',
+    productRelativePaths: ['Runner.app'],
+  });
+  writeRunnerCacheMetadataWithArtifacts({
+    derivedPath,
+    device: macOsDevice,
+    xctestrunPath,
+    productPaths: [productPath],
+  });
+  withRunnerDerivedPathEnv(derivedPath);
+
+  const result = await ensureXctestrun(macOsDevice, {});
+
+  assert.equal(result, xctestrunPath);
+  assert.equal(mockRunCmdStreaming.mock.calls.length, 0);
+  assert.deepEqual(mockRepairMacOsRunnerProductsIfNeeded.mock.calls[0]?.[1], [productPath]);
+});
+
+test('ensureXctestrun rebuilds foreign artifacts when metadata does not match', async () => {
+  const projectRoot = repoRoot;
+  const tmpDir = await makeProjectTmpDir();
+  const derivedPath = path.join(tmpDir, 'custom-derived');
+  const productPath = path.join(derivedPath, 'Runner.app');
+  const foreignXctestrunPath = path.join(derivedPath, 'foreign.xctestrun');
+  const rebuiltXctestrunPath = path.join(derivedPath, 'rebuilt', 'rebuilt.xctestrun');
+  await fs.promises.mkdir(productPath, { recursive: true });
+  writeXctestrunFixture(foreignXctestrunPath, {
+    projectRoot: '/tmp/other-agent-device-worktree',
+    productRelativePaths: ['Runner.app'],
+  });
+  writeRunnerCacheMetadataWithArtifacts({
+    derivedPath,
+    device: macOsDevice,
+    xctestrunPath: foreignXctestrunPath,
+    productPaths: [productPath],
+  });
+  const metadataPath = resolveRunnerCacheMetadataPath(derivedPath);
+  const staleMetadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+  staleMetadata.packageVersion = '0.0.0-stale';
+  fs.writeFileSync(metadataPath, JSON.stringify(staleMetadata, null, 2));
+  withRunnerDerivedPathEnv(derivedPath);
+
+  mockRunCmdStreaming.mockImplementation(async () => {
+    await fs.promises.mkdir(path.join(derivedPath, 'rebuilt', 'Runner.app'), { recursive: true });
+    writeXctestrunFixture(rebuiltXctestrunPath, {
+      projectRoot,
+      productRelativePaths: ['Runner.app'],
+    });
+  });
+
+  const result = await ensureXctestrun(macOsDevice, {});
+
+  assert.equal(result, rebuiltXctestrunPath);
+  assert.equal(mockRunCmdStreaming.mock.calls.length, 1);
+  assert.equal(fs.existsSync(foreignXctestrunPath), false);
+});
+
+test('ensureXctestrun ignores manifest artifacts outside the cache root', async () => {
+  const projectRoot = repoRoot;
+  const tmpDir = await makeProjectTmpDir();
+  const derivedPath = path.join(tmpDir, 'custom-derived');
+  const externalDir = path.join(tmpDir, 'external');
+  const externalProductPath = path.join(externalDir, 'Runner.app');
+  const externalXctestrunPath = path.join(externalDir, 'external.xctestrun');
+  const rebuiltXctestrunPath = path.join(derivedPath, 'rebuilt', 'rebuilt.xctestrun');
+  await fs.promises.mkdir(externalProductPath, { recursive: true });
+  writeXctestrunFixture(externalXctestrunPath, {
+    projectRoot,
+    productRelativePaths: ['Runner.app'],
+  });
+  await fs.promises.mkdir(derivedPath, { recursive: true });
+  writeRunnerCacheMetadataWithArtifacts({
+    derivedPath,
+    device: macOsDevice,
+    xctestrunPath: externalXctestrunPath,
+    productPaths: [externalProductPath],
+  });
+  withRunnerDerivedPathEnv(derivedPath);
+
+  mockRunCmdStreaming.mockImplementation(async () => {
+    await fs.promises.mkdir(path.join(derivedPath, 'rebuilt', 'Runner.app'), { recursive: true });
+    writeXctestrunFixture(rebuiltXctestrunPath, {
+      projectRoot,
+      productRelativePaths: ['Runner.app'],
+    });
+  });
+
+  const result = await ensureXctestrun(macOsDevice, {});
+
+  assert.equal(result, rebuiltXctestrunPath);
+  assert.equal(mockRunCmdStreaming.mock.calls.length, 1);
 });
 
 test('xctestrunReferencesExistingProducts parses nested plist fallback values from XML', async () => {

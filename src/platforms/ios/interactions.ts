@@ -22,6 +22,10 @@ type InteractionFrame = {
   referenceHeight: number;
 };
 
+const IOS_SWIPE_DEFAULT_DURATION_MS = 250;
+const IOS_SWIPE_MIN_DURATION_MS = 16;
+const IOS_SWIPE_MAX_DURATION_MS = 10_000;
+
 type NormalizedScrollOptions = {
   amount?: number;
   pixels?: number;
@@ -104,9 +108,19 @@ export function iosRunnerOverrides(
         );
       },
       swipe: async (x1, y1, x2, y2, durationMs) => {
+        const useSynthesizedSwipe = shouldUseSynthesizedSwipe(device);
         return await runIosRunnerCommand(
           device,
-          { command: 'drag', x: x1, y: y1, x2, y2, durationMs, appBundleId: ctx.appBundleId },
+          {
+            command: 'drag',
+            x: x1,
+            y: y1,
+            x2,
+            y2,
+            durationMs: useSynthesizedSwipe ? iosSwipeDurationMs(durationMs) : durationMs,
+            ...(useSynthesizedSwipe ? { synthesized: true } : {}),
+            appBundleId: ctx.appBundleId,
+          },
           runnerOpts,
         );
       },
@@ -256,6 +270,16 @@ export function iosRunnerOverrides(
   };
 }
 
+function iosSwipeDurationMs(durationMs: number | undefined): number {
+  if (durationMs === undefined) return IOS_SWIPE_DEFAULT_DURATION_MS;
+
+  return Math.min(IOS_SWIPE_MAX_DURATION_MS, Math.max(IOS_SWIPE_MIN_DURATION_MS, Math.round(durationMs)));
+}
+
+function shouldUseSynthesizedSwipe(device: DeviceInfo): boolean {
+  return device.platform === 'ios' && device.target !== 'tv';
+}
+
 export function appleRemotePressCommand(
   remoteButton: AppleRemoteButton,
   appBundleId?: string,
@@ -305,6 +329,9 @@ async function runAppleScroll(
       y: frame.originY + plan.y1,
       x2: frame.originX + plan.x2,
       y2: frame.originY + plan.y2,
+      ...(shouldUseSynthesizedSwipe(device)
+        ? { durationMs: IOS_SWIPE_DEFAULT_DURATION_MS, synthesized: true }
+        : {}),
       appBundleId: ctx.appBundleId,
     },
     runnerOpts,

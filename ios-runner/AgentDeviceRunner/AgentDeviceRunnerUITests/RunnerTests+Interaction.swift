@@ -634,6 +634,42 @@ extension RunnerTests {
     return performCoordinateDrag(app: app, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
   }
 
+  func synthesizedDragAt(
+    app: XCUIApplication,
+    x: Double,
+    y: Double,
+    x2: Double,
+    y2: Double,
+    durationMs: Double
+  ) -> RunnerInteractionOutcome {
+#if os(iOS)
+    if let message = RunnerSynthesizedGesture.synthesizeSwipe(
+      withApplication: app,
+      x: x,
+      y: y,
+      x2: x2,
+      y2: y2,
+      durationMs: durationMs
+    ) {
+      return .unsupported(
+        message: message,
+        hint: "Falling back to XCTest coordinate drag may be slower; update Xcode if this persists."
+      )
+    }
+    return .performed
+#elseif os(tvOS)
+    return .unsupported(
+      message: "coordinate drag is not supported on tvOS",
+      hint: "tvOS has no coordinate input; use remote-driven swipe/scroll to move focus instead."
+    )
+#else
+    return .unsupported(
+      message: "coordinate drag is not supported on macOS",
+      hint: "macOS automation has no touchscreen; use mouse-driven interactions instead."
+    )
+#endif
+  }
+
   func keyboardAvoidingDragPoints(
     app: XCUIApplication,
     x: Double,
