@@ -11,6 +11,7 @@
 [![npm version](https://img.shields.io/npm/v/agent-device.svg)](https://www.npmjs.com/package/agent-device)
 [![CI](https://github.com/callstackincubator/agent-device/actions/workflows/ci.yml/badge.svg)](https://github.com/callstackincubator/agent-device/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
+[![Glama MCP server](https://glama.ai/mcp/servers/callstackincubator/agent-device/badges/score.svg)](https://glama.ai/mcp/servers/callstackincubator/agent-device)
 
 Mobile app verification for AI agents.
 
