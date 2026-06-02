@@ -115,6 +115,44 @@ function makeIosDeviceSession(name: string, appBundleId?: string): SessionState 
   return session;
 }
 
+function makeIosSimulatorSession(name: string): SessionState {
+  return makeSession(name, {
+    platform: 'ios',
+    id: 'ios-sim-1',
+    name: 'iPhone 16',
+    kind: 'simulator',
+    booted: true,
+  });
+}
+
+function makeIosSimulatorRecordingSession(
+  name: string,
+  options: {
+    appBundleId?: string;
+    outPath?: string;
+    recordOnlySession?: boolean;
+    startedAt?: number;
+  } = {},
+): SessionState {
+  const session = makeIosSimulatorSession(name);
+  if (options.appBundleId) {
+    session.appBundleId = options.appBundleId;
+  }
+  if (options.recordOnlySession) {
+    session.recordOnlySession = true;
+  }
+  session.recording = {
+    platform: 'ios',
+    child: { kill: vi.fn(), pid: 123 },
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    outPath: options.outPath ?? path.join(os.tmpdir(), `${name}.mp4`),
+    startedAt: options.startedAt ?? Date.now(),
+    showTouches: false,
+    gestureEvents: [],
+  };
+  return session;
+}
+
 async function runRecordCommand(params: {
   sessionStore: SessionStore;
   sessionName: string;
@@ -229,23 +267,7 @@ test('record stop derives telemetry artifact local path from client outPath', as
 test('record stop releases session created only for recording', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'record-only-session';
-  const session = makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-sim-1',
-    name: 'iPhone 16',
-    kind: 'simulator',
-    booted: true,
-  });
-  session.recordOnlySession = true;
-  session.recording = {
-    platform: 'ios',
-    child: { kill: vi.fn(), pid: 123 },
-    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-    outPath: path.join(os.tmpdir(), 'record-only.mp4'),
-    startedAt: Date.now(),
-    showTouches: false,
-    gestureEvents: [],
-  };
+  const session = makeIosSimulatorRecordingSession(sessionName, { recordOnlySession: true });
   sessionStore.set(sessionName, session);
 
   const response = await runRecordCommand({
@@ -261,13 +283,7 @@ test('record stop releases session created only for recording', async () => {
 test('record stop releases record-only session even when recording state is stale', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'stale-record-only-session';
-  const session = makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-sim-1',
-    name: 'iPhone 16',
-    kind: 'simulator',
-    booted: true,
-  });
+  const session = makeIosSimulatorSession(sessionName);
   session.recordOnlySession = true;
   sessionStore.set(sessionName, session);
 
@@ -284,23 +300,9 @@ test('record stop releases record-only session even when recording state is stal
 test('record stop keeps normal app session open after recording', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'app-session';
-  const session = makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-sim-1',
-    name: 'iPhone 16',
-    kind: 'simulator',
-    booted: true,
+  const session = makeIosSimulatorRecordingSession(sessionName, {
+    appBundleId: 'com.apple.Preferences',
   });
-  session.appBundleId = 'com.apple.Preferences';
-  session.recording = {
-    platform: 'ios',
-    child: { kill: vi.fn(), pid: 123 },
-    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-    outPath: path.join(os.tmpdir(), 'app-session.mp4'),
-    startedAt: Date.now(),
-    showTouches: false,
-    gestureEvents: [],
-  };
   sessionStore.set(sessionName, session);
 
   const response = await runRecordCommand({
@@ -321,23 +323,11 @@ test('record stop keeps normal app session open when stop validation fails', asy
   const sessionName = 'app-session-failed-stop';
   const outPath = path.join(os.tmpdir(), 'app-session-failed-stop.mp4');
   fs.writeFileSync(outPath, 'not playable');
-  const session = makeSession(sessionName, {
-    platform: 'ios',
-    id: 'ios-sim-1',
-    name: 'iPhone 16',
-    kind: 'simulator',
-    booted: true,
-  });
-  session.appBundleId = 'com.apple.Preferences';
-  session.recording = {
-    platform: 'ios',
-    child: { kill: vi.fn(), pid: 123 },
-    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  const session = makeIosSimulatorRecordingSession(sessionName, {
+    appBundleId: 'com.apple.Preferences',
     outPath,
     startedAt: Date.now() - 500,
-    showTouches: false,
-    gestureEvents: [],
-  };
+  });
   sessionStore.set(sessionName, session);
   mockIsPlayableVideo.mockImplementation(async () => false);
 
