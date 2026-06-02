@@ -98,6 +98,10 @@ extension RunnerTests {
       return executeStatus(command: command)
     }
     commandJournal.accept(command: command)
+    return try executeAccepted(command: command)
+  }
+
+  func executeAccepted(command: Command) throws -> Response {
     commandJournal.start(command: command)
     do {
       let response = try executeDispatched(command: command)
@@ -109,13 +113,20 @@ extension RunnerTests {
     }
   }
 
-  private func executeStatus(command: Command) -> Response {
+  func executeStatus(command: Command) -> Response {
     guard
       let statusCommandId = command.statusCommandId?
         .trimmingCharacters(in: .whitespacesAndNewlines),
       !statusCommandId.isEmpty
     else {
-      return Response(ok: false, error: ErrorPayload(message: "status requires statusCommandId"))
+      return Response(
+        ok: false,
+        error: ErrorPayload(
+          code: "INVALID_ARGS",
+          message: "status requires statusCommandId",
+          hint: "Set statusCommandId to the commandId of the runner command to inspect."
+        )
+      )
     }
     return Response(ok: true, data: commandJournal.status(commandId: statusCommandId))
   }

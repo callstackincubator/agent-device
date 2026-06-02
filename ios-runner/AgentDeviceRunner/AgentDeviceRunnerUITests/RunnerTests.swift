@@ -32,6 +32,8 @@ final class RunnerTests: XCTestCase {
   static let defaultRecordingFps: Int32 = 15
   var listener: NWListener?
   var doneExpectation: XCTestExpectation?
+  let transportQueue = DispatchQueue(label: "agent-device.runner.transport")
+  let commandExecutionQueue = DispatchQueue(label: "agent-device.runner.commands")
   let app = XCUIApplication()
   lazy var springboard = XCUIApplication(bundleIdentifier: Self.springboardBundleId)
   var currentApp: XCUIApplication?
@@ -92,7 +94,6 @@ final class RunnerTests: XCTestCase {
   func testCommand() throws {
     doneExpectation = expectation(description: "agent-device command handled")
     NSLog("AGENT_DEVICE_RUNNER_HEADLESS_STARTUP=1")
-    let queue = DispatchQueue(label: "agent-device.runner")
     let desiredPort = RunnerEnv.resolvePort()
     NSLog("AGENT_DEVICE_RUNNER_DESIRED_PORT=%d", desiredPort)
     listener = try makeRunnerListener(desiredPort: desiredPort)
@@ -113,10 +114,11 @@ final class RunnerTests: XCTestCase {
       }
     }
     listener?.newConnectionHandler = { [weak self] conn in
-      conn.start(queue: queue)
-      self?.handle(connection: conn)
+      guard let self else { return }
+      conn.start(queue: self.transportQueue)
+      self.handle(connection: conn)
     }
-    listener?.start(queue: queue)
+    listener?.start(queue: transportQueue)
 
     guard let expectation = doneExpectation else {
       XCTFail("runner expectation was not initialized")

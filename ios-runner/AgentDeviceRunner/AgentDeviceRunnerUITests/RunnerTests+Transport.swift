@@ -19,7 +19,11 @@ extension RunnerTests {
       if buffer.count + data.count > self.maxRequestBytes {
         let response = self.jsonResponse(
           status: 413,
-          response: Response(ok: false, error: ErrorPayload(message: "request too large"))
+          response: self.errorResponse(
+            code: "INVALID_ARGS",
+            message: "runner request body exceeds \(self.maxRequestBytes) bytes",
+            hint: "Send one runner command per request and keep the payload below the runner request limit."
+          )
         )
         self.sendResponse(response, over: connection) { [weak self] in
           self?.finish()
@@ -28,10 +32,11 @@ extension RunnerTests {
       }
       let combined = buffer + data
       if let body = self.parseRequest(data: combined) {
-        let result = self.handleRequestBody(body)
-        self.sendResponse(result.data, over: connection) { [weak self] in
-          if result.shouldFinish {
-            self?.finish()
+        self.handleRequestBody(body) { [weak self] result in
+          self?.sendResponse(result.data, over: connection) { [weak self] in
+            if result.shouldFinish {
+              self?.finish()
+            }
           }
         }
       } else {
@@ -82,29 +87,62 @@ extension RunnerTests {
     return nil
   }
 
-  private func handleRequestBody(_ body: Data) -> (data: Data, shouldFinish: Bool) {
-    guard let json = String(data: body, encoding: .utf8) else {
-      return (
-        jsonResponse(status: 400, response: Response(ok: false, error: ErrorPayload(message: "invalid json"))),
+  private func handleRequestBody(
+    _ body: Data,
+    completion: @escaping ((data: Data, shouldFinish: Bool)) -> Void
+  ) {
+    guard String(data: body, encoding: .utf8) != nil else {
+      completion((
+        jsonResponse(
+          status: 400,
+          response: errorResponse(
+            code: "INVALID_ARGS",
+            message: "runner request body must be UTF-8 JSON",
+            hint: "Send a JSON object matching the runner command protocol."
+          )
+        ),
         false
-      )
-    }
-    guard let data = json.data(using: .utf8) else {
-      return (
-        jsonResponse(status: 400, response: Response(ok: false, error: ErrorPayload(message: "invalid json"))),
-        false
-      )
+      ))
+      return
     }
 
     do {
-      let command = try JSONDecoder().decode(Command.self, from: data)
-      let response = try execute(command: command)
-      return (jsonResponse(status: 200, response: response), command.command == .shutdown)
+      let command = try JSONDecoder().decode(Command.self, from: body)
+      if command.command == .status {
+        completion((jsonResponse(status: 200, response: executeStatus(command: command)), false))
+        return
+      }
+      commandJournal.accept(command: command)
+      commandExecutionQueue.async {
+        do {
+          let response = try self.executeAccepted(command: command)
+          completion((self.jsonResponse(status: 200, response: response), command.command == .shutdown))
+        } catch {
+          completion((
+            self.jsonResponse(
+              status: 500,
+              response: self.errorResponse(
+                code: "COMMAND_FAILED",
+                message: error.localizedDescription,
+                hint: "Check the runner log for XCTest details, then retry after the app is foregrounded if this was a timeout or activation failure."
+              )
+            ),
+            false
+          ))
+        }
+      }
     } catch {
-      return (
-        jsonResponse(status: 500, response: Response(ok: false, error: ErrorPayload(message: "\(error)"))),
+      completion((
+        jsonResponse(
+          status: 400,
+          response: errorResponse(
+            code: "INVALID_ARGS",
+            message: "runner command payload is invalid: \(String(describing: error))",
+            hint: "Check the command name and fields against the runner protocol."
+          )
+        ),
         false
-      )
+      ))
     }
   }
 
@@ -114,6 +152,10 @@ extension RunnerTests {
     let encoder = JSONEncoder()
     let body = (try? encoder.encode(response)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
     return httpResponse(status: status, body: body)
+  }
+
+  private func errorResponse(code: String, message: String, hint: String? = nil) -> Response {
+    Response(ok: false, error: ErrorPayload(code: code, message: message, hint: hint))
   }
 
   private func httpResponse(status: Int, body: String) -> Data {
