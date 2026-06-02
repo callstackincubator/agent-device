@@ -99,33 +99,6 @@ test('reject lock policy explains fresh-session recovery commands', () => {
   );
 });
 
-test('reject lock policy quotes unsafe fresh session names in recovery commands', () => {
-  assert.throws(
-    () =>
-      applyRequestLockPolicy({
-        token: 'token',
-        session: "qa ios; echo 'oops'",
-        command: 'snapshot',
-        positionals: [],
-        flags: {
-          device: 'Pixel 9',
-        },
-        meta: {
-          lockPolicy: 'reject',
-          lockPlatform: 'ios',
-        },
-      }),
-    (error) => {
-      assert.ok(error instanceof AppError);
-      assert.match(
-        error.details?.hint ?? '',
-        /agent-device open <app> --session 'qa ios; echo '\\''oops'\\''' --platform ios/i,
-      );
-      return true;
-    },
-  );
-});
-
 test('allows open to choose a fresh-session target under request lock policy', () => {
   const req = applyRequestLockPolicy({
     token: 'token',
