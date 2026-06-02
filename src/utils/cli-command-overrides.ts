@@ -116,9 +116,10 @@ const CLI_COMMAND_OVERRIDES = {
     positionalArgs: ['bundleOrPackage', 'payloadOrJson'],
   },
   snapshot: {
-    usageOverride: 'snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--force-full]',
+    usageOverride:
+      'snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--force-full] [--timeout <ms>]',
     helpDescription: 'Capture accessibility tree or diff against the previous session baseline',
-    allowedFlags: ['snapshotDiff', ...SNAPSHOT_FLAGS, 'snapshotForceFull'],
+    allowedFlags: ['snapshotDiff', ...SNAPSHOT_FLAGS, 'snapshotForceFull', 'timeoutMs'],
   },
   diff: {
     usageOverride:

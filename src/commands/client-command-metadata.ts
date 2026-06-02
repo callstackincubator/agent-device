@@ -105,6 +105,7 @@ export const clientCommandMetadata = [
     scope: stringField(),
     raw: booleanField(),
     forceFull: booleanField(),
+    timeoutMs: integerField('Maximum wall-clock time for the snapshot command.'),
   }),
   defineClientCommandMetadata('screenshot', {
     path: stringField('Output path.'),

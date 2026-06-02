@@ -130,6 +130,7 @@ const MCP_UNEXPOSED_CLI_COMMANDS = commandSet(
   LOCAL_CLI_COMMANDS.disconnect,
   LOCAL_CLI_COMMANDS.mcp,
   LOCAL_CLI_COMMANDS.reactDevtools,
+  PUBLIC_COMMANDS.prepare,
 );
 
 const CAPABILITY_EXEMPT_CLI_COMMANDS = commandSet(
@@ -158,7 +159,6 @@ export const DAEMON_COMMAND_GROUPS = {
     PUBLIC_COMMANDS.apps,
   ),
   state: commandSet(PUBLIC_COMMANDS.boot, PUBLIC_COMMANDS.appState),
-  prepare: commandSet(PUBLIC_COMMANDS.prepare),
   observability: commandSet(PUBLIC_COMMANDS.perf, PUBLIC_COMMANDS.logs, PUBLIC_COMMANDS.network),
   replay: commandSet(PUBLIC_COMMANDS.replay, PUBLIC_COMMANDS.test),
   snapshot: commandSet(

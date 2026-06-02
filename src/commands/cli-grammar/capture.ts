@@ -39,6 +39,7 @@ export const captureCliReaders = {
     scope: flags.snapshotScope,
     raw: flags.snapshotRaw,
     forceFull: flags.snapshotForceFull,
+    timeoutMs: flags.timeoutMs,
   }),
   screenshot: (positionals, flags) => ({
     ...commonInputFromFlags(flags),

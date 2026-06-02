@@ -1320,14 +1320,18 @@ test('strict mode rejects click-only button flag on press', () => {
 });
 
 test('snapshot command accepts command-specific flags', () => {
-  const parsed = parseArgs(['snapshot', '-i', '-c', '--depth', '3', '-s', 'Login'], {
-    strictFlags: true,
-  });
+  const parsed = parseArgs(
+    ['snapshot', '-i', '-c', '--depth', '3', '-s', 'Login', '--timeout', '120000'],
+    {
+      strictFlags: true,
+    },
+  );
   assert.equal(parsed.command, 'snapshot');
   assert.equal(parsed.flags.snapshotInteractiveOnly, true);
   assert.equal(parsed.flags.snapshotCompact, true);
   assert.equal(parsed.flags.snapshotDepth, 3);
   assert.equal(parsed.flags.snapshotScope, 'Login');
+  assert.equal(parsed.flags.timeoutMs, 120000);
 });
 
 test('snapshot command accepts diff alias flag', () => {
@@ -1483,6 +1487,7 @@ test('snapshot command usage documents diff alias', () => {
   const help = usageForCommand('snapshot');
   if (help === null) throw new Error('Expected command help text');
   assert.match(help, /agent-device snapshot \[--diff\]/);
+  assert.match(help, /--timeout <ms>/);
   assert.match(help, /Capture accessibility tree or diff against the previous session baseline/);
 });
 

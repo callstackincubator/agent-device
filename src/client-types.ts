@@ -306,6 +306,7 @@ export type CaptureSnapshotOptions = AgentDeviceRequestOverrides &
     scope?: string;
     raw?: boolean;
     forceFull?: boolean;
+    timeoutMs?: number;
   };
 
 export type CaptureSnapshotResult = {

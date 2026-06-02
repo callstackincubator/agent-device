@@ -117,6 +117,7 @@ type ResolvedDaemonTransport = 'socket' | 'http';
 
 const REQUEST_TIMEOUT_MS = 90_000;
 const SNAPSHOT_REQUEST_TIMEOUT_MS = 30_000;
+const PREPARE_REQUEST_TIMEOUT_MS = 240_000;
 const DAEMON_STARTUP_TIMEOUT_MS = 15_000;
 const DAEMON_STARTUP_ATTEMPTS = 2;
 const DAEMON_TAKEOVER_TERM_TIMEOUT_MS = 3000;
@@ -197,14 +198,20 @@ export function resolveDaemonRequestTimeoutMs(
   req: Omit<DaemonRequest, 'token'>,
 ): number | undefined {
   if (req.command === PUBLIC_COMMANDS.test) return undefined;
-  if (
-    (req.command === PUBLIC_COMMANDS.replay || req.command === PUBLIC_COMMANDS.prepare) &&
-    typeof req.flags?.timeoutMs === 'number'
-  ) {
+  if (typeof req.flags?.timeoutMs === 'number' && isExplicitTimeoutCommand(req.command)) {
     return req.flags.timeoutMs;
   }
+  if (req.command === PUBLIC_COMMANDS.prepare) return PREPARE_REQUEST_TIMEOUT_MS;
   if (req.command === PUBLIC_COMMANDS.snapshot) return SNAPSHOT_REQUEST_TIMEOUT_MS;
   return REQUEST_TIMEOUT_MS;
+}
+
+function isExplicitTimeoutCommand(command: string | undefined): boolean {
+  return (
+    command === PUBLIC_COMMANDS.prepare ||
+    command === PUBLIC_COMMANDS.replay ||
+    command === PUBLIC_COMMANDS.snapshot
+  );
 }
 
 export async function openApp(options: OpenAppOptions = {}): Promise<DaemonResponse> {

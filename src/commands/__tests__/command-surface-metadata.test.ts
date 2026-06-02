@@ -19,3 +19,7 @@ test('MCP exposed command names have metadata and executable command definitions
     assert.ok(executableNames.has(name), `${name} must have an executable command definition`);
   }
 });
+
+test('CI-only prepare command stays out of MCP tool surface', () => {
+  assert.equal(listMcpExposedCommandNames().includes('prepare'), false);
+});

@@ -166,7 +166,7 @@ test('snapshot request timeout preserves daemon metadata for follow-up evidence 
   assert.equal(shouldResetDaemonAfterRequestTimeout(undefined), true);
 });
 
-test('snapshot uses a shorter daemon request timeout than runner prepare', () => {
+test('snapshot uses a shorter daemon request timeout with an explicit override', () => {
   const base = {
     session: 'default',
     positionals: [],
@@ -175,7 +175,23 @@ test('snapshot uses a shorter daemon request timeout than runner prepare', () =>
   };
 
   assert.equal(resolveDaemonRequestTimeoutMs({ ...base, command: 'snapshot' }), 30_000);
+  assert.equal(
+    resolveDaemonRequestTimeoutMs({
+      ...base,
+      command: 'snapshot',
+      flags: { timeoutMs: 120_000 },
+    }),
+    120_000,
+  );
   assert.equal(resolveDaemonRequestTimeoutMs({ ...base, command: 'screenshot' }), 90_000);
+  assert.equal(
+    resolveDaemonRequestTimeoutMs({
+      ...base,
+      command: 'prepare',
+      positionals: ['ios-runner'],
+    }),
+    240_000,
+  );
   assert.equal(
     resolveDaemonRequestTimeoutMs({
       ...base,
