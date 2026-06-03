@@ -10,7 +10,7 @@ export function CtaSection() {
       actions={[
         {
           href: "https://github.com/callstackincubator/agent-device",
-          label: "Get Started",
+          label: "Open on GitHub",
         },
         {
           href: "#demo",
