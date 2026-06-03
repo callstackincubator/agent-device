@@ -13,7 +13,7 @@ export function CtaSection() {
           label: "Open on GitHub",
         },
         {
-          href: "#demo",
+          href: "https://www.callstack.com/contact?message=%22I%20want%20to%20chat%20about%20agent-device%22",
           label: "Get a Demo",
           variant: "secondary",
         },
