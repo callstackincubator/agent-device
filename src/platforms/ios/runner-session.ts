@@ -39,6 +39,7 @@ export type RunnerSessionOptions = {
   logPath?: string;
   traceLogPath?: string;
   cleanStaleBundles?: boolean;
+  startupTimeoutMs?: number;
   requestId?: string;
 };
 
@@ -191,6 +192,7 @@ export async function ensureRunnerSession(
       testPromise,
       child,
       ready: false,
+      startupTimeoutMs: normalizeRunnerStartupTimeoutMs(options.startupTimeoutMs),
       startupTimings,
       simulatorSetRedirect: simulatorSetRedirect ?? undefined,
     };
@@ -504,7 +506,7 @@ export async function executeRunnerCommandWithSession(
   if (preflightDecision.action === 'run') {
     const readinessTimeoutMs = session.ready
       ? Math.min(RUNNER_READY_PREFLIGHT_TIMEOUT_MS, deadline.remainingMs())
-      : Math.min(RUNNER_STARTUP_TIMEOUT_MS, deadline.remainingMs());
+      : Math.min(readRunnerStartupTimeoutMs(session), deadline.remainingMs());
     try {
       const readinessResponse = await withDiagnosticTimer(
         'ios_runner_readiness_preflight',
@@ -699,6 +701,16 @@ function markRunnerPreflightError(error: unknown, details: Record<string, unknow
     },
     appErr.cause ?? error,
   );
+}
+
+function readRunnerStartupTimeoutMs(session: Pick<RunnerSession, 'startupTimeoutMs'>): number {
+  return session.startupTimeoutMs ?? RUNNER_STARTUP_TIMEOUT_MS;
+}
+
+function normalizeRunnerStartupTimeoutMs(value: number | undefined): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.floor(value)
+    : undefined;
 }
 
 async function measureRunnerStartupStep<T>(

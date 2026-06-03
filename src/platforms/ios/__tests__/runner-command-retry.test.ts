@@ -350,6 +350,26 @@ test('read-only commands retry when completed status has no retained response', 
   });
 });
 
+test('read-only startup commands use the session startup timeout override', async () => {
+  const session = makeRunnerSession({
+    port: 8100,
+    ready: false,
+    startupTimeoutMs: 240_000,
+  });
+
+  mockEnsureRunnerSession.mockResolvedValue(session);
+  mockExecuteRunnerCommandWithSession.mockResolvedValue({ currentUptimeMs: 42 });
+
+  const result = await runIosRunnerCommand(
+    IOS_SIMULATOR,
+    { command: 'uptime' },
+    { startupTimeoutMs: 240_000 },
+  );
+
+  assert.deepEqual(result, { currentUptimeMs: 42 });
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[0]?.[4], 240_000);
+});
+
 test('read-only commands retry when status shows in-flight work', async () => {
   const session = makeRunnerSession({ port: 8100, ready: true });
 

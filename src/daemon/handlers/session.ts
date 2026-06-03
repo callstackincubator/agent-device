@@ -41,6 +41,7 @@ const INVENTORY_COMMANDS = DAEMON_COMMAND_GROUPS.inventory;
 const STATE_COMMANDS = DAEMON_COMMAND_GROUPS.state;
 const OBSERVABILITY_COMMANDS = DAEMON_COMMAND_GROUPS.observability;
 const REPLAY_COMMANDS = DAEMON_COMMAND_GROUPS.replay;
+const PREPARE_IOS_RUNNER_MIN_STARTUP_TIMEOUT_MS = 45_000;
 
 export const SESSION_COMMAND_HANDLERS = {
   ...Object.fromEntries([...INVENTORY_COMMANDS].map((command) => [command, true] as const)),
@@ -111,8 +112,16 @@ function buildPrepareIosRunnerOptions(
     logPath,
     traceLogPath: session?.trace?.outPath,
     cleanStaleBundles: true,
+    startupTimeoutMs: resolvePrepareIosRunnerStartupTimeoutMs(req.flags?.timeoutMs),
     requestId: req.meta?.requestId,
   };
+}
+
+function resolvePrepareIosRunnerStartupTimeoutMs(timeoutMs: unknown): number | undefined {
+  if (typeof timeoutMs !== 'number' || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return undefined;
+  }
+  return Math.max(PREPARE_IOS_RUNNER_MIN_STARTUP_TIMEOUT_MS, Math.floor(timeoutMs));
 }
 
 function prepareIosRunnerResponseData(

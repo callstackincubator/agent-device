@@ -135,7 +135,9 @@ async function executeRunnerCommand(
   let session: RunnerSession | undefined;
   try {
     session = await ensureRunnerSession(device, options);
-    const timeoutMs = session.ready ? RUNNER_COMMAND_TIMEOUT_MS : RUNNER_STARTUP_TIMEOUT_MS;
+    const timeoutMs = session.ready
+      ? RUNNER_COMMAND_TIMEOUT_MS
+      : readRunnerStartupTimeoutMs(session);
     return await executeRunnerCommandWithSession(
       device,
       session,
@@ -162,7 +164,7 @@ async function executeRunnerCommand(
           session,
           command,
           options.logPath,
-          RUNNER_STARTUP_TIMEOUT_MS,
+          readRunnerStartupTimeoutMs(session),
           signal,
         );
       } catch (retryErr) {
@@ -197,7 +199,7 @@ async function executeRunnerCommand(
           session,
           command,
           options.logPath,
-          RUNNER_STARTUP_TIMEOUT_MS,
+          readRunnerStartupTimeoutMs(session),
           signal,
         );
         emitDiagnostic({
@@ -246,6 +248,10 @@ async function executeRunnerCommand(
     }
     throw err;
   }
+}
+
+function readRunnerStartupTimeoutMs(session: Pick<RunnerSession, 'startupTimeoutMs'>): number {
+  return session.startupTimeoutMs ?? RUNNER_STARTUP_TIMEOUT_MS;
 }
 
 async function handleRunnerTransportErrorAfterCommandSend(

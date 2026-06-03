@@ -2138,6 +2138,7 @@ test('prepare ios-runner starts the XCTest runner on an explicit iOS selector', 
       cleanStaleBundles: true,
       logPath: expect.stringMatching(/daemon\.log$/),
       requestId: 'prepare-request',
+      startupTimeoutMs: 240000,
     }),
   );
   expect((response as any).data).toMatchObject({

@@ -7,6 +7,7 @@ export type AppleRunnerCommandOptions = {
   logPath?: string;
   traceLogPath?: string;
   cleanStaleBundles?: boolean;
+  startupTimeoutMs?: number;
   requestId?: string;
 };
 
