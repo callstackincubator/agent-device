@@ -182,7 +182,7 @@ test('snapshot request timeout preserves daemon metadata for follow-up evidence 
   assert.equal(shouldResetDaemonAfterRequestTimeout(undefined), true);
 });
 
-test('snapshot uses a shorter daemon request timeout with an explicit override', () => {
+test('snapshot uses the standard daemon request timeout with an explicit override', () => {
   const base = {
     session: 'default',
     positionals: [],
@@ -190,7 +190,7 @@ test('snapshot uses a shorter daemon request timeout with an explicit override',
     meta: {},
   };
 
-  assert.equal(resolveDaemonRequestTimeoutMs({ ...base, command: 'snapshot' }), 30_000);
+  assert.equal(resolveDaemonRequestTimeoutMs({ ...base, command: 'snapshot' }), 90_000);
   assert.equal(
     resolveDaemonRequestTimeoutMs({
       ...base,
