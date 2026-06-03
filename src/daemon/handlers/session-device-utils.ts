@@ -1,12 +1,10 @@
-import {
-  matchesPlatformSelector,
-  normalizePlatformSelector,
-  type DeviceInfo,
-} from '../../utils/device.ts';
+import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { resolveTargetDevice } from '../../core/dispatch.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
+import { hasExplicitDeviceSelector } from '../device-selector-intent.ts';
+import { listSessionSelectorConflicts } from '../session-selector.ts';
 import { errorResponse } from './response.ts';
 
 export const IOS_SIMULATOR_POST_CLOSE_SETTLE_MS = 300;
@@ -25,10 +23,6 @@ export function requireSessionOrExplicitSelector(
     'INVALID_ARGS',
     `${command} requires an active session or an explicit device selector (e.g. --platform ios).`,
   );
-}
-
-export function hasExplicitDeviceSelector(flags: DaemonRequest['flags'] | undefined): boolean {
-  return Boolean(flags?.platform || flags?.target || flags?.device || flags?.udid || flags?.serial);
 }
 
 export function hasExplicitSessionFlag(flags: DaemonRequest['flags'] | undefined): boolean {
@@ -115,16 +109,5 @@ export function selectorTargetsSessionDevice(
   session: SessionState | undefined,
 ): boolean {
   if (!session) return false;
-  if (!hasExplicitDeviceSelector(flags)) return true;
-  const normalizedPlatform = normalizePlatformSelector(flags?.platform);
-  if (normalizedPlatform && !matchesPlatformSelector(session.device.platform, normalizedPlatform)) {
-    return false;
-  }
-  if (flags?.target && flags.target !== (session.device.target ?? 'mobile')) return false;
-  if (flags?.udid && flags.udid !== session.device.id) return false;
-  if (flags?.serial && flags.serial !== session.device.id) return false;
-  if (flags?.device) {
-    return flags.device.trim().toLowerCase() === session.device.name.trim().toLowerCase();
-  }
-  return true;
+  return listSessionSelectorConflicts(session, flags).length === 0;
 }

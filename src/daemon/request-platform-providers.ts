@@ -11,7 +11,7 @@ import type {
 import type { LinuxToolProvider } from '../platforms/linux/tool-provider.ts';
 import { isApplePlatform, type DeviceInfo } from '../utils/device.ts';
 import type { AppLogProvider } from './app-log.ts';
-import { hasExplicitDeviceSelector } from './handlers/session-device-utils.ts';
+import { hasExplicitDeviceSelector } from './device-selector-intent.ts';
 import type { RecordingProvider } from './recording-provider.ts';
 import type { DaemonRequest, SessionState } from './types.ts';
 import { PUBLIC_COMMANDS } from '../command-catalog.ts';

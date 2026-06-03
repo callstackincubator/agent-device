@@ -32,24 +32,25 @@ const ANDROID_SESSION: SessionState = {
   },
 };
 
-test('rejects fresh-session selector conflicts under request lock policy', () => {
-  assert.throws(
-    () =>
-      applyRequestLockPolicy({
-        token: 'token',
-        session: 'qa-ios',
-        command: 'snapshot',
-        positionals: [],
-        flags: {
-          device: 'Pixel 9',
-        },
-        meta: {
-          lockPolicy: 'reject',
-          lockPlatform: 'ios',
-        },
-      }),
-    /--device=Pixel 9/i,
-  );
+test('allows compatible fresh-session selectors under request lock policy', () => {
+  const req = applyRequestLockPolicy({
+    token: 'token',
+    session: 'qa-ios',
+    command: 'snapshot',
+    positionals: [],
+    flags: {
+      device: 'iPhone 16',
+      udid: 'SIM-001',
+    },
+    meta: {
+      lockPolicy: 'reject',
+      lockPlatform: 'ios',
+    },
+  });
+
+  assert.equal(req.flags?.platform, 'ios');
+  assert.equal(req.flags?.device, 'iPhone 16');
+  assert.equal(req.flags?.udid, 'SIM-001');
 });
 
 test('allows open to choose a fresh-session target under request lock policy', () => {
@@ -74,7 +75,7 @@ test('allows open to choose a fresh-session target under request lock policy', (
   assert.equal(req.flags?.udid, 'SIM-001');
 });
 
-test('strips fresh-session selector conflicts and restores lock platform', () => {
+test('strips only fresh-session selector conflicts and restores lock platform', () => {
   const req = applyRequestLockPolicy({
     token: 'token',
     session: 'qa-ios',
@@ -92,8 +93,30 @@ test('strips fresh-session selector conflicts and restores lock platform', () =>
   });
 
   assert.equal(req.flags?.platform, 'ios');
-  assert.equal(req.flags?.target, undefined);
+  assert.equal(req.flags?.target, 'tv');
   assert.equal(req.flags?.serial, undefined);
+});
+
+test('strips iOS selectors while preserving compatible macOS platform under Apple lock', () => {
+  const req = applyRequestLockPolicy({
+    token: 'token',
+    session: 'qa-macos',
+    command: 'snapshot',
+    positionals: [],
+    flags: {
+      platform: 'macos',
+      udid: 'SIM-001',
+      iosSimulatorDeviceSet: '/tmp/tenant-a/set',
+    },
+    meta: {
+      lockPolicy: 'strip',
+      lockPlatform: 'apple',
+    },
+  });
+
+  assert.equal(req.flags?.platform, 'macos');
+  assert.equal(req.flags?.udid, undefined);
+  assert.equal(req.flags?.iosSimulatorDeviceSet, undefined);
 });
 
 test('rejects existing-session selector conflicts under request lock policy', () => {

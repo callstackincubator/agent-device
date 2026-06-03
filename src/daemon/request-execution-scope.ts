@@ -5,15 +5,18 @@ import { applyCommandDefaults } from '../utils/command-schema.ts';
 import type { DaemonCommandContext } from './context.ts';
 import { contextFromFlags as contextFromFlagsWithLog } from './context.ts';
 import { assertSessionSelectorMatches } from './session-selector.ts';
-import { applyRequestLockPolicy } from './request-lock-policy.ts';
 import { resolveEffectiveSessionName } from './session-routing.ts';
 import {
   assertRequestLeaseAdmission,
-  resolveExecutionLockKey,
   scopeRequestSession,
   shouldLockSessionExecution,
   shouldValidateSessionSelector,
 } from './request-admission.ts';
+import {
+  prepareLockedRequestBinding,
+  resolveRequestExecutionLockKeys,
+  type RequestExecutionLockKey,
+} from './request-binding.ts';
 import { throwIfRequestCanceled } from './request-cancel.ts';
 import { finalizeDaemonResponse } from './request-finalization.ts';
 import {
@@ -79,9 +82,9 @@ export async function createRequestExecutionScope(params: {
   assertRequestLeaseAdmission(scopedReq, leaseRegistry);
 
   const sessionName = resolveEffectiveSessionName(scopedReq, sessionStore);
-  const executionLockKey = shouldLockSessionExecution(command)
-    ? await resolveExecutionLockKey({ req: scopedReq, sessionName, sessionStore })
-    : null;
+  const executionLockKeys = shouldLockSessionExecution(command)
+    ? await resolveRequestExecutionLockKeys({ req: scopedReq, sessionName, sessionStore })
+    : [];
   const executionLocks = getLeaseRegistryExecutionLocks(leaseRegistry);
 
   const scope: RequestExecutionScope = {
@@ -91,14 +94,28 @@ export async function createRequestExecutionScope(params: {
     throwIfCanceled: () => throwIfRequestCanceled(scopedReq.meta?.requestId),
     runLocked: async (task) => {
       throwIfRequestCanceled(scopedReq.meta?.requestId);
-      if (!executionLockKey) return await task();
-      return await withKeyedLock(executionLocks, executionLockKey, async () => {
+      if (executionLockKeys.length === 0) return await task();
+      return await withRequestExecutionLocks(executionLocks, executionLockKeys, async () => {
         throwIfRequestCanceled(scopedReq.meta?.requestId);
         return await task();
       });
     },
   };
   return scope;
+}
+
+async function withRequestExecutionLocks<T>(
+  locks: Map<string, Promise<unknown>>,
+  keys: RequestExecutionLockKey[],
+  task: () => Promise<T>,
+): Promise<T> {
+  const [key, ...remainingKeys] = keys;
+  if (!key) return await task();
+  return await withKeyedLock(
+    locks,
+    key,
+    async () => await withRequestExecutionLocks(locks, remainingKeys, task),
+  );
 }
 
 function applyRequestCommandDefaults(req: DaemonRequest): DaemonRequest {
@@ -124,13 +141,19 @@ export function prepareLockedRequestScope(params: {
 }): LockedRequestScopeResult {
   const { scope, logPath, sessionStore, trackDownloadableArtifact } = params;
   scope.throwIfCanceled();
-  const existingSession = sessionStore.get(scope.sessionName);
+  let existingSession = sessionStore.get(scope.sessionName);
   if (existingSession) {
     // Called under runLocked: refreshRecordingHealth may mutate session recording state.
     refreshRecordingHealth(existingSession);
     sessionStore.set(scope.sessionName, existingSession);
   }
-  const lockedReq = applyRequestLockPolicy(scope.req, existingSession);
+  const binding = prepareLockedRequestBinding({
+    req: scope.req,
+    sessionName: scope.sessionName,
+    sessionStore,
+  });
+  const lockedReq = binding.req;
+  existingSession = binding.existingSession;
   const finalize = (response: DaemonResponse): DaemonResponse =>
     finalizeDaemonResponse(lockedReq, response, trackDownloadableArtifact);
 

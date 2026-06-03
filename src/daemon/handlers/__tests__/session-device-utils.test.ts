@@ -1,7 +1,10 @@
 import { test, expect } from 'vitest';
 import type { SessionState } from '../../types.ts';
 
-import { refreshSessionDeviceIfNeeded } from '../session-device-utils.ts';
+import {
+  refreshSessionDeviceIfNeeded,
+  selectorTargetsSessionDevice,
+} from '../session-device-utils.ts';
 
 const iosSimulatorSession: SessionState = {
   name: 'ios-sim',
@@ -32,4 +35,21 @@ test('refreshSessionDeviceIfNeeded keeps iOS simulator session device on non-mac
   );
 
   expect(device).toBe(iosSimulatorSession.device);
+});
+
+test('selectorTargetsSessionDevice uses session selector conflicts for simulator set selectors', () => {
+  const session: SessionState = {
+    ...iosSimulatorSession,
+    device: {
+      ...iosSimulatorSession.device,
+      simulatorSetPath: '/tmp/session-set',
+    },
+  };
+
+  expect(selectorTargetsSessionDevice({ iosSimulatorDeviceSet: '/tmp/session-set' }, session)).toBe(
+    true,
+  );
+  expect(selectorTargetsSessionDevice({ iosSimulatorDeviceSet: '/tmp/other-set' }, session)).toBe(
+    false,
+  );
 });

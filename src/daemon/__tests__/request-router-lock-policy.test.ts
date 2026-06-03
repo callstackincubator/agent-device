@@ -7,6 +7,13 @@ vi.mock('../../core/dispatch.ts', async (importOriginal) => {
   return { ...actual, dispatchCommand: vi.fn(async () => ({})) };
 });
 
+vi.mock('../../platforms/ios/runner-client.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../platforms/ios/runner-client.ts')>();
+  return { ...actual, stopIosRunnerSession: vi.fn(async () => {}) };
+});
+
+vi.mock('../device-ready.ts', () => ({ ensureDeviceReady: vi.fn(async () => {}) }));
+
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { createRequestHandler } from '../request-router.ts';
 import type { SessionState } from '../types.ts';
@@ -34,8 +41,41 @@ function makeIosSession(name: string): SessionState {
 
 beforeEach(() => {
   mockDispatch.mockReset();
-  mockDispatch.mockResolvedValue({});
+  mockDispatch.mockResolvedValue({ nodes: [] });
 });
+
+function installGatedDispatch(): {
+  order: string[];
+  getMaxActive: () => number;
+  releaseNext: () => void;
+} {
+  const order: string[] = [];
+  const gates: Array<() => void> = [];
+  let active = 0;
+  let maxActive = 0;
+
+  mockDispatch.mockImplementation(async (device, command) => {
+    order.push(`start-${command}-${device.id}`);
+    active += 1;
+    maxActive = Math.max(maxActive, active);
+    await new Promise<void>((resolve) => {
+      gates.push(() => {
+        active -= 1;
+        order.push(`end-${command}-${device.id}`);
+        resolve();
+      });
+    });
+    return { nodes: [] };
+  });
+
+  return {
+    order,
+    getMaxActive: () => maxActive,
+    releaseNext: () => {
+      gates.shift()?.();
+    },
+  };
+}
 
 test('direct daemon requests cannot bypass reject lock policy for existing sessions', async () => {
   const sessionStore = makeSessionStore('agent-device-router-lock-');
@@ -69,6 +109,290 @@ test('direct daemon requests cannot bypass reject lock policy for existing sessi
     expect(response.error.message).toMatch(/--udid=SIM-999/i);
     expect(response.error.hint).toMatch(/agent-device session list/i);
     expect(response.error.hint).toMatch(/agent-device close --session qa-ios/i);
+  }
+});
+
+test('fresh named sessions with matching explicit udid bind and serialize on the selected device', async () => {
+  const sessionStore = makeSessionStore('agent-device-router-lock-');
+  const dispatchGate = installGatedDispatch();
+
+  const handler = createRequestHandler({
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    token: 'test-token',
+    sessionStore,
+    leaseRegistry: new LeaseRegistry(),
+    deviceInventoryProvider: async () => [makeIosSession('inventory').device],
+    trackDownloadableArtifact: () => 'artifact-id',
+  });
+
+  const first = handler({
+    token: 'test-token',
+    session: 'qa-ios-a',
+    command: 'snapshot',
+    positionals: [],
+    flags: {
+      udid: 'SIM-001',
+    },
+    meta: {
+      requestId: 'req-fresh-lock-a',
+      lockPolicy: 'reject',
+      lockPlatform: 'ios',
+    },
+  });
+
+  await vi.waitFor(() => {
+    expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001']);
+  });
+
+  const second = handler({
+    token: 'test-token',
+    session: 'qa-ios-b',
+    command: 'snapshot',
+    positionals: [],
+    flags: {
+      udid: 'SIM-001',
+    },
+    meta: {
+      requestId: 'req-fresh-lock-b',
+      lockPolicy: 'reject',
+      lockPlatform: 'ios',
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001']);
+
+  dispatchGate.releaseNext();
+
+  await vi.waitFor(() => {
+    expect(dispatchGate.order).toEqual([
+      'start-snapshot-SIM-001',
+      'end-snapshot-SIM-001',
+      'start-snapshot-SIM-001',
+    ]);
+  });
+
+  dispatchGate.releaseNext();
+
+  const [firstResponse, secondResponse] = await Promise.all([first, second]);
+
+  expect(firstResponse.ok).toBe(true);
+  expect(secondResponse.ok).toBe(true);
+  expect(dispatchGate.getMaxActive()).toBe(1);
+  expect(sessionStore.get('qa-ios-a')?.device.id).toBe('SIM-001');
+  expect(sessionStore.get('qa-ios-b')?.device.id).toBe('SIM-001');
+});
+
+test('fresh named sessions with the same name serialize first binding before rejecting another device', async () => {
+  const sessionStore = makeSessionStore('agent-device-router-lock-');
+  const firstDevice = makeIosSession('inventory').device;
+  const secondDevice: SessionState['device'] = {
+    ...firstDevice,
+    id: 'SIM-002',
+    name: 'iPhone 17',
+  };
+  const dispatchGate = installGatedDispatch();
+
+  const handler = createRequestHandler({
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    token: 'test-token',
+    sessionStore,
+    leaseRegistry: new LeaseRegistry(),
+    deviceInventoryProvider: async () => [firstDevice, secondDevice],
+    trackDownloadableArtifact: () => 'artifact-id',
+  });
+
+  const first = handler({
+    token: 'test-token',
+    session: 'qa-ios',
+    command: 'snapshot',
+    positionals: [],
+    flags: {
+      udid: 'SIM-001',
+    },
+    meta: {
+      requestId: 'req-fresh-same-session-a',
+      lockPolicy: 'reject',
+      lockPlatform: 'ios',
+    },
+  });
+
+  await vi.waitFor(() => {
+    expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001']);
+  });
+
+  const second = handler({
+    token: 'test-token',
+    session: 'qa-ios',
+    command: 'snapshot',
+    positionals: [],
+    flags: {
+      udid: 'SIM-002',
+    },
+    meta: {
+      requestId: 'req-fresh-same-session-b',
+      lockPolicy: 'reject',
+      lockPlatform: 'ios',
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001']);
+
+  dispatchGate.releaseNext();
+
+  const [firstResponse, secondResponse] = await Promise.all([first, second]);
+
+  expect(firstResponse.ok).toBe(true);
+  expect(secondResponse.ok).toBe(false);
+  if (!secondResponse.ok) {
+    expect(secondResponse.error.code).toBe('INVALID_ARGS');
+    expect(secondResponse.error.message).toMatch(/--udid=SIM-002/i);
+  }
+  expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001', 'end-snapshot-SIM-001']);
+  expect(dispatchGate.getMaxActive()).toBe(1);
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
+  expect(sessionStore.get('qa-ios')?.device.id).toBe('SIM-001');
+});
+
+test('fresh named sessions with only lock platform default serialize on the selected device', async () => {
+  const sessionStore = makeSessionStore('agent-device-router-lock-');
+  const dispatchGate = installGatedDispatch();
+
+  const handler = createRequestHandler({
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    token: 'test-token',
+    sessionStore,
+    leaseRegistry: new LeaseRegistry(),
+    deviceInventoryProvider: async () => [makeIosSession('inventory').device],
+    trackDownloadableArtifact: () => 'artifact-id',
+  });
+
+  const first = handler({
+    token: 'test-token',
+    session: 'qa-default-a',
+    command: 'snapshot',
+    positionals: [],
+    flags: {},
+    meta: {
+      requestId: 'req-fresh-default-lock-a',
+      lockPolicy: 'reject',
+      lockPlatform: 'ios',
+    },
+  });
+
+  await vi.waitFor(() => {
+    expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001']);
+  });
+
+  const second = handler({
+    token: 'test-token',
+    session: 'qa-default-b',
+    command: 'snapshot',
+    positionals: [],
+    flags: {},
+    meta: {
+      requestId: 'req-fresh-default-lock-b',
+      lockPolicy: 'reject',
+      lockPlatform: 'ios',
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001']);
+
+  dispatchGate.releaseNext();
+
+  await vi.waitFor(() => {
+    expect(dispatchGate.order).toEqual([
+      'start-snapshot-SIM-001',
+      'end-snapshot-SIM-001',
+      'start-snapshot-SIM-001',
+    ]);
+  });
+
+  dispatchGate.releaseNext();
+
+  const [firstResponse, secondResponse] = await Promise.all([first, second]);
+
+  expect(firstResponse.ok).toBe(true);
+  expect(secondResponse.ok).toBe(true);
+  expect(dispatchGate.getMaxActive()).toBe(1);
+  expect(sessionStore.get('qa-default-a')?.device.id).toBe('SIM-001');
+  expect(sessionStore.get('qa-default-b')?.device.id).toBe('SIM-001');
+});
+
+test('fresh named sessions reject incompatible selector combinations before binding', async () => {
+  const cases = [
+    {
+      name: 'ios-serial',
+      flags: { serial: 'emulator-5554' },
+      meta: { lockPolicy: 'reject', lockPlatform: 'ios' },
+      conflict: /--serial=emulator-5554/i,
+    },
+    {
+      name: 'ios-android-platform',
+      flags: { platform: 'android', udid: 'SIM-001' },
+      meta: { lockPolicy: 'reject', lockPlatform: 'ios' },
+      conflict: /--platform=android/i,
+    },
+    {
+      name: 'ios-desktop-target',
+      flags: { target: 'desktop' },
+      meta: { lockPolicy: 'reject', lockPlatform: 'ios' },
+      conflict: /--target=desktop/i,
+    },
+    {
+      name: 'macos-udid',
+      flags: { udid: 'SIM-001', iosSimulatorDeviceSet: '/tmp/tenant-a/set' },
+      meta: { lockPolicy: 'reject', lockPlatform: 'macos' },
+      conflict: /--udid=SIM-001/i,
+    },
+    {
+      name: 'apple-macos-udid',
+      flags: { platform: 'macos', udid: 'SIM-001' },
+      meta: { lockPolicy: 'reject', lockPlatform: 'apple' },
+      conflict: /--udid=SIM-001/i,
+    },
+    {
+      name: 'apple-macos-simulator-set',
+      flags: { platform: 'macos', iosSimulatorDeviceSet: '/tmp/tenant-a/set' },
+      meta: { lockPolicy: 'reject', lockPlatform: 'apple' },
+      conflict: /--ios-simulator-device-set=\/tmp\/tenant-a\/set/i,
+    },
+  ] as const;
+
+  for (const testCase of cases) {
+    const sessionStore = makeSessionStore('agent-device-router-lock-');
+    const handler = createRequestHandler({
+      logPath: path.join(os.tmpdir(), 'daemon.log'),
+      token: 'test-token',
+      sessionStore,
+      leaseRegistry: new LeaseRegistry(),
+      deviceInventoryProvider: async () => [makeIosSession('inventory').device],
+      trackDownloadableArtifact: () => 'artifact-id',
+    });
+
+    const response = await handler({
+      token: 'test-token',
+      session: testCase.name,
+      command: 'snapshot',
+      positionals: [],
+      flags: testCase.flags,
+      meta: {
+        requestId: `req-${testCase.name}`,
+        ...testCase.meta,
+      },
+    });
+
+    expect(response.ok).toBe(false);
+    if (!response.ok) {
+      expect(response.error.code).toBe('INVALID_ARGS');
+      expect(response.error.message).toMatch(testCase.conflict);
+    }
+    expect(mockDispatch).not.toHaveBeenCalled();
+    expect(sessionStore.get(testCase.name)).toBeUndefined();
+    mockDispatch.mockClear();
   }
 });
 

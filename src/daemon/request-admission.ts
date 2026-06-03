@@ -1,11 +1,8 @@
 import { DAEMON_COMMAND_GROUPS } from '../command-catalog.ts';
-import { resolveTargetDevice } from '../core/dispatch-resolve.ts';
 import { AppError } from '../utils/errors.ts';
 import { normalizeTenantId, resolveSessionIsolationMode } from './config.ts';
-import { hasExplicitDeviceSelector } from './handlers/session-device-utils.ts';
 import { resolveLeaseScope } from './lease-context.ts';
 import type { LeaseRegistry } from './lease-registry.ts';
-import { SessionStore } from './session-store.ts';
 import type { DaemonRequest } from './types.ts';
 
 const selectorValidationExemptCommands = DAEMON_COMMAND_GROUPS.selectorValidationExempt;
@@ -78,25 +75,4 @@ export function shouldValidateSessionSelector(command: string): boolean {
 
 export function shouldLockSessionExecution(command: string): boolean {
   return !sessionExecutionExemptCommands.has(command);
-}
-
-export async function resolveExecutionLockKey(params: {
-  req: DaemonRequest;
-  sessionName: string;
-  sessionStore: SessionStore;
-}): Promise<string> {
-  const { req, sessionName, sessionStore } = params;
-  const existingSession = sessionStore.get(sessionName);
-  if (existingSession) {
-    return `device:${existingSession.device.id}`;
-  }
-  if (req.command === 'open' || hasExplicitDeviceSelector(req.flags)) {
-    try {
-      const device = await resolveTargetDevice(req.flags ?? {});
-      return `device:${device.id}`;
-    } catch {
-      // Fall back to session scoping when device resolution is not yet available.
-    }
-  }
-  return `session:${sessionName}`;
 }

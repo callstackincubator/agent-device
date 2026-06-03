@@ -11,17 +11,10 @@ import {
 import { isApplePlatform, normalizePlatformSelector } from '../utils/device.ts';
 import { buildSessionRecoveryHint, describeSessionDevice } from './session-recovery-hints.ts';
 import { shellQuoteIfNeeded } from '../utils/shell-quote.ts';
+import { hasLockableDeviceSelector, hasSelectorValue } from './device-selector-intent.ts';
 
 type LockPlatform = NonNullable<DaemonRequest['meta']>['lockPlatform'];
-
-const LOCKABLE_SELECTOR_KEYS: Array<keyof CommandFlags> = [
-  'target',
-  'device',
-  'udid',
-  'serial',
-  'iosSimulatorDeviceSet',
-  'androidDeviceAllowlist',
-];
+type NormalizedLockPlatform = NonNullable<ReturnType<typeof normalizePlatformSelector>>;
 
 const SELECTOR_OVERRIDE_LOCK_POLICY_COMMANDS: ReadonlySet<string> = new Set([
   PUBLIC_COMMANDS.apps,
@@ -43,7 +36,7 @@ export function applyRequestLockPolicy(
     ? []
     : existingSession
       ? listSessionSelectorConflicts(existingSession, nextFlags)
-      : listFreshSessionConflicts(nextFlags, req.meta?.lockPlatform, req.command);
+      : listFreshSessionConflicts(nextFlags, req.meta?.lockPlatform);
   const lockPlatform = req.meta?.lockPlatform;
 
   if (conflicts.length === 0) {
@@ -125,7 +118,7 @@ function shouldApplyLockPlatformDefault(
   if (!canOverrideSelector) {
     return true;
   }
-  return !LOCKABLE_SELECTOR_KEYS.some((key) => hasSelectorValue(flags[key]));
+  return !hasLockableDeviceSelector(flags);
 }
 
 function applyStripLockPolicy(
@@ -139,14 +132,19 @@ function applyStripLockPolicy(
     flags.platform = existingSession.device.platform;
     return;
   }
-  stripFreshSessionConflicts(flags, lockPlatform);
+  stripSessionConflicts(flags, conflicts);
+  if (lockPlatform && flags.platform === undefined) {
+    flags.platform = lockPlatform;
+  }
 }
 
 function listFreshSessionConflicts(
   flags: CommandFlags,
   lockPlatform: LockPlatform,
-  command: DaemonRequest['command'],
 ): SessionSelectorConflict[] {
+  // Fresh sessions are not device-bound yet. Reject only selectors that cannot
+  // participate in the first binding for the locked platform; concrete device
+  // existence and identity remain the target resolver's job.
   const conflicts: SessionSelectorConflict[] = [];
   const normalizedLockPlatform = normalizePlatformSelector(lockPlatform);
   if (
@@ -156,20 +154,12 @@ function listFreshSessionConflicts(
   ) {
     conflicts.push({ key: 'platform', value: flags.platform });
   }
-  if (command === 'open') {
+  if (!normalizedLockPlatform) {
     return conflicts;
   }
-  for (const key of LOCKABLE_SELECTOR_KEYS) {
-    const value = flags[key];
-    if (hasSelectorValue(value)) {
-      conflicts.push({ key: key as SessionSelectorConflictKey, value });
-    }
-  }
+  appendFreshSessionTargetConflict(conflicts, flags, normalizedLockPlatform);
+  appendFreshSessionDeviceSelectorConflicts(conflicts, flags, normalizedLockPlatform);
   return conflicts;
-}
-
-function hasSelectorValue(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function platformSelectorsConflict(
@@ -183,17 +173,81 @@ function platformSelectorsConflict(
   return true;
 }
 
-function stripFreshSessionConflicts(flags: CommandFlags, lockPlatform: LockPlatform): void {
-  for (const key of LOCKABLE_SELECTOR_KEYS) {
-    delete flags[key];
+function appendFreshSessionTargetConflict(
+  conflicts: SessionSelectorConflict[],
+  flags: CommandFlags,
+  lockPlatform: NormalizedLockPlatform,
+): void {
+  const target = flags.target;
+  if (!target) return;
+  if (targetSelectorsConflict(target, lockPlatform)) {
+    conflicts.push({ key: 'target', value: target });
   }
-  if (lockPlatform) {
-    flags.platform = lockPlatform;
+}
+
+function targetSelectorsConflict(
+  target: NonNullable<CommandFlags['target']>,
+  lockPlatform: NormalizedLockPlatform,
+): boolean {
+  switch (lockPlatform) {
+    case 'android':
+    case 'ios':
+      return target === 'desktop';
+    case 'macos':
+    case 'linux':
+      return target !== 'desktop';
+    case 'apple':
+      return false;
+    default:
+      return assertNever(lockPlatform);
   }
+}
+
+function appendFreshSessionDeviceSelectorConflicts(
+  conflicts: SessionSelectorConflict[],
+  flags: CommandFlags,
+  lockPlatform: NormalizedLockPlatform,
+): void {
+  for (const key of freshSessionSelectorKeysForPlatform(lockPlatform, flags)) {
+    const value = flags[key];
+    if (hasSelectorValue(value)) {
+      conflicts.push({ key, value });
+    }
+  }
+}
+
+function freshSessionSelectorKeysForPlatform(
+  lockPlatform: NormalizedLockPlatform,
+  flags: CommandFlags,
+): SessionSelectorConflictKey[] {
+  switch (lockPlatform) {
+    case 'android':
+      return ['udid', 'iosSimulatorDeviceSet'];
+    case 'ios':
+      return ['serial', 'androidDeviceAllowlist'];
+    case 'apple':
+      return isAppleDesktopSelector(flags)
+        ? ['udid', 'serial', 'androidDeviceAllowlist', 'iosSimulatorDeviceSet']
+        : ['serial', 'androidDeviceAllowlist'];
+    case 'macos':
+      return ['udid', 'serial', 'iosSimulatorDeviceSet', 'androidDeviceAllowlist'];
+    case 'linux':
+      return ['udid', 'serial', 'iosSimulatorDeviceSet', 'androidDeviceAllowlist'];
+    default:
+      return assertNever(lockPlatform);
+  }
+}
+
+function isAppleDesktopSelector(flags: CommandFlags): boolean {
+  return flags.target === 'desktop' || normalizePlatformSelector(flags.platform) === 'macos';
 }
 
 function stripSessionConflicts(flags: CommandFlags, conflicts: SessionSelectorConflict[]): void {
   for (const conflict of conflicts) {
     delete flags[conflict.key];
   }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unhandled lock platform: ${String(value)}`);
 }
