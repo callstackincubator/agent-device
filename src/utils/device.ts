@@ -1,7 +1,7 @@
 import { AppError } from './errors.ts';
 
 export type ApplePlatform = 'ios' | 'macos';
-export type Platform = ApplePlatform | 'android' | 'linux';
+export type Platform = ApplePlatform | 'android' | 'harmonyos' | 'linux';
 export type PlatformSelector = Platform | 'apple';
 export type DeviceKind = 'simulator' | 'emulator' | 'device';
 export type DeviceTarget = 'mobile' | 'tv' | 'desktop';
@@ -101,9 +101,14 @@ export async function resolveDevice(
   }
 
   if (selector.serial) {
-    const match = candidates.find((d) => d.id === selector.serial && d.platform === 'android');
+    const match = candidates.find(
+      (d) => d.id === selector.serial && (d.platform === 'android' || d.platform === 'harmonyos'),
+    );
     if (!match)
-      throw new AppError('DEVICE_NOT_FOUND', `No Android device with serial ${selector.serial}`);
+      throw new AppError(
+        'DEVICE_NOT_FOUND',
+        `No Android or HarmonyOS device with serial ${selector.serial}`,
+      );
     return match;
   }
 

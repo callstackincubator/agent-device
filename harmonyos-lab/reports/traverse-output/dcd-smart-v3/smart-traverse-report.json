@@ -1,0 +1,3657 @@
+{
+  "targetBundle": "com.ss.dcar.auto",
+  "deviceId": "22M0223824043030",
+  "outputDir": "./traverse-output/dcd-smart-v3",
+  "maxDepth": 2,
+  "aborted": false,
+  "screensVisited": 13,
+  "totalClicks": 90,
+  "newScreensFromClicks": 57,
+  "skippedClicks": 5,
+  "results": [
+    {
+      "screenId": "s1_d0",
+      "depth": 0,
+      "parentAction": null,
+      "fingerprint": {
+        "nodes": 613,
+        "labels": "2026年4月销量汽车排行榜|2026年度|2026省补申请入口|:|AI小懂|AI小懂|SUV|以旧换新|关注|北京|北京|十万买啥车|原创|原创|发现|商城|官方直营|导购|底价专区|排行榜|推荐|推荐|搜索|搜索|搜索|摩托车|新车|新车|未登录|横穿北美|海量车源|消息|热点|特惠充电|独家|用车|用车|神券省1500|赛事|选车|零跑D99将于5月29日亮相|首页|高价收车||||||||||||||",
+        "key": "613:2026年4月销量汽车排行榜|2026年度|2026省补申请入口|:|AI小懂|AI小懂|SUV|以旧换新|关注|北京|北京|十万买啥车|原创|原创|发现|商城|官方直营|导购|底价专区|排行榜|推荐|推荐|搜索|搜索|搜索|摩托车|新车|新车|未登录|横穿北美|海量车源|消息|热点|特惠充电|独家|用车|用车|神券省1500|赛事|选车|零跑D99将于5月29日亮相|首页|高价收车||||"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 613,
+          "treeDepth": 62,
+          "complexity": "complex"
+        },
+        "suggestions": [
+          "界面复杂度高，建议优先测试关键路径",
+          "存在导航结构，建议按导航层级遍历",
+          "交互元素多，建议分类测试（按钮、输入框、链接等）"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": true,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based",
+          "tab-based",
+          "vertical-scroll",
+          "horizontal-layout",
+          "list-view"
+        ]
+      },
+      "plan": [
+        {
+          "category": "bottom-tab",
+          "label": "AI小懂",
+          "type": "Column",
+          "x": 1112,
+          "y": 2315,
+          "bounds": "[1037,2218][1187,2412]"
+        },
+        {
+          "category": "button",
+          "label": "搜索",
+          "type": "Button",
+          "x": 2103,
+          "y": 338,
+          "bounds": "[2021,288][2184,388]"
+        },
+        {
+          "category": "button",
+          "label": "搜索",
+          "type": "Button",
+          "x": 2060,
+          "y": 892,
+          "bounds": "[1978,842][2141,942]"
+        },
+        {
+          "category": "content-card",
+          "label": "",
+          "type": "Column",
+          "x": 383,
+          "y": 1934,
+          "bounds": "[25,1576][741,2291]"
+        },
+        {
+          "category": "content-card",
+          "label": "",
+          "type": "Column",
+          "x": 1112,
+          "y": 1934,
+          "bounds": "[754,1576][1470,2291]"
+        },
+        {
+          "category": "content-card",
+          "label": "",
+          "type": "Column",
+          "x": 1841,
+          "y": 1934,
+          "bounds": "[1483,1576][2199,2291]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Text",
+          "x": 2159,
+          "y": 181,
+          "bounds": "[2118,118][2199,243]"
+        },
+        {
+          "category": "content",
+          "label": "发现",
+          "type": "Column",
+          "x": 114,
+          "y": 188,
+          "bounds": "[56,125][172,250]"
+        },
+        {
+          "category": "content",
+          "label": "商城",
+          "type": "Column",
+          "x": 305,
+          "y": 188,
+          "bounds": "[247,125][363,250]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Column",
+          "x": 548,
+          "y": 188,
+          "bounds": "[412,125][684,250]"
+        },
+        {
+          "category": "content",
+          "label": "横穿北美",
+          "type": "Column",
+          "x": 848,
+          "y": 188,
+          "bounds": "[734,125][962,250]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 91,
+          "y": 338,
+          "bounds": "[28,278][153,397]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[bottom-tab] press 1112 2315 (AI小懂)",
+          "pressOk": true,
+          "beforeNodes": 613,
+          "afterNodes": 278,
+          "nodeDelta": 335,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s1_d0_after_0.json"
+        },
+        {
+          "action": "[button] press 2103 338 (搜索)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 618,
+          "nodeDelta": 0,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s1_d0_after_1.json"
+        },
+        {
+          "action": "[button] press 2060 892 (搜索)",
+          "pressOk": true,
+          "beforeNodes": 619,
+          "afterNodes": 142,
+          "nodeDelta": 477,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s1_d0_after_2.json"
+        },
+        {
+          "action": "[content-card] press 383 1934 (Column@383,1934)",
+          "pressOk": true,
+          "beforeNodes": 209,
+          "afterNodes": 275,
+          "nodeDelta": 66,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s1_d0_after_3.json"
+        },
+        {
+          "action": "[content-card] press 1112 1934 (Column@1112,1934)",
+          "pressOk": true,
+          "beforeNodes": 413,
+          "afterNodes": 414,
+          "nodeDelta": 1,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s1_d0_after_4.json"
+        },
+        {
+          "action": "[content-card] press 1841 1934 (Column@1841,1934)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 78,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s1_d0_after_5.json"
+        },
+        {
+          "action": "[content] press 2159 181 ()",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 78,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s1_d0_after_6.json"
+        },
+        {
+          "action": "[content] press 114 188 (发现)",
+          "pressOk": true,
+          "systemOverlayHandled": true,
+          "isNewScreen": false
+        },
+        {
+          "action": "[content] press 305 188 (商城)",
+          "skipped": true,
+          "reason": "wrong_app"
+        }
+      ]
+    },
+    {
+      "screenId": "s2_d1",
+      "depth": 1,
+      "parentAction": "[bottom-tab] press 1112 2315 (AI小懂)",
+      "fingerprint": {
+        "nodes": 278,
+        "labels": ":",
+        "key": "278::"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 278,
+          "treeDepth": 41,
+          "complexity": "medium"
+        },
+        "suggestions": [
+          "界面复杂度高，建议优先测试关键路径",
+          "存在导航结构，建议按导航层级遍历"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": false,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based"
+        ]
+      },
+      "plan": [
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 1112,
+          "y": 1305,
+          "bounds": "[0,113][2224,2496]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 1112,
+          "y": 1305,
+          "bounds": "[0,113][2224,2496]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[content] press 1112 1305 (Stack@1112,1305)",
+          "pressOk": true,
+          "beforeNodes": 278,
+          "afterNodes": 277,
+          "nodeDelta": 1,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s2_d1_after_0.json"
+        },
+        {
+          "action": "[content] press 1112 1305 (Stack@1112,1305)",
+          "pressOk": true,
+          "beforeNodes": 278,
+          "afterNodes": 277,
+          "nodeDelta": 1,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s2_d1_after_1.json"
+        }
+      ]
+    },
+    {
+      "screenId": "s3_d1",
+      "depth": 1,
+      "parentAction": "[button] press 2103 338 (搜索)",
+      "fingerprint": {
+        "nodes": 618,
+        "labels": "10万以内纯电小车推荐|2026年度|2026省补申请入口|2026省补申请入口|:|AI小懂|AI小懂|SUV|以旧换新|关注|北京|北京|十万买啥车|原创|原创|发现|商城|官方直营|导购|底价专区|排行榜|推荐|推荐|搜索|搜索|搜索|摩托车|新车|新车|未登录|横穿北美|海量车源|消息|热点|特惠充电|独家|用车|用车|神券省1500|赛事|选车|首页|高价收车||||||||||||||",
+        "key": "618:10万以内纯电小车推荐|2026年度|2026省补申请入口|2026省补申请入口|:|AI小懂|AI小懂|SUV|以旧换新|关注|北京|北京|十万买啥车|原创|原创|发现|商城|官方直营|导购|底价专区|排行榜|推荐|推荐|搜索|搜索|搜索|摩托车|新车|新车|未登录|横穿北美|海量车源|消息|热点|特惠充电|独家|用车|用车|神券省1500|赛事|选车|首页|高价收车|||||||"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 618,
+          "treeDepth": 62,
+          "complexity": "complex"
+        },
+        "suggestions": [
+          "界面复杂度高，建议优先测试关键路径",
+          "存在导航结构，建议按导航层级遍历",
+          "交互元素多，建议分类测试（按钮、输入框、链接等）"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": true,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based",
+          "tab-based",
+          "vertical-scroll",
+          "horizontal-layout",
+          "list-view"
+        ]
+      },
+      "plan": [
+        {
+          "category": "bottom-tab",
+          "label": "AI小懂",
+          "type": "Column",
+          "x": 1112,
+          "y": 2315,
+          "bounds": "[1037,2218][1187,2412]"
+        },
+        {
+          "category": "button",
+          "label": "搜索",
+          "type": "Button",
+          "x": 2103,
+          "y": 338,
+          "bounds": "[2021,288][2184,388]"
+        },
+        {
+          "category": "button",
+          "label": "搜索",
+          "type": "Button",
+          "x": 2060,
+          "y": 892,
+          "bounds": "[1978,842][2141,942]"
+        },
+        {
+          "category": "content-card",
+          "label": "",
+          "type": "Column",
+          "x": 383,
+          "y": 1934,
+          "bounds": "[25,1576][741,2291]"
+        },
+        {
+          "category": "content-card",
+          "label": "",
+          "type": "Column",
+          "x": 1112,
+          "y": 1934,
+          "bounds": "[754,1576][1470,2291]"
+        },
+        {
+          "category": "content-card",
+          "label": "",
+          "type": "Column",
+          "x": 1841,
+          "y": 1934,
+          "bounds": "[1483,1576][2199,2291]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Text",
+          "x": 2159,
+          "y": 181,
+          "bounds": "[2118,118][2199,243]"
+        },
+        {
+          "category": "content",
+          "label": "发现",
+          "type": "Column",
+          "x": 114,
+          "y": 188,
+          "bounds": "[56,125][172,250]"
+        },
+        {
+          "category": "content",
+          "label": "商城",
+          "type": "Column",
+          "x": 305,
+          "y": 188,
+          "bounds": "[247,125][363,250]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Column",
+          "x": 548,
+          "y": 188,
+          "bounds": "[412,125][684,250]"
+        },
+        {
+          "category": "content",
+          "label": "横穿北美",
+          "type": "Column",
+          "x": 848,
+          "y": 188,
+          "bounds": "[734,125][962,250]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 91,
+          "y": 338,
+          "bounds": "[28,278][153,397]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[bottom-tab] press 1112 2315 (AI小懂)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 278,
+          "nodeDelta": 340,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s3_d1_after_0.json"
+        },
+        {
+          "action": "[button] press 2103 338 (搜索)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 277,
+          "nodeDelta": 341,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s3_d1_after_1.json"
+        },
+        {
+          "action": "[button] press 2060 892 (搜索)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 211,
+          "nodeDelta": 407,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s3_d1_after_2.json"
+        },
+        {
+          "action": "[content-card] press 383 1934 (Column@383,1934)",
+          "skipped": true,
+          "reason": "launcher"
+        }
+      ]
+    },
+    {
+      "screenId": "s4_d2",
+      "depth": 2,
+      "parentAction": "[button] press 2103 338 (搜索)",
+      "fingerprint": {
+        "nodes": 277,
+        "labels": ":",
+        "key": "277::"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 277,
+          "treeDepth": 41,
+          "complexity": "medium"
+        },
+        "suggestions": [
+          "界面复杂度高，建议优先测试关键路径",
+          "存在导航结构，建议按导航层级遍历"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": false,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based"
+        ]
+      },
+      "plan": [
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 1112,
+          "y": 1305,
+          "bounds": "[0,113][2224,2496]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 1112,
+          "y": 1305,
+          "bounds": "[0,113][2224,2496]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[content] press 1112 1305 (Stack@1112,1305)",
+          "pressOk": true,
+          "beforeNodes": 277,
+          "afterNodes": 277,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s4_d2_after_0.json"
+        },
+        {
+          "action": "[content] press 1112 1305 (Stack@1112,1305)",
+          "pressOk": true,
+          "beforeNodes": 277,
+          "afterNodes": 277,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s4_d2_after_1.json"
+        }
+      ]
+    },
+    {
+      "screenId": "s5_d2",
+      "depth": 2,
+      "parentAction": "[button] press 2060 892 (搜索)",
+      "fingerprint": {
+        "nodes": 211,
+        "labels": "2026年4月销量汽车排行榜|:|搜索||||",
+        "key": "211:2026年4月销量汽车排行榜|:|搜索||||"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 211,
+          "treeDepth": 47,
+          "complexity": "medium"
+        },
+        "suggestions": [
+          "界面复杂度高，建议优先测试关键路径",
+          "存在导航结构，建议按导航层级遍历"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": false,
+          "hasForm": true
+        },
+        "layoutPattern": [
+          "navigation-based",
+          "horizontal-layout"
+        ]
+      },
+      "plan": [
+        {
+          "category": "content",
+          "label": "",
+          "type": "Text",
+          "x": 88,
+          "y": 190,
+          "bounds": "[50,149][126,231]"
+        },
+        {
+          "category": "content",
+          "label": "2026年4月销量汽车排行榜",
+          "type": "TextInput",
+          "x": 1101,
+          "y": 191,
+          "bounds": "[246,134][1955,247]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Text",
+          "x": 1984,
+          "y": 191,
+          "bounds": "[1955,160][2012,221]"
+        },
+        {
+          "category": "content",
+          "label": "搜索",
+          "type": "Stack",
+          "x": 2124,
+          "y": 191,
+          "bounds": "[2074,161][2174,220]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 1112,
+          "y": 1305,
+          "bounds": "[0,113][2224,2496]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 1112,
+          "y": 1305,
+          "bounds": "[0,113][2224,2496]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[content] press 88 190 ()",
+          "pressOk": true,
+          "beforeNodes": 211,
+          "afterNodes": 577,
+          "nodeDelta": 366,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s5_d2_after_0.json"
+        },
+        {
+          "action": "[content] press 1101 191 (2026年4月销量汽车排行榜)",
+          "pressOk": true,
+          "beforeNodes": 211,
+          "afterNodes": 619,
+          "nodeDelta": 408,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s5_d2_after_1.json"
+        },
+        {
+          "action": "[content] press 1984 191 ()",
+          "pressOk": true,
+          "beforeNodes": 211,
+          "afterNodes": 619,
+          "nodeDelta": 408,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s5_d2_after_2.json"
+        },
+        {
+          "action": "[content] press 2124 191 (搜索)",
+          "pressOk": true,
+          "beforeNodes": 211,
+          "afterNodes": 969,
+          "nodeDelta": 758,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s5_d2_after_3.json"
+        },
+        {
+          "action": "[content] press 1112 1305 ()",
+          "pressOk": true,
+          "beforeNodes": 211,
+          "afterNodes": 758,
+          "nodeDelta": 547,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s5_d2_after_4.json"
+        },
+        {
+          "action": "[content] press 1112 1305 ()",
+          "pressOk": true,
+          "beforeNodes": 211,
+          "afterNodes": 619,
+          "nodeDelta": 408,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s5_d2_after_5.json"
+        }
+      ]
+    },
+    {
+      "screenId": "s6_d1",
+      "depth": 1,
+      "parentAction": "[button] press 2060 892 (搜索)",
+      "fingerprint": {
+        "nodes": 142,
+        "labels": ":|懂车帝直线赛|搜索||||",
+        "key": "142::|懂车帝直线赛|搜索||||"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 142,
+          "treeDepth": 44,
+          "complexity": "simple"
+        },
+        "suggestions": [
+          "存在导航结构，建议按导航层级遍历"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": false,
+          "hasForm": true
+        },
+        "layoutPattern": [
+          "navigation-based",
+          "horizontal-layout"
+        ]
+      },
+      "plan": [
+        {
+          "category": "content",
+          "label": "",
+          "type": "Text",
+          "x": 88,
+          "y": 190,
+          "bounds": "[50,149][126,231]"
+        },
+        {
+          "category": "content",
+          "label": "懂车帝直线赛",
+          "type": "TextInput",
+          "x": 1101,
+          "y": 191,
+          "bounds": "[246,134][1955,247]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Text",
+          "x": 1984,
+          "y": 191,
+          "bounds": "[1955,160][2012,221]"
+        },
+        {
+          "category": "content",
+          "label": "搜索",
+          "type": "Stack",
+          "x": 2124,
+          "y": 191,
+          "bounds": "[2074,161][2174,220]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 1112,
+          "y": 1305,
+          "bounds": "[0,113][2224,2496]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 1112,
+          "y": 1305,
+          "bounds": "[0,113][2224,2496]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[content] press 88 190 ()",
+          "pressOk": true,
+          "beforeNodes": 142,
+          "afterNodes": 554,
+          "nodeDelta": 412,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s6_d1_after_0.json"
+        },
+        {
+          "action": "[content] press 1101 191 (懂车帝直线赛)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 618,
+          "nodeDelta": 0,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s6_d1_after_1.json"
+        },
+        {
+          "action": "[content] press 1984 191 ()",
+          "skipped": true,
+          "reason": "launcher"
+        }
+      ]
+    },
+    {
+      "screenId": "s7_d2",
+      "depth": 2,
+      "parentAction": "[content] press 88 190 ()",
+      "fingerprint": {
+        "nodes": 554,
+        "labels": "10万以内纯电小车推荐|2026年3月销量汽车排行榜|2026年4月车销量排行榜|2026年4月销量汽车排行榜|2026年4月销量汽车排行榜燃油车|2026省补申请入口|3.33L/100km|3.80L/100km|3.97L/100km|4.09L/100km|4.30L/100km|4.38L/100km|4.45L/100km|4.56L/100km|4.66L/100km|4.82L/100km|4月销量完整排行|:|三月汽车销量排行榜|东风奕派M8车顶设计引争议|全新一代问界M9宣传视频陷AI争议|合资SUV再迎“降价潮”|排行榜销量|搜索|新款海狮06DM上市 售12.99万元起|新款雷克萨斯RX曝光|更多|比亚迪4月销量|法拉利史上首款电动车亮相|福特烈马亚马逊限量版SUV上市|销量 14218|销量 14372|销量 14923|销量 15658|销量 15659|销量 15814|销量 21024|销量 22990|销量 26826|销量 34727|长城哈弗猛龙PLUS开启全国交付|零跑D99将于5月29日亮相||||||",
+        "key": "554:10万以内纯电小车推荐|2026年3月销量汽车排行榜|2026年4月车销量排行榜|2026年4月销量汽车排行榜|2026年4月销量汽车排行榜燃油车|2026省补申请入口|3.33L/100km|3.80L/100km|3.97L/100km|4.09L/100km|4.30L/100km|4.38L/100km|4.45L/100km|4.56L/100km|4.66L/100km|4.82L/1"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 554,
+          "treeDepth": 27,
+          "complexity": "complex"
+        },
+        "suggestions": [
+          "界面复杂度高，建议优先测试关键路径",
+          "存在导航结构，建议按导航层级遍历",
+          "交互元素多，建议分类测试（按钮、输入框、链接等）"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": true,
+          "hasForm": true
+        },
+        "layoutPattern": [
+          "navigation-based",
+          "horizontal-layout",
+          "list-view"
+        ]
+      },
+      "plan": [
+        {
+          "category": "content-card",
+          "label": "东风奕派M8车顶设计引争议",
+          "type": "Row",
+          "x": 392,
+          "y": 1863,
+          "bounds": "[44,1837][739,1888]"
+        },
+        {
+          "category": "content-card",
+          "label": "销量 14923",
+          "type": "Row",
+          "x": 1169,
+          "y": 1863,
+          "bounds": "[821,1813][1516,1913]"
+        },
+        {
+          "category": "content-card",
+          "label": "4.56L/100km",
+          "type": "Row",
+          "x": 1911,
+          "y": 1863,
+          "bounds": "[1598,1813][2224,1913]"
+        },
+        {
+          "category": "content-card",
+          "label": "新款雷克萨斯RX曝光",
+          "type": "Row",
+          "x": 392,
+          "y": 1988,
+          "bounds": "[44,1962][739,2013]"
+        },
+        {
+          "category": "content-card",
+          "label": "销量 14372",
+          "type": "Row",
+          "x": 1169,
+          "y": 1988,
+          "bounds": "[821,1938][1516,2038]"
+        },
+        {
+          "category": "content-card",
+          "label": "4.66L/100km",
+          "type": "Row",
+          "x": 1911,
+          "y": 1988,
+          "bounds": "[1598,1938][2224,2038]"
+        },
+        {
+          "category": "content-card",
+          "label": "长城哈弗猛龙PLUS开启全国交付",
+          "type": "Row",
+          "x": 392,
+          "y": 2113,
+          "bounds": "[44,2087][739,2138]"
+        },
+        {
+          "category": "content-card",
+          "label": "销量 14218",
+          "type": "Row",
+          "x": 1169,
+          "y": 2113,
+          "bounds": "[821,2063][1516,2163]"
+        },
+        {
+          "category": "content-card",
+          "label": "4.82L/100km",
+          "type": "Row",
+          "x": 1911,
+          "y": 2113,
+          "bounds": "[1598,2063][2224,2163]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Text",
+          "x": 88,
+          "y": 190,
+          "bounds": "[50,149][126,231]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "TextInput",
+          "x": 1129,
+          "y": 191,
+          "bounds": "[246,134][2012,247]"
+        },
+        {
+          "category": "content",
+          "label": "搜索",
+          "type": "Stack",
+          "x": 2124,
+          "y": 191,
+          "bounds": "[2074,161][2174,220]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[content-card] press 392 1863 (东风奕派M8车顶设计引争议)",
+          "pressOk": true,
+          "beforeNodes": 554,
+          "afterNodes": 196,
+          "nodeDelta": 358,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s7_d2_after_0.json"
+        },
+        {
+          "action": "[content-card] press 1169 1863 (销量 14923)",
+          "pressOk": true,
+          "beforeNodes": 554,
+          "afterNodes": 88,
+          "nodeDelta": 466,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s7_d2_after_1.json"
+        },
+        {
+          "action": "[content-card] press 1911 1863 (4.56L/100km)",
+          "pressOk": true,
+          "beforeNodes": 554,
+          "afterNodes": 88,
+          "nodeDelta": 466,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s7_d2_after_2.json"
+        },
+        {
+          "action": "[content-card] press 392 1988 (新款雷克萨斯RX曝光)",
+          "pressOk": true,
+          "beforeNodes": 554,
+          "afterNodes": 219,
+          "nodeDelta": 335,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s7_d2_after_3.json"
+        },
+        {
+          "action": "[content-card] press 1169 1988 (销量 14372)",
+          "pressOk": true,
+          "beforeNodes": 554,
+          "afterNodes": 88,
+          "nodeDelta": 466,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s7_d2_after_4.json"
+        },
+        {
+          "action": "[content-card] press 1911 1988 (4.66L/100km)",
+          "pressOk": true,
+          "beforeNodes": 554,
+          "afterNodes": 88,
+          "nodeDelta": 466,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s7_d2_after_5.json"
+        },
+        {
+          "action": "[content-card] press 392 2113 (长城哈弗猛龙PLUS开启全国交付)",
+          "pressOk": true,
+          "beforeNodes": 554,
+          "afterNodes": 196,
+          "nodeDelta": 358,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s7_d2_after_6.json"
+        },
+        {
+          "action": "[content-card] press 1169 2113 (销量 14218)",
+          "pressOk": true,
+          "beforeNodes": 554,
+          "afterNodes": 88,
+          "nodeDelta": 466,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s7_d2_after_7.json"
+        },
+        {
+          "action": "[content-card] press 1911 2113 (4.82L/100km)",
+          "pressOk": true,
+          "beforeNodes": 554,
+          "afterNodes": 88,
+          "nodeDelta": 466,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s7_d2_after_8.json"
+        },
+        {
+          "action": "[content] press 88 190 ()",
+          "pressOk": true,
+          "beforeNodes": 554,
+          "afterNodes": 618,
+          "nodeDelta": 64,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s7_d2_after_9.json"
+        },
+        {
+          "action": "[content] press 1129 191 ()",
+          "pressOk": true,
+          "beforeNodes": 554,
+          "afterNodes": 618,
+          "nodeDelta": 64,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s7_d2_after_10.json"
+        },
+        {
+          "action": "[content] press 2124 191 (搜索)",
+          "pressOk": true,
+          "beforeNodes": 554,
+          "afterNodes": 968,
+          "nodeDelta": 414,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s7_d2_after_11.json"
+        }
+      ]
+    },
+    {
+      "screenId": "s8_d2",
+      "depth": 2,
+      "parentAction": "[content] press 1101 191 (懂车帝直线赛)",
+      "fingerprint": {
+        "nodes": 618,
+        "labels": "2026年4月销量汽车排行榜|2026年4月销量汽车排行榜|2026年度|:|AI小懂|AI小懂|SUV|以旧换新|关注|北京|北京|十万买啥车|原创|原创|发现|商城|官方直营|导购|底价专区|懂车帝赛事频道入口在哪|排行榜|推荐|推荐|搜索|搜索|搜索|摩托车|新车|新车|未登录|横穿北美|海量车源|消息|热点|特惠充电|独家|用车|用车|神券省1500|赛事|选车|首页|高价收车||||||||||||||",
+        "key": "618:2026年4月销量汽车排行榜|2026年4月销量汽车排行榜|2026年度|:|AI小懂|AI小懂|SUV|以旧换新|关注|北京|北京|十万买啥车|原创|原创|发现|商城|官方直营|导购|底价专区|懂车帝赛事频道入口在哪|排行榜|推荐|推荐|搜索|搜索|搜索|摩托车|新车|新车|未登录|横穿北美|海量车源|消息|热点|特惠充电|独家|用车|用车|神券省1500|赛事|选车|首页|高价收车|||"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 618,
+          "treeDepth": 62,
+          "complexity": "complex"
+        },
+        "suggestions": [
+          "界面复杂度高，建议优先测试关键路径",
+          "存在导航结构，建议按导航层级遍历",
+          "交互元素多，建议分类测试（按钮、输入框、链接等）"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": true,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based",
+          "tab-based",
+          "vertical-scroll",
+          "horizontal-layout",
+          "list-view"
+        ]
+      },
+      "plan": [
+        {
+          "category": "bottom-tab",
+          "label": "AI小懂",
+          "type": "Column",
+          "x": 1112,
+          "y": 2315,
+          "bounds": "[1037,2218][1187,2412]"
+        },
+        {
+          "category": "button",
+          "label": "搜索",
+          "type": "Button",
+          "x": 2103,
+          "y": 338,
+          "bounds": "[2021,288][2184,388]"
+        },
+        {
+          "category": "button",
+          "label": "搜索",
+          "type": "Button",
+          "x": 2060,
+          "y": 892,
+          "bounds": "[1978,842][2141,942]"
+        },
+        {
+          "category": "content-card",
+          "label": "",
+          "type": "Column",
+          "x": 383,
+          "y": 1934,
+          "bounds": "[25,1576][741,2291]"
+        },
+        {
+          "category": "content-card",
+          "label": "",
+          "type": "Column",
+          "x": 1112,
+          "y": 1934,
+          "bounds": "[754,1576][1470,2291]"
+        },
+        {
+          "category": "content-card",
+          "label": "",
+          "type": "Column",
+          "x": 1841,
+          "y": 1934,
+          "bounds": "[1483,1576][2199,2291]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Text",
+          "x": 2159,
+          "y": 181,
+          "bounds": "[2118,118][2199,243]"
+        },
+        {
+          "category": "content",
+          "label": "发现",
+          "type": "Column",
+          "x": 114,
+          "y": 188,
+          "bounds": "[56,125][172,250]"
+        },
+        {
+          "category": "content",
+          "label": "商城",
+          "type": "Column",
+          "x": 305,
+          "y": 188,
+          "bounds": "[247,125][363,250]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Column",
+          "x": 548,
+          "y": 188,
+          "bounds": "[412,125][684,250]"
+        },
+        {
+          "category": "content",
+          "label": "横穿北美",
+          "type": "Column",
+          "x": 848,
+          "y": 188,
+          "bounds": "[734,125][962,250]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 91,
+          "y": 338,
+          "bounds": "[28,278][153,397]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[bottom-tab] press 1112 2315 (AI小懂)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 278,
+          "nodeDelta": 340,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s8_d2_after_0.json"
+        },
+        {
+          "action": "[button] press 2103 338 (搜索)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 278,
+          "nodeDelta": 340,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s8_d2_after_1.json"
+        },
+        {
+          "action": "[button] press 2060 892 (搜索)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 277,
+          "nodeDelta": 341,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s8_d2_after_2.json"
+        },
+        {
+          "action": "[content-card] press 383 1934 (Column@383,1934)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 277,
+          "nodeDelta": 341,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s8_d2_after_3.json"
+        },
+        {
+          "action": "[content-card] press 1112 1934 (Column@1112,1934)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 278,
+          "nodeDelta": 340,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s8_d2_after_4.json"
+        },
+        {
+          "action": "[content-card] press 1841 1934 (Column@1841,1934)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 277,
+          "nodeDelta": 341,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s8_d2_after_5.json"
+        },
+        {
+          "action": "[content] press 2159 181 ()",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 301,
+          "nodeDelta": 317,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s8_d2_after_6.json"
+        },
+        {
+          "action": "[content] press 114 188 (发现)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 631,
+          "nodeDelta": 13,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s8_d2_after_7.json"
+        },
+        {
+          "action": "[content] press 305 188 (商城)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 495,
+          "nodeDelta": 123,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s8_d2_after_8.json"
+        },
+        {
+          "action": "[content] press 548 188 (Column@548,188)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 222,
+          "nodeDelta": 396,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s8_d2_after_9.json"
+        },
+        {
+          "action": "[content] press 848 188 (横穿北美)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 209,
+          "nodeDelta": 409,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s8_d2_after_10.json"
+        },
+        {
+          "action": "[content] press 91 338 (Stack@91,338)",
+          "pressOk": true,
+          "beforeNodes": 618,
+          "afterNodes": 209,
+          "nodeDelta": 409,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s8_d2_after_11.json"
+        }
+      ]
+    },
+    {
+      "screenId": "s9_d1",
+      "depth": 1,
+      "parentAction": "[content-card] press 383 1934 (Column@383,1934)",
+      "fingerprint": {
+        "nodes": 275,
+        "labels": "0.000000|00:00|131|131|3|3|3|37|37|:|分享|懂车帝原创|点击发弹幕|点击发弹幕|视频|视频提及|||||||||",
+        "key": "275:0.000000|00:00|131|131|3|3|3|37|37|:|分享|懂车帝原创|点击发弹幕|点击发弹幕|视频|视频提及|||||||||"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 275,
+          "treeDepth": 41,
+          "complexity": "medium"
+        },
+        "suggestions": [
+          "界面复杂度高，建议优先测试关键路径",
+          "存在导航结构，建议按导航层级遍历",
+          "交互元素多，建议分类测试（按钮、输入框、链接等）"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": true,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based",
+          "tab-based",
+          "vertical-scroll",
+          "horizontal-layout",
+          "list-view"
+        ]
+      },
+      "plan": [
+        {
+          "category": "bottom-tab",
+          "label": "3",
+          "type": "Column",
+          "x": 1662,
+          "y": 2340,
+          "bounds": "[1599,2280][1724,2399]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "131",
+          "type": "Column",
+          "x": 1812,
+          "y": 2340,
+          "bounds": "[1749,2271][1874,2409]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "37",
+          "type": "Column",
+          "x": 1962,
+          "y": 2340,
+          "bounds": "[1899,2284][2024,2396]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "视频提及",
+          "type": "Column",
+          "x": 2112,
+          "y": 2340,
+          "bounds": "[2049,2284][2174,2396]"
+        },
+        {
+          "category": "content-card",
+          "label": "",
+          "type": "__Common__",
+          "x": 275,
+          "y": 1839,
+          "bounds": "[37,1807][512,1870]"
+        },
+        {
+          "category": "content-card",
+          "label": "131",
+          "type": "Column",
+          "x": 163,
+          "y": 1963,
+          "bounds": "[100,1894][225,2032]"
+        },
+        {
+          "category": "content-card",
+          "label": "3",
+          "type": "Column",
+          "x": 796,
+          "y": 1963,
+          "bounds": "[733,1903][858,2022]"
+        },
+        {
+          "category": "content-card",
+          "label": "37",
+          "type": "Column",
+          "x": 1429,
+          "y": 1963,
+          "bounds": "[1366,1903][1491,2022]"
+        },
+        {
+          "category": "content-card",
+          "label": "分享",
+          "type": "Column",
+          "x": 2062,
+          "y": 1963,
+          "bounds": "[1999,1903][2124,2022]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Text",
+          "x": 75,
+          "y": 181,
+          "bounds": "[43,147][106,215]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Text",
+          "x": 2149,
+          "y": 191,
+          "bounds": "[2111,150][2187,232]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Image",
+          "x": 2036,
+          "y": 192,
+          "bounds": "[1998,154][2073,229]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[bottom-tab] press 1662 2340 (3)",
+          "pressOk": true,
+          "beforeNodes": 275,
+          "afterNodes": 251,
+          "nodeDelta": 24,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s9_d1_after_0.json"
+        },
+        {
+          "action": "[bottom-tab] press 1812 2340 (131)",
+          "skipped": true,
+          "reason": "launcher"
+        }
+      ]
+    },
+    {
+      "screenId": "s10_d2",
+      "depth": 2,
+      "parentAction": "[bottom-tab] press 1662 2340 (3)",
+      "fingerprint": {
+        "nodes": 251,
+        "labels": "131|3|3|37|6评论4赞|:|Fantasy060602|我也想去玩，不对。工作|点击发弹幕|点击发弹幕|视频|视频提及|赛博越野旅行车|||",
+        "key": "251:131|3|3|37|6评论4赞|:|Fantasy060602|我也想去玩，不对。工作|点击发弹幕|点击发弹幕|视频|视频提及|赛博越野旅行车|||"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 251,
+          "treeDepth": 46,
+          "complexity": "medium"
+        },
+        "suggestions": [
+          "界面复杂度高，建议优先测试关键路径",
+          "存在导航结构，建议按导航层级遍历"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": true,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based",
+          "tab-based",
+          "vertical-scroll",
+          "horizontal-layout",
+          "list-view"
+        ]
+      },
+      "plan": [
+        {
+          "category": "bottom-tab",
+          "label": "我也想去玩，不对。工作",
+          "type": "Column",
+          "x": 1175,
+          "y": 2205,
+          "bounds": "[175,2139][2174,2271]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "3",
+          "type": "Column",
+          "x": 1662,
+          "y": 2340,
+          "bounds": "[1599,2280][1724,2399]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "131",
+          "type": "Column",
+          "x": 1812,
+          "y": 2340,
+          "bounds": "[1749,2271][1874,2409]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "37",
+          "type": "Column",
+          "x": 1962,
+          "y": 2340,
+          "bounds": "[1899,2284][2024,2396]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "视频提及",
+          "type": "Column",
+          "x": 2112,
+          "y": 2340,
+          "bounds": "[2049,2284][2174,2396]"
+        },
+        {
+          "category": "content-card",
+          "label": "6评论4赞",
+          "type": "Row",
+          "x": 1112,
+          "y": 1838,
+          "bounds": "[37,1672][2187,2003]"
+        },
+        {
+          "category": "content-card",
+          "label": "Fantasy060602",
+          "type": "Text",
+          "x": 313,
+          "y": 2167,
+          "bounds": "[175,2145][450,2189]"
+        },
+        {
+          "category": "content-card",
+          "label": "",
+          "type": "__Common__",
+          "x": 100,
+          "y": 2189,
+          "bounds": "[50,2139][150,2239]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Text",
+          "x": 75,
+          "y": 181,
+          "bounds": "[43,147][106,215]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 1112,
+          "y": 737,
+          "bounds": "[0,113][2224,1361]"
+        },
+        {
+          "category": "content",
+          "label": "视频",
+          "type": "Stack",
+          "x": 100,
+          "y": 1424,
+          "bounds": "[50,1394][150,1453]"
+        },
+        {
+          "category": "content",
+          "label": "3",
+          "type": "Stack",
+          "x": 284,
+          "y": 1424,
+          "bounds": "[213,1391][354,1457]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[bottom-tab] press 1175 2205 (我也想去玩，不对。工作)",
+          "pressOk": true,
+          "beforeNodes": 251,
+          "afterNodes": 228,
+          "nodeDelta": 23,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s10_d2_after_0.json"
+        },
+        {
+          "action": "[bottom-tab] press 1662 2340 (3)",
+          "pressOk": true,
+          "beforeNodes": 251,
+          "afterNodes": 245,
+          "nodeDelta": 6,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s10_d2_after_1.json"
+        },
+        {
+          "action": "[bottom-tab] press 1812 2340 (131)",
+          "pressOk": true,
+          "beforeNodes": 251,
+          "afterNodes": 326,
+          "nodeDelta": 75,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s10_d2_after_2.json"
+        },
+        {
+          "action": "[bottom-tab] press 1962 2340 (37)",
+          "pressOk": true,
+          "beforeNodes": 251,
+          "afterNodes": 326,
+          "nodeDelta": 75,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s10_d2_after_3.json"
+        },
+        {
+          "action": "[bottom-tab] press 2112 2340 (视频提及)",
+          "pressOk": true,
+          "beforeNodes": 251,
+          "afterNodes": 325,
+          "nodeDelta": 74,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s10_d2_after_4.json"
+        },
+        {
+          "action": "[content-card] press 1112 1838 (6评论4赞)",
+          "pressOk": true,
+          "beforeNodes": 251,
+          "afterNodes": 320,
+          "nodeDelta": 69,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s10_d2_after_5.json"
+        },
+        {
+          "action": "[content-card] press 313 2167 (Fantasy060602)",
+          "pressOk": true,
+          "beforeNodes": 251,
+          "afterNodes": 103,
+          "nodeDelta": 148,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s10_d2_after_6.json"
+        },
+        {
+          "action": "[content-card] press 100 2189 (__Common__@100,2189)",
+          "pressOk": true,
+          "beforeNodes": 251,
+          "afterNodes": 103,
+          "nodeDelta": 148,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s10_d2_after_7.json"
+        },
+        {
+          "action": "[content] press 75 181 ()",
+          "pressOk": true,
+          "beforeNodes": 251,
+          "afterNodes": 414,
+          "nodeDelta": 163,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s10_d2_after_8.json"
+        },
+        {
+          "action": "[content] press 1112 737 ()",
+          "pressOk": true,
+          "beforeNodes": 251,
+          "afterNodes": 414,
+          "nodeDelta": 163,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s10_d2_after_9.json"
+        },
+        {
+          "action": "[content] press 100 1424 (视频)",
+          "pressOk": true,
+          "beforeNodes": 251,
+          "afterNodes": 413,
+          "nodeDelta": 162,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s10_d2_after_10.json"
+        },
+        {
+          "action": "[content] press 284 1424 (3)",
+          "pressOk": true,
+          "beforeNodes": 251,
+          "afterNodes": 414,
+          "nodeDelta": 163,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s10_d2_after_11.json"
+        }
+      ]
+    },
+    {
+      "screenId": "s11_d1",
+      "depth": 1,
+      "parentAction": "[content-card] press 1112 1934 (Column@1112,1934)",
+      "fingerprint": {
+        "nodes": 414,
+        "labels": "0|0|0|0|0|0|:|AI小懂|AI小懂|价格举报|价格举报|优惠券|免息|免费估价|免费估价|全部订单|关注订阅|关注订阅|创作中心|去发布|去认证|型格|广告|收藏|旧车换新|更多服务|未登录|未登录|活动广场|浏览历史|浏览历史|消息|神券立减88|缤越|车品|选车|金币|限时7日领|限时7日领|首页|||意见反馈|||||||",
+        "key": "414:0|0|0|0|0|0|:|AI小懂|AI小懂|价格举报|价格举报|优惠券|免息|免费估价|免费估价|全部订单|关注订阅|关注订阅|创作中心|去发布|去认证|型格|广告|收藏|旧车换新|更多服务|未登录|未登录|活动广场|浏览历史|浏览历史|消息|神券立减88|缤越|车品|选车|金币|限时7日领|限时7日领|首页|||意见反馈|||||||"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 414,
+          "treeDepth": 34,
+          "complexity": "medium"
+        },
+        "suggestions": [
+          "界面复杂度高，建议优先测试关键路径",
+          "存在导航结构，建议按导航层级遍历",
+          "交互元素多，建议分类测试（按钮、输入框、链接等）"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": true,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based",
+          "tab-based",
+          "vertical-scroll",
+          "horizontal-layout",
+          "list-view",
+          "grid-view"
+        ]
+      },
+      "plan": [
+        {
+          "category": "bottom-tab",
+          "label": "",
+          "type": "Column",
+          "x": 243,
+          "y": 2274,
+          "bounds": "[25,2256][460,2291]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "",
+          "type": "Column",
+          "x": 678,
+          "y": 2274,
+          "bounds": "[460,2256][895,2291]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "",
+          "type": "Column",
+          "x": 1113,
+          "y": 2274,
+          "bounds": "[895,2256][1330,2291]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "",
+          "type": "Column",
+          "x": 1547,
+          "y": 2274,
+          "bounds": "[1329,2256][1764,2291]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "",
+          "type": "Column",
+          "x": 1982,
+          "y": 2274,
+          "bounds": "[1764,2256][2199,2291]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "AI小懂",
+          "type": "Column",
+          "x": 1112,
+          "y": 2315,
+          "bounds": "[1037,2218][1187,2412]"
+        },
+        {
+          "category": "top-action",
+          "label": "限时7日领",
+          "type": "Row",
+          "x": 1112,
+          "y": 182,
+          "bounds": "[0,113][2224,250]"
+        },
+        {
+          "category": "top-action",
+          "label": "",
+          "type": "Row",
+          "x": 1231,
+          "y": 300,
+          "bounds": "[262,267][2200,333]"
+        },
+        {
+          "category": "content-card",
+          "label": "浏览历史",
+          "type": "RelativeContainer",
+          "x": 245,
+          "y": 1853,
+          "bounds": "[28,1753][462,1953]"
+        },
+        {
+          "category": "content-card",
+          "label": "车品",
+          "type": "RelativeContainer",
+          "x": 679,
+          "y": 1853,
+          "bounds": "[462,1753][896,1953]"
+        },
+        {
+          "category": "content-card",
+          "label": "价格举报",
+          "type": "RelativeContainer",
+          "x": 1112,
+          "y": 1853,
+          "bounds": "[895,1753][1329,1953]"
+        },
+        {
+          "category": "content-card",
+          "label": "免息",
+          "type": "RelativeContainer",
+          "x": 1546,
+          "y": 1853,
+          "bounds": "[1329,1753][1763,1953]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[bottom-tab] press 243 2274 (Column@243,2274)",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 414,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s11_d1_after_0.json"
+        },
+        {
+          "action": "[bottom-tab] press 678 2274 (Column@678,2274)",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 414,
+          "nodeDelta": 0,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s11_d1_after_1.json"
+        },
+        {
+          "action": "[bottom-tab] press 1113 2274 (Column@1113,2274)",
+          "pressOk": true,
+          "beforeNodes": 320,
+          "afterNodes": 278,
+          "nodeDelta": 42,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s11_d1_after_2.json"
+        },
+        {
+          "action": "[bottom-tab] press 1547 2274 (Column@1547,2274)",
+          "pressOk": true,
+          "beforeNodes": 320,
+          "afterNodes": 78,
+          "nodeDelta": 242,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s11_d1_after_3.json"
+        },
+        {
+          "action": "[bottom-tab] press 1982 2274 (Column@1982,2274)",
+          "pressOk": true,
+          "beforeNodes": 278,
+          "afterNodes": 78,
+          "nodeDelta": 200,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s11_d1_after_4.json"
+        },
+        {
+          "action": "[bottom-tab] press 1112 2315 (AI小懂)",
+          "pressOk": false,
+          "systemOverlayHandled": true,
+          "isNewScreen": false
+        },
+        {
+          "action": "[top-action] press 1112 182 (限时7日领)",
+          "skipped": true,
+          "reason": "launcher"
+        }
+      ]
+    },
+    {
+      "screenId": "s12_d2",
+      "depth": 2,
+      "parentAction": "[bottom-tab] press 678 2274 (Column@678,2274)",
+      "fingerprint": {
+        "nodes": 414,
+        "labels": "0|0|0|0|0|0|:|AI小懂|AI小懂|价格举报|价格举报|优惠券|免息|免费估价|全部订单|关注订阅|关注订阅|创作中心|去发布|去认证|型格|广告|收藏|旧车换新|更多服务|未登录|未登录|活动广场|浏览历史|浏览历史|消息|神券立减88|缤越|车品|选车|金币|限时7日领|限时7日领|首页|||意见反馈|||||||",
+        "key": "414:0|0|0|0|0|0|:|AI小懂|AI小懂|价格举报|价格举报|优惠券|免息|免费估价|全部订单|关注订阅|关注订阅|创作中心|去发布|去认证|型格|广告|收藏|旧车换新|更多服务|未登录|未登录|活动广场|浏览历史|浏览历史|消息|神券立减88|缤越|车品|选车|金币|限时7日领|限时7日领|首页|||意见反馈|||||||"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 414,
+          "treeDepth": 34,
+          "complexity": "medium"
+        },
+        "suggestions": [
+          "界面复杂度高，建议优先测试关键路径",
+          "存在导航结构，建议按导航层级遍历",
+          "交互元素多，建议分类测试（按钮、输入框、链接等）"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": true,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based",
+          "tab-based",
+          "vertical-scroll",
+          "horizontal-layout",
+          "list-view",
+          "grid-view"
+        ]
+      },
+      "plan": [
+        {
+          "category": "bottom-tab",
+          "label": "",
+          "type": "Column",
+          "x": 243,
+          "y": 2274,
+          "bounds": "[25,2256][460,2291]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "",
+          "type": "Column",
+          "x": 678,
+          "y": 2274,
+          "bounds": "[460,2256][895,2291]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "",
+          "type": "Column",
+          "x": 1113,
+          "y": 2274,
+          "bounds": "[895,2256][1330,2291]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "",
+          "type": "Column",
+          "x": 1547,
+          "y": 2274,
+          "bounds": "[1329,2256][1764,2291]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "",
+          "type": "Column",
+          "x": 1982,
+          "y": 2274,
+          "bounds": "[1764,2256][2199,2291]"
+        },
+        {
+          "category": "bottom-tab",
+          "label": "AI小懂",
+          "type": "Column",
+          "x": 1112,
+          "y": 2315,
+          "bounds": "[1037,2218][1187,2412]"
+        },
+        {
+          "category": "top-action",
+          "label": "限时7日领",
+          "type": "Row",
+          "x": 1112,
+          "y": 182,
+          "bounds": "[0,113][2224,250]"
+        },
+        {
+          "category": "top-action",
+          "label": "",
+          "type": "Row",
+          "x": 1231,
+          "y": 300,
+          "bounds": "[262,267][2200,333]"
+        },
+        {
+          "category": "content-card",
+          "label": "浏览历史",
+          "type": "RelativeContainer",
+          "x": 245,
+          "y": 1853,
+          "bounds": "[28,1753][462,1953]"
+        },
+        {
+          "category": "content-card",
+          "label": "车品",
+          "type": "RelativeContainer",
+          "x": 679,
+          "y": 1853,
+          "bounds": "[462,1753][896,1953]"
+        },
+        {
+          "category": "content-card",
+          "label": "价格举报",
+          "type": "RelativeContainer",
+          "x": 1112,
+          "y": 1853,
+          "bounds": "[895,1753][1329,1953]"
+        },
+        {
+          "category": "content-card",
+          "label": "免息",
+          "type": "RelativeContainer",
+          "x": 1546,
+          "y": 1853,
+          "bounds": "[1329,1753][1763,1953]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[bottom-tab] press 243 2274 (Column@243,2274)",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 414,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s12_d2_after_0.json"
+        },
+        {
+          "action": "[bottom-tab] press 678 2274 (Column@678,2274)",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 413,
+          "nodeDelta": 1,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s12_d2_after_1.json"
+        },
+        {
+          "action": "[bottom-tab] press 1113 2274 (Column@1113,2274)",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 413,
+          "nodeDelta": 1,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s12_d2_after_2.json"
+        },
+        {
+          "action": "[bottom-tab] press 1547 2274 (Column@1547,2274)",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 414,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s12_d2_after_3.json"
+        },
+        {
+          "action": "[bottom-tab] press 1982 2274 (Column@1982,2274)",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 320,
+          "nodeDelta": 94,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s12_d2_after_4.json"
+        },
+        {
+          "action": "[bottom-tab] press 1112 2315 (AI小懂)",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 278,
+          "nodeDelta": 136,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s12_d2_after_5.json"
+        },
+        {
+          "action": "[top-action] press 1112 182 (限时7日领)",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 278,
+          "nodeDelta": 136,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s12_d2_after_6.json"
+        },
+        {
+          "action": "[top-action] press 1231 300 ()",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 277,
+          "nodeDelta": 137,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s12_d2_after_7.json"
+        },
+        {
+          "action": "[content-card] press 245 1853 (浏览历史)",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 78,
+          "nodeDelta": 336,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s12_d2_after_8.json"
+        },
+        {
+          "action": "[content-card] press 679 1853 (车品)",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 78,
+          "nodeDelta": 336,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s12_d2_after_9.json"
+        },
+        {
+          "action": "[content-card] press 1112 1853 (价格举报)",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 78,
+          "nodeDelta": 336,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s12_d2_after_10.json"
+        },
+        {
+          "action": "[content-card] press 1546 1853 (免息)",
+          "pressOk": true,
+          "beforeNodes": 414,
+          "afterNodes": 78,
+          "nodeDelta": 336,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s12_d2_after_11.json"
+        }
+      ]
+    },
+    {
+      "screenId": "s13_d2",
+      "depth": 2,
+      "parentAction": "[bottom-tab] press 1547 2274 (Column@1547,2274)",
+      "fingerprint": {
+        "nodes": 78,
+        "labels": ":|已阅读并同意 “用户协议” 和 “隐私政策”|登录遇到问题|",
+        "key": "78::|已阅读并同意 “用户协议” 和 “隐私政策”|登录遇到问题|"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 78,
+          "treeDepth": 15,
+          "complexity": "simple"
+        },
+        "suggestions": [
+          "存在导航结构，建议按导航层级遍历"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": false,
+          "hasForm": true
+        },
+        "layoutPattern": [
+          "navigation-based",
+          "horizontal-layout"
+        ]
+      },
+      "plan": [
+        {
+          "category": "content",
+          "label": "",
+          "type": "Text",
+          "x": 2087,
+          "y": 212,
+          "bounds": "[2049,174][2124,249]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "TextInput",
+          "x": 1112,
+          "y": 614,
+          "bounds": "[100,539][2124,689]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Checkbox",
+          "x": 136,
+          "y": 1036,
+          "bounds": "[114,1014][158,1058]"
+        },
+        {
+          "category": "content",
+          "label": "已阅读并同意 “用户协议” 和 “隐私政策”",
+          "type": "Text",
+          "x": 562,
+          "y": 1036,
+          "bounds": "[172,1010][952,1061]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Image",
+          "x": 1025,
+          "y": 2235,
+          "bounds": "[956,2166][1094,2304]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 1200,
+          "y": 2235,
+          "bounds": "[1131,2166][1269,2304]"
+        },
+        {
+          "category": "content",
+          "label": "登录遇到问题",
+          "type": "Text",
+          "x": 1113,
+          "y": 2387,
+          "bounds": "[1000,2365][1225,2409]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[content] press 2087 212 ()",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 277,
+          "nodeDelta": 199,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s13_d2_after_0.json"
+        },
+        {
+          "action": "[content] press 1112 614 (TextInput@1112,614)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 278,
+          "nodeDelta": 200,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s13_d2_after_1.json"
+        },
+        {
+          "action": "[content] press 136 1036 (Checkbox@136,1036)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 278,
+          "nodeDelta": 200,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s13_d2_after_2.json"
+        },
+        {
+          "action": "[content] press 562 1036 (已阅读并同意 “用户协议” 和 “隐私政策”)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 278,
+          "nodeDelta": 200,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s13_d2_after_3.json"
+        },
+        {
+          "action": "[content] press 1025 2235 (Image@1025,2235)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 78,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s13_d2_after_4.json"
+        },
+        {
+          "action": "[content] press 1200 2235 (Stack@1200,2235)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 105,
+          "nodeDelta": 27,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s13_d2_after_5.json"
+        },
+        {
+          "action": "[content] press 1113 2387 (登录遇到问题)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 91,
+          "nodeDelta": 13,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/dcd-smart-v3/layouts/s13_d2_after_6.json"
+        }
+      ]
+    }
+  ],
+  "completedAt": "2026-05-26T10:54:07.918Z",
+  "traverseTree": {
+    "targetBundle": "com.ss.dcar.auto",
+    "outputDir": "./traverse-output/dcd-smart-v3",
+    "screensVisited": 13,
+    "roots": [
+      {
+        "screenId": "s1_d0",
+        "depth": 0,
+        "parentAction": null,
+        "title": "s1_d0 · depth=0 · nodes=613 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view",
+        "fingerprint": {
+          "nodes": 613,
+          "labels": "2026年4月销量汽车排行榜|2026年度|2026省补申请入口|:|AI小懂|AI小懂|SUV|以旧换新|关注|北京|北京|十万买啥车|原创|原创|发现|商城|官方直营|导购|底价专区|排行榜|推荐|推荐|搜索|搜索|搜索|摩托车|新车|新车|未登录|横穿北美|海量车源|消息|热点|特惠充电|独家|用车|用车|神券省1500|赛事|选车|零跑D99将于5月29日亮相|首页|高价收车||||||||||||||",
+          "key": "613:2026年4月销量汽车排行榜|2026年度|2026省补申请入口|:|AI小懂|AI小懂|SUV|以旧换新|关注|北京|北京|十万买啥车|原创|原创|发现|商城|官方直营|导购|底价专区|排行榜|推荐|推荐|搜索|搜索|搜索|摩托车|新车|新车|未登录|横穿北美|海量车源|消息|热点|特惠充电|独家|用车|用车|神券省1500|赛事|选车|零跑D99将于5月29日亮相|首页|高价收车||||"
+        },
+        "cognition": {
+          "treeDepth": 62,
+          "features": {
+            "hasScroll": true,
+            "hasTabs": true,
+            "hasModal": false,
+            "hasList": true,
+            "hasForm": false
+          },
+          "suggestions": [
+            "界面复杂度高，建议优先测试关键路径",
+            "存在导航结构，建议按导航层级遍历",
+            "交互元素多，建议分类测试（按钮、输入框、链接等）"
+          ]
+        },
+        "clickBranches": [
+          {
+            "action": "[bottom-tab] press 1112 2315 (AI小懂)",
+            "label": "AI小懂",
+            "status": "新界面 (613→278)",
+            "isNewScreen": true,
+            "skipped": false,
+            "childScreenId": "s2_d1",
+            "unvisitedNewScreen": false
+          },
+          {
+            "action": "[button] press 2103 338 (搜索)",
+            "label": "搜索",
+            "status": "新界面 (618→618)",
+            "isNewScreen": true,
+            "skipped": false,
+            "childScreenId": "s3_d1",
+            "unvisitedNewScreen": false
+          },
+          {
+            "action": "[button] press 2060 892 (搜索)",
+            "label": "搜索",
+            "status": "新界面 (619→142)",
+            "isNewScreen": true,
+            "skipped": false,
+            "childScreenId": "s5_d2",
+            "unvisitedNewScreen": false
+          },
+          {
+            "action": "[content-card] press 383 1934 (Column@383,1934)",
+            "label": "Column@383,1934",
+            "status": "新界面 (209→275)",
+            "isNewScreen": true,
+            "skipped": false,
+            "childScreenId": "s9_d1",
+            "unvisitedNewScreen": false
+          },
+          {
+            "action": "[content-card] press 1112 1934 (Column@1112,1934)",
+            "label": "Column@1112,1934",
+            "status": "新界面 (413→414)",
+            "isNewScreen": true,
+            "skipped": false,
+            "childScreenId": "s11_d1",
+            "unvisitedNewScreen": false
+          },
+          {
+            "action": "[content-card] press 1841 1934 (Column@1841,1934)",
+            "label": "Column@1841,1934",
+            "status": "无变化 (78→78)",
+            "isNewScreen": false,
+            "skipped": false,
+            "unvisitedNewScreen": false
+          },
+          {
+            "action": "[content] press 2159 181 ()",
+            "label": "",
+            "status": "无变化 (78→78)",
+            "isNewScreen": false,
+            "skipped": false,
+            "unvisitedNewScreen": false
+          },
+          {
+            "action": "[content] press 114 188 (发现)",
+            "label": "发现",
+            "status": "无变化 (?→?)",
+            "isNewScreen": false,
+            "skipped": false,
+            "unvisitedNewScreen": false
+          },
+          {
+            "action": "[content] press 305 188 (商城)",
+            "label": "商城",
+            "status": "跳过 (wrong_app)",
+            "isNewScreen": false,
+            "skipped": true,
+            "reason": "wrong_app",
+            "unvisitedNewScreen": false
+          }
+        ],
+        "children": [
+          {
+            "screenId": "s2_d1",
+            "depth": 1,
+            "parentAction": "[bottom-tab] press 1112 2315 (AI小懂)",
+            "title": "s2_d1 · depth=1 · nodes=278 · navigation-based",
+            "fingerprint": {
+              "nodes": 278,
+              "labels": ":",
+              "key": "278::"
+            },
+            "cognition": {
+              "treeDepth": 41,
+              "features": {
+                "hasScroll": true,
+                "hasTabs": true,
+                "hasModal": false,
+                "hasList": false,
+                "hasForm": false
+              },
+              "suggestions": [
+                "界面复杂度高，建议优先测试关键路径",
+                "存在导航结构，建议按导航层级遍历"
+              ]
+            },
+            "clickBranches": [
+              {
+                "action": "[content] press 1112 1305 (Stack@1112,1305)",
+                "label": "Stack@1112,1305",
+                "status": "无变化 (278→277)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[content] press 1112 1305 (Stack@1112,1305)",
+                "label": "Stack@1112,1305",
+                "status": "无变化 (278→277)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              }
+            ],
+            "children": []
+          },
+          {
+            "screenId": "s3_d1",
+            "depth": 1,
+            "parentAction": "[button] press 2103 338 (搜索)",
+            "title": "s3_d1 · depth=1 · nodes=618 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view",
+            "fingerprint": {
+              "nodes": 618,
+              "labels": "10万以内纯电小车推荐|2026年度|2026省补申请入口|2026省补申请入口|:|AI小懂|AI小懂|SUV|以旧换新|关注|北京|北京|十万买啥车|原创|原创|发现|商城|官方直营|导购|底价专区|排行榜|推荐|推荐|搜索|搜索|搜索|摩托车|新车|新车|未登录|横穿北美|海量车源|消息|热点|特惠充电|独家|用车|用车|神券省1500|赛事|选车|首页|高价收车||||||||||||||",
+              "key": "618:10万以内纯电小车推荐|2026年度|2026省补申请入口|2026省补申请入口|:|AI小懂|AI小懂|SUV|以旧换新|关注|北京|北京|十万买啥车|原创|原创|发现|商城|官方直营|导购|底价专区|排行榜|推荐|推荐|搜索|搜索|搜索|摩托车|新车|新车|未登录|横穿北美|海量车源|消息|热点|特惠充电|独家|用车|用车|神券省1500|赛事|选车|首页|高价收车|||||||"
+            },
+            "cognition": {
+              "treeDepth": 62,
+              "features": {
+                "hasScroll": true,
+                "hasTabs": true,
+                "hasModal": false,
+                "hasList": true,
+                "hasForm": false
+              },
+              "suggestions": [
+                "界面复杂度高，建议优先测试关键路径",
+                "存在导航结构，建议按导航层级遍历",
+                "交互元素多，建议分类测试（按钮、输入框、链接等）"
+              ]
+            },
+            "clickBranches": [
+              {
+                "action": "[bottom-tab] press 1112 2315 (AI小懂)",
+                "label": "AI小懂",
+                "status": "无变化 (618→278)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[button] press 2103 338 (搜索)",
+                "label": "搜索",
+                "status": "新界面 (618→277)",
+                "isNewScreen": true,
+                "skipped": false,
+                "childScreenId": "s4_d2",
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[button] press 2060 892 (搜索)",
+                "label": "搜索",
+                "status": "新界面 (618→211)",
+                "isNewScreen": true,
+                "skipped": false,
+                "childScreenId": "s5_d2",
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[content-card] press 383 1934 (Column@383,1934)",
+                "label": "Column@383,1934",
+                "status": "跳过 (launcher)",
+                "isNewScreen": false,
+                "skipped": true,
+                "reason": "launcher",
+                "unvisitedNewScreen": false
+              }
+            ],
+            "children": [
+              {
+                "screenId": "s4_d2",
+                "depth": 2,
+                "parentAction": "[button] press 2103 338 (搜索)",
+                "title": "s4_d2 · depth=2 · nodes=277 · navigation-based",
+                "fingerprint": {
+                  "nodes": 277,
+                  "labels": ":",
+                  "key": "277::"
+                },
+                "cognition": {
+                  "treeDepth": 41,
+                  "features": {
+                    "hasScroll": true,
+                    "hasTabs": true,
+                    "hasModal": false,
+                    "hasList": false,
+                    "hasForm": false
+                  },
+                  "suggestions": [
+                    "界面复杂度高，建议优先测试关键路径",
+                    "存在导航结构，建议按导航层级遍历"
+                  ]
+                },
+                "clickBranches": [
+                  {
+                    "action": "[content] press 1112 1305 (Stack@1112,1305)",
+                    "label": "Stack@1112,1305",
+                    "status": "无变化 (277→277)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content] press 1112 1305 (Stack@1112,1305)",
+                    "label": "Stack@1112,1305",
+                    "status": "无变化 (277→277)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  }
+                ],
+                "children": []
+              },
+              {
+                "screenId": "s5_d2",
+                "depth": 2,
+                "parentAction": "[button] press 2060 892 (搜索)",
+                "title": "s5_d2 · depth=2 · nodes=211 · navigation-based, horizontal-layout",
+                "fingerprint": {
+                  "nodes": 211,
+                  "labels": "2026年4月销量汽车排行榜|:|搜索||||",
+                  "key": "211:2026年4月销量汽车排行榜|:|搜索||||"
+                },
+                "cognition": {
+                  "treeDepth": 47,
+                  "features": {
+                    "hasScroll": true,
+                    "hasTabs": true,
+                    "hasModal": false,
+                    "hasList": false,
+                    "hasForm": true
+                  },
+                  "suggestions": [
+                    "界面复杂度高，建议优先测试关键路径",
+                    "存在导航结构，建议按导航层级遍历"
+                  ]
+                },
+                "clickBranches": [
+                  {
+                    "action": "[content] press 88 190 ()",
+                    "label": "",
+                    "status": "新界面 (211→577) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 1101 191 (2026年4月销量汽车排行榜)",
+                    "label": "2026年4月销量汽车排行榜",
+                    "status": "新界面 (211→619) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 1984 191 ()",
+                    "label": "",
+                    "status": "新界面 (211→619) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 2124 191 (搜索)",
+                    "label": "搜索",
+                    "status": "新界面 (211→969) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 1112 1305 ()",
+                    "label": "",
+                    "status": "新界面 (211→758) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 1112 1305 ()",
+                    "label": "",
+                    "status": "新界面 (211→619) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  }
+                ],
+                "children": []
+              }
+            ]
+          },
+          {
+            "screenId": "s4_d2",
+            "depth": 2,
+            "title": "s4_d2 · depth=2 · nodes=277 · navigation-based",
+            "cycle": true,
+            "children": [],
+            "clickBranches": []
+          },
+          {
+            "screenId": "s5_d2",
+            "depth": 2,
+            "title": "s5_d2 · depth=2 · nodes=211 · navigation-based, horizontal-layout",
+            "cycle": true,
+            "children": [],
+            "clickBranches": []
+          },
+          {
+            "screenId": "s6_d1",
+            "depth": 1,
+            "parentAction": "[button] press 2060 892 (搜索)",
+            "title": "s6_d1 · depth=1 · nodes=142 · navigation-based, horizontal-layout",
+            "fingerprint": {
+              "nodes": 142,
+              "labels": ":|懂车帝直线赛|搜索||||",
+              "key": "142::|懂车帝直线赛|搜索||||"
+            },
+            "cognition": {
+              "treeDepth": 44,
+              "features": {
+                "hasScroll": true,
+                "hasTabs": true,
+                "hasModal": false,
+                "hasList": false,
+                "hasForm": true
+              },
+              "suggestions": [
+                "存在导航结构，建议按导航层级遍历"
+              ]
+            },
+            "clickBranches": [
+              {
+                "action": "[content] press 88 190 ()",
+                "label": "",
+                "status": "新界面 (142→554)",
+                "isNewScreen": true,
+                "skipped": false,
+                "childScreenId": "s7_d2",
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[content] press 1101 191 (懂车帝直线赛)",
+                "label": "懂车帝直线赛",
+                "status": "新界面 (618→618)",
+                "isNewScreen": true,
+                "skipped": false,
+                "childScreenId": "s8_d2",
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[content] press 1984 191 ()",
+                "label": "",
+                "status": "跳过 (launcher)",
+                "isNewScreen": false,
+                "skipped": true,
+                "reason": "launcher",
+                "unvisitedNewScreen": false
+              }
+            ],
+            "children": [
+              {
+                "screenId": "s7_d2",
+                "depth": 2,
+                "parentAction": "[content] press 88 190 ()",
+                "title": "s7_d2 · depth=2 · nodes=554 · navigation-based, horizontal-layout, list-view",
+                "fingerprint": {
+                  "nodes": 554,
+                  "labels": "10万以内纯电小车推荐|2026年3月销量汽车排行榜|2026年4月车销量排行榜|2026年4月销量汽车排行榜|2026年4月销量汽车排行榜燃油车|2026省补申请入口|3.33L/100km|3.80L/100km|3.97L/100km|4.09L/100km|4.30L/100km|4.38L/100km|4.45L/100km|4.56L/100km|4.66L/100km|4.82L/100km|4月销量完整排行|:|三月汽车销量排行榜|东风奕派M8车顶设计引争议|全新一代问界M9宣传视频陷AI争议|合资SUV再迎“降价潮”|排行榜销量|搜索|新款海狮06DM上市 售12.99万元起|新款雷克萨斯RX曝光|更多|比亚迪4月销量|法拉利史上首款电动车亮相|福特烈马亚马逊限量版SUV上市|销量 14218|销量 14372|销量 14923|销量 15658|销量 15659|销量 15814|销量 21024|销量 22990|销量 26826|销量 34727|长城哈弗猛龙PLUS开启全国交付|零跑D99将于5月29日亮相||||||",
+                  "key": "554:10万以内纯电小车推荐|2026年3月销量汽车排行榜|2026年4月车销量排行榜|2026年4月销量汽车排行榜|2026年4月销量汽车排行榜燃油车|2026省补申请入口|3.33L/100km|3.80L/100km|3.97L/100km|4.09L/100km|4.30L/100km|4.38L/100km|4.45L/100km|4.56L/100km|4.66L/100km|4.82L/1"
+                },
+                "cognition": {
+                  "treeDepth": 27,
+                  "features": {
+                    "hasScroll": true,
+                    "hasTabs": true,
+                    "hasModal": false,
+                    "hasList": true,
+                    "hasForm": true
+                  },
+                  "suggestions": [
+                    "界面复杂度高，建议优先测试关键路径",
+                    "存在导航结构，建议按导航层级遍历",
+                    "交互元素多，建议分类测试（按钮、输入框、链接等）"
+                  ]
+                },
+                "clickBranches": [
+                  {
+                    "action": "[content-card] press 392 1863 (东风奕派M8车顶设计引争议)",
+                    "label": "东风奕派M8车顶设计引争议",
+                    "status": "新界面 (554→196) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 1169 1863 (销量 14923)",
+                    "label": "销量 14923",
+                    "status": "新界面 (554→88) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 1911 1863 (4.56L/100km)",
+                    "label": "4.56L/100km",
+                    "status": "新界面 (554→88) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 392 1988 (新款雷克萨斯RX曝光)",
+                    "label": "新款雷克萨斯RX曝光",
+                    "status": "新界面 (554→219) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 1169 1988 (销量 14372)",
+                    "label": "销量 14372",
+                    "status": "新界面 (554→88) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 1911 1988 (4.66L/100km)",
+                    "label": "4.66L/100km",
+                    "status": "新界面 (554→88) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 392 2113 (长城哈弗猛龙PLUS开启全国交付)",
+                    "label": "长城哈弗猛龙PLUS开启全国交付",
+                    "status": "新界面 (554→196) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 1169 2113 (销量 14218)",
+                    "label": "销量 14218",
+                    "status": "新界面 (554→88) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 1911 2113 (4.82L/100km)",
+                    "label": "4.82L/100km",
+                    "status": "新界面 (554→88) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 88 190 ()",
+                    "label": "",
+                    "status": "新界面 (554→618) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 1129 191 ()",
+                    "label": "",
+                    "status": "新界面 (554→618) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 2124 191 (搜索)",
+                    "label": "搜索",
+                    "status": "新界面 (554→968) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  }
+                ],
+                "children": []
+              },
+              {
+                "screenId": "s8_d2",
+                "depth": 2,
+                "parentAction": "[content] press 1101 191 (懂车帝直线赛)",
+                "title": "s8_d2 · depth=2 · nodes=618 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view",
+                "fingerprint": {
+                  "nodes": 618,
+                  "labels": "2026年4月销量汽车排行榜|2026年4月销量汽车排行榜|2026年度|:|AI小懂|AI小懂|SUV|以旧换新|关注|北京|北京|十万买啥车|原创|原创|发现|商城|官方直营|导购|底价专区|懂车帝赛事频道入口在哪|排行榜|推荐|推荐|搜索|搜索|搜索|摩托车|新车|新车|未登录|横穿北美|海量车源|消息|热点|特惠充电|独家|用车|用车|神券省1500|赛事|选车|首页|高价收车||||||||||||||",
+                  "key": "618:2026年4月销量汽车排行榜|2026年4月销量汽车排行榜|2026年度|:|AI小懂|AI小懂|SUV|以旧换新|关注|北京|北京|十万买啥车|原创|原创|发现|商城|官方直营|导购|底价专区|懂车帝赛事频道入口在哪|排行榜|推荐|推荐|搜索|搜索|搜索|摩托车|新车|新车|未登录|横穿北美|海量车源|消息|热点|特惠充电|独家|用车|用车|神券省1500|赛事|选车|首页|高价收车|||"
+                },
+                "cognition": {
+                  "treeDepth": 62,
+                  "features": {
+                    "hasScroll": true,
+                    "hasTabs": true,
+                    "hasModal": false,
+                    "hasList": true,
+                    "hasForm": false
+                  },
+                  "suggestions": [
+                    "界面复杂度高，建议优先测试关键路径",
+                    "存在导航结构，建议按导航层级遍历",
+                    "交互元素多，建议分类测试（按钮、输入框、链接等）"
+                  ]
+                },
+                "clickBranches": [
+                  {
+                    "action": "[bottom-tab] press 1112 2315 (AI小懂)",
+                    "label": "AI小懂",
+                    "status": "无变化 (618→278)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[button] press 2103 338 (搜索)",
+                    "label": "搜索",
+                    "status": "无变化 (618→278)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[button] press 2060 892 (搜索)",
+                    "label": "搜索",
+                    "status": "无变化 (618→277)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content-card] press 383 1934 (Column@383,1934)",
+                    "label": "Column@383,1934",
+                    "status": "无变化 (618→277)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content-card] press 1112 1934 (Column@1112,1934)",
+                    "label": "Column@1112,1934",
+                    "status": "无变化 (618→278)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content-card] press 1841 1934 (Column@1841,1934)",
+                    "label": "Column@1841,1934",
+                    "status": "无变化 (618→277)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content] press 2159 181 ()",
+                    "label": "",
+                    "status": "新界面 (618→301) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 114 188 (发现)",
+                    "label": "发现",
+                    "status": "新界面 (618→631) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 305 188 (商城)",
+                    "label": "商城",
+                    "status": "新界面 (618→495) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 548 188 (Column@548,188)",
+                    "label": "Column@548,188",
+                    "status": "新界面 (618→222) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 848 188 (横穿北美)",
+                    "label": "横穿北美",
+                    "status": "新界面 (618→209) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 91 338 (Stack@91,338)",
+                    "label": "Stack@91,338",
+                    "status": "新界面 (618→209) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  }
+                ],
+                "children": []
+              }
+            ]
+          },
+          {
+            "screenId": "s9_d1",
+            "depth": 1,
+            "parentAction": "[content-card] press 383 1934 (Column@383,1934)",
+            "title": "s9_d1 · depth=1 · nodes=275 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view",
+            "fingerprint": {
+              "nodes": 275,
+              "labels": "0.000000|00:00|131|131|3|3|3|37|37|:|分享|懂车帝原创|点击发弹幕|点击发弹幕|视频|视频提及|||||||||",
+              "key": "275:0.000000|00:00|131|131|3|3|3|37|37|:|分享|懂车帝原创|点击发弹幕|点击发弹幕|视频|视频提及|||||||||"
+            },
+            "cognition": {
+              "treeDepth": 41,
+              "features": {
+                "hasScroll": true,
+                "hasTabs": true,
+                "hasModal": false,
+                "hasList": true,
+                "hasForm": false
+              },
+              "suggestions": [
+                "界面复杂度高，建议优先测试关键路径",
+                "存在导航结构，建议按导航层级遍历",
+                "交互元素多，建议分类测试（按钮、输入框、链接等）"
+              ]
+            },
+            "clickBranches": [
+              {
+                "action": "[bottom-tab] press 1662 2340 (3)",
+                "label": "3",
+                "status": "新界面 (275→251)",
+                "isNewScreen": true,
+                "skipped": false,
+                "childScreenId": "s10_d2",
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[bottom-tab] press 1812 2340 (131)",
+                "label": "131",
+                "status": "跳过 (launcher)",
+                "isNewScreen": false,
+                "skipped": true,
+                "reason": "launcher",
+                "unvisitedNewScreen": false
+              }
+            ],
+            "children": [
+              {
+                "screenId": "s10_d2",
+                "depth": 2,
+                "parentAction": "[bottom-tab] press 1662 2340 (3)",
+                "title": "s10_d2 · depth=2 · nodes=251 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view",
+                "fingerprint": {
+                  "nodes": 251,
+                  "labels": "131|3|3|37|6评论4赞|:|Fantasy060602|我也想去玩，不对。工作|点击发弹幕|点击发弹幕|视频|视频提及|赛博越野旅行车|||",
+                  "key": "251:131|3|3|37|6评论4赞|:|Fantasy060602|我也想去玩，不对。工作|点击发弹幕|点击发弹幕|视频|视频提及|赛博越野旅行车|||"
+                },
+                "cognition": {
+                  "treeDepth": 46,
+                  "features": {
+                    "hasScroll": true,
+                    "hasTabs": true,
+                    "hasModal": false,
+                    "hasList": true,
+                    "hasForm": false
+                  },
+                  "suggestions": [
+                    "界面复杂度高，建议优先测试关键路径",
+                    "存在导航结构，建议按导航层级遍历"
+                  ]
+                },
+                "clickBranches": [
+                  {
+                    "action": "[bottom-tab] press 1175 2205 (我也想去玩，不对。工作)",
+                    "label": "我也想去玩，不对。工作",
+                    "status": "新界面 (251→228) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[bottom-tab] press 1662 2340 (3)",
+                    "label": "3",
+                    "status": "新界面 (251→245) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[bottom-tab] press 1812 2340 (131)",
+                    "label": "131",
+                    "status": "新界面 (251→326) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[bottom-tab] press 1962 2340 (37)",
+                    "label": "37",
+                    "status": "新界面 (251→326) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[bottom-tab] press 2112 2340 (视频提及)",
+                    "label": "视频提及",
+                    "status": "新界面 (251→325) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 1112 1838 (6评论4赞)",
+                    "label": "6评论4赞",
+                    "status": "新界面 (251→320) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 313 2167 (Fantasy060602)",
+                    "label": "Fantasy060602",
+                    "status": "新界面 (251→103) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 100 2189 (__Common__@100,2189)",
+                    "label": "__Common__@100,2189",
+                    "status": "新界面 (251→103) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 75 181 ()",
+                    "label": "",
+                    "status": "新界面 (251→414) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 1112 737 ()",
+                    "label": "",
+                    "status": "新界面 (251→414) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 100 1424 (视频)",
+                    "label": "视频",
+                    "status": "新界面 (251→413) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 284 1424 (3)",
+                    "label": "3",
+                    "status": "新界面 (251→414) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  }
+                ],
+                "children": []
+              }
+            ]
+          },
+          {
+            "screenId": "s11_d1",
+            "depth": 1,
+            "parentAction": "[content-card] press 1112 1934 (Column@1112,1934)",
+            "title": "s11_d1 · depth=1 · nodes=414 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view, grid-view",
+            "fingerprint": {
+              "nodes": 414,
+              "labels": "0|0|0|0|0|0|:|AI小懂|AI小懂|价格举报|价格举报|优惠券|免息|免费估价|免费估价|全部订单|关注订阅|关注订阅|创作中心|去发布|去认证|型格|广告|收藏|旧车换新|更多服务|未登录|未登录|活动广场|浏览历史|浏览历史|消息|神券立减88|缤越|车品|选车|金币|限时7日领|限时7日领|首页|||意见反馈|||||||",
+              "key": "414:0|0|0|0|0|0|:|AI小懂|AI小懂|价格举报|价格举报|优惠券|免息|免费估价|免费估价|全部订单|关注订阅|关注订阅|创作中心|去发布|去认证|型格|广告|收藏|旧车换新|更多服务|未登录|未登录|活动广场|浏览历史|浏览历史|消息|神券立减88|缤越|车品|选车|金币|限时7日领|限时7日领|首页|||意见反馈|||||||"
+            },
+            "cognition": {
+              "treeDepth": 34,
+              "features": {
+                "hasScroll": true,
+                "hasTabs": true,
+                "hasModal": false,
+                "hasList": true,
+                "hasForm": false
+              },
+              "suggestions": [
+                "界面复杂度高，建议优先测试关键路径",
+                "存在导航结构，建议按导航层级遍历",
+                "交互元素多，建议分类测试（按钮、输入框、链接等）"
+              ]
+            },
+            "clickBranches": [
+              {
+                "action": "[bottom-tab] press 243 2274 (Column@243,2274)",
+                "label": "Column@243,2274",
+                "status": "无变化 (414→414)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[bottom-tab] press 678 2274 (Column@678,2274)",
+                "label": "Column@678,2274",
+                "status": "新界面 (414→414)",
+                "isNewScreen": true,
+                "skipped": false,
+                "childScreenId": "s12_d2",
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[bottom-tab] press 1113 2274 (Column@1113,2274)",
+                "label": "Column@1113,2274",
+                "status": "无变化 (320→278)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[bottom-tab] press 1547 2274 (Column@1547,2274)",
+                "label": "Column@1547,2274",
+                "status": "新界面 (320→78)",
+                "isNewScreen": true,
+                "skipped": false,
+                "childScreenId": "s13_d2",
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[bottom-tab] press 1982 2274 (Column@1982,2274)",
+                "label": "Column@1982,2274",
+                "status": "无变化 (278→78)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[bottom-tab] press 1112 2315 (AI小懂)",
+                "label": "AI小懂",
+                "status": "无变化 (?→?)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[top-action] press 1112 182 (限时7日领)",
+                "label": "限时7日领",
+                "status": "跳过 (launcher)",
+                "isNewScreen": false,
+                "skipped": true,
+                "reason": "launcher",
+                "unvisitedNewScreen": false
+              }
+            ],
+            "children": [
+              {
+                "screenId": "s12_d2",
+                "depth": 2,
+                "parentAction": "[bottom-tab] press 678 2274 (Column@678,2274)",
+                "title": "s12_d2 · depth=2 · nodes=414 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view, grid-view",
+                "fingerprint": {
+                  "nodes": 414,
+                  "labels": "0|0|0|0|0|0|:|AI小懂|AI小懂|价格举报|价格举报|优惠券|免息|免费估价|全部订单|关注订阅|关注订阅|创作中心|去发布|去认证|型格|广告|收藏|旧车换新|更多服务|未登录|未登录|活动广场|浏览历史|浏览历史|消息|神券立减88|缤越|车品|选车|金币|限时7日领|限时7日领|首页|||意见反馈|||||||",
+                  "key": "414:0|0|0|0|0|0|:|AI小懂|AI小懂|价格举报|价格举报|优惠券|免息|免费估价|全部订单|关注订阅|关注订阅|创作中心|去发布|去认证|型格|广告|收藏|旧车换新|更多服务|未登录|未登录|活动广场|浏览历史|浏览历史|消息|神券立减88|缤越|车品|选车|金币|限时7日领|限时7日领|首页|||意见反馈|||||||"
+                },
+                "cognition": {
+                  "treeDepth": 34,
+                  "features": {
+                    "hasScroll": true,
+                    "hasTabs": true,
+                    "hasModal": false,
+                    "hasList": true,
+                    "hasForm": false
+                  },
+                  "suggestions": [
+                    "界面复杂度高，建议优先测试关键路径",
+                    "存在导航结构，建议按导航层级遍历",
+                    "交互元素多，建议分类测试（按钮、输入框、链接等）"
+                  ]
+                },
+                "clickBranches": [
+                  {
+                    "action": "[bottom-tab] press 243 2274 (Column@243,2274)",
+                    "label": "Column@243,2274",
+                    "status": "无变化 (414→414)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[bottom-tab] press 678 2274 (Column@678,2274)",
+                    "label": "Column@678,2274",
+                    "status": "新界面 (414→413) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[bottom-tab] press 1113 2274 (Column@1113,2274)",
+                    "label": "Column@1113,2274",
+                    "status": "新界面 (414→413) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[bottom-tab] press 1547 2274 (Column@1547,2274)",
+                    "label": "Column@1547,2274",
+                    "status": "无变化 (414→414)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[bottom-tab] press 1982 2274 (Column@1982,2274)",
+                    "label": "Column@1982,2274",
+                    "status": "新界面 (414→320) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[bottom-tab] press 1112 2315 (AI小懂)",
+                    "label": "AI小懂",
+                    "status": "无变化 (414→278)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[top-action] press 1112 182 (限时7日领)",
+                    "label": "限时7日领",
+                    "status": "无变化 (414→278)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[top-action] press 1231 300 ()",
+                    "label": "",
+                    "status": "无变化 (414→277)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content-card] press 245 1853 (浏览历史)",
+                    "label": "浏览历史",
+                    "status": "新界面 (414→78) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 679 1853 (车品)",
+                    "label": "车品",
+                    "status": "新界面 (414→78) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 1112 1853 (价格举报)",
+                    "label": "价格举报",
+                    "status": "新界面 (414→78) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 1546 1853 (免息)",
+                    "label": "免息",
+                    "status": "新界面 (414→78) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  }
+                ],
+                "children": []
+              },
+              {
+                "screenId": "s13_d2",
+                "depth": 2,
+                "parentAction": "[bottom-tab] press 1547 2274 (Column@1547,2274)",
+                "title": "s13_d2 · depth=2 · nodes=78 · navigation-based, horizontal-layout",
+                "fingerprint": {
+                  "nodes": 78,
+                  "labels": ":|已阅读并同意 “用户协议” 和 “隐私政策”|登录遇到问题|",
+                  "key": "78::|已阅读并同意 “用户协议” 和 “隐私政策”|登录遇到问题|"
+                },
+                "cognition": {
+                  "treeDepth": 15,
+                  "features": {
+                    "hasScroll": true,
+                    "hasTabs": true,
+                    "hasModal": false,
+                    "hasList": false,
+                    "hasForm": true
+                  },
+                  "suggestions": [
+                    "存在导航结构，建议按导航层级遍历"
+                  ]
+                },
+                "clickBranches": [
+                  {
+                    "action": "[content] press 2087 212 ()",
+                    "label": "",
+                    "status": "无变化 (78→277)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content] press 1112 614 (TextInput@1112,614)",
+                    "label": "TextInput@1112,614",
+                    "status": "无变化 (78→278)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content] press 136 1036 (Checkbox@136,1036)",
+                    "label": "Checkbox@136,1036",
+                    "status": "无变化 (78→278)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content] press 562 1036 (已阅读并同意 “用户协议” 和 “隐私政策”)",
+                    "label": "已阅读并同意 “用户协议” 和 “隐私政策”",
+                    "status": "无变化 (78→278)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content] press 1025 2235 (Image@1025,2235)",
+                    "label": "Image@1025,2235",
+                    "status": "无变化 (78→78)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content] press 1200 2235 (Stack@1200,2235)",
+                    "label": "Stack@1200,2235",
+                    "status": "新界面 (78→105) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 1113 2387 (登录遇到问题)",
+                    "label": "登录遇到问题",
+                    "status": "新界面 (78→91) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  }
+                ],
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

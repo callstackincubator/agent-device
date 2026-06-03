@@ -1,0 +1,2843 @@
+{
+  "success": true,
+  "data": {
+    "nodes": [
+      {
+        "index": 0,
+        "type": "",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 2496
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 0,
+        "ref": "e1"
+      },
+      {
+        "index": 1,
+        "type": "Navigation",
+        "identifier": "4",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e2"
+      },
+      {
+        "index": 2,
+        "type": "NavigationContent",
+        "identifier": "9",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e3"
+      },
+      {
+        "index": 3,
+        "type": "NavDestination",
+        "identifier": "30",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 4,
+        "parentIndex": 2,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e4"
+      },
+      {
+        "index": 4,
+        "type": "NavDestinationContent",
+        "identifier": "34",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 3,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e5"
+      },
+      {
+        "index": 5,
+        "type": "List",
+        "identifier": "39",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 4,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e6"
+      },
+      {
+        "index": 6,
+        "type": "ListItem",
+        "identifier": "41",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 5,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e7"
+      },
+      {
+        "index": 7,
+        "type": "Stack",
+        "identifier": "43",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 6,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e8"
+      },
+      {
+        "index": 8,
+        "type": "Column",
+        "identifier": "44",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2296
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 7,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e9"
+      },
+      {
+        "index": 9,
+        "type": "Tabs",
+        "identifier": "45",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2296
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 8,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e10"
+      },
+      {
+        "index": 10,
+        "type": "Swiper",
+        "identifier": "46",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 9,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e11"
+      },
+      {
+        "index": 11,
+        "type": "TabContent",
+        "identifier": "57",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e12"
+      },
+      {
+        "index": 12,
+        "type": "Stack",
+        "identifier": "268",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 11,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e13"
+      },
+      {
+        "index": 13,
+        "type": "Stack",
+        "identifier": "272",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 12,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e14"
+      },
+      {
+        "index": 14,
+        "type": "Stack",
+        "identifier": "289",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 13,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e15"
+      },
+      {
+        "index": 15,
+        "type": "Swiper",
+        "identifier": "290",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 14,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e16"
+      },
+      {
+        "index": 16,
+        "type": "Stack",
+        "identifier": "296",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 15,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e17"
+      },
+      {
+        "index": 17,
+        "type": "Stack",
+        "identifier": "299",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 16,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e18"
+      },
+      {
+        "index": 18,
+        "type": "Stack",
+        "identifier": "300",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 17,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e19"
+      },
+      {
+        "index": 19,
+        "type": "Stack",
+        "identifier": "447",
+        "rect": {
+          "x": 410,
+          "y": 113,
+          "width": 1404,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 18,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e20"
+      },
+      {
+        "index": 20,
+        "type": "__Common__",
+        "identifier": "448",
+        "rect": {
+          "x": 410,
+          "y": 113,
+          "width": 1404,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 19,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e21"
+      },
+      {
+        "index": 21,
+        "type": "Stack",
+        "identifier": "450",
+        "rect": {
+          "x": 410,
+          "y": 113,
+          "width": 1404,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 20,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e22"
+      },
+      {
+        "index": 22,
+        "type": "__Common__",
+        "identifier": "452",
+        "rect": {
+          "x": 410,
+          "y": 113,
+          "width": 1404,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 21,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e23"
+      },
+      {
+        "index": 23,
+        "type": "RelativeContainer",
+        "identifier": "454",
+        "rect": {
+          "x": 410,
+          "y": 113,
+          "width": 1404,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 22,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e24"
+      },
+      {
+        "index": 24,
+        "type": "Stack",
+        "identifier": "455",
+        "rect": {
+          "x": 410,
+          "y": 113,
+          "width": 1404,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 23,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e25"
+      },
+      {
+        "index": 25,
+        "type": "Row",
+        "identifier": "457",
+        "rect": {
+          "x": 410,
+          "y": 113,
+          "width": 1404,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 24,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e26"
+      },
+      {
+        "index": 26,
+        "type": "Stack",
+        "identifier": "458",
+        "rect": {
+          "x": 410,
+          "y": 113,
+          "width": 1404,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 24,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e27"
+      },
+      {
+        "index": 27,
+        "type": "XComponent",
+        "identifier": "459",
+        "rect": {
+          "x": 410,
+          "y": 113,
+          "width": 1404,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 26,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e28"
+      },
+      {
+        "index": 28,
+        "type": "Column",
+        "identifier": "302",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 17,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e29"
+      },
+      {
+        "index": 29,
+        "type": "RelativeContainer",
+        "identifier": "303",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 28,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e30"
+      },
+      {
+        "index": 30,
+        "type": "Column",
+        "identifier": "307",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 29,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e31"
+      },
+      {
+        "index": 31,
+        "type": "RelativeContainer",
+        "identifier": "309",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 30,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e32"
+      },
+      {
+        "index": 32,
+        "type": "Column",
+        "identifier": "312",
+        "rect": {
+          "x": 0,
+          "y": 1361,
+          "width": 2224,
+          "height": 873
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 31,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e33"
+      },
+      {
+        "index": 33,
+        "type": "Column",
+        "identifier": "313",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 235
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 31,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e34"
+      },
+      {
+        "index": 34,
+        "type": "RelativeContainer",
+        "identifier": "314",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 31,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e35"
+      },
+      {
+        "index": 35,
+        "type": "Blank",
+        "identifier": "321",
+        "rect": {
+          "x": 410,
+          "y": 113,
+          "width": 1404,
+          "height": 2121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 34,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e36"
+      },
+      {
+        "index": 36,
+        "type": "Column",
+        "identifier": "326",
+        "rect": {
+          "x": 0,
+          "y": 1700,
+          "width": 2224,
+          "height": 534
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 34,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e37"
+      },
+      {
+        "index": 37,
+        "type": "Row",
+        "identifier": "328",
+        "rect": {
+          "x": 50,
+          "y": 1700,
+          "width": 801,
+          "height": 156
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 36,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e38"
+      },
+      {
+        "index": 38,
+        "type": "Image",
+        "identifier": "330",
+        "rect": {
+          "x": 50,
+          "y": 1700,
+          "width": 113,
+          "height": 156
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 37,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e39"
+      },
+      {
+        "index": 39,
+        "type": "Column",
+        "identifier": "331",
+        "rect": {
+          "x": 188,
+          "y": 1700,
+          "width": 663,
+          "height": 156
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 37,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e40"
+      },
+      {
+        "index": 40,
+        "type": "Row",
+        "identifier": "332",
+        "rect": {
+          "x": 188,
+          "y": 1700,
+          "width": 663,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 39,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e41"
+      },
+      {
+        "index": 41,
+        "type": "Text",
+        "label": "你一个武夫,谁让你炼剑的？",
+        "value": "你一个武夫,谁让你炼剑的？",
+        "identifier": "333",
+        "rect": {
+          "x": 188,
+          "y": 1700,
+          "width": 613,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 40,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e42"
+      },
+      {
+        "index": 42,
+        "type": "Image",
+        "identifier": "334",
+        "rect": {
+          "x": 801,
+          "y": 1705,
+          "width": 50,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 40,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e43"
+      },
+      {
+        "index": 43,
+        "type": "Blank",
+        "identifier": "336",
+        "rect": {
+          "x": 188,
+          "y": 1759,
+          "width": 3,
+          "height": 41
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 39,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e44"
+      },
+      {
+        "index": 44,
+        "type": "Row",
+        "identifier": "337",
+        "rect": {
+          "x": 188,
+          "y": 1800,
+          "width": 294,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 39,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e45"
+      },
+      {
+        "index": 45,
+        "type": "Text",
+        "label": "第1季",
+        "value": "第1季",
+        "identifier": "340",
+        "rect": {
+          "x": 188,
+          "y": 1800,
+          "width": 133,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 44,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e46"
+      },
+      {
+        "index": 46,
+        "type": "Text",
+        "label": "玄幻",
+        "value": "玄幻",
+        "identifier": "342",
+        "rect": {
+          "x": 346,
+          "y": 1800,
+          "width": 111,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 44,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e47"
+      },
+      {
+        "index": 47,
+        "type": "__Common__",
+        "identifier": "344",
+        "rect": {
+          "x": 50,
+          "y": 1881,
+          "width": 1827,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 36,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e48"
+      },
+      {
+        "index": 48,
+        "type": "Stack",
+        "identifier": "365",
+        "rect": {
+          "x": 50,
+          "y": 1881,
+          "width": 1827,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 47,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e49"
+      },
+      {
+        "index": 49,
+        "type": "Text",
+        "label": "第1集｜秦关被师尊一脚踢下山，去南家当上门女婿抵债。原定未婚妻嫌弃他是废物武夫，改由病弱大小姐南柔替嫁。秦关表面是赘婿，实则八境武夫，一拳打爆炼气、一剑斩碎剑王...",
+        "value": "第1集｜秦关被师尊一脚踢下山，去南家当上门女婿抵债。原定未婚妻嫌弃他是废物武夫，改由病弱大小姐南柔替嫁。秦关表面是赘婿，实则八境武夫，一拳打爆炼气、一剑斩碎剑王...",
+        "identifier": "367",
+        "rect": {
+          "x": 50,
+          "y": 1881,
+          "width": 1827,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 48,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e50"
+      },
+      {
+        "index": 50,
+        "type": "Text",
+        "label": "展开",
+        "value": "展开",
+        "identifier": "372",
+        "rect": {
+          "x": 1789,
+          "y": 1950,
+          "width": 88,
+          "height": 69
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 48,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e51"
+      },
+      {
+        "index": 51,
+        "type": "Row",
+        "identifier": "346",
+        "rect": {
+          "x": 50,
+          "y": 2056,
+          "width": 822,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 36,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e52"
+      },
+      {
+        "index": 52,
+        "type": "Text",
+        "label": "观看完整短剧",
+        "value": "观看完整短剧",
+        "identifier": "347",
+        "rect": {
+          "x": 100,
+          "y": 2083,
+          "width": 300,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 51,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e53"
+      },
+      {
+        "index": 53,
+        "type": "Blank",
+        "identifier": "348",
+        "rect": {
+          "x": 400,
+          "y": 2056,
+          "width": 391,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 51,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e54"
+      },
+      {
+        "index": 54,
+        "type": "Image",
+        "identifier": "349",
+        "rect": {
+          "x": 791,
+          "y": 2087,
+          "width": 50,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 51,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e55"
+      },
+      {
+        "index": 55,
+        "type": "Column",
+        "identifier": "351",
+        "rect": {
+          "x": 2049,
+          "y": 1485,
+          "width": 144,
+          "height": 674
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 34,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e56"
+      },
+      {
+        "index": 56,
+        "type": "Column",
+        "identifier": "352",
+        "rect": {
+          "x": 2049,
+          "y": 1485,
+          "width": 144,
+          "height": 674
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 55,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e57"
+      },
+      {
+        "index": 57,
+        "type": "Image",
+        "identifier": "354",
+        "rect": {
+          "x": 2049,
+          "y": 1485,
+          "width": 144,
+          "height": 144
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 56,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e58"
+      },
+      {
+        "index": 58,
+        "type": "Text",
+        "label": "追剧",
+        "value": "追剧",
+        "identifier": "355",
+        "rect": {
+          "x": 2083,
+          "y": 1629,
+          "width": 75,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 56,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e59"
+      },
+      {
+        "index": 59,
+        "type": "__Common__",
+        "identifier": "356",
+        "rect": {
+          "x": 2049,
+          "y": 1710,
+          "width": 144,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 56,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e60"
+      },
+      {
+        "index": 60,
+        "type": "Column",
+        "identifier": "362",
+        "rect": {
+          "x": 2049,
+          "y": 1710,
+          "width": 144,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 59,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e61"
+      },
+      {
+        "index": 61,
+        "type": "Image",
+        "identifier": "363",
+        "rect": {
+          "x": 2049,
+          "y": 1710,
+          "width": 144,
+          "height": 144
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 60,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e62"
+      },
+      {
+        "index": 62,
+        "type": "Text",
+        "label": "3014",
+        "value": "3014",
+        "identifier": "364",
+        "rect": {
+          "x": 2077,
+          "y": 1854,
+          "width": 87,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 60,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e63"
+      },
+      {
+        "index": 63,
+        "type": "Stack",
+        "identifier": "358",
+        "rect": {
+          "x": 2049,
+          "y": 1935,
+          "width": 144,
+          "height": 144
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 56,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e64"
+      },
+      {
+        "index": 64,
+        "type": "Image",
+        "identifier": "359",
+        "rect": {
+          "x": 2049,
+          "y": 1935,
+          "width": 144,
+          "height": 144
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 63,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e65"
+      },
+      {
+        "index": 65,
+        "type": "Text",
+        "label": "10.4万",
+        "value": "10.4万",
+        "identifier": "361",
+        "rect": {
+          "x": 2065,
+          "y": 2078,
+          "width": 112,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 56,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e66"
+      },
+      {
+        "index": 66,
+        "type": "__Common__",
+        "identifier": "462",
+        "rect": {
+          "x": 0,
+          "y": 1512,
+          "width": 2224,
+          "height": 719
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 17,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e67"
+      },
+      {
+        "index": 67,
+        "type": "RelativeContainer",
+        "identifier": "464",
+        "rect": {
+          "x": 0,
+          "y": 1512,
+          "width": 2224,
+          "height": 719
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 66,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e68"
+      },
+      {
+        "index": 68,
+        "type": "Row",
+        "identifier": "466",
+        "rect": {
+          "x": 0,
+          "y": 2218,
+          "width": 2224,
+          "height": 13
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 67,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e69"
+      },
+      {
+        "index": 69,
+        "type": "Stack",
+        "identifier": "468",
+        "rect": {
+          "x": 50,
+          "y": 2218,
+          "width": 2124,
+          "height": 13
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 68,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e70"
+      },
+      {
+        "index": 70,
+        "type": "Progress",
+        "label": "2478.000000",
+        "value": "2478.000000",
+        "identifier": "469",
+        "rect": {
+          "x": 50,
+          "y": 2221,
+          "width": 2124,
+          "height": 6
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 69,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e71"
+      },
+      {
+        "index": 71,
+        "type": "Image",
+        "identifier": "470",
+        "rect": {
+          "x": 72,
+          "y": 2218,
+          "width": 13,
+          "height": 13
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 69,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e72"
+      },
+      {
+        "index": 72,
+        "type": "Row",
+        "identifier": "270",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 133
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 12,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e73"
+      },
+      {
+        "index": 73,
+        "type": "Image",
+        "identifier": "271",
+        "rect": {
+          "x": 2090,
+          "y": 152,
+          "width": 94,
+          "height": 94
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 72,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e74"
+      },
+      {
+        "index": 74,
+        "type": "TabBar",
+        "identifier": "48",
+        "rect": {
+          "x": 0,
+          "y": 2234,
+          "width": 2224,
+          "height": 176
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 9,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e75"
+      },
+      {
+        "index": 75,
+        "type": "Column",
+        "identifier": "70",
+        "rect": {
+          "x": 0,
+          "y": 2234,
+          "width": 557,
+          "height": 176
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": true,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 74,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e76"
+      },
+      {
+        "index": 76,
+        "type": "Column",
+        "identifier": "82",
+        "rect": {
+          "x": 0,
+          "y": 2234,
+          "width": 556,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 75,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e77"
+      },
+      {
+        "index": 77,
+        "type": "Image",
+        "identifier": "284",
+        "rect": {
+          "x": 234,
+          "y": 2259,
+          "width": 88,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 76,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e78"
+      },
+      {
+        "index": 78,
+        "type": "Text",
+        "label": "短剧",
+        "value": "短剧",
+        "identifier": "85",
+        "rect": {
+          "x": 247,
+          "y": 2347,
+          "width": 63,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 76,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e79"
+      },
+      {
+        "index": 79,
+        "type": "Column",
+        "identifier": "72",
+        "rect": {
+          "x": 556,
+          "y": 2234,
+          "width": 557,
+          "height": 176
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 74,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e80"
+      },
+      {
+        "index": 80,
+        "type": "Column",
+        "identifier": "86",
+        "rect": {
+          "x": 556,
+          "y": 2234,
+          "width": 556,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 79,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e81"
+      },
+      {
+        "index": 81,
+        "type": "Image",
+        "identifier": "285",
+        "rect": {
+          "x": 790,
+          "y": 2259,
+          "width": 88,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 80,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e82"
+      },
+      {
+        "index": 82,
+        "type": "Text",
+        "label": "剧场",
+        "value": "剧场",
+        "identifier": "89",
+        "rect": {
+          "x": 803,
+          "y": 2347,
+          "width": 63,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 80,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e83"
+      },
+      {
+        "index": 83,
+        "type": "Column",
+        "identifier": "74",
+        "rect": {
+          "x": 1112,
+          "y": 2234,
+          "width": 557,
+          "height": 176
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 74,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e84"
+      },
+      {
+        "index": 84,
+        "type": "Column",
+        "identifier": "90",
+        "rect": {
+          "x": 1112,
+          "y": 2234,
+          "width": 556,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 83,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e85"
+      },
+      {
+        "index": 85,
+        "type": "Image",
+        "identifier": "92",
+        "rect": {
+          "x": 1346,
+          "y": 2259,
+          "width": 88,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 84,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e86"
+      },
+      {
+        "index": 86,
+        "type": "Text",
+        "label": "福利",
+        "value": "福利",
+        "identifier": "93",
+        "rect": {
+          "x": 1359,
+          "y": 2347,
+          "width": 63,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 84,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e87"
+      },
+      {
+        "index": 87,
+        "type": "Column",
+        "identifier": "76",
+        "rect": {
+          "x": 1668,
+          "y": 2234,
+          "width": 556,
+          "height": 176
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 74,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e88"
+      },
+      {
+        "index": 88,
+        "type": "Column",
+        "identifier": "94",
+        "rect": {
+          "x": 1668,
+          "y": 2234,
+          "width": 556,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 87,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e89"
+      },
+      {
+        "index": 89,
+        "type": "Image",
+        "identifier": "96",
+        "rect": {
+          "x": 1902,
+          "y": 2259,
+          "width": 88,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 88,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e90"
+      },
+      {
+        "index": 90,
+        "type": "Text",
+        "label": "我的",
+        "value": "我的",
+        "identifier": "97",
+        "rect": {
+          "x": 1915,
+          "y": 2347,
+          "width": 63,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 88,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e91"
+      },
+      {
+        "index": 91,
+        "type": "Stack",
+        "identifier": "80",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2296
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 7,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e92"
+      },
+      {
+        "index": 92,
+        "type": "Stack",
+        "identifier": "79",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 6,
+        "bundleId": "com.phoenix.read.next",
+        "ref": "e93"
+      },
+      {
+        "index": 93,
+        "type": "__Common__",
+        "identifier": "449",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e94"
+      },
+      {
+        "index": 94,
+        "type": "Stack",
+        "identifier": "867",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 93,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e95"
+      },
+      {
+        "index": 95,
+        "type": "__Common__",
+        "identifier": "872",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 94,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e96"
+      },
+      {
+        "index": 96,
+        "type": "Stack",
+        "identifier": "874",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 95,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e97"
+      },
+      {
+        "index": 97,
+        "type": "EffectComponent",
+        "identifier": "878",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 96,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e98"
+      },
+      {
+        "index": 98,
+        "type": "Stack",
+        "identifier": "879",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 97,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e99"
+      },
+      {
+        "index": 99,
+        "type": "Row",
+        "identifier": "935",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 98,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e100"
+      },
+      {
+        "index": 100,
+        "type": "Stack",
+        "identifier": "885",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 98,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e101"
+      },
+      {
+        "index": 101,
+        "type": "RelativeContainer",
+        "identifier": "886",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 100,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e102"
+      },
+      {
+        "index": 102,
+        "type": "RelativeContainer",
+        "identifier": "39318",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 101,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e103"
+      },
+      {
+        "index": 103,
+        "type": "Stack",
+        "identifier": "39320",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 26,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 102,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e104"
+      },
+      {
+        "index": 104,
+        "type": "Stack",
+        "identifier": "39321",
+        "rect": {
+          "x": 148,
+          "y": 25,
+          "width": 83,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 102,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e105"
+      },
+      {
+        "index": 105,
+        "type": "Stack",
+        "identifier": "39322",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 231,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 102,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e106"
+      },
+      {
+        "index": 106,
+        "type": "Row",
+        "identifier": "39324",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 231,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 105,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e107"
+      },
+      {
+        "index": 107,
+        "type": "Image",
+        "identifier": "39325",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 231,
+          "height": 172
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 106,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e108"
+      },
+      {
+        "index": 108,
+        "type": "Stack",
+        "identifier": "940",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 101,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e109"
+      },
+      {
+        "index": 109,
+        "type": "Row",
+        "identifier": "954",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 108,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e110"
+      },
+      {
+        "index": 110,
+        "type": "Flex",
+        "label": "18, :, 19",
+        "value": "18, :, 19",
+        "identifier": "955",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 109,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e111"
+      },
+      {
+        "index": 111,
+        "type": "Row",
+        "identifier": "956",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 68,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 110,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e112"
+      },
+      {
+        "index": 112,
+        "type": "TextClock",
+        "identifier": "957",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 111,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e113"
+      },
+      {
+        "index": 113,
+        "type": "Text",
+        "label": "18",
+        "value": "18",
+        "identifier": "958",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 112,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e114"
+      },
+      {
+        "index": 114,
+        "type": "Text",
+        "label": ":",
+        "value": ":",
+        "identifier": "959",
+        "rect": {
+          "x": 80,
+          "y": 39,
+          "width": 13,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 111,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e115"
+      },
+      {
+        "index": 115,
+        "type": "TextClock",
+        "identifier": "960",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 110,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e116"
+      },
+      {
+        "index": 116,
+        "type": "Text",
+        "label": "19",
+        "value": "19",
+        "identifier": "961",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 115,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e117"
+      },
+      {
+        "index": 117,
+        "type": "RelativeContainer",
+        "identifier": "898",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 2093,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 98,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e118"
+      },
+      {
+        "index": 118,
+        "type": "RelativeContainer",
+        "identifier": "39310",
+        "rect": {
+          "x": 1841,
+          "y": 25,
+          "width": 252,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 117,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e119"
+      },
+      {
+        "index": 119,
+        "type": "Stack",
+        "identifier": "39312",
+        "rect": {
+          "x": 1759,
+          "y": 25,
+          "width": 83,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 118,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e120"
+      },
+      {
+        "index": 120,
+        "type": "Stack",
+        "identifier": "39313",
+        "rect": {
+          "x": 2093,
+          "y": 25,
+          "width": 83,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 118,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e121"
+      },
+      {
+        "index": 121,
+        "type": "Stack",
+        "identifier": "39314",
+        "rect": {
+          "x": 1759,
+          "y": 25,
+          "width": 417,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 118,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e122"
+      },
+      {
+        "index": 122,
+        "type": "Row",
+        "identifier": "39316",
+        "rect": {
+          "x": 1759,
+          "y": 25,
+          "width": 417,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 121,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e123"
+      },
+      {
+        "index": 123,
+        "type": "Image",
+        "identifier": "39317",
+        "rect": {
+          "x": 1759,
+          "y": 0,
+          "width": 417,
+          "height": 172
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 122,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e124"
+      },
+      {
+        "index": 124,
+        "type": "Stack",
+        "identifier": "4165",
+        "rect": {
+          "x": 1840,
+          "y": 25,
+          "width": 63,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 117,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e125"
+      },
+      {
+        "index": 125,
+        "type": "Stack",
+        "identifier": "4169",
+        "rect": {
+          "x": 1846,
+          "y": 25,
+          "width": 57,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 124,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e126"
+      },
+      {
+        "index": 126,
+        "type": "Image",
+        "identifier": "4170",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 125,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e127"
+      },
+      {
+        "index": 127,
+        "type": "Image",
+        "identifier": "4171",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 125,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e128"
+      },
+      {
+        "index": 128,
+        "type": "Stack",
+        "identifier": "1016",
+        "rect": {
+          "x": 1903,
+          "y": 25,
+          "width": 70,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 117,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e129"
+      },
+      {
+        "index": 129,
+        "type": "Row",
+        "identifier": "1088",
+        "rect": {
+          "x": 1909,
+          "y": 25,
+          "width": 64,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 128,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e130"
+      },
+      {
+        "index": 130,
+        "type": "Row",
+        "identifier": "1707",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 129,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e131"
+      },
+      {
+        "index": 131,
+        "type": "Stack",
+        "identifier": "1803",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 130,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e132"
+      },
+      {
+        "index": 132,
+        "type": "Image",
+        "identifier": "2398",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 131,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e133"
+      },
+      {
+        "index": 133,
+        "type": "Image",
+        "identifier": "1807",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 131,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e134"
+      },
+      {
+        "index": 134,
+        "type": "Stack",
+        "identifier": "1019",
+        "rect": {
+          "x": 1973,
+          "y": 25,
+          "width": 120,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 117,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e135"
+      },
+      {
+        "index": 135,
+        "type": "Row",
+        "identifier": "1024",
+        "rect": {
+          "x": 1979,
+          "y": 25,
+          "width": 113,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 134,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e136"
+      },
+      {
+        "index": 136,
+        "type": "Stack",
+        "identifier": "1025",
+        "rect": {
+          "x": 1979,
+          "y": 36,
+          "width": 90,
+          "height": 53
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 135,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e137"
+      },
+      {
+        "index": 137,
+        "type": "Image",
+        "identifier": "1027",
+        "rect": {
+          "x": 1979,
+          "y": 38,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 136,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e138"
+      },
+      {
+        "index": 138,
+        "type": "Text",
+        "label": "89",
+        "value": "89",
+        "identifier": "1030",
+        "rect": {
+          "x": 1975,
+          "y": 39,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 136,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e139"
+      },
+      {
+        "index": 139,
+        "type": "Image",
+        "identifier": "1034",
+        "rect": {
+          "x": 2069,
+          "y": 38,
+          "width": 23,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 135,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e140"
+      },
+      {
+        "index": 140,
+        "type": "Stack",
+        "identifier": "39302",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e141"
+      },
+      {
+        "index": 141,
+        "type": "Stack",
+        "identifier": "39303",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 140,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e142"
+      },
+      {
+        "index": 142,
+        "type": "Button",
+        "identifier": "39304",
+        "rect": {
+          "x": 1037,
+          "y": 22,
+          "width": 150,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 141,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e143"
+      },
+      {
+        "index": 143,
+        "type": "Row",
+        "identifier": "39305",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 113,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 142,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e144"
+      },
+      {
+        "index": 144,
+        "type": "Text",
+        "identifier": "39306",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 143,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e145"
+      },
+      {
+        "index": 145,
+        "type": "Text",
+        "identifier": "39307",
+        "rect": {
+          "x": 1087,
+          "y": 41,
+          "width": 50,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 143,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e146"
+      },
+      {
+        "index": 146,
+        "type": "Text",
+        "identifier": "39308",
+        "rect": {
+          "x": 1150,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 143,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e147"
+      }
+    ],
+    "truncated": false,
+    "appName": "com.phoenix.read.next",
+    "visibility": {
+      "partial": false,
+      "visibleNodeCount": 147,
+      "totalNodeCount": 147,
+      "reasons": []
+    }
+  }
+}

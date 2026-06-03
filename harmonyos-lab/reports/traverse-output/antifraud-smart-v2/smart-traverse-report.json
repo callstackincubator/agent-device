@@ -1,0 +1,934 @@
+{
+  "targetBundle": "com.hicorenational.antifraud.hmy",
+  "deviceId": "22M0223824043030",
+  "outputDir": "./traverse-output/antifraud-smart-v2",
+  "maxDepth": 2,
+  "aborted": false,
+  "screensVisited": 4,
+  "totalClicks": 22,
+  "newScreensFromClicks": 7,
+  "skippedClicks": 1,
+  "results": [
+    {
+      "screenId": "s1_d0",
+      "depth": 0,
+      "parentAction": null,
+      "fingerprint": {
+        "nodes": 64,
+        "labels": ":",
+        "key": "64::"
+      },
+      "guard": {
+        "bundles": [
+          "com.hicorenational.antifraud.hmy",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.hicorenational.antifraud.hmy",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 64,
+          "treeDepth": 15,
+          "complexity": "simple"
+        },
+        "suggestions": [],
+        "features": {
+          "hasScroll": false,
+          "hasTabs": false,
+          "hasModal": false,
+          "hasList": false,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "unknown"
+        ]
+      },
+      "plan": [
+        {
+          "category": "content",
+          "label": "",
+          "type": "Image",
+          "x": 72,
+          "y": 183,
+          "bounds": "[25,113][119,253]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[content] press 72 183 (Image@72,183)",
+          "pressOk": true,
+          "beforeNodes": 64,
+          "afterNodes": 73,
+          "nodeDelta": 9,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s1_d0_after_0.json"
+        }
+      ]
+    },
+    {
+      "screenId": "s2_d1",
+      "depth": 1,
+      "parentAction": "[content] press 72 183 (Image@72,183)",
+      "fingerprint": {
+        "nodes": 73,
+        "labels": ":|polcy|快速注册|找回密码|登录|登录即同意《服务协议》和《隐私政策》",
+        "key": "73::|polcy|快速注册|找回密码|登录|登录即同意《服务协议》和《隐私政策》"
+      },
+      "guard": {
+        "bundles": [
+          "com.hicorenational.antifraud.hmy",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.hicorenational.antifraud.hmy",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 73,
+          "treeDepth": 15,
+          "complexity": "simple"
+        },
+        "suggestions": [],
+        "features": {
+          "hasScroll": false,
+          "hasTabs": false,
+          "hasModal": false,
+          "hasList": false,
+          "hasForm": true
+        },
+        "layoutPattern": [
+          "horizontal-layout"
+        ]
+      },
+      "plan": [
+        {
+          "category": "button",
+          "label": "登录",
+          "type": "Button",
+          "x": 1112,
+          "y": 1147,
+          "bounds": "[62,1084][2162,1209]"
+        },
+        {
+          "category": "content-card",
+          "label": "",
+          "type": "Image",
+          "x": 1112,
+          "y": 2192,
+          "bounds": "[1057,2137][1167,2246]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "TextInput",
+          "x": 1112,
+          "y": 535,
+          "bounds": "[62,457][2162,613]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "TextInput",
+          "x": 1112,
+          "y": 726,
+          "bounds": "[62,647][2162,804]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 2115,
+          "y": 726,
+          "bounds": "[2068,694][2162,757]"
+        },
+        {
+          "category": "content",
+          "label": "polcy",
+          "type": "Checkbox",
+          "x": 100,
+          "y": 891,
+          "bounds": "[76,867][123,914]"
+        },
+        {
+          "category": "content",
+          "label": "登录即同意《服务协议》和《隐私政策》",
+          "type": "Text",
+          "x": 537,
+          "y": 891,
+          "bounds": "[143,865][931,916]"
+        },
+        {
+          "category": "content",
+          "label": "快速注册",
+          "type": "Text",
+          "x": 976,
+          "y": 1350,
+          "bounds": "[888,1324][1064,1375]"
+        },
+        {
+          "category": "content",
+          "label": "找回密码",
+          "type": "Text",
+          "x": 1247,
+          "y": 1350,
+          "bounds": "[1159,1324][1335,1375]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[button] press 1112 1147 (登录)",
+          "pressOk": true,
+          "beforeNodes": 73,
+          "afterNodes": 73,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s2_d1_after_0.json"
+        },
+        {
+          "action": "[content-card] press 1112 2192 (Image@1112,2192)",
+          "pressOk": true,
+          "beforeNodes": 73,
+          "afterNodes": 73,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s2_d1_after_1.json"
+        },
+        {
+          "action": "[content] press 1112 535 (TextInput@1112,535)",
+          "pressOk": true,
+          "beforeNodes": 73,
+          "afterNodes": 117,
+          "nodeDelta": 44,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s2_d1_after_2.json"
+        },
+        {
+          "action": "[content] press 1112 726 (TextInput@1112,726)",
+          "pressOk": true,
+          "beforeNodes": 74,
+          "afterNodes": 78,
+          "nodeDelta": 4,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s2_d1_after_3.json"
+        },
+        {
+          "action": "[content] press 2115 726 (Stack@2115,726)",
+          "pressOk": true,
+          "beforeNodes": 73,
+          "afterNodes": 73,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s2_d1_after_4.json"
+        },
+        {
+          "action": "[content] press 100 891 (polcy)",
+          "pressOk": true,
+          "beforeNodes": 73,
+          "afterNodes": 73,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s2_d1_after_5.json"
+        },
+        {
+          "action": "[content] press 537 891 (登录即同意《服务协议》和《隐私政策》)",
+          "pressOk": true,
+          "beforeNodes": 73,
+          "afterNodes": 64,
+          "nodeDelta": 9,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s2_d1_after_6.json"
+        },
+        {
+          "action": "[content] press 976 1350 (快速注册)",
+          "pressOk": true,
+          "beforeNodes": 73,
+          "afterNodes": 64,
+          "nodeDelta": 9,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s2_d1_after_7.json"
+        },
+        {
+          "action": "[content] press 1247 1350 (找回密码)",
+          "pressOk": true,
+          "beforeNodes": 73,
+          "afterNodes": 64,
+          "nodeDelta": 9,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s2_d1_after_8.json"
+        }
+      ]
+    },
+    {
+      "screenId": "s3_d2",
+      "depth": 2,
+      "parentAction": "[content] press 1112 535 (TextInput@1112,535)",
+      "fingerprint": {
+        "nodes": 117,
+        "labels": "+|-|/|:|=|polcy|密码保险箱|快速注册|找回密码|登录|登录即同意《服务协议》和《隐私政策》",
+        "key": "117:+|-|/|:|=|polcy|密码保险箱|快速注册|找回密码|登录|登录即同意《服务协议》和《隐私政策》"
+      },
+      "guard": {
+        "bundles": [
+          "com.hicorenational.antifraud.hmy",
+          "com.ohos.sceneboard",
+          "com.huawei.hmos.inputmethod"
+        ],
+        "focused": "com.hicorenational.antifraud.hmy",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 117,
+          "treeDepth": 16,
+          "complexity": "simple"
+        },
+        "suggestions": [],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": false,
+          "hasModal": false,
+          "hasList": true,
+          "hasForm": true
+        },
+        "layoutPattern": [
+          "horizontal-layout",
+          "list-view"
+        ]
+      },
+      "plan": [
+        {
+          "category": "button",
+          "label": "登录",
+          "type": "Button",
+          "x": 1112,
+          "y": 1147,
+          "bounds": "[62,1084][2162,1209]"
+        },
+        {
+          "category": "content-card",
+          "label": "-",
+          "type": "Row",
+          "x": 255,
+          "y": 1840,
+          "bounds": "[75,1776][434,1903]"
+        },
+        {
+          "category": "content-card",
+          "label": "=",
+          "type": "Row",
+          "x": 255,
+          "y": 1968,
+          "bounds": "[75,1904][434,2031]"
+        },
+        {
+          "category": "content-card",
+          "label": "/",
+          "type": "Row",
+          "x": 255,
+          "y": 2095,
+          "bounds": "[75,2031][434,2158]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "TextInput",
+          "x": 1112,
+          "y": 535,
+          "bounds": "[62,457][2162,613]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "TextInput",
+          "x": 1112,
+          "y": 726,
+          "bounds": "[62,647][2162,804]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 2115,
+          "y": 726,
+          "bounds": "[2068,694][2162,757]"
+        },
+        {
+          "category": "content",
+          "label": "polcy",
+          "type": "Checkbox",
+          "x": 100,
+          "y": 891,
+          "bounds": "[76,867][123,914]"
+        },
+        {
+          "category": "content",
+          "label": "登录即同意《服务协议》和《隐私政策》",
+          "type": "Text",
+          "x": 537,
+          "y": 891,
+          "bounds": "[143,865][931,916]"
+        },
+        {
+          "category": "content",
+          "label": "快速注册",
+          "type": "Text",
+          "x": 976,
+          "y": 1350,
+          "bounds": "[888,1324][1064,1375]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[button] press 1112 1147 (登录)",
+          "pressOk": true,
+          "beforeNodes": 117,
+          "afterNodes": 117,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s3_d2_after_0.json"
+        },
+        {
+          "action": "[content-card] press 255 1840 (-)",
+          "pressOk": true,
+          "beforeNodes": 117,
+          "afterNodes": 130,
+          "nodeDelta": 13,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s3_d2_after_1.json"
+        },
+        {
+          "action": "[content-card] press 255 1968 (=)",
+          "pressOk": true,
+          "beforeNodes": 117,
+          "afterNodes": 74,
+          "nodeDelta": 43,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s3_d2_after_2.json"
+        },
+        {
+          "action": "[content-card] press 255 2095 (/)",
+          "pressOk": true,
+          "skipped": true,
+          "reason": "launcher",
+          "afterBundles": [
+            "com.ohos.sceneboard"
+          ],
+          "isNewScreen": false
+        }
+      ]
+    },
+    {
+      "screenId": "s4_d2",
+      "depth": 2,
+      "parentAction": "[content] press 1112 726 (TextInput@1112,726)",
+      "fingerprint": {
+        "nodes": 78,
+        "labels": "-|:|polcy|密码保险箱|登录|登录即同意《服务协议》和《隐私政策》",
+        "key": "78:-|:|polcy|密码保险箱|登录|登录即同意《服务协议》和《隐私政策》"
+      },
+      "guard": {
+        "bundles": [
+          "com.hicorenational.antifraud.hmy",
+          "com.ohos.sceneboard",
+          "com.huawei.hmos.inputmethod"
+        ],
+        "focused": "com.hicorenational.antifraud.hmy",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 78,
+          "treeDepth": 15,
+          "complexity": "simple"
+        },
+        "suggestions": [],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": false,
+          "hasModal": false,
+          "hasList": false,
+          "hasForm": true
+        },
+        "layoutPattern": [
+          "unknown"
+        ]
+      },
+      "plan": [
+        {
+          "category": "button",
+          "label": "登录",
+          "type": "Button",
+          "x": 1112,
+          "y": 1147,
+          "bounds": "[62,1084][2162,1209]"
+        },
+        {
+          "category": "content",
+          "label": "-",
+          "type": "TextInput",
+          "x": 1112,
+          "y": 535,
+          "bounds": "[62,457][2162,613]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Image",
+          "x": 2079,
+          "y": 536,
+          "bounds": "[2047,504][2110,567]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "TextInput",
+          "x": 1112,
+          "y": 726,
+          "bounds": "[62,647][2162,804]"
+        },
+        {
+          "category": "content",
+          "label": "",
+          "type": "Stack",
+          "x": 2115,
+          "y": 726,
+          "bounds": "[2068,694][2162,757]"
+        },
+        {
+          "category": "content",
+          "label": "polcy",
+          "type": "Checkbox",
+          "x": 100,
+          "y": 891,
+          "bounds": "[76,867][123,914]"
+        },
+        {
+          "category": "content",
+          "label": "登录即同意《服务协议》和《隐私政策》",
+          "type": "Text",
+          "x": 537,
+          "y": 891,
+          "bounds": "[143,865][931,916]"
+        },
+        {
+          "category": "content",
+          "label": "密码保险箱",
+          "type": "Row",
+          "x": 1112,
+          "y": 1378,
+          "bounds": "[896,1331][1328,1424]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[button] press 1112 1147 (登录)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 78,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s4_d2_after_0.json"
+        },
+        {
+          "action": "[content] press 1112 535 (-)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 117,
+          "nodeDelta": 39,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s4_d2_after_1.json"
+        },
+        {
+          "action": "[content] press 2079 536 (Image@2079,536)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 73,
+          "nodeDelta": 5,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s4_d2_after_2.json"
+        },
+        {
+          "action": "[content] press 1112 726 (TextInput@1112,726)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 77,
+          "nodeDelta": 1,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s4_d2_after_3.json"
+        },
+        {
+          "action": "[content] press 2115 726 (Stack@2115,726)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 73,
+          "nodeDelta": 5,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s4_d2_after_4.json"
+        },
+        {
+          "action": "[content] press 100 891 (polcy)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 73,
+          "nodeDelta": 5,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s4_d2_after_5.json"
+        },
+        {
+          "action": "[content] press 537 891 (登录即同意《服务协议》和《隐私政策》)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 64,
+          "nodeDelta": 14,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s4_d2_after_6.json"
+        },
+        {
+          "action": "[content] press 1112 1378 (密码保险箱)",
+          "pressOk": true,
+          "beforeNodes": 78,
+          "afterNodes": 64,
+          "nodeDelta": 14,
+          "labelChanged": true,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/antifraud-smart-v2/layouts/s4_d2_after_7.json"
+        }
+      ]
+    }
+  ],
+  "completedAt": "2026-05-25T10:48:33.442Z",
+  "traverseTree": {
+    "targetBundle": "com.hicorenational.antifraud.hmy",
+    "outputDir": "./traverse-output/antifraud-smart-v2",
+    "screensVisited": 4,
+    "roots": [
+      {
+        "screenId": "s1_d0",
+        "depth": 0,
+        "parentAction": null,
+        "title": "s1_d0 · depth=0 · nodes=64 · unknown",
+        "fingerprint": {
+          "nodes": 64,
+          "labels": ":",
+          "key": "64::"
+        },
+        "cognition": {
+          "treeDepth": 15,
+          "features": {
+            "hasScroll": false,
+            "hasTabs": false,
+            "hasModal": false,
+            "hasList": false,
+            "hasForm": false
+          },
+          "suggestions": []
+        },
+        "clickBranches": [
+          {
+            "action": "[content] press 72 183 (Image@72,183)",
+            "label": "Image@72,183",
+            "status": "新界面 (64→73)",
+            "isNewScreen": true,
+            "skipped": false,
+            "childScreenId": "s2_d1",
+            "unvisitedNewScreen": false
+          }
+        ],
+        "children": [
+          {
+            "screenId": "s2_d1",
+            "depth": 1,
+            "parentAction": "[content] press 72 183 (Image@72,183)",
+            "title": "s2_d1 · depth=1 · nodes=73 · horizontal-layout",
+            "fingerprint": {
+              "nodes": 73,
+              "labels": ":|polcy|快速注册|找回密码|登录|登录即同意《服务协议》和《隐私政策》",
+              "key": "73::|polcy|快速注册|找回密码|登录|登录即同意《服务协议》和《隐私政策》"
+            },
+            "cognition": {
+              "treeDepth": 15,
+              "features": {
+                "hasScroll": false,
+                "hasTabs": false,
+                "hasModal": false,
+                "hasList": false,
+                "hasForm": true
+              },
+              "suggestions": []
+            },
+            "clickBranches": [
+              {
+                "action": "[button] press 1112 1147 (登录)",
+                "label": "登录",
+                "status": "无变化 (73→73)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[content-card] press 1112 2192 (Image@1112,2192)",
+                "label": "Image@1112,2192",
+                "status": "无变化 (73→73)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[content] press 1112 535 (TextInput@1112,535)",
+                "label": "TextInput@1112,535",
+                "status": "新界面 (73→117)",
+                "isNewScreen": true,
+                "skipped": false,
+                "childScreenId": "s3_d2",
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[content] press 1112 726 (TextInput@1112,726)",
+                "label": "TextInput@1112,726",
+                "status": "新界面 (74→78)",
+                "isNewScreen": true,
+                "skipped": false,
+                "childScreenId": "s4_d2",
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[content] press 2115 726 (Stack@2115,726)",
+                "label": "Stack@2115,726",
+                "status": "无变化 (73→73)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[content] press 100 891 (polcy)",
+                "label": "polcy",
+                "status": "无变化 (73→73)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[content] press 537 891 (登录即同意《服务协议》和《隐私政策》)",
+                "label": "登录即同意《服务协议》和《隐私政策》",
+                "status": "无变化 (73→64)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[content] press 976 1350 (快速注册)",
+                "label": "快速注册",
+                "status": "无变化 (73→64)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[content] press 1247 1350 (找回密码)",
+                "label": "找回密码",
+                "status": "无变化 (73→64)",
+                "isNewScreen": false,
+                "skipped": false,
+                "unvisitedNewScreen": false
+              }
+            ],
+            "children": [
+              {
+                "screenId": "s3_d2",
+                "depth": 2,
+                "parentAction": "[content] press 1112 535 (TextInput@1112,535)",
+                "title": "s3_d2 · depth=2 · nodes=117 · horizontal-layout, list-view",
+                "fingerprint": {
+                  "nodes": 117,
+                  "labels": "+|-|/|:|=|polcy|密码保险箱|快速注册|找回密码|登录|登录即同意《服务协议》和《隐私政策》",
+                  "key": "117:+|-|/|:|=|polcy|密码保险箱|快速注册|找回密码|登录|登录即同意《服务协议》和《隐私政策》"
+                },
+                "cognition": {
+                  "treeDepth": 16,
+                  "features": {
+                    "hasScroll": true,
+                    "hasTabs": false,
+                    "hasModal": false,
+                    "hasList": true,
+                    "hasForm": true
+                  },
+                  "suggestions": []
+                },
+                "clickBranches": [
+                  {
+                    "action": "[button] press 1112 1147 (登录)",
+                    "label": "登录",
+                    "status": "无变化 (117→117)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content-card] press 255 1840 (-)",
+                    "label": "-",
+                    "status": "新界面 (117→130) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 255 1968 (=)",
+                    "label": "=",
+                    "status": "新界面 (117→74) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content-card] press 255 2095 (/)",
+                    "label": "/",
+                    "status": "跳过 (launcher)",
+                    "isNewScreen": false,
+                    "skipped": true,
+                    "reason": "launcher",
+                    "unvisitedNewScreen": false
+                  }
+                ],
+                "children": []
+              },
+              {
+                "screenId": "s4_d2",
+                "depth": 2,
+                "parentAction": "[content] press 1112 726 (TextInput@1112,726)",
+                "title": "s4_d2 · depth=2 · nodes=78 · unknown",
+                "fingerprint": {
+                  "nodes": 78,
+                  "labels": "-|:|polcy|密码保险箱|登录|登录即同意《服务协议》和《隐私政策》",
+                  "key": "78:-|:|polcy|密码保险箱|登录|登录即同意《服务协议》和《隐私政策》"
+                },
+                "cognition": {
+                  "treeDepth": 15,
+                  "features": {
+                    "hasScroll": true,
+                    "hasTabs": false,
+                    "hasModal": false,
+                    "hasList": false,
+                    "hasForm": true
+                  },
+                  "suggestions": []
+                },
+                "clickBranches": [
+                  {
+                    "action": "[button] press 1112 1147 (登录)",
+                    "label": "登录",
+                    "status": "无变化 (78→78)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content] press 1112 535 (-)",
+                    "label": "-",
+                    "status": "新界面 (78→117) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 2079 536 (Image@2079,536)",
+                    "label": "Image@2079,536",
+                    "status": "无变化 (78→73)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content] press 1112 726 (TextInput@1112,726)",
+                    "label": "TextInput@1112,726",
+                    "status": "新界面 (78→77) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[content] press 2115 726 (Stack@2115,726)",
+                    "label": "Stack@2115,726",
+                    "status": "无变化 (78→73)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content] press 100 891 (polcy)",
+                    "label": "polcy",
+                    "status": "无变化 (78→73)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content] press 537 891 (登录即同意《服务协议》和《隐私政策》)",
+                    "label": "登录即同意《服务协议》和《隐私政策》",
+                    "status": "无变化 (78→64)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  },
+                  {
+                    "action": "[content] press 1112 1378 (密码保险箱)",
+                    "label": "密码保险箱",
+                    "status": "无变化 (78→64)",
+                    "isNewScreen": false,
+                    "skipped": false,
+                    "unvisitedNewScreen": false
+                  }
+                ],
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

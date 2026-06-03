@@ -1,0 +1,462 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 613,
+    "treeDepth": 62,
+    "complexity": "complex"
+  },
+  "structure": {
+    "layoutPattern": [
+      "navigation-based",
+      "tab-based",
+      "vertical-scroll",
+      "horizontal-layout",
+      "list-view"
+    ],
+    "mainContainers": [
+      {
+        "type": "Stack",
+        "depth": 2,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "Navigation",
+        "depth": 3,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "NavigationContent",
+        "depth": 4,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Navigation",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "NavigationContent",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,113][2224,2291]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2291]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,113][2224,2291]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1978,842][2141,942]"
+      },
+      {
+        "type": "Text",
+        "label": "搜索",
+        "bounds": "[2015,867][2103,918]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,1576][2224,2291]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,1576][2224,2291]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[2021,288][2184,388]"
+      },
+      {
+        "type": "Text",
+        "label": "搜索",
+        "bounds": "[2058,313][2146,364]"
+      },
+      {
+        "type": "Text",
+        "label": "首页",
+        "bounds": "[191,2372][254,2409]"
+      },
+      {
+        "type": "Text",
+        "label": "未登录",
+        "bounds": "[1954,2372][2048,2409]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[138,281][357,550]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[570,281][789,550]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[1003,281][1222,550]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[1435,281][1654,550]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[1868,281][2087,550]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[25,581][460,756]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[460,581][895,756]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[895,581][1330,756]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[1329,581][1764,756]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[1764,581][2199,756]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[71,832][196,952]"
+      },
+      {
+        "type": "Text",
+        "label": "",
+        "bounds": "[224,862][281,923]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[281,865][1978,920]"
+      },
+      {
+        "type": "Text",
+        "label": "2026年4月销量汽车排行榜",
+        "bounds": "[293,865][851,920]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1978,842][2141,942]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[68,974][1968,1073]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[1968,1000][2156,1048]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[47,1117][362,1230]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[413,1117][814,1230]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[865,1117][1257,1230]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[1308,1117][1677,1230]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[1728,1117][2147,1230]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[2198,1117][2202,1230]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[25,1267][554,1464]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[573,1267][1103,1464]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[1121,1267][1651,1464]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[1670,1267][2199,1464]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[0,1495][138,1546]"
+      }
+    ],
+    "inputFields": [],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1978,842][2141,942]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[2021,288][2184,388]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "tabs": [
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,113][2224,2291]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2291]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,113][2224,2291]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,1576][2224,2291]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,1576][2224,2291]"
+      }
+    ]
+  },
+  "features": {
+    "hasScroll": true,
+    "hasTabs": true,
+    "hasModal": false,
+    "hasList": true,
+    "hasForm": false
+  },
+  "suggestions": [
+    "界面复杂度高，建议优先测试关键路径",
+    "存在导航结构，建议按导航层级遍历",
+    "交互元素多，建议分类测试（按钮、输入框、链接等）"
+  ],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Stack",
+        168
+      ],
+      [
+        "__Common__",
+        136
+      ],
+      [
+        "Text",
+        69
+      ],
+      [
+        "Image",
+        62
+      ],
+      [
+        "Column",
+        54
+      ],
+      [
+        "Row",
+        43
+      ],
+      [
+        "ListItem",
+        28
+      ],
+      [
+        "Blank",
+        11
+      ],
+      [
+        "List",
+        4
+      ],
+      [
+        "Tabs",
+        3
+      ],
+      [
+        "Swiper",
+        3
+      ],
+      [
+        "TabContent",
+        3
+      ],
+      [
+        "Scroll",
+        3
+      ],
+      [
+        "Button",
+        3
+      ],
+      [
+        "FlowItem",
+        3
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 3,
+      "2": 3,
+      "3": 3,
+      "4": 3,
+      "5": 3,
+      "6": 5,
+      "7": 2,
+      "8": 4,
+      "9": 5,
+      "10": 5,
+      "11": 7,
+      "12": 5,
+      "13": 6,
+      "14": 6,
+      "15": 9,
+      "16": 7,
+      "17": 7,
+      "18": 8,
+      "19": 12,
+      "20": 8,
+      "21": 4,
+      "22": 4,
+      "23": 4,
+      "24": 3,
+      "25": 2,
+      "26": 2,
+      "27": 3,
+      "28": 4,
+      "29": 7,
+      "30": 8,
+      "31": 6,
+      "32": 3,
+      "33": 4,
+      "34": 4,
+      "35": 3,
+      "36": 1,
+      "37": 2,
+      "38": 2,
+      "39": 3,
+      "40": 4,
+      "41": 9,
+      "42": 9,
+      "43": 21,
+      "44": 47,
+      "45": 64,
+      "46": 64,
+      "47": 35,
+      "48": 52,
+      "49": 47,
+      "50": 23,
+      "51": 8,
+      "52": 8,
+      "53": 8,
+      "54": 9,
+      "55": 3,
+      "56": 3,
+      "57": 3,
+      "58": 3,
+      "59": 3,
+      "60": 3,
+      "61": 3,
+      "62": 3
+    }
+  }
+}

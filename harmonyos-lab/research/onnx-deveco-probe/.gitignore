@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+paths.env
+output/
+!output/.gitkeep
+*.onnx

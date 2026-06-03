@@ -1,0 +1,330 @@
+# 红果短剧 · 认知驱动深度遍历报告
+
+- 设备: `22M0223824043030` (ALT-AL10)
+- 遍历界面数: 12
+- 总点击次数: 119
+- 发现新界面次数: 47
+- 最大递归深度: 3
+
+## 遍历逻辑
+1. `uitest dumpLayout` 导出静态 UI 树
+2. `build-cognition-map.js` 生成认知地图与测试建议
+3. 从 layout 解析 `clickable=true` 节点，并用 Text 重叠区域推断标签
+4. 按认知建议排序：底部 Tab → 顶部分类 → 按钮 → 内容卡片
+5. 使用静态分析得到的 **中心坐标** 执行 `press x y`
+6. 每次点击后重新 dumpLayout，节点/标签变化则判定为新界面并递归
+
+### s1_d0 (depth 0)
+- 父动作: root
+- 节点数: 178
+- 认知建议: 存在导航结构，建议按导航层级遍历
+- 计划点击 (14):
+  - [bottom-tab] 短剧 → (279, 2322)
+  - [bottom-tab] 剧场 → (835, 2322)
+  - [bottom-tab] 福利 → (1391, 2322)
+  - [bottom-tab] 我的 → (1946, 2322)
+  - [top-category] 找剧 → (112, 188)
+  - [top-category] 漫剧 → (275, 188)
+  - [top-category] 电影 → (437, 188)
+  - [top-category] 听书 → (600, 188)
+  - [top-category] 小说 → (762, 188)
+  - [top-category] 经典 → (925, 188)
+  - [top-category] 知识 → (1087, 188)
+  - [top-action] Row → (2162, 188)
+  - [content-card] Row → (203, 1950)
+  - [content-card] 继续播放 → (131, 2063)
+- 执行结果:
+  - [bottom-tab] press 279 2322 (短剧): **新界面** (178→150 nodes)
+  - [bottom-tab] press 835 2322 (剧场): 无变化 (178→177 nodes)
+  - [bottom-tab] press 1391 2322 (福利): 无变化 (178→177 nodes)
+  - [bottom-tab] press 1946 2322 (我的): 无变化 (178→59 nodes)
+  - [top-category] press 112 188 (找剧): 无变化 (178→59 nodes)
+  - [top-category] press 275 188 (漫剧): 无变化 (178→59 nodes)
+  - [top-category] press 437 188 (电影): 无变化 (178→59 nodes)
+  - [top-category] press 600 188 (听书): 无变化 (178→59 nodes)
+  - [top-category] press 762 188 (小说): 无变化 (178→59 nodes)
+  - [top-category] press 925 188 (经典): 无变化 (178→59 nodes)
+  - [top-category] press 1087 188 (知识): 无变化 (178→59 nodes)
+  - [top-action] press 2162 188 (Row@2162,188): 无变化 (178→59 nodes)
+  - [content-card] press 203 1950 (Row@203,1950): 无变化 (178→59 nodes)
+  - [content-card] press 131 2063 (继续播放): 无变化 (178→59 nodes)
+### s2_d1 (depth 1)
+- 父动作: [bottom-tab] press 279 2322 (短剧)
+- 节点数: 150
+- 认知建议: 存在导航结构，建议按导航层级遍历
+- 计划点击 (15):
+  - [bottom-tab] 短剧 → (279, 2322)
+  - [bottom-tab] 剧场 → (835, 2322)
+  - [bottom-tab] 福利 → (1391, 2322)
+  - [bottom-tab] 我的 → (1946, 2322)
+  - [content-card] 684 → (2121, 1823)
+  - [content-card] 第1季 → (255, 1828)
+  - [content-card] 宫廷 → (402, 1828)
+  - [content-card] 展开 → (964, 1950)
+  - [content-card] 2.8万 → (2121, 2007)
+  - [content-card] 2.8万 → (2121, 2100)
+  - [content-card] 观看完整短剧 → (461, 2113)
+  - [content] Image → (2137, 199)
+  - [content] 684 → (1112, 1174)
+  - [content] 追剧 → (2121, 1557)
+  - [content] 追剧 → (2121, 1651)
+- 执行结果:
+  - [bottom-tab] press 279 2322 (短剧): 无变化 (150→150 nodes)
+  - [bottom-tab] press 835 2322 (剧场): **新界面** (150→165 nodes)
+  - [bottom-tab] press 1391 2322 (福利): **新界面** (150→177 nodes)
+  - [bottom-tab] press 1946 2322 (我的): **新界面** (150→178 nodes)
+  - [content-card] press 2121 1823 (684): 无变化 (150→177 nodes)
+  - [content-card] press 255 1828 (第1季): 无变化 (150→177 nodes)
+  - [content-card] press 402 1828 (宫廷): 无变化 (150→177 nodes)
+  - [content-card] press 964 1950 (展开): 无变化 (150→177 nodes)
+  - [content-card] press 2121 2007 (2.8万): 无变化 (150→177 nodes)
+  - [content-card] press 2121 2100 (2.8万): 无变化 (150→177 nodes)
+  - [content-card] press 461 2113 (观看完整短剧): 无变化 (150→177 nodes)
+  - [content] press 2137 199 (Image@2137,199): 无变化 (150→177 nodes)
+  - [content] press 1112 1174 (684): 无变化 (150→177 nodes)
+  - [content] press 2121 1557 (追剧): 无变化 (150→177 nodes)
+  - [content] press 2121 1651 (追剧): 无变化 (150→177 nodes)
+### s3_d2 (depth 2)
+- 父动作: [bottom-tab] press 835 2322 (剧场)
+- 节点数: 165
+- 认知建议: 存在导航结构，建议按导航层级遍历
+- 计划点击 (12):
+  - [bottom-tab] 短剧 → (279, 2322)
+  - [bottom-tab] 剧场 → (835, 2322)
+  - [bottom-tab] 福利 → (1391, 2322)
+  - [bottom-tab] 我的 → (1946, 2322)
+  - [top-category] 找剧 → (112, 188)
+  - [top-category] 漫剧 → (275, 188)
+  - [top-category] 电影 → (437, 188)
+  - [top-category] 听书 → (600, 188)
+  - [top-category] 小说 → (762, 188)
+  - [top-category] 经典 → (925, 188)
+  - [top-category] 知识 → (1087, 188)
+  - [top-action] Row → (2162, 188)
+- 执行结果:
+  - [bottom-tab] press 279 2322 (短剧): 无变化 (165→150 nodes)
+  - [bottom-tab] press 835 2322 (剧场): 无变化 (165→165 nodes)
+  - [bottom-tab] press 1391 2322 (福利): **新界面** (165→270 nodes)
+  - [bottom-tab] press 1946 2322 (我的): **新界面** (165→293 nodes)
+  - [top-category] press 112 188 (找剧): **新界面** (165→64 nodes)
+  - [top-category] press 275 188 (漫剧): 无变化 (165→64 nodes)
+  - [top-category] press 437 188 (电影): 无变化 (165→64 nodes)
+  - [top-category] press 600 188 (听书): 无变化 (165→64 nodes)
+  - [top-category] press 762 188 (小说): 无变化 (165→64 nodes)
+  - [top-category] press 925 188 (经典): 无变化 (165→64 nodes)
+  - [top-category] press 1087 188 (知识): 无变化 (165→64 nodes)
+  - [top-action] press 2162 188 (Row@2162,188): 无变化 (165→64 nodes)
+### s4_d3 (depth 3)
+- 父动作: [bottom-tab] press 1391 2322 (福利)
+- 节点数: 270
+- 认知建议: 界面复杂度高，建议优先测试关键路径；存在导航结构，建议按导航层级遍历
+- 计划点击 (5):
+  - [bottom-tab] 短剧 → (279, 2322)
+  - [bottom-tab] 剧场 → (835, 2322)
+  - [bottom-tab] 福利 → (1391, 2322)
+  - [bottom-tab] 我的 → (1946, 2322)
+  - [content] Stack → (1112, 1174)
+- 执行结果:
+  - [bottom-tab] press 279 2322 (短剧): 无变化 (270→150 nodes)
+  - [bottom-tab] press 835 2322 (剧场): 无变化 (270→165 nodes)
+  - [bottom-tab] press 1391 2322 (福利): 无变化 (270→268 nodes)
+  - [bottom-tab] press 1946 2322 (我的): **新界面** (270→218 nodes)
+  - [content] press 1112 1174 (Stack@1112,1174): **新界面** (270→213 nodes)
+### s5_d3 (depth 3)
+- 父动作: [bottom-tab] press 1946 2322 (我的)
+- 节点数: 293
+- 认知建议: 界面复杂度高，建议优先测试关键路径；存在导航结构，建议按导航层级遍历；交互元素多，建议分类测试（按钮、输入框、链接等）
+- 计划点击 (15):
+  - [bottom-tab] 探索 → (223, 2378)
+  - [bottom-tab] 游戏 → (668, 2378)
+  - [bottom-tab] 应用 → (1113, 2378)
+  - [bottom-tab] 元服务 → (1558, 2378)
+  - [bottom-tab] 我的 → (2002, 2378)
+  - [content-card] 推荐 → (575, 1948)
+  - [content-card] Stack → (1650, 1948)
+  - [content-card] Stack → (1650, 1948)
+  - [content-card] RelativeContainer → (1650, 1948)
+  - [content-card] Video → (1650, 1948)
+  - [content-card] 打开 → (575, 1962)
+  - [content-card] 打开 → (939, 1962)
+  - [content-card] Stack → (1650, 2150)
+  - [content-card] 安装 → (575, 2161)
+  - [content-card] 安装 → (939, 2162)
+- 执行结果:
+  - [bottom-tab] press 223 2378 (探索): 无变化 (293→293 nodes)
+  - [bottom-tab] press 668 2378 (游戏): **新界面** (293→448 nodes)
+  - [bottom-tab] press 1113 2378 (应用): **新界面** (293→177 nodes)
+  - [bottom-tab] press 1558 2378 (元服务): **新界面** (293→178 nodes)
+  - [bottom-tab] press 2002 2378 (我的): **新界面** (293→226 nodes)
+  - [content-card] press 575 1948 (推荐): **新界面** (293→226 nodes)
+  - [content-card] press 1650 1948 (Stack@1650,1948): **新界面** (293→226 nodes)
+  - [content-card] press 1650 1948 (Stack@1650,1948): **新界面** (293→226 nodes)
+  - [content-card] press 1650 1948 (RelativeContainer@1650,1948): **新界面** (293→226 nodes)
+  - [content-card] press 1650 1948 (Video@1650,1948): **新界面** (293→226 nodes)
+  - [content-card] press 575 1962 (打开): **新界面** (293→226 nodes)
+  - [content-card] press 939 1962 (打开): **新界面** (293→135 nodes)
+  - [content-card] press 1650 2150 (Stack@1650,2150): **新界面** (293→213 nodes)
+  - [content-card] press 575 2161 (安装): **新界面** (293→213 nodes)
+  - [content-card] press 939 2162 (安装): **新界面** (293→213 nodes)
+### s6_d3 (depth 3)
+- 父动作: [top-category] press 112 188 (找剧)
+- 节点数: 64
+- 认知建议: -
+- 计划点击 (3):
+  - [button] 取消 → (812, 1357)
+  - [button] 卸载 → (1412, 1357)
+  - [content] 此应用已过有效期，无法继续使用，是否卸载？ → (1112, 1305)
+- 执行结果:
+  - [button] press 812 1357 (取消): **新界面** (64→177 nodes)
+  - [button] press 1412 1357 (卸载): **新界面** (64→177 nodes)
+  - [content] press 1112 1305 (此应用已过有效期，无法继续使用，是否卸载？): **新界面** (64→177 nodes)
+### s7_d2 (depth 2)
+- 父动作: [bottom-tab] press 1391 2322 (福利)
+- 节点数: 177
+- 认知建议: 交互元素多，建议分类测试（按钮、输入框、链接等）
+- 计划点击 (15):
+  - [content] Image → (978, 245)
+  - [content] Image → (183, 245)
+  - [content] Image → (448, 245)
+  - [content] Image → (713, 245)
+  - [content] 华为云会议 → (978, 275)
+  - [content] label → (183, 275)
+  - [content] 安全键盘 → (448, 275)
+  - [content] 安全键盘 → (713, 275)
+  - [content] Image → (183, 520)
+  - [content] Image → (448, 520)
+  - [content] Image → (713, 520)
+  - [content] Image → (978, 520)
+  - [content] 同花顺 → (183, 550)
+  - [content] 东方财富 → (448, 550)
+  - [content] label → (713, 550)
+- 执行结果:
+  - [content] press 978 245 (Image@978,245): **新界面** (177→59 nodes)
+  - [content] press 183 245 (Image@183,245): **新界面** (177→59 nodes)
+  - [content] press 448 245 (Image@448,245): 无变化 (177→64 nodes)
+  - [content] press 713 245 (Image@713,245): 无变化 (177→64 nodes)
+  - [content] press 978 275 (华为云会议): 无变化 (177→64 nodes)
+  - [content] press 183 275 (label): 无变化 (177→64 nodes)
+  - [content] press 448 275 (安全键盘): 无变化 (177→64 nodes)
+  - [content] press 713 275 (安全键盘): 无变化 (177→64 nodes)
+  - [content] press 183 520 (Image@183,520): 无变化 (177→64 nodes)
+  - [content] press 448 520 (Image@448,520): 无变化 (177→64 nodes)
+  - [content] press 713 520 (Image@713,520): 无变化 (177→64 nodes)
+  - [content] press 978 520 (Image@978,520): 无变化 (177→64 nodes)
+  - [content] press 183 550 (同花顺): 无变化 (177→64 nodes)
+  - [content] press 448 550 (东方财富): 无变化 (177→64 nodes)
+  - [content] press 713 550 (label): 无变化 (177→64 nodes)
+### s8_d3 (depth 3)
+- 父动作: [content] press 978 245 (Image@978,245)
+- 节点数: 59
+- 认知建议: 存在导航结构，建议按导航层级遍历
+- 计划点击 (3):
+  - [content] 感谢您信任并使用华为云会议！我们非常重视您的隐私保护和个人信息保护，特别提示您阅读并充分理解“服务协议”和“隐私声明”各条款。我们会严格按照法律规定存储和使用您的个人信息，未经您同意，我们不会提供给任何第三方进行使用，我们会采用业界领先的安全措施保护您的信息安全。
+本服务及其底层服务（提供音视频通信能力）需联网，用于提供高清音视频会议。您可以阅读《华为云会议服务协议》和《华为云会议隐私声明》了解详细信息。如您同意，请点击“同意”开始接受我们的服务。 → (1113, 1206)
+  - [content] 取消 → (869, 1799)
+  - [content] 同意 → (1357, 1799)
+- 执行结果:
+  - [content] press 1113 1206 (感谢您信任并使用华为云会议！我们非常重视您的隐私保护和个人信息保护，特别提示您阅读并充分理解“服务协议”和“隐私声明”各条款。我们会严格按照法律规定存储和使用您的个人信息，未经您同意，我们不会提供给任何第三方进行使用，我们会采用业界领先的安全措施保护您的信息安全。
+本服务及其底层服务（提供音视频通信能力）需联网，用于提供高清音视频会议。您可以阅读《华为云会议服务协议》和《华为云会议隐私声明》了解详细信息。如您同意，请点击“同意”开始接受我们的服务。): 无变化 (59→59 nodes)
+  - [content] press 869 1799 (取消): **新界面** (59→59 nodes)
+  - [content] press 1357 1799 (同意): **新界面** (59→59 nodes)
+### s9_d3 (depth 3)
+- 父动作: [content] press 183 245 (Image@183,245)
+- 节点数: 59
+- 认知建议: 存在导航结构，建议按导航层级遍历
+- 计划点击 (3):
+  - [content] 若您不同意《华为云会议服务协议》和《华为云会议隐私声明》很遗憾我们无法为您提供服务。 → (1112, 1238)
+  - [content] 退出应用 → (869, 1475)
+  - [content] 同意 → (1357, 1475)
+- 执行结果:
+  - [content] press 1112 1238 (若您不同意《华为云会议服务协议》和《华为云会议隐私声明》很遗憾我们无法为您提供服务。): **新界面** (59→75 nodes)
+  - [content] press 869 1475 (退出应用): 无变化 (59→177 nodes)
+  - [content] press 1357 1475 (同意): 无变化 (59→177 nodes)
+### s10_d2 (depth 2)
+- 父动作: [bottom-tab] press 1946 2322 (我的)
+- 节点数: 178
+- 认知建议: 存在导航结构，建议按导航层级遍历
+- 计划点击 (14):
+  - [bottom-tab] 短剧 → (279, 2322)
+  - [bottom-tab] 剧场 → (835, 2322)
+  - [bottom-tab] 福利 → (1391, 2322)
+  - [bottom-tab] 我的 → (1946, 2322)
+  - [top-category] 找剧 → (112, 188)
+  - [top-category] 漫剧 → (275, 188)
+  - [top-category] 电影 → (437, 188)
+  - [top-category] 听书 → (600, 188)
+  - [top-category] 小说 → (762, 188)
+  - [top-category] 经典 → (925, 188)
+  - [top-category] 知识 → (1087, 188)
+  - [top-action] Row → (2162, 188)
+  - [content-card] Row → (2143, 2022)
+  - [content-card] 继续观看 → (1112, 2100)
+- 执行结果:
+  - [bottom-tab] press 279 2322 (短剧): **新界面** (178→150 nodes)
+  - [bottom-tab] press 835 2322 (剧场): 无变化 (178→165 nodes)
+  - [bottom-tab] press 1391 2322 (福利): **新界面** (178→268 nodes)
+  - [bottom-tab] press 1946 2322 (我的): 无变化 (178→64 nodes)
+  - [top-category] press 112 188 (找剧): 无变化 (178→64 nodes)
+  - [top-category] press 275 188 (漫剧): 无变化 (178→64 nodes)
+  - [top-category] press 437 188 (电影): 无变化 (178→64 nodes)
+  - [top-category] press 600 188 (听书): 无变化 (178→64 nodes)
+  - [top-category] press 762 188 (小说): 无变化 (178→64 nodes)
+  - [top-category] press 925 188 (经典): 无变化 (178→64 nodes)
+  - [top-category] press 1087 188 (知识): 无变化 (178→64 nodes)
+  - [top-action] press 2162 188 (Row@2162,188): 无变化 (178→64 nodes)
+  - [content-card] press 2143 2022 (Row@2143,2022): 无变化 (178→64 nodes)
+  - [content-card] press 1112 2100 (继续观看): 无变化 (178→64 nodes)
+### s11_d3 (depth 3)
+- 父动作: [bottom-tab] press 279 2322 (短剧)
+- 节点数: 150
+- 认知建议: 存在导航结构，建议按导航层级遍历
+- 计划点击 (15):
+  - [bottom-tab] 短剧 → (279, 2322)
+  - [bottom-tab] 剧场 → (835, 2322)
+  - [bottom-tab] 福利 → (1391, 2322)
+  - [bottom-tab] 我的 → (1946, 2322)
+  - [content-card] 3014 → (2121, 1823)
+  - [content-card] 第1季 → (255, 1828)
+  - [content-card] 玄幻 → (402, 1828)
+  - [content-card] 展开 → (964, 1950)
+  - [content-card] 10.4万 → (2121, 2007)
+  - [content-card] 10.4万 → (2121, 2100)
+  - [content-card] 观看完整短剧 → (461, 2113)
+  - [content] Image → (2137, 199)
+  - [content] 追剧 → (1112, 1174)
+  - [content] 追剧 → (2121, 1557)
+  - [content] 追剧 → (2121, 1651)
+- 执行结果:
+  - [bottom-tab] press 279 2322 (短剧): 无变化 (150→150 nodes)
+  - [bottom-tab] press 835 2322 (剧场): 无变化 (150→165 nodes)
+  - [bottom-tab] press 1391 2322 (福利): 无变化 (150→270 nodes)
+  - [bottom-tab] press 1946 2322 (我的): **新界面** (150→226 nodes)
+  - [content-card] press 2121 1823 (3014): **新界面** (150→135 nodes)
+  - [content-card] press 255 1828 (第1季): **新界面** (150→135 nodes)
+  - [content-card] press 402 1828 (玄幻): **新界面** (150→135 nodes)
+  - [content-card] press 964 1950 (展开): **新界面** (150→135 nodes)
+  - [content-card] press 2121 2007 (10.4万): **新界面** (150→226 nodes)
+  - [content-card] press 2121 2100 (10.4万): **新界面** (150→226 nodes)
+  - [content-card] press 461 2113 (观看完整短剧): **新界面** (150→140 nodes)
+  - [content] press 2137 199 (Image@2137,199): **新界面** (150→184 nodes)
+  - [content] press 1112 1174 (追剧): **新界面** (150→226 nodes)
+  - [content] press 2121 1557 (追剧): **新界面** (150→135 nodes)
+  - [content] press 2121 1651 (追剧): **新界面** (150→135 nodes)
+### s12_d3 (depth 3)
+- 父动作: [bottom-tab] press 1391 2322 (福利)
+- 节点数: 268
+- 认知建议: 界面复杂度高，建议优先测试关键路径；存在导航结构，建议按导航层级遍历
+- 计划点击 (5):
+  - [bottom-tab] 短剧 → (279, 2322)
+  - [bottom-tab] 剧场 → (835, 2322)
+  - [bottom-tab] 福利 → (1391, 2322)
+  - [bottom-tab] 我的 → (1946, 2322)
+  - [content] Stack → (1112, 1174)
+- 执行结果:
+  - [bottom-tab] press 279 2322 (短剧): 无变化 (268→150 nodes)
+  - [bottom-tab] press 835 2322 (剧场): 无变化 (268→165 nodes)
+  - [bottom-tab] press 1391 2322 (福利): 无变化 (268→268 nodes)
+  - [bottom-tab] press 1946 2322 (我的): **新界面** (268→226 nodes)
+  - [content] press 1112 1174 (Stack@1112,1174): **新界面** (268→226 nodes)
+
+生成时间: 2026-05-25T10:23:40.399Z

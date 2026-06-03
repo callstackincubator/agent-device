@@ -1,0 +1,187 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 58,
+    "treeDepth": 15,
+    "complexity": "simple"
+  },
+  "structure": {
+    "layoutPattern": [
+      "unknown"
+    ],
+    "mainContainers": [
+      {
+        "type": "Stack",
+        "depth": 2,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "Column",
+        "depth": 3,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "Column",
+        "depth": 3,
+        "bounds": "[222,889][2002,1607]",
+        "area": 1278040
+      },
+      {
+        "type": "Column",
+        "depth": 4,
+        "bounds": "[222,889][2001,1607]",
+        "area": 1277322
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Text",
+        "label": "\t\t\t\t感谢您使用国家反诈中心，在您使用本软件过程中，我们可能会对您的部分个人信息进行收集、使用和共享。请您仔细阅读《服务协议》与《隐私协议》，并确定完全了解我们对您个人信息的处理规则。\n\t\t\t\t如您同意《服务协议》与《隐私政策》，请点击“同意”开始使用国家反诈中心，我们会尽全力保护您的个人信息安全。",
+        "bounds": "[285,1063][1939,1358]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "Dialog",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Text",
+        "label": "\t\t\t\t感谢您使用国家反诈中心，在您使用本软件过程中，我们可能会对您的部分个人信息进行收集、使用和共享。请您仔细阅读《服务协议》与《隐私协议》，并确定完全了解我们对您个人信息的处理规则。\n\t\t\t\t如您同意《服务协议》与《隐私政策》，请点击“同意”开始使用国家反诈中心，我们会尽全力保护您的个人信息安全。",
+        "bounds": "[285,1063][1939,1358]"
+      },
+      {
+        "type": "Text",
+        "label": "不同意",
+        "bounds": "[268,1420][943,1545]"
+      },
+      {
+        "type": "Text",
+        "label": "同意",
+        "bounds": "[1280,1420][1955,1545]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[0,0][2224,112]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "inputFields": [],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "tabs": []
+  },
+  "features": {
+    "hasScroll": false,
+    "hasTabs": false,
+    "hasModal": true,
+    "hasList": false,
+    "hasForm": false
+  },
+  "suggestions": [],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Stack",
+        14
+      ],
+      [
+        "Text",
+        11
+      ],
+      [
+        "Row",
+        8
+      ],
+      [
+        "Image",
+        7
+      ],
+      [
+        "Column",
+        3
+      ],
+      [
+        "WindowScene",
+        2
+      ],
+      [
+        "__Common__",
+        2
+      ],
+      [
+        "RelativeContainer",
+        2
+      ],
+      [
+        "TextClock",
+        2
+      ],
+      [
+        "unknown",
+        1
+      ],
+      [
+        "root",
+        1
+      ],
+      [
+        "Dialog",
+        1
+      ],
+      [
+        "Blank",
+        1
+      ],
+      [
+        "EffectComponent",
+        1
+      ],
+      [
+        "Flex",
+        1
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 3,
+      "2": 4,
+      "3": 4,
+      "4": 4,
+      "5": 5,
+      "6": 7,
+      "7": 1,
+      "8": 3,
+      "9": 4,
+      "10": 4,
+      "11": 6,
+      "12": 4,
+      "13": 4,
+      "14": 3,
+      "15": 1
+    }
+  }
+}

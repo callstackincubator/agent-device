@@ -1,0 +1,230 @@
+# 遍历逻辑树
+
+来源: `smart-traverse-report.json`
+- 目标包: `-`
+- 访问界面: 12
+
+## 路径树（仅「新界面」边）
+
+```
+root
+**s1_d0** (nodes=178 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view)
+  - → `短剧`
+  - **s2_d1** (nodes=150 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view)
+    - → `剧场`
+    - → `福利`
+    - → `我的`
+    - **s3_d2** (nodes=165 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view)
+      - → `福利`
+      - → `我的`
+      - → `找剧`
+      - **s4_d3** (nodes=270 · navigation-based, tab-based, vertical-scroll, list-view)
+        - → `我的` (未子遍历)
+        - → `Stack@1112,1174` (未子遍历)
+      - **s5_d3** (nodes=293 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view)
+        - → `游戏` (未子遍历)
+        - → `应用` (未子遍历)
+        - → `元服务` (未子遍历)
+        - → `我的` (未子遍历)
+        - → `推荐` (未子遍历)
+        - → `Stack@1650,1948` (未子遍历)
+        - → `Stack@1650,1948` (未子遍历)
+        - → `RelativeContainer@1650,1948` (未子遍历)
+        - → `Video@1650,1948` (未子遍历)
+        - → `打开` (未子遍历)
+        - → `打开` (未子遍历)
+        - → `Stack@1650,2150` (未子遍历)
+        - → `安装` (未子遍历)
+        - → `安装` (未子遍历)
+      - **s6_d3** (nodes=64 · unknown ·弹窗)
+        - → `取消` (未子遍历)
+        - → `卸载` (未子遍历)
+        - → `此应用已过有效期，无法继续使用，是否卸载？` (未子遍历)
+      - **s12_d3** (nodes=268 · navigation-based, tab-based, vertical-scroll, list-view)
+        - → `我的` (未子遍历)
+        - → `Stack@1112,1174` (未子遍历)
+    - **s4_d3** (nodes=270 · navigation-based, tab-based, vertical-scroll, list-view)
+    - **s5_d3** (nodes=293 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view)
+    - **s7_d2** (nodes=177 · vertical-scroll, horizontal-layout, list-view, grid-view)
+      - → `Image@978,245`
+      - → `Image@183,245`
+      - **s8_d3** (nodes=59 · navigation-based)
+        - → `取消` (未子遍历)
+        - → `同意` (未子遍历)
+      - **s9_d3** (nodes=59 · navigation-based)
+        - → `若您不同意《华为云会议服务协议》和《华为云会议隐私声明》很遗憾我们无法为您提供服务。` (未子遍历)
+    - **s10_d2** (nodes=178 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view)
+      - → `短剧`
+      - → `福利`
+      - **s4_d3** (nodes=270 · navigation-based, tab-based, vertical-scroll, list-view)
+      - **s11_d3** (nodes=150 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view)
+        - → `我的` (未子遍历)
+        - → `3014` (未子遍历)
+        - → `第1季` (未子遍历)
+        - → `玄幻` (未子遍历)
+        - → `展开` (未子遍历)
+        - → `10.4万` (未子遍历)
+        - → `10.4万` (未子遍历)
+        - → `观看完整短剧` (未子遍历)
+        - → `Image@2137,199` (未子遍历)
+        - → `追剧` (未子遍历)
+        - → `追剧` (未子遍历)
+        - → `追剧` (未子遍历)
+      - **s12_d3** (nodes=268 · navigation-based, tab-based, vertical-scroll, list-view)
+    - **s12_d3** (nodes=268 · navigation-based, tab-based, vertical-scroll, list-view)
+  - **s11_d3** (nodes=150 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view)
+```
+
+## 完整决策树（含无变化 / 跳过）
+
+- **s1_d0 · depth=0 · nodes=178 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view**
+  - → `短剧` — 新界面 (178→150) → **s2_d1**
+  - · `剧场` — 无变化 (178→177)
+  - · `福利` — 无变化 (178→177)
+  - · `我的` — 无变化 (178→59)
+  - · `找剧` — 无变化 (178→59)
+  - · `漫剧` — 无变化 (178→59)
+  - · `电影` — 无变化 (178→59)
+  - · `听书` — 无变化 (178→59)
+  - · `小说` — 无变化 (178→59)
+  - · `经典` — 无变化 (178→59)
+  - · `知识` — 无变化 (178→59)
+  - · `Row@2162,188` — 无变化 (178→59)
+  - · `Row@203,1950` — 无变化 (178→59)
+  - · `继续播放` — 无变化 (178→59)
+  - **s2_d1 · depth=1 · nodes=150 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view**
+    - · `短剧` — 无变化 (150→150)
+    - → `剧场` — 新界面 (150→165) → **s3_d2**
+    - → `福利` — 新界面 (150→177) → **s4_d3**
+    - → `我的` — 新界面 (150→178) → **s5_d3**
+    - · `684` — 无变化 (150→177)
+    - · `第1季` — 无变化 (150→177)
+    - · `宫廷` — 无变化 (150→177)
+    - · `展开` — 无变化 (150→177)
+    - · `2.8万` — 无变化 (150→177)
+    - · `2.8万` — 无变化 (150→177)
+    - · `观看完整短剧` — 无变化 (150→177)
+    - · `Image@2137,199` — 无变化 (150→177)
+    - · `684` — 无变化 (150→177)
+    - · `追剧` — 无变化 (150→177)
+    - · `追剧` — 无变化 (150→177)
+    - **s3_d2 · depth=2 · nodes=165 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view**
+      - · `短剧` — 无变化 (165→150)
+      - · `剧场` — 无变化 (165→165)
+      - → `福利` — 新界面 (165→270) → **s4_d3**
+      - → `我的` — 新界面 (165→293) → **s5_d3**
+      - → `找剧` — 新界面 (165→64) → **s6_d3**
+      - · `漫剧` — 无变化 (165→64)
+      - · `电影` — 无变化 (165→64)
+      - · `听书` — 无变化 (165→64)
+      - · `小说` — 无变化 (165→64)
+      - · `经典` — 无变化 (165→64)
+      - · `知识` — 无变化 (165→64)
+      - · `Row@2162,188` — 无变化 (165→64)
+      - **s4_d3 · depth=3 · nodes=270 · navigation-based, tab-based, vertical-scroll, list-view**
+        - · `短剧` — 无变化 (270→150)
+        - · `剧场` — 无变化 (270→165)
+        - · `福利` — 无变化 (270→268)
+        - → `我的` — 新界面 (270→218) · 未子遍历
+        - → `Stack@1112,1174` — 新界面 (270→213) · 未子遍历
+      - **s5_d3 · depth=3 · nodes=293 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view**
+        - · `探索` — 无变化 (293→293)
+        - → `游戏` — 新界面 (293→448) · 未子遍历
+        - → `应用` — 新界面 (293→177) · 未子遍历
+        - → `元服务` — 新界面 (293→178) · 未子遍历
+        - → `我的` — 新界面 (293→226) · 未子遍历
+        - → `推荐` — 新界面 (293→226) · 未子遍历
+        - → `Stack@1650,1948` — 新界面 (293→226) · 未子遍历
+        - → `Stack@1650,1948` — 新界面 (293→226) · 未子遍历
+        - → `RelativeContainer@1650,1948` — 新界面 (293→226) · 未子遍历
+        - → `Video@1650,1948` — 新界面 (293→226) · 未子遍历
+        - → `打开` — 新界面 (293→226) · 未子遍历
+        - → `打开` — 新界面 (293→135) · 未子遍历
+        - → `Stack@1650,2150` — 新界面 (293→213) · 未子遍历
+        - → `安装` — 新界面 (293→213) · 未子遍历
+        - → `安装` — 新界面 (293→213) · 未子遍历
+      - **s6_d3 · depth=3 · nodes=64 · unknown ·弹窗**
+        - → `取消` — 新界面 (64→177) · 未子遍历
+        - → `卸载` — 新界面 (64→177) · 未子遍历
+        - → `此应用已过有效期，无法继续使用，是否卸载？` — 新界面 (64→177) · 未子遍历
+      - **s12_d3 · depth=3 · nodes=268 · navigation-based, tab-based, vertical-scroll, list-view**
+        - · `短剧` — 无变化 (268→150)
+        - · `剧场` — 无变化 (268→165)
+        - · `福利` — 无变化 (268→268)
+        - → `我的` — 新界面 (268→226) · 未子遍历
+        - → `Stack@1112,1174` — 新界面 (268→226) · 未子遍历
+    - **s4_d3 · depth=3 · nodes=270 · navigation-based, tab-based, vertical-scroll, list-view**
+      - ↩ 已访问（环）
+    - **s5_d3 · depth=3 · nodes=293 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view**
+      - ↩ 已访问（环）
+    - **s7_d2 · depth=2 · nodes=177 · vertical-scroll, horizontal-layout, list-view, grid-view**
+      - → `Image@978,245` — 新界面 (177→59) → **s8_d3**
+      - → `Image@183,245` — 新界面 (177→59) → **s9_d3**
+      - · `Image@448,245` — 无变化 (177→64)
+      - · `Image@713,245` — 无变化 (177→64)
+      - · `华为云会议` — 无变化 (177→64)
+      - · `label` — 无变化 (177→64)
+      - · `安全键盘` — 无变化 (177→64)
+      - · `安全键盘` — 无变化 (177→64)
+      - · `Image@183,520` — 无变化 (177→64)
+      - · `Image@448,520` — 无变化 (177→64)
+      - · `Image@713,520` — 无变化 (177→64)
+      - · `Image@978,520` — 无变化 (177→64)
+      - · `同花顺` — 无变化 (177→64)
+      - · `东方财富` — 无变化 (177→64)
+      - · `label` — 无变化 (177→64)
+      - **s8_d3 · depth=3 · nodes=59 · navigation-based**
+        - · `感谢您信任并使用华为云会议！我们非常重视您的隐私保护和个人信息保护，特别提示您阅读并充分理解“服务协议”和“隐私声明”各条款。我们会严格按照法律规定存储和使用您的个人信息，未经您同意，我们不会提供给任何第三方进行使用，我们会采用业界领先的安全措施保护您的信息安全。
+本服务及其底层服务（提供音视频通信能力）需联网，用于提供高清音视频会议。您可以阅读《华为云会议服务协议》和《华为云会议隐私声明》了解详细信息。如您同意，请点击“同意”开始接受我们的服务。` — 无变化 (59→59)
+        - → `取消` — 新界面 (59→59) · 未子遍历
+        - → `同意` — 新界面 (59→59) · 未子遍历
+      - **s9_d3 · depth=3 · nodes=59 · navigation-based**
+        - → `若您不同意《华为云会议服务协议》和《华为云会议隐私声明》很遗憾我们无法为您提供服务。` — 新界面 (59→75) · 未子遍历
+        - · `退出应用` — 无变化 (59→177)
+        - · `同意` — 无变化 (59→177)
+    - **s10_d2 · depth=2 · nodes=178 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view**
+      - → `短剧` — 新界面 (178→150) → **s11_d3**
+      - · `剧场` — 无变化 (178→165)
+      - → `福利` — 新界面 (178→268) → **s4_d3**
+      - · `我的` — 无变化 (178→64)
+      - · `找剧` — 无变化 (178→64)
+      - · `漫剧` — 无变化 (178→64)
+      - · `电影` — 无变化 (178→64)
+      - · `听书` — 无变化 (178→64)
+      - · `小说` — 无变化 (178→64)
+      - · `经典` — 无变化 (178→64)
+      - · `知识` — 无变化 (178→64)
+      - · `Row@2162,188` — 无变化 (178→64)
+      - · `Row@2143,2022` — 无变化 (178→64)
+      - · `继续观看` — 无变化 (178→64)
+      - **s4_d3 · depth=3 · nodes=270 · navigation-based, tab-based, vertical-scroll, list-view**
+        - ↩ 已访问（环）
+      - **s11_d3 · depth=3 · nodes=150 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view**
+        - · `短剧` — 无变化 (150→150)
+        - · `剧场` — 无变化 (150→165)
+        - · `福利` — 无变化 (150→270)
+        - → `我的` — 新界面 (150→226) · 未子遍历
+        - → `3014` — 新界面 (150→135) · 未子遍历
+        - → `第1季` — 新界面 (150→135) · 未子遍历
+        - → `玄幻` — 新界面 (150→135) · 未子遍历
+        - → `展开` — 新界面 (150→135) · 未子遍历
+        - → `10.4万` — 新界面 (150→226) · 未子遍历
+        - → `10.4万` — 新界面 (150→226) · 未子遍历
+        - → `观看完整短剧` — 新界面 (150→140) · 未子遍历
+        - → `Image@2137,199` — 新界面 (150→184) · 未子遍历
+        - → `追剧` — 新界面 (150→226) · 未子遍历
+        - → `追剧` — 新界面 (150→135) · 未子遍历
+        - → `追剧` — 新界面 (150→135) · 未子遍历
+      - **s12_d3 · depth=3 · nodes=268 · navigation-based, tab-based, vertical-scroll, list-view**
+        - ↩ 已访问（环）
+    - **s12_d3 · depth=3 · nodes=268 · navigation-based, tab-based, vertical-scroll, list-view**
+      - ↩ 已访问（环）
+  - **s11_d3 · depth=3 · nodes=150 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view**
+    - ↩ 已访问（环）
+
+## 图例
+- `→` 进入新界面（递归子遍历）
+- `·` 点击但界面未变
+- `⊘` 跳过（护栏/错包等）
+
+生成时间: 2026-05-27T09:26:21.028Z

@@ -1,0 +1,129 @@
+{
+  "appInfo": {
+    "platform": "harmonyos",
+    "totalScreens": 1,
+    "analyzedAt": "2026-05-25T03:25:52.407Z"
+  },
+  "screensSummary": {
+    "totalNodes": 115,
+    "avgNodes": 115,
+    "maxNodes": 115,
+    "minNodes": 115,
+    "maxDepth": 20,
+    "avgDepth": 20,
+    "totalInteractive": 6,
+    "avgInteractive": 6
+  },
+  "screens": [
+    {
+      "id": 1,
+      "name": "current-screen-map",
+      "screenResolution": {
+        "width": 1260,
+        "height": 2720
+      },
+      "totalNodes": 115,
+      "treeDepth": 20,
+      "complexity": "simple",
+      "interactions": {
+        "clickable": 6,
+        "buttons": 0,
+        "inputFields": 0
+      },
+      "features": {
+        "hasScroll": false,
+        "hasTabs": false,
+        "hasModal": false,
+        "hasList": true,
+        "hasForm": false
+      },
+      "suggestions": []
+    }
+  ],
+  "screenTypes": {
+    "list": 1
+  },
+  "interactionSummary": {
+    "totalClickable": 6,
+    "totalButtons": 0,
+    "totalInputs": 0,
+    "totalTabs": 0,
+    "interactiveScreens": [],
+    "lowInteractiveScreens": []
+  },
+  "structurePatterns": [
+    {
+      "pattern": "horizontal-layout",
+      "count": 1
+    }
+  ],
+  "nodeTypeDistribution": [
+    {
+      "type": "Stack",
+      "count": 47
+    },
+    {
+      "type": "Row",
+      "count": 17
+    },
+    {
+      "type": "Text",
+      "count": 11
+    },
+    {
+      "type": "__Common__",
+      "count": 10
+    },
+    {
+      "type": "RelativeContainer",
+      "count": 8
+    },
+    {
+      "type": "Column",
+      "count": 7
+    },
+    {
+      "type": "SymbolGlyph",
+      "count": 6
+    },
+    {
+      "type": "Image",
+      "count": 4
+    },
+    {
+      "type": "WindowScene",
+      "count": 2
+    },
+    {
+      "type": "unknown",
+      "count": 1
+    },
+    {
+      "type": "EffectComponent",
+      "count": 1
+    },
+    {
+      "type": "metaballNode",
+      "count": 1
+    }
+  ],
+  "screenRelationships": [
+    {
+      "screen": 1,
+      "role": "entry_candidate",
+      "reason": "复杂度低，可能是入口界面"
+    }
+  ],
+  "globalSuggestions": [],
+  "testPriority": [
+    {
+      "screen": 1,
+      "name": "current-screen-map",
+      "score": 15,
+      "priority": "low",
+      "reasons": [
+        "可能是入口界面"
+      ]
+    }
+  ]
+}

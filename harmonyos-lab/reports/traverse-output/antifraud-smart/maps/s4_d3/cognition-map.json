@@ -1,0 +1,166 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 59,
+    "treeDepth": 15,
+    "complexity": "simple"
+  },
+  "structure": {
+    "layoutPattern": [
+      "navigation-based"
+    ],
+    "mainContainers": [
+      {
+        "type": "Navigation",
+        "depth": 2,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Navigation",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "Text",
+        "label": "若您不同意《华为云会议服务协议》和《华为云会议隐私声明》很遗憾我们无法为您提供服务。",
+        "bounds": "[662,1139][1562,1337]"
+      },
+      {
+        "type": "Text",
+        "label": "退出应用",
+        "bounds": "[637,1412][1100,1537]"
+      },
+      {
+        "type": "Text",
+        "label": "同意",
+        "bounds": "[1125,1412][1588,1537]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[0,0][2224,112]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "inputFields": [],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "tabs": []
+  },
+  "features": {
+    "hasScroll": true,
+    "hasTabs": true,
+    "hasModal": false,
+    "hasList": false,
+    "hasForm": false
+  },
+  "suggestions": [
+    "存在导航结构，建议按导航层级遍历"
+  ],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Stack",
+        13
+      ],
+      [
+        "Text",
+        12
+      ],
+      [
+        "Row",
+        8
+      ],
+      [
+        "Image",
+        6
+      ],
+      [
+        "Column",
+        3
+      ],
+      [
+        "WindowScene",
+        2
+      ],
+      [
+        "__Common__",
+        2
+      ],
+      [
+        "RelativeContainer",
+        2
+      ],
+      [
+        "TextClock",
+        2
+      ],
+      [
+        "unknown",
+        1
+      ],
+      [
+        "root",
+        1
+      ],
+      [
+        "Navigation",
+        1
+      ],
+      [
+        "NavBar",
+        1
+      ],
+      [
+        "NavBarContent",
+        1
+      ],
+      [
+        "Scroll",
+        1
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 3,
+      "2": 3,
+      "3": 3,
+      "4": 3,
+      "5": 3,
+      "6": 5,
+      "7": 4,
+      "8": 7,
+      "9": 5,
+      "10": 4,
+      "11": 6,
+      "12": 4,
+      "13": 4,
+      "14": 3,
+      "15": 1
+    }
+  }
+}

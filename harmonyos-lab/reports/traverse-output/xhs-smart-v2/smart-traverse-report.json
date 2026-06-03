@@ -1,0 +1,132 @@
+{
+  "targetBundle": "com.xingin.xhs_hos",
+  "deviceId": "22M0223824043030",
+  "outputDir": "./traverse-output/xhs-smart-v2",
+  "maxDepth": 2,
+  "aborted": false,
+  "screensVisited": 1,
+  "totalClicks": 1,
+  "newScreensFromClicks": 0,
+  "skippedClicks": 1,
+  "results": [
+    {
+      "screenId": "s1_d0",
+      "depth": 0,
+      "parentAction": null,
+      "fingerprint": {
+        "nodes": 68,
+        "labels": ":|不同意|同意|欢迎使用小红书！\n我们将通过《用户协议》和《隐私政策》，帮助您了解我们为您提供的服务、我们如何处理个人信息以及您享有的权利。我们会严格按照相关法律法规要求，采取各种安全措施来保护您的个人信息。\n我们重视未成年人/儿童的个人信息保护，若您是未满18周岁的未成年人，请在监护人的指导下阅读并同意以上协议以及《儿童/未成年人个人信息保护规则》。\n点击“同意”按钮，表示您已知情并同意以上协议和以下约定。\n1.为了保障软件的安全运行和账户安全，我们会申请收集您的设备信息、IP地址、WLAN MAC地址。\n2.上传或拍摄图片、视频，需要使用您的媒体影音、图片、视频、音频、相机、麦克风权限。\n3.我们可能会申请位置权限，用于为您推荐您可能感兴趣的内容。\n4.为了帮助您发现更多朋友，我们会申请通讯录权限。\n5.我们尊重您的选择权，您可以访问、修改、删除您的个人信息并管理您的授权，我们也为您提供注销、投诉渠道。",
+        "key": "68::|不同意|同意|欢迎使用小红书！\n我们将通过《用户协议》和《隐私政策》，帮助您了解我们为您提供的服务、我们如何处理个人信息以及您享有的权利。我们会严格按照相关法律法规要求，采取各种安全措施来保护您的个人信息。\n我们重视未成年人/儿童的个人信息保护，若您是未满18周岁的未成年人，请在监护人的指导下阅读并同意以上协议以及《儿童/未成年人个人信息保护规则》。\n点击“同意”按钮，表示您已知情并同意以上协"
+      },
+      "guard": {
+        "bundles": [
+          "com.xingin.xhs_hos",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.xingin.xhs_hos",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 68,
+          "treeDepth": 15,
+          "complexity": "simple"
+        },
+        "suggestions": [
+          "存在导航结构，建议按导航层级遍历"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": true,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based"
+        ]
+      },
+      "plan": [
+        {
+          "category": "button",
+          "label": "同意",
+          "type": "Button",
+          "x": 1112,
+          "y": 1555,
+          "bounds": "[752,1498][1472,1611]"
+        },
+        {
+          "category": "content",
+          "label": "欢迎使用小红书！\n我们将通过《用户协议》和《隐私政策》，帮助您了解我们为您提供的服务、我们如何处理个人信息以及您享有的权利。我们会严格按照相关法律法规要求，采取各种安全措施来保护您的个人信息。\n我们重视未成年人/儿童的个人信息保护，若您是未满18周岁的未成年人，请在监护人的指导下阅读并同意以上协议以及《儿童/未成年人个人信息保护规则》。\n点击“同意”按钮，表示您已知情并同意以上协议和以下约定。\n1.为了保障软件的安全运行和账户安全，我们会申请收集您的设备信息、IP地址、WLAN MAC地址。\n2.上传或拍摄图片、视频，需要使用您的媒体影音、图片、视频、音频、相机、麦克风权限。\n3.我们可能会申请位置权限，用于为您推荐您可能感兴趣的内容。\n4.为了帮助您发现更多朋友，我们会申请通讯录权限。\n5.我们尊重您的选择权，您可以访问、修改、删除您的个人信息并管理您的授权，我们也为您提供注销、投诉渠道。",
+          "type": "Text",
+          "x": 1112,
+          "y": 1171,
+          "bounds": "[765,905][1459,1436]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[button] press 1112 1555 (同意)",
+          "pressOk": true,
+          "skipped": true,
+          "reason": "wrong_app",
+          "afterBundles": [
+            "com.ohos.notificationdialog",
+            "com.ohos.sceneboard"
+          ],
+          "isNewScreen": false
+        }
+      ]
+    }
+  ],
+  "completedAt": "2026-05-26T10:40:11.752Z",
+  "traverseTree": {
+    "targetBundle": "com.xingin.xhs_hos",
+    "outputDir": "./traverse-output/xhs-smart-v2",
+    "screensVisited": 1,
+    "roots": [
+      {
+        "screenId": "s1_d0",
+        "depth": 0,
+        "parentAction": null,
+        "title": "s1_d0 · depth=0 · nodes=68 · navigation-based",
+        "fingerprint": {
+          "nodes": 68,
+          "labels": ":|不同意|同意|欢迎使用小红书！\n我们将通过《用户协议》和《隐私政策》，帮助您了解我们为您提供的服务、我们如何处理个人信息以及您享有的权利。我们会严格按照相关法律法规要求，采取各种安全措施来保护您的个人信息。\n我们重视未成年人/儿童的个人信息保护，若您是未满18周岁的未成年人，请在监护人的指导下阅读并同意以上协议以及《儿童/未成年人个人信息保护规则》。\n点击“同意”按钮，表示您已知情并同意以上协议和以下约定。\n1.为了保障软件的安全运行和账户安全，我们会申请收集您的设备信息、IP地址、WLAN MAC地址。\n2.上传或拍摄图片、视频，需要使用您的媒体影音、图片、视频、音频、相机、麦克风权限。\n3.我们可能会申请位置权限，用于为您推荐您可能感兴趣的内容。\n4.为了帮助您发现更多朋友，我们会申请通讯录权限。\n5.我们尊重您的选择权，您可以访问、修改、删除您的个人信息并管理您的授权，我们也为您提供注销、投诉渠道。",
+          "key": "68::|不同意|同意|欢迎使用小红书！\n我们将通过《用户协议》和《隐私政策》，帮助您了解我们为您提供的服务、我们如何处理个人信息以及您享有的权利。我们会严格按照相关法律法规要求，采取各种安全措施来保护您的个人信息。\n我们重视未成年人/儿童的个人信息保护，若您是未满18周岁的未成年人，请在监护人的指导下阅读并同意以上协议以及《儿童/未成年人个人信息保护规则》。\n点击“同意”按钮，表示您已知情并同意以上协"
+        },
+        "cognition": {
+          "treeDepth": 15,
+          "features": {
+            "hasScroll": true,
+            "hasTabs": true,
+            "hasModal": false,
+            "hasList": true,
+            "hasForm": false
+          },
+          "suggestions": [
+            "存在导航结构，建议按导航层级遍历"
+          ]
+        },
+        "clickBranches": [
+          {
+            "action": "[button] press 1112 1555 (同意)",
+            "label": "同意",
+            "status": "跳过 (wrong_app)",
+            "isNewScreen": false,
+            "skipped": true,
+            "reason": "wrong_app",
+            "unvisitedNewScreen": false
+          }
+        ],
+        "children": []
+      }
+    ]
+  }
+}

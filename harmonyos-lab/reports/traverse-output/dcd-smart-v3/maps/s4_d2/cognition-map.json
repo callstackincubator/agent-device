@@ -1,0 +1,205 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 277,
+    "treeDepth": 41,
+    "complexity": "medium"
+  },
+  "structure": {
+    "layoutPattern": [
+      "navigation-based"
+    ],
+    "mainContainers": [
+      {
+        "type": "Stack",
+        "depth": 2,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "Navigation",
+        "depth": 3,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "NavigationContent",
+        "depth": 4,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Navigation",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "NavigationContent",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[0,0][2224,112]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "inputFields": [],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "tabs": []
+  },
+  "features": {
+    "hasScroll": true,
+    "hasTabs": true,
+    "hasModal": false,
+    "hasList": false,
+    "hasForm": false
+  },
+  "suggestions": [
+    "界面复杂度高，建议优先测试关键路径",
+    "存在导航结构，建议按导航层级遍历"
+  ],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Custom",
+        148
+      ],
+      [
+        "Image",
+        39
+      ],
+      [
+        "Stack",
+        28
+      ],
+      [
+        "Text",
+        28
+      ],
+      [
+        "Row",
+        7
+      ],
+      [
+        "__Common__",
+        3
+      ],
+      [
+        "Scroll",
+        3
+      ],
+      [
+        "Column",
+        2
+      ],
+      [
+        "CustomFrameNode",
+        2
+      ],
+      [
+        "WindowScene",
+        2
+      ],
+      [
+        "RelativeContainer",
+        2
+      ],
+      [
+        "TextClock",
+        2
+      ],
+      [
+        "unknown",
+        1
+      ],
+      [
+        "root",
+        1
+      ],
+      [
+        "Navigation",
+        1
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 3,
+      "2": 3,
+      "3": 3,
+      "4": 3,
+      "5": 3,
+      "6": 5,
+      "7": 2,
+      "8": 4,
+      "9": 5,
+      "10": 5,
+      "11": 7,
+      "12": 6,
+      "13": 5,
+      "14": 4,
+      "15": 2,
+      "16": 1,
+      "17": 1,
+      "18": 1,
+      "19": 1,
+      "20": 1,
+      "21": 1,
+      "22": 2,
+      "23": 1,
+      "24": 5,
+      "25": 11,
+      "26": 11,
+      "27": 11,
+      "28": 8,
+      "29": 9,
+      "30": 5,
+      "31": 10,
+      "32": 9,
+      "33": 6,
+      "34": 7,
+      "35": 12,
+      "36": 10,
+      "37": 17,
+      "38": 23,
+      "39": 29,
+      "40": 16,
+      "41": 8
+    }
+  }
+}

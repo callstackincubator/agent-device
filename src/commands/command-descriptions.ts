@@ -2,6 +2,7 @@ const COMMAND_DESCRIPTIONS = {
   devices: 'List available devices.',
   boot: 'Boot or prepare a selected device without using CLI positional arguments.',
   apps: 'List installed apps.',
+  cognition: 'Generate a cognition map of the current UI structure for AI planning.',
   session: 'List active sessions.',
   open: 'Open an app, deep link, URL, or platform surface.',
   prepare: 'Prepare platform helper infrastructure.',

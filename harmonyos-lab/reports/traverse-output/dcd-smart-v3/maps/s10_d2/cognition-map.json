@@ -1,0 +1,305 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 251,
+    "treeDepth": 46,
+    "complexity": "medium"
+  },
+  "structure": {
+    "layoutPattern": [
+      "navigation-based",
+      "tab-based",
+      "vertical-scroll",
+      "horizontal-layout",
+      "list-view"
+    ],
+    "mainContainers": [
+      {
+        "type": "Stack",
+        "depth": 2,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "Navigation",
+        "depth": 3,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "NavigationContent",
+        "depth": 4,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Navigation",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "NavigationContent",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,1486][2224,2271]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,1486][2224,2271]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[0,113][2224,1361]"
+      },
+      {
+        "type": "Text",
+        "label": "",
+        "bounds": "[43,147][106,215]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[50,1394][150,1453]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[213,1391][354,1457]"
+      },
+      {
+        "type": "Text",
+        "label": "点击发弹幕",
+        "bounds": "[1862,1386][2100,1461]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[2099,1386][2174,1461]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[37,1526][2187,1595]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[37,1672][2187,2003]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[50,2139][150,2239]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[175,2139][2174,2271]"
+      },
+      {
+        "type": "Text",
+        "label": "Fantasy060602",
+        "bounds": "[175,2145][450,2189]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[50,2290][1549,2390]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[1599,2280][1724,2399]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[1749,2271][1874,2409]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[1899,2284][2024,2396]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[2049,2284][2174,2396]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[0,0][2224,181]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "inputFields": [],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "tabs": [
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,1486][2224,2271]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,1486][2224,2271]"
+      }
+    ]
+  },
+  "features": {
+    "hasScroll": true,
+    "hasTabs": true,
+    "hasModal": false,
+    "hasList": true,
+    "hasForm": false
+  },
+  "suggestions": [
+    "界面复杂度高，建议优先测试关键路径",
+    "存在导航结构，建议按导航层级遍历"
+  ],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Stack",
+        76
+      ],
+      [
+        "__Common__",
+        39
+      ],
+      [
+        "Text",
+        26
+      ],
+      [
+        "Row",
+        25
+      ],
+      [
+        "Image",
+        22
+      ],
+      [
+        "Column",
+        18
+      ],
+      [
+        "RelativeContainer",
+        8
+      ],
+      [
+        "ListItem",
+        5
+      ],
+      [
+        "List",
+        3
+      ],
+      [
+        "Swiper",
+        3
+      ],
+      [
+        "root",
+        2
+      ],
+      [
+        "GridCol",
+        2
+      ],
+      [
+        "NodeContainer",
+        2
+      ],
+      [
+        "WindowScene",
+        2
+      ],
+      [
+        "TextClock",
+        2
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 3,
+      "2": 3,
+      "3": 3,
+      "4": 3,
+      "5": 3,
+      "6": 5,
+      "7": 2,
+      "8": 4,
+      "9": 6,
+      "10": 9,
+      "11": 12,
+      "12": 7,
+      "13": 6,
+      "14": 4,
+      "15": 2,
+      "16": 1,
+      "17": 1,
+      "18": 2,
+      "19": 2,
+      "20": 2,
+      "21": 3,
+      "22": 3,
+      "23": 5,
+      "24": 8,
+      "25": 11,
+      "26": 7,
+      "27": 7,
+      "28": 9,
+      "29": 7,
+      "30": 6,
+      "31": 5,
+      "32": 7,
+      "33": 10,
+      "34": 10,
+      "35": 11,
+      "36": 9,
+      "37": 5,
+      "38": 5,
+      "39": 7,
+      "40": 7,
+      "41": 9,
+      "42": 8,
+      "43": 5,
+      "44": 4,
+      "45": 1,
+      "46": 1
+    }
+  }
+}

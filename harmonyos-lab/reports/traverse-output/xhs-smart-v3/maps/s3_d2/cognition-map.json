@@ -1,0 +1,410 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 283,
+    "treeDepth": 34,
+    "complexity": "medium"
+  },
+  "structure": {
+    "layoutPattern": [
+      "navigation-based",
+      "tab-based",
+      "vertical-scroll",
+      "horizontal-layout",
+      "list-view"
+    ],
+    "mainContainers": [
+      {
+        "type": "Stack",
+        "depth": 2,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "Column",
+        "depth": 3,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "Navigation",
+        "depth": 3,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "NavigationContent",
+        "depth": 4,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Navigation",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "NavigationContent",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2272]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,113][2224,2272]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,250][2224,2272]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,250][2224,2272]"
+      },
+      {
+        "type": "Text",
+        "label": "登录发现更多精彩",
+        "bounds": "[163,2128][514,2191]"
+      },
+      {
+        "type": "Text",
+        "label": "去登录",
+        "bounds": "[1992,2128][2124,2191]"
+      },
+      {
+        "type": "Text",
+        "label": "首页",
+        "bounds": "[172,2303][272,2378]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[770,1474][1454,1587]"
+      },
+      {
+        "type": "Text",
+        "label": "确定",
+        "bounds": "[1068,1505][1156,1556]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[852,113][1026,249]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[1026,113][1200,249]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[1200,113][1374,249]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[0,113][125,250]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[2099,113][2224,250]"
+      },
+      {
+        "type": "Text",
+        "label": "推荐",
+        "bounds": "[0,256][162,357]"
+      },
+      {
+        "type": "Text",
+        "label": "视频",
+        "bounds": "[162,256][324,357]"
+      },
+      {
+        "type": "Text",
+        "label": "直播",
+        "bounds": "[324,256][486,357]"
+      },
+      {
+        "type": "Text",
+        "label": "穿搭",
+        "bounds": "[486,256][648,357]"
+      },
+      {
+        "type": "Text",
+        "label": "美食",
+        "bounds": "[648,256][810,357]"
+      },
+      {
+        "type": "Text",
+        "label": "美甲",
+        "bounds": "[810,256][972,357]"
+      },
+      {
+        "type": "Text",
+        "label": "头像",
+        "bounds": "[972,256][1134,357]"
+      },
+      {
+        "type": "Text",
+        "label": "壁纸",
+        "bounds": "[1134,256][1296,357]"
+      },
+      {
+        "type": "Text",
+        "label": "手工",
+        "bounds": "[1296,256][1458,357]"
+      },
+      {
+        "type": "Text",
+        "label": "彩妆",
+        "bounds": "[1458,256][1620,357]"
+      },
+      {
+        "type": "Text",
+        "label": "旅行",
+        "bounds": "[1620,256][1782,357]"
+      },
+      {
+        "type": "Text",
+        "label": "搞笑",
+        "bounds": "[1782,256][1944,357]"
+      },
+      {
+        "type": "Text",
+        "label": "动漫",
+        "bounds": "[1944,256][2106,357]"
+      },
+      {
+        "type": "Text",
+        "label": "游戏",
+        "bounds": "[2106,256][2224,357]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[2074,250][2224,363]"
+      },
+      {
+        "type": "__Common__",
+        "label": "贾玲又复胖了❗真假❓, 小楠健身塑形（力量训练）, 2054",
+        "bounds": "[15,379][736,1546]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[15,379][736,1340]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[46,1459][102,1515]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[519,1438][736,1542]"
+      },
+      {
+        "type": "__Common__",
+        "label": "🦁 , Dollar要多乐, 1.9万",
+        "bounds": "[752,379][1473,1546]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[752,379][1473,1340]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[783,1459][839,1515]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[1253,1438][1473,1542]"
+      },
+      {
+        "type": "__Common__",
+        "label": "一代人有一代人的笑点～, 小僧不内耗, 7541",
+        "bounds": "[1488,379][2209,1546]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[1488,379][2209,1340]"
+      }
+    ],
+    "inputFields": [],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[770,1474][1454,1587]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "tabs": [
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2272]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,113][2224,2272]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,250][2224,2272]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,250][2224,2272]"
+      }
+    ]
+  },
+  "features": {
+    "hasScroll": true,
+    "hasTabs": true,
+    "hasModal": false,
+    "hasList": true,
+    "hasForm": false
+  },
+  "suggestions": [
+    "界面复杂度高，建议优先测试关键路径",
+    "存在导航结构，建议按导航层级遍历",
+    "交互元素多，建议分类测试（按钮、输入框、链接等）"
+  ],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Stack",
+        52
+      ],
+      [
+        "Row",
+        46
+      ],
+      [
+        "Text",
+        41
+      ],
+      [
+        "Image",
+        30
+      ],
+      [
+        "__Common__",
+        28
+      ],
+      [
+        "Column",
+        21
+      ],
+      [
+        "ListItem",
+        17
+      ],
+      [
+        "FlowItem",
+        6
+      ],
+      [
+        "GridCol",
+        5
+      ],
+      [
+        "RelativeContainer",
+        4
+      ],
+      [
+        "Swiper",
+        3
+      ],
+      [
+        "Circle",
+        3
+      ],
+      [
+        "NavDestination",
+        2
+      ],
+      [
+        "NavDestinationContent",
+        2
+      ],
+      [
+        "Tabs",
+        2
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 3,
+      "2": 3,
+      "3": 4,
+      "4": 3,
+      "5": 4,
+      "6": 6,
+      "7": 3,
+      "8": 5,
+      "9": 9,
+      "10": 14,
+      "11": 13,
+      "12": 9,
+      "13": 14,
+      "14": 11,
+      "15": 11,
+      "16": 15,
+      "17": 7,
+      "18": 5,
+      "19": 6,
+      "20": 5,
+      "21": 15,
+      "22": 16,
+      "23": 2,
+      "24": 6,
+      "25": 6,
+      "26": 6,
+      "27": 6,
+      "28": 9,
+      "29": 15,
+      "30": 15,
+      "31": 18,
+      "32": 12,
+      "33": 3,
+      "34": 3
+    }
+  }
+}

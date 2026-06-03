@@ -335,8 +335,8 @@ function toInstallFromSourceDaemonRequest(
   headers: IncomingHttpHeaders,
 ): DaemonRequest {
   const platform = readStringParam(params, 'platform');
-  if (platform !== 'ios' && platform !== 'android') {
-    throw new AppError('INVALID_ARGS', 'Invalid params: platform must be "ios" or "android"');
+  if (platform !== 'ios' && platform !== 'android' && platform !== 'harmonyos') {
+    throw new AppError('INVALID_ARGS', 'Invalid params: platform must be "ios", "android", or "harmonyos"');
   }
   return {
     token: resolveToken(params, headers),

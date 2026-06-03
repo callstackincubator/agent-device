@@ -84,6 +84,7 @@ export const clientCommandDefinitions = [
         ? await client.metro.prepare(toMetroPrepareOptions(input))
         : await client.metro.reload(toMetroReloadOptions(input)),
   ),
+  defineExecutableCommand(metadata('cognition'), (client, input) => client.command.cognition(input)),
 ] as const;
 
 function metadata<TName extends ClientCommandName>(

@@ -1,0 +1,826 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 323,
+    "treeDepth": 34,
+    "complexity": "medium"
+  },
+  "structure": {
+    "layoutPattern": [
+      "navigation-based",
+      "tab-based",
+      "vertical-scroll",
+      "horizontal-layout",
+      "list-view"
+    ],
+    "mainContainers": [
+      {
+        "type": "Stack",
+        "depth": 2,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "Column",
+        "depth": 3,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "Navigation",
+        "depth": 3,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "NavigationContent",
+        "depth": 4,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Navigation",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "NavigationContent",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2272]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,113][2224,2272]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,250][2224,2272]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,250][2224,2272]"
+      },
+      {
+        "type": "Text",
+        "label": "登录发现更多精彩",
+        "bounds": "[163,2128][514,2191]"
+      },
+      {
+        "type": "Text",
+        "label": "去登录",
+        "bounds": "[1992,2128][2124,2191]"
+      },
+      {
+        "type": "Text",
+        "label": "首页",
+        "bounds": "[172,2303][272,2378]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[770,1474][1454,1587]"
+      },
+      {
+        "type": "Text",
+        "label": "确定",
+        "bounds": "[1068,1505][1156,1556]"
+      },
+      {
+        "type": "Text",
+        "label": "登录发现更多精彩",
+        "bounds": "[912,965][1312,1024]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[456,1842][1769,1992]"
+      },
+      {
+        "type": "Text",
+        "label": "微信登录",
+        "bounds": "[1050,1880][1250,1955]"
+      },
+      {
+        "type": "Text",
+        "label": "其他登录方式",
+        "bounds": "[981,2067][1206,2123]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[852,113][1026,249]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[1026,113][1200,249]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[1200,113][1374,249]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[0,113][125,250]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[2099,113][2224,250]"
+      },
+      {
+        "type": "Text",
+        "label": "推荐",
+        "bounds": "[0,256][162,357]"
+      },
+      {
+        "type": "Text",
+        "label": "视频",
+        "bounds": "[162,256][324,357]"
+      },
+      {
+        "type": "Text",
+        "label": "直播",
+        "bounds": "[324,256][486,357]"
+      },
+      {
+        "type": "Text",
+        "label": "穿搭",
+        "bounds": "[486,256][648,357]"
+      },
+      {
+        "type": "Text",
+        "label": "美食",
+        "bounds": "[648,256][810,357]"
+      },
+      {
+        "type": "Text",
+        "label": "美甲",
+        "bounds": "[810,256][972,357]"
+      },
+      {
+        "type": "Text",
+        "label": "头像",
+        "bounds": "[972,256][1134,357]"
+      },
+      {
+        "type": "Text",
+        "label": "壁纸",
+        "bounds": "[1134,256][1296,357]"
+      },
+      {
+        "type": "Text",
+        "label": "手工",
+        "bounds": "[1296,256][1458,357]"
+      },
+      {
+        "type": "Text",
+        "label": "彩妆",
+        "bounds": "[1458,256][1620,357]"
+      },
+      {
+        "type": "Text",
+        "label": "旅行",
+        "bounds": "[1620,256][1782,357]"
+      },
+      {
+        "type": "Text",
+        "label": "搞笑",
+        "bounds": "[1782,256][1944,357]"
+      },
+      {
+        "type": "Text",
+        "label": "动漫",
+        "bounds": "[1944,256][2106,357]"
+      },
+      {
+        "type": "Text",
+        "label": "游戏",
+        "bounds": "[2106,256][2224,357]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[2074,250][2224,363]"
+      },
+      {
+        "type": "__Common__",
+        "label": "贾玲又复胖了❗真假❓, 小楠健身塑形（力量训练）, 2054",
+        "bounds": "[15,379][736,1546]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[15,379][736,1340]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[46,1459][102,1515]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[519,1438][736,1542]"
+      },
+      {
+        "type": "__Common__",
+        "label": "🦁 , Dollar要多乐, 1.9万",
+        "bounds": "[752,379][1473,1546]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[752,379][1473,1340]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[783,1459][839,1515]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[1253,1438][1473,1542]"
+      },
+      {
+        "type": "__Common__",
+        "label": "一代人有一代人的笑点～, 小僧不内耗, 7541",
+        "bounds": "[1488,379][2209,1546]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[1488,379][2209,1340]"
+      }
+    ],
+    "inputFields": [],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[770,1474][1454,1587]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[456,1842][1769,1992]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "tabs": [
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2272]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,113][2224,2272]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,250][2224,2272]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,250][2224,2272]"
+      }
+    ]
+  },
+  "features": {
+    "hasScroll": true,
+    "hasTabs": true,
+    "hasModal": false,
+    "hasList": true,
+    "hasForm": false,
+    "hasListBlock": true,
+    "hasBottomMenuBlock": true,
+    "hasPopupBlock": false
+  },
+  "suggestions": [
+    "界面复杂度高，建议优先测试关键路径",
+    "存在导航结构，建议按导航层级遍历",
+    "交互元素多，建议分类测试（按钮、输入框、链接等）",
+    "[ONNX区块/频道列表] 频道列表：可点击 Tab 或左右滑动切换频道",
+    "[ONNX区块/底部导航栏] 底部导航栏：优先点击未访问的 Tab"
+  ],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Stack",
+        56
+      ],
+      [
+        "Row",
+        52
+      ],
+      [
+        "Text",
+        46
+      ],
+      [
+        "Image",
+        35
+      ],
+      [
+        "Column",
+        29
+      ],
+      [
+        "__Common__",
+        29
+      ],
+      [
+        "ListItem",
+        17
+      ],
+      [
+        "Scroll",
+        6
+      ],
+      [
+        "FlowItem",
+        6
+      ],
+      [
+        "GridCol",
+        5
+      ],
+      [
+        "RelativeContainer",
+        5
+      ],
+      [
+        "NavDestination",
+        4
+      ],
+      [
+        "NavDestinationContent",
+        4
+      ],
+      [
+        "Swiper",
+        3
+      ],
+      [
+        "Circle",
+        3
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 3,
+      "2": 3,
+      "3": 4,
+      "4": 3,
+      "5": 5,
+      "6": 7,
+      "7": 4,
+      "8": 7,
+      "9": 10,
+      "10": 16,
+      "11": 14,
+      "12": 10,
+      "13": 15,
+      "14": 12,
+      "15": 12,
+      "16": 16,
+      "17": 9,
+      "18": 7,
+      "19": 10,
+      "20": 10,
+      "21": 20,
+      "22": 20,
+      "23": 6,
+      "24": 6,
+      "25": 6,
+      "26": 6,
+      "27": 6,
+      "28": 9,
+      "29": 15,
+      "30": 15,
+      "31": 18,
+      "32": 12,
+      "33": 3,
+      "34": 3
+    }
+  },
+  "uiBlocks": [
+    {
+      "classKey": "channel",
+      "classZh": "频道列表",
+      "conf": 1.0,
+      "bounds": "[0,1021][255,2496]",
+      "xyxy": [
+        0.0,
+        1021.4,
+        254.5,
+        2496.0
+      ],
+      "center": {
+        "x": 127,
+        "y": 1759
+      },
+      "area": 375334,
+      "suggestedAction": "swipe"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 1.0,
+      "bounds": "[17,258][510,351]",
+      "xyxy": [
+        16.9,
+        258.3,
+        510.2,
+        350.6
+      ],
+      "center": {
+        "x": 264,
+        "y": 304
+      },
+      "area": 45502,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 1.0,
+      "bounds": "[244,257][681,353]",
+      "xyxy": [
+        244.2,
+        256.6,
+        680.5,
+        352.7
+      ],
+      "center": {
+        "x": 462,
+        "y": 305
+      },
+      "area": 41940,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 1.0,
+      "bounds": "[182,256][363,348]",
+      "xyxy": [
+        181.6,
+        256.3,
+        363.4,
+        347.5
+      ],
+      "center": {
+        "x": 272,
+        "y": 302
+      },
+      "area": 16581,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[1081,269][1544,345]",
+      "xyxy": [
+        1080.5,
+        268.9,
+        1544.1,
+        345.0
+      ],
+      "center": {
+        "x": 1312,
+        "y": 307
+      },
+      "area": 35279,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[839,272][1266,346]",
+      "xyxy": [
+        838.6,
+        272.2,
+        1266.2,
+        345.6
+      ],
+      "center": {
+        "x": 1052,
+        "y": 309
+      },
+      "area": 31389,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[1023,131][1412,238]",
+      "xyxy": [
+        1023.4,
+        130.6,
+        1412.0,
+        238.2
+      ],
+      "center": {
+        "x": 1218,
+        "y": 184
+      },
+      "area": 41815,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[288,260][402,346]",
+      "xyxy": [
+        287.5,
+        260.0,
+        402.5,
+        346.0
+      ],
+      "center": {
+        "x": 345,
+        "y": 303
+      },
+      "area": 9882,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[404,259][530,348]",
+      "xyxy": [
+        403.8,
+        259.3,
+        530.3,
+        348.0
+      ],
+      "center": {
+        "x": 467,
+        "y": 304
+      },
+      "area": 11225,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[1208,263][1352,348]",
+      "xyxy": [
+        1208.2,
+        263.4,
+        1352.5,
+        348.1
+      ],
+      "center": {
+        "x": 1280,
+        "y": 306
+      },
+      "area": 12212,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[422,264][887,351]",
+      "xyxy": [
+        421.6,
+        264.3,
+        887.1,
+        351.0
+      ],
+      "center": {
+        "x": 654,
+        "y": 308
+      },
+      "area": 40370,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[821,123][1265,248]",
+      "xyxy": [
+        820.8,
+        123.4,
+        1265.3,
+        247.6
+      ],
+      "center": {
+        "x": 1043,
+        "y": 186
+      },
+      "area": 55206,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[902,264][1029,342]",
+      "xyxy": [
+        902.1,
+        264.5,
+        1029.3,
+        342.5
+      ],
+      "center": {
+        "x": 966,
+        "y": 303
+      },
+      "area": 9918,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[1267,261][1422,347]",
+      "xyxy": [
+        1266.5,
+        260.8,
+        1421.5,
+        347.3
+      ],
+      "center": {
+        "x": 1344,
+        "y": 304
+      },
+      "area": 13417,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[335,259][482,344]",
+      "xyxy": [
+        334.5,
+        259.4,
+        481.6,
+        344.4
+      ],
+      "center": {
+        "x": 408,
+        "y": 302
+      },
+      "area": 12498,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[1685,270][2108,344]",
+      "xyxy": [
+        1684.7,
+        270.0,
+        2108.4,
+        343.6
+      ],
+      "center": {
+        "x": 1897,
+        "y": 307
+      },
+      "area": 31152,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[1401,258][1539,353]",
+      "xyxy": [
+        1400.6,
+        258.4,
+        1539.2,
+        352.6
+      ],
+      "center": {
+        "x": 1470,
+        "y": 306
+      },
+      "area": 13051,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[1008,115][1220,242]",
+      "xyxy": [
+        1008.1,
+        114.5,
+        1220.4,
+        241.5
+      ],
+      "center": {
+        "x": 1114,
+        "y": 178
+      },
+      "area": 26966,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[1271,267][1717,353]",
+      "xyxy": [
+        1270.5,
+        266.6,
+        1716.9,
+        352.7
+      ],
+      "center": {
+        "x": 1494,
+        "y": 310
+      },
+      "area": 38388,
+      "suggestedAction": "explore"
+    },
+    {
+      "classKey": "menu",
+      "classZh": "底部导航栏",
+      "conf": 0.9999,
+      "bounds": "[490,259][638,347]",
+      "xyxy": [
+        489.6,
+        258.9,
+        637.7,
+        347.4
+      ],
+      "center": {
+        "x": 564,
+        "y": 303
+      },
+      "area": 13101,
+      "suggestedAction": "explore"
+    }
+  ],
+  "onnxEnrichment": {
+    "source": "widget_block_detect",
+    "blockCount": 20,
+    "swipeCandidates": [
+      {
+        "classKey": "channel",
+        "classZh": "频道列表",
+        "conf": 1.0,
+        "bounds": "[0,1021][255,2496]",
+        "xyxy": [
+          0.0,
+          1021.4,
+          254.5,
+          2496.0
+        ],
+        "center": {
+          "x": 127,
+          "y": 1759
+        },
+        "area": 375334,
+        "suggestedAction": "swipe"
+      }
+    ]
+  }
+}

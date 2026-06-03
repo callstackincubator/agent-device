@@ -1,0 +1,271 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 117,
+    "treeDepth": 16,
+    "complexity": "simple"
+  },
+  "structure": {
+    "layoutPattern": [
+      "horizontal-layout",
+      "list-view"
+    ],
+    "mainContainers": [
+      {
+        "type": "Column",
+        "depth": 2,
+        "bounds": "[0,113][2224,1489]",
+        "area": 3060224
+      },
+      {
+        "type": "Stack",
+        "depth": 3,
+        "bounds": "[62,364][2162,613]",
+        "area": 522900
+      },
+      {
+        "type": "Column",
+        "depth": 3,
+        "bounds": "[0,1465][2224,2496]",
+        "area": 2292944
+      },
+      {
+        "type": "Row",
+        "depth": 4,
+        "bounds": "[0,1490][2224,2496]",
+        "area": 2237344
+      },
+      {
+        "type": "Stack",
+        "depth": 2,
+        "bounds": "[0,113][2224,1489]",
+        "area": 3060224
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Text",
+        "label": "账号密码登录",
+        "bounds": "[62,190][2162,271]"
+      },
+      {
+        "type": "Text",
+        "label": "登录即同意《服务协议》和《隐私政策》",
+        "bounds": "[143,865][931,916]"
+      },
+      {
+        "type": "Button",
+        "label": "登录",
+        "bounds": "[62,1084][2162,1209]"
+      },
+      {
+        "type": "Text",
+        "label": "快速注册",
+        "bounds": "[888,1324][1064,1375]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "TextInput",
+        "label": "",
+        "bounds": "[62,457][2162,613]"
+      },
+      {
+        "type": "TextInput",
+        "label": "",
+        "bounds": "[62,647][2162,804]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[2068,694][2162,757]"
+      },
+      {
+        "type": "Checkbox",
+        "label": "polcy",
+        "bounds": "[76,867][123,914]"
+      },
+      {
+        "type": "Text",
+        "label": "登录即同意《服务协议》和《隐私政策》",
+        "bounds": "[143,865][931,916]"
+      },
+      {
+        "type": "Button",
+        "label": "登录",
+        "bounds": "[62,1084][2162,1209]"
+      },
+      {
+        "type": "Text",
+        "label": "快速注册",
+        "bounds": "[888,1324][1064,1375]"
+      },
+      {
+        "type": "Text",
+        "label": "找回密码",
+        "bounds": "[1159,1324][1335,1375]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[0,0][2224,112]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[896,1523][1328,1616]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[75,1649][434,1776]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[75,1776][434,1903]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[75,1904][434,2031]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[75,2031][434,2158]"
+      }
+    ],
+    "inputFields": [
+      {
+        "type": "TextInput",
+        "label": "",
+        "bounds": "[62,457][2162,613]"
+      },
+      {
+        "type": "TextInput",
+        "label": "",
+        "bounds": "[62,647][2162,804]"
+      }
+    ],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "登录",
+        "bounds": "[62,1084][2162,1209]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "tabs": []
+  },
+  "features": {
+    "hasScroll": true,
+    "hasTabs": false,
+    "hasModal": false,
+    "hasList": true,
+    "hasForm": true
+  },
+  "suggestions": [],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Stack",
+        24
+      ],
+      [
+        "Row",
+        22
+      ],
+      [
+        "Text",
+        16
+      ],
+      [
+        "Column",
+        9
+      ],
+      [
+        "Image",
+        8
+      ],
+      [
+        "__Common__",
+        5
+      ],
+      [
+        "WindowScene",
+        4
+      ],
+      [
+        "RelativeContainer",
+        4
+      ],
+      [
+        "ListItem",
+        4
+      ],
+      [
+        "Divider",
+        3
+      ],
+      [
+        "root",
+        2
+      ],
+      [
+        "TextInput",
+        2
+      ],
+      [
+        "SymbolGlyph",
+        2
+      ],
+      [
+        "Button",
+        2
+      ],
+      [
+        "TextClock",
+        2
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 5,
+      "2": 7,
+      "3": 14,
+      "4": 13,
+      "5": 6,
+      "6": 8,
+      "7": 3,
+      "8": 5,
+      "9": 6,
+      "10": 8,
+      "11": 9,
+      "12": 6,
+      "13": 10,
+      "14": 7,
+      "15": 5,
+      "16": 4
+    }
+  }
+}

@@ -1,0 +1,3378 @@
+{
+  "success": true,
+  "data": {
+    "nodes": [
+      {
+        "index": 0,
+        "type": "",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 2496
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 0,
+        "ref": "e1"
+      },
+      {
+        "index": 1,
+        "type": "EffectComponent",
+        "identifier": "163",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e2"
+      },
+      {
+        "index": 2,
+        "type": "Stack",
+        "identifier": "164",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e3"
+      },
+      {
+        "index": 3,
+        "type": "Flex",
+        "identifier": "167",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 2,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e4"
+      },
+      {
+        "index": 4,
+        "type": "Column",
+        "identifier": "168",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2046
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 3,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e5"
+      },
+      {
+        "index": 5,
+        "type": "__Common__",
+        "identifier": "170",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2046
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 4,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e6"
+      },
+      {
+        "index": 6,
+        "type": "Stack",
+        "identifier": "2511",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2046
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 5,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e7"
+      },
+      {
+        "index": 7,
+        "type": "Swiper",
+        "identifier": "2512",
+        "rect": {
+          "x": 0,
+          "y": 121,
+          "width": 2224,
+          "height": 2038
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 6,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e8"
+      },
+      {
+        "index": 8,
+        "type": "Stack",
+        "identifier": "3734",
+        "rect": {
+          "x": 0,
+          "y": 121,
+          "width": 1112,
+          "height": 2038
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 7,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e9"
+      },
+      {
+        "index": 9,
+        "type": "Stack",
+        "identifier": "3739",
+        "rect": {
+          "x": 0,
+          "y": 121,
+          "width": 1112,
+          "height": 2038
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 8,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e10"
+      },
+      {
+        "index": 10,
+        "type": "Grid",
+        "identifier": "3741",
+        "rect": {
+          "x": 50,
+          "y": 137,
+          "width": 1060,
+          "height": 1925
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 9,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e11"
+      },
+      {
+        "index": 11,
+        "type": "GridItem",
+        "identifier": "3745",
+        "rect": {
+          "x": 50,
+          "y": 687,
+          "width": 530,
+          "height": 550
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e12"
+      },
+      {
+        "index": 12,
+        "type": "RelativeContainer",
+        "label": "单指双击即可执行，双击并按住即可弹出更多选项",
+        "identifier": "3776",
+        "rect": {
+          "x": 50,
+          "y": 713,
+          "width": 530,
+          "height": 498
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 11,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e13"
+      },
+      {
+        "index": 13,
+        "type": "RelativeContainer",
+        "identifier": "3777",
+        "rect": {
+          "x": 96,
+          "y": 713,
+          "width": 438,
+          "height": 438
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 12,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e14"
+      },
+      {
+        "index": 14,
+        "type": "Column",
+        "identifier": "3779",
+        "rect": {
+          "x": 96,
+          "y": 713,
+          "width": 438,
+          "height": 438
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 13,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e15"
+      },
+      {
+        "index": 15,
+        "type": "Grid",
+        "identifier": "3786",
+        "rect": {
+          "x": 96,
+          "y": 713,
+          "width": 438,
+          "height": 438
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 13,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e16"
+      },
+      {
+        "index": 16,
+        "type": "GridItem",
+        "identifier": "3789",
+        "rect": {
+          "x": 122,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 15,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e17"
+      },
+      {
+        "index": 17,
+        "type": "RelativeContainer",
+        "identifier": "3839",
+        "rect": {
+          "x": 122,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 16,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e18"
+      },
+      {
+        "index": 18,
+        "type": "Image",
+        "identifier": "3843",
+        "rect": {
+          "x": 122,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 17,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e19"
+      },
+      {
+        "index": 19,
+        "type": "Stack",
+        "identifier": "3855",
+        "rect": {
+          "x": 122,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 17,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e20"
+      },
+      {
+        "index": 20,
+        "type": "Column",
+        "identifier": "3856",
+        "rect": {
+          "x": 122,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 19,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e21"
+      },
+      {
+        "index": 21,
+        "type": "GridItem",
+        "identifier": "3797",
+        "rect": {
+          "x": 256,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 15,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e22"
+      },
+      {
+        "index": 22,
+        "type": "RelativeContainer",
+        "identifier": "3862",
+        "rect": {
+          "x": 256,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 21,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e23"
+      },
+      {
+        "index": 23,
+        "type": "Image",
+        "identifier": "3866",
+        "rect": {
+          "x": 256,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 22,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e24"
+      },
+      {
+        "index": 24,
+        "type": "Stack",
+        "identifier": "3879",
+        "rect": {
+          "x": 256,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 22,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e25"
+      },
+      {
+        "index": 25,
+        "type": "Column",
+        "identifier": "3880",
+        "rect": {
+          "x": 256,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 24,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e26"
+      },
+      {
+        "index": 26,
+        "type": "Image",
+        "identifier": "3884",
+        "rect": {
+          "x": 339,
+          "y": 816,
+          "width": 44,
+          "height": 44
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 22,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e27"
+      },
+      {
+        "index": 27,
+        "type": "GridItem",
+        "identifier": "3805",
+        "rect": {
+          "x": 390,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 15,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e28"
+      },
+      {
+        "index": 28,
+        "type": "RelativeContainer",
+        "identifier": "3888",
+        "rect": {
+          "x": 390,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 27,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e29"
+      },
+      {
+        "index": 29,
+        "type": "Image",
+        "identifier": "3892",
+        "rect": {
+          "x": 390,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 28,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e30"
+      },
+      {
+        "index": 30,
+        "type": "Stack",
+        "identifier": "3905",
+        "rect": {
+          "x": 390,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 28,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e31"
+      },
+      {
+        "index": 31,
+        "type": "Column",
+        "identifier": "3906",
+        "rect": {
+          "x": 390,
+          "y": 739,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 30,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e32"
+      },
+      {
+        "index": 32,
+        "type": "Image",
+        "identifier": "3910",
+        "rect": {
+          "x": 473,
+          "y": 816,
+          "width": 44,
+          "height": 44
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 28,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e33"
+      },
+      {
+        "index": 33,
+        "type": "GridItem",
+        "identifier": "3813",
+        "rect": {
+          "x": 122,
+          "y": 873,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 15,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e34"
+      },
+      {
+        "index": 34,
+        "type": "RelativeContainer",
+        "identifier": "3914",
+        "rect": {
+          "x": 122,
+          "y": 873,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 33,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e35"
+      },
+      {
+        "index": 35,
+        "type": "Image",
+        "identifier": "3918",
+        "rect": {
+          "x": 122,
+          "y": 873,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 34,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e36"
+      },
+      {
+        "index": 36,
+        "type": "Stack",
+        "identifier": "3931",
+        "rect": {
+          "x": 122,
+          "y": 873,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 34,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e37"
+      },
+      {
+        "index": 37,
+        "type": "Column",
+        "identifier": "3932",
+        "rect": {
+          "x": 122,
+          "y": 873,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 36,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e38"
+      },
+      {
+        "index": 38,
+        "type": "Image",
+        "identifier": "3936",
+        "rect": {
+          "x": 205,
+          "y": 950,
+          "width": 44,
+          "height": 44
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 34,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e39"
+      },
+      {
+        "index": 39,
+        "type": "GridItem",
+        "identifier": "3821",
+        "rect": {
+          "x": 256,
+          "y": 873,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 15,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e40"
+      },
+      {
+        "index": 40,
+        "type": "RelativeContainer",
+        "identifier": "3940",
+        "rect": {
+          "x": 256,
+          "y": 873,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 39,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e41"
+      },
+      {
+        "index": 41,
+        "type": "Image",
+        "identifier": "3944",
+        "rect": {
+          "x": 256,
+          "y": 873,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 40,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e42"
+      },
+      {
+        "index": 42,
+        "type": "Stack",
+        "identifier": "3957",
+        "rect": {
+          "x": 256,
+          "y": 873,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 40,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e43"
+      },
+      {
+        "index": 43,
+        "type": "Column",
+        "identifier": "3958",
+        "rect": {
+          "x": 256,
+          "y": 873,
+          "width": 118,
+          "height": 118
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 42,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e44"
+      },
+      {
+        "index": 44,
+        "type": "Image",
+        "identifier": "3962",
+        "rect": {
+          "x": 339,
+          "y": 950,
+          "width": 44,
+          "height": 44
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 40,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e45"
+      },
+      {
+        "index": 45,
+        "type": "Text",
+        "label": "即将发布应用",
+        "value": "即将发布应用",
+        "identifier": "3964",
+        "rect": {
+          "x": 189,
+          "y": 1161,
+          "width": 251,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 12,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e46"
+      },
+      {
+        "index": 46,
+        "type": "GridItem",
+        "identifier": "3748",
+        "rect": {
+          "x": 580,
+          "y": 687,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e47"
+      },
+      {
+        "index": 47,
+        "type": "RelativeContainer",
+        "identifier": "3972",
+        "rect": {
+          "x": 580,
+          "y": 687,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 46,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e48"
+      },
+      {
+        "index": 48,
+        "type": "Image",
+        "identifier": "3976",
+        "rect": {
+          "x": 631,
+          "y": 713,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 47,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e49"
+      },
+      {
+        "index": 49,
+        "type": "Text",
+        "label": "未成年人模式",
+        "value": "未成年人模式",
+        "identifier": "3989",
+        "rect": {
+          "x": 587,
+          "y": 886,
+          "width": 251,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 47,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e50"
+      },
+      {
+        "index": 50,
+        "type": "GridItem",
+        "identifier": "3751",
+        "rect": {
+          "x": 845,
+          "y": 137,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e51"
+      },
+      {
+        "index": 51,
+        "type": "RelativeContainer",
+        "identifier": "3997",
+        "rect": {
+          "x": 845,
+          "y": 137,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 50,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e52"
+      },
+      {
+        "index": 52,
+        "type": "Image",
+        "identifier": "4001",
+        "rect": {
+          "x": 896,
+          "y": 163,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 51,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e53"
+      },
+      {
+        "index": 53,
+        "type": "Text",
+        "label": "华为云会议",
+        "value": "华为云会议",
+        "identifier": "4014",
+        "rect": {
+          "x": 871,
+          "y": 336,
+          "width": 213,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 51,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e54"
+      },
+      {
+        "index": 54,
+        "type": "GridItem",
+        "identifier": "3754",
+        "rect": {
+          "x": 50,
+          "y": 412,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e55"
+      },
+      {
+        "index": 55,
+        "type": "RelativeContainer",
+        "identifier": "4022",
+        "rect": {
+          "x": 50,
+          "y": 412,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 54,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e56"
+      },
+      {
+        "index": 56,
+        "type": "Image",
+        "identifier": "4026",
+        "rect": {
+          "x": 101,
+          "y": 438,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 55,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e57"
+      },
+      {
+        "index": 57,
+        "type": "Text",
+        "label": "同花顺",
+        "value": "同花顺",
+        "identifier": "4039",
+        "rect": {
+          "x": 113,
+          "y": 611,
+          "width": 138,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 55,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e58"
+      },
+      {
+        "index": 58,
+        "type": "GridItem",
+        "identifier": "3757",
+        "rect": {
+          "x": 315,
+          "y": 412,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e59"
+      },
+      {
+        "index": 59,
+        "type": "RelativeContainer",
+        "identifier": "4047",
+        "rect": {
+          "x": 315,
+          "y": 412,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 58,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e60"
+      },
+      {
+        "index": 60,
+        "type": "Image",
+        "identifier": "4051",
+        "rect": {
+          "x": 366,
+          "y": 438,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 59,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e61"
+      },
+      {
+        "index": 61,
+        "type": "Text",
+        "label": "东方财富",
+        "value": "东方财富",
+        "identifier": "4064",
+        "rect": {
+          "x": 360,
+          "y": 611,
+          "width": 175,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 59,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e62"
+      },
+      {
+        "index": 62,
+        "type": "GridItem",
+        "identifier": "3760",
+        "rect": {
+          "x": 50,
+          "y": 137,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e63"
+      },
+      {
+        "index": 63,
+        "type": "RelativeContainer",
+        "identifier": "4072",
+        "rect": {
+          "x": 50,
+          "y": 137,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 62,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e64"
+      },
+      {
+        "index": 64,
+        "type": "Image",
+        "identifier": "4076",
+        "rect": {
+          "x": 101,
+          "y": 163,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 63,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e65"
+      },
+      {
+        "index": 65,
+        "type": "Text",
+        "label": "label",
+        "value": "label",
+        "identifier": "4089",
+        "rect": {
+          "x": 129,
+          "y": 336,
+          "width": 107,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 63,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e66"
+      },
+      {
+        "index": 66,
+        "type": "GridItem",
+        "identifier": "3763",
+        "rect": {
+          "x": 315,
+          "y": 137,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e67"
+      },
+      {
+        "index": 67,
+        "type": "RelativeContainer",
+        "identifier": "4097",
+        "rect": {
+          "x": 315,
+          "y": 137,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 66,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e68"
+      },
+      {
+        "index": 68,
+        "type": "Image",
+        "identifier": "4101",
+        "rect": {
+          "x": 366,
+          "y": 163,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 67,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e69"
+      },
+      {
+        "index": 69,
+        "type": "Text",
+        "label": "安全键盘",
+        "value": "安全键盘",
+        "identifier": "4114",
+        "rect": {
+          "x": 360,
+          "y": 336,
+          "width": 175,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 67,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e70"
+      },
+      {
+        "index": 70,
+        "type": "GridItem",
+        "identifier": "3766",
+        "rect": {
+          "x": 580,
+          "y": 137,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e71"
+      },
+      {
+        "index": 71,
+        "type": "RelativeContainer",
+        "identifier": "4122",
+        "rect": {
+          "x": 580,
+          "y": 137,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 70,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e72"
+      },
+      {
+        "index": 72,
+        "type": "Image",
+        "identifier": "4126",
+        "rect": {
+          "x": 631,
+          "y": 163,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 71,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e73"
+      },
+      {
+        "index": 73,
+        "type": "Text",
+        "label": "安全键盘",
+        "value": "安全键盘",
+        "identifier": "4139",
+        "rect": {
+          "x": 625,
+          "y": 336,
+          "width": 175,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 71,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e74"
+      },
+      {
+        "index": 74,
+        "type": "GridItem",
+        "identifier": "3769",
+        "rect": {
+          "x": 580,
+          "y": 412,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e75"
+      },
+      {
+        "index": 75,
+        "type": "RelativeContainer",
+        "identifier": "4147",
+        "rect": {
+          "x": 580,
+          "y": 412,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 74,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e76"
+      },
+      {
+        "index": 76,
+        "type": "Image",
+        "identifier": "4151",
+        "rect": {
+          "x": 631,
+          "y": 438,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 75,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e77"
+      },
+      {
+        "index": 77,
+        "type": "Text",
+        "label": "label",
+        "value": "label",
+        "identifier": "4164",
+        "rect": {
+          "x": 659,
+          "y": 611,
+          "width": 107,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 75,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e78"
+      },
+      {
+        "index": 78,
+        "type": "GridItem",
+        "identifier": "7499",
+        "rect": {
+          "x": 845,
+          "y": 412,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e79"
+      },
+      {
+        "index": 79,
+        "type": "RelativeContainer",
+        "identifier": "7508",
+        "rect": {
+          "x": 845,
+          "y": 412,
+          "width": 265,
+          "height": 275
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 78,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e80"
+      },
+      {
+        "index": 80,
+        "type": "Image",
+        "identifier": "7512",
+        "rect": {
+          "x": 896,
+          "y": 438,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 79,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e81"
+      },
+      {
+        "index": 81,
+        "type": "Text",
+        "label": "红果免费短剧",
+        "value": "红果免费短剧",
+        "identifier": "7525",
+        "rect": {
+          "x": 852,
+          "y": 611,
+          "width": 251,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 79,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e82"
+      },
+      {
+        "index": 82,
+        "type": "Stack",
+        "identifier": "34373",
+        "rect": {
+          "x": 1112,
+          "y": 121,
+          "width": 1112,
+          "height": 2038
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 7,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e83"
+      },
+      {
+        "index": 83,
+        "type": "Stack",
+        "identifier": "34378",
+        "rect": {
+          "x": 1112,
+          "y": 121,
+          "width": 1112,
+          "height": 2038
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 82,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e84"
+      },
+      {
+        "index": 84,
+        "type": "Grid",
+        "identifier": "34380",
+        "rect": {
+          "x": 1115,
+          "y": 137,
+          "width": 1060,
+          "height": 1925
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 83,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e85"
+      },
+      {
+        "index": 85,
+        "type": "__Common__",
+        "identifier": "2516",
+        "rect": {
+          "x": 1006,
+          "y": 2089,
+          "width": 212,
+          "height": 25
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 6,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e86"
+      },
+      {
+        "index": 86,
+        "type": "Stack",
+        "identifier": "2521",
+        "rect": {
+          "x": 1006,
+          "y": 2089,
+          "width": 212,
+          "height": 25
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 85,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e87"
+      },
+      {
+        "index": 87,
+        "type": "Row",
+        "identifier": "2522",
+        "rect": {
+          "x": 1006,
+          "y": 2089,
+          "width": 212,
+          "height": 25
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 86,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e88"
+      },
+      {
+        "index": 88,
+        "type": "Image",
+        "identifier": "2523",
+        "rect": {
+          "x": 1006,
+          "y": 2089,
+          "width": 19,
+          "height": 25
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 87,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e89"
+      },
+      {
+        "index": 89,
+        "type": "Stack",
+        "identifier": "2539",
+        "rect": {
+          "x": 1050,
+          "y": 2092,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 87,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e90"
+      },
+      {
+        "index": 90,
+        "type": "Stack",
+        "identifier": "2541",
+        "rect": {
+          "x": 1094,
+          "y": 2092,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 87,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e91"
+      },
+      {
+        "index": 91,
+        "type": "Stack",
+        "identifier": "2543",
+        "rect": {
+          "x": 1137,
+          "y": 2092,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 87,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e92"
+      },
+      {
+        "index": 92,
+        "type": "Stack",
+        "identifier": "34497",
+        "rect": {
+          "x": 1181,
+          "y": 2092,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 87,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e93"
+      },
+      {
+        "index": 93,
+        "type": "Stack",
+        "identifier": "2528",
+        "rect": {
+          "x": 1131,
+          "y": 2086,
+          "width": 75,
+          "height": 31
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 86,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e94"
+      },
+      {
+        "index": 94,
+        "type": "Column",
+        "identifier": "173",
+        "rect": {
+          "x": 0,
+          "y": 2159,
+          "width": 2224,
+          "height": 337
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 3,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e95"
+      },
+      {
+        "index": 95,
+        "type": "Row",
+        "identifier": "205",
+        "rect": {
+          "x": 0,
+          "y": 2159,
+          "width": 2224,
+          "height": 337
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 94,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e96"
+      },
+      {
+        "index": 96,
+        "type": "Stack",
+        "identifier": "209",
+        "rect": {
+          "x": 64,
+          "y": 2159,
+          "width": 1032,
+          "height": 238
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 95,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e97"
+      },
+      {
+        "index": 97,
+        "type": "Row",
+        "identifier": "34402",
+        "rect": {
+          "x": 64,
+          "y": 2159,
+          "width": 1032,
+          "height": 238
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 96,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e98"
+      },
+      {
+        "index": 98,
+        "type": "Column",
+        "identifier": "211",
+        "rect": {
+          "x": 499,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 96,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e99"
+      },
+      {
+        "index": 99,
+        "type": "List",
+        "identifier": "212",
+        "rect": {
+          "x": 64,
+          "y": 2159,
+          "width": 1032,
+          "height": 238
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 96,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e100"
+      },
+      {
+        "index": 100,
+        "type": "ListItem",
+        "identifier": "2408",
+        "rect": {
+          "x": 101,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 99,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e101"
+      },
+      {
+        "index": 101,
+        "type": "ListItem",
+        "identifier": "2410",
+        "rect": {
+          "x": 101,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 100,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e102"
+      },
+      {
+        "index": 102,
+        "type": "RelativeContainer",
+        "identifier": "2413",
+        "rect": {
+          "x": 101,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 101,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e103"
+      },
+      {
+        "index": 103,
+        "type": "Image",
+        "identifier": "2417",
+        "rect": {
+          "x": 101,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 102,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e104"
+      },
+      {
+        "index": 104,
+        "type": "ListItem",
+        "identifier": "2433",
+        "rect": {
+          "x": 366,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 99,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e105"
+      },
+      {
+        "index": 105,
+        "type": "ListItem",
+        "identifier": "2435",
+        "rect": {
+          "x": 366,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 104,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e106"
+      },
+      {
+        "index": 106,
+        "type": "RelativeContainer",
+        "identifier": "2438",
+        "rect": {
+          "x": 366,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 105,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e107"
+      },
+      {
+        "index": 107,
+        "type": "Image",
+        "identifier": "2442",
+        "rect": {
+          "x": 366,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 106,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e108"
+      },
+      {
+        "index": 108,
+        "type": "Text",
+        "label": "19",
+        "value": "19",
+        "identifier": "2509",
+        "rect": {
+          "x": 466,
+          "y": 2178,
+          "width": 81,
+          "height": 57
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 106,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e109"
+      },
+      {
+        "index": 109,
+        "type": "ListItem",
+        "identifier": "2458",
+        "rect": {
+          "x": 631,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 99,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e110"
+      },
+      {
+        "index": 110,
+        "type": "ListItem",
+        "identifier": "2460",
+        "rect": {
+          "x": 631,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 109,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e111"
+      },
+      {
+        "index": 111,
+        "type": "RelativeContainer",
+        "identifier": "2463",
+        "rect": {
+          "x": 631,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 110,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e112"
+      },
+      {
+        "index": 112,
+        "type": "Image",
+        "identifier": "2467",
+        "rect": {
+          "x": 631,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 111,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e113"
+      },
+      {
+        "index": 113,
+        "type": "ListItem",
+        "identifier": "2483",
+        "rect": {
+          "x": 896,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 99,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e114"
+      },
+      {
+        "index": 114,
+        "type": "ListItem",
+        "identifier": "2485",
+        "rect": {
+          "x": 896,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 113,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e115"
+      },
+      {
+        "index": 115,
+        "type": "RelativeContainer",
+        "identifier": "2488",
+        "rect": {
+          "x": 896,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 114,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e116"
+      },
+      {
+        "index": 116,
+        "type": "Image",
+        "identifier": "2492",
+        "rect": {
+          "x": 896,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 115,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e117"
+      },
+      {
+        "index": 117,
+        "type": "Row",
+        "identifier": "34385",
+        "rect": {
+          "x": 1096,
+          "y": 2159,
+          "width": 1065,
+          "height": 337
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 95,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e118"
+      },
+      {
+        "index": 118,
+        "type": "Column",
+        "identifier": "34387",
+        "rect": {
+          "x": 1096,
+          "y": 2159,
+          "width": 32,
+          "height": 337
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 117,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e119"
+      },
+      {
+        "index": 119,
+        "type": "Divider",
+        "identifier": "34388",
+        "rect": {
+          "x": 1096,
+          "y": 2240,
+          "width": 32,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 118,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e120"
+      },
+      {
+        "index": 120,
+        "type": "Stack",
+        "identifier": "34389",
+        "rect": {
+          "x": 1128,
+          "y": 2159,
+          "width": 1033,
+          "height": 238
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 117,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e121"
+      },
+      {
+        "index": 121,
+        "type": "Row",
+        "identifier": "34403",
+        "rect": {
+          "x": 1128,
+          "y": 2159,
+          "width": 1032,
+          "height": 238
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 120,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e122"
+      },
+      {
+        "index": 122,
+        "type": "List",
+        "identifier": "34391",
+        "rect": {
+          "x": 1128,
+          "y": 2159,
+          "width": 1032,
+          "height": 238
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 120,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e123"
+      },
+      {
+        "index": 123,
+        "type": "ListItem",
+        "identifier": "38765",
+        "rect": {
+          "x": 1166,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 122,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e124"
+      },
+      {
+        "index": 124,
+        "type": "RelativeContainer",
+        "identifier": "38768",
+        "rect": {
+          "x": 1166,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 123,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e125"
+      },
+      {
+        "index": 125,
+        "type": "Image",
+        "identifier": "38772",
+        "rect": {
+          "x": 1166,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 124,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e126"
+      },
+      {
+        "index": 126,
+        "type": "Text",
+        "label": "label",
+        "value": "label",
+        "identifier": "38786",
+        "rect": {
+          "x": 1235,
+          "y": 2372,
+          "width": 24,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 124,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e127"
+      },
+      {
+        "index": 127,
+        "type": "ListItem",
+        "identifier": "34405",
+        "rect": {
+          "x": 1430,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 122,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e128"
+      },
+      {
+        "index": 128,
+        "type": "RelativeContainer",
+        "identifier": "34408",
+        "rect": {
+          "x": 1430,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 127,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e129"
+      },
+      {
+        "index": 129,
+        "type": "Image",
+        "identifier": "34412",
+        "rect": {
+          "x": 1430,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 128,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e130"
+      },
+      {
+        "index": 130,
+        "type": "Text",
+        "label": "红果免费短剧",
+        "value": "红果免费短剧",
+        "identifier": "34426",
+        "rect": {
+          "x": 1499,
+          "y": 2372,
+          "width": 24,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 128,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e131"
+      },
+      {
+        "index": 131,
+        "type": "ListItem",
+        "identifier": "34451",
+        "rect": {
+          "x": 1695,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 122,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e132"
+      },
+      {
+        "index": 132,
+        "type": "RelativeContainer",
+        "identifier": "34454",
+        "rect": {
+          "x": 1695,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 131,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e133"
+      },
+      {
+        "index": 133,
+        "type": "Image",
+        "identifier": "34458",
+        "rect": {
+          "x": 1695,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 132,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e134"
+      },
+      {
+        "index": 134,
+        "type": "Text",
+        "label": "应用市场",
+        "value": "应用市场",
+        "identifier": "34472",
+        "rect": {
+          "x": 1764,
+          "y": 2372,
+          "width": 24,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 132,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e135"
+      },
+      {
+        "index": 135,
+        "type": "ListItem",
+        "identifier": "34868",
+        "rect": {
+          "x": 1960,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 122,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e136"
+      },
+      {
+        "index": 136,
+        "type": "RelativeContainer",
+        "identifier": "34871",
+        "rect": {
+          "x": 1960,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 135,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e137"
+      },
+      {
+        "index": 137,
+        "type": "Image",
+        "identifier": "34875",
+        "rect": {
+          "x": 1960,
+          "y": 2197,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 136,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e138"
+      },
+      {
+        "index": 138,
+        "type": "Text",
+        "label": "设置",
+        "value": "设置",
+        "identifier": "34889",
+        "rect": {
+          "x": 2029,
+          "y": 2372,
+          "width": 24,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 136,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e139"
+      },
+      {
+        "index": 139,
+        "type": "Column",
+        "identifier": "218",
+        "rect": {
+          "x": 1112,
+          "y": 1248,
+          "width": 1,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 2,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e140"
+      },
+      {
+        "index": 140,
+        "type": "__Common__",
+        "identifier": "449",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e141"
+      },
+      {
+        "index": 141,
+        "type": "Stack",
+        "identifier": "867",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 140,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e142"
+      },
+      {
+        "index": 142,
+        "type": "__Common__",
+        "identifier": "872",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 141,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e143"
+      },
+      {
+        "index": 143,
+        "type": "Stack",
+        "identifier": "874",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 142,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e144"
+      },
+      {
+        "index": 144,
+        "type": "EffectComponent",
+        "identifier": "878",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 143,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e145"
+      },
+      {
+        "index": 145,
+        "type": "Stack",
+        "identifier": "879",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 144,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e146"
+      },
+      {
+        "index": 146,
+        "type": "Row",
+        "identifier": "935",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 145,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e147"
+      },
+      {
+        "index": 147,
+        "type": "Stack",
+        "identifier": "885",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 145,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e148"
+      },
+      {
+        "index": 148,
+        "type": "RelativeContainer",
+        "identifier": "886",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 147,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e149"
+      },
+      {
+        "index": 149,
+        "type": "Stack",
+        "identifier": "940",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 148,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e150"
+      },
+      {
+        "index": 150,
+        "type": "Row",
+        "identifier": "954",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 149,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e151"
+      },
+      {
+        "index": 151,
+        "type": "Flex",
+        "label": "18, :, 17",
+        "value": "18, :, 17",
+        "identifier": "955",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 150,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e152"
+      },
+      {
+        "index": 152,
+        "type": "Row",
+        "identifier": "956",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 68,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 151,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e153"
+      },
+      {
+        "index": 153,
+        "type": "TextClock",
+        "identifier": "957",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 152,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e154"
+      },
+      {
+        "index": 154,
+        "type": "Text",
+        "label": "18",
+        "value": "18",
+        "identifier": "958",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 153,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e155"
+      },
+      {
+        "index": 155,
+        "type": "Text",
+        "label": ":",
+        "value": ":",
+        "identifier": "959",
+        "rect": {
+          "x": 80,
+          "y": 39,
+          "width": 13,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 152,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e156"
+      },
+      {
+        "index": 156,
+        "type": "TextClock",
+        "identifier": "960",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 151,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e157"
+      },
+      {
+        "index": 157,
+        "type": "Text",
+        "label": "17",
+        "value": "17",
+        "identifier": "961",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 156,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e158"
+      },
+      {
+        "index": 158,
+        "type": "RelativeContainer",
+        "identifier": "898",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 2093,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 145,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e159"
+      },
+      {
+        "index": 159,
+        "type": "Stack",
+        "identifier": "4165",
+        "rect": {
+          "x": 1840,
+          "y": 25,
+          "width": 63,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 158,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e160"
+      },
+      {
+        "index": 160,
+        "type": "Stack",
+        "identifier": "4169",
+        "rect": {
+          "x": 1846,
+          "y": 25,
+          "width": 57,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 159,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e161"
+      },
+      {
+        "index": 161,
+        "type": "Image",
+        "identifier": "4170",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 160,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e162"
+      },
+      {
+        "index": 162,
+        "type": "Image",
+        "identifier": "4171",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 160,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e163"
+      },
+      {
+        "index": 163,
+        "type": "Stack",
+        "identifier": "1016",
+        "rect": {
+          "x": 1903,
+          "y": 25,
+          "width": 70,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 158,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e164"
+      },
+      {
+        "index": 164,
+        "type": "Row",
+        "identifier": "1088",
+        "rect": {
+          "x": 1909,
+          "y": 25,
+          "width": 64,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 163,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e165"
+      },
+      {
+        "index": 165,
+        "type": "Row",
+        "identifier": "1707",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 164,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e166"
+      },
+      {
+        "index": 166,
+        "type": "Stack",
+        "identifier": "1803",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 165,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e167"
+      },
+      {
+        "index": 167,
+        "type": "Image",
+        "identifier": "2398",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 166,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e168"
+      },
+      {
+        "index": 168,
+        "type": "Image",
+        "identifier": "1807",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 166,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e169"
+      },
+      {
+        "index": 169,
+        "type": "Stack",
+        "identifier": "1019",
+        "rect": {
+          "x": 1973,
+          "y": 25,
+          "width": 120,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 158,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e170"
+      },
+      {
+        "index": 170,
+        "type": "Row",
+        "identifier": "1024",
+        "rect": {
+          "x": 1979,
+          "y": 25,
+          "width": 113,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 169,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e171"
+      },
+      {
+        "index": 171,
+        "type": "Stack",
+        "identifier": "1025",
+        "rect": {
+          "x": 1979,
+          "y": 36,
+          "width": 90,
+          "height": 53
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 170,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e172"
+      },
+      {
+        "index": 172,
+        "type": "Image",
+        "identifier": "1027",
+        "rect": {
+          "x": 1979,
+          "y": 38,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 171,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e173"
+      },
+      {
+        "index": 173,
+        "type": "Text",
+        "label": "89",
+        "value": "89",
+        "identifier": "1030",
+        "rect": {
+          "x": 1975,
+          "y": 39,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 171,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e174"
+      },
+      {
+        "index": 174,
+        "type": "Image",
+        "identifier": "1034",
+        "rect": {
+          "x": 2069,
+          "y": 38,
+          "width": 23,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 170,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e175"
+      }
+    ],
+    "truncated": false,
+    "appName": "com.phoenix.read.next",
+    "visibility": {
+      "partial": false,
+      "visibleNodeCount": 175,
+      "totalNodeCount": 175,
+      "reasons": []
+    }
+  }
+}

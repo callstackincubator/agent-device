@@ -1,0 +1,4 @@
+onnx>=1.16.0
+onnxruntime>=1.19.0
+numpy>=1.26.0
+Pillow>=10.0.0

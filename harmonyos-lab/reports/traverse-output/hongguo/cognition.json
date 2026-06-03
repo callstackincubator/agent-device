@@ -1,0 +1,50 @@
+{
+  "success": true,
+  "data": {
+    "cognition": {
+      "overview": {
+        "platform": "harmonyos",
+        "screenResolution": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 2496
+        },
+        "totalNodes": 170,
+        "treeDepth": 29,
+        "complexity": "simple"
+      },
+      "structure": {
+        "layoutPattern": [
+          "navigation-based",
+          "horizontal-layout",
+          "vertical-layout",
+          "list-view"
+        ],
+        "mainContainers": 5
+      },
+      "interactions": {
+        "clickableElements": 16,
+        "buttons": 1,
+        "inputFields": 0,
+        "tabs": 3
+      },
+      "features": {
+        "hasScroll": true,
+        "hasTabs": true,
+        "hasModal": false,
+        "hasList": true,
+        "hasForm": false,
+        "hasUnlabeledIcons": false
+      },
+      "suggestions": [
+        "交互元素多，建议分类测试",
+        "存在Tab导航，建议逐个Tab遍历",
+        "存在滚动区域，建议测试滚动交互"
+      ],
+      "testPriority": "high"
+    },
+    "llmReport": "\n# UI认知地图\n\n## 概览\n- 平台: harmonyos\n- 屏幕分辨率: 2224x2496\n- UI节点总数: 170\n- 树深度: 29层\n- 界面复杂度: simple\n\n## UI结构\n- 布局模式: navigation-based, horizontal-layout, vertical-layout, list-view\n- 主容器数量: 5\n\n## 交互元素\n- 可点击元素: 16个\n- 按钮: 1个\n- 输入框: 0个\n- Tab导航: 3个\n\n## 界面特征\n- 可滚动: 是\n- 有Tab导航: 是\n- 有弹窗: 否\n- 有列表: 是\n- 有表单: 否\n- 有无标签图标: 否\n\n## 测试优先级\n- **高优先级**\n\n## 测试建议\n- 交互元素多，建议分类测试\n- 存在Tab导航，建议逐个Tab遍历\n- 存在滚动区域，建议测试滚动交互\n\n## 大模型使用建议\n基于以上认知地图，建议：\n1. 先识别16个可点击元素的位置\n2. 逐个Tab切换测试\n3. 验证导航跳转逻辑\n4. 预估测试时间: 1分钟\n",
+    "message": "Cognition map generated for AI planning"
+  }
+}

@@ -1,0 +1,2673 @@
+{
+  "success": true,
+  "data": {
+    "nodes": [
+      {
+        "index": 0,
+        "type": "",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 2496
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 0,
+        "ref": "e1"
+      },
+      {
+        "index": 1,
+        "type": "Stack",
+        "identifier": "4",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e2"
+      },
+      {
+        "index": 2,
+        "type": "Navigation",
+        "identifier": "6",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e3"
+      },
+      {
+        "index": 3,
+        "type": "NavigationContent",
+        "identifier": "11",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 2,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e4"
+      },
+      {
+        "index": 4,
+        "type": "NavDestination",
+        "identifier": "8191",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 5,
+        "parentIndex": 3,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e5"
+      },
+      {
+        "index": 5,
+        "type": "NavDestinationContent",
+        "identifier": "8195",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 4,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e6"
+      },
+      {
+        "index": 6,
+        "type": "Stack",
+        "identifier": "8202",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 5,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e7"
+      },
+      {
+        "index": 7,
+        "type": "Stack",
+        "identifier": "8203",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 6,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e8"
+      },
+      {
+        "index": 8,
+        "type": "Stack",
+        "identifier": "8211",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 7,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e9"
+      },
+      {
+        "index": 9,
+        "type": "Stack",
+        "identifier": "8212",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 8,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e10"
+      },
+      {
+        "index": 10,
+        "type": "__Common__",
+        "identifier": "8234",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 9,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e11"
+      },
+      {
+        "index": 11,
+        "type": "Column",
+        "identifier": "8237",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e12"
+      },
+      {
+        "index": 12,
+        "type": "__Common__",
+        "identifier": "8239",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 11,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e13"
+      },
+      {
+        "index": 13,
+        "type": "Stack",
+        "identifier": "8241",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 12,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e14"
+      },
+      {
+        "index": 14,
+        "type": "Stack",
+        "identifier": "8244",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 13,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e15"
+      },
+      {
+        "index": 15,
+        "type": "Stack",
+        "identifier": "8248",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 14,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e16"
+      },
+      {
+        "index": 16,
+        "type": "Stack",
+        "identifier": "8251",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 15,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e17"
+      },
+      {
+        "index": 17,
+        "type": "Stack",
+        "identifier": "8252",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 15,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e18"
+      },
+      {
+        "index": 18,
+        "type": "Column",
+        "identifier": "8253",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 17,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e19"
+      },
+      {
+        "index": 19,
+        "type": "Stack",
+        "identifier": "8255",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 18,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e20"
+      },
+      {
+        "index": 20,
+        "type": "Column",
+        "identifier": "8263",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 19,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e21"
+      },
+      {
+        "index": 21,
+        "type": "Stack",
+        "identifier": "8264",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 20,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e22"
+      },
+      {
+        "index": 22,
+        "type": "JsView",
+        "identifier": "8267",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 21,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e23"
+      },
+      {
+        "index": 23,
+        "type": "Stack",
+        "identifier": "8283",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 22,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e24"
+      },
+      {
+        "index": 24,
+        "type": "NodeContainer",
+        "identifier": "8284",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 23,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e25"
+      },
+      {
+        "index": 25,
+        "type": "__Common__",
+        "identifier": "8285",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 24,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e26"
+      },
+      {
+        "index": 26,
+        "type": "Stack",
+        "identifier": "8272",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 25,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e27"
+      },
+      {
+        "index": 27,
+        "type": "Stack",
+        "identifier": "8273",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 26,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e28"
+      },
+      {
+        "index": 28,
+        "type": "Stack",
+        "identifier": "8271",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 27,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e29"
+      },
+      {
+        "index": 29,
+        "type": "Custom",
+        "identifier": "8275",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 28,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e30"
+      },
+      {
+        "index": 30,
+        "type": "Custom",
+        "identifier": "8276",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 29,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e31"
+      },
+      {
+        "index": 31,
+        "type": "Custom",
+        "identifier": "8277",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 29,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e32"
+      },
+      {
+        "index": 32,
+        "type": "Custom",
+        "identifier": "8278",
+        "rect": {
+          "x": 0,
+          "y": 268,
+          "width": 2224,
+          "height": 2228
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 31,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e33"
+      },
+      {
+        "index": 33,
+        "type": "Custom",
+        "identifier": "8279",
+        "rect": {
+          "x": 0,
+          "y": 268,
+          "width": 2224,
+          "height": 2228
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 32,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e34"
+      },
+      {
+        "index": 34,
+        "type": "Custom",
+        "identifier": "8323",
+        "rect": {
+          "x": 0,
+          "y": 406,
+          "width": 2224,
+          "height": 2090
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 33,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e35"
+      },
+      {
+        "index": 35,
+        "type": "Custom",
+        "identifier": "8324",
+        "rect": {
+          "x": 0,
+          "y": 406,
+          "width": 2224,
+          "height": 2090
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 34,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e36"
+      },
+      {
+        "index": 36,
+        "type": "Scroll",
+        "identifier": "8325",
+        "rect": {
+          "x": 0,
+          "y": 406,
+          "width": 2224,
+          "height": 2090
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 35,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e37"
+      },
+      {
+        "index": 37,
+        "type": "Custom",
+        "identifier": "8326",
+        "rect": {
+          "x": 0,
+          "y": 406,
+          "width": 2224,
+          "height": 2090
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 36,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e38"
+      },
+      {
+        "index": 38,
+        "type": "Custom",
+        "identifier": "8327",
+        "rect": {
+          "x": 25,
+          "y": 406,
+          "width": 2174,
+          "height": 1731
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 37,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e39"
+      },
+      {
+        "index": 39,
+        "type": "Custom",
+        "identifier": "8328",
+        "rect": {
+          "x": 0,
+          "y": 406,
+          "width": 2224,
+          "height": 1731
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 38,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e40"
+      },
+      {
+        "index": 40,
+        "type": "Custom",
+        "identifier": "8329",
+        "rect": {
+          "x": 0,
+          "y": 406,
+          "width": 2224,
+          "height": 1731
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 39,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e41"
+      },
+      {
+        "index": 41,
+        "type": "Custom",
+        "identifier": "8330",
+        "rect": {
+          "x": 0,
+          "y": 406,
+          "width": 2224,
+          "height": 1731
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 40,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e42"
+      },
+      {
+        "index": 42,
+        "type": "Image",
+        "identifier": "8331",
+        "rect": {
+          "x": 0,
+          "y": 406,
+          "width": 2224,
+          "height": 1712
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 41,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e43"
+      },
+      {
+        "index": 43,
+        "type": "Custom",
+        "identifier": "8332",
+        "rect": {
+          "x": 25,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 37,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e44"
+      },
+      {
+        "index": 44,
+        "type": "Custom",
+        "identifier": "8333",
+        "rect": {
+          "x": 25,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 43,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e45"
+      },
+      {
+        "index": 45,
+        "type": "Custom",
+        "identifier": "8334",
+        "rect": {
+          "x": 25,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 44,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e46"
+      },
+      {
+        "index": 46,
+        "type": "Custom",
+        "identifier": "8380",
+        "rect": {
+          "x": 25,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 45,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e47"
+      },
+      {
+        "index": 47,
+        "type": "Custom",
+        "identifier": "8335",
+        "rect": {
+          "x": 25,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 46,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e48"
+      },
+      {
+        "index": 48,
+        "type": "Custom",
+        "identifier": "8336",
+        "rect": {
+          "x": 25,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 47,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e49"
+      },
+      {
+        "index": 49,
+        "type": "Image",
+        "identifier": "8381",
+        "rect": {
+          "x": 25,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 48,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e50"
+      },
+      {
+        "index": 50,
+        "type": "Image",
+        "identifier": "8340",
+        "rect": {
+          "x": 25,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 49,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e51"
+      },
+      {
+        "index": 51,
+        "type": "Custom",
+        "identifier": "8356",
+        "rect": {
+          "x": 1119,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 37,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e52"
+      },
+      {
+        "index": 52,
+        "type": "Custom",
+        "identifier": "8357",
+        "rect": {
+          "x": 1119,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 51,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e53"
+      },
+      {
+        "index": 53,
+        "type": "Custom",
+        "identifier": "8358",
+        "rect": {
+          "x": 1119,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 52,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e54"
+      },
+      {
+        "index": 54,
+        "type": "Custom",
+        "identifier": "8383",
+        "rect": {
+          "x": 1119,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 53,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e55"
+      },
+      {
+        "index": 55,
+        "type": "Custom",
+        "identifier": "8359",
+        "rect": {
+          "x": 1119,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 54,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e56"
+      },
+      {
+        "index": 56,
+        "type": "Custom",
+        "identifier": "8360",
+        "rect": {
+          "x": 1119,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 55,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e57"
+      },
+      {
+        "index": 57,
+        "type": "Image",
+        "identifier": "8384",
+        "rect": {
+          "x": 1119,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 56,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e58"
+      },
+      {
+        "index": 58,
+        "type": "Image",
+        "identifier": "8364",
+        "rect": {
+          "x": 1119,
+          "y": 2137,
+          "width": 1081,
+          "height": 359
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 57,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e59"
+      },
+      {
+        "index": 59,
+        "type": "Custom",
+        "identifier": "8295",
+        "rect": {
+          "x": 0,
+          "y": 268,
+          "width": 2224,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 33,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e60"
+      },
+      {
+        "index": 60,
+        "type": "Custom",
+        "identifier": "8296",
+        "rect": {
+          "x": 0,
+          "y": 268,
+          "width": 2224,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 59,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e61"
+      },
+      {
+        "index": 61,
+        "type": "Custom",
+        "identifier": "8297",
+        "rect": {
+          "x": 0,
+          "y": 268,
+          "width": 2224,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 59,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e62"
+      },
+      {
+        "index": 62,
+        "type": "Custom",
+        "identifier": "8298",
+        "rect": {
+          "x": 0,
+          "y": 268,
+          "width": 2224,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 61,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e63"
+      },
+      {
+        "index": 63,
+        "type": "Scroll",
+        "identifier": "8299",
+        "rect": {
+          "x": 0,
+          "y": 268,
+          "width": 2045,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 62,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e64"
+      },
+      {
+        "index": 64,
+        "type": "Custom",
+        "identifier": "8300",
+        "rect": {
+          "x": 0,
+          "y": 268,
+          "width": 2045,
+          "height": 137
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 63,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e65"
+      },
+      {
+        "index": 65,
+        "type": "Custom",
+        "identifier": "8301",
+        "rect": {
+          "x": 6,
+          "y": 268,
+          "width": 719,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 64,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e66"
+      },
+      {
+        "index": 66,
+        "type": "Custom",
+        "identifier": "8314",
+        "rect": {
+          "x": 32,
+          "y": 356,
+          "width": 112,
+          "height": 25
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 65,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e67"
+      },
+      {
+        "index": 67,
+        "type": "Custom",
+        "identifier": "8302",
+        "rect": {
+          "x": 0,
+          "y": 268,
+          "width": 179,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 65,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e68"
+      },
+      {
+        "index": 68,
+        "type": "Text",
+        "identifier": "8307",
+        "rect": {
+          "x": 31,
+          "y": 303,
+          "width": 113,
+          "height": 66
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 67,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e69"
+      },
+      {
+        "index": 69,
+        "type": "Custom",
+        "identifier": "8303",
+        "rect": {
+          "x": 169,
+          "y": 275,
+          "width": 231,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 65,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e70"
+      },
+      {
+        "index": 70,
+        "type": "Custom",
+        "identifier": "8308",
+        "rect": {
+          "x": 200,
+          "y": 268,
+          "width": 169,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 69,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e71"
+      },
+      {
+        "index": 71,
+        "type": "Image",
+        "identifier": "8309",
+        "rect": {
+          "x": 200,
+          "y": 315,
+          "width": 63,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 70,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e72"
+      },
+      {
+        "index": 72,
+        "type": "Text",
+        "identifier": "8310",
+        "rect": {
+          "x": 263,
+          "y": 307,
+          "width": 106,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 70,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e73"
+      },
+      {
+        "index": 73,
+        "type": "Custom",
+        "identifier": "8304",
+        "rect": {
+          "x": 400,
+          "y": 275,
+          "width": 163,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 65,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e74"
+      },
+      {
+        "index": 74,
+        "type": "Text",
+        "identifier": "8311",
+        "rect": {
+          "x": 431,
+          "y": 307,
+          "width": 100,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 73,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e75"
+      },
+      {
+        "index": 75,
+        "type": "Custom",
+        "identifier": "8315",
+        "rect": {
+          "x": 563,
+          "y": 275,
+          "width": 162,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 65,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e76"
+      },
+      {
+        "index": 76,
+        "type": "Text",
+        "identifier": "8316",
+        "rect": {
+          "x": 594,
+          "y": 307,
+          "width": 100,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 75,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e77"
+      },
+      {
+        "index": 77,
+        "type": "Custom",
+        "identifier": "8317",
+        "rect": {
+          "x": 2045,
+          "y": 268,
+          "width": 179,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 62,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e78"
+      },
+      {
+        "index": 78,
+        "type": "Custom",
+        "identifier": "8318",
+        "rect": {
+          "x": 1999,
+          "y": 278,
+          "width": 46,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 77,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e79"
+      },
+      {
+        "index": 79,
+        "type": "Custom",
+        "identifier": "8319",
+        "rect": {
+          "x": 2045,
+          "y": 268,
+          "width": 179,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 61,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e80"
+      },
+      {
+        "index": 80,
+        "type": "Text",
+        "identifier": "8320",
+        "rect": {
+          "x": 2061,
+          "y": 305,
+          "width": 88,
+          "height": 64
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 79,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e81"
+      },
+      {
+        "index": 81,
+        "type": "Custom",
+        "identifier": "8321",
+        "rect": {
+          "x": 2149,
+          "y": 318,
+          "width": 38,
+          "height": 38
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 79,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e82"
+      },
+      {
+        "index": 82,
+        "type": "CustomFrameNode",
+        "identifier": "8322",
+        "rect": {
+          "x": 2149,
+          "y": 318,
+          "width": 38,
+          "height": 38
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 81,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e83"
+      },
+      {
+        "index": 83,
+        "type": "Stack",
+        "identifier": "8274",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 26,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e84"
+      },
+      {
+        "index": 84,
+        "type": "Row",
+        "identifier": "8215",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 155
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 8,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e85"
+      },
+      {
+        "index": 85,
+        "type": "Text",
+        "label": "",
+        "value": "",
+        "identifier": "8216",
+        "rect": {
+          "x": 50,
+          "y": 149,
+          "width": 76,
+          "height": 82
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 84,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e86"
+      },
+      {
+        "index": 86,
+        "type": "Stack",
+        "identifier": "8217",
+        "rect": {
+          "x": 164,
+          "y": 134,
+          "width": 1873,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 84,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e87"
+      },
+      {
+        "index": 87,
+        "type": "Stack",
+        "identifier": "8222",
+        "rect": {
+          "x": 164,
+          "y": 134,
+          "width": 1873,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 86,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e88"
+      },
+      {
+        "index": 88,
+        "type": "Stack",
+        "identifier": "8224",
+        "rect": {
+          "x": 164,
+          "y": 134,
+          "width": 1873,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 87,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e89"
+      },
+      {
+        "index": 89,
+        "type": "Row",
+        "identifier": "8225",
+        "rect": {
+          "x": 164,
+          "y": 134,
+          "width": 1873,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 88,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e90"
+      },
+      {
+        "index": 90,
+        "type": "Row",
+        "identifier": "8226",
+        "rect": {
+          "x": 189,
+          "y": 160,
+          "width": 57,
+          "height": 61
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 89,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e91"
+      },
+      {
+        "index": 91,
+        "type": "Text",
+        "label": "",
+        "value": "",
+        "identifier": "8229",
+        "rect": {
+          "x": 189,
+          "y": 160,
+          "width": 57,
+          "height": 61
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 90,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e92"
+      },
+      {
+        "index": 92,
+        "type": "TextInput",
+        "label": "懂车帝直线赛",
+        "value": "懂车帝直线赛",
+        "identifier": "8230",
+        "rect": {
+          "x": 246,
+          "y": 134,
+          "width": 1709,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 89,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e93"
+      },
+      {
+        "index": 93,
+        "type": "Row",
+        "identifier": "8231",
+        "rect": {
+          "x": 1955,
+          "y": 160,
+          "width": 57,
+          "height": 61
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 89,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e94"
+      },
+      {
+        "index": 94,
+        "type": "Text",
+        "label": "",
+        "value": "",
+        "identifier": "8232",
+        "rect": {
+          "x": 1955,
+          "y": 160,
+          "width": 57,
+          "height": 61
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 93,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e95"
+      },
+      {
+        "index": 95,
+        "type": "Stack",
+        "identifier": "8219",
+        "rect": {
+          "x": 2074,
+          "y": 161,
+          "width": 100,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 84,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e96"
+      },
+      {
+        "index": 96,
+        "type": "Text",
+        "label": "搜索",
+        "value": "搜索",
+        "identifier": "8221",
+        "rect": {
+          "x": 2074,
+          "y": 161,
+          "width": 100,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 95,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e97"
+      },
+      {
+        "index": 97,
+        "type": "__Common__",
+        "identifier": "449",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e98"
+      },
+      {
+        "index": 98,
+        "type": "Stack",
+        "identifier": "867",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 97,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e99"
+      },
+      {
+        "index": 99,
+        "type": "__Common__",
+        "identifier": "872",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 98,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e100"
+      },
+      {
+        "index": 100,
+        "type": "Stack",
+        "identifier": "874",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 99,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e101"
+      },
+      {
+        "index": 101,
+        "type": "EffectComponent",
+        "identifier": "878",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 100,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e102"
+      },
+      {
+        "index": 102,
+        "type": "Stack",
+        "identifier": "879",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 101,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e103"
+      },
+      {
+        "index": 103,
+        "type": "Row",
+        "identifier": "935",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 102,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e104"
+      },
+      {
+        "index": 104,
+        "type": "Stack",
+        "identifier": "885",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 102,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e105"
+      },
+      {
+        "index": 105,
+        "type": "RelativeContainer",
+        "identifier": "886",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 104,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e106"
+      },
+      {
+        "index": 106,
+        "type": "Stack",
+        "identifier": "940",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 105,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e107"
+      },
+      {
+        "index": 107,
+        "type": "Row",
+        "identifier": "954",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 106,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e108"
+      },
+      {
+        "index": 108,
+        "type": "Flex",
+        "label": "18, :, 45",
+        "value": "18, :, 45",
+        "identifier": "955",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 107,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e109"
+      },
+      {
+        "index": 109,
+        "type": "Row",
+        "identifier": "956",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 68,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 108,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e110"
+      },
+      {
+        "index": 110,
+        "type": "TextClock",
+        "identifier": "957",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 109,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e111"
+      },
+      {
+        "index": 111,
+        "type": "Text",
+        "label": "18",
+        "value": "18",
+        "identifier": "958",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 110,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e112"
+      },
+      {
+        "index": 112,
+        "type": "Text",
+        "label": ":",
+        "value": ":",
+        "identifier": "959",
+        "rect": {
+          "x": 80,
+          "y": 39,
+          "width": 13,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 109,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e113"
+      },
+      {
+        "index": 113,
+        "type": "TextClock",
+        "identifier": "960",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 108,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e114"
+      },
+      {
+        "index": 114,
+        "type": "Text",
+        "label": "45",
+        "value": "45",
+        "identifier": "961",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 113,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e115"
+      },
+      {
+        "index": 115,
+        "type": "RelativeContainer",
+        "identifier": "898",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 2093,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 102,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e116"
+      },
+      {
+        "index": 116,
+        "type": "Stack",
+        "identifier": "4165",
+        "rect": {
+          "x": 1840,
+          "y": 25,
+          "width": 63,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 115,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e117"
+      },
+      {
+        "index": 117,
+        "type": "Stack",
+        "identifier": "4169",
+        "rect": {
+          "x": 1846,
+          "y": 25,
+          "width": 57,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 116,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e118"
+      },
+      {
+        "index": 118,
+        "type": "Image",
+        "identifier": "4170",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 117,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e119"
+      },
+      {
+        "index": 119,
+        "type": "Image",
+        "identifier": "4171",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 117,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e120"
+      },
+      {
+        "index": 120,
+        "type": "Stack",
+        "identifier": "1016",
+        "rect": {
+          "x": 1903,
+          "y": 25,
+          "width": 70,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 115,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e121"
+      },
+      {
+        "index": 121,
+        "type": "Row",
+        "identifier": "1088",
+        "rect": {
+          "x": 1909,
+          "y": 25,
+          "width": 64,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 120,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e122"
+      },
+      {
+        "index": 122,
+        "type": "Row",
+        "identifier": "1707",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 121,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e123"
+      },
+      {
+        "index": 123,
+        "type": "Stack",
+        "identifier": "1803",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 122,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e124"
+      },
+      {
+        "index": 124,
+        "type": "Image",
+        "identifier": "2398",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 123,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e125"
+      },
+      {
+        "index": 125,
+        "type": "Image",
+        "identifier": "1807",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 123,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e126"
+      },
+      {
+        "index": 126,
+        "type": "Stack",
+        "identifier": "1019",
+        "rect": {
+          "x": 1973,
+          "y": 25,
+          "width": 120,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 115,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e127"
+      },
+      {
+        "index": 127,
+        "type": "Row",
+        "identifier": "1024",
+        "rect": {
+          "x": 1979,
+          "y": 25,
+          "width": 113,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 126,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e128"
+      },
+      {
+        "index": 128,
+        "type": "Stack",
+        "identifier": "1025",
+        "rect": {
+          "x": 1979,
+          "y": 36,
+          "width": 90,
+          "height": 53
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 127,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e129"
+      },
+      {
+        "index": 129,
+        "type": "Image",
+        "identifier": "1027",
+        "rect": {
+          "x": 1979,
+          "y": 38,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 128,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e130"
+      },
+      {
+        "index": 130,
+        "type": "Text",
+        "label": "95",
+        "value": "95",
+        "identifier": "1030",
+        "rect": {
+          "x": 1975,
+          "y": 39,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 128,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e131"
+      },
+      {
+        "index": 131,
+        "type": "Image",
+        "identifier": "155014",
+        "rect": {
+          "x": 2069,
+          "y": 38,
+          "width": 23,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 127,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e132"
+      },
+      {
+        "index": 132,
+        "type": "Stack",
+        "identifier": "156266",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e133"
+      },
+      {
+        "index": 133,
+        "type": "Stack",
+        "identifier": "156267",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 132,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e134"
+      },
+      {
+        "index": 134,
+        "type": "Button",
+        "identifier": "156268",
+        "rect": {
+          "x": 1037,
+          "y": 22,
+          "width": 150,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 133,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e135"
+      },
+      {
+        "index": 135,
+        "type": "Row",
+        "identifier": "156269",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 113,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 134,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e136"
+      },
+      {
+        "index": 136,
+        "type": "Text",
+        "identifier": "156270",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 135,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e137"
+      },
+      {
+        "index": 137,
+        "type": "Text",
+        "identifier": "156271",
+        "rect": {
+          "x": 1087,
+          "y": 41,
+          "width": 50,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 135,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e138"
+      },
+      {
+        "index": 138,
+        "type": "Text",
+        "identifier": "156272",
+        "rect": {
+          "x": 1150,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 135,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e139"
+      }
+    ],
+    "truncated": false,
+    "appName": "com.ss.dcar.auto",
+    "visibility": {
+      "partial": false,
+      "visibleNodeCount": 139,
+      "totalNodeCount": 139,
+      "reasons": []
+    }
+  }
+}

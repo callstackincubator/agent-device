@@ -1,0 +1,267 @@
+{
+  "source": "traverse-output/hongguo/raw-layout.json",
+  "analysisType": "static",
+  "summary": {
+    "totalNodes": 173,
+    "maxDepth": 29,
+    "clickableNodes": 16,
+    "visibleNodes": 173,
+    "avgDepth": 14
+  },
+  "nodeTypes": [
+    {
+      "type": "Stack",
+      "count": 37
+    },
+    {
+      "type": "Row",
+      "count": 29
+    },
+    {
+      "type": "Text",
+      "count": 19
+    },
+    {
+      "type": "Image",
+      "count": 17
+    },
+    {
+      "type": "__Common__",
+      "count": 14
+    },
+    {
+      "type": "Column",
+      "count": 12
+    },
+    {
+      "type": "ListItem",
+      "count": 8
+    },
+    {
+      "type": "RenderNode",
+      "count": 8
+    },
+    {
+      "type": "RelativeContainer",
+      "count": 6
+    },
+    {
+      "type": "List",
+      "count": 2
+    },
+    {
+      "type": "Swiper",
+      "count": 2
+    },
+    {
+      "type": "WindowScene",
+      "count": 2
+    },
+    {
+      "type": "TextClock",
+      "count": 2
+    },
+    {
+      "type": "unknown",
+      "count": 1
+    },
+    {
+      "type": "root",
+      "count": 1
+    },
+    {
+      "type": "Navigation",
+      "count": 1
+    },
+    {
+      "type": "NavigationContent",
+      "count": 1
+    },
+    {
+      "type": "NavDestination",
+      "count": 1
+    },
+    {
+      "type": "NavDestinationContent",
+      "count": 1
+    },
+    {
+      "type": "Tabs",
+      "count": 1
+    }
+  ],
+  "depthDistribution": [
+    {
+      "depth": 0,
+      "count": 1
+    },
+    {
+      "depth": 1,
+      "count": 3
+    },
+    {
+      "depth": 2,
+      "count": 3
+    },
+    {
+      "depth": 3,
+      "count": 3
+    },
+    {
+      "depth": 4,
+      "count": 3
+    },
+    {
+      "depth": 5,
+      "count": 3
+    },
+    {
+      "depth": 6,
+      "count": 5
+    },
+    {
+      "depth": 7,
+      "count": 2
+    },
+    {
+      "depth": 8,
+      "count": 5
+    },
+    {
+      "depth": 9,
+      "count": 7
+    },
+    {
+      "depth": 10,
+      "count": 10
+    },
+    {
+      "depth": 11,
+      "count": 17
+    },
+    {
+      "depth": 12,
+      "count": 17
+    },
+    {
+      "depth": 13,
+      "count": 11
+    },
+    {
+      "depth": 14,
+      "count": 12
+    },
+    {
+      "depth": 15,
+      "count": 4
+    },
+    {
+      "depth": 16,
+      "count": 3
+    },
+    {
+      "depth": 17,
+      "count": 3
+    },
+    {
+      "depth": 18,
+      "count": 3
+    },
+    {
+      "depth": 19,
+      "count": 9
+    },
+    {
+      "depth": 20,
+      "count": 9
+    },
+    {
+      "depth": 21,
+      "count": 8
+    },
+    {
+      "depth": 22,
+      "count": 15
+    },
+    {
+      "depth": 23,
+      "count": 9
+    },
+    {
+      "depth": 24,
+      "count": 2
+    },
+    {
+      "depth": 25,
+      "count": 1
+    },
+    {
+      "depth": 26,
+      "count": 1
+    },
+    {
+      "depth": 27,
+      "count": 1
+    },
+    {
+      "depth": 28,
+      "count": 1
+    },
+    {
+      "depth": 29,
+      "count": 2
+    }
+  ],
+  "interactiveElements": [
+    {
+      "type": "Text",
+      "depth": 23,
+      "bounds": "[49,149][174,262]"
+    },
+    {
+      "type": "Text",
+      "depth": 23,
+      "bounds": "[225,163][325,262]"
+    },
+    {
+      "type": "Text",
+      "depth": 23,
+      "bounds": "[387,163][487,262]"
+    },
+    {
+      "type": "Text",
+      "depth": 23,
+      "bounds": "[550,163][650,262]"
+    },
+    {
+      "type": "Text",
+      "depth": 23,
+      "bounds": "[712,163][812,262]"
+    },
+    {
+      "type": "Text",
+      "depth": 23,
+      "bounds": "[875,163][975,262]"
+    },
+    {
+      "type": "Text",
+      "depth": 23,
+      "bounds": "[1037,163][1137,262]"
+    },
+    {
+      "type": "Text",
+      "depth": 14,
+      "bounds": "[247,2347][310,2384]"
+    },
+    {
+      "type": "Text",
+      "depth": 14,
+      "bounds": "[803,2347][866,2384]"
+    },
+    {
+      "type": "Text",
+      "depth": 14,
+      "bounds": "[1359,2347][1422,2384]"
+    }
+  ]
+}

@@ -9,10 +9,11 @@ import type {
   SnapshotState,
 } from './utils/snapshot.ts';
 
-export type AgentDeviceBackendPlatform = 'ios' | 'android' | 'macos' | 'linux';
+export type AgentDeviceBackendPlatform = 'ios' | 'android' | 'harmonyos' | 'macos' | 'linux';
 
 export const BACKEND_CAPABILITY_NAMES = [
   'android.shell',
+  'harmonyos.hdc',
   'ios.runnerCommand',
   'macos.desktopScreenshot',
 ] as const;
@@ -408,6 +409,10 @@ export type BackendEscapeHatches = {
     context: BackendCommandContext,
     args: readonly string[],
   ): Promise<BackendShellResult>;
+  harmonyosHdc?(
+    context: BackendCommandContext,
+    args: readonly string[],
+  ): Promise<BackendShellResult>;
   iosRunnerCommand?(
     context: BackendCommandContext,
     command: BackendRunnerCommand,
@@ -421,6 +426,7 @@ export type BackendEscapeHatches = {
 
 const BACKEND_CAPABILITY_ESCAPE_HATCH_METHODS = {
   'android.shell': 'androidShell',
+  'harmonyos.hdc': 'harmonyosHdc',
   'ios.runnerCommand': 'iosRunnerCommand',
   'macos.desktopScreenshot': 'macosDesktopScreenshot',
 } as const satisfies Record<BackendCapabilityName, keyof BackendEscapeHatches>;

@@ -32,6 +32,11 @@ export async function listLocalDeviceInventory(
     });
   }
 
+  if (request.platform === 'harmonyos') {
+    const { listHarmonyDevices } = await import('../platforms/harmonyos/devices.ts');
+    return await listHarmonyDevices();
+  }
+
   if (request.platform) {
     const { listAppleDevices } = await import('../platforms/ios/devices.ts');
     return await listAppleDevices({
@@ -50,6 +55,10 @@ export async function listLocalDeviceInventory(
           : undefined,
       })),
     );
+  } catch {}
+  try {
+    const { listHarmonyDevices } = await import('../platforms/harmonyos/devices.ts');
+    devices.push(...(await listHarmonyDevices()));
   } catch {}
   try {
     const { listAppleDevices } = await import('../platforms/ios/devices.ts');

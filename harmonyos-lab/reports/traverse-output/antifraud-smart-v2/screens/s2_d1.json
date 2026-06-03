@@ -1,0 +1,1368 @@
+{
+  "success": true,
+  "data": {
+    "nodes": [
+      {
+        "index": 0,
+        "type": "",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 2496
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 0,
+        "ref": "e1"
+      },
+      {
+        "index": 1,
+        "type": "Column",
+        "identifier": "18",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e2"
+      },
+      {
+        "index": 2,
+        "type": "Text",
+        "label": "账号密码登录",
+        "value": "账号密码登录",
+        "identifier": "19",
+        "rect": {
+          "x": 62,
+          "y": 190,
+          "width": 2100,
+          "height": 81
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e3"
+      },
+      {
+        "index": 3,
+        "type": "Stack",
+        "identifier": "20",
+        "rect": {
+          "x": 62,
+          "y": 364,
+          "width": 2100,
+          "height": 249
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e4"
+      },
+      {
+        "index": 4,
+        "type": "TextInput",
+        "label": "请输入手机号",
+        "identifier": "21",
+        "rect": {
+          "x": 62,
+          "y": 457,
+          "width": 2100,
+          "height": 156
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 3,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e5"
+      },
+      {
+        "index": 5,
+        "type": "Divider",
+        "identifier": "23",
+        "rect": {
+          "x": 62,
+          "y": 613,
+          "width": 2100,
+          "height": 3
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e6"
+      },
+      {
+        "index": 6,
+        "type": "TextInput",
+        "label": "请输入密码",
+        "identifier": "24",
+        "rect": {
+          "x": 62,
+          "y": 647,
+          "width": 2100,
+          "height": 157
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e7"
+      },
+      {
+        "index": 7,
+        "type": "Stack",
+        "identifier": "26",
+        "rect": {
+          "x": 2068,
+          "y": 694,
+          "width": 94,
+          "height": 63
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 6,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e8"
+      },
+      {
+        "index": 8,
+        "type": "SymbolGlyph",
+        "identifier": "27",
+        "rect": {
+          "x": 2068,
+          "y": 694,
+          "width": 63,
+          "height": 63
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 7,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e9"
+      },
+      {
+        "index": 9,
+        "type": "Divider",
+        "identifier": "25",
+        "rect": {
+          "x": 62,
+          "y": 804,
+          "width": 2100,
+          "height": 3
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e10"
+      },
+      {
+        "index": 10,
+        "type": "Row",
+        "identifier": "28",
+        "rect": {
+          "x": 62,
+          "y": 853,
+          "width": 869,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e11"
+      },
+      {
+        "index": 11,
+        "type": "Checkbox",
+        "label": "polcy",
+        "value": "polcy",
+        "identifier": "29",
+        "rect": {
+          "x": 76,
+          "y": 867,
+          "width": 47,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 10,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e12"
+      },
+      {
+        "index": 12,
+        "type": "Text",
+        "label": "登录即同意《服务协议》和《隐私政策》",
+        "value": "登录即同意《服务协议》和《隐私政策》",
+        "identifier": "30",
+        "rect": {
+          "x": 143,
+          "y": 865,
+          "width": 788,
+          "height": 51
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 10,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e13"
+      },
+      {
+        "index": 13,
+        "type": "Button",
+        "label": "登录",
+        "value": "登录",
+        "identifier": "35",
+        "rect": {
+          "x": 62,
+          "y": 1084,
+          "width": 2100,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e14"
+      },
+      {
+        "index": 14,
+        "type": "Row",
+        "identifier": "37",
+        "rect": {
+          "x": 888,
+          "y": 1271,
+          "width": 448,
+          "height": 156
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e15"
+      },
+      {
+        "index": 15,
+        "type": "Text",
+        "label": "快速注册",
+        "value": "快速注册",
+        "identifier": "38",
+        "rect": {
+          "x": 888,
+          "y": 1324,
+          "width": 176,
+          "height": 51
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 14,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e16"
+      },
+      {
+        "index": 16,
+        "type": "Divider",
+        "identifier": "39",
+        "rect": {
+          "x": 1110,
+          "y": 1330,
+          "width": 3,
+          "height": 38
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 14,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e17"
+      },
+      {
+        "index": 17,
+        "type": "Text",
+        "label": "找回密码",
+        "value": "找回密码",
+        "identifier": "40",
+        "rect": {
+          "x": 1159,
+          "y": 1324,
+          "width": 176,
+          "height": 51
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 14,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e18"
+      },
+      {
+        "index": 18,
+        "type": "Blank",
+        "identifier": "41",
+        "rect": {
+          "x": 62,
+          "y": 1427,
+          "width": 2100,
+          "height": 521
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e19"
+      },
+      {
+        "index": 19,
+        "type": "Column",
+        "identifier": "42",
+        "rect": {
+          "x": 62,
+          "y": 1948,
+          "width": 2100,
+          "height": 548
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e20"
+      },
+      {
+        "index": 20,
+        "type": "Row",
+        "identifier": "43",
+        "rect": {
+          "x": 388,
+          "y": 1948,
+          "width": 1449,
+          "height": 143
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 19,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e21"
+      },
+      {
+        "index": 21,
+        "type": "Divider",
+        "identifier": "44",
+        "rect": {
+          "x": 388,
+          "y": 2018,
+          "width": 525,
+          "height": 3
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 20,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e22"
+      },
+      {
+        "index": 22,
+        "type": "Text",
+        "label": "第三方账号登录",
+        "value": "第三方账号登录",
+        "identifier": "45",
+        "rect": {
+          "x": 959,
+          "y": 1994,
+          "width": 307,
+          "height": 51
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 20,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e23"
+      },
+      {
+        "index": 23,
+        "type": "Divider",
+        "identifier": "46",
+        "rect": {
+          "x": 1312,
+          "y": 2018,
+          "width": 525,
+          "height": 3
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 20,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e24"
+      },
+      {
+        "index": 24,
+        "type": "Row",
+        "identifier": "47",
+        "rect": {
+          "x": 62,
+          "y": 2137,
+          "width": 2100,
+          "height": 109
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 19,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e25"
+      },
+      {
+        "index": 25,
+        "type": "Blank",
+        "identifier": "48",
+        "rect": {
+          "x": 62,
+          "y": 2137,
+          "width": 995,
+          "height": 109
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 24,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e26"
+      },
+      {
+        "index": 26,
+        "type": "Image",
+        "identifier": "49",
+        "rect": {
+          "x": 1057,
+          "y": 2137,
+          "width": 110,
+          "height": 109
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 24,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e27"
+      },
+      {
+        "index": 27,
+        "type": "Blank",
+        "identifier": "50",
+        "rect": {
+          "x": 1167,
+          "y": 2137,
+          "width": 995,
+          "height": 109
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 24,
+        "bundleId": "com.hicorenational.antifraud.hmy",
+        "ref": "e28"
+      },
+      {
+        "index": 28,
+        "type": "__Common__",
+        "identifier": "449",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e29"
+      },
+      {
+        "index": 29,
+        "type": "Stack",
+        "identifier": "867",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 28,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e30"
+      },
+      {
+        "index": 30,
+        "type": "__Common__",
+        "identifier": "872",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 29,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e31"
+      },
+      {
+        "index": 31,
+        "type": "Stack",
+        "identifier": "874",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 30,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e32"
+      },
+      {
+        "index": 32,
+        "type": "EffectComponent",
+        "identifier": "878",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 31,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e33"
+      },
+      {
+        "index": 33,
+        "type": "Stack",
+        "identifier": "879",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 32,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e34"
+      },
+      {
+        "index": 34,
+        "type": "Row",
+        "identifier": "935",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 33,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e35"
+      },
+      {
+        "index": 35,
+        "type": "Stack",
+        "identifier": "885",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 33,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e36"
+      },
+      {
+        "index": 36,
+        "type": "RelativeContainer",
+        "identifier": "886",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 35,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e37"
+      },
+      {
+        "index": 37,
+        "type": "Stack",
+        "identifier": "940",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 36,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e38"
+      },
+      {
+        "index": 38,
+        "type": "Row",
+        "identifier": "954",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 37,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e39"
+      },
+      {
+        "index": 39,
+        "type": "Flex",
+        "label": "18, :, 46",
+        "value": "18, :, 46",
+        "identifier": "955",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 38,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e40"
+      },
+      {
+        "index": 40,
+        "type": "Row",
+        "identifier": "956",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 68,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 39,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e41"
+      },
+      {
+        "index": 41,
+        "type": "TextClock",
+        "identifier": "957",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 40,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e42"
+      },
+      {
+        "index": 42,
+        "type": "Text",
+        "label": "18",
+        "value": "18",
+        "identifier": "958",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 41,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e43"
+      },
+      {
+        "index": 43,
+        "type": "Text",
+        "label": ":",
+        "value": ":",
+        "identifier": "959",
+        "rect": {
+          "x": 80,
+          "y": 39,
+          "width": 13,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 40,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e44"
+      },
+      {
+        "index": 44,
+        "type": "TextClock",
+        "identifier": "960",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 39,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e45"
+      },
+      {
+        "index": 45,
+        "type": "Text",
+        "label": "46",
+        "value": "46",
+        "identifier": "961",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 44,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e46"
+      },
+      {
+        "index": 46,
+        "type": "RelativeContainer",
+        "identifier": "898",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 2093,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 33,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e47"
+      },
+      {
+        "index": 47,
+        "type": "Stack",
+        "identifier": "4165",
+        "rect": {
+          "x": 1840,
+          "y": 25,
+          "width": 63,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 46,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e48"
+      },
+      {
+        "index": 48,
+        "type": "Stack",
+        "identifier": "4169",
+        "rect": {
+          "x": 1846,
+          "y": 25,
+          "width": 57,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 47,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e49"
+      },
+      {
+        "index": 49,
+        "type": "Image",
+        "identifier": "4170",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 48,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e50"
+      },
+      {
+        "index": 50,
+        "type": "Image",
+        "identifier": "4171",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 48,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e51"
+      },
+      {
+        "index": 51,
+        "type": "Stack",
+        "identifier": "1016",
+        "rect": {
+          "x": 1903,
+          "y": 25,
+          "width": 70,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 46,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e52"
+      },
+      {
+        "index": 52,
+        "type": "Row",
+        "identifier": "1088",
+        "rect": {
+          "x": 1909,
+          "y": 25,
+          "width": 64,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 51,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e53"
+      },
+      {
+        "index": 53,
+        "type": "Row",
+        "identifier": "1707",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 52,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e54"
+      },
+      {
+        "index": 54,
+        "type": "Stack",
+        "identifier": "1803",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 53,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e55"
+      },
+      {
+        "index": 55,
+        "type": "Image",
+        "identifier": "2398",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 54,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e56"
+      },
+      {
+        "index": 56,
+        "type": "Image",
+        "identifier": "1807",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 54,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e57"
+      },
+      {
+        "index": 57,
+        "type": "Stack",
+        "identifier": "1019",
+        "rect": {
+          "x": 1973,
+          "y": 25,
+          "width": 120,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 46,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e58"
+      },
+      {
+        "index": 58,
+        "type": "Row",
+        "identifier": "1024",
+        "rect": {
+          "x": 1979,
+          "y": 25,
+          "width": 113,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 57,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e59"
+      },
+      {
+        "index": 59,
+        "type": "Stack",
+        "identifier": "1025",
+        "rect": {
+          "x": 1979,
+          "y": 36,
+          "width": 90,
+          "height": 53
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 58,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e60"
+      },
+      {
+        "index": 60,
+        "type": "Image",
+        "identifier": "1027",
+        "rect": {
+          "x": 1979,
+          "y": 38,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 59,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e61"
+      },
+      {
+        "index": 61,
+        "type": "Text",
+        "label": "89",
+        "value": "89",
+        "identifier": "1030",
+        "rect": {
+          "x": 1975,
+          "y": 39,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 59,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e62"
+      },
+      {
+        "index": 62,
+        "type": "Image",
+        "identifier": "1034",
+        "rect": {
+          "x": 2069,
+          "y": 38,
+          "width": 23,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 58,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e63"
+      },
+      {
+        "index": 63,
+        "type": "Stack",
+        "identifier": "40931",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e64"
+      },
+      {
+        "index": 64,
+        "type": "Stack",
+        "identifier": "40932",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 63,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e65"
+      },
+      {
+        "index": 65,
+        "type": "Button",
+        "identifier": "40933",
+        "rect": {
+          "x": 1037,
+          "y": 22,
+          "width": 150,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 64,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e66"
+      },
+      {
+        "index": 66,
+        "type": "Row",
+        "identifier": "40934",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 113,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 65,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e67"
+      },
+      {
+        "index": 67,
+        "type": "Text",
+        "identifier": "40935",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 66,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e68"
+      },
+      {
+        "index": 68,
+        "type": "Text",
+        "identifier": "40936",
+        "rect": {
+          "x": 1087,
+          "y": 41,
+          "width": 50,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 66,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e69"
+      },
+      {
+        "index": 69,
+        "type": "Text",
+        "identifier": "40937",
+        "rect": {
+          "x": 1150,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 66,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e70"
+      }
+    ],
+    "truncated": false,
+    "appName": "com.hicorenational.antifraud.hmy",
+    "visibility": {
+      "partial": false,
+      "visibleNodeCount": 70,
+      "totalNodeCount": 70,
+      "reasons": []
+    }
+  }
+}

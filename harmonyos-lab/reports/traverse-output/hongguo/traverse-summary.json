@@ -1,0 +1,1193 @@
+{
+  "app": "com.phoenix.read.next",
+  "appName": "红果短剧",
+  "deviceId": "22M0223824043030",
+  "deviceName": "ALT-AL10",
+  "platform": "harmonyos",
+  "session": "hongguo-traverse",
+  "totalScreens": 14,
+  "screens": [
+    {
+      "num": 1,
+      "name": "初始界面-短剧首页",
+      "action": "snapshot",
+      "nodeCount": 170,
+      "maxDepth": 29,
+      "interactiveCount": 16,
+      "sampleLabels": [
+        "找剧",
+        "漫剧",
+        "电影",
+        "听书",
+        "小说",
+        "经典",
+        "知识",
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 49",
+        "17",
+        ":",
+        "49",
+        "92"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e21",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e29",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e35",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e41",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e47",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e53",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e59",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e65",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e86",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e90",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e94",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e98",
+          "type": "Column",
+          "label": ""
+        }
+      ],
+      "screenshotOk": true
+    },
+    {
+      "num": 2,
+      "name": "底部Tab-剧场",
+      "action": "press label=\"剧场\"",
+      "nodeCount": 170,
+      "maxDepth": 29,
+      "interactiveCount": 16,
+      "sampleLabels": [
+        "找剧",
+        "漫剧",
+        "电影",
+        "听书",
+        "小说",
+        "经典",
+        "知识",
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 49",
+        "17",
+        ":",
+        "49",
+        "92"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e21",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e29",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e35",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e41",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e47",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e53",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e59",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e65",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e86",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e90",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e94",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e98",
+          "type": "Column",
+          "label": ""
+        }
+      ],
+      "screenshotOk": true
+    },
+    {
+      "num": 3,
+      "name": "底部Tab-福利",
+      "action": "press label=\"福利\"",
+      "nodeCount": 322,
+      "maxDepth": 61,
+      "interactiveCount": 12,
+      "sampleLabels": [
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 49",
+        "17",
+        ":",
+        "49",
+        "92"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e26",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e194",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e198",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e202",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e206",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e211",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e222",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e228",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e229",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e239",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e271",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e318",
+          "type": "Button",
+          "label": ""
+        }
+      ],
+      "screenshotOk": false
+    },
+    {
+      "num": 4,
+      "name": "底部Tab-我的",
+      "action": "press label=\"我的\"",
+      "nodeCount": 390,
+      "maxDepth": 61,
+      "interactiveCount": 12,
+      "sampleLabels": [
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 50",
+        "17",
+        ":",
+        "50",
+        "92"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e26",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e190",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e194",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e198",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e202",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e207",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e218",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e224",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e225",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e235",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e339",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e386",
+          "type": "Button",
+          "label": ""
+        }
+      ],
+      "screenshotOk": true
+    },
+    {
+      "num": 5,
+      "name": "顶部分类-找剧",
+      "action": "press label=\"找剧\"",
+      "nodeCount": 390,
+      "maxDepth": 61,
+      "interactiveCount": 12,
+      "sampleLabels": [
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 50",
+        "17",
+        ":",
+        "50",
+        "92"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e26",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e190",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e194",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e198",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e202",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e207",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e218",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e224",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e225",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e235",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e339",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e386",
+          "type": "Button",
+          "label": ""
+        }
+      ],
+      "screenshotOk": true
+    },
+    {
+      "num": 6,
+      "name": "顶部分类-漫剧",
+      "action": "press label=\"漫剧\"",
+      "nodeCount": 390,
+      "maxDepth": 61,
+      "interactiveCount": 12,
+      "sampleLabels": [
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 50",
+        "17",
+        ":",
+        "50",
+        "92"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e26",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e190",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e194",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e198",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e202",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e207",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e218",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e224",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e225",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e235",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e339",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e386",
+          "type": "Button",
+          "label": ""
+        }
+      ],
+      "screenshotOk": true
+    },
+    {
+      "num": 7,
+      "name": "顶部分类-电影",
+      "action": "press label=\"电影\"",
+      "nodeCount": 390,
+      "maxDepth": 61,
+      "interactiveCount": 12,
+      "sampleLabels": [
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 50",
+        "17",
+        ":",
+        "50",
+        "92"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e26",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e190",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e194",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e198",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e202",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e207",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e218",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e224",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e225",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e235",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e339",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e386",
+          "type": "Button",
+          "label": ""
+        }
+      ],
+      "screenshotOk": true
+    },
+    {
+      "num": 8,
+      "name": "顶部分类-听书",
+      "action": "press label=\"听书\"",
+      "nodeCount": 390,
+      "maxDepth": 61,
+      "interactiveCount": 12,
+      "sampleLabels": [
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 50",
+        "17",
+        ":",
+        "50",
+        "92"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e26",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e190",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e194",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e198",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e202",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e207",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e218",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e224",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e225",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e235",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e339",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e386",
+          "type": "Button",
+          "label": ""
+        }
+      ],
+      "screenshotOk": true
+    },
+    {
+      "num": 9,
+      "name": "点击-e26-Stack",
+      "action": "press e26",
+      "nodeCount": 390,
+      "maxDepth": 61,
+      "interactiveCount": 12,
+      "sampleLabels": [
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 50",
+        "17",
+        ":",
+        "50",
+        "92"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e26",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e190",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e194",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e198",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e202",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e207",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e218",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e224",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e225",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e235",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e339",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e386",
+          "type": "Button",
+          "label": ""
+        }
+      ],
+      "screenshotOk": true
+    },
+    {
+      "num": 10,
+      "name": "点击-e190-Column",
+      "action": "press e190",
+      "nodeCount": 390,
+      "maxDepth": 61,
+      "interactiveCount": 12,
+      "sampleLabels": [
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 50",
+        "17",
+        ":",
+        "50",
+        "91"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e26",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e190",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e194",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e198",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e202",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e207",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e218",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e224",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e225",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e235",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e339",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e386",
+          "type": "Button",
+          "label": ""
+        }
+      ],
+      "screenshotOk": true
+    },
+    {
+      "num": 11,
+      "name": "点击-e194-Column",
+      "action": "press e194",
+      "nodeCount": 390,
+      "maxDepth": 61,
+      "interactiveCount": 12,
+      "sampleLabels": [
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 51",
+        "17",
+        ":",
+        "51",
+        "91"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e26",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e190",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e194",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e198",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e202",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e207",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e218",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e224",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e225",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e235",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e339",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e386",
+          "type": "Button",
+          "label": ""
+        }
+      ],
+      "screenshotOk": true
+    },
+    {
+      "num": 12,
+      "name": "点击-e198-Column",
+      "action": "press e198",
+      "nodeCount": 390,
+      "maxDepth": 61,
+      "interactiveCount": 12,
+      "sampleLabels": [
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 51",
+        "17",
+        ":",
+        "51",
+        "91"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e26",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e190",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e194",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e198",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e202",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e207",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e218",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e224",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e225",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e235",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e339",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e386",
+          "type": "Button",
+          "label": ""
+        }
+      ],
+      "screenshotOk": true
+    },
+    {
+      "num": 13,
+      "name": "点击-e202-Column",
+      "action": "press e202",
+      "nodeCount": 390,
+      "maxDepth": 61,
+      "interactiveCount": 12,
+      "sampleLabels": [
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 51",
+        "17",
+        ":",
+        "51",
+        "91"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e26",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e190",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e194",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e198",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e202",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e207",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e218",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e224",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e225",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e235",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e339",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e386",
+          "type": "Button",
+          "label": ""
+        }
+      ],
+      "screenshotOk": true
+    },
+    {
+      "num": 14,
+      "name": "向下滚动后",
+      "action": "snapshot",
+      "nodeCount": 390,
+      "maxDepth": 61,
+      "interactiveCount": 12,
+      "sampleLabels": [
+        "短剧",
+        "剧场",
+        "福利",
+        "我的",
+        "继续播放",
+        "17, :, 51",
+        "17",
+        ":",
+        "51",
+        "91"
+      ],
+      "interactiveRefs": [
+        {
+          "ref": "e26",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e190",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e194",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e198",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e202",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e207",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e218",
+          "type": "Row",
+          "label": ""
+        },
+        {
+          "ref": "e224",
+          "type": "Column",
+          "label": ""
+        },
+        {
+          "ref": "e225",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e235",
+          "type": "Stack",
+          "label": ""
+        },
+        {
+          "ref": "e339",
+          "type": "__Common__",
+          "label": ""
+        },
+        {
+          "ref": "e386",
+          "type": "Button",
+          "label": ""
+        }
+      ],
+      "screenshotOk": true
+    }
+  ],
+  "totals": {
+    "totalNodes": 4952,
+    "maxDepth": 61,
+    "avgNodes": 354
+  },
+  "completedAt": "2026-05-25T09:51:29.646Z"
+}

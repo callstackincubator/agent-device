@@ -1,0 +1,21 @@
+{
+  "search": "搜索区",
+  "channel": "频道列表",
+  "menu": "底部导航栏",
+  "list": "内容列表区",
+  "commentArea": "评论区",
+  "feature_entry": "功能集入口",
+  "list_h": "水平滑动列表",
+  "map": "地图区块",
+  "media": "媒体播放区",
+  "hover": "悬浮框",
+  "popup": "弹窗",
+  "video_list": "选集列表",
+  "chat": "聊天内容区",
+  "rating": "评分组件",
+  "specs": "规格选择器",
+  "v_channel": "竖排频道列表",
+  "write": "写评论组件",
+  "number": "数量选择器",
+  "font": "字体样式设置"
+}

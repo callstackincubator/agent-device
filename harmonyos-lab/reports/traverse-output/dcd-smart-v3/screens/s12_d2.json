@@ -1,0 +1,7936 @@
+{
+  "success": true,
+  "data": {
+    "nodes": [
+      {
+        "index": 0,
+        "type": "",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 2496
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 0,
+        "ref": "e1"
+      },
+      {
+        "index": 1,
+        "type": "Stack",
+        "identifier": "4",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e2"
+      },
+      {
+        "index": 2,
+        "type": "Navigation",
+        "identifier": "6",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e3"
+      },
+      {
+        "index": 3,
+        "type": "NavigationContent",
+        "identifier": "11",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 2,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e4"
+      },
+      {
+        "index": 4,
+        "type": "NavDestination",
+        "identifier": "72",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 5,
+        "parentIndex": 3,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e5"
+      },
+      {
+        "index": 5,
+        "type": "NavDestinationContent",
+        "identifier": "76",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 6,
+        "parentIndex": 4,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e6"
+      },
+      {
+        "index": 6,
+        "type": "Stack",
+        "identifier": "83",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 7,
+        "parentIndex": 5,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e7"
+      },
+      {
+        "index": 7,
+        "type": "Stack",
+        "identifier": "84",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 8,
+        "parentIndex": 6,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e8"
+      },
+      {
+        "index": 8,
+        "type": "Stack",
+        "identifier": "90",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 9,
+        "parentIndex": 7,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e9"
+      },
+      {
+        "index": 9,
+        "type": "Stack",
+        "identifier": "92",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 10,
+        "parentIndex": 8,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e10"
+      },
+      {
+        "index": 10,
+        "type": "Stack",
+        "identifier": "97",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": true,
+        "depth": 11,
+        "parentIndex": 9,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e11"
+      },
+      {
+        "index": 11,
+        "type": "Stack",
+        "identifier": "98",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e12"
+      },
+      {
+        "index": 12,
+        "type": "Column",
+        "identifier": "99",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 13,
+        "parentIndex": 11,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e13"
+      },
+      {
+        "index": 13,
+        "type": "Tabs",
+        "identifier": "100",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": true,
+        "depth": 14,
+        "parentIndex": 12,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e14"
+      },
+      {
+        "index": 14,
+        "type": "Swiper",
+        "identifier": "101",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2178
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 15,
+        "parentIndex": 13,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e15"
+      },
+      {
+        "index": 15,
+        "type": "TabContent",
+        "identifier": "117",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2178
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 14,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e16"
+      },
+      {
+        "index": 16,
+        "type": "Stack",
+        "identifier": "17442",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2178
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 17,
+        "parentIndex": 15,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e17"
+      },
+      {
+        "index": 17,
+        "type": "Rect",
+        "identifier": "17443",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 731
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 16,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e18"
+      },
+      {
+        "index": 18,
+        "type": "Column",
+        "identifier": "17444",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 137
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 18,
+        "parentIndex": 16,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e19"
+      },
+      {
+        "index": 19,
+        "type": "Row",
+        "identifier": "17446",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 137
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": true,
+        "depth": 19,
+        "parentIndex": 18,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e20"
+      },
+      {
+        "index": 20,
+        "type": "Row",
+        "identifier": "17447",
+        "rect": {
+          "x": 0,
+          "y": 140,
+          "width": 302,
+          "height": 82
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 20,
+        "parentIndex": 19,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e21"
+      },
+      {
+        "index": 21,
+        "type": "Text",
+        "label": "",
+        "value": "",
+        "identifier": "17448",
+        "rect": {
+          "x": 0,
+          "y": 140,
+          "width": 151,
+          "height": 82
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": true,
+        "depth": 21,
+        "parentIndex": 20,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e22"
+      },
+      {
+        "index": 22,
+        "type": "Text",
+        "label": "",
+        "value": "",
+        "identifier": "17449",
+        "rect": {
+          "x": 151,
+          "y": 140,
+          "width": 151,
+          "height": 82
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 20,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e23"
+      },
+      {
+        "index": 23,
+        "type": "Blank",
+        "identifier": "17450",
+        "rect": {
+          "x": 302,
+          "y": 113,
+          "width": 1463,
+          "height": 137
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 19,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e24"
+      },
+      {
+        "index": 24,
+        "type": "Stack",
+        "identifier": "17531",
+        "rect": {
+          "x": 1765,
+          "y": 143,
+          "width": 283,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 19,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e25"
+      },
+      {
+        "index": 25,
+        "type": "Row",
+        "identifier": "17532",
+        "rect": {
+          "x": 1802,
+          "y": 149,
+          "width": 246,
+          "height": 63
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 24,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e26"
+      },
+      {
+        "index": 26,
+        "type": "Text",
+        "label": "限时7日领",
+        "value": "限时7日领",
+        "identifier": "17533",
+        "rect": {
+          "x": 1839,
+          "y": 158,
+          "width": 172,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 25,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e27"
+      },
+      {
+        "index": 27,
+        "type": "__Common__",
+        "identifier": "17535",
+        "rect": {
+          "x": 1765,
+          "y": 143,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 24,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e28"
+      },
+      {
+        "index": 28,
+        "type": "Stack",
+        "identifier": "17973",
+        "rect": {
+          "x": 1765,
+          "y": 143,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 27,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e29"
+      },
+      {
+        "index": 29,
+        "type": "__Common__",
+        "identifier": "17974",
+        "rect": {
+          "x": 1765,
+          "y": 143,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 28,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e30"
+      },
+      {
+        "index": 30,
+        "type": "__Common__",
+        "identifier": "17978",
+        "rect": {
+          "x": 1765,
+          "y": 143,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 29,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e31"
+      },
+      {
+        "index": 31,
+        "type": "Image",
+        "identifier": "17980",
+        "rect": {
+          "x": 1765,
+          "y": 143,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 30,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e32"
+      },
+      {
+        "index": 32,
+        "type": "Text",
+        "label": "",
+        "value": "",
+        "identifier": "17452",
+        "rect": {
+          "x": 2048,
+          "y": 140,
+          "width": 176,
+          "height": 82
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 19,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e33"
+      },
+      {
+        "index": 33,
+        "type": "Column",
+        "identifier": "17453",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2178
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 16,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e34"
+      },
+      {
+        "index": 34,
+        "type": "List",
+        "identifier": "17457",
+        "rect": {
+          "x": 0,
+          "y": 249,
+          "width": 2224,
+          "height": 2042
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 33,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e35"
+      },
+      {
+        "index": 35,
+        "type": "ListItem",
+        "identifier": "17458",
+        "rect": {
+          "x": 0,
+          "y": 249,
+          "width": 2224,
+          "height": 2042
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 34,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e36"
+      },
+      {
+        "index": 36,
+        "type": "__Common__",
+        "identifier": "17460",
+        "rect": {
+          "x": 0,
+          "y": 249,
+          "width": 2224,
+          "height": 2042
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 35,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e37"
+      },
+      {
+        "index": 37,
+        "type": "Stack",
+        "identifier": "17540",
+        "rect": {
+          "x": 0,
+          "y": 249,
+          "width": 2224,
+          "height": 2042
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 36,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e38"
+      },
+      {
+        "index": 38,
+        "type": "Stack",
+        "identifier": "17541",
+        "rect": {
+          "x": 0,
+          "y": 249,
+          "width": 2224,
+          "height": 2042
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 37,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e39"
+      },
+      {
+        "index": 39,
+        "type": "Column",
+        "identifier": "17542",
+        "rect": {
+          "x": 25,
+          "y": 249,
+          "width": 2174,
+          "height": 2042
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 38,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e40"
+      },
+      {
+        "index": 40,
+        "type": "Column",
+        "identifier": "17555",
+        "rect": {
+          "x": 25,
+          "y": 249,
+          "width": 2174,
+          "height": 550
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 39,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e41"
+      },
+      {
+        "index": 41,
+        "type": "Column",
+        "identifier": "17556",
+        "rect": {
+          "x": 25,
+          "y": 249,
+          "width": 2174,
+          "height": 550
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 40,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e42"
+      },
+      {
+        "index": 42,
+        "type": "RelativeContainer",
+        "identifier": "17557",
+        "rect": {
+          "x": 25,
+          "y": 249,
+          "width": 2174,
+          "height": 550
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 41,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e43"
+      },
+      {
+        "index": 43,
+        "type": "__Common__",
+        "identifier": "17558",
+        "rect": {
+          "x": 62,
+          "y": 249,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 42,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e44"
+      },
+      {
+        "index": 44,
+        "type": "Stack",
+        "identifier": "17728",
+        "rect": {
+          "x": 62,
+          "y": 249,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 43,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e45"
+      },
+      {
+        "index": 45,
+        "type": "__Common__",
+        "identifier": "17729",
+        "rect": {
+          "x": 62,
+          "y": 249,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 44,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e46"
+      },
+      {
+        "index": 46,
+        "type": "__Common__",
+        "identifier": "17733",
+        "rect": {
+          "x": 62,
+          "y": 249,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 45,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e47"
+      },
+      {
+        "index": 47,
+        "type": "Image",
+        "identifier": "17735",
+        "rect": {
+          "x": 62,
+          "y": 249,
+          "width": 163,
+          "height": 163
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 46,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e48"
+      },
+      {
+        "index": 48,
+        "type": "Column",
+        "identifier": "17563",
+        "rect": {
+          "x": 225,
+          "y": 267,
+          "width": 1975,
+          "height": 145
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 42,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e49"
+      },
+      {
+        "index": 49,
+        "type": "Row",
+        "identifier": "17564",
+        "rect": {
+          "x": 262,
+          "y": 267,
+          "width": 1938,
+          "height": 66
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 48,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e50"
+      },
+      {
+        "index": 50,
+        "type": "Text",
+        "label": "立即登录",
+        "value": "立即登录",
+        "identifier": "17565",
+        "rect": {
+          "x": 262,
+          "y": 267,
+          "width": 226,
+          "height": 66
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 49,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e51"
+      },
+      {
+        "index": 51,
+        "type": "Text",
+        "label": "",
+        "value": "",
+        "identifier": "17566",
+        "rect": {
+          "x": 488,
+          "y": 273,
+          "width": 50,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 49,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e52"
+      },
+      {
+        "index": 52,
+        "type": "Text",
+        "label": "点击登录，精彩永不丢失",
+        "value": "点击登录，精彩永不丢失",
+        "identifier": "17568",
+        "rect": {
+          "x": 262,
+          "y": 345,
+          "width": 413,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 48,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e53"
+      },
+      {
+        "index": 53,
+        "type": "Column",
+        "identifier": "17569",
+        "rect": {
+          "x": 25,
+          "y": 455,
+          "width": 2174,
+          "height": 338
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 42,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e54"
+      },
+      {
+        "index": 54,
+        "type": "Row",
+        "identifier": "17570",
+        "rect": {
+          "x": 62,
+          "y": 492,
+          "width": 2100,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 53,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e55"
+      },
+      {
+        "index": 55,
+        "type": "Column",
+        "identifier": "17571",
+        "rect": {
+          "x": 62,
+          "y": 492,
+          "width": 420,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 54,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e56"
+      },
+      {
+        "index": 56,
+        "type": "Text",
+        "label": "0",
+        "value": "0",
+        "identifier": "17572",
+        "rect": {
+          "x": 259,
+          "y": 492,
+          "width": 26,
+          "height": 62
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 55,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e57"
+      },
+      {
+        "index": 57,
+        "type": "Text",
+        "label": "勋章",
+        "value": "勋章",
+        "identifier": "17573",
+        "rect": {
+          "x": 235,
+          "y": 554,
+          "width": 75,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 55,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e58"
+      },
+      {
+        "index": 58,
+        "type": "Column",
+        "identifier": "17574",
+        "rect": {
+          "x": 482,
+          "y": 492,
+          "width": 420,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 54,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e59"
+      },
+      {
+        "index": 59,
+        "type": "Text",
+        "label": "0",
+        "value": "0",
+        "identifier": "17575",
+        "rect": {
+          "x": 679,
+          "y": 492,
+          "width": 26,
+          "height": 62
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 58,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e60"
+      },
+      {
+        "index": 60,
+        "type": "Text",
+        "label": "关注",
+        "value": "关注",
+        "identifier": "17576",
+        "rect": {
+          "x": 655,
+          "y": 554,
+          "width": 75,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 58,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e61"
+      },
+      {
+        "index": 61,
+        "type": "Column",
+        "identifier": "17577",
+        "rect": {
+          "x": 902,
+          "y": 492,
+          "width": 420,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 54,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e62"
+      },
+      {
+        "index": 62,
+        "type": "Text",
+        "label": "0",
+        "value": "0",
+        "identifier": "17578",
+        "rect": {
+          "x": 1099,
+          "y": 492,
+          "width": 26,
+          "height": 62
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 61,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e63"
+      },
+      {
+        "index": 63,
+        "type": "Text",
+        "label": "粉丝",
+        "value": "粉丝",
+        "identifier": "17579",
+        "rect": {
+          "x": 1075,
+          "y": 554,
+          "width": 75,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 61,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e64"
+      },
+      {
+        "index": 64,
+        "type": "Column",
+        "identifier": "17580",
+        "rect": {
+          "x": 1322,
+          "y": 492,
+          "width": 420,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 54,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e65"
+      },
+      {
+        "index": 65,
+        "type": "Text",
+        "label": "0",
+        "value": "0",
+        "identifier": "17581",
+        "rect": {
+          "x": 1519,
+          "y": 492,
+          "width": 26,
+          "height": 62
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 64,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e66"
+      },
+      {
+        "index": 66,
+        "type": "Text",
+        "label": "金币",
+        "value": "金币",
+        "identifier": "17582",
+        "rect": {
+          "x": 1495,
+          "y": 554,
+          "width": 75,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 64,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e67"
+      },
+      {
+        "index": 67,
+        "type": "Column",
+        "identifier": "17583",
+        "rect": {
+          "x": 1742,
+          "y": 492,
+          "width": 420,
+          "height": 118
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 54,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e68"
+      },
+      {
+        "index": 68,
+        "type": "Text",
+        "label": "0",
+        "value": "0",
+        "identifier": "17584",
+        "rect": {
+          "x": 1939,
+          "y": 492,
+          "width": 26,
+          "height": 62
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 67,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e69"
+      },
+      {
+        "index": 69,
+        "type": "Text",
+        "label": "懂车值",
+        "value": "懂车值",
+        "identifier": "17585",
+        "rect": {
+          "x": 1896,
+          "y": 554,
+          "width": 113,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 67,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e70"
+      },
+      {
+        "index": 70,
+        "type": "Row",
+        "identifier": "17587",
+        "rect": {
+          "x": 62,
+          "y": 647,
+          "width": 2100,
+          "height": 92
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 53,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e71"
+      },
+      {
+        "index": 71,
+        "type": "__Common__",
+        "identifier": "17588",
+        "rect": {
+          "x": 99,
+          "y": 665,
+          "width": 1988,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 70,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e72"
+      },
+      {
+        "index": 72,
+        "type": "Stack",
+        "identifier": "17737",
+        "rect": {
+          "x": 99,
+          "y": 665,
+          "width": 1988,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 71,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e73"
+      },
+      {
+        "index": 73,
+        "type": "Row",
+        "identifier": "17745",
+        "rect": {
+          "x": 99,
+          "y": 665,
+          "width": 1988,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 72,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e74"
+      },
+      {
+        "index": 74,
+        "type": "Text",
+        "label": "【新品】地垫/车载香膏/安全锤抢兑中",
+        "value": "【新品】地垫/车载香膏/安全锤抢兑中",
+        "identifier": "17746",
+        "rect": {
+          "x": 99,
+          "y": 665,
+          "width": 1988,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 73,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e75"
+      },
+      {
+        "index": 75,
+        "type": "Text",
+        "label": "",
+        "value": "",
+        "identifier": "17590",
+        "rect": {
+          "x": 2087,
+          "y": 673,
+          "width": 38,
+          "height": 41
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 70,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e76"
+      },
+      {
+        "index": 76,
+        "type": "Stack",
+        "identifier": "17594",
+        "rect": {
+          "x": 25,
+          "y": 824,
+          "width": 2174,
+          "height": 169
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 39,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e77"
+      },
+      {
+        "index": 77,
+        "type": "Row",
+        "identifier": "17595",
+        "rect": {
+          "x": 25,
+          "y": 824,
+          "width": 2174,
+          "height": 169
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 76,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e78"
+      },
+      {
+        "index": 78,
+        "type": "Column",
+        "identifier": "17596",
+        "rect": {
+          "x": 25,
+          "y": 824,
+          "width": 212,
+          "height": 169
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 77,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e79"
+      },
+      {
+        "index": 79,
+        "type": "__Common__",
+        "identifier": "17597",
+        "rect": {
+          "x": 28,
+          "y": 827,
+          "width": 206,
+          "height": 69
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 78,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e80"
+      },
+      {
+        "index": 80,
+        "type": "Stack",
+        "identifier": "17751",
+        "rect": {
+          "x": 28,
+          "y": 827,
+          "width": 206,
+          "height": 69
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 79,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e81"
+      },
+      {
+        "index": 81,
+        "type": "__Common__",
+        "identifier": "17752",
+        "rect": {
+          "x": 28,
+          "y": 827,
+          "width": 206,
+          "height": 69
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 80,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e82"
+      },
+      {
+        "index": 82,
+        "type": "__Common__",
+        "identifier": "17756",
+        "rect": {
+          "x": 28,
+          "y": 827,
+          "width": 206,
+          "height": 69
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 81,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e83"
+      },
+      {
+        "index": 83,
+        "type": "Image",
+        "identifier": "17758",
+        "rect": {
+          "x": 28,
+          "y": 827,
+          "width": 206,
+          "height": 69
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 82,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e84"
+      },
+      {
+        "index": 84,
+        "type": "Text",
+        "label": "9项权益",
+        "value": "9项权益",
+        "identifier": "17599",
+        "rect": {
+          "x": 59,
+          "y": 908,
+          "width": 172,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 78,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e85"
+      },
+      {
+        "index": 85,
+        "type": "Row",
+        "identifier": "17602",
+        "rect": {
+          "x": 252,
+          "y": 824,
+          "width": 1947,
+          "height": 169
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 77,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e86"
+      },
+      {
+        "index": 86,
+        "type": "Row",
+        "identifier": "17605",
+        "rect": {
+          "x": 252,
+          "y": 824,
+          "width": 973,
+          "height": 169
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 85,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e87"
+      },
+      {
+        "index": 87,
+        "type": "__Common__",
+        "identifier": "17606",
+        "rect": {
+          "x": 252,
+          "y": 846,
+          "width": 125,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 86,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e88"
+      },
+      {
+        "index": 88,
+        "type": "Stack",
+        "identifier": "17760",
+        "rect": {
+          "x": 252,
+          "y": 846,
+          "width": 125,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 87,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e89"
+      },
+      {
+        "index": 89,
+        "type": "__Common__",
+        "identifier": "17761",
+        "rect": {
+          "x": 252,
+          "y": 846,
+          "width": 125,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 88,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e90"
+      },
+      {
+        "index": 90,
+        "type": "__Common__",
+        "identifier": "17765",
+        "rect": {
+          "x": 252,
+          "y": 846,
+          "width": 125,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 89,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e91"
+      },
+      {
+        "index": 91,
+        "type": "Image",
+        "identifier": "17767",
+        "rect": {
+          "x": 252,
+          "y": 846,
+          "width": 125,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 90,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e92"
+      },
+      {
+        "index": 92,
+        "type": "Column",
+        "identifier": "17608",
+        "rect": {
+          "x": 402,
+          "y": 858,
+          "width": 823,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 86,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e93"
+      },
+      {
+        "index": 93,
+        "type": "Text",
+        "label": "买车优惠",
+        "value": "买车优惠",
+        "identifier": "17609",
+        "rect": {
+          "x": 402,
+          "y": 858,
+          "width": 150,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 92,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e94"
+      },
+      {
+        "index": 94,
+        "type": "Text",
+        "label": "神券立减88",
+        "value": "神券立减88",
+        "identifier": "17610",
+        "rect": {
+          "x": 402,
+          "y": 914,
+          "width": 161,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 92,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e95"
+      },
+      {
+        "index": 95,
+        "type": "Row",
+        "identifier": "17612",
+        "rect": {
+          "x": 1225,
+          "y": 824,
+          "width": 974,
+          "height": 169
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 85,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e96"
+      },
+      {
+        "index": 96,
+        "type": "__Common__",
+        "identifier": "17613",
+        "rect": {
+          "x": 1225,
+          "y": 846,
+          "width": 125,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 95,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e97"
+      },
+      {
+        "index": 97,
+        "type": "Stack",
+        "identifier": "17769",
+        "rect": {
+          "x": 1225,
+          "y": 846,
+          "width": 125,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 96,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e98"
+      },
+      {
+        "index": 98,
+        "type": "__Common__",
+        "identifier": "17770",
+        "rect": {
+          "x": 1225,
+          "y": 846,
+          "width": 125,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 97,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e99"
+      },
+      {
+        "index": 99,
+        "type": "__Common__",
+        "identifier": "17774",
+        "rect": {
+          "x": 1225,
+          "y": 846,
+          "width": 125,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 98,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e100"
+      },
+      {
+        "index": 100,
+        "type": "Image",
+        "identifier": "17776",
+        "rect": {
+          "x": 1225,
+          "y": 846,
+          "width": 125,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 99,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e101"
+      },
+      {
+        "index": 101,
+        "type": "Column",
+        "identifier": "17615",
+        "rect": {
+          "x": 1375,
+          "y": 858,
+          "width": 823,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 95,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e102"
+      },
+      {
+        "index": 102,
+        "type": "Text",
+        "label": "充电权益",
+        "value": "充电权益",
+        "identifier": "17616",
+        "rect": {
+          "x": 1375,
+          "y": 858,
+          "width": 150,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 101,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e103"
+      },
+      {
+        "index": 103,
+        "type": "Text",
+        "label": "无门槛减5元",
+        "value": "无门槛减5元",
+        "identifier": "17617",
+        "rect": {
+          "x": 1375,
+          "y": 914,
+          "width": 175,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 101,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e104"
+      },
+      {
+        "index": 104,
+        "type": "Column",
+        "identifier": "17618",
+        "rect": {
+          "x": 25,
+          "y": 1018,
+          "width": 2174,
+          "height": 386
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 39,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e105"
+      },
+      {
+        "index": 105,
+        "type": "Flex",
+        "identifier": "17619",
+        "rect": {
+          "x": 37,
+          "y": 1018,
+          "width": 2150,
+          "height": 249
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 104,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e106"
+      },
+      {
+        "index": 106,
+        "type": "Stack",
+        "identifier": "17623",
+        "rect": {
+          "x": 234,
+          "y": 1018,
+          "width": 162,
+          "height": 249
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 105,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e107"
+      },
+      {
+        "index": 107,
+        "type": "Column",
+        "identifier": "17624",
+        "rect": {
+          "x": 234,
+          "y": 1030,
+          "width": 150,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 106,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e108"
+      },
+      {
+        "index": 108,
+        "type": "__Common__",
+        "identifier": "17625",
+        "rect": {
+          "x": 253,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 107,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e109"
+      },
+      {
+        "index": 109,
+        "type": "Stack",
+        "identifier": "17778",
+        "rect": {
+          "x": 253,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 108,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e110"
+      },
+      {
+        "index": 110,
+        "type": "__Common__",
+        "identifier": "17779",
+        "rect": {
+          "x": 253,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 109,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e111"
+      },
+      {
+        "index": 111,
+        "type": "__Common__",
+        "identifier": "17783",
+        "rect": {
+          "x": 253,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 110,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e112"
+      },
+      {
+        "index": 112,
+        "type": "Image",
+        "identifier": "17785",
+        "rect": {
+          "x": 253,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 111,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e113"
+      },
+      {
+        "index": 113,
+        "type": "Text",
+        "label": "创作中心",
+        "value": "创作中心",
+        "identifier": "17627",
+        "rect": {
+          "x": 234,
+          "y": 1186,
+          "width": 150,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 107,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e114"
+      },
+      {
+        "index": 114,
+        "type": "Stack",
+        "identifier": "17631",
+        "rect": {
+          "x": 790,
+          "y": 1018,
+          "width": 162,
+          "height": 249
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 105,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e115"
+      },
+      {
+        "index": 115,
+        "type": "Column",
+        "identifier": "17632",
+        "rect": {
+          "x": 790,
+          "y": 1030,
+          "width": 150,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 114,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e116"
+      },
+      {
+        "index": 116,
+        "type": "__Common__",
+        "identifier": "17633",
+        "rect": {
+          "x": 809,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 115,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e117"
+      },
+      {
+        "index": 117,
+        "type": "Stack",
+        "identifier": "17787",
+        "rect": {
+          "x": 809,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 116,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e118"
+      },
+      {
+        "index": 118,
+        "type": "__Common__",
+        "identifier": "17788",
+        "rect": {
+          "x": 809,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 117,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e119"
+      },
+      {
+        "index": 119,
+        "type": "__Common__",
+        "identifier": "17792",
+        "rect": {
+          "x": 809,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 118,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e120"
+      },
+      {
+        "index": 120,
+        "type": "Image",
+        "identifier": "17794",
+        "rect": {
+          "x": 809,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 119,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e121"
+      },
+      {
+        "index": 121,
+        "type": "Text",
+        "label": "关注订阅",
+        "value": "关注订阅",
+        "identifier": "17635",
+        "rect": {
+          "x": 790,
+          "y": 1186,
+          "width": 150,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 115,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e122"
+      },
+      {
+        "index": 122,
+        "type": "Stack",
+        "identifier": "17639",
+        "rect": {
+          "x": 1346,
+          "y": 1018,
+          "width": 125,
+          "height": 249
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 105,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e123"
+      },
+      {
+        "index": 123,
+        "type": "Column",
+        "identifier": "17640",
+        "rect": {
+          "x": 1346,
+          "y": 1030,
+          "width": 113,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 122,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e124"
+      },
+      {
+        "index": 124,
+        "type": "__Common__",
+        "identifier": "17641",
+        "rect": {
+          "x": 1346,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 123,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e125"
+      },
+      {
+        "index": 125,
+        "type": "Stack",
+        "identifier": "17796",
+        "rect": {
+          "x": 1346,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 124,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e126"
+      },
+      {
+        "index": 126,
+        "type": "__Common__",
+        "identifier": "17797",
+        "rect": {
+          "x": 1346,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 125,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e127"
+      },
+      {
+        "index": 127,
+        "type": "__Common__",
+        "identifier": "17801",
+        "rect": {
+          "x": 1346,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 126,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e128"
+      },
+      {
+        "index": 128,
+        "type": "Image",
+        "identifier": "17803",
+        "rect": {
+          "x": 1346,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 127,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e129"
+      },
+      {
+        "index": 129,
+        "type": "Text",
+        "label": "收藏",
+        "value": "收藏",
+        "identifier": "17643",
+        "rect": {
+          "x": 1365,
+          "y": 1186,
+          "width": 75,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 123,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e130"
+      },
+      {
+        "index": 130,
+        "type": "Stack",
+        "identifier": "17647",
+        "rect": {
+          "x": 1865,
+          "y": 1018,
+          "width": 125,
+          "height": 249
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 105,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e131"
+      },
+      {
+        "index": 131,
+        "type": "Column",
+        "identifier": "17648",
+        "rect": {
+          "x": 1865,
+          "y": 1030,
+          "width": 113,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 130,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e132"
+      },
+      {
+        "index": 132,
+        "type": "__Common__",
+        "identifier": "17649",
+        "rect": {
+          "x": 1865,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 131,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e133"
+      },
+      {
+        "index": 133,
+        "type": "Stack",
+        "identifier": "17805",
+        "rect": {
+          "x": 1865,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 132,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e134"
+      },
+      {
+        "index": 134,
+        "type": "__Common__",
+        "identifier": "17806",
+        "rect": {
+          "x": 1865,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 133,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e135"
+      },
+      {
+        "index": 135,
+        "type": "__Common__",
+        "identifier": "17810",
+        "rect": {
+          "x": 1865,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 134,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e136"
+      },
+      {
+        "index": 136,
+        "type": "Image",
+        "identifier": "17812",
+        "rect": {
+          "x": 1865,
+          "y": 1067,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 135,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e137"
+      },
+      {
+        "index": 137,
+        "type": "Text",
+        "label": "优惠券",
+        "value": "优惠券",
+        "identifier": "17651",
+        "rect": {
+          "x": 1865,
+          "y": 1186,
+          "width": 113,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 131,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e138"
+      },
+      {
+        "index": 138,
+        "type": "Row",
+        "identifier": "17655",
+        "rect": {
+          "x": 62,
+          "y": 1267,
+          "width": 2100,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 104,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e139"
+      },
+      {
+        "index": 139,
+        "type": "Text",
+        "label": "发布真实有趣的内容，获得更多车友关注",
+        "value": "发布真实有趣的内容，获得更多车友关注",
+        "identifier": "17656",
+        "rect": {
+          "x": 87,
+          "y": 1295,
+          "width": 1900,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 138,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e140"
+      },
+      {
+        "index": 140,
+        "type": "Text",
+        "label": "去发布",
+        "value": "去发布",
+        "identifier": "17657",
+        "rect": {
+          "x": 1987,
+          "y": 1295,
+          "width": 150,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 138,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e141"
+      },
+      {
+        "index": 141,
+        "type": "Column",
+        "identifier": "17660",
+        "rect": {
+          "x": 25,
+          "y": 1428,
+          "width": 2174,
+          "height": 109
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 39,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e142"
+      },
+      {
+        "index": 142,
+        "type": "Row",
+        "identifier": "17661",
+        "rect": {
+          "x": 25,
+          "y": 1453,
+          "width": 2174,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 141,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e143"
+      },
+      {
+        "index": 143,
+        "type": "Text",
+        "label": "我的订单",
+        "value": "我的订单",
+        "identifier": "17662",
+        "rect": {
+          "x": 62,
+          "y": 1453,
+          "width": 200,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 142,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e144"
+      },
+      {
+        "index": 144,
+        "type": "Text",
+        "label": "全部订单",
+        "value": "全部订单",
+        "identifier": "17663",
+        "rect": {
+          "x": 1986,
+          "y": 1461,
+          "width": 188,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 142,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e145"
+      },
+      {
+        "index": 145,
+        "type": "Column",
+        "identifier": "17668",
+        "rect": {
+          "x": 25,
+          "y": 1562,
+          "width": 2174,
+          "height": 393
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 39,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e146"
+      },
+      {
+        "index": 146,
+        "type": "Row",
+        "identifier": "17669",
+        "rect": {
+          "x": 28,
+          "y": 1565,
+          "width": 2168,
+          "height": 188
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 145,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e147"
+      },
+      {
+        "index": 147,
+        "type": "Image",
+        "identifier": "17670",
+        "rect": {
+          "x": 46,
+          "y": 1596,
+          "width": 194,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 146,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e148"
+      },
+      {
+        "index": 148,
+        "type": "Column",
+        "identifier": "17671",
+        "rect": {
+          "x": 276,
+          "y": 1596,
+          "width": 1642,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 146,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e149"
+      },
+      {
+        "index": 149,
+        "type": "Text",
+        "label": "认证车主得大礼",
+        "value": "认证车主得大礼",
+        "identifier": "17672",
+        "rect": {
+          "x": 276,
+          "y": 1596,
+          "width": 307,
+          "height": 63
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 148,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e150"
+      },
+      {
+        "index": 150,
+        "type": "Text",
+        "label": "坐垫｜安全锤｜吸尘器｜好礼免费抽",
+        "value": "坐垫｜安全锤｜吸尘器｜好礼免费抽",
+        "identifier": "17673",
+        "rect": {
+          "x": 276,
+          "y": 1665,
+          "width": 600,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 148,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e151"
+      },
+      {
+        "index": 151,
+        "type": "Row",
+        "identifier": "17674",
+        "rect": {
+          "x": 1936,
+          "y": 1615,
+          "width": 223,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 146,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e152"
+      },
+      {
+        "index": 152,
+        "type": "Image",
+        "identifier": "17675",
+        "rect": {
+          "x": 1963,
+          "y": 1634,
+          "width": 50,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 151,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e153"
+      },
+      {
+        "index": 153,
+        "type": "Text",
+        "label": "去认证",
+        "value": "去认证",
+        "identifier": "17676",
+        "rect": {
+          "x": 2019,
+          "y": 1637,
+          "width": 113,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 151,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e154"
+      },
+      {
+        "index": 154,
+        "type": "__Common__",
+        "identifier": "17678",
+        "rect": {
+          "x": 28,
+          "y": 1753,
+          "width": 2168,
+          "height": 199
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 145,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e155"
+      },
+      {
+        "index": 155,
+        "type": "Column",
+        "identifier": "17815",
+        "rect": {
+          "x": 28,
+          "y": 1753,
+          "width": 2168,
+          "height": 199
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 154,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e156"
+      },
+      {
+        "index": 156,
+        "type": "Row",
+        "identifier": "17816",
+        "rect": {
+          "x": 28,
+          "y": 1753,
+          "width": 2168,
+          "height": 200
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 155,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e157"
+      },
+      {
+        "index": 157,
+        "type": "RelativeContainer",
+        "identifier": "17819",
+        "rect": {
+          "x": 28,
+          "y": 1753,
+          "width": 434,
+          "height": 200
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 156,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e158"
+      },
+      {
+        "index": 158,
+        "type": "__Common__",
+        "identifier": "17820",
+        "rect": {
+          "x": 207,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 157,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e159"
+      },
+      {
+        "index": 159,
+        "type": "Stack",
+        "identifier": "17852",
+        "rect": {
+          "x": 207,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 158,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e160"
+      },
+      {
+        "index": 160,
+        "type": "__Common__",
+        "identifier": "17853",
+        "rect": {
+          "x": 207,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 159,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e161"
+      },
+      {
+        "index": 161,
+        "type": "__Common__",
+        "identifier": "17857",
+        "rect": {
+          "x": 207,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 160,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e162"
+      },
+      {
+        "index": 162,
+        "type": "Image",
+        "identifier": "17859",
+        "rect": {
+          "x": 207,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 161,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e163"
+      },
+      {
+        "index": 163,
+        "type": "Text",
+        "label": "特惠加油",
+        "value": "特惠加油",
+        "identifier": "17823",
+        "rect": {
+          "x": 170,
+          "y": 1871,
+          "width": 150,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 157,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e164"
+      },
+      {
+        "index": 164,
+        "type": "RelativeContainer",
+        "identifier": "17825",
+        "rect": {
+          "x": 462,
+          "y": 1753,
+          "width": 434,
+          "height": 200
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 156,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e165"
+      },
+      {
+        "index": 165,
+        "type": "__Common__",
+        "identifier": "17826",
+        "rect": {
+          "x": 641,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 164,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e166"
+      },
+      {
+        "index": 166,
+        "type": "Stack",
+        "identifier": "17861",
+        "rect": {
+          "x": 641,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 165,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e167"
+      },
+      {
+        "index": 167,
+        "type": "__Common__",
+        "identifier": "17862",
+        "rect": {
+          "x": 641,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 166,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e168"
+      },
+      {
+        "index": 168,
+        "type": "__Common__",
+        "identifier": "17866",
+        "rect": {
+          "x": 641,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 167,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e169"
+      },
+      {
+        "index": 169,
+        "type": "Image",
+        "identifier": "17868",
+        "rect": {
+          "x": 641,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 168,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e170"
+      },
+      {
+        "index": 170,
+        "type": "Text",
+        "label": "车品",
+        "value": "车品",
+        "identifier": "17829",
+        "rect": {
+          "x": 641,
+          "y": 1871,
+          "width": 75,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 164,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e171"
+      },
+      {
+        "index": 171,
+        "type": "RelativeContainer",
+        "identifier": "17831",
+        "rect": {
+          "x": 895,
+          "y": 1753,
+          "width": 434,
+          "height": 200
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 156,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e172"
+      },
+      {
+        "index": 172,
+        "type": "__Common__",
+        "identifier": "17832",
+        "rect": {
+          "x": 1074,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 171,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e173"
+      },
+      {
+        "index": 173,
+        "type": "Stack",
+        "identifier": "17870",
+        "rect": {
+          "x": 1074,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 172,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e174"
+      },
+      {
+        "index": 174,
+        "type": "__Common__",
+        "identifier": "17871",
+        "rect": {
+          "x": 1074,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 173,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e175"
+      },
+      {
+        "index": 175,
+        "type": "__Common__",
+        "identifier": "17875",
+        "rect": {
+          "x": 1074,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 174,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e176"
+      },
+      {
+        "index": 176,
+        "type": "Image",
+        "identifier": "17877",
+        "rect": {
+          "x": 1074,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 175,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e177"
+      },
+      {
+        "index": 177,
+        "type": "Text",
+        "label": "附近充电",
+        "value": "附近充电",
+        "identifier": "17835",
+        "rect": {
+          "x": 1037,
+          "y": 1871,
+          "width": 150,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 171,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e178"
+      },
+      {
+        "index": 178,
+        "type": "RelativeContainer",
+        "identifier": "17837",
+        "rect": {
+          "x": 1329,
+          "y": 1753,
+          "width": 434,
+          "height": 200
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 156,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e179"
+      },
+      {
+        "index": 179,
+        "type": "__Common__",
+        "identifier": "17838",
+        "rect": {
+          "x": 1508,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 178,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e180"
+      },
+      {
+        "index": 180,
+        "type": "Stack",
+        "identifier": "17879",
+        "rect": {
+          "x": 1508,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 179,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e181"
+      },
+      {
+        "index": 181,
+        "type": "__Common__",
+        "identifier": "17880",
+        "rect": {
+          "x": 1508,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 180,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e182"
+      },
+      {
+        "index": 182,
+        "type": "__Common__",
+        "identifier": "17884",
+        "rect": {
+          "x": 1508,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 181,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e183"
+      },
+      {
+        "index": 183,
+        "type": "Image",
+        "identifier": "17886",
+        "rect": {
+          "x": 1508,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 182,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e184"
+      },
+      {
+        "index": 184,
+        "type": "Stack",
+        "identifier": "17841",
+        "rect": {
+          "x": 1551,
+          "y": 1778,
+          "width": 108,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 178,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e185"
+      },
+      {
+        "index": 185,
+        "type": "Column",
+        "identifier": "17889",
+        "rect": {
+          "x": 1557,
+          "y": 1778,
+          "width": 96,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 184,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e186"
+      },
+      {
+        "index": 186,
+        "type": "Text",
+        "label": "免息",
+        "value": "免息",
+        "identifier": "17891",
+        "rect": {
+          "x": 1557,
+          "y": 1778,
+          "width": 96,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 185,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e187"
+      },
+      {
+        "index": 187,
+        "type": "Path",
+        "identifier": "17982",
+        "rect": {
+          "x": 1557,
+          "y": 1778,
+          "width": 96,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 185,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e188"
+      },
+      {
+        "index": 188,
+        "type": "Text",
+        "label": "车险分期",
+        "value": "车险分期",
+        "identifier": "17843",
+        "rect": {
+          "x": 1471,
+          "y": 1871,
+          "width": 150,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 178,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e189"
+      },
+      {
+        "index": 189,
+        "type": "RelativeContainer",
+        "identifier": "17845",
+        "rect": {
+          "x": 1762,
+          "y": 1753,
+          "width": 434,
+          "height": 200
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 156,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e190"
+      },
+      {
+        "index": 190,
+        "type": "__Common__",
+        "identifier": "17846",
+        "rect": {
+          "x": 1941,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 189,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e191"
+      },
+      {
+        "index": 191,
+        "type": "Stack",
+        "identifier": "17892",
+        "rect": {
+          "x": 1941,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 190,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e192"
+      },
+      {
+        "index": 192,
+        "type": "__Common__",
+        "identifier": "17893",
+        "rect": {
+          "x": 1941,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 191,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e193"
+      },
+      {
+        "index": 193,
+        "type": "__Common__",
+        "identifier": "17897",
+        "rect": {
+          "x": 1941,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 192,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e194"
+      },
+      {
+        "index": 194,
+        "type": "Image",
+        "identifier": "17899",
+        "rect": {
+          "x": 1941,
+          "y": 1790,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 193,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e195"
+      },
+      {
+        "index": 195,
+        "type": "Text",
+        "label": "更多服务",
+        "value": "更多服务",
+        "identifier": "17849",
+        "rect": {
+          "x": 1904,
+          "y": 1871,
+          "width": 150,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 189,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e196"
+      },
+      {
+        "index": 196,
+        "type": "Column",
+        "identifier": "17850",
+        "rect": {
+          "x": 1112,
+          "y": 1952,
+          "width": 1,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 155,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e197"
+      },
+      {
+        "index": 197,
+        "type": "Swiper",
+        "identifier": "18079",
+        "rect": {
+          "x": 25,
+          "y": 1980,
+          "width": 2174,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 39,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e198"
+      },
+      {
+        "index": 198,
+        "type": "Stack",
+        "identifier": "18090",
+        "rect": {
+          "x": 1112,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 197,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e199"
+      },
+      {
+        "index": 199,
+        "type": "Stack",
+        "identifier": "18092",
+        "rect": {
+          "x": 1112,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 198,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e200"
+      },
+      {
+        "index": 200,
+        "type": "__Common__",
+        "identifier": "18093",
+        "rect": {
+          "x": 1112,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 199,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e201"
+      },
+      {
+        "index": 201,
+        "type": "Stack",
+        "identifier": "18097",
+        "rect": {
+          "x": 1112,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 200,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e202"
+      },
+      {
+        "index": 202,
+        "type": "__Common__",
+        "identifier": "18098",
+        "rect": {
+          "x": 1112,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 201,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e203"
+      },
+      {
+        "index": 203,
+        "type": "__Common__",
+        "identifier": "18102",
+        "rect": {
+          "x": 1112,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 202,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e204"
+      },
+      {
+        "index": 204,
+        "type": "Image",
+        "identifier": "18104",
+        "rect": {
+          "x": 1112,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 203,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e205"
+      },
+      {
+        "index": 205,
+        "type": "Stack",
+        "identifier": "18123",
+        "rect": {
+          "x": 25,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 197,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e206"
+      },
+      {
+        "index": 206,
+        "type": "Stack",
+        "identifier": "18125",
+        "rect": {
+          "x": 25,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 205,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e207"
+      },
+      {
+        "index": 207,
+        "type": "__Common__",
+        "identifier": "18126",
+        "rect": {
+          "x": 25,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 206,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e208"
+      },
+      {
+        "index": 208,
+        "type": "Stack",
+        "identifier": "18130",
+        "rect": {
+          "x": 25,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 207,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e209"
+      },
+      {
+        "index": 209,
+        "type": "__Common__",
+        "identifier": "18131",
+        "rect": {
+          "x": 25,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 208,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e210"
+      },
+      {
+        "index": 210,
+        "type": "__Common__",
+        "identifier": "18135",
+        "rect": {
+          "x": 25,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 209,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e211"
+      },
+      {
+        "index": 211,
+        "type": "Image",
+        "identifier": "18137",
+        "rect": {
+          "x": 25,
+          "y": 1980,
+          "width": 1087,
+          "height": 226
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 210,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e212"
+      },
+      {
+        "index": 212,
+        "type": "Column",
+        "identifier": "17681",
+        "rect": {
+          "x": 25,
+          "y": 2231,
+          "width": 2174,
+          "height": 60
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 39,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e213"
+      },
+      {
+        "index": 213,
+        "type": "Flex",
+        "identifier": "17682",
+        "rect": {
+          "x": 25,
+          "y": 2256,
+          "width": 2174,
+          "height": 35
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 212,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e214"
+      },
+      {
+        "index": 214,
+        "type": "Column",
+        "identifier": "17685",
+        "rect": {
+          "x": 25,
+          "y": 2256,
+          "width": 435,
+          "height": 35
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 213,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e215"
+      },
+      {
+        "index": 215,
+        "type": "Column",
+        "identifier": "17690",
+        "rect": {
+          "x": 460,
+          "y": 2256,
+          "width": 435,
+          "height": 35
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 213,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e216"
+      },
+      {
+        "index": 216,
+        "type": "Column",
+        "identifier": "17695",
+        "rect": {
+          "x": 895,
+          "y": 2256,
+          "width": 435,
+          "height": 35
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 213,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e217"
+      },
+      {
+        "index": 217,
+        "type": "Column",
+        "identifier": "17700",
+        "rect": {
+          "x": 1329,
+          "y": 2256,
+          "width": 435,
+          "height": 35
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 213,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e218"
+      },
+      {
+        "index": 218,
+        "type": "Column",
+        "identifier": "17705",
+        "rect": {
+          "x": 1764,
+          "y": 2256,
+          "width": 435,
+          "height": 35
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 213,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e219"
+      },
+      {
+        "index": 219,
+        "type": "Stack",
+        "identifier": "169",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 11,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e220"
+      },
+      {
+        "index": 220,
+        "type": "Column",
+        "identifier": "171",
+        "rect": {
+          "x": 0,
+          "y": 2184,
+          "width": 2224,
+          "height": 312
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 219,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e221"
+      },
+      {
+        "index": 221,
+        "type": "Stack",
+        "identifier": "172",
+        "rect": {
+          "x": 0,
+          "y": 2184,
+          "width": 2224,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 220,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e222"
+      },
+      {
+        "index": 222,
+        "type": "__Common__",
+        "identifier": "173",
+        "rect": {
+          "x": 0,
+          "y": 2184,
+          "width": 2224,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 221,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e223"
+      },
+      {
+        "index": 223,
+        "type": "Stack",
+        "identifier": "341",
+        "rect": {
+          "x": 0,
+          "y": 2184,
+          "width": 2224,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 222,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e224"
+      },
+      {
+        "index": 224,
+        "type": "__Common__",
+        "identifier": "342",
+        "rect": {
+          "x": 0,
+          "y": 2184,
+          "width": 2224,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 223,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e225"
+      },
+      {
+        "index": 225,
+        "type": "__Common__",
+        "identifier": "346",
+        "rect": {
+          "x": 0,
+          "y": 2184,
+          "width": 2224,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 224,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e226"
+      },
+      {
+        "index": 226,
+        "type": "Image",
+        "identifier": "348",
+        "rect": {
+          "x": 0,
+          "y": 2184,
+          "width": 2224,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 225,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e227"
+      },
+      {
+        "index": 227,
+        "type": "Stack",
+        "identifier": "175",
+        "rect": {
+          "x": 0,
+          "y": 2409,
+          "width": 2224,
+          "height": 87
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 220,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e228"
+      },
+      {
+        "index": 228,
+        "type": "Flex",
+        "identifier": "176",
+        "rect": {
+          "x": 0,
+          "y": 2259,
+          "width": 2224,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 219,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e229"
+      },
+      {
+        "index": 229,
+        "type": "Stack",
+        "identifier": "179",
+        "rect": {
+          "x": 0,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 228,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e230"
+      },
+      {
+        "index": 230,
+        "type": "Stack",
+        "identifier": "180",
+        "rect": {
+          "x": 0,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 229,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e231"
+      },
+      {
+        "index": 231,
+        "type": "Stack",
+        "identifier": "182",
+        "rect": {
+          "x": 0,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 230,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e232"
+      },
+      {
+        "index": 232,
+        "type": "Column",
+        "identifier": "183",
+        "rect": {
+          "x": 0,
+          "y": 2259,
+          "width": 445,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 231,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e233"
+      },
+      {
+        "index": 233,
+        "type": "Stack",
+        "identifier": "184",
+        "rect": {
+          "x": 172,
+          "y": 2266,
+          "width": 100,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 232,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e234"
+      },
+      {
+        "index": 234,
+        "type": "Image",
+        "identifier": "17487",
+        "rect": {
+          "x": 185,
+          "y": 2279,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 233,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e235"
+      },
+      {
+        "index": 235,
+        "type": "Text",
+        "label": "首页",
+        "value": "首页",
+        "identifier": "191",
+        "rect": {
+          "x": 191,
+          "y": 2372,
+          "width": 63,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 232,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e236"
+      },
+      {
+        "index": 236,
+        "type": "Stack",
+        "identifier": "193",
+        "rect": {
+          "x": 445,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 228,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e237"
+      },
+      {
+        "index": 237,
+        "type": "Stack",
+        "identifier": "194",
+        "rect": {
+          "x": 445,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 236,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e238"
+      },
+      {
+        "index": 238,
+        "type": "Stack",
+        "identifier": "196",
+        "rect": {
+          "x": 445,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 237,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e239"
+      },
+      {
+        "index": 239,
+        "type": "Column",
+        "identifier": "197",
+        "rect": {
+          "x": 445,
+          "y": 2259,
+          "width": 445,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 238,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e240"
+      },
+      {
+        "index": 240,
+        "type": "Stack",
+        "identifier": "198",
+        "rect": {
+          "x": 617,
+          "y": 2266,
+          "width": 100,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 239,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e241"
+      },
+      {
+        "index": 241,
+        "type": "Image",
+        "identifier": "201",
+        "rect": {
+          "x": 630,
+          "y": 2279,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 240,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e242"
+      },
+      {
+        "index": 242,
+        "type": "Text",
+        "label": "选车",
+        "value": "选车",
+        "identifier": "203",
+        "rect": {
+          "x": 636,
+          "y": 2372,
+          "width": 63,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 239,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e243"
+      },
+      {
+        "index": 243,
+        "type": "Stack",
+        "identifier": "205",
+        "rect": {
+          "x": 890,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 228,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e244"
+      },
+      {
+        "index": 244,
+        "type": "Stack",
+        "identifier": "206",
+        "rect": {
+          "x": 890,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 243,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e245"
+      },
+      {
+        "index": 245,
+        "type": "Column",
+        "identifier": "208",
+        "rect": {
+          "x": 1037,
+          "y": 2218,
+          "width": 150,
+          "height": 194
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 244,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e246"
+      },
+      {
+        "index": 246,
+        "type": "Stack",
+        "identifier": "209",
+        "rect": {
+          "x": 1037,
+          "y": 2218,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 245,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e247"
+      },
+      {
+        "index": 247,
+        "type": "__Common__",
+        "identifier": "210",
+        "rect": {
+          "x": 1037,
+          "y": 2340,
+          "width": 150,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 246,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e248"
+      },
+      {
+        "index": 248,
+        "type": "Stack",
+        "identifier": "351",
+        "rect": {
+          "x": 1037,
+          "y": 2340,
+          "width": 150,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 247,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e249"
+      },
+      {
+        "index": 249,
+        "type": "__Common__",
+        "identifier": "352",
+        "rect": {
+          "x": 1037,
+          "y": 2340,
+          "width": 150,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 248,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e250"
+      },
+      {
+        "index": 250,
+        "type": "__Common__",
+        "identifier": "356",
+        "rect": {
+          "x": 1037,
+          "y": 2340,
+          "width": 150,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 249,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e251"
+      },
+      {
+        "index": 251,
+        "type": "Image",
+        "identifier": "358",
+        "rect": {
+          "x": 1037,
+          "y": 2340,
+          "width": 150,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 250,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e252"
+      },
+      {
+        "index": 252,
+        "type": "__Common__",
+        "identifier": "212",
+        "rect": {
+          "x": 1037,
+          "y": 2218,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 246,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e253"
+      },
+      {
+        "index": 253,
+        "type": "Stack",
+        "identifier": "360",
+        "rect": {
+          "x": 1037,
+          "y": 2218,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 252,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e254"
+      },
+      {
+        "index": 254,
+        "type": "__Common__",
+        "identifier": "361",
+        "rect": {
+          "x": 1037,
+          "y": 2218,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 253,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e255"
+      },
+      {
+        "index": 255,
+        "type": "__Common__",
+        "identifier": "365",
+        "rect": {
+          "x": 1037,
+          "y": 2218,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 254,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e256"
+      },
+      {
+        "index": 256,
+        "type": "Image",
+        "identifier": "367",
+        "rect": {
+          "x": 1037,
+          "y": 2218,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 255,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e257"
+      },
+      {
+        "index": 257,
+        "type": "Text",
+        "label": "AI小懂",
+        "value": "AI小懂",
+        "identifier": "214",
+        "rect": {
+          "x": 1066,
+          "y": 2374,
+          "width": 93,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 245,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e258"
+      },
+      {
+        "index": 258,
+        "type": "Stack",
+        "identifier": "216",
+        "rect": {
+          "x": 1334,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 228,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e259"
+      },
+      {
+        "index": 259,
+        "type": "Stack",
+        "identifier": "217",
+        "rect": {
+          "x": 1334,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 258,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e260"
+      },
+      {
+        "index": 260,
+        "type": "Stack",
+        "identifier": "219",
+        "rect": {
+          "x": 1334,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 259,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e261"
+      },
+      {
+        "index": 261,
+        "type": "Column",
+        "identifier": "220",
+        "rect": {
+          "x": 1334,
+          "y": 2259,
+          "width": 445,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 260,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e262"
+      },
+      {
+        "index": 262,
+        "type": "Stack",
+        "identifier": "221",
+        "rect": {
+          "x": 1506,
+          "y": 2266,
+          "width": 100,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 261,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e263"
+      },
+      {
+        "index": 263,
+        "type": "Image",
+        "identifier": "224",
+        "rect": {
+          "x": 1519,
+          "y": 2279,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 262,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e264"
+      },
+      {
+        "index": 264,
+        "type": "Text",
+        "label": "消息",
+        "value": "消息",
+        "identifier": "226",
+        "rect": {
+          "x": 1525,
+          "y": 2372,
+          "width": 63,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 261,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e265"
+      },
+      {
+        "index": 265,
+        "type": "Stack",
+        "identifier": "228",
+        "rect": {
+          "x": 1779,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 228,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e266"
+      },
+      {
+        "index": 266,
+        "type": "Stack",
+        "identifier": "229",
+        "rect": {
+          "x": 1779,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 265,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e267"
+      },
+      {
+        "index": 267,
+        "type": "Stack",
+        "identifier": "231",
+        "rect": {
+          "x": 1779,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 266,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e268"
+      },
+      {
+        "index": 268,
+        "type": "Column",
+        "identifier": "232",
+        "rect": {
+          "x": 1779,
+          "y": 2259,
+          "width": 445,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 267,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e269"
+      },
+      {
+        "index": 269,
+        "type": "Stack",
+        "identifier": "233",
+        "rect": {
+          "x": 1951,
+          "y": 2266,
+          "width": 100,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 268,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e270"
+      },
+      {
+        "index": 270,
+        "type": "Stack",
+        "identifier": "17488",
+        "rect": {
+          "x": 1964,
+          "y": 2279,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 269,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e271"
+      },
+      {
+        "index": 271,
+        "type": "__Common__",
+        "identifier": "17489",
+        "rect": {
+          "x": 1964,
+          "y": 2279,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 270,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e272"
+      },
+      {
+        "index": 272,
+        "type": "Canvas",
+        "identifier": "17518",
+        "rect": {
+          "x": 1964,
+          "y": 2279,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 271,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e273"
+      },
+      {
+        "index": 273,
+        "type": "Text",
+        "label": "未登录",
+        "value": "未登录",
+        "identifier": "238",
+        "rect": {
+          "x": 1954,
+          "y": 2372,
+          "width": 94,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 268,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e274"
+      },
+      {
+        "index": 274,
+        "type": "Row",
+        "identifier": "17495",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e275"
+      },
+      {
+        "index": 275,
+        "type": "Flex",
+        "identifier": "17496",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 1779,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 274,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e276"
+      },
+      {
+        "index": 276,
+        "type": "__Common__",
+        "identifier": "17497",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 1779,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 275,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e277"
+      },
+      {
+        "index": 277,
+        "type": "__Common__",
+        "identifier": "17499",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 1779,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 276,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e278"
+      },
+      {
+        "index": 278,
+        "type": "Stack",
+        "identifier": "18417",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 1779,
+          "height": 2196
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 277,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e279"
+      },
+      {
+        "index": 279,
+        "type": "Stack",
+        "identifier": "18418",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 1779,
+          "height": 2196
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 278,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e280"
+      },
+      {
+        "index": 280,
+        "type": "__Common__",
+        "identifier": "18420",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 1779,
+          "height": 1696
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 279,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e281"
+      },
+      {
+        "index": 281,
+        "type": "Stack",
+        "identifier": "18434",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 1779,
+          "height": 1696
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 280,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e282"
+      },
+      {
+        "index": 282,
+        "type": "__Common__",
+        "identifier": "18435",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 1779,
+          "height": 1696
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 281,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e283"
+      },
+      {
+        "index": 283,
+        "type": "__Common__",
+        "identifier": "18439",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 1779,
+          "height": 1696
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 282,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e284"
+      },
+      {
+        "index": 284,
+        "type": "Image",
+        "identifier": "18441",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 1779,
+          "height": 1696
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 283,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e285"
+      },
+      {
+        "index": 285,
+        "type": "List",
+        "identifier": "18422",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 1779,
+          "height": 2196
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 279,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e286"
+      },
+      {
+        "index": 286,
+        "type": "ListItem",
+        "identifier": "18425",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 575,
+          "height": 323
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 285,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e287"
+      },
+      {
+        "index": 287,
+        "type": "__Common__",
+        "identifier": "18444",
+        "rect": {
+          "x": 50,
+          "y": 113,
+          "width": 475,
+          "height": 323
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 286,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e288"
+      },
+      {
+        "index": 288,
+        "type": "Row",
+        "identifier": "18447",
+        "rect": {
+          "x": 50,
+          "y": 113,
+          "width": 475,
+          "height": 323
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 287,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e289"
+      },
+      {
+        "index": 289,
+        "type": "__Common__",
+        "identifier": "18448",
+        "rect": {
+          "x": 50,
+          "y": 174,
+          "width": 225,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 288,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e290"
+      },
+      {
+        "index": 290,
+        "type": "Stack",
+        "identifier": "18457",
+        "rect": {
+          "x": 75,
+          "y": 199,
+          "width": 175,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 289,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e291"
+      },
+      {
+        "index": 291,
+        "type": "__Common__",
+        "identifier": "18458",
+        "rect": {
+          "x": 75,
+          "y": 199,
+          "width": 175,
+          "height": 175
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 290,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e292"
+      },
+      {
+        "index": 292,
+        "type": "Stack",
+        "identifier": "18465",
+        "rect": {
+          "x": 75,
+          "y": 199,
+          "width": 175,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 291,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e293"
+      },
+      {
+        "index": 293,
+        "type": "__Common__",
+        "identifier": "18466",
+        "rect": {
+          "x": 75,
+          "y": 199,
+          "width": 175,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 292,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e294"
+      },
+      {
+        "index": 294,
+        "type": "__Common__",
+        "identifier": "18470",
+        "rect": {
+          "x": 75,
+          "y": 199,
+          "width": 175,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 293,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e295"
+      },
+      {
+        "index": 295,
+        "type": "Image",
+        "identifier": "18472",
+        "rect": {
+          "x": 75,
+          "y": 199,
+          "width": 175,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 294,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e296"
+      },
+      {
+        "index": 296,
+        "type": "__Common__",
+        "identifier": "18462",
+        "rect": {
+          "x": 198,
+          "y": 322,
+          "width": 53,
+          "height": 53
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 290,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e297"
+      },
+      {
+        "index": 297,
+        "type": "Column",
+        "identifier": "18451",
+        "rect": {
+          "x": 275,
+          "y": 193,
+          "width": 250,
+          "height": 187
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 288,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e298"
+      },
+      {
+        "index": 298,
+        "type": "Text",
+        "label": "晚上好，",
+        "value": "晚上好，",
+        "identifier": "18452",
+        "rect": {
+          "x": 300,
+          "y": 218,
+          "width": 200,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 297,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e299"
+      },
+      {
+        "index": 299,
+        "type": "Text",
+        "label": "未登录",
+        "value": "未登录",
+        "identifier": "18454",
+        "rect": {
+          "x": 300,
+          "y": 296,
+          "width": 200,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 297,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e300"
+      },
+      {
+        "index": 300,
+        "type": "ListItem",
+        "identifier": "18427",
+        "rect": {
+          "x": 0,
+          "y": 461,
+          "width": 1779,
+          "height": 356
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 285,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e301"
+      },
+      {
+        "index": 301,
+        "type": "Column",
+        "identifier": "18483",
+        "rect": {
+          "x": 50,
+          "y": 461,
+          "width": 1679,
+          "height": 356
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 300,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e302"
+      },
+      {
+        "index": 302,
+        "type": "Text",
+        "label": "最近看过",
+        "value": "最近看过",
+        "identifier": "18484",
+        "rect": {
+          "x": 87,
+          "y": 492,
+          "width": 200,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 301,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e303"
+      },
+      {
+        "index": 303,
+        "type": "Grid",
+        "identifier": "18485",
+        "rect": {
+          "x": 50,
+          "y": 582,
+          "width": 1679,
+          "height": 210
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 301,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e304"
+      },
+      {
+        "index": 304,
+        "type": "GridItem",
+        "identifier": "18488",
+        "rect": {
+          "x": 50,
+          "y": 582,
+          "width": 560,
+          "height": 210
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 303,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e305"
+      },
+      {
+        "index": 305,
+        "type": "Column",
+        "identifier": "18489",
+        "rect": {
+          "x": 236,
+          "y": 582,
+          "width": 188,
+          "height": 210
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 304,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e306"
+      },
+      {
+        "index": 306,
+        "type": "__Common__",
+        "identifier": "18490",
+        "rect": {
+          "x": 236,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 305,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e307"
+      },
+      {
+        "index": 307,
+        "type": "Stack",
+        "identifier": "18505",
+        "rect": {
+          "x": 236,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 306,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e308"
+      },
+      {
+        "index": 308,
+        "type": "__Common__",
+        "identifier": "18506",
+        "rect": {
+          "x": 236,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 307,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e309"
+      },
+      {
+        "index": 309,
+        "type": "__Common__",
+        "identifier": "18510",
+        "rect": {
+          "x": 236,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 308,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e310"
+      },
+      {
+        "index": 310,
+        "type": "Image",
+        "identifier": "18512",
+        "rect": {
+          "x": 236,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 309,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e311"
+      },
+      {
+        "index": 311,
+        "type": "Text",
+        "label": "型格",
+        "value": "型格",
+        "identifier": "18492",
+        "rect": {
+          "x": 289,
+          "y": 719,
+          "width": 82,
+          "height": 48
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 305,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e312"
+      },
+      {
+        "index": 312,
+        "type": "GridItem",
+        "identifier": "18494",
+        "rect": {
+          "x": 610,
+          "y": 582,
+          "width": 560,
+          "height": 210
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 303,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e313"
+      },
+      {
+        "index": 313,
+        "type": "Column",
+        "identifier": "18495",
+        "rect": {
+          "x": 796,
+          "y": 582,
+          "width": 188,
+          "height": 210
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 312,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e314"
+      },
+      {
+        "index": 314,
+        "type": "__Common__",
+        "identifier": "18496",
+        "rect": {
+          "x": 796,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 313,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e315"
+      },
+      {
+        "index": 315,
+        "type": "Stack",
+        "identifier": "18514",
+        "rect": {
+          "x": 796,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 314,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e316"
+      },
+      {
+        "index": 316,
+        "type": "__Common__",
+        "identifier": "18515",
+        "rect": {
+          "x": 796,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 315,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e317"
+      },
+      {
+        "index": 317,
+        "type": "__Common__",
+        "identifier": "18519",
+        "rect": {
+          "x": 796,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 316,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e318"
+      },
+      {
+        "index": 318,
+        "type": "Image",
+        "identifier": "18521",
+        "rect": {
+          "x": 796,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 317,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e319"
+      },
+      {
+        "index": 319,
+        "type": "Text",
+        "label": "缤越",
+        "value": "缤越",
+        "identifier": "18498",
+        "rect": {
+          "x": 849,
+          "y": 719,
+          "width": 82,
+          "height": 48
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 313,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e320"
+      },
+      {
+        "index": 320,
+        "type": "GridItem",
+        "identifier": "18500",
+        "rect": {
+          "x": 1169,
+          "y": 582,
+          "width": 560,
+          "height": 210
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 303,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e321"
+      },
+      {
+        "index": 321,
+        "type": "Column",
+        "identifier": "18501",
+        "rect": {
+          "x": 1355,
+          "y": 582,
+          "width": 188,
+          "height": 210
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 320,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e322"
+      },
+      {
+        "index": 322,
+        "type": "__Common__",
+        "identifier": "18502",
+        "rect": {
+          "x": 1355,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 321,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e323"
+      },
+      {
+        "index": 323,
+        "type": "Stack",
+        "identifier": "18523",
+        "rect": {
+          "x": 1355,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 322,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e324"
+      },
+      {
+        "index": 324,
+        "type": "__Common__",
+        "identifier": "18524",
+        "rect": {
+          "x": 1355,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 323,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e325"
+      },
+      {
+        "index": 325,
+        "type": "__Common__",
+        "identifier": "18528",
+        "rect": {
+          "x": 1355,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 324,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e326"
+      },
+      {
+        "index": 326,
+        "type": "Image",
+        "identifier": "18530",
+        "rect": {
+          "x": 1355,
+          "y": 582,
+          "width": 188,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 325,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e327"
+      },
+      {
+        "index": 327,
+        "type": "Text",
+        "label": "锋兰达",
+        "value": "锋兰达",
+        "identifier": "18504",
+        "rect": {
+          "x": 1388,
+          "y": 719,
+          "width": 122,
+          "height": 48
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 321,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e328"
+      },
+      {
+        "index": 328,
+        "type": "ListItem",
+        "identifier": "18429",
+        "rect": {
+          "x": 0,
+          "y": 842,
+          "width": 1779,
+          "height": 617
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 285,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e329"
+      },
+      {
+        "index": 329,
+        "type": "Column",
+        "identifier": "18536",
+        "rect": {
+          "x": 50,
+          "y": 842,
+          "width": 1679,
+          "height": 617
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 328,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e330"
+      },
+      {
+        "index": 330,
+        "type": "Row",
+        "identifier": "18537",
+        "rect": {
+          "x": 50,
+          "y": 842,
+          "width": 1679,
+          "height": 121
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 329,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e331"
+      },
+      {
+        "index": 331,
+        "type": "Text",
+        "label": "我的常用",
+        "value": "我的常用",
+        "identifier": "18538",
+        "rect": {
+          "x": 87,
+          "y": 873,
+          "width": 200,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 330,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e332"
+      },
+      {
+        "index": 332,
+        "type": "Column",
+        "identifier": "18541",
+        "rect": {
+          "x": 50,
+          "y": 963,
+          "width": 1679,
+          "height": 471
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 329,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e333"
+      },
+      {
+        "index": 333,
+        "type": "Text",
+        "label": "工具箱里还是空的~",
+        "value": "工具箱里还是空的~",
+        "identifier": "18542",
+        "rect": {
+          "x": 729,
+          "y": 1056,
+          "width": 322,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 332,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e334"
+      },
+      {
+        "index": 334,
+        "type": "__Common__",
+        "identifier": "18543",
+        "rect": {
+          "x": 749,
+          "y": 1150,
+          "width": 282,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 332,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e335"
+      },
+      {
+        "index": 335,
+        "type": "Button",
+        "identifier": "18545",
+        "rect": {
+          "x": 749,
+          "y": 1150,
+          "width": 282,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 334,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e336"
+      },
+      {
+        "index": 336,
+        "type": "Stack",
+        "identifier": "18546",
+        "rect": {
+          "x": 749,
+          "y": 1150,
+          "width": 282,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 335,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e337"
+      },
+      {
+        "index": 337,
+        "type": "Column",
+        "identifier": "18547",
+        "rect": {
+          "x": 824,
+          "y": 1150,
+          "width": 132,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 336,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e338"
+      },
+      {
+        "index": 338,
+        "type": "Row",
+        "identifier": "18548",
+        "rect": {
+          "x": 824,
+          "y": 1181,
+          "width": 132,
+          "height": 51
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 337,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e339"
+      },
+      {
+        "index": 339,
+        "type": "Text",
+        "label": "去添加",
+        "value": "去添加",
+        "identifier": "18551",
+        "rect": {
+          "x": 824,
+          "y": 1181,
+          "width": 132,
+          "height": 51
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 338,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e340"
+      },
+      {
+        "index": 340,
+        "type": "ListItem",
+        "identifier": "18431",
+        "rect": {
+          "x": 0,
+          "y": 1484,
+          "width": 1779,
+          "height": 564
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 285,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e341"
+      },
+      {
+        "index": 341,
+        "type": "Column",
+        "identifier": "18559",
+        "rect": {
+          "x": 50,
+          "y": 1484,
+          "width": 1679,
+          "height": 564
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 340,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e342"
+      },
+      {
+        "index": 342,
+        "type": "Text",
+        "label": "更多功能",
+        "value": "更多功能",
+        "identifier": "18560",
+        "rect": {
+          "x": 87,
+          "y": 1515,
+          "width": 200,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 341,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e343"
+      },
+      {
+        "index": 343,
+        "type": "Grid",
+        "identifier": "18561",
+        "rect": {
+          "x": 50,
+          "y": 1605,
+          "width": 1679,
+          "height": 418
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 341,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e344"
+      },
+      {
+        "index": 344,
+        "type": "GridItem",
+        "identifier": "18564",
+        "rect": {
+          "x": 50,
+          "y": 1605,
+          "width": 560,
+          "height": 209
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 343,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e345"
+      },
+      {
+        "index": 345,
+        "type": "Column",
+        "identifier": "18565",
+        "rect": {
+          "x": 248,
+          "y": 1605,
+          "width": 163,
+          "height": 209
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 344,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e346"
+      },
+      {
+        "index": 346,
+        "type": "Image",
+        "identifier": "18566",
+        "rect": {
+          "x": 292,
+          "y": 1642,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 345,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e347"
+      },
+      {
+        "index": 347,
+        "type": "Text",
+        "label": "浏览历史",
+        "value": "浏览历史",
+        "identifier": "18567",
+        "rect": {
+          "x": 248,
+          "y": 1729,
+          "width": 163,
+          "height": 48
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 345,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e348"
+      },
+      {
+        "index": 348,
+        "type": "GridItem",
+        "identifier": "18569",
+        "rect": {
+          "x": 610,
+          "y": 1605,
+          "width": 560,
+          "height": 209
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 343,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e349"
+      },
+      {
+        "index": 349,
+        "type": "Column",
+        "identifier": "18570",
+        "rect": {
+          "x": 808,
+          "y": 1605,
+          "width": 163,
+          "height": 209
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 348,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e350"
+      },
+      {
+        "index": 350,
+        "type": "Image",
+        "identifier": "18571",
+        "rect": {
+          "x": 852,
+          "y": 1642,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 349,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e351"
+      },
+      {
+        "index": 351,
+        "type": "Text",
+        "label": "价格举报",
+        "value": "价格举报",
+        "identifier": "18572",
+        "rect": {
+          "x": 808,
+          "y": 1729,
+          "width": 163,
+          "height": 48
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 349,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e352"
+      },
+      {
+        "index": 352,
+        "type": "GridItem",
+        "identifier": "18574",
+        "rect": {
+          "x": 1169,
+          "y": 1605,
+          "width": 560,
+          "height": 209
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 343,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e353"
+      },
+      {
+        "index": 353,
+        "type": "Column",
+        "identifier": "18575",
+        "rect": {
+          "x": 1367,
+          "y": 1605,
+          "width": 163,
+          "height": 209
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 352,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e354"
+      },
+      {
+        "index": 354,
+        "type": "Image",
+        "identifier": "18576",
+        "rect": {
+          "x": 1411,
+          "y": 1642,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 353,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e355"
+      },
+      {
+        "index": 355,
+        "type": "Text",
+        "label": "活动广场",
+        "value": "活动广场",
+        "identifier": "18577",
+        "rect": {
+          "x": 1367,
+          "y": 1729,
+          "width": 163,
+          "height": 48
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 353,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e356"
+      },
+      {
+        "index": 356,
+        "type": "GridItem",
+        "identifier": "18579",
+        "rect": {
+          "x": 50,
+          "y": 1814,
+          "width": 560,
+          "height": 209
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 343,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e357"
+      },
+      {
+        "index": 357,
+        "type": "Column",
+        "identifier": "18580",
+        "rect": {
+          "x": 248,
+          "y": 1814,
+          "width": 163,
+          "height": 209
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 356,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e358"
+      },
+      {
+        "index": 358,
+        "type": "Image",
+        "identifier": "18581",
+        "rect": {
+          "x": 292,
+          "y": 1851,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 357,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e359"
+      },
+      {
+        "index": 359,
+        "type": "Text",
+        "label": "免费估价",
+        "value": "免费估价",
+        "identifier": "18582",
+        "rect": {
+          "x": 248,
+          "y": 1938,
+          "width": 163,
+          "height": 48
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 357,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e360"
+      },
+      {
+        "index": 360,
+        "type": "GridItem",
+        "identifier": "18584",
+        "rect": {
+          "x": 610,
+          "y": 1814,
+          "width": 560,
+          "height": 209
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 343,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e361"
+      },
+      {
+        "index": 361,
+        "type": "Column",
+        "identifier": "18585",
+        "rect": {
+          "x": 808,
+          "y": 1814,
+          "width": 163,
+          "height": 209
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 360,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e362"
+      },
+      {
+        "index": 362,
+        "type": "Image",
+        "identifier": "18586",
+        "rect": {
+          "x": 852,
+          "y": 1851,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 361,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e363"
+      },
+      {
+        "index": 363,
+        "type": "Text",
+        "label": "旧车换新",
+        "value": "旧车换新",
+        "identifier": "18587",
+        "rect": {
+          "x": 808,
+          "y": 1938,
+          "width": 163,
+          "height": 48
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 361,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e364"
+      },
+      {
+        "index": 364,
+        "type": "ListItem",
+        "identifier": "18433",
+        "rect": {
+          "x": 0,
+          "y": 2073,
+          "width": 1779,
+          "height": 236
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 285,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e365"
+      },
+      {
+        "index": 365,
+        "type": "__Common__",
+        "identifier": "18589",
+        "rect": {
+          "x": 50,
+          "y": 2073,
+          "width": 1679,
+          "height": 149
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 364,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e366"
+      },
+      {
+        "index": 366,
+        "type": "Column",
+        "identifier": "18591",
+        "rect": {
+          "x": 50,
+          "y": 2073,
+          "width": 1679,
+          "height": 149
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 365,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e367"
+      },
+      {
+        "index": 367,
+        "type": "Text",
+        "label": "意见反馈",
+        "value": "意见反馈",
+        "identifier": "18592",
+        "rect": {
+          "x": 739,
+          "y": 2110,
+          "width": 302,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 366,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e368"
+      },
+      {
+        "index": 368,
+        "type": "__Common__",
+        "identifier": "449",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e369"
+      },
+      {
+        "index": 369,
+        "type": "Stack",
+        "identifier": "867",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 368,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e370"
+      },
+      {
+        "index": 370,
+        "type": "__Common__",
+        "identifier": "872",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 369,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e371"
+      },
+      {
+        "index": 371,
+        "type": "Stack",
+        "identifier": "874",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 370,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e372"
+      },
+      {
+        "index": 372,
+        "type": "EffectComponent",
+        "identifier": "878",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 371,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e373"
+      },
+      {
+        "index": 373,
+        "type": "Stack",
+        "identifier": "879",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 372,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e374"
+      },
+      {
+        "index": 374,
+        "type": "Row",
+        "identifier": "935",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 373,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e375"
+      },
+      {
+        "index": 375,
+        "type": "Stack",
+        "identifier": "885",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 373,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e376"
+      },
+      {
+        "index": 376,
+        "type": "RelativeContainer",
+        "identifier": "886",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 375,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e377"
+      },
+      {
+        "index": 377,
+        "type": "Stack",
+        "identifier": "940",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 376,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e378"
+      },
+      {
+        "index": 378,
+        "type": "Row",
+        "identifier": "954",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 377,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e379"
+      },
+      {
+        "index": 379,
+        "type": "Flex",
+        "label": "18, :, 51",
+        "value": "18, :, 51",
+        "identifier": "955",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 378,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e380"
+      },
+      {
+        "index": 380,
+        "type": "Row",
+        "identifier": "956",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 68,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 379,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e381"
+      },
+      {
+        "index": 381,
+        "type": "TextClock",
+        "identifier": "957",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 380,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e382"
+      },
+      {
+        "index": 382,
+        "type": "Text",
+        "label": "18",
+        "value": "18",
+        "identifier": "958",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 381,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e383"
+      },
+      {
+        "index": 383,
+        "type": "Text",
+        "label": ":",
+        "value": ":",
+        "identifier": "959",
+        "rect": {
+          "x": 80,
+          "y": 39,
+          "width": 13,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 380,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e384"
+      },
+      {
+        "index": 384,
+        "type": "TextClock",
+        "identifier": "960",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 379,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e385"
+      },
+      {
+        "index": 385,
+        "type": "Text",
+        "label": "51",
+        "value": "51",
+        "identifier": "961",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 384,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e386"
+      },
+      {
+        "index": 386,
+        "type": "RelativeContainer",
+        "identifier": "898",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 2093,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 373,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e387"
+      },
+      {
+        "index": 387,
+        "type": "Stack",
+        "identifier": "4165",
+        "rect": {
+          "x": 1840,
+          "y": 25,
+          "width": 63,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 386,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e388"
+      },
+      {
+        "index": 388,
+        "type": "Stack",
+        "identifier": "4169",
+        "rect": {
+          "x": 1846,
+          "y": 25,
+          "width": 57,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 387,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e389"
+      },
+      {
+        "index": 389,
+        "type": "Image",
+        "identifier": "4170",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 388,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e390"
+      },
+      {
+        "index": 390,
+        "type": "Image",
+        "identifier": "4171",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 388,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e391"
+      },
+      {
+        "index": 391,
+        "type": "Stack",
+        "identifier": "1016",
+        "rect": {
+          "x": 1903,
+          "y": 25,
+          "width": 70,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 386,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e392"
+      },
+      {
+        "index": 392,
+        "type": "Row",
+        "identifier": "1088",
+        "rect": {
+          "x": 1909,
+          "y": 25,
+          "width": 64,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 391,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e393"
+      },
+      {
+        "index": 393,
+        "type": "Row",
+        "identifier": "1707",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 392,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e394"
+      },
+      {
+        "index": 394,
+        "type": "Stack",
+        "identifier": "1803",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 393,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e395"
+      },
+      {
+        "index": 395,
+        "type": "Image",
+        "identifier": "2398",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 394,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e396"
+      },
+      {
+        "index": 396,
+        "type": "Image",
+        "identifier": "1807",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 394,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e397"
+      },
+      {
+        "index": 397,
+        "type": "Stack",
+        "identifier": "1019",
+        "rect": {
+          "x": 1973,
+          "y": 25,
+          "width": 120,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 386,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e398"
+      },
+      {
+        "index": 398,
+        "type": "Row",
+        "identifier": "1024",
+        "rect": {
+          "x": 1979,
+          "y": 25,
+          "width": 113,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 397,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e399"
+      },
+      {
+        "index": 399,
+        "type": "Stack",
+        "identifier": "1025",
+        "rect": {
+          "x": 1979,
+          "y": 36,
+          "width": 90,
+          "height": 53
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 398,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e400"
+      },
+      {
+        "index": 400,
+        "type": "Image",
+        "identifier": "1027",
+        "rect": {
+          "x": 1979,
+          "y": 38,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 399,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e401"
+      },
+      {
+        "index": 401,
+        "type": "Text",
+        "label": "95",
+        "value": "95",
+        "identifier": "1030",
+        "rect": {
+          "x": 1975,
+          "y": 39,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 399,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e402"
+      },
+      {
+        "index": 402,
+        "type": "Image",
+        "identifier": "155014",
+        "rect": {
+          "x": 2069,
+          "y": 38,
+          "width": 23,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 398,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e403"
+      },
+      {
+        "index": 403,
+        "type": "Stack",
+        "identifier": "156899",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e404"
+      },
+      {
+        "index": 404,
+        "type": "Stack",
+        "identifier": "156900",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 403,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e405"
+      },
+      {
+        "index": 405,
+        "type": "Button",
+        "identifier": "156901",
+        "rect": {
+          "x": 1037,
+          "y": 22,
+          "width": 150,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 404,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e406"
+      },
+      {
+        "index": 406,
+        "type": "Row",
+        "identifier": "156902",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 113,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 405,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e407"
+      },
+      {
+        "index": 407,
+        "type": "Text",
+        "identifier": "156903",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 406,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e408"
+      },
+      {
+        "index": 408,
+        "type": "Text",
+        "identifier": "156904",
+        "rect": {
+          "x": 1087,
+          "y": 41,
+          "width": 50,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 406,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e409"
+      },
+      {
+        "index": 409,
+        "type": "Text",
+        "identifier": "156905",
+        "rect": {
+          "x": 1150,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 406,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e410"
+      }
+    ],
+    "truncated": false,
+    "appName": "com.ss.dcar.auto",
+    "visibility": {
+      "partial": false,
+      "visibleNodeCount": 410,
+      "totalNodeCount": 410,
+      "reasons": []
+    }
+  }
+}

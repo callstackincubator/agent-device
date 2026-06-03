@@ -1,0 +1,200 @@
+# 遍历逻辑树
+
+来源: `smart-traverse-report.json`
+- 目标包: `com.ss.dcar.auto`
+- 访问界面: 13
+
+## 路径树（仅「新界面」边）
+
+```
+root
+**s1_d0** (nodes=613 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view)
+  - → `AI小懂`
+  - → `搜索`
+  - → `搜索`
+  - → `Column@383,1934`
+  - → `Column@1112,1934`
+  - **s2_d1** (nodes=278 · navigation-based)
+  - **s3_d1** (nodes=618 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view)
+    - → `搜索`
+    - → `搜索`
+    - **s4_d2** (nodes=277 · navigation-based)
+    - **s5_d2** (nodes=211 · navigation-based, horizontal-layout)
+      - → `` (未子遍历)
+      - → `2026年4月销量汽车排行榜` (未子遍历)
+      - → `` (未子遍历)
+      - → `搜索` (未子遍历)
+      - → `` (未子遍历)
+      - → `` (未子遍历)
+  - **s4_d2** (nodes=277 · navigation-based)
+  - **s5_d2** (nodes=211 · navigation-based, horizontal-layout)
+  - **s6_d1** (nodes=142 · navigation-based, horizontal-layout)
+    - → ``
+    - → `懂车帝直线赛`
+    - **s7_d2** (nodes=554 · navigation-based, horizontal-layout, list-view)
+      - → `东风奕派M8车顶设计引争议` (未子遍历)
+      - → `销量 14923` (未子遍历)
+      - → `4.56L/100km` (未子遍历)
+      - → `新款雷克萨斯RX曝光` (未子遍历)
+      - → `销量 14372` (未子遍历)
+      - → `4.66L/100km` (未子遍历)
+      - → `长城哈弗猛龙PLUS开启全国交付` (未子遍历)
+      - → `销量 14218` (未子遍历)
+      - → `4.82L/100km` (未子遍历)
+      - → `` (未子遍历)
+      - → `` (未子遍历)
+      - → `搜索` (未子遍历)
+    - **s8_d2** (nodes=618 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view)
+      - → `` (未子遍历)
+      - → `发现` (未子遍历)
+      - → `商城` (未子遍历)
+      - → `Column@548,188` (未子遍历)
+      - → `横穿北美` (未子遍历)
+      - → `Stack@91,338` (未子遍历)
+  - **s9_d1** (nodes=275 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view)
+    - → `3`
+    - **s10_d2** (nodes=251 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view)
+      - → `我也想去玩，不对。工作` (未子遍历)
+      - → `3` (未子遍历)
+      - → `131` (未子遍历)
+      - → `37` (未子遍历)
+      - → `视频提及` (未子遍历)
+      - → `6评论4赞` (未子遍历)
+      - → `Fantasy060602` (未子遍历)
+      - → `__Common__@100,2189` (未子遍历)
+      - → `` (未子遍历)
+      - → `` (未子遍历)
+      - → `视频` (未子遍历)
+      - → `3` (未子遍历)
+  - **s11_d1** (nodes=414 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view, grid-view)
+    - → `Column@678,2274`
+    - → `Column@1547,2274`
+    - **s12_d2** (nodes=414 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view, grid-view)
+      - → `Column@678,2274` (未子遍历)
+      - → `Column@1113,2274` (未子遍历)
+      - → `Column@1982,2274` (未子遍历)
+      - → `浏览历史` (未子遍历)
+      - → `车品` (未子遍历)
+      - → `价格举报` (未子遍历)
+      - → `免息` (未子遍历)
+    - **s13_d2** (nodes=78 · navigation-based, horizontal-layout)
+      - → `Stack@1200,2235` (未子遍历)
+      - → `登录遇到问题` (未子遍历)
+```
+
+## 完整决策树（含无变化 / 跳过）
+
+- **s1_d0 · depth=0 · nodes=613 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view**
+  - → `AI小懂` — 新界面 (613→278) → **s2_d1**
+  - → `搜索` — 新界面 (618→618) → **s3_d1**
+  - → `搜索` — 新界面 (619→142) → **s5_d2**
+  - → `Column@383,1934` — 新界面 (209→275) → **s9_d1**
+  - → `Column@1112,1934` — 新界面 (413→414) → **s11_d1**
+  - · `Column@1841,1934` — 无变化 (78→78)
+  - · `` — 无变化 (78→78)
+  - · `发现` — 无变化 (?→?)
+  - ⊘ `商城` — 跳过 (wrong_app)
+  - **s2_d1 · depth=1 · nodes=278 · navigation-based**
+    - · `Stack@1112,1305` — 无变化 (278→277)
+    - · `Stack@1112,1305` — 无变化 (278→277)
+  - **s3_d1 · depth=1 · nodes=618 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view**
+    - · `AI小懂` — 无变化 (618→278)
+    - → `搜索` — 新界面 (618→277) → **s4_d2**
+    - → `搜索` — 新界面 (618→211) → **s5_d2**
+    - ⊘ `Column@383,1934` — 跳过 (launcher)
+    - **s4_d2 · depth=2 · nodes=277 · navigation-based**
+      - · `Stack@1112,1305` — 无变化 (277→277)
+      - · `Stack@1112,1305` — 无变化 (277→277)
+    - **s5_d2 · depth=2 · nodes=211 · navigation-based, horizontal-layout**
+      - → `` — 新界面 (211→577) · 未子遍历
+      - → `2026年4月销量汽车排行榜` — 新界面 (211→619) · 未子遍历
+      - → `` — 新界面 (211→619) · 未子遍历
+      - → `搜索` — 新界面 (211→969) · 未子遍历
+      - → `` — 新界面 (211→758) · 未子遍历
+      - → `` — 新界面 (211→619) · 未子遍历
+  - **s4_d2 · depth=2 · nodes=277 · navigation-based**
+    - ↩ 已访问（环）
+  - **s5_d2 · depth=2 · nodes=211 · navigation-based, horizontal-layout**
+    - ↩ 已访问（环）
+  - **s6_d1 · depth=1 · nodes=142 · navigation-based, horizontal-layout**
+    - → `` — 新界面 (142→554) → **s7_d2**
+    - → `懂车帝直线赛` — 新界面 (618→618) → **s8_d2**
+    - ⊘ `` — 跳过 (launcher)
+    - **s7_d2 · depth=2 · nodes=554 · navigation-based, horizontal-layout, list-view**
+      - → `东风奕派M8车顶设计引争议` — 新界面 (554→196) · 未子遍历
+      - → `销量 14923` — 新界面 (554→88) · 未子遍历
+      - → `4.56L/100km` — 新界面 (554→88) · 未子遍历
+      - → `新款雷克萨斯RX曝光` — 新界面 (554→219) · 未子遍历
+      - → `销量 14372` — 新界面 (554→88) · 未子遍历
+      - → `4.66L/100km` — 新界面 (554→88) · 未子遍历
+      - → `长城哈弗猛龙PLUS开启全国交付` — 新界面 (554→196) · 未子遍历
+      - → `销量 14218` — 新界面 (554→88) · 未子遍历
+      - → `4.82L/100km` — 新界面 (554→88) · 未子遍历
+      - → `` — 新界面 (554→618) · 未子遍历
+      - → `` — 新界面 (554→618) · 未子遍历
+      - → `搜索` — 新界面 (554→968) · 未子遍历
+    - **s8_d2 · depth=2 · nodes=618 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view**
+      - · `AI小懂` — 无变化 (618→278)
+      - · `搜索` — 无变化 (618→278)
+      - · `搜索` — 无变化 (618→277)
+      - · `Column@383,1934` — 无变化 (618→277)
+      - · `Column@1112,1934` — 无变化 (618→278)
+      - · `Column@1841,1934` — 无变化 (618→277)
+      - → `` — 新界面 (618→301) · 未子遍历
+      - → `发现` — 新界面 (618→631) · 未子遍历
+      - → `商城` — 新界面 (618→495) · 未子遍历
+      - → `Column@548,188` — 新界面 (618→222) · 未子遍历
+      - → `横穿北美` — 新界面 (618→209) · 未子遍历
+      - → `Stack@91,338` — 新界面 (618→209) · 未子遍历
+  - **s9_d1 · depth=1 · nodes=275 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view**
+    - → `3` — 新界面 (275→251) → **s10_d2**
+    - ⊘ `131` — 跳过 (launcher)
+    - **s10_d2 · depth=2 · nodes=251 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view**
+      - → `我也想去玩，不对。工作` — 新界面 (251→228) · 未子遍历
+      - → `3` — 新界面 (251→245) · 未子遍历
+      - → `131` — 新界面 (251→326) · 未子遍历
+      - → `37` — 新界面 (251→326) · 未子遍历
+      - → `视频提及` — 新界面 (251→325) · 未子遍历
+      - → `6评论4赞` — 新界面 (251→320) · 未子遍历
+      - → `Fantasy060602` — 新界面 (251→103) · 未子遍历
+      - → `__Common__@100,2189` — 新界面 (251→103) · 未子遍历
+      - → `` — 新界面 (251→414) · 未子遍历
+      - → `` — 新界面 (251→414) · 未子遍历
+      - → `视频` — 新界面 (251→413) · 未子遍历
+      - → `3` — 新界面 (251→414) · 未子遍历
+  - **s11_d1 · depth=1 · nodes=414 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view, grid-view**
+    - · `Column@243,2274` — 无变化 (414→414)
+    - → `Column@678,2274` — 新界面 (414→414) → **s12_d2**
+    - · `Column@1113,2274` — 无变化 (320→278)
+    - → `Column@1547,2274` — 新界面 (320→78) → **s13_d2**
+    - · `Column@1982,2274` — 无变化 (278→78)
+    - · `AI小懂` — 无变化 (?→?)
+    - ⊘ `限时7日领` — 跳过 (launcher)
+    - **s12_d2 · depth=2 · nodes=414 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view, grid-view**
+      - · `Column@243,2274` — 无变化 (414→414)
+      - → `Column@678,2274` — 新界面 (414→413) · 未子遍历
+      - → `Column@1113,2274` — 新界面 (414→413) · 未子遍历
+      - · `Column@1547,2274` — 无变化 (414→414)
+      - → `Column@1982,2274` — 新界面 (414→320) · 未子遍历
+      - · `AI小懂` — 无变化 (414→278)
+      - · `限时7日领` — 无变化 (414→278)
+      - · `` — 无变化 (414→277)
+      - → `浏览历史` — 新界面 (414→78) · 未子遍历
+      - → `车品` — 新界面 (414→78) · 未子遍历
+      - → `价格举报` — 新界面 (414→78) · 未子遍历
+      - → `免息` — 新界面 (414→78) · 未子遍历
+    - **s13_d2 · depth=2 · nodes=78 · navigation-based, horizontal-layout**
+      - · `` — 无变化 (78→277)
+      - · `TextInput@1112,614` — 无变化 (78→278)
+      - · `Checkbox@136,1036` — 无变化 (78→278)
+      - · `已阅读并同意 “用户协议” 和 “隐私政策”` — 无变化 (78→278)
+      - · `Image@1025,2235` — 无变化 (78→78)
+      - → `Stack@1200,2235` — 新界面 (78→105) · 未子遍历
+      - → `登录遇到问题` — 新界面 (78→91) · 未子遍历
+
+## 图例
+- `→` 进入新界面（递归子遍历）
+- `·` 点击但界面未变
+- `⊘` 跳过（护栏/错包等）
+
+生成时间: 2026-05-27T09:26:20.932Z

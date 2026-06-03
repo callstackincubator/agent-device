@@ -50,6 +50,7 @@ export const clientCommandMetadata = [
   defineClientCommandMetadata('apps', {
     appsFilter: enumField(['user-installed', 'all']),
   }),
+  defineClientCommandMetadata('cognition', {}),
   defineClientCommandMetadata('session', {
     action: enumField(['list']),
   }),

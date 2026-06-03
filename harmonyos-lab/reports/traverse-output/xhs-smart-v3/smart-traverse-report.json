@@ -1,0 +1,623 @@
+{
+  "targetBundle": "com.xingin.xhs_hos",
+  "deviceId": "22M0223824043030",
+  "outputDir": "./traverse-output/xhs-smart-v3",
+  "maxDepth": 2,
+  "aborted": false,
+  "screensVisited": 3,
+  "totalClicks": 8,
+  "newScreensFromClicks": 4,
+  "skippedClicks": 3,
+  "results": [
+    {
+      "screenId": "s1_d0",
+      "depth": 0,
+      "parentAction": null,
+      "fingerprint": {
+        "nodes": 102,
+        "labels": ":|English Version|rednote Privacy Policy|《小红书出海电商业务个人信息处理知情同意书》|《小红书用户服务协议》|在线协议|小红书用户隐私权政策（简明版）",
+        "key": "102::|English Version|rednote Privacy Policy|《小红书出海电商业务个人信息处理知情同意书》|《小红书用户服务协议》|在线协议|小红书用户隐私权政策（简明版）"
+      },
+      "guard": {
+        "bundles": [
+          "com.xingin.xhs_hos",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.xingin.xhs_hos",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 102,
+          "treeDepth": 15,
+          "complexity": "simple"
+        },
+        "suggestions": [
+          "存在导航结构，建议按导航层级遍历"
+        ],
+        "features": {
+          "hasScroll": false,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": false,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based"
+        ]
+      },
+      "plan": [
+        {
+          "category": "content-card",
+          "label": "《小红书用户服务协议》",
+          "type": "link",
+          "x": 1101,
+          "y": 2132,
+          "bounds": "[50,2071][2151,2193]"
+        },
+        {
+          "category": "content",
+          "label": "在线协议",
+          "type": "Image",
+          "x": 69,
+          "y": 181,
+          "bounds": "[31,143][106,218]"
+        },
+        {
+          "category": "content",
+          "label": "English Version",
+          "type": "link",
+          "x": 208,
+          "y": 379,
+          "bounds": "[50,352][366,405]"
+        },
+        {
+          "category": "content",
+          "label": "小红书用户隐私权政策（简明版）",
+          "type": "link",
+          "x": 379,
+          "y": 717,
+          "bounds": "[50,690][707,743]"
+        },
+        {
+          "category": "content",
+          "label": "rednote Privacy Policy",
+          "type": "link",
+          "x": 1270,
+          "y": 1623,
+          "bounds": "[1037,1596][1502,1649]"
+        },
+        {
+          "category": "content",
+          "label": "《小红书出海电商业务个人信息处理知情同意书》",
+          "type": "link",
+          "x": 750,
+          "y": 2235,
+          "bounds": "[268,2209][1232,2261]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[content-card] press 1101 2132 (《小红书用户服务协议》)",
+          "pressOk": true,
+          "beforeNodes": 102,
+          "afterNodes": 102,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/xhs-smart-v3/layouts/s1_d0_after_0.json"
+        },
+        {
+          "action": "[content] press 69 181 (在线协议)",
+          "pressOk": true,
+          "beforeNodes": 102,
+          "afterNodes": 323,
+          "nodeDelta": 221,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/xhs-smart-v3/layouts/s1_d0_after_1.json"
+        },
+        {
+          "action": "[content] press 208 379 (English Version)",
+          "skipped": true,
+          "reason": "wrong_app"
+        }
+      ]
+    },
+    {
+      "screenId": "s2_d1",
+      "depth": 1,
+      "parentAction": "[content] press 69 181 (在线协议)",
+      "fingerprint": {
+        "nodes": 323,
+        "labels": "1.9万|1.9万|1.9万|2054|7541|:|一代人有一代人的笑点～, 小僧不内耗, 7541|关注|其他登录方式|其他登录方式|动漫|去登录|去登录|发现|壁纸|头像|市集|帮助|帮助|彩妆|微信登录|我|我|我|我|我|我已阅读并同意《用户协议》《隐私政策》《儿童/未成年人个人信息保护规则》|我已阅读并同意《用户协议》《隐私政策》《儿童/未成年人个人信息保护规则》|我已阅读并同意《用户协议》《隐私政策》《儿童/未成年人个人信息保护规则》|手工|打开推送通知，每天都能收到你感兴趣的笔记哦～|打这玩意儿太上瘾了 , 年轻人小邹, 23.4万|推荐|搞笑|旅行|昨晚在海淀的洗脚城点了一个985研究生, 梅西在哟西, 146|本命偶像竟然跟我是同桌！！！, 子一ZoYee, 3.7万|消息|消息|游戏|游戏|登录发现更多精彩|登录发现更多精彩|直播|穿搭|美甲|美食|视频|贾玲又复胖了❗真假❓, 小楠健身塑形（力量训练）, 2054|附近|首页|🦁 , Dollar要多乐, 1.9万",
+        "key": "323:1.9万|1.9万|1.9万|2054|7541|:|一代人有一代人的笑点～, 小僧不内耗, 7541|关注|其他登录方式|其他登录方式|动漫|去登录|去登录|发现|壁纸|头像|市集|帮助|帮助|彩妆|微信登录|我|我|我|我|我|我已阅读并同意《用户协议》《隐私政策》《儿童/未成年人个人信息保护规则》|我已阅读并同意《用户协议》《隐私政策》《儿童/未成年人个人信息保护规则》|我已阅读并同意《用户"
+      },
+      "guard": {
+        "bundles": [
+          "com.xingin.xhs_hos",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.xingin.xhs_hos",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 323,
+          "treeDepth": 34,
+          "complexity": "medium"
+        },
+        "suggestions": [
+          "界面复杂度高，建议优先测试关键路径",
+          "存在导航结构，建议按导航层级遍历",
+          "交互元素多，建议分类测试（按钮、输入框、链接等）"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": true,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based",
+          "tab-based",
+          "vertical-scroll",
+          "horizontal-layout",
+          "list-view"
+        ]
+      },
+      "plan": [
+        {
+          "category": "top-action",
+          "label": "关注",
+          "type": "Row",
+          "x": 939,
+          "y": 181,
+          "bounds": "[852,113][1026,249]"
+        },
+        {
+          "category": "top-action",
+          "label": "发现",
+          "type": "Row",
+          "x": 1113,
+          "y": 181,
+          "bounds": "[1026,113][1200,249]"
+        },
+        {
+          "category": "top-action",
+          "label": "附近",
+          "type": "Row",
+          "x": 1287,
+          "y": 181,
+          "bounds": "[1200,113][1374,249]"
+        },
+        {
+          "category": "top-action",
+          "label": "",
+          "type": "Row",
+          "x": 63,
+          "y": 182,
+          "bounds": "[0,113][125,250]"
+        },
+        {
+          "category": "top-action",
+          "label": "",
+          "type": "Row",
+          "x": 2162,
+          "y": 182,
+          "bounds": "[2099,113][2224,250]"
+        },
+        {
+          "category": "button",
+          "label": "微信登录",
+          "type": "Button",
+          "x": 1113,
+          "y": 1917,
+          "bounds": "[456,1842][1769,1992]"
+        },
+        {
+          "category": "content-card",
+          "label": "昨晚在海淀的洗脚城点了一个985研究生, 梅西在哟西, 146",
+          "type": "__Common__",
+          "x": 376,
+          "y": 1917,
+          "bounds": "[15,1562][736,2272]"
+        },
+        {
+          "category": "content-card",
+          "label": "登录发现更多精彩",
+          "type": "Stack",
+          "x": 376,
+          "y": 1917,
+          "bounds": "[15,1562][736,2272]"
+        },
+        {
+          "category": "content-card",
+          "label": "打这玩意儿太上瘾了 , 年轻人小邹, 23.4万",
+          "type": "__Common__",
+          "x": 1113,
+          "y": 1917,
+          "bounds": "[752,1562][1473,2272]"
+        },
+        {
+          "category": "content-card",
+          "label": "其他登录方式",
+          "type": "Stack",
+          "x": 1113,
+          "y": 1917,
+          "bounds": "[752,1562][1473,2272]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[top-action] press 939 181 (关注)",
+          "pressOk": true,
+          "beforeNodes": 323,
+          "afterNodes": 283,
+          "nodeDelta": 40,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/xhs-smart-v3/layouts/s2_d1_after_0.json"
+        },
+        {
+          "action": "[top-action] press 1113 181 (发现)",
+          "skipped": true,
+          "reason": "wrong_app"
+        }
+      ]
+    },
+    {
+      "screenId": "s3_d2",
+      "depth": 2,
+      "parentAction": "[top-action] press 939 181 (关注)",
+      "fingerprint": {
+        "nodes": 283,
+        "labels": "1.9万|1.9万|1.9万|2054|7541|:|一代人有一代人的笑点～, 小僧不内耗, 7541|关注|动漫|去登录|去登录|发现|壁纸|头像|市集|彩妆|我|我|手工|打开推送通知，每天都能收到你感兴趣的笔记哦～|打开推送通知，每天都能收到你感兴趣的笔记哦～|打这玩意儿太上瘾了 , 年轻人小邹, 23.4万|推荐|搞笑|旅行|昨晚在海淀的洗脚城点了一个985研究生, 梅西在哟西, 146|本命偶像竟然跟我是同桌！！！, 子一ZoYee, 3.7万|消息|消息|游戏|游戏|登录发现更多精彩|直播|穿搭|美甲|美食|视频|贾玲又复胖了❗真假❓, 小楠健身塑形（力量训练）, 2054|附近|首页|🦁 , Dollar要多乐, 1.9万",
+        "key": "283:1.9万|1.9万|1.9万|2054|7541|:|一代人有一代人的笑点～, 小僧不内耗, 7541|关注|动漫|去登录|去登录|发现|壁纸|头像|市集|彩妆|我|我|手工|打开推送通知，每天都能收到你感兴趣的笔记哦～|打开推送通知，每天都能收到你感兴趣的笔记哦～|打这玩意儿太上瘾了 , 年轻人小邹, 23.4万|推荐|搞笑|旅行|昨晚在海淀的洗脚城点了一个985研究生, 梅西在哟西, 146|"
+      },
+      "guard": {
+        "bundles": [
+          "com.xingin.xhs_hos",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.xingin.xhs_hos",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "systemOverlayOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 283,
+          "treeDepth": 34,
+          "complexity": "medium"
+        },
+        "suggestions": [
+          "界面复杂度高，建议优先测试关键路径",
+          "存在导航结构，建议按导航层级遍历",
+          "交互元素多，建议分类测试（按钮、输入框、链接等）"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": true,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based",
+          "tab-based",
+          "vertical-scroll",
+          "horizontal-layout",
+          "list-view"
+        ]
+      },
+      "plan": [
+        {
+          "category": "top-action",
+          "label": "关注",
+          "type": "Row",
+          "x": 939,
+          "y": 181,
+          "bounds": "[852,113][1026,249]"
+        },
+        {
+          "category": "top-action",
+          "label": "发现",
+          "type": "Row",
+          "x": 1113,
+          "y": 181,
+          "bounds": "[1026,113][1200,249]"
+        },
+        {
+          "category": "top-action",
+          "label": "附近",
+          "type": "Row",
+          "x": 1287,
+          "y": 181,
+          "bounds": "[1200,113][1374,249]"
+        },
+        {
+          "category": "top-action",
+          "label": "",
+          "type": "Row",
+          "x": 63,
+          "y": 182,
+          "bounds": "[0,113][125,250]"
+        },
+        {
+          "category": "top-action",
+          "label": "",
+          "type": "Row",
+          "x": 2162,
+          "y": 182,
+          "bounds": "[2099,113][2224,250]"
+        },
+        {
+          "category": "content-card",
+          "label": "昨晚在海淀的洗脚城点了一个985研究生, 梅西在哟西, 146",
+          "type": "__Common__",
+          "x": 376,
+          "y": 1917,
+          "bounds": "[15,1562][736,2272]"
+        },
+        {
+          "category": "content-card",
+          "label": "登录发现更多精彩",
+          "type": "Stack",
+          "x": 376,
+          "y": 1917,
+          "bounds": "[15,1562][736,2272]"
+        },
+        {
+          "category": "content-card",
+          "label": "打这玩意儿太上瘾了 , 年轻人小邹, 23.4万",
+          "type": "__Common__",
+          "x": 1113,
+          "y": 1917,
+          "bounds": "[752,1562][1473,2272]"
+        },
+        {
+          "category": "content-card",
+          "label": "",
+          "type": "Stack",
+          "x": 1113,
+          "y": 1917,
+          "bounds": "[752,1562][1473,2272]"
+        },
+        {
+          "category": "content-card",
+          "label": "本命偶像竟然跟我是同桌！！！, 子一ZoYee, 3.7万",
+          "type": "__Common__",
+          "x": 1849,
+          "y": 1917,
+          "bounds": "[1488,1562][2209,2272]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[top-action] press 939 181 (关注)",
+          "pressOk": true,
+          "beforeNodes": 283,
+          "afterNodes": 271,
+          "nodeDelta": 12,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/xhs-smart-v3/layouts/s3_d2_after_0.json"
+        },
+        {
+          "action": "[top-action] press 1113 181 (发现)",
+          "pressOk": true,
+          "beforeNodes": 283,
+          "afterNodes": 269,
+          "nodeDelta": 14,
+          "labelChanged": true,
+          "isNewScreen": true,
+          "afterLayout": "traverse-output/xhs-smart-v3/layouts/s3_d2_after_1.json"
+        },
+        {
+          "action": "[top-action] press 1287 181 (附近)",
+          "pressOk": true,
+          "skipped": true,
+          "reason": "wrong_app",
+          "afterBundles": [
+            "com.huawei.hmos.security.privacycenter",
+            "com.ohos.sceneboard"
+          ],
+          "isNewScreen": false
+        }
+      ]
+    }
+  ],
+  "completedAt": "2026-05-26T10:57:50.354Z",
+  "traverseTree": {
+    "targetBundle": "com.xingin.xhs_hos",
+    "outputDir": "./traverse-output/xhs-smart-v3",
+    "screensVisited": 3,
+    "maxDepth": 2,
+    "totalClicks": 8,
+    "roots": [
+      {
+        "screenId": "s1_d0",
+        "depth": 0,
+        "parentAction": null,
+        "displayName": "隐私 / 用户协议页",
+        "nodeCount": 102,
+        "title": "s1_d0 · depth=0 · nodes=102 · navigation-based",
+        "fingerprint": {
+          "nodes": 102,
+          "labels": ":|English Version|rednote Privacy Policy|《小红书出海电商业务个人信息处理知情同意书》|《小红书用户服务协议》|在线协议|小红书用户隐私权政策（简明版）",
+          "key": "102::|English Version|rednote Privacy Policy|《小红书出海电商业务个人信息处理知情同意书》|《小红书用户服务协议》|在线协议|小红书用户隐私权政策（简明版）"
+        },
+        "cognition": {
+          "treeDepth": 15,
+          "features": {
+            "hasScroll": false,
+            "hasTabs": true,
+            "hasModal": false,
+            "hasList": false,
+            "hasForm": false
+          },
+          "suggestions": [
+            "存在导航结构，建议按导航层级遍历"
+          ]
+        },
+        "clickBranches": [
+          {
+            "action": "[content-card] press 1101 2132 (《小红书用户服务协议》)",
+            "label": "《小红书用户服务协议》",
+            "status": "无变化 (102→102)",
+            "isNewScreen": false,
+            "skipped": false,
+            "unvisitedNewScreen": false
+          },
+          {
+            "action": "[content] press 69 181 (在线协议)",
+            "label": "在线协议",
+            "status": "新界面 (102→323)",
+            "isNewScreen": true,
+            "skipped": false,
+            "childScreenId": "s2_d1",
+            "unvisitedNewScreen": false
+          },
+          {
+            "action": "[content] press 208 379 (English Version)",
+            "label": "English Version",
+            "status": "跳过 (wrong_app)",
+            "isNewScreen": false,
+            "skipped": true,
+            "reason": "wrong_app",
+            "unvisitedNewScreen": false
+          }
+        ],
+        "children": [
+          {
+            "screenId": "s2_d1",
+            "depth": 1,
+            "parentAction": "[content] press 69 181 (在线协议)",
+            "displayName": "登录引导页（顶栏有关注 / 发现等）",
+            "nodeCount": 323,
+            "title": "s2_d1 · depth=1 · nodes=323 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view",
+            "fingerprint": {
+              "nodes": 323,
+              "labels": "1.9万|1.9万|1.9万|2054|7541|:|一代人有一代人的笑点～, 小僧不内耗, 7541|关注|其他登录方式|其他登录方式|动漫|去登录|去登录|发现|壁纸|头像|市集|帮助|帮助|彩妆|微信登录|我|我|我|我|我|我已阅读并同意《用户协议》《隐私政策》《儿童/未成年人个人信息保护规则》|我已阅读并同意《用户协议》《隐私政策》《儿童/未成年人个人信息保护规则》|我已阅读并同意《用户协议》《隐私政策》《儿童/未成年人个人信息保护规则》|手工|打开推送通知，每天都能收到你感兴趣的笔记哦～|打这玩意儿太上瘾了 , 年轻人小邹, 23.4万|推荐|搞笑|旅行|昨晚在海淀的洗脚城点了一个985研究生, 梅西在哟西, 146|本命偶像竟然跟我是同桌！！！, 子一ZoYee, 3.7万|消息|消息|游戏|游戏|登录发现更多精彩|登录发现更多精彩|直播|穿搭|美甲|美食|视频|贾玲又复胖了❗真假❓, 小楠健身塑形（力量训练）, 2054|附近|首页|🦁 , Dollar要多乐, 1.9万",
+              "key": "323:1.9万|1.9万|1.9万|2054|7541|:|一代人有一代人的笑点～, 小僧不内耗, 7541|关注|其他登录方式|其他登录方式|动漫|去登录|去登录|发现|壁纸|头像|市集|帮助|帮助|彩妆|微信登录|我|我|我|我|我|我已阅读并同意《用户协议》《隐私政策》《儿童/未成年人个人信息保护规则》|我已阅读并同意《用户协议》《隐私政策》《儿童/未成年人个人信息保护规则》|我已阅读并同意《用户"
+            },
+            "cognition": {
+              "treeDepth": 34,
+              "features": {
+                "hasScroll": true,
+                "hasTabs": true,
+                "hasModal": false,
+                "hasList": true,
+                "hasForm": false
+              },
+              "suggestions": [
+                "界面复杂度高，建议优先测试关键路径",
+                "存在导航结构，建议按导航层级遍历",
+                "交互元素多，建议分类测试（按钮、输入框、链接等）"
+              ]
+            },
+            "clickBranches": [
+              {
+                "action": "[top-action] press 939 181 (关注)",
+                "label": "关注",
+                "status": "新界面 (323→283)",
+                "isNewScreen": true,
+                "skipped": false,
+                "childScreenId": "s3_d2",
+                "unvisitedNewScreen": false
+              },
+              {
+                "action": "[top-action] press 1113 181 (发现)",
+                "label": "发现",
+                "status": "跳过 (wrong_app)",
+                "isNewScreen": false,
+                "skipped": true,
+                "reason": "wrong_app",
+                "unvisitedNewScreen": false
+              }
+            ],
+            "children": [
+              {
+                "screenId": "s3_d2",
+                "depth": 2,
+                "parentAction": "[top-action] press 939 181 (关注)",
+                "displayName": "首页信息流（有关注 / 发现等 Tab）",
+                "nodeCount": 283,
+                "title": "s3_d2 · depth=2 · nodes=283 · navigation-based, tab-based, vertical-scroll, horizontal-layout, list-view",
+                "fingerprint": {
+                  "nodes": 283,
+                  "labels": "1.9万|1.9万|1.9万|2054|7541|:|一代人有一代人的笑点～, 小僧不内耗, 7541|关注|动漫|去登录|去登录|发现|壁纸|头像|市集|彩妆|我|我|手工|打开推送通知，每天都能收到你感兴趣的笔记哦～|打开推送通知，每天都能收到你感兴趣的笔记哦～|打这玩意儿太上瘾了 , 年轻人小邹, 23.4万|推荐|搞笑|旅行|昨晚在海淀的洗脚城点了一个985研究生, 梅西在哟西, 146|本命偶像竟然跟我是同桌！！！, 子一ZoYee, 3.7万|消息|消息|游戏|游戏|登录发现更多精彩|直播|穿搭|美甲|美食|视频|贾玲又复胖了❗真假❓, 小楠健身塑形（力量训练）, 2054|附近|首页|🦁 , Dollar要多乐, 1.9万",
+                  "key": "283:1.9万|1.9万|1.9万|2054|7541|:|一代人有一代人的笑点～, 小僧不内耗, 7541|关注|动漫|去登录|去登录|发现|壁纸|头像|市集|彩妆|我|我|手工|打开推送通知，每天都能收到你感兴趣的笔记哦～|打开推送通知，每天都能收到你感兴趣的笔记哦～|打这玩意儿太上瘾了 , 年轻人小邹, 23.4万|推荐|搞笑|旅行|昨晚在海淀的洗脚城点了一个985研究生, 梅西在哟西, 146|"
+                },
+                "cognition": {
+                  "treeDepth": 34,
+                  "features": {
+                    "hasScroll": true,
+                    "hasTabs": true,
+                    "hasModal": false,
+                    "hasList": true,
+                    "hasForm": false
+                  },
+                  "suggestions": [
+                    "界面复杂度高，建议优先测试关键路径",
+                    "存在导航结构，建议按导航层级遍历",
+                    "交互元素多，建议分类测试（按钮、输入框、链接等）"
+                  ]
+                },
+                "clickBranches": [
+                  {
+                    "action": "[top-action] press 939 181 (关注)",
+                    "label": "关注",
+                    "status": "新界面 (283→271) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[top-action] press 1113 181 (发现)",
+                    "label": "发现",
+                    "status": "新界面 (283→269) · 未子遍历",
+                    "isNewScreen": true,
+                    "skipped": false,
+                    "unvisitedNewScreen": true
+                  },
+                  {
+                    "action": "[top-action] press 1287 181 (附近)",
+                    "label": "附近",
+                    "status": "跳过 (wrong_app)",
+                    "isNewScreen": false,
+                    "skipped": true,
+                    "reason": "wrong_app",
+                    "unvisitedNewScreen": false
+                  }
+                ],
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

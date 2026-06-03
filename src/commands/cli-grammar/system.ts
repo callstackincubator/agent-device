@@ -14,6 +14,7 @@ import type { CliReader, DaemonWriter } from './types.ts';
 
 export const systemCliReaders = {
   appstate: (_positionals, flags) => commonInputFromFlags(flags),
+  cognition: (_positionals, flags) => commonInputFromFlags(flags),
   home: (_positionals, flags) => commonInputFromFlags(flags),
   'app-switcher': (_positionals, flags) => commonInputFromFlags(flags),
   back: (_positionals, flags) => ({
@@ -40,6 +41,7 @@ export const systemCliReaders = {
 
 export const systemDaemonWriters = {
   appstate: direct(PUBLIC_COMMANDS.appState),
+  cognition: direct(PUBLIC_COMMANDS.cognition),
   back: (input) =>
     request(PUBLIC_COMMANDS.back, [], { ...input, backMode: readBackMode(input.mode) }),
   home: direct(PUBLIC_COMMANDS.home),

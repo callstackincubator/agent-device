@@ -1,0 +1,355 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 554,
+    "treeDepth": 27,
+    "complexity": "complex"
+  },
+  "structure": {
+    "layoutPattern": [
+      "navigation-based",
+      "horizontal-layout",
+      "list-view"
+    ],
+    "mainContainers": [
+      {
+        "type": "Stack",
+        "depth": 2,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "Navigation",
+        "depth": 3,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "NavigationContent",
+        "depth": 4,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Navigation",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "NavigationContent",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Text",
+        "label": "搜索发现",
+        "bounds": "[50,427][2100,486]"
+      },
+      {
+        "type": "Text",
+        "label": "更多",
+        "bounds": "[613,837][701,888]"
+      },
+      {
+        "type": "Text",
+        "label": "更多",
+        "bounds": "[1390,837][1478,888]"
+      },
+      {
+        "type": "Text",
+        "label": "更多",
+        "bounds": "[2167,837][2224,888]"
+      },
+      {
+        "type": "Text",
+        "label": "搜索",
+        "bounds": "[2074,161][2174,220]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "Text",
+        "label": "2026省补申请入口",
+        "bounds": "[49,299][412,350]"
+      },
+      {
+        "type": "Text",
+        "label": "2026年4月销量汽车排行榜",
+        "bounds": "[489,299][1008,350]"
+      },
+      {
+        "type": "Text",
+        "label": "",
+        "bounds": "[2100,417][2174,496]"
+      },
+      {
+        "type": "Text",
+        "label": "2026年3月销量汽车排行榜",
+        "bounds": "[87,531][606,582]"
+      },
+      {
+        "type": "Text",
+        "label": "2026年4月车销量排行榜",
+        "bounds": "[711,531][1186,582]"
+      },
+      {
+        "type": "Text",
+        "label": "2026年4月销量汽车排行榜燃油车",
+        "bounds": "[1292,531][1942,582]"
+      },
+      {
+        "type": "Text",
+        "label": "比亚迪4月销量",
+        "bounds": "[87,662][375,713]"
+      },
+      {
+        "type": "Text",
+        "label": "三月汽车销量排行榜",
+        "bounds": "[480,662][874,713]"
+      },
+      {
+        "type": "Text",
+        "label": "4月销量完整排行",
+        "bounds": "[980,662][1312,713]"
+      },
+      {
+        "type": "Text",
+        "label": "排行榜销量",
+        "bounds": "[1417,662][1636,713]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[1704,637][1804,737]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[613,837][739,888]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[44,962][739,1013]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[44,1087][739,1138]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[44,1212][739,1263]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[44,1337][739,1388]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[44,1462][739,1513]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[44,1587][739,1638]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[44,1712][739,1763]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[44,1837][739,1888]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[44,1962][739,2013]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[44,2087][739,2138]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[1390,837][1516,888]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[821,938][1516,1038]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[821,1063][1516,1163]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[821,1188][1516,1288]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[821,1313][1516,1413]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[821,1438][1516,1538]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[821,1563][1516,1663]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[821,1688][1516,1788]"
+      }
+    ],
+    "inputFields": [
+      {
+        "type": "TextInput",
+        "label": "",
+        "bounds": "[246,134][2012,247]"
+      }
+    ],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "tabs": []
+  },
+  "features": {
+    "hasScroll": true,
+    "hasTabs": true,
+    "hasModal": false,
+    "hasList": true,
+    "hasForm": true
+  },
+  "suggestions": [
+    "界面复杂度高，建议优先测试关键路径",
+    "存在导航结构，建议按导航层级遍历",
+    "交互元素多，建议分类测试（按钮、输入框、链接等）"
+  ],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "__Common__",
+        169
+      ],
+      [
+        "Stack",
+        95
+      ],
+      [
+        "Row",
+        86
+      ],
+      [
+        "Text",
+        80
+      ],
+      [
+        "Image",
+        58
+      ],
+      [
+        "ListItem",
+        35
+      ],
+      [
+        "Column",
+        8
+      ],
+      [
+        "List",
+        5
+      ],
+      [
+        "WindowScene",
+        2
+      ],
+      [
+        "RelativeContainer",
+        2
+      ],
+      [
+        "TextClock",
+        2
+      ],
+      [
+        "unknown",
+        1
+      ],
+      [
+        "root",
+        1
+      ],
+      [
+        "Navigation",
+        1
+      ],
+      [
+        "NavigationContent",
+        1
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 3,
+      "2": 3,
+      "3": 3,
+      "4": 3,
+      "5": 3,
+      "6": 5,
+      "7": 2,
+      "8": 4,
+      "9": 5,
+      "10": 6,
+      "11": 10,
+      "12": 7,
+      "13": 6,
+      "14": 7,
+      "15": 10,
+      "16": 16,
+      "17": 13,
+      "18": 6,
+      "19": 37,
+      "20": 36,
+      "21": 31,
+      "22": 102,
+      "23": 62,
+      "24": 51,
+      "25": 51,
+      "26": 51,
+      "27": 20
+    }
+  }
+}

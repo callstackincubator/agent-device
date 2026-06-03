@@ -2,7 +2,7 @@ export type { AppErrorCode } from './utils/errors.ts';
 export { defaultHintForCode, normalizeError } from './utils/errors.ts';
 
 export type SessionRuntimeHints = {
-  platform?: 'ios' | 'android';
+  platform?: 'ios' | 'android' | 'harmonyos';
   metroHost?: string;
   metroPort?: number;
   bundleUrl?: string;
@@ -57,7 +57,7 @@ export type DaemonRequestMeta = {
   materializedPathRetentionMs?: number;
   materializationId?: string;
   lockPolicy?: DaemonLockPolicy;
-  lockPlatform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple';
+  lockPlatform?: 'ios' | 'macos' | 'android' | 'harmonyos' | 'linux' | 'apple';
   requestProgress?: 'replay-test';
 };
 

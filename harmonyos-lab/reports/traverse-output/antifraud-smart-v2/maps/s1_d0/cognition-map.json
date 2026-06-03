@@ -1,0 +1,166 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 64,
+    "treeDepth": 15,
+    "complexity": "simple"
+  },
+  "structure": {
+    "layoutPattern": [
+      "unknown"
+    ],
+    "mainContainers": [
+      {
+        "type": "Column",
+        "depth": 2,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "Stack",
+        "depth": 3,
+        "bounds": "[0,253][2224,2434]",
+        "area": 4850544
+      },
+      {
+        "type": "Stack",
+        "depth": 4,
+        "bounds": "[0,253][2224,2434]",
+        "area": 4850544
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "genericContainer",
+        "label": "《国家反诈中心用户服务协议》（以下简称“本协议”）约定了我们向您提供国家反诈中心服务的前提、双方权利义务及其他事项。您在我们提供的移动端APP（包括网络页面）上注册或接受服务时，即表明本协议在您与我们之间成立并生效。",
+        "bounds": "[94,2292][2131,2434]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[25,113][119,253]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[0,0][2224,112]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "inputFields": [],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "tabs": []
+  },
+  "features": {
+    "hasScroll": false,
+    "hasTabs": false,
+    "hasModal": false,
+    "hasList": false,
+    "hasForm": false
+  },
+  "suggestions": [],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Stack",
+        15
+      ],
+      [
+        "Row",
+        8
+      ],
+      [
+        "Text",
+        8
+      ],
+      [
+        "genericContainer",
+        8
+      ],
+      [
+        "Image",
+        7
+      ],
+      [
+        "RelativeContainer",
+        3
+      ],
+      [
+        "WindowScene",
+        2
+      ],
+      [
+        "__Common__",
+        2
+      ],
+      [
+        "TextClock",
+        2
+      ],
+      [
+        "unknown",
+        1
+      ],
+      [
+        "root",
+        1
+      ],
+      [
+        "Column",
+        1
+      ],
+      [
+        "Divider",
+        1
+      ],
+      [
+        "Web",
+        1
+      ],
+      [
+        "rootWebArea",
+        1
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 3,
+      "2": 3,
+      "3": 4,
+      "4": 4,
+      "5": 6,
+      "6": 5,
+      "7": 2,
+      "8": 10,
+      "9": 4,
+      "10": 4,
+      "11": 6,
+      "12": 4,
+      "13": 4,
+      "14": 3,
+      "15": 1
+    }
+  }
+}

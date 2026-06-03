@@ -485,6 +485,40 @@ export type PrepareCommandOptions = ClientCommandBaseOptions & {
   timeoutMs?: number;
 };
 
+export type CognitionCommandOptions = ClientCommandBaseOptions;
+
+export type CognitionCommandResult = DaemonResponseData & {
+  cognition?: {
+    overview: {
+      platform: string;
+      screenResolution: { width: number; height: number };
+      totalNodes: number;
+      treeDepth: number;
+      complexity: 'simple' | 'medium' | 'complex';
+    };
+    structure: {
+      layoutPattern: string[];
+      mainContainers: number;
+    };
+    interactions: {
+      clickableElements: number;
+      buttons: number;
+      inputFields: number;
+      tabs: number;
+    };
+    features: {
+      scrollRegions: number;
+      tabs: number;
+      modals: number;
+      lists: number;
+      forms: number;
+    };
+    suggestions: string[];
+    testPriority: 'high' | 'medium' | 'low';
+    llmReport?: string;
+  };
+};
+
 export type AgentDeviceCommandClient = {
   wait: (options: WaitCommandOptions) => Promise<WaitCommandResult>;
   alert: (options?: AlertCommandOptions) => Promise<AlertCommandResult>;
@@ -497,6 +531,7 @@ export type AgentDeviceCommandClient = {
   clipboard: (options: ClipboardCommandOptions) => Promise<ClipboardCommandResult>;
   reactNative: (options: ReactNativeCommandOptions) => Promise<CommandRequestResult>;
   prepare: (options: PrepareCommandOptions) => Promise<CommandRequestResult>;
+  cognition: (options?: CognitionCommandOptions) => Promise<CognitionCommandResult>;
 };
 
 type SelectorSnapshotCommandOptions = Pick<CaptureSnapshotOptions, 'depth' | 'scope' | 'raw'>;

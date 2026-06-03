@@ -1,0 +1,287 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 177,
+    "treeDepth": 19,
+    "complexity": "simple"
+  },
+  "structure": {
+    "layoutPattern": [
+      "vertical-scroll",
+      "horizontal-layout",
+      "list-view",
+      "grid-view"
+    ],
+    "mainContainers": [
+      {
+        "type": "Stack",
+        "depth": 3,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Text",
+        "label": "设置",
+        "bounds": "[2029,2372][2053,2373]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[0,113][2224,2159]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "单指双击即可执行，双击并按住即可弹出更多选项",
+        "bounds": "[50,713][580,1211]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[96,713][534,1151]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[122,739][240,857]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[122,739][240,857]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[256,739][374,857]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[256,739][374,857]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[390,739][508,857]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[390,739][508,857]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[122,873][240,991]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[122,873][240,991]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[256,873][374,991]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[256,873][374,991]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[580,687][845,962]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[631,713][794,876]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[845,137][1110,412]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[896,163][1059,326]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[50,412][315,687]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[101,438][264,601]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[315,412][580,687]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[366,438][529,601]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[50,137][315,412]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[101,163][264,326]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[315,137][580,412]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[366,163][529,326]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[580,137][845,412]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[631,163][794,326]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[580,412][845,687]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[631,438][794,601]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[845,412][1110,687]"
+      }
+    ],
+    "inputFields": [],
+    "buttons": [],
+    "tabs": []
+  },
+  "features": {
+    "hasScroll": true,
+    "hasTabs": false,
+    "hasModal": false,
+    "hasList": true,
+    "hasForm": false
+  },
+  "suggestions": [
+    "交互元素多，建议分类测试（按钮、输入框、链接等）"
+  ],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Image",
+        33
+      ],
+      [
+        "Stack",
+        30
+      ],
+      [
+        "RelativeContainer",
+        26
+      ],
+      [
+        "Text",
+        19
+      ],
+      [
+        "GridItem",
+        15
+      ],
+      [
+        "ListItem",
+        12
+      ],
+      [
+        "Column",
+        11
+      ],
+      [
+        "Row",
+        11
+      ],
+      [
+        "__Common__",
+        4
+      ],
+      [
+        "Grid",
+        3
+      ],
+      [
+        "WindowScene",
+        2
+      ],
+      [
+        "EffectComponent",
+        2
+      ],
+      [
+        "Flex",
+        2
+      ],
+      [
+        "List",
+        2
+      ],
+      [
+        "TextClock",
+        2
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 2,
+      "2": 2,
+      "3": 2,
+      "4": 3,
+      "5": 3,
+      "6": 3,
+      "7": 4,
+      "8": 10,
+      "9": 14,
+      "10": 16,
+      "11": 21,
+      "12": 27,
+      "13": 14,
+      "14": 23,
+      "15": 3,
+      "16": 5,
+      "17": 5,
+      "18": 14,
+      "19": 5
+    }
+  }
+}

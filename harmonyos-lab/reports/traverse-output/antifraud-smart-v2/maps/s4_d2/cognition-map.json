@@ -1,0 +1,239 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 78,
+    "treeDepth": 15,
+    "complexity": "simple"
+  },
+  "structure": {
+    "layoutPattern": [
+      "unknown"
+    ],
+    "mainContainers": [
+      {
+        "type": "Column",
+        "depth": 2,
+        "bounds": "[0,113][2224,1299]",
+        "area": 2637664
+      },
+      {
+        "type": "Stack",
+        "depth": 3,
+        "bounds": "[62,364][2162,613]",
+        "area": 522900
+      },
+      {
+        "type": "Stack",
+        "depth": 3,
+        "bounds": "[0,1299][2224,2496]",
+        "area": 2662128
+      },
+      {
+        "type": "Column",
+        "depth": 4,
+        "bounds": "[0,1299][2224,2496]",
+        "area": 2662128
+      },
+      {
+        "type": "Stack",
+        "depth": 2,
+        "bounds": "[0,113][2224,1299]",
+        "area": 2637664
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Text",
+        "label": "账号密码登录",
+        "bounds": "[62,190][2162,271]"
+      },
+      {
+        "type": "Text",
+        "label": "登录即同意《服务协议》和《隐私政策》",
+        "bounds": "[143,865][931,916]"
+      },
+      {
+        "type": "Button",
+        "label": "登录",
+        "bounds": "[62,1084][2162,1209]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "TextInput",
+        "label": "-",
+        "bounds": "[62,457][2162,613]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[2047,504][2110,567]"
+      },
+      {
+        "type": "TextInput",
+        "label": "",
+        "bounds": "[62,647][2162,804]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[2068,694][2162,757]"
+      },
+      {
+        "type": "Checkbox",
+        "label": "polcy",
+        "bounds": "[76,867][123,914]"
+      },
+      {
+        "type": "Text",
+        "label": "登录即同意《服务协议》和《隐私政策》",
+        "bounds": "[143,865][931,916]"
+      },
+      {
+        "type": "Button",
+        "label": "登录",
+        "bounds": "[62,1084][2162,1209]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[0,0][2224,112]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[896,1331][1328,1424]"
+      }
+    ],
+    "inputFields": [
+      {
+        "type": "TextInput",
+        "label": "-",
+        "bounds": "[62,457][2162,613]"
+      },
+      {
+        "type": "TextInput",
+        "label": "",
+        "bounds": "[62,647][2162,804]"
+      }
+    ],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "登录",
+        "bounds": "[62,1084][2162,1209]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "tabs": []
+  },
+  "features": {
+    "hasScroll": true,
+    "hasTabs": false,
+    "hasModal": false,
+    "hasList": false,
+    "hasForm": true
+  },
+  "suggestions": [],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Stack",
+        18
+      ],
+      [
+        "Text",
+        10
+      ],
+      [
+        "Row",
+        10
+      ],
+      [
+        "Image",
+        7
+      ],
+      [
+        "Column",
+        4
+      ],
+      [
+        "WindowScene",
+        4
+      ],
+      [
+        "RelativeContainer",
+        4
+      ],
+      [
+        "__Common__",
+        3
+      ],
+      [
+        "root",
+        2
+      ],
+      [
+        "TextInput",
+        2
+      ],
+      [
+        "Divider",
+        2
+      ],
+      [
+        "SymbolGlyph",
+        2
+      ],
+      [
+        "Button",
+        2
+      ],
+      [
+        "TextClock",
+        2
+      ],
+      [
+        "unknown",
+        1
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 5,
+      "2": 6,
+      "3": 13,
+      "4": 8,
+      "5": 5,
+      "6": 6,
+      "7": 2,
+      "8": 4,
+      "9": 6,
+      "10": 4,
+      "11": 6,
+      "12": 4,
+      "13": 4,
+      "14": 3,
+      "15": 1
+    }
+  }
+}

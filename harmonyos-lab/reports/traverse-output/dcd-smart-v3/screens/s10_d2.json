@@ -1,0 +1,4639 @@
+{
+  "success": true,
+  "data": {
+    "nodes": [
+      {
+        "index": 0,
+        "type": "",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 2496
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 0,
+        "ref": "e1"
+      },
+      {
+        "index": 1,
+        "type": "Stack",
+        "identifier": "4",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e2"
+      },
+      {
+        "index": 2,
+        "type": "Navigation",
+        "identifier": "6",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e3"
+      },
+      {
+        "index": 3,
+        "type": "NavigationContent",
+        "identifier": "11",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 2,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e4"
+      },
+      {
+        "index": 4,
+        "type": "NavDestination",
+        "identifier": "16231",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 5,
+        "parentIndex": 3,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e5"
+      },
+      {
+        "index": 5,
+        "type": "NavDestinationContent",
+        "identifier": "16235",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 4,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e6"
+      },
+      {
+        "index": 6,
+        "type": "Stack",
+        "identifier": "16242",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 5,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e7"
+      },
+      {
+        "index": 7,
+        "type": "Stack",
+        "identifier": "16243",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 6,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e8"
+      },
+      {
+        "index": 8,
+        "type": "Stack",
+        "identifier": "16249",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 7,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e9"
+      },
+      {
+        "index": 9,
+        "type": "Stack",
+        "identifier": "16253",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 8,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e10"
+      },
+      {
+        "index": 10,
+        "type": "Stack",
+        "identifier": "16255",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 9,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e11"
+      },
+      {
+        "index": 11,
+        "type": "Stack",
+        "identifier": "16258",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e12"
+      },
+      {
+        "index": 12,
+        "type": "Stack",
+        "identifier": "16259",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 11,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e13"
+      },
+      {
+        "index": 13,
+        "type": "Stack",
+        "identifier": "16261",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 12,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e14"
+      },
+      {
+        "index": 14,
+        "type": "Stack",
+        "identifier": "16280",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 13,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e15"
+      },
+      {
+        "index": 15,
+        "type": "Stack",
+        "identifier": "16281",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 14,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e16"
+      },
+      {
+        "index": 16,
+        "type": "GridRow",
+        "identifier": "16282",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 15,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e17"
+      },
+      {
+        "index": 17,
+        "type": "GridCol",
+        "identifier": "16283",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 16,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e18"
+      },
+      {
+        "index": 18,
+        "type": "Stack",
+        "identifier": "16284",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 17,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e19"
+      },
+      {
+        "index": 19,
+        "type": "Column",
+        "identifier": "16286",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 18,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e20"
+      },
+      {
+        "index": 20,
+        "type": "Stack",
+        "identifier": "16379",
+        "rect": {
+          "x": 962,
+          "y": 100,
+          "width": 300,
+          "height": 12
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 19,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e21"
+      },
+      {
+        "index": 21,
+        "type": "Stack",
+        "identifier": "16289",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 19,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e22"
+      },
+      {
+        "index": 22,
+        "type": "NodeContainer",
+        "identifier": "16290",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 21,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e23"
+      },
+      {
+        "index": 23,
+        "type": "__Common__",
+        "identifier": "16291",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 22,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e24"
+      },
+      {
+        "index": 24,
+        "type": "__Common__",
+        "identifier": "16293",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 23,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e25"
+      },
+      {
+        "index": 25,
+        "type": "__Common__",
+        "identifier": "16295",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 24,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e26"
+      },
+      {
+        "index": 26,
+        "type": "Stack",
+        "identifier": "16297",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 25,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e27"
+      },
+      {
+        "index": 27,
+        "type": "Stack",
+        "identifier": "16298",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 26,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e28"
+      },
+      {
+        "index": 28,
+        "type": "Stack",
+        "identifier": "16300",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 27,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e29"
+      },
+      {
+        "index": 29,
+        "type": "__Common__",
+        "identifier": "16301",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 26,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e30"
+      },
+      {
+        "index": 30,
+        "type": "RelativeContainer",
+        "identifier": "16306",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 29,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e31"
+      },
+      {
+        "index": 31,
+        "type": "__Common__",
+        "identifier": "16307",
+        "rect": {
+          "x": 2,
+          "y": 113,
+          "width": 2220,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 30,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e32"
+      },
+      {
+        "index": 32,
+        "type": "Stack",
+        "identifier": "16327",
+        "rect": {
+          "x": 2,
+          "y": 113,
+          "width": 2220,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 31,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e33"
+      },
+      {
+        "index": 33,
+        "type": "__Common__",
+        "identifier": "16329",
+        "rect": {
+          "x": 2,
+          "y": 113,
+          "width": 2220,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 32,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e34"
+      },
+      {
+        "index": 34,
+        "type": "RelativeContainer",
+        "identifier": "16331",
+        "rect": {
+          "x": 2,
+          "y": 113,
+          "width": 2220,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 33,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e35"
+      },
+      {
+        "index": 35,
+        "type": "Stack",
+        "identifier": "16332",
+        "rect": {
+          "x": 2,
+          "y": 113,
+          "width": 2220,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 34,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e36"
+      },
+      {
+        "index": 36,
+        "type": "Stack",
+        "identifier": "16334",
+        "rect": {
+          "x": 2,
+          "y": 113,
+          "width": 2220,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 35,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e37"
+      },
+      {
+        "index": 37,
+        "type": "XComponent",
+        "identifier": "16335",
+        "rect": {
+          "x": 2,
+          "y": 113,
+          "width": 2220,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 36,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e38"
+      },
+      {
+        "index": 38,
+        "type": "Stack",
+        "identifier": "16314",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 30,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e39"
+      },
+      {
+        "index": 39,
+        "type": "Stack",
+        "identifier": "16315",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 38,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e40"
+      },
+      {
+        "index": 40,
+        "type": "Stack",
+        "identifier": "16318",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 30,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e41"
+      },
+      {
+        "index": 41,
+        "type": "Stack",
+        "identifier": "16319",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 40,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e42"
+      },
+      {
+        "index": 42,
+        "type": "Stack",
+        "identifier": "16325",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 30,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e43"
+      },
+      {
+        "index": 43,
+        "type": "Stack",
+        "identifier": "16338",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 42,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e44"
+      },
+      {
+        "index": 44,
+        "type": "Stack",
+        "identifier": "16339",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 43,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e45"
+      },
+      {
+        "index": 45,
+        "type": "Stack",
+        "identifier": "16341",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 44,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e46"
+      },
+      {
+        "index": 46,
+        "type": "Column",
+        "identifier": "16366",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 45,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e47"
+      },
+      {
+        "index": 47,
+        "type": "UIExtensionComponent",
+        "identifier": "16368",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 46,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e48"
+      },
+      {
+        "index": 48,
+        "type": "Column",
+        "identifier": "4318881673904132",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 47,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e49"
+      },
+      {
+        "index": 49,
+        "type": "Stack",
+        "identifier": "16717",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 44,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e50"
+      },
+      {
+        "index": 50,
+        "type": "__Common__",
+        "identifier": "16718",
+        "rect": {
+          "x": 0,
+          "y": 137,
+          "width": 2224,
+          "height": 1224
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 49,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e51"
+      },
+      {
+        "index": 51,
+        "type": "Stack",
+        "identifier": "16731",
+        "rect": {
+          "x": 0,
+          "y": 137,
+          "width": 2224,
+          "height": 253
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 50,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e52"
+      },
+      {
+        "index": 52,
+        "type": "NodeContainer",
+        "identifier": "16732",
+        "rect": {
+          "x": 0,
+          "y": 137,
+          "width": 2224,
+          "height": 253
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 51,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e53"
+      },
+      {
+        "index": 53,
+        "type": "CustomFrameNode",
+        "identifier": "16733",
+        "rect": {
+          "x": 0,
+          "y": 137,
+          "width": 2224,
+          "height": 253
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 52,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e54"
+      },
+      {
+        "index": 54,
+        "type": "RenderNode",
+        "identifier": "16734",
+        "rect": {
+          "x": 0,
+          "y": 137,
+          "width": 2224,
+          "height": 253
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 53,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e55"
+      },
+      {
+        "index": 55,
+        "type": "Stack",
+        "identifier": "16354",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 44,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e56"
+      },
+      {
+        "index": 56,
+        "type": "Stack",
+        "identifier": "16355",
+        "rect": {
+          "x": 0,
+          "y": 262,
+          "width": 2224,
+          "height": 981
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 55,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e57"
+      },
+      {
+        "index": 57,
+        "type": "Row",
+        "identifier": "16356",
+        "rect": {
+          "x": 0,
+          "y": 262,
+          "width": 2224,
+          "height": 981
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 56,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e58"
+      },
+      {
+        "index": 58,
+        "type": "__Common__",
+        "identifier": "16357",
+        "rect": {
+          "x": 0,
+          "y": 262,
+          "width": 1112,
+          "height": 981
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 57,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e59"
+      },
+      {
+        "index": 59,
+        "type": "Stack",
+        "identifier": "16369",
+        "rect": {
+          "x": 0,
+          "y": 262,
+          "width": 1112,
+          "height": 981
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 58,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e60"
+      },
+      {
+        "index": 60,
+        "type": "__Common__",
+        "identifier": "16359",
+        "rect": {
+          "x": 1112,
+          "y": 262,
+          "width": 1112,
+          "height": 981
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 57,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e61"
+      },
+      {
+        "index": 61,
+        "type": "Stack",
+        "identifier": "16370",
+        "rect": {
+          "x": 1112,
+          "y": 262,
+          "width": 1112,
+          "height": 981
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 60,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e62"
+      },
+      {
+        "index": 62,
+        "type": "__Common__",
+        "identifier": "16361",
+        "rect": {
+          "x": 0,
+          "y": 262,
+          "width": 2224,
+          "height": 981
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 55,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e63"
+      },
+      {
+        "index": 63,
+        "type": "Stack",
+        "identifier": "16371",
+        "rect": {
+          "x": 0,
+          "y": 262,
+          "width": 2224,
+          "height": 981
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 62,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e64"
+      },
+      {
+        "index": 64,
+        "type": "Stack",
+        "identifier": "16303",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 26,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e65"
+      },
+      {
+        "index": 65,
+        "type": "Stack",
+        "identifier": "16304",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 1248
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 64,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e66"
+      },
+      {
+        "index": 66,
+        "type": "RelativeContainer",
+        "identifier": "16380",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 137
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 21,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e67"
+      },
+      {
+        "index": 67,
+        "type": "Text",
+        "label": "",
+        "value": "",
+        "identifier": "16382",
+        "rect": {
+          "x": 43,
+          "y": 147,
+          "width": 63,
+          "height": 68
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 66,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e68"
+      },
+      {
+        "index": 68,
+        "type": "GridCol",
+        "identifier": "16376",
+        "rect": {
+          "x": 0,
+          "y": 1361,
+          "width": 2224,
+          "height": 1135
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 16,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e69"
+      },
+      {
+        "index": 69,
+        "type": "__Common__",
+        "identifier": "16377",
+        "rect": {
+          "x": 0,
+          "y": 1361,
+          "width": 2224,
+          "height": 1135
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 68,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e70"
+      },
+      {
+        "index": 70,
+        "type": "Stack",
+        "identifier": "16443",
+        "rect": {
+          "x": 0,
+          "y": 1361,
+          "width": 2224,
+          "height": 1135
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 69,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e71"
+      },
+      {
+        "index": 71,
+        "type": "Stack",
+        "identifier": "16444",
+        "rect": {
+          "x": 0,
+          "y": 1361,
+          "width": 2224,
+          "height": 1135
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 70,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e72"
+      },
+      {
+        "index": 72,
+        "type": "Column",
+        "identifier": "16445",
+        "rect": {
+          "x": 0,
+          "y": 1361,
+          "width": 2224,
+          "height": 1135
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 71,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e73"
+      },
+      {
+        "index": 73,
+        "type": "Stack",
+        "identifier": "16446",
+        "rect": {
+          "x": 0,
+          "y": 1361,
+          "width": 2224,
+          "height": 910
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 72,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e74"
+      },
+      {
+        "index": 74,
+        "type": "Row",
+        "identifier": "16482",
+        "rect": {
+          "x": 0,
+          "y": 1361,
+          "width": 2224,
+          "height": 762
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 73,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e75"
+      },
+      {
+        "index": 75,
+        "type": "Column",
+        "identifier": "16448",
+        "rect": {
+          "x": 0,
+          "y": 1361,
+          "width": 2224,
+          "height": 910
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 73,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e76"
+      },
+      {
+        "index": 76,
+        "type": "List",
+        "identifier": "16450",
+        "rect": {
+          "x": 0,
+          "y": 1361,
+          "width": 2224,
+          "height": 910
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 75,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e77"
+      },
+      {
+        "index": 77,
+        "type": "ListItem",
+        "identifier": "16451",
+        "rect": {
+          "x": 0,
+          "y": 1361,
+          "width": 2224,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 76,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e78"
+      },
+      {
+        "index": 78,
+        "type": "Row",
+        "identifier": "16483",
+        "rect": {
+          "x": 0,
+          "y": 1361,
+          "width": 2224,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 77,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e79"
+      },
+      {
+        "index": 79,
+        "type": "__Common__",
+        "identifier": "16484",
+        "rect": {
+          "x": 50,
+          "y": 1361,
+          "width": 1812,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 78,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e80"
+      },
+      {
+        "index": 80,
+        "type": "Row",
+        "identifier": "16490",
+        "rect": {
+          "x": 50,
+          "y": 1361,
+          "width": 1812,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 79,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e81"
+      },
+      {
+        "index": 81,
+        "type": "List",
+        "identifier": "16491",
+        "rect": {
+          "x": 50,
+          "y": 1361,
+          "width": 304,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 80,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e82"
+      },
+      {
+        "index": 82,
+        "type": "ListItem",
+        "identifier": "16857",
+        "rect": {
+          "x": 50,
+          "y": 1394,
+          "width": 100,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 81,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e83"
+      },
+      {
+        "index": 83,
+        "type": "Stack",
+        "identifier": "16988",
+        "rect": {
+          "x": 50,
+          "y": 1394,
+          "width": 100,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 82,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e84"
+      },
+      {
+        "index": 84,
+        "type": "Row",
+        "identifier": "16989",
+        "rect": {
+          "x": 50,
+          "y": 1394,
+          "width": 100,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 83,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e85"
+      },
+      {
+        "index": 85,
+        "type": "Stack",
+        "identifier": "16992",
+        "rect": {
+          "x": 50,
+          "y": 1394,
+          "width": 100,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 84,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e86"
+      },
+      {
+        "index": 86,
+        "type": "Text",
+        "label": "视频",
+        "value": "视频",
+        "identifier": "16994",
+        "rect": {
+          "x": 50,
+          "y": 1394,
+          "width": 100,
+          "height": 59
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 85,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e87"
+      },
+      {
+        "index": 87,
+        "type": "ListItem",
+        "identifier": "16859",
+        "rect": {
+          "x": 213,
+          "y": 1391,
+          "width": 141,
+          "height": 66
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 81,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e88"
+      },
+      {
+        "index": 88,
+        "type": "Stack",
+        "identifier": "16995",
+        "rect": {
+          "x": 213,
+          "y": 1391,
+          "width": 141,
+          "height": 66
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 87,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e89"
+      },
+      {
+        "index": 89,
+        "type": "Row",
+        "identifier": "16996",
+        "rect": {
+          "x": 213,
+          "y": 1391,
+          "width": 141,
+          "height": 66
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 88,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e90"
+      },
+      {
+        "index": 90,
+        "type": "Stack",
+        "identifier": "17000",
+        "rect": {
+          "x": 213,
+          "y": 1391,
+          "width": 113,
+          "height": 66
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 89,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e91"
+      },
+      {
+        "index": 91,
+        "type": "Image",
+        "identifier": "17001",
+        "rect": {
+          "x": 213,
+          "y": 1437,
+          "width": 113,
+          "height": 25
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 90,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e92"
+      },
+      {
+        "index": 92,
+        "type": "Text",
+        "label": "评论",
+        "value": "评论",
+        "identifier": "17002",
+        "rect": {
+          "x": 213,
+          "y": 1391,
+          "width": 113,
+          "height": 66
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 90,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e93"
+      },
+      {
+        "index": 93,
+        "type": "Text",
+        "label": "3",
+        "value": "3",
+        "identifier": "16999",
+        "rect": {
+          "x": 332,
+          "y": 1396,
+          "width": 22,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 89,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e94"
+      },
+      {
+        "index": 94,
+        "type": "Text",
+        "label": "点击发弹幕",
+        "value": "点击发弹幕",
+        "identifier": "16488",
+        "rect": {
+          "x": 1862,
+          "y": 1386,
+          "width": 238,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 78,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e95"
+      },
+      {
+        "index": 95,
+        "type": "Image",
+        "identifier": "16489",
+        "rect": {
+          "x": 2099,
+          "y": 1386,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 78,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e96"
+      },
+      {
+        "index": 96,
+        "type": "ListItem",
+        "identifier": "16452",
+        "rect": {
+          "x": 0,
+          "y": 1486,
+          "width": 2224,
+          "height": 785
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 76,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e97"
+      },
+      {
+        "index": 97,
+        "type": "Tabs",
+        "identifier": "16512",
+        "rect": {
+          "x": 0,
+          "y": 1486,
+          "width": 2224,
+          "height": 785
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 96,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e98"
+      },
+      {
+        "index": 98,
+        "type": "Swiper",
+        "identifier": "16513",
+        "rect": {
+          "x": 0,
+          "y": 1486,
+          "width": 2224,
+          "height": 785
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 97,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e99"
+      },
+      {
+        "index": 99,
+        "type": "TabContent",
+        "identifier": "16522",
+        "rect": {
+          "x": 0,
+          "y": 1486,
+          "width": 2224,
+          "height": 785
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 98,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e100"
+      },
+      {
+        "index": 100,
+        "type": "__Common__",
+        "identifier": "16860",
+        "rect": {
+          "x": 0,
+          "y": 1486,
+          "width": 2224,
+          "height": 785
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 99,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e101"
+      },
+      {
+        "index": 101,
+        "type": "Scroll",
+        "identifier": "16863",
+        "rect": {
+          "x": 0,
+          "y": 1486,
+          "width": 2224,
+          "height": 785
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 100,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e102"
+      },
+      {
+        "index": 102,
+        "type": "Column",
+        "identifier": "16864",
+        "rect": {
+          "x": 0,
+          "y": 1486,
+          "width": 2224,
+          "height": 785
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 101,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e103"
+      },
+      {
+        "index": 103,
+        "type": "Swiper",
+        "identifier": "16869",
+        "rect": {
+          "x": 0,
+          "y": 1486,
+          "width": 2224,
+          "height": 554
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 102,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e104"
+      },
+      {
+        "index": 104,
+        "type": "Column",
+        "identifier": "16875",
+        "rect": {
+          "x": 37,
+          "y": 1526,
+          "width": 2150,
+          "height": 514
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 103,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e105"
+      },
+      {
+        "index": 105,
+        "type": "Row",
+        "identifier": "16877",
+        "rect": {
+          "x": 37,
+          "y": 1526,
+          "width": 2150,
+          "height": 69
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 104,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e106"
+      },
+      {
+        "index": 106,
+        "type": "__Common__",
+        "identifier": "16878",
+        "rect": {
+          "x": 37,
+          "y": 1526,
+          "width": 159,
+          "height": 69
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 105,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e107"
+      },
+      {
+        "index": 107,
+        "type": "Stack",
+        "identifier": "16902",
+        "rect": {
+          "x": 37,
+          "y": 1526,
+          "width": 159,
+          "height": 69
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 106,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e108"
+      },
+      {
+        "index": 108,
+        "type": "__Common__",
+        "identifier": "16903",
+        "rect": {
+          "x": 37,
+          "y": 1526,
+          "width": 159,
+          "height": 69
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 107,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e109"
+      },
+      {
+        "index": 109,
+        "type": "__Common__",
+        "identifier": "16907",
+        "rect": {
+          "x": 37,
+          "y": 1526,
+          "width": 159,
+          "height": 69
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 108,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e110"
+      },
+      {
+        "index": 110,
+        "type": "Image",
+        "identifier": "16909",
+        "rect": {
+          "x": 37,
+          "y": 1526,
+          "width": 159,
+          "height": 69
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 109,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e111"
+      },
+      {
+        "index": 111,
+        "type": "Stack",
+        "identifier": "16880",
+        "rect": {
+          "x": 224,
+          "y": 1532,
+          "width": 2,
+          "height": 57
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 105,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e112"
+      },
+      {
+        "index": 112,
+        "type": "Text",
+        "label": "赛博越野旅行车",
+        "value": "赛博越野旅行车",
+        "identifier": "16881",
+        "rect": {
+          "x": 254,
+          "y": 1527,
+          "width": 451,
+          "height": 66
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 105,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e113"
+      },
+      {
+        "index": 113,
+        "type": "Column",
+        "identifier": "16885",
+        "rect": {
+          "x": 37,
+          "y": 1635,
+          "width": 2150,
+          "height": 405
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 104,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e114"
+      },
+      {
+        "index": 114,
+        "type": "Row",
+        "identifier": "16886",
+        "rect": {
+          "x": 37,
+          "y": 1672,
+          "width": 2150,
+          "height": 331
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 113,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e115"
+      },
+      {
+        "index": 115,
+        "type": "__Common__",
+        "identifier": "16887",
+        "rect": {
+          "x": 37,
+          "y": 1672,
+          "width": 331,
+          "height": 331
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 114,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e116"
+      },
+      {
+        "index": 116,
+        "type": "Swiper",
+        "identifier": "16912",
+        "rect": {
+          "x": 37,
+          "y": 1672,
+          "width": 331,
+          "height": 331
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 115,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e117"
+      },
+      {
+        "index": 117,
+        "type": "Stack",
+        "identifier": "16928",
+        "rect": {
+          "x": 37,
+          "y": 1672,
+          "width": 331,
+          "height": 331
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 116,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e118"
+      },
+      {
+        "index": 118,
+        "type": "__Common__",
+        "identifier": "16929",
+        "rect": {
+          "x": 49,
+          "y": 1672,
+          "width": 319,
+          "height": 331
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 117,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e119"
+      },
+      {
+        "index": 119,
+        "type": "Stack",
+        "identifier": "17003",
+        "rect": {
+          "x": 49,
+          "y": 1672,
+          "width": 319,
+          "height": 331
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 118,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e120"
+      },
+      {
+        "index": 120,
+        "type": "__Common__",
+        "identifier": "17004",
+        "rect": {
+          "x": 49,
+          "y": 1672,
+          "width": 319,
+          "height": 331
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 119,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e121"
+      },
+      {
+        "index": 121,
+        "type": "__Common__",
+        "identifier": "17008",
+        "rect": {
+          "x": 49,
+          "y": 1672,
+          "width": 319,
+          "height": 331
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 120,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e122"
+      },
+      {
+        "index": 122,
+        "type": "Image",
+        "identifier": "17010",
+        "rect": {
+          "x": 49,
+          "y": 1672,
+          "width": 319,
+          "height": 331
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 121,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e123"
+      },
+      {
+        "index": 123,
+        "type": "Row",
+        "identifier": "16931",
+        "rect": {
+          "x": 37,
+          "y": 1932,
+          "width": 195,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 117,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e124"
+      },
+      {
+        "index": 124,
+        "type": "Image",
+        "identifier": "16932",
+        "rect": {
+          "x": 46,
+          "y": 1938,
+          "width": 38,
+          "height": 38
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 123,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e125"
+      },
+      {
+        "index": 125,
+        "type": "Text",
+        "label": "6评论4赞",
+        "value": "6评论4赞",
+        "identifier": "16933",
+        "rect": {
+          "x": 87,
+          "y": 1939,
+          "width": 130,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 123,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e126"
+      },
+      {
+        "index": 126,
+        "type": "Column",
+        "identifier": "16889",
+        "rect": {
+          "x": 405,
+          "y": 1672,
+          "width": 1745,
+          "height": 309
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 114,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e127"
+      },
+      {
+        "index": 127,
+        "type": "Text",
+        "label": " 这是我自己设计的车，猜一下致敬谁？(猜车大挑战)",
+        "value": " 这是我自己设计的车，猜一下致敬谁？(猜车大挑战)",
+        "identifier": "16892",
+        "rect": {
+          "x": 731,
+          "y": 1672,
+          "width": 1092,
+          "height": 253
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 126,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e128"
+      },
+      {
+        "index": 128,
+        "type": "Image",
+        "identifier": "16894",
+        "rect": {
+          "x": 731,
+          "y": 1684,
+          "width": 88,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 127,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e129"
+      },
+      {
+        "index": 129,
+        "type": "Row",
+        "identifier": "16898",
+        "rect": {
+          "x": 1900,
+          "y": 1925,
+          "width": 250,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 126,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e130"
+      },
+      {
+        "index": 130,
+        "type": "__Common__",
+        "identifier": "16899",
+        "rect": {
+          "x": 1900,
+          "y": 1928,
+          "width": 50,
+          "height": 50
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 129,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e131"
+      },
+      {
+        "index": 131,
+        "type": "Stack",
+        "identifier": "16962",
+        "rect": {
+          "x": 1900,
+          "y": 1928,
+          "width": 50,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 130,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e132"
+      },
+      {
+        "index": 132,
+        "type": "__Common__",
+        "identifier": "16963",
+        "rect": {
+          "x": 1900,
+          "y": 1928,
+          "width": 50,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 131,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e133"
+      },
+      {
+        "index": 133,
+        "type": "__Common__",
+        "identifier": "16967",
+        "rect": {
+          "x": 1900,
+          "y": 1928,
+          "width": 50,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 132,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e134"
+      },
+      {
+        "index": 134,
+        "type": "Image",
+        "identifier": "16969",
+        "rect": {
+          "x": 1900,
+          "y": 1928,
+          "width": 50,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 133,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e135"
+      },
+      {
+        "index": 135,
+        "type": "Text",
+        "label": "玩车的多米",
+        "value": "玩车的多米",
+        "identifier": "16901",
+        "rect": {
+          "x": 1962,
+          "y": 1931,
+          "width": 188,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 129,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e136"
+      },
+      {
+        "index": 136,
+        "type": "Row",
+        "identifier": "16867",
+        "rect": {
+          "x": 0,
+          "y": 2077,
+          "width": 2224,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 102,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e137"
+      },
+      {
+        "index": 137,
+        "type": "Column",
+        "identifier": "16873",
+        "rect": {
+          "x": 0,
+          "y": 2096,
+          "width": 2224,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 102,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e138"
+      },
+      {
+        "index": 138,
+        "type": "Column",
+        "identifier": "16971",
+        "rect": {
+          "x": 0,
+          "y": 2096,
+          "width": 2224,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 137,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e139"
+      },
+      {
+        "index": 139,
+        "type": "List",
+        "identifier": "16972",
+        "rect": {
+          "x": 0,
+          "y": 2096,
+          "width": 2224,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 138,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e140"
+      },
+      {
+        "index": 140,
+        "type": "ListItem",
+        "identifier": "17022",
+        "rect": {
+          "x": 0,
+          "y": 2096,
+          "width": 2224,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 139,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e141"
+      },
+      {
+        "index": 141,
+        "type": "Column",
+        "identifier": "17023",
+        "rect": {
+          "x": 0,
+          "y": 2096,
+          "width": 2224,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 140,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e142"
+      },
+      {
+        "index": 142,
+        "type": "Column",
+        "identifier": "17028",
+        "rect": {
+          "x": 0,
+          "y": 2096,
+          "width": 2224,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 141,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e143"
+      },
+      {
+        "index": 143,
+        "type": "Row",
+        "identifier": "17030",
+        "rect": {
+          "x": 0,
+          "y": 2096,
+          "width": 2224,
+          "height": 175
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 142,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e144"
+      },
+      {
+        "index": 144,
+        "type": "__Common__",
+        "identifier": "17031",
+        "rect": {
+          "x": 50,
+          "y": 2139,
+          "width": 100,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 143,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e145"
+      },
+      {
+        "index": 145,
+        "type": "Stack",
+        "identifier": "17049",
+        "rect": {
+          "x": 50,
+          "y": 2139,
+          "width": 100,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 144,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e146"
+      },
+      {
+        "index": 146,
+        "type": "__Common__",
+        "identifier": "17050",
+        "rect": {
+          "x": 50,
+          "y": 2139,
+          "width": 100,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 145,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e147"
+      },
+      {
+        "index": 147,
+        "type": "__Common__",
+        "identifier": "17054",
+        "rect": {
+          "x": 50,
+          "y": 2139,
+          "width": 100,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 146,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e148"
+      },
+      {
+        "index": 148,
+        "type": "Image",
+        "identifier": "17056",
+        "rect": {
+          "x": 50,
+          "y": 2139,
+          "width": 100,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 147,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e149"
+      },
+      {
+        "index": 149,
+        "type": "Column",
+        "identifier": "17033",
+        "rect": {
+          "x": 175,
+          "y": 2139,
+          "width": 1999,
+          "height": 132
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 143,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e150"
+      },
+      {
+        "index": 150,
+        "type": "Row",
+        "identifier": "17058",
+        "rect": {
+          "x": 175,
+          "y": 2139,
+          "width": 1999,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 149,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e151"
+      },
+      {
+        "index": 151,
+        "type": "Text",
+        "label": "Fantasy060602",
+        "value": "Fantasy060602",
+        "identifier": "17059",
+        "rect": {
+          "x": 175,
+          "y": 2145,
+          "width": 275,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 150,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e152"
+      },
+      {
+        "index": 152,
+        "type": "__Common__",
+        "identifier": "17062",
+        "rect": {
+          "x": 462,
+          "y": 2145,
+          "width": 56,
+          "height": 44
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 150,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e153"
+      },
+      {
+        "index": 153,
+        "type": "Stack",
+        "identifier": "17074",
+        "rect": {
+          "x": 462,
+          "y": 2145,
+          "width": 56,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 152,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e154"
+      },
+      {
+        "index": 154,
+        "type": "__Common__",
+        "identifier": "17075",
+        "rect": {
+          "x": 462,
+          "y": 2145,
+          "width": 56,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 153,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e155"
+      },
+      {
+        "index": 155,
+        "type": "__Common__",
+        "identifier": "17079",
+        "rect": {
+          "x": 462,
+          "y": 2145,
+          "width": 56,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 45,
+        "parentIndex": 154,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e156"
+      },
+      {
+        "index": 156,
+        "type": "Image",
+        "identifier": "17081",
+        "rect": {
+          "x": 462,
+          "y": 2145,
+          "width": 56,
+          "height": 44
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 46,
+        "parentIndex": 155,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e157"
+      },
+      {
+        "index": 157,
+        "type": "Row",
+        "identifier": "17035",
+        "rect": {
+          "x": 175,
+          "y": 2195,
+          "width": 467,
+          "height": 57
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 149,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e158"
+      },
+      {
+        "index": 158,
+        "type": "Image",
+        "identifier": "17036",
+        "rect": {
+          "x": 175,
+          "y": 2198,
+          "width": 50,
+          "height": 50
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 157,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e159"
+      },
+      {
+        "index": 159,
+        "type": "Text",
+        "label": "保时捷911车主·车龄3年",
+        "value": "保时捷911车主·车龄3年",
+        "identifier": "17038",
+        "rect": {
+          "x": 237,
+          "y": 2195,
+          "width": 405,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 157,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e160"
+      },
+      {
+        "index": 160,
+        "type": "Text",
+        "label": "我也想去玩，不对。工作",
+        "value": "我也想去玩，不对。工作",
+        "identifier": "17068",
+        "rect": {
+          "x": 175,
+          "y": 2252,
+          "width": 550,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 149,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e161"
+      },
+      {
+        "index": 161,
+        "type": "Row",
+        "identifier": "16457",
+        "rect": {
+          "x": 0,
+          "y": 2271,
+          "width": 2224,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 72,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e162"
+      },
+      {
+        "index": 162,
+        "type": "Row",
+        "identifier": "16458",
+        "rect": {
+          "x": 50,
+          "y": 2290,
+          "width": 1499,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 161,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e163"
+      },
+      {
+        "index": 163,
+        "type": "Text",
+        "label": "",
+        "value": "",
+        "identifier": "16459",
+        "rect": {
+          "x": 87,
+          "y": 2313,
+          "width": 50,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 162,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e164"
+      },
+      {
+        "index": 164,
+        "type": "Text",
+        "label": "说点什么...",
+        "value": "说点什么...",
+        "identifier": "16460",
+        "rect": {
+          "x": 149,
+          "y": 2315,
+          "width": 206,
+          "height": 51
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 162,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e165"
+      },
+      {
+        "index": 165,
+        "type": "Column",
+        "identifier": "16462",
+        "rect": {
+          "x": 1599,
+          "y": 2280,
+          "width": 125,
+          "height": 119
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 161,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e166"
+      },
+      {
+        "index": 166,
+        "type": "Text",
+        "label": "",
+        "value": "",
+        "identifier": "16463",
+        "rect": {
+          "x": 1624,
+          "y": 2280,
+          "width": 76,
+          "height": 82
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 165,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e167"
+      },
+      {
+        "index": 167,
+        "type": "Text",
+        "label": "3",
+        "value": "3",
+        "identifier": "16464",
+        "rect": {
+          "x": 1653,
+          "y": 2362,
+          "width": 18,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 165,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e168"
+      },
+      {
+        "index": 168,
+        "type": "Column",
+        "identifier": "16465",
+        "rect": {
+          "x": 1749,
+          "y": 2271,
+          "width": 125,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 161,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e169"
+      },
+      {
+        "index": 169,
+        "type": "RelativeContainer",
+        "identifier": "16466",
+        "rect": {
+          "x": 1749,
+          "y": 2271,
+          "width": 125,
+          "height": 144
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 168,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e170"
+      },
+      {
+        "index": 170,
+        "type": "Stack",
+        "identifier": "16467",
+        "rect": {
+          "x": 1749,
+          "y": 2287,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 169,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e171"
+      },
+      {
+        "index": 171,
+        "type": "__Common__",
+        "identifier": "16468",
+        "rect": {
+          "x": 1755,
+          "y": 2271,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 169,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e172"
+      },
+      {
+        "index": 172,
+        "type": "Stack",
+        "identifier": "16479",
+        "rect": {
+          "x": 1755,
+          "y": 2271,
+          "width": 113,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 171,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e173"
+      },
+      {
+        "index": 173,
+        "type": "Image",
+        "identifier": "16481",
+        "rect": {
+          "x": 1771,
+          "y": 2287,
+          "width": 81,
+          "height": 81
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 172,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e174"
+      },
+      {
+        "index": 174,
+        "type": "Text",
+        "label": "131",
+        "value": "131",
+        "identifier": "16470",
+        "rect": {
+          "x": 1785,
+          "y": 2362,
+          "width": 54,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 169,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e175"
+      },
+      {
+        "index": 175,
+        "type": "Column",
+        "identifier": "16471",
+        "rect": {
+          "x": 1899,
+          "y": 2284,
+          "width": 125,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 161,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e176"
+      },
+      {
+        "index": 176,
+        "type": "Image",
+        "identifier": "16472",
+        "rect": {
+          "x": 1924,
+          "y": 2284,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 175,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e177"
+      },
+      {
+        "index": 177,
+        "type": "Text",
+        "label": "37",
+        "value": "37",
+        "identifier": "16473",
+        "rect": {
+          "x": 1944,
+          "y": 2359,
+          "width": 36,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 175,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e178"
+      },
+      {
+        "index": 178,
+        "type": "Column",
+        "identifier": "16474",
+        "rect": {
+          "x": 2049,
+          "y": 2284,
+          "width": 125,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 161,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e179"
+      },
+      {
+        "index": 179,
+        "type": "__Common__",
+        "identifier": "16714",
+        "rect": {
+          "x": 2052,
+          "y": 2284,
+          "width": 119,
+          "height": 75
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 178,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e180"
+      },
+      {
+        "index": 180,
+        "type": "Stack",
+        "identifier": "16720",
+        "rect": {
+          "x": 2052,
+          "y": 2284,
+          "width": 119,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 179,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e181"
+      },
+      {
+        "index": 181,
+        "type": "__Common__",
+        "identifier": "16721",
+        "rect": {
+          "x": 2052,
+          "y": 2284,
+          "width": 119,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 180,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e182"
+      },
+      {
+        "index": 182,
+        "type": "__Common__",
+        "identifier": "16725",
+        "rect": {
+          "x": 2052,
+          "y": 2284,
+          "width": 119,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 181,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e183"
+      },
+      {
+        "index": 183,
+        "type": "Image",
+        "identifier": "16727",
+        "rect": {
+          "x": 2052,
+          "y": 2284,
+          "width": 119,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 182,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e184"
+      },
+      {
+        "index": 184,
+        "type": "Text",
+        "label": "视频提及",
+        "value": "视频提及",
+        "identifier": "16716",
+        "rect": {
+          "x": 2049,
+          "y": 2359,
+          "width": 125,
+          "height": 37
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 178,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e185"
+      },
+      {
+        "index": 185,
+        "type": "Stack",
+        "identifier": "16478",
+        "rect": {
+          "x": 0,
+          "y": 2409,
+          "width": 2224,
+          "height": 87
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 72,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e186"
+      },
+      {
+        "index": 186,
+        "type": "__Common__",
+        "identifier": "16831",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 717
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 9,
+        "bundleId": "com.ss.dcar.auto",
+        "ref": "e187"
+      },
+      {
+        "index": 187,
+        "type": "__Common__",
+        "identifier": "449",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e188"
+      },
+      {
+        "index": 188,
+        "type": "Stack",
+        "identifier": "867",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 187,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e189"
+      },
+      {
+        "index": 189,
+        "type": "__Common__",
+        "identifier": "872",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 188,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e190"
+      },
+      {
+        "index": 190,
+        "type": "Stack",
+        "identifier": "874",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 189,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e191"
+      },
+      {
+        "index": 191,
+        "type": "EffectComponent",
+        "identifier": "878",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 190,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e192"
+      },
+      {
+        "index": 192,
+        "type": "Stack",
+        "identifier": "879",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 191,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e193"
+      },
+      {
+        "index": 193,
+        "type": "Row",
+        "identifier": "935",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 192,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e194"
+      },
+      {
+        "index": 194,
+        "type": "Stack",
+        "identifier": "885",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 192,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e195"
+      },
+      {
+        "index": 195,
+        "type": "RelativeContainer",
+        "identifier": "886",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 194,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e196"
+      },
+      {
+        "index": 196,
+        "type": "RelativeContainer",
+        "identifier": "156460",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 195,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e197"
+      },
+      {
+        "index": 197,
+        "type": "Stack",
+        "identifier": "156462",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 26,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 196,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e198"
+      },
+      {
+        "index": 198,
+        "type": "Stack",
+        "identifier": "156463",
+        "rect": {
+          "x": 148,
+          "y": 25,
+          "width": 83,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 196,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e199"
+      },
+      {
+        "index": 199,
+        "type": "Stack",
+        "identifier": "156464",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 231,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 196,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e200"
+      },
+      {
+        "index": 200,
+        "type": "Row",
+        "identifier": "156466",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 231,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 199,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e201"
+      },
+      {
+        "index": 201,
+        "type": "Image",
+        "identifier": "156467",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 231,
+          "height": 172
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 200,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e202"
+      },
+      {
+        "index": 202,
+        "type": "Stack",
+        "identifier": "940",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 195,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e203"
+      },
+      {
+        "index": 203,
+        "type": "Row",
+        "identifier": "954",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 202,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e204"
+      },
+      {
+        "index": 204,
+        "type": "Flex",
+        "label": "18, :, 49",
+        "value": "18, :, 49",
+        "identifier": "955",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 203,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e205"
+      },
+      {
+        "index": 205,
+        "type": "Row",
+        "identifier": "956",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 68,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 204,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e206"
+      },
+      {
+        "index": 206,
+        "type": "TextClock",
+        "identifier": "957",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 205,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e207"
+      },
+      {
+        "index": 207,
+        "type": "Text",
+        "label": "18",
+        "value": "18",
+        "identifier": "958",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 206,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e208"
+      },
+      {
+        "index": 208,
+        "type": "Text",
+        "label": ":",
+        "value": ":",
+        "identifier": "959",
+        "rect": {
+          "x": 80,
+          "y": 39,
+          "width": 13,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 205,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e209"
+      },
+      {
+        "index": 209,
+        "type": "TextClock",
+        "identifier": "960",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 204,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e210"
+      },
+      {
+        "index": 210,
+        "type": "Text",
+        "label": "49",
+        "value": "49",
+        "identifier": "961",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 209,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e211"
+      },
+      {
+        "index": 211,
+        "type": "RelativeContainer",
+        "identifier": "898",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 2093,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 192,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e212"
+      },
+      {
+        "index": 212,
+        "type": "RelativeContainer",
+        "identifier": "156452",
+        "rect": {
+          "x": 1841,
+          "y": 25,
+          "width": 252,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 211,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e213"
+      },
+      {
+        "index": 213,
+        "type": "Stack",
+        "identifier": "156454",
+        "rect": {
+          "x": 1759,
+          "y": 25,
+          "width": 83,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 212,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e214"
+      },
+      {
+        "index": 214,
+        "type": "Stack",
+        "identifier": "156455",
+        "rect": {
+          "x": 2093,
+          "y": 25,
+          "width": 83,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 212,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e215"
+      },
+      {
+        "index": 215,
+        "type": "Stack",
+        "identifier": "156456",
+        "rect": {
+          "x": 1759,
+          "y": 25,
+          "width": 417,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 212,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e216"
+      },
+      {
+        "index": 216,
+        "type": "Row",
+        "identifier": "156458",
+        "rect": {
+          "x": 1759,
+          "y": 25,
+          "width": 417,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 215,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e217"
+      },
+      {
+        "index": 217,
+        "type": "Image",
+        "identifier": "156459",
+        "rect": {
+          "x": 1759,
+          "y": 0,
+          "width": 417,
+          "height": 172
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 216,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e218"
+      },
+      {
+        "index": 218,
+        "type": "Stack",
+        "identifier": "4165",
+        "rect": {
+          "x": 1840,
+          "y": 25,
+          "width": 63,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 211,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e219"
+      },
+      {
+        "index": 219,
+        "type": "Stack",
+        "identifier": "4169",
+        "rect": {
+          "x": 1846,
+          "y": 25,
+          "width": 57,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 218,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e220"
+      },
+      {
+        "index": 220,
+        "type": "Image",
+        "identifier": "4170",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 219,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e221"
+      },
+      {
+        "index": 221,
+        "type": "Image",
+        "identifier": "4171",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 219,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e222"
+      },
+      {
+        "index": 222,
+        "type": "Stack",
+        "identifier": "1016",
+        "rect": {
+          "x": 1903,
+          "y": 25,
+          "width": 70,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 211,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e223"
+      },
+      {
+        "index": 223,
+        "type": "Row",
+        "identifier": "1088",
+        "rect": {
+          "x": 1909,
+          "y": 25,
+          "width": 64,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 222,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e224"
+      },
+      {
+        "index": 224,
+        "type": "Row",
+        "identifier": "1707",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 223,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e225"
+      },
+      {
+        "index": 225,
+        "type": "Stack",
+        "identifier": "1803",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 224,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e226"
+      },
+      {
+        "index": 226,
+        "type": "Image",
+        "identifier": "2398",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 225,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e227"
+      },
+      {
+        "index": 227,
+        "type": "Image",
+        "identifier": "1807",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 225,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e228"
+      },
+      {
+        "index": 228,
+        "type": "Stack",
+        "identifier": "1019",
+        "rect": {
+          "x": 1973,
+          "y": 25,
+          "width": 120,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 211,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e229"
+      },
+      {
+        "index": 229,
+        "type": "Row",
+        "identifier": "1024",
+        "rect": {
+          "x": 1979,
+          "y": 25,
+          "width": 113,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 228,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e230"
+      },
+      {
+        "index": 230,
+        "type": "Stack",
+        "identifier": "1025",
+        "rect": {
+          "x": 1979,
+          "y": 36,
+          "width": 90,
+          "height": 53
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 229,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e231"
+      },
+      {
+        "index": 231,
+        "type": "Image",
+        "identifier": "1027",
+        "rect": {
+          "x": 1979,
+          "y": 38,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 230,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e232"
+      },
+      {
+        "index": 232,
+        "type": "Text",
+        "label": "95",
+        "value": "95",
+        "identifier": "1030",
+        "rect": {
+          "x": 1975,
+          "y": 39,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 230,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e233"
+      },
+      {
+        "index": 233,
+        "type": "Image",
+        "identifier": "155014",
+        "rect": {
+          "x": 2069,
+          "y": 38,
+          "width": 23,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 229,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e234"
+      },
+      {
+        "index": 234,
+        "type": "Stack",
+        "identifier": "156639",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e235"
+      },
+      {
+        "index": 235,
+        "type": "Stack",
+        "identifier": "156640",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 234,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e236"
+      },
+      {
+        "index": 236,
+        "type": "Button",
+        "identifier": "156641",
+        "rect": {
+          "x": 1037,
+          "y": 22,
+          "width": 150,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 235,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e237"
+      },
+      {
+        "index": 237,
+        "type": "Row",
+        "identifier": "156642",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 113,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 236,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e238"
+      },
+      {
+        "index": 238,
+        "type": "Text",
+        "identifier": "156643",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 237,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e239"
+      },
+      {
+        "index": 239,
+        "type": "Text",
+        "identifier": "156644",
+        "rect": {
+          "x": 1087,
+          "y": 41,
+          "width": 50,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 237,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e240"
+      },
+      {
+        "index": 240,
+        "type": "Text",
+        "identifier": "156645",
+        "rect": {
+          "x": 1150,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 237,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e241"
+      }
+    ],
+    "truncated": false,
+    "appName": "com.ss.dcar.auto",
+    "visibility": {
+      "partial": false,
+      "visibleNodeCount": 241,
+      "totalNodeCount": 241,
+      "reasons": []
+    }
+  }
+}

@@ -1,0 +1,5577 @@
+{
+  "success": true,
+  "data": {
+    "nodes": [
+      {
+        "index": 0,
+        "type": "",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 2496
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 0,
+        "ref": "e1"
+      },
+      {
+        "index": 1,
+        "type": "Stack",
+        "identifier": "4",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e2"
+      },
+      {
+        "index": 2,
+        "type": "Stack",
+        "identifier": "6",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e3"
+      },
+      {
+        "index": 3,
+        "type": "Navigation",
+        "identifier": "17",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 2,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e4"
+      },
+      {
+        "index": 4,
+        "type": "NavigationContent",
+        "identifier": "22",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 3,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e5"
+      },
+      {
+        "index": 5,
+        "type": "NavDestination",
+        "identifier": "39",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 4,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e6"
+      },
+      {
+        "index": 6,
+        "type": "NavDestinationContent",
+        "identifier": "43",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 5,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e7"
+      },
+      {
+        "index": 7,
+        "type": "Column",
+        "identifier": "50",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 6,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e8"
+      },
+      {
+        "index": 8,
+        "type": "Stack",
+        "identifier": "54",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 7,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e9"
+      },
+      {
+        "index": 9,
+        "type": "Column",
+        "identifier": "57",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 8,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e10"
+      },
+      {
+        "index": 10,
+        "type": "__Common__",
+        "identifier": "58",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 9,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e11"
+      },
+      {
+        "index": 11,
+        "type": "Stack",
+        "identifier": "63",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 10,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e12"
+      },
+      {
+        "index": 12,
+        "type": "__Common__",
+        "identifier": "65",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 11,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e13"
+      },
+      {
+        "index": 13,
+        "type": "Stack",
+        "identifier": "76",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 12,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e14"
+      },
+      {
+        "index": 14,
+        "type": "Column",
+        "identifier": "77",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 13,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e15"
+      },
+      {
+        "index": 15,
+        "type": "Tabs",
+        "identifier": "84",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 14,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e16"
+      },
+      {
+        "index": 16,
+        "type": "Swiper",
+        "identifier": "85",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2146
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 15,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e17"
+      },
+      {
+        "index": 17,
+        "type": "TabContent",
+        "identifier": "95",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2146
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 16,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e18"
+      },
+      {
+        "index": 18,
+        "type": "Column",
+        "identifier": "207",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2146
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 17,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e19"
+      },
+      {
+        "index": 19,
+        "type": "Column",
+        "identifier": "208",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2146
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 18,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e20"
+      },
+      {
+        "index": 20,
+        "type": "Stack",
+        "identifier": "1495",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2146
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 19,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e21"
+      },
+      {
+        "index": 21,
+        "type": "Stack",
+        "identifier": "1496",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2146
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 20,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e22"
+      },
+      {
+        "index": 22,
+        "type": "CustomFrameNode",
+        "identifier": "1497",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2146
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 21,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e23"
+      },
+      {
+        "index": 23,
+        "type": "Stack",
+        "identifier": "1500",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 174
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 22,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e24"
+      },
+      {
+        "index": 24,
+        "type": "Stack",
+        "identifier": "1502",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 174
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 23,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e25"
+      },
+      {
+        "index": 25,
+        "type": "NodeContainer",
+        "identifier": "1503",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 174
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 24,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e26"
+      },
+      {
+        "index": 26,
+        "type": "BuilderProxyNode",
+        "identifier": "1518",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 174
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 25,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e27"
+      },
+      {
+        "index": 27,
+        "type": "Column",
+        "identifier": "1505",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 174
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 26,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e28"
+      },
+      {
+        "index": 28,
+        "type": "Stack",
+        "identifier": "1506",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 174
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 27,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e29"
+      },
+      {
+        "index": 29,
+        "type": "Row",
+        "identifier": "1508",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 174
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 28,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e30"
+      },
+      {
+        "index": 30,
+        "type": "Row",
+        "identifier": "1509",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 174
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 28,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e31"
+      },
+      {
+        "index": 31,
+        "type": "Row",
+        "identifier": "1510",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 174
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 28,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e32"
+      },
+      {
+        "index": 32,
+        "type": "Stack",
+        "identifier": "1511",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 275,
+          "height": 174
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 31,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e33"
+      },
+      {
+        "index": 33,
+        "type": "Text",
+        "label": "探索",
+        "value": "探索",
+        "identifier": "1512",
+        "rect": {
+          "x": 75,
+          "y": 113,
+          "width": 300,
+          "height": 278
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 32,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e34"
+      },
+      {
+        "index": 34,
+        "type": "Column",
+        "identifier": "1514",
+        "rect": {
+          "x": 1131,
+          "y": 113,
+          "width": 1018,
+          "height": 174
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 31,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e35"
+      },
+      {
+        "index": 35,
+        "type": "Column",
+        "identifier": "1519",
+        "rect": {
+          "x": 1131,
+          "y": 113,
+          "width": 1018,
+          "height": 174
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 34,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e36"
+      },
+      {
+        "index": 36,
+        "type": "Row",
+        "identifier": "1520",
+        "rect": {
+          "x": 1106,
+          "y": 113,
+          "width": 1068,
+          "height": 174
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 35,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e37"
+      },
+      {
+        "index": 37,
+        "type": "Search",
+        "identifier": "1522",
+        "rect": {
+          "x": 1131,
+          "y": 137,
+          "width": 1018,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 36,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e38"
+      },
+      {
+        "index": 38,
+        "type": "SearchField",
+        "label": "App、游戏、元服务等",
+        "identifier": "1523",
+        "rect": {
+          "x": 1243,
+          "y": 137,
+          "width": 806,
+          "height": 125
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 37,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e39"
+      },
+      {
+        "index": 39,
+        "type": "SymbolGlyph",
+        "identifier": "1524",
+        "rect": {
+          "x": 1169,
+          "y": 175,
+          "width": 50,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 37,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e40"
+      },
+      {
+        "index": 40,
+        "type": "Scroll",
+        "identifier": "1531",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2146
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 22,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e41"
+      },
+      {
+        "index": 41,
+        "type": "Column",
+        "identifier": "1532",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2146
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 40,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e42"
+      },
+      {
+        "index": 42,
+        "type": "Column",
+        "identifier": "1533",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2146
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 26,
+        "parentIndex": 41,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e43"
+      },
+      {
+        "index": 43,
+        "type": "List",
+        "identifier": "1538",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2146
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 27,
+        "parentIndex": 42,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e44"
+      },
+      {
+        "index": 44,
+        "type": "ListItem",
+        "identifier": "1546",
+        "rect": {
+          "x": 75,
+          "y": 113,
+          "width": 2074,
+          "height": 87
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 43,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e45"
+      },
+      {
+        "index": 45,
+        "type": "Row",
+        "identifier": "1549",
+        "rect": {
+          "x": 75,
+          "y": 113,
+          "width": 2074,
+          "height": 87
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 44,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e46"
+      },
+      {
+        "index": 46,
+        "type": "Stack",
+        "identifier": "1550",
+        "rect": {
+          "x": 75,
+          "y": 113,
+          "width": 2074,
+          "height": 87
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 45,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e47"
+      },
+      {
+        "index": 47,
+        "type": "ListItem",
+        "identifier": "1555",
+        "rect": {
+          "x": 75,
+          "y": 200,
+          "width": 2074,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 43,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e48"
+      },
+      {
+        "index": 48,
+        "type": "GridRow",
+        "identifier": "1558",
+        "rect": {
+          "x": 75,
+          "y": 200,
+          "width": 2074,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 47,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e49"
+      },
+      {
+        "index": 49,
+        "type": "GridCol",
+        "identifier": "1559",
+        "rect": {
+          "x": 75,
+          "y": 200,
+          "width": 1037,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 48,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e50"
+      },
+      {
+        "index": 50,
+        "type": "Row",
+        "identifier": "1562",
+        "rect": {
+          "x": 75,
+          "y": 200,
+          "width": 1037,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 49,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e51"
+      },
+      {
+        "index": 51,
+        "type": "GridCol",
+        "identifier": "1563",
+        "rect": {
+          "x": 1112,
+          "y": 199,
+          "width": 1037,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 48,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e52"
+      },
+      {
+        "index": 52,
+        "type": "ListItem",
+        "identifier": "1568",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 2074,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 43,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e53"
+      },
+      {
+        "index": 53,
+        "type": "GridRow",
+        "identifier": "1571",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 2074,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 52,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e54"
+      },
+      {
+        "index": 54,
+        "type": "GridCol",
+        "identifier": "1572",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 53,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e55"
+      },
+      {
+        "index": 55,
+        "type": "Column",
+        "identifier": "1573",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 54,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e56"
+      },
+      {
+        "index": 56,
+        "type": "Stack",
+        "identifier": "1576",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 55,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e57"
+      },
+      {
+        "index": 57,
+        "type": "Stack",
+        "identifier": "1578",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 56,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e58"
+      },
+      {
+        "index": 58,
+        "type": "NodeContainer",
+        "identifier": "1579",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 57,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e59"
+      },
+      {
+        "index": 59,
+        "type": "Stack",
+        "identifier": "1580",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 58,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e60"
+      },
+      {
+        "index": 60,
+        "type": "RelativeContainer",
+        "identifier": "1581",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 59,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e61"
+      },
+      {
+        "index": 61,
+        "type": "Column",
+        "identifier": "1585",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 60,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e62"
+      },
+      {
+        "index": 62,
+        "type": "__Common__",
+        "identifier": "1586",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 61,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e63"
+      },
+      {
+        "index": 63,
+        "type": "__Common__",
+        "identifier": "1599",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 62,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e64"
+      },
+      {
+        "index": 64,
+        "type": "Stack",
+        "identifier": "1602",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 63,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e65"
+      },
+      {
+        "index": 65,
+        "type": "Row",
+        "identifier": "1604",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 64,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e66"
+      },
+      {
+        "index": 66,
+        "type": "Image",
+        "identifier": "1607",
+        "rect": {
+          "x": 75,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 64,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e67"
+      },
+      {
+        "index": 67,
+        "type": "Stack",
+        "label": "编辑精选, 新一周 , 每周一，来 AppGallery 看鸿蒙上新",
+        "value": "编辑精选, 新一周 , 每周一，来 AppGallery 看鸿蒙上新",
+        "identifier": "1592",
+        "rect": {
+          "x": 75,
+          "y": 1013,
+          "width": 1000,
+          "height": 326
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 60,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e68"
+      },
+      {
+        "index": 68,
+        "type": "__Common__",
+        "identifier": "1593",
+        "rect": {
+          "x": 75,
+          "y": 1050,
+          "width": 1000,
+          "height": 263
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 67,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e69"
+      },
+      {
+        "index": 69,
+        "type": "Column",
+        "identifier": "1608",
+        "rect": {
+          "x": 75,
+          "y": 1050,
+          "width": 1000,
+          "height": 263
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 68,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e70"
+      },
+      {
+        "index": 70,
+        "type": "Text",
+        "label": "编辑精选",
+        "value": "编辑精选",
+        "identifier": "1610",
+        "rect": {
+          "x": 112,
+          "y": 1089,
+          "width": 150,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 69,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e71"
+      },
+      {
+        "index": 71,
+        "type": "Text",
+        "label": "新一周 ",
+        "value": "新一周 ",
+        "identifier": "1612",
+        "rect": {
+          "x": 112,
+          "y": 1145,
+          "width": 925,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 69,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e72"
+      },
+      {
+        "index": 72,
+        "type": "Text",
+        "label": "每周一，来 AppGallery 看鸿蒙上新",
+        "value": "每周一，来 AppGallery 看鸿蒙上新",
+        "identifier": "1614",
+        "rect": {
+          "x": 112,
+          "y": 1251,
+          "width": 925,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 69,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e73"
+      },
+      {
+        "index": 73,
+        "type": "__Common__",
+        "identifier": "1596",
+        "rect": {
+          "x": 75,
+          "y": 1337,
+          "width": 1000,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 60,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e74"
+      },
+      {
+        "index": 74,
+        "type": "Stack",
+        "identifier": "1615",
+        "rect": {
+          "x": 75,
+          "y": 1337,
+          "width": 1000,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 73,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e75"
+      },
+      {
+        "index": 75,
+        "type": "Row",
+        "identifier": "1616",
+        "rect": {
+          "x": 112,
+          "y": 1337,
+          "width": 926,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 74,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e76"
+      },
+      {
+        "index": 76,
+        "type": "Stack",
+        "identifier": "1619",
+        "rect": {
+          "x": 112,
+          "y": 1375,
+          "width": 231,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 75,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e77"
+      },
+      {
+        "index": 77,
+        "type": "Row",
+        "identifier": "1620",
+        "rect": {
+          "x": 153,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 76,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e78"
+      },
+      {
+        "index": 78,
+        "type": "__Common__",
+        "identifier": "1621",
+        "rect": {
+          "x": 153,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 77,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e79"
+      },
+      {
+        "index": 79,
+        "type": "Stack",
+        "identifier": "1642",
+        "rect": {
+          "x": 153,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 78,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e80"
+      },
+      {
+        "index": 80,
+        "type": "__Common__",
+        "identifier": "1646",
+        "rect": {
+          "x": 153,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 79,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e81"
+      },
+      {
+        "index": 81,
+        "type": "Custom",
+        "identifier": "1648",
+        "rect": {
+          "x": 153,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 45,
+        "parentIndex": 80,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e82"
+      },
+      {
+        "index": 82,
+        "type": "Stack",
+        "identifier": "1625",
+        "rect": {
+          "x": 343,
+          "y": 1375,
+          "width": 231,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 75,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e83"
+      },
+      {
+        "index": 83,
+        "type": "Row",
+        "identifier": "1626",
+        "rect": {
+          "x": 384,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 82,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e84"
+      },
+      {
+        "index": 84,
+        "type": "__Common__",
+        "identifier": "1627",
+        "rect": {
+          "x": 384,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 83,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e85"
+      },
+      {
+        "index": 85,
+        "type": "Stack",
+        "identifier": "1650",
+        "rect": {
+          "x": 384,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 84,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e86"
+      },
+      {
+        "index": 86,
+        "type": "__Common__",
+        "identifier": "1654",
+        "rect": {
+          "x": 384,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 85,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e87"
+      },
+      {
+        "index": 87,
+        "type": "Custom",
+        "identifier": "1656",
+        "rect": {
+          "x": 384,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 45,
+        "parentIndex": 86,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e88"
+      },
+      {
+        "index": 88,
+        "type": "Stack",
+        "identifier": "1631",
+        "rect": {
+          "x": 574,
+          "y": 1375,
+          "width": 231,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 75,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e89"
+      },
+      {
+        "index": 89,
+        "type": "Row",
+        "identifier": "1632",
+        "rect": {
+          "x": 615,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 88,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e90"
+      },
+      {
+        "index": 90,
+        "type": "__Common__",
+        "identifier": "1633",
+        "rect": {
+          "x": 615,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 89,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e91"
+      },
+      {
+        "index": 91,
+        "type": "Stack",
+        "identifier": "1658",
+        "rect": {
+          "x": 615,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 90,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e92"
+      },
+      {
+        "index": 92,
+        "type": "__Common__",
+        "identifier": "1662",
+        "rect": {
+          "x": 615,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 91,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e93"
+      },
+      {
+        "index": 93,
+        "type": "Custom",
+        "identifier": "1664",
+        "rect": {
+          "x": 615,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 45,
+        "parentIndex": 92,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e94"
+      },
+      {
+        "index": 94,
+        "type": "Stack",
+        "identifier": "1637",
+        "rect": {
+          "x": 805,
+          "y": 1375,
+          "width": 231,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 75,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e95"
+      },
+      {
+        "index": 95,
+        "type": "Row",
+        "identifier": "1638",
+        "rect": {
+          "x": 846,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 94,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e96"
+      },
+      {
+        "index": 96,
+        "type": "__Common__",
+        "identifier": "1639",
+        "rect": {
+          "x": 846,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 95,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e97"
+      },
+      {
+        "index": 97,
+        "type": "Stack",
+        "identifier": "1666",
+        "rect": {
+          "x": 846,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 96,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e98"
+      },
+      {
+        "index": 98,
+        "type": "__Common__",
+        "identifier": "1670",
+        "rect": {
+          "x": 846,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 97,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e99"
+      },
+      {
+        "index": 99,
+        "type": "Custom",
+        "identifier": "1672",
+        "rect": {
+          "x": 846,
+          "y": 1375,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 45,
+        "parentIndex": 98,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e100"
+      },
+      {
+        "index": 100,
+        "type": "GridCol",
+        "identifier": "1674",
+        "rect": {
+          "x": 1150,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 53,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e101"
+      },
+      {
+        "index": 101,
+        "type": "Stack",
+        "identifier": "1677",
+        "rect": {
+          "x": 1150,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 100,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e102"
+      },
+      {
+        "index": 102,
+        "type": "Column",
+        "identifier": "1679",
+        "rect": {
+          "x": 1150,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 101,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e103"
+      },
+      {
+        "index": 103,
+        "type": "RelativeContainer",
+        "identifier": "1681",
+        "rect": {
+          "x": 1150,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 102,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e104"
+      },
+      {
+        "index": 104,
+        "type": "Stack",
+        "identifier": "1682",
+        "rect": {
+          "x": 1150,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 103,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e105"
+      },
+      {
+        "index": 105,
+        "type": "__Common__",
+        "identifier": "1684",
+        "rect": {
+          "x": 1150,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 104,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e106"
+      },
+      {
+        "index": 106,
+        "type": "Column",
+        "identifier": "1704",
+        "rect": {
+          "x": 1150,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 105,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e107"
+      },
+      {
+        "index": 107,
+        "type": "XComponent",
+        "identifier": "2140",
+        "rect": {
+          "x": 1150,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 106,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e108"
+      },
+      {
+        "index": 108,
+        "type": "Row",
+        "identifier": "1691",
+        "rect": {
+          "x": 1150,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 103,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e109"
+      },
+      {
+        "index": 109,
+        "type": "Row",
+        "identifier": "1692",
+        "rect": {
+          "x": 1150,
+          "y": 312,
+          "width": 1000,
+          "height": 1250
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 103,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e110"
+      },
+      {
+        "index": 110,
+        "type": "Column",
+        "identifier": "1694",
+        "rect": {
+          "x": 1150,
+          "y": 645,
+          "width": 1000,
+          "height": 584
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 103,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e111"
+      },
+      {
+        "index": 111,
+        "type": "__Common__",
+        "identifier": "1696",
+        "rect": {
+          "x": 1500,
+          "y": 645,
+          "width": 300,
+          "height": 300
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 110,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e112"
+      },
+      {
+        "index": 112,
+        "type": "Stack",
+        "identifier": "1714",
+        "rect": {
+          "x": 1500,
+          "y": 645,
+          "width": 300,
+          "height": 300
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 111,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e113"
+      },
+      {
+        "index": 113,
+        "type": "__Common__",
+        "identifier": "1718",
+        "rect": {
+          "x": 1500,
+          "y": 645,
+          "width": 300,
+          "height": 300
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 112,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e114"
+      },
+      {
+        "index": 114,
+        "type": "Custom",
+        "identifier": "1720",
+        "rect": {
+          "x": 1500,
+          "y": 645,
+          "width": 300,
+          "height": 300
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 113,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e115"
+      },
+      {
+        "index": 115,
+        "type": "Text",
+        "label": "千问",
+        "value": "千问",
+        "identifier": "1699",
+        "rect": {
+          "x": 1600,
+          "y": 982,
+          "width": 100,
+          "height": 66
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 110,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e116"
+      },
+      {
+        "index": 116,
+        "type": "Text",
+        "label": "阿里AI助手",
+        "value": "阿里AI助手",
+        "identifier": "1700",
+        "rect": {
+          "x": 1558,
+          "y": 1054,
+          "width": 185,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 110,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e117"
+      },
+      {
+        "index": 117,
+        "type": "__Common__",
+        "identifier": "1702",
+        "rect": {
+          "x": 1550,
+          "y": 1141,
+          "width": 200,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 110,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e118"
+      },
+      {
+        "index": 118,
+        "type": "Stack",
+        "identifier": "1722",
+        "rect": {
+          "x": 1550,
+          "y": 1141,
+          "width": 200,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 117,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e119"
+      },
+      {
+        "index": 119,
+        "type": "Button",
+        "identifier": "1725",
+        "rect": {
+          "x": 1550,
+          "y": 1141,
+          "width": 200,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 118,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e120"
+      },
+      {
+        "index": 120,
+        "type": "Text",
+        "label": "安装",
+        "value": "安装",
+        "identifier": "1726",
+        "rect": {
+          "x": 1606,
+          "y": 1156,
+          "width": 88,
+          "height": 58
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 119,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e121"
+      },
+      {
+        "index": 121,
+        "type": "ListItem",
+        "identifier": "1731",
+        "rect": {
+          "x": 75,
+          "y": 1562,
+          "width": 2074,
+          "height": 697
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 28,
+        "parentIndex": 43,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e122"
+      },
+      {
+        "index": 122,
+        "type": "GridRow",
+        "identifier": "1734",
+        "rect": {
+          "x": 75,
+          "y": 1637,
+          "width": 2074,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 29,
+        "parentIndex": 121,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e123"
+      },
+      {
+        "index": 123,
+        "type": "GridCol",
+        "identifier": "1735",
+        "rect": {
+          "x": 75,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 122,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e124"
+      },
+      {
+        "index": 124,
+        "type": "Column",
+        "identifier": "1736",
+        "rect": {
+          "x": 75,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 123,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e125"
+      },
+      {
+        "index": 125,
+        "type": "Stack",
+        "identifier": "1739",
+        "rect": {
+          "x": 75,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 124,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e126"
+      },
+      {
+        "index": 126,
+        "type": "Stack",
+        "identifier": "1741",
+        "rect": {
+          "x": 75,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 125,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e127"
+      },
+      {
+        "index": 127,
+        "type": "NodeContainer",
+        "identifier": "1742",
+        "rect": {
+          "x": 75,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 126,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e128"
+      },
+      {
+        "index": 128,
+        "type": "Column",
+        "identifier": "1743",
+        "rect": {
+          "x": 75,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 127,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e129"
+      },
+      {
+        "index": 129,
+        "type": "List",
+        "identifier": "1744",
+        "rect": {
+          "x": 75,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 128,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e130"
+      },
+      {
+        "index": 130,
+        "type": "ListItem",
+        "identifier": "1746",
+        "rect": {
+          "x": 112,
+          "y": 1637,
+          "width": 926,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 129,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e131"
+      },
+      {
+        "index": 131,
+        "type": "Column",
+        "identifier": "1907",
+        "rect": {
+          "x": 112,
+          "y": 1637,
+          "width": 926,
+          "height": 225
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 130,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e132"
+      },
+      {
+        "index": 132,
+        "type": "Text",
+        "label": "推荐",
+        "value": "推荐",
+        "identifier": "1909",
+        "rect": {
+          "x": 112,
+          "y": 1694,
+          "width": 75,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 131,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e133"
+      },
+      {
+        "index": 133,
+        "type": "Text",
+        "label": "本周热门应用",
+        "value": "本周热门应用",
+        "identifier": "1911",
+        "rect": {
+          "x": 112,
+          "y": 1750,
+          "width": 451,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 131,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e134"
+      },
+      {
+        "index": 134,
+        "type": "ListItem",
+        "identifier": "1749",
+        "rect": {
+          "x": 112,
+          "y": 1862,
+          "width": 926,
+          "height": 200
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 129,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e135"
+      },
+      {
+        "index": 135,
+        "type": "__Common__",
+        "identifier": "1913",
+        "rect": {
+          "x": 112,
+          "y": 1862,
+          "width": 926,
+          "height": 200
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 134,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e136"
+      },
+      {
+        "index": 136,
+        "type": "Stack",
+        "identifier": "1915",
+        "rect": {
+          "x": 112,
+          "y": 1862,
+          "width": 926,
+          "height": 200
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 135,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e137"
+      },
+      {
+        "index": 137,
+        "type": "Row",
+        "identifier": "1916",
+        "rect": {
+          "x": 75,
+          "y": 1862,
+          "width": 1000,
+          "height": 200
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 136,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e138"
+      },
+      {
+        "index": 138,
+        "type": "RelativeContainer",
+        "identifier": "1918",
+        "rect": {
+          "x": 111,
+          "y": 1862,
+          "width": 928,
+          "height": 200
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 137,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e139"
+      },
+      {
+        "index": 139,
+        "type": "__Common__",
+        "identifier": "1921",
+        "rect": {
+          "x": 111,
+          "y": 1887,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 138,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e140"
+      },
+      {
+        "index": 140,
+        "type": "Stack",
+        "identifier": "1941",
+        "rect": {
+          "x": 111,
+          "y": 1887,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 139,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e141"
+      },
+      {
+        "index": 141,
+        "type": "Image",
+        "identifier": "1944",
+        "rect": {
+          "x": 111,
+          "y": 1887,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 140,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e142"
+      },
+      {
+        "index": 142,
+        "type": "__Common__",
+        "identifier": "1946",
+        "rect": {
+          "x": 111,
+          "y": 1887,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 140,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e143"
+      },
+      {
+        "index": 143,
+        "type": "Custom",
+        "identifier": "1948",
+        "rect": {
+          "x": 111,
+          "y": 1887,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 45,
+        "parentIndex": 142,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e144"
+      },
+      {
+        "index": 144,
+        "type": "Column",
+        "identifier": "1926",
+        "rect": {
+          "x": 298,
+          "y": 1901,
+          "width": 504,
+          "height": 122
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 138,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e145"
+      },
+      {
+        "index": 145,
+        "type": "Text",
+        "label": "微信",
+        "value": "微信",
+        "identifier": "1927",
+        "rect": {
+          "x": 298,
+          "y": 1901,
+          "width": 100,
+          "height": 66
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 144,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e146"
+      },
+      {
+        "index": 146,
+        "type": "Text",
+        "label": "微信，是一个生活方式。",
+        "value": "微信，是一个生活方式。",
+        "identifier": "1930",
+        "rect": {
+          "x": 298,
+          "y": 1973,
+          "width": 413,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 144,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e147"
+      },
+      {
+        "index": 147,
+        "type": "__Common__",
+        "identifier": "1933",
+        "rect": {
+          "x": 839,
+          "y": 1918,
+          "width": 200,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 138,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e148"
+      },
+      {
+        "index": 148,
+        "type": "Stack",
+        "identifier": "1936",
+        "rect": {
+          "x": 839,
+          "y": 1918,
+          "width": 200,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 147,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e149"
+      },
+      {
+        "index": 149,
+        "type": "Button",
+        "identifier": "1939",
+        "rect": {
+          "x": 839,
+          "y": 1918,
+          "width": 200,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 148,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e150"
+      },
+      {
+        "index": 150,
+        "type": "Text",
+        "label": "打开",
+        "value": "打开",
+        "identifier": "1940",
+        "rect": {
+          "x": 895,
+          "y": 1933,
+          "width": 88,
+          "height": 58
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 45,
+        "parentIndex": 149,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e151"
+      },
+      {
+        "index": 151,
+        "type": "ListItem",
+        "identifier": "1751",
+        "rect": {
+          "x": 112,
+          "y": 2062,
+          "width": 926,
+          "height": 197
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 129,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e152"
+      },
+      {
+        "index": 152,
+        "type": "__Common__",
+        "identifier": "1951",
+        "rect": {
+          "x": 112,
+          "y": 2062,
+          "width": 926,
+          "height": 197
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 151,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e153"
+      },
+      {
+        "index": 153,
+        "type": "Stack",
+        "identifier": "1953",
+        "rect": {
+          "x": 112,
+          "y": 2062,
+          "width": 926,
+          "height": 197
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 152,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e154"
+      },
+      {
+        "index": 154,
+        "type": "Row",
+        "identifier": "1954",
+        "rect": {
+          "x": 75,
+          "y": 2062,
+          "width": 1000,
+          "height": 197
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 153,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e155"
+      },
+      {
+        "index": 155,
+        "type": "RelativeContainer",
+        "identifier": "1956",
+        "rect": {
+          "x": 111,
+          "y": 2062,
+          "width": 928,
+          "height": 197
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 154,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e156"
+      },
+      {
+        "index": 156,
+        "type": "Divider",
+        "identifier": "1957",
+        "rect": {
+          "x": 298,
+          "y": 2061,
+          "width": 741,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 155,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e157"
+      },
+      {
+        "index": 157,
+        "type": "__Common__",
+        "identifier": "1959",
+        "rect": {
+          "x": 111,
+          "y": 2087,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 155,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e158"
+      },
+      {
+        "index": 158,
+        "type": "Stack",
+        "identifier": "1979",
+        "rect": {
+          "x": 111,
+          "y": 2087,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 157,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e159"
+      },
+      {
+        "index": 159,
+        "type": "Image",
+        "identifier": "1982",
+        "rect": {
+          "x": 111,
+          "y": 2087,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 158,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e160"
+      },
+      {
+        "index": 160,
+        "type": "__Common__",
+        "identifier": "1984",
+        "rect": {
+          "x": 111,
+          "y": 2087,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 158,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e161"
+      },
+      {
+        "index": 161,
+        "type": "Custom",
+        "identifier": "1986",
+        "rect": {
+          "x": 111,
+          "y": 2087,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 45,
+        "parentIndex": 160,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e162"
+      },
+      {
+        "index": 162,
+        "type": "Column",
+        "identifier": "1964",
+        "rect": {
+          "x": 298,
+          "y": 2101,
+          "width": 504,
+          "height": 122
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 155,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e163"
+      },
+      {
+        "index": 163,
+        "type": "Text",
+        "label": "抖音",
+        "value": "抖音",
+        "identifier": "1965",
+        "rect": {
+          "x": 298,
+          "y": 2101,
+          "width": 100,
+          "height": 66
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 162,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e164"
+      },
+      {
+        "index": 164,
+        "type": "Text",
+        "label": "记录美好生活",
+        "value": "记录美好生活",
+        "identifier": "1968",
+        "rect": {
+          "x": 298,
+          "y": 2173,
+          "width": 225,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 162,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e165"
+      },
+      {
+        "index": 165,
+        "type": "__Common__",
+        "identifier": "1971",
+        "rect": {
+          "x": 839,
+          "y": 2118,
+          "width": 200,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 155,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e166"
+      },
+      {
+        "index": 166,
+        "type": "Stack",
+        "identifier": "1974",
+        "rect": {
+          "x": 839,
+          "y": 2118,
+          "width": 200,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 165,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e167"
+      },
+      {
+        "index": 167,
+        "type": "Button",
+        "identifier": "1977",
+        "rect": {
+          "x": 839,
+          "y": 2118,
+          "width": 200,
+          "height": 88
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 166,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e168"
+      },
+      {
+        "index": 168,
+        "type": "Text",
+        "label": "安装",
+        "value": "安装",
+        "identifier": "1978",
+        "rect": {
+          "x": 895,
+          "y": 2133,
+          "width": 88,
+          "height": 58
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 45,
+        "parentIndex": 167,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e169"
+      },
+      {
+        "index": 169,
+        "type": "GridCol",
+        "identifier": "1798",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 30,
+        "parentIndex": 122,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e170"
+      },
+      {
+        "index": 170,
+        "type": "Column",
+        "identifier": "1799",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 31,
+        "parentIndex": 169,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e171"
+      },
+      {
+        "index": 171,
+        "type": "Stack",
+        "identifier": "1827",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 32,
+        "parentIndex": 170,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e172"
+      },
+      {
+        "index": 172,
+        "type": "Stack",
+        "identifier": "1829",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 33,
+        "parentIndex": 171,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e173"
+      },
+      {
+        "index": 173,
+        "type": "NodeContainer",
+        "identifier": "1830",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 34,
+        "parentIndex": 172,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e174"
+      },
+      {
+        "index": 174,
+        "type": "Stack",
+        "identifier": "1831",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 35,
+        "parentIndex": 173,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e175"
+      },
+      {
+        "index": 175,
+        "type": "RelativeContainer",
+        "identifier": "1832",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 36,
+        "parentIndex": 174,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e176"
+      },
+      {
+        "index": 176,
+        "type": "NodeContainer",
+        "identifier": "1835",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 175,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e177"
+      },
+      {
+        "index": 177,
+        "type": "Stack",
+        "identifier": "1802",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 176,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e178"
+      },
+      {
+        "index": 178,
+        "type": "Stack",
+        "identifier": "1803",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 177,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e179"
+      },
+      {
+        "index": 179,
+        "type": "__Common__",
+        "identifier": "1804",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 40,
+        "parentIndex": 178,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e180"
+      },
+      {
+        "index": 180,
+        "type": "Stack",
+        "identifier": "1808",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 41,
+        "parentIndex": 179,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e181"
+      },
+      {
+        "index": 181,
+        "type": "Stack",
+        "identifier": "1809",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 42,
+        "parentIndex": 180,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e182"
+      },
+      {
+        "index": 182,
+        "type": "Video",
+        "label": "https://appimg-drcn.dbankcdn.com/storyHeaderVideo/42/64/2f4bc7092b7c45c7bba9f78b4360694b.mp4",
+        "value": "https://appimg-drcn.dbankcdn.com/storyHeaderVideo/42/64/2f4bc7092b7c45c7bba9f78b4360694b.mp4",
+        "identifier": "1810",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 43,
+        "parentIndex": 181,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e183"
+      },
+      {
+        "index": 183,
+        "type": "Column",
+        "identifier": "1811",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 182,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e184"
+      },
+      {
+        "index": 184,
+        "type": "Image",
+        "identifier": "1812",
+        "rect": {
+          "x": 1150,
+          "y": 1637,
+          "width": 1000,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 44,
+        "parentIndex": 182,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e185"
+      },
+      {
+        "index": 185,
+        "type": "Stack",
+        "identifier": "1841",
+        "rect": {
+          "x": 1575,
+          "y": 1637,
+          "width": 150,
+          "height": 622
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 37,
+        "parentIndex": 175,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e186"
+      },
+      {
+        "index": 186,
+        "type": "Stack",
+        "identifier": "1843",
+        "rect": {
+          "x": 1575,
+          "y": 2075,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 38,
+        "parentIndex": 185,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e187"
+      },
+      {
+        "index": 187,
+        "type": "Stack",
+        "identifier": "1845",
+        "rect": {
+          "x": 1575,
+          "y": 2075,
+          "width": 150,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 186,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e188"
+      },
+      {
+        "index": 188,
+        "type": "Image",
+        "identifier": "1846",
+        "rect": {
+          "x": 1613,
+          "y": 2113,
+          "width": 75,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 39,
+        "parentIndex": 186,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e189"
+      },
+      {
+        "index": 189,
+        "type": "Divider",
+        "identifier": "86",
+        "rect": {
+          "x": 0,
+          "y": 2259,
+          "width": 2224,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 15,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e190"
+      },
+      {
+        "index": 190,
+        "type": "TabBar",
+        "identifier": "87",
+        "rect": {
+          "x": 0,
+          "y": 2259,
+          "width": 2224,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 15,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e191"
+      },
+      {
+        "index": 191,
+        "type": "Column",
+        "identifier": "105",
+        "rect": {
+          "x": 0,
+          "y": 2259,
+          "width": 446,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": true,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 190,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e192"
+      },
+      {
+        "index": 192,
+        "type": "Column",
+        "identifier": "1407",
+        "rect": {
+          "x": 0,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 191,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e193"
+      },
+      {
+        "index": 193,
+        "type": "Column",
+        "identifier": "1411",
+        "rect": {
+          "x": 0,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 192,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e194"
+      },
+      {
+        "index": 194,
+        "type": "Flex",
+        "identifier": "1412",
+        "rect": {
+          "x": 0,
+          "y": 2265,
+          "width": 445,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 193,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e195"
+      },
+      {
+        "index": 195,
+        "type": "__Common__",
+        "identifier": "1414",
+        "rect": {
+          "x": 185,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 194,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e196"
+      },
+      {
+        "index": 196,
+        "type": "Stack",
+        "identifier": "1420",
+        "rect": {
+          "x": 185,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 195,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e197"
+      },
+      {
+        "index": 197,
+        "type": "SymbolGlyph",
+        "identifier": "1421",
+        "rect": {
+          "x": 185,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 196,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e198"
+      },
+      {
+        "index": 198,
+        "type": "SymbolGlyph",
+        "identifier": "1422",
+        "rect": {
+          "x": 185,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 196,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e199"
+      },
+      {
+        "index": 199,
+        "type": "Text",
+        "label": "探索",
+        "value": "探索",
+        "identifier": "1417",
+        "rect": {
+          "x": 191,
+          "y": 2354,
+          "width": 63,
+          "height": 41
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 194,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e200"
+      },
+      {
+        "index": 200,
+        "type": "Column",
+        "identifier": "108",
+        "rect": {
+          "x": 445,
+          "y": 2259,
+          "width": 446,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 190,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e201"
+      },
+      {
+        "index": 201,
+        "type": "Column",
+        "identifier": "1424",
+        "rect": {
+          "x": 445,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 200,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e202"
+      },
+      {
+        "index": 202,
+        "type": "Column",
+        "identifier": "1428",
+        "rect": {
+          "x": 445,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 201,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e203"
+      },
+      {
+        "index": 203,
+        "type": "Flex",
+        "identifier": "1429",
+        "rect": {
+          "x": 445,
+          "y": 2265,
+          "width": 445,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 202,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e204"
+      },
+      {
+        "index": 204,
+        "type": "__Common__",
+        "identifier": "1431",
+        "rect": {
+          "x": 630,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 203,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e205"
+      },
+      {
+        "index": 205,
+        "type": "Stack",
+        "identifier": "1437",
+        "rect": {
+          "x": 630,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 204,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e206"
+      },
+      {
+        "index": 206,
+        "type": "SymbolGlyph",
+        "identifier": "1438",
+        "rect": {
+          "x": 630,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 205,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e207"
+      },
+      {
+        "index": 207,
+        "type": "SymbolGlyph",
+        "identifier": "1439",
+        "rect": {
+          "x": 630,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 205,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e208"
+      },
+      {
+        "index": 208,
+        "type": "Text",
+        "label": "游戏",
+        "value": "游戏",
+        "identifier": "1434",
+        "rect": {
+          "x": 636,
+          "y": 2354,
+          "width": 63,
+          "height": 41
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 203,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e209"
+      },
+      {
+        "index": 209,
+        "type": "Column",
+        "identifier": "111",
+        "rect": {
+          "x": 890,
+          "y": 2259,
+          "width": 446,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 190,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e210"
+      },
+      {
+        "index": 210,
+        "type": "Column",
+        "identifier": "1441",
+        "rect": {
+          "x": 890,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 209,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e211"
+      },
+      {
+        "index": 211,
+        "type": "Column",
+        "identifier": "1445",
+        "rect": {
+          "x": 890,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 210,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e212"
+      },
+      {
+        "index": 212,
+        "type": "Flex",
+        "identifier": "1446",
+        "rect": {
+          "x": 890,
+          "y": 2265,
+          "width": 445,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 211,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e213"
+      },
+      {
+        "index": 213,
+        "type": "__Common__",
+        "identifier": "1448",
+        "rect": {
+          "x": 1075,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 212,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e214"
+      },
+      {
+        "index": 214,
+        "type": "Stack",
+        "identifier": "1454",
+        "rect": {
+          "x": 1075,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 213,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e215"
+      },
+      {
+        "index": 215,
+        "type": "SymbolGlyph",
+        "identifier": "1455",
+        "rect": {
+          "x": 1075,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 214,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e216"
+      },
+      {
+        "index": 216,
+        "type": "SymbolGlyph",
+        "identifier": "1456",
+        "rect": {
+          "x": 1075,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 214,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e217"
+      },
+      {
+        "index": 217,
+        "type": "Text",
+        "label": "应用",
+        "value": "应用",
+        "identifier": "1451",
+        "rect": {
+          "x": 1081,
+          "y": 2354,
+          "width": 63,
+          "height": 41
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 212,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e218"
+      },
+      {
+        "index": 218,
+        "type": "Column",
+        "identifier": "114",
+        "rect": {
+          "x": 1335,
+          "y": 2259,
+          "width": 446,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 190,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e219"
+      },
+      {
+        "index": 219,
+        "type": "Column",
+        "identifier": "1458",
+        "rect": {
+          "x": 1335,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 218,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e220"
+      },
+      {
+        "index": 220,
+        "type": "Column",
+        "identifier": "1462",
+        "rect": {
+          "x": 1335,
+          "y": 2259,
+          "width": 445,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 219,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e221"
+      },
+      {
+        "index": 221,
+        "type": "Flex",
+        "identifier": "1463",
+        "rect": {
+          "x": 1335,
+          "y": 2265,
+          "width": 445,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 220,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e222"
+      },
+      {
+        "index": 222,
+        "type": "__Common__",
+        "identifier": "1465",
+        "rect": {
+          "x": 1520,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 221,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e223"
+      },
+      {
+        "index": 223,
+        "type": "Stack",
+        "identifier": "1471",
+        "rect": {
+          "x": 1520,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 222,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e224"
+      },
+      {
+        "index": 224,
+        "type": "SymbolGlyph",
+        "identifier": "1472",
+        "rect": {
+          "x": 1520,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 223,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e225"
+      },
+      {
+        "index": 225,
+        "type": "SymbolGlyph",
+        "identifier": "1473",
+        "rect": {
+          "x": 1520,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 223,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e226"
+      },
+      {
+        "index": 226,
+        "type": "Text",
+        "label": "元服务",
+        "value": "元服务",
+        "identifier": "1468",
+        "rect": {
+          "x": 1511,
+          "y": 2354,
+          "width": 94,
+          "height": 41
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 221,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e227"
+      },
+      {
+        "index": 227,
+        "type": "Column",
+        "identifier": "117",
+        "rect": {
+          "x": 1780,
+          "y": 2259,
+          "width": 444,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 190,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e228"
+      },
+      {
+        "index": 228,
+        "type": "Column",
+        "identifier": "1475",
+        "rect": {
+          "x": 1780,
+          "y": 2259,
+          "width": 444,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 227,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e229"
+      },
+      {
+        "index": 229,
+        "type": "Column",
+        "identifier": "1479",
+        "rect": {
+          "x": 1780,
+          "y": 2259,
+          "width": 444,
+          "height": 237
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 228,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e230"
+      },
+      {
+        "index": 230,
+        "type": "Flex",
+        "identifier": "1480",
+        "rect": {
+          "x": 1780,
+          "y": 2265,
+          "width": 444,
+          "height": 138
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 229,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e231"
+      },
+      {
+        "index": 231,
+        "type": "__Common__",
+        "identifier": "1482",
+        "rect": {
+          "x": 1965,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 230,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e232"
+      },
+      {
+        "index": 232,
+        "type": "Stack",
+        "identifier": "1488",
+        "rect": {
+          "x": 1965,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 231,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e233"
+      },
+      {
+        "index": 233,
+        "type": "SymbolGlyph",
+        "identifier": "1489",
+        "rect": {
+          "x": 1965,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 232,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e234"
+      },
+      {
+        "index": 234,
+        "type": "SymbolGlyph",
+        "identifier": "1490",
+        "rect": {
+          "x": 1965,
+          "y": 2273,
+          "width": 76,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 232,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e235"
+      },
+      {
+        "index": 235,
+        "type": "Text",
+        "label": "我的",
+        "value": "我的",
+        "identifier": "1485",
+        "rect": {
+          "x": 1971,
+          "y": 2354,
+          "width": 63,
+          "height": 41
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 230,
+        "bundleId": "com.huawei.hmsapp.appgallery",
+        "ref": "e236"
+      },
+      {
+        "index": 236,
+        "type": "__Common__",
+        "identifier": "449",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e237"
+      },
+      {
+        "index": 237,
+        "type": "Stack",
+        "identifier": "867",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 236,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e238"
+      },
+      {
+        "index": 238,
+        "type": "__Common__",
+        "identifier": "872",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 237,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e239"
+      },
+      {
+        "index": 239,
+        "type": "Stack",
+        "identifier": "874",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 238,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e240"
+      },
+      {
+        "index": 240,
+        "type": "EffectComponent",
+        "identifier": "878",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 239,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e241"
+      },
+      {
+        "index": 241,
+        "type": "Stack",
+        "identifier": "879",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 181
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 240,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e242"
+      },
+      {
+        "index": 242,
+        "type": "Row",
+        "identifier": "935",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 241,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e243"
+      },
+      {
+        "index": 243,
+        "type": "Stack",
+        "identifier": "885",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 241,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e244"
+      },
+      {
+        "index": 244,
+        "type": "RelativeContainer",
+        "identifier": "886",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 243,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e245"
+      },
+      {
+        "index": 245,
+        "type": "RelativeContainer",
+        "identifier": "38549",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 244,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e246"
+      },
+      {
+        "index": 246,
+        "type": "Stack",
+        "identifier": "38551",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 26,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 245,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e247"
+      },
+      {
+        "index": 247,
+        "type": "Stack",
+        "identifier": "38552",
+        "rect": {
+          "x": 148,
+          "y": 25,
+          "width": 83,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 245,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e248"
+      },
+      {
+        "index": 248,
+        "type": "Stack",
+        "identifier": "38553",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 231,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 245,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e249"
+      },
+      {
+        "index": 249,
+        "type": "Row",
+        "identifier": "38555",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 231,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 248,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e250"
+      },
+      {
+        "index": 250,
+        "type": "Image",
+        "identifier": "38556",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 231,
+          "height": 172
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 249,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e251"
+      },
+      {
+        "index": 251,
+        "type": "Stack",
+        "identifier": "940",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 244,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e252"
+      },
+      {
+        "index": 252,
+        "type": "Row",
+        "identifier": "954",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 251,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e253"
+      },
+      {
+        "index": 253,
+        "type": "Flex",
+        "label": "18, :, 14",
+        "value": "18, :, 14",
+        "identifier": "955",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 252,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e254"
+      },
+      {
+        "index": 254,
+        "type": "Row",
+        "identifier": "956",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 68,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 253,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e255"
+      },
+      {
+        "index": 255,
+        "type": "TextClock",
+        "identifier": "957",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 254,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e256"
+      },
+      {
+        "index": 256,
+        "type": "Text",
+        "label": "18",
+        "value": "18",
+        "identifier": "958",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 255,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e257"
+      },
+      {
+        "index": 257,
+        "type": "Text",
+        "label": ":",
+        "value": ":",
+        "identifier": "959",
+        "rect": {
+          "x": 80,
+          "y": 39,
+          "width": 13,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 254,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e258"
+      },
+      {
+        "index": 258,
+        "type": "TextClock",
+        "identifier": "960",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 253,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e259"
+      },
+      {
+        "index": 259,
+        "type": "Text",
+        "label": "14",
+        "value": "14",
+        "identifier": "961",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 258,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e260"
+      },
+      {
+        "index": 260,
+        "type": "RelativeContainer",
+        "identifier": "898",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 2093,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 241,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e261"
+      },
+      {
+        "index": 261,
+        "type": "RelativeContainer",
+        "identifier": "38541",
+        "rect": {
+          "x": 1841,
+          "y": 25,
+          "width": 252,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 260,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e262"
+      },
+      {
+        "index": 262,
+        "type": "Stack",
+        "identifier": "38543",
+        "rect": {
+          "x": 1759,
+          "y": 25,
+          "width": 83,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 261,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e263"
+      },
+      {
+        "index": 263,
+        "type": "Stack",
+        "identifier": "38544",
+        "rect": {
+          "x": 2093,
+          "y": 25,
+          "width": 83,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 261,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e264"
+      },
+      {
+        "index": 264,
+        "type": "Stack",
+        "identifier": "38545",
+        "rect": {
+          "x": 1759,
+          "y": 25,
+          "width": 417,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 261,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e265"
+      },
+      {
+        "index": 265,
+        "type": "Row",
+        "identifier": "38547",
+        "rect": {
+          "x": 1759,
+          "y": 25,
+          "width": 417,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 264,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e266"
+      },
+      {
+        "index": 266,
+        "type": "Image",
+        "identifier": "38548",
+        "rect": {
+          "x": 1759,
+          "y": 0,
+          "width": 417,
+          "height": 172
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 265,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e267"
+      },
+      {
+        "index": 267,
+        "type": "Stack",
+        "identifier": "4165",
+        "rect": {
+          "x": 1840,
+          "y": 25,
+          "width": 63,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 260,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e268"
+      },
+      {
+        "index": 268,
+        "type": "Stack",
+        "identifier": "4169",
+        "rect": {
+          "x": 1846,
+          "y": 25,
+          "width": 57,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 267,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e269"
+      },
+      {
+        "index": 269,
+        "type": "Image",
+        "identifier": "4170",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 268,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e270"
+      },
+      {
+        "index": 270,
+        "type": "Image",
+        "identifier": "4171",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 268,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e271"
+      },
+      {
+        "index": 271,
+        "type": "Stack",
+        "identifier": "1016",
+        "rect": {
+          "x": 1903,
+          "y": 25,
+          "width": 70,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 260,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e272"
+      },
+      {
+        "index": 272,
+        "type": "Row",
+        "identifier": "1088",
+        "rect": {
+          "x": 1909,
+          "y": 25,
+          "width": 64,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 271,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e273"
+      },
+      {
+        "index": 273,
+        "type": "Row",
+        "identifier": "1707",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 272,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e274"
+      },
+      {
+        "index": 274,
+        "type": "Stack",
+        "identifier": "1803",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 273,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e275"
+      },
+      {
+        "index": 275,
+        "type": "Image",
+        "identifier": "2398",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 274,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e276"
+      },
+      {
+        "index": 276,
+        "type": "Image",
+        "identifier": "1807",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 274,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e277"
+      },
+      {
+        "index": 277,
+        "type": "Stack",
+        "identifier": "1019",
+        "rect": {
+          "x": 1973,
+          "y": 25,
+          "width": 120,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 260,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e278"
+      },
+      {
+        "index": 278,
+        "type": "Row",
+        "identifier": "1024",
+        "rect": {
+          "x": 1979,
+          "y": 25,
+          "width": 113,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 277,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e279"
+      },
+      {
+        "index": 279,
+        "type": "Stack",
+        "identifier": "1025",
+        "rect": {
+          "x": 1979,
+          "y": 36,
+          "width": 90,
+          "height": 53
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 278,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e280"
+      },
+      {
+        "index": 280,
+        "type": "Image",
+        "identifier": "1027",
+        "rect": {
+          "x": 1979,
+          "y": 38,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 279,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e281"
+      },
+      {
+        "index": 281,
+        "type": "Text",
+        "label": "89",
+        "value": "89",
+        "identifier": "1030",
+        "rect": {
+          "x": 1975,
+          "y": 39,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 279,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e282"
+      },
+      {
+        "index": 282,
+        "type": "Image",
+        "identifier": "1034",
+        "rect": {
+          "x": 2069,
+          "y": 38,
+          "width": 23,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 278,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e283"
+      },
+      {
+        "index": 283,
+        "type": "Stack",
+        "identifier": "38533",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e284"
+      },
+      {
+        "index": 284,
+        "type": "Stack",
+        "identifier": "38534",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 283,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e285"
+      },
+      {
+        "index": 285,
+        "type": "Button",
+        "identifier": "38535",
+        "rect": {
+          "x": 1037,
+          "y": 22,
+          "width": 150,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 284,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e286"
+      },
+      {
+        "index": 286,
+        "type": "Row",
+        "identifier": "38536",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 113,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 285,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e287"
+      },
+      {
+        "index": 287,
+        "type": "Text",
+        "identifier": "38537",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 286,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e288"
+      },
+      {
+        "index": 288,
+        "type": "Text",
+        "identifier": "38538",
+        "rect": {
+          "x": 1087,
+          "y": 41,
+          "width": 50,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 286,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e289"
+      },
+      {
+        "index": 289,
+        "type": "Text",
+        "identifier": "38539",
+        "rect": {
+          "x": 1150,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 286,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e290"
+      }
+    ],
+    "truncated": false,
+    "appName": "com.phoenix.read.next",
+    "visibility": {
+      "partial": false,
+      "visibleNodeCount": 290,
+      "totalNodeCount": 290,
+      "reasons": []
+    }
+  }
+}

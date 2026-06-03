@@ -1,0 +1,3025 @@
+{
+  "success": true,
+  "data": {
+    "nodes": [
+      {
+        "index": 0,
+        "type": "",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 1260,
+          "height": 2720
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 0,
+        "ref": "e1"
+      },
+      {
+        "index": 1,
+        "type": "Stack",
+        "identifier": "4",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e2"
+      },
+      {
+        "index": 2,
+        "type": "Column",
+        "identifier": "8",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e3"
+      },
+      {
+        "index": 3,
+        "type": "Navigation",
+        "identifier": "14",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e4"
+      },
+      {
+        "index": 4,
+        "type": "NavigationContent",
+        "identifier": "19",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 3,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e5"
+      },
+      {
+        "index": 5,
+        "type": "NavDestination",
+        "identifier": "1421",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 5,
+        "parentIndex": 4,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e6"
+      },
+      {
+        "index": 6,
+        "type": "NavDestinationContent",
+        "identifier": "1425",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 6,
+        "parentIndex": 5,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e7"
+      },
+      {
+        "index": 7,
+        "type": "Stack",
+        "identifier": "1428",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 7,
+        "parentIndex": 6,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e8"
+      },
+      {
+        "index": 8,
+        "type": "Stack",
+        "identifier": "1429",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 8,
+        "parentIndex": 7,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e9"
+      },
+      {
+        "index": 9,
+        "type": "__Common__",
+        "identifier": "1430",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 8,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e10"
+      },
+      {
+        "index": 10,
+        "type": "Stack",
+        "identifier": "1434",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 10,
+        "parentIndex": 9,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e11"
+      },
+      {
+        "index": 11,
+        "type": "Swiper",
+        "identifier": "1435",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 11,
+        "parentIndex": 10,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e12"
+      },
+      {
+        "index": 12,
+        "type": "Stack",
+        "identifier": "1444",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 12,
+        "parentIndex": 11,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e13"
+      },
+      {
+        "index": 13,
+        "type": "__Common__",
+        "identifier": "1446",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 12,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e14"
+      },
+      {
+        "index": 14,
+        "type": "Stack",
+        "identifier": "1448",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 14,
+        "parentIndex": 13,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e15"
+      },
+      {
+        "index": 15,
+        "type": "Flex",
+        "identifier": "1449",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 14,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e16"
+      },
+      {
+        "index": 16,
+        "type": "Stack",
+        "identifier": "1458",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2362
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 15,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e17"
+      },
+      {
+        "index": 17,
+        "type": "Stack",
+        "identifier": "1464",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2362
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 16,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e18"
+      },
+      {
+        "index": 18,
+        "type": "Stack",
+        "identifier": "1466",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2362
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 17,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e19"
+      },
+      {
+        "index": 19,
+        "type": "XComponent",
+        "identifier": "1473",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2362
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 18,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e20"
+      },
+      {
+        "index": 20,
+        "type": "Column",
+        "identifier": "1463",
+        "rect": {
+          "x": 0,
+          "y": 2486,
+          "width": 1,
+          "height": 234
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 15,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e21"
+      },
+      {
+        "index": 21,
+        "type": "__Common__",
+        "identifier": "1452",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 14,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e22"
+      },
+      {
+        "index": 22,
+        "type": "Stack",
+        "identifier": "1482",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 16,
+        "parentIndex": 21,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e23"
+      },
+      {
+        "index": 23,
+        "type": "Column",
+        "identifier": "1484",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": true,
+        "depth": 17,
+        "parentIndex": 22,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e24"
+      },
+      {
+        "index": 24,
+        "type": "Stack",
+        "identifier": "1454",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 14,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e25"
+      },
+      {
+        "index": 25,
+        "type": "Stack",
+        "identifier": "1485",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 24,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e26"
+      },
+      {
+        "index": 26,
+        "type": "Stack",
+        "identifier": "1486",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 25,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e27"
+      },
+      {
+        "index": 27,
+        "type": "Row",
+        "identifier": "1530",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 146
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 26,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e28"
+      },
+      {
+        "index": 28,
+        "type": "Row",
+        "identifier": "1531",
+        "rect": {
+          "x": 0,
+          "y": 2015,
+          "width": 1260,
+          "height": 488
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 26,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e29"
+      },
+      {
+        "index": 29,
+        "type": "Column",
+        "identifier": "1493",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 17,
+        "parentIndex": 25,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e30"
+      },
+      {
+        "index": 30,
+        "type": "Row",
+        "identifier": "1494",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2362
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 29,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e31"
+      },
+      {
+        "index": 31,
+        "type": "Column",
+        "identifier": "1495",
+        "rect": {
+          "x": 52,
+          "y": 2034,
+          "width": 1156,
+          "height": 452
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 30,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e32"
+      },
+      {
+        "index": 32,
+        "type": "Row",
+        "identifier": "1576",
+        "rect": {
+          "x": 52,
+          "y": 2034,
+          "width": 1156,
+          "height": 117
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 31,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e33"
+      },
+      {
+        "index": 33,
+        "type": "Row",
+        "identifier": "1577",
+        "rect": {
+          "x": 52,
+          "y": 2034,
+          "width": 319,
+          "height": 117
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 32,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e34"
+      },
+      {
+        "index": 34,
+        "type": "Row",
+        "identifier": "1579",
+        "rect": {
+          "x": 52,
+          "y": 2034,
+          "width": 117,
+          "height": 117
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 33,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e35"
+      },
+      {
+        "index": 35,
+        "type": "Stack",
+        "identifier": "1580",
+        "rect": {
+          "x": 52,
+          "y": 2034,
+          "width": 117,
+          "height": 117
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 34,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e36"
+      },
+      {
+        "index": 36,
+        "type": "Image",
+        "identifier": "1582",
+        "rect": {
+          "x": 52,
+          "y": 2034,
+          "width": 117,
+          "height": 117
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 35,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e37"
+      },
+      {
+        "index": 37,
+        "type": "Row",
+        "identifier": "1583",
+        "rect": {
+          "x": 195,
+          "y": 2062,
+          "width": 157,
+          "height": 61
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 33,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e38"
+      },
+      {
+        "index": 38,
+        "type": "Row",
+        "identifier": "1584",
+        "rect": {
+          "x": 195,
+          "y": 2062,
+          "width": 157,
+          "height": 61
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 37,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e39"
+      },
+      {
+        "index": 39,
+        "type": "Text",
+        "label": "萱萱妈",
+        "value": "萱萱妈",
+        "identifier": "1585",
+        "rect": {
+          "x": 195,
+          "y": 2062,
+          "width": 157,
+          "height": 61
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 38,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e40"
+      },
+      {
+        "index": 40,
+        "type": "__Common__",
+        "identifier": "1588",
+        "rect": {
+          "x": 371,
+          "y": 2052,
+          "width": 169,
+          "height": 81
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 32,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e41"
+      },
+      {
+        "index": 41,
+        "type": "Button",
+        "identifier": "1601",
+        "rect": {
+          "x": 371,
+          "y": 2052,
+          "width": 169,
+          "height": 81
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 40,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e42"
+      },
+      {
+        "index": 42,
+        "type": "Row",
+        "identifier": "1602",
+        "rect": {
+          "x": 413,
+          "y": 2068,
+          "width": 85,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 41,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e43"
+      },
+      {
+        "index": 43,
+        "type": "Text",
+        "label": "关注",
+        "value": "关注",
+        "identifier": "1606",
+        "rect": {
+          "x": 413,
+          "y": 2068,
+          "width": 85,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 42,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e44"
+      },
+      {
+        "index": 44,
+        "type": "__Common__",
+        "identifier": "1628",
+        "rect": {
+          "x": 52,
+          "y": 2177,
+          "width": 1156,
+          "height": 142
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 31,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e45"
+      },
+      {
+        "index": 45,
+        "type": "Text",
+        "label": "开水蒸鸡蛋羹0失败的做法 像果冻一样 QQ弹弹的 不会做鸡蛋羹的姐妹学赶紧起来#鸡蛋羹 #开水蒸鸡蛋 #小炖盅",
+        "value": "开水蒸鸡蛋羹0失败的做法 像果冻一样 QQ弹弹的 不会做鸡蛋羹的姐妹学赶紧起来#鸡蛋羹 #开水蒸鸡蛋 #小炖盅",
+        "identifier": "1630",
+        "rect": {
+          "x": 52,
+          "y": 2177,
+          "width": 1134,
+          "height": 142
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 44,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e46"
+      },
+      {
+        "index": 46,
+        "type": "Stack",
+        "identifier": "1591",
+        "rect": {
+          "x": 52,
+          "y": 2319,
+          "width": 1156,
+          "height": 135
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 31,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e47"
+      },
+      {
+        "index": 47,
+        "type": "Row",
+        "identifier": "1593",
+        "rect": {
+          "x": 52,
+          "y": 2345,
+          "width": 1156,
+          "height": 109
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 46,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e48"
+      },
+      {
+        "index": 48,
+        "type": "Image",
+        "identifier": "1594",
+        "rect": {
+          "x": 78,
+          "y": 2374,
+          "width": 52,
+          "height": 52
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 47,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e49"
+      },
+      {
+        "index": 49,
+        "type": "Text",
+        "label": "登录发现更多精彩",
+        "value": "登录发现更多精彩",
+        "identifier": "1595",
+        "rect": {
+          "x": 156,
+          "y": 2371,
+          "width": 313,
+          "height": 58
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 47,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e50"
+      },
+      {
+        "index": 50,
+        "type": "Blank",
+        "identifier": "1596",
+        "rect": {
+          "x": 495,
+          "y": 2367,
+          "width": 498,
+          "height": 65
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 47,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e51"
+      },
+      {
+        "index": 51,
+        "type": "Row",
+        "identifier": "1597",
+        "rect": {
+          "x": 1019,
+          "y": 2371,
+          "width": 164,
+          "height": 58
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 47,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e52"
+      },
+      {
+        "index": 52,
+        "type": "Text",
+        "label": "去登录",
+        "value": "去登录",
+        "identifier": "1598",
+        "rect": {
+          "x": 1019,
+          "y": 2371,
+          "width": 118,
+          "height": 58
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 51,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e53"
+      },
+      {
+        "index": 53,
+        "type": "Image",
+        "identifier": "1600",
+        "rect": {
+          "x": 1137,
+          "y": 2377,
+          "width": 46,
+          "height": 46
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 51,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e54"
+      },
+      {
+        "index": 54,
+        "type": "Row",
+        "identifier": "1513",
+        "rect": {
+          "x": 0,
+          "y": 2486,
+          "width": 1260,
+          "height": 234
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 18,
+        "parentIndex": 29,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e55"
+      },
+      {
+        "index": 55,
+        "type": "Stack",
+        "identifier": "1533",
+        "rect": {
+          "x": 52,
+          "y": 2486,
+          "width": 1156,
+          "height": 13
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 54,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e56"
+      },
+      {
+        "index": 56,
+        "type": "Stack",
+        "identifier": "1563",
+        "rect": {
+          "x": 52,
+          "y": 2486,
+          "width": 1156,
+          "height": 13
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 55,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e57"
+      },
+      {
+        "index": 57,
+        "type": "Row",
+        "identifier": "1564",
+        "rect": {
+          "x": 52,
+          "y": 2483,
+          "width": 1156,
+          "height": 3
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 56,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e58"
+      },
+      {
+        "index": 58,
+        "type": "Stack",
+        "identifier": "1565",
+        "rect": {
+          "x": 52,
+          "y": 2483,
+          "width": 1156,
+          "height": 3
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 57,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e59"
+      },
+      {
+        "index": 59,
+        "type": "Row",
+        "identifier": "1566",
+        "rect": {
+          "x": 52,
+          "y": 2483,
+          "width": 607,
+          "height": 3
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 58,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e60"
+      },
+      {
+        "index": 60,
+        "type": "Row",
+        "identifier": "1568",
+        "rect": {
+          "x": 654,
+          "y": 2479,
+          "width": 10,
+          "height": 10
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 58,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e61"
+      },
+      {
+        "index": 61,
+        "type": "Row",
+        "identifier": "1516",
+        "rect": {
+          "x": 52,
+          "y": 2486,
+          "width": 1156,
+          "height": 137
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 19,
+        "parentIndex": 54,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e62"
+      },
+      {
+        "index": 62,
+        "type": "Row",
+        "identifier": "1536",
+        "rect": {
+          "x": 52,
+          "y": 2512,
+          "width": 343,
+          "height": 111
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 61,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e63"
+      },
+      {
+        "index": 63,
+        "type": "Row",
+        "identifier": "1558",
+        "rect": {
+          "x": 52,
+          "y": 2512,
+          "width": 343,
+          "height": 111
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 62,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e64"
+      },
+      {
+        "index": 64,
+        "type": "Image",
+        "identifier": "1560",
+        "rect": {
+          "x": 91,
+          "y": 2541,
+          "width": 52,
+          "height": 52
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 63,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e65"
+      },
+      {
+        "index": 65,
+        "type": "Text",
+        "label": "说点什么...",
+        "value": "说点什么...",
+        "identifier": "1561",
+        "rect": {
+          "x": 163,
+          "y": 2535,
+          "width": 213,
+          "height": 65
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 63,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e66"
+      },
+      {
+        "index": 66,
+        "type": "Row",
+        "identifier": "1518",
+        "rect": {
+          "x": 434,
+          "y": 2519,
+          "width": 775,
+          "height": 98
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 20,
+        "parentIndex": 61,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e67"
+      },
+      {
+        "index": 67,
+        "type": "Stack",
+        "identifier": "1519",
+        "rect": {
+          "x": 434,
+          "y": 2519,
+          "width": 247,
+          "height": 98
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 66,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e68"
+      },
+      {
+        "index": 68,
+        "type": "Column",
+        "identifier": "1520",
+        "rect": {
+          "x": 434,
+          "y": 2519,
+          "width": 247,
+          "height": 98
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 67,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e69"
+      },
+      {
+        "index": 69,
+        "type": "Row",
+        "identifier": "1551",
+        "rect": {
+          "x": 434,
+          "y": 2519,
+          "width": 247,
+          "height": 98
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 23,
+        "parentIndex": 68,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e70"
+      },
+      {
+        "index": 70,
+        "type": "Stack",
+        "identifier": "1553",
+        "rect": {
+          "x": 434,
+          "y": 2519,
+          "width": 98,
+          "height": 98
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 69,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e71"
+      },
+      {
+        "index": 71,
+        "type": "Image",
+        "identifier": "1555",
+        "rect": {
+          "x": 434,
+          "y": 2519,
+          "width": 98,
+          "height": 98
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 25,
+        "parentIndex": 70,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e72"
+      },
+      {
+        "index": 72,
+        "type": "Row",
+        "identifier": "1556",
+        "rect": {
+          "x": 532,
+          "y": 2567,
+          "width": 13,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 69,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e73"
+      },
+      {
+        "index": 73,
+        "type": "Text",
+        "label": "17.5万",
+        "value": "17.5万",
+        "identifier": "1557",
+        "rect": {
+          "x": 545,
+          "y": 2541,
+          "width": 136,
+          "height": 53
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 24,
+        "parentIndex": 69,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e74"
+      },
+      {
+        "index": 74,
+        "type": "Row",
+        "identifier": "1539",
+        "rect": {
+          "x": 713,
+          "y": 2519,
+          "width": 247,
+          "height": 98
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 66,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e75"
+      },
+      {
+        "index": 75,
+        "type": "Image",
+        "identifier": "1541",
+        "rect": {
+          "x": 713,
+          "y": 2519,
+          "width": 98,
+          "height": 98
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 74,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e76"
+      },
+      {
+        "index": 76,
+        "type": "Row",
+        "identifier": "1542",
+        "rect": {
+          "x": 811,
+          "y": 2567,
+          "width": 13,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 74,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e77"
+      },
+      {
+        "index": 77,
+        "type": "Text",
+        "label": "11.4万",
+        "value": "11.4万",
+        "identifier": "1543",
+        "rect": {
+          "x": 824,
+          "y": 2541,
+          "width": 136,
+          "height": 53
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 74,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e78"
+      },
+      {
+        "index": 78,
+        "type": "Row",
+        "identifier": "1545",
+        "rect": {
+          "x": 992,
+          "y": 2519,
+          "width": 217,
+          "height": 98
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 21,
+        "parentIndex": 66,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e79"
+      },
+      {
+        "index": 79,
+        "type": "Image",
+        "identifier": "1547",
+        "rect": {
+          "x": 992,
+          "y": 2519,
+          "width": 98,
+          "height": 98
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 78,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e80"
+      },
+      {
+        "index": 80,
+        "type": "Row",
+        "identifier": "1548",
+        "rect": {
+          "x": 1090,
+          "y": 2567,
+          "width": 13,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 78,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e81"
+      },
+      {
+        "index": 81,
+        "type": "Text",
+        "label": "2668",
+        "value": "2668",
+        "identifier": "1549",
+        "rect": {
+          "x": 1103,
+          "y": 2541,
+          "width": 106,
+          "height": 53
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 22,
+        "parentIndex": 78,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e82"
+      },
+      {
+        "index": 82,
+        "type": "Stack",
+        "identifier": "1525",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 16,
+        "parentIndex": 24,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e83"
+      },
+      {
+        "index": 83,
+        "type": "Column",
+        "identifier": "1441",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 2596
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 10,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e84"
+      },
+      {
+        "index": 84,
+        "type": "Row",
+        "identifier": "1619",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 1260,
+          "height": 142
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 83,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e85"
+      },
+      {
+        "index": 85,
+        "type": "Image",
+        "identifier": "1620",
+        "rect": {
+          "x": 0,
+          "y": 124,
+          "width": 163,
+          "height": 142
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 84,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e86"
+      },
+      {
+        "index": 86,
+        "type": "Row",
+        "identifier": "1621",
+        "rect": {
+          "x": 163,
+          "y": 194,
+          "width": 786,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 84,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e87"
+      },
+      {
+        "index": 87,
+        "type": "Image",
+        "identifier": "1623",
+        "rect": {
+          "x": 948,
+          "y": 124,
+          "width": 143,
+          "height": 142
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 84,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e88"
+      },
+      {
+        "index": 88,
+        "type": "Image",
+        "identifier": "1625",
+        "rect": {
+          "x": 1091,
+          "y": 124,
+          "width": 169,
+          "height": 142
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 84,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e89"
+      },
+      {
+        "index": 89,
+        "type": "Row",
+        "identifier": "1626",
+        "rect": {
+          "x": 1208,
+          "y": 237,
+          "width": 1,
+          "height": 1
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 84,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e90"
+      },
+      {
+        "index": 90,
+        "type": "Image",
+        "identifier": "1433",
+        "rect": {
+          "x": 0,
+          "y": 231,
+          "width": 1260,
+          "height": 2258
+        },
+        "enabled": false,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 8,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e91"
+      },
+      {
+        "index": 91,
+        "type": "__Common__",
+        "identifier": "614",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 1260,
+          "height": 188
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e92"
+      },
+      {
+        "index": 92,
+        "type": "Stack",
+        "identifier": "917",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 1260,
+          "height": 188
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 91,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e93"
+      },
+      {
+        "index": 93,
+        "type": "__Common__",
+        "identifier": "921",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 1260,
+          "height": 188
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 92,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e94"
+      },
+      {
+        "index": 94,
+        "type": "Stack",
+        "identifier": "923",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 1260,
+          "height": 188
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 93,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e95"
+      },
+      {
+        "index": 95,
+        "type": "Row",
+        "identifier": "924",
+        "rect": {
+          "x": 52,
+          "y": 35,
+          "width": 130,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 94,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e96"
+      },
+      {
+        "index": 96,
+        "type": "Row",
+        "identifier": "925",
+        "rect": {
+          "x": 992,
+          "y": 35,
+          "width": 216,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 94,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e97"
+      },
+      {
+        "index": 97,
+        "type": "Row",
+        "identifier": "926",
+        "rect": {
+          "x": 52,
+          "y": 35,
+          "width": 1156,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 94,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e98"
+      },
+      {
+        "index": 98,
+        "type": "Stack",
+        "identifier": "927",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 1260,
+          "height": 188
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 94,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e99"
+      },
+      {
+        "index": 99,
+        "type": "Row",
+        "identifier": "266065",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 1260,
+          "height": 124
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 98,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e100"
+      },
+      {
+        "index": 100,
+        "type": "Stack",
+        "identifier": "933",
+        "rect": {
+          "x": 52,
+          "y": 35,
+          "width": 1208,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 98,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e101"
+      },
+      {
+        "index": 101,
+        "type": "RelativeContainer",
+        "identifier": "934",
+        "rect": {
+          "x": 52,
+          "y": 35,
+          "width": 1208,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 100,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e102"
+      },
+      {
+        "index": 102,
+        "type": "RelativeContainer",
+        "identifier": "2172327",
+        "rect": {
+          "x": 52,
+          "y": 35,
+          "width": 130,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 101,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e103"
+      },
+      {
+        "index": 103,
+        "type": "Stack",
+        "identifier": "2172329",
+        "rect": {
+          "x": 0,
+          "y": 35,
+          "width": 52,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 102,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e104"
+      },
+      {
+        "index": 104,
+        "type": "Stack",
+        "identifier": "2172330",
+        "rect": {
+          "x": 182,
+          "y": 35,
+          "width": 86,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 102,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e105"
+      },
+      {
+        "index": 105,
+        "type": "Stack",
+        "identifier": "2172331",
+        "rect": {
+          "x": 0,
+          "y": 35,
+          "width": 268,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 102,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e106"
+      },
+      {
+        "index": 106,
+        "type": "Row",
+        "identifier": "2172333",
+        "rect": {
+          "x": 0,
+          "y": 35,
+          "width": 268,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 105,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e107"
+      },
+      {
+        "index": 107,
+        "type": "Image",
+        "identifier": "2172334",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 268,
+          "height": 187
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 106,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e108"
+      },
+      {
+        "index": 108,
+        "type": "Stack",
+        "identifier": "989",
+        "rect": {
+          "x": 52,
+          "y": 35,
+          "width": 130,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 101,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e109"
+      },
+      {
+        "index": 109,
+        "type": "Row",
+        "identifier": "997",
+        "rect": {
+          "x": 52,
+          "y": 35,
+          "width": 130,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 108,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e110"
+      },
+      {
+        "index": 110,
+        "type": "Flex",
+        "label": "11, :, 00",
+        "value": "11, :, 00",
+        "identifier": "998",
+        "rect": {
+          "x": 52,
+          "y": 35,
+          "width": 130,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 109,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e111"
+      },
+      {
+        "index": 111,
+        "type": "Row",
+        "identifier": "999",
+        "rect": {
+          "x": 52,
+          "y": 46,
+          "width": 72,
+          "height": 57
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 110,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e112"
+      },
+      {
+        "index": 112,
+        "type": "TextClock",
+        "identifier": "1000",
+        "rect": {
+          "x": 52,
+          "y": 46,
+          "width": 58,
+          "height": 57
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 111,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e113"
+      },
+      {
+        "index": 113,
+        "type": "Text",
+        "label": "11",
+        "value": "11",
+        "identifier": "1001",
+        "rect": {
+          "x": 52,
+          "y": 46,
+          "width": 58,
+          "height": 57
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 112,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e114"
+      },
+      {
+        "index": 114,
+        "type": "Text",
+        "label": ":",
+        "value": ":",
+        "identifier": "1002",
+        "rect": {
+          "x": 110,
+          "y": 50,
+          "width": 14,
+          "height": 49
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 111,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e115"
+      },
+      {
+        "index": 115,
+        "type": "TextClock",
+        "identifier": "1003",
+        "rect": {
+          "x": 124,
+          "y": 46,
+          "width": 58,
+          "height": 57
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 110,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e116"
+      },
+      {
+        "index": 116,
+        "type": "Text",
+        "label": "00",
+        "value": "00",
+        "identifier": "1004",
+        "rect": {
+          "x": 124,
+          "y": 46,
+          "width": 58,
+          "height": 57
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 115,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e117"
+      },
+      {
+        "index": 117,
+        "type": "Stack",
+        "identifier": "995",
+        "rect": {
+          "x": 195,
+          "y": 35,
+          "width": 234,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 101,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e118"
+      },
+      {
+        "index": 118,
+        "type": "Row",
+        "identifier": "1593",
+        "rect": {
+          "x": 195,
+          "y": 35,
+          "width": 234,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 117,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e119"
+      },
+      {
+        "index": 119,
+        "type": "Row",
+        "identifier": "2170840",
+        "rect": {
+          "x": 195,
+          "y": 51,
+          "width": 46,
+          "height": 46
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 118,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e120"
+      },
+      {
+        "index": 120,
+        "type": "Row",
+        "identifier": "2170841",
+        "rect": {
+          "x": 195,
+          "y": 51,
+          "width": 46,
+          "height": 46
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 119,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e121"
+      },
+      {
+        "index": 121,
+        "type": "Image",
+        "identifier": "2170842",
+        "rect": {
+          "x": 195,
+          "y": 51,
+          "width": 46,
+          "height": 46
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 120,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e122"
+      },
+      {
+        "index": 122,
+        "type": "Row",
+        "identifier": "353481",
+        "rect": {
+          "x": 254,
+          "y": 51,
+          "width": 46,
+          "height": 46
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 118,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e123"
+      },
+      {
+        "index": 123,
+        "type": "Row",
+        "identifier": "353482",
+        "rect": {
+          "x": 254,
+          "y": 51,
+          "width": 46,
+          "height": 46
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 122,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e124"
+      },
+      {
+        "index": 124,
+        "type": "Image",
+        "identifier": "353483",
+        "rect": {
+          "x": 254,
+          "y": 51,
+          "width": 46,
+          "height": 46
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 123,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e125"
+      },
+      {
+        "index": 125,
+        "type": "Row",
+        "identifier": "192085",
+        "rect": {
+          "x": 312,
+          "y": 51,
+          "width": 46,
+          "height": 46
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 118,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e126"
+      },
+      {
+        "index": 126,
+        "type": "Row",
+        "identifier": "192086",
+        "rect": {
+          "x": 312,
+          "y": 51,
+          "width": 46,
+          "height": 46
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 125,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e127"
+      },
+      {
+        "index": 127,
+        "type": "Image",
+        "identifier": "192087",
+        "rect": {
+          "x": 312,
+          "y": 51,
+          "width": 46,
+          "height": 46
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 126,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e128"
+      },
+      {
+        "index": 128,
+        "type": "Row",
+        "identifier": "352864",
+        "rect": {
+          "x": 371,
+          "y": 51,
+          "width": 46,
+          "height": 46
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 118,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e129"
+      },
+      {
+        "index": 129,
+        "type": "Row",
+        "identifier": "352865",
+        "rect": {
+          "x": 371,
+          "y": 51,
+          "width": 46,
+          "height": 46
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 128,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e130"
+      },
+      {
+        "index": 130,
+        "type": "Image",
+        "identifier": "352866",
+        "rect": {
+          "x": 371,
+          "y": 51,
+          "width": 46,
+          "height": 46
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 129,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e131"
+      },
+      {
+        "index": 131,
+        "type": "RelativeContainer",
+        "identifier": "946",
+        "rect": {
+          "x": 0,
+          "y": 35,
+          "width": 1208,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 98,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e132"
+      },
+      {
+        "index": 132,
+        "type": "RelativeContainer",
+        "identifier": "2172335",
+        "rect": {
+          "x": 992,
+          "y": 35,
+          "width": 216,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 131,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e133"
+      },
+      {
+        "index": 133,
+        "type": "Stack",
+        "identifier": "2172337",
+        "rect": {
+          "x": 906,
+          "y": 35,
+          "width": 86,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 132,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e134"
+      },
+      {
+        "index": 134,
+        "type": "Stack",
+        "identifier": "2172338",
+        "rect": {
+          "x": 1208,
+          "y": 35,
+          "width": 52,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 132,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e135"
+      },
+      {
+        "index": 135,
+        "type": "Stack",
+        "identifier": "2172339",
+        "rect": {
+          "x": 906,
+          "y": 35,
+          "width": 354,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 132,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e136"
+      },
+      {
+        "index": 136,
+        "type": "Row",
+        "identifier": "2172341",
+        "rect": {
+          "x": 906,
+          "y": 35,
+          "width": 354,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 135,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e137"
+      },
+      {
+        "index": 137,
+        "type": "Image",
+        "identifier": "2172342",
+        "rect": {
+          "x": 906,
+          "y": 0,
+          "width": 354,
+          "height": 187
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 136,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e138"
+      },
+      {
+        "index": 138,
+        "type": "Stack",
+        "identifier": "1073",
+        "rect": {
+          "x": 992,
+          "y": 35,
+          "width": 69,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 131,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e139"
+      },
+      {
+        "index": 139,
+        "type": "Stack",
+        "identifier": "1099",
+        "rect": {
+          "x": 998,
+          "y": 35,
+          "width": 63,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 138,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e140"
+      },
+      {
+        "index": 140,
+        "type": "SymbolGlyph",
+        "identifier": "1101",
+        "rect": {
+          "x": 998,
+          "y": 48,
+          "width": 63,
+          "height": 52
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 139,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e141"
+      },
+      {
+        "index": 141,
+        "type": "SymbolGlyph",
+        "identifier": "1102",
+        "rect": {
+          "x": 998,
+          "y": 48,
+          "width": 63,
+          "height": 52
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 139,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e142"
+      },
+      {
+        "index": 142,
+        "type": "Stack",
+        "identifier": "1077",
+        "rect": {
+          "x": 1061,
+          "y": 35,
+          "width": 50,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 131,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e143"
+      },
+      {
+        "index": 143,
+        "type": "Row",
+        "identifier": "1127",
+        "rect": {
+          "x": 1067,
+          "y": 35,
+          "width": 44,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 142,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e144"
+      },
+      {
+        "index": 144,
+        "type": "Row",
+        "identifier": "1862",
+        "rect": {
+          "x": 1067,
+          "y": 48,
+          "width": 44,
+          "height": 52
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 143,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e145"
+      },
+      {
+        "index": 145,
+        "type": "Stack",
+        "identifier": "1867",
+        "rect": {
+          "x": 1067,
+          "y": 48,
+          "width": 44,
+          "height": 52
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 144,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e146"
+      },
+      {
+        "index": 146,
+        "type": "SymbolGlyph",
+        "identifier": "1870",
+        "rect": {
+          "x": 1067,
+          "y": 48,
+          "width": 44,
+          "height": 52
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 145,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e147"
+      },
+      {
+        "index": 147,
+        "type": "Stack",
+        "identifier": "1081",
+        "rect": {
+          "x": 1111,
+          "y": 35,
+          "width": 97,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 131,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e148"
+      },
+      {
+        "index": 148,
+        "type": "Row",
+        "identifier": "1084",
+        "rect": {
+          "x": 1117,
+          "y": 35,
+          "width": 91,
+          "height": 78
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 147,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e149"
+      },
+      {
+        "index": 149,
+        "type": "Stack",
+        "identifier": "1085",
+        "rect": {
+          "x": 1117,
+          "y": 48,
+          "width": 91,
+          "height": 52
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 148,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e150"
+      },
+      {
+        "index": 150,
+        "type": "Stack",
+        "identifier": "1087",
+        "rect": {
+          "x": 1117,
+          "y": 48,
+          "width": 91,
+          "height": 52
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 149,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e151"
+      },
+      {
+        "index": 151,
+        "type": "SymbolGlyph",
+        "identifier": "1091",
+        "rect": {
+          "x": 1117,
+          "y": 48,
+          "width": 91,
+          "height": 52
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 150,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e152"
+      },
+      {
+        "index": 152,
+        "type": "Text",
+        "label": "80",
+        "value": "80",
+        "identifier": "1093",
+        "rect": {
+          "x": 1137,
+          "y": 54,
+          "width": 43,
+          "height": 42
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 150,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e153"
+      },
+      {
+        "index": 153,
+        "type": "Text",
+        "label": "80",
+        "value": "80",
+        "identifier": "2172343",
+        "rect": {
+          "x": 1137,
+          "y": 54,
+          "width": 43,
+          "height": 42
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 150,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e154"
+      },
+      {
+        "index": 154,
+        "type": "Stack",
+        "identifier": "2158759",
+        "rect": {
+          "x": 485,
+          "y": 27,
+          "width": 291,
+          "height": 94
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 94,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e155"
+      },
+      {
+        "index": 155,
+        "type": "Stack",
+        "identifier": "2158770",
+        "rect": {
+          "x": 485,
+          "y": 27,
+          "width": 291,
+          "height": 94
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 154,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e156"
+      },
+      {
+        "index": 156,
+        "type": "metaballNode",
+        "identifier": "2158775",
+        "rect": {
+          "x": 339,
+          "y": 0,
+          "width": 583,
+          "height": 150
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 155,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e157"
+      }
+    ],
+    "truncated": false,
+    "appName": "com.xingin.xhs_hos",
+    "visibility": {
+      "partial": false,
+      "visibleNodeCount": 157,
+      "totalNodeCount": 157,
+      "reasons": []
+    }
+  }
+}

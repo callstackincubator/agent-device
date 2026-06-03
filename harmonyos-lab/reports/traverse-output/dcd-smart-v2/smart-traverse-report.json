@@ -1,0 +1,176 @@
+{
+  "targetBundle": "com.ss.dcar.auto",
+  "deviceId": "22M0223824043030",
+  "outputDir": "./traverse-output/dcd-smart-v2",
+  "maxDepth": 2,
+  "aborted": false,
+  "screensVisited": 1,
+  "totalClicks": 3,
+  "newScreensFromClicks": 0,
+  "skippedClicks": 1,
+  "results": [
+    {
+      "screenId": "s1_d0",
+      "depth": 0,
+      "parentAction": null,
+      "fingerprint": {
+        "nodes": 66,
+        "labels": ":|不同意|个人信息保护指引|同意|感谢您信任并使用懂车帝！本版本为鸿蒙版。\n    我们非常重视您的个人信息和隐私保护。我们将通过用户协议与隐私政策帮助您了解我们如何收集、处理个人信息。\n    1.在首次启动App时和您浏览使用时，我们会申请读取设备设备标识符，以用于信息推送和安全保障等功能。\n    2.我们可能会申请粗略位置权限，用于完成安全保障服务，在发布的信息中展示位置或丰富信息推荐维度。城市位置仅通过IP地址确定选车/用车/询价留资等界面中的城市及相关信息，不会收集精确位置信息。\n    3.我们尊重您的选择权，如果您希望仅使用基本功能，您可以在“设置”-“隐私设置”中进行选择。\n    请您充分阅读并理解上述协议，点击同意按钮即表示您已同意上述协议及以上约定。",
+        "key": "66::|不同意|个人信息保护指引|同意|感谢您信任并使用懂车帝！本版本为鸿蒙版。\n    我们非常重视您的个人信息和隐私保护。我们将通过用户协议与隐私政策帮助您了解我们如何收集、处理个人信息。\n    1.在首次启动App时和您浏览使用时，我们会申请读取设备设备标识符，以用于信息推送和安全保障等功能。\n    2.我们可能会申请粗略位置权限，用于完成安全保障服务，在发布的信息中展示位置或丰富信息推荐维"
+      },
+      "guard": {
+        "bundles": [
+          "com.ss.dcar.auto",
+          "com.ohos.sceneboard"
+        ],
+        "focused": "com.ss.dcar.auto",
+        "hasTarget": true,
+        "launcherOnly": false,
+        "wrongApp": false
+      },
+      "cognition": {
+        "overview": {
+          "screenResolution": {
+            "width": 2224,
+            "height": 2496
+          },
+          "totalNodes": 66,
+          "treeDepth": 16,
+          "complexity": "simple"
+        },
+        "suggestions": [
+          "存在导航结构，建议按导航层级遍历"
+        ],
+        "features": {
+          "hasScroll": true,
+          "hasTabs": true,
+          "hasModal": false,
+          "hasList": false,
+          "hasForm": false
+        },
+        "layoutPattern": [
+          "navigation-based"
+        ]
+      },
+      "plan": [
+        {
+          "category": "content",
+          "label": "感谢您信任并使用懂车帝！本版本为鸿蒙版。\n    我们非常重视您的个人信息和隐私保护。我们将通过用户协议与隐私政策帮助您了解我们如何收集、处理个人信息。\n    1.在首次启动App时和您浏览使用时，我们会申请读取设备设备标识符，以用于信息推送和安全保障等功能。\n    2.我们可能会申请粗略位置权限，用于完成安全保障服务，在发布的信息中展示位置或丰富信息推荐维度。城市位置仅通过IP地址确定选车/用车/询价留资等界面中的城市及相关信息，不会收集精确位置信息。\n    3.我们尊重您的选择权，如果您希望仅使用基本功能，您可以在“设置”-“隐私设置”中进行选择。\n    请您充分阅读并理解上述协议，点击同意按钮即表示您已同意上述协议及以上约定。",
+          "type": "Text",
+          "x": 1112,
+          "y": 1219,
+          "bounds": "[213,938][2011,1499]"
+        },
+        {
+          "category": "content",
+          "label": "个人信息保护指引",
+          "type": "Stack",
+          "x": 1112,
+          "y": 1305,
+          "bounds": "[0,113][2224,2496]"
+        },
+        {
+          "category": "content",
+          "label": "同意",
+          "type": "Text",
+          "x": 1568,
+          "y": 1674,
+          "bounds": "[1123,1612][2012,1735]"
+        }
+      ],
+      "clicks": [
+        {
+          "action": "[content] press 1112 1219 (感谢您信任并使用懂车帝！本版本为鸿蒙版。\n    我们非常重视您的个人信息和隐私保护。我们将通过用户协议与隐私政策帮助您了解我们如何收集、处理个人信息。\n    1.在首次启动App时和您浏览使用时，我们会申请读取设备设备标识符，以用于信息推送和安全保障等功能。\n    2.我们可能会申请粗略位置权限，用于完成安全保障服务，在发布的信息中展示位置或丰富信息推荐维度。城市位置仅通过IP地址确定选车/用车/询价留资等界面中的城市及相关信息，不会收集精确位置信息。\n    3.我们尊重您的选择权，如果您希望仅使用基本功能，您可以在“设置”-“隐私设置”中进行选择。\n    请您充分阅读并理解上述协议，点击同意按钮即表示您已同意上述协议及以上约定。)",
+          "pressOk": true,
+          "beforeNodes": 66,
+          "afterNodes": 66,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v2/layouts/s1_d0_after_0.json"
+        },
+        {
+          "action": "[content] press 1112 1305 (个人信息保护指引)",
+          "pressOk": true,
+          "beforeNodes": 66,
+          "afterNodes": 66,
+          "nodeDelta": 0,
+          "labelChanged": false,
+          "isNewScreen": false,
+          "afterLayout": "traverse-output/dcd-smart-v2/layouts/s1_d0_after_1.json"
+        },
+        {
+          "action": "[content] press 1568 1674 (同意)",
+          "pressOk": true,
+          "skipped": true,
+          "reason": "wrong_app",
+          "afterBundles": [
+            "com.ohos.notificationdialog",
+            "com.ohos.sceneboard"
+          ],
+          "isNewScreen": false
+        }
+      ]
+    }
+  ],
+  "completedAt": "2026-05-26T10:38:58.205Z",
+  "traverseTree": {
+    "targetBundle": "com.ss.dcar.auto",
+    "outputDir": "./traverse-output/dcd-smart-v2",
+    "screensVisited": 1,
+    "roots": [
+      {
+        "screenId": "s1_d0",
+        "depth": 0,
+        "parentAction": null,
+        "title": "s1_d0 · depth=0 · nodes=66 · navigation-based",
+        "fingerprint": {
+          "nodes": 66,
+          "labels": ":|不同意|个人信息保护指引|同意|感谢您信任并使用懂车帝！本版本为鸿蒙版。\n    我们非常重视您的个人信息和隐私保护。我们将通过用户协议与隐私政策帮助您了解我们如何收集、处理个人信息。\n    1.在首次启动App时和您浏览使用时，我们会申请读取设备设备标识符，以用于信息推送和安全保障等功能。\n    2.我们可能会申请粗略位置权限，用于完成安全保障服务，在发布的信息中展示位置或丰富信息推荐维度。城市位置仅通过IP地址确定选车/用车/询价留资等界面中的城市及相关信息，不会收集精确位置信息。\n    3.我们尊重您的选择权，如果您希望仅使用基本功能，您可以在“设置”-“隐私设置”中进行选择。\n    请您充分阅读并理解上述协议，点击同意按钮即表示您已同意上述协议及以上约定。",
+          "key": "66::|不同意|个人信息保护指引|同意|感谢您信任并使用懂车帝！本版本为鸿蒙版。\n    我们非常重视您的个人信息和隐私保护。我们将通过用户协议与隐私政策帮助您了解我们如何收集、处理个人信息。\n    1.在首次启动App时和您浏览使用时，我们会申请读取设备设备标识符，以用于信息推送和安全保障等功能。\n    2.我们可能会申请粗略位置权限，用于完成安全保障服务，在发布的信息中展示位置或丰富信息推荐维"
+        },
+        "cognition": {
+          "treeDepth": 16,
+          "features": {
+            "hasScroll": true,
+            "hasTabs": true,
+            "hasModal": false,
+            "hasList": false,
+            "hasForm": false
+          },
+          "suggestions": [
+            "存在导航结构，建议按导航层级遍历"
+          ]
+        },
+        "clickBranches": [
+          {
+            "action": "[content] press 1112 1219 (感谢您信任并使用懂车帝！本版本为鸿蒙版。\n    我们非常重视您的个人信息和隐私保护。我们将通过用户协议与隐私政策帮助您了解我们如何收集、处理个人信息。\n    1.在首次启动App时和您浏览使用时，我们会申请读取设备设备标识符，以用于信息推送和安全保障等功能。\n    2.我们可能会申请粗略位置权限，用于完成安全保障服务，在发布的信息中展示位置或丰富信息推荐维度。城市位置仅通过IP地址确定选车/用车/询价留资等界面中的城市及相关信息，不会收集精确位置信息。\n    3.我们尊重您的选择权，如果您希望仅使用基本功能，您可以在“设置”-“隐私设置”中进行选择。\n    请您充分阅读并理解上述协议，点击同意按钮即表示您已同意上述协议及以上约定。)",
+            "label": "感谢您信任并使用懂车帝！本版本为鸿蒙版。\n    我们非常重视您的个人信息和隐私保护。我们将通过用户协议与隐私政策帮助您了解我们如何收集、处理个人信息。\n    1.在首次启动App时和您浏览使用时，我们会申请读取设备设备标识符，以用于信息推送和安全保障等功能。\n    2.我们可能会申请粗略位置权限，用于完成安全保障服务，在发布的信息中展示位置或丰富信息推荐维度。城市位置仅通过IP地址确定选车/用车/询价留资等界面中的城市及相关信息，不会收集精确位置信息。\n    3.我们尊重您的选择权，如果您希望仅使用基本功能，您可以在“设置”-“隐私设置”中进行选择。\n    请您充分阅读并理解上述协议，点击同意按钮即表示您已同意上述协议及以上约定。",
+            "status": "无变化 (66→66)",
+            "isNewScreen": false,
+            "skipped": false,
+            "unvisitedNewScreen": false
+          },
+          {
+            "action": "[content] press 1112 1305 (个人信息保护指引)",
+            "label": "个人信息保护指引",
+            "status": "无变化 (66→66)",
+            "isNewScreen": false,
+            "skipped": false,
+            "unvisitedNewScreen": false
+          },
+          {
+            "action": "[content] press 1568 1674 (同意)",
+            "label": "同意",
+            "status": "跳过 (wrong_app)",
+            "isNewScreen": false,
+            "skipped": true,
+            "reason": "wrong_app",
+            "unvisitedNewScreen": false
+          }
+        ],
+        "children": []
+      }
+    ]
+  }
+}

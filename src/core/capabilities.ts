@@ -10,6 +10,7 @@ type KindMatrix = {
 export type CommandCapability = {
   apple?: KindMatrix;
   android?: KindMatrix;
+  harmonyos?: KindMatrix;
   linux?: KindMatrix;
   supports?: (device: DeviceInfo) => boolean;
   /** Optional actionable hint surfaced when this command is rejected at admission for `device`. */
@@ -42,17 +43,20 @@ const LINUX_NONE: KindMatrix = {};
 const ALL_DEVICE_COMMAND_CAPABILITY = {
   apple: { simulator: true, device: true },
   android: { emulator: true, device: true, unknown: true },
+  harmonyos: { device: true },
   linux: LINUX_DEVICE,
 } as const satisfies CommandCapability;
 const APP_RUNTIME_CAPABILITY = ALL_DEVICE_COMMAND_CAPABILITY;
 const APP_INVENTORY_CAPABILITY = {
   apple: { simulator: true, device: true },
   android: { emulator: true, device: true, unknown: true },
+  harmonyos: { device: true },
   linux: LINUX_NONE,
 } as const satisfies CommandCapability;
 const APP_INSTALL_CAPABILITY = {
   apple: { simulator: true, device: true },
   android: { emulator: true, device: true, unknown: true },
+  harmonyos: { device: true },
   linux: LINUX_NONE,
   supports: isNotMacOs,
 } as const satisfies CommandCapability;
@@ -152,6 +156,7 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   diff: ALL_DEVICE_COMMAND_CAPABILITY,
   screenshot: ALL_DEVICE_COMMAND_CAPABILITY,
   wait: ALL_DEVICE_COMMAND_CAPABILITY,
+  cognition: ALL_DEVICE_COMMAND_CAPABILITY,
   get: ALL_DEVICE_COMMAND_CAPABILITY,
   find: ALL_DEVICE_COMMAND_CAPABILITY,
   is: ALL_DEVICE_COMMAND_CAPABILITY,
@@ -251,7 +256,9 @@ export function isCommandSupportedOnDevice(command: string, device: DeviceInfo):
     ? capability.apple
     : device.platform === 'linux'
       ? capability.linux
-      : capability.android;
+      : device.platform === 'harmonyos'
+        ? capability.harmonyos
+        : capability.android;
   if (!byPlatform) return false;
   if (capability.supports && !capability.supports(device)) return false;
   const kind = (device.kind ?? 'unknown') as keyof KindMatrix;

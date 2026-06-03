@@ -1,0 +1,4 @@
+{"ts":"2026-05-27T11:28:22.877Z","event":"traverse_start","bundle":"com.sdu.didi.hmos.psnger","maxDepth":8,"runUntilSec":"3600"}
+{"ts":"2026-05-27T11:28:29.349Z","event":"round_start","round":1,"elapsedSec":6,"screensSoFar":0}
+{"ts":"2026-05-27T11:28:37.826Z","event":"click_wrong_app","action":"[modal-accept] press 540 1722 (同意并开始使用)","reason":"wrong_app","bundles":["com.huawei.hmos.security.privacycenter","com.ohos.sceneboard"],"label":"同意并开始使用"}
+{"ts":"2026-05-27T11:29:20.295Z","event":"round_start","round":2,"elapsedSec":57,"screensSoFar":1}

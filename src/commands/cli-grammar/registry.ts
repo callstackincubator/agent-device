@@ -22,6 +22,9 @@ const cliReaders = {
   ...replayCliReaders,
   ...systemCliReaders,
   ...metroCliReaders,
+  cognition: (_positionals, flags) => ({
+    ...commonInputFromFlags(flags),
+  }),
   batch: (_positionals, flags) => ({
     ...commonInputFromFlags(flags),
     steps: flags.batchSteps ?? [],

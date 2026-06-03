@@ -1,0 +1,405 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 414,
+    "treeDepth": 34,
+    "complexity": "medium"
+  },
+  "structure": {
+    "layoutPattern": [
+      "navigation-based",
+      "tab-based",
+      "vertical-scroll",
+      "horizontal-layout",
+      "list-view",
+      "grid-view"
+    ],
+    "mainContainers": [
+      {
+        "type": "Stack",
+        "depth": 2,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "Navigation",
+        "depth": 3,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "NavigationContent",
+        "depth": 4,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Navigation",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "NavigationContent",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,113][2224,2291]"
+      },
+      {
+        "type": "Text",
+        "label": "立即登录",
+        "bounds": "[262,267][488,333]"
+      },
+      {
+        "type": "Text",
+        "label": "点击登录，精彩永不丢失",
+        "bounds": "[262,345][675,389]"
+      },
+      {
+        "type": "Text",
+        "label": "发布真实有趣的内容，获得更多车友关注",
+        "bounds": "[87,1295][1987,1339]"
+      },
+      {
+        "type": "Text",
+        "label": "更多服务",
+        "bounds": "[1904,1871][2054,1927]"
+      },
+      {
+        "type": "Text",
+        "label": "首页",
+        "bounds": "[191,2372][254,2409]"
+      },
+      {
+        "type": "Text",
+        "label": "未登录",
+        "bounds": "[1954,2372][2048,2409]"
+      },
+      {
+        "type": "Text",
+        "label": "未登录",
+        "bounds": "[300,296][500,355]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[749,1150][1031,1263]"
+      },
+      {
+        "type": "Text",
+        "label": "更多功能",
+        "bounds": "[87,1515][287,1574]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[0,113][2224,250]"
+      },
+      {
+        "type": "Text",
+        "label": "",
+        "bounds": "[0,140][151,222]"
+      },
+      {
+        "type": "Text",
+        "label": "",
+        "bounds": "[151,140][302,222]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[1765,143][2048,218]"
+      },
+      {
+        "type": "Text",
+        "label": "",
+        "bounds": "[2048,140][2224,222]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[25,249][2199,799]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[62,249][225,412]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[62,249][225,412]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[262,267][2200,333]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[62,492][482,610]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[482,492][902,610]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[902,492][1322,610]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[1322,492][1742,610]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[1742,492][2162,610]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[62,647][2162,739]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[25,824][2199,993]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[234,1018][396,1267]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[790,1018][952,1267]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[1346,1018][1471,1267]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[1865,1018][1990,1267]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[62,1267][2162,1367]"
+      },
+      {
+        "type": "Text",
+        "label": "全部订单",
+        "bounds": "[1986,1461][2174,1505]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[28,1565][2196,1753]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[28,1753][462,1953]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[462,1753][896,1953]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[895,1753][1329,1953]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[1329,1753][1763,1953]"
+      },
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[1762,1753][2196,1953]"
+      }
+    ],
+    "inputFields": [],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[749,1150][1031,1263]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "tabs": [
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,113][2224,2291]"
+      }
+    ]
+  },
+  "features": {
+    "hasScroll": true,
+    "hasTabs": true,
+    "hasModal": false,
+    "hasList": true,
+    "hasForm": false
+  },
+  "suggestions": [
+    "界面复杂度高，建议优先测试关键路径",
+    "存在导航结构，建议按导航层级遍历",
+    "交互元素多，建议分类测试（按钮、输入框、链接等）"
+  ],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Stack",
+        86
+      ],
+      [
+        "__Common__",
+        85
+      ],
+      [
+        "Text",
+        70
+      ],
+      [
+        "Column",
+        54
+      ],
+      [
+        "Image",
+        40
+      ],
+      [
+        "Row",
+        27
+      ],
+      [
+        "RelativeContainer",
+        8
+      ],
+      [
+        "GridItem",
+        8
+      ],
+      [
+        "ListItem",
+        6
+      ],
+      [
+        "Flex",
+        5
+      ],
+      [
+        "Swiper",
+        2
+      ],
+      [
+        "List",
+        2
+      ],
+      [
+        "Grid",
+        2
+      ],
+      [
+        "Button",
+        2
+      ],
+      [
+        "WindowScene",
+        2
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 3,
+      "2": 3,
+      "3": 3,
+      "4": 3,
+      "5": 3,
+      "6": 5,
+      "7": 2,
+      "8": 4,
+      "9": 5,
+      "10": 5,
+      "11": 7,
+      "12": 6,
+      "13": 7,
+      "14": 7,
+      "15": 10,
+      "16": 8,
+      "17": 8,
+      "18": 12,
+      "19": 19,
+      "20": 18,
+      "21": 17,
+      "22": 21,
+      "23": 16,
+      "24": 21,
+      "25": 13,
+      "26": 15,
+      "27": 27,
+      "28": 24,
+      "29": 25,
+      "30": 34,
+      "31": 27,
+      "32": 18,
+      "33": 12,
+      "34": 5
+    }
+  }
+}

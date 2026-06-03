@@ -1,0 +1,296 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 150,
+    "treeDepth": 28,
+    "complexity": "simple"
+  },
+  "structure": {
+    "layoutPattern": [
+      "navigation-based",
+      "tab-based",
+      "vertical-scroll",
+      "horizontal-layout",
+      "list-view"
+    ],
+    "mainContainers": [
+      {
+        "type": "Navigation",
+        "depth": 2,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "NavigationContent",
+        "depth": 3,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "NavDestination",
+        "depth": 4,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Navigation",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "NavigationContent",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2409]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,113][2224,2234]"
+      },
+      {
+        "type": "TabBar",
+        "label": "",
+        "bounds": "[0,2234][2224,2410]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[0,113][2224,2234]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[50,1700][851,1856]"
+      },
+      {
+        "type": "Text",
+        "label": "第1季",
+        "bounds": "[188,1800][321,1856]"
+      },
+      {
+        "type": "Text",
+        "label": "玄幻",
+        "bounds": "[346,1800][457,1856]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[50,1881][1877,2019]"
+      },
+      {
+        "type": "Row",
+        "label": "",
+        "bounds": "[50,2056][872,2169]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[2049,1485][2193,1629]"
+      },
+      {
+        "type": "Text",
+        "label": "追剧",
+        "bounds": "[2083,1629][2158,1673]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[2049,1710][2193,1935]"
+      },
+      {
+        "type": "Stack",
+        "label": "",
+        "bounds": "[2049,1935][2193,2079]"
+      },
+      {
+        "type": "Text",
+        "label": "10.4万",
+        "bounds": "[2065,2078][2177,2122]"
+      },
+      {
+        "type": "Image",
+        "label": "",
+        "bounds": "[2090,152][2184,246]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[0,2234][557,2410]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[556,2234][1113,2410]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[1112,2234][1669,2410]"
+      },
+      {
+        "type": "Column",
+        "label": "",
+        "bounds": "[1668,2234][2224,2410]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[0,0][2224,181]"
+      },
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "inputFields": [],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "",
+        "bounds": "[1037,22][1187,78]"
+      }
+    ],
+    "tabs": [
+      {
+        "type": "Tabs",
+        "label": "",
+        "bounds": "[0,113][2224,2409]"
+      },
+      {
+        "type": "TabContent",
+        "label": "",
+        "bounds": "[0,113][2224,2234]"
+      },
+      {
+        "type": "TabBar",
+        "label": "",
+        "bounds": "[0,2234][2224,2410]"
+      }
+    ]
+  },
+  "features": {
+    "hasScroll": true,
+    "hasTabs": true,
+    "hasModal": false,
+    "hasList": true,
+    "hasForm": false
+  },
+  "suggestions": [
+    "存在导航结构，建议按导航层级遍历"
+  ],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Stack",
+        35
+      ],
+      [
+        "Image",
+        20
+      ],
+      [
+        "Text",
+        20
+      ],
+      [
+        "Column",
+        18
+      ],
+      [
+        "Row",
+        16
+      ],
+      [
+        "RelativeContainer",
+        9
+      ],
+      [
+        "__Common__",
+        7
+      ],
+      [
+        "Blank",
+        3
+      ],
+      [
+        "Swiper",
+        2
+      ],
+      [
+        "WindowScene",
+        2
+      ],
+      [
+        "TextClock",
+        2
+      ],
+      [
+        "unknown",
+        1
+      ],
+      [
+        "root",
+        1
+      ],
+      [
+        "Navigation",
+        1
+      ],
+      [
+        "NavigationContent",
+        1
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 3,
+      "2": 3,
+      "3": 3,
+      "4": 3,
+      "5": 3,
+      "6": 5,
+      "7": 2,
+      "8": 5,
+      "9": 7,
+      "10": 9,
+      "11": 12,
+      "12": 11,
+      "13": 10,
+      "14": 13,
+      "15": 3,
+      "16": 1,
+      "17": 1,
+      "18": 1,
+      "19": 3,
+      "20": 3,
+      "21": 3,
+      "22": 3,
+      "23": 6,
+      "24": 4,
+      "25": 5,
+      "26": 13,
+      "27": 8,
+      "28": 6
+    }
+  }
+}

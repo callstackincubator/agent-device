@@ -62,10 +62,10 @@ function normalizeRuntimePlatformInput(
   platform?: RuntimePlatform,
 ): RuntimePlatform | undefined {
   if (value === undefined) return platform;
-  if (value !== 'ios' && value !== 'android') {
+  if (value !== 'ios' && value !== 'android' && value !== 'harmonyos') {
     throw new AppError(
       'INVALID_ARGS',
-      `Invalid open runtime platform: ${String(value)}. Use "ios" or "android".`,
+      `Invalid open runtime platform: ${String(value)}. Use "ios", "android", or "harmonyos".`,
     );
   }
   if (platform && value !== platform) {
@@ -80,7 +80,7 @@ function normalizeRuntimePlatformInput(
 export function toRuntimePlatform(
   platform: CommandFlags['platform'] | DeviceInfo['platform'] | 'apple' | undefined,
 ): RuntimePlatform | undefined {
-  if (platform === 'ios' || platform === 'android') {
+  if (platform === 'ios' || platform === 'android' || platform === 'harmonyos') {
     return platform;
   }
   return undefined;

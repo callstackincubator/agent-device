@@ -1,0 +1,172 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 2224,
+      "height": 2496
+    },
+    "totalNodes": 64,
+    "treeDepth": 17,
+    "complexity": "simple"
+  },
+  "structure": {
+    "layoutPattern": [
+      "unknown"
+    ],
+    "mainContainers": [
+      {
+        "type": "Stack",
+        "depth": 2,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      },
+      {
+        "type": "Row",
+        "depth": 3,
+        "bounds": "[0,113][2224,2496]",
+        "area": 5299792
+      }
+    ],
+    "navigationElements": [
+      {
+        "type": "Button",
+        "label": "取消",
+        "bounds": "[537,1294][1087,1419]"
+      },
+      {
+        "type": "Button",
+        "label": "卸载",
+        "bounds": "[1137,1294][1687,1419]"
+      }
+    ]
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "Dialog",
+        "label": "",
+        "bounds": "[0,113][2224,2496]"
+      },
+      {
+        "type": "Button",
+        "label": "取消",
+        "bounds": "[537,1294][1087,1419]"
+      },
+      {
+        "type": "Button",
+        "label": "卸载",
+        "bounds": "[1137,1294][1687,1419]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[0,0][2224,112]"
+      }
+    ],
+    "inputFields": [],
+    "buttons": [
+      {
+        "type": "Button",
+        "label": "取消",
+        "bounds": "[537,1294][1087,1419]"
+      },
+      {
+        "type": "Button",
+        "label": "卸载",
+        "bounds": "[1137,1294][1687,1419]"
+      }
+    ],
+    "tabs": []
+  },
+  "features": {
+    "hasScroll": true,
+    "hasTabs": false,
+    "hasModal": true,
+    "hasList": true,
+    "hasForm": false
+  },
+  "suggestions": [],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Stack",
+        12
+      ],
+      [
+        "Row",
+        10
+      ],
+      [
+        "Column",
+        6
+      ],
+      [
+        "Text",
+        6
+      ],
+      [
+        "Image",
+        6
+      ],
+      [
+        "__Common__",
+        3
+      ],
+      [
+        "RelativeContainer",
+        3
+      ],
+      [
+        "WindowScene",
+        2
+      ],
+      [
+        "JsView",
+        2
+      ],
+      [
+        "Scroll",
+        2
+      ],
+      [
+        "Button",
+        2
+      ],
+      [
+        "TextClock",
+        2
+      ],
+      [
+        "unknown",
+        1
+      ],
+      [
+        "UIExtensionComponent",
+        1
+      ],
+      [
+        "root",
+        1
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 2,
+      "2": 2,
+      "3": 2,
+      "4": 2,
+      "5": 2,
+      "6": 2,
+      "7": 2,
+      "8": 4,
+      "9": 5,
+      "10": 5,
+      "11": 8,
+      "12": 5,
+      "13": 5,
+      "14": 6,
+      "15": 4,
+      "16": 5,
+      "17": 2
+    }
+  }
+}

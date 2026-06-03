@@ -1,0 +1,163 @@
+{
+  "overview": {
+    "screenResolution": {
+      "width": 1260,
+      "height": 2720
+    },
+    "totalNodes": 115,
+    "treeDepth": 20,
+    "complexity": "simple"
+  },
+  "structure": {
+    "layoutPattern": [
+      "horizontal-layout"
+    ],
+    "mainContainers": [
+      {
+        "type": "Stack",
+        "depth": 2,
+        "bounds": "[0,124][1260,2720]",
+        "area": 3270960
+      },
+      {
+        "type": "Stack",
+        "depth": 3,
+        "bounds": "[0,124][1260,2720]",
+        "area": 3270960
+      },
+      {
+        "type": "Stack",
+        "depth": 3,
+        "bounds": "[0,124][1260,2720]",
+        "area": 3270960
+      },
+      {
+        "type": "Stack",
+        "depth": 4,
+        "bounds": "[0,124][1260,2720]",
+        "area": 3270960
+      }
+    ],
+    "navigationElements": []
+  },
+  "interactions": {
+    "clickableElements": [
+      {
+        "type": "RelativeContainer",
+        "label": "",
+        "bounds": "[31,124][1228,2652]"
+      },
+      {
+        "type": "Stack",
+        "label": "1, 1, 1, 1, 5月25日, 星期一, 四月初九",
+        "bounds": "[367,372][892,1421]"
+      },
+      {
+        "type": "Column",
+        "label": "单指双击即可执行;\n    双击并长按即可选择小工具",
+        "bounds": "[80,2343][229,2491]"
+      },
+      {
+        "type": "Column",
+        "label": "单指双击即可执行",
+        "bounds": "[1030,2343][1179,2491]"
+      },
+      {
+        "type": "__Common__",
+        "label": "",
+        "bounds": "[0,0][1260,188]"
+      },
+      {
+        "type": "metaballNode",
+        "label": "",
+        "bounds": "[339,0][922,150]"
+      }
+    ],
+    "inputFields": [],
+    "buttons": [],
+    "tabs": []
+  },
+  "features": {
+    "hasScroll": false,
+    "hasTabs": false,
+    "hasModal": false,
+    "hasList": true,
+    "hasForm": false
+  },
+  "suggestions": [],
+  "rawSummary": {
+    "nodeTypeDistribution": [
+      [
+        "Stack",
+        47
+      ],
+      [
+        "Row",
+        17
+      ],
+      [
+        "Text",
+        11
+      ],
+      [
+        "__Common__",
+        10
+      ],
+      [
+        "RelativeContainer",
+        8
+      ],
+      [
+        "Column",
+        7
+      ],
+      [
+        "SymbolGlyph",
+        6
+      ],
+      [
+        "Image",
+        4
+      ],
+      [
+        "WindowScene",
+        2
+      ],
+      [
+        "unknown",
+        1
+      ],
+      [
+        "EffectComponent",
+        1
+      ],
+      [
+        "metaballNode",
+        1
+      ]
+    ],
+    "depthDistribution": {
+      "0": 1,
+      "1": 2,
+      "2": 2,
+      "3": 3,
+      "4": 2,
+      "5": 2,
+      "6": 6,
+      "7": 6,
+      "8": 7,
+      "9": 9,
+      "10": 14,
+      "11": 10,
+      "12": 12,
+      "13": 7,
+      "14": 8,
+      "15": 6,
+      "16": 7,
+      "17": 4,
+      "18": 3,
+      "19": 1,
+      "20": 3
+    }
+  }
+}

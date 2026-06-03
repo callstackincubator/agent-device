@@ -1,0 +1,42 @@
+{
+  "session": "xhs-traverse",
+  "platform": "harmonyos",
+  "app": "com.xingin.xhs_hos",
+  "totalScreens": 3,
+  "screens": [
+    {
+      "name": "Home - 推荐",
+      "nodes": 157,
+      "maxDepth": 25,
+      "interactive": 19
+    },
+    {
+      "name": "Content Detail - 帖子详情",
+      "nodes": 158,
+      "maxDepth": 25,
+      "interactive": 8
+    },
+    {
+      "name": "Live - 直播频道",
+      "nodes": 104,
+      "maxDepth": 15,
+      "interactive": 12
+    }
+  ],
+  "summary": {
+    "totalNodes": 419,
+    "averageNodes": 140,
+    "maxDepth": 25,
+    "nodeTypes": [
+      "Column",
+      "Row",
+      "Button",
+      "Text",
+      "Image",
+      "Flex",
+      "Stack",
+      "Blank"
+    ]
+  },
+  "completedAt": "2026-05-25T03:00:00Z"
+}

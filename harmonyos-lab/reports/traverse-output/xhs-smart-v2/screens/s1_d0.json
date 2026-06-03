@@ -1,0 +1,1265 @@
+{
+  "success": true,
+  "data": {
+    "nodes": [
+      {
+        "index": 0,
+        "type": "",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 2496
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 0,
+        "ref": "e1"
+      },
+      {
+        "index": 1,
+        "type": "Stack",
+        "identifier": "4",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e2"
+      },
+      {
+        "index": 2,
+        "type": "Column",
+        "identifier": "8",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e3"
+      },
+      {
+        "index": 3,
+        "type": "Navigation",
+        "identifier": "14",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 3,
+        "parentIndex": 1,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e4"
+      },
+      {
+        "index": 4,
+        "type": "NavigationContent",
+        "identifier": "19",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 3,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e5"
+      },
+      {
+        "index": 5,
+        "type": "NavDestination",
+        "identifier": "25",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": true,
+        "depth": 5,
+        "parentIndex": 4,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e6"
+      },
+      {
+        "index": 6,
+        "type": "NavDestinationContent",
+        "identifier": "29",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 5,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e7"
+      },
+      {
+        "index": 7,
+        "type": "Column",
+        "identifier": "32",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 6,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e8"
+      },
+      {
+        "index": 8,
+        "type": "Stack",
+        "identifier": "37",
+        "rect": {
+          "x": 0,
+          "y": 113,
+          "width": 2224,
+          "height": 2383
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 7,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e9"
+      },
+      {
+        "index": 9,
+        "type": "Column",
+        "identifier": "40",
+        "rect": {
+          "x": 690,
+          "y": 743,
+          "width": 844,
+          "height": 1011
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 8,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e10"
+      },
+      {
+        "index": 10,
+        "type": "Stack",
+        "identifier": "41",
+        "rect": {
+          "x": 690,
+          "y": 805,
+          "width": 844,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 9,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e11"
+      },
+      {
+        "index": 11,
+        "type": "Text",
+        "label": "个人信息保护提示",
+        "value": "个人信息保护提示",
+        "identifier": "42",
+        "rect": {
+          "x": 690,
+          "y": 805,
+          "width": 844,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 10,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e12"
+      },
+      {
+        "index": 12,
+        "type": "Row",
+        "identifier": "43",
+        "rect": {
+          "x": 732,
+          "y": 814,
+          "width": 760,
+          "height": 82
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 10,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e13"
+      },
+      {
+        "index": 13,
+        "type": "Scroll",
+        "identifier": "45",
+        "rect": {
+          "x": 690,
+          "y": 905,
+          "width": 844,
+          "height": 531
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 9,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e14"
+      },
+      {
+        "index": 14,
+        "type": "Column",
+        "identifier": "46",
+        "rect": {
+          "x": 690,
+          "y": 905,
+          "width": 844,
+          "height": 531
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 13,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e15"
+      },
+      {
+        "index": 15,
+        "type": "Column",
+        "identifier": "55",
+        "rect": {
+          "x": 765,
+          "y": 905,
+          "width": 694,
+          "height": 531
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 14,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e16"
+      },
+      {
+        "index": 16,
+        "type": "Text",
+        "label": "欢迎使用小红书！\n我们将通过《用户协议》和《隐私政策》，帮助您了解我们为您提供的服务、我们如何处理个人信息以及您享有的权利。我们会严格按照相关法律法规要求，采取各种安全措施来保护您的个人信息。\n我们重视未成年人/儿童的个人信息保护，若您是未满18周岁的未成年人，请在监护人的指导下阅读并同意以上协议以及《儿童/未成年人个人信息保护规则》。\n点击“同意”按钮，表示您已知情并同意以上协议和以下约定。\n1.为了保障软件的安全运行和账户安全，我们会申请收集您的设备信息、IP地址、WLAN MAC地址。\n2.上传或拍摄图片、视频，需要使用您的媒体影音、图片、视频、音频、相机、麦克风权限。\n3.我们可能会申请位置权限，用于为您推荐您可能感兴趣的内容。\n4.为了帮助您发现更多朋友，我们会申请通讯录权限。\n5.我们尊重您的选择权，您可以访问、修改、删除您的个人信息并管理您的授权，我们也为您提供注销、投诉渠道。",
+        "value": "欢迎使用小红书！\n我们将通过《用户协议》和《隐私政策》，帮助您了解我们为您提供的服务、我们如何处理个人信息以及您享有的权利。我们会严格按照相关法律法规要求，采取各种安全措施来保护您的个人信息。\n我们重视未成年人/儿童的个人信息保护，若您是未满18周岁的未成年人，请在监护人的指导下阅读并同意以上协议以及《儿童/未成年人个人信息保护规则》。\n点击“同意”按钮，表示您已知情并同意以上协议和以下约定。\n1.为了保障软件的安全运行和账户安全，我们会申请收集您的设备信息、IP地址、WLAN MAC地址。\n2.上传或拍摄图片、视频，需要使用您的媒体影音、图片、视频、音频、相机、麦克风权限。\n3.我们可能会申请位置权限，用于为您推荐您可能感兴趣的内容。\n4.为了帮助您发现更多朋友，我们会申请通讯录权限。\n5.我们尊重您的选择权，您可以访问、修改、删除您的个人信息并管理您的授权，我们也为您提供注销、投诉渠道。",
+        "identifier": "56",
+        "rect": {
+          "x": 765,
+          "y": 905,
+          "width": 694,
+          "height": 531
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 15,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e17"
+      },
+      {
+        "index": 17,
+        "type": "Stack",
+        "identifier": "48",
+        "rect": {
+          "x": 690,
+          "y": 1436,
+          "width": 844,
+          "height": 268
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 9,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e18"
+      },
+      {
+        "index": 18,
+        "type": "Column",
+        "identifier": "49",
+        "rect": {
+          "x": 690,
+          "y": 1436,
+          "width": 844,
+          "height": 268
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 17,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e19"
+      },
+      {
+        "index": 19,
+        "type": "Button",
+        "label": "同意",
+        "value": "同意",
+        "identifier": "50",
+        "rect": {
+          "x": 752,
+          "y": 1498,
+          "width": 720,
+          "height": 113
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 18,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e20"
+      },
+      {
+        "index": 20,
+        "type": "Row",
+        "identifier": "52",
+        "rect": {
+          "x": 752,
+          "y": 1648,
+          "width": 720,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 18,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e21"
+      },
+      {
+        "index": 21,
+        "type": "Text",
+        "label": "不同意",
+        "value": "不同意",
+        "identifier": "53",
+        "rect": {
+          "x": 1055,
+          "y": 1648,
+          "width": 113,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 20,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e22"
+      },
+      {
+        "index": 22,
+        "type": "Row",
+        "identifier": "54",
+        "rect": {
+          "x": 732,
+          "y": 1436,
+          "width": 760,
+          "height": 63
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 17,
+        "bundleId": "com.xingin.xhs_hos",
+        "ref": "e23"
+      },
+      {
+        "index": 23,
+        "type": "__Common__",
+        "identifier": "449",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e24"
+      },
+      {
+        "index": 24,
+        "type": "Stack",
+        "identifier": "867",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 23,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e25"
+      },
+      {
+        "index": 25,
+        "type": "__Common__",
+        "identifier": "872",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 24,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e26"
+      },
+      {
+        "index": 26,
+        "type": "Stack",
+        "identifier": "874",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 25,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e27"
+      },
+      {
+        "index": 27,
+        "type": "EffectComponent",
+        "identifier": "878",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 26,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e28"
+      },
+      {
+        "index": 28,
+        "type": "Stack",
+        "identifier": "879",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 7,
+        "parentIndex": 27,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e29"
+      },
+      {
+        "index": 29,
+        "type": "Row",
+        "identifier": "935",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 2224,
+          "height": 112
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 28,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e30"
+      },
+      {
+        "index": 30,
+        "type": "Stack",
+        "identifier": "885",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 28,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e31"
+      },
+      {
+        "index": 31,
+        "type": "RelativeContainer",
+        "identifier": "886",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 2199,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 30,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e32"
+      },
+      {
+        "index": 32,
+        "type": "Stack",
+        "identifier": "940",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 31,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e33"
+      },
+      {
+        "index": 33,
+        "type": "Row",
+        "identifier": "954",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 32,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e34"
+      },
+      {
+        "index": 34,
+        "type": "Flex",
+        "label": "18, :, 39",
+        "value": "18, :, 39",
+        "identifier": "955",
+        "rect": {
+          "x": 25,
+          "y": 25,
+          "width": 123,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 33,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e35"
+      },
+      {
+        "index": 35,
+        "type": "Row",
+        "identifier": "956",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 68,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 34,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e36"
+      },
+      {
+        "index": 36,
+        "type": "TextClock",
+        "identifier": "957",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 35,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e37"
+      },
+      {
+        "index": 37,
+        "type": "Text",
+        "label": "18",
+        "value": "18",
+        "identifier": "958",
+        "rect": {
+          "x": 25,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 15,
+        "parentIndex": 36,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e38"
+      },
+      {
+        "index": 38,
+        "type": "Text",
+        "label": ":",
+        "value": ":",
+        "identifier": "959",
+        "rect": {
+          "x": 80,
+          "y": 39,
+          "width": 13,
+          "height": 47
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 35,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e39"
+      },
+      {
+        "index": 39,
+        "type": "TextClock",
+        "identifier": "960",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 34,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e40"
+      },
+      {
+        "index": 40,
+        "type": "Text",
+        "label": "39",
+        "value": "39",
+        "identifier": "961",
+        "rect": {
+          "x": 93,
+          "y": 35,
+          "width": 55,
+          "height": 55
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 14,
+        "parentIndex": 39,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e41"
+      },
+      {
+        "index": 41,
+        "type": "RelativeContainer",
+        "identifier": "898",
+        "rect": {
+          "x": 0,
+          "y": 25,
+          "width": 2093,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 8,
+        "parentIndex": 28,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e42"
+      },
+      {
+        "index": 42,
+        "type": "Stack",
+        "identifier": "4165",
+        "rect": {
+          "x": 1840,
+          "y": 25,
+          "width": 63,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 41,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e43"
+      },
+      {
+        "index": 43,
+        "type": "Stack",
+        "identifier": "4169",
+        "rect": {
+          "x": 1846,
+          "y": 25,
+          "width": 57,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 42,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e44"
+      },
+      {
+        "index": 44,
+        "type": "Image",
+        "identifier": "4170",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 43,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e45"
+      },
+      {
+        "index": 45,
+        "type": "Image",
+        "identifier": "4171",
+        "rect": {
+          "x": 1846,
+          "y": 38,
+          "width": 57,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 43,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e46"
+      },
+      {
+        "index": 46,
+        "type": "Stack",
+        "identifier": "1016",
+        "rect": {
+          "x": 1903,
+          "y": 25,
+          "width": 70,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 41,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e47"
+      },
+      {
+        "index": 47,
+        "type": "Row",
+        "identifier": "1088",
+        "rect": {
+          "x": 1909,
+          "y": 25,
+          "width": 64,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 46,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e48"
+      },
+      {
+        "index": 48,
+        "type": "Row",
+        "identifier": "1707",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 47,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e49"
+      },
+      {
+        "index": 49,
+        "type": "Stack",
+        "identifier": "1803",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 48,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e50"
+      },
+      {
+        "index": 50,
+        "type": "Image",
+        "identifier": "2398",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 49,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e51"
+      },
+      {
+        "index": 51,
+        "type": "Image",
+        "identifier": "1807",
+        "rect": {
+          "x": 1909,
+          "y": 38,
+          "width": 64,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 13,
+        "parentIndex": 49,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e52"
+      },
+      {
+        "index": 52,
+        "type": "Stack",
+        "identifier": "1019",
+        "rect": {
+          "x": 1973,
+          "y": 25,
+          "width": 120,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 9,
+        "parentIndex": 41,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e53"
+      },
+      {
+        "index": 53,
+        "type": "Row",
+        "identifier": "1024",
+        "rect": {
+          "x": 1979,
+          "y": 25,
+          "width": 113,
+          "height": 75
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 10,
+        "parentIndex": 52,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e54"
+      },
+      {
+        "index": 54,
+        "type": "Stack",
+        "identifier": "1025",
+        "rect": {
+          "x": 1979,
+          "y": 36,
+          "width": 90,
+          "height": 53
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 53,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e55"
+      },
+      {
+        "index": 55,
+        "type": "Image",
+        "identifier": "1027",
+        "rect": {
+          "x": 1979,
+          "y": 38,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 54,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e56"
+      },
+      {
+        "index": 56,
+        "type": "Text",
+        "label": "94",
+        "value": "94",
+        "identifier": "1030",
+        "rect": {
+          "x": 1975,
+          "y": 39,
+          "width": 90,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 12,
+        "parentIndex": 54,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e57"
+      },
+      {
+        "index": 57,
+        "type": "Image",
+        "identifier": "155014",
+        "rect": {
+          "x": 2069,
+          "y": 38,
+          "width": 23,
+          "height": 50
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 11,
+        "parentIndex": 53,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e58"
+      },
+      {
+        "index": 58,
+        "type": "Stack",
+        "identifier": "155910",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 2,
+        "parentIndex": 0,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e59"
+      },
+      {
+        "index": 59,
+        "type": "Stack",
+        "identifier": "155911",
+        "rect": {
+          "x": 962,
+          "y": 0,
+          "width": 300,
+          "height": 100
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 3,
+        "parentIndex": 58,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e60"
+      },
+      {
+        "index": 60,
+        "type": "Button",
+        "identifier": "155912",
+        "rect": {
+          "x": 1037,
+          "y": 22,
+          "width": 150,
+          "height": 56
+        },
+        "enabled": true,
+        "hittable": true,
+        "selected": false,
+        "focused": false,
+        "depth": 4,
+        "parentIndex": 59,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e61"
+      },
+      {
+        "index": 61,
+        "type": "Row",
+        "identifier": "155913",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 113,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 5,
+        "parentIndex": 60,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e62"
+      },
+      {
+        "index": 62,
+        "type": "Text",
+        "identifier": "155914",
+        "rect": {
+          "x": 1056,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 61,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e63"
+      },
+      {
+        "index": 63,
+        "type": "Text",
+        "identifier": "155915",
+        "rect": {
+          "x": 1087,
+          "y": 41,
+          "width": 50,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 61,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e64"
+      },
+      {
+        "index": 64,
+        "type": "Text",
+        "identifier": "155916",
+        "rect": {
+          "x": 1150,
+          "y": 41,
+          "width": 19,
+          "height": 19
+        },
+        "enabled": true,
+        "hittable": false,
+        "selected": false,
+        "focused": false,
+        "depth": 6,
+        "parentIndex": 61,
+        "bundleId": "com.ohos.sceneboard",
+        "ref": "e65"
+      }
+    ],
+    "truncated": false,
+    "appName": "com.xingin.xhs_hos",
+    "visibility": {
+      "partial": false,
+      "visibleNodeCount": 65,
+      "totalNodeCount": 65,
+      "reasons": []
+    }
+  }
+}

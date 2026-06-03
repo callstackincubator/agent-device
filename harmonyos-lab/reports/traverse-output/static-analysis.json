@@ -1,0 +1,211 @@
+{
+  "source": "./traverse-output/raw-layout.json",
+  "analysisType": "static",
+  "summary": {
+    "totalNodes": 109,
+    "maxDepth": 15,
+    "clickableNodes": 9,
+    "visibleNodes": 109,
+    "avgDepth": 10
+  },
+  "nodeTypes": [
+    {
+      "type": "Row",
+      "count": 29
+    },
+    {
+      "type": "Stack",
+      "count": 24
+    },
+    {
+      "type": "Image",
+      "count": 12
+    },
+    {
+      "type": "Text",
+      "count": 11
+    },
+    {
+      "type": "Column",
+      "count": 6
+    },
+    {
+      "type": "RelativeContainer",
+      "count": 5
+    },
+    {
+      "type": "SymbolGlyph",
+      "count": 4
+    },
+    {
+      "type": "__Common__",
+      "count": 3
+    },
+    {
+      "type": "Button",
+      "count": 2
+    },
+    {
+      "type": "TextClock",
+      "count": 2
+    },
+    {
+      "type": "unknown",
+      "count": 1
+    },
+    {
+      "type": "root",
+      "count": 1
+    },
+    {
+      "type": "Navigation",
+      "count": 1
+    },
+    {
+      "type": "NavigationContent",
+      "count": 1
+    },
+    {
+      "type": "NavDestination",
+      "count": 1
+    },
+    {
+      "type": "NavDestinationContent",
+      "count": 1
+    },
+    {
+      "type": "Scroll",
+      "count": 1
+    },
+    {
+      "type": "Blank",
+      "count": 1
+    },
+    {
+      "type": "WindowScene",
+      "count": 1
+    },
+    {
+      "type": "Flex",
+      "count": 1
+    }
+  ],
+  "depthDistribution": [
+    {
+      "depth": 0,
+      "count": 1
+    },
+    {
+      "depth": 1,
+      "count": 2
+    },
+    {
+      "depth": 2,
+      "count": 2
+    },
+    {
+      "depth": 3,
+      "count": 3
+    },
+    {
+      "depth": 4,
+      "count": 2
+    },
+    {
+      "depth": 5,
+      "count": 2
+    },
+    {
+      "depth": 6,
+      "count": 6
+    },
+    {
+      "depth": 7,
+      "count": 5
+    },
+    {
+      "depth": 8,
+      "count": 7
+    },
+    {
+      "depth": 9,
+      "count": 11
+    },
+    {
+      "depth": 10,
+      "count": 12
+    },
+    {
+      "depth": 11,
+      "count": 14
+    },
+    {
+      "depth": 12,
+      "count": 17
+    },
+    {
+      "depth": 13,
+      "count": 14
+    },
+    {
+      "depth": 14,
+      "count": 6
+    },
+    {
+      "depth": 15,
+      "count": 5
+    }
+  ],
+  "interactiveElements": [
+    {
+      "type": "Text",
+      "depth": 13,
+      "bounds": "[422,755][839,816]"
+    },
+    {
+      "type": "Button",
+      "depth": 13,
+      "bounds": "[130,1640][1130,1796]"
+    },
+    {
+      "type": "Text",
+      "depth": 15,
+      "bounds": "[474,1679][787,1757]"
+    },
+    {
+      "type": "Button",
+      "depth": 13,
+      "bounds": "[130,1848][1130,2004]"
+    },
+    {
+      "type": "Text",
+      "depth": 15,
+      "bounds": "[539,1887][800,1965]"
+    },
+    {
+      "type": "Text",
+      "depth": 14,
+      "bounds": "[493,2082][728,2140]"
+    },
+    {
+      "type": "Text",
+      "depth": 15,
+      "bounds": "[182,2349][1130,2465]"
+    },
+    {
+      "type": "Text",
+      "depth": 12,
+      "bounds": "[1103,156][1208,234]"
+    },
+    {
+      "type": "TextClock",
+      "depth": 13,
+      "bounds": "[52,46][110,103]"
+    },
+    {
+      "type": "Text",
+      "depth": 14,
+      "bounds": "[52,46][110,103]"
+    }
+  ]
+}
