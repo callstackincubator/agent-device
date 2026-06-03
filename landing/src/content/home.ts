@@ -37,7 +37,7 @@ export const homeBenefits: Array<{
 export type HomeUseCase = {
   id: string;
   label: string;
-  tags: string[];
+  tags: Array<{ icon: PixelIconName; label: string }>;
   title: string;
   body: string;
   rows: Array<{ icon: PixelIconName; text: string }>;
@@ -50,8 +50,11 @@ export type HomeUseCase = {
 export const homeUseCases: HomeUseCase[] = [
   {
     id: "agentic-quality-assurance",
-    label: "Agentic Quality Assurance",
-    tags: ["Open Source", "Evidence"],
+    label: "AGENTIC QUALITY ASSURANCE",
+    tags: [
+      { icon: "github", label: "Open Source" },
+      { icon: "cloud", label: "Cloud" },
+    ],
     title: "Every PR ships with proof.",
     body: "An agent picks up a pull request, checks out the branch, builds the app, installs it, and walks the affected flow. Screenshots, accessibility-tree snapshots, and a written summary post back to the PR. The reviewer sees the work, not the run.",
     rows: [
@@ -75,8 +78,11 @@ export const homeUseCases: HomeUseCase[] = [
   },
   {
     id: "agentic-development",
-    label: "Agentic Development",
-    tags: ["Codex", "Claude Code"],
+    label: "AGENTIC DEVELOPMENT",
+    tags: [
+      { icon: "terminal", label: "Codex" },
+      { icon: "braces", label: "Claude Code" },
+    ],
     title: "Agents can change mobile UI and verify it themselves.",
     body: "Give your coding agent a real device loop: launch the app, inspect the current screen, tap semantic targets, and capture the result after each change. The agent can iterate on React Native work without asking a human to be the remote control.",
     rows: [
@@ -100,8 +106,11 @@ export const homeUseCases: HomeUseCase[] = [
   },
   {
     id: "development-loop",
-    label: "Development Loop",
-    tags: ["Local", "Fast feedback"],
+    label: "DEVELOPMENT LOOP",
+    tags: [
+      { icon: "device", label: "Local" },
+      { icon: "reload", label: "Fast feedback" },
+    ],
     title: "Tighten the mobile feedback loop.",
     body: "Run the same checks while developing that your agent will run in CI. Open a simulator or device, drive the feature, capture the UI state, and keep moving without switching into a manual QA rhythm.",
     rows: [
@@ -125,8 +134,11 @@ export const homeUseCases: HomeUseCase[] = [
   },
   {
     id: "migration-verification",
-    label: "Migration Verification",
-    tags: ["Brownfield", "Regression"],
+    label: "MIGRATION VERIFICATION",
+    tags: [
+      { icon: "shuffle", label: "Brownfield" },
+      { icon: "check", label: "Regression" },
+    ],
     title: "Prove a migration did not move the product backwards.",
     body: "When screens move between native and React Native, agents can compare the critical journeys before and after each step. Capture the behavior, not just screenshots, so migration work stays reviewable.",
     rows: [

@@ -9,6 +9,7 @@ import { Braces } from "pixelarticons/react/Braces";
 import { Bulletlist } from "pixelarticons/react/Bulletlist";
 import { Check } from "pixelarticons/react/Check";
 import { Clock } from "pixelarticons/react/Clock";
+import { Cloud } from "pixelarticons/react/Cloud";
 import { Coins } from "pixelarticons/react/Coins";
 import { CommentText } from "pixelarticons/react/CommentText";
 import { Copy } from "pixelarticons/react/Copy";
@@ -40,6 +41,7 @@ export type PixelIconName =
   | "braces"
   | "check"
   | "clock"
+  | "cloud"
   | "coins"
   | "comment"
   | "copy"
@@ -74,6 +76,7 @@ const iconComponents: Record<PixelIconName, IconComponent> = {
   braces: Braces,
   check: Check,
   clock: Clock,
+  cloud: Cloud,
   coins: Coins,
   comment: CommentText,
   copy: Copy,

@@ -92,10 +92,11 @@ export function UseCases() {
             <div className="flex flex-wrap gap-1">
               {activeCase.tags.map((tag) => (
                 <span
-                  className="rounded-[4px] bg-black/[0.04] px-2 py-1 text-xs font-medium text-black/40"
-                  key={tag}
+                  className="inline-flex items-center gap-1.5 rounded-[4px] bg-black/[0.04] px-2 py-1 text-xs font-medium text-black/40"
+                  key={tag.label}
                 >
-                  {tag}
+                  <PixelIcon name={tag.icon} className="size-3.5" />
+                  {tag.label}
                 </span>
               ))}
             </div>
