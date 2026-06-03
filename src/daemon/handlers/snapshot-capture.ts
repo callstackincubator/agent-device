@@ -69,16 +69,33 @@ type SnapshotAttempt = {
   freshness?: AndroidFreshnessCaptureMeta;
 };
 
-type AndroidFreshnessReason = 'empty-interactive' | 'sharp-drop' | 'stuck-route';
-type AndroidFreshnessMode = 'default' | 'ref-refresh';
-const INTERACTION_CHANGE_RECHECK_DELAY_MS = 500;
-
-export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
+type CaptureSnapshotResult = {
   snapshot: SnapshotState;
   analysis?: AndroidSnapshotAnalysis;
   androidSnapshot?: AndroidSnapshotBackendMetadata;
   freshness?: AndroidFreshnessCaptureMeta;
-}> {
+};
+
+type AndroidFreshnessReason = 'empty-interactive' | 'sharp-drop' | 'stuck-route';
+type AndroidFreshnessMode = 'default' | 'ref-refresh';
+const INTERACTION_CHANGE_RECHECK_DELAY_MS = 500;
+
+export async function captureSnapshot(params: CaptureSnapshotParams): Promise<CaptureSnapshotResult> {
+  const postActionResult = await capturePostActionAwareSnapshot(params);
+  if (postActionResult) return postActionResult;
+
+  const data = await captureSnapshotData(params);
+  clearAndroidSnapshotFreshness(params.session);
+  return {
+    snapshot: buildSnapshotState(data, resolveSnapshotStateFlags(params)),
+    analysis: data.analysis,
+    androidSnapshot: data.androidSnapshot,
+  };
+}
+
+async function capturePostActionAwareSnapshot(
+  params: CaptureSnapshotParams,
+): Promise<CaptureSnapshotResult | undefined> {
   const pendingInteractionOutcome = getActivePendingInteractionOutcome(params.session);
   if (pendingInteractionOutcome && params.session) {
     return await captureInteractionOutcomeAwareSnapshot(
@@ -96,24 +113,13 @@ export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
   if (freshness && params.device.platform === 'android') {
     return await captureAndroidFreshnessAwareSnapshot(params, freshness);
   }
-  const data = await captureSnapshotData(params);
-  clearAndroidSnapshotFreshness(params.session);
-  return {
-    snapshot: buildSnapshotState(data, resolveSnapshotStateFlags(params)),
-    analysis: data.analysis,
-    androidSnapshot: data.androidSnapshot,
-  };
+  return undefined;
 }
 
 async function captureInteractionOutcomeAwareSnapshot(
   params: CaptureSnapshotParams & { session: SessionState },
   pending: NonNullable<SessionState['pendingInteractionOutcome']>,
-): Promise<{
-  snapshot: SnapshotState;
-  analysis?: AndroidSnapshotAnalysis;
-  androidSnapshot?: AndroidSnapshotBackendMetadata;
-  freshness?: AndroidFreshnessCaptureMeta;
-}> {
+): Promise<CaptureSnapshotResult> {
   const session = params.session;
 
   const startedAt = Date.now();
@@ -234,12 +240,7 @@ export async function captureSnapshotData(params: CaptureSnapshotParams): Promis
 async function captureAndroidFreshnessAwareSnapshot(
   params: CaptureSnapshotParams,
   freshness: NonNullable<SessionState['androidSnapshotFreshness']>,
-): Promise<{
-  snapshot: SnapshotState;
-  analysis?: AndroidSnapshotAnalysis;
-  androidSnapshot?: AndroidSnapshotBackendMetadata;
-  freshness?: AndroidFreshnessCaptureMeta;
-}> {
+): Promise<CaptureSnapshotResult> {
   const latest = await captureAndroidFreshnessAwareAttempt(params, freshness);
   return {
     snapshot: latest.snapshot,
@@ -288,12 +289,7 @@ async function captureAndroidFreshnessAwareAttempt(
 
 async function capturePostGestureAwareSnapshot(
   params: CaptureSnapshotParams & { session: SessionState },
-): Promise<{
-  snapshot: SnapshotState;
-  analysis?: AndroidSnapshotAnalysis;
-  androidSnapshot?: AndroidSnapshotBackendMetadata;
-  freshness?: AndroidFreshnessCaptureMeta;
-}> {
+): Promise<CaptureSnapshotResult> {
   const latest = await capturePostGestureStabilizedResult({
     session: params.session,
     capture: async () => await capturePostActionSnapshotAttempt(params),
