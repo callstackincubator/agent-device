@@ -49,7 +49,7 @@ try {
           navHasCloud: /Cloud/i.test(navText),
           cloudLinks,
           hasCloudPricingCopy: /device-minutes|Self-serve|Free tier/i.test(bodyText),
-          nonOptimizedVisuals: figmaImages.filter((src) => !/\\.(webp|png)([&?]|$)/.test(src)),
+          nonOptimizedVisuals: figmaImages.filter((src) => !/\\.(webp|png|svg)([&?]|$)/.test(src)),
         };
       })()`);
 

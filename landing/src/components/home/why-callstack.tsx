@@ -21,19 +21,19 @@ const clientLogos = [
   {
     alt: "Evernote",
     height: 24,
-    src: "/figma/logos/evernote.png",
+    src: "/figma/logos/evernote.svg",
     width: 111,
   },
   {
     alt: "Ticketmaster",
     height: 14,
-    src: "/figma/logos/ticketmaster.png",
+    src: "/figma/logos/ticketmaster.svg",
     width: 101,
   },
   {
     alt: "Expensify",
     height: 18,
-    src: "/figma/logos/expensify.png",
+    src: "/figma/logos/expensify.svg",
     width: 76,
   },
 ] as const;
@@ -74,14 +74,15 @@ export function WhyCallstack() {
             We work with teams shipping at real scale. You get a partner used to
             high-stakes products, not learning on your roadmap.
           </BodyText>
-          <div className="mt-20 flex flex-wrap items-center gap-x-10 gap-y-6">
+          <div className="mt-20 grid grid-cols-[111fr_101fr_76fr] items-center gap-6">
             {clientLogos.map((logo) => (
               <Image
                 alt={logo.alt}
-                className="h-auto w-auto"
+                className="h-auto w-full"
                 height={logo.height}
                 key={logo.alt}
                 src={logo.src}
+                style={{ maxWidth: logo.width }}
                 unoptimized
                 width={logo.width}
               />

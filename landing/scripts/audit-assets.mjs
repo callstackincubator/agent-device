@@ -7,7 +7,7 @@ const publicDir = path.join(root, "public");
 const srcDir = path.join(root, "src");
 const manifestPath = path.join(srcDir, "content", "assets.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-const supported = new Set([".png", ".webp"]);
+const supported = new Set([".png", ".svg", ".webp"]);
 
 function readPngSize(buffer) {
   if (buffer.toString("ascii", 1, 4) !== "PNG") {
@@ -52,6 +52,24 @@ function readWebpSize(buffer) {
   throw new Error(`Unsupported WebP chunk ${type}`);
 }
 
+function readSvgSize(buffer) {
+  const source = buffer.toString("utf8");
+  const svg = source.match(/<svg\b[^>]*>/i)?.[0];
+
+  if (!svg) {
+    throw new Error("Invalid SVG");
+  }
+
+  const width = Number(svg.match(/\bwidth="([0-9.]+)"/i)?.[1]);
+  const height = Number(svg.match(/\bheight="([0-9.]+)"/i)?.[1]);
+
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    throw new Error("SVG missing numeric width/height");
+  }
+
+  return { height, vector: true, width };
+}
+
 function imageSize(filePath) {
   const buffer = readFileSync(filePath);
   const ext = path.extname(filePath);
@@ -62,6 +80,10 @@ function imageSize(filePath) {
 
   if (ext === ".webp") {
     return readWebpSize(buffer);
+  }
+
+  if (ext === ".svg") {
+    return readSvgSize(buffer);
   }
 
   throw new Error(`Unsupported asset type ${ext}`);
@@ -99,10 +121,10 @@ for (const entry of manifest) {
   const filePath = path.join(publicDir, entry.path);
 
   try {
-    const { width, height } = imageSize(filePath);
+    const { width, height, vector = false } = imageSize(filePath);
     const { size } = statSync(filePath);
-    const minWidth = entry.logicalWidth * entry.density;
-    const minHeight = entry.logicalHeight * entry.density;
+    const minWidth = vector ? entry.logicalWidth : entry.logicalWidth * entry.density;
+    const minHeight = vector ? entry.logicalHeight : entry.logicalHeight * entry.density;
 
     if (width < minWidth || height < minHeight) {
       failures.push(

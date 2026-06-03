@@ -56,7 +56,7 @@
     "usedBy": "Test E2E toolkit lane"
   },
   {
-    "path": "/figma/logos/evernote.png",
+    "path": "/figma/logos/evernote.svg",
     "logicalWidth": 111,
     "logicalHeight": 24,
     "density": 2,
@@ -64,7 +64,7 @@
     "usedBy": "Callstack proof logo"
   },
   {
-    "path": "/figma/logos/ticketmaster.png",
+    "path": "/figma/logos/ticketmaster.svg",
     "logicalWidth": 101,
     "logicalHeight": 14,
     "density": 2,
@@ -72,7 +72,7 @@
     "usedBy": "Callstack proof logo"
   },
   {
-    "path": "/figma/logos/expensify.png",
+    "path": "/figma/logos/expensify.svg",
     "logicalWidth": 76,
     "logicalHeight": 18,
     "density": 2,
