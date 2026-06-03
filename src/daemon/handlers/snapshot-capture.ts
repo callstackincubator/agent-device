@@ -36,7 +36,6 @@ import {
   emitInteractionSettleTimeout,
   getActivePendingInteractionOutcome,
   retryPendingInteractionOutcome,
-  type InteractionSurfaceChange,
 } from '../interaction-outcome-policy.ts';
 import {
   capturePostGestureStabilizedResult,
@@ -124,32 +123,30 @@ async function captureInteractionOutcomeAwareSnapshot(
 
   const startedAt = Date.now();
   let retryAttempts = 0;
-  let settled = await waitForDelayedInteractionSurfaceChange(
+  let latest = await waitForDelayedInteractionSurfaceChange(
     params,
     pending,
     await capturePostActionSnapshotAttempt(params),
   );
-  let latest = settled.latest;
   let outcome = await retryPendingInteractionOutcome({
     session,
     pending,
     logPath: params.logPath,
-    snapshot: settled.latest.snapshot,
+    snapshot: latest.snapshot,
   });
 
   while (outcome.retried) {
     retryAttempts += 1;
-    settled = await waitForDelayedInteractionSurfaceChange(
+    latest = await waitForDelayedInteractionSurfaceChange(
       params,
       pending,
       await capturePostActionSnapshotAttempt(params),
     );
-    latest = settled.latest;
     outcome = await retryPendingInteractionOutcome({
       session,
       pending,
       logPath: params.logPath,
-      snapshot: settled.latest.snapshot,
+      snapshot: latest.snapshot,
     });
   }
 
@@ -186,22 +183,18 @@ async function waitForDelayedInteractionSurfaceChange(
   params: CaptureSnapshotParams & { session: SessionState },
   pending: NonNullable<SessionState['pendingInteractionOutcome']>,
   initial: SnapshotAttempt,
-): Promise<{ latest: SnapshotAttempt; change: InteractionSurfaceChange }> {
+): Promise<SnapshotAttempt> {
   let latest = initial;
-  let change = classifyInteractionSurfaceChange(
+  const change = classifyInteractionSurfaceChange(
     pending.preSignature,
     buildInteractionSurfaceSignature(latest.snapshot.nodes),
   );
-  if (change !== 'unchanged') return { latest, change };
+  if (change !== 'unchanged') return latest;
 
   await sleep(INTERACTION_CHANGE_RECHECK_DELAY_MS);
   latest = await capturePostActionSnapshotAttempt(params);
-  change = classifyInteractionSurfaceChange(
-    pending.preSignature,
-    buildInteractionSurfaceSignature(latest.snapshot.nodes),
-  );
 
-  return { latest, change };
+  return latest;
 }
 
 export async function captureSnapshotData(params: CaptureSnapshotParams): Promise<SnapshotData> {

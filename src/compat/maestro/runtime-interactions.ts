@@ -239,10 +239,6 @@ async function invokeSwipeGesture(
       String(swipe.end.y),
       ...(durationMs ? [durationMs] : []),
     ],
-    flags: {
-      ...params.baseReq.flags,
-      postGestureStabilization: true,
-    },
   });
 }
 

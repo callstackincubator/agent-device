@@ -196,7 +196,7 @@ test('invokeMaestroSwipeScreen preserves vertical percentage endpoints', async (
 
   expect(response.ok).toBe(true);
   expect(swipes).toEqual([['200', '600', '200', '280', '300']]);
-  expect(swipeFlags[0]?.postGestureStabilization).toBe(true);
+  expect(swipeFlags[0]?.postGestureStabilization).toBeUndefined();
 });
 
 test('invokeMaestroSwipeScreen keeps Android horizontal percentage swipes on the content lane', async () => {
