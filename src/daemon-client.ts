@@ -117,7 +117,6 @@ type EnsuredDaemon = {
 type ResolvedDaemonTransport = 'socket' | 'http';
 
 const REQUEST_TIMEOUT_MS = 90_000;
-const SNAPSHOT_REQUEST_TIMEOUT_MS = 30_000;
 const PREPARE_REQUEST_TIMEOUT_MS = 240_000;
 const DAEMON_STARTUP_TIMEOUT_MS = 15_000;
 const DAEMON_STARTUP_ATTEMPTS = 2;
@@ -204,7 +203,6 @@ export function resolveDaemonRequestTimeoutMs(
     return req.flags.timeoutMs;
   }
   if (req.command === PUBLIC_COMMANDS.prepare) return PREPARE_REQUEST_TIMEOUT_MS;
-  if (req.command === PUBLIC_COMMANDS.snapshot) return SNAPSHOT_REQUEST_TIMEOUT_MS;
   return REQUEST_TIMEOUT_MS;
 }
 
