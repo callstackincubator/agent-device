@@ -267,7 +267,7 @@ For the local execution model, permissions, artifacts, and sensitive data guidan
 
 ## Agent-readable docs
 
-Use [llms-full.txt](https://incubator.callstack.com/agent-device/llms-full.txt) when an agent needs a single text bundle of the current docs. The installed CLI remains authoritative for exact command syntax:
+Use [llms-full.txt](https://oss.callstack.com/agent-device/llms-full.txt) when an agent needs a single text bundle of the current docs. The installed CLI remains authoritative for exact command syntax:
 
 ```bash
 agent-device help

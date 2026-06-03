@@ -56,7 +56,7 @@ agent-device help workflow
 
 The installed CLI help is the source of truth for agents. Start with `agent-device help workflow`, then follow the topic-specific help when a task needs dogfooding, debugging, replay, or React Native profiling.
 
-Prerequisites depend on the target platform: Node.js 22+, Xcode for iOS/tvOS/macOS targets, Android SDK + ADB for Android, and macOS Accessibility permission for desktop automation. See [Installation](https://incubator.callstack.com/agent-device/docs/installation) for platform setup.
+Prerequisites depend on the target platform: Node.js 22+, Xcode for iOS/tvOS/macOS targets, Android SDK + ADB for Android, and macOS Accessibility permission for desktop automation. See [Installation](https://oss.callstack.com/agent-device/docs/installation) for platform setup.
 
 Try the basic loop:
 
@@ -84,9 +84,9 @@ Snapshots assign refs like `@e1`, `@e2`, and `@e3` to elements on the current sc
 
 ## Next Steps
 
-- **Set up your agent**: run the CLI from Cursor, Codex, Claude Code, Windsurf, or another agent terminal. For skills, rules, direct MCP tools, and client-specific setup, see [AI Agent Setup](https://incubator.callstack.com/agent-device/docs/agent-setup).
-- **Try the sample app**: clone the repo and run the bundled Expo fixture when you want a guided first dogfood run with screenshots, replay, and performance evidence. See [Quick Start](https://incubator.callstack.com/agent-device/docs/quick-start).
-- **Go deeper**: use [Commands](https://incubator.callstack.com/agent-device/docs/commands), [Replay & E2E](https://incubator.callstack.com/agent-device/docs/replay-e2e), and [Debugging & Profiling](https://incubator.callstack.com/agent-device/docs/debugging-profiling) for production workflows.
+- **Set up your agent**: run the CLI from Cursor, Codex, Claude Code, Windsurf, or another agent terminal. For skills, rules, direct MCP tools, and client-specific setup, see [AI Agent Setup](https://oss.callstack.com/agent-device/docs/agent-setup).
+- **Try the sample app**: clone the repo and run the bundled Expo fixture when you want a guided first dogfood run with screenshots, replay, and performance evidence. See [Quick Start](https://oss.callstack.com/agent-device/docs/quick-start).
+- **Go deeper**: use [Commands](https://oss.callstack.com/agent-device/docs/commands), [Replay & E2E](https://oss.callstack.com/agent-device/docs/replay-e2e), and [Debugging & Profiling](https://oss.callstack.com/agent-device/docs/debugging-profiling) for production workflows.
 
 ## Where To Run agent-device
 
@@ -94,7 +94,7 @@ Snapshots assign refs like `@e1`, `@e2`, and `@e3` to elements on the current sc
 | --- | --- | --- |
 | Local | Exploration, debugging, and development loops on simulators, emulators, physical devices, macOS apps, and Linux desktop targets. | Follow the Quick Start. |
 | CI/CD | Automated PR and merge validation with replay scripts and captured artifacts. | Try the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml). GitHub Actions template coming soon. |
-| Cloud / remote execution | Linux runners, managed devices, and remote execution. | Use [Agent Device Cloud](https://agent-device.dev/cloud), see [Commands](https://incubator.callstack.com/agent-device/docs/commands) for remote profiles, or [contact Callstack](mailto:hello@callstack.com) for team-scale QA. |
+| Cloud / remote execution | Linux runners, managed devices, and remote execution. | Use [Agent Device Cloud](https://agent-device.dev/cloud), see [Commands](https://oss.callstack.com/agent-device/docs/commands) for remote profiles, or [contact Callstack](mailto:hello@callstack.com) for team-scale QA. |
 
 ## How It Works
 
@@ -122,8 +122,8 @@ Used by teams and developers at Callstack, Expensify, Shopify, Kindred, Total Wi
 
 ## Documentation
 
-- [Docs](https://incubator.callstack.com/agent-device/)
-- [Agent-readable docs](https://incubator.callstack.com/agent-device/llms-full.txt)
+- [Docs](https://oss.callstack.com/agent-device/)
+- [Agent-readable docs](https://oss.callstack.com/agent-device/llms-full.txt)
 
 ## Contributing
 
@@ -131,4 +131,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Made at Callstack
 
-`agent-device` is open source and MIT licensed. Visit [agent-device.dev](https://agent-device.dev/), try the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml), read the [incubator docs](https://incubator.callstack.com/agent-device/), or contact us at hello@callstack.com.
+`agent-device` is open source and MIT licensed. Visit [agent-device.dev](https://agent-device.dev/), try the [EAS workflow template](https://github.com/callstackincubator/eas-agent-device/blob/main/.eas/workflows/agent-qa-mobile.yml), read the [docs](https://oss.callstack.com/agent-device/), or contact us at hello@callstack.com.

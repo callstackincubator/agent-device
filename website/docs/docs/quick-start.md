@@ -4,7 +4,7 @@ title: Quick Start
 
 # Quick Start
 
-For client-specific setup in Cursor, Codex, Claude Code, Windsurf, Cline, Goose, and other coding agents, see [AI Agent Setup](/docs/agent-setup). For a single text bundle that agents can ingest, use [llms-full.txt](https://incubator.callstack.com/agent-device/llms-full.txt).
+For client-specific setup in Cursor, Codex, Claude Code, Windsurf, Cline, Goose, and other coding agents, see [AI Agent Setup](/docs/agent-setup). For a single text bundle that agents can ingest, use [llms-full.txt](https://oss.callstack.com/agent-device/llms-full.txt).
 
 Every device automation follows this pattern:
 
