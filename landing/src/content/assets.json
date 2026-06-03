@@ -19,40 +19,40 @@
     "path": "/figma/lane-interact.webp",
     "logicalWidth": 528,
     "logicalHeight": 868,
-    "density": 2,
-    "maxBytes": 100000,
+    "density": 4,
+    "maxBytes": 300000,
     "usedBy": "Interact toolkit lane"
   },
   {
     "path": "/figma/lane-debug.webp",
     "logicalWidth": 528,
     "logicalHeight": 868,
-    "density": 2,
-    "maxBytes": 100000,
+    "density": 4,
+    "maxBytes": 300000,
     "usedBy": "Debug toolkit lane"
   },
   {
     "path": "/figma/lane-profile.webp",
     "logicalWidth": 528,
     "logicalHeight": 868,
-    "density": 2,
-    "maxBytes": 100000,
+    "density": 4,
+    "maxBytes": 300000,
     "usedBy": "Profile toolkit lane"
   },
   {
     "path": "/figma/lane-capture.webp",
     "logicalWidth": 528,
     "logicalHeight": 868,
-    "density": 2,
-    "maxBytes": 100000,
+    "density": 4,
+    "maxBytes": 300000,
     "usedBy": "Capture toolkit lane"
   },
   {
     "path": "/figma/lane-test.webp",
     "logicalWidth": 528,
     "logicalHeight": 868,
-    "density": 2,
-    "maxBytes": 100000,
+    "density": 4,
+    "maxBytes": 300000,
     "usedBy": "Test E2E toolkit lane"
   },
   {

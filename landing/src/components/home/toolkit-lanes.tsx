@@ -20,8 +20,8 @@ type Lane = {
 const laneImage = {
   displayWidth: 528,
   displayHeight: 868,
-  intrinsicWidth: 1056,
-  intrinsicHeight: 1736,
+  intrinsicWidth: 2112,
+  intrinsicHeight: 3472,
 } as const;
 
 const lanes: Lane[] = [
