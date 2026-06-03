@@ -1446,6 +1446,72 @@ test('press @ref falls back to cached Android ref when freshness refresh fails',
   });
 });
 
+test('coordinate press preserves Android route freshness from last comparable snapshot', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-coordinate-freshness-baseline';
+  const session = makeAndroidSession(sessionName);
+  const comparableSnapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'android.widget.ScrollView',
+        label: 'Albums',
+        rect: { x: 0, y: 0, width: 400, height: 700 },
+      },
+      {
+        index: 1,
+        type: 'android.widget.Button',
+        label: 'Go to Contacts',
+        rect: { x: 16, y: 120, width: 160, height: 48 },
+        enabled: true,
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'android' as const,
+    comparisonSafe: true,
+  };
+  session.lastComparisonSafeSnapshot = comparableSnapshot;
+  session.snapshot = {
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'android.widget.Button',
+        label: 'Go to Contacts',
+        rect: { x: 16, y: 120, width: 160, height: 48 },
+        enabled: true,
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'android',
+    comparisonSafe: false,
+  };
+  sessionStore.set(sessionName, session);
+  mockDispatch.mockResolvedValue({ pressed: true });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['96', '144'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(sessionStore.get(sessionName)?.androidSnapshotFreshness).toMatchObject({
+    action: 'press',
+    baselineCount: 2,
+    baselineSignatures: expect.any(Array),
+    routeComparable: true,
+  });
+});
+
 test('press @ref fails when Android tap escapes to launcher', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-escape';

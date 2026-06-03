@@ -56,7 +56,12 @@ export function buildSnapshotSession(params: {
 }): SessionState {
   const { session, sessionName, device, snapshot, appBundleId } = params;
   if (session) {
-    return { ...session, snapshot };
+    return {
+      ...session,
+      snapshot,
+      lastComparisonSafeSnapshot:
+        snapshot?.comparisonSafe === true ? snapshot : session.lastComparisonSafeSnapshot,
+    };
   }
   return {
     name: sessionName,
@@ -64,6 +69,7 @@ export function buildSnapshotSession(params: {
     createdAt: Date.now(),
     appBundleId,
     snapshot,
+    ...(snapshot?.comparisonSafe === true ? { lastComparisonSafeSnapshot: snapshot } : {}),
     actions: [],
   };
 }

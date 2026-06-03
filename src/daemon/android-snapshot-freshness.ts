@@ -8,6 +8,7 @@ export type { AndroidSnapshotFreshness } from './types.ts';
 // and can lag behind real transitions by up to ~2 s; 2.5 s gives a comfortable margin
 // while avoiding unnecessary retries for steady-state interactions like typing.
 const ANDROID_FRESHNESS_WINDOW_MS = 2_500;
+const ANDROID_COMPARISON_BASELINE_MAX_AGE_MS = 5_000;
 
 // Retry suspicious snapshots until this post-action deadline expires.  The delay
 // sequence stays short in the happy path; the 600 ms tail retry is opportunistic
@@ -28,19 +29,32 @@ export function markAndroidSnapshotFreshness(
   baseline = session.snapshot,
 ): void {
   if (session.device.platform !== 'android') return;
+  const comparisonBaseline = resolveAndroidComparisonBaseline(session, baseline);
   // Route-stuck recovery only makes sense against a baseline captured in a broad, comparable
   // shape. Interactive/scoped/depth-limited snapshots are still useful for users, but they are
   // too pruned to serve as a reliable "same route vs new route" baseline.
-  const routeComparable = baseline?.comparisonSafe === true;
+  const routeComparable = comparisonBaseline?.comparisonSafe === true;
   session.androidSnapshotFreshness = {
     action,
     markedAt: Date.now(),
-    baselineCount: baseline?.nodes.length ?? 0,
+    baselineCount: (comparisonBaseline ?? baseline)?.nodes.length ?? 0,
     baselineSignatures: routeComparable
-      ? buildSnapshotSignatures(baseline?.nodes ?? [])
+      ? buildSnapshotSignatures(comparisonBaseline?.nodes ?? [])
       : undefined,
     routeComparable,
   };
+}
+
+function resolveAndroidComparisonBaseline(
+  session: SessionState,
+  baseline: SnapshotState | undefined,
+): SnapshotState | undefined {
+  if (baseline?.comparisonSafe === true) return baseline;
+  const previous = session.lastComparisonSafeSnapshot;
+  if (!previous || previous.comparisonSafe !== true) return baseline;
+  return Date.now() - previous.createdAt <= ANDROID_COMPARISON_BASELINE_MAX_AGE_MS
+    ? previous
+    : baseline;
 }
 
 export function getActiveAndroidSnapshotFreshness(

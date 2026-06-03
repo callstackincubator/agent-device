@@ -102,6 +102,7 @@ export async function runReplayScriptFile(params: {
         collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
         continue;
       }
+      collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
       if (!shouldUpdate) {
         return withReplayFailureContext(response, action, index, resolved, [...artifactPaths]);
       }
@@ -129,6 +130,7 @@ export async function runReplayScriptFile(params: {
         invoke,
       });
       if (!response.ok) {
+        collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
         return withReplayFailureContext(response, nextAction, index, resolved, [...artifactPaths]);
       }
       collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
@@ -231,7 +233,20 @@ function withReplayFailureContext(
 
 // fallow-ignore-next-line complexity
 export function collectReplayActionArtifactPaths(response: DaemonResponse): string[] {
-  if (!response.ok || !response.data) return [];
+  if (!response.ok) {
+    const paths = response.error.details?.artifactPaths;
+    return Array.isArray(paths)
+      ? [
+          ...new Set(
+            paths.filter(
+              (candidate): candidate is string =>
+                typeof candidate === 'string' && isReplayArtifactPath(candidate),
+            ),
+          ),
+        ]
+      : [];
+  }
+  if (!response.data) return [];
   const candidates: string[] = [];
   if (typeof response.data.path === 'string') candidates.push(response.data.path);
   if (typeof response.data.outPath === 'string') candidates.push(response.data.outPath);
