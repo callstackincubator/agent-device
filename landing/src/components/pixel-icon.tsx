@@ -80,26 +80,26 @@ function FigmaDevicesIcon({ children, ...props }: SVGProps<SVGSVGElement>) {
   );
 }
 
-function FigmaGithubIcon({ children, ...props }: SVGProps<SVGSVGElement>) {
+function PixelGithubIcon({ children, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
       {children}
-      <path d="M4.16667 1.66699H7.5V3.33366H5.83334V5.00033H4.16667V1.66699Z" fill="currentColor" />
-      <path d="M4.16667 10.0003H2.5V5.00033H4.16667V10.0003Z" fill="currentColor" />
-      <path d="M5.83334 11.667H4.16667V10.0003H5.83334V11.667Z" fill="currentColor" />
+      <path d="M5 2H9V4H7V6H5V2Z" fill="currentColor" />
+      <path d="M5 12H3V6H5V12Z" fill="currentColor" />
+      <path d="M7 14H5V12H7V14Z" fill="currentColor" />
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M7.5 13.3337V11.667H5.83334V13.3337H2.5V11.667H0.833336V13.3337H2.5V15.0003H5.83334V18.3337H7.5V15.0003H9.16667V13.3337H7.5ZM7.5 13.3337V15.0003H5.83334V13.3337H7.5Z"
+        d="M9 16V14H7V16H3V14H1V16H3V18H7V22H9V18H11V16H9ZM9 16V18H7V16H9Z"
         fill="currentColor"
       />
-      <path d="M12.5 3.33366V5.00033H7.5V3.33366H12.5Z" fill="currentColor" />
-      <path d="M15.8333 5.00033H14.1667V3.33366H12.5V1.66699H15.8333V5.00033Z" fill="currentColor" />
-      <path d="M15.8333 10.0003V5.00033H17.5V10.0003H15.8333Z" fill="currentColor" />
-      <path d="M14.1667 11.667V10.0003H15.8333V11.667H14.1667Z" fill="currentColor" />
-      <path d="M12.5 13.3337V11.667H14.1667V13.3337H12.5Z" fill="currentColor" />
-      <path d="M12.5 15.0003H10.8333V13.3337H12.5V15.0003Z" fill="currentColor" />
-      <path d="M12.5 15.0003H14.1667V18.3337H12.5V15.0003Z" fill="currentColor" />
+      <path d="M15 4V6H9V4H15Z" fill="currentColor" />
+      <path d="M19 6H17V4H15V2H19V6Z" fill="currentColor" />
+      <path d="M19 12V6H21V12H19Z" fill="currentColor" />
+      <path d="M17 14V12H19V14H17Z" fill="currentColor" />
+      <path d="M15 16V14H17V16H15Z" fill="currentColor" />
+      <path d="M15 18H13V16H15V18Z" fill="currentColor" />
+      <path d="M15 18H17V22H15V18Z" fill="currentColor" />
     </svg>
   );
 }
@@ -122,7 +122,7 @@ const iconComponents: Record<PixelIconName, IconComponent> = {
   devices: FigmaDevicesIcon,
   download: Download,
   gauge: Analytics,
-  github: FigmaGithubIcon,
+  github: PixelGithubIcon,
   hand: Hand,
   handshake: Users,
   list: Bulletlist,
