@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 type DarkNoisePanelProps = ComponentPropsWithoutRef<"div"> & {
   as?: "article" | "div";
+  backgroundImage?: string;
   contentClassName?: string;
   purpleOverlay?: boolean;
   shaderOpacity?: string;
@@ -11,6 +12,7 @@ type DarkNoisePanelProps = ComponentPropsWithoutRef<"div"> & {
 
 export function DarkNoisePanel({
   as: Component = "div",
+  backgroundImage = "/figma/hero-shader.webp",
   children,
   className,
   contentClassName,
@@ -28,9 +30,10 @@ export function DarkNoisePanel({
     >
       <div
         className={cn(
-          "absolute inset-0 bg-[url('/figma/hero-shader.webp')] bg-cover bg-center",
+          "absolute inset-0 bg-cover bg-center",
           shaderOpacity,
         )}
+        style={{ backgroundImage: `url(${backgroundImage})` }}
       />
       {purpleOverlay ? (
         <div className="absolute inset-0 bg-[#8232ff] mix-blend-color" />

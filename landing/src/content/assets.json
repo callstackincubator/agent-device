@@ -16,6 +16,14 @@
     "usedBy": "Home video poster"
   },
   {
+    "path": "/figma/callstack-card-bg.webp",
+    "logicalWidth": 672,
+    "logicalHeight": 360,
+    "density": 2,
+    "maxBytes": 100000,
+    "usedBy": "Callstack React Native proof card background"
+  },
+  {
     "path": "/figma/lane-interact.webp",
     "logicalWidth": 528,
     "logicalHeight": 868,

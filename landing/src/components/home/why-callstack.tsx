@@ -46,15 +46,17 @@ export function WhyCallstack() {
         title="Agent Device is built by Callstack"
         description="From billion-user apps to React Native core, this is why teams choose Callstack when they need to move fast and get it right."
       />
-      <div className="mx-auto mt-16 grid max-w-[1088px] gap-8 lg:grid-cols-2">
+      <div className="mx-auto mt-16 grid max-w-[1152px] gap-8 lg:grid-cols-[minmax(0,672fr)_minmax(0,448fr)]">
         <DarkNoisePanel
           as="article"
-          className="min-h-[304px] p-8"
-          shaderOpacity="opacity-25"
+          backgroundImage="/figma/callstack-card-bg.webp"
+          className="min-h-[360px] p-8"
+          purpleOverlay={false}
+          shaderOpacity="opacity-100"
         >
-          <div className="flex h-full flex-col justify-between">
+          <div className="flex min-h-[296px] flex-col justify-between">
             <div>
-              <DisplayHeading as="h3" size="card" tone="light">
+              <DisplayHeading as="h3" size="card" tone="light" className="leading-[1.35]">
                 10 years in React Native. Now shaping agentic engineering.
               </DisplayHeading>
               <BodyText tone="light" className="mt-4 max-w-[470px]">
