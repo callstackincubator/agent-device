@@ -1032,6 +1032,80 @@ test('captureSnapshot retries pending tap outcome before post-gesture stabilizat
   expect(session.postGestureStabilization).toBeUndefined();
 });
 
+test('captureSnapshot composes post-gesture stabilization with Android freshness capture', async () => {
+  const sessionName = 'android-post-gesture-freshness';
+  const session = makeSession(sessionName, androidDevice);
+  const baselineNodes = Array.from({ length: 18 }, (_, index) => ({
+    ref: `e${index + 1}`,
+    index,
+    depth: 0,
+    type: 'android.widget.TextView',
+    label: `Inbox row ${index + 1}`,
+  }));
+  const changedNodes = Array.from({ length: 18 }, (_, index) => ({
+    ref: `e${index + 1}`,
+    index,
+    depth: 0,
+    type: 'android.widget.TextView',
+    label: index === 0 ? 'album-0' : `Album row ${index + 1}`,
+  }));
+  session.snapshot = {
+    nodes: baselineNodes,
+    createdAt: Date.now(),
+    backend: 'android',
+    comparisonSafe: true,
+  };
+  session.androidSnapshotFreshness = {
+    action: 'click',
+    markedAt: Date.now(),
+    baselineCount: baselineNodes.length,
+    baselineSignatures: buildSnapshotSignatures(baselineNodes),
+    routeComparable: true,
+  };
+  session.postGestureStabilization = {
+    action: 'click',
+    markedAt: Date.now(),
+  };
+
+  mockDispatch
+    .mockResolvedValueOnce({
+      nodes: baselineNodes,
+      truncated: false,
+      backend: 'android',
+      analysis: { rawNodeCount: 18, maxDepth: 1 },
+    })
+    .mockResolvedValueOnce({
+      nodes: changedNodes,
+      truncated: false,
+      backend: 'android',
+      analysis: { rawNodeCount: 18, maxDepth: 1 },
+    })
+    .mockResolvedValueOnce({
+      nodes: changedNodes,
+      truncated: false,
+      backend: 'android',
+      analysis: { rawNodeCount: 18, maxDepth: 1 },
+    });
+
+  const result = await captureSnapshot({
+    device: androidDevice,
+    session,
+    flags: { snapshotInteractiveOnly: true },
+    logPath: '/tmp/daemon.log',
+  });
+
+  expect(result.snapshot.nodes).toEqual(
+    expect.arrayContaining([expect.objectContaining({ label: 'album-0' })]),
+  );
+  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual([
+    'snapshot',
+    'snapshot',
+    'snapshot',
+  ]);
+  expect(session.androidSnapshotFreshness).toBeUndefined();
+  expect(session.postGestureStabilization).toBeUndefined();
+});
+
 test('captureSnapshot composes pending outcome retry with Android freshness capture', async () => {
   const sessionName = 'android-lazy-outcome-freshness';
   const session = makeSession(sessionName, androidDevice);

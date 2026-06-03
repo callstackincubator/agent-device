@@ -703,7 +703,9 @@ function markRunnerPreflightError(error: unknown, details: Record<string, unknow
   );
 }
 
-function readRunnerStartupTimeoutMs(session: Pick<RunnerSession, 'startupTimeoutMs'>): number {
+export function readRunnerStartupTimeoutMs(
+  session: Pick<RunnerSession, 'startupTimeoutMs'>,
+): number {
   return session.startupTimeoutMs ?? RUNNER_STARTUP_TIMEOUT_MS;
 }
 

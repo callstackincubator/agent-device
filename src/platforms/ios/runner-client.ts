@@ -3,7 +3,7 @@ import { withRetry } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { getRequestSignal } from '../../daemon/request-cancel.ts';
-import { RUNNER_COMMAND_TIMEOUT_MS, RUNNER_STARTUP_TIMEOUT_MS } from './runner-transport.ts';
+import { RUNNER_COMMAND_TIMEOUT_MS } from './runner-transport.ts';
 import {
   type RunnerSessionOptions,
   type RunnerSession,
@@ -12,6 +12,7 @@ import {
   stopIosRunnerSession,
   validateRunnerDevice,
   executeRunnerCommandWithSession,
+  readRunnerStartupTimeoutMs,
 } from './runner-session.ts';
 import {
   assertRunnerRequestActive,
@@ -248,10 +249,6 @@ async function executeRunnerCommand(
     }
     throw err;
   }
-}
-
-function readRunnerStartupTimeoutMs(session: Pick<RunnerSession, 'startupTimeoutMs'>): number {
-  return session.startupTimeoutMs ?? RUNNER_STARTUP_TIMEOUT_MS;
 }
 
 async function handleRunnerTransportErrorAfterCommandSend(

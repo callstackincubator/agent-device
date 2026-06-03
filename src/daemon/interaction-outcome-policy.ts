@@ -37,7 +37,7 @@ export function markPendingInteractionOutcome(params: {
     action: command,
     command: retryCommand,
     positionals,
-    flags: stripInternalInteractionOutcomeFlags(flags),
+    flags: stripInternalInteractionFlags(flags),
     markedAt: Date.now(),
     attemptsRemaining: OUTCOME_RETRY_ATTEMPTS,
     preSignature,
@@ -134,7 +134,7 @@ export function emitInteractionSettleTimeout(params: {
   });
 }
 
-export function stripInternalInteractionOutcomeFlags(
+export function stripInternalInteractionFlags(
   flags: CommandFlags | undefined,
 ): CommandFlags | undefined {
   if (!flags?.interactionOutcome && !flags?.postGestureStabilization) return flags;

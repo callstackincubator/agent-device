@@ -11,7 +11,7 @@ import {
 } from '../android-snapshot-freshness.ts';
 import {
   markPendingInteractionOutcome,
-  stripInternalInteractionOutcomeFlags,
+  stripInternalInteractionFlags,
 } from '../interaction-outcome-policy.ts';
 import { markPostGestureStabilization } from '../post-gesture-stabilization.ts';
 
@@ -99,7 +99,7 @@ export function finalizeTouchInteraction(params: {
     actionFinishedAt,
     androidFreshnessBaseline,
   } = params;
-  const actionFlags = stripInternalInteractionOutcomeFlags(flags);
+  const actionFlags = stripInternalInteractionFlags(flags);
   sessionStore.recordAction(session, {
     command,
     positionals,
