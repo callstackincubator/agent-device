@@ -115,6 +115,8 @@ async function dispatchSnapshotRuntimeCommand(
   }
   const resolvedScope = resolveSnapshotScope(req.flags?.snapshotScope, session);
   if (!resolvedScope.ok) return resolvedScope;
+  const iosAppSessionGuard = requireIosAppSessionForSnapshot(params.command, session, device);
+  if (iosAppSessionGuard) return iosAppSessionGuard;
 
   return await withSessionlessRunnerCleanup(session, device, async () => {
     const runtime = createSnapshotRuntime({
@@ -156,6 +158,20 @@ async function dispatchSnapshotRuntimeCommand(
       data: result.data,
     };
   });
+}
+
+function requireIosAppSessionForSnapshot(
+  command: 'snapshot' | 'diff',
+  session: SessionState | undefined,
+  device: SessionState['device'],
+): DaemonResponse | null {
+  if (device.platform !== 'ios' || session?.appBundleId) {
+    return null;
+  }
+  return errorResponse(
+    'SESSION_NOT_FOUND',
+    `iOS ${command} requires an active app session on the target device. Run open first (for example: open --session ${session?.name ?? 'sim'} --platform ios --device "<name>" <app>).`,
+  );
 }
 
 function createSnapshotRuntime(params: {

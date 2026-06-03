@@ -336,6 +336,68 @@ test('snapshot rejects @ref scope without existing session snapshot', async () =
   }
 });
 
+test('snapshot on iOS rejects sessions without a tracked app', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-no-app';
+  sessionStore.set(sessionName, makeSession(sessionName, iosSimulatorDevice));
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'snapshot',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(false);
+  if (response?.ok === false) {
+    expect(response.error.code).toBe('SESSION_NOT_FOUND');
+    expect(response.error.message).toMatch(/iOS snapshot requires an active app session/i);
+  }
+  expect(mockDispatch).not.toHaveBeenCalled();
+});
+
+test('snapshot on iOS runs when the session tracks an app', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-app';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, iosSimulatorDevice),
+    appBundleId: 'org.reactnavigation.playground',
+  });
+  mockDispatch.mockResolvedValue({
+    nodes: [{ index: 0, depth: 0, type: 'Button', label: 'Home' }],
+    truncated: false,
+    backend: 'ios',
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'snapshot',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch).toHaveBeenCalledWith(
+    iosSimulatorDevice,
+    'snapshot',
+    [],
+    undefined,
+    expect.objectContaining({ appBundleId: 'org.reactnavigation.playground' }),
+  );
+});
+
 test('snapshot surfaces filtered-to-zero Android guidance for interactive snapshots', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-empty-interactive';
