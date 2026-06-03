@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
+import { GitHubStarLink, GitHubStarLinkFallback } from "@/components/github-star-link";
 import { ButtonLink } from "@/components/ui/button";
 import { navigationPages } from "@/lib/seo";
 
@@ -24,9 +26,14 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <ButtonLink href="#get-started" size="compact" className="hidden lg:inline-flex">
-          Get Started
-        </ButtonLink>
+        <div className="hidden items-center gap-3 lg:flex">
+          <Suspense fallback={<GitHubStarLinkFallback />}>
+            <GitHubStarLink />
+          </Suspense>
+          <ButtonLink href="#get-started" size="compact">
+            Get Started
+          </ButtonLink>
+        </div>
         <ButtonLink
           href="#get-started"
           size="compact"

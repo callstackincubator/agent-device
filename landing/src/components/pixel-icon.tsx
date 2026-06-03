@@ -25,6 +25,7 @@ import { Search } from "pixelarticons/react/Search";
 import { Ship } from "pixelarticons/react/Ship";
 import { Shuffle } from "pixelarticons/react/Shuffle";
 import { Smartphone } from "pixelarticons/react/Smartphone";
+import { Star } from "pixelarticons/react/Star";
 import { Terminal } from "pixelarticons/react/Terminal";
 import { Users } from "pixelarticons/react/Users";
 import { Video } from "pixelarticons/react/Video";
@@ -59,6 +60,7 @@ export type PixelIconName =
   | "ship"
   | "shuffle"
   | "snapshot"
+  | "star"
   | "terminal"
   | "video";
 
@@ -92,6 +94,7 @@ const iconComponents: Record<PixelIconName, IconComponent> = {
   ship: Ship,
   shuffle: Shuffle,
   snapshot: Image,
+  star: Star,
   terminal: Terminal,
   video: Video,
 };
