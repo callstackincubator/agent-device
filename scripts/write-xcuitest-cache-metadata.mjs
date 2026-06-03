@@ -113,7 +113,7 @@ function resolveDeviceKind() {
 function resolveTarget() {
   if (platform === 'macos') return 'desktop';
   if (platform === 'tvos') return 'tv';
-  return 'phone';
+  return 'mobile';
 }
 
 function resolveMacRunnerArch() {

@@ -1,5 +1,6 @@
 import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -10,6 +11,7 @@ import {
   acquireXcodebuildSimulatorSetRedirect,
   findXctestrun,
   prepareXctestrunWithEnv,
+  resolveExpectedRunnerCacheMetadata,
   resolveXcodebuildSimulatorDeviceSetPath,
   scoreXctestrunCandidate,
 } from '../runner-xctestrun.ts';
@@ -19,6 +21,7 @@ const iosSimulator: DeviceInfo = {
   id: 'sim-1',
   name: 'iPhone Simulator',
   kind: 'simulator',
+  target: 'mobile',
   booted: true,
 };
 
@@ -191,6 +194,25 @@ test('scoreXctestrunCandidate penalizes macos and env xctestrun files for simula
   );
 
   assert.ok(simulatorScore > macosEnvScore);
+});
+
+test('setup metadata script matches expected iOS simulator cache metadata', async () => {
+  await withTempDir('runner-cache-metadata-', async (root) => {
+    execFileSync(
+      process.execPath,
+      ['scripts/write-xcuitest-cache-metadata.mjs', 'ios', root, 'generic/platform=iOS Simulator'],
+      { cwd: process.cwd(), stdio: 'ignore' },
+    );
+
+    const actual = JSON.parse(
+      fs.readFileSync(path.join(root, '.agent-device-runner-cache.json'), 'utf8'),
+    );
+    const { artifacts: _actualArtifacts, ...actualComparable } = actual;
+    const { artifacts: _expectedArtifacts, ...expectedComparable } =
+      resolveExpectedRunnerCacheMetadata(iosSimulator);
+
+    assert.deepEqual(actualComparable, expectedComparable);
+  });
 });
 
 test('prepareXctestrunWithEnv avoids XCTest screen recordings for nested and legacy targets', async () => {

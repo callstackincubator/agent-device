@@ -89,7 +89,7 @@ export type RunnerXctestrunCacheMetadata = {
   runnerSourceFingerprint: string;
   platformName: string;
   deviceKind: DeviceInfo['kind'];
-  target: DeviceInfo['target'] | 'phone';
+  target: NonNullable<DeviceInfo['target']>;
   buildDestinationFamily: string;
   runnerBundleBuildSettings: string[];
   runnerSigningBuildSettings: string[];
@@ -684,7 +684,7 @@ export function resolveExpectedRunnerCacheMetadata(
     runnerSourceFingerprint: computeRunnerSourceFingerprint(projectRoot),
     platformName: resolveRunnerPlatformName(device),
     deviceKind: device.kind,
-    target: device.target ?? 'phone',
+    target: device.target ?? 'mobile',
     buildDestinationFamily: resolveRunnerBuildDestinationFamily(device),
     runnerBundleBuildSettings: resolveRunnerBundleBuildSettings(process.env),
     runnerSigningBuildSettings: resolveRunnerSigningBuildSettings(
