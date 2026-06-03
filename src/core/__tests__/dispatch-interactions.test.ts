@@ -116,12 +116,12 @@ test('handleSwipePresetCommand resolves Android in-page swipe to content lane', 
     undefined,
   );
 
-  assert.deepEqual(calls, [[340, 520, 60, 520, 300]]);
+  assert.deepEqual(calls, [[340, 400, 60, 400, 300]]);
   assert.deepEqual(result, {
     x1: 340,
-    y1: 520,
+    y1: 400,
     x2: 60,
-    y2: 520,
+    y2: 400,
     preset: 'left',
     durationMs: 300,
     effectiveDurationMs: 300,
