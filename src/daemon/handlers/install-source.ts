@@ -33,8 +33,8 @@ type InstallFromSourceResult = {
   materializationExpiresAt?: string;
 };
 
-function normalizePlatform(platform: CommandFlags['platform']): 'ios' | 'android' | undefined {
-  return platform === 'ios' || platform === 'android' ? platform : undefined;
+function normalizePlatform(platform: CommandFlags['platform']): 'ios' | 'android' | 'harmonyos' | undefined {
+  return platform === 'ios' || platform === 'android' || platform === 'harmonyos' ? platform : undefined;
 }
 
 function resolveRetainMaterializedPaths(req: DaemonRequest): { enabled: boolean; ttlMs?: number } {
@@ -69,7 +69,7 @@ async function resolveInstallDevice(params: {
   if (!requestedPlatform) {
     throw new AppError(
       'INVALID_ARGS',
-      'install_from_source requires platform "ios" or "android" when no session is provided',
+      'install_from_source requires platform "ios", "android", or "harmonyos" when no session is provided',
     );
   }
   const device = await resolveTargetDevice(params.flags ?? {});
@@ -208,6 +208,21 @@ export async function handleInstallFromSourceCommand(params: {
           launchTarget: prepared.bundleId,
         };
       });
+    }
+
+    if (device.platform === 'harmonyos') {
+      const { installHarmonyApp } = await import('../../platforms/harmonyos/app-lifecycle.ts');
+      const installablePath = resolvedSource.source.kind === 'path'
+        ? resolvedSource.source.path
+        : resolvedSource.source.url;
+      await installHarmonyApp(device, installablePath);
+      return {
+        ok: true,
+        data: withSuccessText(
+          { launchTarget: installablePath },
+          `Installed: ${installablePath}`,
+        ),
+      };
     }
 
     const { prepareAndroidInstallArtifact } =

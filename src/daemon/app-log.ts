@@ -178,6 +178,7 @@ export function getAppLogPathMetadata(outPath: string): {
 
 function resolveNetworkLogBackend(device: DeviceInfo): NetworkLogBackend {
   if (device.platform === 'macos') return 'macos';
+  if (device.platform === 'harmonyos') return 'harmonyos';
   if (device.platform === 'ios') {
     return device.kind === 'device' ? 'ios-device' : 'ios-simulator';
   }

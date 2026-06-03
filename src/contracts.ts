@@ -57,7 +57,7 @@ export type DaemonRequestMeta = {
   materializedPathRetentionMs?: number;
   materializationId?: string;
   lockPolicy?: DaemonLockPolicy;
-  lockPlatform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple';
+  lockPlatform?: 'ios' | 'macos' | 'android' | 'harmonyos' | 'linux' | 'apple';
   requestProgress?: 'replay-test';
 };
 
@@ -395,7 +395,7 @@ export const daemonCommandRequestSchema = schema<DaemonRequest>((input, path) =>
             lockPlatform: optionalEnum(
               meta,
               'lockPlatform',
-              ['ios', 'macos', 'android', 'linux', 'apple'] as const,
+              ['ios', 'macos', 'android', 'harmonyos', 'linux', 'apple'] as const,
               `${path}.meta`,
             ),
           },
