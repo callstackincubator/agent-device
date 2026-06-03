@@ -64,6 +64,64 @@ test('invokeMaestroRunFlowWhenControl waits briefly for visible conditions', asy
   }
 });
 
+test('invokeMaestroRunFlowWhenControl falls back to raw iOS snapshots after optimized miss', async () => {
+  const snapshotFlags: Array<DaemonRequest['flags']> = [];
+  const invokedActions: SessionAction[] = [];
+  const actions: SessionAction[] = [
+    { ts: Date.now(), command: 'click', positionals: ['label="Continue"'], flags: {} },
+  ];
+
+  const response = await invokeMaestroRunFlowWhenControl({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'ios' },
+    },
+    control: {
+      kind: 'maestroRunFlowWhen',
+      mode: 'visible',
+      selector: 'label="Continue" || text="Continue" || id="Continue"',
+      actions,
+    },
+    line: 12,
+    step: 4,
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      assert.equal(req.command, 'snapshot');
+      snapshotFlags.push(req.flags);
+      const isRaw = req.flags?.snapshotRaw === true;
+      return {
+        ok: true,
+        data: {
+          createdAt: Date.now(),
+          nodes: isRaw
+            ? [
+                {
+                  index: 1,
+                  ref: 'e1',
+                  type: 'Button',
+                  label: 'Continue',
+                  rect: { x: 100, y: 420, width: 120, height: 44 },
+                  depth: 4,
+                },
+              ]
+            : [],
+        },
+      };
+    },
+    invokeReplayAction: async ({ action }): Promise<DaemonResponse> => {
+      invokedActions.push(action);
+      return { ok: true, data: { clicked: true } };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(snapshotFlags.map((flags) => flags?.snapshotRaw), [undefined, true]);
+  assert.deepEqual(
+    invokedActions.map((action) => [action.command, action.positionals]),
+    [['click', ['label="Continue"']]],
+  );
+});
+
 test('invokeMaestroRunFlowWhenControl keeps notVisible conditions immediate', async () => {
   let snapshots = 0;
   const response = await invokeMaestroRunFlowWhenControl({

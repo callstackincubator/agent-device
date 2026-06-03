@@ -212,6 +212,114 @@ test('test command --verbose prints step telemetry for passing tests without deb
   }
 });
 
+test('test command --verbose keeps nested retry and open step telemetry distinct', async () => {
+  const tmpDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-cli-test-verbose-retry-'),
+  );
+  const artifactsDir = path.join(tmpDir, 'material-top-tabs');
+  const attemptDir = path.join(artifactsDir, 'attempt-1');
+  await fs.mkdir(attemptDir, { recursive: true });
+  await fs.writeFile(
+    path.join(attemptDir, 'replay-timing.ndjson'),
+    [
+      {
+        type: 'replay_action_start',
+        step: 2,
+        line: 4,
+        command: 'retry',
+        positionals: ['3'],
+      },
+      {
+        type: 'replay_action_start',
+        step: 2,
+        line: 4,
+        command: 'open',
+        positionals: ['org.reactnavigation.playground', 'rne://material-top-tabs-basic'],
+      },
+      {
+        type: 'replay_action_stop',
+        step: 2,
+        line: 4,
+        command: 'open',
+        ok: true,
+        durationMs: 727,
+      },
+      {
+        type: 'replay_action_start',
+        step: 2.001,
+        line: 4,
+        command: '__maestroAssertVisible',
+        positionals: ['label="Chat" || text="Chat" || id="Chat"', '60000'],
+      },
+      {
+        type: 'replay_action_stop',
+        step: 2.001,
+        line: 4,
+        command: '__maestroAssertVisible',
+        ok: true,
+        durationMs: 2580,
+      },
+      {
+        type: 'replay_action_stop',
+        step: 2,
+        line: 4,
+        command: 'retry',
+        ok: true,
+        durationMs: 3310,
+      },
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n'),
+  );
+
+  try {
+    const result = await runCliCapture(['test', './suite', '--verbose'], async () => ({
+      ok: true,
+      data: {
+        total: 1,
+        executed: 1,
+        passed: 1,
+        failed: 0,
+        skipped: 0,
+        notRun: 0,
+        durationMs: 3310,
+        failures: [],
+        tests: [
+          {
+            file: '/tmp/material-top-tabs.yml',
+            title: 'Material Top Tabs - Basic',
+            session: 'default:test:suite:1',
+            status: 'passed',
+            durationMs: 3310,
+            finalAttemptDurationMs: 3310,
+            attempts: 1,
+            artifactsDir,
+            replayed: 1,
+            healed: 0,
+          },
+        ],
+      },
+    }));
+
+    assert.equal(result.code, null);
+    assert.match(
+      result.stdout,
+      /open "org\.reactnavigation\.playground" "rne:\/\/material-top-tabs-basic" \(line 4, 0\.727s\)/,
+    );
+    assert.match(
+      result.stdout,
+      /assertVisible "label=\\"Chat\\" \|\| text=\\"Chat\\" \|\| id=\\"Chat\\"" "60000" \(line 4, 2\.58s\)/,
+    );
+    assert.match(result.stdout, /retry "3" \(line 4, 3\.31s\)/);
+    assert.doesNotMatch(
+      result.stdout,
+      /open "org\.reactnavigation\.playground" "rne:\/\/material-top-tabs-basic" \(line 4, 3\.31s\)/,
+    );
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test('test command reports flaky passed-on-retry cases in the default summary', async () => {
   const result = await runCliCapture(['test', './suite'], async () => ({
     ok: true,

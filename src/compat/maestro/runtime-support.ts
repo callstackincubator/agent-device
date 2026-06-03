@@ -2,9 +2,15 @@ import {
   getSnapshotReferenceFrame,
   type TouchReferenceFrame,
 } from '../../daemon/touch-reference-frame.ts';
-import type { DaemonRequest, DaemonResponse, SessionAction } from '../../daemon/types.ts';
+import type {
+  DaemonRequest,
+  DaemonResponse,
+  DaemonResponseData,
+  SessionAction,
+} from '../../daemon/types.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';
+import { emitDiagnostic } from '../../utils/diagnostics.ts';
 
 export type ReplayBaseRequest = Omit<DaemonRequest, 'command' | 'positionals'>;
 
@@ -17,6 +23,7 @@ export type MaestroReplayInvoker = (params: {
 export type MaestroRuntimeInvoke = (req: DaemonRequest) => Promise<DaemonResponse>;
 
 export type FailedDaemonResponse = Extract<DaemonResponse, { ok: false }>;
+export type MaestroSnapshotMode = 'interactive' | 'raw';
 
 const maestroReferenceFrameCache = new WeakMap<ReplayVarScope, TouchReferenceFrame>();
 const maestroVisibleContextCache = new WeakMap<ReplayVarScope, { selector: string }>();
@@ -32,11 +39,14 @@ export function errorResponse(
   };
 }
 
-export async function captureMaestroRawSnapshot(params: {
+export async function captureMaestroSnapshot(params: {
   baseReq: ReplayBaseRequest;
   invoke: MaestroRuntimeInvoke;
   scope?: ReplayVarScope;
+  mode?: MaestroSnapshotMode;
 }): Promise<DaemonResponse> {
+  const useRawSnapshot =
+    params.mode === 'raw' || process.env.AGENT_DEVICE_MAESTRO_RAW_SNAPSHOTS === '1';
   const response = await params.invoke({
     ...params.baseReq,
     command: 'snapshot',
@@ -44,23 +54,34 @@ export async function captureMaestroRawSnapshot(params: {
     flags: {
       ...params.baseReq.flags,
       noRecord: true,
-      snapshotRaw: true,
-      snapshotForceFull: true,
+      ...(params.mode === 'interactive' && !useRawSnapshot
+        ? { snapshotInteractiveOnly: true }
+        : {}),
+      ...(useRawSnapshot ? { snapshotRaw: true } : {}),
     },
   });
   if (response.ok && params.scope) rememberMaestroReferenceFrame(params.scope, response.data);
   return response;
 }
 
-export function readSnapshotState(data: unknown): SnapshotState | undefined {
-  if (
-    typeof data === 'object' &&
-    data !== null &&
-    Array.isArray((data as { nodes?: unknown }).nodes)
-  ) {
-    return data as SnapshotState;
-  }
-  return undefined;
+export function readSnapshotState(data: DaemonResponseData | undefined): SnapshotState | undefined {
+  return Array.isArray(data?.nodes) ? (data as SnapshotState) : undefined;
+}
+
+export function shouldUseMaestroRawSnapshotFallback(baseReq: ReplayBaseRequest): boolean {
+  return baseReq.flags?.platform === 'ios';
+}
+
+export function emitMaestroRawSnapshotFallbackDiagnostic(command: string, selector: string): void {
+  emitDiagnostic({
+    level: 'debug',
+    phase: 'maestro_raw_snapshot_fallback',
+    data: {
+      command,
+      selector,
+      reason: 'optimized_snapshot_missed',
+    },
+  });
 }
 
 export function readCachedMaestroReferenceFrame(
@@ -86,7 +107,10 @@ export function clearMaestroVisibleContext(scope: ReplayVarScope | undefined): v
   if (scope) maestroVisibleContextCache.delete(scope);
 }
 
-function rememberMaestroReferenceFrame(scope: ReplayVarScope, data: unknown): void {
+function rememberMaestroReferenceFrame(
+  scope: ReplayVarScope,
+  data: DaemonResponseData | undefined,
+): void {
   const snapshot = readSnapshotState(data);
   const frame = getSnapshotReferenceFrame(snapshot);
   if (frame) maestroReferenceFrameCache.set(scope, frame);

@@ -7,7 +7,7 @@ import {
   invokeMaestroTapPointPercent,
 } from '../runtime-interactions.ts';
 
-test('invokeMaestroTapOn resolves mutating taps from the current raw snapshot', async () => {
+test('invokeMaestroTapOn resolves mutating taps from the current snapshot', async () => {
   const selector =
     'label="Article by Gandalf" || text="Article by Gandalf" || id="Article by Gandalf"';
 
@@ -18,6 +18,78 @@ test('invokeMaestroTapOn resolves mutating taps from the current raw snapshot', 
   expect(response.ok).toBe(true);
   expect(snapshots).toBe(1);
   expect(clicks).toEqual([['86', '89']]);
+});
+
+test('invokeMaestroTapOn uses optimized interactive snapshots by default', async () => {
+  const snapshotFlags: Array<DaemonRequest['flags']> = [];
+  const response = await invokeMaestroTapOn({
+    baseReq: {
+      token: 'test',
+      session: 'article',
+      flags: { platform: 'ios' },
+    },
+    positionals: [
+      'label="Article by Gandalf" || text="Article by Gandalf" || id="Article by Gandalf"',
+    ],
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        snapshotFlags.push(req.flags);
+        return { ok: true, data: currentBreadcrumbSnapshot() };
+      }
+      if (req.command === 'click') return { ok: true, data: {} };
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  expect(response.ok).toBe(true);
+  expect(snapshotFlags).toHaveLength(1);
+  expect(snapshotFlags[0]?.noRecord).toBe(true);
+  expect(snapshotFlags[0]?.snapshotInteractiveOnly).toBe(true);
+  expect(snapshotFlags[0]?.snapshotRaw).toBeUndefined();
+  expect(snapshotFlags[0]?.snapshotForceFull).toBeUndefined();
+});
+
+test('invokeMaestroTapOn falls back to raw snapshot shaping when optimized snapshot misses', async () => {
+  const snapshotFlags: Array<DaemonRequest['flags']> = [];
+  const response = await invokeMaestroTapOn({
+    baseReq: {
+      token: 'test',
+      session: 'tabs',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['id="article"'],
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        snapshotFlags.push(req.flags);
+        return {
+          ok: true,
+          data:
+            req.flags?.snapshotRaw === true
+              ? {
+                  nodes: [
+                    {
+                      index: 1,
+                      identifier: 'article',
+                      type: 'Button',
+                      rect: { x: 0, y: 820, width: 134, height: 54 },
+                    },
+                  ],
+                }
+              : { nodes: [] },
+        };
+      }
+      if (req.command === 'click') return { ok: true, data: {} };
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  expect(response.ok).toBe(true);
+  expect(snapshotFlags).toHaveLength(2);
+  expect(snapshotFlags[0]?.snapshotInteractiveOnly).toBe(true);
+  expect(snapshotFlags[0]?.snapshotRaw).toBeUndefined();
+  expect(snapshotFlags[1]?.snapshotInteractiveOnly).toBeUndefined();
+  expect(snapshotFlags[1]?.snapshotRaw).toBe(true);
+  expect(snapshotFlags[1]?.snapshotForceFull).toBeUndefined();
 });
 
 test('invokeMaestroTapOn taps resolved iOS buttons by coordinates', async () => {

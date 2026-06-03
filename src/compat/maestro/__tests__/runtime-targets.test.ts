@@ -1,9 +1,40 @@
 import { test, expect } from 'vitest';
-import type { SnapshotState } from '../../../utils/snapshot.ts';
+import type { SnapshotNode, SnapshotState } from '../../../utils/snapshot.ts';
 import {
   resolveMaestroNodeFromSnapshot,
   resolveVisibleMaestroNodeFromSnapshot,
 } from '../runtime-targets.ts';
+
+const IOS_TAB_FRAME = { referenceWidth: 402, referenceHeight: 874 } as const;
+
+type SnapshotNodeFixture = Omit<SnapshotNode, 'ref'> & { ref?: string };
+type ResolveMaestroOptions = NonNullable<Parameters<typeof resolveMaestroNodeFromSnapshot>[5]>;
+
+function makeSnapshot(nodes: SnapshotNodeFixture[]): SnapshotState {
+  return {
+    createdAt: Date.now(),
+    nodes: nodes.map((node) => ({ ref: `e${node.index}`, ...node })),
+  };
+}
+
+function maestroTextSelector(text: string): string {
+  return `label="${text}" || text="${text}" || id="${text}"`;
+}
+
+function resolveIosTabTarget(
+  snapshot: SnapshotState,
+  text: string,
+  options: ResolveMaestroOptions,
+) {
+  return resolveMaestroNodeFromSnapshot(
+    snapshot,
+    maestroTextSelector(text),
+    {},
+    'ios',
+    IOS_TAB_FRAME,
+    options,
+  );
+}
 
 test('resolveVisibleMaestroNodeFromSnapshot treats app content behind React Native overlays as hidden', () => {
   const snapshot = makeReactNativeOverlaySnapshot();
@@ -870,6 +901,237 @@ test('resolveMaestroNodeFromSnapshot infers missing selected tab slot from tab-s
   expect(target).toMatchObject({
     ok: true,
     node: expect.objectContaining({ index: 1 }),
+    rect: { x: 0, y: 116.66666412353516, width: 134, height: 48 },
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot infers leading tab slot with selected sibling and content context', () => {
+  const snapshot = makeSnapshot([
+    { index: 1, type: 'Window', rect: { x: 0, y: 0, width: 402, height: 874 }, depth: 1 },
+    {
+      index: 4,
+      type: 'ScrollView',
+      label: 'Chat',
+      rect: { x: 0, y: 116.66666412353516, width: 402, height: 48 },
+      depth: 3,
+      parentIndex: 1,
+    },
+    {
+      index: 5,
+      type: 'Cell',
+      label: 'Contacts',
+      rect: { x: 134, y: 116.66666412353516, width: 134, height: 48.00000762939453 },
+      depth: 4,
+      parentIndex: 4,
+    },
+    {
+      index: 6,
+      type: 'Cell',
+      label: 'Albums',
+      selected: true,
+      rect: { x: 268, y: 116.66666412353516, width: 134, height: 48.00000762939453 },
+      depth: 4,
+      parentIndex: 4,
+    },
+    {
+      index: 10,
+      type: 'Other',
+      label: 'album-0',
+      identifier: 'album-0',
+      rect: { x: 16, y: 220, width: 100, height: 100 },
+      depth: 7,
+      parentIndex: 1,
+    },
+  ]);
+  const contentNode = snapshot.nodes[4]!;
+
+  const target = resolveIosTabTarget(snapshot, 'Chat', {
+    promoteTapTarget: true,
+    preferredContext: { node: contentNode, rect: contentNode.rect! },
+  });
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 4 }),
+    rect: { x: 0, y: 116.66666412353516, width: 134, height: 48 },
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot infers leading tab slot from broad matching cell', () => {
+  const snapshot = makeSnapshot([
+    {
+      index: 4,
+      type: 'ScrollView',
+      label: 'Article',
+      rect: { x: 0, y: 116.66666412353516, width: 402, height: 48 },
+      depth: 3,
+    },
+    {
+      index: 5,
+      type: 'Cell',
+      label: 'Article',
+      rect: { x: -9, y: 116.66666412353516, width: 560, height: 48.00000762939453 },
+      depth: 4,
+      parentIndex: 4,
+    },
+    {
+      index: 6,
+      type: 'Cell',
+      label: 'Contacts',
+      selected: true,
+      rect: { x: 141, y: 116.66666412353516, width: 120, height: 48.00000762939453 },
+      depth: 5,
+      parentIndex: 5,
+    },
+    {
+      index: 7,
+      type: 'Cell',
+      label: 'Albums',
+      rect: { x: 281, y: 116.66666412353516, width: 120, height: 48.00000762939453 },
+      depth: 5,
+      parentIndex: 5,
+    },
+    {
+      index: 8,
+      type: 'Cell',
+      label: 'Chat',
+      rect: { x: 421, y: 116.66666412353516, width: 120, height: 48.00000762939453 },
+      depth: 5,
+      parentIndex: 5,
+    },
+  ]);
+
+  const target = resolveIosTabTarget(snapshot, 'Article', { promoteTapTarget: true });
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 5 }),
+    rect: { x: -9, y: 116.66666412353516, width: 150, height: 48.00000762939453 },
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot rejects off-screen interaction targets when required', () => {
+  const snapshot = makeSnapshot([
+    {
+      index: 1,
+      type: 'ScrollView',
+      label: 'Article',
+      rect: { x: 0, y: 116.66666412353516, width: 402, height: 48 },
+      depth: 3,
+    },
+    {
+      index: 2,
+      type: 'Other',
+      label: 'Contacts',
+      rect: {
+        x: -173.66666412353516,
+        y: 116.66666412353516,
+        width: 91.99999237060547,
+        height: 48,
+      },
+      depth: 4,
+      parentIndex: 1,
+    },
+  ]);
+
+  const target = resolveIosTabTarget(snapshot, 'Contacts', {
+    promoteTapTarget: true,
+    requireOnScreen: true,
+  });
+
+  expect(target).toMatchObject({
+    ok: false,
+    message: expect.stringContaining('none were visible'),
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot does not promote tab child to broad tab-strip cell', () => {
+  const snapshot = makeSnapshot([
+    {
+      index: 1,
+      type: 'Cell',
+      label: 'Article',
+      rect: {
+        x: -150,
+        y: 116.66666412353516,
+        width: 701.6666870117188,
+        height: 48.00000762939453,
+      },
+      depth: 4,
+    },
+    {
+      index: 2,
+      type: 'Other',
+      label: 'Contacts',
+      rect: {
+        x: -44.666664123535156,
+        y: 116.66666412353516,
+        width: 91.99999237060547,
+        height: 48.00000762939453,
+      },
+      depth: 5,
+      parentIndex: 1,
+    },
+  ]);
+
+  const target = resolveIosTabTarget(snapshot, 'Contacts', {
+    promoteTapTarget: true,
+    requireOnScreen: true,
+  });
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 2 }),
+    rect: {
+      x: -44.666664123535156,
+      y: 116.66666412353516,
+      width: 91.99999237060547,
+      height: 48.00000762939453,
+    },
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot infers missing selected tab slot from nested tab-strip children', () => {
+  const snapshot = makeSnapshot([
+    {
+      index: 1,
+      type: 'Other',
+      label: 'Chat',
+      rect: { x: 0, y: 116.66666412353516, width: 402, height: 48 },
+      depth: 4,
+    },
+    {
+      index: 2,
+      type: 'ScrollView',
+      label: 'Chat',
+      rect: { x: 0, y: 116.66666412353516, width: 402, height: 48 },
+      depth: 5,
+      parentIndex: 1,
+    },
+    {
+      index: 3,
+      type: 'Other',
+      label: 'Contacts',
+      selected: true,
+      rect: { x: 134, y: 116.66666412353516, width: 134, height: 48 },
+      depth: 6,
+      parentIndex: 2,
+    },
+    {
+      index: 4,
+      type: 'Other',
+      label: 'Albums',
+      rect: { x: 268, y: 116.66666412353516, width: 134, height: 48 },
+      depth: 6,
+      parentIndex: 2,
+    },
+  ]);
+
+  const target = resolveIosTabTarget(snapshot, 'Chat', { promoteTapTarget: true });
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 2 }),
     rect: { x: 0, y: 116.66666412353516, width: 134, height: 48 },
   });
 });

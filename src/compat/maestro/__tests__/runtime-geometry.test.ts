@@ -15,9 +15,29 @@ test('pointForMaestroTapOnTarget biases large scroll-area text containers toward
       frame: { referenceWidth: 402, referenceHeight: 874 },
     },
     true,
+    { allowLargeContainerBias: true },
   );
 
   expect(point).toEqual({ x: 84, y: 141 });
+});
+
+test('pointForMaestroTapOnTarget centers optimized broad text containers by default', () => {
+  const point = pointForMaestroTapOnTarget(
+    {
+      node: {
+        index: 5,
+        ref: 'e5',
+        type: 'scroll-area',
+        label: 'Article',
+        rect: { x: 0, y: 117, width: 402, height: 180 },
+      },
+      rect: { x: 0, y: 117, width: 402, height: 180 },
+      frame: { referenceWidth: 402, referenceHeight: 874 },
+    },
+    true,
+  );
+
+  expect(point).toEqual({ x: 201, y: 207 });
 });
 
 test('pointForMaestroTapOnTarget centers tall Android bottom-tab containers', () => {

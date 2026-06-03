@@ -1,6 +1,17 @@
-import { test, vi } from 'vitest';
+import { beforeEach, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
+
+const { mockRunIosRunnerCommand } = vi.hoisted(() => ({
+  mockRunIosRunnerCommand: vi.fn(),
+}));
+
+vi.mock('../../platforms/ios/runner-client.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../platforms/ios/runner-client.ts')>();
+  return { ...actual, runIosRunnerCommand: mockRunIosRunnerCommand };
+});
+
 import {
+  handlePanCommand,
   handleRotateGestureCommand,
   handleSwipeCommand,
   handleSwipePresetCommand,
@@ -15,6 +26,10 @@ vi.mock('../../platforms/ios/macos-helper.ts', async (importOriginal) => {
     ...actual,
     runMacOsPressAction: vi.fn(async () => ({})),
   };
+});
+
+beforeEach(() => {
+  mockRunIosRunnerCommand.mockReset();
 });
 
 function makeUnusedInteractor(): Interactor {
@@ -147,6 +162,68 @@ test('handleSwipeCommand preserves iOS swipe duration through dispatch', async (
     pauseMs: 0,
     pattern: 'one-way',
     message: 'Swiped',
+  });
+});
+
+test('handleSwipeCommand uses synthesized iOS runner drag series for repeated swipes', async () => {
+  mockRunIosRunnerCommand.mockResolvedValueOnce({
+    gestureStartUptimeMs: 100,
+    gestureEndUptimeMs: 720,
+  });
+  const interactor = makeUnusedInteractor();
+
+  const result = await handleSwipeCommand(
+    IOS_SIMULATOR,
+    interactor,
+    ['100', '650', '100', '450', '120'],
+    {
+      count: 2,
+      pauseMs: 50,
+      pattern: 'ping-pong',
+      appBundleId: 'com.example.App',
+    },
+  );
+
+  assert.deepEqual(mockRunIosRunnerCommand.mock.calls[0]?.[1], {
+    command: 'dragSeries',
+    x: 100,
+    y: 650,
+    x2: 100,
+    y2: 450,
+    durationMs: 120,
+    count: 2,
+    pauseMs: 50,
+    pattern: 'ping-pong',
+    synthesized: true,
+    appBundleId: 'com.example.App',
+  });
+  assert.equal(result.timingMode, 'runner-series');
+  assert.equal(result.message, 'Swiped 2 times (ping-pong)');
+});
+
+test('handlePanCommand preserves interactor result metadata', async () => {
+  const calls: unknown[][] = [];
+  const interactor = {
+    ...makeUnusedInteractor(),
+    pan: async (...args: unknown[]) => {
+      calls.push(args);
+      return { backend: 'xctest' };
+    },
+  };
+
+  const result = await handlePanCommand(interactor, ['196', '122', '80', '0', '500']);
+
+  assert.deepEqual(calls, [[196, 122, 276, 122, 500]]);
+  assert.deepEqual(result, {
+    x: 196,
+    y: 122,
+    dx: 80,
+    dy: 0,
+    x2: 276,
+    y2: 122,
+    durationMs: 500,
+    backend: 'xctest',
+    message: 'Panned (196, 122) by (80, 0)',
   });
 });
 

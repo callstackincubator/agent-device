@@ -1,5 +1,6 @@
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import { shouldUseSynthesizedIosDrag } from '../../core/dispatch-series.ts';
 import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
 import { runIosRunnerCommand } from './runner-client.ts';
 import type { RunnerCommand } from './runner-contract.ts';
@@ -108,34 +109,21 @@ export function iosRunnerOverrides(
         );
       },
       swipe: async (x1, y1, x2, y2, durationMs) => {
-        const useSynthesizedSwipe = shouldUseSynthesizedSwipe(device);
         return await runIosRunnerCommand(
           device,
-          {
-            command: 'drag',
-            x: x1,
-            y: y1,
-            x2,
-            y2,
-            durationMs: useSynthesizedSwipe ? iosSwipeDurationMs(durationMs) : durationMs,
-            ...(useSynthesizedSwipe ? { synthesized: true } : {}),
-            appBundleId: ctx.appBundleId,
-          },
+          iosDragCommand(device, ctx, x1, y1, x2, y2, durationMs, {
+            synthesizedDefaultDurationMs: IOS_SWIPE_DEFAULT_DURATION_MS,
+          }),
           runnerOpts,
         );
       },
       pan: async (x1, y1, x2, y2, durationMs) => {
         return await runIosRunnerCommand(
           device,
-          {
-            command: 'drag',
-            x: x1,
-            y: y1,
-            x2,
-            y2,
-            durationMs: durationMs ?? 500,
-            appBundleId: ctx.appBundleId,
-          },
+          iosDragCommand(device, ctx, x1, y1, x2, y2, durationMs, {
+            synthesizedDefaultDurationMs: 500,
+            legacyDefaultDurationMs: 500,
+          }),
           runnerOpts,
         );
       },
@@ -270,14 +258,42 @@ export function iosRunnerOverrides(
   };
 }
 
-function iosSwipeDurationMs(durationMs: number | undefined): number {
-  if (durationMs === undefined) return IOS_SWIPE_DEFAULT_DURATION_MS;
-
-  return Math.min(IOS_SWIPE_MAX_DURATION_MS, Math.max(IOS_SWIPE_MIN_DURATION_MS, Math.round(durationMs)));
+function iosDragCommand(
+  device: DeviceInfo,
+  ctx: RunnerContext,
+  x: number,
+  y: number,
+  x2: number,
+  y2: number,
+  durationMs: number | undefined,
+  options: {
+    synthesizedDefaultDurationMs: number;
+    legacyDefaultDurationMs?: number;
+  },
+): RunnerCommand {
+  const useSynthesizedDrag = shouldUseSynthesizedIosDrag(device);
+  const normalizedDurationMs = useSynthesizedDrag
+    ? iosGestureDurationMs(durationMs, options.synthesizedDefaultDurationMs)
+    : (durationMs ?? options.legacyDefaultDurationMs);
+  return {
+    command: 'drag',
+    x,
+    y,
+    x2,
+    y2,
+    ...(normalizedDurationMs !== undefined ? { durationMs: normalizedDurationMs } : {}),
+    ...(useSynthesizedDrag ? { synthesized: true } : {}),
+    appBundleId: ctx.appBundleId,
+  };
 }
 
-function shouldUseSynthesizedSwipe(device: DeviceInfo): boolean {
-  return device.platform === 'ios' && device.target !== 'tv';
+function iosGestureDurationMs(durationMs: number | undefined, defaultDurationMs: number): number {
+  if (durationMs === undefined) return defaultDurationMs;
+
+  return Math.min(
+    IOS_SWIPE_MAX_DURATION_MS,
+    Math.max(IOS_SWIPE_MIN_DURATION_MS, Math.round(durationMs)),
+  );
 }
 
 export function appleRemotePressCommand(
@@ -323,17 +339,16 @@ async function runAppleScroll(
   });
   const runnerResult = await runRunnerCommand(
     device,
-    {
-      command: 'drag',
-      x: frame.originX + plan.x1,
-      y: frame.originY + plan.y1,
-      x2: frame.originX + plan.x2,
-      y2: frame.originY + plan.y2,
-      ...(shouldUseSynthesizedSwipe(device)
-        ? { durationMs: IOS_SWIPE_DEFAULT_DURATION_MS, synthesized: true }
-        : {}),
-      appBundleId: ctx.appBundleId,
-    },
+    iosDragCommand(
+      device,
+      ctx,
+      frame.originX + plan.x1,
+      frame.originY + plan.y1,
+      frame.originX + plan.x2,
+      frame.originY + plan.y2,
+      undefined,
+      { synthesizedDefaultDurationMs: IOS_SWIPE_DEFAULT_DURATION_MS },
+    ),
     runnerOpts,
   );
   return normalizeIosScrollResult(runnerResult, {

@@ -161,6 +161,22 @@ test('parseUiHierarchy decodes XML entities in Android node attributes', () => {
   assert.equal(result.nodes[0]!.label, 'Line 1\nLine 2\t&<>"\'');
 });
 
+test('parseUiHierarchy keeps visible Android nodes with meaningful test identifiers', () => {
+  const xml = `<hierarchy>
+  <node class="android.widget.ScrollView" package="com.example.app" bounds="[0,0][1080,1886]" clickable="true" visible-to-user="true">
+    <node class="android.view.ViewGroup" package="com.example.app" resource-id="album-0" bounds="[0,0][540,540]" visible-to-user="true"/>
+    <node class="android.widget.ImageView" package="com.example.app" bounds="[0,0][540,540]" visible-to-user="true"/>
+  </node>
+</hierarchy>`;
+
+  const result = parseUiHierarchy(xml, 800, {});
+
+  assert.equal(
+    result.nodes.some((node) => node.identifier === 'album-0'),
+    true,
+  );
+});
+
 test('parseUiHierarchy reads Android bounds with negative coordinates', () => {
   const xml =
     '<hierarchy><node class="android.widget.TextView" text="Clipped" bounds="[0,935][-67,994]"/></hierarchy>';

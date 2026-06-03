@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { formatDurationSeconds } from '../utils/duration-format.ts';
 import type { DaemonRequest, DaemonResponse } from './types.ts';
 import type { RequestProgressEvent } from './request-progress.ts';
 
@@ -90,11 +91,4 @@ function formatReplayProgressAttemptSuffix(event: RequestProgressEvent): string 
 function formatReplayProgressDuration(event: RequestProgressEvent): string {
   const duration = formatDurationSeconds(event.durationMs ?? 0);
   return event.attempt && event.attempt > 1 && !event.retrying ? `total ${duration}` : duration;
-}
-
-function formatDurationSeconds(durationMs: number): string {
-  const seconds = Math.max(0, durationMs) / 1000;
-  if (seconds >= 10) return `${seconds.toFixed(1)}s`;
-  if (seconds >= 1) return `${seconds.toFixed(2)}s`;
-  return `${seconds.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}s`;
 }

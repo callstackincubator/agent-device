@@ -3,6 +3,7 @@ import { centerOfRect } from '../utils/snapshot.ts';
 import { containsPoint, pickLargestRect } from '../utils/rect-visibility.ts';
 import { findNearestHittableAncestor, normalizeType } from '../utils/snapshot-processing.ts';
 import { normalizeRect, resolveRectCenter } from '../utils/rect-center.ts';
+import { intersectArea } from '../utils/screenshot-geometry.ts';
 
 const SEMANTIC_TOUCH_ROLE_FRAGMENTS = [
   'button',
@@ -142,7 +143,7 @@ function resolveRootViewportRect(nodes: SnapshotNode[], targetRect: Rect): Rect 
 }
 
 function isRectViewportSized(rect: Rect, viewportRect: Rect): boolean {
-  const overlapArea = intersectionArea(rect, viewportRect);
+  const overlapArea = intersectArea(rect, viewportRect);
   const rectArea = rect.width * rect.height;
   const viewportArea = viewportRect.width * viewportRect.height;
   if (overlapArea <= 0 || rectArea <= 0 || viewportArea <= 0) return false;
@@ -150,16 +151,4 @@ function isRectViewportSized(rect: Rect, viewportRect: Rect): boolean {
   const viewportCoverage = overlapArea / viewportArea;
   const rectCoverage = overlapArea / rectArea;
   return viewportCoverage >= 0.9 && rectCoverage >= 0.8;
-}
-
-function intersectionArea(left: Rect, right: Rect): number {
-  const xOverlap = Math.max(
-    0,
-    Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x),
-  );
-  const yOverlap = Math.max(
-    0,
-    Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y),
-  );
-  return xOverlap * yOverlap;
 }

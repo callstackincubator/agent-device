@@ -30,6 +30,7 @@ vi.mock('../runner-macos-products.ts', async () => {
 });
 
 import type { DeviceInfo } from '../../../utils/device.ts';
+import { flushDiagnosticsToSessionFile, withDiagnosticsScope } from '../../../utils/diagnostics.ts';
 import { AppError } from '../../../utils/errors.ts';
 import type { RunnerCommand } from '../runner-contract.ts';
 import { withRunnerCommandId } from '../runner-contract.ts';
@@ -610,9 +611,7 @@ test('parseRunnerResponse preserves runner unsupported-operation codes', async (
       },
     }),
   );
-  const session = {
-    ready: false,
-  } as any;
+  const session = { ready: false };
 
   await assert.rejects(
     () => parseRunnerResponse(response, session, '/tmp/runner.log'),
@@ -638,9 +637,7 @@ test('parseRunnerResponse preserves iOS AX snapshot failure code and hint', asyn
       },
     }),
   );
-  const session = {
-    ready: true,
-  } as any;
+  const session = { ready: true };
 
   await assert.rejects(
     () => parseRunnerResponse(response, session, '/tmp/runner.log'),
@@ -655,6 +652,30 @@ test('parseRunnerResponse preserves iOS AX snapshot failure code and hint', asyn
   );
 });
 
+test('parseRunnerResponse emits diagnostics for runner gesture fallbacks', async () => {
+  const response = new Response(
+    JSON.stringify({
+      ok: true,
+      data: {
+        message: 'dragged',
+        gestureFallback: 'xctest-coordinate-drag',
+        gestureFallbackMessage: 'Runner synthesized drag is unavailable',
+        gestureFallbackHint: 'Using XCTest coordinate drag fallback.',
+      },
+    }),
+  );
+  const session = { ready: false };
+
+  const diagnostics = await captureParseRunnerDiagnostics(async () => {
+    const data = await parseRunnerResponse(response, session, '/tmp/runner.log');
+    assert.equal(data.gestureFallback, 'xctest-coordinate-drag');
+  });
+
+  assert.equal(session.ready, true);
+  assert.match(diagnostics, /ios_runner_gesture_fallback/);
+  assert.match(diagnostics, /xctest-coordinate-drag/);
+});
+
 test('isRetryableRunnerError does not retry xcodebuild early-exit errors', () => {
   const err = new AppError(
     'COMMAND_FAILED',
@@ -662,6 +683,24 @@ test('isRetryableRunnerError does not retry xcodebuild early-exit errors', () =>
   );
   assert.equal(isRetryableRunnerError(err), false);
 });
+
+async function captureParseRunnerDiagnostics(callback: () => Promise<void>): Promise<string> {
+  const previousHome = process.env.HOME;
+  process.env.HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-runner-parse-diag-'));
+  try {
+    return await withDiagnosticsScope(
+      { session: 'runner-parse-test', requestId: 'request-1', command: 'drag' },
+      async () => {
+        await callback();
+        const diagnosticsPath = flushDiagnosticsToSessionFile({ force: true });
+        assert.ok(diagnosticsPath);
+        return fs.readFileSync(diagnosticsPath, 'utf8');
+      },
+    );
+  } finally {
+    process.env.HOME = previousHome;
+  }
+}
 
 test('isRetryableRunnerError does not retry busy-connecting errors', () => {
   const err = new AppError('COMMAND_FAILED', 'Device is busy (Connecting to iPhone)');
@@ -740,8 +779,14 @@ test('resolveRunnerDerivedPath reuses cache path for identical runner source fin
   await fs.promises.mkdir(path.dirname(path.join(secondRoot, runnerRelativePath)), {
     recursive: true,
   });
-  await fs.promises.writeFile(path.join(firstRoot, runnerRelativePath), 'final class RunnerTests {}\n');
-  await fs.promises.writeFile(path.join(secondRoot, runnerRelativePath), 'final class RunnerTests {}\n');
+  await fs.promises.writeFile(
+    path.join(firstRoot, runnerRelativePath),
+    'final class RunnerTests {}\n',
+  );
+  await fs.promises.writeFile(
+    path.join(secondRoot, runnerRelativePath),
+    'final class RunnerTests {}\n',
+  );
 
   const firstPath = resolveRunnerDerivedPath(
     iosSimulator,

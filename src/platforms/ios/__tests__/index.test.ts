@@ -207,103 +207,67 @@ test('iosRunnerOverrides maps swipe to synthesized iOS drag duration', async () 
     x2: 180,
     y2: 200,
     durationMs: 300,
-    appBundleId: 'com.example.App',
-  });
-});
-
-test('iosRunnerOverrides keeps macOS swipes on the standard drag path', async () => {
-  mockRunIosRunnerCommand.mockResolvedValue({});
-
-  const { overrides } = iosRunnerOverrides(MACOS_TEST_DEVICE, {
-    appBundleId: 'com.example.App',
-  });
-
-  await overrides.swipe(100, 200, 180, 200, 300);
-
-  assert.deepEqual(mockRunIosRunnerCommand.mock.calls[0]?.[1], {
-    command: 'drag',
-    x: 100,
-    y: 200,
-    x2: 180,
-    y2: 200,
-    durationMs: 300,
-    appBundleId: 'com.example.App',
-  });
-});
-
-test('iosRunnerOverrides keeps tvOS swipes on the standard drag path', async () => {
-  mockRunIosRunnerCommand.mockResolvedValue({});
-
-  const { overrides } = iosRunnerOverrides(TVOS_TEST_SIMULATOR, {
-    appBundleId: 'com.example.App',
-  });
-
-  await overrides.swipe(100, 200, 180, 200, 300);
-
-  assert.deepEqual(mockRunIosRunnerCommand.mock.calls[0]?.[1], {
-    command: 'drag',
-    x: 100,
-    y: 200,
-    x2: 180,
-    y2: 200,
-    durationMs: 300,
-    appBundleId: 'com.example.App',
-  });
-});
-
-test('iosRunnerOverrides maps iOS scroll to synthesized drag', async () => {
-  mockRunIosRunnerCommand
-    .mockResolvedValueOnce({
-      x: 0,
-      y: 0,
-      referenceWidth: 400,
-      referenceHeight: 800,
-    })
-    .mockResolvedValueOnce({});
-
-  const { overrides } = iosRunnerOverrides(IOS_TEST_SIMULATOR, {
-    appBundleId: 'com.example.App',
-  });
-
-  await overrides.scroll('down');
-
-  assert.deepEqual(mockRunIosRunnerCommand.mock.calls[1]?.[1], {
-    command: 'drag',
-    x: 200,
-    y: 640,
-    x2: 200,
-    y2: 160,
-    durationMs: 250,
     synthesized: true,
     appBundleId: 'com.example.App',
   });
 });
 
-test('iosRunnerOverrides keeps macOS scroll on the standard drag path', async () => {
-  mockRunIosRunnerCommand
-    .mockResolvedValueOnce({
-      x: 0,
-      y: 0,
-      referenceWidth: 400,
-      referenceHeight: 800,
-    })
-    .mockResolvedValueOnce({});
+for (const [name, device] of [
+  ['macOS', MACOS_TEST_DEVICE],
+  ['tvOS', TVOS_TEST_SIMULATOR],
+] as const) {
+  test(`iosRunnerOverrides keeps ${name} swipes on the standard drag path`, async () => {
+    mockRunIosRunnerCommand.mockResolvedValue({});
 
-  const { overrides } = iosRunnerOverrides(MACOS_TEST_DEVICE, {
-    appBundleId: 'com.example.App',
+    const { overrides } = iosRunnerOverrides(device, {
+      appBundleId: 'com.example.App',
+    });
+
+    await overrides.swipe(100, 200, 180, 200, 300);
+
+    assert.deepEqual(mockRunIosRunnerCommand.mock.calls[0]?.[1], {
+      command: 'drag',
+      x: 100,
+      y: 200,
+      x2: 180,
+      y2: 200,
+      durationMs: 300,
+      appBundleId: 'com.example.App',
+    });
   });
+}
 
-  await overrides.scroll('down');
+for (const [name, device, expectedGestureFields] of [
+  ['iOS', IOS_TEST_SIMULATOR, { durationMs: 250, synthesized: true }],
+  ['macOS', MACOS_TEST_DEVICE, {}],
+] as const) {
+  test(`iosRunnerOverrides maps ${name} scroll to the expected drag path`, async () => {
+    mockRunIosRunnerCommand
+      .mockResolvedValueOnce({
+        x: 0,
+        y: 0,
+        referenceWidth: 400,
+        referenceHeight: 800,
+      })
+      .mockResolvedValueOnce({});
 
-  assert.deepEqual(mockRunIosRunnerCommand.mock.calls[1]?.[1], {
-    command: 'drag',
-    x: 200,
-    y: 640,
-    x2: 200,
-    y2: 160,
-    appBundleId: 'com.example.App',
+    const { overrides } = iosRunnerOverrides(device, {
+      appBundleId: 'com.example.App',
+    });
+
+    await overrides.scroll('down');
+
+    assert.deepEqual(mockRunIosRunnerCommand.mock.calls[1]?.[1], {
+      command: 'drag',
+      x: 200,
+      y: 640,
+      x2: 200,
+      y2: 160,
+      ...expectedGestureFields,
+      appBundleId: 'com.example.App',
+    });
   });
-});
+}
 
 test('AGENT_DEVICE_MACOS_HELPER_BIN rejects relative override paths', async () => {
   const previousHelperPath = process.env.AGENT_DEVICE_MACOS_HELPER_BIN;

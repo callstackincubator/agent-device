@@ -1,5 +1,6 @@
 import type { RawSnapshotNode, Rect, SnapshotOptions } from '../../utils/snapshot.ts';
 import { isScrollableType } from '../../utils/scrollable.ts';
+import { intersectArea } from '../../utils/screenshot-geometry.ts';
 
 export type AndroidSnapshotAnalysis = {
   rawNodeCount: number;
@@ -590,19 +591,7 @@ function hasPositiveRect(node: AndroidNode): node is AndroidNode & { rect: Rect 
 function rectCoverage(coveringRect: Rect, targetRect: Rect): number {
   const targetArea = targetRect.width * targetRect.height;
   if (targetArea <= 0) return 0;
-  return intersectionArea(coveringRect, targetRect) / targetArea;
-}
-
-function intersectionArea(left: Rect, right: Rect): number {
-  const xOverlap = Math.max(
-    0,
-    Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x),
-  );
-  const yOverlap = Math.max(
-    0,
-    Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y),
-  );
-  return xOverlap * yOverlap;
+  return intersectArea(coveringRect, targetRect) / targetArea;
 }
 
 function applyAndroidScrollActionHints(root: AndroidUiHierarchy): void {
@@ -761,7 +750,7 @@ function shouldIncludeStructuralAndroidNode(
 ): boolean {
   if (node.hittable) return true;
   if (info.hasMeaningfulText) return true;
-  if (info.hasMeaningfulId && descendantHittable) return true;
+  if (info.hasMeaningfulId) return true;
   return descendantHittable;
 }
 

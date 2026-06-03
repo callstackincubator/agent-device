@@ -190,6 +190,9 @@ struct DataPayload: Codable {
   let wasVisible: Bool?
   let dismissed: Bool?
   let orientation: String?
+  let gestureFallback: String?
+  let gestureFallbackMessage: String?
+  let gestureFallbackHint: String?
 
   init(
     message: String? = nil,
@@ -218,7 +221,10 @@ struct DataPayload: Codable {
     visible: Bool? = nil,
     wasVisible: Bool? = nil,
     dismissed: Bool? = nil,
-    orientation: String? = nil
+    orientation: String? = nil,
+    gestureFallback: String? = nil,
+    gestureFallbackMessage: String? = nil,
+    gestureFallbackHint: String? = nil
   ) {
     self.message = message
     self.text = text
@@ -247,6 +253,9 @@ struct DataPayload: Codable {
     self.wasVisible = wasVisible
     self.dismissed = dismissed
     self.orientation = orientation
+    self.gestureFallback = gestureFallback
+    self.gestureFallbackMessage = gestureFallbackMessage
+    self.gestureFallbackHint = gestureFallbackHint
   }
 }
 

@@ -80,8 +80,16 @@ export function swipeCoordinatesFromTarget(
 export function pointForMaestroTapOnTarget(
   target: MaestroSnapshotTarget,
   isVisibleTextSelector: boolean,
+  options: { allowLargeContainerBias?: boolean } = {},
 ): { x: number; y: number } {
-  if (!shouldBiasMaestroVisibleTextTap(target.node, isVisibleTextSelector, target.rect)) {
+  if (
+    !shouldBiasMaestroVisibleTextTap(
+      target.node,
+      isVisibleTextSelector,
+      target.rect,
+      options.allowLargeContainerBias === true,
+    )
+  ) {
     return pointInsideRect(target.rect);
   }
   return {
@@ -111,14 +119,22 @@ function shouldBiasMaestroVisibleTextTap(
   node: SnapshotNode,
   isVisibleTextSelector: boolean,
   rect: Rect,
+  allowLargeContainerBias: boolean,
 ): boolean {
-  if (!isVisibleTextSelector) return false;
-  if (rect.width < MAESTRO_GEOMETRY_POLICY.largeTextContainerBias.minWidth) {
-    return false;
-  }
+  if (!allowLargeContainerBias || !isVisibleTextSelector) return false;
+  return isLargeTextContainerRect(rect) && isLargeTextContainerType(node);
+}
+
+function isLargeTextContainerRect(rect: Rect): boolean {
+  const policy = MAESTRO_GEOMETRY_POLICY.largeTextContainerBias;
+  return rect.width >= policy.minWidth && rect.height >= policy.minHeight && rect.height <= policy.maxHeight;
+}
+
+function isLargeTextContainerType(node: SnapshotNode): boolean {
   const type = normalizeType(node.type ?? '');
-  const scrollableTextContainer = type === 'scrollview' || type === 'scroll-area';
-  if (rect.height < MAESTRO_GEOMETRY_POLICY.largeTextContainerBias.minHeight) return false;
-  if (rect.height > MAESTRO_GEOMETRY_POLICY.largeTextContainerBias.maxHeight) return false;
-  return type === 'cell' || type === 'other' || scrollableTextContainer;
+  return type === 'cell' || type === 'other' || isScrollableTextContainerType(type);
+}
+
+function isScrollableTextContainerType(type: string): boolean {
+  return type === 'scrollview' || type === 'scroll-area';
 }

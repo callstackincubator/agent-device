@@ -398,6 +398,7 @@ async function acquireXcodebuildSimulatorSetLock(params: {
 
   throw new AppError('COMMAND_FAILED', `Timed out waiting for ${description}`, {
     lockDirPath,
+    ...readXcodebuildSimulatorSetLockDiagnostics(lockDirPath, ownerFilePath),
   });
 }
 
@@ -462,6 +463,28 @@ function readXcodebuildSimulatorSetLockOwner(
   }
 }
 
+function readXcodebuildSimulatorSetLockDiagnostics(
+  lockDirPath: string,
+  ownerFilePath: string,
+): Record<string, unknown> {
+  const nowMs = Date.now();
+  const owner = readXcodebuildSimulatorSetLockOwner(ownerFilePath);
+  let lockAgeMs: number | undefined;
+  try {
+    lockAgeMs = Math.max(0, Math.round(nowMs - fs.statSync(lockDirPath).mtimeMs));
+  } catch {}
+  return {
+    ...(lockAgeMs !== undefined ? { lockAgeMs } : {}),
+    ...(owner
+      ? {
+          ownerPid: owner.pid,
+          ownerStartTime: owner.startTime,
+          ownerAgeMs: Math.max(0, Math.round(nowMs - owner.acquiredAtMs)),
+        }
+      : {}),
+  };
+}
+
 function isLiveXcodebuildSimulatorSetLockOwner(owner: XcodebuildSimulatorSetLockOwner): boolean {
   if (!Number.isInteger(owner.pid) || owner.pid <= 0) {
     return false;
@@ -498,7 +521,6 @@ export async function ensureXctestrun(
   });
 }
 
-// fallow-ignore-next-line complexity
 async function ensureXctestrunUnderCacheLock(params: {
   device: DeviceInfo;
   options: { verbose?: boolean; logPath?: string; traceLogPath?: string };
@@ -527,31 +549,13 @@ async function ensureXctestrunUnderCacheLock(params: {
     });
   }
   if (existing.reason === 'reuse_ready') {
-    try {
-      await repairMacOsRunnerProductsIfNeeded(device, existing.productPaths, existing.xctestrunPath);
-      emitRunnerXctestrunDecision('reuse', 'reuse_ready', {
-        derived,
-        xctestrunPath: existing.xctestrunPath,
-      });
-      writeRunnerCacheMetadata(
-        derived,
-        withRunnerCacheArtifacts(
-          expectedCacheMetadata,
-          existing.xctestrunPath,
-          existing.productPaths,
-        ),
-      );
-      return existing.xctestrunPath;
-    } catch (error) {
-      if (!isExpectedRunnerRepairFailure(error)) {
-        throw error;
-      }
-      emitRunnerXctestrunDecision('rebuild', 'repair_failed', {
-        derived,
-        xctestrunPath: existing.xctestrunPath,
-      });
-      // Fall through and rebuild from a clean derived state.
-    }
+    const reusableXctestrun = await tryReuseExistingXctestrun(
+      device,
+      derived,
+      expectedCacheMetadata,
+      existing,
+    );
+    if (reusableXctestrun) return reusableXctestrun;
   }
   if (existing.xctestrunPath) {
     assertSafeDerivedCleanup(derived);
@@ -584,15 +588,55 @@ async function ensureXctestrunUnderCacheLock(params: {
   // Release/dev script builds patch the synthesized XCTest runner app in scripts/.
   // This covers direct local xcodebuilds triggered by ensureXctestrun on cache miss.
   await applyXctestRunnerAppIcon(builtProductPaths);
-  writeRunnerCacheMetadata(
-    derived,
-    withRunnerCacheArtifacts(expectedCacheMetadata, built, builtProductPaths),
-  );
+  writeRunnerCacheMetadataForArtifacts(derived, expectedCacheMetadata, built, builtProductPaths);
   emitRunnerXctestrunDecision('build', 'built_new', {
     derived,
     xctestrunPath: built,
   });
   return built;
+}
+
+async function tryReuseExistingXctestrun(
+  device: DeviceInfo,
+  derived: string,
+  expectedCacheMetadata: RunnerXctestrunCacheMetadata,
+  existing: Extract<ExistingXctestrunState, { reason: 'reuse_ready' }>,
+): Promise<string | null> {
+  try {
+    await repairMacOsRunnerProductsIfNeeded(device, existing.productPaths, existing.xctestrunPath);
+    emitRunnerXctestrunDecision('reuse', 'reuse_ready', {
+      derived,
+      xctestrunPath: existing.xctestrunPath,
+    });
+    writeRunnerCacheMetadataForArtifacts(
+      derived,
+      expectedCacheMetadata,
+      existing.xctestrunPath,
+      existing.productPaths,
+    );
+    return existing.xctestrunPath;
+  } catch (error) {
+    if (!isExpectedRunnerRepairFailure(error)) {
+      throw error;
+    }
+    emitRunnerXctestrunDecision('rebuild', 'repair_failed', {
+      derived,
+      xctestrunPath: existing.xctestrunPath,
+    });
+    return null;
+  }
+}
+
+function writeRunnerCacheMetadataForArtifacts(
+  derived: string,
+  metadata: RunnerXctestrunCacheMetadata,
+  xctestrunPath: string,
+  productPaths: string[],
+): void {
+  writeRunnerCacheMetadata(
+    derived,
+    withRunnerCacheArtifacts(metadata, xctestrunPath, productPaths),
+  );
 }
 
 function cleanRunnerDerivedArtifacts(derived: string): void {
@@ -1412,12 +1456,16 @@ type ExistingXctestrunState =
       xctestrunPath: null;
     }
   | {
+      reason: 'reuse_ready';
+      xctestrunPath: string;
+      productPaths: string[];
+    }
+  | {
       reason:
         | 'project_root_mismatch'
         | 'missing_products'
         | 'cache_metadata_missing'
-        | 'cache_metadata_mismatch'
-        | 'reuse_ready';
+        | 'cache_metadata_mismatch';
       xctestrunPath: string;
       productPaths: string[];
     };

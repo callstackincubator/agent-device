@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { ReplaySuiteResult, ReplaySuiteTestResult } from './daemon/types.ts';
+import { formatDurationSeconds } from './utils/duration-format.ts';
 import { AppError } from './utils/errors.ts';
 import { printJson } from './utils/output.ts';
 
@@ -142,18 +143,38 @@ function replayTestStepLines(result: ReplaySuiteTestResult): string[] {
   const events = readReplayTimingTrace(tracePath);
   if (events.length === 0) return [];
 
-  const starts = new Map<number, ReplayActionStartTrace>();
-  const stops: ReplayActionStopTrace[] = [];
+  const starts: ReplayActionStartTrace[] = [];
+  const stops: Array<{ stop: ReplayActionStopTrace; start: ReplayActionStartTrace | undefined }> =
+    [];
   for (const event of events) {
-    if (isReplayActionStartTrace(event)) starts.set(event.step, event);
-    if (isReplayActionStopTrace(event)) stops.push(event);
+    if (isReplayActionStartTrace(event)) {
+      starts.push(event);
+      continue;
+    }
+    if (isReplayActionStopTrace(event)) {
+      stops.push({ stop: event, start: consumeReplayActionStart(starts, event) });
+    }
   }
   if (stops.length === 0) return [];
 
   return [
     result.attempts > 1 ? `steps (attempt ${result.attempts}):` : 'steps:',
-    ...stops.map((stop) => renderReplayStepTrace(stop, starts.get(stop.step))),
+    ...stops.map(({ stop, start }) => renderReplayStepTrace(stop, start)),
   ];
+}
+
+function consumeReplayActionStart(
+  starts: ReplayActionStartTrace[],
+  stop: ReplayActionStopTrace,
+): ReplayActionStartTrace | undefined {
+  const stopCommand = stop.command;
+  const matchingIndex = starts.findIndex(
+    (start) =>
+      start.step === stop.step &&
+      (stopCommand === undefined || start.command === undefined || start.command === stopCommand),
+  );
+  if (matchingIndex < 0) return undefined;
+  return starts.splice(matchingIndex, 1)[0];
 }
 
 function replayTestTimingTracePath(
@@ -472,13 +493,6 @@ function appendOptionalLine(lines: string[], line: string | undefined): void {
 
 function formatJUnitSeconds(durationMs: number): string {
   return (Math.max(0, durationMs) / 1000).toFixed(3);
-}
-
-function formatDurationSeconds(durationMs: number): string {
-  const seconds = Math.max(0, durationMs) / 1000;
-  if (seconds >= 10) return `${seconds.toFixed(1)}s`;
-  if (seconds >= 1) return `${seconds.toFixed(2)}s`;
-  return `${seconds.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}s`;
 }
 
 function xmlEscape(value: string): string {

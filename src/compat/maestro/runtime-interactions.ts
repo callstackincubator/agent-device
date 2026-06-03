@@ -12,14 +12,17 @@ import type { SnapshotState } from '../../utils/snapshot.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { pointForMaestroTapOnTarget, swipeCoordinatesFromTarget } from './runtime-geometry.ts';
 import {
-  captureMaestroRawSnapshot,
+  captureMaestroSnapshot,
   clearMaestroVisibleContext,
+  emitMaestroRawSnapshotFallbackDiagnostic,
   errorResponse,
   readCachedMaestroReferenceFrame,
   readMaestroVisibleContext,
   readSnapshotState,
+  shouldUseMaestroRawSnapshotFallback,
   type FailedDaemonResponse,
   type MaestroRuntimeInvoke,
+  type MaestroSnapshotMode,
   type ReplayBaseRequest,
 } from './runtime-support.ts';
 import {
@@ -64,6 +67,7 @@ type MaestroScreenSwipeResolution =
 
 type ResolvedMaestroSnapshotTarget = MaestroSnapshotTarget & {
   snapshot: SnapshotState;
+  snapshotMode: MaestroSnapshotMode;
 };
 
 export async function invokeMaestroScrollUntilVisible(
@@ -119,7 +123,7 @@ export async function invokeMaestroTapPointPercent(params: {
     return errorResponse('INVALID_ARGS', 'tapOn percentage point requires numeric x/y values.');
   }
 
-  const snapshotResponse = await captureMaestroRawSnapshot(params);
+  const snapshotResponse = await captureMaestroSnapshot(params);
   if (!snapshotResponse.ok) return snapshotResponse;
 
   const snapshot = readSnapshotState(snapshotResponse.data);
@@ -271,7 +275,7 @@ async function captureFrameForMaestroScreenSwipe(params: {
   invoke: MaestroRuntimeInvoke;
   scope?: ReplayVarScope;
 }): Promise<{ referenceWidth: number; referenceHeight: number } | undefined> {
-  const snapshotResponse = await captureMaestroRawSnapshot(params);
+  const snapshotResponse = await captureMaestroSnapshot(params);
   if (!snapshotResponse.ok) return undefined;
   const snapshot = readSnapshotState(snapshotResponse.data);
   return getSnapshotReferenceFrame(snapshot);
@@ -442,11 +446,14 @@ async function invokeMaestroSnapshotTapOn(
 async function clickMaestroSnapshotTarget(
   params: MaestroTapOnParams,
   selector: string,
-  target: MaestroSnapshotTarget,
+  target: ResolvedMaestroSnapshotTarget,
 ): Promise<{ response: DaemonResponse; targetResolved: true }> {
   const point = pointForMaestroTapOnTarget(
     target,
     extractMaestroVisibleTextQuery(selector) !== null,
+    {
+      allowLargeContainerBias: target.snapshotMode === 'raw',
+    },
   );
   emitDiagnostic({
     level: 'debug',
@@ -497,6 +504,14 @@ async function invokeMaestroFuzzyTapOn(
       interactionOutcome: { retryOnNoChange: true },
     },
   });
+  emitDiagnostic({
+    level: findResponse.ok ? 'info' : 'debug',
+    phase: 'maestro_fuzzy_tap_fallback',
+    data: {
+      query,
+      ok: findResponse.ok,
+    },
+  });
   if (findResponse.ok) return { retry: false, response: findResponse };
   return { retry: true, response: findResponse };
 }
@@ -514,9 +529,52 @@ async function resolveMaestroSnapshotTarget(
 ): Promise<
   { ok: true; target: ResolvedMaestroSnapshotTarget } | { ok: false; response: DaemonResponse }
 > {
-  const snapshotResponse = await captureMaestroRawSnapshot(params);
-  if (!snapshotResponse.ok) return { ok: false, response: snapshotResponse };
+  const snapshotResponse = await captureMaestroSnapshot({ ...params, mode: 'interactive' });
+  const resolution = resolveMaestroSnapshotTargetFromResponse(
+    params,
+    selector,
+    options,
+    commandLabel,
+    resolutionOptions,
+    snapshotResponse,
+    'interactive',
+  );
+  if (
+    resolution.ok ||
+    !snapshotResponse.ok ||
+    !shouldUseMaestroRawSnapshotFallback(params.baseReq)
+  ) {
+    return resolution;
+  }
 
+  emitMaestroRawSnapshotFallbackDiagnostic(commandLabel, selector);
+  const rawSnapshotResponse = await captureMaestroSnapshot({ ...params, mode: 'raw' });
+  return resolveMaestroSnapshotTargetFromResponse(
+    params,
+    selector,
+    options,
+    commandLabel,
+    resolutionOptions,
+    rawSnapshotResponse,
+    'raw',
+  );
+}
+
+function resolveMaestroSnapshotTargetFromResponse(
+  params: {
+    baseReq: ReplayBaseRequest;
+    scope?: ReplayVarScope;
+  },
+  selector: string,
+  options: MaestroTapOnOptions,
+  commandLabel: string,
+  resolutionOptions: { promoteTapTarget: boolean },
+  snapshotResponse: DaemonResponse,
+  snapshotMode: MaestroSnapshotMode,
+):
+  | { ok: true; target: ResolvedMaestroSnapshotTarget }
+  | { ok: false; response: DaemonResponse } {
+  if (!snapshotResponse.ok) return { ok: false, response: snapshotResponse };
   const snapshot = readSnapshotState(snapshotResponse.data);
   if (!snapshot) {
     return {
@@ -534,6 +592,7 @@ async function resolveMaestroSnapshotTarget(
   const resolution = resolveMaestroNodeFromSnapshot(snapshot, selector, options, platform, frame, {
     ...resolutionOptions,
     preferredContext,
+    requireOnScreen: true,
   });
   if (!resolution.ok) {
     const fuzzyTextQuery = extractMaestroVisibleTextQuery(selector);
@@ -543,7 +602,7 @@ async function resolveMaestroSnapshotTarget(
         fuzzyTextQuery,
         platform,
         frame,
-        { ...resolutionOptions, preferredContext },
+        { ...resolutionOptions, preferredContext, requireOnScreen: true },
       );
       if (fuzzyResolution.ok) {
         return {
@@ -553,6 +612,7 @@ async function resolveMaestroSnapshotTarget(
             rect: fuzzyResolution.rect,
             frame,
             snapshot,
+            snapshotMode,
           },
         };
       }
@@ -575,6 +635,7 @@ async function resolveMaestroSnapshotTarget(
       rect: resolution.rect,
       frame,
       snapshot,
+      snapshotMode,
     },
   };
 }

@@ -31,6 +31,8 @@ const MAESTRO_TAP_TARGET_TYPE_RANK = new Map([
   ['statictext', 2],
 ]);
 
+const RECT_CONTAINS_EPSILON = 1;
+
 export type MaestroTapOnOptions = {
   childOf?: string;
   index?: number;
@@ -56,6 +58,7 @@ export type MaestroPreferredContext = {
 type MaestroMatchResolutionOptions = {
   promoteTapTarget?: boolean;
   preferredContext?: MaestroPreferredContext;
+  requireOnScreen?: boolean;
 };
 
 type MaestroSelectorMatchOptions = {
@@ -107,7 +110,7 @@ export function resolveMaestroNodeFromSnapshot(
     options.index,
     extractMaestroVisibleTextQuery(selector),
     frame,
-    false,
+    resolutionOptions.requireOnScreen === true,
     resolutionOptions.promoteTapTarget,
     resolutionOptions.preferredContext,
   );
@@ -144,7 +147,7 @@ export function resolveMaestroFuzzyTextNodeFromSnapshot(
     undefined,
     query,
     frame,
-    false,
+    resolutionOptions.requireOnScreen === true,
     resolutionOptions.promoteTapTarget,
     resolutionOptions.preferredContext,
   );
@@ -815,7 +818,12 @@ function inferMaestroMissingTabSlotMatch(
   query: string,
 ): MaestroResolvedSnapshotMatch | null {
   if (!isMaestroTabStripContainerMatch(match, query)) return null;
-  const children = collectMaestroTabStripChildCandidates(nodes, match, query);
+  const children = collectMaestroTabStripChildCandidates(
+    nodes,
+    match,
+    query,
+    buildSnapshotNodeByIndex(nodes),
+  );
   if (children.length === 0) return null;
   const medianChildWidth = median(children.map((child) => child.rect.width));
   const allGaps = resolveHorizontalGaps(
@@ -831,12 +839,14 @@ function collectMaestroTabStripChildCandidates(
   nodes: SnapshotState['nodes'],
   match: MaestroResolvedSnapshotMatch,
   query: string,
+  nodeByIndex: SnapshotNodeByIndex,
 ): Array<SnapshotNode & { rect: Rect }> {
   return nodes
     .filter((node): node is SnapshotNode & { rect: Rect } => {
       return (
-        node.parentIndex === match.node.index &&
+        node.index !== match.node.index &&
         Boolean(node.rect) &&
+        isDescendantOfSnapshotNode(nodes, node, match.node, nodeByIndex) &&
         isMaestroTabStripChildCandidate(node as SnapshotNode & { rect: Rect }, match.rect, query)
       );
     })
@@ -915,7 +925,9 @@ function isMaestroTabStripContainerMatch(
   query: string,
 ): boolean {
   const type = normalizeType(match.node.type ?? '');
-  if (type !== 'other' && type !== 'scrollview' && type !== 'scroll-area') return false;
+  if (type !== 'cell' && type !== 'other' && type !== 'scrollview' && type !== 'scroll-area') {
+    return false;
+  }
   if (match.rect.width < 120 || match.rect.height < 32 || match.rect.height > 80) return false;
   return maestroVisibleTextMatchRank(match.node, query) <= 1;
 }
@@ -1020,6 +1032,7 @@ function isUsefulMaestroTapAncestorRect(
   frame: TouchReferenceFrame | undefined,
 ): boolean {
   if (!rectContains(ancestorRect, matchRect)) return false;
+  if (wouldPromoteTabSlotToWholeStrip(matchRect, ancestorRect)) return false;
   const ancestorArea = rectArea(ancestorRect);
   const matchArea = rectArea(matchRect);
   // Keep promotion close to the matched label/id instead of jumping to a broad container.
@@ -1032,12 +1045,20 @@ function isUsefulMaestroTapAncestorRect(
   return true;
 }
 
+function wouldPromoteTabSlotToWholeStrip(matchRect: Rect, ancestorRect: Rect): boolean {
+  if (ancestorRect.height < 32 || ancestorRect.height > 80) return false;
+  if (matchRect.height < ancestorRect.height * 0.75) return false;
+  if (verticalOverlapRatio(matchRect, ancestorRect) < 0.75) return false;
+  if (ancestorRect.width < 240) return false;
+  return ancestorRect.width >= matchRect.width * 3;
+}
+
 function rectContains(container: Rect, child: Rect): boolean {
   return (
-    child.x >= container.x &&
-    child.y >= container.y &&
-    child.x + child.width <= container.x + container.width &&
-    child.y + child.height <= container.y + container.height
+    child.x >= container.x - RECT_CONTAINS_EPSILON &&
+    child.y >= container.y - RECT_CONTAINS_EPSILON &&
+    child.x + child.width <= container.x + container.width + RECT_CONTAINS_EPSILON &&
+    child.y + child.height <= container.y + container.height + RECT_CONTAINS_EPSILON
   );
 }
 

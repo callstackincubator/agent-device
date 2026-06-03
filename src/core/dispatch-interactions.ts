@@ -25,6 +25,7 @@ import {
   requireIntInRange,
   shouldUseIosTapSeries,
   shouldUseIosDragSeries,
+  shouldUseSynthesizedIosDrag,
   computeDeterministicJitter,
   runRepeatedSeries,
 } from './dispatch-series.ts';
@@ -487,6 +488,7 @@ async function runSwipeCoordinates(params: {
         count,
         pauseMs,
         pattern,
+        ...(shouldUseSynthesizedIosDrag(device) ? { synthesized: true } : {}),
         appBundleId: context?.appBundleId,
       },
       {
@@ -552,7 +554,7 @@ export async function handlePanCommand(
   const durationMs = requireIntInRange(requestedDurationMs, 'durationMs', 16, 10_000);
   const x2 = x + dx;
   const y2 = y + dy;
-  await interactor.pan(x, y, x2, y2, durationMs);
+  const interactionResult = await interactor.pan(x, y, x2, y2, durationMs);
   return {
     x,
     y,
@@ -561,6 +563,7 @@ export async function handlePanCommand(
     x2,
     y2,
     durationMs,
+    ...(interactionResult ?? {}),
     ...successText(`Panned (${x}, ${y}) by (${dx}, ${dy})`),
   };
 }

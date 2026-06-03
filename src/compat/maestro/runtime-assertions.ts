@@ -4,10 +4,12 @@ import type { ReplayVarScope } from '../../replay/vars.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import {
-  captureMaestroRawSnapshot,
+  captureMaestroSnapshot,
+  emitMaestroRawSnapshotFallbackDiagnostic,
   errorResponse,
   rememberMaestroVisibleContext,
   readSnapshotState,
+  shouldUseMaestroRawSnapshotFallback,
   type MaestroRuntimeInvoke,
   type ReplayBaseRequest,
 } from './runtime-support.ts';
@@ -117,7 +119,9 @@ async function invokeSnapshotMaestroAssertVisible(
   let capturedAfterDeadline = false;
   while (true) {
     const captureStartedAt = Date.now();
-    const sample = await readMaestroVisibilitySample(params, args.selector, 'assertVisible');
+    const sample = await readMaestroVisibilitySample(params, args.selector, 'assertVisible', {
+      rawFallback: true,
+    });
     if (sample.visible) return visibleAssertionResponse(sample.response, args.selector, startedAt);
     lastResponse = sample.response;
     const failedSample = handleFailedVisibleSample(params.baseReq, args, sample, startedAt);
@@ -261,8 +265,33 @@ async function readMaestroVisibilitySample(
   },
   selector: string,
   command: string,
+  options: { rawFallback?: boolean } = {},
 ): Promise<MaestroVisibilitySample> {
-  const response = await captureMaestroRawSnapshot(params);
+  const response = await captureMaestroSnapshot(params);
+  const sample = readMaestroVisibilitySampleFromResponse(params, selector, command, response);
+  if (sample.visible || sample.infrastructureFailure) return sample;
+  if (
+    !options.rawFallback ||
+    !shouldUseMaestroRawSnapshotFallback(params.baseReq) ||
+    isReactNativeOverlayBlockingAssertion(sample.response)
+  ) {
+    return sample;
+  }
+
+  emitMaestroRawSnapshotFallbackDiagnostic(command, selector);
+  const rawResponse = await captureMaestroSnapshot({ ...params, mode: 'raw' });
+  return readMaestroVisibilitySampleFromResponse(params, selector, command, rawResponse);
+}
+
+function readMaestroVisibilitySampleFromResponse(
+  params: {
+    baseReq: ReplayBaseRequest;
+    scope?: ReplayVarScope;
+  },
+  selector: string,
+  command: string,
+  response: DaemonResponse,
+): MaestroVisibilitySample {
   if (!response.ok) return { visible: false, response, infrastructureFailure: true };
   const snapshot = readSnapshotState(response.data);
   if (!snapshot) {
@@ -434,7 +463,7 @@ export async function invokeMaestroWaitForAnimationToEnd(params: {
   let lastResponse: DaemonResponse | undefined;
 
   while (Date.now() - startedAt < timeoutMs) {
-    const response = await captureMaestroRawSnapshot(params);
+    const response = await captureMaestroSnapshot(params);
     const poll = readAnimationPollResult(response, previousSignature, timeoutMs);
     if (poll.done) return poll.response;
     previousSignature = poll.signature ?? previousSignature;

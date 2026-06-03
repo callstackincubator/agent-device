@@ -54,9 +54,13 @@ jobs:
           runtime-version: ${{ env.IOS_RUNTIME_VERSION }}
           preferred-device-name: iPhone 17 Pro
 
-      - name: Run iOS simulator smoke replay
+      - name: Prepare iOS runner
         run: |
           pnpm clean:daemon
+          node --experimental-strip-types src/bin.ts prepare ios-runner --platform ios --timeout 240000
+
+      - name: Run iOS simulator smoke replay
+        run: |
           node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator/01-settings.ad --retries 2 --report-junit test/artifacts/replays-ios-simulator-smoke.junit.xml
 
       - name: Run iOS physical device smoke replay

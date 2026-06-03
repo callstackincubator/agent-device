@@ -36,6 +36,43 @@ extension RunnerTests {
     case drag(DragVisualizationFrame)
   }
 
+  struct GestureFallback {
+    let strategy: String
+    let message: String
+    let hint: String?
+  }
+
+  private func gestureFallback(strategy: String, from outcome: RunnerInteractionOutcome) -> GestureFallback? {
+    switch outcome {
+    case .performed:
+      return nil
+    case .unsupported(let message, let hint):
+      return GestureFallback(strategy: strategy, message: message, hint: hint)
+    }
+  }
+
+  private func performDragSeries(
+    count: Int,
+    pauseMs: Double,
+    pattern: String,
+    points: DragPoints,
+    _ drag: (_ x: Double, _ y: Double, _ x2: Double, _ y2: Double) -> RunnerInteractionOutcome
+  ) -> RunnerInteractionOutcome {
+    var outcome = RunnerInteractionOutcome.performed
+    runSeries(count: count, pauseMs: pauseMs) { idx in
+      guard case .performed = outcome else {
+        return
+      }
+      let reverse = pattern == "ping-pong" && (idx % 2 == 1)
+      let startX = reverse ? points.x2 : points.x
+      let startY = reverse ? points.y2 : points.y
+      let endX = reverse ? points.x : points.x2
+      let endY = reverse ? points.y : points.y2
+      outcome = drag(startX, startY, endX, endY)
+    }
+    return outcome
+  }
+
   /// Runs a gesture action with uniform timing capture. Touch gestures pass `idleTimeout: true`
   /// (the default) to run inside the scroll idle-timeout + quiescence-skip wrapper; synthesis
   /// gestures (pinch/rotate/transform) pass `false` because RunnerSynthesizedGesture governs its
@@ -64,7 +101,8 @@ extension RunnerTests {
   private func gestureResponse(
     message: String,
     timing: (gestureStartUptimeMs: Double, gestureEndUptimeMs: Double),
-    frame: GestureFrame = .none
+    frame: GestureFrame = .none,
+    fallback: GestureFallback? = nil
   ) -> Response {
     let data: DataPayload
     switch frame {
@@ -72,7 +110,10 @@ extension RunnerTests {
       data = DataPayload(
         message: message,
         gestureStartUptimeMs: timing.gestureStartUptimeMs,
-        gestureEndUptimeMs: timing.gestureEndUptimeMs
+        gestureEndUptimeMs: timing.gestureEndUptimeMs,
+        gestureFallback: fallback?.strategy,
+        gestureFallbackMessage: fallback?.message,
+        gestureFallbackHint: fallback?.hint
       )
     case .touch(let f):
       data = DataPayload(
@@ -82,7 +123,10 @@ extension RunnerTests {
         x: f?.x,
         y: f?.y,
         referenceWidth: f?.referenceWidth,
-        referenceHeight: f?.referenceHeight
+        referenceHeight: f?.referenceHeight,
+        gestureFallback: fallback?.strategy,
+        gestureFallbackMessage: fallback?.message,
+        gestureFallbackHint: fallback?.hint
       )
     case .drag(let f):
       data = DataPayload(
@@ -94,7 +138,10 @@ extension RunnerTests {
         x2: f.x2,
         y2: f.y2,
         referenceWidth: f.referenceWidth,
-        referenceHeight: f.referenceHeight
+        referenceHeight: f.referenceHeight,
+        gestureFallback: fallback?.strategy,
+        gestureFallbackMessage: fallback?.message,
+        gestureFallbackHint: fallback?.hint
       )
     }
     return Response(ok: true, data: data)
@@ -507,6 +554,7 @@ extension RunnerTests {
         x2: dragPoints.x2,
         y2: dragPoints.y2
       )
+      var fallback: GestureFallback?
       if command.synthesized == true {
         let durationMs = min(max(command.durationMs ?? 250, 16), 10000)
         let (timing, outcome) = performGesture(activeApp, idleTimeout: false) {
@@ -522,6 +570,7 @@ extension RunnerTests {
         if case .performed = outcome {
           return gestureResponse(message: "dragged", timing: timing, frame: .drag(dragFrame))
         }
+        fallback = gestureFallback(strategy: "xctest-coordinate-drag", from: outcome)
       }
       let holdDuration = command.synthesized == true
         ? synthesizedSwipeFallbackHoldDuration(durationMs: command.durationMs ?? 250)
@@ -539,7 +588,12 @@ extension RunnerTests {
       if let response = unsupportedResponse(for: outcome) {
         return response
       }
-      return gestureResponse(message: "dragged", timing: timing, frame: .drag(dragFrame))
+      return gestureResponse(
+        message: "dragged",
+        timing: timing,
+        frame: .drag(dragFrame),
+        fallback: fallback
+      )
     case .dragSeries:
       guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
         return Response(ok: false, error: ErrorPayload(message: "dragSeries requires x, y, x2, and y2"))
@@ -550,41 +604,56 @@ extension RunnerTests {
       if pattern != "one-way" && pattern != "ping-pong" {
         return Response(ok: false, error: ErrorPayload(message: "dragSeries pattern must be one-way or ping-pong"))
       }
-      let holdDuration = min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
       let dragPoints = keyboardAvoidingDragPoints(app: activeApp, x: x, y: y, x2: x2, y2: y2)
-      let (timing, outcome) = performGesture(activeApp) {
-        var outcome = RunnerInteractionOutcome.performed
-        runSeries(count: count, pauseMs: pauseMs) { idx in
-          guard case .performed = outcome else {
-            return
-          }
-          let reverse = pattern == "ping-pong" && (idx % 2 == 1)
-          if reverse {
-            outcome = dragAt(
+      var fallback: GestureFallback?
+      if command.synthesized == true {
+        let durationMs = min(max(command.durationMs ?? 250, 16), 10000)
+        let (timing, outcome) = performGesture(activeApp, idleTimeout: false) {
+          performDragSeries(
+            count: count,
+            pauseMs: pauseMs,
+            pattern: pattern,
+            points: dragPoints
+          ) { startX, startY, endX, endY in
+            synthesizedDragAt(
               app: activeApp,
-              x: dragPoints.x2,
-              y: dragPoints.y2,
-              x2: dragPoints.x,
-              y2: dragPoints.y,
-              holdDuration: holdDuration
-            )
-          } else {
-            outcome = dragAt(
-              app: activeApp,
-              x: dragPoints.x,
-              y: dragPoints.y,
-              x2: dragPoints.x2,
-              y2: dragPoints.y2,
-              holdDuration: holdDuration
+              x: startX,
+              y: startY,
+              x2: endX,
+              y2: endY,
+              durationMs: durationMs
             )
           }
         }
-        return outcome
+        if case .performed = outcome {
+          return gestureResponse(message: "drag series", timing: timing)
+        }
+        fallback = gestureFallback(strategy: "xctest-coordinate-drag-series", from: outcome)
+      }
+      let holdDuration = command.synthesized == true
+        ? synthesizedSwipeFallbackHoldDuration(durationMs: command.durationMs ?? 250)
+        : min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
+      let (timing, outcome) = performGesture(activeApp) {
+        performDragSeries(
+          count: count,
+          pauseMs: pauseMs,
+          pattern: pattern,
+          points: dragPoints
+        ) { startX, startY, endX, endY in
+          dragAt(
+            app: activeApp,
+            x: startX,
+            y: startY,
+            x2: endX,
+            y2: endY,
+            holdDuration: holdDuration
+          )
+        }
       }
       if let response = unsupportedResponse(for: outcome) {
         return response
       }
-      return gestureResponse(message: "drag series", timing: timing)
+      return gestureResponse(message: "drag series", timing: timing, fallback: fallback)
     case .remotePress:
       guard let button = tvRemoteButton(from: command.remoteButton) else {
         return Response(ok: false, error: ErrorPayload(message: "remotePress requires remoteButton"))

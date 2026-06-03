@@ -547,7 +547,7 @@ type RunnerResponsePayload = {
 
 export async function parseRunnerResponse(
   response: Response,
-  session: RunnerSession,
+  session: Pick<RunnerSession, 'ready' | 'lastSuccessfulRunnerResponseAtMs'>,
   logPath?: string,
 ): Promise<Record<string, unknown>> {
   const text = await response.text();
@@ -580,9 +580,26 @@ export async function parseRunnerResponse(
   session.ready = true;
   session.lastSuccessfulRunnerResponseAtMs = Date.now();
   if (json.data && typeof json.data === 'object' && !Array.isArray(json.data)) {
-    return json.data as Record<string, unknown>;
+    const data = json.data as Record<string, unknown>;
+    emitRunnerResponseDiagnostics(data);
+    return data;
   }
   return {};
+}
+
+function emitRunnerResponseDiagnostics(data: Record<string, unknown>): void {
+  const fallback = data.gestureFallback;
+  if (typeof fallback !== 'string' || fallback.length === 0) return;
+  emitDiagnostic({
+    level: 'debug',
+    phase: 'ios_runner_gesture_fallback',
+    data: {
+      fallback,
+      message:
+        typeof data.gestureFallbackMessage === 'string' ? data.gestureFallbackMessage : undefined,
+      hint: typeof data.gestureFallbackHint === 'string' ? data.gestureFallbackHint : undefined,
+    },
+  });
 }
 
 function resolveRunnerReadinessPreflightDecision(
@@ -624,30 +641,23 @@ function resolveRunnerReadinessPreflightDecision(
 }
 
 function markRunnerReadinessPreflightError(error: unknown): AppError {
-  const appErr =
-    error instanceof AppError
-      ? error
-      : new AppError(
-          'COMMAND_FAILED',
-          error instanceof Error ? error.message : String(error),
-          undefined,
-          error,
-        );
-  return new AppError(
-    appErr.code,
-    appErr.message,
-    {
-      ...(appErr.details ?? {}),
-      runnerReadinessPreflightFailed: true,
-    },
-    appErr.cause ?? error,
-  );
+  return markRunnerPreflightError(error, {
+    runnerReadinessPreflightFailed: true,
+  });
 }
 
 function markRunnerSkippedReadinessPreflightError(
   error: unknown,
   decision: Extract<RunnerReadinessPreflightDecision, { action: 'skip' }>,
 ): AppError {
+  return markRunnerPreflightError(error, {
+    runnerReadinessPreflightSkipped: true,
+    runnerReadinessPreflightSkipReason: decision.reason,
+    runnerReadinessPreflightSkippedAgeMs: decision.lastSuccessfulRunnerResponseAgeMs,
+  });
+}
+
+function markRunnerPreflightError(error: unknown, details: Record<string, unknown>): AppError {
   const appErr =
     error instanceof AppError
       ? error
@@ -662,9 +672,7 @@ function markRunnerSkippedReadinessPreflightError(
     appErr.message,
     {
       ...(appErr.details ?? {}),
-      runnerReadinessPreflightSkipped: true,
-      runnerReadinessPreflightSkipReason: decision.reason,
-      runnerReadinessPreflightSkippedAgeMs: decision.lastSuccessfulRunnerResponseAgeMs,
+      ...details,
     },
     appErr.cause ?? error,
   );

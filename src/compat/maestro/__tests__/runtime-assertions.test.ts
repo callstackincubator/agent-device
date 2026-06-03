@@ -151,6 +151,85 @@ test('invokeMaestroAssertVisible uses snapshot resolution for short iOS assertio
   assert.deepEqual(calls, [['snapshot', []]]);
 });
 
+test('invokeMaestroAssertVisible falls back to raw snapshot shaping when optimized snapshot misses', async () => {
+  const snapshotFlags: Array<DaemonRequest['flags']> = [];
+  const response = await invokeMaestroAssertVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['id="chat"', '1000'],
+    invoke: async (req): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        snapshotFlags.push(req.flags);
+        return {
+          ok: true,
+          data:
+            req.flags?.snapshotRaw === true
+              ? snapshot([node('Chat', { identifier: 'chat' })])
+              : snapshot([]),
+        };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(snapshotFlags.length, 2);
+  assert.equal(snapshotFlags[0]?.snapshotRaw, undefined);
+  assert.equal(snapshotFlags[1]?.snapshotRaw, true);
+  assert.equal(snapshotFlags[1]?.snapshotForceFull, undefined);
+});
+
+test('invokeMaestroAssertVisible does not use raw fallback for Android identifiers', async () => {
+  const snapshotFlags: Array<DaemonRequest['flags']> = [];
+  const response = await invokeMaestroAssertVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'android' },
+    },
+    positionals: ['id="album-0"', '1000'],
+    invoke: async (req): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        snapshotFlags.push(req.flags);
+        return {
+          ok: true,
+          data: snapshot([node('Album item', { identifier: 'album-0' })]),
+        };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.equal(snapshotFlags.length, 1);
+  assert.equal(snapshotFlags[0]?.snapshotRaw, undefined);
+});
+
+test('invokeMaestroAssertVisible does not use Android raw fallback for generated text selectors', async () => {
+  const snapshotFlags: Array<DaemonRequest['flags']> = [];
+  const response = await invokeMaestroAssertVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'android' },
+    },
+    positionals: ['label="Chat" || text="Chat" || id="Chat"', '0'],
+    invoke: async (req): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        snapshotFlags.push(req.flags);
+        return { ok: true, data: snapshot([]) };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  assert.equal(response.ok, false);
+  assert.equal(snapshotFlags.some((flags) => flags?.snapshotRaw === true), false);
+});
+
 test('invokeMaestroAssertVisible treats an elapsed ellipsis loading gate as already past loading', async () => {
   vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(250);
 

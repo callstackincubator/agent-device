@@ -60,9 +60,13 @@ jobs:
           runtime-version: ${{ env.IOS_RUNTIME_VERSION }}
           preferred-device-name: iPhone 17 Pro
 
-      - name: Run iOS command perf benchmark
+      - name: Prepare iOS runner
         run: |
           pnpm clean:daemon
+          node --experimental-strip-types src/bin.ts prepare ios-runner --platform ios --timeout 240000
+
+      - name: Run iOS command perf benchmark
+        run: |
           node --experimental-strip-types scripts/perf/run.ts \
             --platform ios \
             --device "iPhone 17 Pro" \
