@@ -39,6 +39,22 @@ function makeIosSession(name: string): SessionState {
   };
 }
 
+function makeAndroidSession(name: string, id = 'emulator-5554'): SessionState {
+  return {
+    name,
+    createdAt: Date.now(),
+    actions: [],
+    device: {
+      platform: 'android',
+      target: 'mobile',
+      id,
+      name: id === 'emulator-5554' ? 'Pixel 9 Pro XL' : 'Pixel 8',
+      kind: 'emulator',
+      booted: true,
+    },
+  };
+}
+
 beforeEach(() => {
   mockDispatch.mockReset();
   mockDispatch.mockResolvedValue({ nodes: [] });
@@ -112,7 +128,7 @@ test('direct daemon requests cannot bypass reject lock policy for existing sessi
   }
 });
 
-test('fresh named sessions with matching explicit udid bind and serialize on the selected device', async () => {
+test('fresh named sessions with matching explicit serial bind and serialize on the selected device', async () => {
   const sessionStore = makeSessionStore('agent-device-router-lock-');
   const dispatchGate = installGatedDispatch();
 
@@ -121,54 +137,54 @@ test('fresh named sessions with matching explicit udid bind and serialize on the
     token: 'test-token',
     sessionStore,
     leaseRegistry: new LeaseRegistry(),
-    deviceInventoryProvider: async () => [makeIosSession('inventory').device],
+    deviceInventoryProvider: async () => [makeAndroidSession('inventory').device],
     trackDownloadableArtifact: () => 'artifact-id',
   });
 
   const first = handler({
     token: 'test-token',
-    session: 'qa-ios-a',
+    session: 'qa-android-a',
     command: 'snapshot',
     positionals: [],
     flags: {
-      udid: 'SIM-001',
+      serial: 'emulator-5554',
     },
     meta: {
       requestId: 'req-fresh-lock-a',
       lockPolicy: 'reject',
-      lockPlatform: 'ios',
+      lockPlatform: 'android',
     },
   });
 
   await vi.waitFor(() => {
-    expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001']);
+    expect(dispatchGate.order).toEqual(['start-snapshot-emulator-5554']);
   });
 
   const second = handler({
     token: 'test-token',
-    session: 'qa-ios-b',
+    session: 'qa-android-b',
     command: 'snapshot',
     positionals: [],
     flags: {
-      udid: 'SIM-001',
+      serial: 'emulator-5554',
     },
     meta: {
       requestId: 'req-fresh-lock-b',
       lockPolicy: 'reject',
-      lockPlatform: 'ios',
+      lockPlatform: 'android',
     },
   });
 
   await new Promise((resolve) => setTimeout(resolve, 20));
-  expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001']);
+  expect(dispatchGate.order).toEqual(['start-snapshot-emulator-5554']);
 
   dispatchGate.releaseNext();
 
   await vi.waitFor(() => {
     expect(dispatchGate.order).toEqual([
-      'start-snapshot-SIM-001',
-      'end-snapshot-SIM-001',
-      'start-snapshot-SIM-001',
+      'start-snapshot-emulator-5554',
+      'end-snapshot-emulator-5554',
+      'start-snapshot-emulator-5554',
     ]);
   });
 
@@ -179,17 +195,15 @@ test('fresh named sessions with matching explicit udid bind and serialize on the
   expect(firstResponse.ok).toBe(true);
   expect(secondResponse.ok).toBe(true);
   expect(dispatchGate.getMaxActive()).toBe(1);
-  expect(sessionStore.get('qa-ios-a')?.device.id).toBe('SIM-001');
-  expect(sessionStore.get('qa-ios-b')?.device.id).toBe('SIM-001');
+  expect(sessionStore.get('qa-android-a')?.device.id).toBe('emulator-5554');
+  expect(sessionStore.get('qa-android-b')?.device.id).toBe('emulator-5554');
 });
 
 test('fresh named sessions with the same name serialize first binding before rejecting another device', async () => {
   const sessionStore = makeSessionStore('agent-device-router-lock-');
-  const firstDevice = makeIosSession('inventory').device;
+  const firstDevice = makeAndroidSession('inventory').device;
   const secondDevice: SessionState['device'] = {
-    ...firstDevice,
-    id: 'SIM-002',
-    name: 'iPhone 17',
+    ...makeAndroidSession('inventory-2', 'emulator-5556').device,
   };
   const dispatchGate = installGatedDispatch();
 
@@ -204,40 +218,40 @@ test('fresh named sessions with the same name serialize first binding before rej
 
   const first = handler({
     token: 'test-token',
-    session: 'qa-ios',
+    session: 'qa-android',
     command: 'snapshot',
     positionals: [],
     flags: {
-      udid: 'SIM-001',
+      serial: 'emulator-5554',
     },
     meta: {
       requestId: 'req-fresh-same-session-a',
       lockPolicy: 'reject',
-      lockPlatform: 'ios',
+      lockPlatform: 'android',
     },
   });
 
   await vi.waitFor(() => {
-    expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001']);
+    expect(dispatchGate.order).toEqual(['start-snapshot-emulator-5554']);
   });
 
   const second = handler({
     token: 'test-token',
-    session: 'qa-ios',
+    session: 'qa-android',
     command: 'snapshot',
     positionals: [],
     flags: {
-      udid: 'SIM-002',
+      serial: 'emulator-5556',
     },
     meta: {
       requestId: 'req-fresh-same-session-b',
       lockPolicy: 'reject',
-      lockPlatform: 'ios',
+      lockPlatform: 'android',
     },
   });
 
   await new Promise((resolve) => setTimeout(resolve, 20));
-  expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001']);
+  expect(dispatchGate.order).toEqual(['start-snapshot-emulator-5554']);
 
   dispatchGate.releaseNext();
 
@@ -247,12 +261,15 @@ test('fresh named sessions with the same name serialize first binding before rej
   expect(secondResponse.ok).toBe(false);
   if (!secondResponse.ok) {
     expect(secondResponse.error.code).toBe('INVALID_ARGS');
-    expect(secondResponse.error.message).toMatch(/--udid=SIM-002/i);
+    expect(secondResponse.error.message).toMatch(/--serial=emulator-5556/i);
   }
-  expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001', 'end-snapshot-SIM-001']);
+  expect(dispatchGate.order).toEqual([
+    'start-snapshot-emulator-5554',
+    'end-snapshot-emulator-5554',
+  ]);
   expect(dispatchGate.getMaxActive()).toBe(1);
   expect(mockDispatch).toHaveBeenCalledTimes(1);
-  expect(sessionStore.get('qa-ios')?.device.id).toBe('SIM-001');
+  expect(sessionStore.get('qa-android')?.device.id).toBe('emulator-5554');
 });
 
 test('fresh named sessions with only lock platform default serialize on the selected device', async () => {
@@ -264,7 +281,7 @@ test('fresh named sessions with only lock platform default serialize on the sele
     token: 'test-token',
     sessionStore,
     leaseRegistry: new LeaseRegistry(),
-    deviceInventoryProvider: async () => [makeIosSession('inventory').device],
+    deviceInventoryProvider: async () => [makeAndroidSession('inventory').device],
     trackDownloadableArtifact: () => 'artifact-id',
   });
 
@@ -277,12 +294,12 @@ test('fresh named sessions with only lock platform default serialize on the sele
     meta: {
       requestId: 'req-fresh-default-lock-a',
       lockPolicy: 'reject',
-      lockPlatform: 'ios',
+      lockPlatform: 'android',
     },
   });
 
   await vi.waitFor(() => {
-    expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001']);
+    expect(dispatchGate.order).toEqual(['start-snapshot-emulator-5554']);
   });
 
   const second = handler({
@@ -294,20 +311,20 @@ test('fresh named sessions with only lock platform default serialize on the sele
     meta: {
       requestId: 'req-fresh-default-lock-b',
       lockPolicy: 'reject',
-      lockPlatform: 'ios',
+      lockPlatform: 'android',
     },
   });
 
   await new Promise((resolve) => setTimeout(resolve, 20));
-  expect(dispatchGate.order).toEqual(['start-snapshot-SIM-001']);
+  expect(dispatchGate.order).toEqual(['start-snapshot-emulator-5554']);
 
   dispatchGate.releaseNext();
 
   await vi.waitFor(() => {
     expect(dispatchGate.order).toEqual([
-      'start-snapshot-SIM-001',
-      'end-snapshot-SIM-001',
-      'start-snapshot-SIM-001',
+      'start-snapshot-emulator-5554',
+      'end-snapshot-emulator-5554',
+      'start-snapshot-emulator-5554',
     ]);
   });
 
@@ -318,8 +335,8 @@ test('fresh named sessions with only lock platform default serialize on the sele
   expect(firstResponse.ok).toBe(true);
   expect(secondResponse.ok).toBe(true);
   expect(dispatchGate.getMaxActive()).toBe(1);
-  expect(sessionStore.get('qa-default-a')?.device.id).toBe('SIM-001');
-  expect(sessionStore.get('qa-default-b')?.device.id).toBe('SIM-001');
+  expect(sessionStore.get('qa-default-a')?.device.id).toBe('emulator-5554');
+  expect(sessionStore.get('qa-default-b')?.device.id).toBe('emulator-5554');
 });
 
 test('fresh named sessions reject incompatible selector combinations before binding', async () => {
