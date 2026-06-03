@@ -126,6 +126,10 @@ for (const entry of manifest) {
     const minWidth = vector ? entry.logicalWidth : entry.logicalWidth * entry.density;
     const minHeight = vector ? entry.logicalHeight : entry.logicalHeight * entry.density;
 
+    if (!vector && entry.density < 2) {
+      failures.push(`${entry.path} has ${entry.density}x density, expected at least 2x`);
+    }
+
     if (width < minWidth || height < minHeight) {
       failures.push(
         `${entry.path} is ${width}x${height}, expected at least ${minWidth}x${minHeight}`,
