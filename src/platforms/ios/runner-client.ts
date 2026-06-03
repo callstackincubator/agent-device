@@ -675,6 +675,7 @@ export {
   resolveRunnerDestination,
   resolveRunnerBuildDestination,
   resolveRunnerMaxConcurrentDestinationsFlag,
+  resolveRunnerAppBundleId,
   resolveRunnerSigningBuildSettings,
   resolveRunnerBundleBuildSettings,
   assertSafeDerivedCleanup,

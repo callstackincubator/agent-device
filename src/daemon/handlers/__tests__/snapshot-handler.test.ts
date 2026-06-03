@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { PNG } from '../../../utils/png.ts';
 import { handleSnapshotCommands } from '../snapshot.ts';
+import { withSessionlessRunnerCleanup } from '../snapshot-session.ts';
 import { captureSnapshot } from '../snapshot-capture.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
@@ -29,11 +30,25 @@ vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
   };
 });
 
+vi.mock('../../../platforms/ios/apps.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/ios/apps.ts')>();
+  return {
+    ...actual,
+    closeIosApp: vi.fn(async () => {}),
+  };
+});
+
 import { dispatchCommand } from '../../../core/dispatch.ts';
-import { runIosRunnerCommand } from '../../../platforms/ios/runner-client.ts';
+import {
+  runIosRunnerCommand,
+  stopIosRunnerSession,
+} from '../../../platforms/ios/runner-client.ts';
+import { closeIosApp } from '../../../platforms/ios/apps.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
 const mockRunnerCommand = vi.mocked(runIosRunnerCommand);
+const mockStopIosRunnerSession = vi.mocked(stopIosRunnerSession);
+const mockCloseIosApp = vi.mocked(closeIosApp);
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-snapshot-handler-'));
@@ -80,6 +95,10 @@ beforeEach(() => {
   mockDispatch.mockResolvedValue({});
   mockRunnerCommand.mockReset();
   mockRunnerCommand.mockResolvedValue({});
+  mockStopIosRunnerSession.mockReset();
+  mockStopIosRunnerSession.mockResolvedValue();
+  mockCloseIosApp.mockReset();
+  mockCloseIosApp.mockResolvedValue();
 });
 
 function writeSolidPng(filePath: string, width = 390, height = 844): void {
@@ -1847,4 +1866,32 @@ test('wait sleep bypasses sessionless runner cleanup wrapper', async () => {
 
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
+});
+
+test('sessionless iOS runner cleanup stops the runner host app', async () => {
+  const result = await withSessionlessRunnerCleanup(undefined, iosSimulatorDevice, async () => {
+    return 'ok';
+  });
+
+  expect(result).toBe('ok');
+  expect(mockStopIosRunnerSession).toHaveBeenCalledWith(iosSimulatorDevice.id);
+  expect(mockCloseIosApp).toHaveBeenCalledWith(
+    iosSimulatorDevice,
+    'com.callstack.agentdevice.runner',
+  );
+});
+
+test('sessionless iOS runner host close is best effort', async () => {
+  mockCloseIosApp.mockRejectedValueOnce(new Error('terminate failed'));
+
+  const result = await withSessionlessRunnerCleanup(undefined, iosSimulatorDevice, async () => {
+    return 'ok';
+  });
+
+  expect(result).toBe('ok');
+  expect(mockStopIosRunnerSession).toHaveBeenCalledWith(iosSimulatorDevice.id);
+  expect(mockCloseIosApp).toHaveBeenCalledWith(
+    iosSimulatorDevice,
+    'com.callstack.agentdevice.runner',
+  );
 });
