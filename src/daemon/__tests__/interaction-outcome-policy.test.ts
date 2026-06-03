@@ -84,11 +84,12 @@ test('markPendingInteractionOutcome stores retry state only for explicit retry f
   assert.equal(longPressSession.pendingInteractionOutcome, undefined);
 });
 
-test('stripInternalInteractionOutcomeFlags removes internal retry controls', () => {
+test('stripInternalInteractionOutcomeFlags removes internal interaction controls', () => {
   assert.deepEqual(
     stripInternalInteractionOutcomeFlags({
       platform: 'ios',
       interactionOutcome: { retryOnNoChange: true },
+      postGestureStabilization: true,
     }),
     { platform: 'ios' },
   );

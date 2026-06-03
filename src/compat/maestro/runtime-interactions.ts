@@ -147,6 +147,10 @@ export async function invokeMaestroTapPointPercent(params: {
     ...params.baseReq,
     command: 'click',
     positionals: [String(point.x), String(point.y)],
+    flags: {
+      ...params.baseReq.flags,
+      postGestureStabilization: true,
+    },
   });
 }
 
@@ -235,6 +239,10 @@ async function invokeSwipeGesture(
       String(swipe.end.y),
       ...(durationMs ? [durationMs] : []),
     ],
+    flags: {
+      ...params.baseReq.flags,
+      postGestureStabilization: true,
+    },
   });
 }
 
@@ -479,6 +487,7 @@ async function clickMaestroSnapshotTarget(
     flags: {
       ...params.baseReq.flags,
       interactionOutcome: { retryOnNoChange: true },
+      postGestureStabilization: true,
     },
   });
   if (response.ok) clearMaestroVisibleContext(params.scope);
@@ -502,6 +511,7 @@ async function invokeMaestroFuzzyTapOn(
       ...params.baseReq.flags,
       findFirst: true,
       interactionOutcome: { retryOnNoChange: true },
+      postGestureStabilization: true,
     },
   });
   emitDiagnostic({

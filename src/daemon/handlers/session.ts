@@ -110,6 +110,7 @@ function buildPrepareIosRunnerOptions(
     verbose: req.flags?.verbose,
     logPath,
     traceLogPath: session?.trace?.outPath,
+    cleanStaleBundles: true,
     requestId: req.meta?.requestId,
   };
 }

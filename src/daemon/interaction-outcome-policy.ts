@@ -137,8 +137,12 @@ export function emitInteractionSettleTimeout(params: {
 export function stripInternalInteractionOutcomeFlags(
   flags: CommandFlags | undefined,
 ): CommandFlags | undefined {
-  if (!flags?.interactionOutcome) return flags;
-  const { interactionOutcome: _interactionOutcome, ...publicFlags } = flags;
+  if (!flags?.interactionOutcome && !flags?.postGestureStabilization) return flags;
+  const {
+    interactionOutcome: _interactionOutcome,
+    postGestureStabilization: _postGestureStabilization,
+    ...publicFlags
+  } = flags;
   return publicFlags;
 }
 

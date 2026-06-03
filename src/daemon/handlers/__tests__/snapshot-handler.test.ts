@@ -759,33 +759,37 @@ test('captureSnapshot lazily retries pending no-change touch before returning fr
     ],
   };
 
-  mockDispatch
-    .mockResolvedValueOnce({
-      nodes: baselineNodes,
+  let pressed = false;
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command === 'press') {
+      pressed = true;
+      return { clicked: true };
+    }
+    return {
+      nodes:
+        !pressed
+          ? baselineNodes
+          : [
+              {
+                index: 0,
+                depth: 0,
+                type: 'Button',
+                label: 'Back',
+                identifier: 'back',
+                hittable: true,
+                rect: { x: 20, y: 60, width: 90, height: 44 },
+              },
+              {
+                index: 1,
+                depth: 0,
+                type: 'StaticText',
+                label: 'Feed',
+                rect: { x: 20, y: 140, width: 160, height: 48 },
+              },
+            ],
       backend: 'xctest',
-    })
-    .mockResolvedValueOnce({ clicked: true })
-    .mockResolvedValueOnce({
-      nodes: [
-        {
-          index: 0,
-          depth: 0,
-          type: 'Button',
-          label: 'Back',
-          identifier: 'back',
-          hittable: true,
-          rect: { x: 20, y: 60, width: 90, height: 44 },
-        },
-        {
-          index: 1,
-          depth: 0,
-          type: 'StaticText',
-          label: 'Feed',
-          rect: { x: 20, y: 140, width: 160, height: 48 },
-        },
-      ],
-      backend: 'xctest',
-    });
+    };
+  });
 
   const result = await captureSnapshot({
     device: iosSimulatorDevice,
@@ -797,9 +801,154 @@ test('captureSnapshot lazily retries pending no-change touch before returning fr
   expect(result.snapshot.nodes).toEqual(
     expect.arrayContaining([expect.objectContaining({ label: 'Feed' })]),
   );
-  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['snapshot', 'press', 'snapshot']);
-  expect(mockDispatch.mock.calls[1]?.[2]).toEqual(['100', '144']);
+  expect(mockDispatch.mock.calls.map((call) => call[1]).filter((command) => command === 'press'))
+    .toEqual(['press']);
+  expect(mockDispatch.mock.calls.find((call) => call[1] === 'press')?.[2]).toEqual([
+    '100',
+    '144',
+  ]);
   expect(session.pendingInteractionOutcome).toBeUndefined();
+});
+
+test('captureSnapshot does not retry when a tap change appears after a short delay', async () => {
+  const sessionName = 'android-delayed-outcome-without-retry';
+  const session = makeSession(sessionName, androidDevice);
+  const baselineNodes = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'android.widget.Button',
+      label: 'Open drawer',
+      hittable: true,
+      rect: { x: 20, y: 120, width: 160, height: 48 },
+    },
+  ];
+  const changedNodes = [
+    {
+      index: 0,
+      depth: 0,
+      type: 'android.widget.TextView',
+      label: 'Albums',
+      rect: { x: 32, y: 240, width: 180, height: 52 },
+    },
+  ];
+  session.pendingInteractionOutcome = {
+    action: 'click',
+    command: 'press',
+    positionals: ['100', '144'],
+    flags: { platform: 'android' },
+    markedAt: Date.now(),
+    attemptsRemaining: 2,
+    preSignature: buildInteractionSurfaceSignature(baselineNodes),
+  };
+
+  let snapshotCalls = 0;
+  mockDispatch.mockImplementation(async (_device, command) => {
+    expect(command).toBe('snapshot');
+    snapshotCalls += 1;
+    return {
+      nodes: snapshotCalls === 1 ? baselineNodes : changedNodes,
+      backend: 'android',
+    };
+  });
+
+  const result = await captureSnapshot({
+    device: androidDevice,
+    session,
+    flags: { snapshotInteractiveOnly: true },
+    logPath: '/tmp/daemon.log',
+  });
+
+  expect(result.snapshot.nodes).toEqual(
+    expect.arrayContaining([expect.objectContaining({ label: 'Albums' })]),
+  );
+  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['snapshot', 'snapshot']);
+  expect(session.pendingInteractionOutcome).toBeUndefined();
+});
+
+test('captureSnapshot retries pending tap outcome before post-gesture stabilization', async () => {
+  const sessionName = 'android-maestro-tap-outcome-before-stabilization';
+  const session = makeSession(sessionName, androidDevice);
+  const baselineNodes = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'android.widget.Button',
+      label: 'Navigate to Third',
+      hittable: true,
+      rect: { x: 302, y: 1301, width: 476, height: 110 },
+    },
+  ];
+  session.snapshot = {
+    nodes: baselineNodes,
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  session.pendingInteractionOutcome = {
+    action: 'click',
+    command: 'press',
+    positionals: ['540', '1356'],
+    flags: { platform: 'android' },
+    markedAt: Date.now(),
+    attemptsRemaining: 2,
+    preSignature: [
+      {
+        key: '|Navigate to Third||android.widget.Button||enabled|unselected|hittable|#0',
+        x: 302,
+        y: 1301,
+        width: 476,
+        height: 110,
+      },
+    ],
+  };
+  session.postGestureStabilization = {
+    action: 'click',
+    markedAt: Date.now(),
+  };
+
+  let pressed = false;
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command === 'press') {
+      pressed = true;
+      return { clicked: true };
+    }
+    return {
+      nodes:
+        !pressed
+          ? baselineNodes
+          : [
+              {
+                index: 0,
+                depth: 0,
+                type: 'android.widget.TextView',
+                label: 'Tab Third (3)',
+                rect: { x: 390, y: 884, width: 300, height: 55 },
+              },
+            ],
+      backend: 'android',
+    };
+  });
+
+  const result = await captureSnapshot({
+    device: androidDevice,
+    session,
+    flags: { snapshotInteractiveOnly: true },
+    logPath: '/tmp/daemon.log',
+  });
+
+  expect(result.snapshot.nodes).toEqual(
+    expect.arrayContaining([expect.objectContaining({ label: 'Tab Third (3)' })]),
+  );
+  expect(mockDispatch.mock.calls.map((call) => call[1]).filter((command) => command === 'press'))
+    .toEqual(['press']);
+  expect(mockDispatch.mock.calls.find((call) => call[1] === 'press')?.[2]).toEqual([
+    '540',
+    '1356',
+  ]);
+  expect(session.pendingInteractionOutcome).toBeUndefined();
+  expect(session.postGestureStabilization).toBeUndefined();
 });
 
 test('captureSnapshot composes pending outcome retry with Android freshness capture', async () => {

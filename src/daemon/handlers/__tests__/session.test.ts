@@ -2135,6 +2135,7 @@ test('prepare ios-runner starts the XCTest runner on an explicit iOS selector', 
     expect.objectContaining({ platform: 'ios', id: 'sim-1' }),
     { command: 'uptime' },
     expect.objectContaining({
+      cleanStaleBundles: true,
       logPath: expect.stringMatching(/daemon\.log$/),
       requestId: 'prepare-request',
     }),

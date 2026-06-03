@@ -6,6 +6,7 @@ export type AppleRunnerCommandOptions = {
   verbose?: boolean;
   logPath?: string;
   traceLogPath?: string;
+  cleanStaleBundles?: boolean;
   requestId?: string;
 };
 

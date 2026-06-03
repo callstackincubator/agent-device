@@ -120,7 +120,7 @@ export async function dispatchGenericCommand(params: {
   if (isNavigationSensitiveAction(platformCommand)) {
     markAndroidSnapshotFreshness(session, platformCommand);
   }
-  markPostGestureStabilization(session, platformCommand);
+  markPostGestureStabilization(session, platformCommand, resolvedPositionals, req.flags);
 
   return { ok: true, data: data ?? {} };
 }

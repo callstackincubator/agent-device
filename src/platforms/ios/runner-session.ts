@@ -49,6 +49,7 @@ const RUNNER_INVALIDATE_WAIT_TIMEOUT_MS = 1_000;
 const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 5_000;
 const RUNNER_TAP_PREFLIGHT_SKIP_FRESHNESS_MS = 10_000;
 const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
+const RUNNER_STALE_BUNDLE_UNINSTALL_TIMEOUT_MS = 10_000;
 
 type RunnerReadinessPreflightDecision =
   | {
@@ -204,26 +205,48 @@ async function cleanupStaleSimulatorRunnerBundles(device: DeviceInfo): Promise<v
   }
 
   for (const bundleId of IOS_RUNNER_CONTAINER_BUNDLE_IDS) {
-    const result = await runXcrun(
-      buildSimctlArgsForDevice(device, ['uninstall', device.id, bundleId]),
-      {
-        allowFailure: true,
-      },
-    );
-    if (result.exitCode !== 0) {
-      const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
-      if (
-        !output.includes('not installed') &&
-        !output.includes('found nothing') &&
-        !output.includes('no such file') &&
-        !output.includes('invalid device') &&
-        !output.includes('could not find')
-      ) {
-        // Best-effort cleanup only; xcodebuild may still be able to install.
-        continue;
-      }
+    const result = await uninstallStaleSimulatorRunnerBundle(device, bundleId);
+    if (!result || isBenignSimulatorRunnerUninstallResult(result)) {
+      continue;
     }
+    // Best-effort cleanup only; xcodebuild may still be able to install.
   }
+}
+
+async function uninstallStaleSimulatorRunnerBundle(
+  device: DeviceInfo,
+  bundleId: string,
+): Promise<ExecResult | undefined> {
+  try {
+    return await runXcrun(buildSimctlArgsForDevice(device, ['uninstall', device.id, bundleId]), {
+      allowFailure: true,
+      timeoutMs: RUNNER_STALE_BUNDLE_UNINSTALL_TIMEOUT_MS,
+    });
+  } catch (error) {
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'ios_runner_startup_cleanup_stale_bundle_failed',
+      data: {
+        deviceId: device.id,
+        bundleId,
+        timeoutMs: RUNNER_STALE_BUNDLE_UNINSTALL_TIMEOUT_MS,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+    return undefined;
+  }
+}
+
+function isBenignSimulatorRunnerUninstallResult(result: ExecResult): boolean {
+  if (result.exitCode === 0) return true;
+  const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
+  return (
+    output.includes('not installed') ||
+    output.includes('found nothing') ||
+    output.includes('no such file') ||
+    output.includes('invalid device') ||
+    output.includes('could not find')
+  );
 }
 
 export function getRunnerSessionSnapshot(

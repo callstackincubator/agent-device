@@ -488,6 +488,23 @@ test('runner session keeps boot and stale bundle cleanup available when needed',
     mockRunXcrun.mock.calls.some((call) => call[0]?.includes('uninstall')),
     true,
   );
+  const uninstallCalls = mockRunXcrun.mock.calls.filter((call) => call[0]?.includes('uninstall'));
+  assert.equal(uninstallCalls.every((call) => call[1]?.timeoutMs === 10_000), true);
+});
+
+test('runner session stale bundle cleanup is best-effort when simctl stalls', async () => {
+  const device = { ...IOS_SIMULATOR, id: 'runner-session-clean-timeout-sim' };
+
+  mockRunXcrun
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'simctl uninstall timed out'))
+    .mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' });
+
+  const session = await ensureRunnerSession(device, {
+    cleanStaleBundles: true,
+  });
+
+  assert.equal(session.deviceId, device.id);
+  assert.equal(mockRunCmdBackground.mock.calls.length, 1);
 });
 
 test('runner session stop sends shutdown, cleans temporary runner files, and releases simulator scope', async () => {

@@ -13,6 +13,7 @@ import {
   markPendingInteractionOutcome,
   stripInternalInteractionOutcomeFlags,
 } from '../interaction-outcome-policy.ts';
+import { markPostGestureStabilization } from '../post-gesture-stabilization.ts';
 
 export type ContextFromFlags = (
   flags: CommandFlags | undefined,
@@ -115,6 +116,7 @@ export function finalizeTouchInteraction(params: {
   if (isNavigationSensitiveAction(command)) {
     markAndroidSnapshotFreshness(session, command, androidFreshnessBaseline ?? session.snapshot);
   }
+  markPostGestureStabilization(session, command, retryPositionals ?? positionals, flags);
   recordTouchVisualizationEvent(
     session,
     command,
