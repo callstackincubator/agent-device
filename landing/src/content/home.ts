@@ -59,7 +59,7 @@ export const homeUseCases: HomeUseCase[] = [
     body: "An agent picks up a pull request, checks out the branch, builds the app, installs it, and walks the affected flow. Screenshots, accessibility-tree snapshots, and a written summary post back to the PR. The reviewer sees the work, not the run.",
     rows: [
       {
-        icon: "comment",
+        icon: "comment-sharp",
         text: "One PR comment per run, with before-and-after evidence",
       },
       {
