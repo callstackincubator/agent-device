@@ -17,6 +17,13 @@ type Lane = {
   icons: [PixelIconName, PixelIconName, PixelIconName];
 };
 
+const laneImage = {
+  displayWidth: 528,
+  displayHeight: 868,
+  intrinsicWidth: 1056,
+  intrinsicHeight: 1736,
+} as const;
+
 const lanes: Lane[] = [
   {
     id: "interact",
@@ -155,10 +162,11 @@ export function ToolkitLanes() {
                   <Image
                     src={lane.image}
                     alt=""
-                    width={528}
-                    height={868}
-                    sizes="(max-width: 1024px) 100vw, 528px"
+                    width={laneImage.intrinsicWidth}
+                    height={laneImage.intrinsicHeight}
+                    sizes={`(max-width: 1024px) 100vw, ${laneImage.displayWidth}px`}
                     className="h-full w-full object-cover"
+                    unoptimized
                   />
                 </div>
               </article>
