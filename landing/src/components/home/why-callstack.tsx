@@ -101,8 +101,15 @@ export function WhyCallstack() {
             React Native. You get direct access to people close to the decisions
             shaping the frameworks you use.
           </BodyText>
-          <div className="mt-12 flex justify-center text-[#61dafb]/70">
-            <PixelIcon name="braces" className="size-32" />
+          <div className="mt-12 flex justify-center">
+            <Image
+              alt=""
+              aria-hidden="true"
+              className="h-auto w-full max-w-[320px]"
+              height={145}
+              src="/figma/logos/react-foundation.webp"
+              width={320}
+            />
           </div>
         </article>
 

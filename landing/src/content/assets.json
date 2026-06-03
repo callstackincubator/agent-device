@@ -86,5 +86,13 @@
     "density": 2,
     "maxBytes": 10000,
     "usedBy": "Callstack proof logo"
+  },
+  {
+    "path": "/figma/logos/react-foundation.webp",
+    "logicalWidth": 320,
+    "logicalHeight": 145,
+    "density": 2,
+    "maxBytes": 60000,
+    "usedBy": "React Foundation proof card logo"
   }
 ]
