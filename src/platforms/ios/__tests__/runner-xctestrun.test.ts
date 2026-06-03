@@ -201,7 +201,7 @@ test('setup metadata script matches expected iOS simulator cache metadata', asyn
     execFileSync(
       process.execPath,
       ['scripts/write-xcuitest-cache-metadata.mjs', 'ios', root, 'generic/platform=iOS Simulator'],
-      { cwd: process.cwd(), stdio: 'ignore' },
+      { cwd: process.cwd(), stdio: ['ignore', 'ignore', 'inherit'] },
     );
 
     const actual = JSON.parse(
