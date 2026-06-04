@@ -11,11 +11,45 @@ export type AppleRunnerCommandOptions = {
   requestId?: string;
 };
 
+export type AppleRunnerLifecycleOptions = AppleRunnerCommandOptions & {
+  cleanStaleBundles?: boolean;
+  buildTimeoutMs?: number;
+  forceRunnerXctestrunRebuild?: boolean;
+};
+
+export type AppleRunnerPrewarmOptions = AppleRunnerLifecycleOptions;
+
+export type AppleRunnerPrepareOptions = AppleRunnerLifecycleOptions & {
+  healthTimeoutMs: number;
+};
+
+export type AppleRunnerPrepareResult = {
+  runner: Record<string, unknown>;
+  cache?: 'exact' | 'restore-key' | 'miss';
+  artifact?: 'valid' | 'rebuilt';
+  buildMs?: number;
+  connectMs: number;
+  healthCheckMs: number;
+  xctestrunPath?: string;
+  recoveryReason?: string;
+  failureReason?: string;
+};
+
 export type AppleRunnerCommandExecutor = (
   device: DeviceInfo,
   command: RunnerCommand,
   options: AppleRunnerCommandOptions,
 ) => Promise<Record<string, unknown>>;
+
+export type AppleRunnerPrepareExecutor = (
+  device: DeviceInfo,
+  options: AppleRunnerPrepareOptions,
+) => Promise<AppleRunnerPrepareResult>;
+
+export type AppleRunnerPrewarmExecutor = (
+  device: DeviceInfo,
+  options: AppleRunnerPrewarmOptions,
+) => Promise<void>;
 
 export type AppleRunnerProvider = {
   /**
@@ -23,6 +57,15 @@ export type AppleRunnerProvider = {
    * Scoped providers may adapt this call to a request-local transport.
    */
   runCommand: AppleRunnerCommandExecutor;
+  /**
+   * Proves a runner can answer a cheap command after any required local setup.
+   * Command-only providers may omit this and let callers fall back to uptime.
+   */
+  prepare?: AppleRunnerPrepareExecutor;
+  /**
+   * Starts runner setup opportunistically. This must remain best-effort.
+   */
+  prewarm?: AppleRunnerPrewarmExecutor;
 };
 
 export type AppleRunnerProviderScopeOptions = {
@@ -40,8 +83,9 @@ const appleRunnerProviderScope = new AsyncLocalStorage<AppleRunnerProviderScope>
 
 export function createLocalAppleRunnerProvider(
   runCommand: AppleRunnerCommandExecutor,
+  lifecycle: Pick<AppleRunnerProvider, 'prepare' | 'prewarm'> = {},
 ): AppleRunnerProvider {
-  return { runCommand };
+  return { runCommand, ...lifecycle };
 }
 
 export function resolveAppleRunnerProvider(
@@ -55,13 +99,6 @@ export function resolveAppleRunnerProvider(
   return scoped
     ? normalizeAppleRunnerProvider(scoped.provider)
     : normalizeAppleRunnerProvider(fallback);
-}
-
-export function hasScopedAppleRunnerProvider(
-  device: DeviceInfo,
-  options: { requestId?: string } = {},
-): boolean {
-  return resolveScopedAppleRunnerProvider(device, options) !== undefined;
 }
 
 function resolveScopedAppleRunnerProvider(

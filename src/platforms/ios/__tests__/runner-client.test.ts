@@ -48,7 +48,9 @@ import {
 } from '../runner-client.ts';
 import {
   acquireRunnerXctestrunCacheLock,
+  ensureXctestrunArtifact,
   ensureXctestrun,
+  markRunnerXctestrunArtifactBadForRun,
   resolveExpectedRunnerCacheMetadata,
   resolveRunnerDerivedPath,
   resolveRunnerCacheMetadataPath,
@@ -752,6 +754,12 @@ test('resolveRunnerDerivedPath keys default cache by runner metadata', () => {
     target: 'tv',
     buildDestinationFamily: 'appletvsimulator',
   });
+  const macPath = resolveRunnerDerivedPath(macOsDevice, {
+    ...metadata,
+    platformName: 'macOS',
+    target: 'desktop',
+    buildDestinationFamily: 'macos',
+  });
   const staleVersionPath = resolveRunnerDerivedPath(iosSimulator, {
     ...metadata,
     packageVersion: '0.0.0-stale',
@@ -759,6 +767,7 @@ test('resolveRunnerDerivedPath keys default cache by runner metadata', () => {
 
   assert.match(iosPath, /\/ios-runner\/derived\/ios-simulator\/cache-[a-f0-9]{16}$/);
   assert.match(tvPath, /\/ios-runner\/derived\/tvos-simulator\/cache-[a-f0-9]{16}$/);
+  assert.match(macPath, /\/ios-runner\/derived\/macos\/cache-[a-f0-9]{16}$/);
   assert.notEqual(iosPath, staleVersionPath);
 });
 
@@ -1130,6 +1139,57 @@ test('ensureXctestrun rebuilds cached runner when metadata package version misma
     resolveExpectedRunnerCacheMetadata(macOsDevice, repoRoot),
   );
   assert.equal(rebuiltMetadata.artifacts?.xctestrunPath, rebuiltXctestrunPath);
+});
+
+test('ensureXctestrunArtifact stress-recovers after a bad restored artifact', async () => {
+  const projectRoot = repoRoot;
+  const tmpDir = await makeProjectTmpDir();
+  const derivedPath = path.join(tmpDir, 'custom-derived');
+  const productPath = path.join(derivedPath, 'Runner.app');
+  const cachedXctestrunPath = path.join(derivedPath, 'cached.xctestrun');
+  await fs.promises.mkdir(productPath, { recursive: true });
+  writeXctestrunFixture(cachedXctestrunPath, {
+    projectRoot,
+    productRelativePaths: ['Runner.app'],
+  });
+  writeRunnerCacheMetadataWithArtifacts({
+    derivedPath,
+    device: macOsDevice,
+    xctestrunPath: cachedXctestrunPath,
+    productPaths: [productPath],
+  });
+  withRunnerDerivedPathEnv(derivedPath);
+
+  const hit = await ensureXctestrunArtifact(macOsDevice, {});
+
+  assert.equal(hit.xctestrunPath, cachedXctestrunPath);
+  assert.equal(hit.cache, 'exact');
+  assert.equal(hit.artifact, 'valid');
+  assert.equal(hit.buildMs, 0);
+  assert.equal(mockRunCmdStreaming.mock.calls.length, 0);
+
+  await markRunnerXctestrunArtifactBadForRun(hit, 'stress health failed');
+  assert.equal(fs.existsSync(cachedXctestrunPath), false);
+
+  const rebuiltXctestrunPath = path.join(derivedPath, 'rebuilt', 'rebuilt.xctestrun');
+  mockRunCmdStreaming.mockImplementationOnce(async () => {
+    await fs.promises.mkdir(path.join(derivedPath, 'rebuilt', 'Runner.app'), { recursive: true });
+    writeXctestrunFixture(rebuiltXctestrunPath, {
+      projectRoot,
+      productRelativePaths: ['Runner.app'],
+    });
+  });
+
+  const rebuilt = await ensureXctestrunArtifact(macOsDevice, {
+    buildTimeoutMs: 300_000,
+  });
+
+  assert.equal(rebuilt.xctestrunPath, rebuiltXctestrunPath);
+  assert.equal(rebuilt.cache, 'miss');
+  assert.equal(rebuilt.artifact, 'rebuilt');
+  assert.equal(rebuilt.reason, 'missing_xctestrun');
+  assert.equal(mockRunCmdStreaming.mock.calls.length, 1);
+  assert.equal(mockRunCmdStreaming.mock.calls[0]?.[2]?.timeoutMs, 300_000);
 });
 
 test('ensureXctestrun rethrows unexpected cached macOS runner repair errors', async () => {

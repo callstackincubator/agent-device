@@ -12,7 +12,7 @@ import type { RunnerSession } from '../runner-session-types.ts';
 const {
   mockAcquireXcodebuildSimulatorSetRedirect,
   mockCleanupTempFile,
-  mockEnsureXctestrun,
+  mockEnsureXctestrunArtifact,
   mockGetFreePort,
   mockIsProcessAlive,
   mockIsProcessGroupAlive,
@@ -26,7 +26,7 @@ const {
 } = vi.hoisted(() => ({
   mockAcquireXcodebuildSimulatorSetRedirect: vi.fn(),
   mockCleanupTempFile: vi.fn(),
-  mockEnsureXctestrun: vi.fn(),
+  mockEnsureXctestrunArtifact: vi.fn(),
   mockGetFreePort: vi.fn(),
   mockIsProcessAlive: vi.fn(),
   mockIsProcessGroupAlive: vi.fn(),
@@ -86,7 +86,7 @@ vi.mock('../runner-xctestrun.ts', async () => {
   return {
     ...actual,
     acquireXcodebuildSimulatorSetRedirect: mockAcquireXcodebuildSimulatorSetRedirect,
-    ensureXctestrun: mockEnsureXctestrun,
+    ensureXctestrunArtifact: mockEnsureXctestrunArtifact,
     prepareXctestrunWithEnv: mockPrepareXctestrunWithEnv,
   };
 });
@@ -103,7 +103,14 @@ import {
 beforeEach(() => {
   vi.resetAllMocks();
   mockRunXcrun.mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' });
-  mockEnsureXctestrun.mockResolvedValue('/tmp/base-runner.xctestrun');
+  mockEnsureXctestrunArtifact.mockResolvedValue({
+    xctestrunPath: '/tmp/base-runner.xctestrun',
+    derived: '/tmp/derived',
+    cache: 'miss',
+    artifact: 'rebuilt',
+    buildMs: 12,
+    xctestrunPathSource: 'build',
+  });
   mockGetFreePort.mockResolvedValue(8123);
   mockPrepareXctestrunWithEnv.mockResolvedValue({
     xctestrunPath: '/tmp/session-runner.xctestrun',

@@ -17,8 +17,12 @@ vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/runner-client.ts')>();
   return {
     ...actual,
+    prepareIosRunner: vi.fn(async () => ({
+      runner: { currentUptimeMs: 42 },
+      connectMs: 3,
+      healthCheckMs: 3,
+    })),
     prewarmIosRunnerSession: vi.fn(),
-    runIosRunnerCommand: vi.fn(async () => ({ currentUptimeMs: 42 })),
     stopIosRunnerSession: vi.fn(async () => {}),
   };
 });
@@ -96,8 +100,8 @@ import { dispatchCommand, resolveTargetDevice } from '../../../core/dispatch.ts'
 import { ensureDeviceReady } from '../../device-ready.ts';
 import { applyRuntimeHintsToApp, clearRuntimeHintsFromApp } from '../../runtime-hints.ts';
 import {
+  prepareIosRunner,
   prewarmIosRunnerSession,
-  runIosRunnerCommand,
   stopIosRunnerSession,
 } from '../../../platforms/ios/runner-client.ts';
 import { runMacOsAlertAction } from '../../../platforms/ios/macos-helper.ts';
@@ -120,7 +124,7 @@ const mockEnsureDeviceReady = vi.mocked(ensureDeviceReady);
 const mockApplyRuntimeHints = vi.mocked(applyRuntimeHintsToApp);
 const mockClearRuntimeHints = vi.mocked(clearRuntimeHintsFromApp);
 const mockPrewarmIosRunnerSession = vi.mocked(prewarmIosRunnerSession);
-const mockRunIosRunnerCommand = vi.mocked(runIosRunnerCommand);
+const mockPrepareIosRunner = vi.mocked(prepareIosRunner);
 const mockStopIosRunner = vi.mocked(stopIosRunnerSession);
 const mockDismissMacOsAlert = vi.mocked(runMacOsAlertAction);
 const mockSettleSimulator = vi.mocked(settleIosSimulator);
@@ -151,8 +155,12 @@ beforeEach(() => {
   mockClearRuntimeHints.mockReset();
   mockClearRuntimeHints.mockResolvedValue(undefined);
   mockPrewarmIosRunnerSession.mockReset();
-  mockRunIosRunnerCommand.mockReset();
-  mockRunIosRunnerCommand.mockResolvedValue({ currentUptimeMs: 42 });
+  mockPrepareIosRunner.mockReset();
+  mockPrepareIosRunner.mockResolvedValue({
+    runner: { currentUptimeMs: 42 },
+    connectMs: 3,
+    healthCheckMs: 3,
+  });
   mockStopIosRunner.mockReset();
   mockStopIosRunner.mockResolvedValue(undefined);
   mockDismissMacOsAlert.mockReset();
@@ -2130,12 +2138,13 @@ test('prepare ios-runner starts the XCTest runner on an explicit iOS selector', 
   expect(mockEnsureDeviceReady).toHaveBeenCalledWith(
     expect.objectContaining({ platform: 'ios', id: 'sim-1' }),
   );
-  expect(mockRunIosRunnerCommand).toHaveBeenCalledTimes(1);
-  expect(mockRunIosRunnerCommand).toHaveBeenCalledWith(
+  expect(mockPrepareIosRunner).toHaveBeenCalledTimes(1);
+  expect(mockPrepareIosRunner).toHaveBeenCalledWith(
     expect.objectContaining({ platform: 'ios', id: 'sim-1' }),
-    { command: 'uptime' },
     expect.objectContaining({
       cleanStaleBundles: true,
+      buildTimeoutMs: 240000,
+      healthTimeoutMs: 90000,
       logPath: expect.stringMatching(/daemon\.log$/),
       requestId: 'prepare-request',
       startupTimeoutMs: 240000,
@@ -2147,13 +2156,62 @@ test('prepare ios-runner starts the XCTest runner on an explicit iOS selector', 
     deviceId: 'sim-1',
     deviceName: 'iPhone 17 Pro',
     kind: 'simulator',
+    connectMs: 3,
+    healthCheckMs: 3,
     runner: { currentUptimeMs: 42 },
-    message: 'Prepared iOS runner: iPhone 17 Pro',
+    message: 'Prepared Apple runner: iPhone 17 Pro',
   });
   expect(sessionStore.get(sessionName)).toBeUndefined();
 });
 
-test('prepare ios-runner rejects non-iOS devices', async () => {
+test('prepare ios-runner starts the XCTest runner on an explicit macOS selector', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'prepare-macos-runner';
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'macos',
+    id: 'host-macos-local',
+    name: 'Host Mac',
+    kind: 'device',
+    target: 'desktop',
+    booted: true,
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'prepare',
+      positionals: ['ios-runner'],
+      flags: { platform: 'macos', timeoutMs: 240000 },
+      meta: { requestId: 'prepare-macos-request' },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(mockPrepareIosRunner).toHaveBeenCalledWith(
+    expect.objectContaining({ platform: 'macos', id: 'host-macos-local' }),
+    expect.objectContaining({
+      buildTimeoutMs: 240000,
+      healthTimeoutMs: 90000,
+      requestId: 'prepare-macos-request',
+    }),
+  );
+  expect((response as any).data).toMatchObject({
+    action: 'ios-runner',
+    platform: 'macos',
+    deviceId: 'host-macos-local',
+    deviceName: 'Host Mac',
+    kind: 'device',
+    message: 'Prepared Apple runner: Host Mac',
+  });
+});
+
+test('prepare ios-runner rejects non-Apple runner devices', async () => {
   const sessionStore = makeSessionStore();
   mockResolveTargetDevice.mockResolvedValue({
     platform: 'android',
@@ -2181,9 +2239,11 @@ test('prepare ios-runner rejects non-iOS devices', async () => {
   expect(response?.ok).toBe(false);
   if (response && !response.ok) {
     expect(response.error.code).toBe('UNSUPPORTED_OPERATION');
-    expect(response.error.message).toBe('prepare ios-runner is only supported on iOS');
+    expect(response.error.message).toBe(
+      'prepare ios-runner is only supported on Apple runner platforms',
+    );
   }
-  expect(mockRunIosRunnerCommand).not.toHaveBeenCalled();
+  expect(mockPrepareIosRunner).not.toHaveBeenCalled();
 });
 
 test('prepare requires the ios-runner subcommand', async () => {
@@ -2210,7 +2270,7 @@ test('prepare requires the ios-runner subcommand', async () => {
     expect(response.error.message).toBe('prepare requires a subcommand: ios-runner');
   }
   expect(mockResolveTargetDevice).not.toHaveBeenCalled();
-  expect(mockRunIosRunnerCommand).not.toHaveBeenCalled();
+  expect(mockPrepareIosRunner).not.toHaveBeenCalled();
 });
 
 test('open web URL on iOS device session without active app falls back to Safari', async () => {

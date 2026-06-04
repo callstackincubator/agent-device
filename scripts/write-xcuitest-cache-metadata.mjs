@@ -131,6 +131,57 @@ function resolveBuildDestinationFamily() {
   return `generic/platform=${platformName}`;
 }
 
+function resolveRunnerSdkName() {
+  const platformName = resolvePlatformName();
+  if (platformName === 'macOS') return 'macosx';
+  if (platformName === 'tvOS') {
+    return resolveDeviceKind() === 'simulator' ? 'appletvsimulator' : 'appletvos';
+  }
+  return resolveDeviceKind() === 'simulator' ? 'iphonesimulator' : 'iphoneos';
+}
+
+function runAppleToolFingerprintCommand(command, args) {
+  try {
+    return execFileSync(command, args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 5000,
+      maxBuffer: 128 * 1024,
+    }).trim() || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+function parseXcodeVersionOutput(output) {
+  return {
+    version: output.match(/^Xcode\s+(.+)$/m)?.[1]?.trim() || 'unknown',
+    buildVersion: output.match(/^Build version\s+(.+)$/m)?.[1]?.trim() || 'unknown',
+  };
+}
+
+function resolveRunnerToolchainFingerprint() {
+  const xcode = parseXcodeVersionOutput(
+    runAppleToolFingerprintCommand('xcodebuild', ['-version']),
+  );
+  const sdkName = resolveRunnerSdkName();
+  return {
+    xcodeVersion: xcode.version,
+    xcodeBuildVersion: xcode.buildVersion,
+    sdkName,
+    sdkVersion: runAppleToolFingerprintCommand('xcrun', [
+      '--sdk',
+      sdkName,
+      '--show-sdk-version',
+    ]),
+    sdkBuildVersion: runAppleToolFingerprintCommand('xcrun', [
+      '--sdk',
+      sdkName,
+      '--show-sdk-build-version',
+    ]),
+  };
+}
+
 function resolveSigningBuildSettings() {
   if (platform !== 'macos') {
     return [];
@@ -146,9 +197,10 @@ function resolveSigningBuildSettings() {
 const appBundleId = resolveRunnerAppBundleId();
 const testBundleId = resolveRunnerTestBundleId();
 const metadata = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   packageVersion: readPackageVersion(),
   runnerSourceFingerprint: computeRunnerSourceFingerprint(),
+  ...resolveRunnerToolchainFingerprint(),
   platformName: resolvePlatformName(),
   deviceKind: resolveDeviceKind(),
   target: resolveTarget(),
@@ -175,14 +227,16 @@ function resolveRunnerCacheArtifacts() {
   const productPaths = resolveExistingXctestrunProductPaths(xctestrunPath);
   if (!productPaths || productPaths.length === 0) return null;
   const xctestrunMtimeMs = readFileMtimeMs(xctestrunPath);
-  if (xctestrunMtimeMs === null) return null;
+  const xctestrunSize = readFileSize(xctestrunPath);
+  if (xctestrunMtimeMs === null || xctestrunSize === null) return null;
   const productArtifacts = [];
   for (const productPath of productPaths) {
     const mtimeMs = readFileMtimeMs(productPath);
-    if (mtimeMs === null) return null;
-    productArtifacts.push({ path: productPath, mtimeMs });
+    const size = readFileSize(productPath);
+    if (mtimeMs === null || size === null) return null;
+    productArtifacts.push({ path: productPath, mtimeMs, size });
   }
-  return { xctestrunPath, xctestrunMtimeMs, productPaths: productArtifacts };
+  return { xctestrunPath, xctestrunMtimeMs, xctestrunSize, productPaths: productArtifacts };
 }
 
 function findXctestrun(root) {
@@ -373,6 +427,14 @@ function extractAppBundleRoot(relativePath) {
 function readFileMtimeMs(filePath) {
   try {
     return Math.trunc(fs.statSync(filePath).mtimeMs);
+  } catch {
+    return null;
+  }
+}
+
+function readFileSize(filePath) {
+  try {
+    return fs.statSync(filePath).size;
   } catch {
     return null;
   }

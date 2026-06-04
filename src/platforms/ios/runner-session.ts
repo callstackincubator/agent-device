@@ -18,7 +18,7 @@ import {
 } from './runner-transport.ts';
 import {
   acquireXcodebuildSimulatorSetRedirect,
-  ensureXctestrun,
+  ensureXctestrunArtifact,
   IOS_RUNNER_CONTAINER_BUNDLE_IDS,
   prepareXctestrunWithEnv,
   resolveRunnerDestination,
@@ -41,6 +41,8 @@ export type RunnerSessionOptions = {
   cleanStaleBundles?: boolean;
   startupTimeoutMs?: number;
   requestId?: string;
+  buildTimeoutMs?: number;
+  forceRunnerXctestrunRebuild?: boolean;
 };
 
 const runnerSessions = new Map<string, RunnerSession>();
@@ -111,11 +113,12 @@ export async function ensureRunnerSession(
         phase: 'ios_runner_startup_cleanup_stale_bundles_skipped',
       });
     }
-    const xctestrun = await measureRunnerStartupStep(
+    const xctestrunArtifact = await measureRunnerStartupStep(
       startupTimings,
       'ensure_xctestrun',
-      async () => await ensureXctestrun(device, options),
+      async () => await ensureXctestrunArtifact(device, options),
     );
+    startupTimings.build_xctestrun = xctestrunArtifact.buildMs;
     const port = await measureRunnerStartupStep(
       startupTimings,
       'allocate_port',
@@ -126,7 +129,7 @@ export async function ensureRunnerSession(
       'prepare_xctestrun_env',
       async () =>
         await prepareXctestrunWithEnv(
-          xctestrun,
+          xctestrunArtifact.xctestrunPath,
           { AGENT_DEVICE_RUNNER_PORT: String(port) },
           `session-${device.id}-${port}`,
         ),
@@ -188,6 +191,7 @@ export async function ensureRunnerSession(
       deviceId: device.id,
       port,
       xctestrunPath,
+      xctestrunArtifact,
       jsonPath,
       testPromise,
       child,

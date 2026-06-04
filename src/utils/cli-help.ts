@@ -122,7 +122,7 @@ Bootstrap:
   agent-device prepare ios-runner --platform ios --timeout 240000
   If app id is unknown, plan devices, apps, then open <discovered-app-id>. Discovery is not enough when the task asks to open/start the app.
   Install arguments are app/package id then artifact path. If the task says install, use install; use reinstall only when explicitly requested. Fresh runtime state is open --relaunch after install.
-  In iOS CI, run prepare ios-runner after boot/install and before replay/test. prepare ios-runner builds/reuses the XCTest runner and proves it can answer a lightweight command before the first snapshot pays that setup cost.
+  In Apple CI, run prepare ios-runner after boot/install and before replay/test. prepare ios-runner builds/reuses the XCTest runner and proves it can answer a lightweight command before the first snapshot pays that setup cost.
   Do not open artifact paths or invent package ids. If apps lookup misses the target and no URL/artifact is provided, ask or stop.
 
 Snapshots and refs:

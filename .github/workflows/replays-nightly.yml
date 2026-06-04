@@ -69,7 +69,7 @@ jobs:
           build-command: sh ./scripts/build-xcuitest-apple.sh
           xcuitest-platform: ios
           xcuitest-destination: generic/platform=iOS Simulator
-          clean-derived: "1"
+          build-on-miss: "false"
 
       - name: Boot iOS test simulator
         uses: ./.github/actions/boot-ios-test-simulator
@@ -80,7 +80,7 @@ jobs:
       - name: Prepare iOS runner
         run: |
           pnpm clean:daemon
-          node --experimental-strip-types src/bin.ts prepare ios-runner --platform ios --timeout 240000
+          node --experimental-strip-types src/bin.ts prepare ios-runner --platform ios --timeout 300000 --json
 
       - name: Run iOS simulator replay suite
         run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator --retries 2 --report-junit test/artifacts/replays-ios-simulator.junit.xml

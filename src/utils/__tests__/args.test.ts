@@ -905,7 +905,7 @@ test('usage includes concise top-level commands', () => {
     usageText,
     /install-from-source <url> \| install-from-source --github-actions-artifact/,
   );
-  assert.match(usageText, /prepare ios-runner --platform ios/);
+  assert.match(usageText, /prepare ios-runner --platform ios\|macos/);
   assert.match(usageText, /metro prepare --public-base-url <url>/);
   assert.match(usageText, /batch --steps <json> \| --steps-file <path>/);
   assert.match(usageText, /network dump/);
@@ -1039,7 +1039,7 @@ test('usageForCommand includes Maestro test suite flag', () => {
 test('usageForCommand documents prepare ios-runner', () => {
   const help = usageForCommand('prepare');
   if (help === null) throw new Error('Expected prepare help text');
-  assert.match(help, /Usage:\s+agent-device prepare ios-runner --platform ios/);
+  assert.match(help, /Usage:\s+agent-device prepare ios-runner --platform ios\|macos/);
   assert.match(help, /Prepare platform helper infrastructure/);
   assert.match(help, /--timeout <ms>/);
   assert.match(help, /XCTest runner/);
@@ -1461,7 +1461,7 @@ test('usage includes swipe and press series options', () => {
 test('usage renders concise commands inline with descriptions', () => {
   const help = usage();
   assert.match(help, /Commands:[\s\S]*\n  boot\s{2,}Boot target device\/simulator/);
-  assert.match(help, /  prepare ios-runner --platform ios\s{2,}Prepare platform helpers/);
+  assert.match(help, /  prepare ios-runner --platform ios\|macos\s{2,}Prepare platform helpers/);
   assert.match(
     help,
     /  metro prepare --public-base-url <url> \| --proxy-base-url <url>; metro reload\s{2,}Prepare Metro or reload apps/,

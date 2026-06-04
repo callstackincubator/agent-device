@@ -27,6 +27,10 @@ inputs:
     description: "Optional AGENT_DEVICE_IOS_CLEAN_DERIVED value"
     required: false
     default: ""
+  build-on-miss:
+    description: "Whether this setup action should build replay artifacts on cache miss"
+    required: false
+    default: "true"
 
 outputs:
   agent-home-dir:
@@ -68,7 +72,7 @@ runs:
       shell: bash
 
     - name: Build replay artifacts
-      if: steps.restore-prebuilt.outputs.cache-hit != 'true'
+      if: inputs.build-on-miss == 'true' && steps.restore-prebuilt.outputs.cache-hit != 'true'
       run: ${{ inputs.build-command }}
       shell: bash
       env:

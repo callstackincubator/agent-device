@@ -7,9 +7,12 @@ import {
 } from '../../command-catalog.ts';
 import { resolvePayloadInput } from '../../utils/payload-input.ts';
 import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
-import { runIosRunnerCommand } from '../../platforms/ios/runner-client.ts';
+import {
+  prepareIosRunner,
+  type PrepareIosRunnerResult,
+} from '../../platforms/ios/runner-client.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { normalizePlatformSelector } from '../../utils/device.ts';
+import { isApplePlatform, normalizePlatformSelector } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
@@ -42,6 +45,8 @@ const STATE_COMMANDS = DAEMON_COMMAND_GROUPS.state;
 const OBSERVABILITY_COMMANDS = DAEMON_COMMAND_GROUPS.observability;
 const REPLAY_COMMANDS = DAEMON_COMMAND_GROUPS.replay;
 const PREPARE_IOS_RUNNER_MIN_STARTUP_TIMEOUT_MS = 45_000;
+const PREPARE_IOS_RUNNER_DEFAULT_BUILD_TIMEOUT_MS = 5 * 60_000;
+const PREPARE_IOS_RUNNER_HEALTH_TIMEOUT_MS = 90_000;
 
 export const SESSION_COMMAND_HANDLERS = {
   ...Object.fromEntries([...INVENTORY_COMMANDS].map((command) => [command, true] as const)),
@@ -85,14 +90,16 @@ async function handlePrepareCommand(params: {
     flags,
     ensureReady: true,
   });
-  if (device.platform !== 'ios') {
-    return errorResponse('UNSUPPORTED_OPERATION', 'prepare ios-runner is only supported on iOS');
+  if (!isApplePlatform(device.platform)) {
+    return errorResponse(
+      'UNSUPPORTED_OPERATION',
+      'prepare ios-runner is only supported on Apple runner platforms',
+    );
   }
 
   const startedAtMs = Date.now();
-  const result = await runIosRunnerCommand(
+  const result = await prepareIosRunner(
     device,
-    { command: 'uptime' },
     buildPrepareIosRunnerOptions(req, session, logPath),
   );
   const durationMs = Math.max(0, Date.now() - startedAtMs);
@@ -106,7 +113,8 @@ function buildPrepareIosRunnerOptions(
   req: DaemonRequest,
   session: SessionState | undefined,
   logPath: string,
-): Parameters<typeof runIosRunnerCommand>[2] {
+): Parameters<typeof prepareIosRunner>[1] {
+  const buildTimeoutMs = readPrepareIosRunnerBuildTimeoutMs(req);
   return {
     verbose: req.flags?.verbose,
     logPath,
@@ -114,6 +122,8 @@ function buildPrepareIosRunnerOptions(
     cleanStaleBundles: true,
     startupTimeoutMs: resolvePrepareIosRunnerStartupTimeoutMs(req.flags?.timeoutMs),
     requestId: req.meta?.requestId,
+    buildTimeoutMs,
+    healthTimeoutMs: Math.min(buildTimeoutMs, PREPARE_IOS_RUNNER_HEALTH_TIMEOUT_MS),
   };
 }
 
@@ -124,11 +134,18 @@ function resolvePrepareIosRunnerStartupTimeoutMs(timeoutMs: unknown): number | u
   return Math.max(PREPARE_IOS_RUNNER_MIN_STARTUP_TIMEOUT_MS, Math.floor(timeoutMs));
 }
 
+function readPrepareIosRunnerBuildTimeoutMs(req: DaemonRequest): number {
+  const value = req.flags?.timeoutMs;
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : PREPARE_IOS_RUNNER_DEFAULT_BUILD_TIMEOUT_MS;
+}
+
 function prepareIosRunnerResponseData(
   action: string,
   device: DeviceInfo,
   durationMs: number,
-  runner: Awaited<ReturnType<typeof runIosRunnerCommand>>,
+  result: PrepareIosRunnerResult,
 ): Record<string, unknown> {
   return {
     action,
@@ -137,8 +154,8 @@ function prepareIosRunnerResponseData(
     deviceName: device.name,
     kind: device.kind,
     durationMs,
-    runner,
-    message: `Prepared iOS runner: ${device.name}`,
+    ...result,
+    message: `Prepared Apple runner: ${device.name}`,
   };
 }
 
