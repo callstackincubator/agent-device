@@ -120,16 +120,14 @@ export async function swipeGestureAndroid(
   device: DeviceInfo,
   options: AndroidSwipeGestureOptions,
 ): Promise<Record<string, unknown> | void> {
-  const providerTouch = resolveAndroidTouchInjector(device);
-  if (providerTouch) {
-    return {
-      backend: 'provider-native-touch',
-      ...((await providerTouch({ kind: 'swipe', ...options })) ?? {}),
-    };
-  }
+  const providerResult = await runAndroidTouchProviderGesture(device, {
+    kind: 'swipe',
+    ...options,
+  });
+  if (providerResult) return providerResult;
 
   try {
-    return await runAndroidMultiTouchGesture(device, { kind: 'swipe', ...options });
+    return await runAndroidMultiTouchHelperGestureForDevice(device, { kind: 'swipe', ...options });
   } catch (error) {
     emitDiagnostic({
       level: 'warn',
@@ -151,7 +149,7 @@ export async function pinchAndroid(
     throw new AppError('INVALID_ARGS', 'gesture pinch requires scale > 0');
   }
   const center = await resolveGestureCenter(device, options.x, options.y);
-  return await runAndroidMultiTouchGesture(device, {
+  return await performAndroidTouchGesture(device, {
     kind: 'pinch',
     x: center.x,
     y: center.y,
@@ -175,7 +173,7 @@ export async function rotateGestureAndroid(
   }
   const center = await resolveGestureCenter(device, options.x, options.y);
   const degrees = options.degrees;
-  return await runAndroidMultiTouchGesture(device, {
+  return await performAndroidTouchGesture(device, {
     kind: 'rotate',
     x: center.x,
     y: center.y,
@@ -197,7 +195,7 @@ export async function transformGestureAndroid(
   if (![options.x, options.y, options.dx, options.dy].every(Number.isFinite)) {
     throw new AppError('INVALID_ARGS', 'gesture transform requires finite x y dx dy');
   }
-  return await runAndroidMultiTouchGesture(device, {
+  return await performAndroidTouchGesture(device, {
     kind: 'transform',
     x: options.x,
     y: options.y,
@@ -219,16 +217,30 @@ async function resolveGestureCenter(
   return { x: Math.round(size.width / 2), y: Math.round(size.height / 2) };
 }
 
-async function runAndroidMultiTouchGesture(
+async function performAndroidTouchGesture(
   device: DeviceInfo,
   request: AndroidTouchGestureRequest,
 ): Promise<Record<string, unknown>> {
-  const providerTouch = resolveAndroidTouchInjector(device);
-  if (providerTouch) {
-    const result = (await providerTouch(request)) ?? {};
-    return { backend: 'provider-native-touch', ...result };
-  }
+  const providerResult = await runAndroidTouchProviderGesture(device, request);
+  if (providerResult) return providerResult;
 
+  return await runAndroidMultiTouchHelperGestureForDevice(device, request);
+}
+
+async function runAndroidTouchProviderGesture(
+  device: DeviceInfo,
+  request: AndroidTouchGestureRequest,
+): Promise<Record<string, unknown> | undefined> {
+  const providerTouch = resolveAndroidTouchInjector(device);
+  if (!providerTouch) return undefined;
+  const result = (await providerTouch(request)) ?? {};
+  return { backend: 'provider-native-touch', ...result };
+}
+
+async function runAndroidMultiTouchHelperGestureForDevice(
+  device: DeviceInfo,
+  request: AndroidTouchGestureRequest,
+): Promise<Record<string, unknown>> {
   const adb = resolveAndroidAdbExecutor(device);
   const artifact = await resolveAndroidMultiTouchHelperArtifact();
   const adbProvider = resolveAndroidAdbProvider(device);

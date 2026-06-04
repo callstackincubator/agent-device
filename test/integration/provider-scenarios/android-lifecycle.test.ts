@@ -85,6 +85,13 @@ test('Provider-backed integration Android touch provider handles multi-touch ges
       const client = world.daemon.client();
       await client.apps.open({ app: 'settings', ...world.selection });
 
+      await client.interactions.swipe({
+        from: { x: 340, y: 400 },
+        to: { x: 60, y: 400 },
+        durationMs: 300,
+        ...world.selection,
+      });
+
       const pinch = await client.interactions.pinch({
         scale: 2,
         x: 195,
@@ -118,6 +125,7 @@ test('Provider-backed integration Android touch provider handles multi-touch ges
       assert.equal(transform.backend, 'provider-native-touch');
 
       assert.deepEqual(world.touchInjectionCalls, [
+        { kind: 'swipe', x1: 340, y1: 400, x2: 60, y2: 400, durationMs: 300 },
         { kind: 'pinch', x: 195, y: 320, scale: 2, durationMs: undefined },
         { kind: 'rotate', x: 195, y: 320, degrees: 145, durationMs: undefined },
         {
