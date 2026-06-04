@@ -126,11 +126,10 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   clipboard: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
-    harmonyos: HARMONYOS_DEVICE,
+    harmonyos: {},
     linux: LINUX_DEVICE,
     supports: (device) =>
       device.platform === 'android' ||
-      device.platform === 'harmonyos' ||
       device.platform === 'linux' ||
       device.platform === 'macos' ||
       device.kind === 'simulator',
