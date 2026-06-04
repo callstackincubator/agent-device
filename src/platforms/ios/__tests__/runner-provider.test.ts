@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { IOS_SIMULATOR } from '../../../__tests__/test-utils/index.ts';
 import {
-  hasScopedAppleRunnerProvider,
   resolveAppleRunnerProvider,
   withAppleRunnerProvider,
   type AppleRunnerProvider,
@@ -45,24 +44,6 @@ test('scoped Apple runner provider requires matching request id when scoped by r
   );
   assert.equal(differentRequestId.source, 'fallback');
   assert.deepEqual(calls, ['scoped', 'fallback', 'fallback']);
-});
-
-test('scoped Apple runner provider detection follows request scoping', async () => {
-  const scoped = runnerProvider('scoped', []);
-
-  await withAppleRunnerProvider(
-    scoped,
-    { deviceId: IOS_SIMULATOR.id, requestId: 'req-1' },
-    async () => {
-      assert.equal(hasScopedAppleRunnerProvider(IOS_SIMULATOR, { requestId: 'req-1' }), true);
-      assert.equal(hasScopedAppleRunnerProvider(IOS_SIMULATOR), false);
-      assert.equal(hasScopedAppleRunnerProvider(IOS_SIMULATOR, { requestId: 'req-2' }), false);
-      assert.equal(
-        hasScopedAppleRunnerProvider({ ...IOS_SIMULATOR, id: 'other-sim' }, { requestId: 'req-1' }),
-        false,
-      );
-    },
-  );
 });
 
 function runnerProvider(source: string, calls: string[]): AppleRunnerProvider {

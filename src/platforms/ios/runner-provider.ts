@@ -101,13 +101,6 @@ export function resolveAppleRunnerProvider(
     : normalizeAppleRunnerProvider(fallback);
 }
 
-export function hasScopedAppleRunnerProvider(
-  device: DeviceInfo,
-  options: { requestId?: string } = {},
-): boolean {
-  return resolveScopedAppleRunnerProvider(device, options) !== undefined;
-}
-
 function resolveScopedAppleRunnerProvider(
   device: DeviceInfo,
   options: { requestId?: string } = {},
