@@ -2159,12 +2159,59 @@ test('prepare ios-runner starts the XCTest runner on an explicit iOS selector', 
     connectMs: 3,
     healthCheckMs: 3,
     runner: { currentUptimeMs: 42 },
-    message: 'Prepared iOS runner: iPhone 17 Pro',
+    message: 'Prepared Apple runner: iPhone 17 Pro',
   });
   expect(sessionStore.get(sessionName)).toBeUndefined();
 });
 
-test('prepare ios-runner rejects non-iOS devices', async () => {
+test('prepare ios-runner starts the XCTest runner on an explicit macOS selector', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'prepare-macos-runner';
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'macos',
+    id: 'host-macos-local',
+    name: 'Host Mac',
+    kind: 'device',
+    target: 'desktop',
+    booted: true,
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'prepare',
+      positionals: ['ios-runner'],
+      flags: { platform: 'macos', timeoutMs: 240000 },
+      meta: { requestId: 'prepare-macos-request' },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(mockPrepareIosRunner).toHaveBeenCalledWith(
+    expect.objectContaining({ platform: 'macos', id: 'host-macos-local' }),
+    expect.objectContaining({
+      buildTimeoutMs: 240000,
+      healthTimeoutMs: 90000,
+      requestId: 'prepare-macos-request',
+    }),
+  );
+  expect((response as any).data).toMatchObject({
+    action: 'ios-runner',
+    platform: 'macos',
+    deviceId: 'host-macos-local',
+    deviceName: 'Host Mac',
+    kind: 'device',
+    message: 'Prepared Apple runner: Host Mac',
+  });
+});
+
+test('prepare ios-runner rejects non-Apple runner devices', async () => {
   const sessionStore = makeSessionStore();
   mockResolveTargetDevice.mockResolvedValue({
     platform: 'android',
@@ -2192,7 +2239,9 @@ test('prepare ios-runner rejects non-iOS devices', async () => {
   expect(response?.ok).toBe(false);
   if (response && !response.ok) {
     expect(response.error.code).toBe('UNSUPPORTED_OPERATION');
-    expect(response.error.message).toBe('prepare ios-runner is only supported on iOS');
+    expect(response.error.message).toBe(
+      'prepare ios-runner is only supported on Apple runner platforms',
+    );
   }
   expect(mockPrepareIosRunner).not.toHaveBeenCalled();
 });

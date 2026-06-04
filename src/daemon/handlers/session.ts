@@ -12,7 +12,7 @@ import {
   type PrepareIosRunnerResult,
 } from '../../platforms/ios/runner-client.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { normalizePlatformSelector } from '../../utils/device.ts';
+import { isApplePlatform, normalizePlatformSelector } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
@@ -90,8 +90,11 @@ async function handlePrepareCommand(params: {
     flags,
     ensureReady: true,
   });
-  if (device.platform !== 'ios') {
-    return errorResponse('UNSUPPORTED_OPERATION', 'prepare ios-runner is only supported on iOS');
+  if (!isApplePlatform(device.platform)) {
+    return errorResponse(
+      'UNSUPPORTED_OPERATION',
+      'prepare ios-runner is only supported on Apple runner platforms',
+    );
   }
 
   const startedAtMs = Date.now();
@@ -152,7 +155,7 @@ function prepareIosRunnerResponseData(
     kind: device.kind,
     durationMs,
     ...result,
-    message: `Prepared iOS runner: ${device.name}`,
+    message: `Prepared Apple runner: ${device.name}`,
   };
 }
 

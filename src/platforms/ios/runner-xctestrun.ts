@@ -40,6 +40,76 @@ const RUNNER_XCTESTRUN_CAPTURE_OPTIONS = {
   UserAttachmentLifetime: 'keepNever',
 } as const;
 
+type RunnerApplePlatformName = 'iOS' | 'tvOS' | 'macOS';
+type RunnerPlatformProfile = {
+  sdkName: Record<'simulator' | 'device', string>;
+  derivedBaseName: Record<'simulator' | 'device', string>;
+  xctestrunHints: Record<'simulator' | 'device', { preferred: string[]; disallowed: string[] }>;
+};
+
+const RUNNER_PLATFORM_PROFILES: Record<RunnerApplePlatformName, RunnerPlatformProfile> = {
+  iOS: {
+    sdkName: {
+      simulator: 'iphonesimulator',
+      device: 'iphoneos',
+    },
+    derivedBaseName: {
+      simulator: 'ios-simulator',
+      device: 'ios-device',
+    },
+    xctestrunHints: {
+      simulator: {
+        preferred: ['iphonesimulator'],
+        disallowed: ['iphoneos', 'appletvos', 'appletvsimulator', 'macos'],
+      },
+      device: {
+        preferred: ['iphoneos'],
+        disallowed: ['iphonesimulator', 'appletvos', 'appletvsimulator', 'macos'],
+      },
+    },
+  },
+  tvOS: {
+    sdkName: {
+      simulator: 'appletvsimulator',
+      device: 'appletvos',
+    },
+    derivedBaseName: {
+      simulator: 'tvos-simulator',
+      device: 'tvos-device',
+    },
+    xctestrunHints: {
+      simulator: {
+        preferred: ['appletvsimulator'],
+        disallowed: ['appletvos', 'iphoneos', 'iphonesimulator', 'macos'],
+      },
+      device: {
+        preferred: ['appletvos'],
+        disallowed: ['appletvsimulator', 'iphoneos', 'iphonesimulator', 'macos'],
+      },
+    },
+  },
+  macOS: {
+    sdkName: {
+      simulator: 'macosx',
+      device: 'macosx',
+    },
+    derivedBaseName: {
+      simulator: 'macos',
+      device: 'macos',
+    },
+    xctestrunHints: {
+      simulator: {
+        preferred: ['macos'],
+        disallowed: ['iphoneos', 'iphonesimulator', 'appletvos', 'appletvsimulator'],
+      },
+      device: {
+        preferred: ['macos'],
+        disallowed: ['iphoneos', 'iphonesimulator', 'appletvos', 'appletvsimulator'],
+      },
+    },
+  },
+};
+
 const runnerXctestrunBuildLocks = new Map<string, Promise<unknown>>();
 const badRunnerArtifactsForRun = new Set<string>();
 const appleToolFingerprintCache = new Map<string, string>();
@@ -826,14 +896,10 @@ function resolveRunnerToolchainFingerprint(
 }
 
 function resolveRunnerSdkName(
-  platformName: 'iOS' | 'tvOS' | 'macOS',
+  platformName: RunnerApplePlatformName,
   deviceKind: DeviceInfo['kind'],
 ): string {
-  if (platformName === 'macOS') return 'macosx';
-  if (platformName === 'tvOS') {
-    return deviceKind === 'simulator' ? 'appletvsimulator' : 'appletvos';
-  }
-  return deviceKind === 'simulator' ? 'iphonesimulator' : 'iphoneos';
+  return RUNNER_PLATFORM_PROFILES[platformName].sdkName[runnerPlatformDeviceKind(deviceKind)];
 }
 
 function runAppleToolFingerprintCommand(cmd: string, args: string[]): string {
@@ -1215,37 +1281,7 @@ function resolveRunnerXctestrunHints(device: DeviceInfo): {
   preferred: string[];
   disallowed: string[];
 } {
-  if (device.platform === 'macos') {
-    return {
-      preferred: ['macos'],
-      disallowed: ['iphoneos', 'iphonesimulator', 'appletvos', 'appletvsimulator'],
-    };
-  }
-
-  if (device.target === 'tv') {
-    if (device.kind === 'simulator') {
-      return {
-        preferred: ['appletvsimulator'],
-        disallowed: ['appletvos', 'iphoneos', 'iphonesimulator', 'macos'],
-      };
-    }
-    return {
-      preferred: ['appletvos'],
-      disallowed: ['appletvsimulator', 'iphoneos', 'iphonesimulator', 'macos'],
-    };
-  }
-
-  if (device.kind === 'simulator') {
-    return {
-      preferred: ['iphonesimulator'],
-      disallowed: ['iphoneos', 'appletvos', 'appletvsimulator', 'macos'],
-    };
-  }
-
-  return {
-    preferred: ['iphoneos'],
-    disallowed: ['iphonesimulator', 'appletvos', 'appletvsimulator', 'macos'],
-  };
+  return resolveRunnerPlatformProfile(device).xctestrunHints[runnerPlatformDeviceKind(device.kind)];
 }
 
 export function xctestrunReferencesProjectRoot(
@@ -1486,20 +1522,12 @@ export function resolveRunnerDerivedPath(
 }
 
 function resolveRunnerDerivedBasePath(device: DeviceInfo): string {
-  if (device.platform === 'macos') {
-    return path.join(RUNNER_DERIVED_ROOT, 'derived', 'macos');
-  }
-  if (device.target === 'tv') {
-    return path.join(
-      RUNNER_DERIVED_ROOT,
-      'derived',
-      device.kind === 'simulator' ? 'tvos-simulator' : 'tvos-device',
-    );
-  }
-  if (device.kind === 'simulator') {
-    return path.join(RUNNER_DERIVED_ROOT, 'derived', 'ios-simulator');
-  }
-  return path.join(RUNNER_DERIVED_ROOT, 'derived', 'ios-device');
+  const profile = resolveRunnerPlatformProfile(device);
+  return path.join(
+    RUNNER_DERIVED_ROOT,
+    'derived',
+    profile.derivedBaseName[runnerPlatformDeviceKind(device.kind)],
+  );
 }
 
 export function resolveRunnerDestination(device: DeviceInfo): string {
@@ -1535,7 +1563,7 @@ function resolveRunnerBuildDestinationFamily(device: DeviceInfo): string {
   return `generic/platform=${platformName}`;
 }
 
-function resolveRunnerPlatformName(device: DeviceInfo): 'iOS' | 'tvOS' | 'macOS' {
+function resolveRunnerPlatformName(device: DeviceInfo): RunnerApplePlatformName {
   if (device.platform !== 'ios' && device.platform !== 'macos') {
     throw new AppError(
       'UNSUPPORTED_PLATFORM',
@@ -1546,6 +1574,14 @@ function resolveRunnerPlatformName(device: DeviceInfo): 'iOS' | 'tvOS' | 'macOS'
     return 'macOS';
   }
   return resolveApplePlatformName(device.target);
+}
+
+function resolveRunnerPlatformProfile(device: DeviceInfo): RunnerPlatformProfile {
+  return RUNNER_PLATFORM_PROFILES[resolveRunnerPlatformName(device)];
+}
+
+function runnerPlatformDeviceKind(deviceKind: DeviceInfo['kind']): 'simulator' | 'device' {
+  return deviceKind === 'simulator' ? 'simulator' : 'device';
 }
 
 function resolveMacRunnerArch(): 'arm64' | 'x86_64' {

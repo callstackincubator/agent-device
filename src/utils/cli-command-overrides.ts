@@ -66,10 +66,10 @@ const CLI_COMMAND_OVERRIDES = {
     allowedFlags: ['headless'],
   },
   prepare: {
-    usageOverride: 'prepare ios-runner --platform ios [--timeout <ms>]',
-    listUsageOverride: 'prepare ios-runner --platform ios',
+    usageOverride: 'prepare ios-runner --platform ios|macos [--timeout <ms>]',
+    listUsageOverride: 'prepare ios-runner --platform ios|macos',
     helpDescription:
-      'Prepare platform helper infrastructure. ios-runner builds/reuses and starts the XCTest runner so later iOS snapshots and interactions do not pay first-use startup cost.',
+      'Prepare platform helper infrastructure. ios-runner builds/reuses and starts the XCTest runner so later Apple snapshots and interactions do not pay first-use startup cost.',
     summary: 'Prepare platform helpers',
     positionalArgs: ['ios-runner'],
     allowedFlags: ['timeoutMs'],

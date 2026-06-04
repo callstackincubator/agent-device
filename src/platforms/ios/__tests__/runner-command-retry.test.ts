@@ -10,14 +10,12 @@ const {
   mockEmitDiagnostic,
   mockInvalidateRunnerSession,
   mockMarkRunnerXctestrunArtifactBadForRun,
-  mockStopRunnerSession,
 } = vi.hoisted(() => ({
   mockEnsureRunnerSession: vi.fn(),
   mockExecuteRunnerCommandWithSession: vi.fn(),
   mockEmitDiagnostic: vi.fn(),
   mockInvalidateRunnerSession: vi.fn(),
   mockMarkRunnerXctestrunArtifactBadForRun: vi.fn(),
-  mockStopRunnerSession: vi.fn(),
 }));
 
 vi.mock('../../../utils/diagnostics.ts', async () => {
@@ -38,7 +36,6 @@ vi.mock('../runner-session.ts', async () => {
     ensureRunnerSession: mockEnsureRunnerSession,
     executeRunnerCommandWithSession: mockExecuteRunnerCommandWithSession,
     invalidateRunnerSession: mockInvalidateRunnerSession,
-    stopRunnerSession: mockStopRunnerSession,
   };
 });
 
@@ -129,6 +126,16 @@ test('prepareIosRunner marks a bad restored artifact and rebuilds once after hea
       ([event]) => event.phase === 'ios_runner_prepare_bad_cache_recovered',
     ),
   );
+  assert.ok(
+    mockEmitDiagnostic.mock.calls.some(
+      ([event]) =>
+        event.phase === 'apple_runner_prepare' &&
+        event.data?.cache === 'miss' &&
+        event.data?.artifact === 'rebuilt' &&
+        event.data?.xctestrunPath === '/tmp/rebuilt.xctestrun' &&
+        event.data?.failureReason === 'Runner did not accept connection',
+    ),
+  );
 });
 
 test('prepareIosRunner invalidates rebuilt sessions when bad-cache recovery health fails', async () => {
@@ -201,7 +208,6 @@ test('mutating commands restart stale ready sessions when the preflight probe ne
     staleSession,
     'runner_connect_failed_before_command_send',
   ]);
-  assert.equal(mockStopRunnerSession.mock.calls.length, 0);
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[0]?.[2].command, 'tap');
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[1]?.[1], freshSession);
@@ -225,7 +231,6 @@ test('mutating commands retry startup sessions with stale bundle cleanup', async
     startupSession,
     'runner_connect_failed_before_command_send',
   ]);
-  assert.equal(mockStopRunnerSession.mock.calls.length, 0);
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[1]?.[1], freshSession);
 });
@@ -320,7 +325,6 @@ test('mutating commands do not restart or replay after command send failure', as
     session,
     'transport_error_after_command_send',
   ]);
-  assert.equal(mockStopRunnerSession.mock.calls.length, 0);
   assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
   assertDiagnosticDecision({
     decision: 'retained',

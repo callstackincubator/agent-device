@@ -8,7 +8,6 @@ import {
   type RunnerSession,
   ensureRunnerSession,
   invalidateRunnerSession,
-  stopIosRunnerSession,
   executeRunnerCommandWithSession,
   readRunnerStartupTimeoutMs,
 } from './runner-session.ts';
@@ -53,7 +52,10 @@ export async function prepareLocalIosRunner(
     const connectStartedAt = Date.now();
     session = await ensureRunnerSession(device, options);
     const connectMs = Date.now() - connectStartedAt;
-    return await runPrepareHealthCheck(device, session, command, options, signal, connectMs);
+    return recordPrepareResult(
+      device,
+      await runPrepareHealthCheck(device, session, command, options, signal, connectMs),
+    );
   } catch (err) {
     const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
     if (!session || !shouldRecoverBadCachedRunnerArtifact(appErr, session)) {
@@ -90,10 +92,20 @@ export async function prepareLocalIosRunner(
           reason,
         },
       });
-      return recovered;
+      return recordPrepareResult(device, recovered);
     } catch (retryErr) {
       await invalidateRunnerSession(rebuiltSession, 'prepare_rebuilt_runner_health_failed');
-      throw wrapPrepareHealthFailure(retryErr, rebuiltSession, reason);
+      const wrapped = wrapPrepareHealthFailure(retryErr, rebuiltSession, reason);
+      emitPrepareDiagnostic(device, {
+        cache: rebuiltSession.xctestrunArtifact?.cache,
+        artifact: rebuiltSession.xctestrunArtifact?.artifact,
+        buildMs: rebuiltSession.xctestrunArtifact?.buildMs,
+        connectMs,
+        healthCheckMs: 0,
+        xctestrunPath: rebuiltSession.xctestrunArtifact?.xctestrunPath,
+        failureReason: wrapped.message,
+      });
+      throw wrapped;
     }
   }
 }
@@ -130,86 +142,26 @@ export async function executeRunnerCommand(
       session
     ) {
       assertRunnerRequestActive(options.requestId);
-      await invalidateRunnerSession(session, 'runner_connect_failed_before_command_send');
-      session = await ensureRunnerSession(device, { ...options, cleanStaleBundles: true });
-      try {
-        return await executeRunnerCommandWithSession(
-          device,
-          session,
-          command,
-          options.logPath,
-          RUNNER_STARTUP_TIMEOUT_MS,
-          signal,
-        );
-      } catch (retryErr) {
-        const retryAppErr =
-          retryErr instanceof AppError
-            ? retryErr
-            : new AppError('COMMAND_FAILED', String(retryErr));
-        if (isRetryableRunnerError(retryAppErr)) {
-          return await handleRunnerTransportErrorAfterCommandSend({
-            device,
-            session,
-            command,
-            transportError: retryAppErr,
-            options,
-            signal,
-            invalidationReason: 'transport_error_after_retry_command_send',
-            invalidateSession: invalidateRunnerSession,
-          });
-        }
-        throw retryErr;
-      }
+      return await restartSessionAndRunCommand({
+        device,
+        session,
+        command,
+        options,
+        signal,
+        restartReason: 'runner_connect_failed_before_command_send',
+      });
     }
     if (session && shouldRestartAfterReadinessPreflightError(appErr)) {
       assertRunnerRequestActive(options.requestId);
-      await invalidateRunnerSession(
+      return await restartSessionAndRunCommand({
+        device,
         session,
-        'runner_readiness_preflight_failed_before_command_send',
-      );
-      session = await ensureRunnerSession(device, { ...options, cleanStaleBundles: true });
-      try {
-        const recovered = await executeRunnerCommandWithSession(
-          device,
-          session,
-          command,
-          options.logPath,
-          RUNNER_STARTUP_TIMEOUT_MS,
-          signal,
-        );
-        emitDiagnostic({
-          level: 'debug',
-          phase: 'ios_runner_readiness_preflight_recovered',
-          data: {
-            command: command.command,
-            commandId: command.commandId,
-            recovery: 'session_restarted',
-            sessionId: session.sessionId,
-          },
-        });
-        return recovered;
-      } catch (retryErr) {
-        const retryAppErr =
-          retryErr instanceof AppError
-            ? retryErr
-            : new AppError('COMMAND_FAILED', String(retryErr));
-        if (isRetryableRunnerError(retryAppErr)) {
-          return await handleRunnerTransportErrorAfterCommandSend({
-            device,
-            session,
-            command,
-            transportError: retryAppErr,
-            options,
-            signal,
-            invalidationReason: 'transport_error_after_retry_command_send',
-            invalidateSession: invalidateRunnerSession,
-          });
-        }
-        throw retryErr;
-      }
-    }
-    if (!session && appErr.message.includes('Runner did not accept connection')) {
-      await stopIosRunnerSession(device.id);
+        command,
+        options,
+        signal,
+        restartReason: 'runner_readiness_preflight_failed_before_command_send',
+        recoveredDiagnosticPhase: 'ios_runner_readiness_preflight_recovered',
+      });
     }
     if (session && isRetryableRunnerError(appErr)) {
       return await handleRunnerTransportErrorAfterCommandSend({
@@ -224,6 +176,64 @@ export async function executeRunnerCommand(
       });
     }
     throw err;
+  }
+}
+
+async function restartSessionAndRunCommand(params: {
+  device: DeviceInfo;
+  session: RunnerSession;
+  command: RunnerCommand;
+  options: AppleRunnerCommandOptions;
+  signal: AbortSignal | undefined;
+  restartReason:
+    | 'runner_connect_failed_before_command_send'
+    | 'runner_readiness_preflight_failed_before_command_send';
+  recoveredDiagnosticPhase?: string;
+}): Promise<Record<string, unknown>> {
+  const { device, command, options, signal, restartReason } = params;
+  await invalidateRunnerSession(params.session, restartReason);
+  const restartedSession = await ensureRunnerSession(device, {
+    ...options,
+    cleanStaleBundles: true,
+  });
+  try {
+    const recovered = await executeRunnerCommandWithSession(
+      device,
+      restartedSession,
+      command,
+      options.logPath,
+      RUNNER_STARTUP_TIMEOUT_MS,
+      signal,
+    );
+    if (params.recoveredDiagnosticPhase) {
+      emitDiagnostic({
+        level: 'debug',
+        phase: params.recoveredDiagnosticPhase,
+        data: {
+          command: command.command,
+          commandId: command.commandId,
+          recovery: 'session_restarted',
+          sessionId: restartedSession.sessionId,
+        },
+      });
+    }
+    return recovered;
+  } catch (retryErr) {
+    const retryAppErr =
+      retryErr instanceof AppError ? retryErr : new AppError('COMMAND_FAILED', String(retryErr));
+    if (isRetryableRunnerError(retryAppErr)) {
+      return await handleRunnerTransportErrorAfterCommandSend({
+        device,
+        session: restartedSession,
+        command,
+        transportError: retryAppErr,
+        options,
+        signal,
+        invalidationReason: 'transport_error_after_retry_command_send',
+        invalidateSession: invalidateRunnerSession,
+      });
+    }
+    throw retryErr;
   }
 }
 
@@ -323,6 +333,36 @@ function buildPrepareIosRunnerResult(
     xctestrunPath: artifact.xctestrunPath,
     ...(failureReason ? { failureReason } : {}),
   };
+}
+
+function recordPrepareResult(
+  device: DeviceInfo,
+  result: PrepareIosRunnerResult,
+): PrepareIosRunnerResult {
+  emitPrepareDiagnostic(device, result);
+  return result;
+}
+
+function emitPrepareDiagnostic(
+  device: DeviceInfo,
+  result: Omit<PrepareIosRunnerResult, 'runner'>,
+): void {
+  emitDiagnostic({
+    level: result.failureReason ? 'warn' : 'info',
+    phase: 'apple_runner_prepare',
+    data: {
+      platform: device.platform,
+      target: device.target,
+      deviceId: device.id,
+      cache: result.cache,
+      artifact: result.artifact,
+      buildMs: result.buildMs,
+      connectMs: result.connectMs,
+      healthCheckMs: result.healthCheckMs,
+      xctestrunPath: result.xctestrunPath,
+      failureReason: result.failureReason,
+    },
+  });
 }
 
 function isRunnerReadinessPreflightError(error: AppError): boolean {

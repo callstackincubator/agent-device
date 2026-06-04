@@ -754,6 +754,12 @@ test('resolveRunnerDerivedPath keys default cache by runner metadata', () => {
     target: 'tv',
     buildDestinationFamily: 'appletvsimulator',
   });
+  const macPath = resolveRunnerDerivedPath(macOsDevice, {
+    ...metadata,
+    platformName: 'macOS',
+    target: 'desktop',
+    buildDestinationFamily: 'macos',
+  });
   const staleVersionPath = resolveRunnerDerivedPath(iosSimulator, {
     ...metadata,
     packageVersion: '0.0.0-stale',
@@ -761,6 +767,7 @@ test('resolveRunnerDerivedPath keys default cache by runner metadata', () => {
 
   assert.match(iosPath, /\/ios-runner\/derived\/ios-simulator\/cache-[a-f0-9]{16}$/);
   assert.match(tvPath, /\/ios-runner\/derived\/tvos-simulator\/cache-[a-f0-9]{16}$/);
+  assert.match(macPath, /\/ios-runner\/derived\/macos\/cache-[a-f0-9]{16}$/);
   assert.notEqual(iosPath, staleVersionPath);
 });
 

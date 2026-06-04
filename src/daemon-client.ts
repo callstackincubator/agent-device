@@ -1159,11 +1159,11 @@ function resolveRequestTimeoutHint(params: {
   if (!resetDaemon) {
     const iosPrepareHint =
       command === PUBLIC_COMMANDS.snapshot
-        ? ' If this was the first iOS snapshot on the device, run agent-device prepare ios-runner --platform ios before snapshot/test so runner startup is handled explicitly.'
+        ? ' If this was the first Apple-platform snapshot on the device, run agent-device prepare ios-runner with the same --platform before snapshot/test so runner startup is handled explicitly.'
         : '';
-    return `Retry with --debug and check daemon diagnostics logs. The timed-out ${command ?? 'request'} request was canceled and iOS runner work was aborted when detected; the daemon was kept alive so the session can still be closed or inspected.${iosPrepareHint}`;
+    return `Retry with --debug and check daemon diagnostics logs. The timed-out ${command ?? 'request'} request was canceled and Apple runner work was aborted when detected; the daemon was kept alive so the session can still be closed or inspected.${iosPrepareHint}`;
   }
-  return 'Retry with --debug and check daemon diagnostics logs. Timed-out iOS runner xcodebuild processes were terminated when detected.';
+  return 'Retry with --debug and check daemon diagnostics logs. Timed-out Apple runner xcodebuild processes were terminated when detected.';
 }
 
 function handleTransportError(
