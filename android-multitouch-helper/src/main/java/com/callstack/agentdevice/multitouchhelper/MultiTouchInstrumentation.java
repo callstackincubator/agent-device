@@ -66,13 +66,18 @@ public final class MultiTouchInstrumentation extends Instrumentation {
       throw new IllegalArgumentException("Unsupported protocol: " + protocol);
     }
     String kind = payload.getString("kind");
-    if (!"pinch".equals(kind) && !"rotate".equals(kind) && !"transform".equals(kind)) {
+    if (!"swipe".equals(kind)
+        && !"pinch".equals(kind)
+        && !"rotate".equals(kind)
+        && !"transform".equals(kind)) {
       throw new IllegalArgumentException("Unsupported kind: " + kind);
     }
-    int x = payload.getInt("x");
-    int y = payload.getInt("y");
+    int x = "swipe".equals(kind) ? payload.getInt("x1") : payload.getInt("x");
+    int y = "swipe".equals(kind) ? payload.getInt("y1") : payload.getInt("y");
     int dx = payload.optInt("dx", 0);
     int dy = payload.optInt("dy", 0);
+    int x2 = payload.optInt("x2", x + dx);
+    int y2 = payload.optInt("y2", y + dy);
     int durationMs = clamp(payload.optInt("durationMs", 300), MIN_DURATION_MS, MAX_DURATION_MS);
     int radius = clamp(payload.optInt("radius", DEFAULT_RADIUS), MIN_RADIUS, MAX_RADIUS);
     double scale = payload.optDouble("scale", 1.0d);
@@ -83,10 +88,13 @@ public final class MultiTouchInstrumentation extends Instrumentation {
     if (("rotate".equals(kind) || "transform".equals(kind)) && !isFinite(degrees)) {
       throw new IllegalArgumentException("Degrees must be finite");
     }
-    return new GestureSpec(kind, x, y, dx, dy, durationMs, scale, degrees, radius);
+    return new GestureSpec(kind, x, y, dx, dy, x2, y2, durationMs, scale, degrees, radius);
   }
 
   private int injectGesture(GestureSpec spec) {
+    if ("swipe".equals(spec.kind)) {
+      return injectSinglePointerGesture(spec);
+    }
     UiAutomation automation = getUiAutomation();
     long downTime = SystemClock.uptimeMillis();
     long eventTime = downTime;
@@ -149,6 +157,47 @@ public final class MultiTouchInstrumentation extends Instrumentation {
     }
   }
 
+  private int injectSinglePointerGesture(GestureSpec spec) {
+    UiAutomation automation = getUiAutomation();
+    long downTime = SystemClock.uptimeMillis();
+    long eventTime = downTime;
+    PointerPair activePointer = pointerPairAt(spec, 0);
+    int count = 0;
+
+    try {
+      inject(
+          automation,
+          motionEvent(downTime, eventTime, MotionEvent.ACTION_DOWN, activePointer),
+          true);
+      count += 1;
+
+      int frameCount =
+          Math.max(3, Math.round(spec.durationMs / (float) MOVE_FRAME_INTERVAL_MS));
+      for (int index = 1; index < frameCount; index += 1) {
+        double t = (double) index / (double) frameCount;
+        PointerPair frame = pointerPairAt(spec, t);
+        eventTime = downTime + Math.round(spec.durationMs * t);
+        inject(automation, motionEvent(downTime, eventTime, MotionEvent.ACTION_MOVE, frame), false);
+        count += 1;
+        activePointer = frame;
+      }
+
+      eventTime = downTime + spec.durationMs;
+      activePointer = pointerPairAt(spec, 1);
+      inject(
+          automation,
+          motionEvent(downTime, eventTime, MotionEvent.ACTION_UP, activePointer),
+          true);
+      count += 1;
+      return count;
+    } catch (RuntimeException error) {
+      if (count > 0) {
+        injectCancel(automation, downTime, eventTime + 16, activePointer);
+      }
+      throw error;
+    }
+  }
+
   private static void inject(UiAutomation automation, MotionEvent event, boolean waitForDispatch) {
     try {
       if (!automation.injectInputEvent(event, waitForDispatch)) {
@@ -203,6 +252,11 @@ public final class MultiTouchInstrumentation extends Instrumentation {
   }
 
   private static PointerPair pointerPairAt(GestureSpec spec, double t) {
+    if ("swipe".equals(spec.kind)) {
+      return new PointerPair(
+          new float[] {(float) (spec.x + (spec.x2 - spec.x) * t)},
+          new float[] {(float) (spec.y + (spec.y2 - spec.y) * t)});
+    }
     if ("pinch".equals(spec.kind)) {
       double startRadius = spec.radius / Math.max(spec.scale, 1.0d);
       double endRadius = spec.radius;
@@ -255,6 +309,8 @@ public final class MultiTouchInstrumentation extends Instrumentation {
     final int y;
     final int dx;
     final int dy;
+    final int x2;
+    final int y2;
     final int durationMs;
     final double scale;
     final double degrees;
@@ -266,6 +322,8 @@ public final class MultiTouchInstrumentation extends Instrumentation {
         int y,
         int dx,
         int dy,
+        int x2,
+        int y2,
         int durationMs,
         double scale,
         double degrees,
@@ -275,6 +333,8 @@ public final class MultiTouchInstrumentation extends Instrumentation {
       this.y = y;
       this.dx = dx;
       this.dy = dy;
+      this.x2 = x2;
+      this.y2 = y2;
       this.durationMs = durationMs;
       this.scale = scale;
       this.degrees = degrees;

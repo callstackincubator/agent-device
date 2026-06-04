@@ -14,7 +14,7 @@ import {
   type AndroidAdbProvider,
   type AndroidTouchGestureRequest,
 } from './adb-executor.ts';
-import { getAndroidScreenSize } from './input-actions.ts';
+import { getAndroidScreenSize, swipeAndroid } from './input-actions.ts';
 
 const ANDROID_MULTITOUCH_HELPER_NAME = 'android-multitouch-helper';
 const ANDROID_MULTITOUCH_HELPER_PACKAGE = 'com.callstack.agentdevice.multitouchhelper';
@@ -48,6 +48,14 @@ type AndroidMultiTouchHelperArtifact = {
 };
 
 type AndroidMultiTouchHelperGestureRequest =
+  | {
+      kind: 'swipe';
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      durationMs: number;
+    }
   | {
       kind: 'pinch';
       x: number;
@@ -99,6 +107,41 @@ export type AndroidTransformGestureOptions = {
   degrees: number;
   durationMs?: number;
 };
+
+export type AndroidSwipeGestureOptions = {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  durationMs?: number;
+};
+
+export async function swipeGestureAndroid(
+  device: DeviceInfo,
+  options: AndroidSwipeGestureOptions,
+): Promise<Record<string, unknown> | void> {
+  const providerTouch = resolveAndroidTouchInjector(device);
+  if (providerTouch) {
+    return {
+      backend: 'provider-native-touch',
+      ...((await providerTouch({ kind: 'swipe', ...options })) ?? {}),
+    };
+  }
+
+  try {
+    return await runAndroidMultiTouchGesture(device, { kind: 'swipe', ...options });
+  } catch (error) {
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'android_swipe_helper_fallback',
+      data: {
+        error: normalizeError(error).message,
+      },
+    });
+    await swipeAndroid(device, options.x1, options.y1, options.x2, options.y2, options.durationMs);
+    return { backend: 'adb-input-swipe-fallback' };
+  }
+}
 
 export async function pinchAndroid(
   device: DeviceInfo,
@@ -234,6 +277,15 @@ function normalizeHelperGestureRequest(
 ): AndroidMultiTouchHelperGestureRequest {
   const durationMs = Math.round(resolveHelperGestureDurationMs(request));
   switch (request.kind) {
+    case 'swipe':
+      return {
+        kind: 'swipe',
+        x1: Math.round(request.x1),
+        y1: Math.round(request.y1),
+        x2: Math.round(request.x2),
+        y2: Math.round(request.y2),
+        durationMs,
+      };
     case 'pinch':
       return {
         kind: 'pinch',
@@ -270,7 +322,7 @@ function resolveHelperGestureDurationMs(request: AndroidTouchGestureRequest): nu
   if (request.durationMs !== undefined) {
     return request.durationMs;
   }
-  if (request.kind === 'pinch') {
+  if (request.kind === 'swipe' || request.kind === 'pinch') {
     return ANDROID_MULTITOUCH_HELPER_DEFAULT_DURATION_MS;
   }
   const angleBasedDuration =

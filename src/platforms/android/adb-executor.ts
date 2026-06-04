@@ -121,6 +121,14 @@ export type AndroidTextInjector = (request: AndroidTextInjectionRequest) => Prom
 
 export type AndroidTouchGestureRequest =
   | {
+      kind: 'swipe';
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      durationMs?: number;
+    }
+  | {
       kind: 'pinch';
       x: number;
       y: number;

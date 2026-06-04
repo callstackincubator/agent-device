@@ -1,6 +1,6 @@
 # Android MultiTouch Helper
 
-Small instrumentation APK used to inject Android two-pointer gestures through
+Small instrumentation APK used to inject Android touch gestures through
 `UiAutomation.injectInputEvent`. The helper accepts a compact base64 JSON payload so local ADB,
 remote ADB tunnels, and remote providers that allow `adb install -t` plus `am instrument` can use
 the same contract.
@@ -34,7 +34,7 @@ Successful results include:
 
 - `ok=true`
 - `helperApiVersion=1`
-- `kind` (`pinch`, `rotate`, or `transform`)
+- `kind` (`swipe`, `pinch`, `rotate`, or `transform`)
 - `injectedEvents`
 - `elapsedMs`
 

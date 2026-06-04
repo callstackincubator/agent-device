@@ -12,6 +12,7 @@ import {
   resetAndroidMultiTouchHelperInstallCache,
   rotateGestureAndroid,
   runAndroidMultiTouchHelperGesture,
+  swipeGestureAndroid,
   transformGestureAndroid,
 } from '../multitouch-helper.ts';
 import {
@@ -101,6 +102,36 @@ test('runAndroidMultiTouchHelperGesture encodes protocol payload for instrumenta
   assert.equal(capturedOptions?.timeoutMs, 45_000);
 });
 
+test('runAndroidMultiTouchHelperGesture encodes one-finger swipe payloads', async () => {
+  let capturedPayload: Record<string, unknown> | undefined;
+  const result = await runAndroidMultiTouchHelperGesture({
+    adb: async (args) => {
+      capturedPayload = JSON.parse(Buffer.from(args[6]!, 'base64').toString('utf8'));
+      return {
+        exitCode: 0,
+        stdout: [resultRecord({ ok: 'true', kind: 'swipe' }), 'INSTRUMENTATION_CODE: 0'].join(
+          '\n',
+        ),
+        stderr: '',
+      };
+    },
+    request: { kind: 'swipe', x1: 340, y1: 400, x2: 60, y2: 400, durationMs: 300 },
+    packageName: manifest.packageName,
+    instrumentationRunner: manifest.instrumentationRunner,
+  });
+
+  assert.equal(result.kind, 'swipe');
+  assert.deepEqual(capturedPayload, {
+    protocol: 'android-multitouch-helper-v1',
+    kind: 'swipe',
+    x1: 340,
+    y1: 400,
+    x2: 60,
+    y2: 400,
+    durationMs: 300,
+  });
+});
+
 test('parseAndroidMultiTouchHelperOutput distinguishes missing final results', () => {
   assert.throws(() => parseAndroidMultiTouchHelperOutput('INSTRUMENTATION_CODE: 0'), {
     code: 'ANDROID_MULTITOUCH_HELPER_NO_FINAL_RESULT',
@@ -135,7 +166,7 @@ test('runAndroidMultiTouchHelperGesture preserves helper failure messages', asyn
   );
 });
 
-test('pinchAndroid, rotateGestureAndroid, and transformGestureAndroid prefer provider-native touch injection', async () => {
+test('swipeAndroid and multi-touch gestures prefer provider-native touch injection', async () => {
   const calls: unknown[] = [];
   await withAndroidAdbProvider(
     {
@@ -149,6 +180,13 @@ test('pinchAndroid, rotateGestureAndroid, and transformGestureAndroid prefer pro
     },
     { serial: ANDROID_EMULATOR.id },
     async () => {
+      const swipe = await swipeGestureAndroid(ANDROID_EMULATOR, {
+        x1: 340,
+        y1: 400,
+        x2: 60,
+        y2: 400,
+        durationMs: 300,
+      });
       const pinch = await pinchAndroid(ANDROID_EMULATOR, { scale: 2, x: 100, y: 200 });
       const rotate = await rotateGestureAndroid(ANDROID_EMULATOR, {
         degrees: -215,
@@ -164,6 +202,7 @@ test('pinchAndroid, rotateGestureAndroid, and transformGestureAndroid prefer pro
         degrees: 35,
       });
 
+      assert.equal(swipe?.backend, 'provider-native-touch');
       assert.equal(pinch.backend, 'provider-native-touch');
       assert.equal(rotate.backend, 'provider-native-touch');
       assert.equal(transform.backend, 'provider-native-touch');
@@ -171,6 +210,7 @@ test('pinchAndroid, rotateGestureAndroid, and transformGestureAndroid prefer pro
   );
 
   assert.deepEqual(calls, [
+    { kind: 'swipe', x1: 340, y1: 400, x2: 60, y2: 400, durationMs: 300 },
     { kind: 'pinch', x: 100, y: 200, scale: 2, durationMs: undefined },
     { kind: 'rotate', x: 100, y: 200, degrees: -215, durationMs: undefined },
     {
