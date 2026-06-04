@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { afterEach, test, vi } from 'vitest';
 import {
   invokeMaestroAssertNotVisible,
@@ -228,6 +231,46 @@ test('invokeMaestroAssertVisible does not use Android raw fallback for generated
 
   assert.equal(response.ok, false);
   assert.equal(snapshotFlags.some((flags) => flags?.snapshotRaw === true), false);
+});
+
+test('invokeMaestroAssertVisible writes terminal snapshot artifacts for failed attempts', async () => {
+  const artifactsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'maestro-assert-artifacts-'));
+  try {
+    const response = await invokeMaestroAssertVisible({
+      baseReq: {
+        token: 't',
+        session: 's',
+        flags: { platform: 'android', artifactsDir },
+      },
+      positionals: ['id="album-0"', '0'],
+      invoke: async (): Promise<DaemonResponse> => ({
+        ok: true,
+        data: snapshot([
+          node('Chat', { identifier: 'chat-tab', type: 'android.widget.Button' }),
+          node('Contacts', { identifier: 'contacts-tab', type: 'android.widget.Button' }),
+        ]),
+      }),
+    });
+
+    assert.equal(response.ok, false);
+    if (!response.ok) {
+      const artifactPaths = response.error.details?.artifactPaths;
+      assert.deepEqual(artifactPaths, [
+        path.join(artifactsDir, 'failure-snapshot.json'),
+        path.join(artifactsDir, 'failure-snapshot.txt'),
+      ]);
+    }
+    assert.match(
+      fs.readFileSync(path.join(artifactsDir, 'failure-snapshot.txt'), 'utf8'),
+      /@e1 \[button\] "Chat"/,
+    );
+    assert.match(
+      fs.readFileSync(path.join(artifactsDir, 'failure-snapshot.json'), 'utf8'),
+      /"identifier": "chat-tab"/,
+    );
+  } finally {
+    fs.rmSync(artifactsDir, { recursive: true, force: true });
+  }
 });
 
 test('invokeMaestroAssertVisible treats an elapsed ellipsis loading gate as already past loading', async () => {

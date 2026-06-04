@@ -109,7 +109,8 @@ export function buildSwipePresetGesturePlan(
   options: { platform?: string; marginPx?: number } = {},
 ): SwipePresetGesturePlan {
   const marginPx = options.marginPx ?? 8;
-  const horizontalLanePercent = 65;
+  // Mid-screen keeps in-page swipes on visible content; lower lanes can land in blank pager space.
+  const horizontalLanePercent = 50;
   const inPageStartPercent = 85;
   const inPageEndPercent = 15;
   const [startPercent, endPercent, yPercent] =

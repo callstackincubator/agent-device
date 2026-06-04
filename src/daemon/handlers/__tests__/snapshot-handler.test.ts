@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { PNG } from '../../../utils/png.ts';
 import { handleSnapshotCommands } from '../snapshot.ts';
+import { withSessionlessRunnerCleanup } from '../snapshot-session.ts';
 import { captureSnapshot } from '../snapshot-capture.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { SessionState } from '../../types.ts';
@@ -29,11 +30,25 @@ vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
   };
 });
 
+vi.mock('../../../platforms/ios/apps.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/ios/apps.ts')>();
+  return {
+    ...actual,
+    closeIosApp: vi.fn(async () => {}),
+  };
+});
+
 import { dispatchCommand } from '../../../core/dispatch.ts';
-import { runIosRunnerCommand } from '../../../platforms/ios/runner-client.ts';
+import {
+  runIosRunnerCommand,
+  stopIosRunnerSession,
+} from '../../../platforms/ios/runner-client.ts';
+import { closeIosApp } from '../../../platforms/ios/apps.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
 const mockRunnerCommand = vi.mocked(runIosRunnerCommand);
+const mockStopIosRunnerSession = vi.mocked(stopIosRunnerSession);
+const mockCloseIosApp = vi.mocked(closeIosApp);
 
 function makeSessionStore(): SessionStore {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-snapshot-handler-'));
@@ -80,6 +95,10 @@ beforeEach(() => {
   mockDispatch.mockResolvedValue({});
   mockRunnerCommand.mockReset();
   mockRunnerCommand.mockResolvedValue({});
+  mockStopIosRunnerSession.mockReset();
+  mockStopIosRunnerSession.mockResolvedValue();
+  mockCloseIosApp.mockReset();
+  mockCloseIosApp.mockResolvedValue();
 });
 
 function writeSolidPng(filePath: string, width = 390, height = 844): void {
@@ -315,6 +334,68 @@ test('snapshot rejects @ref scope without existing session snapshot', async () =
     expect(response.error.code).toBe('INVALID_ARGS');
     expect(response.error.message).toMatch(/requires an existing snapshot/i);
   }
+});
+
+test('snapshot on iOS rejects sessions without a tracked app', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-no-app';
+  sessionStore.set(sessionName, makeSession(sessionName, iosSimulatorDevice));
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'snapshot',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(false);
+  if (response?.ok === false) {
+    expect(response.error.code).toBe('SESSION_NOT_FOUND');
+    expect(response.error.message).toMatch(/iOS snapshot requires an active app session/i);
+  }
+  expect(mockDispatch).not.toHaveBeenCalled();
+});
+
+test('snapshot on iOS runs when the session tracks an app', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-app';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, iosSimulatorDevice),
+    appBundleId: 'org.reactnavigation.playground',
+  });
+  mockDispatch.mockResolvedValue({
+    nodes: [{ index: 0, depth: 0, type: 'Button', label: 'Home' }],
+    truncated: false,
+    backend: 'ios',
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'snapshot',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockDispatch).toHaveBeenCalledWith(
+    iosSimulatorDevice,
+    'snapshot',
+    [],
+    undefined,
+    expect.objectContaining({ appBundleId: 'org.reactnavigation.playground' }),
+  );
 });
 
 test('snapshot surfaces filtered-to-zero Android guidance for interactive snapshots', async () => {
@@ -759,33 +840,37 @@ test('captureSnapshot lazily retries pending no-change touch before returning fr
     ],
   };
 
-  mockDispatch
-    .mockResolvedValueOnce({
-      nodes: baselineNodes,
+  let pressed = false;
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command === 'press') {
+      pressed = true;
+      return { clicked: true };
+    }
+    return {
+      nodes:
+        !pressed
+          ? baselineNodes
+          : [
+              {
+                index: 0,
+                depth: 0,
+                type: 'Button',
+                label: 'Back',
+                identifier: 'back',
+                hittable: true,
+                rect: { x: 20, y: 60, width: 90, height: 44 },
+              },
+              {
+                index: 1,
+                depth: 0,
+                type: 'StaticText',
+                label: 'Feed',
+                rect: { x: 20, y: 140, width: 160, height: 48 },
+              },
+            ],
       backend: 'xctest',
-    })
-    .mockResolvedValueOnce({ clicked: true })
-    .mockResolvedValueOnce({
-      nodes: [
-        {
-          index: 0,
-          depth: 0,
-          type: 'Button',
-          label: 'Back',
-          identifier: 'back',
-          hittable: true,
-          rect: { x: 20, y: 60, width: 90, height: 44 },
-        },
-        {
-          index: 1,
-          depth: 0,
-          type: 'StaticText',
-          label: 'Feed',
-          rect: { x: 20, y: 140, width: 160, height: 48 },
-        },
-      ],
-      backend: 'xctest',
-    });
+    };
+  });
 
   const result = await captureSnapshot({
     device: iosSimulatorDevice,
@@ -797,9 +882,228 @@ test('captureSnapshot lazily retries pending no-change touch before returning fr
   expect(result.snapshot.nodes).toEqual(
     expect.arrayContaining([expect.objectContaining({ label: 'Feed' })]),
   );
-  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['snapshot', 'press', 'snapshot']);
-  expect(mockDispatch.mock.calls[1]?.[2]).toEqual(['100', '144']);
+  expect(mockDispatch.mock.calls.map((call) => call[1]).filter((command) => command === 'press'))
+    .toEqual(['press']);
+  expect(mockDispatch.mock.calls.find((call) => call[1] === 'press')?.[2]).toEqual([
+    '100',
+    '144',
+  ]);
   expect(session.pendingInteractionOutcome).toBeUndefined();
+});
+
+test('captureSnapshot does not retry when a tap change appears after a short delay', async () => {
+  const sessionName = 'android-delayed-outcome-without-retry';
+  const session = makeSession(sessionName, androidDevice);
+  const baselineNodes = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'android.widget.Button',
+      label: 'Open drawer',
+      hittable: true,
+      rect: { x: 20, y: 120, width: 160, height: 48 },
+    },
+  ];
+  const changedNodes = [
+    {
+      index: 0,
+      depth: 0,
+      type: 'android.widget.TextView',
+      label: 'Albums',
+      rect: { x: 32, y: 240, width: 180, height: 52 },
+    },
+  ];
+  session.pendingInteractionOutcome = {
+    action: 'click',
+    command: 'press',
+    positionals: ['100', '144'],
+    flags: { platform: 'android' },
+    markedAt: Date.now(),
+    attemptsRemaining: 2,
+    preSignature: buildInteractionSurfaceSignature(baselineNodes),
+  };
+
+  let snapshotCalls = 0;
+  mockDispatch.mockImplementation(async (_device, command) => {
+    expect(command).toBe('snapshot');
+    snapshotCalls += 1;
+    return {
+      nodes: snapshotCalls === 1 ? baselineNodes : changedNodes,
+      backend: 'android',
+    };
+  });
+
+  const result = await captureSnapshot({
+    device: androidDevice,
+    session,
+    flags: { snapshotInteractiveOnly: true },
+    logPath: '/tmp/daemon.log',
+  });
+
+  expect(result.snapshot.nodes).toEqual(
+    expect.arrayContaining([expect.objectContaining({ label: 'Albums' })]),
+  );
+  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['snapshot', 'snapshot']);
+  expect(session.pendingInteractionOutcome).toBeUndefined();
+});
+
+test('captureSnapshot retries pending tap outcome before post-gesture stabilization', async () => {
+  const sessionName = 'android-maestro-tap-outcome-before-stabilization';
+  const session = makeSession(sessionName, androidDevice);
+  const baselineNodes = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'android.widget.Button',
+      label: 'Navigate to Third',
+      hittable: true,
+      rect: { x: 302, y: 1301, width: 476, height: 110 },
+    },
+  ];
+  session.snapshot = {
+    nodes: baselineNodes,
+    createdAt: Date.now(),
+    backend: 'android',
+  };
+  session.pendingInteractionOutcome = {
+    action: 'click',
+    command: 'press',
+    positionals: ['540', '1356'],
+    flags: { platform: 'android' },
+    markedAt: Date.now(),
+    attemptsRemaining: 2,
+    preSignature: [
+      {
+        key: '|Navigate to Third||android.widget.Button||enabled|unselected|hittable|#0',
+        x: 302,
+        y: 1301,
+        width: 476,
+        height: 110,
+      },
+    ],
+  };
+  session.postGestureStabilization = {
+    action: 'click',
+    markedAt: Date.now(),
+  };
+
+  let pressed = false;
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command === 'press') {
+      pressed = true;
+      return { clicked: true };
+    }
+    return {
+      nodes:
+        !pressed
+          ? baselineNodes
+          : [
+              {
+                index: 0,
+                depth: 0,
+                type: 'android.widget.TextView',
+                label: 'Tab Third (3)',
+                rect: { x: 390, y: 884, width: 300, height: 55 },
+              },
+            ],
+      backend: 'android',
+    };
+  });
+
+  const result = await captureSnapshot({
+    device: androidDevice,
+    session,
+    flags: { snapshotInteractiveOnly: true },
+    logPath: '/tmp/daemon.log',
+  });
+
+  expect(result.snapshot.nodes).toEqual(
+    expect.arrayContaining([expect.objectContaining({ label: 'Tab Third (3)' })]),
+  );
+  expect(mockDispatch.mock.calls.map((call) => call[1]).filter((command) => command === 'press'))
+    .toEqual(['press']);
+  expect(mockDispatch.mock.calls.find((call) => call[1] === 'press')?.[2]).toEqual([
+    '540',
+    '1356',
+  ]);
+  expect(session.pendingInteractionOutcome).toBeUndefined();
+  expect(session.postGestureStabilization).toBeUndefined();
+});
+
+test('captureSnapshot composes post-gesture stabilization with Android freshness capture', async () => {
+  const sessionName = 'android-post-gesture-freshness';
+  const session = makeSession(sessionName, androidDevice);
+  const baselineNodes = Array.from({ length: 18 }, (_, index) => ({
+    ref: `e${index + 1}`,
+    index,
+    depth: 0,
+    type: 'android.widget.TextView',
+    label: `Inbox row ${index + 1}`,
+  }));
+  const changedNodes = Array.from({ length: 18 }, (_, index) => ({
+    ref: `e${index + 1}`,
+    index,
+    depth: 0,
+    type: 'android.widget.TextView',
+    label: index === 0 ? 'album-0' : `Album row ${index + 1}`,
+  }));
+  session.snapshot = {
+    nodes: baselineNodes,
+    createdAt: Date.now(),
+    backend: 'android',
+    comparisonSafe: true,
+  };
+  session.androidSnapshotFreshness = {
+    action: 'click',
+    markedAt: Date.now(),
+    baselineCount: baselineNodes.length,
+    baselineSignatures: buildSnapshotSignatures(baselineNodes),
+    routeComparable: true,
+  };
+  session.postGestureStabilization = {
+    action: 'click',
+    markedAt: Date.now(),
+  };
+
+  mockDispatch
+    .mockResolvedValueOnce({
+      nodes: baselineNodes,
+      truncated: false,
+      backend: 'android',
+      analysis: { rawNodeCount: 18, maxDepth: 1 },
+    })
+    .mockResolvedValueOnce({
+      nodes: changedNodes,
+      truncated: false,
+      backend: 'android',
+      analysis: { rawNodeCount: 18, maxDepth: 1 },
+    })
+    .mockResolvedValueOnce({
+      nodes: changedNodes,
+      truncated: false,
+      backend: 'android',
+      analysis: { rawNodeCount: 18, maxDepth: 1 },
+    });
+
+  const result = await captureSnapshot({
+    device: androidDevice,
+    session,
+    flags: { snapshotInteractiveOnly: true },
+    logPath: '/tmp/daemon.log',
+  });
+
+  expect(result.snapshot.nodes).toEqual(
+    expect.arrayContaining([expect.objectContaining({ label: 'album-0' })]),
+  );
+  expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual([
+    'snapshot',
+    'snapshot',
+    'snapshot',
+  ]);
+  expect(session.androidSnapshotFreshness).toBeUndefined();
+  expect(session.postGestureStabilization).toBeUndefined();
 });
 
 test('captureSnapshot composes pending outcome retry with Android freshness capture', async () => {
@@ -1698,4 +2002,32 @@ test('wait sleep bypasses sessionless runner cleanup wrapper', async () => {
 
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
+});
+
+test('sessionless iOS runner cleanup stops the runner host app', async () => {
+  const result = await withSessionlessRunnerCleanup(undefined, iosSimulatorDevice, async () => {
+    return 'ok';
+  });
+
+  expect(result).toBe('ok');
+  expect(mockStopIosRunnerSession).toHaveBeenCalledWith(iosSimulatorDevice.id);
+  expect(mockCloseIosApp).toHaveBeenCalledWith(
+    iosSimulatorDevice,
+    'com.callstack.agentdevice.runner',
+  );
+});
+
+test('sessionless iOS runner host close is best effort', async () => {
+  mockCloseIosApp.mockRejectedValueOnce(new Error('terminate failed'));
+
+  const result = await withSessionlessRunnerCleanup(undefined, iosSimulatorDevice, async () => {
+    return 'ok';
+  });
+
+  expect(result).toBe('ok');
+  expect(mockStopIosRunnerSession).toHaveBeenCalledWith(iosSimulatorDevice.id);
+  expect(mockCloseIosApp).toHaveBeenCalledWith(
+    iosSimulatorDevice,
+    'com.callstack.agentdevice.runner',
+  );
 });

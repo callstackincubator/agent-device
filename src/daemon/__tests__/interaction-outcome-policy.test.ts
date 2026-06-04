@@ -5,7 +5,7 @@ import {
   buildInteractionSurfaceSignature,
   classifyInteractionSurfaceChange,
   markPendingInteractionOutcome,
-  stripInternalInteractionOutcomeFlags,
+  stripInternalInteractionFlags,
 } from '../interaction-outcome-policy.ts';
 import type { SessionState } from '../types.ts';
 import { IOS_SIMULATOR } from '../../__tests__/test-utils/device-fixtures.ts';
@@ -84,11 +84,12 @@ test('markPendingInteractionOutcome stores retry state only for explicit retry f
   assert.equal(longPressSession.pendingInteractionOutcome, undefined);
 });
 
-test('stripInternalInteractionOutcomeFlags removes internal retry controls', () => {
+test('stripInternalInteractionFlags removes internal interaction controls', () => {
   assert.deepEqual(
-    stripInternalInteractionOutcomeFlags({
+    stripInternalInteractionFlags({
       platform: 'ios',
       interactionOutcome: { retryOnNoChange: true },
+      postGestureStabilization: true,
     }),
     { platform: 'ios' },
   );

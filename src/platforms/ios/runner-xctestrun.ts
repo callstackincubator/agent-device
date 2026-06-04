@@ -114,7 +114,7 @@ function normalizeBundleId(value: string | undefined): string {
   return value?.trim() ?? '';
 }
 
-function resolveRunnerAppBundleId(env: NodeJS.ProcessEnv = process.env): string {
+export function resolveRunnerAppBundleId(env: NodeJS.ProcessEnv = process.env): string {
   const configured =
     normalizeBundleId(env.AGENT_DEVICE_IOS_BUNDLE_ID) ||
     normalizeBundleId(env.AGENT_DEVICE_IOS_RUNNER_APP_BUNDLE_ID);

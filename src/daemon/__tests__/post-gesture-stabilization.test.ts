@@ -28,6 +28,22 @@ test('markPostGestureStabilization marks Android swipe sessions', () => {
   assert.equal(session.postGestureStabilization?.action, 'swipe');
 });
 
+test('markPostGestureStabilization marks gesture swipe sessions', () => {
+  const session = makeSession('android');
+
+  markPostGestureStabilization(session, 'gesture', ['swipe', 'left']);
+
+  assert.equal(session.postGestureStabilization?.action, 'gesture');
+});
+
+test('markPostGestureStabilization ignores non-swipe gesture sessions', () => {
+  const session = makeSession('android');
+
+  markPostGestureStabilization(session, 'gesture', ['pinch', 'in']);
+
+  assert.equal(session.postGestureStabilization, undefined);
+});
+
 test('capturePostGestureStabilizedSnapshot retries until rects stop moving', async () => {
   vi.useFakeTimers();
   const session = makeSession();

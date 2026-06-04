@@ -11,13 +11,14 @@ test('invokeMaestroTapOn resolves mutating taps from the current snapshot', asyn
   const selector =
     'label="Article by Gandalf" || text="Article by Gandalf" || id="Article by Gandalf"';
 
-  const { response, clicks, snapshots } = await runTapOn(selector, () =>
+  const { response, clicks, clickFlags, snapshots } = await runTapOn(selector, () =>
     currentBreadcrumbSnapshot(),
   );
 
   expect(response.ok).toBe(true);
   expect(snapshots).toBe(1);
   expect(clicks).toEqual([['86', '89']]);
+  expect(clickFlags[0]?.postGestureStabilization).toBe(true);
 });
 
 test('invokeMaestroTapOn uses optimized interactive snapshots by default', async () => {
@@ -125,6 +126,7 @@ test('invokeMaestroTapOn clicks explicit React Native overlay controls directly'
 
 test('invokeMaestroSwipeScreen maps horizontal directional swipes to native gesture presets', async () => {
   const gestures: string[][] = [];
+  const gestureFlags: Array<DaemonRequest['flags']> = [];
   const response = await invokeMaestroSwipeScreen({
     baseReq: {
       token: 'test',
@@ -135,6 +137,7 @@ test('invokeMaestroSwipeScreen maps horizontal directional swipes to native gest
     invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
       if (req.command === 'gesture') {
         gestures.push(req.positionals ?? []);
+        gestureFlags.push(req.flags);
         return { ok: true, data: {} };
       }
       return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
@@ -143,6 +146,7 @@ test('invokeMaestroSwipeScreen maps horizontal directional swipes to native gest
 
   expect(response.ok).toBe(true);
   expect(gestures).toEqual([['swipe', 'left', '300']]);
+  expect(gestureFlags[0]?.postGestureStabilization).toBeUndefined();
 });
 
 test('invokeMaestroSwipeScreen mirrors horizontal directional swipe presets', async () => {
@@ -169,6 +173,7 @@ test('invokeMaestroSwipeScreen mirrors horizontal directional swipe presets', as
 
 test('invokeMaestroSwipeScreen preserves vertical percentage endpoints', async () => {
   const swipes: string[][] = [];
+  const swipeFlags: Array<DaemonRequest['flags']> = [];
   const response = await invokeMaestroSwipeScreen({
     baseReq: {
       token: 'test',
@@ -182,6 +187,7 @@ test('invokeMaestroSwipeScreen preserves vertical percentage endpoints', async (
       }
       if (req.command === 'swipe') {
         swipes.push(req.positionals ?? []);
+        swipeFlags.push(req.flags);
         return { ok: true, data: {} };
       }
       return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
@@ -190,6 +196,7 @@ test('invokeMaestroSwipeScreen preserves vertical percentage endpoints', async (
 
   expect(response.ok).toBe(true);
   expect(swipes).toEqual([['200', '600', '200', '280', '300']]);
+  expect(swipeFlags[0]?.postGestureStabilization).toBeUndefined();
 });
 
 test('invokeMaestroSwipeScreen keeps Android horizontal percentage swipes on the content lane', async () => {
@@ -219,6 +226,7 @@ test('invokeMaestroSwipeScreen keeps Android horizontal percentage swipes on the
 
 test('invokeMaestroTapPointPercent shares percentage point geometry without clamping', async () => {
   const clicks: string[][] = [];
+  const clickFlags: Array<DaemonRequest['flags']> = [];
   const response = await invokeMaestroTapPointPercent({
     baseReq: {
       token: 'test',
@@ -232,6 +240,7 @@ test('invokeMaestroTapPointPercent shares percentage point geometry without clam
       }
       if (req.command === 'click') {
         clicks.push(req.positionals ?? []);
+        clickFlags.push(req.flags);
         return { ok: true, data: {} };
       }
       return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
@@ -240,6 +249,7 @@ test('invokeMaestroTapPointPercent shares percentage point geometry without clam
 
   expect(response.ok).toBe(true);
   expect(clicks).toEqual([['500', '-80']]);
+  expect(clickFlags[0]?.postGestureStabilization).toBe(true);
 });
 
 function currentBreadcrumbSnapshot(): SnapshotState {
@@ -277,10 +287,12 @@ async function runTapOn(
   response: DaemonResponse;
   commands: string[];
   clicks: string[][];
+  clickFlags: Array<DaemonRequest['flags']>;
   snapshots: number;
 }> {
   const commands: string[] = [];
   const clicks: string[][] = [];
+  const clickFlags: Array<DaemonRequest['flags']> = [];
   let snapshots = 0;
   const response = await invokeMaestroTapOn({
     baseReq: {
@@ -297,12 +309,13 @@ async function runTapOn(
       }
       if (req.command === 'click') {
         clicks.push(req.positionals ?? []);
+        clickFlags.push(req.flags);
         return { ok: true, data: {} };
       }
       return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
     },
   });
-  return { response, commands, clicks, snapshots };
+  return { response, commands, clicks, clickFlags, snapshots };
 }
 
 function fullScreenSnapshot(width: number, height: number): SnapshotState {

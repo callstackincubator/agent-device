@@ -1,4 +1,5 @@
 import { emitDiagnostic } from '../utils/diagnostics.ts';
+import type { CommandFlags } from '../core/dispatch.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
 import { sleep } from '../utils/timeouts.ts';
 import {
@@ -10,9 +11,14 @@ import type { SessionState } from './types.ts';
 const STABILIZATION_DEADLINE_MS = 1_500;
 const STABILIZATION_INTERVAL_MS = 200;
 
-export function markPostGestureStabilization(session: SessionState, action: string): void {
+export function markPostGestureStabilization(
+  session: SessionState,
+  action: string,
+  positionals: string[] = [],
+  flags?: CommandFlags,
+): void {
   if (!supportsPostGestureStabilization(session.device.platform)) return;
-  if (!isPostGestureStabilizingAction(action)) return;
+  if (!isPostGestureStabilizingAction(action, positionals, flags)) return;
   session.postGestureStabilization = {
     action,
     markedAt: Date.now(),
@@ -28,22 +34,35 @@ export async function capturePostGestureStabilizedSnapshot(params: {
   session: SessionState | undefined;
   capture: () => Promise<SnapshotState>;
 }): Promise<SnapshotState> {
+  return await capturePostGestureStabilizedResult({
+    session: params.session,
+    capture: params.capture,
+    readSnapshot: (snapshot) => snapshot,
+  });
+}
+
+export async function capturePostGestureStabilizedResult<T>(params: {
+  session: SessionState | undefined;
+  capture: () => Promise<T>;
+  readSnapshot: (result: T) => SnapshotState;
+  initial?: T;
+}): Promise<T> {
   const { session, capture } = params;
   const pending = session?.postGestureStabilization;
   if (!session || !supportsPostGestureStabilization(session.device.platform) || !pending) {
-    return await capture();
+    return params.initial ?? (await capture());
   }
 
   const startedAt = Date.now();
   let attempts = 1;
-  let previous = await capture();
-  let previousSignature = buildInteractionSurfaceSignature(previous.nodes);
+  let previous = params.initial ?? (await capture());
+  let previousSignature = buildInteractionSurfaceSignature(params.readSnapshot(previous).nodes);
 
   while (Date.now() - startedAt < STABILIZATION_DEADLINE_MS) {
     await sleep(STABILIZATION_INTERVAL_MS);
     attempts += 1;
     const current = await capture();
-    const currentSignature = buildInteractionSurfaceSignature(current.nodes);
+    const currentSignature = buildInteractionSurfaceSignature(params.readSnapshot(current).nodes);
     if (areInteractionSurfaceSignaturesStable(previousSignature, currentSignature)) {
       clearPostGestureStabilization(session);
       emitDiagnostic({
@@ -74,8 +93,14 @@ export async function capturePostGestureStabilizedSnapshot(params: {
   return previous;
 }
 
-function isPostGestureStabilizingAction(action: string): boolean {
-  return action === 'swipe' || action === 'scroll';
+function isPostGestureStabilizingAction(
+  action: string,
+  positionals: string[],
+  flags: CommandFlags | undefined,
+): boolean {
+  if (flags?.postGestureStabilization === true) return true;
+  if (action === 'swipe' || action === 'scroll') return true;
+  return action === 'gesture' && positionals[0] === 'swipe';
 }
 
 function supportsPostGestureStabilization(platform: SessionState['device']['platform']): boolean {

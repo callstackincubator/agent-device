@@ -211,6 +211,8 @@ export type SessionState = {
   snapshot?: SnapshotState;
   /** Source snapshot used to resolve repeated `snapshot -s @ref` after scoped output replaces refs. */
   snapshotScopeSource?: SnapshotState;
+  /** Last broad snapshot safe for Android route-freshness comparisons after interactive snapshots. */
+  lastComparisonSafeSnapshot?: SnapshotState;
   androidSnapshotFreshness?: AndroidSnapshotFreshness;
   postGestureStabilization?: PostGestureStabilization;
   pendingInteractionOutcome?: PendingInteractionOutcome;

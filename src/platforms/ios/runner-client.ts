@@ -3,7 +3,7 @@ import { withRetry } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { getRequestSignal } from '../../daemon/request-cancel.ts';
-import { RUNNER_COMMAND_TIMEOUT_MS, RUNNER_STARTUP_TIMEOUT_MS } from './runner-transport.ts';
+import { RUNNER_COMMAND_TIMEOUT_MS } from './runner-transport.ts';
 import {
   type RunnerSessionOptions,
   type RunnerSession,
@@ -12,6 +12,7 @@ import {
   stopIosRunnerSession,
   validateRunnerDevice,
   executeRunnerCommandWithSession,
+  readRunnerStartupTimeoutMs,
 } from './runner-session.ts';
 import {
   assertRunnerRequestActive,
@@ -135,7 +136,9 @@ async function executeRunnerCommand(
   let session: RunnerSession | undefined;
   try {
     session = await ensureRunnerSession(device, options);
-    const timeoutMs = session.ready ? RUNNER_COMMAND_TIMEOUT_MS : RUNNER_STARTUP_TIMEOUT_MS;
+    const timeoutMs = session.ready
+      ? RUNNER_COMMAND_TIMEOUT_MS
+      : readRunnerStartupTimeoutMs(session);
     return await executeRunnerCommandWithSession(
       device,
       session,
@@ -162,7 +165,7 @@ async function executeRunnerCommand(
           session,
           command,
           options.logPath,
-          RUNNER_STARTUP_TIMEOUT_MS,
+          readRunnerStartupTimeoutMs(session),
           signal,
         );
       } catch (retryErr) {
@@ -197,7 +200,7 @@ async function executeRunnerCommand(
           session,
           command,
           options.logPath,
-          RUNNER_STARTUP_TIMEOUT_MS,
+          readRunnerStartupTimeoutMs(session),
           signal,
         );
         emitDiagnostic({
@@ -669,6 +672,7 @@ export {
   resolveRunnerDestination,
   resolveRunnerBuildDestination,
   resolveRunnerMaxConcurrentDestinationsFlag,
+  resolveRunnerAppBundleId,
   resolveRunnerSigningBuildSettings,
   resolveRunnerBundleBuildSettings,
   assertSafeDerivedCleanup,

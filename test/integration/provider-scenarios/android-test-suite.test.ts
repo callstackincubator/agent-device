@@ -340,7 +340,7 @@ test('Provider-backed integration Android Maestro executes runFlow conditions an
           ['shell', 'input', 'tap', '180', '330'],
         ],
       );
-      assert.equal(snapshots, 5);
+      assert.equal(snapshots, 9);
     },
   );
 });

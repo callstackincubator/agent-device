@@ -20,6 +20,7 @@ export type CommandFlags = Omit<CliFlags, DaemonExcludedCliFlag> & {
   };
   launchArgs?: string[];
   maestro?: MaestroRuntimeFlags;
+  postGestureStabilization?: boolean;
   replayBackend?: string;
 };
 

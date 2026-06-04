@@ -1,7 +1,10 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { getSnapshotReferenceFrame } from '../../daemon/touch-reference-frame.ts';
 import type { DaemonResponse } from '../../daemon/types.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';
+import { buildSnapshotDisplayLines } from '../../utils/snapshot-lines.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import {
   captureMaestroSnapshot,
@@ -116,6 +119,7 @@ async function invokeSnapshotMaestroAssertVisible(
   const startedAt = Date.now();
   const deadlineMs = args.timeoutMs + MAESTRO_ASSERTION_POLICY.assertVisibleGraceMs;
   let lastResponse: DaemonResponse | undefined;
+  let lastSnapshot: SnapshotState | undefined;
   let capturedAfterDeadline = false;
   while (true) {
     const captureStartedAt = Date.now();
@@ -124,6 +128,7 @@ async function invokeSnapshotMaestroAssertVisible(
     });
     if (sample.visible) return visibleAssertionResponse(sample.response, args.selector, startedAt);
     lastResponse = sample.response;
+    lastSnapshot = sample.snapshot ?? lastSnapshot;
     const failedSample = handleFailedVisibleSample(params.baseReq, args, sample, startedAt);
     if (failedSample.kind === 'return') return failedSample.response;
 
@@ -141,13 +146,13 @@ async function invokeSnapshotMaestroAssertVisible(
     await sleep(MAESTRO_ASSERTION_POLICY.assertVisiblePollMs);
   }
 
-  return (
+  const response =
     lastResponse ??
     errorResponse('COMMAND_FAILED', `Expected visible but did not match: ${args.selector}`, {
       selector: args.selector,
       timeoutMs: args.timeoutMs,
-    })
-  );
+    });
+  return withMaestroFailureSnapshotArtifacts(response, lastSnapshot, params.baseReq);
 }
 
 function handleFailedVisibleSample(
@@ -376,6 +381,62 @@ function visibleAssertionResponse(
       waitedMs: Date.now() - startedAt,
     },
   };
+}
+
+function withMaestroFailureSnapshotArtifacts(
+  response: DaemonResponse,
+  snapshot: SnapshotState | undefined,
+  baseReq: ReplayBaseRequest,
+): DaemonResponse {
+  if (response.ok || !snapshot) return response;
+  const artifactsDir =
+    typeof baseReq.flags?.artifactsDir === 'string' ? baseReq.flags.artifactsDir : undefined;
+  if (!artifactsDir) return response;
+
+  const artifactPaths = writeMaestroFailureSnapshotArtifacts(snapshot, artifactsDir);
+  if (artifactPaths.length === 0) return response;
+  return {
+    ok: false,
+    error: {
+      ...response.error,
+      details: {
+        ...(response.error.details ?? {}),
+        artifactPaths: uniqueStrings([
+          ...readExistingArtifactPaths(response.error.details?.artifactPaths),
+          ...artifactPaths,
+        ]),
+      },
+    },
+  };
+}
+
+function writeMaestroFailureSnapshotArtifacts(
+  snapshot: SnapshotState,
+  artifactsDir: string,
+): string[] {
+  try {
+    fs.mkdirSync(artifactsDir, { recursive: true });
+    const jsonPath = path.join(artifactsDir, 'failure-snapshot.json');
+    const textPath = path.join(artifactsDir, 'failure-snapshot.txt');
+    fs.writeFileSync(jsonPath, `${JSON.stringify(snapshot, null, 2)}\n`);
+    const lines = buildSnapshotDisplayLines(snapshot.nodes, {
+      summarizeTextSurfaces: true,
+    }).map((line) => line.text);
+    fs.writeFileSync(textPath, `${lines.join('\n')}\n`);
+    return [jsonPath, textPath];
+  } catch {
+    return [];
+  }
+}
+
+function readExistingArtifactPaths(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string')
+    : [];
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)];
 }
 
 function shouldCaptureOnceAfterDeadline(

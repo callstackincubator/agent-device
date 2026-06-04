@@ -16,7 +16,7 @@ import { captureSnapshot } from './snapshot-capture.ts';
 import { setSessionSnapshot } from '../session-snapshot.ts';
 import { errorResponse } from './response.ts';
 import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
-import { stripInternalInteractionOutcomeFlags } from '../interaction-outcome-policy.ts';
+import { stripInternalInteractionFlags } from '../interaction-outcome-policy.ts';
 import { dispatchFindReadOnlyViaRuntime } from '../selector-runtime.ts';
 import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
 
@@ -502,7 +502,7 @@ function recordFindAction(ctx: FindContext, match: ResolvedMatch, action: string
 // --- Helpers ---
 
 function publicFindFlags(flags: DaemonRequest['flags']): Record<string, unknown> {
-  return { ...(stripInternalInteractionOutcomeFlags(flags) ?? {}) };
+  return { ...(stripInternalInteractionFlags(flags) ?? {}) };
 }
 
 function buildAmbiguousMatchError(

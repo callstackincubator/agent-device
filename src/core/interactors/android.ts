@@ -13,12 +13,12 @@ import {
   pressAndroid,
   rotateAndroid,
   scrollAndroid,
-  swipeAndroid,
   typeAndroid,
 } from '../../platforms/android/input-actions.ts';
 import {
   pinchAndroid,
   rotateGestureAndroid,
+  swipeGestureAndroid,
   transformGestureAndroid,
 } from '../../platforms/android/multitouch-helper.ts';
 import {
@@ -48,9 +48,12 @@ export function createAndroidInteractor(device: DeviceInfo): Interactor {
       await pressAndroid(device, x, y);
       await pressAndroid(device, x, y);
     },
-    swipe: (x1, y1, x2, y2, durationMs) => swipeAndroid(device, x1, y1, x2, y2, durationMs),
-    pan: (x1, y1, x2, y2, durationMs) => swipeAndroid(device, x1, y1, x2, y2, durationMs),
-    fling: (x1, y1, x2, y2, durationMs) => swipeAndroid(device, x1, y1, x2, y2, durationMs),
+    swipe: (x1, y1, x2, y2, durationMs) =>
+      swipeGestureAndroid(device, { x1, y1, x2, y2, durationMs }),
+    pan: (x1, y1, x2, y2, durationMs) =>
+      swipeGestureAndroid(device, { x1, y1, x2, y2, durationMs }),
+    fling: (x1, y1, x2, y2, durationMs) =>
+      swipeGestureAndroid(device, { x1, y1, x2, y2, durationMs }),
     longPress: (x, y, durationMs) => longPressAndroid(device, x, y, durationMs),
     focus: (x, y) => focusAndroid(device, x, y),
     type: (text, delayMs) => typeAndroid(device, text, delayMs),

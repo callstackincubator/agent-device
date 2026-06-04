@@ -29,13 +29,17 @@ import {
 } from '../android-snapshot-freshness.ts';
 import { contextFromFlags } from '../context.ts';
 import {
+  buildInteractionSurfaceSignature,
+  classifyInteractionSurfaceChange,
   clearPendingInteractionOutcome,
   emitInteractionSettled,
   emitInteractionSettleTimeout,
   getActivePendingInteractionOutcome,
   retryPendingInteractionOutcome,
 } from '../interaction-outcome-policy.ts';
-import { capturePostGestureStabilizedSnapshot } from '../post-gesture-stabilization.ts';
+import {
+  capturePostGestureStabilizedResult,
+} from '../post-gesture-stabilization.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
 import { presentIosInteractiveSnapshot } from '../snapshot-presentation/ios/index.ts';
@@ -64,37 +68,21 @@ type SnapshotAttempt = {
   freshness?: AndroidFreshnessCaptureMeta;
 };
 
-type AndroidFreshnessReason = 'empty-interactive' | 'sharp-drop' | 'stuck-route';
-type AndroidFreshnessMode = 'default' | 'ref-refresh';
-
-export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
+type CaptureSnapshotResult = {
   snapshot: SnapshotState;
   analysis?: AndroidSnapshotAnalysis;
   androidSnapshot?: AndroidSnapshotBackendMetadata;
   freshness?: AndroidFreshnessCaptureMeta;
-}> {
-  if (
-    (params.device.platform === 'ios' || params.device.platform === 'android') &&
-    params.session?.postGestureStabilization
-  ) {
-    return {
-      snapshot: await capturePostGestureStabilizedSnapshot({
-        session: params.session,
-        capture: async () => (await captureSnapshotAttempt(params)).snapshot,
-      }),
-    };
-  }
-  const pendingInteractionOutcome = getActivePendingInteractionOutcome(params.session);
-  if (pendingInteractionOutcome && params.session) {
-    return await captureInteractionOutcomeAwareSnapshot(
-      { ...params, session: params.session },
-      pendingInteractionOutcome,
-    );
-  }
-  const freshness = getActiveAndroidSnapshotFreshness(params.session);
-  if (freshness && params.device.platform === 'android') {
-    return await captureAndroidFreshnessAwareSnapshot(params, freshness);
-  }
+};
+
+type AndroidFreshnessReason = 'empty-interactive' | 'sharp-drop' | 'stuck-route';
+type AndroidFreshnessMode = 'default' | 'ref-refresh';
+const INTERACTION_CHANGE_RECHECK_DELAY_MS = 500;
+
+export async function captureSnapshot(params: CaptureSnapshotParams): Promise<CaptureSnapshotResult> {
+  const postActionResult = await capturePostActionAwareSnapshot(params);
+  if (postActionResult) return postActionResult;
+
   const data = await captureSnapshotData(params);
   clearAndroidSnapshotFreshness(params.session);
   return {
@@ -104,20 +92,42 @@ export async function captureSnapshot(params: CaptureSnapshotParams): Promise<{
   };
 }
 
+async function capturePostActionAwareSnapshot(
+  params: CaptureSnapshotParams,
+): Promise<CaptureSnapshotResult | undefined> {
+  const pendingInteractionOutcome = getActivePendingInteractionOutcome(params.session);
+  if (pendingInteractionOutcome && params.session) {
+    return await captureInteractionOutcomeAwareSnapshot(
+      { ...params, session: params.session },
+      pendingInteractionOutcome,
+    );
+  }
+  if (
+    (params.device.platform === 'ios' || params.device.platform === 'android') &&
+    params.session?.postGestureStabilization
+  ) {
+    return await capturePostGestureAwareSnapshot({ ...params, session: params.session });
+  }
+  const freshness = getActiveAndroidSnapshotFreshness(params.session);
+  if (freshness && params.device.platform === 'android') {
+    return await captureAndroidFreshnessAwareSnapshot(params, freshness);
+  }
+  return undefined;
+}
+
 async function captureInteractionOutcomeAwareSnapshot(
   params: CaptureSnapshotParams & { session: SessionState },
   pending: NonNullable<SessionState['pendingInteractionOutcome']>,
-): Promise<{
-  snapshot: SnapshotState;
-  analysis?: AndroidSnapshotAnalysis;
-  androidSnapshot?: AndroidSnapshotBackendMetadata;
-  freshness?: AndroidFreshnessCaptureMeta;
-}> {
+): Promise<CaptureSnapshotResult> {
   const session = params.session;
 
   const startedAt = Date.now();
   let retryAttempts = 0;
-  let latest = await captureSnapshotAttemptForInteractionOutcome(params);
+  let latest = await waitForDelayedInteractionSurfaceChange(
+    params,
+    pending,
+    await capturePostActionSnapshotAttempt(params),
+  );
   let outcome = await retryPendingInteractionOutcome({
     session,
     pending,
@@ -127,7 +137,11 @@ async function captureInteractionOutcomeAwareSnapshot(
 
   while (outcome.retried) {
     retryAttempts += 1;
-    latest = await captureSnapshotAttemptForInteractionOutcome(params);
+    latest = await waitForDelayedInteractionSurfaceChange(
+      params,
+      pending,
+      await capturePostActionSnapshotAttempt(params),
+    );
     outcome = await retryPendingInteractionOutcome({
       session,
       pending,
@@ -137,6 +151,12 @@ async function captureInteractionOutcomeAwareSnapshot(
   }
 
   clearPendingInteractionOutcome(session);
+  latest = await capturePostGestureStabilizedResult({
+    session,
+    initial: latest,
+    capture: async () => await capturePostActionSnapshotAttempt(params),
+    readSnapshot: (attempt) => attempt.snapshot,
+  });
   if (outcome.change !== 'ambiguous' && latest.freshness?.staleAfterRetries !== true) {
     clearAndroidSnapshotFreshness(session);
   }
@@ -157,6 +177,24 @@ async function captureInteractionOutcomeAwareSnapshot(
     androidSnapshot: latest.data.androidSnapshot,
     freshness: latest.freshness,
   };
+}
+
+async function waitForDelayedInteractionSurfaceChange(
+  params: CaptureSnapshotParams & { session: SessionState },
+  pending: NonNullable<SessionState['pendingInteractionOutcome']>,
+  initial: SnapshotAttempt,
+): Promise<SnapshotAttempt> {
+  let latest = initial;
+  const change = classifyInteractionSurfaceChange(
+    pending.preSignature,
+    buildInteractionSurfaceSignature(latest.snapshot.nodes),
+  );
+  if (change !== 'unchanged') return latest;
+
+  await sleep(INTERACTION_CHANGE_RECHECK_DELAY_MS);
+  latest = await capturePostActionSnapshotAttempt(params);
+
+  return latest;
 }
 
 export async function captureSnapshotData(params: CaptureSnapshotParams): Promise<SnapshotData> {
@@ -195,12 +233,7 @@ export async function captureSnapshotData(params: CaptureSnapshotParams): Promis
 async function captureAndroidFreshnessAwareSnapshot(
   params: CaptureSnapshotParams,
   freshness: NonNullable<SessionState['androidSnapshotFreshness']>,
-): Promise<{
-  snapshot: SnapshotState;
-  analysis?: AndroidSnapshotAnalysis;
-  androidSnapshot?: AndroidSnapshotBackendMetadata;
-  freshness?: AndroidFreshnessCaptureMeta;
-}> {
+): Promise<CaptureSnapshotResult> {
   const latest = await captureAndroidFreshnessAwareAttempt(params, freshness);
   return {
     snapshot: latest.snapshot,
@@ -247,7 +280,23 @@ async function captureAndroidFreshnessAwareAttempt(
   };
 }
 
-async function captureSnapshotAttemptForInteractionOutcome(
+async function capturePostGestureAwareSnapshot(
+  params: CaptureSnapshotParams & { session: SessionState },
+): Promise<CaptureSnapshotResult> {
+  const latest = await capturePostGestureStabilizedResult({
+    session: params.session,
+    capture: async () => await capturePostActionSnapshotAttempt(params),
+    readSnapshot: (attempt) => attempt.snapshot,
+  });
+  return {
+    snapshot: latest.snapshot,
+    analysis: latest.data.analysis,
+    androidSnapshot: latest.data.androidSnapshot,
+    freshness: latest.freshness,
+  };
+}
+
+async function capturePostActionSnapshotAttempt(
   params: CaptureSnapshotParams & { session: SessionState },
 ): Promise<SnapshotAttempt> {
   const freshness = getActiveAndroidSnapshotFreshness(params.session);
