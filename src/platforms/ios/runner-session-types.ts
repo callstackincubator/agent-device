@@ -1,5 +1,6 @@
 import type { ExecResult, ExecBackgroundResult } from '../../utils/exec.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import type { RunnerXctestrunArtifact } from './runner-xctestrun.ts';
 
 export type RunnerSession = {
   sessionId: string;
@@ -7,6 +8,7 @@ export type RunnerSession = {
   deviceId: string;
   port: number;
   xctestrunPath: string;
+  xctestrunArtifact?: RunnerXctestrunArtifact;
   jsonPath: string;
   testPromise: Promise<ExecResult>;
   child: ExecBackgroundResult['child'];

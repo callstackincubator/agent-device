@@ -28,6 +28,10 @@ import {
   resolveAppleRunnerProvider,
   type AppleRunnerCommandOptions,
 } from './runner-provider.ts';
+import {
+  markRunnerXctestrunArtifactBadForRun,
+  type RunnerXctestrunArtifact,
+} from './runner-xctestrun.ts';
 export {
   isRetryableRunnerError,
   resolveRunnerEarlyExitHint,
@@ -57,6 +61,21 @@ type RunnerReadinessPreflightRecoveryDetails = {
   readinessPreflightSkipped?: boolean;
   readinessPreflightSkipReason?: string;
   readinessPreflightSkippedAgeMs?: number;
+};
+
+export type PrepareIosRunnerOptions = RunnerSessionOptions & {
+  healthTimeoutMs: number;
+};
+
+export type PrepareIosRunnerResult = {
+  runner: Record<string, unknown>;
+  cache?: RunnerXctestrunArtifact['cache'];
+  artifact?: RunnerXctestrunArtifact['artifact'];
+  buildMs?: number;
+  connectMs: number;
+  healthCheckMs: number;
+  xctestrunPath?: string;
+  failureReason?: string;
 };
 
 const RUNNER_STATUS_RECOVERY_TIMEOUT_MS = 3_000;
@@ -123,6 +142,79 @@ export function prewarmIosRunnerSession(
     });
   void prewarm;
   return prewarm;
+}
+
+export async function prepareIosRunner(
+  device: DeviceInfo,
+  options: PrepareIosRunnerOptions,
+): Promise<PrepareIosRunnerResult> {
+  validateRunnerDevice(device);
+  assertRunnerRequestActive(options.requestId);
+  const signal = getRequestSignal(options.requestId);
+  const command = withRunnerCommandId({ command: 'uptime' });
+  if (hasScopedAppleRunnerProvider(device, { requestId: options.requestId })) {
+    const provider = resolveAppleRunnerProvider(
+      device,
+      createLocalAppleRunnerProvider(executeRunnerCommand),
+      undefined,
+      { requestId: options.requestId },
+    );
+    const healthStartedAt = Date.now();
+    const runner = await provider.runCommand(device, command, options);
+    return {
+      runner,
+      connectMs: 0,
+      healthCheckMs: Math.max(0, Date.now() - healthStartedAt),
+    };
+  }
+  let session: RunnerSession | undefined;
+  try {
+    const connectStartedAt = Date.now();
+    session = await ensureRunnerSession(device, options);
+    const connectMs = Date.now() - connectStartedAt;
+    return await runPrepareHealthCheck(device, session, command, options, signal, connectMs);
+  } catch (err) {
+    const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
+    if (!session || !shouldRecoverBadCachedRunnerArtifact(appErr, session)) {
+      throw err;
+    }
+    const reason = appErr.message || 'runner_health_failed';
+    await invalidateRunnerSession(session, 'prepare_cached_runner_health_failed');
+    await markRunnerXctestrunArtifactBadForRun(session.xctestrunArtifact, reason);
+    const connectStartedAt = Date.now();
+    const rebuiltSession = await ensureRunnerSession(device, {
+      ...options,
+      cleanStaleBundles: true,
+      forceRunnerXctestrunRebuild: true,
+    });
+    const connectMs = Date.now() - connectStartedAt;
+    try {
+      const recovered = await runPrepareHealthCheck(
+        device,
+        rebuiltSession,
+        command,
+        options,
+        signal,
+        connectMs,
+        reason,
+      );
+      emitDiagnostic({
+        level: 'info',
+        phase: 'ios_runner_prepare_bad_cache_recovered',
+        data: {
+          command: command.command,
+          commandId: command.commandId,
+          sessionId: rebuiltSession.sessionId,
+          xctestrunPath: rebuiltSession.xctestrunArtifact?.xctestrunPath,
+          reason,
+        },
+      });
+      return recovered;
+    } catch (retryErr) {
+      await invalidateRunnerSession(rebuiltSession, 'prepare_rebuilt_runner_health_failed');
+      throw wrapPrepareHealthFailure(retryErr, rebuiltSession, reason);
+    }
+  }
 }
 
 // fallow-ignore-next-line complexity
@@ -249,6 +341,104 @@ async function executeRunnerCommand(
     }
     throw err;
   }
+}
+
+async function runPrepareHealthCheck(
+  device: DeviceInfo,
+  session: RunnerSession,
+  command: RunnerCommand,
+  options: PrepareIosRunnerOptions,
+  signal: AbortSignal | undefined,
+  connectMs: number,
+  failureReason?: string,
+): Promise<PrepareIosRunnerResult> {
+  const healthStartedAt = Date.now();
+  const runner = await executeRunnerCommandWithSession(
+    device,
+    session,
+    command,
+    options.logPath,
+    options.healthTimeoutMs,
+    signal,
+  );
+  return buildPrepareIosRunnerResult(
+    runner,
+    session,
+    connectMs,
+    Date.now() - healthStartedAt,
+    failureReason,
+  );
+}
+
+function shouldRecoverBadCachedRunnerArtifact(
+  error: AppError,
+  session: RunnerSession,
+): session is RunnerSession & {
+  xctestrunArtifact: NonNullable<RunnerSession['xctestrunArtifact']>;
+} {
+  const artifact = session.xctestrunArtifact;
+  if (!artifact || artifact.cache === 'miss') return false;
+  return (
+    isRetryableRunnerError(error) ||
+    shouldRetryRunnerConnectError(error) ||
+    isPrepareHealthTimeout(error)
+  );
+}
+
+function isPrepareHealthTimeout(error: AppError): boolean {
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('timeout') || message.includes('timed out') || message.includes('deadline')
+  );
+}
+
+function wrapPrepareHealthFailure(
+  error: unknown,
+  session: RunnerSession,
+  restoredFailureReason: string,
+): AppError {
+  const appErr = error instanceof AppError ? error : new AppError('COMMAND_FAILED', String(error));
+  return new AppError(
+    appErr.code,
+    'artifact restored but runner did not connect',
+    {
+      ...(appErr.details ?? {}),
+      restoredFailureReason,
+      xctestrunPath: session.xctestrunArtifact?.xctestrunPath,
+      artifact: session.xctestrunArtifact?.artifact,
+      cache: session.xctestrunArtifact?.cache,
+      reason: appErr.message,
+    },
+    appErr,
+  );
+}
+
+function buildPrepareIosRunnerResult(
+  runner: Record<string, unknown>,
+  session: RunnerSession,
+  connectMs: number,
+  healthCheckMs: number,
+  failureReason: string | undefined,
+): PrepareIosRunnerResult {
+  const artifact = session.xctestrunArtifact;
+  if (!artifact) {
+    return {
+      runner,
+      connectMs: Math.max(0, connectMs),
+      healthCheckMs: Math.max(0, healthCheckMs),
+      ...(failureReason ? { failureReason } : {}),
+    };
+  }
+  return {
+    runner,
+    cache: artifact.cache,
+    artifact: artifact.artifact,
+    buildMs: artifact.buildMs,
+    connectMs: Math.max(0, connectMs),
+    healthCheckMs: Math.max(0, healthCheckMs),
+    xctestrunPath: artifact.xctestrunPath,
+    ...(failureReason ? { failureReason } : {}),
+  };
 }
 
 async function handleRunnerTransportErrorAfterCommandSend(

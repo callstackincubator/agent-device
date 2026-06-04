@@ -8,6 +8,7 @@ import path from 'node:path';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { withCommandExecutorOverride } from '../../../utils/exec.ts';
 import {
+  __resetRunnerToolchainFingerprintCacheForTests,
   acquireXcodebuildSimulatorSetRedirect,
   findXctestrun,
   prepareXctestrunWithEnv,
@@ -198,22 +199,69 @@ test('scoreXctestrunCandidate penalizes macos and env xctestrun files for simula
 
 test('setup metadata script matches expected iOS simulator cache metadata', async () => {
   await withTempDir('runner-cache-metadata-', async (root) => {
-    execFileSync(
-      process.execPath,
-      ['scripts/write-xcuitest-cache-metadata.mjs', 'ios', root, 'generic/platform=iOS Simulator'],
-      { cwd: process.cwd(), stdio: ['ignore', 'ignore', 'inherit'] },
+    const binDir = path.join(root, 'bin');
+    fs.mkdirSync(binDir);
+    writeExecutable(
+      path.join(binDir, 'xcodebuild'),
+      ['#!/bin/sh', 'printf "Xcode 26.2\\nBuild version 17C52\\n"'].join('\n'),
     );
-
-    const actual = JSON.parse(
-      fs.readFileSync(path.join(root, '.agent-device-runner-cache.json'), 'utf8'),
+    writeExecutable(
+      path.join(binDir, 'xcrun'),
+      [
+        '#!/bin/sh',
+        'case "$*" in',
+        '  *"--show-sdk-version"*) printf "26.2\\n" ;;',
+        '  *"--show-sdk-build-version"*) printf "23C53\\n" ;;',
+        '  *) exit 1 ;;',
+        'esac',
+      ].join('\n'),
     );
-    const { artifacts: _actualArtifacts, ...actualComparable } = actual;
-    const { artifacts: _expectedArtifacts, ...expectedComparable } =
-      resolveExpectedRunnerCacheMetadata(iosSimulator);
+    const previousPath = process.env.PATH;
+    process.env.PATH = `${binDir}${path.delimiter}${previousPath ?? ''}`;
+    __resetRunnerToolchainFingerprintCacheForTests();
 
-    assert.deepEqual(actualComparable, expectedComparable);
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          'scripts/write-xcuitest-cache-metadata.mjs',
+          'ios',
+          root,
+          'generic/platform=iOS Simulator',
+        ],
+        {
+          cwd: process.cwd(),
+          env: { ...process.env, PATH: process.env.PATH },
+          stdio: ['ignore', 'ignore', 'inherit'],
+        },
+      );
+
+      const actual = JSON.parse(
+        fs.readFileSync(path.join(root, '.agent-device-runner-cache.json'), 'utf8'),
+      );
+      const { artifacts: _actualArtifacts, ...actualComparable } = actual;
+      const { artifacts: _expectedArtifacts, ...expectedComparable } =
+        resolveExpectedRunnerCacheMetadata(iosSimulator);
+
+      assert.deepEqual(actualComparable, expectedComparable);
+    } finally {
+      __resetRunnerToolchainFingerprintCacheForTests();
+      restoreEnvVar('PATH', previousPath);
+    }
   });
 });
+
+function writeExecutable(filePath: string, contents: string): void {
+  fs.writeFileSync(filePath, `${contents}\n`, { mode: 0o755 });
+}
+
+function restoreEnvVar(name: string, value: string | undefined): void {
+  if (value === undefined) {
+    delete process.env[name];
+    return;
+  }
+  process.env[name] = value;
+}
 
 test('prepareXctestrunWithEnv avoids XCTest screen recordings for nested and legacy targets', async () => {
   await withTempDir('runner-xctestrun-policy-', async (root) => {

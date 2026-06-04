@@ -9,12 +9,14 @@ const {
   mockExecuteRunnerCommandWithSession,
   mockEmitDiagnostic,
   mockInvalidateRunnerSession,
+  mockMarkRunnerXctestrunArtifactBadForRun,
   mockStopRunnerSession,
 } = vi.hoisted(() => ({
   mockEnsureRunnerSession: vi.fn(),
   mockExecuteRunnerCommandWithSession: vi.fn(),
   mockEmitDiagnostic: vi.fn(),
   mockInvalidateRunnerSession: vi.fn(),
+  mockMarkRunnerXctestrunArtifactBadForRun: vi.fn(),
   mockStopRunnerSession: vi.fn(),
 }));
 
@@ -40,10 +42,145 @@ vi.mock('../runner-session.ts', async () => {
   };
 });
 
-import { runIosRunnerCommand } from '../runner-client.ts';
+vi.mock('../runner-xctestrun.ts', async () => {
+  const actual =
+    await vi.importActual<typeof import('../runner-xctestrun.ts')>('../runner-xctestrun.ts');
+  return {
+    ...actual,
+    markRunnerXctestrunArtifactBadForRun: mockMarkRunnerXctestrunArtifactBadForRun,
+  };
+});
+
+import { prepareIosRunner, runIosRunnerCommand } from '../runner-client.ts';
+import type { RunnerXctestrunArtifact } from '../runner-xctestrun.ts';
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mockMarkRunnerXctestrunArtifactBadForRun.mockResolvedValue(undefined);
+});
+
+test('prepareIosRunner marks a bad restored artifact and rebuilds once after health failure', async () => {
+  const restoredArtifact = makeRunnerArtifact({
+    xctestrunPath: '/tmp/restored.xctestrun',
+    cache: 'exact',
+    artifact: 'valid',
+  });
+  const rebuiltArtifact = makeRunnerArtifact({
+    xctestrunPath: '/tmp/rebuilt.xctestrun',
+    cache: 'miss',
+    artifact: 'rebuilt',
+    buildMs: 123,
+  });
+  const restoredSession = makeRunnerSession({
+    port: 8100,
+    xctestrunPath: restoredArtifact.xctestrunPath,
+    xctestrunArtifact: restoredArtifact,
+  });
+  const rebuiltSession = makeRunnerSession({
+    port: 8101,
+    xctestrunPath: rebuiltArtifact.xctestrunPath,
+    xctestrunArtifact: rebuiltArtifact,
+  });
+
+  mockEnsureRunnerSession
+    .mockResolvedValueOnce(restoredSession)
+    .mockResolvedValueOnce(rebuiltSession);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'Runner did not accept connection'))
+    .mockResolvedValueOnce({ uptimeMs: 42 });
+
+  const result = await prepareIosRunner(IOS_SIMULATOR, {
+    healthTimeoutMs: 90_000,
+    buildTimeoutMs: 300_000,
+  });
+
+  assert.deepEqual(result, {
+    runner: { uptimeMs: 42 },
+    cache: 'miss',
+    artifact: 'rebuilt',
+    buildMs: 123,
+    connectMs: result.connectMs,
+    healthCheckMs: result.healthCheckMs,
+    xctestrunPath: '/tmp/rebuilt.xctestrun',
+    failureReason: 'Runner did not accept connection',
+  });
+  assert.equal(result.connectMs >= 0, true);
+  assert.equal(result.healthCheckMs >= 0, true);
+  assert.deepEqual(mockInvalidateRunnerSession.mock.calls[0], [
+    restoredSession,
+    'prepare_cached_runner_health_failed',
+  ]);
+  assert.deepEqual(mockMarkRunnerXctestrunArtifactBadForRun.mock.calls[0], [
+    restoredArtifact,
+    'Runner did not accept connection',
+  ]);
+  assert.deepEqual(mockEnsureRunnerSession.mock.calls[1]?.[1], {
+    healthTimeoutMs: 90_000,
+    buildTimeoutMs: 300_000,
+    cleanStaleBundles: true,
+    forceRunnerXctestrunRebuild: true,
+  });
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[0]?.[2].command, 'uptime');
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[0]?.[4], 90_000);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[1]?.[1], rebuiltSession);
+  assert.ok(
+    mockEmitDiagnostic.mock.calls.some(
+      ([event]) => event.phase === 'ios_runner_prepare_bad_cache_recovered',
+    ),
+  );
+});
+
+test('prepareIosRunner invalidates rebuilt sessions when bad-cache recovery health fails', async () => {
+  const restoredArtifact = makeRunnerArtifact({
+    xctestrunPath: '/tmp/restored.xctestrun',
+    cache: 'restore-key',
+    artifact: 'valid',
+  });
+  const rebuiltArtifact = makeRunnerArtifact({
+    xctestrunPath: '/tmp/rebuilt.xctestrun',
+    cache: 'miss',
+    artifact: 'rebuilt',
+  });
+  const restoredSession = makeRunnerSession({
+    port: 8100,
+    xctestrunPath: restoredArtifact.xctestrunPath,
+    xctestrunArtifact: restoredArtifact,
+  });
+  const rebuiltSession = makeRunnerSession({
+    port: 8101,
+    xctestrunPath: rebuiltArtifact.xctestrunPath,
+    xctestrunArtifact: rebuiltArtifact,
+  });
+
+  mockEnsureRunnerSession
+    .mockResolvedValueOnce(restoredSession)
+    .mockResolvedValueOnce(rebuiltSession);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'Runner endpoint probe failed'))
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'Runner health timed out'));
+
+  await assert.rejects(
+    () => prepareIosRunner(IOS_SIMULATOR, { healthTimeoutMs: 90_000 }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.message, 'artifact restored but runner did not connect');
+      assert.equal(error.details?.restoredFailureReason, 'Runner endpoint probe failed');
+      assert.equal(error.details?.xctestrunPath, '/tmp/rebuilt.xctestrun');
+      assert.equal(error.details?.artifact, 'rebuilt');
+      assert.equal(error.details?.cache, 'miss');
+      return true;
+    },
+  );
+
+  assert.deepEqual(mockInvalidateRunnerSession.mock.calls, [
+    [restoredSession, 'prepare_cached_runner_health_failed'],
+    [rebuiltSession, 'prepare_rebuilt_runner_health_failed'],
+  ]);
+  assert.deepEqual(mockMarkRunnerXctestrunArtifactBadForRun.mock.calls[0], [
+    restoredArtifact,
+    'Runner endpoint probe failed',
+  ]);
 });
 
 test('mutating commands restart stale ready sessions when the preflight probe never reaches the runner', async () => {
@@ -602,6 +739,20 @@ function makeRunnerSession(overrides: Partial<RunnerSession> = {}): RunnerSessio
     ready: true,
     ...overrides,
   } as RunnerSession;
+}
+
+function makeRunnerArtifact(
+  overrides: Partial<RunnerXctestrunArtifact> = {},
+): RunnerXctestrunArtifact {
+  return {
+    xctestrunPath: '/tmp/runner.xctestrun',
+    derived: '/tmp/derived',
+    cache: 'exact',
+    artifact: 'valid',
+    buildMs: 0,
+    xctestrunPathSource: 'manifest',
+    ...overrides,
+  };
 }
 
 async function captureDiagnostics(callback: () => Promise<void>): Promise<string> {
