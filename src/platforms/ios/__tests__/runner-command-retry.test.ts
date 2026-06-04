@@ -99,8 +99,9 @@ test('prepareIosRunner marks a bad restored artifact and rebuilds once after hea
     connectMs: result.connectMs,
     healthCheckMs: result.healthCheckMs,
     xctestrunPath: '/tmp/rebuilt.xctestrun',
-    failureReason: 'Runner did not accept connection',
+    recoveryReason: 'Runner did not accept connection',
   });
+  assert.equal(result.failureReason, undefined);
   assert.equal(result.connectMs >= 0, true);
   assert.equal(result.healthCheckMs >= 0, true);
   assert.deepEqual(mockInvalidateRunnerSession.mock.calls[0], [
@@ -133,7 +134,9 @@ test('prepareIosRunner marks a bad restored artifact and rebuilds once after hea
         event.data?.cache === 'miss' &&
         event.data?.artifact === 'rebuilt' &&
         event.data?.xctestrunPath === '/tmp/rebuilt.xctestrun' &&
-        event.data?.failureReason === 'Runner did not accept connection',
+        event.data?.recoveryReason === 'Runner did not accept connection' &&
+        event.data?.failureReason === undefined &&
+        event.level === 'info',
     ),
   );
 });

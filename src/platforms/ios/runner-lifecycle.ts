@@ -67,7 +67,7 @@ export async function prepareLocalIosRunner(
         options,
         signal,
         connectMs,
-        reason,
+        { recoveryReason: reason },
       );
       emitDiagnostic({
         level: 'info',
@@ -232,7 +232,7 @@ async function runPrepareHealthCheck(
   options: PrepareIosRunnerOptions,
   signal: AbortSignal | undefined,
   connectMs: number,
-  failureReason?: string,
+  reason?: { recoveryReason?: string; failureReason?: string },
 ): Promise<PrepareIosRunnerResult> {
   const healthStartedAt = Date.now();
   const runner = await executeRunnerCommandWithSession(
@@ -248,7 +248,7 @@ async function runPrepareHealthCheck(
     session,
     connectMs,
     Date.now() - healthStartedAt,
-    failureReason,
+    reason,
   );
 }
 
@@ -300,15 +300,19 @@ function buildPrepareIosRunnerResult(
   session: RunnerSession,
   connectMs: number,
   healthCheckMs: number,
-  failureReason: string | undefined,
+  reason: { recoveryReason?: string; failureReason?: string } | undefined,
 ): PrepareIosRunnerResult {
   const artifact = session.xctestrunArtifact;
+  const reasonFields = {
+    ...(reason?.recoveryReason ? { recoveryReason: reason.recoveryReason } : {}),
+    ...(reason?.failureReason ? { failureReason: reason.failureReason } : {}),
+  };
   if (!artifact) {
     return {
       runner,
       connectMs: Math.max(0, connectMs),
       healthCheckMs: Math.max(0, healthCheckMs),
-      ...(failureReason ? { failureReason } : {}),
+      ...reasonFields,
     };
   }
   return {
@@ -319,7 +323,7 @@ function buildPrepareIosRunnerResult(
     connectMs: Math.max(0, connectMs),
     healthCheckMs: Math.max(0, healthCheckMs),
     xctestrunPath: artifact.xctestrunPath,
-    ...(failureReason ? { failureReason } : {}),
+    ...reasonFields,
   };
 }
 
@@ -348,6 +352,7 @@ function emitPrepareDiagnostic(
       connectMs: result.connectMs,
       healthCheckMs: result.healthCheckMs,
       xctestrunPath: result.xctestrunPath,
+      recoveryReason: result.recoveryReason,
       failureReason: result.failureReason,
     },
   });

@@ -31,6 +31,7 @@ export type AppleRunnerPrepareResult = {
   connectMs: number;
   healthCheckMs: number;
   xctestrunPath?: string;
+  recoveryReason?: string;
   failureReason?: string;
 };
 

@@ -41,7 +41,7 @@ const XCTEST_DEVICE_SET_LEGACY_BACKUP_PREFIX = '.agent-device-xctestdevices-back
 
 const RUNNER_DERIVED_ROOT = path.join(os.homedir(), '.agent-device', 'ios-runner');
 const RUNNER_CACHE_METADATA_FILE = '.agent-device-runner-cache.json';
-const RUNNER_CACHE_SCHEMA_VERSION = 1;
+const RUNNER_CACHE_SCHEMA_VERSION = 2;
 const XCTEST_DEVICE_SET_LOCK_TIMEOUT_MS = 30_000;
 const XCTEST_DEVICE_SET_LOCK_POLL_MS = 100;
 const XCTEST_DEVICE_SET_LOCK_OWNER_GRACE_MS = 5_000;
@@ -917,8 +917,8 @@ function evaluateRunnerCacheMetadata(
     return { ok: false, reason: 'cache_metadata_missing' };
   }
   if (
-    JSON.stringify(comparableRunnerCacheMetadata(actual)) !==
-    JSON.stringify(comparableRunnerCacheMetadata(expected))
+    stableJsonStringify(comparableRunnerCacheMetadata(actual)) !==
+    stableJsonStringify(comparableRunnerCacheMetadata(expected))
   ) {
     return { ok: false, reason: 'cache_metadata_mismatch' };
   }
@@ -935,9 +935,27 @@ function comparableRunnerCacheMetadata(
 function resolveRunnerDerivedCacheKey(metadata: RunnerXctestrunCacheMetadata): string {
   const hash = crypto
     .createHash('sha256')
-    .update(JSON.stringify(comparableRunnerCacheMetadata(metadata)))
+    .update(stableJsonStringify(comparableRunnerCacheMetadata(metadata)))
     .digest('hex');
   return `cache-${hash.slice(0, 16)}`;
+}
+
+function stableJsonStringify(value: unknown): string {
+  return JSON.stringify(sortJsonKeys(value));
+}
+
+function sortJsonKeys(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sortJsonKeys(item));
+  }
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => [key, sortJsonKeys(item)]),
+  );
 }
 
 function withRunnerCacheArtifacts(

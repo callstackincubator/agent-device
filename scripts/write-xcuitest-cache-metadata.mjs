@@ -197,7 +197,7 @@ function resolveSigningBuildSettings() {
 const appBundleId = resolveRunnerAppBundleId();
 const testBundleId = resolveRunnerTestBundleId();
 const metadata = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   packageVersion: readPackageVersion(),
   runnerSourceFingerprint: computeRunnerSourceFingerprint(),
   ...resolveRunnerToolchainFingerprint(),
