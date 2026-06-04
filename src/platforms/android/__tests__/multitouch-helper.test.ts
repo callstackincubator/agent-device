@@ -166,7 +166,7 @@ test('runAndroidMultiTouchHelperGesture preserves helper failure messages', asyn
   );
 });
 
-test('swipeAndroid and multi-touch gestures prefer provider-native touch injection', async () => {
+test('swipeGestureAndroid and multi-touch gestures prefer provider-native touch injection', async () => {
   const calls: unknown[] = [];
   await withAndroidAdbProvider(
     {
@@ -224,6 +224,54 @@ test('swipeAndroid and multi-touch gestures prefer provider-native touch injecti
       durationMs: undefined,
     },
   ]);
+});
+
+test('swipeGestureAndroid falls back to adb input swipe when helper path is unavailable', async () => {
+  const adbCalls: string[][] = [];
+  const result = await withAndroidAdbProvider(
+    {
+      exec: async (args) => {
+        adbCalls.push(args);
+        if (args.includes('--show-versioncode')) {
+          return {
+            exitCode: 0,
+            stdout: `package:${manifest.packageName} versionCode:999999`,
+            stderr: '',
+          };
+        }
+        if (args.includes('instrument')) {
+          return {
+            exitCode: 1,
+            stdout: [
+              resultRecord({
+                ok: 'false',
+                errorType: 'java.lang.IllegalStateException',
+                message: 'injectInputEvent returned false',
+              }),
+              'INSTRUMENTATION_CODE: 1',
+            ].join('\n'),
+            stderr: '',
+          };
+        }
+        if (args.join(' ') === 'shell input swipe 340 400 60 400 300') {
+          return { exitCode: 0, stdout: '', stderr: '' };
+        }
+        throw new Error(`unexpected adb call: ${args.join(' ')}`);
+      },
+    },
+    { serial: ANDROID_EMULATOR.id },
+    async () =>
+      await swipeGestureAndroid(ANDROID_EMULATOR, {
+        x1: 340,
+        y1: 400,
+        x2: 60,
+        y2: 400,
+        durationMs: 300,
+      }),
+  );
+
+  assert.deepEqual(result, { backend: 'adb-input-swipe-fallback' });
+  assert.ok(adbCalls.some((args) => args.join(' ') === 'shell input swipe 340 400 60 400 300'));
 });
 
 test('rotateGestureAndroid rejects zero velocity before provider dispatch', async () => {

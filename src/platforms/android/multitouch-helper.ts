@@ -473,7 +473,7 @@ async function resolveAndroidMultiTouchHelperArtifact(): Promise<AndroidMultiTou
   } catch (error) {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
-      'gesture pinch/rotate/transform on Android requires the bundled Android multi-touch helper artifact, but it was not found or could not be read',
+      'Android touch gestures require the bundled Android touch helper artifact, but it was not found or could not be read',
       { manifestPath, error: normalizeError(error).message },
       error,
     );
