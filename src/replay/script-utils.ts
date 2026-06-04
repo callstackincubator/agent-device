@@ -108,7 +108,7 @@ export function appendRuntimeHintFlags(
     | undefined,
 ): void {
   if (!flags) return;
-  if (flags.platform === 'ios' || flags.platform === 'android') {
+  if (flags.platform === 'ios' || flags.platform === 'android' || flags.platform === 'harmonyos') {
     parts.push('--platform', flags.platform);
   }
   if (typeof flags.metroHost === 'string' && flags.metroHost.length > 0) {

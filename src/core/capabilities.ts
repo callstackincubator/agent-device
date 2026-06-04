@@ -180,8 +180,9 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   logs: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
-    harmonyos: HARMONYOS_DEVICE,
+    harmonyos: {},
     linux: LINUX_NONE,
+    supports: (device) => device.platform !== 'harmonyos',
   },
   network: {
     apple: { simulator: true, device: true },
@@ -199,8 +200,9 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   perf: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
-    harmonyos: HARMONYOS_DEVICE,
+    harmonyos: {},
     linux: LINUX_NONE,
+    supports: (device) => device.platform !== 'harmonyos',
   },
   pan: {
     apple: { simulator: true, device: true },

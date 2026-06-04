@@ -6,6 +6,7 @@ export type BootFailureReason =
   | 'IOS_TOOL_MISSING'
   | 'ANDROID_BOOT_TIMEOUT'
   | 'ADB_TRANSPORT_UNAVAILABLE'
+  | 'HDC_TRANSPORT_UNAVAILABLE'
   | 'CI_RESOURCE_STARVATION_SUSPECTED'
   | 'BOOT_COMMAND_FAILED'
   | 'UNKNOWN';
@@ -16,11 +17,12 @@ const INFRASTRUCTURE_BOOT_FAILURE_REASONS = new Set<BootFailureReason>([
   'IOS_TOOL_MISSING',
   'ANDROID_BOOT_TIMEOUT',
   'ADB_TRANSPORT_UNAVAILABLE',
+  'HDC_TRANSPORT_UNAVAILABLE',
   'CI_RESOURCE_STARVATION_SUSPECTED',
 ]);
 
 type BootDiagnosticContext = {
-  platform?: 'ios' | 'android';
+  platform?: 'ios' | 'android' | 'harmonyos';
   phase?: 'boot' | 'connect' | 'transport';
 };
 
@@ -39,7 +41,11 @@ export function classifyBootFailure(input: {
   const platform = input.context?.platform;
   const phase = input.context?.phase;
   if (appErr?.code === 'TOOL_MISSING') {
-    return platform === 'android' ? 'ADB_TRANSPORT_UNAVAILABLE' : 'IOS_TOOL_MISSING';
+    return platform === 'android'
+      ? 'ADB_TRANSPORT_UNAVAILABLE'
+      : platform === 'harmonyos'
+        ? 'HDC_TRANSPORT_UNAVAILABLE'
+        : 'IOS_TOOL_MISSING';
   }
   const details = (appErr?.details ?? {}) as Record<string, unknown>;
   const detailMessage = typeof details.message === 'string' ? details.message : undefined;
