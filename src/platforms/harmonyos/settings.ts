@@ -178,6 +178,12 @@ async function setHarmonyPermission(
 ): Promise<void> {
   // HarmonyOS permission management uses different commands than Android
   // This is a simplified implementation - actual HarmonyOS may need specific APIs
+  if (action === 'deny') {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      'HarmonyOS permission deny is not yet implemented',
+    );
+  }
   if (action === 'reset') {
     throw new AppError(
       'UNSUPPORTED_OPERATION',
@@ -185,7 +191,7 @@ async function setHarmonyPermission(
     );
   }
 
-  // Try using bm tool for permission management (if available)
+  // Only grant is supported for now
   const result = await runHarmonyHdc(
     device,
     ['shell', 'bm', 'grant-permission', '-n', appPackage, '-p', permission],

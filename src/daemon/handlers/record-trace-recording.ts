@@ -41,6 +41,10 @@ import {
   stopIosSimulatorRecordingProcess,
 } from './record-trace-ios-simulator.ts';
 import { resolveImplicitSessionScope, resolvePublicSessionName } from '../session-routing.ts';
+import {
+  startHarmonyRecording,
+  stopHarmonyRecording,
+} from '../../platforms/harmonyos/recording.ts';
 
 const IOS_DEVICE_RECORD_MIN_FPS = 1;
 const IOS_DEVICE_RECORD_MAX_FPS = 120;
@@ -175,6 +179,35 @@ async function startIosSimulatorRecording(params: {
   };
 }
 
+// --- HarmonyOS start helper ---
+
+async function startHarmonyOsRecording(params: {
+  device: SessionState['device'];
+  recordingBase: RecordingBase;
+}): Promise<DaemonResponse | NonNullable<SessionState['recording']>> {
+  const { device, recordingBase } = params;
+  const remotePath = `/data/local/tmp/agent-device-recording-${Date.now()}.mp4`;
+
+  let startResult: { remotePid: string };
+  try {
+    startResult = await startHarmonyRecording(device, remotePath);
+  } catch (error) {
+    return errorResponse(
+      'COMMAND_FAILED',
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+
+  const recording: Extract<NonNullable<SessionState['recording']>, { platform: 'harmonyos' }> = {
+    platform: 'harmonyos',
+    remotePath,
+    remotePid: startResult.remotePid,
+    ...recordingBase,
+    startedAt: Date.now(),
+  };
+  return recording;
+}
+
 // --- Start recording orchestrator ---
 
 // fallow-ignore-next-line complexity
@@ -276,6 +309,8 @@ async function startRecording(params: {
       recordingBase,
       resolvedOut,
     });
+  } else if (device.platform === 'harmonyos') {
+    recording = await startHarmonyOsRecording({ device, recordingBase });
   } else {
     recording = await startAndroidRecording({ device, recordingBase });
   }
@@ -427,6 +462,28 @@ function removeInvalidRecordingOutput(outPath: string): void {
   }
 }
 
+async function stopHarmonyOsRecording(params: {
+  device: SessionState['device'];
+  recording: Extract<NonNullable<SessionState['recording']>, { platform: 'harmonyos' }>;
+  stopRequestedAt: number;
+}): Promise<DaemonResponse | null> {
+  const { device, recording, stopRequestedAt } = params;
+  try {
+    await stopHarmonyRecording({
+      device,
+      remotePid: recording.remotePid,
+      remotePath: recording.remotePath,
+      localPath: recording.outPath,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const failure = buildRecordStopFailure(message, recording, stopRequestedAt);
+    removeInvalidRecordingOutput(recording.outPath);
+    return errorResponse('COMMAND_FAILED', failure.message);
+  }
+  return null;
+}
+
 async function stopRecording(params: {
   req: DaemonRequest;
   activeSession: SessionState;
@@ -450,7 +507,9 @@ async function stopRecording(params: {
       ? await stopIosDeviceRecording({ req, activeSession, device, logPath, deps, recording })
       : recording.platform === 'macos-runner'
         ? await stopMacOsRecording({ req, activeSession, device, logPath, deps, recording })
-        : await stopNonRunnerRecording({ deps, device, recording, stopRequestedAt });
+        : recording.platform === 'harmonyos'
+          ? await stopHarmonyOsRecording({ device, recording, stopRequestedAt })
+          : await stopNonRunnerRecording({ deps, device, recording, stopRequestedAt });
   if (stopError) {
     return stopError;
   }

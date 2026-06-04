@@ -114,6 +114,9 @@ export type AgentDeviceDevice = {
   android?: {
     serial: string;
   };
+  harmonyos?: {
+    serial: string;
+  };
 };
 
 export type AgentDeviceSessionDevice = {
@@ -127,6 +130,9 @@ export type AgentDeviceSessionDevice = {
     simulatorSetPath?: string | null;
   };
   android?: {
+    serial: string;
+  };
+  harmonyos?: {
     serial: string;
   };
 };

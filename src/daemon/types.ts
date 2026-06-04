@@ -250,6 +250,11 @@ export type SessionState = {
     | (SessionRecordingBase & {
         platform: 'macos-runner';
         remotePath?: string;
+      })
+    | (SessionRecordingBase & {
+        platform: 'harmonyos';
+        remotePath: string;
+        remotePid: string;
       });
   /** Session-scoped app log stream; logs written to outPath for agent to grep */
   appLog?: {

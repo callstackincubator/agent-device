@@ -4,8 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
-import type { SnapshotOptions } from '../../utils/snapshot.ts';
-import { attachRefs, type SnapshotNode } from '../../utils/snapshot.ts';
+import { attachRefs, type SnapshotNode, type SnapshotOptions } from '../../utils/snapshot.ts';
 import { runHarmonyHdc } from './hdc.ts';
 import {
   parseArkUiTree,

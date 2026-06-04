@@ -182,7 +182,7 @@ async function checkAndHandleScreenLock(device: DeviceInfo): Promise<void> {
         // Try to unlock (swipe up)
         await runHarmonyHdc(
           device,
-          ['shell', 'uitest', 'ui-input', 'swipe', '540', '2000', '540', '800', '300'],
+          ['shell', 'uitest', 'uiInput', 'swipe', '540', '2000', '540', '800', '300'],
           { allowFailure: true },
         );
         // Wait for screen to wake

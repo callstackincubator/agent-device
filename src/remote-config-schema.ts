@@ -73,7 +73,7 @@ export const REMOTE_CONFIG_FIELD_SPECS = [
     type: 'enum',
     enumValues: ['ios-simulator', 'ios-instance', 'android-instance'],
   },
-  { key: 'platform', type: 'enum', enumValues: ['ios', 'macos', 'android', 'linux', 'apple'] },
+  { key: 'platform', type: 'enum', enumValues: ['ios', 'macos', 'android', 'harmonyos', 'linux', 'apple'] },
   { key: 'target', type: 'enum', enumValues: ['mobile', 'tv', 'desktop'] },
   { key: 'device', type: 'string' },
   { key: 'udid', type: 'string' },
