@@ -8,6 +8,51 @@ import { createMacOsDesktopWorld } from './macos-world.ts';
 import { createAppleRunnerProviderFromTranscript } from './providers.ts';
 import { runProviderScenario } from './scenario.ts';
 import { createProviderTranscript } from './transcript.ts';
+import type {
+  AppleRunnerPrepareResult,
+  AppleRunnerProvider,
+} from '../../../src/platforms/ios/runner-provider.ts';
+
+test('Provider-backed integration prepare uses the Apple runner lifecycle provider', async () => {
+  const lifecycleCalls: string[] = [];
+  const appleRunnerProvider: AppleRunnerProvider = {
+    runCommand: async () => {
+      throw new Error('prepare should not be reduced to a raw runner command');
+    },
+    prepare: async (device): Promise<AppleRunnerPrepareResult> => {
+      lifecycleCalls.push(`prepare:${device.platform}:${device.target ?? 'unknown'}`);
+      return {
+        runner: { uptimeMs: 123 },
+        connectMs: 7,
+        healthCheckMs: 11,
+      };
+    },
+  };
+
+  await withProviderScenarioResource(
+    async () => await createMacOsDesktopWorld({ appleRunnerProvider }),
+    async ({ daemon }) => {
+      await runProviderScenario(daemon, [
+        {
+          name: 'prepare macOS runner',
+          command: 'prepare',
+          positionals: ['ios-runner'],
+          flags: { platform: 'macos' },
+          expectData: {
+            action: 'ios-runner',
+            platform: 'macos',
+            deviceId: PROVIDER_SCENARIO_MACOS.id,
+            runner: { uptimeMs: 123 },
+            connectMs: 7,
+            healthCheckMs: 11,
+          },
+        },
+      ]);
+    },
+  );
+
+  assert.deepEqual(lifecycleCalls, ['prepare:macos:desktop']);
+});
 
 test('Provider-backed integration macOS desktop flow uses semantic host and helper providers', async () => {
   const runnerTranscript = createProviderTranscript([

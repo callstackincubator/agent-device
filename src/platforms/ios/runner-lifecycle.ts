@@ -4,7 +4,6 @@ import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { getRequestSignal } from '../../daemon/request-cancel.ts';
 import { RUNNER_COMMAND_TIMEOUT_MS, RUNNER_STARTUP_TIMEOUT_MS } from './runner-transport.ts';
 import {
-  type RunnerSessionOptions,
   type RunnerSession,
   ensureRunnerSession,
   invalidateRunnerSession,
@@ -18,27 +17,16 @@ import {
   withRunnerCommandId,
   type RunnerCommand,
 } from './runner-contract.ts';
-import type { AppleRunnerCommandOptions } from './runner-provider.ts';
-import {
-  markRunnerXctestrunArtifactBadForRun,
-  type RunnerXctestrunArtifact,
-} from './runner-xctestrun.ts';
+import type {
+  AppleRunnerCommandOptions,
+  AppleRunnerPrepareOptions,
+  AppleRunnerPrepareResult,
+} from './runner-provider.ts';
+import { markRunnerXctestrunArtifactBadForRun } from './runner-xctestrun.ts';
 import { handleRunnerTransportErrorAfterCommandSend } from './runner-command-recovery.ts';
 
-export type PrepareIosRunnerOptions = RunnerSessionOptions & {
-  healthTimeoutMs: number;
-};
-
-export type PrepareIosRunnerResult = {
-  runner: Record<string, unknown>;
-  cache?: RunnerXctestrunArtifact['cache'];
-  artifact?: RunnerXctestrunArtifact['artifact'];
-  buildMs?: number;
-  connectMs: number;
-  healthCheckMs: number;
-  xctestrunPath?: string;
-  failureReason?: string;
-};
+export type PrepareIosRunnerOptions = AppleRunnerPrepareOptions;
+export type PrepareIosRunnerResult = AppleRunnerPrepareResult;
 
 export async function prepareLocalIosRunner(
   device: DeviceInfo,

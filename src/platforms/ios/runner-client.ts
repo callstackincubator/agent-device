@@ -15,9 +15,9 @@ import {
 } from './runner-contract.ts';
 import {
   createLocalAppleRunnerProvider,
-  hasScopedAppleRunnerProvider,
   resolveAppleRunnerProvider,
   type AppleRunnerCommandOptions,
+  type AppleRunnerProvider,
 } from './runner-provider.ts';
 import {
   executeRunnerCommand,
@@ -44,12 +44,7 @@ export async function runIosRunnerCommand(
   validateRunnerDevice(device);
   assertRunnerRequestActive(options.requestId);
   const runnerCommand = withRunnerCommandId(command);
-  const provider = resolveAppleRunnerProvider(
-    device,
-    createLocalAppleRunnerProvider(executeRunnerCommand),
-    undefined,
-    { requestId: options.requestId },
-  );
+  const provider = resolveAppleRunnerRuntime(device, options);
   if (isReadOnlyRunnerCommand(runnerCommand.command)) {
     return withRetry(
       () => {
@@ -74,15 +69,17 @@ export function prewarmIosRunnerSession(
   if (device.platform !== 'ios') {
     return undefined;
   }
-  if (hasScopedAppleRunnerProvider(device, { requestId: options.requestId })) {
+  const provider = resolveAppleRunnerRuntime(device, options);
+  if (!provider.prewarm) {
     emitDiagnostic({
       level: 'debug',
-      phase: 'ios_runner_session_prewarm_skipped_scoped_provider',
+      phase: 'ios_runner_session_prewarm_unavailable',
       data: { deviceId: device.id },
     });
     return undefined;
   }
-  const prewarm = ensureRunnerSession(device, options)
+  const prewarm = provider
+    .prewarm(device, options)
     .then(() => {})
     .catch((error: unknown) => {
       emitDiagnostic({
@@ -105,23 +102,35 @@ export async function prepareIosRunner(
   validateRunnerDevice(device);
   assertRunnerRequestActive(options.requestId);
   const command = withRunnerCommandId({ command: 'uptime' });
-  if (hasScopedAppleRunnerProvider(device, { requestId: options.requestId })) {
-    const provider = resolveAppleRunnerProvider(
-      device,
-      createLocalAppleRunnerProvider(executeRunnerCommand),
-      undefined,
-      { requestId: options.requestId },
-    );
-    const healthStartedAt = Date.now();
-    const runner = await provider.runCommand(device, command, options);
-    return {
-      runner,
-      connectMs: 0,
-      healthCheckMs: Math.max(0, Date.now() - healthStartedAt),
-    };
+  const provider = resolveAppleRunnerRuntime(device, options);
+  if (provider.prepare) {
+    return await provider.prepare(device, options);
   }
-  return await prepareLocalIosRunner(device, options);
+
+  const healthStartedAt = Date.now();
+  const runner = await provider.runCommand(device, command, options);
+  return {
+    runner,
+    connectMs: 0,
+    healthCheckMs: Math.max(0, Date.now() - healthStartedAt),
+  };
 }
+
+function resolveAppleRunnerRuntime(
+  device: DeviceInfo,
+  options: { requestId?: string },
+): AppleRunnerProvider {
+  return resolveAppleRunnerProvider(device, LOCAL_APPLE_RUNNER_RUNTIME, undefined, {
+    requestId: options.requestId,
+  });
+}
+
+const LOCAL_APPLE_RUNNER_RUNTIME = createLocalAppleRunnerProvider(executeRunnerCommand, {
+  prepare: prepareLocalIosRunner,
+  prewarm: async (device, options) => {
+    await ensureRunnerSession(device, options);
+  },
+});
 
 export {
   resolveRunnerDestination,

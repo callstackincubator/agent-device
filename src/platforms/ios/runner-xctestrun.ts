@@ -8,7 +8,7 @@ import { runCmdStreaming, runCmdSync, type ExecBackgroundResult } from '../../ut
 import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
 import { isProcessAlive, readProcessStartTime } from '../../utils/process-identity.ts';
 import { isEnvTruthy } from '../../utils/retry.ts';
-import { resolveApplePlatformName, type DeviceInfo } from '../../utils/device.ts';
+import type { DeviceInfo } from '../../utils/device.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { findProjectRoot, readVersion } from '../../utils/version.ts';
@@ -21,6 +21,18 @@ import {
 } from './runner-macos-products.ts';
 import { resolveExistingXctestrunProductPaths } from './runner-xctestrun-products.ts';
 import { applyXctestRunnerAppIcon } from './runner-icon.ts';
+import {
+  resolveRunnerBuildDestination,
+  resolveRunnerBuildDestinationFamily,
+  resolveRunnerDerivedBaseName,
+  resolveRunnerPlatformName,
+  resolveRunnerSdkName,
+  resolveRunnerXctestrunHints,
+} from './apple-runner-platform.ts';
+export {
+  resolveRunnerBuildDestination,
+  resolveRunnerDestination,
+} from './apple-runner-platform.ts';
 
 const DEFAULT_IOS_RUNNER_APP_BUNDLE_ID = 'com.callstack.agentdevice.runner';
 const XCTEST_DEVICE_SET_BASE_NAME = 'XCTestDevices';
@@ -39,76 +51,6 @@ const RUNNER_XCTESTRUN_CAPTURE_OPTIONS = {
   SystemAttachmentLifetime: 'keepNever',
   UserAttachmentLifetime: 'keepNever',
 } as const;
-
-type RunnerApplePlatformName = 'iOS' | 'tvOS' | 'macOS';
-type RunnerPlatformProfile = {
-  sdkName: Record<'simulator' | 'device', string>;
-  derivedBaseName: Record<'simulator' | 'device', string>;
-  xctestrunHints: Record<'simulator' | 'device', { preferred: string[]; disallowed: string[] }>;
-};
-
-const RUNNER_PLATFORM_PROFILES: Record<RunnerApplePlatformName, RunnerPlatformProfile> = {
-  iOS: {
-    sdkName: {
-      simulator: 'iphonesimulator',
-      device: 'iphoneos',
-    },
-    derivedBaseName: {
-      simulator: 'ios-simulator',
-      device: 'ios-device',
-    },
-    xctestrunHints: {
-      simulator: {
-        preferred: ['iphonesimulator'],
-        disallowed: ['iphoneos', 'appletvos', 'appletvsimulator', 'macos'],
-      },
-      device: {
-        preferred: ['iphoneos'],
-        disallowed: ['iphonesimulator', 'appletvos', 'appletvsimulator', 'macos'],
-      },
-    },
-  },
-  tvOS: {
-    sdkName: {
-      simulator: 'appletvsimulator',
-      device: 'appletvos',
-    },
-    derivedBaseName: {
-      simulator: 'tvos-simulator',
-      device: 'tvos-device',
-    },
-    xctestrunHints: {
-      simulator: {
-        preferred: ['appletvsimulator'],
-        disallowed: ['appletvos', 'iphoneos', 'iphonesimulator', 'macos'],
-      },
-      device: {
-        preferred: ['appletvos'],
-        disallowed: ['appletvsimulator', 'iphoneos', 'iphonesimulator', 'macos'],
-      },
-    },
-  },
-  macOS: {
-    sdkName: {
-      simulator: 'macosx',
-      device: 'macosx',
-    },
-    derivedBaseName: {
-      simulator: 'macos',
-      device: 'macos',
-    },
-    xctestrunHints: {
-      simulator: {
-        preferred: ['macos'],
-        disallowed: ['iphoneos', 'iphonesimulator', 'appletvos', 'appletvsimulator'],
-      },
-      device: {
-        preferred: ['macos'],
-        disallowed: ['iphoneos', 'iphonesimulator', 'appletvos', 'appletvsimulator'],
-      },
-    },
-  },
-};
 
 const runnerXctestrunBuildLocks = new Map<string, Promise<unknown>>();
 const badRunnerArtifactsForRun = new Set<string>();
@@ -895,13 +837,6 @@ function resolveRunnerToolchainFingerprint(
   };
 }
 
-function resolveRunnerSdkName(
-  platformName: RunnerApplePlatformName,
-  deviceKind: DeviceInfo['kind'],
-): string {
-  return RUNNER_PLATFORM_PROFILES[platformName].sdkName[runnerPlatformDeviceKind(deviceKind)];
-}
-
 function runAppleToolFingerprintCommand(cmd: string, args: string[]): string {
   const cacheKey = JSON.stringify([cmd, args]);
   const cached = appleToolFingerprintCache.get(cacheKey);
@@ -1277,13 +1212,6 @@ export function scoreXctestrunCandidate(candidatePath: string, device: DeviceInf
   return score;
 }
 
-function resolveRunnerXctestrunHints(device: DeviceInfo): {
-  preferred: string[];
-  disallowed: string[];
-} {
-  return resolveRunnerPlatformProfile(device).xctestrunHints[runnerPlatformDeviceKind(device.kind)];
-}
-
 export function xctestrunReferencesProjectRoot(
   xctestrunPath: string,
   projectRoot: string,
@@ -1522,70 +1450,7 @@ export function resolveRunnerDerivedPath(
 }
 
 function resolveRunnerDerivedBasePath(device: DeviceInfo): string {
-  const profile = resolveRunnerPlatformProfile(device);
-  return path.join(
-    RUNNER_DERIVED_ROOT,
-    'derived',
-    profile.derivedBaseName[runnerPlatformDeviceKind(device.kind)],
-  );
-}
-
-export function resolveRunnerDestination(device: DeviceInfo): string {
-  const platformName = resolveRunnerPlatformName(device);
-  if (platformName === 'macOS') {
-    return `platform=macOS,arch=${resolveMacRunnerArch()}`;
-  }
-  if (device.kind === 'simulator') {
-    return `platform=${platformName} Simulator,id=${device.id}`;
-  }
-  return `platform=${platformName},id=${device.id}`;
-}
-
-export function resolveRunnerBuildDestination(device: DeviceInfo): string {
-  const platformName = resolveRunnerPlatformName(device);
-  if (platformName === 'macOS') {
-    return `platform=macOS,arch=${resolveMacRunnerArch()}`;
-  }
-  if (device.kind === 'simulator') {
-    return `platform=${platformName} Simulator,id=${device.id}`;
-  }
-  return `generic/platform=${platformName}`;
-}
-
-function resolveRunnerBuildDestinationFamily(device: DeviceInfo): string {
-  const platformName = resolveRunnerPlatformName(device);
-  if (platformName === 'macOS') {
-    return `platform=macOS,arch=${resolveMacRunnerArch()}`;
-  }
-  if (device.kind === 'simulator') {
-    return `generic/platform=${platformName} Simulator`;
-  }
-  return `generic/platform=${platformName}`;
-}
-
-function resolveRunnerPlatformName(device: DeviceInfo): RunnerApplePlatformName {
-  if (device.platform !== 'ios' && device.platform !== 'macos') {
-    throw new AppError(
-      'UNSUPPORTED_PLATFORM',
-      `Unsupported platform for iOS runner: ${device.platform}`,
-    );
-  }
-  if (device.platform === 'macos') {
-    return 'macOS';
-  }
-  return resolveApplePlatformName(device.target);
-}
-
-function resolveRunnerPlatformProfile(device: DeviceInfo): RunnerPlatformProfile {
-  return RUNNER_PLATFORM_PROFILES[resolveRunnerPlatformName(device)];
-}
-
-function runnerPlatformDeviceKind(deviceKind: DeviceInfo['kind']): 'simulator' | 'device' {
-  return deviceKind === 'simulator' ? 'simulator' : 'device';
-}
-
-function resolveMacRunnerArch(): 'arm64' | 'x86_64' {
-  return process.arch === 'arm64' ? 'arm64' : 'x86_64';
+  return path.join(RUNNER_DERIVED_ROOT, 'derived', resolveRunnerDerivedBaseName(device));
 }
 
 export function resolveRunnerMaxConcurrentDestinationsFlag(device: DeviceInfo): string {
