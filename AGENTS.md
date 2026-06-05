@@ -66,7 +66,8 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
 
 ## Routing
 - Keep `src/daemon.ts` as a thin router.
-- Keep command names and daemon routing groups centralized in `src/command-catalog.ts`; do not re-create command string sets in handlers or request policy modules.
+- Keep command names centralized in `src/command-catalog.ts`; do not re-create command identity sets in handlers or request policy modules.
+- Keep daemon routing and request-policy traits centralized in `src/daemon/daemon-command-registry.ts`; request modules should consume its predicates instead of recreating command string sets. See `docs/adr/0003-daemon-command-registry.md`.
 - Keep command input/output contracts in the command modules:
   - command surface and shared schemas: `src/commands/command-surface.ts`, `src/commands/command-contract.ts`, `src/commands/command-input.ts`
   - typed client command execution: `src/commands/client-command-contracts.ts`
@@ -76,7 +77,7 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
   - CLI/client/runtime output projection: `src/commands/cli-output.ts`, `src/commands/client-output.ts`, `src/commands/runtime-output.ts`
 - Do not reintroduce CLI-shaped command adapters or schemas as a second source of truth. CLI, Node.js, and MCP should project from command contracts.
 - Keep `src/daemon/request-router.ts` as request orchestration: auth, diagnostics scope, request admission, locking, handler chain, and fallback dispatch.
-- New daemon handler-family commands must update the relevant `DAEMON_COMMAND_GROUPS.*Handler` entry and the handler module's exported `*_COMMAND_HANDLERS` coverage table; `src/daemon/__tests__/request-handler-catalog.test.ts` guards drift and overlap.
+- New daemon handler-family commands must update `src/daemon/daemon-command-registry.ts` with the route and request-policy traits. `src/daemon/__tests__/daemon-command-registry.test.ts` guards route and policy traits; handler catalog tests keep executable handler sanity checks.
 - Put request policies in focused request modules:
   - tenant/lease/selector/lock admission: `src/daemon/request-admission.ts`
   - artifact/error finalization: `src/daemon/request-finalization.ts`
@@ -89,7 +90,7 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
   - snapshot/wait/alert/settings: `src/daemon/handlers/snapshot.ts`
   - find: `src/daemon/handlers/find.ts`
   - record/trace: `src/daemon/handlers/record-trace.ts`
-- Generic passthrough (press/scroll/type) is daemon fallback only after handlers return null.
+- Commands routed as generic in `src/daemon/daemon-command-registry.ts` fall through to daemon fallback dispatch after specialized handlers return null.
 
 ## Toolchain Snapshot
 - Package manager: `pnpm` only. Do not add or restore `package-lock.json`.
@@ -274,9 +275,9 @@ Command-only flags (like `find --first`) that do not flow to the platform layer 
 - Shared action helpers: `src/daemon/action-utils.ts`
 - Snapshot shaping + labels: `src/daemon/snapshot-processing.ts`
 - Handler context helpers: `src/daemon/context.ts`, `src/daemon/device-ready.ts`
-- Request routing/policy: `src/daemon/request-router.ts`, `src/daemon/request-admission.ts`, `src/daemon/request-generic-dispatch.ts`
+- Request routing/policy: `src/daemon/daemon-command-registry.ts`, `src/daemon/request-router.ts`, `src/daemon/request-admission.ts`, `src/daemon/request-generic-dispatch.ts`
 - Dispatcher + capability map: `src/core/dispatch.ts`, `src/core/dispatch-context.ts`, `src/core/dispatch-interactions.ts`, `src/core/capabilities.ts`
-- Command catalog + command surface: `src/command-catalog.ts`, `src/commands/command-surface.ts`, `src/commands/command-contract.ts`, `src/commands/client-command-contracts.ts`
+- Command identity + command surface: `src/command-catalog.ts`, `src/commands/command-surface.ts`, `src/commands/command-contract.ts`, `src/commands/client-command-contracts.ts`
 - CLI grammar: `src/commands/cli-grammar.ts`, `src/commands/cli-grammar/*`
 - Daemon request projection: `src/commands/command-projection.ts`
 - Platform backends: `src/platforms/ios/*`, `ios-runner/*`, `src/platforms/android/*`

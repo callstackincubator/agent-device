@@ -15,10 +15,6 @@ import { captureSnapshotForSession } from './interaction-snapshot.ts';
 import { finalizeTouchInteraction, type InteractionHandlerParams } from './interaction-common.ts';
 import { readSnapshotNodesReferenceFrame } from './interaction-touch-reference-frame.ts';
 
-export const REACT_NATIVE_COMMAND_HANDLERS = {
-  [PUBLIC_COMMANDS.reactNative]: true,
-} as const satisfies Record<string, true>;
-
 export async function handleReactNativeCommands(
   params: InteractionHandlerParams,
 ): Promise<DaemonResponse | null> {

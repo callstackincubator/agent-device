@@ -1,68 +1,71 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { DAEMON_COMMAND_GROUPS, INTERNAL_COMMANDS } from '../../command-catalog.ts';
-import { FIND_COMMAND_HANDLERS } from '../handlers/find.ts';
-import { INTERACTION_COMMAND_HANDLERS } from '../handlers/interaction.ts';
-import { handleLeaseCommands, LEASE_COMMAND_HANDLERS } from '../handlers/lease.ts';
-import { REACT_NATIVE_COMMAND_HANDLERS } from '../handlers/react-native.ts';
-import { RECORD_TRACE_COMMAND_HANDLERS } from '../handlers/record-trace.ts';
-import { SESSION_COMMAND_HANDLERS } from '../handlers/session.ts';
-import { SNAPSHOT_COMMAND_HANDLERS } from '../handlers/snapshot.ts';
+import { withTargetDeviceResolutionScope } from '../../core/dispatch-resolve.ts';
+import { INTERNAL_COMMANDS, PUBLIC_COMMANDS } from '../../command-catalog.ts';
+import { makeSessionStore } from '../../__tests__/test-utils/store-factory.ts';
+import {
+  getDaemonCommandRoute,
+  listDaemonHandlerCommands,
+  type DaemonCommandRoute,
+} from '../daemon-command-registry.ts';
+import { contextFromFlags } from '../context.ts';
+import { handleLeaseCommands } from '../handlers/lease.ts';
 import { LeaseRegistry } from '../lease-registry.ts';
+import { runRequestHandlerChain } from '../request-handler-chain.ts';
+import type { DaemonRequest, DaemonResponse } from '../types.ts';
 
-const handlerFamilies = [
-  {
-    name: 'leaseHandler',
-    commands: DAEMON_COMMAND_GROUPS.leaseHandler,
-    handlers: LEASE_COMMAND_HANDLERS,
-  },
-  {
-    name: 'sessionHandler',
-    commands: DAEMON_COMMAND_GROUPS.sessionHandler,
-    handlers: SESSION_COMMAND_HANDLERS,
-  },
-  {
-    name: 'snapshot',
-    commands: DAEMON_COMMAND_GROUPS.snapshot,
-    handlers: SNAPSHOT_COMMAND_HANDLERS,
-  },
-  {
-    name: 'reactNativeHandler',
-    commands: DAEMON_COMMAND_GROUPS.reactNativeHandler,
-    handlers: REACT_NATIVE_COMMAND_HANDLERS,
-  },
-  {
-    name: 'recordTraceHandler',
-    commands: DAEMON_COMMAND_GROUPS.recordTraceHandler,
-    handlers: RECORD_TRACE_COMMAND_HANDLERS,
-  },
-  {
-    name: 'findHandler',
-    commands: DAEMON_COMMAND_GROUPS.findHandler,
-    handlers: FIND_COMMAND_HANDLERS,
-  },
-  {
-    name: 'interactionHandler',
-    commands: DAEMON_COMMAND_GROUPS.interactionHandler,
-    handlers: INTERACTION_COMMAND_HANDLERS,
-  },
-] as const;
+const SPECIALIZED_ROUTES = [
+  'lease',
+  'session',
+  'snapshot',
+  'reactNative',
+  'recordTrace',
+  'find',
+  'interaction',
+] as const satisfies readonly Exclude<DaemonCommandRoute, 'generic'>[];
 
-test('daemon handler routing groups match handler coverage', () => {
-  for (const { name, commands, handlers } of handlerFamilies) {
-    assert.deepEqual(
-      Object.keys(handlers).sort(),
-      [...commands].sort(),
-      `${name} catalog must match its handler module`,
-    );
+const ROUTING_MISMATCH_MESSAGE = 'Daemon handler routing mismatch';
+
+test('specialized daemon routes are claimed by their handler chain', async () => {
+  for (const route of SPECIALIZED_ROUTES) {
+    for (const command of listDaemonHandlerCommands(route)) {
+      const response = await runCatalogCommandThroughHandlerChain(command);
+      assert.notEqual(response, null, `${route} route should claim ${command}`);
+    }
   }
 });
 
-test('lease handler coverage table points at executable commands', async () => {
+test('catalog commands use generic routing only when intentionally passthrough or projected', () => {
+  const intentionalGenericCatalogCommands = [
+    PUBLIC_COMMANDS.appSwitcher,
+    PUBLIC_COMMANDS.back,
+    PUBLIC_COMMANDS.focus,
+    PUBLIC_COMMANDS.gesture,
+    PUBLIC_COMMANDS.home,
+    PUBLIC_COMMANDS.installFromSource,
+    PUBLIC_COMMANDS.rotate,
+    PUBLIC_COMMANDS.screenshot,
+    PUBLIC_COMMANDS.scroll,
+    PUBLIC_COMMANDS.swipe,
+  ].sort();
+  const genericCatalogCommands = [
+    ...Object.values(PUBLIC_COMMANDS),
+    ...Object.values(INTERNAL_COMMANDS),
+  ]
+    .filter((command) => getDaemonCommandRoute(command) === 'generic')
+    .sort();
+
+  assert.deepEqual(genericCatalogCommands, intentionalGenericCatalogCommands);
+  for (const command of ['fling', 'pan', 'pinch', 'rotate-gesture', 'transform-gesture']) {
+    assert.equal(getDaemonCommandRoute(command), 'generic', `${command} passthrough route`);
+  }
+});
+
+test('lease handler executes commands owned by the lease route', async () => {
   const leaseRegistry = new LeaseRegistry();
   const allocated = leaseRegistry.allocateLease({ tenantId: 'tenant-a', runId: 'run-a' });
 
-  for (const command of Object.keys(LEASE_COMMAND_HANDLERS)) {
+  for (const command of listDaemonHandlerCommands('lease')) {
     const response = await handleLeaseCommands({
       req: {
         command,
@@ -82,17 +85,61 @@ test('lease handler coverage table points at executable commands', async () => {
   }
 });
 
-test('daemon handler routing groups are disjoint', () => {
-  const ownerByCommand = new Map<string, string>();
-  for (const { name, commands } of handlerFamilies) {
-    for (const command of commands) {
-      const previousOwner = ownerByCommand.get(command);
-      assert.equal(
-        previousOwner,
-        undefined,
-        `${command} is routed by both ${previousOwner} and ${name}`,
-      );
-      ownerByCommand.set(command, name);
-    }
+async function runCatalogCommandThroughHandlerChain(
+  command: string,
+): Promise<DaemonResponse | null> {
+  const sessionStore = makeSessionStore('agent-device-catalog-route-');
+  const leaseRegistry = new LeaseRegistry();
+  const req = catalogRouteRequest(command);
+
+  try {
+    return await withTargetDeviceResolutionScope(
+      async () => [],
+      async () =>
+        await runRequestHandlerChain({
+          req,
+          sessionName: req.session,
+          logPath: '/tmp/agent-device-catalog-route.log',
+          sessionStore,
+          leaseRegistry,
+          invoke: async () => ({ ok: true, data: {} }),
+          androidAdbExecutor: async () => ({ stdout: '', stderr: '', exitCode: 0 }),
+          contextFromFlags: (flags, appBundleId, traceLogPath) =>
+            contextFromFlags(
+              '/tmp/agent-device-catalog-route.log',
+              flags,
+              appBundleId,
+              traceLogPath,
+            ),
+        }),
+    );
+  } catch (error) {
+    assertNoRoutingMismatch(error, command);
+    return {
+      ok: false,
+      error: {
+        code: 'ROUTE_CLAIMED',
+        message: error instanceof Error ? error.message : String(error),
+      },
+    };
   }
-});
+}
+
+function catalogRouteRequest(command: string): DaemonRequest {
+  return {
+    command,
+    token: 'test-token',
+    session: 'catalog-test',
+    flags: {
+      tenant: 'tenant-a',
+      runId: 'run-a',
+      leaseId: '0'.repeat(32),
+    },
+    positionals: [],
+  };
+}
+
+function assertNoRoutingMismatch(error: unknown, command: string): void {
+  assert.ok(error instanceof Error, `${command} threw a non-error value`);
+  assert.doesNotMatch(error.message, new RegExp(ROUTING_MISMATCH_MESSAGE), command);
+}

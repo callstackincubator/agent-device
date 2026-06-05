@@ -14,7 +14,8 @@
 - Modality: broad supported device family, such as mobile, tv, or desktop.
 - Session: daemon-owned state for a selected target and opened app or surface.
 - Command surface: catalog of public command identity, interface exposure, adapter policy, and shared command metadata across CLI, Node.js, MCP, and batch entrypoints.
-- Runner command traits: the iOS XCTest runner's per-command-type classification across three independent axes — interaction (gates the foreground-guard and stabilization preflight), read-only (gates the session-invalidating retry; the alert command is read-only only for its `get` action), and runner-lifecycle (skips the app-activation preflight). One source of truth keyed by command type, distinct from the daemon-side Command surface.
+- Daemon command registry: daemon-side source of truth for command route ownership and request-policy traits, including admission exemptions, session locking, selector validation, replay-scoped actions, recording invalidation, Android dialog guards, and request provider device resolution.
+- Runner command traits: the iOS XCTest runner's per-command-type classification across three independent axes — interaction (gates the foreground-guard and stabilization preflight), read-only (gates the session-invalidating retry; the alert command is read-only only for its `get` action), and runner-lifecycle (skips the app-activation preflight). One source of truth keyed by command type, distinct from the public command surface and daemon command registry.
 
 ## Testing Principles
 

@@ -1,7 +1,7 @@
 import type { CommandFlags } from '../core/dispatch.ts';
-import { DAEMON_COMMAND_GROUPS } from '../command-catalog.ts';
 import type { AndroidAdbExecutor } from '../platforms/android/adb-executor.ts';
 import { AppError } from '../utils/errors.ts';
+import { getDaemonCommandRoute } from './daemon-command-registry.ts';
 import type { DaemonCommandContext } from './context.ts';
 import type { LeaseRegistry } from './lease-registry.ts';
 import type { SessionStore } from './session-store.ts';
@@ -34,31 +34,24 @@ type RequestHandlerChainParams = {
 export async function runRequestHandlerChain(
   params: RequestHandlerChainParams,
 ): Promise<DaemonResponse | null> {
-  const { command } = params.req;
-  if (DAEMON_COMMAND_GROUPS.leaseHandler.has(command)) {
-    return await runLeaseHandler(params);
+  switch (getDaemonCommandRoute(params.req.command)) {
+    case 'lease':
+      return await runLeaseHandler(params);
+    case 'session':
+      return await runSessionHandler(params);
+    case 'snapshot':
+      return await runSnapshotHandler(params);
+    case 'reactNative':
+      return await runReactNativeHandler(params);
+    case 'recordTrace':
+      return await runRecordTraceHandler(params);
+    case 'find':
+      return await runFindHandler(params);
+    case 'interaction':
+      return await runInteractionHandler(params);
+    case 'generic':
+      return null;
   }
-  if (DAEMON_COMMAND_GROUPS.sessionHandler.has(command)) {
-    return await runSessionHandler(params);
-  }
-  if (DAEMON_COMMAND_GROUPS.snapshot.has(command)) {
-    return await runSnapshotHandler(params);
-  }
-  if (DAEMON_COMMAND_GROUPS.reactNativeHandler.has(command)) {
-    return await runReactNativeHandler(params);
-  }
-  if (DAEMON_COMMAND_GROUPS.recordTraceHandler.has(command)) {
-    return await runRecordTraceHandler(params);
-  }
-  if (DAEMON_COMMAND_GROUPS.findHandler.has(command)) {
-    return await runFindHandler(params);
-  }
-  if (DAEMON_COMMAND_GROUPS.interactionHandler.has(command)) {
-    return await runInteractionHandler(params);
-  }
-
-  // Commands not claimed by a specialized family continue to generic platform dispatch.
-  return null;
 }
 
 async function runLeaseHandler(params: RequestHandlerChainParams): Promise<DaemonResponse> {

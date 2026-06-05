@@ -14,7 +14,10 @@ import type { AppLogProvider } from './app-log.ts';
 import { hasExplicitDeviceSelector } from './device-selector-intent.ts';
 import type { RecordingProvider } from './recording-provider.ts';
 import type { DaemonRequest, SessionState } from './types.ts';
-import { PUBLIC_COMMANDS } from '../command-catalog.ts';
+import {
+  shouldPreferExplicitDeviceOverExistingSession,
+  usesSessionlessDefaultProviderDevice,
+} from './daemon-command-registry.ts';
 
 export type PlatformProviderRequestSession = Pick<
   SessionState,
@@ -277,24 +280,15 @@ async function resolveScopedProviderDevice(
   existingSession: SessionState | undefined,
 ): Promise<DeviceInfo | undefined> {
   if (existingSession) {
-    return req.command === PUBLIC_COMMANDS.apps && hasExplicitDeviceSelector(req.flags)
+    return shouldPreferExplicitDeviceOverExistingSession(req) &&
+      hasExplicitDeviceSelector(req.flags)
       ? await resolveTargetDevice(req.flags ?? {})
       : existingSession.device;
   }
-  if (
-    req.command !== PUBLIC_COMMANDS.open &&
-    !hasExplicitDeviceSelector(req.flags) &&
-    !usesSessionlessDefaultDevice(req)
-  ) {
+  if (!hasExplicitDeviceSelector(req.flags) && !usesSessionlessDefaultProviderDevice(req)) {
     return undefined;
   }
   return await resolveTargetDevice(req.flags ?? {});
-}
-
-function usesSessionlessDefaultDevice(req: DaemonRequest): boolean {
-  return (
-    req.command === PUBLIC_COMMANDS.record && (req.positionals?.[0] ?? '').toLowerCase() === 'start'
-  );
 }
 
 async function requestPlatformProviderScopeWrappers(

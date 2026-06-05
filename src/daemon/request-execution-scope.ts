@@ -6,12 +6,7 @@ import type { DaemonCommandContext } from './context.ts';
 import { contextFromFlags as contextFromFlagsWithLog } from './context.ts';
 import { assertSessionSelectorMatches } from './session-selector.ts';
 import { resolveEffectiveSessionName } from './session-routing.ts';
-import {
-  assertRequestLeaseAdmission,
-  scopeRequestSession,
-  shouldLockSessionExecution,
-  shouldValidateSessionSelector,
-} from './request-admission.ts';
+import { assertRequestLeaseAdmission, scopeRequestSession } from './request-admission.ts';
 import {
   prepareLockedRequestBinding,
   resolveRequestExecutionLockKeys,
@@ -19,10 +14,12 @@ import {
 } from './request-binding.ts';
 import { throwIfRequestCanceled } from './request-cancel.ts';
 import { finalizeDaemonResponse } from './request-finalization.ts';
+import { refreshRecordingHealth } from './request-recording-health.ts';
 import {
-  refreshRecordingHealth,
   shouldBlockForInvalidRecording,
-} from './request-recording-health.ts';
+  shouldLockSessionExecution,
+  shouldValidateSessionSelector,
+} from './daemon-command-registry.ts';
 import type { LeaseRegistry } from './lease-registry.ts';
 import type { SessionStore } from './session-store.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from './types.ts';
@@ -121,7 +118,6 @@ async function withRequestExecutionLocks<T>(
 function applyRequestCommandDefaults(req: DaemonRequest): DaemonRequest {
   const flags = { ...(req.flags ?? {}) };
   const changed = applyCommandDefaults(req.command, flags);
-  if (!changed && req.flags) return req;
   if (!changed) return req;
   return {
     ...req,

@@ -16,16 +16,6 @@ import {
   recoverAndroidBlockingSystemDialog,
 } from '../android-system-dialog.ts';
 
-export const INTERACTION_COMMAND_HANDLERS = {
-  [PUBLIC_COMMANDS.click]: true,
-  [PUBLIC_COMMANDS.fill]: true,
-  [PUBLIC_COMMANDS.get]: true,
-  [PUBLIC_COMMANDS.is]: true,
-  [PUBLIC_COMMANDS.longPress]: true,
-  [PUBLIC_COMMANDS.press]: true,
-  [PUBLIC_COMMANDS.type]: true,
-} as const satisfies Record<string, true>;
-
 export async function handleInteractionCommands(
   params: InteractionHandlerParams,
 ): Promise<DaemonResponse | null> {

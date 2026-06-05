@@ -25,10 +25,6 @@ export function refreshRecordingHealth(session: SessionState): void {
   }
 }
 
-export function shouldBlockForInvalidRecording(command: string): boolean {
-  return command !== 'record' && command !== 'close';
-}
-
 function recordingRequiresRunnerHealth(session: SessionState): boolean {
   const recording = session.recording;
   if (!recording || session.device.platform !== 'ios') return false;

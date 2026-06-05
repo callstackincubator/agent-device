@@ -28,8 +28,9 @@ import {
   createRequestExecutionScope,
   type LockedRequestScope,
   prepareLockedRequestScope,
+  type RequestExecutionScope,
 } from './request-execution-scope.ts';
-import { DAEMON_COMMAND_GROUPS } from '../command-catalog.ts';
+import { canRunReplayScopedAction } from './daemon-command-registry.ts';
 
 // ---------------------------------------------------------------------------
 // Request handler API
@@ -83,8 +84,7 @@ export function createRequestHandler(
       },
       async () => {
         if (req.token !== token) {
-          const unauthorizedError = normalizeError(new AppError('UNAUTHORIZED', 'Invalid token'));
-          return { ok: false, error: unauthorizedError };
+          return unauthorizedResponse();
         }
 
         try {
@@ -94,66 +94,7 @@ export function createRequestHandler(
               sessionStore,
               leaseRegistry,
             });
-
-            return await scope.runLocked(async () => {
-              const locked = prepareLockedRequestScope({
-                scope,
-                logPath,
-                sessionStore,
-                trackDownloadableArtifact,
-              });
-              if (locked.type === 'response') return locked.response;
-              const lockedScope = locked.scope;
-
-              return await withRequestPlatformProviderScope(
-                {
-                  req: lockedScope.req,
-                  existingSession: lockedScope.existingSession,
-                  providers: {
-                    androidAdbProvider,
-                    appleRunnerProvider,
-                    appleToolProvider,
-                    linuxToolProvider,
-                    appLogProvider,
-                    recordingProvider,
-                  },
-                },
-                async (providerScope) => {
-                  // Platform providers are scoped to this single locked request; handlers may
-                  // re-read session state, but all device-scoped calls in this request share them.
-                  // Phase 1: Try specialized handler chain
-                  const handlerResponse = await runRequestHandlerChain({
-                    req: lockedScope.req,
-                    sessionName: lockedScope.sessionName,
-                    logPath,
-                    sessionStore,
-                    leaseRegistry,
-                    invoke: handleRequest,
-                    invokeReplayAction: createReplayScopedActionInvoker({
-                      parentScope: lockedScope,
-                      providerScope,
-                      handleRequest,
-                      deps: {
-                        logPath,
-                        token,
-                        sessionStore,
-                        leaseRegistry,
-                        trackDownloadableArtifact,
-                      },
-                    }),
-                    androidAdbExecutor: providerScope.androidAdbExecutor,
-                    contextFromFlags: lockedScope.handlerContextFromFlags,
-                  });
-                  if (handlerResponse) return lockedScope.finalize(handlerResponse);
-
-                  return await dispatchGenericForLockedScope({
-                    lockedScope,
-                    logPath,
-                    sessionStore,
-                  });
-                },
-              );
-            });
+            return await executeRequestScope(scope);
           });
         } catch (error) {
           return finalizeThrownRequestError(error);
@@ -162,72 +103,100 @@ export function createRequestHandler(
     );
   }
 
-  return handleRequest;
-}
-
-type ReplayScopedActionInvokerDeps = {
-  logPath: string;
-  token: string;
-  sessionStore: SessionStore;
-  leaseRegistry: LeaseRegistry;
-  trackDownloadableArtifact: RequestRouterDeps['trackDownloadableArtifact'];
-};
-
-function createReplayScopedActionInvoker(params: {
-  parentScope: LockedRequestScope;
-  providerScope: RequestPlatformProviderScope;
-  handleRequest: (req: DaemonRequest) => Promise<DaemonResponse>;
-  deps: ReplayScopedActionInvokerDeps;
-}): (req: DaemonRequest) => Promise<DaemonResponse> {
-  const { parentScope, providerScope, handleRequest, deps } = params;
-  return async (req) => {
-    if (!canRunReplayActionInCurrentScope(req, parentScope)) {
-      return await handleRequest(req);
-    }
-    if (req.token !== deps.token) {
-      const unauthorizedError = normalizeError(new AppError('UNAUTHORIZED', 'Invalid token'));
-      return { ok: false, error: unauthorizedError };
-    }
-
-    try {
-      const childScope = await createRequestExecutionScope({
-        req,
-        sessionStore: deps.sessionStore,
-        leaseRegistry: deps.leaseRegistry,
-      });
-      if (childScope.sessionName !== parentScope.sessionName) {
-        return await handleRequest(req);
-      }
-
+  async function executeRequestScope(
+    scope: RequestExecutionScope,
+    inheritedProviderScope?: RequestPlatformProviderScope,
+  ): Promise<DaemonResponse> {
+    const run = async (): Promise<DaemonResponse> => {
       const locked = prepareLockedRequestScope({
-        scope: childScope,
-        logPath: deps.logPath,
-        sessionStore: deps.sessionStore,
-        trackDownloadableArtifact: deps.trackDownloadableArtifact,
+        scope,
+        logPath,
+        sessionStore,
+        trackDownloadableArtifact,
       });
       if (locked.type === 'response') return locked.response;
       const lockedScope = locked.scope;
+      const executeLocked = async (providerScope: RequestPlatformProviderScope) =>
+        await executeLockedRequest({
+          lockedScope,
+          providerScope,
+          allowReplayActions: inheritedProviderScope === undefined,
+        });
 
-      const handlerResponse = await runRequestHandlerChain({
-        req: lockedScope.req,
-        sessionName: lockedScope.sessionName,
-        logPath: deps.logPath,
-        sessionStore: deps.sessionStore,
-        leaseRegistry: deps.leaseRegistry,
-        invoke: handleRequest,
-        androidAdbExecutor: providerScope.androidAdbExecutor,
-        contextFromFlags: lockedScope.handlerContextFromFlags,
-      });
-      if (handlerResponse) return lockedScope.finalize(handlerResponse);
+      return inheritedProviderScope
+        ? await executeLocked(inheritedProviderScope)
+        : await withRequestPlatformProviderScope(
+            {
+              req: lockedScope.req,
+              existingSession: lockedScope.existingSession,
+              providers: {
+                androidAdbProvider,
+                appleRunnerProvider,
+                appleToolProvider,
+                linuxToolProvider,
+                appLogProvider,
+                recordingProvider,
+              },
+            },
+            executeLocked,
+          );
+    };
 
-      return await dispatchGenericForLockedScope({
-        lockedScope,
-        logPath: deps.logPath,
-        sessionStore: deps.sessionStore,
-      });
-    } catch (error) {
-      return finalizeThrownRequestError(error);
-    }
+    return inheritedProviderScope ? await run() : await scope.runLocked(run);
+  }
+
+  async function executeLockedRequest(params: {
+    lockedScope: LockedRequestScope;
+    providerScope: RequestPlatformProviderScope;
+    allowReplayActions: boolean;
+  }): Promise<DaemonResponse> {
+    const { lockedScope, providerScope, allowReplayActions } = params;
+    const handlerResponse = await runRequestHandlerChain({
+      req: lockedScope.req,
+      sessionName: lockedScope.sessionName,
+      logPath,
+      sessionStore,
+      leaseRegistry,
+      invoke: handleRequest,
+      invokeReplayAction: allowReplayActions
+        ? createReplayScopedActionInvoker(lockedScope, providerScope)
+        : undefined,
+      androidAdbExecutor: providerScope.androidAdbExecutor,
+      contextFromFlags: lockedScope.handlerContextFromFlags,
+    });
+    if (handlerResponse) return lockedScope.finalize(handlerResponse);
+
+    return await dispatchGenericForLockedScope({ lockedScope, logPath, sessionStore });
+  }
+
+  function createReplayScopedActionInvoker(
+    parentScope: LockedRequestScope,
+    providerScope: RequestPlatformProviderScope,
+  ): (req: DaemonRequest) => Promise<DaemonResponse> {
+    return async (req) => {
+      if (!canRunReplayActionInCurrentScope(req, parentScope)) return await handleRequest(req);
+      if (req.token !== token) {
+        return unauthorizedResponse();
+      }
+
+      try {
+        const childScope = await createRequestExecutionScope({ req, sessionStore, leaseRegistry });
+        return childScope.sessionName === parentScope.sessionName
+          ? await executeRequestScope(childScope, providerScope)
+          : await handleRequest(req);
+      } catch (error) {
+        return finalizeThrownRequestError(error);
+      }
+    };
+  }
+
+  return handleRequest;
+}
+
+function unauthorizedResponse(): DaemonResponse {
+  return {
+    ok: false,
+    error: normalizeError(new AppError('UNAUTHORIZED', 'Invalid token')),
   };
 }
 
@@ -263,10 +232,7 @@ function canRunReplayActionInCurrentScope(
   req: DaemonRequest,
   parentScope: LockedRequestScope,
 ): boolean {
-  return (
-    req.session === parentScope.sessionName &&
-    DAEMON_COMMAND_GROUPS.replayScopedAction.has(req.command)
-  );
+  return req.session === parentScope.sessionName && canRunReplayScopedAction(req.command);
 }
 
 function finalizeThrownRequestError(error: unknown): DaemonResponse {

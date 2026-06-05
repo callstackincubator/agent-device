@@ -1,7 +1,6 @@
 import { AppError } from '../utils/errors.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { SessionState, DaemonRequest } from './types.ts';
-import { PUBLIC_COMMANDS } from '../command-catalog.ts';
 import {
   formatSessionSelectorConflict,
   listSessionSelectorConflicts,
@@ -12,14 +11,10 @@ import { isApplePlatform, normalizePlatformSelector } from '../utils/device.ts';
 import { buildSessionRecoveryHint, describeSessionDevice } from './session-recovery-hints.ts';
 import { shellQuoteIfNeeded } from '../utils/shell-quote.ts';
 import { hasLockableDeviceSelector, hasSelectorValue } from './device-selector-intent.ts';
+import { canOverrideLockPolicySelector } from './daemon-command-registry.ts';
 
 type LockPlatform = NonNullable<DaemonRequest['meta']>['lockPlatform'];
 type NormalizedLockPlatform = NonNullable<ReturnType<typeof normalizePlatformSelector>>;
-
-const SELECTOR_OVERRIDE_LOCK_POLICY_COMMANDS: ReadonlySet<string> = new Set([
-  PUBLIC_COMMANDS.apps,
-  PUBLIC_COMMANDS.devices,
-]);
 
 export function applyRequestLockPolicy(
   req: DaemonRequest,
@@ -31,7 +26,7 @@ export function applyRequestLockPolicy(
   }
 
   const nextFlags: CommandFlags = { ...(req.flags ?? {}) };
-  const canOverrideSelector = SELECTOR_OVERRIDE_LOCK_POLICY_COMMANDS.has(req.command);
+  const canOverrideSelector = canOverrideLockPolicySelector(req.command);
   const conflicts = canOverrideSelector
     ? []
     : existingSession

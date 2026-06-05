@@ -1,13 +1,9 @@
-import { DAEMON_COMMAND_GROUPS } from '../command-catalog.ts';
 import { AppError } from '../utils/errors.ts';
 import { normalizeTenantId, resolveSessionIsolationMode } from './config.ts';
+import { isLeaseAdmissionExempt } from './daemon-command-registry.ts';
 import { resolveLeaseScope } from './lease-context.ts';
 import type { LeaseRegistry } from './lease-registry.ts';
 import type { DaemonRequest } from './types.ts';
-
-const selectorValidationExemptCommands = DAEMON_COMMAND_GROUPS.selectorValidationExempt;
-const leaseAdmissionExemptCommands = DAEMON_COMMAND_GROUPS.leaseAdmissionExempt;
-const sessionExecutionExemptCommands = new Set(leaseAdmissionExemptCommands);
 
 export function scopeRequestSession(req: DaemonRequest): DaemonRequest {
   const isolation = resolveSessionIsolationMode(
@@ -57,7 +53,7 @@ export function assertRequestLeaseAdmission(
   req: DaemonRequest,
   leaseRegistry: LeaseRegistry,
 ): void {
-  if (leaseAdmissionExemptCommands.has(req.command) || req.meta?.sessionIsolation !== 'tenant') {
+  if (isLeaseAdmissionExempt(req.command) || req.meta?.sessionIsolation !== 'tenant') {
     return;
   }
   const leaseScope = resolveLeaseScope(req);
@@ -67,12 +63,4 @@ export function assertRequestLeaseAdmission(
     leaseId: leaseScope.leaseId,
     backend: leaseScope.leaseBackend,
   });
-}
-
-export function shouldValidateSessionSelector(command: string): boolean {
-  return !selectorValidationExemptCommands.has(command);
-}
-
-export function shouldLockSessionExecution(command: string): boolean {
-  return !sessionExecutionExemptCommands.has(command);
 }

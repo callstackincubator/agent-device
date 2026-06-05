@@ -1,10 +1,6 @@
 import { dispatchCommand } from '../../core/dispatch.ts';
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
-import {
-  DAEMON_COMMAND_GROUPS,
-  INTERNAL_COMMANDS,
-  PUBLIC_COMMANDS,
-} from '../../command-catalog.ts';
+import { INTERNAL_COMMANDS, PUBLIC_COMMANDS } from '../../command-catalog.ts';
 import { resolvePayloadInput } from '../../utils/payload-input.ts';
 import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
 import {
@@ -39,34 +35,11 @@ import { handleSessionInventoryCommands } from './session-inventory.ts';
 import { handleSessionStateCommands } from './session-state.ts';
 import { handleSessionObservabilityCommands } from './session-observability.ts';
 import { handleSessionReplayCommands } from './session-replay.ts';
+import { getSessionCommandKind } from '../daemon-command-registry.ts';
 
-const INVENTORY_COMMANDS = DAEMON_COMMAND_GROUPS.inventory;
-const STATE_COMMANDS = DAEMON_COMMAND_GROUPS.state;
-const OBSERVABILITY_COMMANDS = DAEMON_COMMAND_GROUPS.observability;
-const REPLAY_COMMANDS = DAEMON_COMMAND_GROUPS.replay;
 const PREPARE_IOS_RUNNER_MIN_STARTUP_TIMEOUT_MS = 45_000;
 const PREPARE_IOS_RUNNER_DEFAULT_BUILD_TIMEOUT_MS = 5 * 60_000;
 const PREPARE_IOS_RUNNER_HEALTH_TIMEOUT_MS = 90_000;
-
-export const SESSION_COMMAND_HANDLERS = {
-  ...Object.fromEntries([...INVENTORY_COMMANDS].map((command) => [command, true] as const)),
-  ...Object.fromEntries([...STATE_COMMANDS].map((command) => [command, true] as const)),
-  ...Object.fromEntries([...OBSERVABILITY_COMMANDS].map((command) => [command, true] as const)),
-  ...Object.fromEntries([...REPLAY_COMMANDS].map((command) => [command, true] as const)),
-  [INTERNAL_COMMANDS.runtime]: true,
-  [PUBLIC_COMMANDS.clipboard]: true,
-  [PUBLIC_COMMANDS.keyboard]: true,
-  [PUBLIC_COMMANDS.install]: true,
-  [PUBLIC_COMMANDS.reinstall]: true,
-  [INTERNAL_COMMANDS.installSource]: true,
-  [INTERNAL_COMMANDS.releaseMaterializedPaths]: true,
-  [PUBLIC_COMMANDS.push]: true,
-  [PUBLIC_COMMANDS.triggerAppEvent]: true,
-  [PUBLIC_COMMANDS.open]: true,
-  [PUBLIC_COMMANDS.prepare]: true,
-  [PUBLIC_COMMANDS.batch]: true,
-  [PUBLIC_COMMANDS.close]: true,
-} as const satisfies Record<string, true>;
 
 async function handlePrepareCommand(params: {
   req: DaemonRequest;
@@ -285,7 +258,7 @@ export async function handleSessionCommands(params: {
     androidAdbExecutor,
   } = params;
 
-  if (INVENTORY_COMMANDS.has(req.command)) {
+  if (getSessionCommandKind(req.command) === 'inventory') {
     return await handleSessionInventoryCommands({
       req,
       sessionName,
@@ -301,7 +274,7 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  if (STATE_COMMANDS.has(req.command)) {
+  if (getSessionCommandKind(req.command) === 'state') {
     return await handleSessionStateCommands({
       req,
       sessionName,
@@ -343,7 +316,7 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  if (OBSERVABILITY_COMMANDS.has(req.command)) {
+  if (getSessionCommandKind(req.command) === 'observability') {
     return await handleSessionObservabilityCommands({
       req,
       sessionName,
@@ -439,7 +412,7 @@ export async function handleSessionCommands(params: {
     });
   }
 
-  if (REPLAY_COMMANDS.has(req.command)) {
+  if (getSessionCommandKind(req.command) === 'replay') {
     return await handleSessionReplayCommands({
       req,
       sessionName,

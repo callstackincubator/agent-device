@@ -1,5 +1,5 @@
 import { dispatchCommand, type CommandFlags } from '../core/dispatch.ts';
-import { DAEMON_COMMAND_GROUPS, GESTURE_SUBCOMMAND_ERROR } from '../command-catalog.ts';
+import { GESTURE_SUBCOMMAND_ERROR } from '../command-catalog.ts';
 import { isCommandSupportedOnDevice, unsupportedHintForDevice } from '../core/capabilities.ts';
 import { SessionStore } from './session-store.ts';
 import type { DaemonCommandContext } from './context.ts';
@@ -25,6 +25,7 @@ import {
 } from './recording-gestures.ts';
 import { markPostGestureStabilization } from './post-gesture-stabilization.ts';
 import { normalizeError } from '../utils/errors.ts';
+import { shouldGuardAndroidBlockingDialog } from './daemon-command-registry.ts';
 
 const GESTURE_PLATFORM_COMMANDS: Readonly<Record<string, string>> = {
   pan: 'pan',
@@ -132,10 +133,7 @@ async function ensureNoAndroidBlockingDialogReady(
 ): Promise<
   { status: 'clear' } | { status: 'recovered'; warning: string } | { response: DaemonResponse }
 > {
-  if (
-    session.device.platform !== 'android' ||
-    !DAEMON_COMMAND_GROUPS.androidBlockingDialogGuardedAction.has(platformCommand)
-  ) {
+  if (session.device.platform !== 'android' || !shouldGuardAndroidBlockingDialog(platformCommand)) {
     return { status: 'clear' };
   }
   try {

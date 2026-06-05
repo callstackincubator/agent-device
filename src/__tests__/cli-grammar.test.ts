@@ -1,6 +1,5 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { DAEMON_COMMAND_GROUPS, PUBLIC_COMMANDS } from '../command-catalog.ts';
 import { readInputFromCli } from '../commands/cli-grammar.ts';
 import type { CliFlags } from '../utils/cli-flags.ts';
 
@@ -9,12 +8,6 @@ const BASE_FLAGS: CliFlags = {
   help: false,
   version: false,
 };
-
-test('command catalog owns daemon routing groups', () => {
-  assert.equal(DAEMON_COMMAND_GROUPS.snapshot.has(PUBLIC_COMMANDS.wait), true);
-  assert.equal(DAEMON_COMMAND_GROUPS.observability.has(PUBLIC_COMMANDS.logs), true);
-  assert.equal(DAEMON_COMMAND_GROUPS.replay.has(PUBLIC_COMMANDS.test), true);
-});
 
 test('wait grammar preserves CLI bare text forms', () => {
   const options = readInputFromCli('wait', ['Continue', '1500'], BASE_FLAGS);
