@@ -123,6 +123,20 @@ agent-device devices --platform android --android-device-allowlist emulator-5554
 - Use `--platform` to narrow discovery to Apple-family (`ios`, `tvOS`, `macOS`) or Android targets.
 - Use `--ios-simulator-device-set` and `--android-device-allowlist` when you need tenant- or lab-scoped discovery.
 
+## Prepare Apple runner
+
+```bash
+agent-device prepare ios-runner --platform ios --timeout 240000
+```
+
+- `prepare ios-runner` is intended for Apple-platform CI setup before `snapshot`, `replay`, or `test`.
+- Run it after the simulator/device is booted and the app is installed, but before the first snapshot, replay, or test command.
+- It builds or reuses the local XCTest runner, starts a runner session, and verifies that the runner can answer a lightweight health command.
+- If health checking exposes a bad restored runner artifact, Agent Device marks that artifact bad and rebuilds once.
+- If a fresh runner launch gets stuck before accepting connections, Agent Device invalidates that runner session and launches it once more without forcing a rebuild.
+- CI may cache `~/.agent-device/ios-runner/derived` when the cache key includes the exact Agent Device package contents and selected Xcode version.
+- Avoid broad `restore-keys` fallbacks for runner caches. Reusing runner artifacts across Agent Device or Xcode versions can restore stale `.xctestrun` products; `prepare ios-runner` already handles bad exact-cache artifacts and one retryable non-connecting runner launch.
+
 ## TV targets
 
 ```bash

@@ -1,7 +1,7 @@
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
-import { getRequestSignal } from '../../daemon/request-cancel.ts';
+import { getRequestSignal, isRequestCanceledError } from '../../daemon/request-cancel.ts';
 import { RUNNER_COMMAND_TIMEOUT_MS, RUNNER_STARTUP_TIMEOUT_MS } from './runner-transport.ts';
 import {
   type RunnerSession,
@@ -28,6 +28,8 @@ import { handleRunnerTransportErrorAfterCommandSend } from './runner-command-rec
 export type PrepareIosRunnerOptions = AppleRunnerPrepareOptions;
 export type PrepareIosRunnerResult = AppleRunnerPrepareResult;
 
+const PREPARE_RUNNER_HEALTH_MAX_SESSION_ATTEMPTS = 2;
+
 export async function prepareLocalIosRunner(
   device: DeviceInfo,
   options: PrepareIosRunnerOptions,
@@ -35,67 +37,189 @@ export async function prepareLocalIosRunner(
   assertRunnerRequestActive(options.requestId);
   const signal = getRequestSignal(options.requestId);
   const command = withRunnerCommandId({ command: 'uptime' });
-  let session: RunnerSession | undefined;
-  try {
-    const connectStartedAt = Date.now();
-    session = await ensureRunnerSession(device, options);
-    const connectMs = Date.now() - connectStartedAt;
-    return recordPrepareResult(
+  let recoveryReason: string | undefined;
+  for (let attempt = 1; attempt <= PREPARE_RUNNER_HEALTH_MAX_SESSION_ATTEMPTS; attempt += 1) {
+    const result = await runPrepareAttempt({
       device,
-      await runPrepareHealthCheck(device, session, command, options, signal, connectMs),
-    );
-  } catch (err) {
-    const appErr = err instanceof AppError ? err : new AppError('COMMAND_FAILED', String(err));
-    if (!session || !shouldRecoverBadCachedRunnerArtifact(appErr, session)) {
-      throw err;
-    }
-    const reason = appErr.message || 'runner_health_failed';
-    await invalidateRunnerSession(session, 'prepare_cached_runner_health_failed');
-    await markRunnerXctestrunArtifactBadForRun(session.xctestrunArtifact, reason);
-    const connectStartedAt = Date.now();
-    const rebuiltSession = await ensureRunnerSession(device, {
-      ...options,
-      cleanStaleBundles: true,
-      forceRunnerXctestrunRebuild: true,
+      command,
+      options,
+      signal,
+      attempt,
+      recoveryReason,
     });
-    const connectMs = Date.now() - connectStartedAt;
-    try {
-      const recovered = await runPrepareHealthCheck(
+    if (result.kind === 'prepared') return result.result;
+    recoveryReason = result.recoveryReason;
+  }
+
+  // Unreachable while PREPARE_RUNNER_HEALTH_MAX_SESSION_ATTEMPTS is positive.
+  throw new AppError('COMMAND_FAILED', 'iOS runner prepare failed');
+}
+
+type PrepareAttemptResult =
+  | { kind: 'prepared'; result: PrepareIosRunnerResult }
+  | { kind: 'retry'; recoveryReason: string };
+
+async function runPrepareAttempt(params: {
+  device: DeviceInfo;
+  command: RunnerCommand;
+  options: PrepareIosRunnerOptions;
+  signal: AbortSignal | undefined;
+  attempt: number;
+  recoveryReason: string | undefined;
+}): Promise<PrepareAttemptResult> {
+  const { device, command, options, signal, attempt, recoveryReason } = params;
+  const connectStartedAt = Date.now();
+  const session = await ensureRunnerSession(device, {
+    ...options,
+    cleanStaleBundles: attempt > 1 ? true : options.cleanStaleBundles,
+  });
+  const connectMs = Date.now() - connectStartedAt;
+  try {
+    const result = await runPrepareHealthCheck(device, session, command, options, signal, connectMs, {
+      recoveryReason,
+    });
+    return { kind: 'prepared', result: recordPrepareResult(device, result) };
+  } catch (error) {
+    return await handlePrepareHealthFailure({
+      device,
+      session,
+      command,
+      options,
+      signal,
+      attempt,
+      error,
+    });
+  }
+}
+
+async function handlePrepareHealthFailure(params: {
+  device: DeviceInfo;
+  session: RunnerSession;
+  command: RunnerCommand;
+  options: PrepareIosRunnerOptions;
+  signal: AbortSignal | undefined;
+  attempt: number;
+  error: unknown;
+}): Promise<PrepareAttemptResult> {
+  const { device, session, command, options, signal, attempt, error } = params;
+  const appErr = error instanceof AppError ? error : new AppError('COMMAND_FAILED', String(error));
+  if (attempt === 1 && shouldRecoverBadCachedRunnerArtifact(appErr, session)) {
+    return {
+      kind: 'prepared',
+      result: await recoverBadCachedRunnerArtifact({
         device,
-        rebuiltSession,
+        session,
         command,
         options,
         signal,
-        connectMs,
-        { recoveryReason: reason },
-      );
-      emitDiagnostic({
-        level: 'info',
-        phase: 'ios_runner_prepare_bad_cache_recovered',
-        data: {
-          command: command.command,
-          commandId: command.commandId,
-          sessionId: rebuiltSession.sessionId,
-          xctestrunPath: rebuiltSession.xctestrunArtifact?.xctestrunPath,
-          reason,
-        },
-      });
-      return recordPrepareResult(device, recovered);
-    } catch (retryErr) {
-      await invalidateRunnerSession(rebuiltSession, 'prepare_rebuilt_runner_health_failed');
-      const wrapped = wrapPrepareHealthFailure(retryErr, rebuiltSession, reason);
-      emitPrepareDiagnostic(device, {
-        cache: rebuiltSession.xctestrunArtifact?.cache,
-        artifact: rebuiltSession.xctestrunArtifact?.artifact,
-        buildMs: rebuiltSession.xctestrunArtifact?.buildMs,
-        connectMs,
-        healthCheckMs: 0,
-        xctestrunPath: rebuiltSession.xctestrunArtifact?.xctestrunPath,
-        failureReason: wrapped.message,
-      });
-      throw wrapped;
-    }
+        error: appErr,
+      }),
+    };
   }
+  if (!shouldRetryPrepareRunnerHealthFailure(appErr)) {
+    throw error;
+  }
+  const reason = appErr.message || 'runner_health_failed';
+  if (attempt >= PREPARE_RUNNER_HEALTH_MAX_SESSION_ATTEMPTS) {
+    await invalidateRunnerSessionBestEffort(session, 'prepare_runner_health_failed');
+    throw error;
+  }
+
+  assertRunnerRequestActive(options.requestId);
+  await invalidateRunnerSession(session, 'prepare_runner_health_retry');
+  emitDiagnostic({
+    level: 'warn',
+    phase: 'ios_runner_prepare_health_retry',
+    data: {
+      command: command.command,
+      commandId: command.commandId,
+      sessionId: session.sessionId,
+      attempt,
+      maxAttempts: PREPARE_RUNNER_HEALTH_MAX_SESSION_ATTEMPTS,
+      reason,
+    },
+  });
+  return { kind: 'retry', recoveryReason: reason };
+}
+
+async function recoverBadCachedRunnerArtifact(params: {
+  device: DeviceInfo;
+  session: RunnerSession & {
+    xctestrunArtifact: NonNullable<RunnerSession['xctestrunArtifact']>;
+  };
+  command: RunnerCommand;
+  options: PrepareIosRunnerOptions;
+  signal: AbortSignal | undefined;
+  error: AppError;
+}): Promise<PrepareIosRunnerResult> {
+  const { device, session, command, options, signal, error } = params;
+  const reason = error.message || 'runner_health_failed';
+  await invalidateRunnerSession(session, 'prepare_cached_runner_health_failed');
+  await markRunnerXctestrunArtifactBadForRun(session.xctestrunArtifact, reason);
+  const connectStartedAt = Date.now();
+  const rebuiltSession = await ensureRunnerSession(device, {
+    ...options,
+    cleanStaleBundles: true,
+    forceRunnerXctestrunRebuild: true,
+  });
+  const connectMs = Date.now() - connectStartedAt;
+  try {
+    const recovered = await runPrepareHealthCheck(
+      device,
+      rebuiltSession,
+      command,
+      options,
+      signal,
+      connectMs,
+      { recoveryReason: reason },
+    );
+    emitDiagnostic({
+      level: 'info',
+      phase: 'ios_runner_prepare_bad_cache_recovered',
+      data: {
+        command: command.command,
+        commandId: command.commandId,
+        sessionId: rebuiltSession.sessionId,
+        xctestrunPath: rebuiltSession.xctestrunArtifact?.xctestrunPath,
+        reason,
+      },
+    });
+    return recordPrepareResult(device, recovered);
+  } catch (retryErr) {
+    await invalidateRunnerSessionBestEffort(
+      rebuiltSession,
+      'prepare_rebuilt_runner_health_failed',
+    );
+    const wrapped = wrapPrepareHealthFailure(retryErr, rebuiltSession, reason);
+    emitPrepareDiagnostic(device, {
+      cache: rebuiltSession.xctestrunArtifact?.cache,
+      artifact: rebuiltSession.xctestrunArtifact?.artifact,
+      buildMs: rebuiltSession.xctestrunArtifact?.buildMs,
+      connectMs,
+      healthCheckMs: 0,
+      xctestrunPath: rebuiltSession.xctestrunArtifact?.xctestrunPath,
+      failureReason: wrapped.message,
+    });
+    throw wrapped;
+  }
+}
+
+async function invalidateRunnerSessionBestEffort(
+  session: RunnerSession,
+  reason: Parameters<typeof invalidateRunnerSession>[1],
+): Promise<void> {
+  try {
+    await invalidateRunnerSession(session, reason);
+  } catch {}
+}
+
+function shouldRetryPrepareRunnerHealthFailure(error: AppError): boolean {
+  if (isRequestCanceledError(error)) return false;
+  return (
+    isRetryableRunnerError(error) ||
+    shouldRetryRunnerConnectError(error) ||
+    isPrepareHealthTimeout(error)
+  );
 }
 
 // fallow-ignore-next-line complexity
@@ -260,11 +384,7 @@ function shouldRecoverBadCachedRunnerArtifact(
 } {
   const artifact = session.xctestrunArtifact;
   if (!artifact || artifact.cache === 'miss') return false;
-  return (
-    isRetryableRunnerError(error) ||
-    shouldRetryRunnerConnectError(error) ||
-    isPrepareHealthTimeout(error)
-  );
+  return shouldRetryPrepareRunnerHealthFailure(error);
 }
 
 function isPrepareHealthTimeout(error: AppError): boolean {

@@ -40,6 +40,15 @@ test('appstate --help prints command help and skips daemon dispatch', async () =
   assert.match(result.stdout, /Global flags:/);
 });
 
+test('prepare help documents iOS runner CI setup', async () => {
+  const result = await runCliCapture(['help', 'prepare']);
+  assert.equal(result.code, 0);
+  assert.equal(result.calls.length, 0);
+  assert.match(result.stdout, /prepare ios-runner --platform ios\|macos/);
+  assert.match(result.stdout, /health-checks the XCTest runner/);
+  assert.match(result.stdout, /after boot\/install and before replay\/test/);
+});
+
 test('connect help documents cloud auth environment origins', async () => {
   const result = await runCliCapture(['help', 'connect']);
   assert.equal(result.code, 0);
@@ -91,6 +100,8 @@ test('help workflow preserves known device workaround guidance', async () => {
   assert.match(result.stdout, /agent-device clipboard write "some text"/);
   assert.match(result.stdout, /provider-native text injection when available/);
   assert.match(result.stdout, /Do not switch to raw adb, clipboard, or paste as an agent fallback/);
+  assert.match(result.stdout, /exact key that includes the agent-device package and Xcode version/);
+  assert.match(result.stdout, /Avoid broad restore-key fallbacks/);
 });
 
 test('help unknown command prints error plus global usage and skips daemon dispatch', async () => {

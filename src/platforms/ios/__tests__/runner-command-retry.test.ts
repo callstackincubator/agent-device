@@ -1,6 +1,7 @@
 import { beforeEach, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import { IOS_SIMULATOR } from '../../../__tests__/test-utils/index.ts';
+import { clearRequestCanceled, markRequestCanceled } from '../../../daemon/request-cancel.ts';
 import { AppError } from '../../../utils/errors.ts';
 import type { RunnerSession } from '../runner-session-types.ts';
 
@@ -126,6 +127,134 @@ test('prepareIosRunner invalidates rebuilt sessions when bad-cache recovery heal
     restoredArtifact,
     'Runner endpoint probe failed',
   ]);
+});
+
+test('prepareIosRunner retries a fresh launch session when the health check cannot connect', async () => {
+  const stuckSession = makeRunnerSession({ port: 8100 });
+  const relaunchedSession = makeRunnerSession({ port: 8101 });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(stuckSession).mockResolvedValueOnce(relaunchedSession);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'Runner did not accept connection'))
+    .mockResolvedValueOnce({ uptimeMs: 42 });
+
+  const result = await prepareIosRunner(IOS_SIMULATOR, {
+    healthTimeoutMs: 90_000,
+    buildTimeoutMs: 300_000,
+  });
+
+  assert.deepEqual(result.runner, { uptimeMs: 42 });
+  assert.equal(result.recoveryReason, 'Runner did not accept connection');
+  assert.equal(mockEnsureRunnerSession.mock.calls[0]?.[1]?.cleanStaleBundles, undefined);
+  assert.deepEqual(mockInvalidateRunnerSession.mock.calls, [
+    [stuckSession, 'prepare_runner_health_retry'],
+  ]);
+  assert.equal(mockEnsureRunnerSession.mock.calls.length, 2);
+  assert.equal(mockEnsureRunnerSession.mock.calls[1]?.[1]?.cleanStaleBundles, true);
+  assert.equal(mockEnsureRunnerSession.mock.calls[1]?.[1]?.forceRunnerXctestrunRebuild, undefined);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[1]?.[1], relaunchedSession);
+  assert.deepEqual(
+    mockEmitDiagnostic.mock.calls.find(
+      ([event]) => event.phase === 'ios_runner_prepare_health_retry',
+    )?.[0].data,
+    {
+      command: 'uptime',
+      commandId: mockExecuteRunnerCommandWithSession.mock.calls[0]?.[2].commandId,
+      sessionId: stuckSession.sessionId,
+      attempt: 1,
+      maxAttempts: 2,
+      reason: 'Runner did not accept connection',
+    },
+  );
+});
+
+test('prepareIosRunner does not force a rebuild when the relaunched fresh session still cannot connect', async () => {
+  const missArtifact = makeRunnerArtifact({
+    xctestrunPath: '/tmp/miss.xctestrun',
+    cache: 'miss',
+    artifact: 'valid',
+  });
+  const exactArtifact = makeRunnerArtifact({
+    xctestrunPath: '/tmp/exact.xctestrun',
+    cache: 'exact',
+    artifact: 'valid',
+  });
+  const stuckSession = makeRunnerSession({
+    port: 8100,
+    xctestrunPath: missArtifact.xctestrunPath,
+    xctestrunArtifact: missArtifact,
+  });
+  const relaunchedSession = makeRunnerSession({
+    port: 8101,
+    xctestrunPath: exactArtifact.xctestrunPath,
+    xctestrunArtifact: exactArtifact,
+  });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(stuckSession).mockResolvedValueOnce(relaunchedSession);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'Runner did not accept connection'))
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'Runner did not accept connection'));
+
+  await assert.rejects(
+    () =>
+      prepareIosRunner(IOS_SIMULATOR, {
+        healthTimeoutMs: 90_000,
+        forceRunnerXctestrunRebuild: false,
+      }),
+    /Runner did not accept connection/,
+  );
+
+  assert.deepEqual(mockInvalidateRunnerSession.mock.calls, [
+    [stuckSession, 'prepare_runner_health_retry'],
+    [relaunchedSession, 'prepare_runner_health_failed'],
+  ]);
+  assert.equal(mockMarkRunnerXctestrunArtifactBadForRun.mock.calls.length, 0);
+  assert.equal(mockEnsureRunnerSession.mock.calls.length, 2);
+  assert.equal(mockEnsureRunnerSession.mock.calls[0]?.[1]?.cleanStaleBundles, undefined);
+  assert.equal(mockEnsureRunnerSession.mock.calls[0]?.[1]?.forceRunnerXctestrunRebuild, false);
+  assert.equal(mockEnsureRunnerSession.mock.calls[1]?.[1]?.cleanStaleBundles, true);
+  assert.equal(mockEnsureRunnerSession.mock.calls[1]?.[1]?.forceRunnerXctestrunRebuild, false);
+});
+
+test('prepareIosRunner does not relaunch after non-retryable runner startup failures', async () => {
+  const failedSession = makeRunnerSession({ port: 8100 });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(failedSession);
+  mockExecuteRunnerCommandWithSession.mockRejectedValueOnce(
+    new AppError('COMMAND_FAILED', 'xcodebuild exited early'),
+  );
+
+  await assert.rejects(
+    () => prepareIosRunner(IOS_SIMULATOR, { healthTimeoutMs: 90_000 }),
+    /xcodebuild exited early/,
+  );
+
+  assert.equal(mockEnsureRunnerSession.mock.calls.length, 1);
+  assert.equal(mockInvalidateRunnerSession.mock.calls.length, 0);
+  assert.equal(mockMarkRunnerXctestrunArtifactBadForRun.mock.calls.length, 0);
+});
+
+test('prepareIosRunner does not relaunch after request cancellation', async () => {
+  const requestId = 'prepare-canceled-before-retry';
+  const stuckSession = makeRunnerSession({ port: 8100 });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(stuckSession);
+  mockExecuteRunnerCommandWithSession.mockImplementationOnce(() => {
+    markRequestCanceled(requestId);
+    throw new AppError('COMMAND_FAILED', 'Runner did not accept connection');
+  });
+
+  try {
+    await assert.rejects(
+      () => prepareIosRunner(IOS_SIMULATOR, { healthTimeoutMs: 90_000, requestId }),
+      /request canceled/,
+    );
+  } finally {
+    clearRequestCanceled(requestId);
+  }
+
+  assert.equal(mockEnsureRunnerSession.mock.calls.length, 1);
+  assert.equal(mockInvalidateRunnerSession.mock.calls.length, 0);
 });
 
 test('mutating commands restart stale ready sessions when the preflight probe never reaches the runner', async () => {
