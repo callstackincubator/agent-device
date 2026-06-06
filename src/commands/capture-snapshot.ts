@@ -278,21 +278,37 @@ function formatRecentSnapshotDropWarning(params: {
   runtimeNow: number;
 }): string | undefined {
   const previousSnapshot = params.session?.snapshot;
-  const isRecentSnapshot = previousSnapshot
-    ? [params.capturedAt, params.runtimeNow].some((timestamp) => {
-        const elapsed = timestamp - previousSnapshot.createdAt;
-        return elapsed >= 0 && elapsed <= 2_000;
-      })
-    : false;
   if (
     !params.result.freshness &&
     previousSnapshot &&
-    isRecentSnapshot &&
+    hasSameSnapshotPresentation(previousSnapshot, params.snapshot) &&
+    isRecentSnapshot(previousSnapshot, params.capturedAt, params.runtimeNow) &&
     isLikelyStaleSnapshotDrop(previousSnapshot.nodes.length, params.snapshot.nodes.length)
   ) {
     return STALE_SNAPSHOT_DROP_WARNING;
   }
   return undefined;
+}
+
+function hasSameSnapshotPresentation(
+  previousSnapshot: Pick<SnapshotState, 'presentationKey'>,
+  snapshot: Pick<SnapshotState, 'presentationKey'>,
+): boolean {
+  if (previousSnapshot.presentationKey === undefined || snapshot.presentationKey === undefined) {
+    return true;
+  }
+  return previousSnapshot.presentationKey === snapshot.presentationKey;
+}
+
+function isRecentSnapshot(
+  previousSnapshot: Pick<SnapshotState, 'createdAt'>,
+  capturedAt: number,
+  runtimeNow: number,
+): boolean {
+  return [capturedAt, runtimeNow].some((timestamp) => {
+    const elapsed = timestamp - previousSnapshot.createdAt;
+    return elapsed >= 0 && elapsed <= 2_000;
+  });
 }
 
 const STALE_SNAPSHOT_DROP_WARNING =

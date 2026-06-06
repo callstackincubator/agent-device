@@ -51,70 +51,26 @@ export async function waitForRunner(
   try {
     return await retryWithPolicy(
       async ({ deadline: attemptDeadline }) => {
-        if (attemptDeadline?.isExpired()) {
-          throw new AppError('COMMAND_FAILED', 'Runner connection deadline exceeded', {
-            port,
-            timeoutMs,
-          });
-        }
-        if (session && session.child.exitCode !== null && session.child.exitCode !== undefined) {
-          throw await buildRunnerEarlyExitError({ session, port, logPath });
-        }
-        let usedCachedTunnelIp = false;
-        if (device.kind === 'device') {
-          const resolved = await getEndpoints(attemptDeadline?.remainingMs());
-          endpoints = resolved.endpoints;
-          usedCachedTunnelIp = resolved.cached;
-        }
-        const cachedTunnelEndpoint = usedCachedTunnelIp ? endpoints[0] : null;
-        const response = await tryRunnerEndpoints(endpoints, {
-          command,
+        const response = await attemptRunnerConnection({
+          device,
           port,
+          command,
           timeoutMs,
+          logPath,
+          session,
+          endpoints,
+          getEndpoints,
           signal,
           attemptDeadline,
-          onError: (endpoint, err) => {
+          setEndpoints: (nextEndpoints) => {
+            endpoints = nextEndpoints;
+          },
+          setLastError: (err) => {
             lastError = err;
-            if (device.kind === 'device' && endpoint === cachedTunnelEndpoint) {
-              invalidateDeviceTunnelIpCache(device.id);
-            }
           },
         });
         if (response) return response;
-        if (device.kind === 'simulator' && session?.ready) {
-          const simulatorResponse = await tryRunnerSimulatorEndpoint(device, port, command, {
-            signal,
-            attemptDeadline,
-            onError: (err) => {
-              lastError = err;
-            },
-          });
-          if (simulatorResponse) return simulatorResponse;
-        }
-        if (device.kind === 'device' && usedCachedTunnelIp) {
-          invalidateDeviceTunnelIpCache(device.id);
-          const refreshed = await getEndpoints(attemptDeadline?.remainingMs(), true);
-          endpoints = refreshed.endpoints;
-          const refreshedResponse = await tryRunnerEndpoints(endpoints, {
-            command,
-            port,
-            timeoutMs,
-            signal,
-            attemptDeadline,
-            onError: (_endpoint, err) => {
-              lastError = err;
-            },
-          });
-          if (refreshedResponse) return refreshedResponse;
-        }
-        if (signal?.aborted) {
-          throw createRequestCanceledError();
-        }
-        throw new AppError('COMMAND_FAILED', 'Runner endpoint probe failed', {
-          port,
-          endpoints,
-          lastError: lastError ? String(lastError) : undefined,
-        });
+        throw buildRunnerEndpointProbeError({ port, endpoints, lastError, signal });
       },
       {
         maxAttempts,
@@ -148,6 +104,156 @@ export async function waitForRunner(
   }
 
   throw buildRunnerConnectError({ port, endpoints, logPath, lastError });
+}
+
+type RunnerEndpointResolver = ReturnType<typeof createRunnerEndpointResolver>['getEndpoints'];
+
+async function attemptRunnerConnection(params: {
+  device: DeviceInfo;
+  port: number;
+  command: RunnerCommand;
+  timeoutMs: number;
+  logPath?: string;
+  session?: RunnerSession;
+  endpoints: string[];
+  getEndpoints: RunnerEndpointResolver;
+  signal?: AbortSignal;
+  attemptDeadline?: Deadline;
+  setEndpoints: (endpoints: string[]) => void;
+  setLastError: (error: unknown) => void;
+}): Promise<Response | null> {
+  await ensureRunnerAttemptCanStart(params);
+
+  const primary = await tryPrimaryRunnerEndpoints(params);
+  if (primary.response) return primary.response;
+
+  const simulatorFallback = await tryReadySimulatorEndpoint(params);
+  if (simulatorFallback) return simulatorFallback;
+
+  return await tryRefreshedDeviceTunnel(params, primary.usedCachedTunnelIp);
+}
+
+async function ensureRunnerAttemptCanStart(params: {
+  port: number;
+  timeoutMs: number;
+  logPath?: string;
+  session?: RunnerSession;
+  attemptDeadline?: Deadline;
+}): Promise<void> {
+  if (params.attemptDeadline?.isExpired()) {
+    throw new AppError('COMMAND_FAILED', 'Runner connection deadline exceeded', {
+      port: params.port,
+      timeoutMs: params.timeoutMs,
+    });
+  }
+  if (params.session?.child.exitCode !== null && params.session?.child.exitCode !== undefined) {
+    throw await buildRunnerEarlyExitError({
+      session: params.session,
+      port: params.port,
+      logPath: params.logPath,
+    });
+  }
+}
+
+async function tryPrimaryRunnerEndpoints(params: {
+  device: DeviceInfo;
+  port: number;
+  command: RunnerCommand;
+  timeoutMs: number;
+  endpoints: string[];
+  getEndpoints: RunnerEndpointResolver;
+  signal?: AbortSignal;
+  attemptDeadline?: Deadline;
+  setEndpoints: (endpoints: string[]) => void;
+  setLastError: (error: unknown) => void;
+}): Promise<{ response: Response | null; usedCachedTunnelIp: boolean }> {
+  let endpoints = params.endpoints;
+  let usedCachedTunnelIp = false;
+  if (params.device.kind === 'device') {
+    const resolved = await params.getEndpoints(params.attemptDeadline?.remainingMs());
+    endpoints = resolved.endpoints;
+    usedCachedTunnelIp = resolved.cached;
+    params.setEndpoints(endpoints);
+  }
+
+  const cachedTunnelEndpoint = usedCachedTunnelIp ? endpoints[0] : null;
+  const response = await tryRunnerEndpoints(endpoints, {
+    command: params.command,
+    port: params.port,
+    timeoutMs: params.timeoutMs,
+    signal: params.signal,
+    attemptDeadline: params.attemptDeadline,
+    onError: (endpoint, err) => {
+      params.setLastError(err);
+      if (params.device.kind === 'device' && endpoint === cachedTunnelEndpoint) {
+        invalidateDeviceTunnelIpCache(params.device.id);
+      }
+    },
+  });
+  return { response, usedCachedTunnelIp };
+}
+
+async function tryReadySimulatorEndpoint(params: {
+  device: DeviceInfo;
+  port: number;
+  command: RunnerCommand;
+  session?: RunnerSession;
+  signal?: AbortSignal;
+  attemptDeadline?: Deadline;
+  setLastError: (error: unknown) => void;
+}): Promise<Response | null> {
+  if (params.device.kind !== 'simulator' || !params.session?.ready) return null;
+  return await tryRunnerSimulatorEndpoint(params.device, params.port, params.command, {
+    signal: params.signal,
+    attemptDeadline: params.attemptDeadline,
+    onError: params.setLastError,
+  });
+}
+
+async function tryRefreshedDeviceTunnel(
+  params: {
+    device: DeviceInfo;
+    port: number;
+    command: RunnerCommand;
+    timeoutMs: number;
+    getEndpoints: RunnerEndpointResolver;
+    signal?: AbortSignal;
+    attemptDeadline?: Deadline;
+    setEndpoints: (endpoints: string[]) => void;
+    setLastError: (error: unknown) => void;
+  },
+  usedCachedTunnelIp: boolean,
+): Promise<Response | null> {
+  if (params.device.kind !== 'device' || !usedCachedTunnelIp) return null;
+  invalidateDeviceTunnelIpCache(params.device.id);
+  const refreshed = await params.getEndpoints(params.attemptDeadline?.remainingMs(), true);
+  params.setEndpoints(refreshed.endpoints);
+  return await tryRunnerEndpoints(refreshed.endpoints, {
+    command: params.command,
+    port: params.port,
+    timeoutMs: params.timeoutMs,
+    signal: params.signal,
+    attemptDeadline: params.attemptDeadline,
+    onError: (_endpoint, err) => {
+      params.setLastError(err);
+    },
+  });
+}
+
+function buildRunnerEndpointProbeError(params: {
+  port: number;
+  endpoints: string[];
+  lastError: unknown;
+  signal?: AbortSignal;
+}): AppError {
+  if (params.signal?.aborted) {
+    throw createRequestCanceledError();
+  }
+  return new AppError('COMMAND_FAILED', 'Runner endpoint probe failed', {
+    port: params.port,
+    endpoints: params.endpoints,
+    lastError: params.lastError ? String(params.lastError) : undefined,
+  });
 }
 
 export async function sendRunnerCommandOnce(

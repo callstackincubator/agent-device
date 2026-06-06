@@ -89,7 +89,15 @@ extension RunnerTests {
       return blocking
     }
 
-    guard let context = try makeSnapshotTraversalContext(app: app, options: options) else {
+    let context: SnapshotTraversalContext?
+    do {
+      context = try makeSnapshotTraversalContext(app: app, options: options)
+    } catch let failure as SnapshotCaptureFailure where options.interactiveOnly {
+      NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_FLAT_FALLBACK=%@", failure.message)
+      return snapshotFlatInteractive(app: app, options: options)
+    }
+
+    guard let context else {
       return DataPayload(nodes: [], truncated: false)
     }
 
@@ -245,6 +253,82 @@ extension RunnerTests {
     }
 
     walk(context.rootSnapshot, depth: 0, parentIndex: nil)
+    return DataPayload(nodes: nodes, truncated: truncated)
+  }
+
+  private func snapshotFlatInteractive(app: XCUIApplication, options: SnapshotOptions) -> DataPayload {
+    let viewport = safeSnapshotViewport(app: app)
+    var nodes: [SnapshotNode] = [
+      SnapshotNode(
+        index: 0,
+        type: "Application",
+        label: nonEmptyElementText { app.label },
+        identifier: nonEmptyElementText { app.identifier },
+        value: nil,
+        rect: snapshotRect(from: safely("SNAPSHOT_FLAT_APP_FRAME", CGRect.zero) { app.frame }),
+        enabled: true,
+        focused: nil,
+        selected: nil,
+        hittable: false,
+        depth: 0,
+        parentIndex: nil,
+        hiddenContentAbove: nil,
+        hiddenContentBelow: nil
+      )
+    ]
+    if options.depth == 0 {
+      return DataPayload(nodes: nodes, truncated: false)
+    }
+
+    var seen = Set<String>()
+    let candidates = flatFallbackElements(app: app)
+      .compactMap { element in
+        flatSnapshotNode(
+          element: element,
+          index: 0,
+          parentIndex: 0,
+          viewport: viewport,
+          options: options
+        )
+      }
+      .filter { node in
+        let key = "\(node.type)-\(node.label ?? "")-\(node.identifier ?? "")-\(node.value ?? "")-\(node.rect.x)-\(node.rect.y)-\(node.rect.width)-\(node.rect.height)"
+        if seen.contains(key) { return false }
+        seen.insert(key)
+        return true
+      }
+      .sorted { left, right in
+        if left.rect.y != right.rect.y {
+          return left.rect.y < right.rect.y
+        }
+        if left.rect.x != right.rect.x {
+          return left.rect.x < right.rect.x
+        }
+        return left.type < right.type
+      }
+
+    let remaining = max(0, fastSnapshotLimit - nodes.count)
+    let truncated = candidates.count > remaining
+    for candidate in candidates.prefix(remaining) {
+      nodes.append(
+        SnapshotNode(
+          index: nodes.count,
+          type: candidate.type,
+          label: candidate.label,
+          identifier: candidate.identifier,
+          value: candidate.value,
+          rect: candidate.rect,
+          enabled: candidate.enabled,
+          focused: candidate.focused,
+          selected: candidate.selected,
+          hittable: candidate.hittable,
+          depth: 1,
+          parentIndex: 0,
+          hiddenContentAbove: nil,
+          hiddenContentBelow: nil
+        )
+      )
+    }
     return DataPayload(nodes: nodes, truncated: truncated)
   }
 
@@ -712,6 +796,95 @@ extension RunnerTests {
 
   private func safeSnapshotElementsQuery(_ fetch: () -> [XCUIElement]) -> [XCUIElement] {
     safely("SNAPSHOT_QUERY", [], fetch)
+  }
+
+  private func flatFallbackElements(app: XCUIApplication) -> [XCUIElement] {
+    let queries: [XCUIElementQuery] = [
+      app.buttons,
+      app.cells,
+      app.collectionViews,
+      app.images,
+      app.links,
+      app.scrollViews,
+      app.searchFields,
+      app.secureTextFields,
+      app.segmentedControls,
+      app.sliders,
+      app.staticTexts,
+      app.switches,
+      app.tables,
+      app.textFields,
+      app.textViews
+    ]
+    return queries.flatMap { query in
+      safeSnapshotElementsQuery {
+        query.allElementsBoundByIndex
+      }
+    }
+  }
+
+  private func flatSnapshotNode(
+    element: XCUIElement,
+    index: Int,
+    parentIndex: Int?,
+    viewport: CGRect,
+    options: SnapshotOptions
+  ) -> SnapshotNode? {
+    var node: SnapshotNode?
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      if !element.exists { return }
+      let frame = element.frame
+      if frame.isNull || frame.isEmpty { return }
+      let visible = isVisibleInViewport(frame, viewport)
+      #if os(macOS)
+        if !visible { return }
+      #endif
+      let label = element.label.trimmingCharacters(in: .whitespacesAndNewlines)
+      let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+      let valueText = snapshotValueText(element)
+      let hasContent = !label.isEmpty || !identifier.isEmpty || valueText != nil
+      let elementType = element.elementType
+      let enabled = element.isEnabled
+      let hittable = visible && enabled && element.isHittable
+      if options.compact && !hasContent && !hittable && !interactiveTypes.contains(elementType) {
+        return
+      }
+      if let scope = options.scope?.trimmingCharacters(in: .whitespacesAndNewlines), !scope.isEmpty {
+        let haystack = [label, identifier, valueText ?? ""].joined(separator: "\n")
+        if !haystack.localizedCaseInsensitiveContains(scope) {
+          return
+        }
+      }
+
+      node = SnapshotNode(
+        index: index,
+        type: elementTypeName(elementType),
+        label: label.isEmpty ? nil : label,
+        identifier: identifier.isEmpty ? nil : identifier,
+        value: valueText,
+        rect: snapshotRect(from: frame),
+        enabled: enabled,
+        focused: elementHasFocus(element) ? true : nil,
+        selected: element.isSelected ? true : nil,
+        hittable: hittable,
+        depth: 1,
+        parentIndex: parentIndex,
+        hiddenContentAbove: nil,
+        hiddenContentBelow: nil
+      )
+    })
+    if let exceptionMessage {
+      NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_FLAT_IGNORED_EXCEPTION=%@", exceptionMessage)
+      return nil
+    }
+    return node
+  }
+
+  private func nonEmptyElementText(_ read: () -> String) -> String? {
+    let value = safely("SNAPSHOT_FLAT_TEXT", "") {
+      read()
+    }.trimmingCharacters(in: .whitespacesAndNewlines)
+    return value.isEmpty ? nil : value
   }
 
   private func isScrollableContainer(_ snapshot: XCUIElementSnapshot, visible: Bool) -> Bool {

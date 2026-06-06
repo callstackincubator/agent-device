@@ -2761,6 +2761,13 @@ test('open --relaunch on iOS stops runner before close/open', async () => {
   });
 
   const calls: string[] = [];
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'ios-device-1',
+    name: 'My iPhone',
+    kind: 'device',
+    booted: true,
+  });
   mockStopIosRunner.mockImplementation(async () => {
     calls.push('stop-runner');
   });
@@ -2786,6 +2793,55 @@ test('open --relaunch on iOS stops runner before close/open', async () => {
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
   expect(calls).toEqual(['stop-runner', 'close:com.example.app', 'open:com.example.app']);
+});
+
+test('open --relaunch on iOS simulator keeps runner while closing app', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-simulator-session';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appName: 'com.example.app',
+  });
+
+  const calls: string[] = [];
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    booted: true,
+  });
+  mockStopIosRunner.mockImplementation(async () => {
+    calls.push('stop-runner');
+  });
+  mockDispatch.mockImplementation(async (_device, command, positionals) => {
+    calls.push(`${command}:${positionals.join(' ')}`);
+    return {};
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'open',
+      positionals: [],
+      flags: { relaunch: true },
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(calls).toEqual(['close:com.example.app', 'open:com.example.app']);
 });
 
 test('open --relaunch includes timing and waits for iOS runner prewarm', async () => {

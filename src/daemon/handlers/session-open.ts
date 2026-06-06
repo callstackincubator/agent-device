@@ -14,6 +14,7 @@ import { SessionStore } from '../session-store.ts';
 import {
   IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
   IOS_SIMULATOR_POST_OPEN_SETTLE_MS,
+  isIosSimulator,
   refreshSessionDeviceIfNeeded,
   settleIosSimulator,
 } from './session-device-utils.ts';
@@ -61,7 +62,7 @@ async function relaunchCloseApp(params: {
   context: Parameters<typeof dispatchCommand>[4];
 }): Promise<void> {
   const { device, closeTarget, outFlag, context } = params;
-  if (device.platform !== 'android') {
+  if (device.platform !== 'android' && !isIosSimulator(device)) {
     await stopIosRunnerSession(device.id);
   }
   await dispatchCommand(device, 'close', [closeTarget], outFlag, context);
