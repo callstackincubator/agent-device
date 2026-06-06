@@ -126,6 +126,43 @@ test('runtime snapshot warns when Android helper falls back to stock UIAutomator
   ]);
 });
 
+test('runtime snapshot warns when iOS compact interactive output is root-only', async () => {
+  const device = createSnapshotOnlyDevice({
+    nodes: [{ ref: 'e1', index: 0, depth: 0, type: 'Application' }],
+    truncated: false,
+    backend: 'xctest',
+  });
+
+  const result = await device.capture.snapshot({
+    session: 'default',
+    interactiveOnly: true,
+    compact: true,
+  });
+
+  assert.deepEqual(result.warnings, [
+    'iOS compact interactive snapshot exposed only the application root. XCTest typed accessibility queries can fail to enumerate some simulator UI trees even when screenshots and direct gestures still work. Use screenshot as visual truth, try a scoped/full snapshot for diagnostics, and prefer direct selectors when known.',
+  ]);
+});
+
+test('runtime snapshot does not warn for a normal iOS compact interactive output', async () => {
+  const device = createSnapshotOnlyDevice({
+    nodes: [
+      { ref: 'e1', index: 0, depth: 0, type: 'Application' },
+      { ref: 'e2', index: 1, depth: 1, type: 'Button', label: 'Continue' },
+    ],
+    truncated: false,
+    backend: 'xctest',
+  });
+
+  const result = await device.capture.snapshot({
+    session: 'default',
+    interactiveOnly: true,
+    compact: true,
+  });
+
+  assert.equal(result.warnings, undefined);
+});
+
 test('runtime snapshot warns when Android hierarchy looks like a React Native overlay', async () => {
   const device = createSnapshotOnlyDevice({
     nodes: [

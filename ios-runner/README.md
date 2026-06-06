@@ -33,6 +33,19 @@ Protocol and maintenance references:
 - `RunnerTests+SystemModal.swift`: SpringBoard/system modal detection and modal snapshot shaping.
 - `RunnerTests+ScreenRecorder.swift`: nested `ScreenRecorder` implementation.
 
+## Snapshot Strategy
+
+iOS snapshots have two explicit capture modes:
+
+- full/raw snapshots use recursive XCTest snapshots for rich hierarchy and diagnostics;
+- compact interactive snapshots use a bounded flat XCTest query path for fast agent-facing refs.
+
+Some simulator apps expose accessibility trees that lower-level AX services can inspect but XCTest
+cannot serialize reliably. In those cases compact interactive snapshots may return a sparse root
+quickly, while full snapshots preserve the XCTest error. See
+[`../docs/adr/0004-ios-snapshot-backend-strategy.md`](../docs/adr/0004-ios-snapshot-backend-strategy.md)
+for the backend boundary and the rationale for a future simulator AX-service backend.
+
 ## Protocol Notes
 
 - The daemon posts JSON commands to `POST /command` on the runner's local HTTP listener.
