@@ -273,7 +273,7 @@ extension RunnerTests {
       : Date.distantFuture
     var seen = Set<String>()
     var candidates: [SnapshotNode] = []
-    for element in flatFallbackElements(app: app, options: options, deadline: deadline) {
+    for element in flatInteractiveElements(app: app, deadline: deadline) {
       if Date() >= deadline {
         NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_FLAT_FALLBACK_DEADLINE")
         break
@@ -822,12 +822,11 @@ extension RunnerTests {
     safely("SNAPSHOT_QUERY", [], fetch)
   }
 
-  private func flatFallbackElements(
+  private func flatInteractiveElements(
     app: XCUIApplication,
-    options: SnapshotOptions,
     deadline: Date
   ) -> [XCUIElement] {
-    let queries: [XCUIElementQuery] = options.interactiveOnly ? [
+    let queries: [XCUIElementQuery] = [
       app.buttons,
       app.links,
       app.textFields,
@@ -845,30 +844,7 @@ extension RunnerTests {
       app.steppers,
       app.tabBars,
       app.menuItems
-    ] : [
-      app.buttons,
-      app.cells,
-      app.collectionViews,
-      app.images,
-      app.links,
-      app.scrollViews,
-      app.searchFields,
-      app.secureTextFields,
-      app.segmentedControls,
-      app.sliders,
-      app.staticTexts,
-      app.switches,
-      app.tables,
-      app.textFields,
-      app.textViews
     ]
-    guard options.interactiveOnly else {
-      return queries.flatMap { query in
-        safeSnapshotElementsQuery {
-          query.allElementsBoundByIndex
-        }
-      }
-    }
 
     var elements: [XCUIElement] = []
     for query in queries {
