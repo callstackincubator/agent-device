@@ -4,7 +4,7 @@ open com.apple.Preferences --relaunch
 screenshot "./test/screenshots/replays/ios-settings.png"
 snapshot -i
 appstate
-click "role=cell label=General"
+click "role=cell label=General || role=button label=General"
 wait "label=About || label=\"Software Update\" || text=\"Manage your overall setup and preferences\"" 5000
 snapshot
 is exists "label=About || label=\"Software Update\" || text=\"Manage your overall setup and preferences\""

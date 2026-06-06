@@ -217,6 +217,7 @@ function buildSnapshotWarnings(params: {
 }): string[] {
   const warnings = [...(params.result.warnings ?? [])];
   warnings.push(...buildEmptyAndroidInteractiveWarnings(params));
+  warnings.push(...buildSparseIosInteractiveWarnings(params));
 
   const helperFallbackWarning = formatAndroidHelperFallbackWarning(params.result.androidSnapshot);
   if (helperFallbackWarning) warnings.push(helperFallbackWarning);
@@ -229,6 +230,27 @@ function buildSnapshotWarnings(params: {
 
   warnings.push(...formatFreshnessWarnings(params.result.freshness, params.snapshot.backend));
   return Array.from(new Set(warnings));
+}
+
+function buildSparseIosInteractiveWarnings(params: {
+  snapshot: SnapshotState;
+  options: SnapshotCommandOptions;
+}): string[] {
+  if (
+    params.snapshot.backend !== 'xctest' ||
+    params.options.interactiveOnly !== true ||
+    params.options.compact !== true ||
+    params.snapshot.nodes.length !== 1
+  ) {
+    return [];
+  }
+
+  const root = params.snapshot.nodes[0];
+  if (root?.type !== 'Application') return [];
+
+  return [
+    'iOS compact interactive snapshot exposed only the application root. XCTest typed accessibility queries can fail to enumerate some simulator UI trees even when screenshots and direct gestures still work. Use screenshot as visual truth, try a scoped/full snapshot for diagnostics, and prefer direct selectors when known.',
+  ];
 }
 
 function buildEmptyAndroidInteractiveWarnings(params: {
@@ -278,21 +300,37 @@ function formatRecentSnapshotDropWarning(params: {
   runtimeNow: number;
 }): string | undefined {
   const previousSnapshot = params.session?.snapshot;
-  const isRecentSnapshot = previousSnapshot
-    ? [params.capturedAt, params.runtimeNow].some((timestamp) => {
-        const elapsed = timestamp - previousSnapshot.createdAt;
-        return elapsed >= 0 && elapsed <= 2_000;
-      })
-    : false;
   if (
     !params.result.freshness &&
     previousSnapshot &&
-    isRecentSnapshot &&
+    hasSameSnapshotPresentation(previousSnapshot, params.snapshot) &&
+    isRecentSnapshot(previousSnapshot, params.capturedAt, params.runtimeNow) &&
     isLikelyStaleSnapshotDrop(previousSnapshot.nodes.length, params.snapshot.nodes.length)
   ) {
     return STALE_SNAPSHOT_DROP_WARNING;
   }
   return undefined;
+}
+
+function hasSameSnapshotPresentation(
+  previousSnapshot: Pick<SnapshotState, 'presentationKey'>,
+  snapshot: Pick<SnapshotState, 'presentationKey'>,
+): boolean {
+  if (previousSnapshot.presentationKey === undefined || snapshot.presentationKey === undefined) {
+    return true;
+  }
+  return previousSnapshot.presentationKey === snapshot.presentationKey;
+}
+
+function isRecentSnapshot(
+  previousSnapshot: Pick<SnapshotState, 'createdAt'>,
+  capturedAt: number,
+  runtimeNow: number,
+): boolean {
+  return [capturedAt, runtimeNow].some((timestamp) => {
+    const elapsed = timestamp - previousSnapshot.createdAt;
+    return elapsed >= 0 && elapsed <= 2_000;
+  });
 }
 
 const STALE_SNAPSHOT_DROP_WARNING =

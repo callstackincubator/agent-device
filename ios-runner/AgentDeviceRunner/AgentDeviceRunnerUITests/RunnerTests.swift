@@ -48,6 +48,7 @@ final class RunnerTests: XCTestCase {
   let firstInteractionAfterActivateDelay: TimeInterval = 0.25
   let scrollInteractionIdleTimeoutDefault: TimeInterval = 1.0
   let tvRemoteDoublePressDelayDefault: TimeInterval = 0.0
+  let xctestIdleKeepaliveInterval: TimeInterval = 5.0
   let minRecordingFps = 1
   let maxRecordingFps = 120
   let minRecordingQuality = 5
@@ -119,6 +120,18 @@ final class RunnerTests: XCTestCase {
       self.handle(connection: conn)
     }
     listener?.start(queue: transportQueue)
+    let idleKeepaliveTimer = DispatchSource.makeTimerSource(queue: transportQueue)
+    idleKeepaliveTimer.schedule(
+      deadline: .now() + xctestIdleKeepaliveInterval,
+      repeating: xctestIdleKeepaliveInterval
+    )
+    idleKeepaliveTimer.setEventHandler {
+      NSLog("AGENT_DEVICE_RUNNER_IDLE_KEEPALIVE")
+    }
+    idleKeepaliveTimer.resume()
+    defer {
+      idleKeepaliveTimer.cancel()
+    }
 
     guard let expectation = doneExpectation else {
       XCTFail("runner expectation was not initialized")

@@ -98,14 +98,23 @@ export async function resolveInteractionTarget(
     };
   }
 
-  const capture = await captureInteractionSnapshot(runtime, options, params.requireInteractive);
   const chain = parseSelectorChain(options.target.selector);
-  const resolved = resolveSelectorChain(capture.snapshot.nodes, chain, {
+  let capture = await captureInteractionSnapshot(runtime, options, params.requireInteractive);
+  let resolved = resolveSelectorChain(capture.snapshot.nodes, chain, {
     platform: runtime.backend.platform,
     requireRect: true,
     requireUnique: true,
     disambiguateAmbiguous: true,
   });
+  if ((!resolved || !resolved.node.rect) && params.requireInteractive) {
+    capture = await captureInteractionSnapshot(runtime, options, false);
+    resolved = resolveSelectorChain(capture.snapshot.nodes, chain, {
+      platform: runtime.backend.platform,
+      requireRect: true,
+      requireUnique: true,
+      disambiguateAmbiguous: true,
+    });
+  }
   if (!resolved || !resolved.node.rect) {
     throw new AppError(
       'COMMAND_FAILED',

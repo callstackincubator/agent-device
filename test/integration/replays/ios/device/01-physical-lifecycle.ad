@@ -2,7 +2,7 @@
 context platform=ios target=mobile
 open com.apple.Preferences --relaunch
 snapshot
-click "role=cell label=General"
+click "role=cell label=General || role=button label=General"
 wait "label=About || label=\"Software Update\"" 5000
 back
-is exists "role=cell label=General"
+is exists "role=cell label=General || role=button label=General"

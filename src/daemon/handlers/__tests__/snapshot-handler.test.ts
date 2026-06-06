@@ -502,6 +502,60 @@ test('snapshot warns when recent snapshot node count collapses sharply', async (
   }
 });
 
+test('snapshot does not warn on expected node drop across presentation modes', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-presentation-drop';
+  const session = makeSession(sessionName, iosSimulatorDevice);
+  session.appBundleId = 'com.example.app';
+  session.snapshot = {
+    nodes: Array.from({ length: 50 }, (_, index) => ({
+      ref: `e${index + 1}`,
+      index,
+      depth: 0,
+      type: 'StaticText',
+      label: `Row ${index + 1}`,
+    })),
+    createdAt: Date.now(),
+    backend: 'xctest',
+    presentationKey: buildSnapshotPresentationKey({ interactiveOnly: false, compact: false }),
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockResolvedValue({
+    nodes: Array.from({ length: 8 }, (_, index) => ({
+      index,
+      depth: 0,
+      type: 'Button',
+      label: `Action ${index + 1}`,
+      hittable: true,
+    })),
+    truncated: false,
+    backend: 'xctest',
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'snapshot',
+      positionals: [],
+      flags: { snapshotInteractiveOnly: true, snapshotCompact: true },
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (response?.ok) {
+    expect(response.data?.warnings ?? []).toEqual(
+      expect.not.arrayContaining([
+        expect.stringContaining('Recent snapshots dropped sharply in node count'),
+      ]),
+    );
+  }
+});
+
 test('snapshot automatically retries stale Android trees after recent navigation', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-stale-retries-to-fresh';

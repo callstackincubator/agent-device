@@ -2,7 +2,7 @@
 context platform=ios target=mobile
 
 open com.apple.Preferences --relaunch
-click "role=cell label=General"
+click "role=cell label=General || role=button label=General"
 wait 1000
 find text "About" exists
 

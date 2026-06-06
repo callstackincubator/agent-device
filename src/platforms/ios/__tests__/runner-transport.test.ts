@@ -2,7 +2,9 @@ import fs from 'node:fs';
 import { afterEach, beforeEach, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import type { DeviceInfo } from '../../../utils/device.ts';
+import type { ExecBackgroundResult } from '../../../utils/exec.ts';
 import { AppError } from '../../../utils/errors.ts';
+import type { RunnerSession } from '../runner-session-types.ts';
 
 const { mockRunCmd } = vi.hoisted(() => ({
   mockRunCmd: vi.fn(),
@@ -106,6 +108,37 @@ test('waitForRunner keeps tunnel IP lookup request-local when no tunnel IP is av
   assert.equal(vi.mocked(fetch).mock.calls[0]?.[0], 'http://127.0.0.1:8100/command');
 });
 
+test('waitForRunner uses simulator fallback within the attempt for ready sessions', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      throw new Error('ECONNREFUSED');
+    }),
+  );
+  mockRunCmd.mockResolvedValue({ exitCode: 0, stdout: '{"ok":true}', stderr: '' });
+
+  const response = await waitForRunner(
+    iosSimulator,
+    8100,
+    { command: 'uptime' },
+    undefined,
+    5_000,
+    makeReadyRunnerSession(),
+  );
+
+  assert.equal(await response.text(), '{"ok":true}');
+  assert.equal(vi.mocked(fetch).mock.calls.length, 1);
+  assert.equal(mockRunCmd.mock.calls.length, 1);
+  assert.equal(mockRunCmd.mock.calls[0]?.[0], 'xcrun');
+  assert.deepEqual(mockRunCmd.mock.calls[0]?.[1]?.slice(0, 5), [
+    'simctl',
+    'spawn',
+    'sim-1',
+    '/usr/bin/curl',
+    '-s',
+  ]);
+});
+
 test('waitForRunner invalidates cached tunnel IP when localhost fallback succeeds', async () => {
   const tunnelIps = ['fd00::123', 'fd00::456'];
   mockRunCmd.mockImplementation(async (_cmd: string, args: string[]) => {
@@ -169,4 +202,18 @@ function stubSuccessfulFetch(): void {
     'fetch',
     vi.fn(async () => new Response('{}')),
   );
+}
+
+function makeReadyRunnerSession(): RunnerSession {
+  return {
+    sessionId: 'ready-session',
+    device: iosSimulator,
+    deviceId: iosSimulator.id,
+    port: 8100,
+    xctestrunPath: '/tmp/runner.xctestrun',
+    jsonPath: '/tmp/runner.json',
+    testPromise: Promise.resolve({ exitCode: 0, stdout: '', stderr: '' }),
+    child: { pid: 1234, exitCode: null } as ExecBackgroundResult['child'],
+    ready: true,
+  };
 }

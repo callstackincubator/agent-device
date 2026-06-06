@@ -8,20 +8,18 @@ extension RunnerTests {
   }
 
   func resolveAlert(app activeApp: XCUIApplication) -> RunnerAlert? {
+#if !os(macOS)
+    if let systemModal = firstBlockingSystemModal(in: springboard) {
+      return runnerAlert(root: systemModal, ownerApp: springboard)
+    }
+#endif
     if let alert = firstExistingElement(in: activeApp.alerts.allElementsBoundByIndex) {
       return runnerAlert(root: alert, ownerApp: activeApp)
     }
     if let popup = firstDismissPopupWindow(in: activeApp) {
       return runnerAlert(root: popup, ownerApp: activeApp)
     }
-#if os(macOS)
     return nil
-#else
-    if let systemModal = firstBlockingSystemModal(in: springboard) {
-      return runnerAlert(root: systemModal, ownerApp: springboard)
-    }
-    return nil
-#endif
   }
 
   func handleAlert(_ alert: RunnerAlert, action: String) -> Response {
@@ -32,6 +30,27 @@ extension RunnerTests {
       let outcome = activateElement(app: alert.ownerApp, element: button, action: "alert \(action)")
       if let response = unsupportedResponse(for: outcome) {
         return response
+      }
+      sleepFor(0.2)
+      if alertStillVisible(alert, actionButtonLabel: button.label) {
+        let frame = button.frame
+        if !frame.isNull && !frame.isEmpty {
+          let coordinateOutcome = tapAt(app: alert.ownerApp, x: frame.midX, y: frame.midY)
+          if let response = unsupportedResponse(for: coordinateOutcome) {
+            return response
+          }
+          sleepFor(0.2)
+        }
+      }
+      if alertStillVisible(alert, actionButtonLabel: button.label) {
+        return Response(
+          ok: false,
+          error: ErrorPayload(
+            code: "INTERACTION_FAILED",
+            message: "alert \(action) did not dismiss the visible alert",
+            hint: "The alert button was found but the system still reports the alert after tapping it."
+          )
+        )
       }
       return Response(ok: true, data: DataPayload(message: action == "accept" ? "accepted" : "dismissed"))
     }
@@ -51,6 +70,21 @@ extension RunnerTests {
       return nil
     }
     return RunnerAlert(root: root, ownerApp: ownerApp, buttons: buttons)
+  }
+
+  private func alertStillVisible(_ alert: RunnerAlert, actionButtonLabel: String) -> Bool {
+    guard let current = resolveAlert(app: alert.ownerApp) else {
+      return false
+    }
+    let previousTitle = preferredAlertTitle(alert.root, buttons: alert.buttons)
+    let currentTitle = preferredAlertTitle(current.root, buttons: current.buttons)
+    if previousTitle == currentTitle {
+      return true
+    }
+    let normalizedActionLabel = actionButtonLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+    return current.buttons.contains { button in
+      button.label.trimmingCharacters(in: .whitespacesAndNewlines) == normalizedActionLabel
+    }
   }
 
   private func firstExistingElement(in elements: [XCUIElement]) -> XCUIElement? {

@@ -96,10 +96,11 @@ async function stopAppleRunnerForClose(session: SessionState): Promise<void> {
 }
 
 function shouldRetainAppleRunnerAfterClose(req: DaemonRequest, session: SessionState): boolean {
-  const hasCloseTarget = (req.positionals?.length ?? 0) > 0;
-  return (
-    isIosSimulator(session.device) && !hasCloseTarget && !req.flags?.shutdown && !session.recording
-  );
+  return isIosSimulator(session.device) && !req.flags?.shutdown && !session.recording;
+}
+
+function shouldStopAppleRunnerBeforeTargetedClose(session: SessionState): boolean {
+  return isApplePlatform(session.device.platform) && !isIosSimulator(session.device);
 }
 
 export async function teardownSessionResources(
@@ -130,7 +131,7 @@ export async function handleCloseCommand(params: {
     await stopAppLog(session.appLog);
   }
   if (req.positionals && req.positionals.length > 0) {
-    if (isApplePlatform(session.device.platform)) {
+    if (shouldStopAppleRunnerBeforeTargetedClose(session)) {
       await stopAppleRunnerForClose(session);
     }
     await dispatchCommand(session.device, 'close', req.positionals, req.flags?.out, {

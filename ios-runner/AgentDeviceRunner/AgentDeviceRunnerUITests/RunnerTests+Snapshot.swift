@@ -16,6 +16,7 @@ extension RunnerTests {
     .scrollView,
     .table
   ]
+  private static let flatInteractiveFallbackBudget: TimeInterval = 1.0
 
   private struct SnapshotTraversalContext {
     let queryRoot: XCUIElement
@@ -85,11 +86,22 @@ extension RunnerTests {
   }
 
   func snapshotFast(app: XCUIApplication, options: SnapshotOptions) throws -> DataPayload {
+    if options.interactiveOnly && options.compact {
+      return snapshotFlatInteractive(app: app, options: options)
+    }
     if let blocking = blockingSystemAlertSnapshot() {
       return blocking
     }
 
-    guard let context = try makeSnapshotTraversalContext(app: app, options: options) else {
+    let context: SnapshotTraversalContext?
+    do {
+      context = try makeSnapshotTraversalContext(app: app, options: options)
+    } catch let failure as SnapshotCaptureFailure where options.interactiveOnly {
+      NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_FLAT_FALLBACK=%@", failure.message)
+      return snapshotFlatInteractive(app: app, options: options)
+    }
+
+    guard let context else {
       return DataPayload(nodes: [], truncated: false)
     }
 
@@ -246,6 +258,102 @@ extension RunnerTests {
 
     walk(context.rootSnapshot, depth: 0, parentIndex: nil)
     return DataPayload(nodes: nodes, truncated: truncated)
+  }
+
+  private func snapshotFlatInteractive(app: XCUIApplication, options: SnapshotOptions) -> DataPayload {
+    var nodes: [SnapshotNode] = [
+      compactInteractiveRootNode(rect: .zero)
+    ]
+    if options.depth == 0 {
+      return DataPayload(nodes: nodes, truncated: false)
+    }
+
+    let deadline = options.interactiveOnly
+      ? Date().addingTimeInterval(Self.flatInteractiveFallbackBudget)
+      : Date.distantFuture
+    var seen = Set<String>()
+    var candidates: [SnapshotNode] = []
+    for element in flatInteractiveElements(app: app, deadline: deadline) {
+      if Date() >= deadline {
+        NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_FLAT_FALLBACK_DEADLINE")
+        break
+      }
+      guard let node = flatSnapshotNode(
+        element: element,
+        index: 0,
+        parentIndex: 0,
+        viewport: .infinite,
+        options: options
+      ) else {
+        continue
+      }
+      let key = "\(node.type)-\(node.label ?? "")-\(node.identifier ?? "")-\(node.value ?? "")-\(node.rect.x)-\(node.rect.y)-\(node.rect.width)-\(node.rect.height)"
+      if seen.contains(key) { continue }
+      seen.insert(key)
+      candidates.append(node)
+    }
+    candidates.sort { left, right in
+      if left.rect.y != right.rect.y {
+        return left.rect.y < right.rect.y
+      }
+      if left.rect.x != right.rect.x {
+        return left.rect.x < right.rect.x
+      }
+      return left.type < right.type
+    }
+
+    let remaining = max(0, fastSnapshotLimit - nodes.count)
+    let truncated = candidates.count > remaining
+    nodes[0] = compactInteractiveRootNode(rect: compactInteractiveRootFrame(for: candidates))
+    for candidate in candidates.prefix(remaining) {
+      nodes.append(
+        SnapshotNode(
+          index: nodes.count,
+          type: candidate.type,
+          label: candidate.label,
+          identifier: candidate.identifier,
+          value: candidate.value,
+          rect: candidate.rect,
+          enabled: candidate.enabled,
+          focused: candidate.focused,
+          selected: candidate.selected,
+          hittable: candidate.hittable,
+          depth: 1,
+          parentIndex: 0,
+          hiddenContentAbove: nil,
+          hiddenContentBelow: nil
+        )
+      )
+    }
+    return DataPayload(nodes: nodes, truncated: truncated)
+  }
+
+  private func compactInteractiveRootNode(rect: CGRect) -> SnapshotNode {
+    SnapshotNode(
+      index: 0,
+      type: "Application",
+      label: nil,
+      identifier: nil,
+      value: nil,
+      rect: snapshotRect(from: rect),
+      enabled: true,
+      focused: nil,
+      selected: nil,
+      hittable: false,
+      depth: 0,
+      parentIndex: nil,
+      hiddenContentAbove: nil,
+      hiddenContentBelow: nil
+    )
+  }
+
+  private func compactInteractiveRootFrame(for candidates: [SnapshotNode]) -> CGRect {
+    guard !candidates.isEmpty else {
+      return .zero
+    }
+    let maxX = candidates.map { CGFloat($0.rect.x + $0.rect.width) }.max() ?? 0
+    let maxY = candidates.map { CGFloat($0.rect.y + $0.rect.height) }.max() ?? 0
+    return CGRect(x: 0, y: 0, width: max(1, maxX), height: max(1, maxY))
   }
 
   func snapshotRect(from frame: CGRect) -> SnapshotRect {
@@ -712,6 +820,107 @@ extension RunnerTests {
 
   private func safeSnapshotElementsQuery(_ fetch: () -> [XCUIElement]) -> [XCUIElement] {
     safely("SNAPSHOT_QUERY", [], fetch)
+  }
+
+  private func flatInteractiveElements(
+    app: XCUIApplication,
+    deadline: Date
+  ) -> [XCUIElement] {
+    let queries: [XCUIElementQuery] = [
+      app.buttons,
+      app.links,
+      app.textFields,
+      app.secureTextFields,
+      app.searchFields,
+      app.textViews,
+      app.switches,
+      app.sliders,
+      app.segmentedControls,
+      app.cells,
+      app.collectionViews,
+      app.tables,
+      app.scrollViews,
+      app.pickers,
+      app.steppers,
+      app.tabBars,
+      app.menuItems
+    ]
+
+    var elements: [XCUIElement] = []
+    for query in queries {
+      if Date() >= deadline {
+        NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_FLAT_FALLBACK_DEADLINE")
+        break
+      }
+      elements.append(contentsOf: safeSnapshotElementsQuery {
+        query.allElementsBoundByIndex
+      })
+    }
+    return elements
+  }
+
+  private func flatSnapshotNode(
+    element: XCUIElement,
+    index: Int,
+    parentIndex: Int?,
+    viewport: CGRect,
+    options: SnapshotOptions
+  ) -> SnapshotNode? {
+    var node: SnapshotNode?
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      if !element.exists { return }
+      let frame = element.frame
+      if frame.isNull || frame.isEmpty { return }
+      let visible = isVisibleInViewport(frame, viewport)
+      #if os(macOS)
+        if !visible { return }
+      #endif
+      let label = element.label.trimmingCharacters(in: .whitespacesAndNewlines)
+      let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
+      let valueText = snapshotValueText(element)
+      let hasContent = !label.isEmpty || !identifier.isEmpty || valueText != nil
+      let elementType = element.elementType
+      let enabled = element.isEnabled
+      let hittable = visible && enabled && element.isHittable
+      if options.compact && !hasContent && !hittable && !interactiveTypes.contains(elementType) {
+        return
+      }
+      if let scope = options.scope?.trimmingCharacters(in: .whitespacesAndNewlines), !scope.isEmpty {
+        let haystack = [label, identifier, valueText ?? ""].joined(separator: "\n")
+        if !haystack.localizedCaseInsensitiveContains(scope) {
+          return
+        }
+      }
+
+      node = SnapshotNode(
+        index: index,
+        type: elementTypeName(elementType),
+        label: label.isEmpty ? nil : label,
+        identifier: identifier.isEmpty ? nil : identifier,
+        value: valueText,
+        rect: snapshotRect(from: frame),
+        enabled: enabled,
+        focused: elementHasFocus(element) ? true : nil,
+        selected: element.isSelected ? true : nil,
+        hittable: hittable,
+        depth: 1,
+        parentIndex: parentIndex,
+        hiddenContentAbove: nil,
+        hiddenContentBelow: nil
+      )
+    })
+    if let exceptionMessage {
+      NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_FLAT_IGNORED_EXCEPTION=%@", exceptionMessage)
+      return nil
+    }
+    return node
+  }
+
+  private func nonEmptyElementText(_ read: () -> String) -> String? {
+    let value = safely("SNAPSHOT_FLAT_TEXT", "") {
+      read()
+    }.trimmingCharacters(in: .whitespacesAndNewlines)
+    return value.isEmpty ? nil : value
   }
 
   private func isScrollableContainer(_ snapshot: XCUIElementSnapshot, visible: Bool) -> Bool {
