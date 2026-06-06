@@ -4,7 +4,7 @@ open "System Settings" --relaunch
 screenshot "./test/screenshots/replays/macos-system-settings.png"
 appstate
 snapshot -i
-click "role=button label=General"
+click "role=cell label=General || role=button label=General"
 wait "role=button label=About" 5000
 snapshot -i
 is exists "role=button label=About"
