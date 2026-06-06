@@ -151,6 +151,9 @@ extension RunnerTests {
     if command.command == .status {
       return executeStatus(command: command)
     }
+    if command.command == .uptime {
+      return executeUptime()
+    }
     commandJournal.accept(command: command)
     return try executeAccepted(command: command)
   }
@@ -183,6 +186,13 @@ extension RunnerTests {
       )
     }
     return Response(ok: true, data: commandJournal.status(commandId: statusCommandId))
+  }
+
+  func executeUptime() -> Response {
+    Response(
+      ok: true,
+      data: DataPayload(currentUptimeMs: currentUptimeMs())
+    )
   }
 
   private func executeDispatched(command: Command) throws -> Response {
@@ -238,8 +248,7 @@ extension RunnerTests {
       })
 
       if let exceptionMessage {
-        currentApp = nil
-        currentBundleId = nil
+        invalidateCachedTarget(reason: "objc_exception")
         if !hasRetried, shouldRetryException(command, message: exceptionMessage) {
           NSLog(
             "AGENT_DEVICE_RUNNER_RETRY command=%@ reason=objc_exception",
@@ -271,8 +280,7 @@ extension RunnerTests {
           command.command.rawValue
         )
         hasRetried = true
-        currentApp = nil
-        currentBundleId = nil
+        invalidateCachedTarget(reason: "response_unavailable")
         sleepFor(retryCooldown)
         continue
       }
@@ -408,10 +416,7 @@ extension RunnerTests {
         return Response(ok: false, error: ErrorPayload(message: "failed to stop recording: \(error.localizedDescription)"))
       }
     case .uptime:
-      return Response(
-        ok: true,
-        data: DataPayload(currentUptimeMs: currentUptimeMs())
-      )
+      return executeUptime()
     case .tap:
       if let selectorKey = command.selectorKey, let selectorValue = command.selectorValue {
         let match = findElement(
@@ -425,6 +430,7 @@ extension RunnerTests {
         }
         if let element = match.element {
           let frame = element.frame
+          let isTextEntry = isTextEntryElement(element)
           let touchFrame = frame.isEmpty
             ? nil
             : resolvedTouchVisualizationFrame(app: activeApp, x: frame.midX, y: frame.midY)
@@ -440,7 +446,9 @@ extension RunnerTests {
           if let response = unsupportedResponse(for: outcome) {
             return response
           }
-          waitForTextEntryReadinessAfterTap(app: activeApp, element: element)
+          if isTextEntry {
+            waitForTextEntryReadinessAfterTap(app: activeApp, element: element)
+          }
           return gestureResponse(
             message: match.usedNonHittableFallback ? "tapped via non-hittable coordinate fallback" : "tapped",
             timing: timing,
@@ -736,6 +744,7 @@ extension RunnerTests {
         needsPostSnapshotInteractionDelay = true
         return Response(ok: true, data: payload)
       } catch let failure as SnapshotCaptureFailure {
+        invalidateCachedTarget(reason: "ax_snapshot_failure")
         // Other thrown errors fall through to executeOnMainSafely's generic error response.
         return Response(
           ok: false,

@@ -97,8 +97,7 @@ extension RunnerTests {
     do {
       context = try makeSnapshotTraversalContext(app: app, options: options)
     } catch let failure as SnapshotCaptureFailure where options.interactiveOnly {
-      NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_FLAT_FALLBACK=%@", failure.message)
-      return snapshotFlatInteractive(app: app, options: options)
+      return snapshotAccessibilityUnavailable(failure: failure)
     }
 
     guard let context else {
@@ -326,6 +325,16 @@ extension RunnerTests {
       )
     }
     return DataPayload(nodes: nodes, truncated: truncated)
+  }
+
+  private func snapshotAccessibilityUnavailable(failure: SnapshotCaptureFailure) -> DataPayload {
+    NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_AX_UNAVAILABLE=%@", failure.message)
+    invalidateCachedTarget(reason: "ax_snapshot_unavailable")
+    return DataPayload(
+      message: failure.message,
+      nodes: [compactInteractiveRootNode(rect: .zero)],
+      truncated: true
+    )
   }
 
   private func compactInteractiveRootNode(rect: CGRect) -> SnapshotNode {
@@ -852,11 +861,30 @@ extension RunnerTests {
         NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_FLAT_FALLBACK_DEADLINE")
         break
       }
-      elements.append(contentsOf: safeSnapshotElementsQuery {
+      let result = snapshotElementsQuery {
         query.allElementsBoundByIndex
-      })
+      }
+      elements.append(contentsOf: result.elements)
+      if result.axUnavailable {
+        break
+      }
     }
     return elements
+  }
+
+  private func snapshotElementsQuery(
+    _ fetch: () -> [XCUIElement]
+  ) -> (elements: [XCUIElement], axUnavailable: Bool) {
+    let (elements, exceptionMessage) = catchingObjCException(fallback: [], fetch)
+    guard let exceptionMessage else {
+      return (elements, false)
+    }
+    NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_QUERY_IGNORED_EXCEPTION=%@", exceptionMessage)
+    if Self.isAxIllegalArgument(exceptionMessage) {
+      invalidateCachedTarget(reason: "ax_snapshot_query_unavailable")
+      return ([], true)
+    }
+    return ([], false)
   }
 
   private func flatSnapshotNode(

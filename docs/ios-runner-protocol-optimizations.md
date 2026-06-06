@@ -41,15 +41,18 @@ iOS simulator validation:
 
 ### 2. Adaptive `uptime` preflight policy
 
-Goal: stop paying eager `uptime` before low-risk mutating commands when the runner has recently
-completed a command, relying on status-before-invalidate recovery for the rare ambiguous transport
-failure.
+Status: superseded by ADR 0005 for ready-session command execution.
+
+Goal: reduce unnecessary readiness probes only when another health signal proves the runner is still
+serving new requests. A recent successful command response is not sufficient proof: React Navigation
+dogfood showed XCTest can return a successful tap response and then immediately fail the test runner
+while re-resolving a navigation-disappeared element.
 
 Acceptance criteria:
 
 - Existing first-command/startup readiness behavior is preserved.
 - Existing failed-preflight stale-session recovery is preserved.
-- Repeated hot interactions skip `uptime` when the runner has a recent successful response.
+- Repeated hot interactions do not skip `uptime` based on cached recent-success state.
 - Commands that still need conservative readiness checks remain preflighted until measured.
 - A transport failure after skipping preflight runs status recovery before invalidation.
 - Diagnostics expose whether a command used, skipped, or recovered from a readiness preflight.
@@ -58,9 +61,8 @@ iOS simulator validation:
 
 - Start a fresh simulator session and run one interaction: verify the first mutating command still
   preflights.
-- Run a hot loop of repeated selector interactions against the same visible control: verify only
-  the first command pays `uptime`, subsequent commands emit `ios_runner_readiness_preflight_skipped`,
-  and the UI still responds correctly.
+- Run a hot loop of repeated selector interactions against the same visible control: verify the
+  runner remains healthy and diagnostics explain any readiness probe that was skipped.
 - Compare median command latency for a hot interaction loop before and after the change. A useful
   threshold is at least one fewer runner request per hot command and no increase in failure rate.
 

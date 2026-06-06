@@ -16,6 +16,8 @@
 - Command surface: catalog of public command identity, interface exposure, adapter policy, and shared command metadata across CLI, Node.js, MCP, and batch entrypoints.
 - Daemon command registry: daemon-side source of truth for command route ownership and request-policy traits, including admission exemptions, session locking, selector validation, replay-scoped actions, recording invalidation, Android dialog guards, and request provider device resolution.
 - Runner command traits: the iOS XCTest runner's per-command-type classification across three independent axes — interaction (gates the foreground-guard and stabilization preflight), read-only (gates the session-invalidating retry; the alert command is read-only only for its `get` action), and runner-lifecycle (skips the app-activation preflight). One source of truth keyed by command type, distinct from the public command surface and daemon command registry.
+- Coordinate-first resolved element activation: iOS/macOS runner interaction pattern where a selector or text query resolves the semantic `XCUIElement`, then activation uses the element's resolved center coordinate when a frame is available. This keeps target selection semantic while avoiding `XCUIElement.tap()` post-action element re-resolution after normal navigation. tvOS remains focus/remote-driven.
+- AX-unavailable target invalidation: iOS/macOS runner behavior where a root accessibility snapshot failure such as `kAXErrorIllegalArgument` marks the cached `XCUIApplication` target handle suspect. The runner fails closed for degraded interactive snapshots, clears the cached target, and lets the next command reacquire the app through normal activation.
 
 ## Testing Principles
 
