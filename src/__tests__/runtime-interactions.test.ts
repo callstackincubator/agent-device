@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import type { AgentDeviceBackend } from '../backend.ts';
+import type { AgentDeviceBackend, BackendSnapshotOptions } from '../backend.ts';
 import { commands, ref, selector } from '../commands/index.ts';
 import { resolveActionableTouchResolution } from '../commands/interaction-targeting.ts';
 import { createLocalArtifactAdapter } from '../io.ts';
@@ -67,6 +67,45 @@ test('runtime press resolves selector targets to the actionable node center', as
     'value="Continue"',
   ]);
   assert.deepEqual(result.backendResult, { ok: true });
+});
+
+test('runtime selector interactions fall back to a full snapshot when compact interactive misses', async () => {
+  const calls: Point[] = [];
+  const captureOptions: Array<BackendSnapshotOptions | undefined> = [];
+  const device = createInteractionDevice(selectorSnapshot(), {
+    captureSnapshot: async (_context, options) => {
+      captureOptions.push(options);
+      return {
+        snapshot: options?.interactiveOnly
+          ? makeSnapshotState([])
+          : makeSnapshotState([
+              {
+                index: 0,
+                depth: 0,
+                type: 'XCUIElementTypeCell',
+                label: 'General',
+                rect: { x: 0, y: 100, width: 320, height: 44 },
+                hittable: true,
+              },
+            ]),
+      };
+    },
+    tap: async (_context, point) => {
+      calls.push(point);
+    },
+  });
+
+  const result = await device.interactions.click(selector('label=General'), {
+    session: 'default',
+  });
+
+  assert.equal(result.kind, 'selector');
+  assert.equal(result.node?.label, 'General');
+  assert.deepEqual(calls, [{ x: 160, y: 122 }]);
+  assert.deepEqual(captureOptions, [
+    { interactiveOnly: true, compact: true },
+    { interactiveOnly: false, compact: false },
+  ]);
 });
 
 test('runtime click keeps distinct tab button centers when iOS reports the tab bar as hittable', async () => {
