@@ -81,6 +81,16 @@ export async function waitForRunner(
           },
         });
         if (response) return response;
+        if (device.kind === 'simulator' && session?.ready) {
+          const simulatorResponse = await tryRunnerSimulatorEndpoint(device, port, command, {
+            signal,
+            attemptDeadline,
+            onError: (err) => {
+              lastError = err;
+            },
+          });
+          if (simulatorResponse) return simulatorResponse;
+        }
         if (device.kind === 'device' && usedCachedTunnelIp) {
           invalidateDeviceTunnelIpCache(device.id);
           const refreshed = await getEndpoints(attemptDeadline?.remainingMs(), true);
@@ -236,6 +246,31 @@ async function tryRunnerEndpoints(
     }
   }
   return null;
+}
+
+async function tryRunnerSimulatorEndpoint(
+  device: DeviceInfo,
+  port: number,
+  command: RunnerCommand,
+  params: {
+    signal?: AbortSignal;
+    attemptDeadline?: Deadline;
+    onError: (error: unknown) => void;
+  },
+): Promise<Response | null> {
+  const { signal, attemptDeadline, onError } = params;
+  const remainingMs = attemptDeadline?.remainingMs() ?? RUNNER_COMMAND_TIMEOUT_MS;
+  if (remainingMs <= 0) return null;
+  try {
+    const simResponse = await postCommandViaSimulator(device, port, command, remainingMs, signal);
+    return new Response(simResponse.body, { status: simResponse.status });
+  } catch (err) {
+    if (signal?.aborted || isRequestCanceledError(err)) {
+      throw createRequestCanceledError();
+    }
+    onError(err);
+    return null;
+  }
 }
 
 async function getDeviceTunnelIpForRequest(params: {

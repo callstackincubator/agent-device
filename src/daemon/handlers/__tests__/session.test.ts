@@ -3013,6 +3013,48 @@ test('close <app> on iOS stops runner before app close dispatch and performs fin
   expect(calls).toEqual(['stop-runner', 'close:com.example.app', 'stop-runner']);
 });
 
+test('close <app> on iOS simulator retains runner while terminating app', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-simulator-close-session';
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'iPhone 17 Pro',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appName: 'com.example.app',
+  });
+
+  const calls: string[] = [];
+  mockStopIosRunner.mockImplementation(async () => {
+    calls.push('stop-runner');
+  });
+  mockDispatch.mockImplementation(async (_device, command, positionals) => {
+    calls.push(`${command}:${positionals.join(' ')}`);
+    return {};
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: ['com.example.app'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(calls).toEqual(['close:com.example.app']);
+});
+
 test('close <app> on macOS stops runner before app close dispatch and dismisses automation alert', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'macos-close-session';
