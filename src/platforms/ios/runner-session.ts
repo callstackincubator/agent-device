@@ -21,6 +21,8 @@ import {
   ensureXctestrunArtifact,
   IOS_RUNNER_CONTAINER_BUNDLE_IDS,
   prepareXctestrunWithEnv,
+  resolveExpectedRunnerCacheMetadata,
+  resolveRunnerDerivedPath,
   resolveRunnerDestination,
   resolveRunnerMaxConcurrentDestinationsFlag,
   runnerPrepProcesses,
@@ -81,21 +83,8 @@ export async function ensureRunnerSession(
   return await withRunnerSessionLock(device.id, async () => {
     const existing = runnerSessions.get(device.id);
     if (existing) {
-      if (isRunnerProcessAlive(existing.child.pid)) {
-        emitDiagnostic({
-          level: 'debug',
-          phase: 'ios_runner_session_reuse',
-          data: {
-            deviceId: device.id,
-            sessionId: existing.sessionId,
-            ready: existing.ready,
-          },
-        });
-        return existing;
-      }
-      await measureRunnerStartupStep({}, 'stop_stale_session', async () => {
-        await stopRunnerSessionInternal(device.id, existing);
-      });
+      const reusable = await resolveReusableRunnerSession(device, existing);
+      if (reusable) return reusable;
     }
 
     const startupTimings: Record<string, number> = {};
@@ -203,6 +192,50 @@ export async function ensureRunnerSession(
     runnerSessions.set(device.id, session);
     return session;
   });
+}
+
+async function resolveReusableRunnerSession(
+  device: DeviceInfo,
+  existing: RunnerSession,
+): Promise<RunnerSession | null> {
+  if (!isRunnerProcessAlive(existing.child.pid)) {
+    await measureRunnerStartupStep({}, 'stop_stale_session', async () => {
+      await stopRunnerSessionInternal(device.id, existing);
+    });
+    return null;
+  }
+
+  const expectedDerived = resolveRunnerDerivedPath(
+    device,
+    resolveExpectedRunnerCacheMetadata(device),
+  );
+  if (existing.xctestrunArtifact?.derived !== expectedDerived) {
+    emitDiagnostic({
+      level: 'debug',
+      phase: 'ios_runner_session_artifact_stale',
+      data: {
+        deviceId: device.id,
+        sessionId: existing.sessionId,
+        currentDerived: existing.xctestrunArtifact?.derived,
+        expectedDerived,
+      },
+    });
+    await measureRunnerStartupStep({}, 'stop_stale_artifact_session', async () => {
+      await stopRunnerSessionInternal(device.id, existing);
+    });
+    return null;
+  }
+
+  emitDiagnostic({
+    level: 'debug',
+    phase: 'ios_runner_session_reuse',
+    data: {
+      deviceId: device.id,
+      sessionId: existing.sessionId,
+      ready: existing.ready,
+    },
+  });
+  return existing;
 }
 
 async function cleanupStaleSimulatorRunnerBundles(device: DeviceInfo): Promise<void> {

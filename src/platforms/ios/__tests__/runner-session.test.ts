@@ -17,6 +17,8 @@ const {
   mockIsProcessAlive,
   mockIsProcessGroupAlive,
   mockPrepareXctestrunWithEnv,
+  mockResolveExpectedRunnerCacheMetadata,
+  mockResolveRunnerDerivedPath,
   mockRunAppleToolCommand,
   mockRunCmdBackground,
   mockRunXcrun,
@@ -31,6 +33,8 @@ const {
   mockIsProcessAlive: vi.fn(),
   mockIsProcessGroupAlive: vi.fn(),
   mockPrepareXctestrunWithEnv: vi.fn(),
+  mockResolveExpectedRunnerCacheMetadata: vi.fn(),
+  mockResolveRunnerDerivedPath: vi.fn(),
   mockRunAppleToolCommand: vi.fn(),
   mockRunCmdBackground: vi.fn(),
   mockRunXcrun: vi.fn(),
@@ -88,6 +92,8 @@ vi.mock('../runner-xctestrun.ts', async () => {
     acquireXcodebuildSimulatorSetRedirect: mockAcquireXcodebuildSimulatorSetRedirect,
     ensureXctestrunArtifact: mockEnsureXctestrunArtifact,
     prepareXctestrunWithEnv: mockPrepareXctestrunWithEnv,
+    resolveExpectedRunnerCacheMetadata: mockResolveExpectedRunnerCacheMetadata,
+    resolveRunnerDerivedPath: mockResolveRunnerDerivedPath,
   };
 });
 
@@ -116,6 +122,8 @@ beforeEach(() => {
     xctestrunPath: '/tmp/session-runner.xctestrun',
     jsonPath: '/tmp/session-runner.json',
   });
+  mockResolveExpectedRunnerCacheMetadata.mockReturnValue({ schemaVersion: 1 });
+  mockResolveRunnerDerivedPath.mockReturnValue('/tmp/derived');
   mockAcquireXcodebuildSimulatorSetRedirect.mockResolvedValue({ release: mockRedirectRelease });
   mockRunCmdBackground.mockReturnValue(makeBackgroundRunner(4242));
   mockRunAppleToolCommand.mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' });
@@ -478,6 +486,36 @@ test('runner session starts xcodebuild through provider seams and reuses an aliv
 
   mockIsProcessAlive.mockReturnValue(false);
   await stopRunnerSession(session);
+});
+
+test('runner session restarts alive runner when expected xctestrun artifact changes', async () => {
+  const device = { ...IOS_SIMULATOR, id: 'runner-session-stale-artifact-sim' };
+
+  mockEnsureXctestrunArtifact
+    .mockResolvedValueOnce({
+      xctestrunPath: '/tmp/base-runner.xctestrun',
+      derived: '/tmp/derived',
+      cache: 'miss',
+      artifact: 'rebuilt',
+      buildMs: 12,
+      xctestrunPathSource: 'build',
+    })
+    .mockResolvedValueOnce({
+      xctestrunPath: '/tmp/base-runner-next.xctestrun',
+      derived: '/tmp/derived-next',
+      cache: 'miss',
+      artifact: 'rebuilt',
+      buildMs: 13,
+      xctestrunPathSource: 'build',
+    });
+
+  const session = await ensureRunnerSession(device, {});
+  mockResolveRunnerDerivedPath.mockReturnValue('/tmp/derived-next');
+  const restarted = await ensureRunnerSession(device, {});
+
+  assert.notEqual(restarted, session);
+  assert.equal(restarted.xctestrunArtifact?.derived, '/tmp/derived-next');
+  assert.equal(mockRunCmdBackground.mock.calls.length, 2);
 });
 
 test('runner session keeps boot and stale bundle cleanup available when needed', async () => {

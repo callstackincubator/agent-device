@@ -16,6 +16,7 @@ extension RunnerTests {
     .scrollView,
     .table
   ]
+  private static let flatInteractiveFallbackBudget: TimeInterval = 1.0
 
   private struct SnapshotTraversalContext {
     let queryRoot: XCUIElement
@@ -85,6 +86,9 @@ extension RunnerTests {
   }
 
   func snapshotFast(app: XCUIApplication, options: SnapshotOptions) throws -> DataPayload {
+    if options.interactiveOnly && options.compact {
+      return snapshotFlatInteractive(app: app, options: options)
+    }
     if let blocking = blockingSystemAlertSnapshot() {
       return blocking
     }
@@ -257,58 +261,50 @@ extension RunnerTests {
   }
 
   private func snapshotFlatInteractive(app: XCUIApplication, options: SnapshotOptions) -> DataPayload {
-    let viewport = safeSnapshotViewport(app: app)
     var nodes: [SnapshotNode] = [
-      SnapshotNode(
-        index: 0,
-        type: "Application",
-        label: nonEmptyElementText { app.label },
-        identifier: nonEmptyElementText { app.identifier },
-        value: nil,
-        rect: snapshotRect(from: safely("SNAPSHOT_FLAT_APP_FRAME", CGRect.zero) { app.frame }),
-        enabled: true,
-        focused: nil,
-        selected: nil,
-        hittable: false,
-        depth: 0,
-        parentIndex: nil,
-        hiddenContentAbove: nil,
-        hiddenContentBelow: nil
-      )
+      compactInteractiveRootNode(rect: .zero)
     ]
     if options.depth == 0 {
       return DataPayload(nodes: nodes, truncated: false)
     }
 
+    let deadline = options.interactiveOnly
+      ? Date().addingTimeInterval(Self.flatInteractiveFallbackBudget)
+      : Date.distantFuture
     var seen = Set<String>()
-    let candidates = flatFallbackElements(app: app)
-      .compactMap { element in
-        flatSnapshotNode(
-          element: element,
-          index: 0,
-          parentIndex: 0,
-          viewport: viewport,
-          options: options
-        )
+    var candidates: [SnapshotNode] = []
+    for element in flatFallbackElements(app: app, options: options) {
+      if Date() >= deadline {
+        NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_FLAT_FALLBACK_DEADLINE")
+        break
       }
-      .filter { node in
-        let key = "\(node.type)-\(node.label ?? "")-\(node.identifier ?? "")-\(node.value ?? "")-\(node.rect.x)-\(node.rect.y)-\(node.rect.width)-\(node.rect.height)"
-        if seen.contains(key) { return false }
-        seen.insert(key)
-        return true
+      guard let node = flatSnapshotNode(
+        element: element,
+        index: 0,
+        parentIndex: 0,
+        viewport: .infinite,
+        options: options
+      ) else {
+        continue
       }
-      .sorted { left, right in
-        if left.rect.y != right.rect.y {
-          return left.rect.y < right.rect.y
-        }
-        if left.rect.x != right.rect.x {
-          return left.rect.x < right.rect.x
-        }
-        return left.type < right.type
+      let key = "\(node.type)-\(node.label ?? "")-\(node.identifier ?? "")-\(node.value ?? "")-\(node.rect.x)-\(node.rect.y)-\(node.rect.width)-\(node.rect.height)"
+      if seen.contains(key) { continue }
+      seen.insert(key)
+      candidates.append(node)
+    }
+    candidates.sort { left, right in
+      if left.rect.y != right.rect.y {
+        return left.rect.y < right.rect.y
       }
+      if left.rect.x != right.rect.x {
+        return left.rect.x < right.rect.x
+      }
+      return left.type < right.type
+    }
 
     let remaining = max(0, fastSnapshotLimit - nodes.count)
     let truncated = candidates.count > remaining
+    nodes[0] = compactInteractiveRootNode(rect: compactInteractiveRootFrame(for: candidates))
     for candidate in candidates.prefix(remaining) {
       nodes.append(
         SnapshotNode(
@@ -330,6 +326,34 @@ extension RunnerTests {
       )
     }
     return DataPayload(nodes: nodes, truncated: truncated)
+  }
+
+  private func compactInteractiveRootNode(rect: CGRect) -> SnapshotNode {
+    SnapshotNode(
+      index: 0,
+      type: "Application",
+      label: nil,
+      identifier: nil,
+      value: nil,
+      rect: snapshotRect(from: rect),
+      enabled: true,
+      focused: nil,
+      selected: nil,
+      hittable: false,
+      depth: 0,
+      parentIndex: nil,
+      hiddenContentAbove: nil,
+      hiddenContentBelow: nil
+    )
+  }
+
+  private func compactInteractiveRootFrame(for candidates: [SnapshotNode]) -> CGRect {
+    guard !candidates.isEmpty else {
+      return .zero
+    }
+    let maxX = candidates.map { CGFloat($0.rect.x + $0.rect.width) }.max() ?? 0
+    let maxY = candidates.map { CGFloat($0.rect.y + $0.rect.height) }.max() ?? 0
+    return CGRect(x: 0, y: 0, width: max(1, maxX), height: max(1, maxY))
   }
 
   func snapshotRect(from frame: CGRect) -> SnapshotRect {
@@ -798,8 +822,26 @@ extension RunnerTests {
     safely("SNAPSHOT_QUERY", [], fetch)
   }
 
-  private func flatFallbackElements(app: XCUIApplication) -> [XCUIElement] {
-    let queries: [XCUIElementQuery] = [
+  private func flatFallbackElements(app: XCUIApplication, options: SnapshotOptions) -> [XCUIElement] {
+    let queries: [XCUIElementQuery] = options.interactiveOnly ? [
+      app.buttons,
+      app.links,
+      app.textFields,
+      app.secureTextFields,
+      app.searchFields,
+      app.textViews,
+      app.switches,
+      app.sliders,
+      app.segmentedControls,
+      app.cells,
+      app.collectionViews,
+      app.tables,
+      app.scrollViews,
+      app.pickers,
+      app.steppers,
+      app.tabBars,
+      app.menuItems
+    ] : [
       app.buttons,
       app.cells,
       app.collectionViews,
@@ -816,11 +858,26 @@ extension RunnerTests {
       app.textFields,
       app.textViews
     ]
-    return queries.flatMap { query in
-      safeSnapshotElementsQuery {
-        query.allElementsBoundByIndex
+    guard options.interactiveOnly else {
+      return queries.flatMap { query in
+        safeSnapshotElementsQuery {
+          query.allElementsBoundByIndex
+        }
       }
     }
+
+    let deadline = Date().addingTimeInterval(Self.flatInteractiveFallbackBudget)
+    var elements: [XCUIElement] = []
+    for query in queries {
+      if Date() >= deadline {
+        NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_FLAT_FALLBACK_DEADLINE")
+        break
+      }
+      elements.append(contentsOf: safeSnapshotElementsQuery {
+        query.allElementsBoundByIndex
+      })
+    }
+    return elements
   }
 
   private func flatSnapshotNode(
