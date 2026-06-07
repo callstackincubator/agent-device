@@ -209,7 +209,7 @@ Validation and evidence:
   If task says snapshot, use snapshot. If it asks visual evidence, use screenshot.
   Icon/tappable visual proof: screenshot --overlay-refs. Flag is --overlay-refs.
   If snapshot returns a sparse/AX-unavailable state, refs are not reliable. Use plain screenshot, not screenshot --overlay-refs, navigate with coordinates if needed, then retry snapshot -i after reaching another screen; the AX failure may be screen-specific.
-  Startup/frame health/CPU/memory: perf --json or metrics. Replay maintenance: replay -u ./flow.ad.
+  Startup/CPU/memory/frame first pass: perf metrics --json (bare perf and metrics are aliases). Focused frame/jank health: perf frames --json. Replay maintenance: replay -u ./flow.ad.
   Recording: record start/stop. By default, stop burns touch overlays into the video; use record start --hide-touches for the fastest raw recording. Android adb screenrecord has a 180s platform limit, so longer Android recordings are returned as multiple MP4 chunks. For gesture-heavy iOS simulator proof videos, prefer --hide-touches because overlay timing depends on a stable runner session while gestures are executing. Tracing: trace start ./trace.log, trace stop ./trace.log. Paths are positional.
   Stable known flow: batch ./steps.json, not workflow batch.
   Inline batch JSON example:
@@ -367,7 +367,7 @@ Example:
   agent-device react-devtools profile report @c5
   agent-device network dump --include headers
 
-Use snapshot, screenshot, logs, network, and perf for device/app runtime evidence. Use react-devtools only when component internals or React rendering behavior matters.`,
+Use snapshot, screenshot, logs, network, and perf metrics for device/app runtime evidence. Use react-devtools only when component internals or React rendering behavior matters.`,
   },
   'react-native': {
     summary: 'React Native app automation hazards and routing',
@@ -406,12 +406,12 @@ Overlays and busy RN UIs:
 React DevTools routing:
   Keep the agent-device react-devtools prefix on every React DevTools command.
   Use help react-devtools for status/wait, component trees, props/state/hooks, profile windows, slow renders, rerenders, and remote bridge rules.
-  If React DevTools cannot connect, report status and continue with logs, network, perf, screenshot, and trace evidence instead of blocking the whole flow.
+  If React DevTools cannot connect, report status and continue with logs, network, perf metrics, screenshot, and trace evidence instead of blocking the whole flow.
 
 Slow-flow investigation:
   Keep one session, open the app, and snapshot -i.
   Use help react-devtools for the narrow React profile window.
-  Use help debugging for logs clear --restart, logs mark, network dump --include headers, perf --json, traces, and runtime failure evidence.
+  Use help debugging for logs clear --restart, logs mark, network dump --include headers, perf metrics --json, traces, and runtime failure evidence.
   For 15-20s async work, use wait with the exact expected text or selector instead of repeated snapshots.
   Report React render offenders separately from network/backend waits and device frame/CPU/memory findings.`,
   },
@@ -567,7 +567,7 @@ Rules:
   Re-snapshot after each mutation.
   Keep commands in the report reproducible; use selectors or refs from fresh snapshots, not guessed coordinates.
   Prefer refs for exploration and selectors for deterministic replay.
-  Use logs, network, screenshot --overlay-refs, trace, perf, or react-devtools only when they add evidence to a specific issue.
+  Use logs, network, screenshot --overlay-refs, trace, perf metrics, perf frames, or react-devtools only when they add evidence to a specific issue.
   Never delete screenshots, videos, traces, or report artifacts during a session.
   Escalate to help debugging or help react-devtools when runtime symptoms require those tools.`,
   },

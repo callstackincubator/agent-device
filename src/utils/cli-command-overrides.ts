@@ -138,6 +138,14 @@ const CLI_COMMAND_OVERRIDES = {
   appstate: {
     helpDescription: 'Show foreground app/activity',
   },
+  perf: {
+    usageOverride: 'perf [metrics|frames] [sample]',
+    listUsageOverride: 'perf [metrics|frames]',
+    helpDescription:
+      'Show session performance metrics or focused frame/jank health. Bare perf and metrics are aliases for perf metrics.',
+    summary: 'Show session performance and frame health',
+    positionalArgs: ['area?', 'action?'],
+  },
   metro: {
     usageOverride:
       'metro prepare (--public-base-url <url> | --proxy-base-url <url>) [--project-root <path>] [--port <port>] [--kind auto|react-native|expo]\n  agent-device metro reload [--metro-host <host>] [--metro-port <port>] [--bundle-url <url>]',

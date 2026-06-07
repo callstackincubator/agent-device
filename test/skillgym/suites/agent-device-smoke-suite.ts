@@ -1310,8 +1310,24 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'Need session startup, memory, and CPU data as JSON',
     ],
     task: 'Plan the commands to open the app first if needed, then collect session performance metrics as JSON.',
-    outputs: [plannedCommand('open'), plannedCommandAlternatives(['perf', 'metrics']), /--json/i],
+    outputs: [
+      plannedCommand('open'),
+      plannedCommandAlternatives(['perf metrics', 'metrics']),
+      /--json/i,
+    ],
     forbiddenOutputs: [plannedCommand('network')],
+  }),
+  makeCase({
+    id: 'perf-session-frames',
+    contract: [
+      'App name: Agent Device Tester',
+      'Platform: Android emulator',
+      'The app is already open',
+      'Need focused frame and jank health as JSON',
+    ],
+    task: 'Plan the command to collect focused frame and jank health as JSON without collecting React component render profiling.',
+    outputs: [plannedCommand('perf frames'), /--json/i],
+    forbiddenOutputs: [plannedCommand('react-devtools'), plannedCommand('network')],
   }),
   makeCase({
     id: 'react-devtools-profile-search',

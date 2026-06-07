@@ -18,6 +18,7 @@ import {
   type CommandFieldMap,
 } from './command-input.ts';
 import { defineFieldCommandMetadata } from './field-command-contract.ts';
+import { PERF_ACTION_VALUES, PERF_AREA_VALUES } from './perf-command-contract.ts';
 
 const SURFACE_VALUES = ['app', 'frontmost-app', 'desktop', 'menubar'] as const;
 const WAIT_KIND_VALUES = ['duration', 'text', 'ref', 'selector'] as const;
@@ -177,7 +178,10 @@ export const clientCommandMetadata = [
     artifactsDir: stringField(),
     reportJunit: stringField(),
   }),
-  defineClientCommandMetadata('perf', {}),
+  defineClientCommandMetadata('perf', {
+    area: enumField(PERF_AREA_VALUES),
+    action: enumField(PERF_ACTION_VALUES),
+  }),
   defineClientCommandMetadata('logs', {
     action: enumField(LOG_ACTION_VALUES),
     message: stringField(),

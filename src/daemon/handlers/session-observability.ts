@@ -1,4 +1,10 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import {
+  isPerfAction,
+  isPerfArea,
+  PERF_ACTION_ERROR_MESSAGE,
+  PERF_AREA_ERROR_MESSAGE,
+} from '../../commands/perf-command-contract.ts';
 import { normalizeError } from '../../utils/errors.ts';
 import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
@@ -12,7 +18,7 @@ import {
   startAppLog,
   stopAppLog,
 } from '../app-log.ts';
-import { buildPerfResponseData } from './session-perf.ts';
+import { buildPerfFramesResponseData, buildPerfResponseData } from './session-perf.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
 
 const LOG_ACTIONS = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
@@ -22,6 +28,7 @@ const NETWORK_ACTIONS_MESSAGE = `network requires ${NETWORK_ACTIONS.join(' or ')
 const NETWORK_INCLUDE_MODES = ['summary', 'headers', 'body', 'all'] as const;
 const NETWORK_INCLUDE_MESSAGE = `network include mode must be one of: ${NETWORK_INCLUDE_MODES.join(', ')}`;
 
+type LogsAction = (typeof LOG_ACTIONS)[number];
 type NetworkIncludeMode = (typeof NETWORK_INCLUDE_MODES)[number];
 
 type ObservabilityParams = {
@@ -29,6 +36,27 @@ type ObservabilityParams = {
   sessionName: string;
   sessionStore: SessionStore;
   androidAdbExecutor?: AndroidAdbExecutor;
+};
+type LogsHandlerParams = ObservabilityParams & {
+  session: SessionState;
+  restart: boolean;
+};
+
+const LOG_ACTION_HANDLERS: Record<
+  LogsAction,
+  (params: LogsHandlerParams) => Promise<DaemonResponse> | DaemonResponse
+> = {
+  path: ({ session, sessionName, sessionStore }) =>
+    handleLogsPath(session, sessionName, sessionStore),
+  doctor: ({ session, sessionName, sessionStore }) =>
+    handleLogsDoctor(session, sessionName, sessionStore),
+  mark: ({ req, sessionName, sessionStore }) => handleLogsMark(req, sessionName, sessionStore),
+  clear: ({ session, sessionName, sessionStore, restart }) =>
+    handleLogsClear(session, sessionName, sessionStore, restart),
+  start: ({ session, sessionName, sessionStore }) =>
+    handleLogsStart(session, sessionName, sessionStore),
+  stop: ({ session, sessionName, sessionStore }) =>
+    handleLogsStop(session, sessionName, sessionStore),
 };
 
 function resolveSessionLogBackendLabel(
@@ -69,16 +97,28 @@ export async function handleSessionObservabilityCommands(
 // ---------------------------------------------------------------------------
 
 async function handlePerfCommand(params: ObservabilityParams): Promise<DaemonResponse> {
-  const { sessionName, sessionStore, androidAdbExecutor } = params;
+  const { req, sessionName, sessionStore, androidAdbExecutor } = params;
   const session = sessionStore.get(sessionName);
   if (!session) {
     return errorResponse('SESSION_NOT_FOUND', 'perf requires an active session. Run open first.');
   }
 
+  const area = (req.positionals?.[0] ?? 'metrics').toLowerCase();
+  const action = (req.positionals?.[1] ?? 'sample').toLowerCase();
+  if (!isPerfArea(area)) {
+    return errorResponse('INVALID_ARGS', PERF_AREA_ERROR_MESSAGE);
+  }
+  if (!isPerfAction(action)) {
+    return errorResponse('INVALID_ARGS', PERF_ACTION_ERROR_MESSAGE);
+  }
+
   try {
     return {
       ok: true,
-      data: await buildPerfResponseData(session, { androidAdb: androidAdbExecutor }),
+      data:
+        area === 'frames'
+          ? await buildPerfFramesResponseData(session, { androidAdb: androidAdbExecutor })
+          : await buildPerfResponseData(session, { androidAdb: androidAdbExecutor }),
     };
   } catch (error) {
     return { ok: false, error: normalizeError(error) };
@@ -99,35 +139,27 @@ async function handleLogsCommand(params: ObservabilityParams): Promise<DaemonRes
     return errorResponse('UNSUPPORTED_OPERATION', 'logs is not supported on this device');
   }
 
+  const request = resolveLogsCommandRequest(req);
+  if (!request.ok) return request;
+  return await LOG_ACTION_HANDLERS[request.action]({
+    ...params,
+    session,
+    restart: request.restart,
+  });
+}
+
+function resolveLogsCommandRequest(
+  req: DaemonRequest,
+): { ok: true; action: LogsAction; restart: boolean } | DaemonFailureResponse {
   const action = (req.positionals?.[0] ?? 'path').toLowerCase();
   const restart = Boolean(req.flags?.restart);
-  if (!LOG_ACTIONS.includes(action as (typeof LOG_ACTIONS)[number])) {
+  if (!LOG_ACTIONS.includes(action as LogsAction)) {
     return errorResponse('INVALID_ARGS', LOG_ACTIONS_MESSAGE);
   }
   if (restart && action !== 'clear') {
     return errorResponse('INVALID_ARGS', 'logs --restart is only supported with logs clear');
   }
-
-  if (action === 'path') {
-    return handleLogsPath(session, sessionName, sessionStore);
-  }
-  if (action === 'doctor') {
-    return handleLogsDoctor(session, sessionName, sessionStore);
-  }
-  if (action === 'mark') {
-    return handleLogsMark(req, sessionName, sessionStore);
-  }
-  if (action === 'clear') {
-    return handleLogsClear(session, sessionName, sessionStore, restart);
-  }
-  if (action === 'start') {
-    return handleLogsStart(session, sessionName, sessionStore);
-  }
-  if (action === 'stop') {
-    return handleLogsStop(session, sessionName, sessionStore);
-  }
-
-  return errorResponse('INVALID_ARGS', LOG_ACTIONS_MESSAGE);
+  return { ok: true, action: action as LogsAction, restart };
 }
 
 function handleLogsPath(
@@ -196,16 +228,16 @@ async function handleLogsClear(
       'logs clear requires logs to be stopped first; run logs stop',
     );
   }
-  if (restart && !session.appBundleId) {
+  const logPath = sessionStore.resolveAppLogPath(sessionName);
+  if (!restart) {
+    return { ok: true, data: clearAppLogFiles(logPath) };
+  }
+  const appBundleId = session.appBundleId;
+  if (!appBundleId) {
     return errorResponse(
       'INVALID_ARGS',
       'logs clear --restart requires an app session; run open <app> first',
     );
-  }
-
-  const logPath = sessionStore.resolveAppLogPath(sessionName);
-  if (!restart) {
-    return { ok: true, data: clearAppLogFiles(logPath) };
   }
 
   if (session.appLog) {
@@ -214,12 +246,7 @@ async function handleLogsClear(
   const cleared = clearAppLogFiles(logPath);
   const appLogPidPath = sessionStore.resolveAppLogPidPath(sessionName);
   try {
-    const appLogStream = await startAppLog(
-      session.device,
-      session.appBundleId as string,
-      logPath,
-      appLogPidPath,
-    );
+    const appLogStream = await startAppLog(session.device, appBundleId, logPath, appLogPidPath);
     sessionStore.set(sessionName, {
       ...session,
       appLog: {
@@ -300,6 +327,39 @@ async function handleLogsStop(
 // ---------------------------------------------------------------------------
 
 async function handleNetworkCommand(params: ObservabilityParams): Promise<DaemonResponse> {
+  const request = resolveNetworkCommandRequest(params);
+  if (!request.ok) return request;
+  const { include, maxEntries, session } = request;
+
+  const capture = await readSessionNetworkCapture({
+    device: session.device,
+    appBundleId: session.appBundleId,
+    appLogState: session.appLog?.getState(),
+    appLogStartedAt: session.appLog?.startedAt,
+    appLogPath: params.sessionStore.resolveAppLogPath(params.sessionName),
+    maxEntries,
+    include,
+    maxPayloadChars: 2048,
+    maxScanLines: 4000,
+  });
+
+  return {
+    ok: true,
+    data: {
+      ...capture.dump,
+      active: Boolean(session.appLog),
+      state: session.appLog?.getState() ?? 'inactive',
+      backend: capture.backend,
+      notes: capture.notes,
+    },
+  };
+}
+
+function resolveNetworkCommandRequest(
+  params: ObservabilityParams,
+):
+  | { ok: true; session: SessionState; maxEntries: number; include: NetworkIncludeMode }
+  | DaemonFailureResponse {
   const { req, sessionName, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   if (!session) {
@@ -321,30 +381,7 @@ async function handleNetworkCommand(params: ObservabilityParams): Promise<Daemon
 
   const includeValidation = resolveNetworkIncludeMode(req);
   if (!includeValidation.ok) return includeValidation;
-  const { include } = includeValidation;
-
-  const capture = await readSessionNetworkCapture({
-    device: session.device,
-    appBundleId: session.appBundleId,
-    appLogState: session.appLog?.getState(),
-    appLogStartedAt: session.appLog?.startedAt,
-    appLogPath: sessionStore.resolveAppLogPath(sessionName),
-    maxEntries,
-    include,
-    maxPayloadChars: 2048,
-    maxScanLines: 4000,
-  });
-
-  return {
-    ok: true,
-    data: {
-      ...capture.dump,
-      active: Boolean(session.appLog),
-      state: session.appLog?.getState() ?? 'inactive',
-      backend: capture.backend,
-      notes: capture.notes,
-    },
-  };
+  return { ok: true, session, maxEntries, include: includeValidation.include };
 }
 
 function resolveNetworkIncludeMode(

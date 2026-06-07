@@ -47,6 +47,78 @@ test('perf prints compact platform-independent frame health summary by default',
   assert.doesNotMatch(result.stdout, /android|Pixel|memory|cpu|gfxinfo/i);
 });
 
+test('perf metrics forwards explicit metrics area to daemon', async () => {
+  const result = await runCliCapture(['perf', 'metrics', '--json'], async () => ({
+    ok: true,
+    data: {
+      metrics: {
+        fps: {
+          available: false,
+          reason: 'No frame data.',
+        },
+      },
+    },
+  }));
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.command, 'perf');
+  assert.deepEqual(result.calls[0]?.positionals, ['metrics']);
+});
+
+test('perf frames forwards frames area and prints focused frame summary', async () => {
+  const result = await runCliCapture(['perf', 'frames'], async () => ({
+    ok: true,
+    data: {
+      metrics: {
+        fps: {
+          available: true,
+          droppedFramePercent: 3.1,
+          droppedFrameCount: 12,
+          totalFrameCount: 390,
+          sampleWindowMs: 12_000,
+          worstWindows: [],
+        },
+      },
+    },
+  }));
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.command, 'perf');
+  assert.deepEqual(result.calls[0]?.positionals, ['frames']);
+  assert.equal(result.stdout, 'Frame health: dropped 3.1% (12/390 frames) window 12s\n');
+});
+
+test('perf frames sample forwards explicit sample action to daemon', async () => {
+  const result = await runCliCapture(['perf', 'frames', 'sample', '--json'], async () => ({
+    ok: true,
+    data: {
+      metrics: {
+        fps: {
+          available: false,
+          reason: 'No frame data.',
+        },
+      },
+    },
+  }));
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.command, 'perf');
+  assert.deepEqual(result.calls[0]?.positionals, ['frames', 'sample']);
+});
+
+test('perf rejects unknown CLI area before daemon dispatch', async () => {
+  const result = await runCliCapture(['perf', 'cpu', '--json'], async () => ({
+    ok: true,
+    data: {},
+  }));
+
+  assert.equal(result.code, 1);
+  assert.equal(result.calls.length, 0);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.error.code, 'INVALID_ARGS');
+  assert.match(payload.error.message, /perf area must be metrics or frames/i);
+});
+
 test('perf prints unavailable frame health reason by default', async () => {
   const result = await runCliCapture(['perf'], async () => ({
     ok: true,
@@ -54,7 +126,8 @@ test('perf prints unavailable frame health reason by default', async () => {
       metrics: {
         fps: {
           available: false,
-          reason: 'Dropped-frame sampling is currently available only on Android.',
+          reason:
+            'Dropped-frame sampling is currently available only on Android app sessions and connected iOS device app sessions.',
         },
       },
     },
@@ -63,7 +136,7 @@ test('perf prints unavailable frame health reason by default', async () => {
   assert.equal(result.code, null);
   assert.equal(
     result.stdout,
-    'Frame health: unavailable - Dropped-frame sampling is currently available only on Android.\n',
+    'Frame health: unavailable - Dropped-frame sampling is currently available only on Android app sessions and connected iOS device app sessions.\n',
   );
 });
 
@@ -74,7 +147,8 @@ test('perf prints compact CPU and memory summary when frame health is unavailabl
       metrics: {
         fps: {
           available: false,
-          reason: 'Dropped-frame sampling is currently available only on Android.',
+          reason:
+            'Dropped-frame sampling is currently available only on Android app sessions and connected iOS device app sessions.',
         },
         memory: {
           available: true,

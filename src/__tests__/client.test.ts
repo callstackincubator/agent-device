@@ -119,6 +119,32 @@ test('apps.open forwards explicit runtime hints through the daemon request', asy
   });
 });
 
+test('observability.perf projects structured frame area to daemon positionals', async () => {
+  const setup = createTransport(async (req) => {
+    if (req.command === 'perf') {
+      return {
+        ok: true,
+        data: {
+          metrics: {
+            fps: {
+              available: false,
+              reason: 'No frame data.',
+            },
+          },
+        },
+      };
+    }
+    throw new Error(`Unexpected command: ${req.command}`);
+  });
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await client.observability.perf({ area: 'frames', action: 'sample' });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'perf');
+  assert.deepEqual(setup.calls[0]?.positionals, ['frames', 'sample']);
+});
+
 test('structured command input accepts target as deviceTarget alias when no UI target exists', async () => {
   const setup = createTransport(async (req) => {
     if (req.command === 'open') {

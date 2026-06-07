@@ -26,7 +26,7 @@ const COMMAND_DESCRIPTIONS = {
   'react-native': 'Run supported React Native app automation helpers.',
   replay: 'Replay a recorded session.',
   test: 'Run one or more replay scripts.',
-  perf: 'Show session performance metrics.',
+  perf: 'Show session performance metrics and frame health.',
   logs: 'Manage session app logs.',
   network: 'Show recent HTTP traffic.',
   record: 'Start or stop screen recording.',

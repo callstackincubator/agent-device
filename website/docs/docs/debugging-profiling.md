@@ -10,7 +10,7 @@ Use `agent-device` when the task moves past UI automation and you need runtime e
 
 - Session app logs for targeted debugging windows
 - Network inspection from recent HTTP(s) entries in app logs via `network dump`
-- Performance snapshots with `perf` / `metrics`
+- Performance snapshots with `perf metrics` / `perf frames`
 - Screenshots, recordings, and replayable repro flows
 
 ## React Native component internals
@@ -46,11 +46,11 @@ agent-device logs clear --restart
 agent-device logs mark "before repro"
 agent-device press 'id="submit"'
 agent-device network dump 25 --include headers
-agent-device perf --json
+agent-device perf metrics --json
 agent-device logs path
 ```
 
-Use this flow when you need a clean repro window with logs, recent network activity, and a quick perf sample from the active app session.
+Use this flow when you need a clean repro window with logs, recent network activity, and a quick metrics sample from the active app session.
 
 On iOS simulators, `logs` scope by bundle id and the resolved app executable. For launch-time stdout/stderr, capture the direct app launch console instead of starting raw `simctl` streams:
 
@@ -94,12 +94,15 @@ agent-device network dump 25 --include all
 ```bash
 agent-device perf --json
 agent-device metrics --json
+agent-device perf metrics --json
+agent-device perf frames --json
 ```
 
-- `perf` returns session-scoped startup and, where supported, CPU, memory, and Android frame-health samples.
+- `perf metrics` returns session-scoped startup and, where supported, CPU, memory, and frame-health samples. Bare `perf` and `metrics` remain aliases.
+- `perf frames` returns a focused frame/jank-health payload.
 - Startup is measured around the `open` command; it is not first-frame instrumentation.
 - CPU, memory, and Android frame-health availability depend on platform and whether the active session is bound to an app/package.
-- On Android, use `metrics.fps.droppedFramePercent` for the health check and `metrics.fps.worstWindows` to line up jank clusters with logs, network activity, or recent actions.
+- On Android and supported Apple targets, use `metrics.fps.droppedFramePercent` for the health check and `metrics.fps.worstWindows` to line up jank clusters with logs, network activity, or recent actions.
 
 ## Where to go deeper
 
