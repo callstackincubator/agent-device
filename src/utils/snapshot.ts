@@ -49,6 +49,7 @@ export type RawSnapshotNode = {
   surface?: string;
   hiddenContentAbove?: boolean;
   hiddenContentBelow?: boolean;
+  interactionBlocked?: 'covered';
   presentationHints?: string[];
 };
 

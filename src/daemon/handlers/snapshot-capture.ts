@@ -14,6 +14,7 @@ import {
   type SnapshotBackend,
   type SnapshotState,
 } from '../../utils/snapshot.ts';
+import { annotateCoveredSnapshotNodes } from '../../utils/snapshot-occlusion.ts';
 import { normalizeSnapshotTree } from '../../utils/snapshot-tree.ts';
 export { buildSnapshotVisibility } from '../../utils/snapshot-visibility.ts';
 import type { SessionState } from '../types.ts';
@@ -37,9 +38,7 @@ import {
   getActivePendingInteractionOutcome,
   retryPendingInteractionOutcome,
 } from '../interaction-outcome-policy.ts';
-import {
-  capturePostGestureStabilizedResult,
-} from '../post-gesture-stabilization.ts';
+import { capturePostGestureStabilizedResult } from '../post-gesture-stabilization.ts';
 import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
 import { presentIosInteractiveSnapshot } from '../snapshot-presentation/ios/index.ts';
@@ -79,7 +78,9 @@ type AndroidFreshnessReason = 'empty-interactive' | 'sharp-drop' | 'stuck-route'
 type AndroidFreshnessMode = 'default' | 'ref-refresh';
 const INTERACTION_CHANGE_RECHECK_DELAY_MS = 500;
 
-export async function captureSnapshot(params: CaptureSnapshotParams): Promise<CaptureSnapshotResult> {
+export async function captureSnapshot(
+  params: CaptureSnapshotParams,
+): Promise<CaptureSnapshotResult> {
   const postActionResult = await capturePostActionAwareSnapshot(params);
   if (postActionResult) return postActionResult;
 
@@ -395,7 +396,9 @@ export function buildSnapshotState(
   const presentableNodes = shouldPresentIosInteractiveSnapshot(data?.backend, flags)
     ? presentIosInteractiveSnapshot(scopedNodes)
     : scopedNodes;
-  const nodes = attachRefs(presentableNodes);
+  const nodes = attachRefs(
+    snapshotRaw ? presentableNodes : annotateCoveredSnapshotNodes(presentableNodes),
+  );
   return {
     nodes,
     truncated: data?.truncated,

@@ -196,14 +196,14 @@ function buildLineMetadata(
 ): string[] {
   const metadata: string[] = [];
   if (node.enabled === false) metadata.push('disabled');
+  metadata.push(...(node.presentationHints ?? []));
   if (!options.summarizeTextSurfaces) {
-    return metadata;
+    return uniqueMetadata(metadata);
   }
   if (node.selected === true) metadata.push('selected');
   if (node.focused === true) metadata.push('focused');
   if (isEditableRole(type)) metadata.push('editable');
   if (looksScrollable(node, type)) metadata.push('scrollable');
-  metadata.push(...(node.presentationHints ?? []));
   if (!textSurface.shouldSummarize) {
     return uniqueMetadata(metadata);
   }

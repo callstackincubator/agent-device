@@ -258,6 +258,7 @@ function interactiveMatchScore(
   nodes: SnapshotState['nodes'],
 ): number {
   const resolution = resolveActionableTouchResolution(nodes, node);
+  if (resolution.reason === 'covered') return 0;
   if (resolution.reason === 'semantic-target' && resolution.node.rect) return 4;
   if (resolution.reason === 'same-rect-descendant' && resolution.node.rect) return 4;
   if (

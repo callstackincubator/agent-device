@@ -133,6 +133,38 @@ test('runtime click keeps distinct tab button centers when iOS reports the tab b
   assert.equal(selectorResult.node?.label, 'Settings');
 });
 
+test('runtime click rejects refs covered by floating overlays', async () => {
+  const calls: Point[] = [];
+  const device = createInteractionDevice(coveredByTabBarSnapshot(), {
+    tap: async (_context, point) => {
+      calls.push(point);
+    },
+  });
+
+  await assert.rejects(
+    () => device.interactions.click(ref('@e2'), { session: 'default' }),
+    /Ref @e2 is covered by another visible element/,
+  );
+  assert.deepEqual(calls, []);
+});
+
+test('runtime selector interactions skip covered matches when an uncovered duplicate exists', async () => {
+  const calls: Point[] = [];
+  const device = createInteractionDevice(duplicateCoveredLabelSnapshot(), {
+    tap: async (_context, point) => {
+      calls.push(point);
+    },
+  });
+
+  const result = await device.interactions.click(selector('label="Save draft"'), {
+    session: 'default',
+  });
+
+  assert.equal(result.kind, 'selector');
+  assert.equal(result.node?.ref, 'e2');
+  assert.deepEqual(calls, [{ x: 86, y: 142 }]);
+});
+
 test('runtime click keeps non-button semantic targets at their own center', async () => {
   const calls: Point[] = [];
   const device = createInteractionDevice(nonHittableCellSnapshot(), {
@@ -871,6 +903,77 @@ function iosTabBarSnapshot(): SnapshotState {
       label: 'Search',
       rect: { x: 304, y: 800, width: 92, height: 44 },
       hittable: false,
+    },
+  ]);
+}
+
+function coveredByTabBarSnapshot(): SnapshotState {
+  return makeSnapshotState([
+    {
+      index: 0,
+      depth: 0,
+      type: 'Application',
+      label: 'Example',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'Button',
+      label: 'Save draft',
+      rect: { x: 16, y: 790, width: 140, height: 44 },
+      hittable: false,
+      interactionBlocked: 'covered',
+      presentationHints: ['covered'],
+    },
+    {
+      index: 2,
+      depth: 1,
+      parentIndex: 0,
+      type: 'TabBar',
+      rect: { x: 0, y: 760, width: 390, height: 84 },
+      hittable: true,
+    },
+  ]);
+}
+
+function duplicateCoveredLabelSnapshot(): SnapshotState {
+  return makeSnapshotState([
+    {
+      index: 0,
+      depth: 0,
+      type: 'Application',
+      label: 'Example',
+      rect: { x: 0, y: 0, width: 390, height: 844 },
+    },
+    {
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'Button',
+      label: 'Save draft',
+      rect: { x: 16, y: 120, width: 140, height: 44 },
+      hittable: true,
+    },
+    {
+      index: 2,
+      depth: 1,
+      parentIndex: 0,
+      type: 'Button',
+      label: 'Save draft',
+      rect: { x: 16, y: 790, width: 140, height: 44 },
+      hittable: false,
+      interactionBlocked: 'covered',
+      presentationHints: ['covered'],
+    },
+    {
+      index: 3,
+      depth: 1,
+      parentIndex: 0,
+      type: 'TabBar',
+      rect: { x: 0, y: 760, width: 390, height: 84 },
+      hittable: true,
     },
   ]);
 }

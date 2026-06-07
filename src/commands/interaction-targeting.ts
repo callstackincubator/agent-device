@@ -2,6 +2,7 @@ import type { Rect, SnapshotNode } from '../utils/snapshot.ts';
 import { centerOfRect } from '../utils/snapshot.ts';
 import { containsPoint, pickLargestRect } from '../utils/rect-visibility.ts';
 import { findNearestHittableAncestor, normalizeType } from '../utils/snapshot-processing.ts';
+import { isSnapshotNodeInteractionBlocked } from '../utils/snapshot-occlusion.ts';
 import { normalizeRect, resolveRectCenter } from '../utils/rect-center.ts';
 import { intersectArea } from '../utils/screenshot-geometry.ts';
 
@@ -24,7 +25,8 @@ type ActionableTouchResolutionReason =
   | 'semantic-target'
   | 'hittable-ancestor'
   | 'overly-broad-ancestor'
-  | 'original';
+  | 'original'
+  | 'covered';
 
 type ActionableTouchResolution = {
   node: SnapshotNode;
@@ -43,6 +45,9 @@ export function resolveActionableTouchResolution(
   nodes: SnapshotNode[],
   node: SnapshotNode,
 ): ActionableTouchResolution {
+  if (isSnapshotNodeInteractionBlocked(node)) {
+    return { node, reason: 'covered' };
+  }
   const descendant = findPreferredActionableDescendant(nodes, node);
   if (descendant?.rect && resolveRectCenter(descendant.rect)) {
     return { node: descendant, reason: 'same-rect-descendant' };
@@ -51,7 +56,11 @@ export function resolveActionableTouchResolution(
     return { node, reason: 'semantic-target' };
   }
   const ancestor = findNearestHittableAncestor(nodes, node);
-  if (ancestor?.rect && resolveRectCenter(ancestor.rect)) {
+  if (
+    ancestor?.rect &&
+    !isSnapshotNodeInteractionBlocked(ancestor) &&
+    resolveRectCenter(ancestor.rect)
+  ) {
     if (isOverlyBroadAncestor(node, ancestor, nodes)) {
       return { node, reason: 'overly-broad-ancestor' };
     }
@@ -72,7 +81,11 @@ function findPreferredActionableDescendant(
   while (!visited.has(current.ref)) {
     visited.add(current.ref);
     const sameRectChildren = nodes.filter((candidate) => {
-      if (candidate.parentIndex !== current.index || !candidate.hittable) {
+      if (
+        candidate.parentIndex !== current.index ||
+        !candidate.hittable ||
+        isSnapshotNodeInteractionBlocked(candidate)
+      ) {
         return false;
       }
       const candidateRect = normalizeRect(candidate.rect);

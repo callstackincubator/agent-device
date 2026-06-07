@@ -75,6 +75,91 @@ test('buildSnapshotState applies iOS interactive presentation for xctest snapsho
   ]);
 });
 
+test('buildSnapshotState marks content covered by floating overlays as visible but blocked', () => {
+  const state = buildSnapshotState(
+    {
+      nodes: [
+        {
+          index: 0,
+          depth: 0,
+          type: 'Application',
+          label: 'Example',
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'Button',
+          label: 'Save draft',
+          rect: { x: 16, y: 790, width: 140, height: 44 },
+          hittable: true,
+        },
+        {
+          index: 2,
+          depth: 1,
+          parentIndex: 0,
+          type: 'TabBar',
+          rect: { x: 0, y: 760, width: 390, height: 84 },
+          hittable: true,
+        },
+      ],
+      backend: 'xctest',
+    },
+    undefined,
+  );
+
+  const covered = state.nodes.find((node) => node.label === 'Save draft');
+  expect(covered).toMatchObject({
+    label: 'Save draft',
+    hittable: false,
+    interactionBlocked: 'covered',
+    presentationHints: ['covered'],
+  });
+  expect(state.nodes.some((node) => node.type === 'TabBar')).toBe(true);
+});
+
+test('buildSnapshotState leaves raw snapshot hittability untouched', () => {
+  const state = buildSnapshotState(
+    {
+      nodes: [
+        {
+          index: 0,
+          depth: 0,
+          type: 'Application',
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'Button',
+          label: 'Save draft',
+          rect: { x: 16, y: 790, width: 140, height: 44 },
+          hittable: true,
+        },
+        {
+          index: 2,
+          depth: 1,
+          parentIndex: 0,
+          type: 'TabBar',
+          rect: { x: 0, y: 760, width: 390, height: 84 },
+          hittable: true,
+        },
+      ],
+      backend: 'xctest',
+    },
+    { snapshotRaw: true },
+  );
+
+  expect(state.nodes.find((node) => node.label === 'Save draft')).toMatchObject({
+    hittable: true,
+  });
+  expect(
+    state.nodes.find((node) => node.label === 'Save draft')?.interactionBlocked,
+  ).toBeUndefined();
+});
+
 test('buildSnapshotState returns empty nodes when scoped snapshot has no label match', () => {
   const nodes = [
     { index: 0, depth: 0, type: 'Window', label: 'Root' },

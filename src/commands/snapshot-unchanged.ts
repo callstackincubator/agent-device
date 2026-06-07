@@ -100,6 +100,8 @@ function buildComparableSnapshotPresentation(
     surface: node.surface,
     hiddenContentAbove: node.hiddenContentAbove,
     hiddenContentBelow: node.hiddenContentBelow,
+    interactionBlocked: node.interactionBlocked,
+    presentationHints: node.presentationHints,
   }));
 }
 
