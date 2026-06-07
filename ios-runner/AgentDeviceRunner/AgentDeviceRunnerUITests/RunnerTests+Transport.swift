@@ -116,12 +116,29 @@ extension RunnerTests {
         completion((jsonResponse(status: 200, response: executeUptime()), false))
         return
       }
+      NSLog(
+        "AGENT_DEVICE_RUNNER_COMMAND_ACCEPTED command=%@ commandId=%@",
+        command.command.rawValue,
+        command.commandId ?? ""
+      )
       commandJournal.accept(command: command)
       commandExecutionQueue.async {
         do {
           let response = try self.executeAccepted(command: command)
+          NSLog(
+            "AGENT_DEVICE_RUNNER_COMMAND_COMPLETED command=%@ commandId=%@ ok=%d",
+            command.command.rawValue,
+            command.commandId ?? "",
+            response.ok ? 1 : 0
+          )
           completion((self.jsonResponse(status: 200, response: response), command.command == .shutdown))
         } catch {
+          NSLog(
+            "AGENT_DEVICE_RUNNER_COMMAND_FAILED command=%@ commandId=%@ error=%@",
+            command.command.rawValue,
+            command.commandId ?? "",
+            String(describing: error)
+          )
           completion((
             self.jsonResponse(
               status: 500,

@@ -1,11 +1,7 @@
 import { withRetry } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
-import {
-  type RunnerSessionOptions,
-  ensureRunnerSession,
-  validateRunnerDevice,
-} from './runner-session.ts';
+import { type RunnerSessionOptions, validateRunnerDevice } from './runner-session.ts';
 import {
   assertRunnerRequestActive,
   isReadOnlyRunnerCommand,
@@ -25,6 +21,7 @@ import {
   type PrepareIosRunnerOptions,
   type PrepareIosRunnerResult,
 } from './runner-lifecycle.ts';
+import { RUNNER_COMMAND_TIMEOUT_MS } from './runner-transport.ts';
 export {
   isRetryableRunnerError,
   resolveRunnerEarlyExitHint,
@@ -128,7 +125,10 @@ function resolveAppleRunnerRuntime(
 const LOCAL_APPLE_RUNNER_RUNTIME = createLocalAppleRunnerProvider(executeRunnerCommand, {
   prepare: prepareLocalIosRunner,
   prewarm: async (device, options) => {
-    await ensureRunnerSession(device, options);
+    await prepareLocalIosRunner(device, {
+      ...options,
+      healthTimeoutMs: RUNNER_COMMAND_TIMEOUT_MS,
+    });
   },
 });
 

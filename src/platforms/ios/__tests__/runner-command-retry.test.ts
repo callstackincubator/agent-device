@@ -49,7 +49,11 @@ vi.mock('../runner-xctestrun.ts', async () => {
   };
 });
 
-import { prepareIosRunner, runIosRunnerCommand } from '../runner-client.ts';
+import {
+  prepareIosRunner,
+  prewarmIosRunnerSession,
+  runIosRunnerCommand,
+} from '../runner-client.ts';
 import type { RunnerXctestrunArtifact } from '../runner-xctestrun.ts';
 
 beforeEach(() => {
@@ -168,6 +172,28 @@ test('prepareIosRunner retries a fresh launch session when the health check cann
       reason: 'Runner did not accept connection',
     },
   );
+});
+
+test('prewarmIosRunnerSession proves cached runner health with uptime', async () => {
+  const session = makeRunnerSession({ port: 8100 });
+  mockEnsureRunnerSession.mockResolvedValueOnce(session);
+  mockExecuteRunnerCommandWithSession.mockResolvedValueOnce({ uptimeMs: 42 });
+
+  const prewarm = prewarmIosRunnerSession(IOS_SIMULATOR, {
+    buildTimeoutMs: 300_000,
+    requestId: 'prewarm-request',
+  });
+
+  await prewarm;
+
+  assert.equal(mockEnsureRunnerSession.mock.calls.length, 1);
+  assert.equal(mockEnsureRunnerSession.mock.calls[0]?.[1]?.buildTimeoutMs, 300_000);
+  assert.equal(mockEnsureRunnerSession.mock.calls[0]?.[1]?.requestId, 'prewarm-request');
+  assert.equal(mockEnsureRunnerSession.mock.calls[0]?.[1]?.healthTimeoutMs, 45_000);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 1);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[0]?.[1], session);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[0]?.[2].command, 'uptime');
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[0]?.[4], 45_000);
 });
 
 test('prepareIosRunner does not force a rebuild when the relaunched fresh session still cannot connect', async () => {

@@ -2795,7 +2795,7 @@ test('open --relaunch on iOS stops runner before close/open', async () => {
   expect(calls).toEqual(['stop-runner', 'close:com.example.app', 'open:com.example.app']);
 });
 
-test('open --relaunch on iOS simulator keeps runner while closing app', async () => {
+test('open --relaunch on iOS simulator stops runner before close/open', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-simulator-session';
   sessionStore.set(sessionName, {
@@ -2841,13 +2841,14 @@ test('open --relaunch on iOS simulator keeps runner while closing app', async ()
 
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
-  expect(calls).toEqual(['close:com.example.app', 'open:com.example.app']);
+  expect(calls).toEqual(['stop-runner', 'close:com.example.app', 'open:com.example.app']);
 });
 
-test('open --relaunch includes timing and waits for iOS runner prewarm', async () => {
+test('open --relaunch includes timing and waits for iOS runner prewarm after opening app', async () => {
   vi.useFakeTimers({ now: 1_000 });
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-timing-session';
+  const events: string[] = [];
   sessionStore.set(sessionName, {
     ...makeSession(sessionName, {
       platform: 'ios',
@@ -2861,8 +2862,22 @@ test('open --relaunch includes timing and waits for iOS runner prewarm', async (
   });
 
   mockPrewarmIosRunnerSession.mockImplementation(
-    () => new Promise((resolve) => setTimeout(resolve, 250)),
+    () =>
+      new Promise((resolve) => {
+        events.push('prewarm-start');
+        setTimeout(() => {
+          events.push('prewarm-finish');
+          resolve();
+        }, 250);
+      }),
   );
+  mockStopIosRunner.mockImplementation(async () => {
+    events.push('stop-runner');
+  });
+  mockDispatch.mockImplementation(async (_device, command) => {
+    events.push(`dispatch:${command}`);
+    return {};
+  });
 
   const responsePromise = handleSessionCommands({
     req: {
@@ -2882,6 +2897,13 @@ test('open --relaunch includes timing and waits for iOS runner prewarm', async (
   const response = await responsePromise;
 
   expect(response?.ok).toBe(true);
+  expect(events).toEqual([
+    'stop-runner',
+    'dispatch:close',
+    'dispatch:open',
+    'prewarm-start',
+    'prewarm-finish',
+  ]);
   expect((response as any).data?.timing).toMatchObject({
     runnerPrewarmKind: 'session',
     runnerPrewarmScheduled: true,
