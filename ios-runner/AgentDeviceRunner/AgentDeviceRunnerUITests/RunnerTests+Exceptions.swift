@@ -10,15 +10,23 @@ extension RunnerTests {
   /// exception telemetry later. `RunnerObjCExceptionCatcher.catchException` takes a non-escaping
   /// block, so `block` may capture `inout` state.
   func safely<T>(_ tag: String, _ fallback: T, _ block: () -> T) -> T {
-    var result = fallback
-    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
-      result = block()
-    })
+    let (result, exceptionMessage) = catchingObjCException(fallback: fallback, block)
     if let exceptionMessage {
       NSLog("AGENT_DEVICE_RUNNER_%@_IGNORED_EXCEPTION=%@", tag, exceptionMessage)
       return fallback
     }
     return result
+  }
+
+  func catchingObjCException<T>(
+    fallback: T,
+    _ block: () -> T
+  ) -> (result: T, exceptionMessage: String?) {
+    var result = fallback
+    let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
+      result = block()
+    })
+    return (result, exceptionMessage)
   }
 
   /// Optional-returning convenience: returns `nil` on exception (matching the common

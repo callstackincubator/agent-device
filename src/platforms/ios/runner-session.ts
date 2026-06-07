@@ -51,25 +51,18 @@ const runnerSessions = new Map<string, RunnerSession>();
 const runnerSessionLocks = new Map<string, Promise<unknown>>();
 const RUNNER_STOP_WAIT_TIMEOUT_MS = 10_000;
 const RUNNER_INVALIDATE_WAIT_TIMEOUT_MS = 1_000;
-const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 5_000;
-const RUNNER_TAP_PREFLIGHT_SKIP_FRESHNESS_MS = 10_000;
+const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 1_000;
 const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
 const RUNNER_STALE_BUNDLE_UNINSTALL_TIMEOUT_MS = 10_000;
 
 type RunnerReadinessPreflightDecision =
   | {
       action: 'run';
-      reason:
-        | 'startup'
-        | 'conservative_command'
-        | 'no_successful_response'
-        | 'successful_response_stale';
-      lastSuccessfulRunnerResponseAgeMs?: number;
+      reason: 'startup' | 'ready_session';
     }
   | {
       action: 'skip';
-      reason: 'recent_successful_response';
-      lastSuccessfulRunnerResponseAgeMs: number;
+      reason: 'read_only_startup_command' | 'readiness_probe_command';
     };
 
 function withRunnerSessionLock<T>(deviceId: string, task: () => Promise<T>): Promise<T> {
@@ -200,7 +193,10 @@ async function resolveReusableRunnerSession(
 ): Promise<RunnerSession | null> {
   if (!isRunnerProcessAlive(existing.child.pid)) {
     await measureRunnerStartupStep({}, 'stop_stale_session', async () => {
-      await stopRunnerSessionInternal(device.id, existing);
+      await stopRunnerSessionInternal(device.id, existing, {
+        graceful: false,
+        waitTimeoutMs: RUNNER_INVALIDATE_WAIT_TIMEOUT_MS,
+      });
     });
     return null;
   }
@@ -514,91 +510,149 @@ export async function executeRunnerCommandWithSession(
   emitRunnerStartupTimings(session, command.command);
   const runnerCommand = withRunnerCommandId(command);
   const readOnlyCommand = isReadOnlyRunnerCommand(runnerCommand.command);
-  if (readOnlyCommand) {
-    const response = await withDiagnosticTimer(
-      'ios_runner_command_send',
-      async () =>
-        await waitForRunner(
+  const deadline = Deadline.fromTimeoutMs(timeoutMs);
+  const preflightDecision = resolveRunnerReadinessPreflightDecision(session, runnerCommand);
+  if (preflightDecision.action === 'run') {
+    await runRunnerReadinessPreflight({
+      device,
+      session,
+      runnerCommand,
+      logPath,
+      deadline,
+      signal,
+      decision: preflightDecision,
+    });
+  } else {
+    emitRunnerReadinessPreflightSkipped(runnerCommand, session, preflightDecision);
+  }
+
+  const response = await sendRunnerCommandAfterPreflight({
+    device,
+    session,
+    runnerCommand,
+    logPath,
+    deadline,
+    timeoutMs,
+    signal,
+    readOnlyCommand,
+  });
+  try {
+    const data = await parseRunnerResponse(response, session, logPath);
+    const runnerFatalReason = resolveRunnerFatalReason(data);
+    if (runnerFatalReason) {
+      await invalidateRunnerSession(session, runnerFatalReason);
+    }
+    return data;
+  } catch (error) {
+    const runnerFatalReason = resolveRunnerFatalErrorReason(error);
+    if (runnerFatalReason) {
+      await invalidateRunnerSession(session, runnerFatalReason);
+    }
+    throw error;
+  }
+}
+
+async function sendRunnerCommandAfterPreflight(params: {
+  device: DeviceInfo;
+  session: RunnerSession;
+  runnerCommand: RunnerCommand;
+  logPath: string | undefined;
+  deadline: Deadline;
+  timeoutMs: number;
+  signal: AbortSignal | undefined;
+  readOnlyCommand: boolean;
+}): Promise<Response> {
+  const { device, session, runnerCommand, logPath, deadline, timeoutMs, signal, readOnlyCommand } =
+    params;
+  const remainingMs = deadline.remainingMs();
+  if (remainingMs <= 0) {
+    throw new AppError('COMMAND_FAILED', 'Runner command deadline exceeded', { timeoutMs });
+  }
+  const diagnosticData = readOnlyCommand
+    ? {
+        command: runnerCommand.command,
+        commandId: runnerCommand.commandId,
+        readOnly: true,
+        sessionReady: session.ready,
+        timeoutMs: remainingMs,
+      }
+    : { command: runnerCommand.command, commandId: runnerCommand.commandId };
+
+  return await withDiagnosticTimer(
+    'ios_runner_command_send',
+    async () => {
+      if (readOnlyCommand) {
+        return await waitForRunner(
           device,
           session.port,
           runnerCommand,
           logPath,
-          timeoutMs,
+          remainingMs,
+          session,
+          signal,
+        );
+      }
+      return await sendRunnerCommandOnce(device, session.port, runnerCommand, remainingMs, signal);
+    },
+    diagnosticData,
+  );
+}
+
+async function runRunnerReadinessPreflight(params: {
+  device: DeviceInfo;
+  session: RunnerSession;
+  runnerCommand: RunnerCommand;
+  logPath: string | undefined;
+  deadline: Deadline;
+  signal: AbortSignal | undefined;
+  decision: Extract<RunnerReadinessPreflightDecision, { action: 'run' }>;
+}): Promise<void> {
+  const { device, session, runnerCommand, logPath, deadline, signal, decision } = params;
+  const readinessTimeoutMs = session.ready
+    ? Math.min(RUNNER_READY_PREFLIGHT_TIMEOUT_MS, deadline.remainingMs())
+    : Math.min(readRunnerStartupTimeoutMs(session), deadline.remainingMs());
+  try {
+    const readinessResponse = await withDiagnosticTimer(
+      'ios_runner_readiness_preflight',
+      async () =>
+        await waitForRunner(
+          device,
+          session.port,
+          withRunnerCommandId({ command: 'uptime' }),
+          logPath,
+          readinessTimeoutMs,
           session,
           signal,
         ),
       {
         command: runnerCommand.command,
         commandId: runnerCommand.commandId,
-        readOnly: true,
+        reason: decision.reason,
         sessionReady: session.ready,
-        timeoutMs,
+        timeoutMs: readinessTimeoutMs,
       },
     );
-    return await parseRunnerResponse(response, session, logPath);
+    await parseRunnerResponse(readinessResponse, session, logPath);
+  } catch (error) {
+    throw markRunnerReadinessPreflightError(error);
   }
+}
 
-  const deadline = Deadline.fromTimeoutMs(timeoutMs);
-  const preflightDecision = resolveRunnerReadinessPreflightDecision(session, runnerCommand);
-  if (preflightDecision.action === 'run') {
-    const readinessTimeoutMs = session.ready
-      ? Math.min(RUNNER_READY_PREFLIGHT_TIMEOUT_MS, deadline.remainingMs())
-      : Math.min(readRunnerStartupTimeoutMs(session), deadline.remainingMs());
-    try {
-      const readinessResponse = await withDiagnosticTimer(
-        'ios_runner_readiness_preflight',
-        async () =>
-          await waitForRunner(
-            device,
-            session.port,
-            withRunnerCommandId({ command: 'uptime' }),
-            logPath,
-            readinessTimeoutMs,
-            session,
-            signal,
-          ),
-        {
-          command: runnerCommand.command,
-          commandId: runnerCommand.commandId,
-          lastSuccessfulRunnerResponseAgeMs: preflightDecision.lastSuccessfulRunnerResponseAgeMs,
-          reason: preflightDecision.reason,
-          sessionReady: session.ready,
-          timeoutMs: readinessTimeoutMs,
-        },
-      );
-      await parseRunnerResponse(readinessResponse, session, logPath);
-    } catch (error) {
-      throw markRunnerReadinessPreflightError(error);
-    }
-  } else {
-    emitDiagnostic({
-      level: 'debug',
-      phase: 'ios_runner_readiness_preflight_skipped',
-      data: {
-        command: command.command,
-        commandId: runnerCommand.commandId,
-        lastSuccessfulRunnerResponseAgeMs: preflightDecision.lastSuccessfulRunnerResponseAgeMs,
-        reason: preflightDecision.reason,
-        sessionReady: session.ready,
-      },
-    });
-  }
-  const remainingMs = deadline.remainingMs();
-  if (remainingMs <= 0) {
-    throw new AppError('COMMAND_FAILED', 'Runner command deadline exceeded', { timeoutMs });
-  }
-  const response = await withDiagnosticTimer(
-    'ios_runner_command_send',
-    async () =>
-      await sendRunnerCommandOnce(device, session.port, runnerCommand, remainingMs, signal),
-    { command: runnerCommand.command, commandId: runnerCommand.commandId },
-  ).catch((error: unknown) => {
-    if (preflightDecision.action === 'skip') {
-      throw markRunnerSkippedReadinessPreflightError(error, preflightDecision);
-    }
-    throw error;
+function emitRunnerReadinessPreflightSkipped(
+  runnerCommand: RunnerCommand,
+  session: RunnerSession,
+  decision: Extract<RunnerReadinessPreflightDecision, { action: 'skip' }>,
+): void {
+  emitDiagnostic({
+    level: 'debug',
+    phase: 'ios_runner_readiness_preflight_skipped',
+    data: {
+      command: runnerCommand.command,
+      commandId: runnerCommand.commandId,
+      reason: decision.reason,
+      sessionReady: session.ready,
+    },
   });
-  return await parseRunnerResponse(response, session, logPath);
 }
 
 type RunnerResponsePayload = {
@@ -609,7 +663,7 @@ type RunnerResponsePayload = {
 
 export async function parseRunnerResponse(
   response: Response,
-  session: Pick<RunnerSession, 'ready' | 'lastSuccessfulRunnerResponseAtMs'>,
+  session: Pick<RunnerSession, 'ready'>,
   logPath?: string,
 ): Promise<Record<string, unknown>> {
   const text = await response.text();
@@ -640,7 +694,6 @@ export async function parseRunnerResponse(
     });
   }
   session.ready = true;
-  session.lastSuccessfulRunnerResponseAtMs = Date.now();
   if (json.data && typeof json.data === 'object' && !Array.isArray(json.data)) {
     const data = json.data as Record<string, unknown>;
     emitRunnerResponseDiagnostics(data);
@@ -664,58 +717,56 @@ function emitRunnerResponseDiagnostics(data: Record<string, unknown>): void {
   });
 }
 
+function resolveRunnerFatalReason(data: Record<string, unknown>): string | undefined {
+  if (data.runnerFatal !== true) return undefined;
+  return typeof data.runnerFatalReason === 'string' && data.runnerFatalReason.trim().length > 0
+    ? data.runnerFatalReason
+    : 'runner_reported_fatal_response';
+}
+
+function resolveRunnerFatalErrorReason(error: unknown): string | undefined {
+  if (!(error instanceof AppError)) return undefined;
+  if (error.code === 'IOS_AX_SNAPSHOT_FAILED') return 'ax_snapshot_failure';
+  if (error.code === 'XCTEST_RECORDED_FAILURE') return 'xctest_recorded_failure';
+  return undefined;
+}
+
 function resolveRunnerReadinessPreflightDecision(
   session: RunnerSession,
   command: RunnerCommand,
 ): RunnerReadinessPreflightDecision {
+  const readOnlyCommand = isReadOnlyRunnerCommand(command.command);
   if (!session.ready) {
+    if (readOnlyCommand) {
+      return {
+        action: 'skip',
+        reason: 'read_only_startup_command',
+      };
+    }
     return {
       action: 'run',
       reason: 'startup',
     };
   }
-  if (command.command !== 'tap' && command.command !== 'tapSeries') {
+  if (isRunnerReadinessProbeCommand(command.command)) {
     return {
-      action: 'run',
-      reason: 'conservative_command',
-    };
-  }
-  const lastSuccessAt = session.lastSuccessfulRunnerResponseAtMs;
-  if (lastSuccessAt === undefined) {
-    return {
-      action: 'run',
-      reason: 'no_successful_response',
-    };
-  }
-  const lastSuccessfulRunnerResponseAgeMs = Date.now() - lastSuccessAt;
-  if (lastSuccessfulRunnerResponseAgeMs > RUNNER_TAP_PREFLIGHT_SKIP_FRESHNESS_MS) {
-    return {
-      action: 'run',
-      reason: 'successful_response_stale',
-      lastSuccessfulRunnerResponseAgeMs,
+      action: 'skip',
+      reason: 'readiness_probe_command',
     };
   }
   return {
-    action: 'skip',
-    reason: 'recent_successful_response',
-    lastSuccessfulRunnerResponseAgeMs,
+    action: 'run',
+    reason: 'ready_session',
   };
+}
+
+function isRunnerReadinessProbeCommand(command: RunnerCommand['command']): boolean {
+  return command === 'uptime' || command === 'status';
 }
 
 function markRunnerReadinessPreflightError(error: unknown): AppError {
   return markRunnerPreflightError(error, {
     runnerReadinessPreflightFailed: true,
-  });
-}
-
-function markRunnerSkippedReadinessPreflightError(
-  error: unknown,
-  decision: Extract<RunnerReadinessPreflightDecision, { action: 'skip' }>,
-): AppError {
-  return markRunnerPreflightError(error, {
-    runnerReadinessPreflightSkipped: true,
-    runnerReadinessPreflightSkipReason: decision.reason,
-    runnerReadinessPreflightSkippedAgeMs: decision.lastSuccessfulRunnerResponseAgeMs,
   });
 }
 

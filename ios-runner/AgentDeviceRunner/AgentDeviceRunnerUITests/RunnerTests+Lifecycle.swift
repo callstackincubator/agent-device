@@ -87,6 +87,14 @@ extension RunnerTests {
     currentBundleId = nil
   }
 
+  func invalidateCachedTarget(reason: String) {
+    if currentApp != nil || currentBundleId != nil {
+      NSLog("AGENT_DEVICE_RUNNER_TARGET_CACHE_INVALIDATE reason=%@", reason)
+    }
+    currentApp = nil
+    currentBundleId = nil
+  }
+
   func targetNeedsActivation(_ target: XCUIApplication) -> Bool {
     let state = target.state
 #if os(macOS)

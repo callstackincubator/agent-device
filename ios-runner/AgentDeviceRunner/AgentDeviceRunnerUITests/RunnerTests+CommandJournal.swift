@@ -154,6 +154,17 @@ final class RunnerCommandJournal {
 }
 
 extension RunnerTests {
+  func testUptimeBypassesCommandJournal() throws {
+    let command = runnerJournalCommand("uptime", id: "uptime-probe")
+
+    let response = try execute(command: command)
+    let status = commandJournal.status(commandId: "uptime-probe")
+
+    XCTAssertEqual(response.ok, true)
+    XCTAssertNotNil(response.data?.currentUptimeMs)
+    XCTAssertEqual(status.lifecycleState, RunnerCommandLifecycleState.notAccepted.rawValue)
+  }
+
   func testCommandJournalRetentionPolicy() throws {
     let journal = RunnerCommandJournal()
 

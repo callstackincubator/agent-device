@@ -670,6 +670,32 @@ extension RunnerTests {
 #endif
   }
 
+  func synthesizedTapAt(app: XCUIApplication, x: Double, y: Double) -> RunnerInteractionOutcome {
+#if os(iOS)
+    if let message = RunnerSynthesizedGesture.synthesizeTap(
+      withApplication: app,
+      x: x,
+      y: y
+    ) {
+      return .unsupported(
+        message: message,
+        hint: "Falling back to XCTest coordinate tap may be slower and can still need a healthy accessibility tree."
+      )
+    }
+    return .performed
+#elseif os(tvOS)
+    return .unsupported(
+      message: "coordinate tap is not supported on tvOS; move focus with swipe or scroll, then select the focused element",
+      hint: "tvOS has no coordinate input; move focus with swipe/scroll to the target, then select it."
+    )
+#else
+    return .unsupported(
+      message: "synthesized coordinate tap is not supported on macOS",
+      hint: "macOS automation has no touchscreen; use mouse-driven interactions instead."
+    )
+#endif
+  }
+
   func keyboardAvoidingDragPoints(
     app: XCUIApplication,
     x: Double,

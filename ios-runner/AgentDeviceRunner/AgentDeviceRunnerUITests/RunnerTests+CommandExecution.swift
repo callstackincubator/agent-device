@@ -147,9 +147,63 @@ extension RunnerTests {
     return Response(ok: true, data: data)
   }
 
+  func testGestureResponseIncludesSynthesizedTapFallbackDiagnostics() {
+    let response = gestureResponse(
+      message: "tapped",
+      timing: (gestureStartUptimeMs: 1, gestureEndUptimeMs: 2),
+      fallback: GestureFallback(
+        strategy: "xctest-coordinate-tap",
+        message: "Runner synthesized coordinate tap is unavailable",
+        hint: "Using XCTest coordinate tap fallback."
+      )
+    )
+
+    XCTAssertEqual(response.ok, true)
+    XCTAssertEqual(response.data?.gestureFallback, "xctest-coordinate-tap")
+    XCTAssertEqual(
+      response.data?.gestureFallbackMessage,
+      "Runner synthesized coordinate tap is unavailable"
+    )
+    XCTAssertEqual(response.data?.gestureFallbackHint, "Using XCTest coordinate tap fallback.")
+  }
+
+  func testXCTestRecordedFailureResponseFailsMutatingSuccesses() throws {
+    let command = try runnerCommandFixture(#"{"command":"tap","commandId":"tap-1"}"#)
+    let response = Response(ok: true, data: DataPayload(message: "tapped"))
+
+    let failureResponse = xctestRecordedFailureResponse(command: command, response: response)
+
+    XCTAssertEqual(failureResponse?.ok, false)
+    XCTAssertEqual(failureResponse?.error?.code, "XCTEST_RECORDED_FAILURE")
+    XCTAssertEqual(
+      failureResponse?.error?.message,
+      "XCTest recorded a failure while executing tap; the action may not have been performed."
+    )
+  }
+
+  func testXCTestRecordedFailureResponseDoesNotWrapReadOnlyOrRunnerFatalResponses() throws {
+    let snapshotCommand = try runnerCommandFixture(#"{"command":"snapshot","commandId":"snapshot-1"}"#)
+    let tapCommand = try runnerCommandFixture(#"{"command":"tap","commandId":"tap-1"}"#)
+    let runnerFatalResponse = Response(
+      ok: true,
+      data: DataPayload(runnerFatal: true, runnerFatalReason: "ax_snapshot_unavailable")
+    )
+
+    XCTAssertNil(
+      xctestRecordedFailureResponse(
+        command: snapshotCommand,
+        response: Response(ok: true, data: DataPayload(nodes: [], truncated: false))
+      )
+    )
+    XCTAssertNil(xctestRecordedFailureResponse(command: tapCommand, response: runnerFatalResponse))
+  }
+
   func execute(command: Command) throws -> Response {
     if command.command == .status {
       return executeStatus(command: command)
+    }
+    if command.command == .uptime {
+      return executeUptime()
     }
     commandJournal.accept(command: command)
     return try executeAccepted(command: command)
@@ -183,6 +237,13 @@ extension RunnerTests {
       )
     }
     return Response(ok: true, data: commandJournal.status(commandId: statusCommandId))
+  }
+
+  func executeUptime() -> Response {
+    Response(
+      ok: true,
+      data: DataPayload(currentUptimeMs: currentUptimeMs())
+    )
   }
 
   private func executeDispatched(command: Command) throws -> Response {
@@ -229,6 +290,7 @@ extension RunnerTests {
     while true {
       var response: Response?
       var swiftError: Error?
+      let failureCountBefore = currentXCTestFailureCount()
       let exceptionMessage = RunnerObjCExceptionCatcher.catchException({
         do {
           response = try self.executeOnMain(command: command)
@@ -238,8 +300,7 @@ extension RunnerTests {
       })
 
       if let exceptionMessage {
-        currentApp = nil
-        currentBundleId = nil
+        invalidateCachedTarget(reason: "objc_exception")
         if !hasRetried, shouldRetryException(command, message: exceptionMessage) {
           NSLog(
             "AGENT_DEVICE_RUNNER_RETRY command=%@ reason=objc_exception",
@@ -265,14 +326,19 @@ extension RunnerTests {
           userInfo: [NSLocalizedDescriptionKey: "command returned no response"]
         )
       }
+      if didRecordXCTestFailure(since: failureCountBefore),
+        let failureResponse = xctestRecordedFailureResponse(command: command, response: response)
+      {
+        invalidateCachedTarget(reason: "xctest_recorded_failure")
+        return failureResponse
+      }
       if !hasRetried, shouldRetryCommand(command), shouldRetryResponse(response) {
         NSLog(
           "AGENT_DEVICE_RUNNER_RETRY command=%@ reason=response_unavailable",
           command.command.rawValue
         )
         hasRetried = true
-        currentApp = nil
-        currentBundleId = nil
+        invalidateCachedTarget(reason: "response_unavailable")
         sleepFor(retryCooldown)
         continue
       }
@@ -282,7 +348,9 @@ extension RunnerTests {
 
   private func executeOnMain(command: Command) throws -> Response {
     var activeApp = currentApp ?? app
-    if !isRunnerLifecycleCommand(command.command) {
+    if shouldSkipAppActivationPreflight(command) {
+      activeApp = resolveAppWithoutActivation(command: command)
+    } else if !isRunnerLifecycleCommand(command.command) {
       let normalizedBundleId = command.appBundleId?
         .trimmingCharacters(in: .whitespacesAndNewlines)
       let requestedBundleId = (normalizedBundleId?.isEmpty == true) ? nil : normalizedBundleId
@@ -408,10 +476,7 @@ extension RunnerTests {
         return Response(ok: false, error: ErrorPayload(message: "failed to stop recording: \(error.localizedDescription)"))
       }
     case .uptime:
-      return Response(
-        ok: true,
-        data: DataPayload(currentUptimeMs: currentUptimeMs())
-      )
+      return executeUptime()
     case .tap:
       if let selectorKey = command.selectorKey, let selectorValue = command.selectorValue {
         let match = findElement(
@@ -425,6 +490,7 @@ extension RunnerTests {
         }
         if let element = match.element {
           let frame = element.frame
+          let isTextEntry = isTextEntryElement(element)
           let touchFrame = frame.isEmpty
             ? nil
             : resolvedTouchVisualizationFrame(app: activeApp, x: frame.midX, y: frame.midY)
@@ -440,7 +506,9 @@ extension RunnerTests {
           if let response = unsupportedResponse(for: outcome) {
             return response
           }
-          waitForTextEntryReadinessAfterTap(app: activeApp, element: element)
+          if isTextEntry {
+            waitForTextEntryReadinessAfterTap(app: activeApp, element: element)
+          }
           return gestureResponse(
             message: match.usedNonHittableFallback ? "tapped via non-hittable coordinate fallback" : "tapped",
             timing: timing,
@@ -462,12 +530,27 @@ extension RunnerTests {
         return Response(ok: false, error: ErrorPayload(message: "element not found"))
       }
       if let x = command.x, let y = command.y {
+        var fallback: GestureFallback?
+        if command.synthesized == true {
+          let (timing, outcome) = performGesture(activeApp, idleTimeout: false) {
+            synthesizedTapAt(app: activeApp, x: x, y: y)
+          }
+          if case .performed = outcome {
+            return gestureResponse(message: "tapped", timing: timing)
+          }
+          fallback = gestureFallback(strategy: "xctest-coordinate-tap", from: outcome)
+        }
         let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
         let (timing, outcome) = performGesture(activeApp) { tapAt(app: activeApp, x: x, y: y) }
         if let response = unsupportedResponse(for: outcome) {
           return response
         }
-        return gestureResponse(message: "tapped", timing: timing, frame: .touch(touchFrame))
+        return gestureResponse(
+          message: "tapped",
+          timing: timing,
+          frame: .touch(touchFrame),
+          fallback: fallback
+        )
       }
       return Response(ok: false, error: ErrorPayload(message: "tap requires text or x/y"))
     case .mouseClick:
@@ -736,6 +819,7 @@ extension RunnerTests {
         needsPostSnapshotInteractionDelay = true
         return Response(ok: true, data: payload)
       } catch let failure as SnapshotCaptureFailure {
+        invalidateCachedTarget(reason: "ax_snapshot_failure")
         // Other thrown errors fall through to executeOnMainSafely's generic error response.
         return Response(
           ok: false,
@@ -933,6 +1017,65 @@ extension RunnerTests {
       }
       return gestureResponse(message: "transformedGesture", timing: timing)
     }
+  }
+
+  private func currentXCTestFailureCount() -> Int {
+    return testRun?.failureCount ?? 0
+  }
+
+  private func didRecordXCTestFailure(since failureCountBefore: Int) -> Bool {
+    return currentXCTestFailureCount() > failureCountBefore
+  }
+
+  private func xctestRecordedFailureResponse(command: Command, response: Response) -> Response? {
+    guard response.ok else { return nil }
+    if response.data?.runnerFatal == true {
+      return nil
+    }
+    guard !isReadOnlyCommand(command), !isRunnerLifecycleCommand(command.command) else {
+      return nil
+    }
+    return Response(
+      ok: false,
+      error: ErrorPayload(
+        code: "XCTEST_RECORDED_FAILURE",
+        message: "XCTest recorded a failure while executing \(command.command.rawValue); the action may not have been performed.",
+        hint: "The iOS runner session will be restarted. Retry after a fresh snapshot, or use screenshot plus coordinate commands when the accessibility tree is unavailable."
+      )
+    )
+  }
+
+  private func runnerCommandFixture(_ json: String) throws -> Command {
+    try JSONDecoder().decode(Command.self, from: Data(json.utf8))
+  }
+
+  private func shouldSkipAppActivationPreflight(_ command: Command) -> Bool {
+#if os(iOS)
+    // Coordinate-only synthesized taps can run after an AX-fatal screen because they do not need
+    // app activation, window lookup, keyboard lookup, or element resolution. Selector/text taps
+    // intentionally stay on the normal AX path because they need an element query.
+    return command.command == .tap
+      && command.synthesized == true
+      && command.x != nil
+      && command.y != nil
+      && command.text == nil
+      && command.selectorKey == nil
+#else
+    return false
+#endif
+  }
+
+  private func resolveAppWithoutActivation(command: Command) -> XCUIApplication {
+    guard let bundleId = command.appBundleId?
+      .trimmingCharacters(in: .whitespacesAndNewlines),
+      !bundleId.isEmpty
+    else {
+      return currentApp ?? app
+    }
+    if currentBundleId == bundleId, let currentApp {
+      return currentApp
+    }
+    return XCUIApplication(bundleIdentifier: bundleId)
   }
 
   private func executeTypeCommand(activeApp: XCUIApplication, command: Command) -> Response {

@@ -193,6 +193,8 @@ struct DataPayload: Codable {
   let gestureFallback: String?
   let gestureFallbackMessage: String?
   let gestureFallbackHint: String?
+  let runnerFatal: Bool?
+  let runnerFatalReason: String?
 
   init(
     message: String? = nil,
@@ -224,7 +226,9 @@ struct DataPayload: Codable {
     orientation: String? = nil,
     gestureFallback: String? = nil,
     gestureFallbackMessage: String? = nil,
-    gestureFallbackHint: String? = nil
+    gestureFallbackHint: String? = nil,
+    runnerFatal: Bool? = nil,
+    runnerFatalReason: String? = nil
   ) {
     self.message = message
     self.text = text
@@ -256,6 +260,8 @@ struct DataPayload: Codable {
     self.gestureFallback = gestureFallback
     self.gestureFallbackMessage = gestureFallbackMessage
     self.gestureFallbackHint = gestureFallbackHint
+    self.runnerFatal = runnerFatal
+    self.runnerFatalReason = runnerFatalReason
   }
 }
 

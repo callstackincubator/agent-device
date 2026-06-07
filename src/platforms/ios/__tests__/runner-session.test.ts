@@ -154,6 +154,56 @@ test('runner session executes read-only commands without uptime preflight', asyn
   assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 0);
 });
 
+test('runner session probes readiness before ready read-only commands', async () => {
+  const session = makeRunnerSession({ ready: true });
+  mockWaitForRunner
+    .mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }))
+    .mockResolvedValueOnce(runnerResponse({ nodes: [], truncated: false }));
+
+  const result = await executeRunnerCommandWithSession(
+    IOS_SIMULATOR,
+    session,
+    { command: 'snapshot', appBundleId: 'com.example.demo' },
+    '/tmp/runner.log',
+    30_000,
+  );
+
+  assert.deepEqual(result, { nodes: [], truncated: false });
+  assert.equal(mockWaitForRunner.mock.calls.length, 2);
+  assertRunnerCommand(mockWaitForRunner.mock.calls[0]?.[2], { command: 'uptime' });
+  assert.equal(mockWaitForRunner.mock.calls[0]?.[4], 1_000);
+  assertRunnerCommand(mockWaitForRunner.mock.calls[1]?.[2], {
+    command: 'snapshot',
+    appBundleId: 'com.example.demo',
+  });
+  assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 0);
+});
+
+test('runner session marks read-only readiness preflight failures before command send', async () => {
+  const session = makeRunnerSession({ ready: true });
+  mockWaitForRunner.mockRejectedValueOnce(new Error('fetch failed'));
+
+  await assert.rejects(
+    () =>
+      executeRunnerCommandWithSession(
+        IOS_SIMULATOR,
+        session,
+        { command: 'snapshot', appBundleId: 'com.example.demo' },
+        '/tmp/runner.log',
+        30_000,
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.details?.runnerReadinessPreflightFailed, true);
+      return true;
+    },
+  );
+
+  assert.equal(mockWaitForRunner.mock.calls.length, 1);
+  assertRunnerCommand(mockWaitForRunner.mock.calls[0]?.[2], { command: 'uptime' });
+  assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 0);
+});
+
 test('runner session executes status command as read-only lifecycle command', async () => {
   const session = makeRunnerSession({ ready: true });
   mockWaitForRunner.mockResolvedValueOnce(
@@ -234,8 +284,9 @@ test('runner session emits reason diagnostics when readiness preflight is used',
   assert.match(diagnostics, /ios_runner_readiness_preflight/);
 });
 
-test('runner session skips readiness preflight for tap commands after a recent successful response', async () => {
-  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
+test('runner session probes readiness for ready tap commands', async () => {
+  const session = makeRunnerSession({ ready: true });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
   mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
 
   const result = await executeRunnerCommandWithSession(
@@ -247,12 +298,15 @@ test('runner session skips readiness preflight for tap commands after a recent s
   );
 
   assert.deepEqual(result, { tapped: true });
-  assert.equal(mockWaitForRunner.mock.calls.length, 0);
+  assert.equal(mockWaitForRunner.mock.calls.length, 1);
+  assertRunnerCommand(mockWaitForRunner.mock.calls[0]?.[2], { command: 'uptime' });
+  assert.equal(mockWaitForRunner.mock.calls[0]?.[4], 1_000);
   assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
 });
 
-test('runner session emits explicit diagnostics when readiness preflight is skipped', async () => {
-  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
+test('runner session emits explicit diagnostics when ready sessions are probed', async () => {
+  const session = makeRunnerSession({ ready: true });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
   mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
 
   const diagnostics = await captureDiagnostics(async () => {
@@ -265,14 +319,14 @@ test('runner session emits explicit diagnostics when readiness preflight is skip
     );
   });
 
-  assert.match(diagnostics, /ios_runner_readiness_preflight_skipped/);
-  assert.match(diagnostics, /"reason":"recent_successful_response"/);
-  assert.doesNotMatch(diagnostics, /ios_runner_readiness_preflight_used/);
+  assert.match(diagnostics, /ios_runner_readiness_preflight/);
+  assert.match(diagnostics, /"reason":"ready_session"/);
+  assert.doesNotMatch(diagnostics, /ios_runner_readiness_preflight_skipped/);
 });
 
-test('runner session marks transport failures after skipped readiness preflight', async () => {
-  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
-  mockSendRunnerCommandOnce.mockRejectedValueOnce(new Error('fetch failed'));
+test('runner session marks preflight failures for ready mutating commands', async () => {
+  const session = makeRunnerSession({ ready: true });
+  mockWaitForRunner.mockRejectedValueOnce(new Error('fetch failed'));
 
   await assert.rejects(
     () =>
@@ -285,15 +339,16 @@ test('runner session marks transport failures after skipped readiness preflight'
       ),
     (error: unknown) => {
       assert.ok(error instanceof AppError);
-      assert.equal(error.details?.runnerReadinessPreflightSkipped, true);
-      assert.equal(error.details?.runnerReadinessPreflightSkipReason, 'recent_successful_response');
+      assert.equal(error.details?.runnerReadinessPreflightFailed, true);
       return true;
     },
   );
+  assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 0);
 });
 
-test('runner session does not mark runner response failures as skipped preflight transport failures', async () => {
-  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
+test('runner session preserves runner response failures after successful readiness preflight', async () => {
+  const session = makeRunnerSession({ ready: true });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
   mockSendRunnerCommandOnce.mockResolvedValueOnce(
     runnerError({
       code: 'COMMAND_FAILED',
@@ -313,14 +368,14 @@ test('runner session does not mark runner response failures as skipped preflight
     (error: unknown) => {
       assert.ok(error instanceof AppError);
       assert.equal(error.message, 'Runner failed after receiving command');
-      assert.equal(error.details?.runnerReadinessPreflightSkipped, undefined);
       return true;
     },
   );
 });
 
-test('runner session skips readiness preflight for selector taps after a recent successful response', async () => {
-  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
+test('runner session probes readiness for ready selector taps', async () => {
+  const session = makeRunnerSession({ ready: true });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
   mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
 
   const result = await executeRunnerCommandWithSession(
@@ -337,12 +392,15 @@ test('runner session skips readiness preflight for selector taps after a recent 
   );
 
   assert.deepEqual(result, { tapped: true });
-  assert.equal(mockWaitForRunner.mock.calls.length, 0);
+  assert.equal(mockWaitForRunner.mock.calls.length, 1);
+  assertRunnerCommand(mockWaitForRunner.mock.calls[0]?.[2], { command: 'uptime' });
+  assert.equal(mockWaitForRunner.mock.calls[0]?.[4], 1_000);
   assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
 });
 
-test('runner session skips readiness preflight for tapSeries after a recent successful response', async () => {
-  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
+test('runner session probes readiness for ready tapSeries commands', async () => {
+  const session = makeRunnerSession({ ready: true });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
   mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
 
   const result = await executeRunnerCommandWithSession(
@@ -361,11 +419,13 @@ test('runner session skips readiness preflight for tapSeries after a recent succ
   );
 
   assert.deepEqual(result, { tapped: true });
-  assert.equal(mockWaitForRunner.mock.calls.length, 0);
+  assert.equal(mockWaitForRunner.mock.calls.length, 1);
+  assertRunnerCommand(mockWaitForRunner.mock.calls[0]?.[2], { command: 'uptime' });
+  assert.equal(mockWaitForRunner.mock.calls[0]?.[4], 1_000);
   assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
 });
 
-test('runner session keeps readiness preflight for tap commands when ready but never proven fresh', async () => {
+test('runner session keeps readiness preflight for ready tap commands without prior command state', async () => {
   const session = makeRunnerSession({ ready: true });
   mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
   mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
@@ -384,30 +444,8 @@ test('runner session keeps readiness preflight for tap commands when ready but n
   assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
 });
 
-test('runner session keeps readiness preflight for tap commands when marked ready but stale', async () => {
-  const session = makeRunnerSession({
-    ready: true,
-    lastSuccessfulRunnerResponseAtMs: Date.now() - 11_000,
-  });
-  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
-  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
-
-  const result = await executeRunnerCommandWithSession(
-    IOS_SIMULATOR,
-    session,
-    { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.demo' },
-    '/tmp/runner.log',
-    30_000,
-  );
-
-  assert.deepEqual(result, { tapped: true });
-  assert.equal(mockWaitForRunner.mock.calls.length, 1);
-  assertRunnerCommand(mockWaitForRunner.mock.calls[0]?.[2], { command: 'uptime' });
-  assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
-});
-
 test('runner session keeps readiness preflight for non-tap mutating commands when marked ready', async () => {
-  const session = makeRunnerSession({ ready: true, lastSuccessfulRunnerResponseAtMs: Date.now() });
+  const session = makeRunnerSession({ ready: true });
   mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
   mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ pressed: true }));
 
@@ -450,6 +488,73 @@ test('runner session preserves structured runner failures', async () => {
       assert.equal(error.details?.logPath, '/tmp/runner.log');
       return true;
     },
+  );
+});
+
+test('runner session invalidates after runner-fatal ok payloads', async () => {
+  const device = { ...IOS_SIMULATOR, id: 'runner-session-fatal-payload-sim' };
+  const session = await ensureRunnerSession(device, {});
+  mockWaitForRunner.mockClear();
+  mockWaitForRunner.mockResolvedValueOnce(
+    runnerResponse({
+      message: 'iOS XCTest snapshot failed with kAXErrorIllegalArgument.',
+      nodes: [],
+      truncated: true,
+      runnerFatal: true,
+      runnerFatalReason: 'ax_snapshot_unavailable',
+    }),
+  );
+
+  const result = await executeRunnerCommandWithSession(
+    device,
+    session,
+    { command: 'snapshot', appBundleId: 'com.example.demo' },
+    '/tmp/runner.log',
+    30_000,
+  );
+
+  assert.equal(result.runnerFatal, true);
+  assert.equal(result.runnerFatalReason, 'ax_snapshot_unavailable');
+  assert.equal(getRunnerSessionSnapshot(device.id), null);
+  assert.equal(
+    mockRunAppleToolCommand.mock.calls.some((call) => call[0] === 'pkill'),
+    true,
+  );
+});
+
+test('runner session invalidates after XCTest recorded mutation failures', async () => {
+  const device = { ...IOS_SIMULATOR, id: 'runner-session-xctest-failure-sim' };
+  const session = await ensureRunnerSession(device, {});
+  mockWaitForRunner.mockClear();
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(
+    runnerError({
+      code: 'XCTEST_RECORDED_FAILURE',
+      message:
+        'XCTest recorded a failure while executing tap; the action may not have been performed.',
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      executeRunnerCommandWithSession(
+        device,
+        session,
+        { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.demo' },
+        '/tmp/runner.log',
+        30_000,
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'XCTEST_RECORDED_FAILURE');
+      assert.match(error.message, /may not have been performed/);
+      return true;
+    },
+  );
+  assert.equal(getRunnerSessionSnapshot(device.id), null);
+  assert.equal(
+    mockRunAppleToolCommand.mock.calls.some((call) => call[0] === 'pkill'),
+    true,
   );
 });
 
@@ -518,6 +623,25 @@ test('runner session restarts alive runner when expected xctestrun artifact chan
   assert.equal(mockRunCmdBackground.mock.calls.length, 2);
 });
 
+test('runner session restarts dead runner without graceful shutdown', async () => {
+  const device = { ...IOS_SIMULATOR, id: 'runner-session-dead-sim' };
+
+  const session = await ensureRunnerSession(device, {});
+  mockWaitForRunner.mockClear();
+  mockIsProcessAlive.mockReturnValue(false);
+
+  const restarted = await ensureRunnerSession(device, {});
+
+  assert.notEqual(restarted, session);
+  assert.equal(mockRunCmdBackground.mock.calls.length, 2);
+  assert.equal(mockWaitForRunner.mock.calls.length, 0);
+  assert.deepEqual(mockCleanupTempFile.mock.calls, [
+    ['/tmp/session-runner.xctestrun'],
+    ['/tmp/session-runner.json'],
+  ]);
+  assert.equal(mockRedirectRelease.mock.calls.length, 1);
+});
+
 test('runner session keeps boot and stale bundle cleanup available when needed', async () => {
   const device = { ...IOS_SIMULATOR, id: 'runner-session-clean-sim', booted: false };
 
@@ -534,7 +658,10 @@ test('runner session keeps boot and stale bundle cleanup available when needed',
     true,
   );
   const uninstallCalls = mockRunXcrun.mock.calls.filter((call) => call[0]?.includes('uninstall'));
-  assert.equal(uninstallCalls.every((call) => call[1]?.timeoutMs === 10_000), true);
+  assert.equal(
+    uninstallCalls.every((call) => call[1]?.timeoutMs === 10_000),
+    true,
+  );
 });
 
 test('runner session stale bundle cleanup is best-effort when simctl stalls', async () => {

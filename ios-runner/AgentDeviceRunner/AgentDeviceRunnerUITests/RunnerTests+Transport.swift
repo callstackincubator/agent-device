@@ -112,6 +112,10 @@ extension RunnerTests {
         completion((jsonResponse(status: 200, response: executeStatus(command: command)), false))
         return
       }
+      if command.command == .uptime {
+        completion((jsonResponse(status: 200, response: executeUptime()), false))
+        return
+      }
       commandJournal.accept(command: command)
       commandExecutionQueue.async {
         do {
