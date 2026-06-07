@@ -18,7 +18,6 @@ import {
 import {
   IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
   IOS_SIMULATOR_POST_OPEN_SETTLE_MS,
-  isIosSimulator,
   refreshSessionDeviceIfNeeded,
   settleIosSimulator,
 } from './session-device-utils.ts';
@@ -67,7 +66,7 @@ async function relaunchCloseApp(params: {
   context: Parameters<typeof dispatchCommand>[4];
 }): Promise<void> {
   const { device, closeTarget, outFlag, context } = params;
-  if (device.platform !== 'android' && !isIosSimulator(device)) {
+  if (device.platform !== 'android') {
     await stopIosRunnerSession(device.id);
   }
   await dispatchCommand(device, 'close', [closeTarget], outFlag, context);
@@ -190,17 +189,18 @@ async function completeOpenCommand(params: {
     traceLogPath,
     requestId: req.meta?.requestId,
   };
+  const shouldPrewarmRunnerBeforeOpen = req.flags?.maestro?.prewarmRunnerBeforeOpen === true;
   let runnerPrewarm: Promise<void> | undefined;
   if (shouldPrewarmIosRunner && sessionAppBundleId) {
     timing.runnerPrewarmKind = 'session';
     timing.runnerPrewarmScheduled = true;
-    runnerPrewarm = prewarmIosRunnerSession(device, runnerPrewarmOptions);
-  }
-  if (runnerPrewarm && req.flags?.maestro?.prewarmRunnerBeforeOpen === true) {
-    const runnerPrewarmStartedAtMs = Date.now();
-    await runnerPrewarm;
-    timing.runnerPrewarmWaited = true;
-    timing.runnerPrewarmDurationMs = Math.max(0, Date.now() - runnerPrewarmStartedAtMs);
+    if (shouldPrewarmRunnerBeforeOpen) {
+      runnerPrewarm = prewarmIosRunnerSession(device, runnerPrewarmOptions);
+      const runnerPrewarmStartedAtMs = Date.now();
+      await runnerPrewarm;
+      timing.runnerPrewarmWaited = true;
+      timing.runnerPrewarmDurationMs = Math.max(0, Date.now() - runnerPrewarmStartedAtMs);
+    }
   }
   const openStartedAtMs = Date.now();
   await dispatchCommand(device, 'open', openPositionals, req.flags?.out, {
@@ -218,6 +218,9 @@ async function completeOpenCommand(params: {
     openPositionals,
   });
   timing.launchUrlDurationMs = Math.max(0, Date.now() - launchUrlStartedAtMs);
+  if (shouldPrewarmIosRunner && sessionAppBundleId && !runnerPrewarm) {
+    runnerPrewarm = prewarmIosRunnerSession(device, runnerPrewarmOptions);
+  }
   if (shouldRelaunch && runnerPrewarm && timing.runnerPrewarmWaited !== true) {
     const runnerPrewarmStartedAtMs = Date.now();
     await runnerPrewarm;
