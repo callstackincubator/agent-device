@@ -82,6 +82,9 @@ export async function ensureRunnerSession(
     }
 
     const startupTimings: Record<string, number> = {};
+    await measureRunnerStartupStep(startupTimings, 'cleanup_stale_xcodebuild', async () => {
+      await killStaleRunnerXcodebuildProcesses(device.id);
+    });
     await measureRunnerStartupStep(startupTimings, 'ensure_booted', async () => {
       await ensureBootedIfNeeded(device);
     });
