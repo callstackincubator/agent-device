@@ -74,11 +74,7 @@ export function iosRunnerOverrides(
     runnerOpts,
     overrides: {
       tap: async (x, y) => {
-        return await runIosRunnerCommand(
-          device,
-          { command: 'tap', x, y, appBundleId: ctx.appBundleId },
-          runnerOpts,
-        );
+        return await runIosRunnerCommand(device, iosTapCommand(device, ctx, x, y), runnerOpts);
       },
       tapElementSelector: async (selector) => {
         return await runIosRunnerCommand(
@@ -150,11 +146,7 @@ export function iosRunnerOverrides(
         );
       },
       focus: async (x, y) => {
-        return await runIosRunnerCommand(
-          device,
-          { command: 'tap', x, y, appBundleId: ctx.appBundleId },
-          runnerOpts,
-        );
+        return await runIosRunnerCommand(device, iosTapCommand(device, ctx, x, y), runnerOpts);
       },
       type: async (text, delayMs) => {
         await runIosRunnerCommand(
@@ -255,6 +247,21 @@ export function iosRunnerOverrides(
         );
       },
     },
+  };
+}
+
+function iosTapCommand(
+  device: DeviceInfo,
+  ctx: RunnerContext,
+  x: number,
+  y: number,
+): RunnerCommand {
+  return {
+    command: 'tap',
+    x,
+    y,
+    ...(device.platform === 'ios' && device.target !== 'tv' ? { synthesized: true } : {}),
+    appBundleId: ctx.appBundleId,
   };
 }
 

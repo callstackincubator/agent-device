@@ -654,6 +654,34 @@ test('parseRunnerResponse preserves iOS AX snapshot failure code and hint', asyn
   );
 });
 
+test('parseRunnerResponse preserves XCTest recorded failure code and hint', async () => {
+  const hint = 'The iOS runner session will be restarted.';
+  const response = new Response(
+    JSON.stringify({
+      ok: false,
+      error: {
+        code: 'XCTEST_RECORDED_FAILURE',
+        message:
+          'XCTest recorded a failure while executing tap; the action may not have been performed.',
+        hint,
+      },
+    }),
+  );
+  const session = { ready: true };
+
+  await assert.rejects(
+    () => parseRunnerResponse(response, session, '/tmp/runner.log'),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'XCTEST_RECORDED_FAILURE');
+      assert.match(error.message, /may not have been performed/);
+      assert.equal(error.details?.hint, hint);
+      assert.equal(isRetryableRunnerError(error), false);
+      return true;
+    },
+  );
+});
+
 test('parseRunnerResponse emits diagnostics for runner gesture fallbacks', async () => {
   const response = new Response(
     JSON.stringify({

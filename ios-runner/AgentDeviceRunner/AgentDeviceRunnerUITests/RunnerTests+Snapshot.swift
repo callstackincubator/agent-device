@@ -333,7 +333,9 @@ extension RunnerTests {
     return DataPayload(
       message: failure.message,
       nodes: [compactInteractiveRootNode(rect: .zero)],
-      truncated: true
+      truncated: true,
+      runnerFatal: true,
+      runnerFatalReason: "ax_snapshot_unavailable"
     )
   }
 

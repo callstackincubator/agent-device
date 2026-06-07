@@ -169,6 +169,54 @@ test('iosRunnerOverrides gives fling a short default XCUITest drag hold', async 
   });
 });
 
+test('iosRunnerOverrides uses synthesized iOS coordinate taps', async () => {
+  mockRunIosRunnerCommand.mockResolvedValue({});
+
+  const { overrides } = iosRunnerOverrides(IOS_TEST_SIMULATOR, {
+    appBundleId: 'com.example.App',
+  });
+
+  await overrides.tap(100, 200);
+  await overrides.focus(110, 210);
+
+  assert.deepEqual(mockRunIosRunnerCommand.mock.calls[0]?.[1], {
+    command: 'tap',
+    x: 100,
+    y: 200,
+    synthesized: true,
+    appBundleId: 'com.example.App',
+  });
+  assert.deepEqual(mockRunIosRunnerCommand.mock.calls[1]?.[1], {
+    command: 'tap',
+    x: 110,
+    y: 210,
+    synthesized: true,
+    appBundleId: 'com.example.App',
+  });
+});
+
+for (const [name, device] of [
+  ['macOS', MACOS_TEST_DEVICE],
+  ['tvOS', TVOS_TEST_SIMULATOR],
+] as const) {
+  test(`iosRunnerOverrides keeps ${name} coordinate taps on the standard path`, async () => {
+    mockRunIosRunnerCommand.mockResolvedValue({});
+
+    const { overrides } = iosRunnerOverrides(device, {
+      appBundleId: 'com.example.App',
+    });
+
+    await overrides.tap(100, 200);
+
+    assert.deepEqual(mockRunIosRunnerCommand.mock.calls[0]?.[1], {
+      command: 'tap',
+      x: 100,
+      y: 200,
+      appBundleId: 'com.example.App',
+    });
+  });
+}
+
 test('iosRunnerOverrides maps swipe to synthesized iOS drag duration', async () => {
   mockRunIosRunnerCommand.mockResolvedValue({});
 

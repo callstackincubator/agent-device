@@ -536,7 +536,20 @@ export async function executeRunnerCommandWithSession(
     signal,
     readOnlyCommand,
   });
-  return await parseRunnerResponse(response, session, logPath);
+  try {
+    const data = await parseRunnerResponse(response, session, logPath);
+    const runnerFatalReason = resolveRunnerFatalReason(data);
+    if (runnerFatalReason) {
+      await invalidateRunnerSession(session, runnerFatalReason);
+    }
+    return data;
+  } catch (error) {
+    const runnerFatalReason = resolveRunnerFatalErrorReason(error);
+    if (runnerFatalReason) {
+      await invalidateRunnerSession(session, runnerFatalReason);
+    }
+    throw error;
+  }
 }
 
 async function sendRunnerCommandAfterPreflight(params: {
@@ -702,6 +715,20 @@ function emitRunnerResponseDiagnostics(data: Record<string, unknown>): void {
       hint: typeof data.gestureFallbackHint === 'string' ? data.gestureFallbackHint : undefined,
     },
   });
+}
+
+function resolveRunnerFatalReason(data: Record<string, unknown>): string | undefined {
+  if (data.runnerFatal !== true) return undefined;
+  return typeof data.runnerFatalReason === 'string' && data.runnerFatalReason.trim().length > 0
+    ? data.runnerFatalReason
+    : 'runner_reported_fatal_response';
+}
+
+function resolveRunnerFatalErrorReason(error: unknown): string | undefined {
+  if (!(error instanceof AppError)) return undefined;
+  if (error.code === 'IOS_AX_SNAPSHOT_FAILED') return 'ax_snapshot_failure';
+  if (error.code === 'XCTEST_RECORDED_FAILURE') return 'xctest_recorded_failure';
+  return undefined;
 }
 
 function resolveRunnerReadinessPreflightDecision(

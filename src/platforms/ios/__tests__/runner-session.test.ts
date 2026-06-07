@@ -491,6 +491,73 @@ test('runner session preserves structured runner failures', async () => {
   );
 });
 
+test('runner session invalidates after runner-fatal ok payloads', async () => {
+  const device = { ...IOS_SIMULATOR, id: 'runner-session-fatal-payload-sim' };
+  const session = await ensureRunnerSession(device, {});
+  mockWaitForRunner.mockClear();
+  mockWaitForRunner.mockResolvedValueOnce(
+    runnerResponse({
+      message: 'iOS XCTest snapshot failed with kAXErrorIllegalArgument.',
+      nodes: [],
+      truncated: true,
+      runnerFatal: true,
+      runnerFatalReason: 'ax_snapshot_unavailable',
+    }),
+  );
+
+  const result = await executeRunnerCommandWithSession(
+    device,
+    session,
+    { command: 'snapshot', appBundleId: 'com.example.demo' },
+    '/tmp/runner.log',
+    30_000,
+  );
+
+  assert.equal(result.runnerFatal, true);
+  assert.equal(result.runnerFatalReason, 'ax_snapshot_unavailable');
+  assert.equal(getRunnerSessionSnapshot(device.id), null);
+  assert.equal(
+    mockRunAppleToolCommand.mock.calls.some((call) => call[0] === 'pkill'),
+    true,
+  );
+});
+
+test('runner session invalidates after XCTest recorded mutation failures', async () => {
+  const device = { ...IOS_SIMULATOR, id: 'runner-session-xctest-failure-sim' };
+  const session = await ensureRunnerSession(device, {});
+  mockWaitForRunner.mockClear();
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(
+    runnerError({
+      code: 'XCTEST_RECORDED_FAILURE',
+      message:
+        'XCTest recorded a failure while executing tap; the action may not have been performed.',
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      executeRunnerCommandWithSession(
+        device,
+        session,
+        { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.demo' },
+        '/tmp/runner.log',
+        30_000,
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'XCTEST_RECORDED_FAILURE');
+      assert.match(error.message, /may not have been performed/);
+      return true;
+    },
+  );
+  assert.equal(getRunnerSessionSnapshot(device.id), null);
+  assert.equal(
+    mockRunAppleToolCommand.mock.calls.some((call) => call[0] === 'pkill'),
+    true,
+  );
+});
+
 test('runner session starts xcodebuild through provider seams and reuses an alive session', async () => {
   const device = { ...IOS_SIMULATOR, id: 'runner-session-start-sim' };
 
