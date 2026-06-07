@@ -54,6 +54,7 @@ const RUNNER_INVALIDATE_WAIT_TIMEOUT_MS = 1_000;
 const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 1_000;
 const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
 const RUNNER_STALE_BUNDLE_UNINSTALL_TIMEOUT_MS = 10_000;
+const RUNNER_STALE_XCODEBUILD_KILL_TIMEOUT_MS = 2_000;
 
 type RunnerReadinessPreflightDecision =
   | {
@@ -369,6 +370,7 @@ async function stopRunnerSessionInternal(
 export async function stopIosRunnerSession(deviceId: string): Promise<void> {
   await withRunnerSessionLock(deviceId, async () => {
     await stopRunnerSessionInternal(deviceId);
+    await killStaleRunnerXcodebuildProcesses(deviceId);
   });
 }
 
@@ -461,6 +463,32 @@ async function killRunnerProcessTree(
       allowFailure: true,
     });
   } catch {}
+}
+
+async function killStaleRunnerXcodebuildProcesses(deviceId: string): Promise<void> {
+  const pattern = `xcodebuild.*test-without-building.*AgentDeviceRunner\\.env\\.session-${escapeRegex(deviceId)}-`;
+  for (const signal of ['TERM', 'KILL'] as const) {
+    try {
+      await runAppleToolCommand('pkill', [`-${signal}`, '-f', pattern], {
+        allowFailure: true,
+        timeoutMs: RUNNER_STALE_XCODEBUILD_KILL_TIMEOUT_MS,
+      });
+    } catch (error) {
+      emitDiagnostic({
+        level: 'warn',
+        phase: 'ios_runner_stale_xcodebuild_kill_failed',
+        data: {
+          deviceId,
+          signal,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function ensureBootedIfNeeded(device: DeviceInfo): Promise<void> {

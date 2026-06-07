@@ -102,6 +102,7 @@ import {
   executeRunnerCommandWithSession,
   getRunnerSessionSnapshot,
   invalidateRunnerSession,
+  stopIosRunnerSession,
   stopRunnerSession,
   validateRunnerDevice,
 } from '../runner-session.ts';
@@ -693,6 +694,25 @@ test('runner session stop sends shutdown, cleans temporary runner files, and rel
   ]);
   assert.equal(mockRedirectRelease.mock.calls.length, 1);
   assert.equal(getRunnerSessionSnapshot(device.id), null);
+});
+
+test('runner session stop kills stale device-scoped xcodebuild runner processes without in-memory session', async () => {
+  const deviceId = '11C70358-8331-4872-A0CA-F15B6859B6FC';
+
+  await stopIosRunnerSession(deviceId);
+
+  const pkillCalls = mockRunAppleToolCommand.mock.calls.filter((call) => call[0] === 'pkill');
+  assert.equal(pkillCalls.length, 2);
+  assert.deepEqual(pkillCalls[0]?.[1]?.slice(0, 2), ['-TERM', '-f']);
+  assert.deepEqual(pkillCalls[1]?.[1]?.slice(0, 2), ['-KILL', '-f']);
+  assert.match(
+    String(pkillCalls[0]?.[1]?.[2] ?? ''),
+    /xcodebuild\.\*test-without-building\.\*AgentDeviceRunner\\\.env\\\.session-11C70358-8331-4872-A0CA-F15B6859B6FC-/,
+  );
+  assert.deepEqual(pkillCalls[0]?.[2], {
+    allowFailure: true,
+    timeoutMs: 2_000,
+  });
 });
 
 test('runner session invalidation skips graceful shutdown and removes stale session', async () => {
