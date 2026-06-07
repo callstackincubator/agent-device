@@ -1285,6 +1285,22 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     forbiddenOutputs: [/snapshot --raw/i],
   }),
   makeCase({
+    id: 'ios-ax-unavailable-screenshot-coordinate-recovery',
+    contract: [
+      'App name: Agent Device Tester',
+      'Platform: iOS simulator',
+      'Current screen returned a sparse snapshot: Snapshot: 1 node (truncated)',
+      'The hint says snapshot state may be unavailable for this screen',
+      'The visible screenshot shows the next tab target centered near x=124 y=817',
+      'Accessibility may work again after leaving this screen',
+    ],
+    task: 'Plan fallback commands to recover from the AX-unavailable snapshot state: capture visual truth, navigate out using the visible coordinate, then try AX again on the next screen.',
+    outputs: [plannedCommand('screenshot'), /(?:click|press)\s+124\s+817/i, /snapshot -i/i],
+    forbiddenOutputs: [/--overlay-refs/i, /@e\d+/i, /(?:find|wait|is|get)\b/i, /snapshot --raw/i],
+    strictFinalOutput: true,
+    allowOnlyLocalCliHelpCommands: true,
+  }),
+  makeCase({
     id: 'perf-session-metrics',
     contract: [
       'App name: Agent Device Tester',

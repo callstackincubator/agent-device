@@ -637,7 +637,7 @@ function formatSparseSnapshotHint(
 ): string | null {
   if (options.scoped === true || options.depthLimited === true || nodes.length > 3) return null;
   const noun = nodes.length === 1 ? 'node' : 'nodes';
-  return `Hint: sparse accessibility snapshot returned ${nodes.length} ${noun}. The app may expose limited accessibility metadata; run screenshot --overlay-refs for visual context.`;
+  return `Hint: sparse accessibility snapshot returned ${nodes.length} ${noun}; snapshot state may be unavailable for this screen. Use plain screenshot, not screenshot --overlay-refs, as visual truth; navigate with coordinate commands if needed, then retry snapshot -i on the next screen.`;
 }
 
 function readSnapshotWarnings(data: Record<string, unknown>): string[] {

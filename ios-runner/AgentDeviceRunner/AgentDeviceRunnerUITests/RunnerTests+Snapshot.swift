@@ -3,7 +3,7 @@ import XCTest
 extension RunnerTests {
   private static let axSnapshotErrorCode = "IOS_AX_SNAPSHOT_FAILED"
   private static let axSnapshotHint =
-    "XCTest could not serialize this iOS accessibility tree. Try a smaller read such as snapshot -s <visible label or id> -d 8, use direct selector commands such as find id <value> click, or use screenshot/logs/appstate in the same session. If you own the app and need full-tree inspection, consider flagging this screen for accessibility-tree simplification: reduce unnecessary accessible wrapper nesting and expose stable ids on actionable controls."
+    "Snapshot state is unavailable because XCTest could not serialize this iOS accessibility tree. This can be specific to the current screen. Use plain screenshot, not screenshot --overlay-refs, as visual truth; navigate with coordinate commands if needed; then retry snapshot -i after reaching another screen. If you own the app and need full-tree inspection, simplify this screen's accessibility tree and expose stable ids on actionable controls."
   private static let collapsedTabCandidateTypes: Set<XCUIElement.ElementType> = [
     .button,
     .link,

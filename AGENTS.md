@@ -167,6 +167,7 @@ Command-only flags (like `find --first`) that do not flow to the platform layer 
 - Do not add ad-hoc stderr/file logging where diagnostics helpers apply.
 - Normalize user-facing failures via `src/utils/errors.ts` (`normalizeError`).
 - Failure payload contract: `code`, `message`, `hint`, `diagnosticId`, `logPath`, `details`.
+- User-facing errors should be short and actionable: say what failed, why when known, and how to recover. Put recovery steps in `hint` when the action is not obvious, for example restart/retry, use plain screenshot when AX state is unavailable, navigate with coordinates, or inspect logs.
 - Preserve `hint`, `diagnosticId`, `logPath` when wrapping/rethrowing errors.
 - `--debug` is canonical; `--verbose` is backward-compatible alias.
 - Keep redaction centralized in diagnostics helpers.
