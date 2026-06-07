@@ -42,7 +42,13 @@ export async function createIosSettingsWorld(): Promise<IosSettingsWorld> {
       command: 'ios.runner.tap',
       deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
       platform: 'ios',
-      request: { command: 'tap', x: 196, y: 122, appBundleId: 'com.apple.Preferences' },
+      request: {
+        command: 'tap',
+        x: 196,
+        y: 122,
+        synthesized: true,
+        appBundleId: 'com.apple.Preferences',
+      },
       result: { tapped: true },
     },
     {
