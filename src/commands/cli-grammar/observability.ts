@@ -27,8 +27,7 @@ import type { CliReader, DaemonWriter } from './types.ts';
 export const observabilityCliReaders = {
   perf: (positionals, flags) => ({
     ...commonInputFromFlags(flags),
-    area: readPerfArea(positionals[0]),
-    action: readPerfAction(positionals[1]),
+    ...readPerfPositionals(positionals),
   }),
   logs: (positionals, flags) => ({
     ...commonInputFromFlags(flags),
@@ -74,6 +73,17 @@ function perfPositionals(input: PerfOptions): string[] {
   return [...optionalString(area), ...optionalString(input.action)];
 }
 
+function readPerfPositionals(positionals: string[]): Pick<PerfOptions, 'area' | 'action'> {
+  if (positionals[0] !== undefined && positionals[1] === undefined) {
+    const action = readPerfAction(positionals[0], { allowUndefined: true });
+    if (action) return { action };
+  }
+  return {
+    area: readPerfArea(positionals[0]),
+    action: readPerfAction(positionals[1]),
+  };
+}
+
 function logsPositionals(input: { action?: string; message?: string }): string[] {
   return [input.action ?? 'path', ...optionalString(input.message)];
 }
@@ -93,13 +103,19 @@ function readStartStop(value: string | undefined, command: string): 'start' | 's
 
 function readPerfArea(value: string | undefined): PerfArea | undefined {
   if (value === undefined) return undefined;
-  if (isPerfArea(value)) return value;
+  const normalized = value.toLowerCase();
+  if (isPerfArea(normalized)) return normalized;
   throw new AppError('INVALID_ARGS', PERF_AREA_ERROR_MESSAGE);
 }
 
-function readPerfAction(value: string | undefined): PerfAction | undefined {
+function readPerfAction(
+  value: string | undefined,
+  options: { allowUndefined?: boolean } = {},
+): PerfAction | undefined {
   if (value === undefined) return undefined;
-  if (isPerfAction(value)) return value;
+  const normalized = value.toLowerCase();
+  if (isPerfAction(normalized)) return normalized;
+  if (options.allowUndefined) return undefined;
   throw new AppError('INVALID_ARGS', PERF_ACTION_ERROR_MESSAGE);
 }
 

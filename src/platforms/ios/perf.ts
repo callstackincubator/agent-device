@@ -158,24 +158,27 @@ export async function sampleAppleFramePerf(
   });
 }
 
+export function buildAppleFrameSamplingMetadata(device: DeviceInfo): Record<string, unknown> {
+  return device.platform === 'ios' && device.kind === 'device'
+    ? {
+        method: APPLE_FRAME_SAMPLE_METHOD,
+        description: APPLE_FRAME_SAMPLE_DESCRIPTION,
+        unit: 'percent',
+        primaryField: 'droppedFramePercent',
+        window: `short ${IOS_DEVICE_FRAME_TRACE_DURATION} xctrace Animation Hitches record of the active app process`,
+        resetsAfterRead: false,
+      }
+    : {
+        method: APPLE_FRAME_SAMPLE_METHOD,
+        description:
+          'Unavailable on iOS simulators and macOS because local Apple tooling does not expose reliable app frame hitches for these targets.',
+        unit: 'percent',
+        primaryField: 'droppedFramePercent',
+      };
+}
+
 export function buildAppleSamplingMetadata(device: DeviceInfo): Record<string, unknown> {
-  const fps =
-    device.platform === 'ios' && device.kind === 'device'
-      ? {
-          method: APPLE_FRAME_SAMPLE_METHOD,
-          description: APPLE_FRAME_SAMPLE_DESCRIPTION,
-          unit: 'percent',
-          primaryField: 'droppedFramePercent',
-          window: `short ${IOS_DEVICE_FRAME_TRACE_DURATION} xctrace Animation Hitches record of the active app process`,
-          resetsAfterRead: false,
-        }
-      : {
-          method: APPLE_FRAME_SAMPLE_METHOD,
-          description:
-            'Unavailable on iOS simulators and macOS because local Apple tooling does not expose reliable app frame hitches for these targets.',
-          unit: 'percent',
-          primaryField: 'droppedFramePercent',
-        };
+  const fps = buildAppleFrameSamplingMetadata(device);
   if (device.platform === 'ios' && device.kind === 'device') {
     return {
       fps,

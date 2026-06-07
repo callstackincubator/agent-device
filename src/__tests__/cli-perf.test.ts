@@ -106,6 +106,42 @@ test('perf frames sample forwards explicit sample action to daemon', async () =>
   assert.deepEqual(result.calls[0]?.positionals, ['frames', 'sample']);
 });
 
+test('perf sample defaults to metrics sample', async () => {
+  const result = await runCliCapture(['perf', 'sample', '--json'], async () => ({
+    ok: true,
+    data: {
+      metrics: {
+        fps: {
+          available: false,
+          reason: 'No frame data.',
+        },
+      },
+    },
+  }));
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.command, 'perf');
+  assert.deepEqual(result.calls[0]?.positionals, ['metrics', 'sample']);
+});
+
+test('perf area and action positionals are case-insensitive', async () => {
+  const result = await runCliCapture(['perf', 'FRAMES', 'SAMPLE', '--json'], async () => ({
+    ok: true,
+    data: {
+      metrics: {
+        fps: {
+          available: false,
+          reason: 'No frame data.',
+        },
+      },
+    },
+  }));
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.command, 'perf');
+  assert.deepEqual(result.calls[0]?.positionals, ['frames', 'sample']);
+});
+
 test('perf rejects unknown CLI area before daemon dispatch', async () => {
   const result = await runCliCapture(['perf', 'cpu', '--json'], async () => ({
     ok: true,

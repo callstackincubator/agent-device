@@ -91,6 +91,41 @@ test('perf frames samples only frame health for app-bound Android sessions', asy
   ]);
 });
 
+test('bare perf and perf metrics return the same payload shape', async () => {
+  const sessionStore = makeSessionStore('agent-device-session-perf-area-');
+  const sessionName = 'perf-session-metrics-default';
+  sessionStore.set(sessionName, makeAndroidSession(sessionName));
+
+  const bareResponse = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'perf',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+  const explicitResponse = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'perf',
+      positionals: ['metrics'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(expectOk(bareResponse).data).toEqual(expectOk(explicitResponse).data);
+});
+
 test('perf rejects unknown area subcommands', async () => {
   const sessionStore = makeSessionStore('agent-device-session-perf-area-');
   const sessionName = 'perf-session-invalid-area';
@@ -113,6 +148,30 @@ test('perf rejects unknown area subcommands', async () => {
   const failure = expectFailure(response);
   expect(failure.error.code).toBe('INVALID_ARGS');
   expect(failure.error.message).toMatch(/perf area must be metrics or frames/i);
+});
+
+test('perf rejects unknown actions', async () => {
+  const sessionStore = makeSessionStore('agent-device-session-perf-area-');
+  const sessionName = 'perf-session-invalid-action';
+  sessionStore.set(sessionName, makeAndroidSession(sessionName));
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'perf',
+      positionals: ['metrics', 'poll'],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  const failure = expectFailure(response);
+  expect(failure.error.code).toBe('INVALID_ARGS');
+  expect(failure.error.message).toMatch(/perf action must be sample/i);
 });
 
 function androidFrameStatsFixture(): string {

@@ -13,6 +13,7 @@ import {
   sampleAndroidMemoryPerf,
 } from '../../platforms/android/perf.ts';
 import {
+  buildAppleFrameSamplingMetadata,
   buildAppleSamplingMetadata,
   sampleAppleFramePerf,
   sampleApplePerfMetrics,
@@ -108,19 +109,19 @@ export async function buildPerfFramesResponseData(
   session: SessionState,
   options: BuildPerfResponseOptions = {},
 ): Promise<PerfFramesResponseData> {
-  const response = buildBasePerfResponse(session);
+  const response = buildBasePerfFramesResponse(session);
 
   if (!supportsPlatformPerfMetrics(session)) {
-    return frameOnlyResponse(response);
+    return response;
   }
 
   if (!session.appBundleId) {
     response.metrics.fps = { available: false, reason: buildMissingAppPerfReason(session) };
-    return frameOnlyResponse(response);
+    return response;
   }
 
   await applyFramePerfMetric(response, session, session.appBundleId, options);
-  return frameOnlyResponse(response);
+  return response;
 }
 
 function buildBasePerfResponse(session: SessionState): PerfResponseData {
@@ -162,13 +163,32 @@ function buildBasePerfResponse(session: SessionState): PerfResponseData {
 
 function buildDefaultUnavailableMetrics(): Record<string, unknown> {
   return {
-    fps: {
-      available: false,
-      reason:
-        'Dropped-frame sampling is currently available only on Android app sessions and connected iOS device app sessions.',
-    },
+    fps: buildDefaultUnavailableFrameMetric(),
     memory: { available: false, reason: PERF_UNAVAILABLE_REASON },
     cpu: { available: false, reason: PERF_UNAVAILABLE_REASON },
+  };
+}
+
+function buildDefaultUnavailableFrameMetric(): Record<string, unknown> {
+  return {
+    available: false,
+    reason:
+      'Dropped-frame sampling is currently available only on Android app sessions and connected iOS device app sessions.',
+  };
+}
+
+function buildBasePerfFramesResponse(session: SessionState): PerfFramesResponseData {
+  return {
+    session: session.name,
+    platform: session.device.platform,
+    device: session.device.name,
+    deviceId: session.device.id,
+    metrics: {
+      fps: buildDefaultUnavailableFrameMetric(),
+    },
+    sampling: {
+      fps: buildFrameSamplingMetadata(session),
+    },
   };
 }
 
@@ -216,7 +236,7 @@ function applySampledPerfMetrics(
 }
 
 async function applyFramePerfMetric(
-  response: PerfResponseData,
+  response: PerfFramesResponseData,
   session: SessionState,
   appBundleId: string,
   options: BuildPerfResponseOptions,
@@ -230,21 +250,6 @@ async function applyFramePerfMetric(
         )
       : await settleMetric(sampleAppleFramePerf(session.device, appBundleId));
   response.metrics.fps = enrichFrameMetricWithSessionContext(buildMetricResult(result), session);
-}
-
-function frameOnlyResponse(response: PerfResponseData): PerfFramesResponseData {
-  return {
-    session: response.session,
-    platform: response.platform,
-    device: response.device,
-    deviceId: response.deviceId,
-    metrics: {
-      fps: response.metrics.fps,
-    },
-    sampling: {
-      fps: response.sampling.fps,
-    },
-  };
 }
 
 function supportsPlatformPerfMetrics(session: SessionState): boolean {
@@ -287,6 +292,21 @@ function buildPlatformSamplingMetadata(session: SessionState): Record<string, un
     };
   }
   return buildAppleSamplingMetadata(session.device);
+}
+
+function buildFrameSamplingMetadata(session: SessionState): Record<string, unknown> {
+  if (session.device.platform === 'android') {
+    return {
+      method: ANDROID_FRAME_SAMPLE_METHOD,
+      description: ANDROID_FRAME_SAMPLE_DESCRIPTION,
+      unit: 'percent',
+      primaryField: 'droppedFramePercent',
+      window: 'since previous Android gfxinfo reset or app process start',
+      resetsAfterRead: true,
+      relatedActionsLimit: RELATED_PERF_ACTION_LIMIT,
+    };
+  }
+  return buildAppleFrameSamplingMetadata(session.device);
 }
 
 async function sampleAndroidPerfResults(
