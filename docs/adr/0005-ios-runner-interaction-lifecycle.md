@@ -48,6 +48,11 @@ root-only payload instead of issuing more flat fallback queries against the same
 the cached `XCUIApplication` handle is cleared so the next command reacquires the target through the
 normal activation path.
 
+The snapshot surface intentionally has two AX-failure shapes. Interactive fast snapshots return a
+truncated success payload with `runnerFatal` so agents can still see that AX state is unavailable
+and recover with a plain screenshot plus coordinate navigation. Raw or strict snapshot paths keep
+returning an error because those callers requested a faithful tree, not a lossy recovery payload.
+
 ## Consequences
 
 Navigation-causing selector taps no longer couple command success to XCTest's post-tap element

@@ -109,11 +109,11 @@ extension RunnerTests {
       if let cachedDescendantElements {
         return cachedDescendantElements
       }
-      let fetched = safeSnapshotElementsQuery {
+      let result = snapshotElementsQuery {
         context.queryRoot.descendants(matching: .any).allElementsBoundByIndex
       }
-      cachedDescendantElements = fetched
-      return fetched
+      cachedDescendantElements = result.elements
+      return result.elements
     }
 
     var nodes: [SnapshotNode] = []
@@ -337,6 +337,28 @@ extension RunnerTests {
       runnerFatal: true,
       runnerFatalReason: "ax_snapshot_unavailable"
     )
+  }
+
+  func testSnapshotAccessibilityUnavailableMarksSparseSnapshotRunnerFatal() {
+    currentApp = app
+    currentBundleId = "com.example.app"
+
+    let payload = snapshotAccessibilityUnavailable(
+      failure: SnapshotCaptureFailure(
+        code: "IOS_AX_SNAPSHOT_FAILED",
+        message: "iOS XCTest snapshot failed while serializing the accessibility tree.",
+        hint: Self.axSnapshotHint
+      )
+    )
+
+    XCTAssertEqual(payload.message, "iOS XCTest snapshot failed while serializing the accessibility tree.")
+    XCTAssertEqual(payload.nodes?.count, 1)
+    XCTAssertEqual(payload.nodes?.first?.type, "Application")
+    XCTAssertEqual(payload.truncated, true)
+    XCTAssertEqual(payload.runnerFatal, true)
+    XCTAssertEqual(payload.runnerFatalReason, "ax_snapshot_unavailable")
+    XCTAssertNil(currentApp)
+    XCTAssertNil(currentBundleId)
   }
 
   private func compactInteractiveRootNode(rect: CGRect) -> SnapshotNode {
@@ -827,10 +849,6 @@ extension RunnerTests {
     let containerIdentifier = containerSnapshot.identifier
       .trimmingCharacters(in: .whitespacesAndNewlines)
     return containerLabel == label && containerIdentifier == identifier
-  }
-
-  private func safeSnapshotElementsQuery(_ fetch: () -> [XCUIElement]) -> [XCUIElement] {
-    safely("SNAPSHOT_QUERY", [], fetch)
   }
 
   private func flatInteractiveElements(

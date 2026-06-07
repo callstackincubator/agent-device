@@ -147,6 +147,57 @@ extension RunnerTests {
     return Response(ok: true, data: data)
   }
 
+  func testGestureResponseIncludesSynthesizedTapFallbackDiagnostics() {
+    let response = gestureResponse(
+      message: "tapped",
+      timing: (gestureStartUptimeMs: 1, gestureEndUptimeMs: 2),
+      fallback: GestureFallback(
+        strategy: "xctest-coordinate-tap",
+        message: "Runner synthesized coordinate tap is unavailable",
+        hint: "Using XCTest coordinate tap fallback."
+      )
+    )
+
+    XCTAssertEqual(response.ok, true)
+    XCTAssertEqual(response.data?.gestureFallback, "xctest-coordinate-tap")
+    XCTAssertEqual(
+      response.data?.gestureFallbackMessage,
+      "Runner synthesized coordinate tap is unavailable"
+    )
+    XCTAssertEqual(response.data?.gestureFallbackHint, "Using XCTest coordinate tap fallback.")
+  }
+
+  func testXCTestRecordedFailureResponseFailsMutatingSuccesses() throws {
+    let command = try runnerCommandFixture(#"{"command":"tap","commandId":"tap-1"}"#)
+    let response = Response(ok: true, data: DataPayload(message: "tapped"))
+
+    let failureResponse = xctestRecordedFailureResponse(command: command, response: response)
+
+    XCTAssertEqual(failureResponse?.ok, false)
+    XCTAssertEqual(failureResponse?.error?.code, "XCTEST_RECORDED_FAILURE")
+    XCTAssertEqual(
+      failureResponse?.error?.message,
+      "XCTest recorded a failure while executing tap; the action may not have been performed."
+    )
+  }
+
+  func testXCTestRecordedFailureResponseDoesNotWrapReadOnlyOrRunnerFatalResponses() throws {
+    let snapshotCommand = try runnerCommandFixture(#"{"command":"snapshot","commandId":"snapshot-1"}"#)
+    let tapCommand = try runnerCommandFixture(#"{"command":"tap","commandId":"tap-1"}"#)
+    let runnerFatalResponse = Response(
+      ok: true,
+      data: DataPayload(runnerFatal: true, runnerFatalReason: "ax_snapshot_unavailable")
+    )
+
+    XCTAssertNil(
+      xctestRecordedFailureResponse(
+        command: snapshotCommand,
+        response: Response(ok: true, data: DataPayload(nodes: [], truncated: false))
+      )
+    )
+    XCTAssertNil(xctestRecordedFailureResponse(command: tapCommand, response: runnerFatalResponse))
+  }
+
   func execute(command: Command) throws -> Response {
     if command.command == .status {
       return executeStatus(command: command)
@@ -479,6 +530,7 @@ extension RunnerTests {
         return Response(ok: false, error: ErrorPayload(message: "element not found"))
       }
       if let x = command.x, let y = command.y {
+        var fallback: GestureFallback?
         if command.synthesized == true {
           let (timing, outcome) = performGesture(activeApp, idleTimeout: false) {
             synthesizedTapAt(app: activeApp, x: x, y: y)
@@ -486,13 +538,19 @@ extension RunnerTests {
           if case .performed = outcome {
             return gestureResponse(message: "tapped", timing: timing)
           }
+          fallback = gestureFallback(strategy: "xctest-coordinate-tap", from: outcome)
         }
         let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
         let (timing, outcome) = performGesture(activeApp) { tapAt(app: activeApp, x: x, y: y) }
         if let response = unsupportedResponse(for: outcome) {
           return response
         }
-        return gestureResponse(message: "tapped", timing: timing, frame: .touch(touchFrame))
+        return gestureResponse(
+          message: "tapped",
+          timing: timing,
+          frame: .touch(touchFrame),
+          fallback: fallback
+        )
       }
       return Response(ok: false, error: ErrorPayload(message: "tap requires text or x/y"))
     case .mouseClick:
@@ -985,6 +1043,10 @@ extension RunnerTests {
         hint: "The iOS runner session will be restarted. Retry after a fresh snapshot, or use screenshot plus coordinate commands when the accessibility tree is unavailable."
       )
     )
+  }
+
+  private func runnerCommandFixture(_ json: String) throws -> Command {
+    try JSONDecoder().decode(Command.self, from: Data(json.utf8))
   }
 
   private func shouldSkipAppActivationPreflight(_ command: Command) -> Bool {
