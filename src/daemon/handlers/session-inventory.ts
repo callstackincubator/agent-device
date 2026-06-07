@@ -13,7 +13,7 @@ import {
   resolveIosSimulatorDeviceSetPath,
 } from '../../utils/device-isolation.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
-import { SessionStore } from '../session-store.ts';
+import { resolveSessionRunnerLogPath, SessionStore } from '../session-store.ts';
 import { listAndroidApps } from '../../platforms/android/app-lifecycle.ts';
 import { listIosApps } from '../../platforms/ios/apps.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
@@ -35,20 +35,25 @@ export async function handleSessionInventoryCommands(params: {
         sessions: sessionStore
           .toArray()
           .filter((session) => sessionMatchesScope(session, scope))
-          .map((session) => ({
-            name: session.name,
-            platform: session.device.platform,
-            target: session.device.target ?? 'mobile',
-            surface: session.surface ?? 'app',
-            device: session.device.name,
-            id: session.device.id,
-            device_id: session.device.id,
-            createdAt: session.createdAt,
-            ...(session.device.platform === 'ios' && {
-              device_udid: session.device.id,
-              ios_simulator_device_set: session.device.simulatorSetPath ?? null,
-            }),
-          })),
+          .map((session) => {
+            const sessionStateDir = sessionStore.resolveSessionDir(session.name);
+            return {
+              name: session.name,
+              sessionStateDir,
+              runnerLogPath: resolveSessionRunnerLogPath(sessionStateDir),
+              platform: session.device.platform,
+              target: session.device.target ?? 'mobile',
+              surface: session.surface ?? 'app',
+              device: session.device.name,
+              id: session.device.id,
+              device_id: session.device.id,
+              createdAt: session.createdAt,
+              ...(session.device.platform === 'ios' && {
+                device_udid: session.device.id,
+                ios_simulator_device_set: session.device.simulatorSetPath ?? null,
+              }),
+            };
+          }),
       },
     };
   }

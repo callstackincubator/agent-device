@@ -111,6 +111,8 @@ export function normalizeSession(value: unknown): AgentDeviceSession {
   return {
     name,
     createdAt: readRequiredNumber(record, 'createdAt'),
+    sessionStateDir: readOptionalString(record, 'sessionStateDir'),
+    runnerLogPath: readOptionalString(record, 'runnerLogPath'),
     device: {
       platform,
       target,

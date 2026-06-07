@@ -972,8 +972,8 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /After mutation: refs are stale/);
   assert.match(usageText, /use its selector directly; otherwise refresh with snapshot -i/);
   assert.match(usageText, /app-owned back uses back/);
+  assert.match(usageText, /Session state contains request diagnostics and runner\.log/);
   assert.match(usageText, /logs clear --restart\/mark\/path/);
-  assert.match(usageText, /trace start \.\/path; trace stop \.\/path/);
   assert.match(usageText, /network dump --include headers/);
   assert.match(usageText, /Full operating guide: agent-device help workflow/);
   assert.match(usageText, /Exploratory QA: agent-device help dogfood/);
@@ -1043,6 +1043,7 @@ test('usageForCommand documents prepare ios-runner', () => {
   assert.match(help, /Prepare platform helper infrastructure/);
   assert.match(help, /--timeout <ms>/);
   assert.match(help, /XCTest runner/);
+  assert.match(help, /Runner build\/start output is written to the session runner\.log/);
 });
 
 test('usageForCommand resolves workflow help topic', () => {
@@ -1134,6 +1135,9 @@ test('usageForCommand resolves debugging help topic', () => {
   assert.match(help, /iOS support is runner-derived/);
   assert.match(help, /resolved app executable/);
   assert.match(help, /--launch-console is only for direct iOS simulator app launches/);
+  assert.match(help, /runnerLogPath and requestLogPath/);
+  assert.match(help, /requests\/<request-id>\.ndjson holds daemon request diagnostics/);
+  assert.match(help, /daemon\.log is global daemon lifecycle evidence/);
   assert.match(help, /Do not use settings permission to answer a dialog already on screen/);
 });
 

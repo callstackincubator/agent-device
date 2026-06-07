@@ -586,7 +586,10 @@ function appendLogChunk(logPath: string, chunk: string): void {
   const previous = logAppendQueues.get(logPath) ?? Promise.resolve();
   const next = previous
     .catch(() => {})
-    .then(() => fs.promises.appendFile(logPath, chunk))
+    .then(async () => {
+      await fs.promises.mkdir(path.dirname(logPath), { recursive: true });
+      await fs.promises.appendFile(logPath, chunk);
+    })
     .catch(() => {});
   const queued = next.finally(() => {
     if (logAppendQueues.get(logPath) === queued) {

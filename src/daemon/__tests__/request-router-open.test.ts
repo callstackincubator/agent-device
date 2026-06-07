@@ -71,6 +71,12 @@ test('open returns and creates the session state directory', async () => {
   if (response.ok) {
     expect(response.data?.session).toBe('session-a');
     expect(response.data?.sessionStateDir).toEqual(expect.stringContaining('session-a'));
+    expect(response.data?.runnerLogPath).toEqual(
+      path.join(String(response.data?.sessionStateDir), 'runner.log'),
+    );
+    expect(response.data?.requestLogPath).toEqual(
+      path.join(String(response.data?.sessionStateDir), 'requests', 'req-open-state.ndjson'),
+    );
     expect(fs.existsSync(String(response.data?.sessionStateDir))).toBe(true);
   }
 });

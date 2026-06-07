@@ -134,6 +134,8 @@ export type AgentDeviceSessionDevice = {
 export type AgentDeviceSession = {
   name: string;
   createdAt: number;
+  sessionStateDir?: string;
+  runnerLogPath?: string;
   device: AgentDeviceSessionDevice;
   identifiers: AgentDeviceIdentifiers;
 };
@@ -185,6 +187,8 @@ export type AppOpenOptions = AgentDeviceRequestOverrides &
 export type AppOpenResult = {
   session: string;
   sessionStateDir?: string;
+  runnerLogPath?: string;
+  requestLogPath?: string;
   appName?: string;
   appBundleId?: string;
   appId?: string;

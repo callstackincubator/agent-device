@@ -159,11 +159,14 @@ Command-only flags (like `find --first`) that do not flow to the platform layer 
 ## Logs Contract
 - Logs backend/source of truth is `src/daemon/app-log.ts`.
 - `session.ts` should orchestrate only (start/stop/path/doctor/mark), not duplicate backend logic.
+- App logs are distinct from runner/platform output. Keep app/device log capture in `app.log`; Apple runner and `xcodebuild` subprocess output belongs in the session-scoped `runner.log`.
 - Preserve external grep/tail workflow in docs/skills.
 
 ## Diagnostics & Errors
 - Diagnostics source of truth: `src/utils/diagnostics.ts`
-  - `withDiagnosticsScope`, `emitDiagnostic`, `withDiagnosticTimer`, `flushDiagnosticsToSessionFile`
+  - `withDiagnosticsScope`, `updateDiagnosticsScope`, `emitDiagnostic`, `withDiagnosticTimer`, `flushDiagnosticsToSessionFile`
+- Request diagnostics belong in `sessions/<effective-session>/requests/<request-id>.ndjson` once the effective session is resolved. The top-level daemon log is for daemon lifecycle/startup and pre-session failures.
+- Session artifact paths are centralized in `src/daemon/session-store.ts`; do not hand-build session log paths in handlers.
 - Do not add ad-hoc stderr/file logging where diagnostics helpers apply.
 - Normalize user-facing failures via `src/utils/errors.ts` (`normalizeError`).
 - Failure payload contract: `code`, `message`, `hint`, `diagnosticId`, `logPath`, `details`.

@@ -52,6 +52,8 @@ agent-device logs path
 
 Use this flow when you need a clean repro window with logs, recent network activity, and a quick perf sample from the active app session.
 
+`open` prints `Session state: <path>`. Inspect that directory for per-run artifacts: `requests/<request-id>.ndjson` contains daemon request diagnostics, `runner.log` contains Apple runner/`xcodebuild` output, and `app.log` contains app/device logs when log capture is active. The top-level daemon log is for daemon lifecycle/startup issues.
+
 On iOS simulators, `logs` scope by bundle id and the resolved app executable. For launch-time stdout/stderr, capture the direct app launch console instead of starting raw `simctl` streams:
 
 ```bash

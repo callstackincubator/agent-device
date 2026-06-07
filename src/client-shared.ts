@@ -67,6 +67,8 @@ function serializeSessionDevice(
 export function serializeSessionListEntry(session: AgentDeviceSession): Record<string, unknown> {
   return {
     name: session.name,
+    ...(session.sessionStateDir ? { sessionStateDir: session.sessionStateDir } : {}),
+    ...(session.runnerLogPath ? { runnerLogPath: session.runnerLogPath } : {}),
     ...serializeSessionDevice(session.device, { includeAndroidSerial: false }),
     createdAt: session.createdAt,
   };
@@ -141,6 +143,8 @@ export function serializeOpenResult(result: AppOpenResult): Record<string, unkno
     {
       session: result.session,
       ...(result.sessionStateDir ? { sessionStateDir: result.sessionStateDir } : {}),
+      ...(result.runnerLogPath ? { runnerLogPath: result.runnerLogPath } : {}),
+      ...(result.requestLogPath ? { requestLogPath: result.requestLogPath } : {}),
       ...(result.appName ? { appName: result.appName } : {}),
       ...(result.appBundleId ? { appBundleId: result.appBundleId } : {}),
       ...(result.startup ? { startup: result.startup } : {}),

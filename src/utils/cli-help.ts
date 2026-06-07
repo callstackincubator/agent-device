@@ -55,7 +55,7 @@ const AGENT_QUICKSTART_LINES = [
   'Batch JSON steps use "command" and structured "input"; legacy "positionals"/"flags" steps still run in CLI but are deprecated until the next major version.',
   'Navigation: app-owned back uses back; system back uses back --system.',
   'Verification commands must name the expected text/selector; bare screenshots/snapshots are not enough.',
-  'Debug evidence: logs clear --restart/mark/path; trace start ./path; trace stop ./path; network dump --include headers.',
+  'Debug evidence: Session state contains request diagnostics and runner.log; use logs clear --restart/mark/path, trace, and network dump --include headers for app evidence.',
   'Use agent-device commands in final plans; raw platform tools, pseudo commands, and helper prose are wrong.',
   'Full operating guide: agent-device help workflow. Exploratory QA: agent-device help dogfood.',
 ] as const;
@@ -123,7 +123,7 @@ Bootstrap:
   If app id is unknown, plan devices, apps, then open <discovered-app-id>. Discovery is not enough when the task asks to open/start the app.
   Install arguments are app/package id then artifact path. If the task says install, use install; use reinstall only when explicitly requested. Fresh runtime state is open --relaunch after install.
   In Apple CI, run prepare ios-runner after boot/install and before replay/test. prepare ios-runner builds/reuses the XCTest runner, health-checks it with a lightweight command, and retries one stuck/non-connecting runner launch before the first snapshot pays that setup cost.
-  CI may cache ~/.agent-device/ios-runner/derived with an exact key that includes the agent-device package and Xcode version. Avoid broad restore-key fallbacks; prepare ios-runner already recovers bad restored runner artifacts and one retryable non-connecting runner launch.
+  CI may cache ~/.agent-device/ios-runner/derived with an exact key that includes the agent-device package and Xcode version. Avoid broad restore-key fallbacks; prepare ios-runner already recovers bad restored runner artifacts and one retryable non-connecting runner launch. Runner build/start output is written to the session's runner.log; daemon.log is for daemon lifecycle/startup issues.
   Do not open artifact paths or invent package ids. If apps lookup misses the target and no URL/artifact is provided, ask or stop.
 
 Snapshots and refs:
@@ -287,6 +287,9 @@ Alerts:
 
 Diagnostics and traces:
   Use --debug for CLI/daemon diagnostic ids and log paths.
+  Open output includes Session state; JSON also includes runnerLogPath and requestLogPath.
+  Session requests/<request-id>.ndjson holds daemon request diagnostics; session runner.log holds Apple runner/xcodebuild output.
+  daemon.log is global daemon lifecycle evidence, not the primary per-run log.
   Use trace for low-level session diagnostics around one repro:
     agent-device trace start ./traces/diagnostics.trace
     agent-device press 'id="load-diagnostics"'

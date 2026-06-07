@@ -15,7 +15,15 @@ agent-device close
 
 The implicit `default` session is scoped to the caller's git worktree or current working directory.
 Independent agents in different worktrees do not attach to each other's default session.
-When a session is established, human output includes a `Session state: <path>` line and JSON output includes `sessionStateDir`; this is the per-session artifact directory that can be inspected or removed after the run.
+When a session is established, human output includes a `Session state: <path>` line and JSON output includes `sessionStateDir`; this is the per-session artifact directory that can be inspected or removed after the run. JSON output also includes `runnerLogPath` and `requestLogPath` when available.
+
+Session artifact directories contain per-run evidence for concurrent agents:
+
+- `requests/<request-id>.ndjson` - daemon request diagnostics for this session.
+- `runner.log` - Apple runner and `xcodebuild` build/start output for this session.
+- `app.log` - app/device logs when `logs start` or `logs clear --restart` is active.
+
+The top-level daemon log is for daemon lifecycle/startup issues. Use the session artifact directory first when debugging a specific run.
 
 Open an explicitly named session only when you intentionally want a shared/reusable handle:
 

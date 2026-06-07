@@ -136,6 +136,7 @@ agent-device prepare ios-runner --platform ios --timeout 240000
 - If a fresh runner launch gets stuck before accepting connections, Agent Device invalidates that runner session and launches it once more without forcing a rebuild.
 - CI may cache `~/.agent-device/ios-runner/derived` when the cache key includes the exact Agent Device package contents and selected Xcode version.
 - Avoid broad `restore-keys` fallbacks for runner caches. Reusing runner artifacts across Agent Device or Xcode versions can restore stale `.xctestrun` products; `prepare ios-runner` already handles bad exact-cache artifacts and one retryable non-connecting runner launch.
+- Runner build/start output is written to the session's `runner.log`. The top-level `daemon.log` is reserved for daemon lifecycle/startup issues.
 
 ## TV targets
 
@@ -696,6 +697,8 @@ agent-device network dump 25 --include all # Include parsed headers/body when av
 - Supported on iOS simulator, iOS physical device, and Android.
 - Preferred debug entrypoint: `logs clear --restart` for clean-window repro loops.
 - `logs start` appends to `app.log` and rotates to `app.log.1` when the file exceeds 5 MB.
+- `open` prints `Session state: <path>` and JSON includes `sessionStateDir`, `runnerLogPath`, and `requestLogPath`. Use the session directory to inspect concurrent runs without parsing global daemon logs.
+- `requests/<request-id>.ndjson` contains daemon request diagnostics for the session; `runner.log` contains Apple runner and `xcodebuild` output.
 - `network dump [limit] [summary|headers|body|all]` parses recent HTTP(s) entries from `app.log`; `network log ...` is an alias.
 - Prefer `--include headers|body|all` when you want explicit detail level without relying on positional ordering.
 - On macOS, `logs` and `network dump` are app-scoped and parse Unified Logging output associated with the active session app.

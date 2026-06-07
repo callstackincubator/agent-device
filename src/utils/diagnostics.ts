@@ -30,6 +30,7 @@ type DiagnosticsScopeOptions = {
 type DiagnosticsScope = DiagnosticsScopeOptions & {
   diagnosticId: string;
   events: DiagnosticEvent[];
+  liveWrittenEventCount: number;
 };
 
 const diagnosticsStorage = new AsyncLocalStorage<DiagnosticsScope>();
@@ -50,8 +51,15 @@ export async function withDiagnosticsScope<T>(
     ...options,
     diagnosticId: createDiagnosticId(),
     events: [],
+    liveWrittenEventCount: 0,
   };
   return await diagnosticsStorage.run(scope, fn);
+}
+
+export function updateDiagnosticsScope(options: DiagnosticsScopeOptions): void {
+  const scope = diagnosticsStorage.getStore();
+  if (!scope) return;
+  Object.assign(scope, options);
 }
 
 export function getDiagnosticsMeta(): {
@@ -92,15 +100,18 @@ export function emitDiagnostic(event: {
   };
   scope.events.push(payload);
   if (!scope.debug) return;
-  const line = `[agent-device][diag] ${JSON.stringify(payload)}\n`;
+  const fileLine = `${JSON.stringify(payload)}\n`;
   try {
     if (scope.logPath) {
-      fs.appendFile(scope.logPath, line, () => {});
+      appendDiagnosticLine(scope.logPath, fileLine);
+      scope.liveWrittenEventCount = scope.events.length;
     }
     if (scope.traceLogPath) {
-      fs.appendFile(scope.traceLogPath, line, () => {});
+      appendDiagnosticLine(scope.traceLogPath, fileLine);
     }
-    if (!scope.logPath && !scope.traceLogPath) process.stderr.write(line);
+    if (!scope.logPath && !scope.traceLogPath) {
+      process.stderr.write(`[agent-device][diag] ${fileLine}`);
+    }
   } catch {
     // Best-effort diagnostics should not break request flow.
   }
@@ -142,6 +153,18 @@ export function flushDiagnosticsToSessionFile(options: { force?: boolean } = {})
   if (scope.events.length === 0) return null;
 
   try {
+    if (scope.logPath) {
+      const pendingEvents = scope.events.slice(scope.liveWrittenEventCount);
+      if (pendingEvents.length > 0) {
+        const lines = pendingEvents.map((entry) => JSON.stringify(redactDiagnosticData(entry)));
+        appendDiagnosticLine(scope.logPath, `${lines.join('\n')}\n`);
+      }
+      const logPath = scope.logPath;
+      scope.events = [];
+      scope.liveWrittenEventCount = 0;
+      return logPath;
+    }
+
     const sessionDir = sanitizePathPart(scope.session ?? 'default');
     const dayDir = new Date().toISOString().slice(0, 10);
     const baseDir = path.join(os.homedir(), '.agent-device', 'logs', sessionDir, dayDir);
@@ -159,4 +182,9 @@ export function flushDiagnosticsToSessionFile(options: { force?: boolean } = {})
 
 function sanitizePathPart(value: string): string {
   return value.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+function appendDiagnosticLine(logPath: string, line: string): void {
+  fs.mkdirSync(path.dirname(logPath), { recursive: true });
+  fs.appendFileSync(logPath, line, 'utf8');
 }

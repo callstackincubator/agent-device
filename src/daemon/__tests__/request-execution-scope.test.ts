@@ -2,7 +2,7 @@ import { afterAll, test, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { withDiagnosticsScope } from '../../utils/diagnostics.ts';
+import { flushDiagnosticsToSessionFile, withDiagnosticsScope } from '../../utils/diagnostics.ts';
 import {
   makeAndroidSession,
   makeIosSession,
@@ -14,6 +14,7 @@ import {
   createRequestExecutionScope,
   prepareLockedRequestScope,
 } from '../request-execution-scope.ts';
+import { resolveSessionRequestLogPath } from '../session-store.ts';
 import type { DaemonRequest } from '../types.ts';
 
 const TEST_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-request-execution-scope-'));
@@ -48,6 +49,52 @@ test('createRequestExecutionScope applies tenant scoping and lease admission', a
   expect(scope.sessionName).toBe('tenant-a:default');
 });
 
+test('createRequestExecutionScope resolves session-scoped request and runner log paths', async () => {
+  const sessionStore = makeSessionStore('agent-device-request-scope-');
+  const cwd = fs.mkdtempSync(path.join(TEST_ROOT, 'cwd-scope-'));
+  fs.mkdirSync(path.join(cwd, '.git'));
+
+  const scope = await withDiagnosticsScope(
+    { command: 'snapshot', requestId: 'request-logs-1', logPath: LOG_PATH },
+    async () =>
+      await createRequestExecutionScope({
+        req: makeRequest({ meta: { cwd, requestId: 'request-logs-1' } }),
+        sessionStore,
+        leaseRegistry: new LeaseRegistry(),
+      }),
+  );
+
+  expect(scope.sessionName).toMatch(/^cwd:[a-f0-9]{16}:default$/);
+  expect(scope.requestLogPath).toMatch(
+    /cwd_[a-f0-9]{16}_default\/requests\/request-logs-1\.ndjson$/,
+  );
+  expect(scope.runnerLogPath).toMatch(/cwd_[a-f0-9]{16}_default\/runner\.log$/);
+});
+
+test('request diagnostics flush into the effective session request log', async () => {
+  const sessionStore = makeSessionStore('agent-device-request-scope-');
+  const cwd = fs.mkdtempSync(path.join(TEST_ROOT, 'diag-scope-'));
+  fs.mkdirSync(path.join(cwd, '.git'));
+
+  const result = await withDiagnosticsScope(
+    { command: 'snapshot', requestId: 'request-diag-1', logPath: LOG_PATH },
+    async () => {
+      const scope = await createRequestExecutionScope({
+        req: makeRequest({ meta: { cwd, requestId: 'request-diag-1' } }),
+        sessionStore,
+        leaseRegistry: new LeaseRegistry(),
+      });
+      return {
+        expectedPath: scope.requestLogPath,
+        flushedPath: flushDiagnosticsToSessionFile({ force: true }),
+      };
+    },
+  );
+
+  expect(result.flushedPath).toBe(result.expectedPath);
+  expect(fs.readFileSync(result.expectedPath, 'utf8')).toContain('"phase":"request_start"');
+});
+
 test('createRequestExecutionScope rejects tenant requests without an active lease', async () => {
   await expect(
     createRequestExecutionScope({
@@ -67,6 +114,40 @@ test('createRequestExecutionScope rejects tenant requests without an active leas
   ).rejects.toThrow(/Lease is not active/);
 });
 
+test('tenant lease rejection flushes diagnostics into the effective session request log', async () => {
+  const sessionStore = makeSessionStore('agent-device-request-scope-');
+  const requestId = 'tenant-lease-rejection';
+  let flushedPath: string | null = null;
+
+  await withDiagnosticsScope({ command: 'snapshot', requestId, logPath: LOG_PATH }, async () => {
+    await expect(
+      createRequestExecutionScope({
+        req: makeRequest({
+          session: 'default',
+          command: 'snapshot',
+          meta: {
+            tenantId: 'tenant-a',
+            runId: 'run-1',
+            leaseId: '0'.repeat(32),
+            sessionIsolation: 'tenant',
+            requestId,
+          },
+        }),
+        sessionStore,
+        leaseRegistry: new LeaseRegistry(),
+      }),
+    ).rejects.toThrow(/Lease is not active/);
+    flushedPath = flushDiagnosticsToSessionFile({ force: true });
+  });
+
+  const expectedPath = resolveSessionRequestLogPath(
+    sessionStore.resolveSessionDir('tenant-a:default'),
+    requestId,
+  );
+  expect(flushedPath).toBe(expectedPath);
+  expect(fs.readFileSync(expectedPath, 'utf8')).toContain('"phase":"request_start"');
+});
+
 test('prepareLockedRequestScope preserves existing-session selector validation', async () => {
   const sessionStore = makeSessionStore('agent-device-request-scope-');
   sessionStore.set('default', makeAndroidSession('default'));
@@ -84,7 +165,6 @@ test('prepareLockedRequestScope preserves existing-session selector validation',
   expect(() =>
     prepareLockedRequestScope({
       scope,
-      logPath: LOG_PATH,
       sessionStore,
       trackDownloadableArtifact: () => 'artifact-id',
     }),
@@ -116,7 +196,6 @@ test('prepareLockedRequestScope blocks commands for invalidated recordings befor
   const result = await withDiagnosticsScope({ command: 'snapshot', logPath: LOG_PATH }, async () =>
     prepareLockedRequestScope({
       scope,
-      logPath: LOG_PATH,
       sessionStore,
       trackDownloadableArtifact: () => 'artifact-id',
     }),
@@ -128,6 +207,28 @@ test('prepareLockedRequestScope blocks commands for invalidated recordings befor
     if (!result.response.ok) {
       expect(result.response.error.message).toBe('iOS runner session restarted during recording');
     }
+  }
+});
+
+test('prepareLockedRequestScope passes the session runner log path into handler context', async () => {
+  const sessionStore = makeSessionStore('agent-device-request-scope-');
+  sessionStore.set('default', makeIosSession('default'));
+  const scope = await createRequestExecutionScope({
+    req: makeRequest({ command: 'snapshot' }),
+    sessionStore,
+    leaseRegistry: new LeaseRegistry(),
+  });
+
+  const result = prepareLockedRequestScope({
+    scope,
+    sessionStore,
+    trackDownloadableArtifact: () => 'artifact-id',
+  });
+
+  expect(result.type).toBe('scope');
+  if (result.type === 'scope') {
+    expect(result.scope.logPath).toBe(scope.runnerLogPath);
+    expect(result.scope.contextFromFlags(undefined).logPath).toBe(scope.runnerLogPath);
   }
 });
 

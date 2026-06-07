@@ -94,3 +94,17 @@ export class SessionStore {
     return expandSessionPath(filePath, cwd);
   }
 }
+
+/** Path to session-scoped platform subprocess output, such as Apple runner xcodebuild logs. */
+export function resolveSessionRunnerLogPath(sessionDir: string): string {
+  return path.join(sessionDir, 'runner.log');
+}
+
+/** Path to request-scoped daemon diagnostics for this session. */
+export function resolveSessionRequestLogPath(
+  sessionDir: string,
+  requestId: string | undefined,
+): string {
+  const safeRequestId = safeSessionName(requestId && requestId.length > 0 ? requestId : 'unknown');
+  return path.join(sessionDir, 'requests', `${safeRequestId}.ndjson`);
+}

@@ -10,7 +10,11 @@ import {
 import { applyRuntimeHintsToApp } from '../runtime-hints.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { DaemonRequest, DaemonResponse, SessionRuntimeHints, SessionState } from '../types.ts';
-import { SessionStore } from '../session-store.ts';
+import {
+  resolveSessionRequestLogPath,
+  resolveSessionRunnerLogPath,
+  SessionStore,
+} from '../session-store.ts';
 import {
   IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
   IOS_SIMULATOR_POST_OPEN_SETTLE_MS,
@@ -24,6 +28,7 @@ import { buildNextOpenSession, buildOpenResult } from './session-open-surface.ts
 import { markAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
 import { resetAndroidFramePerfStats } from '../../platforms/android/perf.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
+import { getDiagnosticsMeta } from '../../utils/diagnostics.ts';
 import { inferAndroidPackageAfterOpen } from './session-open-target.ts';
 import {
   invalidOpenArgs,
@@ -255,10 +260,16 @@ async function completeOpenCommand(params: {
     setSessionRuntimeHintsForOpen(sessionStore, sessionName, runtime);
   }
   const sessionStateDir = sessionStore.ensureSessionDir(sessionName);
+  const requestLogPath = resolveSessionRequestLogPath(
+    sessionStateDir,
+    req.meta?.requestId ?? getDiagnosticsMeta().requestId,
+  );
   timing.totalDurationMs = Math.max(0, Date.now() - openCommandStartedAtMs);
   const openResult = buildOpenResult({
     sessionName: nextSession.name,
     sessionStateDir,
+    runnerLogPath: resolveSessionRunnerLogPath(sessionStateDir),
+    requestLogPath,
     appName,
     appBundleId: sessionAppBundleId,
     surface,

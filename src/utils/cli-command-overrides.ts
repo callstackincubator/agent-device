@@ -69,7 +69,7 @@ const CLI_COMMAND_OVERRIDES = {
     usageOverride: 'prepare ios-runner --platform ios|macos [--timeout <ms>]',
     listUsageOverride: 'prepare ios-runner --platform ios|macos',
     helpDescription:
-      'Prepare platform helper infrastructure. ios-runner builds/reuses, starts, and health-checks the XCTest runner so later Apple snapshots and interactions do not pay first-use startup cost. In CI, run it after boot/install and before replay/test.',
+      'Prepare platform helper infrastructure. ios-runner builds/reuses, starts, and health-checks the XCTest runner so later Apple snapshots and interactions do not pay first-use startup cost. In CI, run it after boot/install and before replay/test. Runner build/start output is written to the session runner.log; daemon.log is for daemon lifecycle/startup issues.',
     summary: 'Prepare platform helpers',
     positionalArgs: ['ios-runner'],
     allowedFlags: ['timeoutMs'],

@@ -110,7 +110,6 @@ export function createRequestHandler(
     const run = async (): Promise<DaemonResponse> => {
       const locked = prepareLockedRequestScope({
         scope,
-        logPath,
         sessionStore,
         trackDownloadableArtifact,
       });
@@ -154,7 +153,7 @@ export function createRequestHandler(
     const handlerResponse = await runRequestHandlerChain({
       req: lockedScope.req,
       sessionName: lockedScope.sessionName,
-      logPath,
+      logPath: lockedScope.logPath,
       sessionStore,
       leaseRegistry,
       invoke: handleRequest,
@@ -166,7 +165,11 @@ export function createRequestHandler(
     });
     if (handlerResponse) return lockedScope.finalize(handlerResponse);
 
-    return await dispatchGenericForLockedScope({ lockedScope, logPath, sessionStore });
+    return await dispatchGenericForLockedScope({
+      lockedScope,
+      logPath: lockedScope.logPath,
+      sessionStore,
+    });
   }
 
   function createReplayScopedActionInvoker(
