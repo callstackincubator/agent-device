@@ -777,7 +777,7 @@ Additional CLI-backed methods are exposed on their domain groups with typed opti
 - `client.recording.record()` and `client.recording.trace()`
 - `client.settings.update()`
 
-`client.observability.perf()` returns daemon-shaped JSON so local and remote transports expose the same metrics payload. On Android and supported Apple targets, `data.metrics.fps.droppedFramePercent` is the primary frame-smoothness value. Android derives it from the current `adb shell dumpsys gfxinfo <package> framestats` window; connected iOS devices derive it from `xcrun xctrace` Animation Hitches for the active app process. Frame samples include `windowStartedAt`, `windowEndedAt`, and `worstWindows` so agents can correlate dropped-frame clusters with logs, network entries, and their own session actions. A successful Android read resets Android frame stats; `open <app>` resets the Android frame window too, so agents can call `perf`, perform a transition or gesture, then call `perf` again to inspect that focused window. iOS simulator and macOS app sessions report frame health as unavailable rather than inventing FPS or dropped-frame values.
+`client.observability.perf()` returns daemon-shaped JSON so local and remote transports expose the same metrics payload. Pass `{ area: 'metrics' }` for the broad startup/CPU/memory/frame first pass, or `{ area: 'frames' }` for a focused frame/jank-health payload. On Android and supported Apple targets, `data.metrics.fps.droppedFramePercent` is the primary frame-smoothness value. Android derives it from the current `adb shell dumpsys gfxinfo <package> framestats` window; connected iOS devices derive it from `xcrun xctrace` Animation Hitches for the active app process. Frame samples include `windowStartedAt`, `windowEndedAt`, and `worstWindows` so agents can correlate dropped-frame clusters with logs, network entries, and their own session actions. A successful Android read resets Android frame stats; `open <app>` resets the Android frame window too, so agents can call `perf({ area: 'frames' })`, perform a transition or gesture, then call it again to inspect that focused window. iOS simulator and macOS app sessions report frame health as unavailable rather than inventing FPS or dropped-frame values.
 
 `client.recording.record({ action: 'start', path, quality: 5 })` starts a smaller 50% resolution video; omit `quality` to keep native/current resolution.
 
@@ -1510,9 +1510,12 @@ agent-device keyboard dismiss
 ```bash
 agent-device perf --json
 agent-device metrics --json
+agent-device perf metrics --json
+agent-device perf frames --json
 ```
 
-- `perf` (alias: `metrics`) returns a session-scoped metrics JSON blob.
+- `perf metrics` returns a session-scoped metrics JSON blob. Bare `perf` and `metrics` remain aliases for `perf metrics`.
+- `perf frames` returns a focused frame/jank-health JSON blob from the same frame sampling source used by `perf metrics`.
 - Without `--json`, `perf` prints a compact summary: frame health when reliable frame data is available, otherwise CPU/memory when those samples are available.
 - `startup` is sampled from `open-command-roundtrip`: elapsed wall-clock time around each `open` command dispatch for the active session app target.
 - Android app sessions with an active package also sample:
@@ -1527,10 +1530,10 @@ agent-device metrics --json
   - `startup`: iOS simulator, iOS physical device, Android emulator/device
   - `memory` and `cpu`: Android emulator/device, macOS app sessions, iOS simulators with an active app session (`open <app>` first), and iOS physical devices with an active app session
   - `fps`: Android emulator/device app sessions and connected iOS device app sessions. iOS simulator and macOS frame health is reported unavailable because Apple tooling does not expose trustworthy app hitch data there.
-- If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf`.
+- If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf metrics`.
 - Android URL/deep-link opens infer the foreground package after launch when possible, including Expo Go/dev-client shells. If the session still has no app package/bundle ID, package-bound metrics remain unavailable until you `open <app>`.
-- Android frame health is reset after each successful `perf` read and after `open <app>`, so run `perf`, perform the interaction, then run `perf` again for a focused window.
-- On physical iOS devices, `perf` records short `xcrun xctrace` Activity Monitor and Animation Hitches samples. Keep the device unlocked, connected, and the app active in the foreground while sampling.
+- Android frame health is reset after each successful `perf metrics` or `perf frames` read and after `open <app>`, so run `perf frames`, perform the interaction, then run `perf frames` again for a focused window.
+- On physical iOS devices, `perf metrics` and `perf frames` record short `xcrun xctrace` samples. Keep the device unlocked, connected, and the app active in the foreground while sampling.
 - Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.
 - CPU data is a lightweight process snapshot, so an idle app may legitimately read as `0`.
 
@@ -1556,7 +1559,7 @@ agent-device react-devtools profile report @c5
 - Use it when a React Native workflow needs component hierarchy, props, state, hooks, render causes, slow components, or re-render counts.
 - For profiling, keep the window narrow and make one bounded first-pass survey: use the `profile stop` summary, run `profile slow --limit 5` and `profile rerenders --limit 5` once, add `profile timeline --limit 20` only when commit timing matters, then drill into a specific `@c` ref with `profile report`.
 - Do not repeatedly raise broad `profile slow` limits such as `--limit 50`, `--limit 200`, or `--limit 500` unless you have a specific target that needs more rows.
-- Keep using `snapshot`, `press`, `fill`, `logs`, `network`, and `perf` for device/app runtime evidence. Use `react-devtools` for React internals.
+- Keep using `snapshot`, `press`, `fill`, `logs`, `network`, `perf metrics`, and `perf frames` for device/app runtime evidence. Use `react-devtools` for React internals.
 - For React Native apps, overlays, Metro/Fast Refresh blockers, and routing to React DevTools or debugging evidence, start with `agent-device help react-native`.
 - On Android, use `alert get`, `alert wait <short-ms>`, `alert accept`, and `alert dismiss` for runtime permission prompts and native alerts. On iOS, use the same alert commands for XCTest alerts, app-owned modal popups with native blocking markers, and blocking system dialogs. Do not use `settings permission` to answer a dialog already on screen; reserve it for setup or resetting permission state before a flow.
 - React Native development builds can connect to the DevTools daemon on port 8097. For Android emulators or physical devices, run `adb reverse tcp:8097 tcp:8097` if the app cannot reach the host.
@@ -1931,7 +1934,7 @@ Use `agent-device` when the task moves past UI automation and you need runtime e
 
 - Session app logs for targeted debugging windows
 - Network inspection from recent HTTP(s) entries in app logs via `network dump`
-- Performance snapshots with `perf` / `metrics`
+- Performance snapshots with `perf metrics` / `perf frames`
 - Screenshots, recordings, and replayable repro flows
 
 ## React Native component internals
@@ -1967,11 +1970,11 @@ agent-device logs clear --restart
 agent-device logs mark "before repro"
 agent-device press 'id="submit"'
 agent-device network dump 25 --include headers
-agent-device perf --json
+agent-device perf metrics --json
 agent-device logs path
 ```
 
-Use this flow when you need a clean repro window with logs, recent network activity, and a quick perf sample from the active app session.
+Use this flow when you need a clean repro window with logs, recent network activity, and a quick metrics sample from the active app session.
 
 `open` prints `Session state: <path>`. Inspect that directory for per-run artifacts: `requests/<request-id>.ndjson` contains daemon request diagnostics, `runner.log` contains Apple runner/`xcodebuild` output, and `app.log` contains app/device logs when log capture is active. The top-level daemon log is for daemon lifecycle/startup issues.
 
@@ -2017,12 +2020,15 @@ agent-device network dump 25 --include all
 ```bash
 agent-device perf --json
 agent-device metrics --json
+agent-device perf metrics --json
+agent-device perf frames --json
 ```
 
-- `perf` returns session-scoped startup and, where supported, CPU, memory, and Android frame-health samples.
+- `perf metrics` returns session-scoped startup and, where supported, CPU, memory, and frame-health samples. Bare `perf` and `metrics` remain aliases.
+- `perf frames` returns a focused frame/jank-health payload.
 - Startup is measured around the `open` command; it is not first-frame instrumentation.
 - CPU, memory, and Android frame-health availability depend on platform and whether the active session is bound to an app/package.
-- On Android, use `metrics.fps.droppedFramePercent` for the health check and `metrics.fps.worstWindows` to line up jank clusters with logs, network activity, or recent actions.
+- On Android and supported Apple targets, use `metrics.fps.droppedFramePercent` for the health check and `metrics.fps.worstWindows` to line up jank clusters with logs, network activity, or recent actions.
 
 ## Where to go deeper
 
