@@ -1314,8 +1314,9 @@ test('formatSnapshotText hints to use plain screenshot for sparse snapshots', ()
 
   assert.match(text, /Snapshot: 1 node/);
   assert.match(text, /Hint: sparse accessibility snapshot returned 1 node/);
-  assert.match(text, /snapshot state may be unavailable/i);
+  assert.match(text, /snapshot state is invalid or unavailable/i);
   assert.match(text, /Use plain screenshot, not screenshot --overlay-refs/);
+  assert.match(text, /If screenshot shows the Home Screen or another app, run open/);
   assert.match(text, /retry snapshot -i on the next screen/);
 });
 
