@@ -816,6 +816,36 @@ async function runAndroidAppControlAndObservabilityWorkflow(
     JSON.stringify(metrics.fps),
   );
 
+  const explicitMetrics = await client.observability.perf({ area: 'metrics', ...selection });
+  assert.deepEqual(Object.keys(explicitMetrics.metrics as Record<string, unknown>).sort(), [
+    'cpu',
+    'fps',
+    'memory',
+    'startup',
+  ]);
+
+  const frameCallStart = world.adbCalls.length;
+  const frames = await client.observability.perf({
+    area: 'frames',
+    action: 'sample',
+    ...selection,
+  });
+  const frameMetrics = frames.metrics as Record<string, any>;
+  assert.deepEqual(Object.keys(frameMetrics), ['fps']);
+  assert.equal(frameMetrics.fps?.available, true, JSON.stringify(frames));
+  assert.equal(frameMetrics.fps?.droppedFramePercent, 25);
+  assert.deepEqual(Object.keys(frames.sampling as Record<string, unknown>), ['fps']);
+  assert.deepEqual(world.adbCalls.slice(frameCallStart), [
+    ['shell', 'dumpsys', 'gfxinfo', 'com.example.demo', 'framestats'],
+    ['shell', 'dumpsys', 'gfxinfo', 'com.example.demo', 'reset'],
+  ]);
+
+  const invalidPerfAction = await world.daemon.callCommand('perf', ['metrics', 'poll'], {
+    platform: 'android',
+    serial: PROVIDER_SCENARIO_ANDROID.id,
+  });
+  assertRpcError(invalidPerfAction, 'INVALID_ARGS', /perf action must be sample/i);
+
   const logsStop = await client.observability.logs({ action: 'stop', ...selection });
   assert.equal(logsStop.stopped, true);
 

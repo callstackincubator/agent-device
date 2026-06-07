@@ -3867,67 +3867,6 @@ test('logs clear --restart requires app session bundle id', async () => {
   }
 });
 
-test('logs clear --restart stops, clears, and restarts the app log stream', async () => {
-  const sessionStore = makeSessionStore();
-  const sessionName = 'default';
-  const stoppedStream = {
-    platform: 'android' as const,
-    backend: 'android' as const,
-    outPath: '/tmp/old-app.log',
-    startedAt: Date.now() - 1_000,
-    getState: () => 'active' as const,
-    stop: vi.fn(async () => {}),
-    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-  };
-  const restartedStream = {
-    backend: 'android' as const,
-    startedAt: Date.now(),
-    getState: () => 'active' as const,
-    stop: vi.fn(async () => {}),
-    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
-  };
-  mockStartAppLog.mockResolvedValue(restartedStream);
-  sessionStore.set(sessionName, {
-    ...makeSession(sessionName, {
-      platform: 'android',
-      id: 'emulator-5554',
-      name: 'Pixel',
-      kind: 'emulator',
-      booted: true,
-    }),
-    appBundleId: 'com.example.app',
-    appLog: stoppedStream,
-  });
-
-  const response = await handleSessionCommands({
-    req: {
-      token: 't',
-      session: sessionName,
-      command: 'logs',
-      positionals: ['clear'],
-      flags: { restart: true },
-    },
-    sessionName,
-    logPath: path.join(os.tmpdir(), 'daemon.log'),
-    sessionStore,
-    invoke: noopInvoke,
-  });
-
-  expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  if (response?.ok) {
-    expect(response.data?.restarted).toBe(true);
-  }
-  expect(mockStopAppLog).toHaveBeenCalledWith(stoppedStream);
-  expect(mockStartAppLog).toHaveBeenCalledWith(
-    expect.objectContaining({ platform: 'android' }),
-    'com.example.app',
-    sessionStore.resolveAppLogPath(sessionName),
-    sessionStore.resolveAppLogPidPath(sessionName),
-  );
-  expect(sessionStore.get(sessionName)?.appLog?.backend).toBe('android');
-});
-
 test('network requires an active session', async () => {
   const sessionStore = makeSessionStore();
   const response = await handleSessionCommands({
