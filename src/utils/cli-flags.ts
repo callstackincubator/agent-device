@@ -794,7 +794,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--fail-fast'],
     type: 'boolean',
     usageLabel: '--fail-fast',
-    usageDescription: 'Test: stop the suite after the first failing script',
+    usageDescription:
+      'Test: stop the suite after the first failing script; with sharding, each shard stops independently',
   },
   {
     key: 'timeoutMs',
@@ -834,7 +835,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'int',
     min: 1,
     usageLabel: '--shard-all <n>',
-    usageDescription: 'Test: run the full suite on each of n devices',
+    usageDescription: 'Test: run the full suite on each of n devices; AD_SHARD_INDEX is zero-based',
   },
   {
     key: 'shardSplit',
@@ -842,7 +843,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'int',
     min: 1,
     usageLabel: '--shard-split <n>',
-    usageDescription: 'Test: split runnable suite entries across n devices',
+    usageDescription:
+      'Test: split runnable suite entries across n devices; AD_SHARD_INDEX is zero-based',
   },
   {
     key: 'steps',

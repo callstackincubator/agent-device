@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { asAppError } from '../../utils/errors.ts';
+import { asAppError, normalizeError } from '../../utils/errors.ts';
 import { errorResponse } from './response.ts';
 import type {
   DaemonRequest,
@@ -70,24 +70,20 @@ export async function runReplayTestSuite(
       : [];
 
     if (shardPlan) {
-      const shardResults = await Promise.all(
-        shardPlan.shards.map(
-          async (shard) =>
-            await runReplayTestShard({
-              shard,
-              sessionName,
-              suiteInvocationId,
-              cwd: req.meta?.cwd,
-              requestId: req.meta?.requestId,
-              flags: req.flags,
-              suiteArtifactsDir,
-              suiteTotal: shardPlan.total,
-              runReplay,
-              cleanupSession,
-            }),
-        ),
+      results.push(
+        ...(await runReplayTestShards({
+          shards: shardPlan.shards,
+          sessionName,
+          suiteInvocationId,
+          cwd: req.meta?.cwd,
+          requestId: req.meta?.requestId,
+          flags: req.flags,
+          suiteArtifactsDir,
+          suiteTotal: shardPlan.total,
+          runReplay,
+          cleanupSession,
+        })),
       );
-      results.push(...shardResults.flat());
     } else {
       results.push(
         ...(await runReplayTestEntriesInDiscoveryOrder({
@@ -144,6 +140,54 @@ function emitSkippedReplayTestResults(params: {
   return results;
 }
 
+async function runReplayTestShards(
+  params: {
+    shards: Array<ReplayTestShardContext & { entries: ReplayTestRunEntry[] }>;
+    sessionName: string;
+    suiteInvocationId: string;
+    cwd?: string;
+    requestId?: string;
+    flags: DaemonRequest['flags'];
+    suiteArtifactsDir: string;
+    suiteTotal: number;
+  } & ReplayTestRuntimeDependencies,
+): Promise<ReplaySuiteTestResult[]> {
+  const settled = await Promise.allSettled(
+    params.shards.map(async (shard) => await runReplayTestShard({ ...params, shard })),
+  );
+  return settled.flatMap((result, index) => {
+    if (result.status === 'fulfilled') return result.value;
+    const shard = params.shards[index];
+    return shard ? [buildUnexpectedShardFailure(shard, params.sessionName, result.reason)] : [];
+  });
+}
+
+function buildUnexpectedShardFailure(
+  shard: ReplayTestShardContext & { entries: ReplayTestRunEntry[] },
+  sessionName: string,
+  reason: unknown,
+): ReplaySuiteTestFailed {
+  const appErr = normalizeError(reason);
+  return {
+    file: shard.entries[0]?.path ?? `shard-${shard.shardIndex + 1}`,
+    session: formatReplayTestShardSessionName(sessionName, shard),
+    status: 'failed',
+    durationMs: 0,
+    attempts: 1,
+    error: {
+      code: appErr.code,
+      message: appErr.message,
+      hint: appErr.hint,
+      diagnosticId: appErr.diagnosticId,
+      logPath: appErr.logPath,
+      details: appErr.details,
+    },
+    shardIndex: shard.shardIndex,
+    shardCount: shard.shardCount,
+    deviceId: shard.device.id,
+  };
+}
+
 async function runReplayTestShard(
   params: {
     shard: ReplayTestShardContext & { entries: ReplayTestRunEntry[] };
@@ -160,9 +204,16 @@ async function runReplayTestShard(
   return await runReplayTestEntries({
     ...params,
     entries: shard.entries,
-    sessionName: `${sessionName}:shard-${shard.shardIndex + 1}`,
+    sessionName: formatReplayTestShardSessionName(sessionName, shard),
     shard,
   });
+}
+
+function formatReplayTestShardSessionName(
+  sessionName: string,
+  shard: ReplayTestShardContext,
+): string {
+  return `${sessionName}:shard-${shard.shardIndex + 1}`;
 }
 
 async function runReplayTestEntriesInDiscoveryOrder(

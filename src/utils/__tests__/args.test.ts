@@ -1033,6 +1033,9 @@ test('usageForCommand includes Maestro test suite flag', () => {
   if (help === null) throw new Error('Expected test help text');
   assert.match(help, /Run one or more replay scripts as a serial test suite/);
   assert.match(help, /--maestro/);
+  assert.match(help, /--shard-all <n>/);
+  assert.match(help, /--shard-split <n>/);
+  assert.match(help, /AD_SHARD_INDEX is zero-based/);
   assert.match(help, /Replay\/Test: inject or override/);
 });
 
@@ -1488,6 +1491,7 @@ test('command usage describes test suite flags', () => {
   assert.match(help, /Run one or more replay scripts as a serial test suite/);
   assert.match(help, /--maestro/);
   assert.match(help, /--fail-fast/);
+  assert.match(help, /each shard stops independently/);
   assert.match(help, /--timeout <ms>/);
   assert.match(help, /--retries <n>/);
   assert.match(help, /--artifacts-dir <path>/);

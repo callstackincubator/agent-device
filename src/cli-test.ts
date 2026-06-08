@@ -451,7 +451,7 @@ function appendReplaySystemOutMetadata(lines: string[], test: ReplaySuiteTestRes
     lines,
     'artifactsDir' in test && test.artifactsDir ? `artifactsDir: ${test.artifactsDir}` : undefined,
   );
-  appendOptionalLine(lines, replayTestShardMetadataLine(test));
+  appendReplayTestShardMetadata(lines, test);
   if (test.status === 'failed') {
     appendReplayFailureSystemOut(lines, test);
   }
@@ -465,14 +465,17 @@ function formatReplayTestShardSuffix(result: ReplaySuiteTestResult): string {
   return ` [shard ${result.shardIndex + 1}/${shardCount}${device}]`;
 }
 
-function replayTestShardMetadataLine(result: ReplaySuiteTestResult): string | undefined {
-  if (!('shardIndex' in result) || typeof result.shardIndex !== 'number') return undefined;
-  const values = [
-    `shardIndex: ${result.shardIndex}`,
-    typeof result.shardCount === 'number' ? `shardCount: ${result.shardCount}` : '',
-    typeof result.deviceId === 'string' ? `deviceId: ${result.deviceId}` : '',
-  ].filter(Boolean);
-  return values.join('\n');
+function appendReplayTestShardMetadata(lines: string[], result: ReplaySuiteTestResult): void {
+  if (!('shardIndex' in result) || typeof result.shardIndex !== 'number') return;
+  lines.push(`shardIndex: ${result.shardIndex}`);
+  appendOptionalLine(
+    lines,
+    typeof result.shardCount === 'number' ? `shardCount: ${result.shardCount}` : undefined,
+  );
+  appendOptionalLine(
+    lines,
+    typeof result.deviceId === 'string' ? `deviceId: ${result.deviceId}` : undefined,
+  );
 }
 
 function appendReplayFailureSystemOut(

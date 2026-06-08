@@ -33,6 +33,7 @@ export async function buildReplayTestShardPlan<TEntry>(
 ): Promise<ReplayTestShardPlan<TEntry> | undefined> {
   const mode = readReplayTestShardMode(flags);
   if (!mode) return undefined;
+  if (runnableEntries.length === 0) return undefined;
 
   const devices = await resolveReplayTestShardDevices(flags, mode.count);
   return {
@@ -139,7 +140,9 @@ function selectReplayTestShardDevices(
   if (explicitSelectors.length > 0) {
     return resolveExplicitShardDevices(inventory, explicitSelectors, flags);
   }
-  return inventory.filter((device) => isImplicitShardDevice(device, flags));
+  return inventory
+    .filter((device) => isImplicitShardDevice(device, flags))
+    .sort(compareShardDevices);
 }
 
 function formatDeviceCount(count: number): string {
@@ -188,4 +191,8 @@ function isShardDeviceCandidate(device: DeviceInfo, flags: CommandFlags | undefi
 
 function normalizeDeviceName(value: string): string {
   return value.toLowerCase().replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function compareShardDevices(a: DeviceInfo, b: DeviceInfo): number {
+  return a.id.localeCompare(b.id);
 }
