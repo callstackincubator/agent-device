@@ -1,4 +1,4 @@
-import { listDeviceInventory } from '../../core/dispatch-resolve.ts';
+import { listDeviceInventory, type DeviceInventoryRequest } from '../../core/dispatch-resolve.ts';
 import {
   resolveAndroidSerialAllowlist,
   resolveIosSimulatorDeviceSetPath,
@@ -100,9 +100,24 @@ async function resolveReplayTestShardDevices(
   flags: CommandFlags | undefined,
   shardCount: number,
 ): Promise<DeviceInfo[]> {
-  const androidSerialAllowlist = resolveAndroidSerialAllowlist(flags?.androidDeviceAllowlist);
   const explicitSelectors = explicitShardDeviceSelectors(flags);
-  const inventory = await listDeviceInventory({
+  const inventory = await listDeviceInventory(buildReplayTestShardInventoryRequest(flags));
+  const devices = selectReplayTestShardDevices(inventory, explicitSelectors, flags);
+
+  if (devices.length < shardCount) {
+    throw new AppError(
+      'DEVICE_NOT_FOUND',
+      `test sharding requires ${formatDeviceCount(shardCount)}, but only ${devices.length} matched`,
+    );
+  }
+  return devices.slice(0, shardCount);
+}
+
+function buildReplayTestShardInventoryRequest(
+  flags: CommandFlags | undefined,
+): DeviceInventoryRequest {
+  const androidSerialAllowlist = resolveAndroidSerialAllowlist(flags?.androidDeviceAllowlist);
+  return {
     platform: flags?.platform,
     target: flags?.target,
     iosSimulatorSetPath: resolveAppleSimulatorSetPathForSelector({
@@ -113,19 +128,22 @@ async function resolveReplayTestShardDevices(
     androidSerialAllowlist: androidSerialAllowlist
       ? Array.from(androidSerialAllowlist).sort()
       : undefined,
-  });
-  const devices =
-    explicitSelectors.length > 0
-      ? resolveExplicitShardDevices(inventory, explicitSelectors, flags)
-      : inventory.filter((device) => isImplicitShardDevice(device, flags));
+  };
+}
 
-  if (devices.length < shardCount) {
-    throw new AppError(
-      'DEVICE_NOT_FOUND',
-      `test sharding requires ${shardCount} device${shardCount === 1 ? '' : 's'}, but only ${devices.length} matched`,
-    );
+function selectReplayTestShardDevices(
+  inventory: DeviceInfo[],
+  explicitSelectors: string[],
+  flags: CommandFlags | undefined,
+): DeviceInfo[] {
+  if (explicitSelectors.length > 0) {
+    return resolveExplicitShardDevices(inventory, explicitSelectors, flags);
   }
-  return devices.slice(0, shardCount);
+  return inventory.filter((device) => isImplicitShardDevice(device, flags));
+}
+
+function formatDeviceCount(count: number): string {
+  return `${count} device${count === 1 ? '' : 's'}`;
 }
 
 function explicitShardDeviceSelectors(flags: CommandFlags | undefined): string[] {
