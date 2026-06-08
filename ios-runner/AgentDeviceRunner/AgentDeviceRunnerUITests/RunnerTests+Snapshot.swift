@@ -40,6 +40,12 @@ extension RunnerTests {
     let visible: Bool
   }
 
+  private enum SnapshotTraversalCapture {
+    case context(SnapshotTraversalContext)
+    case fallback(DataPayload)
+    case empty
+  }
+
   struct SnapshotCaptureFailure: Error {
     let code: String
     let message: String
@@ -96,16 +102,18 @@ extension RunnerTests {
       return blocking
     }
 
-    let capture = try snapshotTraversalContextOrFallback(
+    let capture = try captureSnapshotTraversalContext(
       app: app,
       options: options,
       allowInteractiveUnavailableFallback: true
     )
-    if let fallback = capture.fallback {
+    let context: SnapshotTraversalContext
+    switch capture {
+    case .context(let traversalContext):
+      context = traversalContext
+    case .fallback(let fallback):
       return fallback
-    }
-
-    guard let context = capture.context else {
+    case .empty:
       return DataPayload(nodes: [], truncated: false)
     }
 
@@ -216,16 +224,18 @@ extension RunnerTests {
       return blocking
     }
 
-    let capture = try snapshotTraversalContextOrFallback(
+    let capture = try captureSnapshotTraversalContext(
       app: app,
       options: options,
       allowInteractiveUnavailableFallback: false
     )
-    if let fallback = capture.fallback {
+    let context: SnapshotTraversalContext
+    switch capture {
+    case .context(let traversalContext):
+      context = traversalContext
+    case .fallback(let fallback):
       return fallback
-    }
-
-    guard let context = capture.context else {
+    case .empty:
       return DataPayload(nodes: [], truncated: false)
     }
 
@@ -352,23 +362,26 @@ extension RunnerTests {
     )
   }
 
-  private func snapshotTraversalContextOrFallback(
+  private func captureSnapshotTraversalContext(
     app: XCUIApplication,
     options: SnapshotOptions,
     allowInteractiveUnavailableFallback: Bool
-  ) throws -> (context: SnapshotTraversalContext?, fallback: DataPayload?) {
+  ) throws -> SnapshotTraversalCapture {
     do {
-      return (try makeSnapshotTraversalContext(app: app, options: options), nil)
+      guard let context = try makeSnapshotTraversalContext(app: app, options: options) else {
+        return .empty
+      }
+      return .context(context)
     } catch let failure as SnapshotCaptureFailure {
       if let fallback = snapshotDepthLimitedAccessibilityFallback(
         app: app,
         options: options,
         failure: failure
       ) {
-        return (nil, fallback)
+        return .fallback(fallback)
       }
       if allowInteractiveUnavailableFallback && options.interactiveOnly {
-        return (nil, snapshotAccessibilityUnavailable(failure: failure))
+        return .fallback(snapshotAccessibilityUnavailable(failure: failure))
       }
       throw failure
     }
@@ -388,8 +401,7 @@ extension RunnerTests {
       failure.message
     )
 
-    let fallbackDepth = max(0, requestedDepth)
-    if fallbackDepth == 0 {
+    if requestedDepth <= 0 {
       return sparseTruncatedSnapshotPayload(message: failure.message)
     }
 
@@ -398,7 +410,7 @@ extension RunnerTests {
       options: SnapshotOptions(
         interactiveOnly: true,
         compact: options.compact,
-        depth: fallbackDepth,
+        depth: requestedDepth,
         scope: options.scope,
         raw: false
       )
@@ -638,12 +650,8 @@ extension RunnerTests {
 
   private static func isAxIllegalArgument(_ message: String) -> Bool {
     let normalized = message.lowercased()
-    return hasAxIllegalArgumentCode(normalized)
+    return normalized.contains("kaxerrorillegalargument")
       || (normalized.contains("illegal argument") && normalized.contains("snapshot"))
-  }
-
-  private static func hasAxIllegalArgumentCode(_ message: String) -> Bool {
-    return message.lowercased().contains("kaxerrorillegalargument")
   }
 
   private func evaluateSnapshot(
@@ -1086,13 +1094,6 @@ extension RunnerTests {
       return nil
     }
     return node
-  }
-
-  private func nonEmptyElementText(_ read: () -> String) -> String? {
-    let value = safely("SNAPSHOT_FLAT_TEXT", "") {
-      read()
-    }.trimmingCharacters(in: .whitespacesAndNewlines)
-    return value.isEmpty ? nil : value
   }
 
   private func isScrollableContainer(_ snapshot: XCUIElementSnapshot, visible: Bool) -> Bool {
