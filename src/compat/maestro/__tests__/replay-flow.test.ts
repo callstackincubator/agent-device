@@ -67,7 +67,7 @@ env:
       ['type', ['Ada Lovelace']],
       [
         '__maestroAssertVisible',
-        ['label="Checkout form" || text="Checkout form" || id="Checkout form"', '7000'],
+        ['label="Checkout form" || text="Checkout form" || id="Checkout form"', '17000'],
       ],
       [
         '__maestroAssertNotVisible',
@@ -368,7 +368,7 @@ test('parseMaestroReplayFlow preserves selector state and absolute swipe command
   assert.deepEqual(
     parsed.actions.map((entry) => [entry.command, entry.positionals]),
     [
-      ['__maestroAssertVisible', ['id="shipping-pickup" selected="true"', '7000']],
+      ['__maestroAssertVisible', ['id="shipping-pickup" selected="true"', '17000']],
       ['swipe', ['100', '500', '100', '200', '300']],
     ],
   );
@@ -387,6 +387,20 @@ test('parseMaestroReplayFlow maps extendedWaitUntil.notVisible through Maestro v
   assert.deepEqual(
     parsed.actions.map((entry) => [entry.command, entry.positionals]),
     [['__maestroAssertNotVisible', ['label="Loading" || text="Loading" || id="Loading"', '1200']]],
+  );
+});
+
+test('parseMaestroReplayFlow applies the Maestro default to extendedWaitUntil.visible', () => {
+  const parsed = parseMaestroReplayFlow(`appId: com.callstack.agentdevicelab
+---
+- extendedWaitUntil:
+    visible:
+      text: Ready
+`);
+
+  assert.deepEqual(
+    parsed.actions.map((entry) => [entry.command, entry.positionals]),
+    [['__maestroAssertVisible', ['label="Ready" || text="Ready" || id="Ready"', '17000']]],
   );
 });
 
@@ -628,7 +642,7 @@ test('parseMaestroReplayFlow keeps retry commands for runtime evaluation', () =>
     control.actions.map((entry) => [entry.command, entry.positionals, entry.flags]),
     [
       ['open', ['example://details'], {}],
-      ['__maestroAssertVisible', ['label="Article" || text="Article" || id="Article"', '7000'], {}],
+      ['__maestroAssertVisible', ['label="Article" || text="Article" || id="Article"', '17000'], {}],
     ],
   );
 });

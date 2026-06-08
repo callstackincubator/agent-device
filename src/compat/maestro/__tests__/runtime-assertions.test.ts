@@ -30,7 +30,7 @@ test('invokeMaestroAssertVisible takes a terminal snapshot when the last miss st
       session: 's',
       flags: { platform: 'android' },
     },
-    positionals: ['label="Details is preloaded!"', '5000'],
+    positionals: ['id="details-preloaded"', '5000'],
     invoke: async (): Promise<DaemonResponse> => {
       snapshots += 1;
       if (snapshots === 1) {
@@ -40,7 +40,7 @@ test('invokeMaestroAssertVisible takes a terminal snapshot when the last miss st
         ok: true,
         data: {
           createdAt: 2,
-          nodes: [node('Details is preloaded!')],
+          nodes: [node('Details is preloaded!', { identifier: 'details-preloaded' })],
         },
       };
     },
@@ -65,7 +65,7 @@ test('invokeMaestroAssertVisible retries transient snapshot failures until a lat
       session: 's',
       flags: { platform: 'android' },
     },
-    positionals: ['label="Ready"', '1000'],
+    positionals: ['id="ready-state"', '1000'],
     invoke: async (): Promise<DaemonResponse> => {
       snapshots += 1;
       if (snapshots === 1) {
@@ -78,7 +78,7 @@ test('invokeMaestroAssertVisible retries transient snapshot failures until a lat
         ok: true,
         data: {
           createdAt: 2,
-          nodes: [node('Ready')],
+          nodes: [node('Ready', { identifier: 'ready-state' })],
         },
       };
     },
@@ -96,40 +96,7 @@ test('invokeMaestroAssertVisible retries transient snapshot failures until a lat
   }
 });
 
-test('invokeMaestroAssertVisible does not dismiss React Native overlays during native iOS wait', async () => {
-  const calls: Array<[string, string[] | undefined]> = [];
-  let waits = 0;
-  const response = await invokeMaestroAssertVisible({
-    baseReq: {
-      token: 't',
-      session: 's',
-      flags: { platform: 'ios' },
-    },
-    positionals: ['label="Ready" || text="Ready" || id="Ready"', '60000'],
-    invoke: async (req): Promise<DaemonResponse> => {
-      calls.push([req.command, req.positionals]);
-      if (req.command === 'wait') {
-        waits += 1;
-        if (waits === 1) {
-          return {
-            ok: false,
-            error: {
-              code: 'COMMAND_FAILED',
-              message: 'wait timed out for text: Ready. Current surface: Uncaught error',
-            },
-          };
-        }
-        return { ok: true, data: { matches: 1 } };
-      }
-      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
-    },
-  });
-
-  assert.equal(response.ok, false);
-  assert.deepEqual(calls, [['wait', ['Ready', '60000']]]);
-});
-
-test('invokeMaestroAssertVisible uses snapshot resolution for short iOS assertions', async () => {
+test('invokeMaestroAssertVisible uses native wait for short simple iOS assertions', async () => {
   const calls: Array<[string, string[] | undefined]> = [];
   const response = await invokeMaestroAssertVisible({
     baseReq: {
@@ -140,6 +107,56 @@ test('invokeMaestroAssertVisible uses snapshot resolution for short iOS assertio
     positionals: ['label="Ready" || text="Ready" || id="Ready"', '1000'],
     invoke: async (req): Promise<DaemonResponse> => {
       calls.push([req.command, req.positionals]);
+      if (req.command === 'wait') {
+        return { ok: true, data: { matches: 1 } };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(calls, [['wait', ['Ready', '1000']]]);
+});
+
+test('invokeMaestroAssertVisible uses the Maestro default timeout when omitted', async () => {
+  const calls: Array<[string, string[] | undefined]> = [];
+  const response = await invokeMaestroAssertVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['label="Ready" || text="Ready" || id="Ready"'],
+    invoke: async (req): Promise<DaemonResponse> => {
+      calls.push([req.command, req.positionals]);
+      if (req.command === 'wait') {
+        return { ok: true, data: { matches: 1 } };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(calls, [['wait', ['Ready', '17000']]]);
+});
+
+test('invokeMaestroAssertVisible falls back to one snapshot after native wait misses', async () => {
+  const calls: Array<[string, string[] | undefined]> = [];
+  const response = await invokeMaestroAssertVisible({
+    baseReq: {
+      token: 't',
+      session: 's',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['label="Ready" || text="Ready" || id="Ready"', '1000'],
+    invoke: async (req): Promise<DaemonResponse> => {
+      calls.push([req.command, req.positionals]);
+      if (req.command === 'wait') {
+        return {
+          ok: false,
+          error: { code: 'COMMAND_FAILED', message: 'wait timed out for text: Ready' },
+        };
+      }
       if (req.command === 'snapshot') {
         return {
           ok: true,
@@ -151,10 +168,13 @@ test('invokeMaestroAssertVisible uses snapshot resolution for short iOS assertio
   });
 
   assert.equal(response.ok, true);
-  assert.deepEqual(calls, [['snapshot', []]]);
+  assert.deepEqual(calls, [
+    ['wait', ['Ready', '1000']],
+    ['snapshot', []],
+  ]);
 });
 
-test('invokeMaestroAssertVisible falls back to raw snapshot shaping when optimized snapshot misses', async () => {
+test('invokeMaestroAssertVisible does not use raw fallback for iOS snapshot misses', async () => {
   const snapshotFlags: Array<DaemonRequest['flags']> = [];
   const response = await invokeMaestroAssertVisible({
     baseReq: {
@@ -166,23 +186,15 @@ test('invokeMaestroAssertVisible falls back to raw snapshot shaping when optimiz
     invoke: async (req): Promise<DaemonResponse> => {
       if (req.command === 'snapshot') {
         snapshotFlags.push(req.flags);
-        return {
-          ok: true,
-          data:
-            req.flags?.snapshotRaw === true
-              ? snapshot([node('Chat', { identifier: 'chat' })])
-              : snapshot([]),
-        };
+        return { ok: true, data: snapshot([]) };
       }
       return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
     },
   });
 
-  assert.equal(response.ok, true);
-  assert.equal(snapshotFlags.length, 2);
-  assert.equal(snapshotFlags[0]?.snapshotRaw, undefined);
-  assert.equal(snapshotFlags[1]?.snapshotRaw, true);
-  assert.equal(snapshotFlags[1]?.snapshotForceFull, undefined);
+  assert.equal(response.ok, false);
+  assert.ok(snapshotFlags.length > 1);
+  assert.equal(snapshotFlags.some((flags) => flags?.snapshotRaw === true), false);
 });
 
 test('invokeMaestroAssertVisible does not use raw fallback for Android identifiers', async () => {
@@ -286,17 +298,25 @@ test('invokeMaestroAssertVisible treats an elapsed ellipsis loading gate as alre
       },
     },
     positionals: ['label="Loading…" || text="Loading…" || id="Loading…"', '1000'],
-    invoke: async (): Promise<DaemonResponse> => ({
-      ok: true,
-      data: snapshot([node('Dashboard')]),
-    }),
+    invoke: async (req): Promise<DaemonResponse> => {
+      if (req.command === 'wait') {
+        return {
+          ok: false,
+          error: { code: 'COMMAND_FAILED', message: 'wait timed out for text: Loading…' },
+        };
+      }
+      return {
+        ok: true,
+        data: snapshot([node('Dashboard')]),
+      };
+    },
   });
 
   assert.equal(response.ok, true);
   if (response.ok) {
     assert.ok(response.data);
     assert.equal(response.data.alreadyPastLoading, true);
-    assert.equal(response.data.waitedMs, 250);
+    assert.equal(response.data.timeoutMs, 1000);
   }
 });
 
@@ -312,6 +332,12 @@ test('invokeMaestroAssertVisible reports React Native overlays during snapshot a
     positionals: ['label="Ready" || text="Ready" || id="Ready"', '1000'],
     invoke: async (req): Promise<DaemonResponse> => {
       calls.push([req.command, req.positionals]);
+      if (req.command === 'wait') {
+        return {
+          ok: false,
+          error: { code: 'COMMAND_FAILED', message: 'wait timed out for text: Ready' },
+        };
+      }
       if (req.command === 'snapshot') {
         snapshots += 1;
         return {
@@ -345,7 +371,10 @@ test('invokeMaestroAssertVisible reports React Native overlays during snapshot a
   if (!response.ok) {
     assert.match(response.error.message, /React Native overlay is covering app content/);
   }
-  assert.deepEqual(calls, [['snapshot', []]]);
+  assert.deepEqual(calls, [
+    ['wait', ['Ready', '1000']],
+    ['snapshot', []],
+  ]);
 });
 
 test('invokeMaestroAssertVisible fails fast when a RedBox has no dismiss target', async () => {
@@ -359,6 +388,12 @@ test('invokeMaestroAssertVisible fails fast when a RedBox has no dismiss target'
     positionals: ['label="Ready" || text="Ready" || id="Ready"', '1000'],
     invoke: async (req): Promise<DaemonResponse> => {
       calls.push([req.command, req.positionals]);
+      if (req.command === 'wait') {
+        return {
+          ok: false,
+          error: { code: 'COMMAND_FAILED', message: 'wait timed out for text: Ready' },
+        };
+      }
       if (req.command === 'snapshot') {
         return {
           ok: true,
@@ -387,7 +422,10 @@ test('invokeMaestroAssertVisible fails fast when a RedBox has no dismiss target'
   if (!response.ok) {
     assert.match(response.error.message, /React Native overlay is covering app content/);
   }
-  assert.deepEqual(calls, [['snapshot', []]]);
+  assert.deepEqual(calls, [
+    ['wait', ['Ready', '1000']],
+    ['snapshot', []],
+  ]);
 });
 
 test('invokeMaestroAssertNotVisible passes after a slow hidden sample exhausts the timeout', async () => {

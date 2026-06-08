@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import type { DaemonRequest, DaemonResponse } from '../../../daemon/types.ts';
 import type { SnapshotState } from '../../../utils/snapshot.ts';
 import {
@@ -50,6 +50,38 @@ test('invokeMaestroTapOn uses regular snapshots by default', async () => {
   expect(snapshotFlags[0]?.snapshotInteractiveOnly).toBeUndefined();
   expect(snapshotFlags[0]?.snapshotRaw).toBeUndefined();
   expect(snapshotFlags[0]?.snapshotForceFull).toBeUndefined();
+});
+
+test('invokeMaestroTapOn does not use raw fallback for regular snapshot misses', async () => {
+  vi.useFakeTimers();
+  const snapshotFlags: Array<DaemonRequest['flags']> = [];
+  const responsePromise = invokeMaestroTapOn({
+    baseReq: {
+      token: 'test',
+      session: 'bottom-tabs',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['id="article"'],
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        snapshotFlags.push(req.flags);
+        return { ok: true, data: truncatedContentSnapshot() };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  try {
+    await vi.advanceTimersByTimeAsync(30_000);
+    const response = await responsePromise;
+
+    expect(response.ok).toBe(false);
+    expect(snapshotFlags.length).toBeGreaterThan(1);
+    expect(snapshotFlags.some((flags) => flags?.snapshotInteractiveOnly === true)).toBe(false);
+    expect(snapshotFlags.some((flags) => flags?.snapshotRaw === true)).toBe(false);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test('invokeMaestroSwipeOn does not use interactive fallback for truncated regular snapshot misses', async () => {

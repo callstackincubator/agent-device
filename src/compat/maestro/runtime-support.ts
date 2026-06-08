@@ -10,7 +10,6 @@ import type {
 } from '../../daemon/types.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';
-import { emitDiagnostic } from '../../utils/diagnostics.ts';
 
 export type ReplayBaseRequest = Omit<DaemonRequest, 'command' | 'positionals'>;
 
@@ -62,22 +61,6 @@ export async function captureMaestroSnapshot(params: {
 
 export function readSnapshotState(data: DaemonResponseData | undefined): SnapshotState | undefined {
   return Array.isArray(data?.nodes) ? (data as SnapshotState) : undefined;
-}
-
-export function shouldUseMaestroRawSnapshotFallback(baseReq: ReplayBaseRequest): boolean {
-  return baseReq.flags?.platform === 'ios';
-}
-
-export function emitMaestroRawSnapshotFallbackDiagnostic(command: string, selector: string): void {
-  emitDiagnostic({
-    level: 'debug',
-    phase: 'maestro_raw_snapshot_fallback',
-    data: {
-      command,
-      selector,
-      reason: 'regular_snapshot_missed',
-    },
-  });
 }
 
 export function readCachedMaestroReferenceFrame(

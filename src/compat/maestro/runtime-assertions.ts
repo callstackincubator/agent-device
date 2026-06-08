@@ -8,11 +8,9 @@ import { buildSnapshotDisplayLines } from '../../utils/snapshot-lines.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import {
   captureMaestroSnapshot,
-  emitMaestroRawSnapshotFallbackDiagnostic,
   errorResponse,
   rememberMaestroVisibleContext,
   readSnapshotState,
-  shouldUseMaestroRawSnapshotFallback,
   type MaestroRuntimeInvoke,
   type ReplayBaseRequest,
 } from './runtime-support.ts';
@@ -28,7 +26,6 @@ const MAESTRO_ASSERTION_POLICY = {
   assertVisiblePollMs: 250,
   assertNotVisiblePollMs: 250,
   defaultAssertNotVisibleTimeoutMs: 3000,
-  minNativeVisibleWaitTimeoutMs: 30000,
 } as const;
 
 type MaestroVisibilitySample =
@@ -45,57 +42,63 @@ type MaestroVisibilityAssertionArgs = {
   timeoutMs: number;
 };
 
-export async function invokeMaestroAssertVisible(params: {
+type MaestroAssertionRuntimeParams = {
   baseReq: ReplayBaseRequest;
-  positionals: string[];
   invoke: MaestroRuntimeInvoke;
   scope?: ReplayVarScope;
-}): Promise<DaemonResponse> {
+};
+
+type MaestroAssertionRequestParams = MaestroAssertionRuntimeParams & {
+  positionals: string[];
+};
+
+type DaemonFailureResponse = Extract<DaemonResponse, { ok: false }>;
+
+export async function invokeMaestroAssertVisible(
+  params: MaestroAssertionRequestParams,
+): Promise<DaemonResponse> {
   const args = readVisibilityAssertionArgs(params.positionals, {
     command: 'assertVisible',
-    defaultTimeoutMs: 7000,
+    defaultTimeoutMs: 17000,
   });
   if (!args.ok) return args.response;
 
-  const nativeWaitQuery = readNativeVisibleWaitQuery(params.baseReq, args.selector, args.timeoutMs);
+  const nativeWaitQuery = readNativeVisibleWaitQuery(params.baseReq, args.selector);
   if (nativeWaitQuery) {
-    return await invokeNativeMaestroVisibleWait(params, args, nativeWaitQuery);
+    return await invokeNativeMaestroVisibleWaitWithSnapshotFallback(params, args, nativeWaitQuery);
   }
 
   return await invokeSnapshotMaestroAssertVisible(params, args);
 }
 
-async function invokeNativeMaestroVisibleWait(
-  params: {
-    baseReq: ReplayBaseRequest;
-    invoke: MaestroRuntimeInvoke;
-  },
+async function invokeNativeMaestroVisibleWaitWithSnapshotFallback(
+  params: MaestroAssertionRuntimeParams,
   args: MaestroVisibilityAssertionArgs,
   nativeWaitQuery: string,
 ): Promise<DaemonResponse> {
   const nativeStartedAt = Date.now();
   const nativeResponse = await runNativeVisibleWait(params, args, nativeWaitQuery);
-  if (!nativeResponse.ok) return nativeResponse;
-  return visibleAssertionResponse(
-    {
-      ok: true,
-      data: {
-        selector: args.selector,
-        nativeWait: true,
-        query: nativeWaitQuery,
-        response: nativeResponse.data,
+  if (nativeResponse.ok) {
+    return visibleAssertionResponse(
+      {
+        ok: true,
+        data: {
+          selector: args.selector,
+          nativeWait: true,
+          query: nativeWaitQuery,
+          response: nativeResponse.data,
+        },
       },
-    },
-    args.selector,
-    nativeStartedAt,
-  );
+      args.selector,
+      nativeStartedAt,
+    );
+  }
+
+  return await invokeSingleSnapshotMaestroAssertVisible(params, args, nativeResponse, nativeStartedAt);
 }
 
 async function runNativeVisibleWait(
-  params: {
-    baseReq: ReplayBaseRequest;
-    invoke: MaestroRuntimeInvoke;
-  },
+  params: MaestroAssertionRuntimeParams,
   args: MaestroVisibilityAssertionArgs,
   nativeWaitQuery: string,
 ): Promise<DaemonResponse> {
@@ -107,11 +110,7 @@ async function runNativeVisibleWait(
 }
 
 async function invokeSnapshotMaestroAssertVisible(
-  params: {
-    baseReq: ReplayBaseRequest;
-    invoke: MaestroRuntimeInvoke;
-    scope?: ReplayVarScope;
-  },
+  params: MaestroAssertionRuntimeParams,
   args: MaestroVisibilityAssertionArgs,
 ): Promise<DaemonResponse> {
   // Native wait/is cannot replace this loop: wait only proves existence, while
@@ -123,9 +122,7 @@ async function invokeSnapshotMaestroAssertVisible(
   let capturedAfterDeadline = false;
   while (true) {
     const captureStartedAt = Date.now();
-    const sample = await readMaestroVisibilitySample(params, args.selector, 'assertVisible', {
-      rawFallback: true,
-    });
+    const sample = await readMaestroVisibilitySample(params, args.selector, 'assertVisible');
     if (sample.visible) return visibleAssertionResponse(sample.response, args.selector, startedAt);
     lastResponse = sample.response;
     lastSnapshot = sample.snapshot ?? lastSnapshot;
@@ -153,6 +150,19 @@ async function invokeSnapshotMaestroAssertVisible(
       timeoutMs: args.timeoutMs,
     });
   return withMaestroFailureSnapshotArtifacts(response, lastSnapshot, params.baseReq);
+}
+
+async function invokeSingleSnapshotMaestroAssertVisible(
+  params: MaestroAssertionRuntimeParams,
+  args: MaestroVisibilityAssertionArgs,
+  fallbackResponse: DaemonFailureResponse,
+  startedAt: number,
+): Promise<DaemonResponse> {
+  const sample = await readMaestroVisibilitySample(params, args.selector, 'assertVisible');
+  if (sample.visible) return visibleAssertionResponse(sample.response, args.selector, startedAt);
+  const failedSample = handleFailedVisibleSample(params.baseReq, args, sample, startedAt);
+  if (failedSample.kind === 'return') return failedSample.response;
+  return withMaestroFailureSnapshotArtifacts(fallbackResponse, sample.snapshot, params.baseReq);
 }
 
 function handleFailedVisibleSample(
@@ -214,11 +224,8 @@ function isReactNativeOverlayBlockingAssertion(response: DaemonResponse): boolea
 function readNativeVisibleWaitQuery(
   baseReq: ReplayBaseRequest,
   selector: string,
-  timeoutMs: number,
 ): string | null {
-  if (baseReq.flags?.platform !== 'ios') return null;
-  if (baseReq.flags?.maestro?.allowAlreadyPastLoading === true) return null;
-  if (timeoutMs < MAESTRO_ASSERTION_POLICY.minNativeVisibleWaitTimeoutMs) return null;
+  if (baseReq.flags?.platform !== 'ios' && baseReq.flags?.platform !== 'android') return null;
   return extractMaestroVisibleTextQuery(selector);
 }
 
@@ -263,36 +270,16 @@ function readVisibilityAssertionArgs(
 }
 
 async function readMaestroVisibilitySample(
-  params: {
-    baseReq: ReplayBaseRequest;
-    invoke: MaestroRuntimeInvoke;
-    scope?: ReplayVarScope;
-  },
+  params: MaestroAssertionRuntimeParams,
   selector: string,
   command: string,
-  options: { rawFallback?: boolean } = {},
 ): Promise<MaestroVisibilitySample> {
   const response = await captureMaestroSnapshot(params);
-  const sample = readMaestroVisibilitySampleFromResponse(params, selector, command, response);
-  if (sample.visible || sample.infrastructureFailure) return sample;
-  if (
-    !options.rawFallback ||
-    !shouldUseMaestroRawSnapshotFallback(params.baseReq) ||
-    isReactNativeOverlayBlockingAssertion(sample.response)
-  ) {
-    return sample;
-  }
-
-  emitMaestroRawSnapshotFallbackDiagnostic(command, selector);
-  const rawResponse = await captureMaestroSnapshot({ ...params, raw: true });
-  return readMaestroVisibilitySampleFromResponse(params, selector, command, rawResponse);
+  return readMaestroVisibilitySampleFromResponse(params, selector, command, response);
 }
 
 function readMaestroVisibilitySampleFromResponse(
-  params: {
-    baseReq: ReplayBaseRequest;
-    scope?: ReplayVarScope;
-  },
+  params: Pick<MaestroAssertionRuntimeParams, 'baseReq' | 'scope'>,
   selector: string,
   command: string,
   response: DaemonResponse,
@@ -448,11 +435,9 @@ function shouldCaptureOnceAfterDeadline(
   return !capturedAfterDeadline && captureStartedAt - startedAt < deadlineMs;
 }
 
-export async function invokeMaestroAssertNotVisible(params: {
-  baseReq: ReplayBaseRequest;
-  positionals: string[];
-  invoke: MaestroRuntimeInvoke;
-}): Promise<DaemonResponse> {
+export async function invokeMaestroAssertNotVisible(
+  params: MaestroAssertionRequestParams,
+): Promise<DaemonResponse> {
   const args = readVisibilityAssertionArgs(params.positionals, {
     command: 'assertNotVisible',
     defaultTimeoutMs: MAESTRO_ASSERTION_POLICY.defaultAssertNotVisibleTimeoutMs,
@@ -508,11 +493,9 @@ export async function invokeMaestroAssertNotVisible(params: {
   });
 }
 
-export async function invokeMaestroWaitForAnimationToEnd(params: {
-  baseReq: ReplayBaseRequest;
-  positionals: string[];
-  invoke: MaestroRuntimeInvoke;
-}): Promise<DaemonResponse> {
+export async function invokeMaestroWaitForAnimationToEnd(
+  params: MaestroAssertionRequestParams,
+): Promise<DaemonResponse> {
   const timeoutMs = Number(params.positionals[0] ?? 15000);
   if (!Number.isFinite(timeoutMs) || timeoutMs < 0) {
     return errorResponse('INVALID_ARGS', 'waitForAnimationToEnd timeout must be a number.');

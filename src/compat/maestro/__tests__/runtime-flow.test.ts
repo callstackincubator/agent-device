@@ -64,7 +64,7 @@ test('invokeMaestroRunFlowWhenControl waits briefly for visible conditions', asy
   }
 });
 
-test('invokeMaestroRunFlowWhenControl falls back to raw iOS snapshots after optimized miss', async () => {
+test('invokeMaestroRunFlowWhenControl uses regular iOS snapshots for visible conditions', async () => {
   const snapshotFlags: Array<DaemonRequest['flags']> = [];
   const invokedActions: SessionAction[] = [];
   const actions: SessionAction[] = [
@@ -88,23 +88,20 @@ test('invokeMaestroRunFlowWhenControl falls back to raw iOS snapshots after opti
     invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
       assert.equal(req.command, 'snapshot');
       snapshotFlags.push(req.flags);
-      const isRaw = req.flags?.snapshotRaw === true;
       return {
         ok: true,
         data: {
           createdAt: Date.now(),
-          nodes: isRaw
-            ? [
-                {
-                  index: 1,
-                  ref: 'e1',
-                  type: 'Button',
-                  label: 'Continue',
-                  rect: { x: 100, y: 420, width: 120, height: 44 },
-                  depth: 4,
-                },
-              ]
-            : [],
+          nodes: [
+            {
+              index: 1,
+              ref: 'e1',
+              type: 'Button',
+              label: 'Continue',
+              rect: { x: 100, y: 420, width: 120, height: 44 },
+              depth: 4,
+            },
+          ],
         },
       };
     },
@@ -115,7 +112,7 @@ test('invokeMaestroRunFlowWhenControl falls back to raw iOS snapshots after opti
   });
 
   assert.equal(response.ok, true);
-  assert.deepEqual(snapshotFlags.map((flags) => flags?.snapshotRaw), [undefined, true]);
+  assert.deepEqual(snapshotFlags.map((flags) => flags?.snapshotRaw), [undefined]);
   assert.deepEqual(
     invokedActions.map((action) => [action.command, action.positionals]),
     [['click', ['label="Continue"']]],

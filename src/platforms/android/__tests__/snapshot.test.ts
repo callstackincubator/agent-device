@@ -186,7 +186,12 @@ test('screenshotAndroid throws when PNG payload is truncated', async () => {
   });
 });
 
-function helperOutput(xml: string): string {
+function helperOutput(
+  xml: string,
+  options: { truncated?: boolean; nodeCount?: number } = {},
+): string {
+  const truncated = options.truncated ?? false;
+  const nodeCount = options.nodeCount ?? 1;
   return [
     'INSTRUMENTATION_STATUS: agentDeviceProtocol=android-snapshot-helper-v1',
     'INSTRUMENTATION_STATUS: helperApiVersion=1',
@@ -206,8 +211,8 @@ function helperOutput(xml: string): string {
     'INSTRUMENTATION_RESULT: rootPresent=true',
     'INSTRUMENTATION_RESULT: captureMode=interactive-windows',
     'INSTRUMENTATION_RESULT: windowCount=1',
-    'INSTRUMENTATION_RESULT: nodeCount=1',
-    'INSTRUMENTATION_RESULT: truncated=false',
+    `INSTRUMENTATION_RESULT: nodeCount=${nodeCount}`,
+    `INSTRUMENTATION_RESULT: truncated=${truncated}`,
     'INSTRUMENTATION_RESULT: elapsedMs=12',
     'INSTRUMENTATION_CODE: 0',
   ].join('\n');
@@ -348,6 +353,34 @@ test('snapshotAndroid uses injected helper artifact before stock uiautomator', a
   assert.equal(result.androidSnapshot.windowCount, 1);
   assert.deepEqual(timeouts, [30000, 30000]);
   assert.equal(mockRunCmd.mock.calls.length, 0);
+});
+
+test('snapshotAndroid reports helper-side truncation on the public snapshot result', async () => {
+  const helperAdb: AndroidAdbExecutor = async (args) => {
+    if (args.includes('--show-versioncode')) return installedHelperProbe;
+    if (args.includes('instrument')) {
+      return {
+        exitCode: 0,
+        stdout: helperOutput(
+          '<hierarchy><node text="helper" bounds="[0,0][10,10]" /></hierarchy>',
+          {
+            truncated: true,
+            nodeCount: 5000,
+          },
+        ),
+        stderr: '',
+      };
+    }
+    throw new Error(`unexpected helper adb args: ${args.join(' ')}`);
+  };
+
+  const result = await snapshotAndroid(device, {
+    helperAdb,
+    helperArtifact,
+  });
+
+  assert.equal(result.truncated, true);
+  assert.equal(result.androidSnapshot.helperTruncated, true);
 });
 
 test('snapshotAndroid forwards alert-style helper idle timeout override', async () => {

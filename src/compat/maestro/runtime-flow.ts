@@ -3,10 +3,8 @@ import { getSnapshotReferenceFrame } from '../../daemon/touch-reference-frame.ts
 import { invokeReplayActionBlock } from '../../replay/control-flow-runtime.ts';
 import {
   captureMaestroSnapshot,
-  emitMaestroRawSnapshotFallbackDiagnostic,
   errorResponse,
   readSnapshotState,
-  shouldUseMaestroRawSnapshotFallback,
   type MaestroReplayInvoker,
   type ReplayBaseRequest,
 } from './runtime-support.ts';
@@ -53,7 +51,7 @@ async function evaluateMaestroRunFlowWhenCondition(
     return await waitForMaestroRunFlowVisibleCondition(params, condition);
   }
 
-  const result = await readMaestroRunFlowVisibleConditionWithFallback(params, condition.selector);
+  const result = await readMaestroRunFlowVisibleCondition(params, condition.selector);
   if (!result.ok) {
     return {
       ok: false,
@@ -75,7 +73,7 @@ async function waitForMaestroRunFlowVisibleCondition(
   // a point-in-time condition so optional cleanup blocks do not become waits.
   const startedAt = Date.now();
   while (true) {
-    const result = await readMaestroRunFlowVisibleConditionWithFallback(params, condition.selector);
+    const result = await readMaestroRunFlowVisibleCondition(params, condition.selector);
     if (!result.ok) return { ok: false, response: result.response };
     if (result.matched) return { ok: true, matched: true };
     if (Date.now() - startedAt >= MAESTRO_RUN_FLOW_WHEN_POLICY.visibleTimeoutMs) {
@@ -85,7 +83,7 @@ async function waitForMaestroRunFlowVisibleCondition(
   }
 }
 
-async function readMaestroRunFlowVisibleConditionWithFallback(
+async function readMaestroRunFlowVisibleCondition(
   params: {
     baseReq: ReplayBaseRequest;
     invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
@@ -94,22 +92,10 @@ async function readMaestroRunFlowVisibleConditionWithFallback(
 ): Promise<{ ok: true; matched: boolean } | { ok: false; response: DaemonResponse }> {
   const response = await captureMaestroSnapshot(params);
   if (!response.ok) return { ok: false, response };
-  const result = readMaestroRunFlowVisibleCondition(params, selector, response);
-  if (
-    !result.ok ||
-    result.matched ||
-    !shouldUseMaestroRawSnapshotFallback(params.baseReq)
-  ) {
-    return result;
-  }
-
-  emitMaestroRawSnapshotFallbackDiagnostic('runFlow.when', selector);
-  const rawResponse = await captureMaestroSnapshot({ ...params, raw: true });
-  if (!rawResponse.ok) return { ok: false, response: rawResponse };
-  return readMaestroRunFlowVisibleCondition(params, selector, rawResponse);
+  return resolveMaestroRunFlowVisibleCondition(params, selector, response);
 }
 
-function readMaestroRunFlowVisibleCondition(
+function resolveMaestroRunFlowVisibleCondition(
   params: {
     baseReq: ReplayBaseRequest;
   },

@@ -7,6 +7,10 @@ extension RunnerTests {
   private static let axSnapshotUnavailableReason = "ax_snapshot_unavailable"
   private static let axSnapshotHint =
     "Snapshot state is unavailable because XCTest could not serialize this iOS accessibility tree. This can be specific to the current screen. Use plain screenshot, not screenshot --overlay-refs, as visual truth; navigate with coordinate commands if needed; then retry snapshot -i after reaching another screen. If you own the app and need full-tree inspection, simplify this screen's accessibility tree and expose stable ids on actionable controls."
+  private static let rawSnapshotTooLargeCode = "IOS_RAW_SNAPSHOT_TOO_LARGE"
+  private static let rawSnapshotMaxNodes = 5_000
+  private static let rawSnapshotTooLargeHint =
+    "Raw iOS snapshot exceeded the runner payload guard. Use regular snapshot for visible UI, or scope/depth-limit raw snapshot when inspecting a large accessibility tree."
   private static let collapsedTabCandidateTypes: Set<XCUIElement.ElementType> = [
     .button,
     .link,
@@ -267,7 +271,7 @@ extension RunnerTests {
 
     var nodes: [SnapshotNode] = []
 
-    func walk(_ snapshot: XCUIElementSnapshot, depth: Int, parentIndex: Int?) {
+    func walk(_ snapshot: XCUIElementSnapshot, depth: Int, parentIndex: Int?) throws {
       if let limit = options.depth, depth > limit { return }
 
       let evaluation = evaluateSnapshot(snapshot, in: context)
@@ -282,6 +286,9 @@ extension RunnerTests {
       )
       let currentIndex = include ? nodes.count : parentIndex
       if include {
+        if nodes.count >= Self.rawSnapshotMaxNodes {
+          throw rawSnapshotTooLargeFailure(nodeCount: nodes.count + 1)
+        }
         nodes.append(
           makeSnapshotNode(
             snapshot: snapshot,
@@ -295,11 +302,11 @@ extension RunnerTests {
 
       let children = snapshot.children
       for child in children {
-        walk(child, depth: depth + 1, parentIndex: currentIndex)
+        try walk(child, depth: depth + 1, parentIndex: currentIndex)
       }
     }
 
-    walk(context.rootSnapshot, depth: 0, parentIndex: nil)
+    try walk(context.rootSnapshot, depth: 0, parentIndex: nil)
     return DataPayload(nodes: nodes, truncated: false)
   }
 
@@ -449,6 +456,14 @@ extension RunnerTests {
     return "\(failure.message) Hint: \(failure.hint)"
   }
 
+  private func rawSnapshotTooLargeFailure(nodeCount: Int) -> SnapshotCaptureFailure {
+    SnapshotCaptureFailure(
+      code: Self.rawSnapshotTooLargeCode,
+      message: "iOS raw snapshot exceeded \(Self.rawSnapshotMaxNodes) nodes while walking node \(nodeCount).",
+      hint: Self.rawSnapshotTooLargeHint
+    )
+  }
+
   private func sparseTruncatedSnapshotPayload(
     message: String,
     runnerFatal: Bool? = nil,
@@ -496,6 +511,14 @@ extension RunnerTests {
 
     XCTAssertTrue(message.contains(Self.axSnapshotFailureMessage))
     XCTAssertTrue(message.contains(Self.axSnapshotHint))
+  }
+
+  func testRawSnapshotTooLargeFailureIsStructured() {
+    let failure = rawSnapshotTooLargeFailure(nodeCount: Self.rawSnapshotMaxNodes + 1)
+
+    XCTAssertEqual(failure.code, Self.rawSnapshotTooLargeCode)
+    XCTAssertTrue(failure.message.contains("\(Self.rawSnapshotMaxNodes) nodes"))
+    XCTAssertEqual(failure.hint, Self.rawSnapshotTooLargeHint)
   }
 
   func testDepthLimitedSnapshotFailureReturnsNonFatalFallback() {

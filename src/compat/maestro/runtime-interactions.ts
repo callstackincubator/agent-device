@@ -445,7 +445,7 @@ async function clickMaestroResolvedTarget(
   selector: string,
   target: ResolvedMaestroInteractionTarget,
 ): Promise<{ response: DaemonResponse; targetResolved: true }> {
-  const point = pointForMaestroTapOnTarget(target, extractMaestroVisibleTextQuery(selector) !== null);
+  const point = pointForMaestroTapOnTarget(target);
   emitDiagnostic({
     level: 'debug',
     phase: 'maestro_tap_target',

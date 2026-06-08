@@ -1,7 +1,5 @@
 import { clampToRange } from '../../core/scroll-gesture.ts';
-import type { Rect, SnapshotNode } from '../../utils/snapshot.ts';
-import { interiorCoordinate, pointInsideRect } from '../../utils/rect-center.ts';
-import { normalizeType } from '../../utils/snapshot-processing.ts';
+import { pointInsideRect } from '../../utils/rect-center.ts';
 import type { MaestroSnapshotTarget } from './runtime-targets.ts';
 
 const MAESTRO_GEOMETRY_POLICY = {
@@ -10,13 +8,6 @@ const MAESTRO_GEOMETRY_POLICY = {
     minDistancePx: 120,
     maxDistancePx: 360,
     marginPx: 8,
-  },
-  largeTextContainerBias: {
-    minWidth: 120,
-    minHeight: 70,
-    maxHeight: 200,
-    width: 168,
-    height: 48,
   },
 } as const;
 
@@ -79,29 +70,8 @@ export function swipeCoordinatesFromTarget(
 
 export function pointForMaestroTapOnTarget(
   target: MaestroSnapshotTarget,
-  isVisibleTextSelector: boolean,
-  options: { allowLargeContainerBias?: boolean } = {},
 ): { x: number; y: number } {
-  if (
-    !shouldBiasMaestroVisibleTextTap(
-      target.node,
-      isVisibleTextSelector,
-      target.rect,
-      options.allowLargeContainerBias === true,
-    )
-  ) {
-    return pointInsideRect(target.rect);
-  }
-  return {
-    x: interiorCoordinate(
-      target.rect.x,
-      Math.min(target.rect.width, MAESTRO_GEOMETRY_POLICY.largeTextContainerBias.width),
-    ),
-    y: interiorCoordinate(
-      target.rect.y,
-      Math.min(target.rect.height, MAESTRO_GEOMETRY_POLICY.largeTextContainerBias.height),
-    ),
-  };
+  return pointInsideRect(target.rect);
 }
 
 function swipeDistance(frameSize: number | undefined, rectSize: number): number {
@@ -113,28 +83,4 @@ function swipeDistance(frameSize: number | undefined, rectSize: number): number 
       Math.max(MAESTRO_GEOMETRY_POLICY.swipe.minDistancePx, screenRelative, rectSize * 1.5),
     ),
   );
-}
-
-function shouldBiasMaestroVisibleTextTap(
-  node: SnapshotNode,
-  isVisibleTextSelector: boolean,
-  rect: Rect,
-  allowLargeContainerBias: boolean,
-): boolean {
-  if (!allowLargeContainerBias || !isVisibleTextSelector) return false;
-  return isLargeTextContainerRect(rect) && isLargeTextContainerType(node);
-}
-
-function isLargeTextContainerRect(rect: Rect): boolean {
-  const policy = MAESTRO_GEOMETRY_POLICY.largeTextContainerBias;
-  return rect.width >= policy.minWidth && rect.height >= policy.minHeight && rect.height <= policy.maxHeight;
-}
-
-function isLargeTextContainerType(node: SnapshotNode): boolean {
-  const type = normalizeType(node.type ?? '');
-  return type === 'cell' || type === 'other' || isScrollableTextContainerType(type);
-}
-
-function isScrollableTextContainerType(type: string): boolean {
-  return type === 'scrollview' || type === 'scroll-area';
 }

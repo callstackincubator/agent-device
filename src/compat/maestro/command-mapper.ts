@@ -58,7 +58,7 @@ const MAP_COMMAND_HANDLERS: Record<string, MaestroCommandHandler> = {
   assertVisible: ({ value, context, name }) => [
     action(MAESTRO_RUNTIME_COMMAND.assertVisible, [
       maestroSelector(value, name, [], context),
-      '7000',
+      '17000',
     ]),
   ],
   assertNotVisible: ({ value, context, name }) => [
