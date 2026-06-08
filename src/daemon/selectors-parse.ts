@@ -48,6 +48,17 @@ const BOOLEAN_KEYS = new Set<SelectorKey>([
   'hittable',
 ]);
 const ALL_KEYS = new Set<SelectorKey>([...TEXT_KEYS, ...BOOLEAN_KEYS]);
+const SIMPLE_ESCAPE_REPLACEMENTS = new Map<string, string>([
+  ['"', '"'],
+  ["'", "'"],
+  ['\\', '\\'],
+  ['/', '/'],
+  ['b', '\b'],
+  ['f', '\f'],
+  ['n', '\n'],
+  ['r', '\r'],
+  ['t', '\t'],
+]);
 
 export function parseSelectorChain(expression: string): SelectorChain {
   const raw = expression.trim();
@@ -243,9 +254,51 @@ function unquote(value: string): string {
     (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
     (trimmed.startsWith("'") && trimmed.endsWith("'"))
   ) {
-    return trimmed.slice(1, -1).replace(/\\(["'])/g, '$1');
+    return decodeQuotedSelectorValue(trimmed.slice(1, -1));
   }
   return trimmed;
+}
+
+// Keep this manual so single-quoted selectors work and malformed hand-written escapes stay literal.
+function decodeQuotedSelectorValue(value: string): string {
+  let decoded = '';
+  let cursor = 0;
+  while (cursor < value.length) {
+    const char = value.charAt(cursor);
+    if (char !== '\\') {
+      decoded += char;
+      cursor += 1;
+      continue;
+    }
+    const escaped = value.charAt(cursor + 1);
+    if (!escaped) {
+      decoded += char;
+      cursor += 1;
+      continue;
+    }
+    const replacement = decodeSimpleEscape(escaped);
+    if (replacement !== null) {
+      decoded += replacement;
+      cursor += 2;
+      continue;
+    }
+    if (escaped === 'u') {
+      const hex = value.slice(cursor + 2, cursor + 6);
+      if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+        // JSON-style \u escapes are code units; adjacent surrogate units compose in JS strings.
+        decoded += String.fromCharCode(Number.parseInt(hex, 16));
+        cursor += 6;
+        continue;
+      }
+    }
+    decoded += char;
+    cursor += 1;
+  }
+  return decoded;
+}
+
+function decodeSimpleEscape(escaped: string): string | null {
+  return SIMPLE_ESCAPE_REPLACEMENTS.get(escaped) ?? null;
 }
 
 function parseBoolean(value: string): boolean | null {

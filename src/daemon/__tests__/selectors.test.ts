@@ -205,6 +205,59 @@ test('parseSelectorChain rejects unknown keys and malformed quotes', () => {
 test('parseSelectorChain handles quoted values ending in escaped backslashes', () => {
   const chain = parseSelectorChain('label="path\\\\" || id=auth_continue');
   assert.equal(chain.selectors.length, 2);
+  assert.equal(chain.selectors[0]!.terms[0]!.value, 'path\\');
+});
+
+test('parseSelectorChain decodes escaped selector string values', () => {
+  const chain = parseSelectorChain(
+    [
+      'label="Switch\\nMy Community"',
+      'value="A\\tB\\rC\\bD\\fE\\/F"',
+      'id="item_\\u0031\\uD83D\\uDE00"',
+      'text=\'It\\\'s OK\'',
+    ].join(' '),
+  );
+
+  assert.equal(chain.selectors[0]!.terms[0]!.value, 'Switch\nMy Community');
+  assert.equal(chain.selectors[0]!.terms[1]!.value, 'A\tB\rC\bD\fE/F');
+  assert.equal(chain.selectors[0]!.terms[2]!.value, `item_1${String.fromCodePoint(0x1f600)}`);
+  assert.equal(chain.selectors[0]!.terms[3]!.value, "It's OK");
+});
+
+test('parseSelectorChain preserves malformed and unknown selector string escapes', () => {
+  const chain = parseSelectorChain('label="bad\\u12" value="keep\\q"');
+
+  assert.equal(chain.selectors[0]!.terms[0]!.value, 'bad\\u12');
+  assert.equal(chain.selectors[0]!.terms[1]!.value, 'keep\\q');
+});
+
+test('parseSelectorChain preserves literal escaped control sequences when double escaped', () => {
+  const chain = parseSelectorChain('label="foo\\\\nbar"');
+
+  assert.equal(chain.selectors[0]!.terms[0]!.value, 'foo\\nbar');
+});
+
+test('resolveSelectorChain matches newline labels decoded from replay selectors', () => {
+  const newlineNodes: SnapshotState['nodes'] = [
+    {
+      ref: 'n1',
+      index: 0,
+      type: 'XCUIElementTypeButton',
+      label: 'Switch\nMy Community',
+      rect: { x: 0, y: 0, width: 120, height: 44 },
+      enabled: true,
+      hittable: true,
+    },
+  ];
+  const chain = parseSelectorChain('label="Switch\\nMy Community"');
+  const resolved = resolveSelectorChain(newlineNodes, chain, {
+    platform: 'ios',
+    requireRect: true,
+    requireUnique: true,
+  });
+
+  assert.ok(resolved);
+  assert.equal(resolved.node.ref, 'n1');
 });
 
 test('text selector matches extractNodeText semantics (first non-empty field)', () => {
