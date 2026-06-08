@@ -46,7 +46,6 @@ jobs:
           build-command: sh ./scripts/build-xcuitest-apple.sh
           xcuitest-platform: ios
           xcuitest-destination: generic/platform=iOS Simulator
-          build-on-miss: 'false'
 
       - name: Boot iOS test simulator
         uses: ./.github/actions/boot-ios-test-simulator

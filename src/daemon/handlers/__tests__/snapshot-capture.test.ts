@@ -119,6 +119,112 @@ test('buildSnapshotState marks content covered by floating overlays as visible b
   expect(state.nodes.some((node) => node.type === 'TabBar')).toBe(true);
 });
 
+test('buildSnapshotState does not treat later generic hittable containers as covers', () => {
+  const state = buildSnapshotState(
+    {
+      nodes: [
+        {
+          index: 0,
+          depth: 0,
+          type: 'Application',
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'Button',
+          label: 'Visible action',
+          rect: { x: 40, y: 100, width: 160, height: 44 },
+          hittable: true,
+        },
+        {
+          index: 2,
+          depth: 1,
+          parentIndex: 0,
+          type: 'CollectionView',
+          label: 'Content list',
+          rect: { x: 0, y: 80, width: 390, height: 600 },
+          hittable: true,
+        },
+      ],
+      backend: 'xctest',
+    },
+    undefined,
+  );
+
+  expect(state.nodes.find((node) => node.label === 'Visible action')).toMatchObject({
+    hittable: true,
+  });
+  expect(
+    state.nodes.find((node) => node.label === 'Visible action')?.interactionBlocked,
+  ).toBeUndefined();
+});
+
+test('buildSnapshotState does not let covered overlays cover earlier targets', () => {
+  const state = buildSnapshotState(
+    {
+      nodes: [
+        {
+          index: 0,
+          depth: 0,
+          type: 'Application',
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          index: 1,
+          depth: 1,
+          parentIndex: 0,
+          type: 'Button',
+          label: 'Top action',
+          rect: { x: 20, y: 30, width: 120, height: 44 },
+          hittable: true,
+        },
+        {
+          index: 2,
+          depth: 1,
+          parentIndex: 0,
+          type: 'Button',
+          label: 'Middle action',
+          rect: { x: 20, y: 170, width: 120, height: 44 },
+          hittable: true,
+        },
+        {
+          index: 3,
+          depth: 1,
+          parentIndex: 0,
+          type: 'ToolBar',
+          rect: { x: 0, y: 0, width: 390, height: 300 },
+          hittable: true,
+        },
+        {
+          index: 4,
+          depth: 1,
+          parentIndex: 0,
+          type: 'Sheet',
+          rect: { x: 0, y: 120, width: 390, height: 724 },
+          hittable: true,
+        },
+      ],
+      backend: 'xctest',
+    },
+    undefined,
+  );
+
+  expect(state.nodes.find((node) => node.label === 'Middle action')).toMatchObject({
+    interactionBlocked: 'covered',
+  });
+  expect(state.nodes.find((node) => node.type === 'ToolBar')).toMatchObject({
+    interactionBlocked: 'covered',
+  });
+  expect(state.nodes.find((node) => node.label === 'Top action')).toMatchObject({
+    hittable: true,
+  });
+  expect(
+    state.nodes.find((node) => node.label === 'Top action')?.interactionBlocked,
+  ).toBeUndefined();
+});
+
 test('buildSnapshotState leaves raw snapshot hittability untouched', () => {
   const state = buildSnapshotState(
     {

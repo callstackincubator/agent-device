@@ -1,27 +1,64 @@
 import type { RawSnapshotNode, Rect } from './snapshot.ts';
 import { centerOfRect } from './snapshot.ts';
+import { areRectsApproximatelyEqual, normalizeRect } from './rect-center.ts';
 import { containsPoint } from './rect-visibility.ts';
 import { normalizeType } from './text-surface.ts';
 
 const COVERED_PRESENTATION_HINT = 'covered';
+const OVERLAY_KIND_FRAGMENTS = [
+  'tabbar',
+  'toolbar',
+  'navigationbar',
+  'bottomnavigation',
+  'bottomnavigationview',
+  'sheet',
+  'dialog',
+  'alert',
+  'popover',
+  'menu',
+];
+const SEMANTIC_TOUCH_KIND_FRAGMENTS = [
+  'button',
+  'link',
+  'menuitem',
+  'tabitem',
+  'textfield',
+  'searchfield',
+  'edittext',
+  'checkbox',
+  'radio',
+  'switch',
+  'cell',
+];
+
+type OcclusionScan = {
+  nodes: RawSnapshotNode[];
+  byIndex: Map<number, RawSnapshotNode>;
+};
 
 export function annotateCoveredSnapshotNodes(nodes: RawSnapshotNode[]): RawSnapshotNode[] {
   if (nodes.length < 2) return nodes;
 
-  const byIndex = new Map(nodes.map((node) => [node.index, node]));
+  const annotated = [...nodes];
+  const scan: OcclusionScan = {
+    nodes: annotated,
+    byIndex: new Map(annotated.map((node) => [node.index, node])),
+  };
   let changed = false;
-  const annotated = nodes.map((node, position) => {
-    if (!isCandidateTouchNode(node)) return node;
-    const cover = findCoveringNode(nodes, position, node, byIndex);
-    if (!cover) return node;
+  for (const [position, node] of annotated.entries()) {
+    if (!isCandidateTouchNode(node)) continue;
+    const cover = findCoveringNode(scan, position, node);
+    if (!cover) continue;
     changed = true;
-    return {
+    const coveredNode = {
       ...node,
       hittable: false,
       interactionBlocked: 'covered' as const,
       presentationHints: mergeCoveredHint(node.presentationHints),
     };
-  });
+    annotated[position] = coveredNode;
+    scan.byIndex.set(coveredNode.index, coveredNode);
+  }
 
   return changed ? annotated : nodes;
 }
@@ -29,75 +66,79 @@ export function annotateCoveredSnapshotNodes(nodes: RawSnapshotNode[]): RawSnaps
 export function isSnapshotNodeInteractionBlocked(
   node: Pick<RawSnapshotNode, 'interactionBlocked'>,
 ): boolean {
-  return node.interactionBlocked === 'covered';
+  return node.interactionBlocked !== undefined;
 }
 
 function findCoveringNode(
-  nodes: RawSnapshotNode[],
+  scan: OcclusionScan,
   targetPosition: number,
   target: RawSnapshotNode,
-  byIndex: Map<number, RawSnapshotNode>,
 ): RawSnapshotNode | null {
-  const targetRect = validRect(target.rect);
+  const targetRect = positiveRect(target.rect);
   if (!targetRect) return null;
   const center = centerOfRect(targetRect);
 
-  for (let position = targetPosition + 1; position < nodes.length; position += 1) {
-    const candidate = nodes[position];
-    if (!candidate || !isOverlayLikeNode(candidate)) continue;
-    if (areRelatedSnapshotNodes(target, candidate, byIndex)) continue;
-    const candidateRect = validRect(candidate.rect);
-    if (!candidateRect || areRectsApproximatelyEqual(targetRect, candidateRect)) continue;
-    if (containsPoint(candidateRect, center.x, center.y)) {
-      return candidate;
-    }
+  for (let position = targetPosition + 1; position < scan.nodes.length; position += 1) {
+    const candidate = scan.nodes[position];
+    if (candidate && canCoverPoint(scan, position, target, targetRect, center)) return candidate;
   }
 
   return null;
 }
 
+function canCoverPoint(
+  scan: OcclusionScan,
+  candidatePosition: number,
+  target: RawSnapshotNode,
+  targetRect: Rect,
+  point: { x: number; y: number },
+): boolean {
+  const candidate = scan.nodes[candidatePosition];
+  if (!candidate) return false;
+  const coverRect = visibleCoverRect(scan, candidatePosition, target, targetRect);
+  return Boolean(coverRect && containsPoint(coverRect, point.x, point.y));
+}
+
+function visibleCoverRect(
+  scan: OcclusionScan,
+  candidatePosition: number,
+  target: RawSnapshotNode,
+  targetRect: Rect,
+): Rect | null {
+  const candidate = scan.nodes[candidatePosition];
+  if (!candidate || !isOverlayLikeNode(candidate)) return null;
+  if (areRelatedSnapshotNodes(target, candidate, scan.byIndex)) return null;
+  const candidateRect = positiveRect(candidate.rect);
+  if (!candidateRect || areRectsApproximatelyEqual(targetRect, candidateRect)) return null;
+  if (findCoveringNode(scan, candidatePosition, candidate)) return null;
+  return candidateRect;
+}
+
 function isCandidateTouchNode(node: RawSnapshotNode): boolean {
-  if (!validRect(node.rect)) return false;
+  if (!positiveRect(node.rect)) return false;
   if (node.hittable === true) return true;
   if (isSemanticTouchNode(node)) return true;
   return Boolean(node.label?.trim() || node.value?.trim() || node.identifier?.trim());
 }
 
 function isOverlayLikeNode(node: RawSnapshotNode): boolean {
-  if (!validRect(node.rect)) return false;
+  if (!positiveRect(node.rect)) return false;
   if (isViewportRoot(node)) return false;
-  if (node.hittable === true) return true;
-
-  const normalized = normalizeNodeKind(node);
-  return (
-    normalized.includes('tabbar') ||
-    normalized.includes('toolbar') ||
-    normalized.includes('navigationbar') ||
-    normalized.includes('bottomnavigation') ||
-    normalized.includes('bottomnavigationview') ||
-    normalized.includes('sheet') ||
-    normalized.includes('dialog') ||
-    normalized.includes('alert') ||
-    normalized.includes('popover') ||
-    normalized.includes('menu')
-  );
+  // This is a presentation-order heuristic: only known floating UI chrome should cover
+  // later targets. Generic hittable containers can appear later without being visually on top.
+  return nodeKindIncludesAny(node, OVERLAY_KIND_FRAGMENTS);
 }
 
 function isSemanticTouchNode(node: RawSnapshotNode): boolean {
+  return nodeKindIncludesAny(node, SEMANTIC_TOUCH_KIND_FRAGMENTS);
+}
+
+function nodeKindIncludesAny(
+  node: Pick<RawSnapshotNode, 'type' | 'role' | 'subrole'>,
+  fragments: readonly string[],
+): boolean {
   const normalized = normalizeNodeKind(node);
-  return (
-    normalized.includes('button') ||
-    normalized.includes('link') ||
-    normalized.includes('menuitem') ||
-    normalized.includes('tabitem') ||
-    normalized.includes('textfield') ||
-    normalized.includes('searchfield') ||
-    normalized.includes('edittext') ||
-    normalized.includes('checkbox') ||
-    normalized.includes('radio') ||
-    normalized.includes('switch') ||
-    normalized.includes('cell')
-  );
+  return fragments.some((fragment) => normalized.includes(fragment));
 }
 
 function normalizeNodeKind(node: Pick<RawSnapshotNode, 'type' | 'role' | 'subrole'>): string {
@@ -133,27 +174,9 @@ function isSnapshotAncestor(
   return false;
 }
 
-function validRect(rect: RawSnapshotNode['rect']): Rect | null {
-  if (!rect) return null;
-  if (
-    !Number.isFinite(rect.x) ||
-    !Number.isFinite(rect.y) ||
-    !Number.isFinite(rect.width) ||
-    !Number.isFinite(rect.height)
-  ) {
-    return null;
-  }
-  return rect.width > 0 && rect.height > 0 ? rect : null;
-}
-
-function areRectsApproximatelyEqual(left: Rect, right: Rect): boolean {
-  const tolerance = 0.5;
-  return (
-    Math.abs(left.x - right.x) <= tolerance &&
-    Math.abs(left.y - right.y) <= tolerance &&
-    Math.abs(left.width - right.width) <= tolerance &&
-    Math.abs(left.height - right.height) <= tolerance
-  );
+function positiveRect(rect: RawSnapshotNode['rect']): Rect | null {
+  const normalized = normalizeRect(rect);
+  return normalized && normalized.width > 0 && normalized.height > 0 ? normalized : null;
 }
 
 function mergeCoveredHint(hints: string[] | undefined): string[] {

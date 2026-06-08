@@ -215,6 +215,87 @@ test('handleFindCommands click prefers semantic controls over matching container
   expect(invokeCalls[0]!.positionals?.[0]).toBe('@e5');
 });
 
+test('handleFindCommands focus uses the promoted actionable node center', async () => {
+  const { response } = await runFindClickScenario({
+    positionals: ['Account', 'focus'],
+    nodes: [
+      {
+        index: 0,
+        ref: 'e1',
+        type: 'Application',
+        rect: { x: 0, y: 0, width: 390, height: 844 },
+      },
+      {
+        index: 1,
+        ref: 'e2',
+        type: 'Cell',
+        label: 'Account row',
+        hittable: true,
+        rect: { x: 16, y: 100, width: 320, height: 64 },
+        parentIndex: 0,
+      },
+      {
+        index: 2,
+        ref: 'e3',
+        type: 'StaticText',
+        label: 'Account',
+        hittable: false,
+        rect: { x: 32, y: 116, width: 80, height: 24 },
+        parentIndex: 1,
+      },
+    ],
+  });
+
+  expect(response.ok).toBe(true);
+  expect(mockDispatch).toHaveBeenLastCalledWith(
+    expect.anything(),
+    'focus',
+    ['176', '132'],
+    undefined,
+    expect.anything(),
+  );
+});
+
+test('handleFindCommands focus rejects covered matches before dispatching coordinates', async () => {
+  const { response } = await runFindClickScenario({
+    positionals: ['Save draft', 'focus'],
+    nodes: [
+      {
+        index: 0,
+        ref: 'e1',
+        type: 'Application',
+        rect: { x: 0, y: 0, width: 390, height: 844 },
+      },
+      {
+        index: 1,
+        ref: 'e2',
+        type: 'Button',
+        label: 'Save draft',
+        hittable: false,
+        interactionBlocked: 'covered',
+        presentationHints: ['covered'],
+        rect: { x: 16, y: 790, width: 140, height: 44 },
+        parentIndex: 0,
+      },
+      {
+        index: 2,
+        ref: 'e3',
+        type: 'TabBar',
+        hittable: true,
+        rect: { x: 0, y: 760, width: 390, height: 84 },
+        parentIndex: 0,
+      },
+    ],
+  });
+
+  expect(response.ok).toBe(false);
+  if (!response.ok) {
+    expect(response.error.message).toContain('is covered by another visible element');
+    expect(response.error.details?.interactionBlocked).toBe('covered');
+  }
+  expect(mockDispatch.mock.calls.filter((call) => call[1] === 'focus')).toEqual([]);
+});
+
 test('handleFindCommands forwards internal interaction outcome flags only to delegated click', async () => {
   const { response, invokeCalls, session } = await runFindClickScenario({
     positionals: ['Continue', 'click'],

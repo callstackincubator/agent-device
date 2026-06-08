@@ -1,12 +1,12 @@
 import type { RawSnapshotNode } from '../../utils/snapshot.ts';
 import { normalizeType } from '../snapshot-processing.ts';
+export { areRectsApproximatelyEqual } from '../../utils/rect-center.ts';
 
 export type SnapshotTreeRuleContext = {
   replacements: Map<number, RawSnapshotNode>;
   suppressedIndexes: Set<number>;
 };
 
-const RECT_FIELDS = ['x', 'y', 'width', 'height'] as const;
 const descendantEndPositionCache = new WeakMap<RawSnapshotNode[], number[]>();
 
 export function collectDescendants(
@@ -181,17 +181,6 @@ export function mergeReplacement(
     ...replacements.get(node.index),
     ...patch,
   });
-}
-
-export function areRectsApproximatelyEqual(
-  left: RawSnapshotNode['rect'],
-  right: RawSnapshotNode['rect'],
-): boolean {
-  if (!left || !right) {
-    return false;
-  }
-  const tolerance = 0.5;
-  return RECT_FIELDS.every((key) => Math.abs(left[key] - right[key]) <= tolerance);
 }
 
 export function findLargestViewportRect(nodes: Iterable<RawSnapshotNode>): RawSnapshotNode['rect'] {

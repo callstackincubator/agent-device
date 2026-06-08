@@ -11,6 +11,7 @@ import {
   resolveActionableTouchNode,
   resolveActionableTouchResolution,
 } from '../../commands/interaction-targeting.ts';
+import { isSnapshotNodeInteractionBlocked } from '../../utils/snapshot-occlusion.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
 import { setSessionSnapshot } from '../session-snapshot.ts';
@@ -467,7 +468,9 @@ async function dispatchFocusForFindMatch(
   match: ResolvedMatch,
 ): Promise<DaemonResponse> {
   const { req, device, logPath, session } = ctx;
-  const coords = match.node.rect ? centerOfRect(match.node.rect) : null;
+  const coveredResponse = rejectCoveredFindMatch(match, 'be focused');
+  if (coveredResponse) return coveredResponse;
+  const coords = match.resolvedNode.rect ? centerOfRect(match.resolvedNode.rect) : null;
   if (!coords) {
     return errorResponse('COMMAND_FAILED', 'matched element has no bounds');
   }
@@ -481,6 +484,20 @@ async function dispatchFocusForFindMatch(
     },
   );
   return { ok: true, data: response ?? { ref: match.ref } };
+}
+
+function rejectCoveredFindMatch(match: ResolvedMatch, interaction: string): DaemonResponse | null {
+  const blockedNode = [match.resolvedNode, match.node].find(isSnapshotNodeInteractionBlocked);
+  if (!blockedNode) return null;
+  return errorResponse(
+    'COMMAND_FAILED',
+    `Matched element ${match.ref} is covered by another visible element and cannot ${interaction} safely`,
+    {
+      ref: `@${blockedNode.ref}`,
+      interactionBlocked: blockedNode.interactionBlocked,
+      hint: 'Use a different visible target, scroll it clear of the overlay, or inspect with snapshot/screenshot before retrying.',
+    },
+  );
 }
 
 function recordFindAction(ctx: FindContext, match: ResolvedMatch, action: string): void {
