@@ -53,7 +53,7 @@ function readAndroidUiNodeMetadata(node: string): AndroidUiNodeMetadata {
 
 export function parseUiHierarchy(
   xml: string,
-  maxNodes: number,
+  maxNodes: number | undefined,
   options: SnapshotOptions,
 ): { nodes: RawSnapshotNode[]; truncated?: boolean; analysis: AndroidSnapshotAnalysis } {
   const tree = parseUiHierarchyTree(xml);
@@ -75,7 +75,7 @@ export type AndroidBuiltSnapshot = {
 type AndroidSnapshotBuildState = {
   nodes: RawSnapshotNode[];
   sourceNodes: AndroidUiHierarchy[];
-  maxNodes: number;
+  maxNodes?: number;
   maxDepth: number;
   options: SnapshotOptions;
   analysis: AndroidSnapshotAnalysis;
@@ -85,13 +85,13 @@ type AndroidSnapshotBuildState = {
 
 export function buildUiHierarchySnapshot(
   tree: AndroidUiHierarchy,
-  maxNodes: number,
+  maxNodes: number | undefined,
   options: SnapshotOptions,
 ): AndroidBuiltSnapshot {
   const state: AndroidSnapshotBuildState = {
     nodes: [],
     sourceNodes: [],
-    maxNodes,
+    ...(maxNodes !== undefined ? { maxNodes } : {}),
     maxDepth: options.depth ?? Number.POSITIVE_INFINITY,
     options,
     analysis: analyzeAndroidTree(tree),
@@ -122,7 +122,7 @@ function walkUiHierarchyNode(
   ancestorHittable: boolean = false,
   ancestorCollection: boolean = false,
 ): void {
-  if (state.nodes.length >= state.maxNodes) {
+  if (state.maxNodes !== undefined && state.nodes.length >= state.maxNodes) {
     state.truncated = true;
     return;
   }
@@ -267,34 +267,53 @@ function parseXmlNodeAttributes(node: string): Map<string, string> {
 
   let cursor = start;
   while (cursor < end) {
-    cursor = skipXmlWhitespace(node, cursor, end);
-    if (cursor >= end) break;
-    const char = node[cursor];
-    if (char === '/' || char === '>') break;
-
-    const nameStart = cursor;
-    while (cursor < end && !isXmlAttributeNameTerminator(node[cursor] ?? '')) {
-      cursor += 1;
-    }
-    const name = node.slice(nameStart, cursor);
-    cursor = skipXmlWhitespace(node, cursor, end);
-    if (!name || node[cursor] !== '=') break;
-    cursor = skipXmlWhitespace(node, cursor + 1, end);
-
-    const quote = node[cursor];
-    if (quote !== '"' && quote !== "'") break;
-    cursor += 1;
-
-    const valueStart = cursor;
-    while (cursor < end && node[cursor] !== quote) {
-      cursor += 1;
-    }
-    if (cursor >= end) break;
-    attrs.set(name, decodeXmlAttributeValue(node.slice(valueStart, cursor)));
-    cursor += 1;
+    const parsed = readNextXmlAttribute(node, cursor, end);
+    if (!parsed) break;
+    attrs.set(parsed.name, parsed.value);
+    cursor = parsed.nextCursor;
   }
 
   return attrs;
+}
+
+type ParsedXmlAttribute = {
+  name: string;
+  value: string;
+  nextCursor: number;
+};
+
+function readNextXmlAttribute(
+  node: string,
+  cursor: number,
+  end: number,
+): ParsedXmlAttribute | undefined {
+  cursor = skipXmlWhitespace(node, cursor, end);
+  if (cursor >= end || isXmlNodeEnd(node[cursor])) return undefined;
+
+  const nameStart = cursor;
+  cursor = skipXmlAttributeName(node, cursor, end);
+  const name = node.slice(nameStart, cursor);
+  cursor = skipXmlWhitespace(node, cursor, end);
+  if (!name || node[cursor] !== '=') return undefined;
+  cursor = skipXmlWhitespace(node, cursor + 1, end);
+
+  const quote = node[cursor];
+  if (!isXmlQuote(quote)) return undefined;
+  const valueStart = cursor + 1;
+  const valueEnd = node.indexOf(quote, valueStart);
+  if (valueEnd < 0 || valueEnd >= end) return undefined;
+  return {
+    name,
+    value: decodeXmlAttributeValue(node.slice(valueStart, valueEnd)),
+    nextCursor: valueEnd + 1,
+  };
+}
+
+function skipXmlAttributeName(value: string, cursor: number, end: number): number {
+  while (cursor < end && !isXmlAttributeNameTerminator(value[cursor] ?? '')) {
+    cursor += 1;
+  }
+  return cursor;
 }
 
 function skipXmlWhitespace(value: string, cursor: number, end: number): number {
@@ -302,6 +321,14 @@ function skipXmlWhitespace(value: string, cursor: number, end: number): number {
     cursor += 1;
   }
   return cursor;
+}
+
+function isXmlNodeEnd(char: string | undefined): boolean {
+  return char === '/' || char === '>';
+}
+
+function isXmlQuote(char: string | undefined): char is '"' | "'" {
+  return char === '"' || char === "'";
 }
 
 function isXmlWhitespace(char: string): boolean {

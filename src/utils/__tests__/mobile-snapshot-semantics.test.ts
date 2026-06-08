@@ -102,6 +102,90 @@ test('mobile presentation assigns hidden content hints to visible scroll contain
   assert.deepEqual(presentation.summaryLines, []);
 });
 
+test('mobile presentation keeps fixed bottom controls after long visible scroll surfaces', () => {
+  const nodes: SnapshotNode[] = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'Application',
+      rect: { x: 0, y: 0, width: 402, height: 874 },
+    },
+    {
+      ref: 'e2',
+      index: 1,
+      depth: 1,
+      parentIndex: 0,
+      type: 'Window',
+      rect: { x: 0, y: 0, width: 402, height: 874 },
+    },
+    {
+      ref: 'e3',
+      index: 2,
+      depth: 2,
+      parentIndex: 1,
+      type: 'ScrollView',
+      label: 'Contacts',
+      rect: { x: 0, y: 116, width: 402, height: 675 },
+    },
+    ...Array.from({ length: 20 }, (_, offset): SnapshotNode => {
+      const index = 3 + offset;
+      return {
+        ref: `e${index + 1}`,
+        index,
+        depth: 3,
+        parentIndex: 2,
+        type: 'StaticText',
+        label: `Contact ${offset}`,
+        rect: { x: 52, y: 132 + offset * 64, width: 160, height: 18 },
+      };
+    }),
+    {
+      ref: 'e24',
+      index: 23,
+      depth: 2,
+      parentIndex: 1,
+      type: 'Button',
+      label: 'Article, unselected',
+      identifier: 'article',
+      rect: { x: 0, y: 791, width: 101, height: 49 },
+      hittable: false,
+    },
+    {
+      ref: 'e25',
+      index: 24,
+      depth: 2,
+      parentIndex: 1,
+      type: 'Button',
+      label: 'Contacts, selected',
+      identifier: 'contacts',
+      rect: { x: 201, y: 791, width: 101, height: 49 },
+      selected: true,
+      hittable: false,
+    },
+    {
+      ref: 'e26',
+      index: 25,
+      depth: 2,
+      parentIndex: 1,
+      type: 'Button',
+      label: 'Albums, unselected',
+      identifier: 'albums',
+      rect: { x: 302, y: 791, width: 100, height: 49 },
+      hittable: false,
+    },
+  ];
+
+  const presentation = buildMobileSnapshotPresentation(nodes);
+  const identifiers = new Set(presentation.nodes.map((node) => node.identifier).filter(Boolean));
+  assert.deepEqual([...identifiers].sort(), ['albums', 'article', 'contacts']);
+  assert.equal(presentation.nodes.some((node) => node.label === 'Contact 19'), false);
+  assert.equal(
+    presentation.nodes.find((node) => node.index === 2)?.hiddenContentBelow,
+    true,
+  );
+});
+
 test('mobile presentation handles zero-width viewport gracefully', () => {
   const nodes: SnapshotNode[] = [
     {

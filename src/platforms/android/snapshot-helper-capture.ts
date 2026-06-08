@@ -1,7 +1,6 @@
 import { AppError } from '../../utils/errors.ts';
 import type { SnapshotOptions } from '../../utils/snapshot.ts';
 import { parseUiHierarchy } from './ui-hierarchy.ts';
-import { ANDROID_SNAPSHOT_MAX_NODES } from './snapshot-types.ts';
 import {
   ANDROID_SNAPSHOT_HELPER_COMMAND_OVERHEAD_MS,
   ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,
@@ -277,7 +276,7 @@ export function parseAndroidSnapshotHelperXml(
     outputFormat: ANDROID_SNAPSHOT_HELPER_OUTPUT_FORMAT,
   },
   options: SnapshotOptions = {},
-  maxNodes: number = ANDROID_SNAPSHOT_MAX_NODES,
+  maxNodes?: number,
 ): AndroidSnapshotHelperParsedSnapshot {
   return {
     ...parseUiHierarchy(xml, maxNodes, options),

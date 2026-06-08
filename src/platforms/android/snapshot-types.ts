@@ -1,5 +1,3 @@
-export const ANDROID_SNAPSHOT_MAX_NODES = 800;
-
 export type AndroidSnapshotBackendMetadata = {
   backend: 'android-helper' | 'uiautomator-dump';
   helperVersion?: string;

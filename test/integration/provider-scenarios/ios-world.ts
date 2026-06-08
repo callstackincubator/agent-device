@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { DeviceInventoryRequest } from '../../../src/core/dispatch-resolve.ts';
+import type { RawSnapshotNode } from '../../../src/utils/snapshot.ts';
 import type { ProviderScenarioTranscript } from './transcript.ts';
 import {
   createDemoIosApp,
@@ -255,6 +256,58 @@ type IosPhysicalReinstallWorld = {
   close: () => Promise<void>;
 };
 
+type IosBottomTabsSnapshotWorld = {
+  daemon: ProviderScenarioHarness;
+  runnerTranscript: ProviderScenarioTranscript;
+  close: () => Promise<void>;
+};
+
+export async function createIosBottomTabsSnapshotWorld(): Promise<IosBottomTabsSnapshotWorld> {
+  const runnerTranscript = createProviderTranscript([
+    {
+      command: 'ios.runner.snapshot',
+      deviceId: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
+      platform: 'ios',
+      result: {
+        nodes: bottomTabsContactSnapshotNodes(),
+        truncated: false,
+      },
+    },
+  ]);
+  const appleRunnerProvider = createAppleRunnerProviderFromTranscript(
+    runnerTranscript,
+    'ios.runner',
+  );
+  const appleTool = createRecordingAppleToolProvider({
+    simctl: async (args) => {
+      const listDevices = simctlListDevicesResult(
+        args,
+        'com.apple.CoreSimulator.SimRuntime.iOS-18-0',
+        [{ name: 'iPhone 15', udid: 'sim-1' }],
+      );
+      if (listDevices) {
+        return listDevices;
+      }
+      return { stdout: '', stderr: '', exitCode: 0 };
+    },
+  });
+  const daemon = await createProviderScenarioHarness({
+    appleRunnerProvider: () => appleRunnerProvider,
+    appleToolProvider: () => appleTool.provider,
+    deviceInventoryProvider: async () => [PROVIDER_SCENARIO_IOS_SIMULATOR],
+  });
+  let closed = false;
+  return {
+    daemon,
+    runnerTranscript,
+    close: async () => {
+      if (closed) return;
+      closed = true;
+      await daemon.close();
+    },
+  };
+}
+
 export async function createIosPhysicalReinstallWorld(): Promise<IosPhysicalReinstallWorld> {
   const appleTool = createRecordingAppleToolProvider({
     devicectl: async (args) => {
@@ -317,4 +370,113 @@ function runnerSnapshot() {
       truncated: false,
     },
   };
+}
+
+function bottomTabsContactSnapshotNodes(): RawSnapshotNode[] {
+  return [
+    {
+      index: 0,
+      type: 'Application',
+      label: 'React Navigation Example',
+      rect: { x: 0, y: 0, width: 402, height: 874 },
+      enabled: true,
+      hittable: true,
+      depth: 0,
+    },
+    {
+      index: 1,
+      type: 'Window',
+      rect: { x: 0, y: 0, width: 402, height: 874 },
+      enabled: true,
+      hittable: true,
+      depth: 1,
+      parentIndex: 0,
+    },
+    {
+      index: 2,
+      type: 'ScrollView',
+      label: 'Contacts',
+      rect: { x: 0, y: 116, width: 402, height: 675 },
+      enabled: true,
+      hittable: false,
+      hiddenContentBelow: true,
+      depth: 2,
+      parentIndex: 1,
+    },
+    {
+      index: 3,
+      type: 'StaticText',
+      label: 'Marissa Castillo',
+      rect: { x: 52, y: 132, width: 110, height: 17 },
+      enabled: true,
+      hittable: false,
+      depth: 3,
+      parentIndex: 2,
+    },
+    {
+      index: 4,
+      type: 'StaticText',
+      label: 'Emilee Moss',
+      rect: { x: 52, y: 769, width: 86, height: 17 },
+      enabled: true,
+      hittable: false,
+      depth: 3,
+      parentIndex: 2,
+    },
+    {
+      index: 5,
+      type: 'Other',
+      label: 'Article, unselected',
+      rect: { x: 0, y: 791, width: 402, height: 83 },
+      enabled: true,
+      hittable: false,
+      depth: 2,
+      parentIndex: 1,
+    },
+    {
+      index: 6,
+      type: 'Button',
+      label: 'Article, unselected',
+      identifier: 'article',
+      rect: { x: 0, y: 791, width: 101, height: 49 },
+      enabled: true,
+      hittable: false,
+      depth: 3,
+      parentIndex: 5,
+    },
+    {
+      index: 7,
+      type: 'Button',
+      label: 'Chat, unselected',
+      identifier: 'chat',
+      rect: { x: 101, y: 791, width: 100, height: 49 },
+      enabled: true,
+      hittable: false,
+      depth: 3,
+      parentIndex: 5,
+    },
+    {
+      index: 8,
+      type: 'Button',
+      label: 'Contacts, selected',
+      identifier: 'contacts',
+      selected: true,
+      rect: { x: 201, y: 791, width: 101, height: 49 },
+      enabled: true,
+      hittable: false,
+      depth: 3,
+      parentIndex: 5,
+    },
+    {
+      index: 9,
+      type: 'Button',
+      label: 'Albums, unselected',
+      identifier: 'albums',
+      rect: { x: 302, y: 791, width: 100, height: 49 },
+      enabled: true,
+      hittable: false,
+      depth: 3,
+      parentIndex: 5,
+    },
+  ];
 }

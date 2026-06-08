@@ -3,6 +3,7 @@ import type { DaemonRequest, DaemonResponse } from '../../../daemon/types.ts';
 import type { SnapshotState } from '../../../utils/snapshot.ts';
 import {
   invokeMaestroSwipeScreen,
+  invokeMaestroSwipeOn,
   invokeMaestroTapOn,
   invokeMaestroTapPointPercent,
 } from '../runtime-interactions.ts';
@@ -19,9 +20,10 @@ test('invokeMaestroTapOn resolves mutating taps from the current snapshot', asyn
   expect(snapshots).toBe(1);
   expect(clicks).toEqual([['86', '89']]);
   expect(clickFlags[0]?.postGestureStabilization).toBe(true);
+  expect(clickFlags[0]?.interactionOutcome).toBeUndefined();
 });
 
-test('invokeMaestroTapOn uses optimized interactive snapshots by default', async () => {
+test('invokeMaestroTapOn uses regular snapshots by default', async () => {
   const snapshotFlags: Array<DaemonRequest['flags']> = [];
   const response = await invokeMaestroTapOn({
     baseReq: {
@@ -45,52 +47,105 @@ test('invokeMaestroTapOn uses optimized interactive snapshots by default', async
   expect(response.ok).toBe(true);
   expect(snapshotFlags).toHaveLength(1);
   expect(snapshotFlags[0]?.noRecord).toBe(true);
-  expect(snapshotFlags[0]?.snapshotInteractiveOnly).toBe(true);
+  expect(snapshotFlags[0]?.snapshotInteractiveOnly).toBeUndefined();
   expect(snapshotFlags[0]?.snapshotRaw).toBeUndefined();
   expect(snapshotFlags[0]?.snapshotForceFull).toBeUndefined();
 });
 
-test('invokeMaestroTapOn falls back to raw snapshot shaping when optimized snapshot misses', async () => {
+test('invokeMaestroSwipeOn does not use interactive fallback for truncated regular snapshot misses', async () => {
   const snapshotFlags: Array<DaemonRequest['flags']> = [];
+  const response = await invokeMaestroSwipeOn({
+    baseReq: {
+      token: 'test',
+      session: 'bottom-tabs',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['id="article"', 'left', '300'],
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        snapshotFlags.push(req.flags);
+        return { ok: true, data: truncatedContentSnapshot() };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  expect(response.ok).toBe(false);
+  expect(snapshotFlags).toHaveLength(1);
+  expect(snapshotFlags[0]?.snapshotInteractiveOnly).toBeUndefined();
+});
+
+test('invokeMaestroSwipeOn does not use interactive fallback for complete regular snapshot misses', async () => {
+  const snapshotFlags: Array<DaemonRequest['flags']> = [];
+  const response = await invokeMaestroSwipeOn({
+    baseReq: {
+      token: 'test',
+      session: 'complete-miss',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['id="article"', 'left', '300'],
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        snapshotFlags.push(req.flags);
+        return { ok: true, data: { ...truncatedContentSnapshot(), truncated: false } };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  expect(response.ok).toBe(false);
+  expect(snapshotFlags).toHaveLength(1);
+  expect(snapshotFlags[0]?.snapshotInteractiveOnly).toBeUndefined();
+});
+
+test('invokeMaestroTapOn resolves visible Android non-interactive text from a regular snapshot', async () => {
+  const snapshotFlags: Array<DaemonRequest['flags']> = [];
+  const clicks: string[][] = [];
   const response = await invokeMaestroTapOn({
     baseReq: {
       token: 'test',
-      session: 'tabs',
-      flags: { platform: 'ios' },
+      session: 'android-header',
+      flags: { platform: 'android' },
     },
-    positionals: ['id="article"'],
+    positionals: ['label="Albums" || text="Albums" || id="Albums"'],
     invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
       if (req.command === 'snapshot') {
         snapshotFlags.push(req.flags);
         return {
           ok: true,
-          data:
-            req.flags?.snapshotRaw === true
-              ? {
-                  nodes: [
-                    {
-                      index: 1,
-                      identifier: 'article',
-                      type: 'Button',
-                      rect: { x: 0, y: 820, width: 134, height: 54 },
-                    },
-                  ],
-                }
-              : { nodes: [] },
+          data: {
+            nodes: [
+              appNode(),
+              windowNode(),
+              {
+                index: 56,
+                ref: 'e56',
+                type: 'android.view.View',
+                label: 'Albums',
+                value: 'Albums',
+                depth: 20,
+                parentIndex: 1,
+                rect: { x: 154, y: 194, width: 188, height: 74 },
+                visibleToUser: true,
+                enabled: true,
+              },
+            ],
+          },
         };
       }
-      if (req.command === 'click') return { ok: true, data: {} };
+      if (req.command === 'click') {
+        clicks.push(req.positionals ?? []);
+        return { ok: true, data: {} };
+      }
       return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
     },
   });
 
   expect(response.ok).toBe(true);
-  expect(snapshotFlags).toHaveLength(2);
-  expect(snapshotFlags[0]?.snapshotInteractiveOnly).toBe(true);
+  expect(snapshotFlags).toHaveLength(1);
+  expect(snapshotFlags[0]?.snapshotInteractiveOnly).toBeUndefined();
   expect(snapshotFlags[0]?.snapshotRaw).toBeUndefined();
-  expect(snapshotFlags[1]?.snapshotInteractiveOnly).toBeUndefined();
-  expect(snapshotFlags[1]?.snapshotRaw).toBe(true);
-  expect(snapshotFlags[1]?.snapshotForceFull).toBeUndefined();
+  expect(clicks).toEqual([['248', '231']]);
 });
 
 test('invokeMaestroTapOn taps resolved iOS buttons by coordinates', async () => {
@@ -169,6 +224,56 @@ test('invokeMaestroSwipeScreen mirrors horizontal directional swipe presets', as
 
   expect(response.ok).toBe(true);
   expect(gestures).toEqual([['swipe', 'right', '300']]);
+});
+
+test('invokeMaestroSwipeOn resolves visible non-interactive text from a regular snapshot', async () => {
+  const snapshotFlags: Array<DaemonRequest['flags']> = [];
+  const swipes: string[][] = [];
+  const response = await invokeMaestroSwipeOn({
+    baseReq: {
+      token: 'test',
+      session: 'android-carousel',
+      flags: { platform: 'android' },
+    },
+    positionals: ['label="Gallery" || text="Gallery" || id="Gallery"', 'left', '300'],
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        snapshotFlags.push(req.flags);
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              appNode(),
+              windowNode(),
+              {
+                index: 4,
+                ref: 'e4',
+                type: 'android.view.View',
+                label: 'Gallery',
+                value: 'Gallery',
+                depth: 2,
+                parentIndex: 1,
+                rect: { x: 100, y: 200, width: 200, height: 100 },
+                visibleToUser: true,
+                enabled: true,
+              },
+            ],
+          },
+        };
+      }
+      if (req.command === 'swipe') {
+        swipes.push(req.positionals ?? []);
+        return { ok: true, data: {} };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  expect(response.ok).toBe(true);
+  expect(snapshotFlags).toHaveLength(1);
+  expect(snapshotFlags[0]?.snapshotInteractiveOnly).toBeUndefined();
+  expect(snapshotFlags[0]?.snapshotRaw).toBeUndefined();
+  expect(swipes).toEqual([['200', '250', '8', '250', '300']]);
 });
 
 test('invokeMaestroSwipeScreen preserves vertical percentage endpoints', async () => {
@@ -393,6 +498,35 @@ function overlayDismissButtonSnapshot(): SnapshotState {
         depth: 2,
         parentIndex: 1,
         rect: { x: 0, y: 52, width: 402, height: 40 },
+      },
+    ],
+  };
+}
+
+function truncatedContentSnapshot(): SnapshotState {
+  return {
+    createdAt: Date.now(),
+    truncated: true,
+    nodes: [
+      appNode(),
+      windowNode(),
+      {
+        index: 2,
+        ref: 'e3',
+        type: 'ScrollView',
+        label: 'Contacts',
+        depth: 2,
+        parentIndex: 1,
+        rect: { x: 0, y: 92, width: 402, height: 699 },
+      },
+      {
+        index: 3,
+        ref: 'e4',
+        type: 'StaticText',
+        label: 'Marissa Castillo',
+        depth: 3,
+        parentIndex: 2,
+        rect: { x: 16, y: 128, width: 160, height: 22 },
       },
     ],
   };

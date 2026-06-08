@@ -67,6 +67,23 @@ async function withMockedAdb(
   }
 }
 
+test('parseUiHierarchy does not truncate when no max node count is requested', () => {
+  const xml = [
+    '<hierarchy>',
+    ...Array.from(
+      { length: 900 },
+      (_, index) =>
+        `<node text="Item ${index}" class="android.widget.TextView" enabled="true" bounds="[0,${index}][100,${index + 1}]" />`,
+    ),
+    '</hierarchy>',
+  ].join('');
+
+  const result = parseUiHierarchy(xml, undefined, { raw: true });
+
+  assert.equal(result.nodes.length, 900);
+  assert.equal(result.truncated, undefined);
+});
+
 function androidOpenAdbScript(): string {
   return [
     '#!/bin/sh',

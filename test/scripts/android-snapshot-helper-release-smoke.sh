@@ -145,6 +145,7 @@ zip -q -j "$UNSIGNED_APK" "$DEX_DIR/classes.dex"
 
 node --experimental-strip-types "$PROJECT_DIR/src/bin.ts" install "$PACKAGE_NAME" "$APK_PATH" --platform android
 node --experimental-strip-types "$PROJECT_DIR/src/bin.ts" open "$PACKAGE_NAME" --platform android --relaunch
+node --experimental-strip-types "$PROJECT_DIR/src/bin.ts" wait 'label="Release smoke ready" || text="Release smoke ready"' 10000 --platform android
 node --experimental-strip-types "$PROJECT_DIR/src/bin.ts" snapshot -i --platform android --json > "$WORK_DIR/snapshot.json"
 
 node - "$WORK_DIR/snapshot.json" <<'EOF_NODE'

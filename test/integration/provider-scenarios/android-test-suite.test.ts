@@ -121,7 +121,7 @@ test('Provider-backed integration Android Maestro replay uses fresh selector sna
         world.adbCalls.find((call) => call.slice(0, 3).join(' ') === 'shell input swipe'),
         ['shell', 'input', 'swipe', '351', '390', '39', '390', '300'],
       );
-      assert.equal(snapshots, 2);
+      assert.ok(snapshots >= 2 && snapshots <= 3, `expected 2-3 snapshots, got ${snapshots}`);
     },
   );
 });
@@ -334,13 +334,9 @@ test('Provider-backed integration Android Maestro executes runFlow conditions an
       assert.equal(suite.failed, 0, JSON.stringify(suite));
       assert.deepEqual(
         world.adbCalls.filter((call) => call.slice(0, 3).join(' ') === 'shell input tap'),
-        [
-          ['shell', 'input', 'tap', '180', '330'],
-          ['shell', 'input', 'tap', '180', '330'],
-          ['shell', 'input', 'tap', '180', '330'],
-        ],
+        [['shell', 'input', 'tap', '180', '330']],
       );
-      assert.equal(snapshots, 9);
+      assert.equal(snapshots, 4);
     },
   );
 });

@@ -39,8 +39,6 @@ final class RunnerTests: XCTestCase {
   var currentApp: XCUIApplication?
   var currentBundleId: String?
   let maxRequestBytes = 2 * 1024 * 1024
-  let maxSnapshotElements = 600
-  let fastSnapshotLimit = 300
   let mainThreadExecutionTimeout: TimeInterval = 30
   let appExistenceTimeout: TimeInterval = 30
   let retryCooldown: TimeInterval = 0.2

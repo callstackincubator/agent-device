@@ -8,21 +8,17 @@ import {
 } from '../../core/scroll-gesture.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
-import type { SnapshotState } from '../../utils/snapshot.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { pointForMaestroTapOnTarget, swipeCoordinatesFromTarget } from './runtime-geometry.ts';
 import {
   captureMaestroSnapshot,
   clearMaestroVisibleContext,
-  emitMaestroRawSnapshotFallbackDiagnostic,
   errorResponse,
   readCachedMaestroReferenceFrame,
   readMaestroVisibleContext,
   readSnapshotState,
-  shouldUseMaestroRawSnapshotFallback,
   type FailedDaemonResponse,
   type MaestroRuntimeInvoke,
-  type MaestroSnapshotMode,
   type ReplayBaseRequest,
 } from './runtime-support.ts';
 import {
@@ -65,10 +61,7 @@ type MaestroScreenSwipeResolution =
     }
   | { ok: false; response: DaemonResponse };
 
-type ResolvedMaestroSnapshotTarget = MaestroSnapshotTarget & {
-  snapshot: SnapshotState;
-  snapshotMode: MaestroSnapshotMode;
-};
+type ResolvedMaestroInteractionTarget = MaestroSnapshotTarget;
 
 export async function invokeMaestroScrollUntilVisible(
   params: MaestroScrollUntilVisibleParams,
@@ -209,7 +202,7 @@ export async function invokeMaestroSwipeOn(params: {
 }): Promise<DaemonResponse> {
   const [selector, direction = 'up', durationMs] = params.positionals;
   if (!selector) return errorResponse('INVALID_ARGS', 'swipe.label requires a label selector.');
-  const target = await resolveMaestroSnapshotTarget(params, selector, {}, 'swipe.label', {
+  const target = await resolveMaestroInteractionTarget(params, selector, {}, 'swipe.label', {
     promoteTapTarget: false,
   });
   if (!target.ok) return target.response;
@@ -427,7 +420,7 @@ async function attemptMaestroTapOn(
   { retry: false; response: DaemonResponse } | { retry: true; response: FailedDaemonResponse }
 > {
   const fuzzyTextQuery = extractMaestroVisibleTextQuery(selector);
-  const attempt = await invokeMaestroSnapshotTapOn(params, selector, options);
+  const attempt = await invokeMaestroResolvedTapOn(params, selector, options);
   if (attempt.response.ok) return { retry: false, response: attempt.response };
   if (attempt.targetResolved && fuzzyTextQuery) {
     return await invokeMaestroFuzzyTapOn(params, fuzzyTextQuery);
@@ -435,30 +428,24 @@ async function attemptMaestroTapOn(
   return { retry: true, response: attempt.response };
 }
 
-async function invokeMaestroSnapshotTapOn(
+async function invokeMaestroResolvedTapOn(
   params: MaestroTapOnParams,
   selector: string,
   options: MaestroTapOnOptions,
 ): Promise<{ response: DaemonResponse; targetResolved: boolean }> {
-  const target = await resolveMaestroSnapshotTarget(params, selector, options, 'tapOn', {
+  const target = await resolveMaestroInteractionTarget(params, selector, options, 'tapOn', {
     promoteTapTarget: true,
   });
   if (!target.ok) return { response: target.response, targetResolved: false };
-  return await clickMaestroSnapshotTarget(params, selector, target.target);
+  return await clickMaestroResolvedTarget(params, selector, target.target);
 }
 
-async function clickMaestroSnapshotTarget(
+async function clickMaestroResolvedTarget(
   params: MaestroTapOnParams,
   selector: string,
-  target: ResolvedMaestroSnapshotTarget,
+  target: ResolvedMaestroInteractionTarget,
 ): Promise<{ response: DaemonResponse; targetResolved: true }> {
-  const point = pointForMaestroTapOnTarget(
-    target,
-    extractMaestroVisibleTextQuery(selector) !== null,
-    {
-      allowLargeContainerBias: target.snapshotMode === 'raw',
-    },
-  );
+  const point = pointForMaestroTapOnTarget(target, extractMaestroVisibleTextQuery(selector) !== null);
   emitDiagnostic({
     level: 'debug',
     phase: 'maestro_tap_target',
@@ -482,7 +469,6 @@ async function clickMaestroSnapshotTarget(
     positionals: [String(point.x), String(point.y)],
     flags: {
       ...params.baseReq.flags,
-      interactionOutcome: { retryOnNoChange: true },
       postGestureStabilization: true,
     },
   });
@@ -506,7 +492,6 @@ async function invokeMaestroFuzzyTapOn(
     flags: {
       ...params.baseReq.flags,
       findFirst: true,
-      interactionOutcome: { retryOnNoChange: true },
       postGestureStabilization: true,
     },
   });
@@ -522,7 +507,7 @@ async function invokeMaestroFuzzyTapOn(
   return { retry: true, response: findResponse };
 }
 
-async function resolveMaestroSnapshotTarget(
+async function resolveMaestroInteractionTarget(
   params: {
     baseReq: ReplayBaseRequest;
     invoke: MaestroRuntimeInvoke;
@@ -533,40 +518,20 @@ async function resolveMaestroSnapshotTarget(
   commandLabel: string,
   resolutionOptions: { promoteTapTarget: boolean },
 ): Promise<
-  { ok: true; target: ResolvedMaestroSnapshotTarget } | { ok: false; response: DaemonResponse }
+  { ok: true; target: ResolvedMaestroInteractionTarget } | { ok: false; response: DaemonResponse }
 > {
-  const snapshotResponse = await captureMaestroSnapshot({ ...params, mode: 'interactive' });
-  const resolution = resolveMaestroSnapshotTargetFromResponse(
+  const snapshotResponse = await captureMaestroSnapshot(params);
+  return resolveMaestroInteractionTargetFromResponse(
     params,
     selector,
     options,
     commandLabel,
     resolutionOptions,
     snapshotResponse,
-    'interactive',
-  );
-  if (
-    resolution.ok ||
-    !snapshotResponse.ok ||
-    !shouldUseMaestroRawSnapshotFallback(params.baseReq)
-  ) {
-    return resolution;
-  }
-
-  emitMaestroRawSnapshotFallbackDiagnostic(commandLabel, selector);
-  const rawSnapshotResponse = await captureMaestroSnapshot({ ...params, mode: 'raw' });
-  return resolveMaestroSnapshotTargetFromResponse(
-    params,
-    selector,
-    options,
-    commandLabel,
-    resolutionOptions,
-    rawSnapshotResponse,
-    'raw',
   );
 }
 
-function resolveMaestroSnapshotTargetFromResponse(
+function resolveMaestroInteractionTargetFromResponse(
   params: {
     baseReq: ReplayBaseRequest;
     scope?: ReplayVarScope;
@@ -576,9 +541,8 @@ function resolveMaestroSnapshotTargetFromResponse(
   commandLabel: string,
   resolutionOptions: { promoteTapTarget: boolean },
   snapshotResponse: DaemonResponse,
-  snapshotMode: MaestroSnapshotMode,
 ):
-  | { ok: true; target: ResolvedMaestroSnapshotTarget }
+  | { ok: true; target: ResolvedMaestroInteractionTarget }
   | { ok: false; response: DaemonResponse } {
   if (!snapshotResponse.ok) return { ok: false, response: snapshotResponse };
   const snapshot = readSnapshotState(snapshotResponse.data);
@@ -617,8 +581,6 @@ function resolveMaestroSnapshotTargetFromResponse(
             node: fuzzyResolution.node,
             rect: fuzzyResolution.rect,
             frame,
-            snapshot,
-            snapshotMode,
           },
         };
       }
@@ -640,8 +602,6 @@ function resolveMaestroSnapshotTargetFromResponse(
       node: resolution.node,
       rect: resolution.rect,
       frame,
-      snapshot,
-      snapshotMode,
     },
   };
 }

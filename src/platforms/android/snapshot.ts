@@ -42,10 +42,7 @@ import {
   type AndroidSnapshotHelperInstallResult,
   type AndroidSnapshotHelperOutput,
 } from './snapshot-helper.ts';
-import {
-  ANDROID_SNAPSHOT_MAX_NODES,
-  type AndroidSnapshotBackendMetadata,
-} from './snapshot-types.ts';
+import type { AndroidSnapshotBackendMetadata } from './snapshot-types.ts';
 
 const UI_HIERARCHY_DUMP_TIMEOUT_MS = 8_000;
 const HELPER_INSTALL_TIMEOUT_MS = 30_000;
@@ -93,7 +90,7 @@ export async function snapshotAndroid(
   const xml = capture.xml;
   const includeHiddenContentHints = options.includeHiddenContentHints !== false;
   if (!options.interactiveOnly) {
-    const parsed = parseUiHierarchy(xml, ANDROID_SNAPSHOT_MAX_NODES, options);
+    const parsed = parseUiHierarchy(xml, undefined, options);
     if (includeHiddenContentHints) {
       const nativeHints = await deriveScrollableContentHintsIfNeeded(
         device,
@@ -107,7 +104,7 @@ export async function snapshotAndroid(
   }
 
   const tree = parseUiHierarchyTree(xml);
-  const interactiveSnapshot = buildUiHierarchySnapshot(tree, ANDROID_SNAPSHOT_MAX_NODES, options);
+  const interactiveSnapshot = buildUiHierarchySnapshot(tree, undefined, options);
   if (includeHiddenContentHints) {
     await applyHiddenContentHintsToInteractiveSnapshot({
       device,
@@ -137,7 +134,7 @@ async function applyHiddenContentHintsToInteractiveSnapshot(params: {
     return;
   }
 
-  const fullSnapshot = buildUiHierarchySnapshot(params.tree, ANDROID_SNAPSHOT_MAX_NODES, {
+  const fullSnapshot = buildUiHierarchySnapshot(params.tree, undefined, {
     ...params.options,
     interactiveOnly: false,
   });

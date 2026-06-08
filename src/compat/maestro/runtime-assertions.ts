@@ -284,7 +284,7 @@ async function readMaestroVisibilitySample(
   }
 
   emitMaestroRawSnapshotFallbackDiagnostic(command, selector);
-  const rawResponse = await captureMaestroSnapshot({ ...params, mode: 'raw' });
+  const rawResponse = await captureMaestroSnapshot({ ...params, raw: true });
   return readMaestroVisibilitySampleFromResponse(params, selector, command, rawResponse);
 }
 

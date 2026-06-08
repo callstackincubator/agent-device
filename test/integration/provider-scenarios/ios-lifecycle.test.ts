@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { test } from 'vitest';
 import { assertFlatToolCall } from './assertions.ts';
-import { createIosPhysicalReinstallWorld, createIosSettingsWorld } from './ios-world.ts';
+import {
+  createIosBottomTabsSnapshotWorld,
+  createIosPhysicalReinstallWorld,
+  createIosSettingsWorld,
+} from './ios-world.ts';
 import { runProviderScenario } from './scenario.ts';
 import {
   PROVIDER_SCENARIO_IOS_REINSTALL_DEVICE,
@@ -259,6 +263,41 @@ test('Provider-backed integration iOS Settings flow uses scripted simctl and run
         ),
         JSON.stringify(inventoryRequests),
       );
+    },
+  );
+});
+
+test('Provider-backed integration iOS regular snapshot preserves fixed bottom tabs after scroll content', async () => {
+  await withProviderScenarioResource(
+    createIosBottomTabsSnapshotWorld,
+    async ({ daemon, runnerTranscript }) => {
+      await daemon.callCommand(
+        'open',
+        ['org.reactnavigation.playground'],
+        { platform: 'ios', udid: PROVIDER_SCENARIO_IOS_SIMULATOR.id },
+      );
+
+      const snapshot = await daemon.callCommand('snapshot');
+      const data = snapshot.json?.result?.data;
+      const nodes = data?.nodes ?? [];
+      assert.equal(data?.truncated, false);
+      assert.ok(
+        nodes.some((node: { identifier?: string }) => node.identifier === 'article'),
+        JSON.stringify(nodes),
+      );
+      assert.ok(
+        nodes.some((node: { identifier?: string }) => node.identifier === 'contacts'),
+        JSON.stringify(nodes),
+      );
+      assert.ok(
+        nodes.some((node: { identifier?: string }) => node.identifier === 'albums'),
+        JSON.stringify(nodes),
+      );
+      assert.equal(
+        nodes.find((node: { label?: string }) => node.label === 'Contacts')?.hiddenContentBelow,
+        true,
+      );
+      runnerTranscript.assertComplete();
     },
   );
 });

@@ -1886,16 +1886,12 @@ test('runReplayScriptFile runs Maestro runFlow.when.visible commands when presen
       ['find', ['Continue', 'click']],
     ],
   );
-  assert.deepEqual(calls.find((call) => call.command === 'click')?.flags?.interactionOutcome, {
-    retryOnNoChange: true,
-  });
+  assert.equal(calls.find((call) => call.command === 'click')?.flags?.interactionOutcome, undefined);
   assert.equal(
     calls.find((call) => call.command === 'click')?.flags?.postGestureStabilization,
     true,
   );
-  assert.deepEqual(calls.find((call) => call.command === 'find')?.flags?.interactionOutcome, {
-    retryOnNoChange: true,
-  });
+  assert.equal(calls.find((call) => call.command === 'find')?.flags?.interactionOutcome, undefined);
   assert.equal(
     calls.find((call) => call.command === 'find')?.flags?.postGestureStabilization,
     true,

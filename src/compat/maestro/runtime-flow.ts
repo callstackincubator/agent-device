@@ -104,7 +104,7 @@ async function readMaestroRunFlowVisibleConditionWithFallback(
   }
 
   emitMaestroRawSnapshotFallbackDiagnostic('runFlow.when', selector);
-  const rawResponse = await captureMaestroSnapshot({ ...params, mode: 'raw' });
+  const rawResponse = await captureMaestroSnapshot({ ...params, raw: true });
   if (!rawResponse.ok) return { ok: false, response: rawResponse };
   return readMaestroRunFlowVisibleCondition(params, selector, rawResponse);
 }
