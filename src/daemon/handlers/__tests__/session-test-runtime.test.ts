@@ -15,7 +15,14 @@ test('runReplayTestAttempt keeps cancellation active until a timed-out replay se
     resolveReplay = resolve;
   });
   const replaySettled = replayPromise.then(() => undefined);
-  const cleanupSession = vi.fn(async () => {});
+  const lifecycleEvents: string[] = [];
+  const cleanupSession = vi.fn(async () => {
+    lifecycleEvents.push('cleanup');
+  });
+  const finalizeAttempt = vi.fn(async () => {
+    lifecycleEvents.push('finalize');
+    return undefined;
+  });
 
   const attemptPromise = runReplayTestAttempt({
     filePath: '01-timeout.ad',
@@ -23,6 +30,7 @@ test('runReplayTestAttempt keeps cancellation active until a timed-out replay se
     requestId: 'req-timeout-open',
     timeoutMs: 10,
     runReplay: async () => await replayPromise,
+    finalizeAttempt,
     cleanupSession,
   });
 
@@ -37,6 +45,13 @@ test('runReplayTestAttempt keeps cancellation active until a timed-out replay se
     expect(result.error.details?.timeoutCleanupPending).toBe(true);
   }
   expect(cleanupSession).toHaveBeenCalledWith('default:test:timeout');
+  expect(finalizeAttempt).toHaveBeenCalledWith(
+    expect.objectContaining({
+      sessionName: 'default:test:timeout',
+      artifactPaths: expect.any(Set),
+    }),
+  );
+  expect(lifecycleEvents).toEqual(['finalize', 'cleanup']);
   expect(isRequestCanceled('req-timeout-open')).toBe(true);
 
   resolveReplay?.({
@@ -50,4 +65,26 @@ test('runReplayTestAttempt keeps cancellation active until a timed-out replay se
   await vi.waitFor(() => {
     expect(cleanupSession).toHaveBeenCalledTimes(2);
   });
+});
+
+test('runReplayTestAttempt reports finalization failure after a passing replay', async () => {
+  const cleanupSession = vi.fn(async () => {});
+
+  const result = await runReplayTestAttempt({
+    filePath: '01-pass.ad',
+    sessionName: 'default:test:pass',
+    requestId: 'req-pass',
+    runReplay: async () => ({ ok: true, data: { replayed: 1, healed: 0 } }),
+    finalizeAttempt: async () => ({
+      ok: false,
+      error: { code: 'COMMAND_FAILED', message: 'failed to stop recording' },
+    }),
+    cleanupSession,
+  });
+
+  expect(result.ok).toBe(false);
+  if (!result.ok) {
+    expect(result.error.message).toBe('failed to stop recording');
+  }
+  expect(cleanupSession).toHaveBeenCalledWith('default:test:pass');
 });

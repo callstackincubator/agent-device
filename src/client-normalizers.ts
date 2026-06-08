@@ -319,6 +319,7 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     failFast: options.failFast,
     timeoutMs: options.timeoutMs,
     retries: options.retries,
+    recordVideo: options.recordVideo,
     artifactsDir: options.artifactsDir,
     reportJunit: options.reportJunit,
     shardAll: options.shardAll,

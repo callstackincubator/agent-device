@@ -444,6 +444,20 @@ test('replay.test keeps backend alias for suite discovery', async () => {
   assert.equal(setup.calls[0]?.flags?.replayBackend, 'maestro');
 });
 
+test('replay.test forwards recordVideo for per-attempt video recording', async () => {
+  const setup = createTransport(async () => ({ ok: true, data: {} }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await client.replay.test({
+    paths: ['./flows/login.ad'],
+    recordVideo: true,
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'test');
+  assert.equal(setup.calls[0]?.flags?.recordVideo, true);
+});
+
 test('structured replay.test command forwards Maestro backend for suite discovery', async () => {
   const setup = createTransport(async () => ({ ok: true, data: {} }));
   const client = createAgentDeviceClient(setup.config, { transport: setup.transport });

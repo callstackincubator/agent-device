@@ -18,7 +18,13 @@ export type ReplayTestRunReplay = (params: ReplayTestRunReplayParams) => Promise
 
 export type ReplayTestCleanupSession = (sessionName: string) => Promise<void>;
 
+export type ReplayTestFinalizeAttempt = (params: {
+  sessionName: string;
+  artifactPaths: Set<string>;
+}) => Promise<DaemonResponse | undefined>;
+
 export type ReplayTestRuntimeDependencies = {
   runReplay: ReplayTestRunReplay;
   cleanupSession: ReplayTestCleanupSession;
+  finalizeAttempt?: ReplayTestFinalizeAttempt;
 };

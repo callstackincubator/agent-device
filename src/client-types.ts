@@ -716,6 +716,7 @@ export type ReplayTestOptions = AgentDeviceRequestOverrides &
     failFast?: boolean;
     timeoutMs?: number;
     retries?: number;
+    recordVideo?: boolean;
     artifactsDir?: string;
     reportJunit?: string;
     shardAll?: number;
@@ -855,6 +856,7 @@ type CommandExecutionOptions = Partial<ScreenshotRequestFlags> & {
   failFast?: boolean;
   timeoutMs?: number;
   retries?: number;
+  recordVideo?: boolean;
   artifactsDir?: string;
   reportJunit?: string;
   shardAll?: number;

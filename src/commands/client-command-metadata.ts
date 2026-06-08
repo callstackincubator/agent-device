@@ -175,6 +175,7 @@ export const clientCommandMetadata = [
     failFast: booleanField(),
     timeoutMs: integerField(),
     retries: integerField(),
+    recordVideo: booleanField(),
     artifactsDir: stringField(),
     reportJunit: stringField(),
     shardAll: integerField(),

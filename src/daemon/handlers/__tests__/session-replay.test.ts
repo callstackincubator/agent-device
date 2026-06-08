@@ -2,9 +2,144 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { test } from 'vitest';
-import { buildNestedReplayFlags } from '../session-replay.ts';
+import { beforeEach, test, vi } from 'vitest';
+import { SessionStore } from '../../session-store.ts';
+import type { DaemonRequest, DaemonResponse } from '../../types.ts';
+import { makeIosSession } from '../../../__tests__/test-utils/index.ts';
+import { buildNestedReplayFlags, handleSessionReplayCommands } from '../session-replay.ts';
 import { collectReplayActionArtifactPaths } from '../session-replay-runtime.ts';
+
+const recordTraceMocks = vi.hoisted(() => ({
+  handleRecordCommand: vi.fn(),
+}));
+
+vi.mock('../record-trace-recording.ts', () => ({
+  handleRecordCommand: recordTraceMocks.handleRecordCommand,
+}));
+
+beforeEach(() => {
+  recordTraceMocks.handleRecordCommand.mockReset();
+});
+
+type RecordCommandCall = [{ req: DaemonRequest; sessionName: string }];
+
+type RecordVideoFixture = {
+  root: string;
+  replayPath: string;
+  sessionStore: SessionStore;
+  nestedRequests: DaemonRequest[];
+};
+
+type MockRecordingState = {
+  recordingPath: string;
+};
+
+function createRecordVideoFixture(): RecordVideoFixture {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-record-video-'));
+  const replayPath = path.join(root, 'flow.ad');
+  fs.writeFileSync(replayPath, 'open "Demo"\nclick "Continue"\n');
+  return {
+    root,
+    replayPath,
+    sessionStore: new SessionStore(path.join(root, 'sessions')),
+    nestedRequests: [],
+  };
+}
+
+function installMockRecordingHandler(sessionStore: SessionStore, state: MockRecordingState): void {
+  recordTraceMocks.handleRecordCommand.mockImplementation(
+    async (params: { req: DaemonRequest }): Promise<DaemonResponse> =>
+      await handleMockRecordCommand({
+        req: params.req,
+        sessionStore,
+        state,
+      }),
+  );
+}
+
+async function handleMockRecordCommand(params: {
+  req: DaemonRequest;
+  sessionStore: SessionStore;
+  state: MockRecordingState;
+}): Promise<DaemonResponse> {
+  const { req, sessionStore, state } = params;
+  const action = req.positionals?.[0];
+  if (action === 'start') return startMockRecording({ req, sessionStore, state });
+  if (action === 'stop') return stopMockRecording({ req, sessionStore, state });
+  return { ok: false, error: { code: 'INVALID_ARGS', message: 'unexpected record action' } };
+}
+
+function startMockRecording(params: {
+  req: DaemonRequest;
+  sessionStore: SessionStore;
+  state: MockRecordingState;
+}): DaemonResponse {
+  const { req, sessionStore, state } = params;
+  state.recordingPath = req.positionals?.[1] ?? '';
+  const session = sessionStore.get(req.session);
+  if (session) {
+    session.recording = {
+      platform: 'ios',
+      outPath: state.recordingPath,
+      startedAt: Date.now(),
+      showTouches: true,
+      gestureEvents: [],
+      child: { kill: () => true, pid: 123 },
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    } as NonNullable<typeof session.recording>;
+    sessionStore.set(req.session, session);
+  }
+  return { ok: true, data: { recording: 'started', outPath: state.recordingPath } };
+}
+
+function stopMockRecording(params: {
+  req: DaemonRequest;
+  sessionStore: SessionStore;
+  state: MockRecordingState;
+}): DaemonResponse {
+  const { req, sessionStore, state } = params;
+  const session = sessionStore.get(req.session);
+  if (session) {
+    session.recording = undefined;
+    sessionStore.set(req.session, session);
+  }
+  fs.writeFileSync(state.recordingPath, 'video');
+  return {
+    ok: true,
+    data: {
+      recording: 'stopped',
+      outPath: state.recordingPath,
+      artifacts: [
+        {
+          field: 'outPath',
+          path: state.recordingPath,
+          fileName: path.basename(state.recordingPath),
+        },
+      ],
+    },
+  };
+}
+
+function expectRecordVideoCalls(params: {
+  generatedSession: string;
+  artifactsDir: string | undefined;
+}): void {
+  const { generatedSession, artifactsDir } = params;
+  const recordCalls = recordTraceMocks.handleRecordCommand.mock.calls as RecordCommandCall[];
+  assert.equal(recordCalls.length, 2);
+
+  const startCall = recordCalls[0]?.[0];
+  const stopCall = recordCalls[1]?.[0];
+  assert.equal(startCall?.sessionName, generatedSession);
+  assert.equal(startCall?.req.session, generatedSession);
+  assert.deepEqual(startCall?.req.positionals, [
+    'start',
+    path.join(artifactsDir ?? '', 'attempt-1', 'recording.mp4'),
+  ]);
+  assert.equal(stopCall?.sessionName, generatedSession);
+  assert.equal(stopCall?.req.session, generatedSession);
+  assert.deepEqual(stopCall?.req.positionals, ['stop']);
+}
 
 test('buildNestedReplayFlags returns parent flags untouched when neither override is set', () => {
   const parent = { platform: 'android' as const, timeoutMs: 5000 };
@@ -56,6 +191,17 @@ test('buildNestedReplayFlags overrides a parent artifactsDir with the attempt-le
   assert.equal(result?.artifactsDir, '/suite-root/flow/attempt-2');
 });
 
+test('buildNestedReplayFlags strips test-only recordVideo before replay actions inherit flags', () => {
+  const result = buildNestedReplayFlags({
+    parentFlags: { platform: 'ios', recordVideo: true },
+    platform: undefined,
+    target: undefined,
+    artifactsDir: undefined,
+  });
+
+  assert.deepEqual(result, { platform: 'ios' });
+});
+
 test('collectReplayActionArtifactPaths includes failed action artifact details', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-artifacts-'));
   const snapshotPath = path.join(root, 'failure-snapshot.txt');
@@ -73,4 +219,44 @@ test('collectReplayActionArtifactPaths includes failed action artifact details',
   });
 
   assert.deepEqual(paths, [snapshotPath]);
+});
+
+test('test --record-video records each replay attempt on the generated test session', async () => {
+  const { root, replayPath, sessionStore, nestedRequests } = createRecordVideoFixture();
+  installMockRecordingHandler(sessionStore, { recordingPath: '' });
+
+  const response = await handleSessionReplayCommands({
+    req: {
+      token: 'token',
+      session: 'default',
+      command: 'test',
+      positionals: [replayPath],
+      flags: { recordVideo: true, artifactsDir: path.join(root, 'artifacts') },
+      meta: { cwd: root, requestId: 'record-video-suite' },
+    },
+    sessionName: 'default',
+    logPath: path.join(root, 'daemon.log'),
+    sessionStore,
+    invoke: async (nestedReq) => {
+      nestedRequests.push(nestedReq);
+      if (nestedReq.command === 'open') {
+        sessionStore.set(nestedReq.session, makeIosSession(nestedReq.session));
+      }
+      return { ok: true, data: { session: nestedReq.session } };
+    },
+  });
+
+  if (!response) throw new Error('Expected response');
+  if (!response.ok) throw new Error(response.error.message);
+  const suite = response.data as {
+    tests?: Array<{ session?: string; artifactsDir?: string }>;
+  };
+  const testResult = suite.tests?.[0] ?? {};
+  const generatedSession = testResult.session;
+  if (typeof generatedSession !== 'string') throw new Error('Expected generated test session');
+  expectRecordVideoCalls({ generatedSession, artifactsDir: testResult.artifactsDir });
+  assert.equal(
+    nestedRequests.some((nestedReq) => nestedReq.flags?.recordVideo === true),
+    false,
+  );
 });

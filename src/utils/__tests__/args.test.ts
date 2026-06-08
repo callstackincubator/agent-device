@@ -1033,10 +1033,17 @@ test('usageForCommand includes Maestro test suite flag', () => {
   if (help === null) throw new Error('Expected test help text');
   assert.match(help, /Run one or more replay scripts as a serial test suite/);
   assert.match(help, /--maestro/);
+  assert.match(help, /--record-video/);
   assert.match(help, /--shard-all <n>/);
   assert.match(help, /--shard-split <n>/);
   assert.match(help, /AD_SHARD_INDEX is zero-based/);
   assert.match(help, /Replay\/Test: inject or override/);
+});
+
+test('parseArgs recognizes test --record-video flag', () => {
+  const parsed = parseArgs(['test', './suite', '--record-video'], { strictFlags: true });
+  assert.equal(parsed.command, 'test');
+  assert.equal(parsed.flags.recordVideo, true);
 });
 
 test('usageForCommand documents prepare ios-runner', () => {
@@ -1494,6 +1501,7 @@ test('command usage describes test suite flags', () => {
   assert.match(help, /each shard stops independently/);
   assert.match(help, /--timeout <ms>/);
   assert.match(help, /--retries <n>/);
+  assert.match(help, /--record-video/);
   assert.match(help, /--artifacts-dir <path>/);
   assert.match(help, /test --verbose prints per-test step timings without debug logs/);
 });

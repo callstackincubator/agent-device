@@ -38,7 +38,7 @@ export async function runReplayTestSuite(
     sessionName: string;
   } & ReplayTestRuntimeDependencies,
 ): Promise<DaemonResponse> {
-  const { req, sessionName, runReplay, cleanupSession } = params;
+  const { req, sessionName, runReplay, cleanupSession, finalizeAttempt } = params;
   if ((req.positionals?.length ?? 0) === 0) {
     return errorResponse('INVALID_ARGS', 'test requires at least one path or glob');
   }
@@ -82,6 +82,7 @@ export async function runReplayTestSuite(
           suiteTotal: shardPlan.total,
           runReplay,
           cleanupSession,
+          finalizeAttempt,
         })),
       );
     } else {
@@ -97,6 +98,7 @@ export async function runReplayTestSuite(
           suiteTotal: entries.length,
           runReplay,
           cleanupSession,
+          finalizeAttempt,
         })),
       );
     }
@@ -239,6 +241,7 @@ async function runReplayTestEntriesInDiscoveryOrder(
     suiteTotal,
     runReplay,
     cleanupSession,
+    finalizeAttempt,
   } = params;
   const results: ReplaySuiteTestResult[] = [];
   let executed = 0;
@@ -276,6 +279,7 @@ async function runReplayTestEntriesInDiscoveryOrder(
       suiteTotal,
       runReplay,
       cleanupSession,
+      finalizeAttempt,
     });
     results.push(result);
     if (flags?.failFast === true || isReplayInfrastructureFailure(result)) break;
@@ -308,6 +312,7 @@ async function runReplayTestEntries(
     shard,
     runReplay,
     cleanupSession,
+    finalizeAttempt,
   } = params;
   const results: ReplaySuiteTestResult[] = [];
   for (const [entryIndex, entry] of entries.entries()) {
@@ -326,6 +331,7 @@ async function runReplayTestEntries(
       shard,
       runReplay,
       cleanupSession,
+      finalizeAttempt,
     });
     results.push(result);
     if (flags?.failFast === true || isReplayInfrastructureFailure(result)) break;
@@ -365,6 +371,7 @@ async function runReplayTestCase(
     shard,
     runReplay,
     cleanupSession,
+    finalizeAttempt,
   } = params;
   const testStartedAt = Date.now();
   const testArtifactsDir = path.join(
@@ -412,6 +419,7 @@ async function runReplayTestCase(
       shard,
       runReplay,
       cleanupSession,
+      finalizeAttempt,
     });
     finalAttemptDurationMs = Date.now() - attemptStartedAt;
     materializeReplayTestAttemptArtifacts({

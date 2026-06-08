@@ -19,6 +19,7 @@ export const replayCliReaders = {
     failFast: flags.failFast,
     timeoutMs: flags.timeoutMs,
     retries: flags.retries,
+    recordVideo: flags.recordVideo,
     artifactsDir: flags.artifactsDir,
     reportJunit: flags.reportJunit,
     shardAll: flags.shardAll,

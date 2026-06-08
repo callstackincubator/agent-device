@@ -90,6 +90,7 @@ export type CliFlags = RemoteConfigMetroOptions &
     failFast?: boolean;
     timeoutMs?: number;
     retries?: number;
+    recordVideo?: boolean;
     artifactsDir?: string;
     reportJunit?: string;
     shardAll?: number;
@@ -814,6 +815,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     max: 3,
     usageLabel: '--retries <n>',
     usageDescription: 'Test: retry each failed script up to n additional times',
+  },
+  {
+    key: 'recordVideo',
+    names: ['--record-video'],
+    type: 'boolean',
+    usageLabel: '--record-video',
+    usageDescription: 'Test: record each replay attempt to recording.mp4 in its attempt artifacts',
   },
   {
     key: 'artifactsDir',

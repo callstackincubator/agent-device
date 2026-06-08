@@ -231,6 +231,7 @@ const CLI_COMMAND_OVERRIDES = {
       'failFast',
       'timeoutMs',
       'retries',
+      'recordVideo',
       'artifactsDir',
       'reportJunit',
       'shardAll',
