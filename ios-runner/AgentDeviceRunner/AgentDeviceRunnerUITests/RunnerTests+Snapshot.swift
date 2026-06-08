@@ -356,7 +356,7 @@ extension RunnerTests {
     NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_AX_UNAVAILABLE=%@", failure.message)
     invalidateCachedTarget(reason: Self.axSnapshotUnavailableReason)
     return sparseTruncatedSnapshotPayload(
-      message: failure.message,
+      message: recoveredSnapshotMessage(failure),
       runnerFatal: true,
       runnerFatalReason: Self.axSnapshotUnavailableReason
     )
@@ -402,9 +402,11 @@ extension RunnerTests {
     )
 
     if requestedDepth <= 0 {
-      return sparseTruncatedSnapshotPayload(message: failure.message)
+      return sparseTruncatedSnapshotPayload(message: recoveredSnapshotMessage(failure))
     }
 
+    // Raw depth-limited recovery intentionally falls back to sparse interactive discovery because
+    // the raw AX tree is the failed operation.
     let fallback = snapshotFlatInteractive(
       app: app,
       options: SnapshotOptions(
@@ -416,10 +418,14 @@ extension RunnerTests {
       )
     )
     return DataPayload(
-      message: failure.message,
+      message: recoveredSnapshotMessage(failure),
       nodes: fallback.nodes,
       truncated: true
     )
+  }
+
+  private func recoveredSnapshotMessage(_ failure: SnapshotCaptureFailure) -> String {
+    return "\(failure.message) Hint: \(failure.hint)"
   }
 
   private func sparseTruncatedSnapshotPayload(
@@ -448,7 +454,7 @@ extension RunnerTests {
       )
     )
 
-    XCTAssertEqual(payload.message, Self.axSnapshotFailureMessage)
+    XCTAssertEqual(payload.message, "\(Self.axSnapshotFailureMessage) Hint: \(Self.axSnapshotHint)")
     XCTAssertEqual(payload.nodes?.count, 1)
     XCTAssertEqual(payload.nodes?.first?.type, "Application")
     XCTAssertEqual(payload.truncated, true)
@@ -456,6 +462,19 @@ extension RunnerTests {
     XCTAssertEqual(payload.runnerFatalReason, Self.axSnapshotUnavailableReason)
     XCTAssertNil(currentApp)
     XCTAssertNil(currentBundleId)
+  }
+
+  func testRecoveredSnapshotMessagePreservesHint() {
+    let message = recoveredSnapshotMessage(
+      SnapshotCaptureFailure(
+        code: Self.axSnapshotErrorCode,
+        message: Self.axSnapshotFailureMessage,
+        hint: Self.axSnapshotHint
+      )
+    )
+
+    XCTAssertTrue(message.contains(Self.axSnapshotFailureMessage))
+    XCTAssertTrue(message.contains(Self.axSnapshotHint))
   }
 
   func testDepthLimitedSnapshotFailureReturnsNonFatalFallback() {
@@ -478,7 +497,10 @@ extension RunnerTests {
       )
     )
 
-    XCTAssertEqual(payload?.message, "\(Self.axSnapshotFailureMessage) kAXErrorIllegalArgument.")
+    XCTAssertEqual(
+      payload?.message,
+      "\(Self.axSnapshotFailureMessage) kAXErrorIllegalArgument. Hint: \(Self.axSnapshotHint)"
+    )
     XCTAssertEqual(payload?.nodes?.count, 1)
     XCTAssertEqual(payload?.nodes?.first?.type, "Application")
     XCTAssertEqual(payload?.truncated, true)
@@ -990,9 +1012,7 @@ extension RunnerTests {
       app.textFields,
       app.secureTextFields,
       app.searchFields,
-      app.staticTexts,
       app.textViews,
-      app.images,
       app.switches,
       app.sliders,
       app.segmentedControls,
@@ -1003,7 +1023,9 @@ extension RunnerTests {
       app.pickers,
       app.steppers,
       app.tabBars,
-      app.menuItems
+      app.menuItems,
+      app.staticTexts,
+      app.images
     ]
 
     var elements: [XCUIElement] = []
