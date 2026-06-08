@@ -233,6 +233,8 @@ const CLI_COMMAND_OVERRIDES = {
       'retries',
       'artifactsDir',
       'reportJunit',
+      'shardAll',
+      'shardSplit',
     ],
   },
   batch: {

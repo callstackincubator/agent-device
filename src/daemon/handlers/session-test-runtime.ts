@@ -10,7 +10,10 @@ import {
 } from '../request-cancel.ts';
 import type { DaemonResponse } from '../types.ts';
 import type { ReplayScriptMetadata } from '../../replay/script.ts';
-import type { ReplayTestRuntimeDependencies } from './session-test-types.ts';
+import type {
+  ReplayTestRunReplayParams,
+  ReplayTestRuntimeDependencies,
+} from './session-test-types.ts';
 
 const REPLAY_TIMEOUT_CLEANUP_GRACE_MS = 2_000;
 const REPLAY_TEST_TIMEOUT_HINT =
@@ -26,6 +29,7 @@ export async function runReplayTestAttempt(
     platform?: ReplayScriptMetadata['platform'];
     target?: ReplayScriptMetadata['target'];
     artifactsDir?: string;
+    shard?: ReplayTestRunReplayParams['shard'];
   } & ReplayTestRuntimeDependencies,
 ): Promise<DaemonResponse> {
   const {
@@ -36,6 +40,7 @@ export async function runReplayTestAttempt(
     platform,
     target,
     artifactsDir,
+    shard,
     runReplay,
     cleanupSession,
   } = params;
@@ -64,6 +69,7 @@ export async function runReplayTestAttempt(
     artifactsDir,
     artifactPaths,
     tracePath,
+    shard,
   })
     .catch((error) => {
       const appErr = normalizeError(error);

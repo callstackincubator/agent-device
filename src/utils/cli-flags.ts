@@ -92,6 +92,8 @@ export type CliFlags = RemoteConfigMetroOptions &
     retries?: number;
     artifactsDir?: string;
     reportJunit?: string;
+    shardAll?: number;
+    shardSplit?: number;
     steps?: string;
     stepsFile?: string;
     findFirst?: boolean;
@@ -800,7 +802,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'int',
     min: 1,
     usageLabel: '--timeout <ms>',
-    usageDescription: 'Prepare/Replay/Snapshot/Test: maximum wall-clock time for the command or attempt',
+    usageDescription:
+      'Prepare/Replay/Snapshot/Test: maximum wall-clock time for the command or attempt',
   },
   {
     key: 'retries',
@@ -824,6 +827,22 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--report-junit <path>',
     usageDescription: 'Test: write a JUnit XML report for the replay suite',
+  },
+  {
+    key: 'shardAll',
+    names: ['--shard-all'],
+    type: 'int',
+    min: 1,
+    usageLabel: '--shard-all <n>',
+    usageDescription: 'Test: run the full suite on each of n devices',
+  },
+  {
+    key: 'shardSplit',
+    names: ['--shard-split'],
+    type: 'int',
+    min: 1,
+    usageLabel: '--shard-split <n>',
+    usageDescription: 'Test: split runnable suite entries across n devices',
   },
   {
     key: 'steps',

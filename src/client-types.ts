@@ -718,6 +718,8 @@ export type ReplayTestOptions = AgentDeviceRequestOverrides &
     retries?: number;
     artifactsDir?: string;
     reportJunit?: string;
+    shardAll?: number;
+    shardSplit?: number;
   };
 
 export type BatchStep = {
@@ -855,6 +857,8 @@ type CommandExecutionOptions = Partial<ScreenshotRequestFlags> & {
   retries?: number;
   artifactsDir?: string;
   reportJunit?: string;
+  shardAll?: number;
+  shardSplit?: number;
   findFirst?: boolean;
   findLast?: boolean;
   networkInclude?: 'summary' | 'headers' | 'body' | 'all';

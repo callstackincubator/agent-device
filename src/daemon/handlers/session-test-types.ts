@@ -1,5 +1,6 @@
 import type { DaemonResponse } from '../types.ts';
 import type { ReplayScriptMetadata } from '../../replay/script.ts';
+import type { ReplayTestShardContext } from './session-test-sharding.ts';
 
 export type ReplayTestRunReplayParams = {
   filePath: string;
@@ -10,6 +11,7 @@ export type ReplayTestRunReplayParams = {
   artifactsDir?: string;
   artifactPaths?: Set<string>;
   tracePath?: string;
+  shard?: ReplayTestShardContext;
 };
 
 export type ReplayTestRunReplay = (params: ReplayTestRunReplayParams) => Promise<DaemonResponse>;

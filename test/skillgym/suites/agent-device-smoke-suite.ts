@@ -1808,6 +1808,24 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     forbiddenOutputs: [/maestro\s+test/i, /maestro\s+cloud/i, plannedCommand('test')],
   }),
   makeCase({
+    id: 'test-maestro-shard-all-devices',
+    contract: [
+      'Suite path: ./e2e/maestro',
+      'The suite contains Maestro YAML compatibility flows',
+      'Connected device ids: udid1, emulator-5554',
+      'Need local cross-device validation by running the full suite on each device',
+    ],
+    task: 'Plan the Agent Device test command that runs the Maestro suite on both connected devices without calling the Maestro CLI directly.',
+    outputs: [
+      plannedCommand('test'),
+      /--maestro/i,
+      /--device\s+["']?udid1,emulator-5554["']?/i,
+      /--shard-all\s+2/i,
+      /\.\/e2e\/maestro/i,
+    ],
+    forbiddenOutputs: [/maestro\s+test/i, /--shard-split/i, /--platform\s+(?:ios|android)/i],
+  }),
+  makeCase({
     id: 'batch-known-stable-flow',
     contract: [
       'App name: Agent Device Tester',

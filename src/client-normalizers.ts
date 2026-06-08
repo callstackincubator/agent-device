@@ -321,6 +321,8 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     retries: options.retries,
     artifactsDir: options.artifactsDir,
     reportJunit: options.reportJunit,
+    shardAll: options.shardAll,
+    shardSplit: options.shardSplit,
     findFirst: options.findFirst,
     findLast: options.findLast,
     networkInclude: options.networkInclude,

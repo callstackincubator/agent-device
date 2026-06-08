@@ -48,6 +48,9 @@ export type ReplaySuiteTestPassed = {
   replayed: number;
   healed: number;
   attemptFailures?: ReplaySuiteAttemptFailure[];
+  shardIndex?: number;
+  shardCount?: number;
+  deviceId?: string;
 };
 
 export type ReplaySuiteTestFailed = {
@@ -66,6 +69,9 @@ export type ReplaySuiteTestFailed = {
     logPath?: string;
     details?: Record<string, unknown>;
   };
+  shardIndex?: number;
+  shardCount?: number;
+  deviceId?: string;
 };
 
 export type ReplaySuiteTestSkipped = {

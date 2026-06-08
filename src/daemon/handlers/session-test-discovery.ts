@@ -108,10 +108,12 @@ export function buildReplayTestAttemptRequestId(params: {
   filePath: string;
   caseIndex: number;
   attemptIndex: number;
+  shardIndex?: number;
 }): string {
-  const { requestId, suiteInvocationId, filePath, caseIndex, attemptIndex } = params;
+  const { requestId, suiteInvocationId, filePath, caseIndex, attemptIndex, shardIndex } = params;
+  const shardPart = shardIndex === undefined ? '' : `:shard:${shardIndex + 1}`;
   return resolveRequestTrackingId(
-    `${requestId ?? suiteInvocationId}:test:${caseIndex + 1}:${path.basename(filePath)}:attempt:${attemptIndex + 1}`,
+    `${requestId ?? suiteInvocationId}${shardPart}:test:${caseIndex + 1}:${path.basename(filePath)}:attempt:${attemptIndex + 1}`,
     suiteInvocationId,
   );
 }

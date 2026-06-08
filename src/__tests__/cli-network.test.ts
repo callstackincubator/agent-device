@@ -213,9 +213,7 @@ test('test command --verbose prints step telemetry for passing tests without deb
 });
 
 test('test command --verbose keeps nested retry and open step telemetry distinct', async () => {
-  const tmpDir = await fs.mkdtemp(
-    path.join(os.tmpdir(), 'agent-device-cli-test-verbose-retry-'),
-  );
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-cli-test-verbose-retry-'));
   const artifactsDir = path.join(tmpDir, 'material-top-tabs');
   const attemptDir = path.join(artifactsDir, 'attempt-1');
   await fs.mkdir(attemptDir, { recursive: true });
@@ -495,6 +493,32 @@ test('test --maestro forwards Maestro backend and platform for directory suites'
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
+});
+
+test('test forwards shard flags and comma device lists', async () => {
+  const result = await runCliCapture(
+    ['test', '--maestro', '--device', 'udid1,emulator-5554', '--shard-all', '2', './suite'],
+    async () => ({
+      ok: true,
+      data: {
+        total: 0,
+        executed: 0,
+        passed: 0,
+        failed: 0,
+        skipped: 0,
+        notRun: 0,
+        durationMs: 1,
+        failures: [],
+        tests: [],
+      },
+    }),
+  );
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls.length, 1);
+  assert.equal(result.calls[0]?.flags?.replayBackend, 'maestro');
+  assert.equal(result.calls[0]?.flags?.device, 'udid1,emulator-5554');
+  assert.equal(result.calls[0]?.flags?.shardAll, 2);
 });
 
 test('test command writes JUnit report with failure metadata', async () => {

@@ -22,6 +22,8 @@ export type CommandFlags = Omit<CliFlags, DaemonExcludedCliFlag> & {
   maestro?: MaestroRuntimeFlags;
   postGestureStabilization?: boolean;
   replayBackend?: string;
+  shardCount?: number;
+  shardIndex?: number;
 };
 
 export type DispatchContext = ScreenshotDispatchFlags & {

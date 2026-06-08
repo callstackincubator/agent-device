@@ -317,8 +317,8 @@ function renderFlakyTestSummary(
 
 function replayTestDisplayName(result: ReplaySuiteTestResult): string {
   const title = replayTestTitle(result);
-  if (title && title.length > 0) return JSON.stringify(title);
-  return path.basename(result.file);
+  const base = title && title.length > 0 ? JSON.stringify(title) : path.basename(result.file);
+  return `${base}${formatReplayTestShardSuffix(result)}`;
 }
 
 function replayFailedTestDisplayName(
@@ -326,11 +326,12 @@ function replayFailedTestDisplayName(
 ): string {
   const title = replayTestTitle(result);
   const filename = path.basename(result.file);
-  return title && title.length > 0 ? `${JSON.stringify(title)} in ${filename}` : filename;
+  const base = title && title.length > 0 ? `${JSON.stringify(title)} in ${filename}` : filename;
+  return `${base}${formatReplayTestShardSuffix(result)}`;
 }
 
 function replayTestCaseName(result: ReplaySuiteTestResult): string {
-  return replayTestTitle(result) ?? path.basename(result.file);
+  return `${replayTestTitle(result) ?? path.basename(result.file)}${formatReplayTestShardSuffix(result)}`;
 }
 
 function replayTestTitle(result: ReplaySuiteTestResult): string | undefined {
@@ -402,7 +403,7 @@ function buildReplayJunitXml(suite: ReplaySuiteResult): string {
 function renderJUnitTestCase(test: ReplaySuiteTestResult): string[] {
   const name = xmlEscape(replayTestCaseName(test));
   const className = xmlEscape(
-    path.dirname(test.file) === '.' ? test.file : path.dirname(test.file),
+    `${path.dirname(test.file) === '.' ? test.file : path.dirname(test.file)}${formatReplayTestShardSuffix(test)}`,
   );
   const file = xmlEscape(test.file);
   const time = formatJUnitSeconds(test.durationMs);
@@ -450,10 +451,28 @@ function appendReplaySystemOutMetadata(lines: string[], test: ReplaySuiteTestRes
     lines,
     'artifactsDir' in test && test.artifactsDir ? `artifactsDir: ${test.artifactsDir}` : undefined,
   );
+  appendOptionalLine(lines, replayTestShardMetadataLine(test));
   if (test.status === 'failed') {
     appendReplayFailureSystemOut(lines, test);
   }
   appendOptionalLine(lines, isFlakyReplayTestResult(test) ? 'flaky: true' : undefined);
+}
+
+function formatReplayTestShardSuffix(result: ReplaySuiteTestResult): string {
+  if (!('shardIndex' in result) || typeof result.shardIndex !== 'number') return '';
+  const shardCount = typeof result.shardCount === 'number' ? result.shardCount : '?';
+  const device = typeof result.deviceId === 'string' ? ` ${result.deviceId}` : '';
+  return ` [shard ${result.shardIndex + 1}/${shardCount}${device}]`;
+}
+
+function replayTestShardMetadataLine(result: ReplaySuiteTestResult): string | undefined {
+  if (!('shardIndex' in result) || typeof result.shardIndex !== 'number') return undefined;
+  const values = [
+    `shardIndex: ${result.shardIndex}`,
+    typeof result.shardCount === 'number' ? `shardCount: ${result.shardCount}` : '',
+    typeof result.deviceId === 'string' ? `deviceId: ${result.deviceId}` : '',
+  ].filter(Boolean);
+  return values.join('\n');
 }
 
 function appendReplayFailureSystemOut(

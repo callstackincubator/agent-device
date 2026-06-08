@@ -177,6 +177,8 @@ export const clientCommandMetadata = [
     retries: integerField(),
     artifactsDir: stringField(),
     reportJunit: stringField(),
+    shardAll: integerField(),
+    shardSplit: integerField(),
   }),
   defineClientCommandMetadata('perf', {
     area: enumField(PERF_AREA_VALUES),

@@ -180,6 +180,15 @@ function buildReplayBuiltinVars(params: {
   if (target) builtins.AD_TARGET = target;
   const device = flags.device;
   if (typeof device === 'string' && device.length > 0) builtins.AD_DEVICE = device;
+  const deviceId = typeof flags.serial === 'string' ? flags.serial : flags.udid;
+  if (typeof deviceId === 'string' && deviceId.length > 0) {
+    builtins.AD_DEVICE_ID = deviceId;
+  }
+  if (typeof flags.shardIndex === 'number') {
+    const shardIndex = String(flags.shardIndex);
+    builtins.AD_SHARD_INDEX = shardIndex;
+  }
+  if (typeof flags.shardCount === 'number') builtins.AD_SHARD_COUNT = String(flags.shardCount);
   const artifactsDir = flags.artifactsDir;
   if (typeof artifactsDir === 'string' && artifactsDir.length > 0) {
     builtins.AD_ARTIFACTS = artifactsDir;

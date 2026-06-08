@@ -5,23 +5,33 @@ import { runReplayTestSuite } from './session-test.ts';
 import { handleCloseCommand } from './session-close.ts';
 import { collectReplayActionArtifactPaths, runReplayScriptFile } from './session-replay-runtime.ts';
 import type { ReplayScriptMetadata } from '../../replay/script.ts';
+import { buildReplayTestShardFlags, type ReplayTestShardContext } from './session-test-sharding.ts';
 
 export function buildNestedReplayFlags(params: {
   parentFlags: CommandFlags | undefined;
   platform: ReplayScriptMetadata['platform'] | undefined;
   target: ReplayScriptMetadata['target'] | undefined;
   artifactsDir: string | undefined;
+  shard?: ReplayTestShardContext;
 }): CommandFlags | undefined {
-  const { parentFlags, platform, target, artifactsDir } = params;
-  if (platform === undefined && target === undefined && artifactsDir === undefined) {
+  const { parentFlags, platform, target, artifactsDir, shard } = params;
+  if (
+    platform === undefined &&
+    target === undefined &&
+    artifactsDir === undefined &&
+    shard === undefined
+  ) {
     return parentFlags;
   }
-  return {
-    ...(parentFlags ?? {}),
-    ...(platform !== undefined ? { platform } : {}),
-    ...(target !== undefined ? { target } : {}),
-    ...(artifactsDir !== undefined ? { artifactsDir } : {}),
-  };
+  return buildReplayTestShardFlags(
+    {
+      ...(parentFlags ?? {}),
+      ...(platform !== undefined ? { platform } : {}),
+      ...(target !== undefined ? { target } : {}),
+      ...(artifactsDir !== undefined ? { artifactsDir } : {}),
+    },
+    shard,
+  );
 }
 
 export async function handleSessionReplayCommands(params: {
@@ -56,6 +66,7 @@ export async function handleSessionReplayCommands(params: {
         artifactsDir,
         artifactPaths,
         tracePath,
+        shard,
       }) => {
         const captureArtifacts = (response: DaemonResponse): DaemonResponse => {
           if (!artifactPaths) return response;
@@ -68,6 +79,7 @@ export async function handleSessionReplayCommands(params: {
           platform,
           target,
           artifactsDir,
+          shard,
         });
 
         return await runReplayScriptFile({

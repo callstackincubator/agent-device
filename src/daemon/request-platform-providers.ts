@@ -279,6 +279,7 @@ async function resolveScopedProviderDevice(
   req: DaemonRequest,
   existingSession: SessionState | undefined,
 ): Promise<DeviceInfo | undefined> {
+  if (!existingSession && isShardedReplayTestRequest(req)) return undefined;
   if (existingSession) {
     return shouldPreferExplicitDeviceOverExistingSession(req) &&
       hasExplicitDeviceSelector(req.flags)
@@ -289,6 +290,13 @@ async function resolveScopedProviderDevice(
     return undefined;
   }
   return await resolveTargetDevice(req.flags ?? {});
+}
+
+function isShardedReplayTestRequest(req: DaemonRequest): boolean {
+  return (
+    req.command === 'test' &&
+    (typeof req.flags?.shardAll === 'number' || typeof req.flags?.shardSplit === 'number')
+  );
 }
 
 async function requestPlatformProviderScopeWrappers(

@@ -21,6 +21,8 @@ export const replayCliReaders = {
     retries: flags.retries,
     artifactsDir: flags.artifactsDir,
     reportJunit: flags.reportJunit,
+    shardAll: flags.shardAll,
+    shardSplit: flags.shardSplit,
   }),
 } satisfies Record<string, CliReader>;
 
