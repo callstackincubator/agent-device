@@ -883,9 +883,14 @@ test('runReplayScriptFile captures a fresh Maestro snapshot for tapOn after asse
   let snapshots = 0;
   const { response, calls } = await runReplayFixture({
     label: 'maestro-assert-visible-tap-fresh-snapshot',
-    script: ['appId: demo.app', '---', '- assertVisible: Open feed', '- tapOn: Open feed', ''].join(
-      '\n',
-    ),
+    script: [
+      'appId: demo.app',
+      '---',
+      '- assertVisible:',
+      '    id: open-feed',
+      '- tapOn: Open feed',
+      '',
+    ].join('\n'),
     flags: { replayBackend: 'maestro', platform: 'android' },
     invoke: async (req) => {
       if (req.command === 'snapshot') {
@@ -904,6 +909,7 @@ test('runReplayScriptFile captures a fresh Maestro snapshot for tapOn after asse
                     {
                       index: 2,
                       label: 'Open feed',
+                      identifier: 'open-feed',
                       rect: { x: 20, y: 180, width: 180, height: 48 },
                     },
                   ]
@@ -916,6 +922,7 @@ test('runReplayScriptFile captures a fresh Maestro snapshot for tapOn after asse
                     {
                       index: 2,
                       label: 'Open feed',
+                      identifier: 'open-feed',
                       rect: { x: 40, y: 240, width: 200, height: 48 },
                     },
                   ],
