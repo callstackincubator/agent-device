@@ -1,4 +1,5 @@
 import { AppError } from '../utils/errors.ts';
+import { parseStringMember } from '../utils/string-enum.ts';
 import type { Rect, SnapshotNode } from '../utils/snapshot.ts';
 
 export const SCROLL_DIRECTIONS = ['up', 'down', 'left', 'right'] as const;
@@ -149,18 +150,9 @@ export function buildSwipePresetGesturePlan(
 }
 
 export function parseSwipePreset(input: string | undefined): SwipePreset {
-  switch (input) {
-    case 'left':
-    case 'right':
-    case 'left-edge':
-    case 'right-edge':
-      return input;
-    default:
-      throw new AppError(
-        'INVALID_ARGS',
-        'gesture swipe requires left, right, left-edge, or right-edge',
-      );
-  }
+  return parseStringMember(SWIPE_PRESETS, input, {
+    message: 'gesture swipe requires left, right, left-edge, or right-edge',
+  });
 }
 
 export function inferGestureReferenceFrame(
@@ -200,15 +192,9 @@ export function clampGesturePoint(
 }
 
 export function parseScrollDirection(direction: string): ScrollDirection {
-  switch (direction) {
-    case 'up':
-    case 'down':
-    case 'left':
-    case 'right':
-      return direction;
-    default:
-      throw new AppError('INVALID_ARGS', `Unknown direction: ${direction}`);
-  }
+  return parseStringMember(SCROLL_DIRECTIONS, direction, {
+    message: `Unknown direction: ${direction}`,
+  });
 }
 
 function scrollDirectionForFingerSwipe(direction: ScrollDirection): ScrollDirection {
