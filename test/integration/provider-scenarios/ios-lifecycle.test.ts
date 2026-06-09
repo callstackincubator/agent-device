@@ -271,11 +271,10 @@ test('Provider-backed integration iOS regular snapshot preserves fixed bottom ta
   await withProviderScenarioResource(
     createIosBottomTabsSnapshotWorld,
     async ({ daemon, runnerTranscript }) => {
-      await daemon.callCommand(
-        'open',
-        ['org.reactnavigation.playground'],
-        { platform: 'ios', udid: PROVIDER_SCENARIO_IOS_SIMULATOR.id },
-      );
+      await daemon.callCommand('open', ['org.reactnavigation.playground'], {
+        platform: 'ios',
+        udid: PROVIDER_SCENARIO_IOS_SIMULATOR.id,
+      });
 
       const snapshot = await daemon.callCommand('snapshot');
       const data = snapshot.json?.result?.data;

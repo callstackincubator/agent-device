@@ -520,7 +520,7 @@ async function resolveMaestroInteractionTarget(
 ): Promise<
   { ok: true; target: ResolvedMaestroInteractionTarget } | { ok: false; response: DaemonResponse }
 > {
-  const snapshotResponse = await captureMaestroSnapshot(params);
+  const snapshotResponse = await captureMaestroSnapshot({ ...params, raw: true });
   return resolveMaestroInteractionTargetFromResponse(
     params,
     selector,

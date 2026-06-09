@@ -39,10 +39,7 @@ vi.mock('../../../platforms/ios/apps.ts', async (importOriginal) => {
 });
 
 import { dispatchCommand } from '../../../core/dispatch.ts';
-import {
-  runIosRunnerCommand,
-  stopIosRunnerSession,
-} from '../../../platforms/ios/runner-client.ts';
+import { runIosRunnerCommand, stopIosRunnerSession } from '../../../platforms/ios/runner-client.ts';
 import { closeIosApp } from '../../../platforms/ios/apps.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
@@ -901,27 +898,26 @@ test('captureSnapshot lazily retries pending no-change touch before returning fr
       return { clicked: true };
     }
     return {
-      nodes:
-        !pressed
-          ? baselineNodes
-          : [
-              {
-                index: 0,
-                depth: 0,
-                type: 'Button',
-                label: 'Back',
-                identifier: 'back',
-                hittable: true,
-                rect: { x: 20, y: 60, width: 90, height: 44 },
-              },
-              {
-                index: 1,
-                depth: 0,
-                type: 'StaticText',
-                label: 'Feed',
-                rect: { x: 20, y: 140, width: 160, height: 48 },
-              },
-            ],
+      nodes: !pressed
+        ? baselineNodes
+        : [
+            {
+              index: 0,
+              depth: 0,
+              type: 'Button',
+              label: 'Back',
+              identifier: 'back',
+              hittable: true,
+              rect: { x: 20, y: 60, width: 90, height: 44 },
+            },
+            {
+              index: 1,
+              depth: 0,
+              type: 'StaticText',
+              label: 'Feed',
+              rect: { x: 20, y: 140, width: 160, height: 48 },
+            },
+          ],
       backend: 'xctest',
     };
   });
@@ -936,12 +932,10 @@ test('captureSnapshot lazily retries pending no-change touch before returning fr
   expect(result.snapshot.nodes).toEqual(
     expect.arrayContaining([expect.objectContaining({ label: 'Feed' })]),
   );
-  expect(mockDispatch.mock.calls.map((call) => call[1]).filter((command) => command === 'press'))
-    .toEqual(['press']);
-  expect(mockDispatch.mock.calls.find((call) => call[1] === 'press')?.[2]).toEqual([
-    '100',
-    '144',
-  ]);
+  expect(
+    mockDispatch.mock.calls.map((call) => call[1]).filter((command) => command === 'press'),
+  ).toEqual(['press']);
+  expect(mockDispatch.mock.calls.find((call) => call[1] === 'press')?.[2]).toEqual(['100', '144']);
   expect(session.pendingInteractionOutcome).toBeUndefined();
 });
 
@@ -1050,18 +1044,17 @@ test('captureSnapshot retries pending tap outcome before post-gesture stabilizat
       return { clicked: true };
     }
     return {
-      nodes:
-        !pressed
-          ? baselineNodes
-          : [
-              {
-                index: 0,
-                depth: 0,
-                type: 'android.widget.TextView',
-                label: 'Tab Third (3)',
-                rect: { x: 390, y: 884, width: 300, height: 55 },
-              },
-            ],
+      nodes: !pressed
+        ? baselineNodes
+        : [
+            {
+              index: 0,
+              depth: 0,
+              type: 'android.widget.TextView',
+              label: 'Tab Third (3)',
+              rect: { x: 390, y: 884, width: 300, height: 55 },
+            },
+          ],
       backend: 'android',
     };
   });
@@ -1076,12 +1069,10 @@ test('captureSnapshot retries pending tap outcome before post-gesture stabilizat
   expect(result.snapshot.nodes).toEqual(
     expect.arrayContaining([expect.objectContaining({ label: 'Tab Third (3)' })]),
   );
-  expect(mockDispatch.mock.calls.map((call) => call[1]).filter((command) => command === 'press'))
-    .toEqual(['press']);
-  expect(mockDispatch.mock.calls.find((call) => call[1] === 'press')?.[2]).toEqual([
-    '540',
-    '1356',
-  ]);
+  expect(
+    mockDispatch.mock.calls.map((call) => call[1]).filter((command) => command === 'press'),
+  ).toEqual(['press']);
+  expect(mockDispatch.mock.calls.find((call) => call[1] === 'press')?.[2]).toEqual(['540', '1356']);
   expect(session.pendingInteractionOutcome).toBeUndefined();
   expect(session.postGestureStabilization).toBeUndefined();
 });

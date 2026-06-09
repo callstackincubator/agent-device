@@ -94,7 +94,12 @@ async function invokeNativeMaestroVisibleWaitWithSnapshotFallback(
     );
   }
 
-  return await invokeSingleSnapshotMaestroAssertVisible(params, args, nativeResponse, nativeStartedAt);
+  return await invokeSingleSnapshotMaestroAssertVisible(
+    params,
+    args,
+    nativeResponse,
+    nativeStartedAt,
+  );
 }
 
 async function runNativeVisibleWait(
@@ -221,10 +226,7 @@ function isReactNativeOverlayBlockingAssertion(response: DaemonResponse): boolea
   );
 }
 
-function readNativeVisibleWaitQuery(
-  baseReq: ReplayBaseRequest,
-  selector: string,
-): string | null {
+function readNativeVisibleWaitQuery(baseReq: ReplayBaseRequest, selector: string): string | null {
   if (baseReq.flags?.platform !== 'ios' && baseReq.flags?.platform !== 'android') return null;
   return extractMaestroVisibleTextQuery(selector);
 }

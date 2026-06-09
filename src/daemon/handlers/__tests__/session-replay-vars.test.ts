@@ -1893,7 +1893,10 @@ test('runReplayScriptFile runs Maestro runFlow.when.visible commands when presen
       ['find', ['Continue', 'click']],
     ],
   );
-  assert.equal(calls.find((call) => call.command === 'click')?.flags?.interactionOutcome, undefined);
+  assert.equal(
+    calls.find((call) => call.command === 'click')?.flags?.interactionOutcome,
+    undefined,
+  );
   assert.equal(
     calls.find((call) => call.command === 'click')?.flags?.postGestureStabilization,
     true,

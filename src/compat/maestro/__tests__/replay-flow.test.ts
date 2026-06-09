@@ -642,7 +642,11 @@ test('parseMaestroReplayFlow keeps retry commands for runtime evaluation', () =>
     control.actions.map((entry) => [entry.command, entry.positionals, entry.flags]),
     [
       ['open', ['example://details'], {}],
-      ['__maestroAssertVisible', ['label="Article" || text="Article" || id="Article"', '17000'], {}],
+      [
+        '__maestroAssertVisible',
+        ['label="Article" || text="Article" || id="Article"', '17000'],
+        {},
+      ],
     ],
   );
 });

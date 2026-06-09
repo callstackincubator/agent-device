@@ -506,7 +506,7 @@ test('sendToDaemon prints replay test progress before the socket response', asyn
   }
 });
 
-test('sendToDaemon prints replay test progress before the HTTP NDJSON response', async () => {
+test('sendToDaemon ignores terminal replay test progress before the HTTP NDJSON response', async () => {
   let stderr = '';
   const seenPaths: string[] = [];
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
@@ -598,7 +598,7 @@ test('sendToDaemon prints replay test progress before the HTTP NDJSON response',
       assert.deepEqual(response, { ok: true, data: { via: 'http-progress' } });
     });
     assert.deepEqual(seenPaths, ['GET /agent-device/health', 'POST /agent-device/rpc']);
-    assert.match(stderr, /PASS "Payments flow" \(2\.50s\)/);
+    assert.doesNotMatch(stderr, /PASS "Payments flow" \(2\.50s\)/);
   } finally {
     (http as unknown as { request: typeof http.request }).request = originalHttpRequest;
     process.stderr.write = originalStderrWrite;

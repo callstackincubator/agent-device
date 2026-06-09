@@ -194,7 +194,10 @@ test('invokeMaestroAssertVisible does not use raw fallback for iOS snapshot miss
 
   assert.equal(response.ok, false);
   assert.ok(snapshotFlags.length > 1);
-  assert.equal(snapshotFlags.some((flags) => flags?.snapshotRaw === true), false);
+  assert.equal(
+    snapshotFlags.some((flags) => flags?.snapshotRaw === true),
+    false,
+  );
 });
 
 test('invokeMaestroAssertVisible does not use raw fallback for Android identifiers', async () => {
@@ -242,7 +245,10 @@ test('invokeMaestroAssertVisible does not use Android raw fallback for generated
   });
 
   assert.equal(response.ok, false);
-  assert.equal(snapshotFlags.some((flags) => flags?.snapshotRaw === true), false);
+  assert.equal(
+    snapshotFlags.some((flags) => flags?.snapshotRaw === true),
+    false,
+  );
 });
 
 test('invokeMaestroAssertVisible writes terminal snapshot artifacts for failed attempts', async () => {

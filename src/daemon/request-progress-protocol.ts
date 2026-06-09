@@ -1,5 +1,3 @@
-import path from 'node:path';
-import { formatDurationSeconds } from '../utils/duration-format.ts';
 import type { DaemonRequest, DaemonResponse } from './types.ts';
 import type { RequestProgressEvent } from './request-progress.ts';
 
@@ -47,48 +45,4 @@ export function serializeDaemonResponseEnvelope(response: DaemonResponse): strin
 
 export function serializeDaemonRpcResponseEnvelope(response: unknown): string {
   return `${JSON.stringify({ type: 'response', response } satisfies DaemonResponseEnvelope<unknown>)}\n`;
-}
-
-export function formatRequestProgressEvent(event: RequestProgressEvent): string | undefined {
-  if (event.type !== 'replay-test') return undefined;
-  const name = formatReplayTestProgressName(event);
-  const durationSuffix =
-    event.durationMs !== undefined ? ` (${formatReplayProgressDuration(event)})` : '';
-  const attemptSuffix = formatReplayProgressAttemptSuffix(event);
-  const message = event.message?.replace(/\s+/g, ' ').trim();
-
-  if (event.status === 'pass') {
-    return `PASS ${name}${attemptSuffix}${durationSuffix}`;
-  }
-  if (event.status === 'skip') {
-    return [`SKIP ${name}`, message ? `  ${message}` : ''].filter(Boolean).join('\n');
-  }
-
-  return [
-    `FAIL ${name}${attemptSuffix}${durationSuffix}`,
-    message ? `  ${message}` : '',
-    event.artifactsDir ? `  artifacts: ${event.artifactsDir}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
-}
-
-function formatReplayTestProgressName(event: RequestProgressEvent): string {
-  const title = event.title?.trim();
-  if (title) return JSON.stringify(title);
-  return path.basename(event.file);
-}
-
-function formatReplayProgressAttemptSuffix(event: RequestProgressEvent): string {
-  if (event.attempt === undefined) return '';
-  if (event.status === 'fail' && event.retrying && event.maxAttempts !== undefined) {
-    return ` attempt ${event.attempt}/${event.maxAttempts} retrying`;
-  }
-  if (event.attempt > 1) return ` after ${event.attempt} attempts`;
-  return '';
-}
-
-function formatReplayProgressDuration(event: RequestProgressEvent): string {
-  const duration = formatDurationSeconds(event.durationMs ?? 0);
-  return event.attempt && event.attempt > 1 && !event.retrying ? `total ${duration}` : duration;
 }

@@ -3,15 +3,15 @@ import { AppError } from './utils/errors.ts';
 import type { DaemonRequest } from './daemon/types.ts';
 import type { RequestProgressEvent } from './daemon/request-progress.ts';
 import { consumeTextLines } from './utils/line-stream.ts';
+import { formatReplayTestProgressEvent } from './cli-test-progress.ts';
 import {
-  formatRequestProgressEvent,
   isDaemonProgressEnvelope,
   isDaemonResponseEnvelope,
   shouldStreamRequestProgress,
 } from './daemon/request-progress-protocol.ts';
 
 export function writeRequestProgressEvent(event: RequestProgressEvent): void {
-  const line = formatRequestProgressEvent(event);
+  const line = formatReplayTestProgressEvent(event);
   if (line) process.stderr.write(`${line}\n`);
 }
 

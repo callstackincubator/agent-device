@@ -1211,7 +1211,32 @@ test('openIosApp appends launchArgs alongside --payload-url for iOS device deep 
   }
 });
 
-test('openIosApp rejects launchArgs combined with URL deep link on iOS simulator', async () => {
+test('openIosApp launches iOS simulator app before opening URL', async () => {
+  mockEnsureBootedSimulator.mockResolvedValue();
+  mockRunCmd.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 });
+
+  await openIosApp(IOS_TEST_SIMULATOR, 'MyApp', {
+    appBundleId: 'com.example.app',
+    url: 'myapp://item/42',
+    launchArgs: ['-FeatureFlag', 'YES'],
+  });
+
+  assert.equal(mockRunCmd.mock.calls.length, 2);
+  assert.deepEqual(mockRunCmd.mock.calls[0], [
+    'xcrun',
+    ['simctl', 'launch', 'sim-1', 'com.example.app', '-FeatureFlag', 'YES'],
+    {
+      allowFailure: true,
+    },
+  ]);
+  assert.deepEqual(mockRunCmd.mock.calls[1], [
+    'xcrun',
+    ['simctl', 'openurl', 'sim-1', 'myapp://item/42'],
+    undefined,
+  ]);
+});
+
+test('openIosApp rejects launchArgs combined with bare URL deep link on iOS simulator', async () => {
   mockEnsureBootedSimulator.mockResolvedValue();
   await assert.rejects(
     () =>
@@ -1222,19 +1247,6 @@ test('openIosApp rejects launchArgs combined with URL deep link on iOS simulator
       assert.ok(error instanceof AppError);
       assert.equal(error.code, 'INVALID_ARGS');
       assert.match(String(error.message), /simctl openurl/);
-      return true;
-    },
-  );
-  await assert.rejects(
-    () =>
-      openIosApp(IOS_TEST_SIMULATOR, 'MyApp', {
-        appBundleId: 'com.example.app',
-        url: 'https://example.com/path',
-        launchArgs: ['-FeatureFlag', 'YES'],
-      }),
-    (error: unknown) => {
-      assert.ok(error instanceof AppError);
-      assert.equal(error.code, 'INVALID_ARGS');
       return true;
     },
   );

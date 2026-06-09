@@ -75,9 +75,17 @@ async function runPrepareAttempt(params: {
   });
   const connectMs = Date.now() - connectStartedAt;
   try {
-    const result = await runPrepareHealthCheck(device, session, command, options, signal, connectMs, {
-      recoveryReason,
-    });
+    const result = await runPrepareHealthCheck(
+      device,
+      session,
+      command,
+      options,
+      signal,
+      connectMs,
+      {
+        recoveryReason,
+      },
+    );
     return { kind: 'prepared', result: recordPrepareResult(device, result) };
   } catch (error) {
     return await handlePrepareHealthFailure({
@@ -186,10 +194,7 @@ async function recoverBadCachedRunnerArtifact(params: {
     });
     return recordPrepareResult(device, recovered);
   } catch (retryErr) {
-    await invalidateRunnerSessionBestEffort(
-      rebuiltSession,
-      'prepare_rebuilt_runner_health_failed',
-    );
+    await invalidateRunnerSessionBestEffort(rebuiltSession, 'prepare_rebuilt_runner_health_failed');
     const wrapped = wrapPrepareHealthFailure(retryErr, rebuiltSession, reason);
     emitPrepareDiagnostic(device, {
       cache: rebuiltSession.xctestrunArtifact?.cache,

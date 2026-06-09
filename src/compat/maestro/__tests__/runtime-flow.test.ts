@@ -112,7 +112,10 @@ test('invokeMaestroRunFlowWhenControl uses regular iOS snapshots for visible con
   });
 
   assert.equal(response.ok, true);
-  assert.deepEqual(snapshotFlags.map((flags) => flags?.snapshotRaw), [undefined]);
+  assert.deepEqual(
+    snapshotFlags.map((flags) => flags?.snapshotRaw),
+    [undefined],
+  );
   assert.deepEqual(
     invokedActions.map((action) => [action.command, action.positionals]),
     [['click', ['label="Continue"']]],

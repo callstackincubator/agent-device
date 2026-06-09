@@ -23,7 +23,7 @@ test('invokeMaestroTapOn resolves mutating taps from the current snapshot', asyn
   expect(clickFlags[0]?.interactionOutcome).toBeUndefined();
 });
 
-test('invokeMaestroTapOn uses regular snapshots by default', async () => {
+test('invokeMaestroTapOn uses raw snapshots for target resolution', async () => {
   const snapshotFlags: Array<DaemonRequest['flags']> = [];
   const response = await invokeMaestroTapOn({
     baseReq: {
@@ -48,11 +48,42 @@ test('invokeMaestroTapOn uses regular snapshots by default', async () => {
   expect(snapshotFlags).toHaveLength(1);
   expect(snapshotFlags[0]?.noRecord).toBe(true);
   expect(snapshotFlags[0]?.snapshotInteractiveOnly).toBeUndefined();
-  expect(snapshotFlags[0]?.snapshotRaw).toBeUndefined();
+  expect(snapshotFlags[0]?.snapshotRaw).toBe(true);
   expect(snapshotFlags[0]?.snapshotForceFull).toBeUndefined();
 });
 
-test('invokeMaestroTapOn does not use raw fallback for regular snapshot misses', async () => {
+test('invokeMaestroTapOn resolves drawer targets from raw snapshots', async () => {
+  const snapshotFlags: Array<DaemonRequest['flags']> = [];
+  const clicks: string[][] = [];
+  const response = await invokeMaestroTapOn({
+    baseReq: {
+      token: 'test',
+      session: 'drawer',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['label="Feed" || text="Feed" || id="Feed"'],
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        snapshotFlags.push(req.flags);
+        return {
+          ok: true,
+          data: req.flags?.snapshotRaw === true ? drawerRawSnapshot() : pagesOnlySnapshot(),
+        };
+      }
+      if (req.command === 'click') {
+        clicks.push(req.positionals ?? []);
+        return { ok: true, data: {} };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  expect(response.ok).toBe(true);
+  expect(snapshotFlags.map((flags) => flags?.snapshotRaw)).toEqual([true]);
+  expect(clicks).toEqual([['201', '202']]);
+});
+
+test('invokeMaestroTapOn retries raw target snapshots without interactive fallback', async () => {
   vi.useFakeTimers();
   const snapshotFlags: Array<DaemonRequest['flags']> = [];
   const responsePromise = invokeMaestroTapOn({
@@ -78,7 +109,7 @@ test('invokeMaestroTapOn does not use raw fallback for regular snapshot misses',
     expect(response.ok).toBe(false);
     expect(snapshotFlags.length).toBeGreaterThan(1);
     expect(snapshotFlags.some((flags) => flags?.snapshotInteractiveOnly === true)).toBe(false);
-    expect(snapshotFlags.some((flags) => flags?.snapshotRaw === true)).toBe(false);
+    expect(snapshotFlags.every((flags) => flags?.snapshotRaw === true)).toBe(true);
   } finally {
     vi.useRealTimers();
   }
@@ -176,7 +207,7 @@ test('invokeMaestroTapOn resolves visible Android non-interactive text from a re
   expect(response.ok).toBe(true);
   expect(snapshotFlags).toHaveLength(1);
   expect(snapshotFlags[0]?.snapshotInteractiveOnly).toBeUndefined();
-  expect(snapshotFlags[0]?.snapshotRaw).toBeUndefined();
+  expect(snapshotFlags[0]?.snapshotRaw).toBe(true);
   expect(clicks).toEqual([['248', '231']]);
 });
 
@@ -304,7 +335,7 @@ test('invokeMaestroSwipeOn resolves visible non-interactive text from a regular 
   expect(response.ok).toBe(true);
   expect(snapshotFlags).toHaveLength(1);
   expect(snapshotFlags[0]?.snapshotInteractiveOnly).toBeUndefined();
-  expect(snapshotFlags[0]?.snapshotRaw).toBeUndefined();
+  expect(snapshotFlags[0]?.snapshotRaw).toBe(true);
   expect(swipes).toEqual([['200', '250', '8', '250', '300']]);
 });
 
@@ -412,6 +443,104 @@ function currentBreadcrumbSnapshot(): SnapshotState {
         depth: 5,
         parentIndex: 2,
         rect: { x: 8, y: 65.33333587646484, width: 155, height: 48 },
+      },
+    ],
+  };
+}
+
+function pagesOnlySnapshot(): SnapshotState {
+  return {
+    createdAt: Date.now(),
+    nodes: [
+      appNode(),
+      windowNode(),
+      {
+        index: 2,
+        ref: 'e3',
+        type: 'StaticText',
+        label: 'Pages',
+        depth: 4,
+        parentIndex: 1,
+        rect: {
+          x: 176.6666717529297,
+          y: 75.66666603088379,
+          width: 48.666656494140625,
+          height: 20.333335876464844,
+        },
+      },
+    ],
+  };
+}
+
+function drawerRawSnapshot(): SnapshotState {
+  return {
+    createdAt: Date.now(),
+    nodes: [
+      appNode(),
+      windowNode(),
+      {
+        index: 2,
+        ref: 'e3',
+        type: 'StaticText',
+        label: 'Pages',
+        depth: 4,
+        parentIndex: 1,
+        rect: {
+          x: 176.6666717529297,
+          y: 75.66666603088379,
+          width: 48.666656494140625,
+          height: 20.333335876464844,
+        },
+      },
+      {
+        index: 3,
+        ref: 'e4',
+        type: 'ScrollView',
+        label: 'Article',
+        depth: 4,
+        parentIndex: 1,
+        rect: { x: 0, y: 116.66666412353516, width: 402, height: 757.3333333333333 },
+      },
+      {
+        index: 4,
+        ref: 'e5',
+        type: 'Button',
+        label: 'Article',
+        depth: 5,
+        parentIndex: 3,
+        rect: { x: 12, y: 120.66666412353516, width: 378, height: 54.00000762939453 },
+      },
+      {
+        index: 5,
+        ref: 'e6',
+        type: 'Button',
+        label: 'Feed',
+        depth: 5,
+        parentIndex: 3,
+        rect: { x: 12, y: 174.66666412353516, width: 378, height: 54 },
+      },
+      {
+        index: 6,
+        ref: 'e7',
+        type: 'Button',
+        label: 'Albums',
+        depth: 5,
+        parentIndex: 3,
+        rect: { x: 12, y: 228.66666412353516, width: 378, height: 53.99998474121094 },
+      },
+      {
+        index: 7,
+        ref: 'e8',
+        type: 'StaticText',
+        label: 'Feed',
+        depth: 4,
+        parentIndex: 1,
+        rect: {
+          x: 181.3333282470703,
+          y: 75.66666603088379,
+          width: 39.333343505859375,
+          height: 20.333335876464844,
+        },
       },
     ],
   };

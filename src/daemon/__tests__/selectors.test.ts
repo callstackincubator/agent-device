@@ -214,7 +214,7 @@ test('parseSelectorChain decodes escaped selector string values', () => {
       'label="Switch\\nMy Community"',
       'value="A\\tB\\rC\\bD\\fE\\/F"',
       'id="item_\\u0031\\uD83D\\uDE00"',
-      'text=\'It\\\'s OK\'',
+      "text='It\\'s OK'",
     ].join(' '),
   );
 

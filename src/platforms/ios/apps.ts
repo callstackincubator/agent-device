@@ -200,7 +200,11 @@ export async function openIosApp(
       throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
     }
     if (device.kind === 'simulator') {
-      await openIosSimulatorUrl(device, explicitUrl, launchArgs);
+      const bundleId = options?.appBundleId ?? (await resolveIosApp(device, app));
+      await launchIosSimulatorApp(device, bundleId, {
+        ...(launchArgs ? { launchArgs } : {}),
+      });
+      await openIosSimulatorUrl(device, explicitUrl, undefined);
       return;
     }
     const appBundleId = options?.appBundleId ?? (await resolveIosApp(device, app));

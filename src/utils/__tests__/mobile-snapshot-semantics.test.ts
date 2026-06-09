@@ -179,11 +179,11 @@ test('mobile presentation keeps fixed bottom controls after long visible scroll 
   const presentation = buildMobileSnapshotPresentation(nodes);
   const identifiers = new Set(presentation.nodes.map((node) => node.identifier).filter(Boolean));
   assert.deepEqual([...identifiers].sort(), ['albums', 'article', 'contacts']);
-  assert.equal(presentation.nodes.some((node) => node.label === 'Contact 19'), false);
   assert.equal(
-    presentation.nodes.find((node) => node.index === 2)?.hiddenContentBelow,
-    true,
+    presentation.nodes.some((node) => node.label === 'Contact 19'),
+    false,
   );
+  assert.equal(presentation.nodes.find((node) => node.index === 2)?.hiddenContentBelow, true);
 });
 
 test('mobile presentation handles zero-width viewport gracefully', () => {

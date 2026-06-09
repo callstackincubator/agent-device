@@ -68,9 +68,10 @@ export function swipeCoordinatesFromTarget(
   }
 }
 
-export function pointForMaestroTapOnTarget(
-  target: MaestroSnapshotTarget,
-): { x: number; y: number } {
+export function pointForMaestroTapOnTarget(target: MaestroSnapshotTarget): {
+  x: number;
+  y: number;
+} {
   return pointInsideRect(target.rect);
 }
 
