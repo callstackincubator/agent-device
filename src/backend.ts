@@ -9,7 +9,7 @@ import type {
   SnapshotState,
 } from './utils/snapshot.ts';
 
-export type AgentDeviceBackendPlatform = 'ios' | 'android' | 'macos' | 'linux';
+export type AgentDeviceBackendPlatform = 'ios' | 'android' | 'macos' | 'harmonyos' | 'linux';
 
 export const BACKEND_CAPABILITY_NAMES = [
   'android.shell',

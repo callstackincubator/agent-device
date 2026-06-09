@@ -150,7 +150,7 @@ export const clientCommandMetadata = [
   }),
   defineClientCommandMetadata('app-switcher', {}),
   defineClientCommandMetadata('keyboard', {
-    action: enumField(['status', 'dismiss']),
+    action: enumField(['status', 'dismiss', 'enter', 'return']),
   }),
   defineClientCommandMetadata('clipboard', {
     action: requiredField(enumField(CLIPBOARD_ACTION_VALUES)),

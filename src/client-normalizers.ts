@@ -144,7 +144,7 @@ function buildClientDevicePlatformFields(
   platform: AgentDeviceDevice['platform'],
   id: string,
   simulatorSetPath?: string | null,
-): Pick<AgentDeviceSessionDevice, 'ios' | 'android'> {
+): Pick<AgentDeviceSessionDevice, 'ios' | 'android' | 'harmonyos'> {
   return {
     ios:
       platform === 'ios'
@@ -154,6 +154,7 @@ function buildClientDevicePlatformFields(
           }
         : undefined,
     android: platform === 'android' ? { serial: id } : undefined,
+    harmonyos: platform === 'harmonyos' ? { serial: id } : undefined,
   };
 }
 
@@ -183,6 +184,7 @@ export function normalizeOpenDevice(
     (platform !== 'ios' &&
       platform !== 'macos' &&
       platform !== 'android' &&
+      platform !== 'harmonyos' &&
       platform !== 'linux') ||
     !id ||
     !name
@@ -206,6 +208,10 @@ export function normalizeOpenDevice(
         : undefined,
     android:
       platform === 'android' ? { serial: readOptionalString(value, 'serial') ?? id } : undefined,
+    harmonyos:
+      platform === 'harmonyos'
+        ? { serial: readOptionalString(value, 'serial') ?? id }
+        : undefined,
   };
 }
 

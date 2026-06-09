@@ -10,6 +10,7 @@ type KindMatrix = {
 export type CommandCapability = {
   apple?: KindMatrix;
   android?: KindMatrix;
+  harmonyos?: KindMatrix;
   linux?: KindMatrix;
   supports?: (device: DeviceInfo) => boolean;
   /** Optional actionable hint surfaced when this command is rejected at admission for `device`. */
@@ -39,42 +40,40 @@ const synthesisGestureUnsupportedHint = (device: DeviceInfo): string | undefined
 // Linux device kind is always 'device' (local desktop).
 const LINUX_DEVICE: KindMatrix = { device: true };
 const LINUX_NONE: KindMatrix = {};
+const HARMONYOS_DEVICE: KindMatrix = { device: true };
 const ALL_DEVICE_COMMAND_CAPABILITY = {
   apple: { simulator: true, device: true },
   android: { emulator: true, device: true, unknown: true },
+  harmonyos: HARMONYOS_DEVICE,
   linux: LINUX_DEVICE,
 } as const satisfies CommandCapability;
 const APP_RUNTIME_CAPABILITY = ALL_DEVICE_COMMAND_CAPABILITY;
 const APP_INVENTORY_CAPABILITY = {
   apple: { simulator: true, device: true },
   android: { emulator: true, device: true, unknown: true },
+  harmonyos: HARMONYOS_DEVICE,
   linux: LINUX_NONE,
 } as const satisfies CommandCapability;
 const APP_INSTALL_CAPABILITY = {
   apple: { simulator: true, device: true },
   android: { emulator: true, device: true, unknown: true },
+  harmonyos: HARMONYOS_DEVICE,
   linux: LINUX_NONE,
   supports: isNotMacOs,
 } as const satisfies CommandCapability;
 
 const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
-  // Apple simulator-only.
   alert: {
-    // macOS desktop targets report kind=device, so this stays enabled here and the
-    // supports() guard excludes iOS physical devices.
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_NONE,
-    supports: (device) => device.platform === 'android' || isMacOsOrAppleSimulator(device),
+    supports: (device) => device.platform === 'android' || device.platform === 'harmonyos' || isMacOsOrAppleSimulator(device),
   },
   pinch: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
     linux: LINUX_NONE,
-    // iOS-simulator-only (plus Android): pinch is driven by the two-finger XCTest synthesis
-    // path (RunnerSynthesizedGesture), which is iOS-only. macOS has no multi-touch synthesis, so
-    // it is excluded and fails fast at admission rather than round-tripping to an unsupported
-    // runner. Matches rotate-gesture / transform-gesture.
     supports: (device) => device.platform === 'android' || isIosMobileSimulator(device),
     unsupportedHint: synthesisGestureUnsupportedHint,
   },
@@ -95,8 +94,9 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   'app-switcher': {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_NONE,
-    supports: isNotMacOs,
+    supports: (device) => isNotMacOs(device) || device.platform === 'harmonyos',
   },
   open: APP_RUNTIME_CAPABILITY,
   close: APP_RUNTIME_CAPABILITY,
@@ -107,22 +107,26 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   back: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_DEVICE,
   },
   boot: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: {},
     linux: LINUX_NONE,
-    supports: isNotMacOs,
+    supports: (device) => isNotMacOs(device) && device.platform !== 'harmonyos',
   },
   click: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_DEVICE,
   },
   clipboard: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: {},
     linux: LINUX_DEVICE,
     supports: (device) =>
       device.platform === 'android' ||
@@ -131,21 +135,25 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
       device.kind === 'simulator',
   },
   keyboard: {
-    // iOS only supports keyboard dismiss/enter; status/get remains Android-only.
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_NONE,
     supports: (device) =>
-      device.platform === 'android' || (device.platform === 'ios' && device.target !== 'tv'),
+      device.platform === 'android' ||
+      device.platform === 'harmonyos' ||
+      (device.platform === 'ios' && device.target !== 'tv'),
   },
   fill: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_DEVICE,
   },
   fling: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_NONE,
   },
   snapshot: ALL_DEVICE_COMMAND_CAPABILITY,
@@ -158,87 +166,106 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
   focus: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_DEVICE,
   },
   home: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_DEVICE,
-    supports: isNotMacOs,
+    supports: (device) => isNotMacOs(device) || device.platform === 'harmonyos',
   },
   logs: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: {},
     linux: LINUX_NONE,
+    supports: (device) => device.platform !== 'harmonyos',
   },
   network: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: {},
     linux: LINUX_NONE,
+    supports: (device) => device.platform !== 'harmonyos',
   },
   longpress: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_DEVICE,
   },
   perf: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: {},
     linux: LINUX_NONE,
+    supports: (device) => device.platform !== 'harmonyos',
   },
   pan: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_DEVICE,
   },
   press: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_DEVICE,
   },
   push: {
     apple: { simulator: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_NONE,
-    supports: isNotMacOs,
+    supports: (device) => isNotMacOs(device) || device.platform === 'harmonyos',
   },
   record: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_NONE,
   },
   'react-native': {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_NONE,
   },
   rotate: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_NONE,
     supports: (device) =>
-      device.platform === 'android' || (device.platform === 'ios' && device.target !== 'tv'),
+      device.platform === 'android' || device.platform === 'harmonyos' || (device.platform === 'ios' && device.target !== 'tv'),
   },
   scroll: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_DEVICE,
   },
   swipe: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_DEVICE,
   },
   settings: {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_NONE,
     supports: (device) =>
-      device.platform === 'android' || device.platform === 'macos' || device.kind === 'simulator',
+      device.platform === 'android' || device.platform === 'harmonyos' || device.platform === 'macos' || device.kind === 'simulator',
   },
   'trigger-app-event': {
     apple: { simulator: true, device: true },
     android: { emulator: true, device: true, unknown: true },
+    harmonyos: HARMONYOS_DEVICE,
     linux: LINUX_NONE,
   },
   type: ALL_DEVICE_COMMAND_CAPABILITY,
@@ -251,7 +278,9 @@ export function isCommandSupportedOnDevice(command: string, device: DeviceInfo):
     ? capability.apple
     : device.platform === 'linux'
       ? capability.linux
-      : capability.android;
+      : device.platform === 'harmonyos'
+        ? capability.harmonyos
+        : capability.android;
   if (!byPlatform) return false;
   if (capability.supports && !capability.supports(device)) return false;
   const kind = (device.kind ?? 'unknown') as keyof KindMatrix;

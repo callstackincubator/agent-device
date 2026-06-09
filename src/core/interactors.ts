@@ -15,6 +15,10 @@ export async function getInteractor(
       const { createLinuxInteractor } = await import('./interactors/linux.ts');
       return createLinuxInteractor();
     }
+    case 'harmonyos': {
+      const { createHarmonyInteractor } = await import('./interactors/harmonyos.ts');
+      return createHarmonyInteractor(device);
+    }
     case 'ios':
     case 'macos': {
       const { createAppleInteractor } = await import('./interactors/apple.ts');

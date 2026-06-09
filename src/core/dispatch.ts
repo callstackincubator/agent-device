@@ -323,7 +323,10 @@ async function handleKeyboardCommand(
   if (device.platform === 'ios') {
     return await handleIosKeyboardCommand(device, action, context, runnerCtx);
   }
-  throw new AppError('UNSUPPORTED_OPERATION', 'keyboard is supported only on Android and iOS');
+  if (device.platform === 'harmonyos') {
+    return await handleHarmonyKeyboardCommand(device, action);
+  }
+  throw new AppError('UNSUPPORTED_OPERATION', 'keyboard is supported only on Android, iOS, and HarmonyOS');
 }
 
 async function handleAndroidKeyboardCommand(
@@ -510,6 +513,17 @@ async function handlePushCommand(
       ...successText(`Pushed notification to ${target}`),
     };
   }
+  if (device.platform === 'harmonyos') {
+    const { pushHarmonyNotification } = await import('../platforms/harmonyos/notifications.ts');
+    const harmonyResult = await pushHarmonyNotification(device, target, payload);
+    return {
+      platform: 'harmonyos',
+      bundleName: target,
+      action: harmonyResult.action,
+      extrasCount: harmonyResult.extrasCount,
+      ...successText(`Pushed notification to ${target}`),
+    };
+  }
   const { pushAndroidNotification } = await import('../platforms/android/notifications.ts');
   const androidResult = await pushAndroidNotification(device, target, payload);
   return {
@@ -540,4 +554,41 @@ function readResultMessage(result: Record<string, unknown>): string | undefined 
   return typeof result.message === 'string' && result.message.length > 0
     ? result.message
     : undefined;
+}
+
+async function handleHarmonyKeyboardCommand(
+  device: DeviceInfo,
+  action: KeyboardAction,
+): Promise<Record<string, unknown>> {
+  const { getHarmonyKeyboardState, dismissHarmonyKeyboard } = await import(
+    '../platforms/harmonyos/input-actions.ts'
+  );
+  if (action === 'enter' || action === 'return') {
+    const { pressKeyHarmony } = await import('../platforms/harmonyos/input-actions.ts');
+    await pressKeyHarmony(device, 'Enter');
+    return {
+      platform: 'harmonyos',
+      action: 'enter',
+      ...successText('Keyboard enter pressed'),
+    };
+  }
+  if (action === 'dismiss') {
+    const before = await getHarmonyKeyboardState(device);
+    await dismissHarmonyKeyboard(device);
+    const after = await getHarmonyKeyboardState(device);
+    return {
+      platform: 'harmonyos',
+      action: 'dismiss',
+      wasVisible: before.visible,
+      dismissed: before.visible && !after.visible,
+      visible: after.visible,
+    };
+  }
+  const state = await getHarmonyKeyboardState(device);
+  return {
+    platform: 'harmonyos',
+    action: 'status',
+    visible: state.visible,
+    ...(state.height !== undefined ? { height: state.height } : {}),
+  };
 }

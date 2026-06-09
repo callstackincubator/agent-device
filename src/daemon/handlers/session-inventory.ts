@@ -15,6 +15,7 @@ import {
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { resolveSessionRunnerLogPath, SessionStore } from '../session-store.ts';
 import { listAndroidApps } from '../../platforms/android/app-lifecycle.ts';
+import { listHarmonyApps } from '../../platforms/harmonyos/app-lifecycle.ts';
 import { listIosApps } from '../../platforms/ios/apps.ts';
 import { requireSessionOrExplicitSelector, resolveCommandDevice } from './session-device-utils.ts';
 import { errorResponse } from './response.ts';
@@ -122,6 +123,20 @@ export async function handleSessionInventoryCommands(params: {
           apps: apps.map((app) =>
             app.name && app.name !== app.bundleId ? `${app.name} (${app.bundleId})` : app.bundleId,
           ),
+        },
+      };
+    }
+
+    if (device.platform === 'harmonyos') {
+      const apps = await listHarmonyApps(device, appsFilter);
+      return {
+        ok: true,
+        data: {
+          apps: apps.map((app) => {
+            const label = app.name && app.name !== app.id ? `${app.name} (${app.id})` : app.id;
+            const suffix = app.activity ? ` → ${app.activity}` : '';
+            return `${label}${suffix}`;
+          }),
         },
       };
     }

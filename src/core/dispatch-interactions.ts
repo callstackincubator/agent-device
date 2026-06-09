@@ -880,6 +880,9 @@ export async function handleReadCommand(
   context: DispatchContext | undefined,
 ): Promise<Record<string, unknown>> {
   const { x, y } = readPoint(positionals, 'read requires x y');
+  if (device.platform === 'harmonyos') {
+    throw new AppError('UNSUPPORTED_OPERATION', 'read is not yet supported on HarmonyOS');
+  }
   if (device.platform === 'android') {
     const { readAndroidTextAtPoint } = await import('../platforms/android/input-actions.ts');
     const text = await readAndroidTextAtPoint(device, x, y);

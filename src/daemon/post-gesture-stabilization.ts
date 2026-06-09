@@ -104,5 +104,5 @@ function isPostGestureStabilizingAction(
 }
 
 function supportsPostGestureStabilization(platform: SessionState['device']['platform']): boolean {
-  return platform === 'ios' || platform === 'android';
+  return platform === 'ios' || platform === 'android' || platform === 'harmonyos';
 }

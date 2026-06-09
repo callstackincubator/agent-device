@@ -191,7 +191,11 @@ export function areInteractionSurfaceSignaturesStable(
 }
 
 function supportsInteractionOutcomePolicy(session: SessionState): boolean {
-  return session.device.platform === 'ios' || session.device.platform === 'android';
+  return (
+    session.device.platform === 'ios' ||
+    session.device.platform === 'android' ||
+    session.device.platform === 'harmonyos'
+  );
 }
 
 function retryCommandForTap(command: string): string | undefined {

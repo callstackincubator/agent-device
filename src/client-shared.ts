@@ -36,7 +36,11 @@ export function buildDeviceIdentifiers(
   return {
     deviceId: id,
     deviceName: name,
-    ...(platform === 'android' ? { serial: id } : platform === 'ios' ? { udid: id } : {}),
+    ...(platform === 'android' || platform === 'harmonyos'
+      ? { serial: id }
+      : platform === 'ios'
+        ? { udid: id }
+        : {}),
   };
 }
 
@@ -56,9 +60,12 @@ function serializeSessionDevice(
           ios_simulator_device_set: device.ios?.simulatorSetPath ?? null,
         }
       : {}),
-    ...(device.platform === 'android' && includeAndroidSerial
+    ...((device.platform === 'android' || device.platform === 'harmonyos') && includeAndroidSerial
       ? {
-          serial: device.android?.serial ?? device.id,
+          serial:
+            device.platform === 'android'
+              ? device.android?.serial ?? device.id
+              : device.harmonyos?.serial ?? device.id,
         }
       : {}),
   };

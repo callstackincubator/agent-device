@@ -19,7 +19,7 @@ const ANDROID_PACKET_SCAN_RADIUS = 12;
 const NETWORK_LOG_MEMORY_PATH = '<memory>';
 
 export type NetworkIncludeMode = 'summary' | 'headers' | 'body' | 'all';
-export type NetworkLogBackend = 'ios-simulator' | 'ios-device' | 'android' | 'macos';
+export type NetworkLogBackend = 'ios-simulator' | 'ios-device' | 'android' | 'macos' | 'harmonyos';
 
 export type NetworkEntry = {
   method?: string;

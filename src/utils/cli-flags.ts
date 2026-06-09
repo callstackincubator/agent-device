@@ -30,7 +30,7 @@ export type CliFlags = RemoteConfigMetroOptions &
     sessionLock?: 'reject' | 'strip';
     sessionLocked?: boolean;
     sessionLockConflicts?: 'reject' | 'strip';
-    platform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple';
+    platform?: 'ios' | 'macos' | 'android' | 'harmonyos' | 'linux' | 'apple';
     target?: 'mobile' | 'tv' | 'desktop';
     device?: string;
     udid?: string;
@@ -298,8 +298,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     key: 'platform',
     names: ['--platform'],
     type: 'enum',
-    enumValues: ['ios', 'macos', 'android', 'linux', 'apple'],
-    usageLabel: '--platform ios|macos|android|linux|apple',
+    enumValues: ['ios', 'macos', 'android', 'harmonyos', 'linux', 'apple'],
+    usageLabel: '--platform ios|macos|android|harmonyos|linux|apple',
     usageDescription: 'Platform to target (`apple` aliases the Apple automation backend)',
   },
   {
@@ -492,7 +492,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--activity'],
     type: 'string',
     usageLabel: '--activity <component>',
-    usageDescription: 'Android app launch activity (package/Activity); not for URL opens',
+    usageDescription: 'App launch activity/ability (Android: package/Activity; HarmonyOS: ability name); not for URL opens',
   },
   {
     key: 'launchConsole',

@@ -102,6 +102,9 @@ async function handlePerfCommand(params: ObservabilityParams): Promise<DaemonRes
   if (!session) {
     return errorResponse('SESSION_NOT_FOUND', 'perf requires an active session. Run open first.');
   }
+  if (!isCommandSupportedOnDevice('perf', session.device)) {
+    return errorResponse('UNSUPPORTED_OPERATION', 'perf is not supported on this device');
+  }
 
   const area = (req.positionals?.[0] ?? 'metrics').toLowerCase();
   const action = (req.positionals?.[1] ?? 'sample').toLowerCase();

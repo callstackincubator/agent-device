@@ -25,6 +25,10 @@ const AGENT_WORKFLOWS = [
     description: 'Connected phone/tablet setup and iOS signing prerequisites',
   },
   {
+    label: 'help harmonyos',
+    description: 'HarmonyOS device setup, app lifecycle, and platform notes',
+  },
+  {
     label: 'help remote',
     description: 'Remote/cloud config, tenants, leases, and local service tunnels',
   },
@@ -47,6 +51,7 @@ const AGENT_QUICKSTART_LINES = [
   'Text: fill \'id="field-email"\' "qa@example.com" replaces; type appends after press.',
   'Clearing text: do not use fill <target> ""; use a visible clear/reset control or report that clearing is unsupported.',
   'Android IME capture: if fill says input was captured by the keyboard/IME, inspect keyboard state and switch/disable handwriting before retrying; do not loop fill/type.',
+  'HarmonyOS: apps shows launchAbility (→ EntryAbility); use open <app> --activity <ability> to launch. Pinch, rotate, and transform gestures are not supported.',
   'Implicit default sessions are scoped to the current worktree; use --session only when intentionally sharing a named session.',
   'Run mutating commands serially within one session; parallelize only read-only commands or separate sessions/devices.',
   'Clipboard limits: iOS Allow Paste cannot be automated through XCUITest; prefill with clipboard write. Android non-ASCII should use fill/type, not raw adb input.',
@@ -88,6 +93,7 @@ const EXAMPLE_LINES = [
   'agent-device fill @e3 "test@example.com"',
   'agent-device replay ./session.ad',
   'agent-device test ./suite --platform android',
+  'agent-device open com.example.app --platform harmonyos --activity EntryAbility',
 ] as const;
 
 const HELP_TOPICS = {
@@ -428,6 +434,7 @@ For simulator/emulator workflows, use help workflow.
 Discovery:
   agent-device devices --platform ios
   agent-device devices --platform android
+  agent-device devices --platform harmonyos
   Use --device <name-or-udid> only when multiple devices are present.
 
 iOS physical-device prerequisites:
@@ -512,6 +519,55 @@ Rules:
   Do not let iOS simulator-set scoping hide macOS desktop targets.
   Prefer refs/selectors over raw coordinates.
   macOS snapshot rects are window-space; use current refs or overlay refs instead of guessing coordinates.`,
+  },
+  harmonyos: {
+    summary: 'HarmonyOS device setup, app lifecycle, and platform notes',
+    body: `agent-device help harmonyos
+
+Use this when targeting HarmonyOS (NEXT) physical devices or emulators.
+
+Prerequisites:
+  HDC (HarmonyOS Device Connector) must be installed and on PATH.
+  Verify with: hdc list targets
+  The device must have Developer Mode enabled and USB debugging authorized.
+
+Discovery:
+  agent-device devices --platform harmonyos
+  agent-device apps --platform harmonyos
+
+App lifecycle:
+  HarmonyOS apps require an Ability name to launch. The apps command shows the launchAbility suffix:
+    com.example.app (com.example.app) → EntryAbility
+  Use the displayed ability with --activity:
+    agent-device open com.example.app --platform harmonyos --activity EntryAbility
+  If no ability is shown, check with the app developer or use the default EntryAbility.
+
+Commands:
+  agent-device open <app> --platform harmonyos --activity <ability>
+  agent-device close <app> --platform harmonyos
+  agent-device snapshot -i --platform harmonyos
+  agent-device screenshot ./out.png --platform harmonyos
+  agent-device press @e3 --platform harmonyos
+  agent-device fill @e5 "text" --platform harmonyos
+  agent-device type "text" --platform harmonyos
+  agent-device swipe 300 800 300 200 --platform harmonyos
+  agent-device scroll down --platform harmonyos
+  agent-device back --platform harmonyos
+  agent-device home --platform harmonyos
+  agent-device rotate landscape --platform harmonyos
+  agent-device keyboard status --platform harmonyos
+  agent-device keyboard dismiss --platform harmonyos
+  agent-device keyboard enter --platform harmonyos
+
+Limitations:
+  Pinch, rotate gesture, and transform gestures are not supported on HarmonyOS.
+  app-switcher uses the Recent key; behavior depends on device firmware.
+  settings clear-app-state clears app data but may require manual unlock afterward.
+
+Rules:
+  Always pass --activity when opening a HarmonyOS app.
+  Use snapshot -i to discover refs, then target them by @ref or selector.
+  Re-snapshot after mutations just like on iOS/Android.`,
   },
   dogfood: {
     summary: 'Exploratory QA workflow with reproducible evidence',
@@ -625,7 +681,7 @@ function buildCommandListUsage(commandName: string, schema: CommandSchema): stri
 function renderUsageText(): string {
   const header = `agent-device <command> [args] [--json]
 
-CLI to control iOS and Android devices for AI agents.
+CLI to control iOS, Android, and HarmonyOS devices for AI agents.
 `;
 
   const commands = listCliCommandNames().map((name) => {

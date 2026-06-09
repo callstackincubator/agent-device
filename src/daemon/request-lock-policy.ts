@@ -187,6 +187,7 @@ function targetSelectorsConflict(
   switch (lockPlatform) {
     case 'android':
     case 'ios':
+    case 'harmonyos':
       return target === 'desktop';
     case 'macos':
     case 'linux':
@@ -227,6 +228,8 @@ function freshSessionSelectorKeysForPlatform(
     case 'macos':
       return ['udid', 'serial', 'iosSimulatorDeviceSet', 'androidDeviceAllowlist'];
     case 'linux':
+      return ['udid', 'serial', 'iosSimulatorDeviceSet', 'androidDeviceAllowlist'];
+    case 'harmonyos':
       return ['udid', 'serial', 'iosSimulatorDeviceSet', 'androidDeviceAllowlist'];
     default:
       return assertNever(lockPlatform);

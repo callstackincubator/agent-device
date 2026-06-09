@@ -259,7 +259,9 @@ function filterReactNativeOverlayBlockedMatches(
 }
 
 export function readMaestroSelectorPlatform(flags: DaemonRequest['flags']): Platform {
-  return flags?.platform === 'android' ? 'android' : 'ios';
+  if (flags?.platform === 'android') return 'android';
+  if (flags?.platform === 'harmonyos') return 'harmonyos';
+  return 'ios';
 }
 
 export function extractMaestroVisibleTextQuery(selectorExpression: string): string | null {

@@ -155,7 +155,7 @@ export async function resolveTargetDevice(flags: ResolveDeviceFlags): Promise<De
       if (selector.target && !selector.platform) {
         throw new AppError(
           'INVALID_ARGS',
-          'Device target selector requires --platform. Use --platform ios|macos|android|linux|apple with --target mobile|tv|desktop.',
+          'Device target selector requires --platform. Use --platform ios|macos|android|harmonyos|linux|apple with --target mobile|tv|desktop.',
         );
       }
 
@@ -248,7 +248,7 @@ function isAppleResolutionSelector(selector: {
   platform?: PlatformSelector;
   target?: DeviceTarget;
 }): boolean {
-  return !!selector.platform && selector.platform !== 'android' && selector.platform !== 'linux';
+  return !!selector.platform && selector.platform !== 'android' && selector.platform !== 'linux' && selector.platform !== 'harmonyos';
 }
 
 function readResolveTargetDeviceCache(cacheKey: string): DeviceInfo | undefined {
