@@ -329,8 +329,8 @@ async function prepareOpenDispatchSession(params: {
     appName,
     existingSession,
   } = params;
-  const beforeOpenDispatch = req.meta?.beforeOpenDispatch;
-  if (!beforeOpenDispatch) return { type: 'session', session: existingSession };
+  const beforeDispatch = req.internal?.openLifecycle?.beforeDispatch;
+  if (!beforeDispatch) return { type: 'session', session: existingSession };
   const provisionalSession = buildNextOpenSession({
     existingSession,
     sessionName: existingSession?.name ?? resolvePublicSessionName(req),
@@ -342,9 +342,9 @@ async function prepareOpenDispatchSession(params: {
     saveScript: Boolean(req.flags?.saveScript),
   });
   sessionStore.set(sessionName, provisionalSession);
-  const hookResponse = await beforeOpenDispatch(provisionalSession);
-  if (hookResponse && !hookResponse.ok) {
-    return { type: 'response', response: hookResponse };
+  const lifecycleResponse = await beforeDispatch(provisionalSession);
+  if (lifecycleResponse && !lifecycleResponse.ok) {
+    return { type: 'response', response: lifecycleResponse };
   }
   return { type: 'session', session: sessionStore.get(sessionName) ?? provisionalSession };
 }

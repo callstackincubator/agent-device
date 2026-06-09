@@ -1,17 +1,15 @@
-import path from 'node:path';
 import type { CommandFlags } from '../../core/dispatch.ts';
-import { sleep } from '../../utils/timeouts.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { runReplayTestSuite } from './session-test.ts';
 import { handleCloseCommand } from './session-close.ts';
-import { handleRecordCommand } from './record-trace-recording.ts';
 import { collectReplayActionArtifactPaths, runReplayScriptFile } from './session-replay-runtime.ts';
 import type { ReplayScriptMetadata } from '../../replay/script.ts';
 import { buildReplayTestShardFlags, type ReplayTestShardContext } from './session-test-sharding.ts';
-
-const REPLAY_TEST_RECORDING_PREROLL_MS = 1_000;
-const REPLAY_TEST_RECORDING_TAIL_MS = 3_000;
+import {
+  createReplayTestVideoRecording,
+  type ReplayTestVideoRecording,
+} from './session-replay-video-recording.ts';
 
 export function buildNestedReplayFlags(params: {
   parentFlags: CommandFlags | undefined;
@@ -48,99 +46,6 @@ function stripReplayTestHarnessFlags(flags: CommandFlags | undefined): CommandFl
   return Object.keys(nestedFlags).length > 0 ? nestedFlags : undefined;
 }
 
-async function startReplayTestRecording(params: {
-  req: DaemonRequest;
-  sessionName: string;
-  logPath: string;
-  sessionStore: SessionStore;
-  artifactsDir: string | undefined;
-}): Promise<DaemonResponse> {
-  const { req, sessionName, logPath, sessionStore, artifactsDir } = params;
-  const outPath = artifactsDir
-    ? path.join(artifactsDir, 'recording.mp4')
-    : `./recording-${Date.now()}.mp4`;
-  return await handleRecordCommand({
-    req: {
-      token: req.token,
-      session: sessionName,
-      command: 'record',
-      positionals: ['start', outPath],
-      flags: {},
-      meta: req.meta,
-    },
-    sessionName,
-    sessionStore,
-    logPath,
-  });
-}
-
-async function startReplayTestRecordingIfNeeded(params: {
-  req: DaemonRequest;
-  sessionName: string;
-  logPath: string;
-  sessionStore: SessionStore;
-  artifactsDir: string | undefined;
-}): Promise<DaemonResponse | undefined> {
-  const { req, sessionName, logPath, sessionStore, artifactsDir } = params;
-  if (req.flags?.recordVideo !== true) return undefined;
-  const activeSession = sessionStore.get(sessionName);
-  if (!activeSession || activeSession.recording) return undefined;
-  const response = await startReplayTestRecording({
-    req,
-    sessionName,
-    logPath,
-    sessionStore,
-    artifactsDir,
-  });
-  if (response.ok) {
-    await sleep(REPLAY_TEST_RECORDING_PREROLL_MS);
-  }
-  return response;
-}
-
-async function stopReplayTestRecording(params: {
-  req: DaemonRequest;
-  sessionName: string;
-  logPath: string;
-  sessionStore: SessionStore;
-}): Promise<DaemonResponse> {
-  const { req, sessionName, logPath, sessionStore } = params;
-  return await handleRecordCommand({
-    req: {
-      token: req.token,
-      session: sessionName,
-      command: 'record',
-      positionals: ['stop'],
-      flags: {},
-      meta: req.meta,
-    },
-    sessionName,
-    sessionStore,
-    logPath,
-  });
-}
-
-async function finalizeReplayTestRecording(params: {
-  req: DaemonRequest;
-  sessionName: string;
-  logPath: string;
-  sessionStore: SessionStore;
-  artifactPaths: Set<string>;
-}): Promise<DaemonResponse | undefined> {
-  const { req, sessionName, logPath, sessionStore, artifactPaths } = params;
-  if (req.flags?.recordVideo !== true) return undefined;
-  if (!sessionStore.get(sessionName)?.recording) return undefined;
-  await sleep(REPLAY_TEST_RECORDING_TAIL_MS);
-  const response = await stopReplayTestRecording({
-    req,
-    sessionName,
-    logPath,
-    sessionStore,
-  });
-  collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
-  return response;
-}
-
 export async function handleSessionReplayCommands(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -161,6 +66,7 @@ export async function handleSessionReplayCommands(params: {
   }
 
   if (req.command === 'test') {
+    const videoRecordings = new Map<string, ReplayTestVideoRecording>();
     return await runReplayTestSuite({
       req,
       sessionName,
@@ -189,14 +95,15 @@ export async function handleSessionReplayCommands(params: {
           shard,
         });
 
-        const startRecording = async (): Promise<DaemonResponse | undefined> =>
-          await startReplayTestRecordingIfNeeded({
-            req,
-            sessionName: testSessionName,
-            logPath,
-            sessionStore,
-            artifactsDir,
-          });
+        const videoRecording = createReplayTestVideoRecording({
+          req,
+          sessionName: testSessionName,
+          logPath,
+          sessionStore,
+          artifactsDir,
+          tracePath,
+        });
+        videoRecordings.set(testSessionName, videoRecording);
         const replayResponse = await runReplayScriptFile({
           req: {
             ...req,
@@ -207,7 +114,10 @@ export async function handleSessionReplayCommands(params: {
             meta: {
               ...(req.meta ?? {}),
               ...(requestId ? { requestId } : {}),
-              beforeOpenDispatch: async () => await startRecording(),
+            },
+            internal: {
+              ...(req.internal ?? {}),
+              openLifecycle: videoRecording.openLifecycle,
             },
           },
           sessionName: testSessionName,
@@ -215,7 +125,7 @@ export async function handleSessionReplayCommands(params: {
           sessionStore,
           tracePath,
           invoke: async (nestedReq) => {
-            const startResponse = await startRecording();
+            const startResponse = await videoRecording.startIfReady();
             if (startResponse && !startResponse.ok) return startResponse;
             const response = captureArtifacts(await invoke(nestedReq));
             return response;
@@ -224,14 +134,9 @@ export async function handleSessionReplayCommands(params: {
         return replayResponse;
       },
       finalizeAttempt: async ({ sessionName: testSessionName, artifactPaths }) =>
-        await finalizeReplayTestRecording({
-          req,
-          sessionName: testSessionName,
-          logPath,
-          sessionStore,
-          artifactPaths,
-        }),
+        await videoRecordings.get(testSessionName)?.finalize(artifactPaths),
       cleanupSession: async (testSessionName) => {
+        videoRecordings.delete(testSessionName);
         if (!sessionStore.get(testSessionName)) return;
         await handleCloseCommand({
           req: {

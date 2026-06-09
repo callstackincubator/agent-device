@@ -100,6 +100,7 @@ async function invokeResolvedReplayAction(params: {
     flags,
     runtime: resolved.runtime,
     meta: req.meta,
+    internal: req.internal,
   };
   const response =
     (await invokeReplayControl({

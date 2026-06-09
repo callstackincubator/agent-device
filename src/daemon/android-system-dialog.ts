@@ -21,10 +21,10 @@ const ANDROID_BLOCKING_DIALOG_HINT =
   'Wait for Android to recover, close the dialog, restart the app, or reboot the emulator, then retry.';
 
 export type AndroidBlockingDialogRecoveryResult =
-  | 'absent'
-  | 'recovered'
-  | 'failed'
-  | 'inspection-failed';
+  | { status: 'absent' }
+  | { status: 'recovered' }
+  | { status: 'failed'; reason: 'tap-failed' | 'dismiss-failed' | 'relaunch-failed' | 'error' }
+  | { status: 'unknown'; reason: 'inspection-failed' };
 export type AndroidBlockingDialogReadinessResult =
   | { status: 'clear' }
   | { status: 'recovered'; warning: string };
@@ -43,7 +43,7 @@ export async function recoverAndroidBlockingSystemDialog(params: {
   const { session } = params;
 
   if (session.device.platform !== 'android' || !session.recording) {
-    return 'absent';
+    return { status: 'absent' };
   }
 
   let nodes: SnapshotNode[];
@@ -59,12 +59,12 @@ export async function recoverAndroidBlockingSystemDialog(params: {
         error: error instanceof Error ? error.message : String(error),
       },
     });
-    return 'inspection-failed';
+    return { status: 'unknown', reason: 'inspection-failed' };
   }
 
   const closeAppButton = findCloseAppButton(nodes);
   if (!closeAppButton?.rect) {
-    return 'absent';
+    return { status: 'absent' };
   }
 
   try {
@@ -81,7 +81,7 @@ export async function recoverAndroidBlockingSystemDialog(params: {
           stderr: tapResult.stderr.trim(),
         },
       });
-      return 'failed';
+      return { status: 'failed', reason: 'tap-failed' };
     }
 
     const dismissed = await waitForBlockingDialogToDismiss(session);
@@ -94,7 +94,7 @@ export async function recoverAndroidBlockingSystemDialog(params: {
           deviceId: session.device.id,
         },
       });
-      return 'failed';
+      return { status: 'failed', reason: 'dismiss-failed' };
     }
 
     if (session.appBundleId) {
@@ -110,7 +110,7 @@ export async function recoverAndroidBlockingSystemDialog(params: {
             appBundleId: session.appBundleId,
           },
         });
-        return 'failed';
+        return { status: 'failed', reason: 'relaunch-failed' };
       }
     }
 
@@ -125,7 +125,7 @@ export async function recoverAndroidBlockingSystemDialog(params: {
         y: tapResult.y,
       },
     });
-    return 'recovered';
+    return { status: 'recovered' };
   } catch (error) {
     emitDiagnostic({
       level: 'warn',
@@ -136,7 +136,7 @@ export async function recoverAndroidBlockingSystemDialog(params: {
         error: error instanceof Error ? error.message : String(error),
       },
     });
-    return 'failed';
+    return { status: 'failed', reason: 'error' };
   }
 }
 

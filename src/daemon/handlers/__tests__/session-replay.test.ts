@@ -247,7 +247,8 @@ test('test --record-video records each replay attempt on the generated test sess
       if (nestedReq.command === 'open') {
         const provisionalSession = makeIosSession(nestedReq.session);
         sessionStore.set(nestedReq.session, provisionalSession);
-        const hookResponse = await nestedReq.meta?.beforeOpenDispatch?.(provisionalSession);
+        const hookResponse =
+          await nestedReq.internal?.openLifecycle?.beforeDispatch?.(provisionalSession);
         if (hookResponse && !hookResponse.ok) return hookResponse;
         events.push('open:dispatch');
       }
@@ -265,6 +266,16 @@ test('test --record-video records each replay attempt on the generated test sess
   if (typeof generatedSession !== 'string') throw new Error('Expected generated test session');
   expectRecordVideoCalls({ generatedSession, artifactsDir: testResult.artifactsDir });
   assert.deepEqual(events, ['record:start', 'open:dispatch', 'record:stop']);
+  const timingPath = path.join(testResult.artifactsDir ?? '', 'attempt-1', 'replay-timing.ndjson');
+  const timingEvents = fs
+    .readFileSync(timingPath, 'utf8')
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line) as { type?: string });
+  assert.deepEqual(
+    timingEvents.map((event) => event.type).filter((type) => type?.startsWith('video_')),
+    ['video_recording_start', 'video_preroll_done', 'video_tail_start', 'video_recording_stop'],
+  );
   assert.equal(
     nestedRequests.some((nestedReq) => nestedReq.flags?.recordVideo === true),
     false,

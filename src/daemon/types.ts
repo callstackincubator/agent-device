@@ -25,8 +25,14 @@ type DaemonRequestMeta = Omit<PublicDaemonRequestMeta, 'installSource' | 'lockPl
   installSource?: DaemonInstallSource;
   lockPlatform?: PlatformSelector;
   leaseBackend?: LeaseBackend;
-  /** Internal same-process hook used by replay test orchestration before platform open dispatch. */
-  beforeOpenDispatch?: (session: SessionState) => Promise<DaemonResponse | undefined>;
+};
+
+export type DaemonOpenLifecycle = {
+  beforeDispatch?: (session: SessionState) => Promise<DaemonResponse | undefined>;
+};
+
+type DaemonRequestInternal = {
+  openLifecycle?: DaemonOpenLifecycle;
 };
 
 export type DaemonRequest = Omit<PublicDaemonRequest, 'token' | 'session' | 'flags' | 'meta'> & {
@@ -34,6 +40,7 @@ export type DaemonRequest = Omit<PublicDaemonRequest, 'token' | 'session' | 'fla
   session: string;
   flags?: CommandFlags;
   meta?: DaemonRequestMeta;
+  internal?: DaemonRequestInternal;
 };
 
 export type ReplaySuiteTestSkipReason = 'skipped-by-filter';
