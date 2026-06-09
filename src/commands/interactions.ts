@@ -8,6 +8,7 @@ import { findMistargetedTypeRefToken } from '../utils/type-target-warning.ts';
 import type { ResolvedTarget } from './selector-read.ts';
 import { toBackendContext } from './selector-read-utils.ts';
 import { toBackendResult, type RuntimeCommand } from './runtime-types.ts';
+import type { RepeatedInput } from './command-input.ts';
 import {
   type InteractionTarget,
   type ResolvedInteractionTarget,
@@ -42,15 +43,11 @@ export type {
   ResolvedInteractionTarget,
 } from './interaction-resolution.ts';
 
-export type PressCommandOptions = CommandContext & {
-  target: InteractionTarget;
-  button?: ClickButton;
-  count?: number;
-  intervalMs?: number;
-  holdMs?: number;
-  jitterPx?: number;
-  doubleTap?: boolean;
-};
+export type PressCommandOptions = CommandContext &
+  RepeatedInput & {
+    target: InteractionTarget;
+    button?: ClickButton;
+  };
 
 export type ClickCommandOptions = PressCommandOptions;
 

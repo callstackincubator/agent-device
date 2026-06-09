@@ -5,6 +5,7 @@ import { AppError, normalizeError } from '../../utils/errors.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import { findProjectRoot, readVersion } from '../../utils/version.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import type { TransformGestureParams } from '../../core/scroll-gesture.ts';
 import {
   installAndroidAdbPackage,
   resolveAndroidAdbExecutor,
@@ -98,15 +99,7 @@ export type AndroidRotateGestureOptions = {
   durationMs?: number;
 };
 
-export type AndroidTransformGestureOptions = {
-  x: number;
-  y: number;
-  dx: number;
-  dy: number;
-  scale: number;
-  degrees: number;
-  durationMs?: number;
-};
+export type AndroidTransformGestureOptions = TransformGestureParams;
 
 export type AndroidSwipeGestureOptions = {
   x1: number;

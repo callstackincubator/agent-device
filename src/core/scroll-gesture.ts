@@ -5,6 +5,16 @@ export type ScrollDirection = 'up' | 'down' | 'left' | 'right';
 export type SwipePreset = 'left' | 'right' | 'left-edge' | 'right-edge';
 export type SwipePattern = 'one-way' | 'ping-pong';
 
+export type TransformGestureParams = {
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+  scale: number;
+  degrees: number;
+  durationMs?: number;
+};
+
 export type GestureReferenceFrame = {
   referenceWidth: number;
   referenceHeight: number;

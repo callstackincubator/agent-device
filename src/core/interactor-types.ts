@@ -1,6 +1,6 @@
 import type { BackMode } from './back-mode.ts';
 import type { DeviceRotation } from './device-rotation.ts';
-import type { ScrollDirection } from './scroll-gesture.ts';
+import type { ScrollDirection, TransformGestureParams } from './scroll-gesture.ts';
 import type { SettingOptions } from '../platforms/permission-utils.ts';
 import type { SessionSurface } from './session-surface.ts';
 import type { BackendSnapshotResult } from '../backend.ts';
@@ -112,15 +112,7 @@ export type Interactor = {
     y?: number,
     velocity?: number,
   ): Promise<Record<string, unknown> | void>;
-  transformGesture(options: {
-    x: number;
-    y: number;
-    dx: number;
-    dy: number;
-    scale: number;
-    degrees: number;
-    durationMs?: number;
-  }): Promise<Record<string, unknown> | void>;
+  transformGesture(options: TransformGestureParams): Promise<Record<string, unknown> | void>;
   appSwitcher(): Promise<void>;
   readClipboard(): Promise<string>;
   writeClipboard(text: string): Promise<void>;

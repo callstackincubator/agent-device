@@ -10,6 +10,7 @@ import {
   type ScrollDirection,
   type SwipePattern,
   type SwipePreset,
+  type TransformGestureParams,
 } from './scroll-gesture.ts';
 import {
   getClickButtonValidationError,
@@ -775,16 +776,6 @@ type RotateGestureParams = {
   x?: number;
   y?: number;
   velocity: number;
-};
-
-type TransformGestureParams = {
-  x: number;
-  y: number;
-  dx: number;
-  dy: number;
-  scale: number;
-  degrees: number;
-  durationMs?: number;
 };
 
 function parseRotateGestureParams(positionals: string[]): RotateGestureParams {

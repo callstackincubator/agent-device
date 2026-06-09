@@ -15,7 +15,12 @@ import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './uti
 import type { BackMode } from './core/back-mode.ts';
 import type { ClickButton } from './core/click-button.ts';
 import type { DeviceRotation } from './core/device-rotation.ts';
-import type { ScrollDirection, SwipePattern, SwipePreset } from './core/scroll-gesture.ts';
+import type {
+  ScrollDirection,
+  SwipePattern,
+  SwipePreset,
+  TransformGestureParams,
+} from './core/scroll-gesture.ts';
 import type { ScrollInputDirection } from './commands/interaction-gestures.ts';
 import type { LogAction } from './commands/log-command-contract.ts';
 import type { SessionSurface } from './core/session-surface.ts';
@@ -656,15 +661,7 @@ export type RotateGestureOptions = ClientCommandBaseOptions & {
   velocity?: number;
 };
 
-export type TransformGestureOptions = ClientCommandBaseOptions & {
-  x: number;
-  y: number;
-  dx: number;
-  dy: number;
-  scale: number;
-  degrees: number;
-  durationMs?: number;
-};
+export type TransformGestureOptions = ClientCommandBaseOptions & TransformGestureParams;
 
 export type GetOptions = ClientCommandBaseOptions &
   SelectorSnapshotCommandOptions &

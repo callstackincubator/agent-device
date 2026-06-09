@@ -11,6 +11,7 @@ import type {
 import type { NetworkIncludeMode } from './contracts.ts';
 import type { DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
 import type { BackMode } from './core/back-mode.ts';
+import type { RepeatedInput } from './commands/command-input.ts';
 import type { ClickButton } from './core/click-button.ts';
 import type { DeviceRotation } from './core/device-rotation.ts';
 import type { ScrollDirection } from './core/scroll-gesture.ts';
@@ -136,13 +137,8 @@ export type BackendAlertResult =
       timedOut?: boolean;
     };
 
-export type BackendTapOptions = {
+export type BackendTapOptions = RepeatedInput & {
   button?: ClickButton;
-  count?: number;
-  intervalMs?: number;
-  holdMs?: number;
-  jitterPx?: number;
-  doubleTap?: boolean;
 };
 
 export type BackendFillOptions = {
