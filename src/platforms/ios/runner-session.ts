@@ -32,6 +32,16 @@ import {
   withRunnerCommandId,
   type RunnerCommand,
 } from './runner-contract.ts';
+import {
+  buildRunnerLease,
+  classifyRunnerLease,
+  readRunnerLease,
+  removeRunnerLease,
+  RUNNER_OWNER_TOKEN,
+  withRunnerLeaseLock,
+  writeRunnerLease,
+  type RunnerLease,
+} from './runner-lease.ts';
 import type { RunnerSession } from './runner-session-types.ts';
 
 export type { RunnerSession } from './runner-session-types.ts';
@@ -55,7 +65,6 @@ const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 1_000;
 const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
 const RUNNER_STALE_BUNDLE_UNINSTALL_TIMEOUT_MS = 10_000;
 const RUNNER_STALE_XCODEBUILD_KILL_TIMEOUT_MS = 2_000;
-const RUNNER_OWNER_TOKEN = `owner-${process.pid}`;
 
 type RunnerReadinessPreflightDecision =
   | {
@@ -82,114 +91,143 @@ export async function ensureRunnerSession(
       if (reusable) return reusable;
     }
 
-    const startupTimings: Record<string, number> = {};
-    await measureRunnerStartupStep(startupTimings, 'cleanup_stale_xcodebuild', async () => {
-      await killStaleRunnerXcodebuildProcesses(device.id);
-    });
-    await measureRunnerStartupStep(startupTimings, 'ensure_booted', async () => {
-      await ensureBootedIfNeeded(device);
-    });
-    if (options.cleanStaleBundles) {
-      await measureRunnerStartupStep(startupTimings, 'cleanup_stale_bundles', async () => {
-        await cleanupStaleSimulatorRunnerBundles(device);
-      });
-    } else {
-      startupTimings.cleanup_stale_bundles = 0;
-      emitDiagnostic({
-        level: 'debug',
-        phase: 'ios_runner_startup_cleanup_stale_bundles_skipped',
-      });
-    }
-    const xctestrunArtifact = await measureRunnerStartupStep(
-      startupTimings,
-      'ensure_xctestrun',
-      async () => await ensureXctestrunArtifact(device, options),
+    return await withRunnerLeaseLock(
+      device.id,
+      async () => await startRunnerSessionWithLease(device, options),
     );
-    startupTimings.build_xctestrun = xctestrunArtifact.buildMs;
-    const port = await measureRunnerStartupStep(
-      startupTimings,
-      'allocate_port',
-      async () => await getFreePort(),
-    );
-    const { xctestrunPath, jsonPath } = await measureRunnerStartupStep(
-      startupTimings,
-      'prepare_xctestrun_env',
-      async () =>
-        await prepareXctestrunWithEnv(
-          xctestrunArtifact.xctestrunPath,
-          { AGENT_DEVICE_RUNNER_PORT: String(port) },
-          `session-${device.id}-${RUNNER_OWNER_TOKEN}-${port}`,
-        ),
-    );
-    const simulatorSetRedirect = await measureRunnerStartupStep(
-      startupTimings,
-      'simulator_set_redirect',
-      async () => await acquireXcodebuildSimulatorSetRedirect(device),
-    );
-    let child: ExecBackgroundResult['child'];
-    let testPromise: Promise<ExecResult>;
-    try {
-      ({ child, wait: testPromise } = await measureRunnerStartupStep(
-        startupTimings,
-        'launch_xcodebuild',
-        () =>
-          runCmdBackground(
-            'xcodebuild',
-            [
-              'test-without-building',
-              '-only-testing',
-              'AgentDeviceRunnerUITests/RunnerTests/testCommand',
-              '-parallel-testing-enabled',
-              'NO',
-              '-test-timeouts-enabled',
-              'NO',
-              '-collect-test-diagnostics',
-              'never',
-              resolveRunnerMaxConcurrentDestinationsFlag(device),
-              '1',
-              '-destination-timeout',
-              String(RUNNER_DESTINATION_TIMEOUT_SECONDS),
-              '-xctestrun',
-              xctestrunPath,
-              '-destination',
-              resolveRunnerDestination(device),
-            ],
-            {
-              allowFailure: true,
-              env: { ...process.env, AGENT_DEVICE_RUNNER_PORT: String(port) },
-              detached: true,
-            },
-          ),
-      ));
-    } catch (error) {
-      await simulatorSetRedirect?.release();
-      throw error;
-    }
-    child.stdout?.on('data', (chunk: string) => {
-      logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
-    });
-    child.stderr?.on('data', (chunk: string) => {
-      logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
-    });
-
-    const session: RunnerSession = {
-      sessionId: `${device.id}:${port}:${Date.now()}`,
-      device,
-      deviceId: device.id,
-      port,
-      xctestrunPath,
-      xctestrunArtifact,
-      jsonPath,
-      testPromise,
-      child,
-      ready: false,
-      startupTimeoutMs: normalizeRunnerStartupTimeoutMs(options.startupTimeoutMs),
-      startupTimings,
-      simulatorSetRedirect: simulatorSetRedirect ?? undefined,
-    };
-    runnerSessions.set(device.id, session);
-    return session;
   });
+}
+
+async function startRunnerSessionWithLease(
+  device: DeviceInfo,
+  options: RunnerSessionOptions,
+): Promise<RunnerSession> {
+  const startupTimings: Record<string, number> = {};
+  await measureRunnerStartupStep(startupTimings, 'cleanup_stale_xcodebuild', async () => {
+    await prepareRunnerLeaseForStartup(device.id);
+  });
+  await measureRunnerStartupStep(startupTimings, 'ensure_booted', async () => {
+    await ensureBootedIfNeeded(device);
+  });
+  if (options.cleanStaleBundles) {
+    await measureRunnerStartupStep(startupTimings, 'cleanup_stale_bundles', async () => {
+      await cleanupStaleSimulatorRunnerBundles(device);
+    });
+  } else {
+    startupTimings.cleanup_stale_bundles = 0;
+    emitDiagnostic({
+      level: 'debug',
+      phase: 'ios_runner_startup_cleanup_stale_bundles_skipped',
+    });
+  }
+  const xctestrunArtifact = await measureRunnerStartupStep(
+    startupTimings,
+    'ensure_xctestrun',
+    async () => await ensureXctestrunArtifact(device, options),
+  );
+  startupTimings.build_xctestrun = xctestrunArtifact.buildMs;
+  const port = await measureRunnerStartupStep(
+    startupTimings,
+    'allocate_port',
+    async () => await getFreePort(),
+  );
+  const { xctestrunPath, jsonPath } = await measureRunnerStartupStep(
+    startupTimings,
+    'prepare_xctestrun_env',
+    async () =>
+      await prepareXctestrunWithEnv(
+        xctestrunArtifact.xctestrunPath,
+        { AGENT_DEVICE_RUNNER_PORT: String(port) },
+        `session-${device.id}-${RUNNER_OWNER_TOKEN}-${port}`,
+      ),
+  );
+  const simulatorSetRedirect = await measureRunnerStartupStep(
+    startupTimings,
+    'simulator_set_redirect',
+    async () => await acquireXcodebuildSimulatorSetRedirect(device),
+  );
+  let child: ExecBackgroundResult['child'] | undefined;
+  let testPromise: Promise<ExecResult>;
+  try {
+    ({ child, wait: testPromise } = await measureRunnerStartupStep(
+      startupTimings,
+      'launch_xcodebuild',
+      () =>
+        runCmdBackground(
+          'xcodebuild',
+          [
+            'test-without-building',
+            '-only-testing',
+            'AgentDeviceRunnerUITests/RunnerTests/testCommand',
+            '-parallel-testing-enabled',
+            'NO',
+            '-test-timeouts-enabled',
+            'NO',
+            '-collect-test-diagnostics',
+            'never',
+            resolveRunnerMaxConcurrentDestinationsFlag(device),
+            '1',
+            '-destination-timeout',
+            String(RUNNER_DESTINATION_TIMEOUT_SECONDS),
+            '-xctestrun',
+            xctestrunPath,
+            '-destination',
+            resolveRunnerDestination(device),
+          ],
+          {
+            allowFailure: true,
+            env: { ...process.env, AGENT_DEVICE_RUNNER_PORT: String(port) },
+            detached: true,
+          },
+        ),
+    ));
+  } catch (error) {
+    await simulatorSetRedirect?.release();
+    throw error;
+  }
+  child.stdout?.on('data', (chunk: string) => {
+    logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
+  });
+  child.stderr?.on('data', (chunk: string) => {
+    logChunk(chunk, options.logPath, options.traceLogPath, options.verbose);
+  });
+
+  const sessionId = `${device.id}:${port}:${Date.now()}`;
+  const lease = buildRunnerLease({
+    deviceId: device.id,
+    sessionId,
+    runnerPid: child.pid,
+    port,
+    xctestrunPath,
+    jsonPath,
+  });
+  const session: RunnerSession = {
+    sessionId,
+    device,
+    deviceId: device.id,
+    port,
+    xctestrunPath,
+    xctestrunArtifact,
+    jsonPath,
+    testPromise,
+    child,
+    ready: false,
+    startupTimeoutMs: normalizeRunnerStartupTimeoutMs(options.startupTimeoutMs),
+    startupTimings,
+    simulatorSetRedirect: simulatorSetRedirect ?? undefined,
+    lease,
+  };
+  try {
+    writeRunnerLease(lease);
+  } catch (error) {
+    await stopRunnerSessionInternal(device.id, session, {
+      graceful: false,
+      waitTimeoutMs: RUNNER_INVALIDATE_WAIT_TIMEOUT_MS,
+    });
+    throw error;
+  }
+  runnerSessions.set(device.id, session);
+  return session;
 }
 
 async function resolveReusableRunnerSession(
@@ -237,6 +275,29 @@ async function resolveReusableRunnerSession(
     },
   });
   return existing;
+}
+
+async function prepareRunnerLeaseForStartup(deviceId: string): Promise<void> {
+  const state = classifyRunnerLease(readRunnerLease(deviceId));
+  if (state.type === 'empty') {
+    await killLegacyRunnerXcodebuildProcesses(deviceId);
+    return;
+  }
+  if (state.type === 'busy') {
+    throw new AppError(
+      'COMMAND_FAILED',
+      `iOS runner for ${deviceId} is already owned by another agent-device daemon`,
+      {
+        deviceId,
+        ownerPid: state.lease.ownerPid,
+        ownerStartTime: state.lease.ownerStartTime,
+        ownerToken: state.lease.ownerToken,
+        sessionId: state.lease.sessionId,
+        hint: 'Use a different simulator/session, wait for the other run to finish, or stop the owning daemon before retrying.',
+      },
+    );
+  }
+  await cleanupLeasedRunnerProcesses(state.lease, state.type);
 }
 
 async function cleanupStaleSimulatorRunnerBundles(device: DeviceInfo): Promise<void> {
@@ -366,6 +427,7 @@ async function stopRunnerSessionInternal(
   cleanupTempFile(session.xctestrunPath);
   cleanupTempFile(session.jsonPath);
   await session.simulatorSetRedirect?.release();
+  removeRunnerSessionLease(session);
   if (runnerSessions.get(deviceId) === session) {
     runnerSessions.delete(deviceId);
   }
@@ -373,8 +435,13 @@ async function stopRunnerSessionInternal(
 
 export async function stopIosRunnerSession(deviceId: string): Promise<void> {
   await withRunnerSessionLock(deviceId, async () => {
-    await stopRunnerSessionInternal(deviceId);
-    await killStaleRunnerXcodebuildProcesses(deviceId);
+    await withRunnerLeaseLock(deviceId, async () => {
+      await stopRunnerSessionInternal(deviceId);
+      const state = classifyRunnerLease(readRunnerLease(deviceId));
+      if (state.type === 'owned') {
+        await cleanupLeasedRunnerProcesses(state.lease, 'owned');
+      }
+    });
   });
 }
 
@@ -469,8 +536,45 @@ async function killRunnerProcessTree(
   } catch {}
 }
 
-async function killStaleRunnerXcodebuildProcesses(deviceId: string): Promise<void> {
-  const pattern = `xcodebuild.*test-without-building.*AgentDeviceRunner\\.env\\.session-${escapeRegex(deviceId)}-${escapeRegex(RUNNER_OWNER_TOKEN)}-`;
+async function cleanupLeasedRunnerProcesses(
+  lease: RunnerLease,
+  reason: 'owned' | 'stale',
+): Promise<void> {
+  emitDiagnostic({
+    level: reason === 'stale' ? 'warn' : 'debug',
+    phase: 'ios_runner_lease_cleanup',
+    data: {
+      deviceId: lease.deviceId,
+      ownerPid: lease.ownerPid,
+      ownerToken: lease.ownerToken,
+      runnerPid: lease.runnerPid,
+      sessionId: lease.sessionId,
+      reason,
+    },
+  });
+  await killRunnerProcessTree(lease.runnerPid ?? undefined, 'SIGTERM');
+  await killRunnerXcodebuildProcesses(lease.deviceId, lease.ownerToken);
+  await killRunnerProcessTree(lease.runnerPid ?? undefined, 'SIGKILL');
+  cleanupTempFile(lease.xctestrunPath);
+  cleanupTempFile(lease.jsonPath);
+  removeRunnerLease({
+    deviceId: lease.deviceId,
+    ownerToken: lease.ownerToken,
+    sessionId: lease.sessionId,
+  });
+}
+
+async function killLegacyRunnerXcodebuildProcesses(deviceId: string): Promise<void> {
+  await killRunnerXcodebuildProcesses(deviceId, undefined);
+}
+
+async function killRunnerXcodebuildProcesses(
+  deviceId: string,
+  ownerToken: string | undefined,
+): Promise<void> {
+  const pattern = ownerToken
+    ? `xcodebuild.*test-without-building.*AgentDeviceRunner\\.env\\.session-${escapeRegex(deviceId)}-${escapeRegex(ownerToken)}-`
+    : `xcodebuild.*test-without-building.*AgentDeviceRunner\\.env\\.session-${escapeRegex(deviceId)}-[0-9]`;
   for (const signal of ['TERM', 'KILL'] as const) {
     try {
       await runAppleToolCommand('pkill', [`-${signal}`, '-f', pattern], {
@@ -489,6 +593,15 @@ async function killStaleRunnerXcodebuildProcesses(deviceId: string): Promise<voi
       });
     }
   }
+}
+
+function removeRunnerSessionLease(session: RunnerSession): void {
+  if (!session.lease) return;
+  removeRunnerLease({
+    deviceId: session.deviceId,
+    ownerToken: session.lease.ownerToken,
+    sessionId: session.lease.sessionId,
+  });
 }
 
 function escapeRegex(value: string): string {

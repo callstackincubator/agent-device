@@ -3,10 +3,10 @@ import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { AppError } from '../../utils/errors.ts';
-import { sleep } from '../../utils/timeouts.ts';
 import { runCmdStreaming, runCmdSync, type ExecBackgroundResult } from '../../utils/exec.ts';
 import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
-import { isProcessAlive, readProcessStartTime } from '../../utils/process-identity.ts';
+import { readProcessStartTime } from '../../utils/process-identity.ts';
+import { acquireProcessLock, type ProcessLockOwner } from '../../utils/process-lock.ts';
 import { isEnvTruthy } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
@@ -89,12 +89,6 @@ type XcodebuildSimulatorSetRedirectOptions = {
   ownerPid?: number;
   ownerStartTime?: string | null;
   nowMs?: number;
-};
-
-type XcodebuildSimulatorSetLockOwner = {
-  pid: number;
-  startTime: string | null;
-  acquiredAtMs: number;
 };
 
 export type RunnerXctestrunCacheMetadata = {
@@ -388,46 +382,18 @@ function sameResolvedPath(left: string, right: string): boolean {
 
 async function acquireXcodebuildSimulatorSetLock(params: {
   lockDirPath: string;
-  owner: XcodebuildSimulatorSetLockOwner;
+  owner: ProcessLockOwner;
   timeoutMs?: number;
   pollMs?: number;
   description?: string;
 }): Promise<() => Promise<void>> {
-  const { lockDirPath, owner } = params;
-  const ownerFilePath = path.join(lockDirPath, 'owner.json');
-  const deadline = Date.now() + (params.timeoutMs ?? XCTEST_DEVICE_SET_LOCK_TIMEOUT_MS);
-  const pollMs = params.pollMs ?? XCTEST_DEVICE_SET_LOCK_POLL_MS;
-  const description = params.description ?? 'XCTest device set lock';
-
-  fs.mkdirSync(path.dirname(lockDirPath), { recursive: true });
-
-  while (Date.now() < deadline) {
-    try {
-      fs.mkdirSync(lockDirPath);
-      writeXcodebuildSimulatorSetLockOwner(ownerFilePath, owner);
-      let released = false;
-      return async () => {
-        if (released) {
-          return;
-        }
-        released = true;
-        fs.rmSync(lockDirPath, { recursive: true, force: true });
-      };
-    } catch (error) {
-      const err = error as NodeJS.ErrnoException;
-      if (err.code !== 'EEXIST') {
-        throw err;
-      }
-      if (clearStaleXcodebuildSimulatorSetLock(lockDirPath, ownerFilePath)) {
-        continue;
-      }
-      await sleep(pollMs);
-    }
-  }
-
-  throw new AppError('COMMAND_FAILED', `Timed out waiting for ${description}`, {
-    lockDirPath,
-    ...readXcodebuildSimulatorSetLockDiagnostics(lockDirPath, ownerFilePath),
+  return await acquireProcessLock({
+    lockDirPath: params.lockDirPath,
+    owner: params.owner,
+    timeoutMs: params.timeoutMs ?? XCTEST_DEVICE_SET_LOCK_TIMEOUT_MS,
+    pollMs: params.pollMs ?? XCTEST_DEVICE_SET_LOCK_POLL_MS,
+    ownerGraceMs: XCTEST_DEVICE_SET_LOCK_OWNER_GRACE_MS,
+    description: params.description ?? 'XCTest device set lock',
   });
 }
 
@@ -448,83 +414,6 @@ export async function acquireRunnerXctestrunCacheLock(
 
 function resolveRunnerXctestrunCacheLockPath(derived: string): string {
   return path.join(path.dirname(derived), `${path.basename(derived)}.lock`);
-}
-
-function writeXcodebuildSimulatorSetLockOwner(
-  ownerFilePath: string,
-  owner: XcodebuildSimulatorSetLockOwner,
-): void {
-  const tmpOwnerFilePath = `${ownerFilePath}.${process.pid}.${Date.now()}.tmp`;
-  fs.writeFileSync(tmpOwnerFilePath, JSON.stringify(owner), 'utf8');
-  fs.renameSync(tmpOwnerFilePath, ownerFilePath);
-}
-
-function clearStaleXcodebuildSimulatorSetLock(lockDirPath: string, ownerFilePath: string): boolean {
-  let ownerStats: fs.Stats | null = null;
-  try {
-    ownerStats = fs.statSync(lockDirPath);
-  } catch {
-    return true;
-  }
-
-  const owner = readXcodebuildSimulatorSetLockOwner(ownerFilePath);
-  if (owner) {
-    if (isLiveXcodebuildSimulatorSetLockOwner(owner)) {
-      return false;
-    }
-    fs.rmSync(lockDirPath, { recursive: true, force: true });
-    return true;
-  }
-  if (Date.now() - ownerStats.mtimeMs < XCTEST_DEVICE_SET_LOCK_OWNER_GRACE_MS) {
-    return false;
-  }
-  fs.rmSync(lockDirPath, { recursive: true, force: true });
-  return true;
-}
-
-function readXcodebuildSimulatorSetLockOwner(
-  ownerFilePath: string,
-): XcodebuildSimulatorSetLockOwner | null {
-  try {
-    return JSON.parse(fs.readFileSync(ownerFilePath, 'utf8')) as XcodebuildSimulatorSetLockOwner;
-  } catch {
-    return null;
-  }
-}
-
-function readXcodebuildSimulatorSetLockDiagnostics(
-  lockDirPath: string,
-  ownerFilePath: string,
-): Record<string, unknown> {
-  const nowMs = Date.now();
-  const owner = readXcodebuildSimulatorSetLockOwner(ownerFilePath);
-  let lockAgeMs: number | undefined;
-  try {
-    lockAgeMs = Math.max(0, Math.round(nowMs - fs.statSync(lockDirPath).mtimeMs));
-  } catch {}
-  return {
-    ...(lockAgeMs !== undefined ? { lockAgeMs } : {}),
-    ...(owner
-      ? {
-          ownerPid: owner.pid,
-          ownerStartTime: owner.startTime,
-          ownerAgeMs: Math.max(0, Math.round(nowMs - owner.acquiredAtMs)),
-        }
-      : {}),
-  };
-}
-
-function isLiveXcodebuildSimulatorSetLockOwner(owner: XcodebuildSimulatorSetLockOwner): boolean {
-  if (!Number.isInteger(owner.pid) || owner.pid <= 0) {
-    return false;
-  }
-  if (!isProcessAlive(owner.pid)) {
-    return false;
-  }
-  if (owner.startTime) {
-    return readProcessStartTime(owner.pid) === owner.startTime;
-  }
-  return true;
 }
 
 export async function ensureXctestrun(
