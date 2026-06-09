@@ -92,6 +92,39 @@ test('request platform provider scope follows explicit apps selector for existin
   assert.deepEqual(seenDevices, [`default:${OTHER_IOS_SIMULATOR.id}`]);
 });
 
+test('request platform provider scope skips sharded test orchestration requests', async () => {
+  let providerCalls = 0;
+
+  const result = await withTargetDeviceResolutionScope(
+    async () => {
+      throw new Error('Sharded test orchestration should not resolve a provider device');
+    },
+    async () =>
+      await withRequestPlatformProviderScope(
+        {
+          req: {
+            ...request('test'),
+            flags: {
+              platform: 'ios',
+              shardAll: 2,
+            },
+          },
+          existingSession: undefined,
+          providers: {
+            appleToolProvider: () => {
+              providerCalls += 1;
+              return createLocalAppleToolProvider();
+            },
+          },
+        },
+        async () => 'unscoped',
+      ),
+  );
+
+  assert.equal(result, 'unscoped');
+  assert.equal(providerCalls, 0);
+});
+
 test('request platform provider scopes stay isolated across concurrent requests', async () => {
   const androidCalls: string[] = [];
   const appleCalls: string[] = [];

@@ -2,17 +2,15 @@ import { AppError, toAppErrorCode } from '../../utils/errors.ts';
 import { runCmdBackground, type ExecResult, type ExecBackgroundResult } from '../../utils/exec.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
 import { Deadline } from '../../utils/retry.ts';
-import { isProcessAlive, isProcessGroupAlive } from '../../utils/process-identity.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
-import { runAppleToolCommand, runXcrun } from './tool-provider.ts';
+import { runXcrun } from './tool-provider.ts';
 import {
   waitForRunner,
   sendRunnerCommandOnce,
   getFreePort,
   logChunk,
-  cleanupTempFile,
   RUNNER_STARTUP_TIMEOUT_MS,
   RUNNER_DESTINATION_TIMEOUT_SECONDS,
 } from './runner-transport.ts';
@@ -25,7 +23,6 @@ import {
   resolveRunnerDerivedPath,
   resolveRunnerDestination,
   resolveRunnerMaxConcurrentDestinationsFlag,
-  runnerPrepProcesses,
 } from './runner-xctestrun.ts';
 import {
   isReadOnlyRunnerCommand,
@@ -34,14 +31,20 @@ import {
 } from './runner-contract.ts';
 import {
   buildRunnerLease,
-  cleanupOwnedRunnerLease,
   prepareRunnerLeaseForStartup,
-  releaseRunnerLease,
   RUNNER_OWNER_TOKEN,
   withRunnerLeaseLock,
   writeRunnerLease,
-  type RunnerLeaseCleanupAdapter,
 } from './runner-lease.ts';
+import {
+  abortRunnerSessionsAndPrepProcesses,
+  cleanupOwnedIosRunnerLease,
+  disposeRunnerSession,
+  isRunnerProcessAlive,
+  runnerLeaseCleanupAdapter,
+  RUNNER_INVALIDATE_WAIT_TIMEOUT_MS,
+  stopRunnerPrepProcesses,
+} from './runner-disposal.ts';
 import type { RunnerSession } from './runner-session-types.ts';
 
 export type { RunnerSession } from './runner-session-types.ts';
@@ -59,17 +62,8 @@ export type RunnerSessionOptions = {
 
 const runnerSessions = new Map<string, RunnerSession>();
 const runnerSessionLocks = new Map<string, Promise<unknown>>();
-const RUNNER_STOP_WAIT_TIMEOUT_MS = 10_000;
-const RUNNER_INVALIDATE_WAIT_TIMEOUT_MS = 1_000;
 const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 1_000;
-const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
 const RUNNER_STALE_BUNDLE_UNINSTALL_TIMEOUT_MS = 10_000;
-const RUNNER_STALE_XCODEBUILD_KILL_TIMEOUT_MS = 2_000;
-const runnerLeaseCleanupAdapter: RunnerLeaseCleanupAdapter = {
-  cleanupRunnerProcessTree: killRunnerProcessTree,
-  cleanupRunnerXcodebuildProcesses: killRunnerXcodebuildProcesses,
-  cleanupTempFile,
-};
 
 type RunnerReadinessPreflightDecision =
   | {
@@ -378,38 +372,7 @@ async function stopRunnerSessionInternal(
 ): Promise<void> {
   const session = sessionOverride ?? runnerSessions.get(deviceId);
   if (!session) return;
-  if (options.graceful !== false) {
-    try {
-      await waitForRunner(
-        session.device,
-        session.port,
-        withRunnerCommandId({
-          command: 'shutdown',
-        } as RunnerCommand),
-        undefined,
-        RUNNER_SHUTDOWN_TIMEOUT_MS,
-      );
-    } catch {
-      await killRunnerProcessTree(session.child.pid, 'SIGTERM');
-    }
-  } else {
-    await killRunnerProcessTree(session.child.pid, 'SIGTERM');
-  }
-  try {
-    await Promise.race([
-      session.testPromise,
-      new Promise<void>((resolve) =>
-        setTimeout(resolve, options.waitTimeoutMs ?? RUNNER_STOP_WAIT_TIMEOUT_MS),
-      ),
-    ]);
-  } catch {}
-  if (isRunnerProcessTreeAlive(session.child.pid)) {
-    await killRunnerProcessTree(session.child.pid, 'SIGKILL');
-  }
-  cleanupTempFile(session.xctestrunPath);
-  cleanupTempFile(session.jsonPath);
-  await session.simulatorSetRedirect?.release();
-  releaseRunnerLease(session.lease);
+  await disposeRunnerSession(session, options);
   if (runnerSessions.get(deviceId) === session) {
     runnerSessions.delete(deviceId);
   }
@@ -419,54 +382,15 @@ export async function stopIosRunnerSession(deviceId: string): Promise<void> {
   await withRunnerSessionLock(deviceId, async () => {
     await withRunnerLeaseLock(deviceId, async () => {
       await stopRunnerSessionInternal(deviceId);
-      await cleanupOwnedRunnerLease(deviceId, runnerLeaseCleanupAdapter);
+      await cleanupOwnedIosRunnerLease(deviceId);
     });
   });
 }
 
 export async function abortAllIosRunnerSessions(): Promise<void> {
   const activeSessions = Array.from(runnerSessions.values());
-  const prepProcesses = Array.from(runnerPrepProcesses);
-  await Promise.allSettled(
-    activeSessions.map(async (session) => {
-      await killRunnerProcessTree(session.child.pid, 'SIGINT');
-    }),
-  );
-  await Promise.allSettled(
-    prepProcesses.map(async (child) => {
-      await killRunnerProcessTree(child.pid, 'SIGINT');
-    }),
-  );
-  await Promise.allSettled(
-    activeSessions.map(async (session) => {
-      await killRunnerProcessTree(session.child.pid, 'SIGTERM');
-    }),
-  );
-  await Promise.allSettled(
-    prepProcesses.map(async (child) => {
-      await killRunnerProcessTree(child.pid, 'SIGTERM');
-    }),
-  );
-  await Promise.allSettled(
-    activeSessions.map(async (session) => {
-      await killRunnerProcessTree(session.child.pid, 'SIGKILL');
-    }),
-  );
-  await Promise.allSettled(
-    prepProcesses.map(async (child) => {
-      await killRunnerProcessTree(child.pid, 'SIGKILL');
-      runnerPrepProcesses.delete(child);
-    }),
-  );
-  await Promise.allSettled(
-    activeSessions.map(async (session) => {
-      await session.simulatorSetRedirect?.release();
-    }),
-  );
+  await abortRunnerSessionsAndPrepProcesses(activeSessions);
   for (const session of activeSessions) {
-    cleanupTempFile(session.xctestrunPath);
-    cleanupTempFile(session.jsonPath);
-    releaseRunnerLease(session.lease);
     if (runnerSessions.get(session.deviceId) === session) {
       runnerSessions.delete(session.deviceId);
     }
@@ -481,77 +405,7 @@ export async function stopAllIosRunnerSessions(): Promise<void> {
       await stopIosRunnerSession(deviceId);
     }),
   );
-  const prepProcesses = Array.from(runnerPrepProcesses);
-  await Promise.allSettled(
-    prepProcesses.map(async (child) => {
-      try {
-        await killRunnerProcessTree(child.pid, 'SIGTERM');
-        await killRunnerProcessTree(child.pid, 'SIGKILL');
-      } finally {
-        runnerPrepProcesses.delete(child);
-      }
-    }),
-  );
-}
-
-function isRunnerProcessAlive(pid: number | undefined): boolean {
-  if (!pid) return false;
-  return isProcessAlive(pid);
-}
-
-function isRunnerProcessTreeAlive(pid: number | undefined): boolean {
-  if (!pid) return false;
-  return isRunnerProcessAlive(pid) || isProcessGroupAlive(pid);
-}
-
-async function killRunnerProcessTree(
-  pid: number | undefined,
-  signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL',
-): Promise<void> {
-  if (!pid || pid <= 0) return;
-  try {
-    process.kill(-pid, signal);
-  } catch {}
-  try {
-    process.kill(pid, signal);
-  } catch {}
-  const pkillSignal = signal === 'SIGINT' ? 'INT' : signal === 'SIGTERM' ? 'TERM' : 'KILL';
-  try {
-    await runAppleToolCommand('pkill', [`-${pkillSignal}`, '-P', String(pid)], {
-      allowFailure: true,
-    });
-  } catch {}
-}
-
-async function killRunnerXcodebuildProcesses(
-  deviceId: string,
-  ownerToken: string | undefined,
-): Promise<void> {
-  const pattern = ownerToken
-    ? `xcodebuild.*test-without-building.*AgentDeviceRunner\\.env\\.session-${escapeRegex(deviceId)}-${escapeRegex(ownerToken)}-`
-    : `xcodebuild.*test-without-building.*AgentDeviceRunner\\.env\\.session-${escapeRegex(deviceId)}-[0-9]`;
-  for (const signal of ['TERM', 'KILL'] as const) {
-    try {
-      await runAppleToolCommand('pkill', [`-${signal}`, '-f', pattern], {
-        allowFailure: true,
-        timeoutMs: RUNNER_STALE_XCODEBUILD_KILL_TIMEOUT_MS,
-      });
-    } catch (error) {
-      emitDiagnostic({
-        level: 'warn',
-        phase: 'ios_runner_stale_xcodebuild_kill_failed',
-        data: {
-          deviceId,
-          signal,
-          error: error instanceof Error ? error.message : String(error),
-        },
-      });
-    }
-  }
-}
-
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  await stopRunnerPrepProcesses();
 }
 
 function ensureBootedIfNeeded(device: DeviceInfo): Promise<void> {

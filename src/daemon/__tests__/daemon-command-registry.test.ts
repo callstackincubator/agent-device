@@ -13,6 +13,7 @@ import {
   shouldLockSessionExecution,
   shouldPreferExplicitDeviceOverExistingSession,
   shouldValidateSessionSelector,
+  resolveProviderDeviceResolutionIntent,
   usesSessionlessDefaultProviderDevice,
 } from '../daemon-command-registry.ts';
 import type { DaemonRequest } from '../types.ts';
@@ -154,6 +155,40 @@ test('daemon command registry preserves provider device resolution traits', () =
   assert.equal(
     usesSessionlessDefaultProviderDevice(makeRequest(PUBLIC_COMMANDS.record, ['stop'])),
     false,
+  );
+  assert.equal(
+    resolveProviderDeviceResolutionIntent(makeRequest(PUBLIC_COMMANDS.test), {
+      hasExistingSession: false,
+      hasExplicitDeviceSelector: false,
+    }),
+    'skip',
+  );
+  assert.equal(
+    resolveProviderDeviceResolutionIntent(
+      {
+        ...makeRequest(PUBLIC_COMMANDS.test),
+        flags: { shardAll: 2 },
+      },
+      {
+        hasExistingSession: false,
+        hasExplicitDeviceSelector: true,
+      },
+    ),
+    'skip',
+  );
+  assert.equal(
+    resolveProviderDeviceResolutionIntent(makeRequest(PUBLIC_COMMANDS.open), {
+      hasExistingSession: false,
+      hasExplicitDeviceSelector: false,
+    }),
+    'sessionless-default-device',
+  );
+  assert.equal(
+    resolveProviderDeviceResolutionIntent(makeRequest(PUBLIC_COMMANDS.apps), {
+      hasExistingSession: true,
+      hasExplicitDeviceSelector: true,
+    }),
+    'explicit-device',
   );
 });
 

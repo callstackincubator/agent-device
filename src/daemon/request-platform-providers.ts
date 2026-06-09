@@ -14,10 +14,7 @@ import type { AppLogProvider } from './app-log.ts';
 import { hasExplicitDeviceSelector } from './device-selector-intent.ts';
 import type { RecordingProvider } from './recording-provider.ts';
 import type { DaemonRequest, SessionState } from './types.ts';
-import {
-  shouldPreferExplicitDeviceOverExistingSession,
-  usesSessionlessDefaultProviderDevice,
-} from './daemon-command-registry.ts';
+import { resolveProviderDeviceResolutionIntent } from './daemon-command-registry.ts';
 
 export type PlatformProviderRequestSession = Pick<
   SessionState,
@@ -279,35 +276,19 @@ async function resolveScopedProviderDevice(
   req: DaemonRequest,
   existingSession: SessionState | undefined,
 ): Promise<DeviceInfo | undefined> {
-  if (existingSession) {
-    return await resolveExistingSessionProviderDevice(req, existingSession);
+  const intent = resolveProviderDeviceResolutionIntent(req, {
+    hasExistingSession: Boolean(existingSession),
+    hasExplicitDeviceSelector: hasExplicitDeviceSelector(req.flags),
+  });
+  switch (intent) {
+    case 'existing-session':
+      return existingSession?.device;
+    case 'explicit-device':
+    case 'sessionless-default-device':
+      return await resolveTargetDevice(req.flags ?? {});
+    case 'skip':
+      return undefined;
   }
-  if (shouldSkipSessionlessProviderDevice(req)) return undefined;
-  return await resolveTargetDevice(req.flags ?? {});
-}
-
-async function resolveExistingSessionProviderDevice(
-  req: DaemonRequest,
-  existingSession: SessionState,
-): Promise<DeviceInfo> {
-  if (!shouldResolveExplicitProviderDevice(req)) return existingSession.device;
-  return await resolveTargetDevice(req.flags ?? {});
-}
-
-function shouldResolveExplicitProviderDevice(req: DaemonRequest): boolean {
-  return shouldPreferExplicitDeviceOverExistingSession(req) && hasExplicitDeviceSelector(req.flags);
-}
-
-function shouldSkipSessionlessProviderDevice(req: DaemonRequest): boolean {
-  if (isShardedReplayTestRequest(req)) return true;
-  return !hasExplicitDeviceSelector(req.flags) && !usesSessionlessDefaultProviderDevice(req);
-}
-
-function isShardedReplayTestRequest(req: DaemonRequest): boolean {
-  return (
-    req.command === 'test' &&
-    (typeof req.flags?.shardAll === 'number' || typeof req.flags?.shardSplit === 'number')
-  );
 }
 
 async function requestPlatformProviderScopeWrappers(

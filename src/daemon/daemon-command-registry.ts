@@ -27,7 +27,14 @@ type DaemonCommandDescriptor = {
   androidBlockingDialogGuard?: boolean;
   preferExplicitDeviceOverExistingSession?: boolean;
   allowSessionlessDefaultDevice?: (req: DaemonRequest) => boolean;
+  skipSessionlessProviderDevice?: (req: DaemonRequest) => boolean;
 };
+
+export type DaemonProviderDeviceResolutionIntent =
+  | 'existing-session'
+  | 'explicit-device'
+  | 'sessionless-default-device'
+  | 'skip';
 
 const REQUEST_EXECUTION_EXEMPT = {
   leaseAdmissionExempt: true,
@@ -78,7 +85,7 @@ const DAEMON_COMMAND_DESCRIPTORS = [
   ),
   ...descriptors(
     'session',
-    { sessionKind: 'replay' },
+    { sessionKind: 'replay', skipSessionlessProviderDevice: isShardedTestRequest },
     PUBLIC_COMMANDS.replay,
     PUBLIC_COMMANDS.test,
   ),
@@ -212,6 +219,20 @@ export function usesSessionlessDefaultProviderDevice(req: DaemonRequest): boolea
   return typeof allow === 'function' ? allow(req) : false;
 }
 
+export function resolveProviderDeviceResolutionIntent(
+  req: DaemonRequest,
+  params: { hasExistingSession: boolean; hasExplicitDeviceSelector: boolean },
+): DaemonProviderDeviceResolutionIntent {
+  if (params.hasExistingSession) {
+    return shouldPreferExplicitDeviceOverExistingSession(req) && params.hasExplicitDeviceSelector
+      ? 'explicit-device'
+      : 'existing-session';
+  }
+  if (shouldSkipSessionlessProviderDevice(req)) return 'skip';
+  if (params.hasExplicitDeviceSelector) return 'explicit-device';
+  return usesSessionlessDefaultProviderDevice(req) ? 'sessionless-default-device' : 'skip';
+}
+
 function descriptor(
   command: string,
   route: DaemonCommandRoute,
@@ -251,4 +272,16 @@ function buildDaemonCommandRegistry(descriptors: readonly DaemonCommandDescripto
 
 function isRecordStartRequest(req: DaemonRequest): boolean {
   return (req.positionals?.[0] ?? '').toLowerCase() === 'start';
+}
+
+function shouldSkipSessionlessProviderDevice(req: DaemonRequest): boolean {
+  const skip = getDaemonCommandDescriptor(req.command)?.skipSessionlessProviderDevice;
+  return typeof skip === 'function' ? skip(req) : false;
+}
+
+function isShardedTestRequest(req: DaemonRequest): boolean {
+  return (
+    req.command === PUBLIC_COMMANDS.test &&
+    (typeof req.flags?.shardAll === 'number' || typeof req.flags?.shardSplit === 'number')
+  );
 }
