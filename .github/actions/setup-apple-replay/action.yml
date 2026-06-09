@@ -13,7 +13,7 @@ inputs:
     required: false
     default: ""
   build-command:
-    description: "Command used to build replay artifacts when the cache is cold"
+    description: "Command used to refresh replay artifacts before use"
     required: true
   xcuitest-platform:
     description: "Optional AGENT_DEVICE_XCUITEST_PLATFORM value"
@@ -23,12 +23,8 @@ inputs:
     description: "Optional AGENT_DEVICE_XCUITEST_DESTINATION value"
     required: false
     default: ""
-  clean-derived:
-    description: "Optional AGENT_DEVICE_IOS_CLEAN_DERIVED value"
-    required: false
-    default: ""
-  build-on-miss:
-    description: "Whether this setup action should build replay artifacts on cache miss"
+  build-before-use:
+    description: "Whether this setup action should refresh replay artifacts after restoring the cache"
     required: false
     default: "true"
 
@@ -37,8 +33,8 @@ outputs:
     description: "Resolved agent-device home directory"
     value: ${{ steps.agent-home.outputs.dir }}
   cache-hit:
-    description: "Whether a compatible replay cache was restored"
-    value: ${{ steps.cache-status.outputs.cache-hit }}
+    description: "Whether a replay cache was restored before any build refresh"
+    value: ${{ steps.restore-prebuilt.outputs.cache-hit }}
 
 runs:
   using: "composite"
@@ -66,48 +62,16 @@ runs:
         path: ${{ inputs.derived-path }}
         key: ${{ inputs.cache-key-prefix }}-${{ steps.xcode.outputs.key }}${{ inputs.cache-key-suffix }}-${{ steps.source-hash.outputs.value }}
 
-    - name: Validate replay prebuilt
-      id: validate-prebuilt
-      if: steps.restore-prebuilt.outputs.cache-hit == 'true' && inputs.xcuitest-platform != '' && inputs.xcuitest-destination != ''
-      run: |
-        set -euo pipefail
-        if node scripts/write-xcuitest-cache-metadata.mjs --check "$XCUITEST_PLATFORM" "$DERIVED_PATH" "$XCUITEST_DESTINATION"; then
-          echo "valid=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "valid=false" >> "$GITHUB_OUTPUT"
-          rm -rf "$DERIVED_PATH"
-        fi
-      shell: bash
-      env:
-        DERIVED_PATH: ${{ inputs.derived-path }}
-        XCUITEST_PLATFORM: ${{ inputs.xcuitest-platform }}
-        XCUITEST_DESTINATION: ${{ inputs.xcuitest-destination }}
-
-    - name: Resolve replay cache status
-      id: cache-status
-      run: |
-        set -euo pipefail
-        if [ "$RESTORED" = "true" ] && [ "$VALID" != "false" ]; then
-          echo "cache-hit=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "cache-hit=false" >> "$GITHUB_OUTPUT"
-        fi
-      shell: bash
-      env:
-        RESTORED: ${{ steps.restore-prebuilt.outputs.cache-hit }}
-        VALID: ${{ steps.validate-prebuilt.outputs.valid }}
-
     - name: Resolve agent-device home
       id: agent-home
       run: echo "dir=${AGENT_DEVICE_STATE_DIR:-$HOME/.agent-device}" >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Build replay artifacts
-      if: inputs.build-on-miss == 'true' && steps.cache-status.outputs.cache-hit != 'true'
+      if: inputs.build-before-use == 'true'
       run: ${{ inputs.build-command }}
       shell: bash
       env:
         AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: ${{ inputs.derived-path }}
         AGENT_DEVICE_XCUITEST_PLATFORM: ${{ inputs.xcuitest-platform }}
         AGENT_DEVICE_XCUITEST_DESTINATION: ${{ inputs.xcuitest-destination }}
-        AGENT_DEVICE_IOS_CLEAN_DERIVED: ${{ inputs.clean-derived }}

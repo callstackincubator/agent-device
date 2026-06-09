@@ -266,44 +266,6 @@ test('setup metadata script matches expected iOS simulator cache metadata', asyn
         resolveExpectedRunnerCacheMetadata(iosSimulator);
 
       assert.deepEqual(actualComparable, expectedComparable);
-
-      execFileSync(
-        process.execPath,
-        [
-          'scripts/write-xcuitest-cache-metadata.mjs',
-          '--check',
-          'ios',
-          root,
-          'generic/platform=iOS Simulator',
-        ],
-        {
-          cwd: process.cwd(),
-          env: { ...process.env, PATH: process.env.PATH },
-          stdio: ['ignore', 'ignore', 'inherit'],
-        },
-      );
-
-      fs.writeFileSync(
-        path.join(root, '.agent-device-runner-cache.json'),
-        JSON.stringify({ ...actual, packageVersion: 'stale' }, null, 2),
-      );
-      assert.throws(() =>
-        execFileSync(
-          process.execPath,
-          [
-            'scripts/write-xcuitest-cache-metadata.mjs',
-            '--check',
-            'ios',
-            root,
-            'generic/platform=iOS Simulator',
-          ],
-          {
-            cwd: process.cwd(),
-            env: { ...process.env, PATH: process.env.PATH },
-            stdio: ['ignore', 'ignore', 'pipe'],
-          },
-        ),
-      );
     } finally {
       __resetRunnerToolchainFingerprintCacheForTests();
       restoreEnvVar('PATH', previousPath);

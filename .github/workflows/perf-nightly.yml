@@ -53,7 +53,6 @@ jobs:
           build-command: sh ./scripts/build-xcuitest-apple.sh
           xcuitest-platform: ios
           xcuitest-destination: generic/platform=iOS Simulator
-          clean-derived: "1"
 
       - name: Boot iOS test simulator
         uses: ./.github/actions/boot-ios-test-simulator
