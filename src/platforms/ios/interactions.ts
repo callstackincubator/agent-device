@@ -106,7 +106,7 @@ export function iosRunnerOverrides(
       swipe: async (x1, y1, x2, y2, durationMs) => {
         return await runIosRunnerCommand(
           device,
-          iosDragCommand(ctx, x1, y1, x2, y2, durationMs, {
+          iosDragCommand(device, ctx, x1, y1, x2, y2, durationMs, {
             defaultDurationMs: IOS_SWIPE_DEFAULT_DURATION_MS,
           }),
           runnerOpts,
@@ -115,8 +115,9 @@ export function iosRunnerOverrides(
       pan: async (x1, y1, x2, y2, durationMs) => {
         return await runIosRunnerCommand(
           device,
-          iosDragCommand(ctx, x1, y1, x2, y2, durationMs, {
+          iosDragCommand(device, ctx, x1, y1, x2, y2, durationMs, {
             defaultDurationMs: 500,
+            legacyDefaultDurationMs: 500,
           }),
           runnerOpts,
         );
@@ -264,6 +265,7 @@ function iosTapCommand(
 }
 
 function iosDragCommand(
+  device: DeviceInfo,
   ctx: RunnerContext,
   x: number,
   y: number,
@@ -272,9 +274,13 @@ function iosDragCommand(
   durationMs: number | undefined,
   options: {
     defaultDurationMs: number;
+    legacyDefaultDurationMs?: number;
   },
 ): RunnerCommand {
-  const normalizedDurationMs = iosGestureDurationMs(durationMs, options.defaultDurationMs);
+  const normalizedDurationMs =
+    device.platform === 'ios' && device.target !== 'tv'
+      ? iosGestureDurationMs(durationMs, options.defaultDurationMs)
+      : (durationMs ?? options.legacyDefaultDurationMs);
   return {
     command: 'drag',
     x,
@@ -339,6 +345,7 @@ async function runAppleScroll(
   const runnerResult = await runRunnerCommand(
     device,
     iosDragCommand(
+      device,
       ctx,
       frame.originX + plan.x1,
       frame.originY + plan.y1,
