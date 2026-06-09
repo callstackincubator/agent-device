@@ -199,7 +199,7 @@ function FitSection({ content }: { content: ProductPageContent }) {
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {section.cards?.map((card) => (
-            <article className="rounded-[4px] border border-black/10 p-6" key={card.title}>
+            <article className="rounded-[4px] border border-black/10 p-6" key={`${card.title}-${card.body}`}>
               <PixelIcon name={card.icon} className="size-5 text-[#8232ff]" />
               <DisplayHeading as="h3" size="card" className="mt-10">
                 {card.title}
