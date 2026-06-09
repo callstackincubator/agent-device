@@ -67,7 +67,7 @@ test('runReplayTestAttempt keeps cancellation active until a timed-out replay se
   });
 });
 
-test('runReplayTestAttempt reports finalization failure after a passing replay', async () => {
+test('runReplayTestAttempt keeps a passing replay passed when finalization fails', async () => {
   const cleanupSession = vi.fn(async () => {});
 
   const result = await runReplayTestAttempt({
@@ -82,9 +82,10 @@ test('runReplayTestAttempt reports finalization failure after a passing replay',
     cleanupSession,
   });
 
-  expect(result.ok).toBe(false);
-  if (!result.ok) {
-    expect(result.error.message).toBe('failed to stop recording');
-  }
+  expect(result.ok).toBe(true);
+  if (!result.ok) throw new Error(result.error.message);
+  expect(result.data?.warnings).toEqual([
+    'Replay test finalization failed: failed to stop recording',
+  ]);
   expect(cleanupSession).toHaveBeenCalledWith('default:test:pass');
 });

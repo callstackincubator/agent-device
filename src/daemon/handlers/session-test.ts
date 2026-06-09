@@ -480,6 +480,7 @@ async function runReplayTestCase(
       artifactsDir: testArtifactsDir,
       replayed: typeof finalResponse.data?.replayed === 'number' ? finalResponse.data.replayed : 0,
       healed: typeof finalResponse.data?.healed === 'number' ? finalResponse.data.healed : 0,
+      ...replayTestWarningsResultMetadata(finalResponse.data?.warnings),
       ...replayTestShardResultMetadata(shard),
       ...(attemptFailures.length > 0 ? { attemptFailures } : {}),
     };
@@ -515,6 +516,14 @@ async function runReplayTestCase(
     error,
     ...replayTestShardResultMetadata(shard),
   };
+}
+
+function replayTestWarningsResultMetadata(
+  warnings: unknown,
+): Pick<Extract<ReplaySuiteTestResult, { status: 'passed' }>, 'warnings'> {
+  if (!Array.isArray(warnings)) return {};
+  const filtered = warnings.filter((entry): entry is string => typeof entry === 'string');
+  return filtered.length > 0 ? { warnings: filtered } : {};
 }
 
 function replayTestShardResultMetadata(

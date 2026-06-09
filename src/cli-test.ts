@@ -63,6 +63,9 @@ function renderDefaultTestResult(result: ReplaySuiteTestResult): void {
   process.stdout.write(
     `PASS ${replayTestDisplayName(result)}${formatReplayTestDurationSuffix(result)}\n`,
   );
+  for (const line of replayTestWarningLines(result)) {
+    process.stdout.write(`  ${line}\n`);
+  }
 }
 
 function renderVerboseTestResult(result: ReplaySuiteTestResult): void {
@@ -77,6 +80,9 @@ function renderVerboseTestResult(result: ReplaySuiteTestResult): void {
   );
   if (result.status === 'skipped') {
     process.stdout.write(`  ${result.message ?? 'skipped'}\n`);
+  }
+  for (const line of replayTestWarningLines(result)) {
+    process.stdout.write(`  ${line}\n`);
   }
   for (const line of replayTestStepLines(result)) {
     process.stdout.write(`  ${line}\n`);
@@ -447,6 +453,9 @@ function appendReplaySystemOutMetadata(lines: string[], test: ReplaySuiteTestRes
   appendOptionalLine(lines, 'session' in test ? `session: ${test.session}` : undefined);
   appendOptionalLine(lines, 'replayed' in test ? `replayed: ${test.replayed}` : undefined);
   appendOptionalLine(lines, 'healed' in test ? `healed: ${test.healed}` : undefined);
+  for (const warning of replayTestWarningLines(test)) {
+    lines.push(warning);
+  }
   appendOptionalLine(
     lines,
     'artifactsDir' in test && test.artifactsDir ? `artifactsDir: ${test.artifactsDir}` : undefined,
@@ -511,6 +520,11 @@ function appendReplayErrorDetails(
 
 function appendOptionalLine(lines: string[], line: string | undefined): void {
   if (line) lines.push(line);
+}
+
+function replayTestWarningLines(result: ReplaySuiteTestResult): string[] {
+  if (result.status !== 'passed') return [];
+  return (result.warnings ?? []).map((warning) => `warning: ${warning}`);
 }
 
 function formatJUnitSeconds(durationMs: number): string {

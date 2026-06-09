@@ -137,7 +137,10 @@ export async function runReplayTestAttempt(
       tracePath,
     });
     if (response?.ok && finalizedResponse && !finalizedResponse.ok) {
-      response = finalizedResponse;
+      appendReplayTestWarning(
+        response,
+        `Replay test finalization failed: ${finalizedResponse.error.message}`,
+      );
     }
     const cleanupStartedAt = Date.now();
     try {
@@ -279,6 +282,17 @@ function markReplayTimeoutCleanupPending(response: DaemonResponse | undefined): 
     reason: REPLAY_TIMEOUT_CLEANUP_PENDING_REASON,
     timeoutCleanupPending: true,
   };
+}
+
+function appendReplayTestWarning(
+  response: Extract<DaemonResponse, { ok: true }>,
+  warning: string,
+): void {
+  const data = (response.data ??= {});
+  const warnings = Array.isArray(data.warnings)
+    ? data.warnings.filter((entry): entry is string => typeof entry === 'string')
+    : [];
+  data.warnings = [...warnings, warning];
 }
 
 function prepareReplayTestTimingTrace(params: {

@@ -56,6 +56,7 @@ export type ReplaySuiteTestPassed = {
   artifactsDir?: string;
   replayed: number;
   healed: number;
+  warnings?: string[];
   attemptFailures?: ReplaySuiteAttemptFailure[];
   shardIndex?: number;
   shardCount?: number;
