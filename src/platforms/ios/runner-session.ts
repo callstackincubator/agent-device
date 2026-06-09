@@ -55,6 +55,7 @@ const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 1_000;
 const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
 const RUNNER_STALE_BUNDLE_UNINSTALL_TIMEOUT_MS = 10_000;
 const RUNNER_STALE_XCODEBUILD_KILL_TIMEOUT_MS = 2_000;
+const RUNNER_OWNER_TOKEN = `owner-${process.pid}`;
 
 type RunnerReadinessPreflightDecision =
   | {
@@ -117,7 +118,7 @@ export async function ensureRunnerSession(
         await prepareXctestrunWithEnv(
           xctestrunArtifact.xctestrunPath,
           { AGENT_DEVICE_RUNNER_PORT: String(port) },
-          `session-${device.id}-${port}`,
+          `session-${device.id}-${RUNNER_OWNER_TOKEN}-${port}`,
         ),
     );
     const simulatorSetRedirect = await measureRunnerStartupStep(
@@ -469,7 +470,7 @@ async function killRunnerProcessTree(
 }
 
 async function killStaleRunnerXcodebuildProcesses(deviceId: string): Promise<void> {
-  const pattern = `xcodebuild.*test-without-building.*AgentDeviceRunner\\.env\\.session-${escapeRegex(deviceId)}-`;
+  const pattern = `xcodebuild.*test-without-building.*AgentDeviceRunner\\.env\\.session-${escapeRegex(deviceId)}-${escapeRegex(RUNNER_OWNER_TOKEN)}-`;
   for (const signal of ['TERM', 'KILL'] as const) {
     try {
       await runAppleToolCommand('pkill', [`-${signal}`, '-f', pattern], {

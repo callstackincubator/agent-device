@@ -577,6 +577,10 @@ test('runner session starts xcodebuild through provider seams and reuses an aliv
   assert.deepEqual(mockPrepareXctestrunWithEnv.mock.calls[0]?.[1], {
     AGENT_DEVICE_RUNNER_PORT: '8123',
   });
+  assert.match(
+    String(mockPrepareXctestrunWithEnv.mock.calls[0]?.[2] ?? ''),
+    /^session-runner-session-start-sim-owner-\d+-8123$/,
+  );
   assert.equal(
     mockRunXcrun.mock.calls.some((call) => call[0]?.includes('bootstatus')),
     false,
@@ -594,7 +598,7 @@ test('runner session starts xcodebuild through provider seams and reuses an aliv
   await stopRunnerSession(session);
 });
 
-test('runner session startup kills stale device-scoped xcodebuild before launching a new runner', async () => {
+test('runner session startup kills only owned stale xcodebuild before launching a new runner', async () => {
   const device = { ...IOS_SIMULATOR, id: 'runner-session-startup-stale-sim' };
 
   await ensureRunnerSession(device, {});
@@ -605,7 +609,7 @@ test('runner session startup kills stale device-scoped xcodebuild before launchi
   assert.deepEqual(pkillCalls[1]?.[1]?.slice(0, 2), ['-KILL', '-f']);
   assert.match(
     String(pkillCalls[0]?.[1]?.[2] ?? ''),
-    /xcodebuild\.\*test-without-building\.\*AgentDeviceRunner\\\.env\\\.session-runner-session-startup-stale-sim-/,
+    /xcodebuild\.\*test-without-building\.\*AgentDeviceRunner\\\.env\\\.session-runner-session-startup-stale-sim-owner-\d+-/,
   );
   const staleCleanupCallOrder = mockRunAppleToolCommand.mock.invocationCallOrder[0];
   const runnerLaunchCallOrder = mockRunCmdBackground.mock.invocationCallOrder[0];
@@ -716,7 +720,7 @@ test('runner session stop sends shutdown, cleans temporary runner files, and rel
   assert.equal(getRunnerSessionSnapshot(device.id), null);
 });
 
-test('runner session stop kills stale device-scoped xcodebuild runner processes without in-memory session', async () => {
+test('runner session stop kills only owned stale xcodebuild runner processes without in-memory session', async () => {
   const deviceId = '11C70358-8331-4872-A0CA-F15B6859B6FC';
 
   await stopIosRunnerSession(deviceId);
@@ -727,7 +731,7 @@ test('runner session stop kills stale device-scoped xcodebuild runner processes 
   assert.deepEqual(pkillCalls[1]?.[1]?.slice(0, 2), ['-KILL', '-f']);
   assert.match(
     String(pkillCalls[0]?.[1]?.[2] ?? ''),
-    /xcodebuild\.\*test-without-building\.\*AgentDeviceRunner\\\.env\\\.session-11C70358-8331-4872-A0CA-F15B6859B6FC-/,
+    /xcodebuild\.\*test-without-building\.\*AgentDeviceRunner\\\.env\\\.session-11C70358-8331-4872-A0CA-F15B6859B6FC-owner-\d+-/,
   );
   assert.deepEqual(pkillCalls[0]?.[2], {
     allowFailure: true,
