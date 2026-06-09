@@ -7,8 +7,9 @@ import { collectReplayActionArtifactPaths, runReplayScriptFile } from './session
 import type { ReplayScriptMetadata } from '../../replay/script.ts';
 import { buildReplayTestShardFlags, type ReplayTestShardContext } from './session-test-sharding.ts';
 import {
-  createReplayTestVideoRecording,
-  type ReplayTestVideoRecording,
+  buildReplayTestVideoOpenLifecycle,
+  finalizeReplayTestVideoRecording,
+  startReplayTestVideoRecordingIfReady,
 } from './session-replay-video-recording.ts';
 
 export function buildNestedReplayFlags(params: {
@@ -66,7 +67,6 @@ export async function handleSessionReplayCommands(params: {
   }
 
   if (req.command === 'test') {
-    const videoRecordings = new Map<string, ReplayTestVideoRecording>();
     return await runReplayTestSuite({
       req,
       sessionName,
@@ -95,15 +95,15 @@ export async function handleSessionReplayCommands(params: {
           shard,
         });
 
-        const videoRecording = createReplayTestVideoRecording({
+        const videoRecordingParams = {
           req,
           sessionName: testSessionName,
           logPath,
           sessionStore,
           artifactsDir,
           tracePath,
-        });
-        videoRecordings.set(testSessionName, videoRecording);
+        };
+        const openLifecycle = buildReplayTestVideoOpenLifecycle(videoRecordingParams);
         const replayResponse = await runReplayScriptFile({
           req: {
             ...req,
@@ -115,17 +115,21 @@ export async function handleSessionReplayCommands(params: {
               ...(req.meta ?? {}),
               ...(requestId ? { requestId } : {}),
             },
-            internal: {
-              ...(req.internal ?? {}),
-              openLifecycle: videoRecording.openLifecycle,
-            },
+            ...(req.internal || openLifecycle
+              ? {
+                  internal: {
+                    ...(req.internal ?? {}),
+                    ...(openLifecycle ? { openLifecycle } : {}),
+                  },
+                }
+              : {}),
           },
           sessionName: testSessionName,
           logPath,
           sessionStore,
           tracePath,
           invoke: async (nestedReq) => {
-            const startResponse = await videoRecording.startIfReady();
+            const startResponse = await startReplayTestVideoRecordingIfReady(videoRecordingParams);
             if (startResponse && !startResponse.ok) return startResponse;
             const response = captureArtifacts(await invoke(nestedReq));
             return response;
@@ -133,10 +137,22 @@ export async function handleSessionReplayCommands(params: {
         });
         return replayResponse;
       },
-      finalizeAttempt: async ({ sessionName: testSessionName, artifactPaths }) =>
-        await videoRecordings.get(testSessionName)?.finalize(artifactPaths),
+      finalizeAttempt: async ({
+        sessionName: testSessionName,
+        artifactPaths,
+        artifactsDir,
+        tracePath,
+      }) =>
+        await finalizeReplayTestVideoRecording({
+          req,
+          sessionName: testSessionName,
+          logPath,
+          sessionStore,
+          artifactsDir,
+          tracePath,
+          artifactPaths,
+        }),
       cleanupSession: async (testSessionName) => {
-        videoRecordings.delete(testSessionName);
         if (!sessionStore.get(testSessionName)) return;
         await handleCloseCommand({
           req: {

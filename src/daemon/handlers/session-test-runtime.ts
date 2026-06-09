@@ -133,6 +133,7 @@ export async function runReplayTestAttempt(
       finalizeAttempt,
       sessionName,
       artifactPaths,
+      artifactsDir,
       tracePath,
     });
     if (response?.ok && finalizedResponse && !finalizedResponse.ok) {
@@ -222,9 +223,10 @@ async function finalizeReplayTestAttempt(params: {
   finalizeAttempt: ReplayTestRuntimeDependencies['finalizeAttempt'];
   sessionName: string;
   artifactPaths: Set<string>;
+  artifactsDir?: string;
   tracePath?: string;
 }): Promise<DaemonResponse | undefined> {
-  const { finalizeAttempt, sessionName, artifactPaths, tracePath } = params;
+  const { finalizeAttempt, sessionName, artifactPaths, artifactsDir, tracePath } = params;
   if (!finalizeAttempt) return undefined;
   const finalizeStartedAt = Date.now();
   appendReplayTestTimingEvent(tracePath, {
@@ -236,6 +238,8 @@ async function finalizeReplayTestAttempt(params: {
     const finalized = await finalizeAttempt({
       sessionName,
       artifactPaths,
+      artifactsDir,
+      tracePath,
     });
     appendReplayTestTimingEvent(tracePath, {
       type: 'replay_test_finalize_stop',

@@ -21,6 +21,8 @@ export type ReplayTestCleanupSession = (sessionName: string) => Promise<void>;
 export type ReplayTestFinalizeAttempt = (params: {
   sessionName: string;
   artifactPaths: Set<string>;
+  artifactsDir?: string;
+  tracePath?: string;
 }) => Promise<DaemonResponse | undefined>;
 
 export type ReplayTestRuntimeDependencies = {

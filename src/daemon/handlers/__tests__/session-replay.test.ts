@@ -18,6 +18,7 @@ vi.mock('../record-trace-recording.ts', () => ({
 }));
 
 beforeEach(() => {
+  vi.useRealTimers();
   recordTraceMocks.handleRecordCommand.mockReset();
 });
 
@@ -227,10 +228,11 @@ test('collectReplayActionArtifactPaths includes failed action artifact details',
 });
 
 test('test --record-video records each replay attempt on the generated test session', async () => {
+  vi.useFakeTimers({ now: 1_000 });
   const { root, replayPath, sessionStore, nestedRequests, events } = createRecordVideoFixture();
   installMockRecordingHandler(sessionStore, { recordingPath: '', events });
 
-  const response = await handleSessionReplayCommands({
+  const responsePromise = handleSessionReplayCommands({
     req: {
       token: 'token',
       session: 'default',
@@ -255,6 +257,9 @@ test('test --record-video records each replay attempt on the generated test sess
       return { ok: true, data: { session: nestedReq.session } };
     },
   });
+  await vi.advanceTimersByTimeAsync(4_000);
+  const response = await responsePromise;
+  vi.useRealTimers();
 
   if (!response) throw new Error('Expected response');
   if (!response.ok) throw new Error(response.error.message);
