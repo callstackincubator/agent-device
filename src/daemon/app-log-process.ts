@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { readProcessCommand, readProcessStartTime } from '../utils/process-identity.ts';
 import type { NetworkLogBackend } from './network-log.ts';
+import type { ExecResult } from '../utils/exec.ts';
 
 export const APP_LOG_PID_FILENAME = 'app-log.pid';
 
@@ -12,7 +13,7 @@ export type AppLogResult = {
   getState: () => AppLogState;
   startedAt: number;
   stop: () => Promise<void>;
-  wait: Promise<{ stdout: string; stderr: string; exitCode: number }>;
+  wait: Promise<ExecResult>;
 };
 
 type StoredAppLogProcessMeta = {

@@ -2,23 +2,15 @@ import {
   getSnapshotReferenceFrame,
   type TouchReferenceFrame,
 } from '../../daemon/touch-reference-frame.ts';
-import type {
-  DaemonRequest,
-  DaemonResponse,
-  DaemonResponseData,
-  SessionAction,
-} from '../../daemon/types.ts';
+import type { DaemonRequest, DaemonResponse, DaemonResponseData } from '../../daemon/types.ts';
 import type { DaemonFailureResponse } from '../../daemon/handlers/response.ts';
+import type { ReplayActionBlockInvoker } from '../../replay/control-flow-runtime.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';
 
 export type ReplayBaseRequest = Omit<DaemonRequest, 'command' | 'positionals'>;
 
-export type MaestroReplayInvoker = (params: {
-  action: SessionAction;
-  line: number;
-  step: number;
-}) => Promise<DaemonResponse>;
+export type MaestroReplayInvoker = ReplayActionBlockInvoker;
 
 export type MaestroRuntimeInvoke = (req: DaemonRequest) => Promise<DaemonResponse>;
 

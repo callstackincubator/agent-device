@@ -1,3 +1,5 @@
+import type { ExecResult } from '../utils/exec.ts';
+
 export function formatRecordTraceError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -13,10 +15,7 @@ type RecordStopFailure = {
   tooShort: boolean;
 };
 
-export function formatRecordTraceExecFailure(
-  result: { stdout: string; stderr: string; exitCode: number },
-  command: string,
-): string {
+export function formatRecordTraceExecFailure(result: ExecResult, command: string): string {
   return (
     result.stderr.trim() || result.stdout.trim() || `${command} exited with code ${result.exitCode}`
   );

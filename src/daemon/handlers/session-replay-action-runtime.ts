@@ -9,15 +9,14 @@ import type { DaemonRequest, DaemonResponse, SessionAction } from '../types.ts';
 import { mergeParentFlags } from './handler-utils.ts';
 import { invokeMaestroRuntimeCommand } from '../../compat/maestro/runtime.ts';
 import { invokeMaestroRunFlowWhenControl } from '../../compat/maestro/runtime-flow.ts';
-import { invokeReplayRetryBlock } from '../../replay/control-flow-runtime.ts';
+import {
+  invokeReplayRetryBlock,
+  type ReplayActionBlockInvoker,
+} from '../../replay/control-flow-runtime.ts';
 
 type ReplayBaseRequest = Omit<DaemonRequest, 'command' | 'positionals'>;
 
-type ReplayActionInvoker = (params: {
-  action: SessionAction;
-  line: number;
-  step: number;
-}) => Promise<DaemonResponse>;
+type ReplayActionInvoker = ReplayActionBlockInvoker;
 
 export async function invokeReplayAction(params: {
   req: DaemonRequest;

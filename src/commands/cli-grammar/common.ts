@@ -6,7 +6,7 @@ import type {
 import { splitSelectorFromArgs } from '../../daemon/selectors.ts';
 import type { CliFlags } from '../../utils/cli-flags.ts';
 import { AppError } from '../../utils/errors.ts';
-import { compactRecord } from '../command-input.ts';
+import { compactRecord, type SelectorSnapshotInput } from '../command-input.ts';
 import type {
   DaemonWriter,
   SelectionOptions,
@@ -77,11 +77,7 @@ export function selectorSnapshotInputFromFlags(flags: CliFlags): Record<string, 
   });
 }
 
-export function selectorSnapshotOptionsFromFlags(flags: CliFlags): {
-  depth?: number;
-  scope?: string;
-  raw?: boolean;
-} {
+export function selectorSnapshotOptionsFromFlags(flags: CliFlags): SelectorSnapshotInput {
   return {
     depth: flags.snapshotDepth,
     scope: flags.snapshotScope,
