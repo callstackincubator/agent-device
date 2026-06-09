@@ -1,9 +1,9 @@
 import type { SessionState } from './types.ts';
 import { tryParseSelectorChain } from './selectors.ts';
 import { asAppError } from '../utils/errors.ts';
-import type { ElementSelectorTarget } from '../core/interactor-types.ts';
+import type { ElementSelectorTapOptions } from '../core/interactor-types.ts';
 
-export type DirectIosSelectorTarget = ElementSelectorTarget;
+export type DirectIosSelectorTarget = ElementSelectorTapOptions & { raw: string };
 
 export function readSimpleIosSelectorTarget(params: {
   session: SessionState | undefined;

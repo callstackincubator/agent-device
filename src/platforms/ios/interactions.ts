@@ -3,12 +3,17 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
 import { runIosRunnerCommand } from './runner-client.ts';
 import type { RunnerCommand } from './runner-contract.ts';
-import type { BackMode, Interactor, RunnerContext } from '../../core/interactor-types.ts';
+import type {
+  BackMode,
+  Interactor,
+  RunnerCallOptions,
+  RunnerContext,
+} from '../../core/interactor-types.ts';
 
 export type AppleBackRunnerCommand = 'backInApp' | 'backSystem';
 type AppleRemoteButton = NonNullable<RunnerCommand['remoteButton']>;
 type RunIosRunnerCommand = typeof runIosRunnerCommand;
-type RunnerOpts = Pick<RunnerContext, 'verbose' | 'logPath' | 'traceLogPath' | 'requestId'>;
+type RunnerOpts = RunnerCallOptions;
 
 type InteractionFrame = {
   originX: number;

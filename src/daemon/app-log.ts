@@ -176,7 +176,7 @@ export function getAppLogPathMetadata(outPath: string): {
   };
 }
 
-function resolveLogBackend(device: DeviceInfo): LogBackend {
+export function resolveLogBackend(device: DeviceInfo): LogBackend {
   if (device.platform === 'macos') return 'macos';
   if (device.platform === 'ios') {
     return device.kind === 'device' ? 'ios-device' : 'ios-simulator';

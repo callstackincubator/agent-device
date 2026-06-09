@@ -8,7 +8,7 @@ export function isStringMember<const T extends readonly string[]>(
   values: T,
   value: string,
 ): value is T[number] {
-  return (values as readonly string[]).includes(value);
+  return values.includes(value);
 }
 
 /**

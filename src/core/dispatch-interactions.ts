@@ -7,11 +7,14 @@ import {
   inferGestureReferenceFrame,
   parseScrollDirection,
   parseSwipePreset,
+  SCROLL_DIRECTIONS,
+  SWIPE_PATTERNS,
   type ScrollDirection,
   type SwipePattern,
   type SwipePreset,
   type TransformGestureParams,
 } from './scroll-gesture.ts';
+import { isStringMember, parseStringMember } from '../utils/string-enum.ts';
 import {
   getClickButtonValidationError,
   resolveClickButton,
@@ -32,7 +35,7 @@ import {
   runRepeatedSeries,
 } from './dispatch-series.ts';
 import type { DispatchContext } from './dispatch-context.ts';
-import type { Interactor, RunnerContext } from './interactor-types.ts';
+import type { Interactor, RunnerCallOptions } from './interactor-types.ts';
 
 export async function handleLongPressCommand(
   interactor: Interactor,
@@ -386,9 +389,7 @@ async function runDirectPressSeries(
   );
 }
 
-function runnerOptionsFromContext(
-  context: DispatchContext | undefined,
-): Pick<RunnerContext, 'verbose' | 'logPath' | 'traceLogPath' | 'requestId'> {
+function runnerOptionsFromContext(context: DispatchContext | undefined): RunnerCallOptions {
   return {
     verbose: context?.verbose,
     logPath: context?.logPath,
@@ -469,7 +470,7 @@ async function runSwipeCoordinates(params: {
   const count = requireIntInRange(context?.count ?? 1, 'count', 1, 200);
   const pauseMs = requireIntInRange(context?.pauseMs ?? 0, 'pause-ms', 0, 10_000);
   const pattern = context?.pattern ?? 'one-way';
-  if (pattern !== 'one-way' && pattern !== 'ping-pong') {
+  if (!isStringMember(SWIPE_PATTERNS, pattern)) {
     throw new AppError('INVALID_ARGS', `Invalid pattern: ${pattern}`);
   }
 
@@ -829,10 +830,9 @@ function parseOptionalGestureCenter(
 }
 
 function parseGestureDirection(input: string | undefined, field: string): ScrollDirection {
-  if (input === 'up' || input === 'down' || input === 'left' || input === 'right') {
-    return input;
-  }
-  throw new AppError('INVALID_ARGS', `${field} must be up, down, left, or right`);
+  return parseStringMember(SCROLL_DIRECTIONS, input, {
+    message: `${field} must be up, down, left, or right`,
+  });
 }
 
 function requireFinitePositiveNumber(value: number, field: string): number {

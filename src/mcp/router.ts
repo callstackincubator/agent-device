@@ -56,7 +56,7 @@ async function handleRequest(method: string, params: unknown): Promise<unknown> 
   }
 }
 
-async function callTool(params: unknown): Promise<unknown> {
+async function callTool(params: unknown): Promise<ToolResult> {
   const record = asRecord(params);
   const name = stringField(record, 'name');
   try {

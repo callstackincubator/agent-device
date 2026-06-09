@@ -18,6 +18,12 @@ export type RunnerContext = {
   traceLogPath?: string;
 };
 
+/** Subset of {@link RunnerContext} forwarded to runner command invocations. */
+export type RunnerCallOptions = Pick<
+  RunnerContext,
+  'verbose' | 'logPath' | 'traceLogPath' | 'requestId'
+>;
+
 export type { BackMode };
 
 export type ScreenshotOptions = {
@@ -29,14 +35,11 @@ export type ScreenshotOptions = {
 
 export type ElementSelectorKey = 'id' | 'label' | 'text' | 'value';
 
-export type ElementSelectorTarget = {
+export type ElementSelectorTapOptions = {
   key: ElementSelectorKey;
   value: string;
-  raw: string;
   allowNonHittableCoordinateFallback?: boolean;
 };
-
-export type ElementSelectorTapOptions = Omit<ElementSelectorTarget, 'raw'>;
 
 export type SnapshotOptions = BaseSnapshotOptions & {
   appBundleId?: string;

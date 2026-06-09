@@ -14,6 +14,7 @@ import {
   clearAppLogFiles,
   getAppLogPathMetadata,
   readSessionNetworkCapture,
+  resolveLogBackend,
   runAppLogDoctor,
   startAppLog,
   stopAppLog,
@@ -67,16 +68,7 @@ const LOG_ACTION_HANDLERS: Record<
 };
 
 function resolveSessionLogBackendLabel(session: SessionState): LogBackend {
-  if (session.appLog) {
-    return session.appLog.backend;
-  }
-  if (session.device.platform === 'macos') {
-    return 'macos';
-  }
-  if (session.device.platform === 'ios') {
-    return session.device.kind === 'device' ? 'ios-device' : 'ios-simulator';
-  }
-  return 'android';
+  return session.appLog?.backend ?? resolveLogBackend(session.device);
 }
 
 export async function handleSessionObservabilityCommands(

@@ -13,7 +13,6 @@ export type AppleRunnerCommandOptions = {
 };
 
 export type AppleRunnerLifecycleOptions = AppleRunnerCommandOptions & {
-  cleanStaleBundles?: boolean;
   buildTimeoutMs?: number;
   forceRunnerXctestrunRebuild?: boolean;
 };
