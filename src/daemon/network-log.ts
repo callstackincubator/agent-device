@@ -20,7 +20,7 @@ const NETWORK_LOG_MEMORY_PATH = '<memory>';
 
 import type { NetworkIncludeMode } from '../contracts.ts';
 export type { NetworkIncludeMode };
-export type NetworkLogBackend = 'ios-simulator' | 'ios-device' | 'android' | 'macos';
+export type LogBackend = 'ios-simulator' | 'ios-device' | 'android' | 'macos';
 
 export type NetworkEntry = {
   method?: string;
@@ -74,7 +74,7 @@ export function mergeNetworkDumps(
 export function readRecentNetworkTraffic(
   logPath: string,
   options?: {
-    backend?: NetworkLogBackend;
+    backend?: LogBackend;
     maxEntries?: number;
     include?: NetworkIncludeMode;
     maxPayloadChars?: number;
@@ -108,7 +108,7 @@ export function readRecentNetworkTrafficFromText(
   content: string,
   options?: {
     path?: string;
-    backend?: NetworkLogBackend;
+    backend?: LogBackend;
     maxEntries?: number;
     include?: NetworkIncludeMode;
     maxPayloadChars?: number;
@@ -156,7 +156,7 @@ function parseNetworkLine(
   lines: string[],
   lineIndex: number,
   lineNumber: number,
-  backend: NetworkLogBackend | undefined,
+  backend: LogBackend | undefined,
   include: NetworkIncludeMode,
   maxPayloadChars: number,
 ): NetworkEntry | null {

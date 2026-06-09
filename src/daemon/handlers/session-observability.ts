@@ -21,7 +21,7 @@ import {
 import { buildPerfFramesResponseData, buildPerfResponseData } from './session-perf.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
 import type { NetworkIncludeMode } from '../../contracts.ts';
-import type { NetworkLogBackend } from '../network-log.ts';
+import type { LogBackend } from '../network-log.ts';
 import {
   LOG_ACTION_VALUES as LOG_ACTIONS,
   type LogAction as LogsAction,
@@ -66,7 +66,7 @@ const LOG_ACTION_HANDLERS: Record<
     handleLogsStop(session, sessionName, sessionStore),
 };
 
-function resolveSessionLogBackendLabel(session: SessionState): NetworkLogBackend {
+function resolveSessionLogBackendLabel(session: SessionState): LogBackend {
   if (session.appLog) {
     return session.appLog.backend;
   }

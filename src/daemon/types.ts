@@ -12,7 +12,7 @@ import type {
 export type { DaemonLockPolicy } from '../contracts.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
 import type { GestureReferenceFrame, ScrollDirection } from '../core/scroll-gesture.ts';
-import type { NetworkLogBackend } from './network-log.ts';
+import type { LogBackend } from './network-log.ts';
 import type { SessionSurface } from '../core/session-surface.ts';
 import type { DeviceInfo, Platform, PlatformSelector } from '../utils/device.ts';
 import type { ExecBackgroundResult, ExecResult } from '../utils/exec.ts';
@@ -265,7 +265,7 @@ export type SessionState = {
   /** Session-scoped app log stream; logs written to outPath for agent to grep */
   appLog?: {
     platform: Platform;
-    backend: NetworkLogBackend;
+    backend: LogBackend;
     outPath: string;
     startedAt: number;
     getState: () => AppLogState;

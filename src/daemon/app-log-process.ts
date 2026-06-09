@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { readProcessCommand, readProcessStartTime } from '../utils/process-identity.ts';
-import type { NetworkLogBackend } from './network-log.ts';
+import type { LogBackend } from './network-log.ts';
 import type { ExecResult } from '../utils/exec.ts';
 
 export const APP_LOG_PID_FILENAME = 'app-log.pid';
@@ -9,7 +9,7 @@ export const APP_LOG_PID_FILENAME = 'app-log.pid';
 export type AppLogState = 'active' | 'recovering' | 'failed';
 
 export type AppLogResult = {
-  backend: NetworkLogBackend;
+  backend: LogBackend;
   getState: () => AppLogState;
   startedAt: number;
   stop: () => Promise<void>;

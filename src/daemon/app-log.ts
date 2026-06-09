@@ -27,7 +27,7 @@ import {
   readRecentNetworkTrafficFromText,
   type NetworkDump,
   type NetworkIncludeMode,
-  type NetworkLogBackend,
+  type LogBackend,
 } from './network-log.ts';
 
 export type { AppLogResult } from './app-log-process.ts';
@@ -49,7 +49,7 @@ export type AppLogDoctorResult = {
 };
 
 export type SessionNetworkCapture = {
-  backend: NetworkLogBackend;
+  backend: LogBackend;
   dump: NetworkDump;
   notes: string[];
 };
@@ -176,7 +176,7 @@ export function getAppLogPathMetadata(outPath: string): {
   };
 }
 
-function resolveNetworkLogBackend(device: DeviceInfo): NetworkLogBackend {
+function resolveLogBackend(device: DeviceInfo): LogBackend {
   if (device.platform === 'macos') return 'macos';
   if (device.platform === 'ios') {
     return device.kind === 'device' ? 'ios-device' : 'ios-simulator';
@@ -206,7 +206,7 @@ export async function readSessionNetworkCapture(params: {
     maxPayloadChars,
     maxScanLines,
   } = params;
-  const backend = resolveNetworkLogBackend(device);
+  const backend = resolveLogBackend(device);
   let dump = readRecentNetworkTraffic(appLogPath, {
     backend,
     maxEntries,
