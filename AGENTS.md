@@ -94,7 +94,7 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
 
 ## Toolchain Snapshot
 - Package manager: `pnpm` only. Do not add or restore `package-lock.json`.
-- Packaged installs use `~/.agent-device` as the implicit daemon state dir. Source checkouts default to a worktree-scoped daemon state dir under `~/.agent-device/dev/<worktree-hash>` so local branches do not block each other. Use `pnpm daemon:state-dir` to print the effective path for the current worktree; `--state-dir` and `AGENT_DEVICE_STATE_DIR` remain authoritative overrides.
+- Packaged installs use `~/.agent-device` as the implicit daemon state dir. Source checkouts default to a worktree-scoped daemon state dir under `~/.agent-device/dev/<basename-slug>-<hash>` so local branches do not block each other. Use `pnpm daemon:state-dir` to print the effective path for the current worktree; `--state-dir` and `AGENT_DEVICE_STATE_DIR` remain authoritative overrides. Daemons are isolated by worktree, but devices are not; target different devices or simulators when running multiple worktrees concurrently. After pulling the worktree-scoped daemon change for the first time, stop any legacy source-checkout daemon with `AGENT_DEVICE_STATE_DIR=~/.agent-device pnpm clean:daemon`.
 - Runtime baseline is Node >= 22. Prefer built-in Node APIs such as global `fetch`, Web Streams, and `AbortSignal.timeout` over compatibility wrappers unless the surrounding code needs a lower-level transport.
 - Lint/format stack is OXC:
   - config: `.oxlintrc.json`, `.oxfmtrc.json`

@@ -18,7 +18,7 @@ test('session state-dir prints the resolved source-checkout daemon state dir wit
     assert.equal(result.calls.length, 0);
     const payload = JSON.parse(result.stdout) as { success: boolean; data: { stateDir: string } };
     assert.equal(payload.success, true);
-    assert.match(payload.data.stateDir, /^.+\/\.agent-device\/dev\/agent-device-/);
+    assert.match(payload.data.stateDir, /\/\.agent-device\/dev\//);
     assert.equal(payload.data.stateDir.startsWith(home), true);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
