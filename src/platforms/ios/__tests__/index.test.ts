@@ -217,7 +217,7 @@ for (const [name, device] of [
   });
 }
 
-test('iosRunnerOverrides maps swipe to synthesized iOS drag duration', async () => {
+test('iosRunnerOverrides maps swipe to XCTest iOS drag duration', async () => {
   mockRunIosRunnerCommand.mockResolvedValue({});
 
   const { overrides } = iosRunnerOverrides(IOS_TEST_SIMULATOR, {
@@ -235,7 +235,6 @@ test('iosRunnerOverrides maps swipe to synthesized iOS drag duration', async () 
     x2: 180,
     y2: 200,
     durationMs: 300,
-    synthesized: true,
     appBundleId: 'com.example.App',
   });
   assert.deepEqual(mockRunIosRunnerCommand.mock.calls[1]?.[1], {
@@ -245,7 +244,6 @@ test('iosRunnerOverrides maps swipe to synthesized iOS drag duration', async () 
     x2: 180,
     y2: 200,
     durationMs: 250,
-    synthesized: true,
     appBundleId: 'com.example.App',
   });
   assert.deepEqual(mockRunIosRunnerCommand.mock.calls[2]?.[1], {
@@ -255,7 +253,6 @@ test('iosRunnerOverrides maps swipe to synthesized iOS drag duration', async () 
     x2: 180,
     y2: 200,
     durationMs: 300,
-    synthesized: true,
     appBundleId: 'com.example.App',
   });
 });
@@ -286,7 +283,7 @@ for (const [name, device] of [
 }
 
 for (const [name, device, expectedGestureFields] of [
-  ['iOS', IOS_TEST_SIMULATOR, { durationMs: 250, synthesized: true }],
+  ['iOS', IOS_TEST_SIMULATOR, { durationMs: 250 }],
   ['macOS', MACOS_TEST_DEVICE, {}],
 ] as const) {
   test(`iosRunnerOverrides maps ${name} scroll to the expected drag path`, async () => {
@@ -938,7 +935,7 @@ test('screenshotIos retries simulator capture timeouts and eventually succeeds',
     else process.env.AGENT_DEVICE_TEST_SCREENSHOT_COUNT_FILE = previousScreenshotCountFile;
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
-});
+}, 10_000);
 
 test('openIosApp web URL on iOS device without app falls back to Safari', async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-safari-test-'));

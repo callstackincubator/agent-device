@@ -165,7 +165,7 @@ test('handleSwipeCommand preserves iOS swipe duration through dispatch', async (
   });
 });
 
-test('handleSwipeCommand uses synthesized iOS runner drag series for repeated swipes', async () => {
+test('handleSwipeCommand uses XCTest iOS runner drag series for repeated swipes', async () => {
   mockRunIosRunnerCommand.mockResolvedValueOnce({
     gestureStartUptimeMs: 100,
     gestureEndUptimeMs: 720,
@@ -194,7 +194,6 @@ test('handleSwipeCommand uses synthesized iOS runner drag series for repeated sw
     count: 2,
     pauseMs: 50,
     pattern: 'ping-pong',
-    synthesized: true,
     appBundleId: 'com.example.App',
   });
   assert.equal(result.timingMode, 'runner-series');

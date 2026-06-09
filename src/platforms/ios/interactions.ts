@@ -1,6 +1,5 @@
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { shouldUseSynthesizedIosDrag } from '../../core/dispatch-series.ts';
 import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
 import { runIosRunnerCommand } from './runner-client.ts';
 import type { RunnerCommand } from './runner-contract.ts';
@@ -108,7 +107,7 @@ export function iosRunnerOverrides(
         return await runIosRunnerCommand(
           device,
           iosDragCommand(device, ctx, x1, y1, x2, y2, durationMs, {
-            synthesizedDefaultDurationMs: IOS_SWIPE_DEFAULT_DURATION_MS,
+            defaultDurationMs: IOS_SWIPE_DEFAULT_DURATION_MS,
           }),
           runnerOpts,
         );
@@ -117,7 +116,7 @@ export function iosRunnerOverrides(
         return await runIosRunnerCommand(
           device,
           iosDragCommand(device, ctx, x1, y1, x2, y2, durationMs, {
-            synthesizedDefaultDurationMs: 500,
+            defaultDurationMs: 500,
             legacyDefaultDurationMs: 500,
           }),
           runnerOpts,
@@ -274,14 +273,14 @@ function iosDragCommand(
   y2: number,
   durationMs: number | undefined,
   options: {
-    synthesizedDefaultDurationMs: number;
+    defaultDurationMs: number;
     legacyDefaultDurationMs?: number;
   },
 ): RunnerCommand {
-  const useSynthesizedDrag = shouldUseSynthesizedIosDrag(device);
-  const normalizedDurationMs = useSynthesizedDrag
-    ? iosGestureDurationMs(durationMs, options.synthesizedDefaultDurationMs)
-    : (durationMs ?? options.legacyDefaultDurationMs);
+  const normalizedDurationMs =
+    device.platform === 'ios' && device.target !== 'tv'
+      ? iosGestureDurationMs(durationMs, options.defaultDurationMs)
+      : (durationMs ?? options.legacyDefaultDurationMs);
   return {
     command: 'drag',
     x,
@@ -289,7 +288,6 @@ function iosDragCommand(
     x2,
     y2,
     ...(normalizedDurationMs !== undefined ? { durationMs: normalizedDurationMs } : {}),
-    ...(useSynthesizedDrag ? { synthesized: true } : {}),
     appBundleId: ctx.appBundleId,
   };
 }
@@ -354,7 +352,7 @@ async function runAppleScroll(
       frame.originX + plan.x2,
       frame.originY + plan.y2,
       undefined,
-      { synthesizedDefaultDurationMs: IOS_SWIPE_DEFAULT_DURATION_MS },
+      { defaultDurationMs: IOS_SWIPE_DEFAULT_DURATION_MS },
     ),
     runnerOpts,
   );

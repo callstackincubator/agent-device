@@ -4,7 +4,6 @@ import {
   requireIntInRange,
   shouldUseIosTapSeries,
   shouldUseIosDragSeries,
-  shouldUseSynthesizedIosDrag,
 } from '../dispatch-series.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
@@ -64,23 +63,6 @@ test('shouldUseIosDragSeries returns true for iOS with count > 1', () => {
 
 test('shouldUseIosDragSeries returns false when count is 1', () => {
   assert.equal(shouldUseIosDragSeries(iosDevice, 1), false);
-});
-
-// --- shouldUseSynthesizedIosDrag ---
-
-test('shouldUseSynthesizedIosDrag returns true only for non-tvOS iOS targets', () => {
-  assert.equal(shouldUseSynthesizedIosDrag(iosDevice), true);
-  assert.equal(shouldUseSynthesizedIosDrag({ ...iosDevice, target: 'tv' }), false);
-  assert.equal(
-    shouldUseSynthesizedIosDrag({
-      platform: 'macos',
-      id: 'mac',
-      name: 'Mac',
-      kind: 'device',
-      target: 'desktop',
-    }),
-    false,
-  );
 });
 
 // --- computeDeterministicJitter ---
