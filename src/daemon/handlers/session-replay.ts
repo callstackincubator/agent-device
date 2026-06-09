@@ -11,7 +11,7 @@ import type { ReplayScriptMetadata } from '../../replay/script.ts';
 import { buildReplayTestShardFlags, type ReplayTestShardContext } from './session-test-sharding.ts';
 
 const REPLAY_TEST_RECORDING_PREROLL_MS = 1_000;
-const REPLAY_TEST_RECORDING_TAIL_MS = 1_000;
+const REPLAY_TEST_RECORDING_TAIL_MS = 3_000;
 
 export function buildNestedReplayFlags(params: {
   parentFlags: CommandFlags | undefined;
