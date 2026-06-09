@@ -1104,7 +1104,9 @@ test('shutdown rejects active session device and points to close --shutdown', as
   if (response && !response.ok) {
     expect(response.error.code).toBe('DEVICE_IN_USE');
     expect(response.error.message).toMatch(/close --shutdown/i);
-    expect(response.error.details?.hint).toBe('Run close --shutdown --session default');
+    expect(response.error.details?.hint).toBe(
+      'Run agent-device close --shutdown --session default',
+    );
   }
 });
 

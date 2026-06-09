@@ -1,7 +1,7 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { asAppError } from '../../utils/errors.ts';
 import { isApplePlatform, normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
-import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
+import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { shutdownDeviceTarget } from '../target-shutdown.ts';
@@ -255,21 +255,33 @@ export async function handleSessionStateCommands(params: {
   }
 
   if (req.command === 'shutdown') {
-    const session = sessionStore.get(sessionName);
+    const activeSession = sessionStore.get(sessionName);
     const flags = req.flags ?? {};
-    const guard = requireSessionOrExplicitSelector(req.command, session, flags);
+    const guard = requireSessionOrExplicitSelector(req.command, activeSession, flags);
     if (guard) return guard;
 
-    const resolved = await resolveShutdownDevice(session, flags);
-    if ('response' in resolved) return resolved.response;
-    const { device } = resolved;
+    const device = await resolveCommandDevice({
+      ensureReady: false,
+      flags,
+      session: activeSession,
+    });
+    if (!isCommandSupportedOnDevice('shutdown', device)) {
+      return errorResponse(
+        'UNSUPPORTED_OPERATION',
+        'shutdown is supported only for Apple simulators and Android emulators.',
+      );
+    }
 
-    if (session && session.device.platform === device.platform && session.device.id === device.id) {
+    if (
+      activeSession &&
+      activeSession.device.platform === device.platform &&
+      activeSession.device.id === device.id
+    ) {
       return errorResponse(
         'DEVICE_IN_USE',
-        'shutdown cannot target an active session device. Use close --shutdown to end the session and turn off the simulator/emulator.',
+        'Cannot shut down an active session device directly. Use close --shutdown to end the session and turn off the simulator/emulator.',
         {
-          hint: `Run close --shutdown --session ${sessionName}`,
+          hint: `Run agent-device close --shutdown --session ${sessionName}`,
           session: sessionName,
           platform: device.platform,
           target: device.target ?? 'mobile',
@@ -325,26 +337,4 @@ function shutdownFailureMessage(
 ): string {
   const message = shutdown.error?.message ?? shutdown.stderr.trim();
   return message.length > 0 ? message : 'Shutdown failed';
-}
-
-async function resolveShutdownDevice(
-  session: SessionState | undefined,
-  flags: DaemonRequest['flags'],
-): Promise<{ device: DeviceInfo } | { response: DaemonResponse }> {
-  const device = await resolveCommandDevice({
-    session,
-    flags,
-    ensureReady: false,
-  });
-
-  if (!isCommandSupportedOnDevice('shutdown', device)) {
-    return {
-      response: errorResponse(
-        'UNSUPPORTED_OPERATION',
-        'shutdown is supported only for Apple simulators and Android emulators.',
-      ),
-    };
-  }
-
-  return { device };
 }
