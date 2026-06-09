@@ -295,9 +295,9 @@ Command-only flags (like `find --first`) that do not flow to the platform layer 
 - Open a ready-for-review PR by default. Use a draft PR only when the user explicitly asks for one or the work is intentionally incomplete.
 - Run required checks for touched scope from **Testing Matrix**.
 - PR body must be short and include:
-  - `## Summary`: describe the user-visible or reviewer-relevant change as before/after when useful, and include the issue closed by the PR using `Closes #123` when applicable.
+  - `## Summary`: lead with benefits and reviewer-relevant outcomes. Prefer a compact before/after when it makes the improvement clearer. Include the issue closed by the PR using `Closes #123` when applicable.
   - `## Validation`: answer this prompt in concise prose: "How did you verify the change, and what passed or changed on screen?" Prefer evidence over command dumps; mention the relevant check category or scenario, and include screenshots when visual/UI behavior is relevant.
-- Call out known gaps/follow-ups explicitly.
+- Call out real tradeoffs, known gaps, or follow-ups explicitly; omit boilerplate when there are none.
 - Include touched-file count and note if scope expanded beyond initial command family.
 
 ## Priority Order
