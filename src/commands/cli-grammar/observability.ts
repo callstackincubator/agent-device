@@ -121,9 +121,7 @@ function readPerfAction(
   throw new AppError('INVALID_ARGS', PERF_ACTION_ERROR_MESSAGE);
 }
 
-function readLogsAction(
-  value: string | undefined,
-): LogAction | undefined {
+function readLogsAction(value: string | undefined): LogAction | undefined {
   if (value === undefined) return undefined;
   if (
     value === 'path' ||
@@ -144,9 +142,7 @@ function readNetworkAction(value: string | undefined): 'dump' | 'log' | undefine
   throw new AppError('INVALID_ARGS', 'network requires dump or log');
 }
 
-function readNetworkInclude(
-  value: string | undefined,
-): NetworkIncludeMode | undefined {
+function readNetworkInclude(value: string | undefined): NetworkIncludeMode | undefined {
   if (value === undefined) return undefined;
   if (value === 'summary' || value === 'headers' || value === 'body' || value === 'all')
     return value;

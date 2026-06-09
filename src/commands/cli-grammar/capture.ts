@@ -175,9 +175,7 @@ function readAlertInput(positionals: string[]): Record<string, unknown> {
   return compactRecord({ action, timeoutMs });
 }
 
-function readAlertAction(
-  value: string | undefined,
-): AlertAction | undefined {
+function readAlertAction(value: string | undefined): AlertAction | undefined {
   const action = value?.toLowerCase();
   if (
     action === undefined ||

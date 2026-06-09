@@ -22,7 +22,10 @@ import { buildPerfFramesResponseData, buildPerfResponseData } from './session-pe
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
 import type { NetworkIncludeMode } from '../../contracts.ts';
 import type { NetworkLogBackend } from '../network-log.ts';
-import { LOG_ACTION_VALUES as LOG_ACTIONS, type LogAction as LogsAction } from '../../commands/log-command-contract.ts';
+import {
+  LOG_ACTION_VALUES as LOG_ACTIONS,
+  type LogAction as LogsAction,
+} from '../../commands/log-command-contract.ts';
 
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
 const NETWORK_ACTIONS = ['dump', 'log'] as const;
@@ -34,7 +37,6 @@ const NETWORK_INCLUDE_MODES = [
   'all',
 ] as const satisfies readonly NetworkIncludeMode[];
 const NETWORK_INCLUDE_MESSAGE = `network include mode must be one of: ${NETWORK_INCLUDE_MODES.join(', ')}`;
-
 
 type ObservabilityParams = {
   req: DaemonRequest;
@@ -64,9 +66,7 @@ const LOG_ACTION_HANDLERS: Record<
     handleLogsStop(session, sessionName, sessionStore),
 };
 
-function resolveSessionLogBackendLabel(
-  session: SessionState,
-): NetworkLogBackend {
+function resolveSessionLogBackendLabel(session: SessionState): NetworkLogBackend {
   if (session.appLog) {
     return session.appLog.backend;
   }

@@ -13,6 +13,10 @@ export type BoundRuntimeCommand<TOptions = Record<string, unknown>, TResult = Co
   options: TOptions,
 ) => Promise<TResult>;
 
+export function toBackendResult(result: unknown): Record<string, unknown> | undefined {
+  return result && typeof result === 'object' ? (result as Record<string, unknown>) : undefined;
+}
+
 export type ScreenshotCommandOptions = CommandContext & {
   out?: FileOutputRef;
   fullscreen?: boolean;

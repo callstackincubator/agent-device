@@ -7,7 +7,7 @@ import { successText } from '../utils/success-text.ts';
 import { findMistargetedTypeRefToken } from '../utils/type-target-warning.ts';
 import type { ResolvedTarget } from './selector-read.ts';
 import { toBackendContext } from './selector-read-utils.ts';
-import type { RuntimeCommand } from './runtime-types.ts';
+import { toBackendResult, type RuntimeCommand } from './runtime-types.ts';
 import {
   type InteractionTarget,
   type ResolvedInteractionTarget,
@@ -189,10 +189,6 @@ async function tapCommand(
     ...resolved,
     ...(formattedBackendResult ? { backendResult: formattedBackendResult } : {}),
   };
-}
-
-function toBackendResult(result: unknown): Record<string, unknown> | undefined {
-  return result && typeof result === 'object' ? (result as Record<string, unknown>) : undefined;
 }
 
 function formatTargetForWarning(result: {

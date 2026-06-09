@@ -24,41 +24,27 @@ export type PlatformProviderRequestSession = Pick<
   'name' | 'device' | 'appBundleId' | 'appName' | 'surface'
 >;
 
-export type AndroidAdbProviderResolver = (params: {
-  req: DaemonRequest;
-  device: DeviceInfo;
-  session?: PlatformProviderRequestSession;
-}) => AndroidAdbProvider | AndroidAdbExecutor | undefined;
+export type PlatformProviderResolver<TResult> = (
+  params: RequestPlatformProviderResolverContext,
+) => TResult;
 
-export type AppleRunnerProviderResolver = (params: {
-  req: DaemonRequest;
-  device: DeviceInfo;
-  session?: PlatformProviderRequestSession;
-}) => AppleRunnerProvider | AppleRunnerCommandExecutor | undefined;
+export type AndroidAdbProviderResolver = PlatformProviderResolver<
+  AndroidAdbProvider | AndroidAdbExecutor | undefined
+>;
 
-export type AppleToolProviderResolver = (params: {
-  req: DaemonRequest;
-  device: DeviceInfo;
-  session?: PlatformProviderRequestSession;
-}) => AppleToolProvider | AppleToolCommandExecutor | undefined;
+export type AppleRunnerProviderResolver = PlatformProviderResolver<
+  AppleRunnerProvider | AppleRunnerCommandExecutor | undefined
+>;
 
-export type LinuxToolProviderResolver = (params: {
-  req: DaemonRequest;
-  device: DeviceInfo;
-  session?: PlatformProviderRequestSession;
-}) => LinuxToolProvider | undefined;
+export type AppleToolProviderResolver = PlatformProviderResolver<
+  AppleToolProvider | AppleToolCommandExecutor | undefined
+>;
 
-export type AppLogProviderResolver = (params: {
-  req: DaemonRequest;
-  device: DeviceInfo;
-  session?: PlatformProviderRequestSession;
-}) => AppLogProvider | undefined;
+export type LinuxToolProviderResolver = PlatformProviderResolver<LinuxToolProvider | undefined>;
 
-export type RecordingProviderResolver = (params: {
-  req: DaemonRequest;
-  device: DeviceInfo;
-  session?: PlatformProviderRequestSession;
-}) => RecordingProvider | undefined;
+export type AppLogProviderResolver = PlatformProviderResolver<AppLogProvider | undefined>;
+
+export type RecordingProviderResolver = PlatformProviderResolver<RecordingProvider | undefined>;
 
 export type PlatformProviderResolvers = {
   androidAdbProvider?: AndroidAdbProviderResolver;

@@ -1,5 +1,4 @@
 import type {
-  BackendActionResult,
   BackendCommandContext,
   BackendDeviceFilter,
   BackendDeviceInfo,
@@ -10,7 +9,7 @@ import type {
 import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
-import type { RuntimeCommand } from './runtime-types.ts';
+import { toBackendResult, type RuntimeCommand } from './runtime-types.ts';
 import { resolveCommandInput } from './io-policy.ts';
 import { toBackendContext } from './selector-read-utils.ts';
 import { normalizeOptionalText, requireText } from './text.ts';
@@ -282,8 +281,4 @@ function formatSource(source: BackendInstallSource): string {
   if (source.kind === 'path') return source.path;
   if (source.kind === 'uploadedArtifact') return source.id;
   return source.url;
-}
-
-function toBackendResult(result: BackendActionResult): Record<string, unknown> | undefined {
-  return result && typeof result === 'object' ? result : undefined;
 }

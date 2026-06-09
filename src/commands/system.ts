@@ -11,7 +11,7 @@ import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
 import { requireIntInRange } from '../utils/validation.ts';
 import { isKeyboardAction } from '../utils/keyboard-actions.ts';
-import type { RuntimeCommand } from './runtime-types.ts';
+import { toBackendResult, type RuntimeCommand } from './runtime-types.ts';
 import { toBackendContext } from './selector-read-utils.ts';
 import { normalizeOptionalText } from './text.ts';
 
@@ -444,8 +444,4 @@ function normalizeAlertHandledResult(
 
 function isKeyboardResult(value: unknown): value is BackendKeyboardResult {
   return Boolean(value && typeof value === 'object');
-}
-
-function toBackendResult(result: unknown): Record<string, unknown> | undefined {
-  return result && typeof result === 'object' ? (result as Record<string, unknown>) : undefined;
 }

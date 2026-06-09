@@ -5,6 +5,7 @@ import type {
   DaemonResponse as PublicDaemonResponse,
   DaemonResponseData as PublicDaemonResponseData,
   DaemonInstallSource as PublicDaemonInstallSource,
+  DaemonError,
   LeaseBackend,
   SessionRuntimeHints as PublicSessionRuntimeHints,
 } from '../contracts.ts';
@@ -73,14 +74,7 @@ export type ReplaySuiteTestFailed = {
   durationMs: number;
   attempts: number;
   artifactsDir?: string;
-  error: {
-    code: string;
-    message: string;
-    hint?: string;
-    diagnosticId?: string;
-    logPath?: string;
-    details?: Record<string, unknown>;
-  };
+  error: DaemonError;
   shardIndex?: number;
   shardCount?: number;
   deviceId?: string;

@@ -71,10 +71,7 @@ export function readDeviceTarget(record: Record<string, unknown>, key: string): 
   return readOptional(record, key, parseDeviceTarget) ?? 'mobile';
 }
 
-export function readRect(
-  record: Record<string, unknown>,
-  key: string,
-): Rect | undefined {
+export function readRect(record: Record<string, unknown>, key: string): Rect | undefined {
   const value = record[key];
   if (!isRecord(value)) return undefined;
   const x = readNumberField(value, 'x');

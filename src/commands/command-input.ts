@@ -7,7 +7,13 @@ import type {
 import type { DeviceTarget, PlatformSelector } from '../utils/device.ts';
 import type { JsonSchema } from './command-contract.ts';
 
-const PLATFORM_VALUES = ['ios', 'android', 'macos', 'linux', 'apple'] as const satisfies readonly PlatformSelector[];
+const PLATFORM_VALUES = [
+  'ios',
+  'android',
+  'macos',
+  'linux',
+  'apple',
+] as const satisfies readonly PlatformSelector[];
 const DEVICE_TARGET_VALUES = ['mobile', 'tv', 'desktop'] as const satisfies readonly DeviceTarget[];
 const INTERACTION_TARGET_KINDS = ['ref', 'selector', 'point'] as const;
 

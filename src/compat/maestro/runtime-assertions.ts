@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getSnapshotReferenceFrame } from '../../daemon/touch-reference-frame.ts';
 import type { DaemonResponse } from '../../daemon/types.ts';
+import type { DaemonFailureResponse } from '../../daemon/handlers/response.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';
 import { buildSnapshotDisplayLines } from '../../utils/snapshot-lines.ts';
@@ -51,8 +52,6 @@ type MaestroAssertionRuntimeParams = {
 type MaestroAssertionRequestParams = MaestroAssertionRuntimeParams & {
   positionals: string[];
 };
-
-type DaemonFailureResponse = Extract<DaemonResponse, { ok: false }>;
 
 export async function invokeMaestroAssertVisible(
   params: MaestroAssertionRequestParams,

@@ -191,9 +191,7 @@ function swipePositionals(input: CommandInput): string[] {
   ];
 }
 
-function readScrollDirection(
-  value: string | undefined,
-): ScrollInputDirection {
+function readScrollDirection(value: string | undefined): ScrollInputDirection {
   if (
     value === 'up' ||
     value === 'down' ||

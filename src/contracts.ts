@@ -362,7 +362,11 @@ export const daemonCommandRequestSchema = schema<DaemonRequest>((input, path) =>
             leaseBackend: optionalEnum(
               meta,
               'leaseBackend',
-              ['ios-simulator', 'ios-instance', 'android-instance'] as const satisfies readonly LeaseBackend[],
+              [
+                'ios-simulator',
+                'ios-instance',
+                'android-instance',
+              ] as const satisfies readonly LeaseBackend[],
               `${path}.meta`,
             ),
             sessionIsolation: optionalEnum(
@@ -400,7 +404,13 @@ export const daemonCommandRequestSchema = schema<DaemonRequest>((input, path) =>
             lockPlatform: optionalEnum(
               meta,
               'lockPlatform',
-              ['ios', 'macos', 'android', 'linux', 'apple'] as const satisfies readonly PlatformSelector[],
+              [
+                'ios',
+                'macos',
+                'android',
+                'linux',
+                'apple',
+              ] as const satisfies readonly PlatformSelector[],
               `${path}.meta`,
             ),
           },

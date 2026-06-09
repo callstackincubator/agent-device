@@ -31,9 +31,23 @@ import type { ClickButton } from '../core/click-button.ts';
 import type { ScrollDirection, SwipePattern, SwipePreset } from '../core/scroll-gesture.ts';
 import type { ScrollInputDirection } from './interaction-gestures.ts';
 
-const CLICK_BUTTON_VALUES = ['primary', 'secondary', 'middle'] as const satisfies readonly ClickButton[];
-const GESTURE_DIRECTION_VALUES = ['up', 'down', 'left', 'right'] as const satisfies readonly ScrollDirection[];
-const GESTURE_SWIPE_PRESET_VALUES = ['left', 'right', 'left-edge', 'right-edge'] as const satisfies readonly SwipePreset[];
+const CLICK_BUTTON_VALUES = [
+  'primary',
+  'secondary',
+  'middle',
+] as const satisfies readonly ClickButton[];
+const GESTURE_DIRECTION_VALUES = [
+  'up',
+  'down',
+  'left',
+  'right',
+] as const satisfies readonly ScrollDirection[];
+const GESTURE_SWIPE_PRESET_VALUES = [
+  'left',
+  'right',
+  'left-edge',
+  'right-edge',
+] as const satisfies readonly SwipePreset[];
 const FIND_ACTION_VALUES = [
   'click',
   'focus',
@@ -45,7 +59,14 @@ const FIND_ACTION_VALUES = [
   'type',
 ] as const;
 const FIND_LOCATOR_VALUES = ['any', 'text', 'label', 'value', 'role', 'id'] as const;
-const SCROLL_DIRECTION_VALUES = ['up', 'down', 'left', 'right', 'top', 'bottom'] as const satisfies readonly ScrollInputDirection[];
+const SCROLL_DIRECTION_VALUES = [
+  'up',
+  'down',
+  'left',
+  'right',
+  'top',
+  'bottom',
+] as const satisfies readonly ScrollInputDirection[];
 const SWIPE_PATTERN_VALUES = ['one-way', 'ping-pong'] as const satisfies readonly SwipePattern[];
 
 const clickFields = {

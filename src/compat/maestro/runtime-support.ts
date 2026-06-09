@@ -8,6 +8,7 @@ import type {
   DaemonResponseData,
   SessionAction,
 } from '../../daemon/types.ts';
+import type { DaemonFailureResponse } from '../../daemon/handlers/response.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';
 
@@ -21,7 +22,7 @@ export type MaestroReplayInvoker = (params: {
 
 export type MaestroRuntimeInvoke = (req: DaemonRequest) => Promise<DaemonResponse>;
 
-export type FailedDaemonResponse = Extract<DaemonResponse, { ok: false }>;
+export type FailedDaemonResponse = DaemonFailureResponse;
 
 const maestroReferenceFrameCache = new WeakMap<ReplayVarScope, TouchReferenceFrame>();
 const maestroVisibleContextCache = new WeakMap<ReplayVarScope, { selector: string }>();

@@ -17,14 +17,7 @@ type JsonResult =
   | { success: true; data?: unknown }
   | {
       success: false;
-      error: {
-        code: string;
-        message: string;
-        hint?: string;
-        diagnosticId?: string;
-        logPath?: string;
-        details?: Record<string, unknown>;
-      };
+      error: NormalizedError;
     };
 
 export function printJson(result: JsonResult): void {

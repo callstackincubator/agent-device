@@ -25,9 +25,19 @@ import {
 import { defineFieldCommandMetadata } from './field-command-contract.ts';
 import { PERF_ACTION_VALUES, PERF_AREA_VALUES } from './perf-command-contract.ts';
 
-const SURFACE_VALUES = ['app', 'frontmost-app', 'desktop', 'menubar'] as const satisfies readonly SessionSurface[];
+const SURFACE_VALUES = [
+  'app',
+  'frontmost-app',
+  'desktop',
+  'menubar',
+] as const satisfies readonly SessionSurface[];
 const WAIT_KIND_VALUES = ['duration', 'text', 'ref', 'selector'] as const;
-const ALERT_ACTION_VALUES = ['get', 'accept', 'dismiss', 'wait'] as const satisfies readonly AlertAction[];
+const ALERT_ACTION_VALUES = [
+  'get',
+  'accept',
+  'dismiss',
+  'wait',
+] as const satisfies readonly AlertAction[];
 const BACK_MODE_VALUES = ['in-app', 'system'] as const satisfies readonly BackMode[];
 const ORIENTATION_VALUES = [
   'portrait',

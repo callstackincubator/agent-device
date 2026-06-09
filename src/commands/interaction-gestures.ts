@@ -20,7 +20,7 @@ import {
   type ScrollEdgeState,
   type ScrollEdgeTarget,
 } from '../utils/scroll-edge-state.ts';
-import type { RuntimeCommand } from './runtime-types.ts';
+import { toBackendResult, type RuntimeCommand } from './runtime-types.ts';
 import {
   assertSupportedInteractionSurface,
   captureInteractionSnapshot,
@@ -551,8 +551,4 @@ function resolveSnapshotReferenceFrame(nodes: SnapshotState['nodes']): GestureRe
 
 function isUsableRect(rect: SnapshotNode['rect']): rect is NonNullable<SnapshotNode['rect']> {
   return Boolean(rect && rect.width > 0 && rect.height > 0);
-}
-
-function toBackendResult(result: unknown): Record<string, unknown> | undefined {
-  return result && typeof result === 'object' ? (result as Record<string, unknown>) : undefined;
 }

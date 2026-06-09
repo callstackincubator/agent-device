@@ -1,5 +1,4 @@
 import type {
-  BackendActionResult,
   BackendAppInfo,
   BackendAppListFilter,
   BackendAppState,
@@ -13,7 +12,7 @@ import { assertResolvedAppsFilter } from './app-inventory-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
 import { resolveCommandInput } from './io-policy.ts';
-import type { RuntimeCommand } from './runtime-types.ts';
+import { toBackendResult, type RuntimeCommand } from './runtime-types.ts';
 import { normalizeOptionalText, requireText } from './text.ts';
 
 const APP_EVENT_NAME_PATTERN = /^[A-Za-z0-9_.:-]{1,64}$/;
@@ -372,8 +371,4 @@ function toAppBackendContext(
     signal: options.signal ?? runtime.signal,
     metadata: options.metadata,
   };
-}
-
-function toBackendResult(result: BackendActionResult): Record<string, unknown> | undefined {
-  return result && typeof result === 'object' ? result : undefined;
 }
