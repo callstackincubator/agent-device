@@ -45,7 +45,7 @@ function resolveStateDir(raw: string | undefined, options: ResolveDaemonPathsOpt
   return resolveUserPath(value, { env: options.env });
 }
 
-export function resolveDefaultDaemonStateDir(options: ResolveDaemonPathsOptions = {}): string {
+function resolveDefaultDaemonStateDir(options: ResolveDaemonPathsOptions = {}): string {
   const globalStateDir = path.join(expandUserHomePath('~', { env: options.env }), '.agent-device');
   const projectRoot = options.projectRoot ?? findProjectRoot();
   if (!isSourceCheckoutProjectRoot(projectRoot)) {
