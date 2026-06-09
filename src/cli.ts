@@ -241,6 +241,10 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
           parsedBatchSteps = readBatchSteps(flags);
         }
 
+        if (tryPrintSessionStateDir({ command, positionals, flags: effectiveFlags, daemonPaths })) {
+          return;
+        }
+
         if (shouldResolveRemoteAuth(command)) {
           const authResolution = await resolveRemoteAuthForCli({
             command,
@@ -372,6 +376,24 @@ export async function runCli(argv: string[], deps: CliDeps = DEFAULT_CLI_DEPS): 
       }
     },
   );
+}
+
+function tryPrintSessionStateDir(options: {
+  command: string;
+  positionals: string[];
+  flags: CliFlags;
+  daemonPaths: ReturnType<typeof resolveDaemonPaths>;
+}): boolean {
+  if (options.command !== 'session' || options.positionals[0] !== 'state-dir') return false;
+  if (options.positionals.length > 1) {
+    throw new AppError('INVALID_ARGS', 'session state-dir does not accept additional arguments.');
+  }
+  if (options.flags.json) {
+    printJson({ success: true, data: { stateDir: options.daemonPaths.baseDir } });
+  } else {
+    process.stdout.write(`${options.daemonPaths.baseDir}\n`);
+  }
+  return true;
 }
 
 function isDebugRequested(argv: string[]): boolean {

@@ -345,8 +345,10 @@ const CLI_COMMAND_OVERRIDES = {
     positionalArgs: ['setting', 'state', 'target?', 'mode?'],
   },
   session: {
-    usageOverride: 'session list',
-    positionalArgs: ['list?'],
+    usageOverride: 'session list | session state-dir',
+    listUsageOverride: 'session list',
+    helpDescription: 'List active sessions or print the effective daemon state directory',
+    positionalArgs: ['list|state-dir?'],
   },
 } as const satisfies Partial<Record<CommandName, CommandSchemaOverride>>;
 

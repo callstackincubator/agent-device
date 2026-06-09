@@ -110,10 +110,11 @@ function installInputFromCli(
   };
 }
 
-function readSessionAction(value: string | undefined): 'list' {
+function readSessionAction(value: string | undefined): 'list' | 'state-dir' {
   const action = value ?? 'list';
   if (action === 'list') return action;
-  throw new AppError('INVALID_ARGS', 'session only supports list');
+  if (action === 'state-dir') return action;
+  throw new AppError('INVALID_ARGS', 'session only supports list or state-dir');
 }
 
 function openPositionals(input: CommandInput): string[] {

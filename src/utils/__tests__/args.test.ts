@@ -1494,6 +1494,13 @@ test('usage renders concise commands inline with descriptions', () => {
   assert.doesNotMatch(help, /agent-device-proxy/);
 });
 
+test('session command help includes daemon state directory discovery', () => {
+  const help = usageForCommand('session');
+  if (help === null) throw new Error('Expected command help text');
+  assert.match(help, /Usage:\s+agent-device session list \| session state-dir/);
+  assert.match(help, /effective daemon state directory/);
+});
+
 test('command usage describes test suite flags', () => {
   const help = usageForCommand('test');
   if (help === null) throw new Error('Expected command help text');

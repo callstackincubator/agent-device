@@ -94,6 +94,7 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
 
 ## Toolchain Snapshot
 - Package manager: `pnpm` only. Do not add or restore `package-lock.json`.
+- Packaged installs use `~/.agent-device` as the implicit daemon state dir. Source checkouts default to a worktree-scoped daemon state dir under `~/.agent-device/dev/<worktree-hash>` so local branches do not block each other. Use `pnpm daemon:state-dir` to print the effective path for the current worktree; `--state-dir` and `AGENT_DEVICE_STATE_DIR` remain authoritative overrides.
 - Runtime baseline is Node >= 22. Prefer built-in Node APIs such as global `fetch`, Web Streams, and `AbortSignal.timeout` over compatibility wrappers unless the surrounding code needs a lower-level transport.
 - Lint/format stack is OXC:
   - config: `.oxlintrc.json`, `.oxfmtrc.json`
@@ -187,7 +188,7 @@ Command-only flags (like `find --first`) that do not flow to the platform layer 
 
 ## Manual Device Session Hygiene
 - Treat every manually opened `agent-device` session as a resource that must be closed, including exploratory sessions and failed verification attempts.
-- For experiments, use a purpose-specific session name and, when practical, an isolated `--state-dir` under `/private/tmp` so stale metadata does not poison the default daemon.
+- For experiments, use a purpose-specific session name and, when practical, an isolated `--state-dir` under `/private/tmp` when you need cleanup isolation beyond the current worktree's default daemon.
 - Keep track of each opened session in the working notes. Before final response, close each one with the same flags used to open it.
 - If `close` or a later command is blocked by stale daemon metadata, inspect running processes first with `ps -ax | rg "agent-device|xcodebuild test-without-building"`. Stop only exact stale PIDs that belong to the verification run, then run `pnpm clean:daemon`.
 - If cleanup cannot be completed, report the remaining session name, state dir, process IDs, and metadata paths as a blocker.

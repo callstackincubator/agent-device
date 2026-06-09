@@ -1,5 +1,8 @@
+import crypto from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 import { expandUserHomePath, resolveUserPath } from '../utils/path-resolution.ts';
+import { findProjectRoot } from '../utils/version.ts';
 
 export type DaemonServerMode = 'socket' | 'http' | 'dual';
 export type DaemonTransportPreference = 'auto' | 'socket' | 'http';
@@ -13,8 +16,18 @@ export type DaemonPaths = {
   sessionsDir: string;
 };
 
-export function resolveDaemonPaths(stateDir: string | undefined): DaemonPaths {
-  const baseDir = resolveStateDir(stateDir);
+type EnvMap = Record<string, string | undefined>;
+
+type ResolveDaemonPathsOptions = {
+  env?: EnvMap;
+  projectRoot?: string;
+};
+
+export function resolveDaemonPaths(
+  stateDir: string | undefined,
+  options: ResolveDaemonPathsOptions = {},
+): DaemonPaths {
+  const baseDir = resolveStateDir(stateDir, options);
   return {
     baseDir,
     infoPath: path.join(baseDir, 'daemon.json'),
@@ -24,12 +37,43 @@ export function resolveDaemonPaths(stateDir: string | undefined): DaemonPaths {
   };
 }
 
-function resolveStateDir(raw: string | undefined): string {
+function resolveStateDir(raw: string | undefined, options: ResolveDaemonPathsOptions): string {
   const value = (raw ?? '').trim();
   if (!value) {
-    return path.join(expandUserHomePath('~'), '.agent-device');
+    return resolveDefaultDaemonStateDir(options);
   }
-  return resolveUserPath(value);
+  return resolveUserPath(value, { env: options.env });
+}
+
+export function resolveDefaultDaemonStateDir(options: ResolveDaemonPathsOptions = {}): string {
+  const globalStateDir = path.join(expandUserHomePath('~', { env: options.env }), '.agent-device');
+  const projectRoot = options.projectRoot ?? findProjectRoot();
+  if (!isSourceCheckoutProjectRoot(projectRoot)) {
+    return globalStateDir;
+  }
+  return path.join(globalStateDir, 'dev', buildSourceCheckoutStateDirName(projectRoot));
+}
+
+function isSourceCheckoutProjectRoot(projectRoot: string): boolean {
+  return (
+    fs.existsSync(path.join(projectRoot, 'package.json')) &&
+    fs.existsSync(path.join(projectRoot, 'src', 'daemon.ts'))
+  );
+}
+
+function buildSourceCheckoutStateDirName(projectRoot: string): string {
+  const resolvedRoot = resolveRealPath(projectRoot);
+  const slug = path.basename(resolvedRoot).replaceAll(/[^a-zA-Z0-9._-]+/g, '-');
+  const hash = crypto.createHash('sha1').update(resolvedRoot).digest('hex').slice(0, 12);
+  return `${slug || 'agent-device'}-${hash}`;
+}
+
+function resolveRealPath(filePath: string): string {
+  try {
+    return fs.realpathSync.native(filePath);
+  } catch {
+    return path.resolve(filePath);
+  }
 }
 
 export function resolveDaemonServerMode(raw: string | undefined): DaemonServerMode {

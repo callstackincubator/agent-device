@@ -84,4 +84,4 @@ One-off `npx` usage is fine for humans and scripts that intentionally fetch from
 - If daemon startup reports stale metadata, remove stale files and retry:
   - `<state-dir>/daemon.json`
   - `<state-dir>/daemon.lock`
-  - default state dir is `~/.agent-device` unless `AGENT_DEVICE_STATE_DIR` or `--state-dir` is set
+  - default state dir is `~/.agent-device` for packaged installs; source checkouts default to a worktree-scoped dir under `~/.agent-device/dev/` unless `AGENT_DEVICE_STATE_DIR` or `--state-dir` is set

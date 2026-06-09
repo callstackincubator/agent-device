@@ -76,6 +76,7 @@
   "scripts": {
     "build": "rslib build",
     "clean:daemon": "node --experimental-strip-types scripts/clean-daemon.ts",
+    "daemon:state-dir": "node --experimental-strip-types scripts/print-daemon-state-dir.ts",
     "clean:xcuitest": "node scripts/clean-xcuitest-derived.mjs",
     "clean:xcuitest:ios": "node scripts/clean-xcuitest-derived.mjs ios",
     "clean:xcuitest:macos": "node scripts/clean-xcuitest-derived.mjs macos",

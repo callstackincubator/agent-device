@@ -188,7 +188,8 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['--state-dir'],
     type: 'string',
     usageLabel: '--state-dir <path>',
-    usageDescription: 'Daemon state directory (defaults to ~/.agent-device)',
+    usageDescription:
+      'Daemon state directory (defaults to ~/.agent-device for packages, or a worktree-scoped dev dir from source)',
   },
   {
     key: 'daemonBaseUrl',
