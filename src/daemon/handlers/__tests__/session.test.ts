@@ -40,7 +40,7 @@ vi.mock('../session-open-target.ts', async (importOriginal) => {
 });
 vi.mock('../../../platforms/ios/simulator.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/simulator.ts')>();
-  return { ...actual, shutdownSimulator: vi.fn() };
+  return { ...actual, getSimulatorState: vi.fn(async () => null), shutdownSimulator: vi.fn() };
 });
 vi.mock('../../../utils/exec.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../utils/exec.ts')>();
@@ -1030,6 +1030,7 @@ test('boot keeps --target validation when emulator is fallback-launched', async 
 
 test('shutdown turns off selected iOS simulator', async () => {
   const sessionStore = makeSessionStore();
+  const sessionName = 'default';
   const selectedDevice: SessionState['device'] = {
     platform: 'ios',
     id: 'sim-2',
@@ -1038,17 +1039,18 @@ test('shutdown turns off selected iOS simulator', async () => {
     target: 'mobile',
     booted: true,
   };
+  sessionStore.set(sessionName, makeSession(sessionName, selectedDevice));
   mockResolveTargetDevice.mockResolvedValue(selectedDevice);
 
   const response = await handleSessionCommands({
     req: {
       token: 't',
-      session: 'default',
+      session: sessionName,
       command: 'shutdown',
       positionals: [],
       flags: { platform: 'ios', device: 'iPhone 17 Pro' },
     },
-    sessionName: 'default',
+    sessionName,
     logPath: path.join(os.tmpdir(), 'daemon.log'),
     sessionStore,
     invoke: noopInvoke,
@@ -1068,6 +1070,7 @@ test('shutdown turns off selected iOS simulator', async () => {
       stderr: '',
     });
   }
+  expect(sessionStore.get(sessionName)?.device.booted).toBe(false);
 });
 
 test('shutdown turns off selected Android emulator', async () => {
@@ -1146,7 +1149,53 @@ test('shutdown rejects unsupported physical devices', async () => {
   expect(mockRunCmd).not.toHaveBeenCalled();
   if (response && !response.ok) {
     expect(response.error.code).toBe('UNSUPPORTED_OPERATION');
-    expect(response.error.message).toMatch(/iOS simulators and Android emulators/i);
+    expect(response.error.message).toMatch(/Apple simulators and Android emulators/i);
+  }
+});
+
+test('shutdown returns an error response when selected target shutdown fails', async () => {
+  const sessionStore = makeSessionStore();
+  const selectedDevice: SessionState['device'] = {
+    platform: 'ios',
+    id: 'sim-2',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    target: 'mobile',
+    booted: true,
+  };
+  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
+  mockShutdownSimulator.mockResolvedValue({
+    success: false,
+    exitCode: 149,
+    stdout: '',
+    stderr: 'simctl shutdown failed',
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'shutdown',
+      positionals: [],
+      flags: { platform: 'ios', device: 'iPhone 17 Pro' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  if (response && !response.ok) {
+    expect(response.error.code).toBe('COMMAND_FAILED');
+    expect(response.error.message).toBe('simctl shutdown failed');
+    expect(response.error.details?.shutdown).toEqual({
+      success: false,
+      exitCode: 149,
+      stdout: '',
+      stderr: 'simctl shutdown failed',
+    });
   }
 });
 

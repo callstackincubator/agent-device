@@ -128,7 +128,7 @@ test('device capability matrix stays consistent across shared command groups', (
         { device: androidEmulator, expected: true, label: 'on Android emulator' },
         { device: androidDevice, expected: false, label: 'on Android device' },
         { device: macOsDevice, expected: false, label: 'on macOS' },
-        { device: tvOsSimulator, expected: false, label: 'on tvOS simulator' },
+        { device: tvOsSimulator, expected: true, label: 'on tvOS simulator' },
       ],
     },
     {
@@ -284,7 +284,17 @@ test('macOS supports the Apple runner interaction core but excludes mobile-only 
 
 test('tvOS follows iOS capability matrix by device kind', () => {
   assertCommandSupport(
-    ['open', 'close', 'apps', 'screenshot', 'trigger-app-event', 'logs', 'reinstall', 'boot'],
+    [
+      'open',
+      'close',
+      'apps',
+      'screenshot',
+      'trigger-app-event',
+      'logs',
+      'reinstall',
+      'boot',
+      'shutdown',
+    ],
     [{ device: tvOsSimulator, expected: true, label: 'on tvOS' }],
   );
   assertCommandSupport(

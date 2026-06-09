@@ -119,9 +119,6 @@ const COMMAND_CAPABILITY_MATRIX: Record<string, CommandCapability> = {
     apple: { simulator: true },
     android: { emulator: true },
     linux: LINUX_NONE,
-    supports: (device) =>
-      (device.platform === 'ios' && device.kind === 'simulator' && device.target !== 'tv') ||
-      (device.platform === 'android' && device.kind === 'emulator'),
   },
   click: {
     apple: { simulator: true, device: true },

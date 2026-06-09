@@ -1,5 +1,5 @@
 import { runAndroidAdb } from '../platforms/android/adb.ts';
-import { shutdownSimulator } from '../platforms/ios/simulator.ts';
+import { getSimulatorState, shutdownSimulator } from '../platforms/ios/simulator.ts';
 import type { DeviceInfo } from '../utils/device.ts';
 import { normalizeError } from '../utils/errors.ts';
 
@@ -18,9 +18,18 @@ export function canShutdownDeviceTarget(device: DeviceInfo): boolean {
 export async function shutdownDeviceTarget(
   device: DeviceInfo,
 ): Promise<DeviceTargetShutdownResult> {
+  if (device.booted === false) {
+    return {
+      success: true,
+      exitCode: 0,
+      stdout: '',
+      stderr: '',
+    };
+  }
+
   try {
     return isIosSimulator(device)
-      ? await shutdownSimulator(device)
+      ? await shutdownIosSimulator(device)
       : await shutdownAndroidEmulator(device);
   } catch (error) {
     const normalized = normalizeError(error);
@@ -40,6 +49,22 @@ function isIosSimulator(device: DeviceInfo): boolean {
 
 function isAndroidEmulator(device: DeviceInfo): boolean {
   return device.platform === 'android' && device.kind === 'emulator';
+}
+
+async function shutdownIosSimulator(device: DeviceInfo): Promise<DeviceTargetShutdownResult> {
+  const result = await shutdownSimulator(device);
+  if (result.success) return result;
+
+  const state = await getSimulatorState(device);
+  if (state === 'Shutdown') {
+    return {
+      ...result,
+      success: true,
+      exitCode: 0,
+    };
+  }
+
+  return result;
 }
 
 async function shutdownAndroidEmulator(device: DeviceInfo): Promise<DeviceTargetShutdownResult> {

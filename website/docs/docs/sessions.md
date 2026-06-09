@@ -33,7 +33,7 @@ agent-device snapshot -i
 agent-device close --session my-session
 ```
 
-Shut down the simulator/emulator on close (iOS simulators and Android emulators, prevents resource leakage in CI/multi-tenant workloads):
+Shut down the simulator/emulator on close (Apple simulators and Android emulators, prevents resource leakage in CI/multi-tenant workloads):
 
 ```bash
 agent-device close --shutdown

@@ -269,11 +269,36 @@ export async function handleSessionStateCommands(params: {
     if (!isCommandSupportedOnDevice('shutdown', device)) {
       return errorResponse(
         'UNSUPPORTED_OPERATION',
-        'shutdown is supported only for iOS simulators and Android emulators.',
+        'shutdown is supported only for Apple simulators and Android emulators.',
       );
     }
 
     const shutdown = await shutdownDeviceTarget(device);
+    if (!shutdown.success) {
+      return errorResponse(
+        shutdown.error?.code ?? 'COMMAND_FAILED',
+        shutdownFailureMessage(shutdown),
+        {
+          platform: device.platform,
+          target: device.target ?? 'mobile',
+          device: device.name,
+          id: device.id,
+          kind: device.kind,
+          shutdown,
+        },
+      );
+    }
+
+    if (session && session.device.platform === device.platform && session.device.id === device.id) {
+      sessionStore.set(sessionName, {
+        ...session,
+        device: {
+          ...session.device,
+          booted: false,
+        },
+      });
+    }
+
     return {
       ok: true,
       data: {
@@ -296,4 +321,11 @@ export async function handleSessionStateCommands(params: {
   }
 
   return null;
+}
+
+function shutdownFailureMessage(
+  shutdown: Awaited<ReturnType<typeof shutdownDeviceTarget>>,
+): string {
+  const message = shutdown.error?.message ?? shutdown.stderr.trim();
+  return message.length > 0 ? message : 'Shutdown failed';
 }
