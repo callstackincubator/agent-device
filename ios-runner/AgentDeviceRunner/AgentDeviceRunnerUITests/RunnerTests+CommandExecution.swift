@@ -17,6 +17,10 @@ extension RunnerTests {
     min(max((durationMs / 5.0) / 1000.0, 0.016), 0.120)
   }
 
+  private func coordinateDragHoldDuration() -> TimeInterval {
+    0.050
+  }
+
   func unsupportedResponse(for outcome: RunnerInteractionOutcome) -> Response? {
     switch outcome {
     case .performed:
@@ -657,7 +661,7 @@ extension RunnerTests {
       }
       let holdDuration = command.synthesized == true
         ? synthesizedSwipeFallbackHoldDuration(durationMs: command.durationMs ?? 250)
-        : min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
+        : coordinateDragHoldDuration()
       let (timing, outcome) = performGesture(activeApp) {
         dragAt(
           app: activeApp,
@@ -715,7 +719,7 @@ extension RunnerTests {
       }
       let holdDuration = command.synthesized == true
         ? synthesizedSwipeFallbackHoldDuration(durationMs: command.durationMs ?? 250)
-        : min(max((command.durationMs ?? 60) / 1000.0, 0.016), 10.0)
+        : coordinateDragHoldDuration()
       let (timing, outcome) = performGesture(activeApp) {
         performDragSeries(
           count: count,

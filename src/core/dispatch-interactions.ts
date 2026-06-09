@@ -25,7 +25,6 @@ import {
   requireIntInRange,
   shouldUseIosTapSeries,
   shouldUseIosDragSeries,
-  shouldUseSynthesizedIosDrag,
   computeDeterministicJitter,
   runRepeatedSeries,
 } from './dispatch-series.ts';
@@ -488,7 +487,6 @@ async function runSwipeCoordinates(params: {
         count,
         pauseMs,
         pattern,
-        ...(shouldUseSynthesizedIosDrag(device) ? { synthesized: true } : {}),
         appBundleId: context?.appBundleId,
       },
       {
