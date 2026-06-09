@@ -28,10 +28,12 @@ type RecordVideoFixture = {
   replayPath: string;
   sessionStore: SessionStore;
   nestedRequests: DaemonRequest[];
+  events: string[];
 };
 
 type MockRecordingState = {
   recordingPath: string;
+  events: string[];
 };
 
 function createRecordVideoFixture(): RecordVideoFixture {
@@ -43,6 +45,7 @@ function createRecordVideoFixture(): RecordVideoFixture {
     replayPath,
     sessionStore: new SessionStore(path.join(root, 'sessions')),
     nestedRequests: [],
+    events: [],
   };
 }
 
@@ -75,6 +78,7 @@ function startMockRecording(params: {
   state: MockRecordingState;
 }): DaemonResponse {
   const { req, sessionStore, state } = params;
+  state.events.push('record:start');
   state.recordingPath = req.positionals?.[1] ?? '';
   const session = sessionStore.get(req.session);
   if (session) {
@@ -98,6 +102,7 @@ function stopMockRecording(params: {
   state: MockRecordingState;
 }): DaemonResponse {
   const { req, sessionStore, state } = params;
+  state.events.push('record:stop');
   const session = sessionStore.get(req.session);
   if (session) {
     session.recording = undefined;
@@ -222,8 +227,8 @@ test('collectReplayActionArtifactPaths includes failed action artifact details',
 });
 
 test('test --record-video records each replay attempt on the generated test session', async () => {
-  const { root, replayPath, sessionStore, nestedRequests } = createRecordVideoFixture();
-  installMockRecordingHandler(sessionStore, { recordingPath: '' });
+  const { root, replayPath, sessionStore, nestedRequests, events } = createRecordVideoFixture();
+  installMockRecordingHandler(sessionStore, { recordingPath: '', events });
 
   const response = await handleSessionReplayCommands({
     req: {
@@ -240,7 +245,11 @@ test('test --record-video records each replay attempt on the generated test sess
     invoke: async (nestedReq) => {
       nestedRequests.push(nestedReq);
       if (nestedReq.command === 'open') {
-        sessionStore.set(nestedReq.session, makeIosSession(nestedReq.session));
+        const provisionalSession = makeIosSession(nestedReq.session);
+        sessionStore.set(nestedReq.session, provisionalSession);
+        const hookResponse = await nestedReq.meta?.beforeOpenDispatch?.(provisionalSession);
+        if (hookResponse && !hookResponse.ok) return hookResponse;
+        events.push('open:dispatch');
       }
       return { ok: true, data: { session: nestedReq.session } };
     },
@@ -255,6 +264,7 @@ test('test --record-video records each replay attempt on the generated test sess
   const generatedSession = testResult.session;
   if (typeof generatedSession !== 'string') throw new Error('Expected generated test session');
   expectRecordVideoCalls({ generatedSession, artifactsDir: testResult.artifactsDir });
+  assert.deepEqual(events, ['record:start', 'open:dispatch', 'record:stop']);
   assert.equal(
     nestedRequests.some((nestedReq) => nestedReq.flags?.recordVideo === true),
     false,

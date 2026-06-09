@@ -4,6 +4,7 @@ import path from 'node:path';
 
 let snapshotCalls = 0;
 const dispatchCalls: string[][] = [];
+let snapshotMode: 'blocking-dialog' | 'throws' = 'blocking-dialog';
 
 vi.mock('../../core/dispatch.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../core/dispatch.ts')>();
@@ -27,6 +28,9 @@ vi.mock('../../platforms/android/snapshot.ts', async (importOriginal) => {
     ...actual,
     snapshotAndroid: vi.fn(async () => {
       snapshotCalls += 1;
+      if (snapshotMode === 'throws') {
+        throw new Error('uiautomator dump did not return XML');
+      }
       if (snapshotCalls === 1) {
         return {
           nodes: [
@@ -101,6 +105,7 @@ function makeAndroidSession(name: string): SessionState {
 
 test('generic Android gesture commands dismiss blocking system dialogs during recording', async () => {
   snapshotCalls = 0;
+  snapshotMode = 'blocking-dialog';
   execCalls.length = 0;
   dispatchCalls.length = 0;
 
@@ -133,4 +138,39 @@ test('generic Android gesture commands dismiss blocking system dialogs during re
     'com.android.settings',
   );
   expect(snapshotCalls).toBe(2);
+});
+
+test('generic Android gesture commands continue when recording dialog inspection fails', async () => {
+  snapshotCalls = 0;
+  snapshotMode = 'throws';
+  execCalls.length = 0;
+  dispatchCalls.length = 0;
+
+  const sessionStore = makeSessionStore('agent-device-router-android-modal-');
+  sessionStore.set('default', makeAndroidSession('default'));
+
+  const { openAndroidApp } = await import('../../platforms/android/app-lifecycle.ts');
+  vi.mocked(openAndroidApp).mockClear();
+
+  const handler = createRequestHandler({
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    token: 'test-token',
+    sessionStore,
+    leaseRegistry: new LeaseRegistry(),
+    trackDownloadableArtifact: () => 'artifact-id',
+  });
+
+  const response = await handler({
+    token: 'test-token',
+    session: 'default',
+    command: 'scroll',
+    positionals: ['down', '0.55'],
+    meta: { requestId: 'req-android-modal-inspection-failed' },
+  });
+
+  expect(response.ok).toBe(true);
+  expect(dispatchCalls).toEqual([['scroll', 'down', '0.55']]);
+  expect(execCalls).toEqual([]);
+  expect(openAndroidApp).not.toHaveBeenCalled();
+  expect(snapshotCalls).toBe(1);
 });

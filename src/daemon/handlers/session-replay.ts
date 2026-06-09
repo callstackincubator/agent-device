@@ -1,5 +1,6 @@
 import path from 'node:path';
 import type { CommandFlags } from '../../core/dispatch.ts';
+import { sleep } from '../../utils/timeouts.ts';
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { runReplayTestSuite } from './session-test.ts';
@@ -8,6 +9,9 @@ import { handleRecordCommand } from './record-trace-recording.ts';
 import { collectReplayActionArtifactPaths, runReplayScriptFile } from './session-replay-runtime.ts';
 import type { ReplayScriptMetadata } from '../../replay/script.ts';
 import { buildReplayTestShardFlags, type ReplayTestShardContext } from './session-test-sharding.ts';
+
+const REPLAY_TEST_RECORDING_PREROLL_MS = 1_000;
+const REPLAY_TEST_RECORDING_TAIL_MS = 1_000;
 
 export function buildNestedReplayFlags(params: {
   parentFlags: CommandFlags | undefined;
@@ -70,6 +74,30 @@ async function startReplayTestRecording(params: {
   });
 }
 
+async function startReplayTestRecordingIfNeeded(params: {
+  req: DaemonRequest;
+  sessionName: string;
+  logPath: string;
+  sessionStore: SessionStore;
+  artifactsDir: string | undefined;
+}): Promise<DaemonResponse | undefined> {
+  const { req, sessionName, logPath, sessionStore, artifactsDir } = params;
+  if (req.flags?.recordVideo !== true) return undefined;
+  const activeSession = sessionStore.get(sessionName);
+  if (!activeSession || activeSession.recording) return undefined;
+  const response = await startReplayTestRecording({
+    req,
+    sessionName,
+    logPath,
+    sessionStore,
+    artifactsDir,
+  });
+  if (response.ok) {
+    await sleep(REPLAY_TEST_RECORDING_PREROLL_MS);
+  }
+  return response;
+}
+
 async function stopReplayTestRecording(params: {
   req: DaemonRequest;
   sessionName: string;
@@ -102,6 +130,7 @@ async function finalizeReplayTestRecording(params: {
   const { req, sessionName, logPath, sessionStore, artifactPaths } = params;
   if (req.flags?.recordVideo !== true) return undefined;
   if (!sessionStore.get(sessionName)?.recording) return undefined;
+  await sleep(REPLAY_TEST_RECORDING_TAIL_MS);
   const response = await stopReplayTestRecording({
     req,
     sessionName,
@@ -160,6 +189,14 @@ export async function handleSessionReplayCommands(params: {
           shard,
         });
 
+        const startRecording = async (): Promise<DaemonResponse | undefined> =>
+          await startReplayTestRecordingIfNeeded({
+            req,
+            sessionName: testSessionName,
+            logPath,
+            sessionStore,
+            artifactsDir,
+          });
         const replayResponse = await runReplayScriptFile({
           req: {
             ...req,
@@ -167,30 +204,20 @@ export async function handleSessionReplayCommands(params: {
             session: testSessionName,
             positionals: [filePath],
             flags: nestedFlags,
-            meta: requestId ? { ...(req.meta ?? {}), requestId } : req.meta,
+            meta: {
+              ...(req.meta ?? {}),
+              ...(requestId ? { requestId } : {}),
+              beforeOpenDispatch: async () => await startRecording(),
+            },
           },
           sessionName: testSessionName,
           logPath,
           sessionStore,
           tracePath,
           invoke: async (nestedReq) => {
+            const startResponse = await startRecording();
+            if (startResponse && !startResponse.ok) return startResponse;
             const response = captureArtifacts(await invoke(nestedReq));
-            const activeSession = sessionStore.get(testSessionName);
-            if (
-              response.ok &&
-              req.flags?.recordVideo === true &&
-              activeSession &&
-              !activeSession.recording
-            ) {
-              const startResponse = await startReplayTestRecording({
-                req,
-                sessionName: testSessionName,
-                logPath,
-                sessionStore,
-                artifactsDir,
-              });
-              if (!startResponse.ok) return startResponse;
-            }
             return response;
           },
         });

@@ -25,6 +25,8 @@ type DaemonRequestMeta = Omit<PublicDaemonRequestMeta, 'installSource' | 'lockPl
   installSource?: DaemonInstallSource;
   lockPlatform?: PlatformSelector;
   leaseBackend?: LeaseBackend;
+  /** Internal same-process hook used by replay test orchestration before platform open dispatch. */
+  beforeOpenDispatch?: (session: SessionState) => Promise<DaemonResponse | undefined>;
 };
 
 export type DaemonRequest = Omit<PublicDaemonRequest, 'token' | 'session' | 'flags' | 'meta'> & {

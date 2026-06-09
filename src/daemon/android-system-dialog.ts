@@ -20,7 +20,11 @@ const ANDROID_MODAL_POLL_ATTEMPTS = 12;
 const ANDROID_BLOCKING_DIALOG_HINT =
   'Wait for Android to recover, close the dialog, restart the app, or reboot the emulator, then retry.';
 
-export type AndroidBlockingDialogRecoveryResult = 'absent' | 'recovered' | 'failed';
+export type AndroidBlockingDialogRecoveryResult =
+  | 'absent'
+  | 'recovered'
+  | 'failed'
+  | 'inspection-failed';
 export type AndroidBlockingDialogReadinessResult =
   | { status: 'clear' }
   | { status: 'recovered'; warning: string };
@@ -42,13 +46,28 @@ export async function recoverAndroidBlockingSystemDialog(params: {
     return 'absent';
   }
 
+  let nodes: SnapshotNode[];
   try {
-    const nodes = await readAndroidSnapshotNodes(session);
-    const closeAppButton = findCloseAppButton(nodes);
-    if (!closeAppButton?.rect) {
-      return 'absent';
-    }
+    nodes = await readAndroidSnapshotNodes(session);
+  } catch (error) {
+    emitDiagnostic({
+      level: 'warn',
+      phase: 'android_blocking_dialog_inspection_failed',
+      data: {
+        session: session.name,
+        deviceId: session.device.id,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+    return 'inspection-failed';
+  }
 
+  const closeAppButton = findCloseAppButton(nodes);
+  if (!closeAppButton?.rect) {
+    return 'absent';
+  }
+
+  try {
     const tapResult = await tapAndroidDialogButton(session, closeAppButton);
     if (!tapResult.ok) {
       emitDiagnostic({

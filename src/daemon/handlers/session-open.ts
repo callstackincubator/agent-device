@@ -203,6 +203,20 @@ async function completeOpenCommand(params: {
     }
   }
   const openStartedAtMs = Date.now();
+  const provisionalSession = await prepareOpenDispatchSession({
+    req,
+    sessionName,
+    sessionStore,
+    device,
+    surface,
+    sessionAppBundleId,
+    appName,
+    existingSession,
+  });
+  if (provisionalSession.type === 'response') {
+    return provisionalSession.response;
+  }
+  const openDispatchSession = provisionalSession.session ?? existingSession;
   await dispatchCommand(device, 'open', openPositionals, req.flags?.out, {
     ...contextFromFlags(logPath, req.flags, sessionAppBundleId),
   });
@@ -250,7 +264,7 @@ async function completeOpenCommand(params: {
     markAndroidSnapshotFreshness(existingSession, 'open', existingSession.snapshot);
   }
   const nextSession = buildNextOpenSession({
-    existingSession,
+    existingSession: openDispatchSession,
     sessionName: existingSession?.name ?? resolvePublicSessionName(req),
     sessionScope: existingSession?.sessionScope ?? resolveImplicitSessionScope(req),
     device,
@@ -291,6 +305,48 @@ async function completeOpenCommand(params: {
   });
   sessionStore.set(sessionName, nextSession);
   return { ok: true, data: openResult };
+}
+
+async function prepareOpenDispatchSession(params: {
+  req: DaemonRequest;
+  sessionName: string;
+  sessionStore: SessionStore;
+  device: DeviceInfo;
+  surface: SessionSurface;
+  sessionAppBundleId: string | undefined;
+  appName: string | undefined;
+  existingSession: SessionState | undefined;
+}): Promise<
+  { type: 'session'; session?: SessionState } | { type: 'response'; response: DaemonResponse }
+> {
+  const {
+    req,
+    sessionName,
+    sessionStore,
+    device,
+    surface,
+    sessionAppBundleId,
+    appName,
+    existingSession,
+  } = params;
+  const beforeOpenDispatch = req.meta?.beforeOpenDispatch;
+  if (!beforeOpenDispatch) return { type: 'session', session: existingSession };
+  const provisionalSession = buildNextOpenSession({
+    existingSession,
+    sessionName: existingSession?.name ?? resolvePublicSessionName(req),
+    sessionScope: existingSession?.sessionScope ?? resolveImplicitSessionScope(req),
+    device,
+    surface,
+    appBundleId: sessionAppBundleId,
+    appName,
+    saveScript: Boolean(req.flags?.saveScript),
+  });
+  sessionStore.set(sessionName, provisionalSession);
+  const hookResponse = await beforeOpenDispatch(provisionalSession);
+  if (hookResponse && !hookResponse.ok) {
+    return { type: 'response', response: hookResponse };
+  }
+  return { type: 'session', session: sessionStore.get(sessionName) ?? provisionalSession };
 }
 
 export async function handleOpenCommand(params: {
