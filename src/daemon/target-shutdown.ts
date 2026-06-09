@@ -2,6 +2,7 @@ import { runAndroidAdb } from '../platforms/android/adb.ts';
 import { getSimulatorState, shutdownSimulator } from '../platforms/ios/simulator.ts';
 import type { DeviceInfo } from '../utils/device.ts';
 import { normalizeError } from '../utils/errors.ts';
+import { isAndroidEmulator, isIosSimulator } from './handlers/session-device-utils.ts';
 
 export type DeviceTargetShutdownResult = {
   success: boolean;
@@ -41,14 +42,6 @@ export async function shutdownDeviceTarget(
       error: normalized,
     };
   }
-}
-
-function isIosSimulator(device: DeviceInfo): boolean {
-  return device.platform === 'ios' && device.kind === 'simulator';
-}
-
-function isAndroidEmulator(device: DeviceInfo): boolean {
-  return device.platform === 'android' && device.kind === 'emulator';
 }
 
 async function shutdownIosSimulator(device: DeviceInfo): Promise<DeviceTargetShutdownResult> {

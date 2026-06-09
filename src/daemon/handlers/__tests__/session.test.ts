@@ -1030,6 +1030,48 @@ test('boot keeps --target validation when emulator is fallback-launched', async 
 
 test('shutdown turns off selected iOS simulator', async () => {
   const sessionStore = makeSessionStore();
+  const selectedDevice: SessionState['device'] = {
+    platform: 'ios',
+    id: 'sim-2',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    target: 'mobile',
+    booted: true,
+  };
+  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'shutdown',
+      positionals: [],
+      flags: { platform: 'ios', device: 'iPhone 17 Pro' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(mockEnsureDeviceReady).not.toHaveBeenCalled();
+  expect(mockShutdownSimulator).toHaveBeenCalledWith(selectedDevice);
+  if (response && response.ok) {
+    expect(response.data?.platform).toBe('ios');
+    expect(response.data?.id).toBe('sim-2');
+    expect(response.data?.shutdown).toEqual({
+      success: true,
+      exitCode: 0,
+      stdout: '',
+      stderr: '',
+    });
+  }
+});
+
+test('shutdown rejects active session device and points to close --shutdown', async () => {
+  const sessionStore = makeSessionStore();
   const sessionName = 'default';
   const selectedDevice: SessionState['device'] = {
     platform: 'ios',
@@ -1057,20 +1099,13 @@ test('shutdown turns off selected iOS simulator', async () => {
   });
 
   expect(response).toBeTruthy();
-  expect(response?.ok).toBe(true);
-  expect(mockEnsureDeviceReady).not.toHaveBeenCalled();
-  expect(mockShutdownSimulator).toHaveBeenCalledWith(selectedDevice);
-  if (response && response.ok) {
-    expect(response.data?.platform).toBe('ios');
-    expect(response.data?.id).toBe('sim-2');
-    expect(response.data?.shutdown).toEqual({
-      success: true,
-      exitCode: 0,
-      stdout: '',
-      stderr: '',
-    });
+  expect(response?.ok).toBe(false);
+  expect(mockShutdownSimulator).not.toHaveBeenCalled();
+  if (response && !response.ok) {
+    expect(response.error.code).toBe('DEVICE_IN_USE');
+    expect(response.error.message).toMatch(/close --shutdown/i);
+    expect(response.error.details?.hint).toBe('Run close --shutdown --session default');
   }
-  expect(sessionStore.get(sessionName)?.device.booted).toBe(false);
 });
 
 test('shutdown turns off selected Android emulator', async () => {

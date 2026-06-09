@@ -273,6 +273,22 @@ export async function handleSessionStateCommands(params: {
       );
     }
 
+    if (session && session.device.platform === device.platform && session.device.id === device.id) {
+      return errorResponse(
+        'DEVICE_IN_USE',
+        'shutdown cannot target an active session device. Use close --shutdown to end the session and turn off the simulator/emulator.',
+        {
+          hint: `Run close --shutdown --session ${sessionName}`,
+          session: sessionName,
+          platform: device.platform,
+          target: device.target ?? 'mobile',
+          device: device.name,
+          id: device.id,
+          kind: device.kind,
+        },
+      );
+    }
+
     const shutdown = await shutdownDeviceTarget(device);
     if (!shutdown.success) {
       return errorResponse(
@@ -287,16 +303,6 @@ export async function handleSessionStateCommands(params: {
           shutdown,
         },
       );
-    }
-
-    if (session && session.device.platform === device.platform && session.device.id === device.id) {
-      sessionStore.set(sessionName, {
-        ...session,
-        device: {
-          ...session.device,
-          booted: false,
-        },
-      });
     }
 
     return {
