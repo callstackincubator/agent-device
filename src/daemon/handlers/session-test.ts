@@ -1,4 +1,3 @@
-import path from 'node:path';
 import { asAppError, normalizeError } from '../../utils/errors.ts';
 import { errorResponse } from './response.ts';
 import type {
@@ -8,30 +7,22 @@ import type {
   ReplaySuiteTestFailed,
   ReplaySuiteTestResult,
 } from '../types.ts';
-import {
-  buildReplayTestArtifactSlug,
-  materializeReplayTestAttemptArtifacts,
-  prepareReplayTestAttemptArtifacts,
-  resolveReplayTestArtifactsDir,
-} from './session-test-artifacts.ts';
+import { resolveReplayTestArtifactsDir } from './session-test-artifacts.ts';
 import { emitRequestProgress } from '../request-progress.ts';
 import {
-  buildReplayTestAttemptRequestId,
   buildReplayTestInvocationId,
-  buildReplayTestSessionName,
   discoverReplayTestEntries,
+  type ReplayTestRunEntry,
   resolveReplayTestRetries,
   resolveReplayTestTimeout,
 } from './session-test-discovery.ts';
 import { isReplayInfrastructureFailure } from './session-test-infrastructure.ts';
-import { runReplayTestAttempt } from './session-test-runtime.ts';
+import { runReplayTestCase } from './session-test-attempt.ts';
 import type { ReplayTestRuntimeDependencies } from './session-test-types.ts';
 import { buildReplayTestShardPlan, type ReplayTestShardContext } from './session-test-sharding.ts';
 
 type ReplayTestEntry = ReturnType<typeof discoverReplayTestEntries>[number];
-type ReplayTestRunEntry = Extract<ReplayTestEntry, { kind: 'run' }>;
 
-// fallow-ignore-next-line complexity
 export async function runReplayTestSuite(
   params: {
     req: DaemonRequest;
@@ -337,205 +328,6 @@ async function runReplayTestEntries(
     if (flags?.failFast === true || isReplayInfrastructureFailure(result)) break;
   }
   return results;
-}
-
-// fallow-ignore-next-line complexity
-async function runReplayTestCase(
-  params: {
-    entry: ReplayTestRunEntry;
-    sessionName: string;
-    suiteInvocationId: string;
-    caseIndex: number;
-    cwd?: string;
-    requestId?: string;
-    retries: number;
-    timeoutMs?: number;
-    suiteArtifactsDir: string;
-    suiteIndex: number;
-    suiteTotal: number;
-    shard?: ReplayTestShardContext;
-  } & ReplayTestRuntimeDependencies,
-): Promise<Extract<ReplaySuiteTestResult, { status: 'passed' | 'failed' }>> {
-  const {
-    entry,
-    sessionName,
-    suiteInvocationId,
-    caseIndex,
-    cwd,
-    requestId,
-    retries,
-    timeoutMs,
-    suiteArtifactsDir,
-    suiteIndex,
-    suiteTotal,
-    shard,
-    runReplay,
-    cleanupSession,
-    finalizeAttempt,
-  } = params;
-  const testStartedAt = Date.now();
-  const testArtifactsDir = path.join(
-    suiteArtifactsDir,
-    ...(shard ? [`shard-${shard.shardIndex + 1}`] : []),
-    buildReplayTestArtifactSlug(entry.path, cwd),
-  );
-  let finalResponse: DaemonResponse | undefined;
-  let finalSessionName = '';
-  let attempts = 0;
-  let finalAttemptDurationMs = 0;
-  const attemptFailures: NonNullable<
-    Extract<ReplaySuiteTestResult, { status: 'passed' }>['attemptFailures']
-  > = [];
-
-  for (let attemptIndex = 0; attemptIndex <= retries; attemptIndex += 1) {
-    attempts = attemptIndex + 1;
-    const attemptStartedAt = Date.now();
-    const testSessionName = buildReplayTestSessionName(
-      sessionName,
-      suiteInvocationId,
-      entry.path,
-      caseIndex,
-      attemptIndex,
-    );
-    const attemptArtifactsDir = path.join(testArtifactsDir, `attempt-${attempts}`);
-    prepareReplayTestAttemptArtifacts(entry.path, attemptArtifactsDir);
-
-    const attemptRequestId = buildReplayTestAttemptRequestId({
-      requestId,
-      suiteInvocationId,
-      filePath: entry.path,
-      caseIndex,
-      attemptIndex,
-      shardIndex: shard?.shardIndex,
-    });
-    const response = await runReplayTestAttempt({
-      filePath: entry.path,
-      sessionName: testSessionName,
-      requestId: attemptRequestId,
-      timeoutMs,
-      platform: entry.metadata.platform,
-      target: entry.metadata.target,
-      artifactsDir: attemptArtifactsDir,
-      shard,
-      runReplay,
-      cleanupSession,
-      finalizeAttempt,
-    });
-    finalAttemptDurationMs = Date.now() - attemptStartedAt;
-    materializeReplayTestAttemptArtifacts({
-      response,
-      filePath: entry.path,
-      sessionName: testSessionName,
-      attempts,
-      maxAttempts: retries + 1,
-      attemptArtifactsDir,
-    });
-    finalResponse = response;
-    finalSessionName = testSessionName;
-    if (response.ok) break;
-    attemptFailures.push({
-      attempt: attempts,
-      message: response.error.message,
-      durationMs: finalAttemptDurationMs,
-    });
-    if (isReplayInfrastructureFailure(response)) break;
-    if (attemptIndex >= retries) break;
-    emitRequestProgress({
-      type: 'replay-test',
-      file: entry.path,
-      title: entry.title,
-      status: 'fail',
-      index: suiteIndex,
-      total: suiteTotal,
-      attempt: attempts,
-      maxAttempts: retries + 1,
-      durationMs: finalAttemptDurationMs,
-      retrying: true,
-      message: response.error.message,
-    });
-  }
-
-  const durationMs = Date.now() - testStartedAt;
-  if (finalResponse?.ok) {
-    emitRequestProgress({
-      type: 'replay-test',
-      file: entry.path,
-      title: entry.title,
-      status: 'pass',
-      index: suiteIndex,
-      total: suiteTotal,
-      attempt: attempts,
-      maxAttempts: retries + 1,
-      durationMs,
-      artifactsDir: testArtifactsDir,
-    });
-    return {
-      file: entry.path,
-      title: entry.title,
-      session: finalSessionName,
-      status: 'passed',
-      durationMs,
-      finalAttemptDurationMs,
-      attempts,
-      artifactsDir: testArtifactsDir,
-      replayed: typeof finalResponse.data?.replayed === 'number' ? finalResponse.data.replayed : 0,
-      healed: typeof finalResponse.data?.healed === 'number' ? finalResponse.data.healed : 0,
-      ...replayTestWarningsResultMetadata(finalResponse.data?.warnings),
-      ...replayTestShardResultMetadata(shard),
-      ...(attemptFailures.length > 0 ? { attemptFailures } : {}),
-    };
-  }
-
-  const error = finalResponse?.ok
-    ? { code: 'COMMAND_FAILED', message: 'Unknown replay test failure' }
-    : (finalResponse?.error ?? {
-        code: 'COMMAND_FAILED',
-        message: 'Unknown replay test failure',
-      });
-  emitRequestProgress({
-    type: 'replay-test',
-    file: entry.path,
-    title: entry.title,
-    status: 'fail',
-    index: suiteIndex,
-    total: suiteTotal,
-    attempt: attempts,
-    maxAttempts: retries + 1,
-    durationMs,
-    artifactsDir: testArtifactsDir,
-    message: error.message,
-  });
-  return {
-    file: entry.path,
-    title: entry.title,
-    session: finalSessionName,
-    status: 'failed',
-    durationMs,
-    attempts,
-    artifactsDir: testArtifactsDir,
-    error,
-    ...replayTestShardResultMetadata(shard),
-  };
-}
-
-function replayTestWarningsResultMetadata(
-  warnings: unknown,
-): Pick<Extract<ReplaySuiteTestResult, { status: 'passed' }>, 'warnings'> {
-  if (!Array.isArray(warnings)) return {};
-  const filtered = warnings.filter((entry): entry is string => typeof entry === 'string');
-  return filtered.length > 0 ? { warnings: filtered } : {};
-}
-
-function replayTestShardResultMetadata(
-  shard: ReplayTestShardContext | undefined,
-): Pick<ReplaySuiteTestFailed, 'shardIndex' | 'shardCount' | 'deviceId'> {
-  return shard
-    ? {
-        shardIndex: shard.shardIndex,
-        shardCount: shard.shardCount,
-        deviceId: shard.device.id,
-      }
-    : {};
 }
 
 function summarizeReplayTestResults(
