@@ -1,16 +1,11 @@
 import { listCommandTools, commandToolExecutor } from './command-tools.ts';
 import { readVersion } from '../utils/version.ts';
+import type { JsonRpcId, JsonRpcRequestEnvelope } from '../contracts.ts';
 
-type JsonRpcId = string | number | null;
 const MCP_SERVER_NAME = 'agent-device';
 const SUPPORTED_PROTOCOL_VERSION = '2025-11-25';
 
-export type JsonRpcMessage = {
-  jsonrpc?: string;
-  id?: JsonRpcId;
-  method?: string;
-  params?: unknown;
-};
+export type JsonRpcMessage = JsonRpcRequestEnvelope;
 
 type JsonRpcResponse =
   | { jsonrpc: '2.0'; id: JsonRpcId; result: unknown }

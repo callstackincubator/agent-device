@@ -1,4 +1,5 @@
 import type { Platform } from '../../utils/device.ts';
+import type { ElementSelectorKey } from '../../core/interactor-types.ts';
 import type { Rect, SnapshotNode, SnapshotState } from '../../utils/snapshot.ts';
 import { parseSelectorChain } from '../../daemon/selectors.ts';
 import { matchesSelector } from '../../daemon/selectors-match.ts';
@@ -334,13 +335,13 @@ function matchesMaestroTerm(
   return textEqualsOrRegex(value, term.value, options);
 }
 
-function isMaestroRegexTextKey(key: SelectorTerm['key']): key is 'id' | 'label' | 'text' | 'value' {
+function isMaestroRegexTextKey(key: SelectorTerm['key']): key is ElementSelectorKey {
   return key === 'id' || key === 'label' || key === 'text' || key === 'value';
 }
 
 function readMaestroTextTermValue(
   node: SnapshotNode,
-  key: 'id' | 'label' | 'text' | 'value',
+  key: ElementSelectorKey,
 ): string | undefined {
   if (key === 'id') return node.identifier;
   if (key === 'label') return node.label;

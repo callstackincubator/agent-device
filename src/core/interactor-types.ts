@@ -27,8 +27,10 @@ export type ScreenshotOptions = {
   surface?: SessionSurface;
 };
 
+export type ElementSelectorKey = 'id' | 'label' | 'text' | 'value';
+
 export type ElementSelectorTapOptions = {
-  key: 'id' | 'label' | 'text' | 'value';
+  key: ElementSelectorKey;
   value: string;
   allowNonHittableCoordinateFallback?: boolean;
 };

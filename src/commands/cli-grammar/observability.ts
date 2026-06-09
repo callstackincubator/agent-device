@@ -7,6 +7,7 @@ import type {
 } from '../../client-types.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { NetworkIncludeMode } from '../../contracts.ts';
+import type { LogAction } from '../log-command-contract.ts';
 import {
   isPerfAction,
   isPerfArea,
@@ -122,7 +123,7 @@ function readPerfAction(
 
 function readLogsAction(
   value: string | undefined,
-): 'path' | 'start' | 'stop' | 'doctor' | 'mark' | 'clear' | undefined {
+): LogAction | undefined {
   if (value === undefined) return undefined;
   if (
     value === 'path' ||

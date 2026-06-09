@@ -3,6 +3,15 @@ import type { AndroidAdbExecutor, AndroidAdbProvider } from './adb-executor.ts';
 import type { AndroidSnapshotAnalysis } from './ui-hierarchy.ts';
 import type { AndroidSnapshotBackendMetadata } from './snapshot-types.ts';
 
+export type AndroidSnapshotHelperTransport = 'instrumentation' | 'persistent-session';
+export type AndroidSnapshotCaptureMode = 'interactive-windows' | 'active-window';
+export type AndroidSnapshotHelperInstallReason =
+  | 'missing'
+  | 'outdated'
+  | 'forced'
+  | 'current'
+  | 'skipped';
+
 export const ANDROID_SNAPSHOT_HELPER_NAME = 'android-snapshot-helper';
 export const ANDROID_SNAPSHOT_HELPER_PACKAGE = 'com.callstack.agentdevice.snapshothelper';
 export const ANDROID_SNAPSHOT_HELPER_RUNNER =
@@ -49,7 +58,7 @@ export type AndroidSnapshotHelperInstallResult = {
   versionCode: number;
   installedVersionCode?: number;
   installed: boolean;
-  reason: 'missing' | 'outdated' | 'forced' | 'current' | 'skipped';
+  reason: AndroidSnapshotHelperInstallReason;
 };
 
 export type AndroidSnapshotHelperCaptureOptions = {
@@ -79,12 +88,12 @@ export type AndroidSnapshotHelperMetadata = {
   maxDepth?: number;
   maxNodes?: number;
   rootPresent?: boolean;
-  captureMode?: 'interactive-windows' | 'active-window';
+  captureMode?: AndroidSnapshotCaptureMode;
   windowCount?: number;
   nodeCount?: number;
   truncated?: boolean;
   elapsedMs?: number;
-  transport?: 'instrumentation' | 'persistent-session';
+  transport?: AndroidSnapshotHelperTransport;
   sessionReused?: boolean;
 };
 

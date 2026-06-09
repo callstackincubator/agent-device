@@ -1,9 +1,10 @@
 import type { SessionState } from './types.ts';
 import { tryParseSelectorChain } from './selectors.ts';
 import { asAppError } from '../utils/errors.ts';
+import type { ElementSelectorKey } from '../core/interactor-types.ts';
 
 export type DirectIosSelectorTarget = {
-  key: 'id' | 'label' | 'text' | 'value';
+  key: ElementSelectorKey;
   value: string;
   raw: string;
   allowNonHittableCoordinateFallback?: boolean;

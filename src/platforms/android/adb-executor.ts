@@ -103,8 +103,10 @@ export type AndroidBundleInstaller = (
   options: { mode: string },
 ) => Promise<void>;
 
+export type AndroidTextInputAction = 'type' | 'fill';
+
 export type AndroidTextInjectionRequest = {
-  action: 'type' | 'fill';
+  action: AndroidTextInputAction;
   text: string;
   delayMs?: number;
   /**

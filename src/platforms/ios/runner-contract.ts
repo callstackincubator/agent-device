@@ -3,6 +3,7 @@ import { AppError } from '../../utils/errors.ts';
 import type { ClickButton } from '../../core/click-button.ts';
 import type { DeviceRotation } from '../../core/device-rotation.ts';
 import type { ScrollDirection, SwipePattern } from '../../core/scroll-gesture.ts';
+import type { ElementSelectorKey } from '../../core/interactor-types.ts';
 import { createRequestCanceledError, isRequestCanceled } from '../../daemon/request-cancel.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import type { RunnerSession } from './runner-session-types.ts';
@@ -48,7 +49,7 @@ export type RunnerCommand = {
   statusCommandId?: string;
   appBundleId?: string;
   text?: string;
-  selectorKey?: 'id' | 'label' | 'text' | 'value';
+  selectorKey?: ElementSelectorKey;
   selectorValue?: string;
   allowNonHittableCoordinateFallback?: boolean;
   delayMs?: number;

@@ -4,7 +4,7 @@ import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import type { DeviceRotation } from '../../core/device-rotation.ts';
 import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
 import { runAndroidAdb, sleep } from './adb.ts';
-import { resolveAndroidTextInjector } from './adb-executor.ts';
+import { resolveAndroidTextInjector, type AndroidTextInputAction } from './adb-executor.ts';
 import { getAndroidKeyboardState, type AndroidKeyboardState } from './device-input-state.ts';
 import {
   androidFillFailureDetails,
@@ -246,7 +246,7 @@ function resolveAndroidUserRotation(orientation: DeviceRotation): string {
 
 async function assertAndroidShellInputIsAppOwned(
   device: DeviceInfo,
-  action: 'type' | 'fill',
+  action: AndroidTextInputAction,
 ): Promise<void> {
   let state: AndroidKeyboardState;
   try {
@@ -294,7 +294,7 @@ const ANDROID_INPUT_TEXT_CHUNK_SIZE = 8;
 
 async function typeAndroidShell(
   device: DeviceInfo,
-  options: { action: 'type' | 'fill'; text: string; chunkSize: number; delayMs: number },
+  options: { action: AndroidTextInputAction; text: string; chunkSize: number; delayMs: number },
 ): Promise<void> {
   const parts = options.text.split('\n');
   for (const [partIndex, part] of parts.entries()) {
@@ -381,7 +381,7 @@ function chunkAndroidInputText(text: string, chunkSize: number): string[] {
 }
 
 function emitAndroidTextDiagnostic(
-  action: 'type' | 'fill',
+  action: AndroidTextInputAction,
   backend: 'provider-native' | 'adb-shell',
   text: string,
 ): void {

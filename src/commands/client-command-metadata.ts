@@ -4,6 +4,7 @@ import type { AlertAction } from '../alert-contract.ts';
 import type { BackMode } from '../core/back-mode.ts';
 import type { DeviceRotation } from '../core/device-rotation.ts';
 import type { SessionSurface } from '../core/session-surface.ts';
+import { LOG_ACTION_VALUES } from './log-command-contract.ts';
 import { requireCommandDescription } from './command-descriptions.ts';
 import {
   booleanField,
@@ -35,7 +36,6 @@ const ORIENTATION_VALUES = [
   'landscape-right',
 ] as const satisfies readonly DeviceRotation[];
 const CLIPBOARD_ACTION_VALUES = ['read', 'write'] as const;
-const LOG_ACTION_VALUES = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
 const NETWORK_ACTION_VALUES = ['dump', 'log'] as const;
 const NETWORK_INCLUDE_VALUES = ['summary', 'headers', 'body', 'all'] as const;
 const START_STOP_VALUES = ['start', 'stop'] as const;

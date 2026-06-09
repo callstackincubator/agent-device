@@ -17,6 +17,7 @@ import type { ClickButton } from './core/click-button.ts';
 import type { DeviceRotation } from './core/device-rotation.ts';
 import type { ScrollDirection, SwipePattern, SwipePreset } from './core/scroll-gesture.ts';
 import type { ScrollInputDirection } from './commands/interaction-gestures.ts';
+import type { LogAction } from './commands/log-command-contract.ts';
 import type { SessionSurface } from './core/session-surface.ts';
 import type { FindLocator } from './utils/finders.ts';
 import type { AndroidSnapshotBackendMetadata } from './platforms/android/snapshot-types.ts';
@@ -748,7 +749,7 @@ export type PerfOptions = ClientCommandBaseOptions & {
 };
 
 export type LogsOptions = AgentDeviceRequestOverrides & {
-  action?: 'path' | 'start' | 'stop' | 'doctor' | 'mark' | 'clear';
+  action?: LogAction;
   message?: string;
   restart?: boolean;
 };

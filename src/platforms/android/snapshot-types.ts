@@ -1,18 +1,24 @@
+import type {
+  AndroidSnapshotCaptureMode,
+  AndroidSnapshotHelperInstallReason,
+  AndroidSnapshotHelperTransport,
+} from './snapshot-helper-types.ts';
+
 export type AndroidSnapshotBackendMetadata = {
   backend: 'android-helper' | 'uiautomator-dump';
   helperVersion?: string;
   helperApiVersion?: string;
-  helperTransport?: 'instrumentation' | 'persistent-session';
+  helperTransport?: AndroidSnapshotHelperTransport;
   helperSessionReused?: boolean;
   fallbackReason?: string;
-  installReason?: 'missing' | 'outdated' | 'forced' | 'current' | 'skipped';
+  installReason?: AndroidSnapshotHelperInstallReason;
   waitForIdleTimeoutMs?: number;
   waitForIdleQuietMs?: number;
   timeoutMs?: number;
   maxDepth?: number;
   maxNodes?: number;
   rootPresent?: boolean;
-  captureMode?: 'interactive-windows' | 'active-window';
+  captureMode?: AndroidSnapshotCaptureMode;
   windowCount?: number;
   nodeCount?: number;
   helperTruncated?: boolean;

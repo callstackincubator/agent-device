@@ -1,13 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { readProcessCommand, readProcessStartTime } from '../utils/process-identity.ts';
+import type { NetworkLogBackend } from './network-log.ts';
 
 export const APP_LOG_PID_FILENAME = 'app-log.pid';
 
 export type AppLogState = 'active' | 'recovering' | 'failed';
 
 export type AppLogResult = {
-  backend: 'ios-simulator' | 'ios-device' | 'android' | 'macos';
+  backend: NetworkLogBackend;
   getState: () => AppLogState;
   startedAt: number;
   stop: () => Promise<void>;

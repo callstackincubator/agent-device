@@ -1,5 +1,6 @@
 import { requireCommandDescription } from './command-descriptions.ts';
 import { defineCommandMetadata } from './command-contract.ts';
+import { GESTURE_KINDS } from '../command-catalog.ts';
 import {
   booleanField,
   elementTargetField,
@@ -31,7 +32,6 @@ import type { ScrollDirection, SwipePattern, SwipePreset } from '../core/scroll-
 import type { ScrollInputDirection } from './interaction-gestures.ts';
 
 const CLICK_BUTTON_VALUES = ['primary', 'secondary', 'middle'] as const satisfies readonly ClickButton[];
-const GESTURE_KIND_VALUES = ['pan', 'fling', 'swipe', 'pinch', 'rotate', 'transform'] as const;
 const GESTURE_DIRECTION_VALUES = ['up', 'down', 'left', 'right'] as const satisfies readonly ScrollDirection[];
 const GESTURE_SWIPE_PRESET_VALUES = ['left', 'right', 'left-edge', 'right-edge'] as const satisfies readonly SwipePreset[];
 const FIND_ACTION_VALUES = [
@@ -130,7 +130,7 @@ const findFields = {
 };
 
 const gestureFields = {
-  kind: requiredField(enumField(GESTURE_KIND_VALUES, 'Gesture variant.')),
+  kind: requiredField(enumField(GESTURE_KINDS, 'Gesture variant.')),
   direction: enumField(GESTURE_DIRECTION_VALUES, 'Fling direction.'),
   preset: enumField(GESTURE_SWIPE_PRESET_VALUES, 'Swipe preset.'),
   origin: pointField('Gesture origin point.'),
@@ -237,7 +237,7 @@ export const interactionCommandMetadata = [
 function readGestureInput(input: unknown): GestureInput {
   const record = readInputRecord(input);
   const common = readCommonInput(record);
-  const kind = requiredEnum(record, 'kind', GESTURE_KIND_VALUES);
+  const kind = requiredEnum(record, 'kind', GESTURE_KINDS);
   if (kind === 'pan') {
     return {
       ...common,
