@@ -51,8 +51,9 @@ agent-device app-switcher
 
 - `boot` ensures the selected target is ready without launching an app.
 - `boot` requires either an active session or an explicit device selector.
-- `shutdown` turns off the selected iOS simulator or Android emulator.
+- `shutdown` turns off the selected Apple simulator or Android emulator.
 - `shutdown` requires either an active session or an explicit device selector.
+- Use `close --shutdown` when you also want to end an active session.
 - `--platform apple` is an alias for the Apple automation backend (`ios`, `tvOS`, `macOS` selection).
 - Use `--target mobile|tv|desktop` with `--platform` (required) to select phone/tablet vs TV-class vs desktop-class targets.
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
