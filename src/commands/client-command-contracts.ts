@@ -22,6 +22,7 @@ type MetroInput = { action: 'prepare' | 'reload' } & MetroPrepareOptions & Metro
 export const clientCommandDefinitions = [
   defineExecutableCommand(metadata('devices'), (client, input) => client.devices.list(input)),
   defineExecutableCommand(metadata('boot'), (client, input) => client.devices.boot(input)),
+  defineExecutableCommand(metadata('shutdown'), (client, input) => client.devices.shutdown(input)),
   defineExecutableCommand(metadata('apps'), (client, input) => client.apps.list(input)),
   defineExecutableCommand(metadata('session'), async (client, { action: _action, ...input }) => ({
     sessions: await client.sessions.list(input),

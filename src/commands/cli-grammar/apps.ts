@@ -29,6 +29,7 @@ export const appCliReaders = {
     ...commonInputFromFlags(flags),
     headless: flags.headless,
   }),
+  shutdown: (_positionals, flags) => commonInputFromFlags(flags),
   prepare: (positionals, flags) => ({
     ...commonInputFromFlags(flags),
     action: requiredString(positionals[0], 'prepare requires subcommand'),
@@ -77,6 +78,7 @@ export const appCliReaders = {
 export const appDaemonWriters = {
   devices: direct(PUBLIC_COMMANDS.devices),
   boot: direct(PUBLIC_COMMANDS.boot),
+  shutdown: direct(PUBLIC_COMMANDS.shutdown),
   prepare: direct(PUBLIC_COMMANDS.prepare, (input) => [
     requiredDaemonString(input.action, 'prepare requires subcommand'),
   ]),

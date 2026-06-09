@@ -74,6 +74,7 @@ const DAEMON_COMMAND_DESCRIPTORS = [
     'session',
     { sessionKind: 'state' },
     PUBLIC_COMMANDS.boot,
+    PUBLIC_COMMANDS.shutdown,
     PUBLIC_COMMANDS.appState,
   ),
   ...descriptors(

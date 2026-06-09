@@ -549,6 +549,8 @@ export type DeviceBootOptions = ClientCommandBaseOptions & {
   headless?: boolean;
 };
 
+export type DeviceShutdownOptions = ClientCommandBaseOptions;
+
 export type AppPushOptions = ClientCommandBaseOptions & {
   app: string;
   payload: string | Record<string, unknown>;
@@ -904,6 +906,7 @@ export type AgentDeviceClient = {
       options?: AgentDeviceRequestOverrides & AgentDeviceSelectionOptions,
     ) => Promise<AgentDeviceDevice[]>;
     boot: (options?: DeviceBootOptions) => Promise<CommandRequestResult>;
+    shutdown: (options?: DeviceShutdownOptions) => Promise<CommandRequestResult>;
   };
   sessions: {
     list: (options?: AgentDeviceRequestOverrides) => Promise<AgentDeviceSession[]>;

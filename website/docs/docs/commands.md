@@ -38,6 +38,8 @@ agent-device boot
 agent-device boot --platform ios
 agent-device boot --platform android
 agent-device boot --platform android --device Pixel_9_Pro_XL --headless
+agent-device shutdown --platform ios
+agent-device shutdown --platform android --device Pixel_9_Pro_XL
 agent-device open [app|url] [url]
 agent-device open --platform macos --surface frontmost-app
 agent-device open --platform macos --surface desktop
@@ -53,11 +55,14 @@ agent-device app-switcher
 
 - `boot` ensures the selected target is ready without launching an app.
 - `boot` requires either an active session or an explicit device selector.
+- `shutdown` turns off the selected iOS simulator or Android emulator.
+- `shutdown` requires either an active session or an explicit device selector.
 - `--platform apple` is an alias for the Apple automation backend (`ios`, `tvOS`, `macOS` selection).
 - Use `--target mobile|tv|desktop` with `--platform` (required) to select phone/tablet vs TV-class vs desktop-class targets.
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
 - Android: `boot --platform android --device <avd-name>` launches that emulator in GUI mode when needed.
 - Android: add `--headless` to launch without opening a GUI window.
+- Android: `shutdown --platform android --device <avd-name>` stops a running emulator.
 - `open [app|url] [url]` already boots/activates the selected target when needed.
 - `open <url>` deep links are supported on Android and iOS.
 - `open <app> <url>` opens a deep link on iOS.
@@ -177,7 +182,7 @@ agent-device snapshot -i --platform apple --target desktop
 - In macOS app sessions, `screenshot` captures the target app window bounds rather than the full desktop.
 - Prefer selector or `@ref`-driven interactions on macOS. Window position can shift between runs, so raw x/y point commands are less stable than snapshot-derived targets.
 - Use `click --button secondary` for context menus on macOS, then run `snapshot -i` again.
-- Mobile-only helpers remain unsupported on macOS: `boot`, `home`, `rotate`, `app-switcher`, `install`, `reinstall`, `install-from-source`, and `push`.
+- Mobile-only helpers remain unsupported on macOS: `boot`, `shutdown`, `home`, `rotate`, `app-switcher`, `install`, `reinstall`, `install-from-source`, and `push`.
 
 Recommended loops:
 

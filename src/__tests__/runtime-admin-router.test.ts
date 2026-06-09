@@ -39,6 +39,9 @@ test('admin runtime commands call typed backend primitives', async () => {
   const boot = await device.admin.boot({ target: { id: 'SIM-1' } });
   assert.equal(boot.kind, 'deviceBooted');
 
+  const shutdown = await device.admin.shutdown({ target: { id: 'SIM-1' } });
+  assert.equal(shutdown.kind, 'deviceShutdown');
+
   const installed = await device.admin.install({
     app: 'com.example.app',
     source: { kind: 'path', path: '/tmp/Example.app' },
@@ -60,6 +63,7 @@ test('admin runtime commands call typed backend primitives', async () => {
   assert.deepEqual(calls, [
     'listDevices',
     'bootDevice',
+    'shutdownDevice',
     'installApp',
     'reinstallApp',
     'installApp',
@@ -243,6 +247,9 @@ function createAdminBackend(
     },
     bootDevice: async () => {
       calls.push('bootDevice');
+    },
+    shutdownDevice: async () => {
+      calls.push('shutdownDevice');
     },
     installApp: async (_context, target) => {
       calls.push('installApp');

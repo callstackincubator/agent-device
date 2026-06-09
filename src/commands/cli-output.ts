@@ -19,6 +19,7 @@ import {
   openCliOutput,
   recordCliOutput,
   sessionCliOutput,
+  shutdownCliOutput,
   snapshotCliOutput,
   tapCliOutput,
 } from './client-output.ts';
@@ -42,6 +43,7 @@ const messageOutput = resultOutput(messageCliOutput);
 
 const cliOutputFormatters: Partial<Record<CommandName, CliOutputFormatter>> = {
   boot: resultOutput(bootCliOutput),
+  shutdown: resultOutput(shutdownCliOutput),
   click: resultOutput(tapCliOutput),
   press: resultOutput(tapCliOutput),
   batch: resultOutput(batchCliOutput),

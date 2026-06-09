@@ -4,6 +4,7 @@ import { isApplePlatform, normalizePlatformSelector, type DeviceInfo } from '../
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
+import { shutdownDeviceTarget } from '../target-shutdown.ts';
 import {
   hasExplicitSessionFlag,
   requireSessionOrExplicitSelector,
@@ -249,6 +250,39 @@ export async function handleSessionStateCommands(params: {
         id: device.id,
         kind: device.kind,
         booted: true,
+      },
+    };
+  }
+
+  if (req.command === 'shutdown') {
+    const session = sessionStore.get(sessionName);
+    const flags = req.flags ?? {};
+    const guard = requireSessionOrExplicitSelector(req.command, session, flags);
+    if (guard) return guard;
+
+    const device = await resolveCommandDevice({
+      session,
+      flags,
+      ensureReady: false,
+    });
+
+    if (!isCommandSupportedOnDevice('shutdown', device)) {
+      return errorResponse(
+        'UNSUPPORTED_OPERATION',
+        'shutdown is supported only for iOS simulators and Android emulators.',
+      );
+    }
+
+    const shutdown = await shutdownDeviceTarget(device);
+    return {
+      ok: true,
+      data: {
+        platform: device.platform,
+        target: device.target ?? 'mobile',
+        device: device.name,
+        id: device.id,
+        kind: device.kind,
+        shutdown,
       },
     };
   }

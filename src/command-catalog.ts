@@ -6,6 +6,7 @@ export const PUBLIC_COMMANDS = {
   back: 'back',
   batch: 'batch',
   boot: 'boot',
+  shutdown: 'shutdown',
   click: 'click',
   close: 'close',
   clipboard: 'clipboard',
@@ -81,6 +82,7 @@ export type ClientBackedCliCommandName =
 export const BATCH_COMMAND_NAMES = [
   PUBLIC_COMMANDS.devices,
   PUBLIC_COMMANDS.boot,
+  PUBLIC_COMMANDS.shutdown,
   PUBLIC_COMMANDS.apps,
   PUBLIC_COMMANDS.open,
   PUBLIC_COMMANDS.close,

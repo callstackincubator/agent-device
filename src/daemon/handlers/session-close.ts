@@ -1,4 +1,3 @@
-import { normalizeError } from '../../utils/errors.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { isApplePlatform, type DeviceInfo } from '../../utils/device.ts';
 import { runMacOsAlertAction } from '../../platforms/ios/macos-helper.ts';
@@ -7,68 +6,31 @@ import { contextFromFlags } from '../context.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { stopAppLog } from '../app-log.ts';
-import { runAndroidAdb } from '../../platforms/android/adb.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
-import { shutdownSimulator } from '../../platforms/ios/simulator.ts';
 import { clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
 import { cleanupRetainedMaterializedPathsForSession } from '../materialized-path-registry.ts';
+import {
+  canShutdownDeviceTarget,
+  shutdownDeviceTarget,
+  type DeviceTargetShutdownResult,
+} from '../target-shutdown.ts';
 import { successText, withSuccessText } from '../../utils/success-text.ts';
 import {
   IOS_SIMULATOR_POST_CLOSE_SETTLE_MS,
-  isAndroidEmulator,
   isIosSimulator,
   resolveCommandDevice,
   settleIosSimulator,
 } from './session-device-utils.ts';
 import { errorResponse } from './response.ts';
 
-async function shutdownAndroidEmulator(device: DeviceInfo): Promise<{
-  success: boolean;
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-}> {
-  const result = await runAndroidAdb(device, ['emu', 'kill'], {
-    allowFailure: true,
-    timeoutMs: 15_000,
-  });
-  return {
-    success: result.exitCode === 0,
-    exitCode: result.exitCode,
-    stdout: String(result.stdout ?? ''),
-    stderr: String(result.stderr ?? ''),
-  };
-}
-
-type SessionShutdownResult = {
-  success: boolean;
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-  error?: ReturnType<typeof normalizeError>;
-};
-
 async function maybeShutdownSessionTarget(params: {
   device: DeviceInfo;
   shutdownRequested: boolean | undefined;
-}): Promise<SessionShutdownResult | undefined> {
+}): Promise<DeviceTargetShutdownResult | undefined> {
   const { device, shutdownRequested } = params;
   if (!shutdownRequested) return undefined;
-  if (!isIosSimulator(device) && !isAndroidEmulator(device)) return undefined;
-  try {
-    return isIosSimulator(device)
-      ? await shutdownSimulator(device)
-      : await shutdownAndroidEmulator(device);
-  } catch (error) {
-    const normalized = normalizeError(error);
-    return {
-      success: false,
-      exitCode: -1,
-      stdout: '',
-      stderr: normalized.message,
-      error: normalized,
-    };
-  }
+  if (!canShutdownDeviceTarget(device)) return undefined;
+  return await shutdownDeviceTarget(device);
 }
 
 async function stopAppleRunnerForClose(session: SessionState): Promise<void> {

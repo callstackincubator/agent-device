@@ -108,6 +108,7 @@ import { runMacOsAlertAction } from '../../../platforms/ios/macos-helper.ts';
 import { settleIosSimulator } from '../session-device-utils.ts';
 import { resolveAndroidPackageForOpen } from '../session-open-target.ts';
 import { runCmd } from '../../../utils/exec.ts';
+import { shutdownSimulator } from '../../../platforms/ios/simulator.ts';
 import {
   listAndroidDevices,
   ensureAndroidEmulatorBooted,
@@ -131,6 +132,7 @@ const mockSettleSimulator = vi.mocked(settleIosSimulator);
 const mockResolveAndroidPackage = vi.mocked(resolveAndroidPackageForOpen);
 const mockCleanupRetainedMaterializedPaths = vi.mocked(cleanupRetainedMaterializedPathsForSession);
 const mockRunCmd = vi.mocked(runCmd);
+const mockShutdownSimulator = vi.mocked(shutdownSimulator);
 const mockListAndroidDevices = vi.mocked(listAndroidDevices);
 const mockListAppleDevices = vi.mocked(listAppleDevices);
 const mockResolveIosApp = vi.mocked(resolveIosApp);
@@ -173,6 +175,8 @@ beforeEach(() => {
   mockCleanupRetainedMaterializedPaths.mockResolvedValue(undefined);
   mockRunCmd.mockReset();
   mockRunCmd.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 });
+  mockShutdownSimulator.mockReset();
+  mockShutdownSimulator.mockResolvedValue({ success: true, exitCode: 0, stdout: '', stderr: '' });
   mockListAndroidDevices.mockReset();
   mockListAndroidDevices.mockResolvedValue([]);
   mockListAppleDevices.mockReset();
@@ -1021,6 +1025,128 @@ test('boot keeps --target validation when emulator is fallback-launched', async 
   if (response && !response.ok) {
     expect(response.error.code).toBe('DEVICE_NOT_FOUND');
     expect(response.error.message).toMatch(/matching --target tv/i);
+  }
+});
+
+test('shutdown turns off selected iOS simulator', async () => {
+  const sessionStore = makeSessionStore();
+  const selectedDevice: SessionState['device'] = {
+    platform: 'ios',
+    id: 'sim-2',
+    name: 'iPhone 17 Pro',
+    kind: 'simulator',
+    target: 'mobile',
+    booted: true,
+  };
+  mockResolveTargetDevice.mockResolvedValue(selectedDevice);
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'shutdown',
+      positionals: [],
+      flags: { platform: 'ios', device: 'iPhone 17 Pro' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(mockEnsureDeviceReady).not.toHaveBeenCalled();
+  expect(mockShutdownSimulator).toHaveBeenCalledWith(selectedDevice);
+  if (response && response.ok) {
+    expect(response.data?.platform).toBe('ios');
+    expect(response.data?.id).toBe('sim-2');
+    expect(response.data?.shutdown).toEqual({
+      success: true,
+      exitCode: 0,
+      stdout: '',
+      stderr: '',
+    });
+  }
+});
+
+test('shutdown turns off selected Android emulator', async () => {
+  const sessionStore = makeSessionStore();
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel_9_Pro_XL',
+    kind: 'emulator',
+    target: 'mobile',
+    booted: true,
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'shutdown',
+      positionals: [],
+      flags: { platform: 'android', device: 'Pixel_9_Pro_XL' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(mockEnsureDeviceReady).not.toHaveBeenCalled();
+  expect(mockRunCmd).toHaveBeenCalledWith(
+    'adb',
+    ['-s', 'emulator-5554', 'emu', 'kill'],
+    expect.objectContaining({ allowFailure: true, timeoutMs: 15_000 }),
+  );
+  if (response && response.ok) {
+    expect(response.data?.platform).toBe('android');
+    expect(response.data?.id).toBe('emulator-5554');
+    expect(response.data?.shutdown).toEqual({
+      success: true,
+      exitCode: 0,
+      stdout: '',
+      stderr: '',
+    });
+  }
+});
+
+test('shutdown rejects unsupported physical devices', async () => {
+  const sessionStore = makeSessionStore();
+  mockResolveTargetDevice.mockResolvedValue({
+    platform: 'ios',
+    id: 'device-1',
+    name: 'iPhone',
+    kind: 'device',
+    target: 'mobile',
+    booted: true,
+  });
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'shutdown',
+      positionals: [],
+      flags: { platform: 'ios', udid: 'device-1' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(false);
+  expect(mockShutdownSimulator).not.toHaveBeenCalled();
+  expect(mockRunCmd).not.toHaveBeenCalled();
+  if (response && !response.ok) {
+    expect(response.error.code).toBe('UNSUPPORTED_OPERATION');
+    expect(response.error.message).toMatch(/iOS simulators and Android emulators/i);
   }
 });
 

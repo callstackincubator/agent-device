@@ -105,6 +105,7 @@ export function createAgentDeviceClient(
         return devices.map(normalizeDevice);
       },
       boot: async (options = {}) => await executeCommand('boot', options),
+      shutdown: async (options = {}) => await executeCommand('shutdown', options),
     },
     sessions: {
       list: async (options = {}) => await listSessions(options),

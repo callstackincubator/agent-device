@@ -65,6 +65,9 @@ const CLI_COMMAND_OVERRIDES = {
     summary: 'Boot target device/simulator',
     allowedFlags: ['headless'],
   },
+  shutdown: {
+    summary: 'Shutdown target simulator/emulator',
+  },
   prepare: {
     usageOverride: 'prepare ios-runner --platform ios|macos [--timeout <ms>]',
     listUsageOverride: 'prepare ios-runner --platform ios|macos',

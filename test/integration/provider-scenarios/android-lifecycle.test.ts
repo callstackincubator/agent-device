@@ -399,6 +399,11 @@ async function runAndroidSetupAndInstallWorkflow(
   assert.equal(boot.id, PROVIDER_SCENARIO_ANDROID.id);
   assert.equal(boot.booted, true);
 
+  const shutdown = await client.devices.shutdown(selection);
+  assert.equal(shutdown.platform, 'android');
+  assert.equal(shutdown.id, PROVIDER_SCENARIO_ANDROID.id);
+  assert.equal((shutdown.shutdown as { success?: unknown } | undefined)?.success, true);
+
   const selectorTriggeredEvent = await client.apps.triggerEvent({
     event: 'pre_open_ping',
     payload: { stage: 'explicit-selector' },
