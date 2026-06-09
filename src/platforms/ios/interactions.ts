@@ -8,12 +8,7 @@ import type { BackMode, Interactor, RunnerContext } from '../../core/interactor-
 export type AppleBackRunnerCommand = 'backInApp' | 'backSystem';
 type AppleRemoteButton = NonNullable<RunnerCommand['remoteButton']>;
 type RunIosRunnerCommand = typeof runIosRunnerCommand;
-type RunnerOpts = {
-  verbose?: boolean;
-  logPath?: string;
-  traceLogPath?: string;
-  requestId?: string;
-};
+type RunnerOpts = Pick<RunnerContext, 'verbose' | 'logPath' | 'traceLogPath' | 'requestId'>;
 
 type InteractionFrame = {
   originX: number;

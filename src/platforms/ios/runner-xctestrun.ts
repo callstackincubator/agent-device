@@ -110,11 +110,14 @@ export type RunnerXctestrunCacheMetadata = {
   artifacts?: RunnerXctestrunCacheArtifacts;
 };
 
+export type RunnerXctestrunCacheKind = 'exact' | 'restore-key' | 'miss';
+export type RunnerXctestrunArtifactState = 'valid' | 'rebuilt';
+
 export type RunnerXctestrunArtifact = {
   xctestrunPath: string;
   derived: string;
-  cache: 'exact' | 'restore-key' | 'miss';
-  artifact: 'valid' | 'rebuilt';
+  cache: RunnerXctestrunCacheKind;
+  artifact: RunnerXctestrunArtifactState;
   buildMs: number;
   xctestrunPathSource: 'manifest' | 'scan' | 'build';
   reason?: string;

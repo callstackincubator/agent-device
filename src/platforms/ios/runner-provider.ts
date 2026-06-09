@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { RunnerCommand } from './runner-contract.ts';
+import type { RunnerXctestrunArtifactState, RunnerXctestrunCacheKind } from './runner-xctestrun.ts';
 
 export type AppleRunnerCommandOptions = {
   verbose?: boolean;
@@ -25,8 +26,8 @@ export type AppleRunnerPrepareOptions = AppleRunnerLifecycleOptions & {
 
 export type AppleRunnerPrepareResult = {
   runner: Record<string, unknown>;
-  cache?: 'exact' | 'restore-key' | 'miss';
-  artifact?: 'valid' | 'rebuilt';
+  cache?: RunnerXctestrunCacheKind;
+  artifact?: RunnerXctestrunArtifactState;
   buildMs?: number;
   connectMs: number;
   healthCheckMs: number;

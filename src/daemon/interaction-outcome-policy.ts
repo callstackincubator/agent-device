@@ -146,13 +146,9 @@ export function stripInternalInteractionFlags(
   return publicFlags;
 }
 
-export function buildInteractionSurfaceSignature(nodes: SnapshotNode[]): Array<{
-  key: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}> {
+export function buildInteractionSurfaceSignature(
+  nodes: SnapshotNode[],
+): InteractionSurfaceSignature {
   const occurrenceCounts = new Map<string, number>();
   const entries: InteractionSurfaceSignature = [];
 

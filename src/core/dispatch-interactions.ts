@@ -32,7 +32,7 @@ import {
   runRepeatedSeries,
 } from './dispatch-series.ts';
 import type { DispatchContext } from './dispatch-context.ts';
-import type { Interactor } from './interactor-types.ts';
+import type { Interactor, RunnerContext } from './interactor-types.ts';
 
 export async function handleLongPressCommand(
   interactor: Interactor,
@@ -386,12 +386,9 @@ async function runDirectPressSeries(
   );
 }
 
-function runnerOptionsFromContext(context: DispatchContext | undefined): {
-  verbose?: boolean;
-  logPath?: string;
-  traceLogPath?: string;
-  requestId?: string;
-} {
+function runnerOptionsFromContext(
+  context: DispatchContext | undefined,
+): Pick<RunnerContext, 'verbose' | 'logPath' | 'traceLogPath' | 'requestId'> {
   return {
     verbose: context?.verbose,
     logPath: context?.logPath,
