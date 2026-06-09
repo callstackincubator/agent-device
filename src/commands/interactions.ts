@@ -7,7 +7,11 @@ import { successText } from '../utils/success-text.ts';
 import { findMistargetedTypeRefToken } from '../utils/type-target-warning.ts';
 import type { ResolvedTarget } from './selector-read.ts';
 import { toBackendContext } from './selector-read-utils.ts';
-import { toBackendResult, type RuntimeCommand } from './runtime-types.ts';
+import {
+  toBackendResult,
+  type BackendResultEnvelope,
+  type RuntimeCommand,
+} from './runtime-types.ts';
 import type { RepeatedInput } from './command-input.ts';
 import {
   type InteractionTarget,
@@ -76,9 +80,7 @@ export type TypeTextCommandResult = {
   kind: 'text';
   text: string;
   delayMs: number;
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export const pressCommand: RuntimeCommand<PressCommandOptions, PressCommandResult> = async (
   runtime,

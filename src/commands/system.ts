@@ -11,7 +11,11 @@ import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
 import { requireIntInRange } from '../utils/validation.ts';
 import { isKeyboardAction } from '../utils/keyboard-actions.ts';
-import { toBackendResult, type RuntimeCommand } from './runtime-types.ts';
+import {
+  toBackendResult,
+  type BackendResultEnvelope,
+  type RuntimeCommand,
+} from './runtime-types.ts';
 import { toBackendContext } from './selector-read-utils.ts';
 import { normalizeOptionalText } from './text.ts';
 
@@ -22,17 +26,13 @@ export type SystemBackCommandOptions = CommandContext & {
 export type SystemBackCommandResult = {
   kind: 'systemBack';
   mode: BackMode;
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export type SystemHomeCommandOptions = CommandContext;
 
 export type SystemHomeCommandResult = {
   kind: 'systemHome';
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export type SystemRotateCommandOptions = CommandContext & {
   orientation: BackendDeviceOrientation;
@@ -41,9 +41,7 @@ export type SystemRotateCommandOptions = CommandContext & {
 export type SystemRotateCommandResult = {
   kind: 'systemRotated';
   orientation: BackendDeviceOrientation;
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export type SystemKeyboardCommandOptions = CommandContext & {
   action?: 'status' | 'get' | 'dismiss' | 'enter' | 'return';
@@ -101,9 +99,7 @@ export type SystemSettingsCommandOptions = CommandContext & {
 export type SystemSettingsCommandResult = {
   kind: 'settingsOpened';
   target?: string;
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export type SystemAlertCommandOptions = CommandContext & {
   action?: BackendAlertAction;
@@ -137,9 +133,7 @@ export type SystemAppSwitcherCommandOptions = CommandContext;
 
 export type SystemAppSwitcherCommandResult = {
   kind: 'appSwitcherOpened';
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export const backCommand: RuntimeCommand<
   SystemBackCommandOptions | undefined,

@@ -12,7 +12,11 @@ import { assertResolvedAppsFilter } from './app-inventory-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
 import { resolveCommandInput } from './io-policy.ts';
-import { toBackendResult, type RuntimeCommand } from './runtime-types.ts';
+import {
+  toBackendResult,
+  type BackendResultEnvelope,
+  type RuntimeCommand,
+} from './runtime-types.ts';
 import { normalizeOptionalText, requireText } from './text.ts';
 
 const APP_EVENT_NAME_PATTERN = /^[A-Za-z0-9_.:-]{1,64}$/;
@@ -29,9 +33,7 @@ export type OpenAppCommandResult = {
   kind: 'appOpened';
   target: BackendOpenTarget;
   relaunch: boolean;
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export type CloseAppCommandOptions = CommandContext & {
   app?: string;
@@ -40,9 +42,7 @@ export type CloseAppCommandOptions = CommandContext & {
 export type CloseAppCommandResult = {
   kind: 'appClosed';
   app?: string;
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export type ListAppsCommandOptions = CommandContext & {
   filter?: BackendAppListFilter;
@@ -79,9 +79,7 @@ export type PushAppCommandResult = {
   kind: 'appPushed';
   app: string;
   inputKind: 'json' | 'file';
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export type TriggerAppEventCommandOptions = CommandContext & {
   name: string;
@@ -92,9 +90,7 @@ export type TriggerAppEventCommandResult = {
   kind: 'appEventTriggered';
   name: string;
   payload?: Record<string, unknown>;
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export const openAppCommand: RuntimeCommand<OpenAppCommandOptions, OpenAppCommandResult> = async (
   runtime,

@@ -20,7 +20,11 @@ import {
   type ScrollEdgeState,
   type ScrollEdgeTarget,
 } from '../utils/scroll-edge-state.ts';
-import { toBackendResult, type RuntimeCommand } from './runtime-types.ts';
+import {
+  toBackendResult,
+  type BackendResultEnvelope,
+  type RuntimeCommand,
+} from './runtime-types.ts';
 import {
   assertSupportedInteractionSurface,
   captureInteractionSnapshot,
@@ -34,10 +38,7 @@ export type FocusCommandOptions = CommandContext & {
   target: InteractionTarget;
 };
 
-export type FocusCommandResult = ResolvedInteractionTarget & {
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+export type FocusCommandResult = ResolvedInteractionTarget & BackendResultEnvelope;
 
 export type LongPressCommandOptions = CommandContext & {
   target: InteractionTarget;
@@ -46,9 +47,7 @@ export type LongPressCommandOptions = CommandContext & {
 
 export type LongPressCommandResult = ResolvedInteractionTarget & {
   durationMs?: number;
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export type GestureDirection = ScrollDirection;
 export type ScrollInputDirection = GestureDirection | 'top' | 'bottom';
@@ -109,9 +108,7 @@ export type SwipeCommandResult = {
   distance?: number;
   durationMs?: number;
   fromTarget?: ResolvedInteractionTarget | { kind: 'viewport' };
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export type PinchCommandOptions = CommandContext & {
   scale: number;
@@ -123,9 +120,7 @@ export type PinchCommandResult = {
   scale: number;
   center?: Point;
   centerTarget?: ResolvedInteractionTarget;
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export const focusCommand: RuntimeCommand<FocusCommandOptions, FocusCommandResult> = async (
   runtime,

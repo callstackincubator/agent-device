@@ -17,6 +17,11 @@ export function toBackendResult(result: unknown): Record<string, unknown> | unde
   return result && typeof result === 'object' ? (result as Record<string, unknown>) : undefined;
 }
 
+export type BackendResultEnvelope = {
+  backendResult?: Record<string, unknown>;
+  message?: string;
+};
+
 export type ScreenshotCommandOptions = CommandContext & {
   out?: FileOutputRef;
   fullscreen?: boolean;

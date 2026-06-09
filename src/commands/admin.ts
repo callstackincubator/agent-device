@@ -9,7 +9,11 @@ import type {
 import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
-import { toBackendResult, type RuntimeCommand } from './runtime-types.ts';
+import {
+  toBackendResult,
+  type BackendResultEnvelope,
+  type RuntimeCommand,
+} from './runtime-types.ts';
 import { resolveCommandInput } from './io-policy.ts';
 import { toBackendContext } from './selector-read-utils.ts';
 import { normalizeOptionalText, requireText } from './text.ts';
@@ -30,9 +34,7 @@ export type AdminBootCommandOptions = CommandContext & {
 export type AdminBootCommandResult = {
   kind: 'deviceBooted';
   target?: BackendDeviceTarget;
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export type AdminInstallCommandOptions = CommandContext & {
   app: string;
@@ -57,9 +59,7 @@ export type AdminInstallCommandResult = {
   launchTarget?: string;
   installablePath?: string;
   archivePath?: string;
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export const devicesCommand: RuntimeCommand<
   AdminDevicesCommandOptions | undefined,

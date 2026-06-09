@@ -9,7 +9,7 @@ import type { CommandContext } from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
 import { requireIntInRange } from '../utils/validation.ts';
-import type { RuntimeCommand } from './runtime-types.ts';
+import type { BackendResultEnvelope, RuntimeCommand } from './runtime-types.ts';
 import { reserveCommandOutput } from './io-policy.ts';
 import { toBackendContext } from './selector-read-utils.ts';
 
@@ -42,9 +42,7 @@ export type RecordingTraceCommandResult = {
   action: 'start' | 'stop';
   outPath?: string;
   artifact?: ArtifactDescriptor;
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+} & BackendResultEnvelope;
 
 export const recordCommand: RuntimeCommand<
   RecordingRecordCommandOptions,
