@@ -8,6 +8,10 @@ inputs:
   agent-home-dir:
     description: "Resolved agent-device home directory"
     required: true
+  runner-derived-path:
+    description: "Optional Apple runner derived data path to upload cache metadata and Xcode logs"
+    required: false
+    default: ".agent-device-no-runner-derived"
 
 runs:
   using: "composite"
@@ -21,5 +25,7 @@ runs:
           ${{ inputs.agent-home-dir }}/daemon.log
           ${{ inputs.agent-home-dir }}/logs/**
           ${{ inputs.agent-home-dir }}/sessions/**
+          ${{ inputs.runner-derived-path }}/.agent-device-runner-cache.json
+          ${{ inputs.runner-derived-path }}/Logs/**
           test/artifacts/**
           test/screenshots/**

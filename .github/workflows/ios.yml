@@ -28,6 +28,7 @@ jobs:
     timeout-minutes: 80
     env:
       IOS_RUNTIME_VERSION: '26.2'
+      AGENT_DEVICE_STATE_DIR: ${{ github.workspace }}/.tmp/agent-device-state
       AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH: ${{ github.workspace }}/.tmp/ios-runner-derived
     steps:
       - name: Checkout
@@ -76,4 +77,5 @@ jobs:
         uses: ./.github/actions/upload-agent-device-artifacts
         with:
           artifact-name: ios-artifacts
-          agent-home-dir: ${{ steps.apple-replay.outputs.agent-home-dir }}
+          agent-home-dir: ${{ env.AGENT_DEVICE_STATE_DIR }}
+          runner-derived-path: ${{ env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH }}
