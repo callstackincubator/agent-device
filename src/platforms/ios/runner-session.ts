@@ -409,7 +409,7 @@ async function stopRunnerSessionInternal(
   cleanupTempFile(session.xctestrunPath);
   cleanupTempFile(session.jsonPath);
   await session.simulatorSetRedirect?.release();
-  removeRunnerSessionLease(session);
+  releaseRunnerLease(session.lease);
   if (runnerSessions.get(deviceId) === session) {
     runnerSessions.delete(deviceId);
   }
@@ -548,10 +548,6 @@ async function killRunnerXcodebuildProcesses(
       });
     }
   }
-}
-
-function removeRunnerSessionLease(session: RunnerSession): void {
-  releaseRunnerLease(session.lease);
 }
 
 function escapeRegex(value: string): string {
