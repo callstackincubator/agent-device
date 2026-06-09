@@ -6,6 +6,7 @@ import type {
   BackendKeyboardResult,
 } from '../backend.ts';
 import type { CommandContext } from '../runtime-contract.ts';
+import type { BackMode } from '../core/back-mode.ts';
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
 import { requireIntInRange } from '../utils/validation.ts';
@@ -15,12 +16,12 @@ import { toBackendContext } from './selector-read-utils.ts';
 import { normalizeOptionalText } from './text.ts';
 
 export type SystemBackCommandOptions = CommandContext & {
-  mode?: 'in-app' | 'system';
+  mode?: BackMode;
 };
 
 export type SystemBackCommandResult = {
   kind: 'systemBack';
-  mode: 'in-app' | 'system';
+  mode: BackMode;
   backendResult?: Record<string, unknown>;
   message?: string;
 };

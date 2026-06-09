@@ -8,6 +8,11 @@ import type {
   SessionRuntimeHints,
 } from './contracts.ts';
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
+import type { BackMode } from './core/back-mode.ts';
+import type { ClickButton } from './core/click-button.ts';
+import type { DeviceRotation } from './core/device-rotation.ts';
+import type { ScrollDirection } from './core/scroll-gesture.ts';
+import type { SessionSurface } from './core/session-surface.ts';
 import type { FindLocator } from './utils/finders.ts';
 import type { AndroidSnapshotBackendMetadata } from './platforms/android/snapshot-types.ts';
 import type {
@@ -26,7 +31,7 @@ import type { AppsFilter } from './commands/app-inventory-contract.ts';
 import type { ScreenshotRequestFlags } from './commands/capture-screenshot-options.ts';
 import type { PerfAction, PerfArea } from './commands/perf-command-contract.ts';
 import type { DaemonBatchStep } from './core/batch.ts';
-import type { AlertInfo } from './alert-contract.ts';
+import type { AlertAction, AlertInfo } from './alert-contract.ts';
 
 export type { FindLocator } from './utils/finders.ts';
 export type { CompanionTunnelScope, MetroBridgeScope } from './client-companion-tunnel-contract.ts';
@@ -175,7 +180,7 @@ export type AppOpenOptions = AgentDeviceRequestOverrides &
   AgentDeviceSelectionOptions & {
     app?: string;
     url?: string;
-    surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
+    surface?: SessionSurface;
     activity?: string;
     launchConsole?: string;
     launchArgs?: string[];
@@ -333,7 +338,7 @@ export type CaptureScreenshotOptions = AgentDeviceRequestOverrides & {
   fullscreen?: boolean;
   maxSize?: number;
   stabilize?: boolean;
-  surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
+  surface?: SessionSurface;
 };
 
 export type CaptureScreenshotResult = {
@@ -379,20 +384,20 @@ type WaitCommandTarget =
 export type WaitCommandOptions = DeviceCommandBaseOptions & WaitCommandTarget;
 
 export type AlertCommandOptions = DeviceCommandBaseOptions & {
-  action?: 'get' | 'accept' | 'dismiss' | 'wait';
+  action?: AlertAction;
   timeoutMs?: number;
 };
 
 export type AppStateCommandOptions = DeviceCommandBaseOptions;
 
 export type BackCommandOptions = DeviceCommandBaseOptions & {
-  mode?: 'in-app' | 'system';
+  mode?: BackMode;
 };
 
 export type HomeCommandOptions = DeviceCommandBaseOptions;
 
 export type RotateCommandOptions = DeviceCommandBaseOptions & {
-  orientation: 'portrait' | 'portrait-upside-down' | 'landscape-left' | 'landscape-right';
+  orientation: DeviceRotation;
 };
 
 export type AppSwitcherCommandOptions = DeviceCommandBaseOptions;
@@ -441,11 +446,11 @@ export type AppStateCommandResult = DaemonResponseData & {
   package?: string;
   activity?: string;
   source?: 'session';
-  surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
+  surface?: SessionSurface;
 };
 
 export type BackCommandResult = CommandActionResult<'back'> & {
-  mode?: 'in-app' | 'system';
+  mode?: BackMode;
 };
 
 export type HomeCommandResult = CommandActionResult<'home'>;
@@ -569,7 +574,7 @@ export type ClickOptions = ClientCommandBaseOptions &
   SelectorSnapshotCommandOptions &
   InteractionTarget &
   RepeatedPressOptions & {
-    button?: 'primary' | 'secondary' | 'middle';
+    button?: ClickButton;
   };
 
 export type PressOptions = ClientCommandBaseOptions &
@@ -601,7 +606,7 @@ export type PanOptions = ClientCommandBaseOptions & {
 };
 
 export type FlingOptions = ClientCommandBaseOptions & {
-  direction: 'up' | 'down' | 'left' | 'right';
+  direction: ScrollDirection;
   x: number;
   y: number;
   distance?: number;
@@ -844,7 +849,7 @@ type CommandExecutionOptions = Partial<ScreenshotRequestFlags> & {
   jitterPx?: number;
   pixels?: number;
   doubleTap?: boolean;
-  clickButton?: 'primary' | 'secondary' | 'middle';
+  clickButton?: ClickButton;
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
   headless?: boolean;
@@ -874,7 +879,7 @@ export type InternalRequestOptions = AgentDeviceClientConfig &
   CommandExecutionOptions & {
     runtime?: SessionRuntimeHints;
     overlayRefs?: boolean;
-    surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
+    surface?: SessionSurface;
     activity?: string;
     launchConsole?: string;
     launchArgs?: string[];
@@ -882,7 +887,7 @@ export type InternalRequestOptions = AgentDeviceClientConfig &
     shutdown?: boolean;
     saveScript?: boolean | string;
     noRecord?: boolean;
-    backMode?: 'in-app' | 'system';
+    backMode?: BackMode;
     metroHost?: string;
     metroPort?: number;
     bundleUrl?: string;

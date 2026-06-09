@@ -1,5 +1,6 @@
 import type { InteractionTarget, InternalRequestOptions } from '../../client-types.ts';
 import type { CliFlags } from '../../utils/cli-flags.ts';
+import type { ClickButton } from '../../core/click-button.ts';
 
 export type DaemonCommandRequest = {
   command: string;
@@ -35,7 +36,7 @@ export type CommandInput = Omit<InternalRequestOptions, 'batchSteps' | 'target'>
     kind?: string;
     locator?: string;
     mode?: 'in-app' | 'system' | 'full' | 'limited';
-    button?: 'primary' | 'secondary' | 'middle';
+    button?: ClickButton;
     first?: boolean;
     last?: boolean;
     maxSteps?: number;

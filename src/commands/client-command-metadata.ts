@@ -1,5 +1,9 @@
 import type { MetroPrepareOptions, RecordOptions } from '../client-types.ts';
 import type { DaemonInstallSource } from '../contracts.ts';
+import type { AlertAction } from '../alert-contract.ts';
+import type { BackMode } from '../core/back-mode.ts';
+import type { DeviceRotation } from '../core/device-rotation.ts';
+import type { SessionSurface } from '../core/session-surface.ts';
 import { requireCommandDescription } from './command-descriptions.ts';
 import {
   booleanField,
@@ -20,16 +24,16 @@ import {
 import { defineFieldCommandMetadata } from './field-command-contract.ts';
 import { PERF_ACTION_VALUES, PERF_AREA_VALUES } from './perf-command-contract.ts';
 
-const SURFACE_VALUES = ['app', 'frontmost-app', 'desktop', 'menubar'] as const;
+const SURFACE_VALUES = ['app', 'frontmost-app', 'desktop', 'menubar'] as const satisfies readonly SessionSurface[];
 const WAIT_KIND_VALUES = ['duration', 'text', 'ref', 'selector'] as const;
-const ALERT_ACTION_VALUES = ['get', 'accept', 'dismiss', 'wait'] as const;
-const BACK_MODE_VALUES = ['in-app', 'system'] as const;
+const ALERT_ACTION_VALUES = ['get', 'accept', 'dismiss', 'wait'] as const satisfies readonly AlertAction[];
+const BACK_MODE_VALUES = ['in-app', 'system'] as const satisfies readonly BackMode[];
 const ORIENTATION_VALUES = [
   'portrait',
   'portrait-upside-down',
   'landscape-left',
   'landscape-right',
-] as const;
+] as const satisfies readonly DeviceRotation[];
 const CLIPBOARD_ACTION_VALUES = ['read', 'write'] as const;
 const LOG_ACTION_VALUES = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
 const NETWORK_ACTION_VALUES = ['dump', 'log'] as const;

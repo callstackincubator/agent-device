@@ -3,6 +3,7 @@ import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { AppError } from '../../utils/errors.ts';
 import { createScopedProvider } from '../../utils/scoped-provider.ts';
 import { sleep } from '../../utils/timeouts.ts';
+import type { ClickButton } from '../../core/click-button.ts';
 import type {
   LinuxAccessibilityTree,
   LinuxSnapshotSurface,
@@ -45,7 +46,7 @@ export type LinuxAccessibilityProvider = {
   ): Promise<LinuxAccessibilityTree>;
 };
 
-export type LinuxPointerButton = 'primary' | 'secondary' | 'middle';
+export type LinuxPointerButton = ClickButton;
 
 export type LinuxInputProvider = {
   click(x: number, y: number, button: LinuxPointerButton): Promise<void>;

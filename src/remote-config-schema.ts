@@ -1,4 +1,6 @@
 import { buildPrimaryEnvVarName } from './utils/source-value.ts';
+import type { LeaseBackend } from './contracts.ts';
+import type { DeviceTarget, PlatformSelector } from './utils/device.ts';
 
 export type RemoteConfigMetroOptions = {
   metroProjectRoot?: string;
@@ -26,9 +28,9 @@ export type RemoteConfigProfile = RemoteConfigMetroOptions & {
   sessionIsolation?: 'none' | 'tenant';
   runId?: string;
   leaseId?: string;
-  leaseBackend?: 'ios-simulator' | 'ios-instance' | 'android-instance';
-  platform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple';
-  target?: 'mobile' | 'tv' | 'desktop';
+  leaseBackend?: LeaseBackend;
+  platform?: PlatformSelector;
+  target?: DeviceTarget;
   device?: string;
   udid?: string;
   serial?: string;

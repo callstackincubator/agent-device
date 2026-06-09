@@ -4,6 +4,7 @@ import {
 } from './mobile-snapshot-semantics.ts';
 import { AppError } from './errors.ts';
 import { isScrollableNodeLike } from './scrollable.ts';
+import type { ScrollDirection } from '../core/scroll-gesture.ts';
 import type { HiddenContentHint, Point, RawSnapshotNode, SnapshotNode } from './snapshot.ts';
 
 export type ScrollEdge = 'top' | 'bottom';
@@ -111,7 +112,7 @@ export async function runScrollEdgePasses<TResult>(params: {
 }
 
 export function formatScrollEdgeMessage(
-  direction: 'up' | 'down' | 'left' | 'right',
+  direction: ScrollDirection,
   edge: ScrollEdge | undefined,
   passes: number,
   amount: number | undefined,

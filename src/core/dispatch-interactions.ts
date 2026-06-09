@@ -7,6 +7,7 @@ import {
   inferGestureReferenceFrame,
   parseScrollDirection,
   parseSwipePreset,
+  type ScrollDirection,
   type SwipePreset,
 } from './scroll-gesture.ts';
 import {
@@ -768,8 +769,6 @@ export async function handleTransformGestureCommand(
   };
 }
 
-type GestureDirection = 'up' | 'down' | 'left' | 'right';
-
 type RotateGestureParams = {
   degrees: number;
   x?: number;
@@ -842,7 +841,7 @@ function parseOptionalGestureCenter(
   return { x, y };
 }
 
-function parseGestureDirection(input: string | undefined, field: string): GestureDirection {
+function parseGestureDirection(input: string | undefined, field: string): ScrollDirection {
   if (input === 'up' || input === 'down' || input === 'left' || input === 'right') {
     return input;
   }
@@ -859,7 +858,7 @@ function requireFinitePositiveNumber(value: number, field: string): number {
 function pointOffsetByDirection(
   x: number,
   y: number,
-  direction: GestureDirection,
+  direction: ScrollDirection,
   distance: number,
 ): { x2: number; y2: number } {
   switch (direction) {

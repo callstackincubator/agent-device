@@ -1,3 +1,4 @@
+import type { BackMode } from './back-mode.ts';
 import type { DeviceRotation } from './device-rotation.ts';
 import type { ScrollDirection } from './scroll-gesture.ts';
 import type { SettingOptions } from '../platforms/permission-utils.ts';
@@ -17,7 +18,7 @@ export type RunnerContext = {
   traceLogPath?: string;
 };
 
-export type BackMode = 'in-app' | 'system';
+export type { BackMode };
 
 export type ScreenshotOptions = {
   appBundleId?: string;

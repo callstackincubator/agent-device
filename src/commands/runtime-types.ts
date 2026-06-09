@@ -1,5 +1,6 @@
 import type { FileOutputRef } from '../io.ts';
 import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
+import type { SessionSurface } from '../core/session-surface.ts';
 
 export type CommandResult = Record<string, unknown>;
 
@@ -20,7 +21,7 @@ export type ScreenshotCommandOptions = CommandContext & {
   stabilize?: boolean;
   appId?: string;
   appBundleId?: string;
-  surface?: 'app' | 'frontmost-app' | 'desktop' | 'menubar';
+  surface?: SessionSurface;
 };
 
 export type SnapshotCommandOptions = CommandContext & {

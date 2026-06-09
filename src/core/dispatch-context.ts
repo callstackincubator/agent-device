@@ -1,6 +1,7 @@
 import type { CliFlags, DaemonExcludedCliFlag } from '../utils/cli-flags.ts';
 import type { ScreenshotDispatchFlags } from '../commands/capture-screenshot-options.ts';
 import type { DaemonBatchStep } from './batch.ts';
+import type { BackMode } from './back-mode.ts';
 import type { ClickButton } from './click-button.ts';
 import type { SessionSurface } from './session-surface.ts';
 
@@ -49,7 +50,7 @@ export type DispatchContext = ScreenshotDispatchFlags & {
   pixels?: number;
   doubleTap?: boolean;
   clickButton?: ClickButton;
-  backMode?: 'in-app' | 'system';
+  backMode?: BackMode;
   pauseMs?: number;
   pattern?: 'one-way' | 'ping-pong';
   surface?: SessionSurface;

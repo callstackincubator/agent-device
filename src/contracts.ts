@@ -1,5 +1,6 @@
 export type { AppErrorCode } from './utils/errors.ts';
 export { defaultHintForCode, normalizeError } from './utils/errors.ts';
+import type { PlatformSelector } from './utils/device.ts';
 
 export type SessionRuntimeHints = {
   platform?: 'ios' | 'android';
@@ -57,7 +58,7 @@ export type DaemonRequestMeta = {
   materializedPathRetentionMs?: number;
   materializationId?: string;
   lockPolicy?: DaemonLockPolicy;
-  lockPlatform?: 'ios' | 'macos' | 'android' | 'linux' | 'apple';
+  lockPlatform?: PlatformSelector;
   requestProgress?: 'replay-test';
 };
 
@@ -357,7 +358,7 @@ export const daemonCommandRequestSchema = schema<DaemonRequest>((input, path) =>
             leaseBackend: optionalEnum(
               meta,
               'leaseBackend',
-              ['ios-simulator', 'ios-instance', 'android-instance'] as const,
+              ['ios-simulator', 'ios-instance', 'android-instance'] as const satisfies readonly LeaseBackend[],
               `${path}.meta`,
             ),
             sessionIsolation: optionalEnum(
@@ -395,7 +396,7 @@ export const daemonCommandRequestSchema = schema<DaemonRequest>((input, path) =>
             lockPlatform: optionalEnum(
               meta,
               'lockPlatform',
-              ['ios', 'macos', 'android', 'linux', 'apple'] as const,
+              ['ios', 'macos', 'android', 'linux', 'apple'] as const satisfies readonly PlatformSelector[],
               `${path}.meta`,
             ),
           },

@@ -26,11 +26,13 @@ import {
   type PointInput,
 } from './command-input.ts';
 import { defineFieldCommandMetadata } from './field-command-contract.ts';
+import type { ClickButton } from '../core/click-button.ts';
+import type { ScrollDirection, SwipePreset } from '../core/scroll-gesture.ts';
 
-const CLICK_BUTTON_VALUES = ['primary', 'secondary', 'middle'] as const;
+const CLICK_BUTTON_VALUES = ['primary', 'secondary', 'middle'] as const satisfies readonly ClickButton[];
 const GESTURE_KIND_VALUES = ['pan', 'fling', 'swipe', 'pinch', 'rotate', 'transform'] as const;
-const GESTURE_DIRECTION_VALUES = ['up', 'down', 'left', 'right'] as const;
-const GESTURE_SWIPE_PRESET_VALUES = ['left', 'right', 'left-edge', 'right-edge'] as const;
+const GESTURE_DIRECTION_VALUES = ['up', 'down', 'left', 'right'] as const satisfies readonly ScrollDirection[];
+const GESTURE_SWIPE_PRESET_VALUES = ['left', 'right', 'left-edge', 'right-edge'] as const satisfies readonly SwipePreset[];
 const FIND_ACTION_VALUES = [
   'click',
   'focus',
@@ -154,7 +156,7 @@ export type PanInput = CommonCommandInput & {
 
 export type FlingInput = CommonCommandInput & {
   kind: 'fling';
-  direction: 'up' | 'down' | 'left' | 'right';
+  direction: ScrollDirection;
   origin: PointInput;
   distance?: number;
   durationMs?: number;

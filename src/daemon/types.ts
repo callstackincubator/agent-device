@@ -10,6 +10,7 @@ import type {
 } from '../contracts.ts';
 export type { DaemonLockPolicy } from '../contracts.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
+import type { ScrollDirection } from '../core/scroll-gesture.ts';
 import type { SessionSurface } from '../core/session-surface.ts';
 import type { DeviceInfo, Platform, PlatformSelector } from '../utils/device.ts';
 import type { ExecBackgroundResult, ExecResult } from '../utils/exec.ts';
@@ -142,7 +143,7 @@ export type RecordingGestureEvent =
     })
   | (RecordingTelemetryTravel & {
       kind: 'scroll';
-      contentDirection: 'up' | 'down' | 'left' | 'right';
+      contentDirection: ScrollDirection;
       amount?: number;
       pixels?: number;
     })

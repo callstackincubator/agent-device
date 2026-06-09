@@ -1,6 +1,7 @@
 import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
 import type { ClipboardCommandOptions } from '../../client-types.ts';
 import { parseDeviceRotation } from '../../core/device-rotation.ts';
+import type { BackMode } from '../../core/back-mode.ts';
 import { AppError } from '../../utils/errors.ts';
 import { compactRecord } from '../command-input.ts';
 import {
@@ -56,7 +57,7 @@ export const systemDaemonWriters = {
   ]),
 } satisfies Record<string, DaemonWriter>;
 
-function readBackMode(value: unknown): 'in-app' | 'system' | undefined {
+function readBackMode(value: unknown): BackMode | undefined {
   return value === 'in-app' || value === 'system' ? value : undefined;
 }
 

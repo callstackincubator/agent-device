@@ -4,6 +4,7 @@ import { centerOfRect } from '../utils/snapshot.ts';
 import {
   buildSwipePresetGesturePlan,
   parseSwipePreset,
+  type ScrollDirection,
   type SwipePreset,
 } from '../core/scroll-gesture.ts';
 import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
@@ -48,7 +49,7 @@ export type LongPressCommandResult = ResolvedInteractionTarget & {
   message?: string;
 };
 
-export type GestureDirection = 'up' | 'down' | 'left' | 'right';
+export type GestureDirection = ScrollDirection;
 export type ScrollInputDirection = GestureDirection | 'top' | 'bottom';
 
 export type ScrollTarget =

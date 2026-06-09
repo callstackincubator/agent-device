@@ -1,7 +1,7 @@
 import http, { type IncomingHttpHeaders } from 'node:http';
 import fs from 'node:fs';
 import { AppError, normalizeError, toAppErrorCode } from '../utils/errors.ts';
-import type { JsonRpcId, JsonRpcRequestEnvelope } from '../contracts.ts';
+import type { JsonRpcId, JsonRpcRequestEnvelope, LeaseBackend } from '../contracts.ts';
 import type { DaemonInstallSource, DaemonRequest, DaemonResponse } from './types.ts';
 import { normalizeTenantId } from './config.ts';
 import {
@@ -273,11 +273,7 @@ function toLeaseDaemonRequest(
       runId: readStringParam(params, 'runId'),
       leaseId: readStringParam(params, 'leaseId'),
       leaseTtlMs: readIntParam(params, 'ttlMs'),
-      leaseBackend: readStringParam(params, 'backend') as
-        | 'ios-simulator'
-        | 'ios-instance'
-        | 'android-instance'
-        | undefined,
+      leaseBackend: readStringParam(params, 'backend') as LeaseBackend | undefined,
     },
   };
 }

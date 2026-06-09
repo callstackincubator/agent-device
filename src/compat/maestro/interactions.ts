@@ -12,8 +12,7 @@ import {
 import { parseAbsolutePoint, parseMaestroPoint } from './points.ts';
 import { MAESTRO_RUNTIME_COMMAND } from './runtime-commands.ts';
 import type { MaestroParseContext } from './types.ts';
-
-type SwipeDirection = 'up' | 'down' | 'left' | 'right';
+import type { ScrollDirection } from '../../core/scroll-gesture.ts';
 
 export function convertTapOn(value: unknown, context: MaestroParseContext): SessionAction {
   if (typeof value === 'string') {
@@ -269,7 +268,7 @@ function convertCoordinateSwipePoints(
   );
 }
 
-function readMaestroDirection(direction: string, name: string): SwipeDirection {
+function readMaestroDirection(direction: string, name: string): ScrollDirection {
   const normalized = direction.toLowerCase();
   switch (normalized) {
     case 'up':
@@ -282,7 +281,7 @@ function readMaestroDirection(direction: string, name: string): SwipeDirection {
   }
 }
 
-function readSwipeDirection(direction: string): SwipeDirection {
+function readSwipeDirection(direction: string): ScrollDirection {
   return readMaestroDirection(direction, 'swipe direction');
 }
 
