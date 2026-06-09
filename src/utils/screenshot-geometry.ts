@@ -1,6 +1,18 @@
-import type { Rect } from './snapshot.ts';
+import type { Point, Rect } from './snapshot.ts';
 
 export type ImageDimensions = { width: number; height: number };
+
+/**
+ * A rect whose coordinates are normalized percentages [0..100] of the screenshot
+ * image's dimensions (as produced by the screenshot-diff regions/OCR code), NOT
+ * absolute pixels. Documentary alias of {@link Rect} — it conveys coordinate
+ * space to readers but is not enforced by the type system (still structurally a
+ * Rect).
+ */
+export type NormalizedRect = Rect;
+
+/** A point in normalized [0..100] screenshot-image space. Documentary alias of {@link Point}. */
+export type NormalizedPoint = Point;
 
 export function unionRects(rects: Rect[]): Rect {
   let minX = Number.POSITIVE_INFINITY;

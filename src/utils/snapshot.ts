@@ -10,17 +10,6 @@ export type Point = {
   y: number;
 };
 
-/**
- * A rect whose coordinates are normalized percentages [0..100] of the viewport
- * (as used by screenshot-diff regions/OCR), NOT absolute pixels. Documentary
- * alias of {@link Rect} — it conveys coordinate space to readers but is not
- * enforced by the type system (still structurally a Rect).
- */
-export type NormalizedRect = Rect;
-
-/** A point in normalized [0..100] viewport space. Documentary alias of {@link Point}. */
-export type NormalizedPoint = Point;
-
 export type SnapshotOptions = {
   interactiveOnly?: boolean;
   compact?: boolean;
