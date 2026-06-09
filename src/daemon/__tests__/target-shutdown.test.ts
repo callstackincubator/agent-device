@@ -73,3 +73,27 @@ test('shutdownDeviceTarget treats iOS Shutdown final state as success', async ()
   });
   expect(mockGetSimulatorState).toHaveBeenCalledWith(device);
 });
+
+test('shutdownDeviceTarget preserves iOS shutdown failure when final state probe fails', async () => {
+  const device: DeviceInfo = {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'iPhone',
+    kind: 'simulator',
+    booted: true,
+  };
+  mockShutdownSimulator.mockResolvedValue({
+    success: false,
+    exitCode: 149,
+    stdout: '',
+    stderr: 'simctl shutdown failed',
+  });
+  mockGetSimulatorState.mockRejectedValue(new Error('simctl list failed'));
+
+  await expect(shutdownDeviceTarget(device)).resolves.toEqual({
+    success: false,
+    exitCode: 149,
+    stdout: '',
+    stderr: 'simctl shutdown failed',
+  });
+});

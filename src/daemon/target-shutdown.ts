@@ -2,7 +2,7 @@ import { runAndroidAdb } from '../platforms/android/adb.ts';
 import { getSimulatorState, shutdownSimulator } from '../platforms/ios/simulator.ts';
 import type { DeviceInfo } from '../utils/device.ts';
 import { normalizeError } from '../utils/errors.ts';
-import { isAndroidEmulator, isIosSimulator } from './handlers/session-device-utils.ts';
+import { isAndroidEmulator, isIosSimulator } from './device-targets.ts';
 
 export type DeviceTargetShutdownResult = {
   success: boolean;
@@ -48,7 +48,7 @@ async function shutdownIosSimulator(device: DeviceInfo): Promise<DeviceTargetShu
   const result = await shutdownSimulator(device);
   if (result.success) return result;
 
-  const state = await getSimulatorState(device);
+  const state = await getFinalSimulatorState(device);
   if (state === 'Shutdown') {
     return {
       ...result,
@@ -58,6 +58,14 @@ async function shutdownIosSimulator(device: DeviceInfo): Promise<DeviceTargetShu
   }
 
   return result;
+}
+
+async function getFinalSimulatorState(device: DeviceInfo): Promise<string | null> {
+  try {
+    return await getSimulatorState(device);
+  } catch {
+    return null;
+  }
 }
 
 async function shutdownAndroidEmulator(device: DeviceInfo): Promise<DeviceTargetShutdownResult> {
