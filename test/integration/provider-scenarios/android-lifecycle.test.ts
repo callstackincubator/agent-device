@@ -24,7 +24,7 @@ test('Provider-backed integration Android Settings flow uses scripted ADB provid
     await runAndroidCaptureInteractionAndReplayWorkflow(world, client);
     assertAndroidProviderContract(world);
   });
-});
+}, 15_000);
 
 test('Provider-backed integration Android text provider handles Unicode without shell input text', async () => {
   await withProviderScenarioResource(

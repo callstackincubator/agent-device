@@ -1046,6 +1046,8 @@ test('usageForCommand documents prepare ios-runner', () => {
   assert.match(help, /Prepare platform helper infrastructure/);
   assert.match(help, /--timeout <ms>/);
   assert.match(help, /XCTest runner/);
+  assert.match(help, /separate daemon/);
+  assert.match(help, /clean:daemon after prepare/);
   assert.match(help, /Runner build\/start output is written to the session runner\.log/);
 });
 
@@ -1116,6 +1118,7 @@ test('usageForCommand resolves workflow help topic', () => {
   assert.match(help, /metro prepare --kind expo/);
   assert.match(help, /agent-device prepare ios-runner --platform ios --timeout 240000/);
   assert.match(help, /prepare ios-runner builds\/reuses the XCTest runner/);
+  assert.match(help, /prepared runner does not keep a live lease/);
   assert.match(help, /help react-devtools/);
   assert.match(help, /help react-native/);
   assert.doesNotMatch(help, /agent-device react-devtools profile/);

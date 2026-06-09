@@ -57,6 +57,7 @@ jobs:
         run: |
           pnpm clean:daemon
           node --experimental-strip-types src/bin.ts prepare ios-runner --platform ios --timeout 300000 --json
+          pnpm clean:daemon
 
       - name: Run iOS simulator smoke replay
         run: |

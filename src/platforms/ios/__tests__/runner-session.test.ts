@@ -98,6 +98,7 @@ vi.mock('../runner-xctestrun.ts', async () => {
 });
 
 import {
+  abortAllIosRunnerSessions,
   ensureRunnerSession,
   executeRunnerCommandWithSession,
   getRunnerSessionSnapshot,
@@ -113,7 +114,8 @@ import {
   type RunnerLease,
 } from '../runner-lease.ts';
 
-beforeEach(() => {
+beforeEach(async () => {
+  await abortAllIosRunnerSessions();
   vi.resetAllMocks();
   process.env.AGENT_DEVICE_IOS_RUNNER_LEASE_DIR = fs.mkdtempSync(
     path.join(os.tmpdir(), 'agent-device-runner-lease-test-'),
@@ -796,6 +798,25 @@ test('runner session stop kills only owned stale xcodebuild runner processes wit
   });
 });
 
+test('runner session abort removes owned lease for in-memory sessions', async () => {
+  const device = { ...IOS_SIMULATOR, id: 'runner-session-abort-lease-sim' };
+  const session = await ensureRunnerSession(device, {});
+  const leaseDir = process.env.AGENT_DEVICE_IOS_RUNNER_LEASE_DIR;
+  assert.ok(leaseDir);
+  const leasePath = path.join(leaseDir, `${device.id}.json`);
+  assert.equal(fs.existsSync(leasePath), true);
+
+  await abortAllIosRunnerSessions();
+
+  assert.equal(fs.existsSync(leasePath), false);
+  assert.equal(getRunnerSessionSnapshot(session.deviceId), null);
+  assert.deepEqual(mockCleanupTempFile.mock.calls, [
+    ['/tmp/session-runner.xctestrun'],
+    ['/tmp/session-runner.json'],
+  ]);
+  assert.equal(mockRedirectRelease.mock.calls.length, 1);
+});
+
 function isXcodebuildPkillCall(call: unknown[]): boolean {
   const args = call[1];
   return call[0] === 'pkill' && Array.isArray(args) && args.includes('-f');
@@ -859,23 +880,20 @@ function makeRunnerLease(
   overrides: Partial<RunnerLease> & { deviceId: string; ownerToken?: string | undefined },
 ): RunnerLease {
   const ownerToken = overrides.ownerToken ?? `owner-${process.pid}-test`;
-  return {
+  const lease: RunnerLease = {
     schemaVersion: 1,
     deviceId: overrides.deviceId,
     ownerToken,
-    ownerPid: overrides.ownerPid ?? process.pid,
-    ownerStartTime: overrides.ownerStartTime ?? RUNNER_OWNER_START_TIME,
-    sessionId: overrides.sessionId ?? `session-${overrides.deviceId}`,
-    runnerPid: overrides.runnerPid ?? 4242,
-    port: overrides.port ?? 8123,
-    xctestrunPath:
-      overrides.xctestrunPath ??
-      `/tmp/AgentDeviceRunner.env.session-${overrides.deviceId}-${ownerToken}-8123.xctestrun`,
-    jsonPath:
-      overrides.jsonPath ??
-      `/tmp/AgentDeviceRunner.env.session-${overrides.deviceId}-${ownerToken}-8123.json`,
-    createdAtMs: overrides.createdAtMs ?? Date.now(),
+    ownerPid: process.pid,
+    ownerStartTime: RUNNER_OWNER_START_TIME,
+    sessionId: `session-${overrides.deviceId}`,
+    runnerPid: 4242,
+    port: 8123,
+    xctestrunPath: `/tmp/AgentDeviceRunner.env.session-${overrides.deviceId}-${ownerToken}-8123.xctestrun`,
+    jsonPath: `/tmp/AgentDeviceRunner.env.session-${overrides.deviceId}-${ownerToken}-8123.json`,
+    createdAtMs: Date.now(),
   };
+  return { ...lease, ...overrides, ownerToken };
 }
 
 function makeBackgroundRunner(pid: number) {

@@ -2,6 +2,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { emitDiagnostic } from '../../utils/diagnostics.ts';
+import { AppError } from '../../utils/errors.ts';
 import { acquireProcessLock } from '../../utils/process-lock.ts';
 import { isProcessAlive, readProcessStartTime } from '../../utils/process-identity.ts';
 
@@ -10,7 +12,7 @@ const RUNNER_LEASE_LOCK_TIMEOUT_MS = 30_000;
 const RUNNER_LEASE_LOCK_POLL_MS = 100;
 const RUNNER_LEASE_OWNER_GRACE_MS = 5_000;
 
-export const RUNNER_OWNER_PID = process.pid;
+const RUNNER_OWNER_PID = process.pid;
 export const RUNNER_OWNER_START_TIME = readProcessStartTime(process.pid);
 export const RUNNER_OWNER_TOKEN = buildRunnerOwnerToken(RUNNER_OWNER_PID, RUNNER_OWNER_START_TIME);
 
@@ -28,11 +30,22 @@ export type RunnerLease = {
   createdAtMs: number;
 };
 
-export type RunnerLeaseState =
+type RunnerLeaseState =
   | { type: 'empty' }
   | { type: 'owned'; lease: RunnerLease }
   | { type: 'stale'; lease: RunnerLease }
   | { type: 'busy'; lease: RunnerLease };
+
+type RunnerLeaseRequiredFields = Pick<
+  RunnerLease,
+  'createdAtMs' | 'jsonPath' | 'ownerPid' | 'ownerToken' | 'port' | 'sessionId' | 'xctestrunPath'
+>;
+
+export type RunnerLeaseCleanupAdapter = {
+  cleanupRunnerProcessTree(pid: number | undefined, signal: 'SIGTERM' | 'SIGKILL'): Promise<void>;
+  cleanupRunnerXcodebuildProcesses(deviceId: string, ownerToken: string | undefined): Promise<void>;
+  cleanupTempFile(filePath: string): void;
+};
 
 export function buildRunnerLease(params: {
   deviceId: string;
@@ -77,7 +90,7 @@ export async function withRunnerLeaseLock<T>(deviceId: string, task: () => Promi
   }
 }
 
-export function readRunnerLease(deviceId: string): RunnerLease | null {
+function readRunnerLease(deviceId: string): RunnerLease | null {
   try {
     const parsed = JSON.parse(fs.readFileSync(resolveRunnerLeasePath(deviceId), 'utf8')) as unknown;
     return normalizeRunnerLease(parsed, deviceId);
@@ -86,10 +99,55 @@ export function readRunnerLease(deviceId: string): RunnerLease | null {
   }
 }
 
-export function classifyRunnerLease(lease: RunnerLease | null): RunnerLeaseState {
+function classifyRunnerLease(lease: RunnerLease | null): RunnerLeaseState {
   if (!lease) return { type: 'empty' };
   if (lease.ownerToken === RUNNER_OWNER_TOKEN) return { type: 'owned', lease };
   return isRunnerLeaseOwnerAlive(lease) ? { type: 'busy', lease } : { type: 'stale', lease };
+}
+
+export async function prepareRunnerLeaseForStartup(
+  deviceId: string,
+  cleanup: RunnerLeaseCleanupAdapter,
+): Promise<void> {
+  const state = classifyRunnerLease(readRunnerLease(deviceId));
+  if (state.type === 'empty') {
+    await cleanup.cleanupRunnerXcodebuildProcesses(deviceId, undefined);
+    return;
+  }
+  if (state.type === 'busy') {
+    throw new AppError(
+      'COMMAND_FAILED',
+      `iOS runner for ${deviceId} is already owned by another agent-device daemon`,
+      {
+        deviceId,
+        ownerPid: state.lease.ownerPid,
+        ownerStartTime: state.lease.ownerStartTime,
+        ownerToken: state.lease.ownerToken,
+        sessionId: state.lease.sessionId,
+        hint: 'Use a different simulator/session, wait for the other run to finish, or stop the owning daemon before retrying.',
+      },
+    );
+  }
+  await cleanupLeasedRunnerProcesses(state.lease, state.type, cleanup);
+}
+
+export async function cleanupOwnedRunnerLease(
+  deviceId: string,
+  cleanup: RunnerLeaseCleanupAdapter,
+): Promise<void> {
+  const state = classifyRunnerLease(readRunnerLease(deviceId));
+  if (state.type === 'owned') {
+    await cleanupLeasedRunnerProcesses(state.lease, 'owned', cleanup);
+  }
+}
+
+export function releaseRunnerLease(lease: RunnerLease | undefined): void {
+  if (!lease) return;
+  removeRunnerLease({
+    deviceId: lease.deviceId,
+    ownerToken: lease.ownerToken,
+    sessionId: lease.sessionId,
+  });
 }
 
 export function writeRunnerLease(lease: RunnerLease): void {
@@ -100,7 +158,7 @@ export function writeRunnerLease(lease: RunnerLease): void {
   fs.renameSync(tmpPath, leasePath);
 }
 
-export function removeRunnerLease(params: {
+function removeRunnerLease(params: {
   deviceId: string;
   ownerToken?: string;
   sessionId?: string;
@@ -114,7 +172,7 @@ export function removeRunnerLease(params: {
   } catch {}
 }
 
-export function resolveRunnerLeasePath(deviceId: string): string {
+function resolveRunnerLeasePath(deviceId: string): string {
   return path.join(resolveRunnerLeaseRoot(), `${sanitizeLeaseFileName(deviceId)}.json`);
 }
 
@@ -129,37 +187,47 @@ function normalizeRunnerLease(value: unknown, deviceId: string): RunnerLease | n
   const raw = value as Partial<RunnerLease>;
   if (raw.schemaVersion !== RUNNER_LEASE_SCHEMA_VERSION) return null;
   if (raw.deviceId !== deviceId) return null;
-  const ownerToken = raw.ownerToken;
-  const ownerPid = raw.ownerPid;
-  const sessionId = raw.sessionId;
-  const port = raw.port;
-  const runnerPid = raw.runnerPid;
-  const xctestrunPath = raw.xctestrunPath;
-  const jsonPath = raw.jsonPath;
-  const createdAtMs = raw.createdAtMs;
-  if (typeof ownerToken !== 'string' || ownerToken.length === 0) return null;
-  if (typeof ownerPid !== 'number' || !Number.isInteger(ownerPid) || ownerPid <= 0) return null;
-  if (typeof sessionId !== 'string' || sessionId.length === 0) return null;
-  if (typeof port !== 'number' || !Number.isInteger(port) || port <= 0) return null;
-  if (typeof xctestrunPath !== 'string' || xctestrunPath.length === 0) return null;
-  if (typeof jsonPath !== 'string' || jsonPath.length === 0) return null;
-  if (typeof createdAtMs !== 'number' || !Number.isFinite(createdAtMs)) return null;
+  const fields = readRunnerLeaseRequiredFields(raw);
+  if (!fields) return null;
   return {
     schemaVersion: RUNNER_LEASE_SCHEMA_VERSION,
-    deviceId: raw.deviceId,
-    ownerToken,
-    ownerPid,
-    ownerStartTime: typeof raw.ownerStartTime === 'string' ? raw.ownerStartTime : null,
-    sessionId,
-    runnerPid:
-      typeof runnerPid === 'number' && Number.isInteger(runnerPid) && runnerPid > 0
-        ? runnerPid
-        : null,
-    port,
-    xctestrunPath,
-    jsonPath,
-    createdAtMs,
+    deviceId,
+    ...fields,
+    ownerStartTime: readOptionalString(raw.ownerStartTime),
+    runnerPid: readPositiveInteger(raw.runnerPid),
   };
+}
+
+function readRunnerLeaseRequiredFields(
+  raw: Partial<RunnerLease>,
+): RunnerLeaseRequiredFields | null {
+  const fields = {
+    ownerToken: readNonEmptyString(raw.ownerToken),
+    ownerPid: readPositiveInteger(raw.ownerPid),
+    sessionId: readNonEmptyString(raw.sessionId),
+    port: readPositiveInteger(raw.port),
+    xctestrunPath: readNonEmptyString(raw.xctestrunPath),
+    jsonPath: readNonEmptyString(raw.jsonPath),
+    createdAtMs: readFiniteNumber(raw.createdAtMs),
+  };
+  if (Object.values(fields).some((field) => field === null)) return null;
+  return fields as RunnerLeaseRequiredFields;
+}
+
+function readNonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function readOptionalString(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function readPositiveInteger(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function readFiniteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function isRunnerLeaseOwnerAlive(lease: RunnerLease): boolean {
@@ -168,6 +236,31 @@ function isRunnerLeaseOwnerAlive(lease: RunnerLease): boolean {
     return readProcessStartTime(lease.ownerPid) === lease.ownerStartTime;
   }
   return true;
+}
+
+async function cleanupLeasedRunnerProcesses(
+  lease: RunnerLease,
+  reason: 'owned' | 'stale',
+  cleanup: RunnerLeaseCleanupAdapter,
+): Promise<void> {
+  emitDiagnostic({
+    level: reason === 'stale' ? 'warn' : 'debug',
+    phase: 'ios_runner_lease_cleanup',
+    data: {
+      deviceId: lease.deviceId,
+      ownerPid: lease.ownerPid,
+      ownerToken: lease.ownerToken,
+      runnerPid: lease.runnerPid,
+      sessionId: lease.sessionId,
+      reason,
+    },
+  });
+  await cleanup.cleanupRunnerProcessTree(lease.runnerPid ?? undefined, 'SIGTERM');
+  await cleanup.cleanupRunnerXcodebuildProcesses(lease.deviceId, lease.ownerToken);
+  await cleanup.cleanupRunnerProcessTree(lease.runnerPid ?? undefined, 'SIGKILL');
+  cleanup.cleanupTempFile(lease.xctestrunPath);
+  cleanup.cleanupTempFile(lease.jsonPath);
+  releaseRunnerLease(lease);
 }
 
 function buildRunnerOwnerToken(pid: number, startTime: string | null): string {

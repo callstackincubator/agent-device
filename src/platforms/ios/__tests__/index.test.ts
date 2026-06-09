@@ -1236,6 +1236,31 @@ test('openIosApp launches iOS simulator app before opening URL', async () => {
   ]);
 });
 
+test('openIosApp launches iOS simulator app before opening https URL with launchArgs', async () => {
+  mockEnsureBootedSimulator.mockResolvedValue();
+  mockRunCmd.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 });
+
+  await openIosApp(IOS_TEST_SIMULATOR, 'MyApp', {
+    appBundleId: 'com.example.app',
+    url: 'https://example.com/item/42',
+    launchArgs: ['-FeatureFlag', 'YES'],
+  });
+
+  assert.equal(mockRunCmd.mock.calls.length, 2);
+  assert.deepEqual(mockRunCmd.mock.calls[0], [
+    'xcrun',
+    ['simctl', 'launch', 'sim-1', 'com.example.app', '-FeatureFlag', 'YES'],
+    {
+      allowFailure: true,
+    },
+  ]);
+  assert.deepEqual(mockRunCmd.mock.calls[1], [
+    'xcrun',
+    ['simctl', 'openurl', 'sim-1', 'https://example.com/item/42'],
+    undefined,
+  ]);
+});
+
 test('openIosApp rejects launchArgs combined with bare URL deep link on iOS simulator', async () => {
   mockEnsureBootedSimulator.mockResolvedValue();
   await assert.rejects(

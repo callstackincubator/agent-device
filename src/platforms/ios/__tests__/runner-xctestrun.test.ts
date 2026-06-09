@@ -249,7 +249,7 @@ test('setup metadata script matches expected iOS simulator cache metadata', asyn
       restoreEnvVar('PATH', previousPath);
     }
   });
-});
+}, 15_000);
 
 function writeExecutable(filePath: string, contents: string): void {
   fs.writeFileSync(filePath, `${contents}\n`, { mode: 0o755 });

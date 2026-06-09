@@ -2,9 +2,10 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 import { AppError } from './errors.ts';
 import { runCmd } from './exec.ts';
+import { acquireProcessLock } from './process-lock.ts';
+import { readProcessStartTime } from './process-identity.ts';
 
 const SWIFT_CACHE_VERSION = '2';
 const LOCK_RETRY_DELAY_MS = 25;
@@ -89,7 +90,12 @@ async function ensureSwiftExecutable(params: {
   const executableDir = path.dirname(params.executablePath);
   fs.mkdirSync(executableDir, { recursive: true });
   const lockDir = `${params.executablePath}.lock`;
-  if (!(await acquireSwiftCacheLock(lockDir, params.executablePath, params.timeoutMs ?? 120_000))) {
+  const releaseLock = await acquireSwiftCacheLock(
+    lockDir,
+    params.executablePath,
+    params.timeoutMs ?? 120_000,
+  );
+  if (!releaseLock) {
     return;
   }
 
@@ -112,7 +118,7 @@ async function ensureSwiftExecutable(params: {
     fs.renameSync(tempExecutablePath, params.executablePath);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
-    fs.rmSync(lockDir, { recursive: true, force: true });
+    await releaseLock();
   }
 }
 
@@ -120,45 +126,36 @@ async function acquireSwiftCacheLock(
   lockDir: string,
   executablePath: string,
   timeoutMs: number,
-): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (true) {
-    if (isExecutableFile(executablePath)) {
-      return false;
-    }
-    try {
-      fs.mkdirSync(lockDir);
-      return true;
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code !== 'EEXIST') {
-        throw error;
-      }
-      if (isStaleSwiftCacheLock(lockDir, timeoutMs)) {
-        fs.rmSync(lockDir, { recursive: true, force: true });
-        continue;
-      }
-      if (Date.now() >= deadline) {
-        throw new AppError(
-          'COMMAND_FAILED',
-          `Timed out waiting for Swift cache lock: ${lockDir} (${timeoutMs}ms)`,
-          {
-            lockDir,
-            timeoutMs,
-            hint: `Another agent-device process may still be compiling this Swift helper. Retry shortly; if no agent-device process is active, remove "${lockDir}" and retry.`,
-          },
-        );
-      }
-      await delay(LOCK_RETRY_DELAY_MS);
-    }
+): Promise<(() => Promise<void>) | null> {
+  if (isExecutableFile(executablePath)) {
+    return null;
   }
-}
-
-function isStaleSwiftCacheLock(lockDir: string, timeoutMs: number): boolean {
   try {
-    return Date.now() - fs.statSync(lockDir).mtimeMs >= timeoutMs;
-  } catch {
-    return false;
+    return await acquireProcessLock({
+      lockDirPath: lockDir,
+      owner: {
+        pid: process.pid,
+        startTime: readProcessStartTime(process.pid),
+        acquiredAtMs: Date.now(),
+      },
+      timeoutMs,
+      pollMs: LOCK_RETRY_DELAY_MS,
+      ownerGraceMs: timeoutMs,
+      description: `Swift cache lock: ${lockDir} (${timeoutMs}ms)`,
+    });
+  } catch (error) {
+    if (
+      error instanceof AppError &&
+      error.message.startsWith('Timed out waiting for Swift cache lock:')
+    ) {
+      throw new AppError('COMMAND_FAILED', error.message, {
+        ...error.details,
+        lockDir,
+        timeoutMs,
+        hint: `Another agent-device process may still be compiling this Swift helper. Retry shortly; if no agent-device process is active, remove "${lockDir}" and retry.`,
+      });
+    }
+    throw error;
   }
 }
 

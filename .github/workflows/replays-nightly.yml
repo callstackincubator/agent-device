@@ -81,6 +81,7 @@ jobs:
         run: |
           pnpm clean:daemon
           node --experimental-strip-types src/bin.ts prepare ios-runner --platform ios --timeout 300000 --json
+          pnpm clean:daemon
 
       - name: Run iOS simulator replay suite
         run: node --experimental-strip-types src/bin.ts test test/integration/replays/ios/simulator --retries 2 --artifacts-dir test/artifacts/replays-ios-simulator --report-junit test/artifacts/replays-ios-simulator.junit.xml
