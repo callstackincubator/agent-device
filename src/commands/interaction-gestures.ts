@@ -4,6 +4,7 @@ import { centerOfRect } from '../utils/snapshot.ts';
 import {
   buildSwipePresetGesturePlan,
   parseSwipePreset,
+  type GestureReferenceFrame,
   type ScrollDirection,
   type SwipePreset,
 } from '../core/scroll-gesture.ts';
@@ -540,10 +541,7 @@ function resolveSnapshotViewport(nodes: SnapshotState['nodes']): Rect {
   };
 }
 
-function resolveSnapshotReferenceFrame(nodes: SnapshotState['nodes']): {
-  referenceWidth: number;
-  referenceHeight: number;
-} {
+function resolveSnapshotReferenceFrame(nodes: SnapshotState['nodes']): GestureReferenceFrame {
   const viewport = resolveSnapshotViewport(nodes);
   return {
     referenceWidth: viewport.width,

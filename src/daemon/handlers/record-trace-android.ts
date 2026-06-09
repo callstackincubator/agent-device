@@ -17,6 +17,8 @@ import {
 } from './record-trace-android-chunks.ts';
 import { copyAndroidRecordingChunksWithValidation } from './record-trace-android-copy.ts';
 
+type AndroidRecordingSize = { width: number; height: number };
+
 const ANDROID_REMOTE_FILE_POLL_MS = 250;
 const ANDROID_REMOTE_FILE_ATTEMPTS = 20;
 const ANDROID_REMOTE_FILE_STABLE_POLLS = 4;
@@ -150,7 +152,7 @@ function androidRemoteRecordingPaths(timestamp: number, preferredDir?: string): 
 async function resolveAndroidRecordingSize(params: {
   deviceId: string;
   quality: number | undefined;
-}): Promise<{ width: number; height: number } | undefined> {
+}): Promise<AndroidRecordingSize | undefined> {
   const { deviceId, quality } = params;
   if (quality === undefined || quality >= 10) {
     return undefined;
@@ -180,7 +182,7 @@ function scaledEvenDimension(value: number, quality: number): number {
 
 function buildAndroidScreenrecordCommand(
   remotePath: string,
-  size: { width: number; height: number } | undefined,
+  size: AndroidRecordingSize | undefined,
 ): string {
   const screenrecordArgs = ['screenrecord'];
   if (size) {
@@ -219,7 +221,7 @@ async function forceStopAndroidProcess(deviceId: string, pid: string): Promise<b
 
 async function startAndroidScreenrecordChunk(params: {
   device: AndroidDevice;
-  recordingSize: { width: number; height: number } | undefined;
+  recordingSize: AndroidRecordingSize | undefined;
   preferredRemoteDir?: string;
 }): Promise<
   { remotePath: string; remotePid: string; startedAt: number } | { error: DaemonResponse }
@@ -281,7 +283,7 @@ export async function startAndroidRecording(params: {
   recordingBase: AndroidRecordingBase;
 }): Promise<DaemonResponse | AndroidRecording> {
   const { device, recordingBase } = params;
-  let recordingSize: { width: number; height: number } | undefined;
+  let recordingSize: AndroidRecordingSize | undefined;
   try {
     recordingSize = await resolveAndroidRecordingSize({
       deviceId: device.id,

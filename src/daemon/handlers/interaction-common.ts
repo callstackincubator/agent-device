@@ -1,5 +1,6 @@
 import type { CommandFlags } from '../../core/dispatch.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';
+import type { GestureReferenceFrame } from '../../core/scroll-gesture.ts';
 import type { DaemonCommandContext } from '../context.ts';
 import { recordTouchVisualizationEvent } from '../recording-gestures.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
@@ -33,7 +34,7 @@ export function buildTouchVisualizationResult(params: {
   data: Record<string, unknown> | undefined;
   fallbackX: number;
   fallbackY: number;
-  referenceFrame?: { referenceWidth: number; referenceHeight: number };
+  referenceFrame?: GestureReferenceFrame;
   extra?: Record<string, unknown>;
 }): Record<string, unknown> {
   const { data, fallbackX, fallbackY, referenceFrame, extra } = params;

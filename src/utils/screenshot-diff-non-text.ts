@@ -9,6 +9,7 @@ import {
   rectCenter,
   squaredDistance,
   unionRects,
+  type ImageDimensions,
 } from './screenshot-geometry.ts';
 
 export type ScreenshotNonTextDelta = {
@@ -251,7 +252,7 @@ function classifyLikelyKind(
   rect: Rect,
   slot: ScreenshotNonTextDelta['slot'],
   differentPixels: number,
-  image: { width: number; height: number },
+  image: ImageDimensions,
 ): NonTextKind {
   const aspect = rect.width / rect.height;
   const density = differentPixels / (rect.width * rect.height);
@@ -293,7 +294,7 @@ function scoreNonTextDelta(
     rect: Rect;
   },
   differentPixels: number,
-  image: { width: number; height: number },
+  image: ImageDimensions,
 ): number {
   const sizePenalty = isLargeResidual(delta.rect, image) ? LARGE_RESIDUAL_SCORE_PENALTY : 0;
   const regionScore = delta.regionIndex ? REGION_OVERLAP_SCORE : 0;
@@ -306,7 +307,7 @@ function scoreNonTextDelta(
   );
 }
 
-function isLargeResidual(rect: Rect, image: { width: number; height: number }): boolean {
+function isLargeResidual(rect: Rect, image: ImageDimensions): boolean {
   return (
     rect.width >= image.width * LARGE_RESIDUAL_WIDTH_RATIO ||
     rect.height >= image.height * LARGE_RESIDUAL_HEIGHT_RATIO

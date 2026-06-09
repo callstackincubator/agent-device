@@ -4,6 +4,7 @@ import {
   buildSwipeGesturePlan,
   clampGesturePoint,
   pointFromPercent,
+  type GestureReferenceFrame,
   type ScrollDirection,
 } from '../../core/scroll-gesture.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
@@ -271,7 +272,7 @@ async function captureFrameForMaestroScreenSwipe(params: {
   baseReq: ReplayBaseRequest;
   invoke: MaestroRuntimeInvoke;
   scope?: ReplayVarScope;
-}): Promise<{ referenceWidth: number; referenceHeight: number } | undefined> {
+}): Promise<GestureReferenceFrame | undefined> {
   const snapshotResponse = await captureMaestroSnapshot(params);
   if (!snapshotResponse.ok) return undefined;
   const snapshot = readSnapshotState(snapshotResponse.data);
@@ -280,7 +281,7 @@ async function captureFrameForMaestroScreenSwipe(params: {
 
 function resolveDirectionalScreenSwipe(
   args: string[],
-  frame: { referenceWidth: number; referenceHeight: number },
+  frame: GestureReferenceFrame,
 ): MaestroScreenSwipeResolution {
   const [direction, durationMs] = args;
   if (!direction) {
@@ -306,7 +307,7 @@ function resolveDirectionalScreenSwipe(
 
 function buildMaestroDirectionalScreenSwipe(
   direction: ScrollDirection,
-  frame: { referenceWidth: number; referenceHeight: number },
+  frame: GestureReferenceFrame,
   durationMs: string | undefined,
 ): MaestroScreenSwipeResolution {
   const plan = buildSwipeGesturePlan({
@@ -327,7 +328,7 @@ function buildMaestroDirectionalScreenSwipe(
 
 function resolvePercentScreenSwipe(
   args: string[],
-  frame: { referenceWidth: number; referenceHeight: number },
+  frame: GestureReferenceFrame,
   platform: string,
 ): MaestroScreenSwipeResolution {
   const [startX, startY, endX, endY, durationMs] = args;

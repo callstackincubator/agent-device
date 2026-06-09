@@ -6,7 +6,8 @@ import {
 import { AppError, normalizeError, type NormalizedError } from './errors.ts';
 import { detectPossibleRepeatedNavSubtree } from './repeated-nav-subtree.ts';
 import { buildSnapshotDisplayLines, formatSnapshotLine } from './snapshot-lines.ts';
-import type { SnapshotNode, SnapshotUnchanged, SnapshotVisibility } from './snapshot.ts';
+import type { Rect, SnapshotNode, SnapshotUnchanged, SnapshotVisibility } from './snapshot.ts';
+import type { MovementRange } from './screenshot-diff-ocr.ts';
 import type { ScreenshotDiffResult } from './screenshot-diff.ts';
 import type { ScreenshotDiffRegion } from './screenshot-diff-regions.ts';
 import { styleText } from 'node:util';
@@ -487,7 +488,7 @@ function formatScreenshotDiffNonTextLines(data: ScreenshotDiffResult, useColor: 
   return lines;
 }
 
-function formatRect(rect: { x: number; y: number; width: number; height: number }): string {
+function formatRect(rect: Rect): string {
   return `x=${rect.x},y=${rect.y},w=${rect.width},h=${rect.height}`;
 }
 
@@ -532,7 +533,7 @@ function formatNonTextHint(delta: {
   return `${delta.likelyKind}${anchor}${region}`;
 }
 
-function formatRange(range: { min: number; max: number }): string {
+function formatRange(range: MovementRange): string {
   return range.min === range.max
     ? formatSignedPixels(range.min)
     : `${formatSignedPixels(range.min)}..${formatSignedPixels(range.max)}`;

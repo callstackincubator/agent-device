@@ -1,5 +1,7 @@
 import type { Rect } from './snapshot.ts';
 
+export type ImageDimensions = { width: number; height: number };
+
 export function unionRects(rects: Rect[]): Rect {
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;

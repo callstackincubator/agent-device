@@ -1,4 +1,5 @@
 import type { CommandFlags } from '../../core/dispatch.ts';
+import type { GestureReferenceFrame } from '../../core/scroll-gesture.ts';
 import type { SnapshotNode } from '../../utils/snapshot.ts';
 import { getAndroidScreenSize } from '../../platforms/android/input-actions.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
@@ -14,7 +15,7 @@ async function resolveDirectTouchReferenceFrame(params: {
   sessionStore: SessionStore;
   contextFromFlags: ContextFromFlags;
   captureSnapshotForSession: CaptureSnapshotForSession;
-}): Promise<{ referenceWidth: number; referenceHeight: number } | undefined> {
+}): Promise<GestureReferenceFrame | undefined> {
   const { session, flags, sessionStore, contextFromFlags, captureSnapshotForSession } = params;
   if (!session.recording) {
     return undefined;
@@ -63,7 +64,7 @@ export async function resolveDirectTouchReferenceFrameSafely(params: {
   sessionStore: SessionStore;
   contextFromFlags: ContextFromFlags;
   captureSnapshotForSession: CaptureSnapshotForSession;
-}): Promise<{ referenceWidth: number; referenceHeight: number } | undefined> {
+}): Promise<GestureReferenceFrame | undefined> {
   try {
     return await resolveDirectTouchReferenceFrame(params);
   } catch (error) {
@@ -81,7 +82,7 @@ export async function resolveDirectTouchReferenceFrameSafely(params: {
 
 export function readSnapshotNodesReferenceFrame(
   nodes: SnapshotNode[],
-): { referenceWidth: number; referenceHeight: number } | undefined {
+): GestureReferenceFrame | undefined {
   return getSnapshotReferenceFrame({
     nodes,
     createdAt: 0,

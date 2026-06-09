@@ -1,6 +1,6 @@
 import { AppError } from './errors.ts';
 import type { DeviceKind, DeviceTarget, Platform } from './device.ts';
-import type { Point } from './snapshot.ts';
+import type { Point, Rect } from './snapshot.ts';
 
 function readRequired<T>(
   record: Record<string, unknown>,
@@ -74,7 +74,7 @@ export function readDeviceTarget(record: Record<string, unknown>, key: string): 
 export function readRect(
   record: Record<string, unknown>,
   key: string,
-): { x: number; y: number; width: number; height: number } | undefined {
+): Rect | undefined {
   const value = record[key];
   if (!isRecord(value)) return undefined;
   const x = readNumberField(value, 'x');

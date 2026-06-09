@@ -9,10 +9,11 @@ import {
 } from './screenshot-diff-non-text.ts';
 import { summarizeScreenshotOcr, type ScreenshotOcrSummary } from './screenshot-diff-ocr.ts';
 import { summarizeDiffRegions, type ScreenshotDiffRegion } from './screenshot-diff-regions.ts';
+import type { ImageDimensions } from './screenshot-geometry.ts';
 
 export type ScreenshotDimensionMismatch = {
-  expected: { width: number; height: number };
-  actual: { width: number; height: number };
+  expected: ImageDimensions;
+  actual: ImageDimensions;
 };
 
 export type ScreenshotDiffResult = {

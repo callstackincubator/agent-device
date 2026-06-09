@@ -10,7 +10,7 @@ import type {
 } from '../contracts.ts';
 export type { DaemonLockPolicy } from '../contracts.ts';
 import type { CommandFlags } from '../core/dispatch.ts';
-import type { ScrollDirection } from '../core/scroll-gesture.ts';
+import type { GestureReferenceFrame, ScrollDirection } from '../core/scroll-gesture.ts';
 import type { NetworkLogBackend } from './network-log.ts';
 import type { SessionSurface } from '../core/session-surface.ts';
 import type { DeviceInfo, Platform, PlatformSelector } from '../utils/device.ts';
@@ -197,10 +197,7 @@ type SessionRecordingBase = {
   quality?: number;
   showTouches: boolean;
   gestureEvents: RecordingGestureEvent[];
-  touchReferenceFrame?: {
-    referenceWidth: number;
-    referenceHeight: number;
-  };
+  touchReferenceFrame?: GestureReferenceFrame;
   gestureClockOriginAtMs?: number;
   gestureClockOriginUptimeMs?: number;
   runnerSessionId?: string;

@@ -1,10 +1,7 @@
-import { inferGestureReferenceFrame } from '../core/scroll-gesture.ts';
+import { inferGestureReferenceFrame, type GestureReferenceFrame } from '../core/scroll-gesture.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
 
-export type TouchReferenceFrame = {
-  referenceWidth: number;
-  referenceHeight: number;
-};
+export type TouchReferenceFrame = GestureReferenceFrame;
 
 const snapshotReferenceFrameCache = new WeakMap<SnapshotState, TouchReferenceFrame>();
 

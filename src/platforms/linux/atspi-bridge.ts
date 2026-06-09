@@ -12,7 +12,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { AppError } from '../../utils/errors.ts';
-import type { RawSnapshotNode } from '../../utils/snapshot.ts';
+import type { RawSnapshotNode, Rect } from '../../utils/snapshot.ts';
 import { normalizeAtspiRole } from './role-map.ts';
 import { resolveLinuxToolProvider, runLinuxToolCommand } from './tool-provider.ts';
 import type {
@@ -72,7 +72,7 @@ type PythonNode = {
   role: string;
   label?: string;
   value?: string;
-  rect?: { x: number; y: number; width: number; height: number };
+  rect?: Rect;
   enabled?: boolean;
   selected?: boolean;
   hittable?: boolean;

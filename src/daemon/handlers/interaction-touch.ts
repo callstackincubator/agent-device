@@ -1,4 +1,5 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
+import type { GestureReferenceFrame } from '../../core/scroll-gesture.ts';
 import {
   buttonTag,
   getClickButtonValidationError,
@@ -392,7 +393,7 @@ function readPointFromDirectSelectorTapResult(data: Record<string, unknown>): {
 
 function readReferenceFrameFromDirectSelectorTapResult(
   data: Record<string, unknown>,
-): { referenceWidth: number; referenceHeight: number } | undefined {
+): GestureReferenceFrame | undefined {
   return typeof data.referenceWidth === 'number' && typeof data.referenceHeight === 'number'
     ? { referenceWidth: data.referenceWidth, referenceHeight: data.referenceHeight }
     : undefined;

@@ -1,5 +1,7 @@
 import type { Rect } from './snapshot.ts';
 import { runCmd, whichCmd } from './exec.ts';
+
+export type MovementRange = { min: number; max: number };
 import { rectCenter, squaredDistance, unionRects } from './screenshot-geometry.ts';
 
 export type ScreenshotOcrBlock = {
@@ -13,15 +15,15 @@ export type ScreenshotOcrTextMatch = {
   text: string;
   baselineRect: Rect;
   currentRect: Rect;
-  delta: { x: number; y: number; width: number; height: number };
+  delta: Rect;
   confidence: number;
   possibleTextMetricMismatch: boolean;
 };
 
 export type ScreenshotOcrMovementCluster = {
   texts: string[];
-  xRange: { min: number; max: number };
-  yRange: { min: number; max: number };
+  xRange: MovementRange;
+  yRange: MovementRange;
 };
 
 export type ScreenshotOcrSummary = {
