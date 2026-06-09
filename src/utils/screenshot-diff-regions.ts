@@ -1,5 +1,5 @@
 import type { PNG } from './png.ts';
-import type { Rect } from './snapshot.ts';
+import type { NormalizedRect, Rect } from './snapshot.ts';
 import { findConnectedMaskComponents } from './screenshot-diff-components.ts';
 import { splitLargeDiffRegions } from './screenshot-diff-region-split.ts';
 import type { MutableDiffRegion } from './screenshot-diff-region-types.ts';
@@ -15,7 +15,7 @@ type ScreenshotDiffColor = {
 export type ScreenshotDiffRegion = {
   index: number;
   rect: Rect;
-  normalizedRect: Rect;
+  normalizedRect: NormalizedRect;
   differentPixels: number;
   shareOfDiffPercentage: number;
   densityPercentage: number;
