@@ -4,10 +4,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-const [platform, derivedPath, destination] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const checkMode = args[0] === '--check';
+const [platform, derivedPath, destination] = checkMode ? args.slice(1) : args;
 
 if (!platform || !derivedPath || !destination) {
-  console.error('Usage: write-xcuitest-cache-metadata.mjs <ios|macos|tvos> <derived> <destination>');
+  console.error(
+    'Usage: write-xcuitest-cache-metadata.mjs [--check] <ios|macos|tvos> <derived> <destination>',
+  );
   process.exit(1);
 }
 
@@ -218,8 +222,120 @@ if (artifacts) {
   metadata.artifacts = artifacts;
 }
 
+if (checkMode) {
+  const validation = validateExistingRunnerCache(metadata);
+  if (!validation.ok) {
+    console.error(`Invalid XCTest runner cache: ${validation.reason}`);
+    process.exit(1);
+  }
+  console.log('XCTest runner cache metadata is valid');
+  process.exit(0);
+}
+
 fs.mkdirSync(path.dirname(metadataPath), { recursive: true });
 fs.writeFileSync(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);
+
+function validateExistingRunnerCache(expectedMetadata) {
+  const actualMetadata = readRunnerCacheMetadata();
+  if (!actualMetadata) {
+    return { ok: false, reason: 'cache_metadata_missing' };
+  }
+  if (stableJsonStringify(comparableRunnerCacheMetadata(actualMetadata)) !==
+    stableJsonStringify(comparableRunnerCacheMetadata(expectedMetadata))) {
+    return { ok: false, reason: 'cache_metadata_mismatch' };
+  }
+  const artifacts = actualMetadata.artifacts;
+  if (!isRunnerCacheArtifacts(artifacts)) {
+    return { ok: false, reason: 'cache_artifacts_missing' };
+  }
+  if (!isPathInsideDirectory(artifacts.xctestrunPath, derivedPath)) {
+    return { ok: false, reason: 'cache_xctestrun_outside_derived_path' };
+  }
+  if (!pathSignatureMatches(artifacts.xctestrunPath, {
+    mtimeMs: artifacts.xctestrunMtimeMs,
+    size: artifacts.xctestrunSize,
+  })) {
+    return { ok: false, reason: 'cache_xctestrun_signature_mismatch' };
+  }
+  for (const product of artifacts.productPaths) {
+    if (!isPathInsideDirectory(product.path, derivedPath)) {
+      return { ok: false, reason: 'cache_product_outside_derived_path' };
+    }
+    if (!pathSignatureMatches(product.path, product)) {
+      return { ok: false, reason: 'cache_product_signature_mismatch' };
+    }
+  }
+  return { ok: true };
+}
+
+function readRunnerCacheMetadata() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return null;
+    }
+    return raw;
+  } catch {
+    return null;
+  }
+}
+
+function comparableRunnerCacheMetadata(cacheMetadata) {
+  const { artifacts: _artifacts, ...comparable } = cacheMetadata;
+  return comparable;
+}
+
+function stableJsonStringify(value) {
+  return JSON.stringify(sortJsonKeys(value));
+}
+
+function sortJsonKeys(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => sortJsonKeys(item));
+  }
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => [key, sortJsonKeys(item)]),
+  );
+}
+
+function isRunnerCacheArtifacts(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  return (
+    typeof value.xctestrunPath === 'string' &&
+    Number.isInteger(value.xctestrunMtimeMs) &&
+    Number.isInteger(value.xctestrunSize) &&
+    Array.isArray(value.productPaths) &&
+    value.productPaths.length > 0 &&
+    value.productPaths.every(isRunnerCacheProductArtifact)
+  );
+}
+
+function isRunnerCacheProductArtifact(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  return (
+    typeof value.path === 'string' &&
+    Number.isInteger(value.mtimeMs) &&
+    Number.isInteger(value.size)
+  );
+}
+
+function pathSignatureMatches(filePath, expected) {
+  return readFileMtimeMs(filePath) === expected.mtimeMs && readFileSize(filePath) === expected.size;
+}
+
+function isPathInsideDirectory(targetPath, directoryPath) {
+  const relativePath = path.relative(path.resolve(directoryPath), path.resolve(targetPath));
+  return relativePath !== '' && !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
+}
 
 function resolveRunnerCacheArtifacts() {
   const xctestrunPath = findXctestrun(derivedPath);

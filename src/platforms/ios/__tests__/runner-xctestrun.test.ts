@@ -216,6 +216,28 @@ test('setup metadata script matches expected iOS simulator cache metadata', asyn
         'esac',
       ].join('\n'),
     );
+    writeExecutable(
+      path.join(binDir, 'plutil'),
+      [
+        '#!/bin/sh',
+        "cat <<'JSON'",
+        '{"TestConfigurations":[{"TestTargets":[{"ProductPaths":["__TESTROOT__/Debug-iphonesimulator/AgentDeviceRunner.app","__TESTROOT__/Debug-iphonesimulator/AgentDeviceRunnerUITests-Runner.app"]}]}]}',
+        'JSON',
+      ].join('\n'),
+    );
+    fs.writeFileSync(
+      path.join(
+        root,
+        'AgentDeviceRunner_AgentDeviceRunnerUITests_iphonesimulator26.2-arm64.xctestrun',
+      ),
+      '{}',
+    );
+    fs.mkdirSync(path.join(root, 'Debug-iphonesimulator', 'AgentDeviceRunner.app'), {
+      recursive: true,
+    });
+    fs.mkdirSync(path.join(root, 'Debug-iphonesimulator', 'AgentDeviceRunnerUITests-Runner.app'), {
+      recursive: true,
+    });
     const previousPath = process.env.PATH;
     process.env.PATH = `${binDir}${path.delimiter}${previousPath ?? ''}`;
     __resetRunnerToolchainFingerprintCacheForTests();
@@ -244,6 +266,44 @@ test('setup metadata script matches expected iOS simulator cache metadata', asyn
         resolveExpectedRunnerCacheMetadata(iosSimulator);
 
       assert.deepEqual(actualComparable, expectedComparable);
+
+      execFileSync(
+        process.execPath,
+        [
+          'scripts/write-xcuitest-cache-metadata.mjs',
+          '--check',
+          'ios',
+          root,
+          'generic/platform=iOS Simulator',
+        ],
+        {
+          cwd: process.cwd(),
+          env: { ...process.env, PATH: process.env.PATH },
+          stdio: ['ignore', 'ignore', 'inherit'],
+        },
+      );
+
+      fs.writeFileSync(
+        path.join(root, '.agent-device-runner-cache.json'),
+        JSON.stringify({ ...actual, packageVersion: 'stale' }, null, 2),
+      );
+      assert.throws(() =>
+        execFileSync(
+          process.execPath,
+          [
+            'scripts/write-xcuitest-cache-metadata.mjs',
+            '--check',
+            'ios',
+            root,
+            'generic/platform=iOS Simulator',
+          ],
+          {
+            cwd: process.cwd(),
+            env: { ...process.env, PATH: process.env.PATH },
+            stdio: ['ignore', 'ignore', 'pipe'],
+          },
+        ),
+      );
     } finally {
       __resetRunnerToolchainFingerprintCacheForTests();
       restoreEnvVar('PATH', previousPath);

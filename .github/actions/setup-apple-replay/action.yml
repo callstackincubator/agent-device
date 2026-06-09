@@ -37,8 +37,8 @@ outputs:
     description: "Resolved agent-device home directory"
     value: ${{ steps.agent-home.outputs.dir }}
   cache-hit:
-    description: "Whether the replay cache was restored"
-    value: ${{ steps.restore-prebuilt.outputs.cache-hit }}
+    description: "Whether a compatible replay cache was restored"
+    value: ${{ steps.cache-status.outputs.cache-hit }}
 
 runs:
   using: "composite"
@@ -66,13 +66,44 @@ runs:
         path: ${{ inputs.derived-path }}
         key: ${{ inputs.cache-key-prefix }}-${{ steps.xcode.outputs.key }}${{ inputs.cache-key-suffix }}-${{ steps.source-hash.outputs.value }}
 
+    - name: Validate replay prebuilt
+      id: validate-prebuilt
+      if: steps.restore-prebuilt.outputs.cache-hit == 'true' && inputs.xcuitest-platform != '' && inputs.xcuitest-destination != ''
+      run: |
+        set -euo pipefail
+        if node scripts/write-xcuitest-cache-metadata.mjs --check "$XCUITEST_PLATFORM" "$DERIVED_PATH" "$XCUITEST_DESTINATION"; then
+          echo "valid=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "valid=false" >> "$GITHUB_OUTPUT"
+          rm -rf "$DERIVED_PATH"
+        fi
+      shell: bash
+      env:
+        DERIVED_PATH: ${{ inputs.derived-path }}
+        XCUITEST_PLATFORM: ${{ inputs.xcuitest-platform }}
+        XCUITEST_DESTINATION: ${{ inputs.xcuitest-destination }}
+
+    - name: Resolve replay cache status
+      id: cache-status
+      run: |
+        set -euo pipefail
+        if [ "$RESTORED" = "true" ] && [ "$VALID" != "false" ]; then
+          echo "cache-hit=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "cache-hit=false" >> "$GITHUB_OUTPUT"
+        fi
+      shell: bash
+      env:
+        RESTORED: ${{ steps.restore-prebuilt.outputs.cache-hit }}
+        VALID: ${{ steps.validate-prebuilt.outputs.valid }}
+
     - name: Resolve agent-device home
       id: agent-home
       run: echo "dir=${AGENT_DEVICE_STATE_DIR:-$HOME/.agent-device}" >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Build replay artifacts
-      if: inputs.build-on-miss == 'true' && steps.restore-prebuilt.outputs.cache-hit != 'true'
+      if: inputs.build-on-miss == 'true' && steps.cache-status.outputs.cache-hit != 'true'
       run: ${{ inputs.build-command }}
       shell: bash
       env:

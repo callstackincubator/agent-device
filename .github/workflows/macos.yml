@@ -43,6 +43,8 @@ jobs:
           derived-path: ${{ env.AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH }}
           cache-key-prefix: macos-runner-prebuilt
           build-command: pnpm build:xcuitest:macos
+          xcuitest-platform: macos
+          xcuitest-destination: platform=macOS,arch=arm64
 
       - name: Build macOS helper
         run: pnpm build:macos-helper
