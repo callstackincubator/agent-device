@@ -6,7 +6,7 @@ import {
   type CommandName,
 } from '../commands/command-metadata.ts';
 
-type ToolResult = {
+export type ToolResult = {
   isError: boolean;
   structuredContent?: unknown;
   content: Array<{ type: 'text'; text: string }>;

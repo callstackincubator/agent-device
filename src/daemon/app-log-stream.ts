@@ -21,10 +21,12 @@ function redactChunk(chunk: string, patterns: RegExp[]): string {
   return output;
 }
 
+type LineWriter = { onChunk: (chunk: string) => void; flush: () => void };
+
 export function createLineWriter(
   stream: fs.WriteStream,
   options: { redactionPatterns: RegExp[]; includeTokens?: string[] },
-): { onChunk: (chunk: string) => void; flush: () => void } {
+): LineWriter {
   const includeTokens = options.includeTokens?.filter((token) => token.length > 0) ?? [];
   let pending = '';
 
@@ -67,7 +69,7 @@ export function attachChildToStream(
   stream: fs.WriteStream,
   options: {
     endStreamOnClose: boolean;
-    writer: { onChunk: (chunk: string) => void; flush: () => void };
+    writer: LineWriter;
   },
 ): Promise<ExecResult> {
   const stdout = child.stdout;

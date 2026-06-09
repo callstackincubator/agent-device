@@ -356,8 +356,6 @@ export type CaptureScreenshotResult = {
 
 export type DeviceCommandBaseOptions = AgentDeviceRequestOverrides & AgentDeviceSelectionOptions;
 
-type WaitSnapshotOptions = Pick<CaptureSnapshotOptions, 'depth' | 'scope' | 'raw'>;
-
 type WaitCommandTarget =
   | {
       durationMs: number;
@@ -366,21 +364,21 @@ type WaitCommandTarget =
       selector?: never;
       timeoutMs?: never;
     }
-  | (WaitSnapshotOptions & {
+  | (SelectorSnapshotCommandOptions & {
       text: string;
       durationMs?: never;
       ref?: never;
       selector?: never;
       timeoutMs?: number;
     })
-  | (WaitSnapshotOptions & {
+  | (SelectorSnapshotCommandOptions & {
       ref: string;
       durationMs?: never;
       text?: never;
       selector?: never;
       timeoutMs?: number;
     })
-  | (WaitSnapshotOptions & {
+  | (SelectorSnapshotCommandOptions & {
       selector: string;
       durationMs?: never;
       text?: never;
@@ -493,11 +491,11 @@ export type ClipboardCommandResult =
       textLength: number;
     });
 
-export type ReactNativeCommandOptions = ClientCommandBaseOptions & {
+export type ReactNativeCommandOptions = DeviceCommandBaseOptions & {
   action: 'dismiss-overlay';
 };
 
-export type PrepareCommandOptions = ClientCommandBaseOptions & {
+export type PrepareCommandOptions = DeviceCommandBaseOptions & {
   action: 'ios-runner';
   timeoutMs?: number;
 };
@@ -518,8 +516,6 @@ export type AgentDeviceCommandClient = {
 
 type SelectorSnapshotCommandOptions = Pick<CaptureSnapshotOptions, 'depth' | 'scope' | 'raw'>;
 type FindSnapshotCommandOptions = Pick<CaptureSnapshotOptions, 'depth' | 'raw'>;
-
-type ClientCommandBaseOptions = AgentDeviceRequestOverrides & AgentDeviceSelectionOptions;
 
 type PointTarget = {
   x: number;
@@ -557,47 +553,47 @@ type RepeatedPressOptions = {
   doubleTap?: boolean;
 };
 
-export type DeviceBootOptions = ClientCommandBaseOptions & {
+export type DeviceBootOptions = DeviceCommandBaseOptions & {
   headless?: boolean;
 };
 
-export type DeviceShutdownOptions = ClientCommandBaseOptions;
+export type DeviceShutdownOptions = DeviceCommandBaseOptions;
 
-export type AppPushOptions = ClientCommandBaseOptions & {
+export type AppPushOptions = DeviceCommandBaseOptions & {
   app: string;
   payload: string | Record<string, unknown>;
 };
 
-export type AppTriggerEventOptions = ClientCommandBaseOptions & {
+export type AppTriggerEventOptions = DeviceCommandBaseOptions & {
   event: string;
   payload?: Record<string, unknown>;
 };
 
-export type CaptureDiffOptions = ClientCommandBaseOptions &
+export type CaptureDiffOptions = DeviceCommandBaseOptions &
   Pick<CaptureSnapshotOptions, 'interactiveOnly' | 'compact' | 'depth' | 'scope' | 'raw'> & {
     kind: 'snapshot';
     out?: string;
   };
 
-export type ClickOptions = ClientCommandBaseOptions &
+export type ClickOptions = DeviceCommandBaseOptions &
   SelectorSnapshotCommandOptions &
   InteractionTarget &
   RepeatedPressOptions & {
     button?: ClickButton;
   };
 
-export type PressOptions = ClientCommandBaseOptions &
+export type PressOptions = DeviceCommandBaseOptions &
   SelectorSnapshotCommandOptions &
   InteractionTarget &
   RepeatedPressOptions;
 
-export type LongPressOptions = ClientCommandBaseOptions &
+export type LongPressOptions = DeviceCommandBaseOptions &
   SelectorSnapshotCommandOptions &
   InteractionTarget & {
     durationMs?: number;
   };
 
-export type SwipeOptions = ClientCommandBaseOptions & {
+export type SwipeOptions = DeviceCommandBaseOptions & {
   from: { x: number; y: number };
   to: { x: number; y: number };
   durationMs?: number;
@@ -606,7 +602,7 @@ export type SwipeOptions = ClientCommandBaseOptions & {
   pattern?: SwipePattern;
 };
 
-export type PanOptions = ClientCommandBaseOptions & {
+export type PanOptions = DeviceCommandBaseOptions & {
   x: number;
   y: number;
   dx: number;
@@ -614,7 +610,7 @@ export type PanOptions = ClientCommandBaseOptions & {
   durationMs?: number;
 };
 
-export type FlingOptions = ClientCommandBaseOptions & {
+export type FlingOptions = DeviceCommandBaseOptions & {
   direction: ScrollDirection;
   x: number;
   y: number;
@@ -622,63 +618,63 @@ export type FlingOptions = ClientCommandBaseOptions & {
   durationMs?: number;
 };
 
-export type SwipeGestureOptions = ClientCommandBaseOptions & {
+export type SwipeGestureOptions = DeviceCommandBaseOptions & {
   preset: SwipePreset;
   durationMs?: number;
 };
 
-export type FocusOptions = ClientCommandBaseOptions & {
+export type FocusOptions = DeviceCommandBaseOptions & {
   x: number;
   y: number;
 };
 
-export type TypeTextOptions = ClientCommandBaseOptions & {
+export type TypeTextOptions = DeviceCommandBaseOptions & {
   text: string;
   delayMs?: number;
 };
 
-export type FillOptions = ClientCommandBaseOptions &
+export type FillOptions = DeviceCommandBaseOptions &
   SelectorSnapshotCommandOptions &
   InteractionTarget & {
     text: string;
     delayMs?: number;
   };
 
-export type ScrollOptions = ClientCommandBaseOptions & {
+export type ScrollOptions = DeviceCommandBaseOptions & {
   direction: ScrollInputDirection;
   amount?: number;
   pixels?: number;
 };
 
-export type PinchOptions = ClientCommandBaseOptions & {
+export type PinchOptions = DeviceCommandBaseOptions & {
   scale: number;
   x?: number;
   y?: number;
 };
 
-export type RotateGestureOptions = ClientCommandBaseOptions & {
+export type RotateGestureOptions = DeviceCommandBaseOptions & {
   degrees: number;
   x?: number;
   y?: number;
   velocity?: number;
 };
 
-export type TransformGestureOptions = ClientCommandBaseOptions & TransformGestureParams;
+export type TransformGestureOptions = DeviceCommandBaseOptions & TransformGestureParams;
 
-export type GetOptions = ClientCommandBaseOptions &
+export type GetOptions = DeviceCommandBaseOptions &
   SelectorSnapshotCommandOptions &
   ElementTarget & {
     format: 'text' | 'attrs';
   };
 
-type IsTextPredicateOptions = ClientCommandBaseOptions &
+type IsTextPredicateOptions = DeviceCommandBaseOptions &
   SelectorSnapshotCommandOptions & {
     predicate: 'text';
     selector: string;
     value: string;
   };
 
-type IsStatePredicateOptions = ClientCommandBaseOptions &
+type IsStatePredicateOptions = DeviceCommandBaseOptions &
   SelectorSnapshotCommandOptions & {
     predicate: 'visible' | 'hidden' | 'exists' | 'editable' | 'selected';
     selector: string;
@@ -687,7 +683,7 @@ type IsStatePredicateOptions = ClientCommandBaseOptions &
 
 export type IsOptions = IsTextPredicateOptions | IsStatePredicateOptions;
 
-type FindBaseOptions = ClientCommandBaseOptions &
+type FindBaseOptions = DeviceCommandBaseOptions &
   FindSnapshotCommandOptions & {
     locator?: FindLocator;
     query: string;
@@ -742,7 +738,7 @@ export type BatchRunOptions = AgentDeviceRequestOverrides & {
   out?: string;
 };
 
-export type PerfOptions = ClientCommandBaseOptions & {
+export type PerfOptions = DeviceCommandBaseOptions & {
   area?: PerfArea;
   action?: PerfAction;
 };
@@ -793,38 +789,38 @@ export type PermissionTarget =
   | 'input-monitoring';
 
 export type SettingsUpdateOptions =
-  | (ClientCommandBaseOptions & {
+  | (DeviceCommandBaseOptions & {
       setting: 'clear-app-state';
       state: 'clear';
       app?: string;
     })
-  | (ClientCommandBaseOptions & {
+  | (DeviceCommandBaseOptions & {
       setting: 'wifi' | 'airplane' | 'location';
       state: 'on' | 'off';
     })
-  | (ClientCommandBaseOptions & {
+  | (DeviceCommandBaseOptions & {
       setting: 'location';
       state: 'set';
       latitude: number;
       longitude: number;
     })
-  | (ClientCommandBaseOptions & {
+  | (DeviceCommandBaseOptions & {
       setting: 'animations';
       state: 'on' | 'off';
     })
-  | (ClientCommandBaseOptions & {
+  | (DeviceCommandBaseOptions & {
       setting: 'appearance';
       state: 'light' | 'dark' | 'toggle';
     })
-  | (ClientCommandBaseOptions & {
+  | (DeviceCommandBaseOptions & {
       setting: 'faceid' | 'touchid';
       state: 'match' | 'nonmatch' | 'enroll' | 'unenroll';
     })
-  | (ClientCommandBaseOptions & {
+  | (DeviceCommandBaseOptions & {
       setting: 'fingerprint';
       state: 'match' | 'nonmatch';
     })
-  | (ClientCommandBaseOptions & {
+  | (DeviceCommandBaseOptions & {
       setting: 'permission';
       state: 'grant' | 'deny' | 'reset';
       permission: PermissionTarget;

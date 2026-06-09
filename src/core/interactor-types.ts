@@ -29,11 +29,14 @@ export type ScreenshotOptions = {
 
 export type ElementSelectorKey = 'id' | 'label' | 'text' | 'value';
 
-export type ElementSelectorTapOptions = {
+export type ElementSelectorTarget = {
   key: ElementSelectorKey;
   value: string;
+  raw: string;
   allowNonHittableCoordinateFallback?: boolean;
 };
+
+export type ElementSelectorTapOptions = Omit<ElementSelectorTarget, 'raw'>;
 
 export type SnapshotOptions = BaseSnapshotOptions & {
   appBundleId?: string;

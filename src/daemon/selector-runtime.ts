@@ -80,10 +80,9 @@ type DirectIosSelectorQueryResult = {
   node?: SnapshotNode;
 };
 
-type DirectIosSelectorFallbackResult =
-  | DirectIosSelectorQueryResult
-  | { kind: 'error'; response: DaemonResponse }
-  | null;
+type SelectorRuntimeError = { kind: 'error'; response: DaemonResponse };
+
+type DirectIosSelectorFallbackResult = DirectIosSelectorQueryResult | SelectorRuntimeError | null;
 
 type ResolvedDirectIosSelectorQuery =
   | {
@@ -91,7 +90,7 @@ type ResolvedDirectIosSelectorQuery =
       selector: DirectIosSelectorTarget;
       result: DirectIosSelectorQueryResult;
     }
-  | { kind: 'error'; response: DaemonResponse }
+  | SelectorRuntimeError
   | null;
 
 export async function dispatchFindReadOnlyViaRuntime(
@@ -419,7 +418,7 @@ async function queryDirectIosSelectorOrFallback(
 
 function isDirectIosSelectorErrorResult(
   result: DirectIosSelectorFallbackResult | ResolvedDirectIosSelectorQuery,
-): result is { kind: 'error'; response: DaemonResponse } {
+): result is SelectorRuntimeError {
   return result !== null && 'kind' in result && result.kind === 'error';
 }
 

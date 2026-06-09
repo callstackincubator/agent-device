@@ -1,4 +1,4 @@
-import { listCommandTools, commandToolExecutor } from './command-tools.ts';
+import { listCommandTools, commandToolExecutor, type ToolResult } from './command-tools.ts';
 import { readVersion } from '../utils/version.ts';
 import type { JsonRpcId, JsonRpcRequestEnvelope } from '../contracts.ts';
 
@@ -70,7 +70,7 @@ function supportedProtocolVersion(_params: unknown): string {
   return SUPPORTED_PROTOCOL_VERSION;
 }
 
-function textToolResult(text: string, isError = false): unknown {
+function textToolResult(text: string, isError = false): ToolResult {
   return {
     isError,
     content: [{ type: 'text', text }],
