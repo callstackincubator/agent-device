@@ -1,10 +1,12 @@
 import { AppError } from '../utils/errors.ts';
 
-export type DeviceRotation =
-  | 'portrait'
-  | 'portrait-upside-down'
-  | 'landscape-left'
-  | 'landscape-right';
+export const DEVICE_ROTATIONS = [
+  'portrait',
+  'portrait-upside-down',
+  'landscape-left',
+  'landscape-right',
+] as const;
+export type DeviceRotation = (typeof DEVICE_ROTATIONS)[number];
 
 export function parseDeviceRotation(input: string | undefined): DeviceRotation {
   if (input === undefined) {

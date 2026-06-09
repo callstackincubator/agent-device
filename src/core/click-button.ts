@@ -1,6 +1,7 @@
 import { AppError } from '../utils/errors.ts';
 
-export type ClickButton = 'primary' | 'secondary' | 'middle';
+export const CLICK_BUTTONS = ['primary', 'secondary', 'middle'] as const;
+export type ClickButton = (typeof CLICK_BUTTONS)[number];
 
 type ClickButtonFlags = {
   clickButton?: ClickButton;

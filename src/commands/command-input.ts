@@ -4,7 +4,7 @@ import type {
   ElementTarget,
   InteractionTarget,
 } from '../client-types.ts';
-import type { DeviceTarget, PlatformSelector } from '../utils/device.ts';
+import { DEVICE_TARGETS, type DeviceTarget, type PlatformSelector } from '../utils/device.ts';
 import type { JsonSchema } from './command-contract.ts';
 
 const PLATFORM_VALUES = [
@@ -14,7 +14,6 @@ const PLATFORM_VALUES = [
   'linux',
   'apple',
 ] as const satisfies readonly PlatformSelector[];
-const DEVICE_TARGET_VALUES = ['mobile', 'tv', 'desktop'] as const satisfies readonly DeviceTarget[];
 const INTERACTION_TARGET_KINDS = ['ref', 'selector', 'point'] as const;
 
 export type CommonCommandInput = Pick<
@@ -301,9 +300,9 @@ function readDeviceTarget(
   record: Record<string, unknown>,
   options: CommonInputOptions,
 ): DeviceTarget | undefined {
-  const deviceTarget = optionalEnum(record, 'deviceTarget', DEVICE_TARGET_VALUES);
+  const deviceTarget = optionalEnum(record, 'deviceTarget', DEVICE_TARGETS);
   if (options.readTargetAlias === false || record.target === undefined) return deviceTarget;
-  const targetAlias = optionalEnum(record, 'target', DEVICE_TARGET_VALUES);
+  const targetAlias = optionalEnum(record, 'target', DEVICE_TARGETS);
   if (deviceTarget !== undefined && targetAlias !== deviceTarget) {
     throw new Error('Expected target alias to match deviceTarget when both are set.');
   }
@@ -570,12 +569,12 @@ function commonProperties(): Record<string, JsonSchema> {
     },
     deviceTarget: {
       type: 'string',
-      enum: DEVICE_TARGET_VALUES,
+      enum: DEVICE_TARGETS,
       description: 'Device target form. Maps to the CLI --target flag.',
     },
     target: {
       type: 'string',
-      enum: DEVICE_TARGET_VALUES,
+      enum: DEVICE_TARGETS,
       description:
         'Alias for deviceTarget on commands without a UI target field. Interaction commands reserve target for the UI element.',
     },

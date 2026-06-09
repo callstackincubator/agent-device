@@ -1,9 +1,12 @@
 import { AppError } from '../utils/errors.ts';
 import type { Rect, SnapshotNode } from '../utils/snapshot.ts';
 
-export type ScrollDirection = 'up' | 'down' | 'left' | 'right';
-export type SwipePreset = 'left' | 'right' | 'left-edge' | 'right-edge';
-export type SwipePattern = 'one-way' | 'ping-pong';
+export const SCROLL_DIRECTIONS = ['up', 'down', 'left', 'right'] as const;
+export type ScrollDirection = (typeof SCROLL_DIRECTIONS)[number];
+export const SWIPE_PRESETS = ['left', 'right', 'left-edge', 'right-edge'] as const;
+export type SwipePreset = (typeof SWIPE_PRESETS)[number];
+export const SWIPE_PATTERNS = ['one-way', 'ping-pong'] as const;
+export type SwipePattern = (typeof SWIPE_PATTERNS)[number];
 
 export type TransformGestureParams = {
   x: number;

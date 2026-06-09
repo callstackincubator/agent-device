@@ -27,27 +27,16 @@ import {
   type PointInput,
 } from './command-input.ts';
 import { defineFieldCommandMetadata } from './field-command-contract.ts';
-import type { ClickButton } from '../core/click-button.ts';
-import type { ScrollDirection, SwipePattern, SwipePreset } from '../core/scroll-gesture.ts';
-import type { ScrollInputDirection } from './interaction-gestures.ts';
+import { CLICK_BUTTONS } from '../core/click-button.ts';
+import {
+  SCROLL_DIRECTIONS,
+  SWIPE_PATTERNS,
+  SWIPE_PRESETS,
+  type ScrollDirection,
+  type SwipePreset,
+} from '../core/scroll-gesture.ts';
+import { SCROLL_INPUT_DIRECTIONS } from './interaction-gestures.ts';
 
-const CLICK_BUTTON_VALUES = [
-  'primary',
-  'secondary',
-  'middle',
-] as const satisfies readonly ClickButton[];
-const GESTURE_DIRECTION_VALUES = [
-  'up',
-  'down',
-  'left',
-  'right',
-] as const satisfies readonly ScrollDirection[];
-const GESTURE_SWIPE_PRESET_VALUES = [
-  'left',
-  'right',
-  'left-edge',
-  'right-edge',
-] as const satisfies readonly SwipePreset[];
 const FIND_ACTION_VALUES = [
   'click',
   'focus',
@@ -59,22 +48,10 @@ const FIND_ACTION_VALUES = [
   'type',
 ] as const;
 const FIND_LOCATOR_VALUES = ['any', 'text', 'label', 'value', 'role', 'id'] as const;
-const SCROLL_DIRECTION_VALUES = [
-  'up',
-  'down',
-  'left',
-  'right',
-  'top',
-  'bottom',
-] as const satisfies readonly ScrollInputDirection[];
-const SWIPE_PATTERN_VALUES = ['one-way', 'ping-pong'] as const satisfies readonly SwipePattern[];
 
 const clickFields = {
   target: requiredField(interactionTargetField()),
-  button: enumField(
-    CLICK_BUTTON_VALUES,
-    'Pointer button for platforms that support mouse buttons.',
-  ),
+  button: enumField(CLICK_BUTTONS, 'Pointer button for platforms that support mouse buttons.'),
   ...selectorSnapshotFields(),
   ...repeatedFields(),
 };
@@ -104,7 +81,7 @@ const swipeFields = {
   durationMs: integerField('Swipe duration in milliseconds.', { min: 0 }),
   count: integerField('Number of swipe repetitions.', { min: 1 }),
   pauseMs: integerField('Pause between repeated swipes.', { min: 0 }),
-  pattern: enumField(SWIPE_PATTERN_VALUES),
+  pattern: enumField(SWIPE_PATTERNS),
 };
 
 const focusFields = {
@@ -118,7 +95,7 @@ const typeFields = {
 };
 
 const scrollFields = {
-  direction: requiredField(enumField(SCROLL_DIRECTION_VALUES)),
+  direction: requiredField(enumField(SCROLL_INPUT_DIRECTIONS)),
   amount: numberField('Platform scroll amount.'),
   pixels: integerField('Pixel scroll amount.', { min: 0 }),
 };
@@ -152,8 +129,8 @@ const findFields = {
 
 const gestureFields = {
   kind: requiredField(enumField(GESTURE_KINDS, 'Gesture variant.')),
-  direction: enumField(GESTURE_DIRECTION_VALUES, 'Fling direction.'),
-  preset: enumField(GESTURE_SWIPE_PRESET_VALUES, 'Swipe preset.'),
+  direction: enumField(SCROLL_DIRECTIONS, 'Fling direction.'),
+  preset: enumField(SWIPE_PRESETS, 'Swipe preset.'),
   origin: pointField('Gesture origin point.'),
   delta: pointField('Movement delta for pan or transform gestures.'),
   distance: integerField('Fling distance.', { min: 0 }),
@@ -272,7 +249,7 @@ function readGestureInput(input: unknown): GestureInput {
     return {
       ...common,
       kind,
-      direction: requiredEnum(record, 'direction', GESTURE_DIRECTION_VALUES),
+      direction: requiredEnum(record, 'direction', SCROLL_DIRECTIONS),
       origin: readPoint(record, 'origin'),
       distance: optionalInteger(record, 'distance', { min: 0 }),
       durationMs: optionalInteger(record, 'durationMs', { min: 0 }),
@@ -282,7 +259,7 @@ function readGestureInput(input: unknown): GestureInput {
     return {
       ...common,
       kind,
-      preset: requiredEnum(record, 'preset', GESTURE_SWIPE_PRESET_VALUES),
+      preset: requiredEnum(record, 'preset', SWIPE_PRESETS),
       durationMs: optionalInteger(record, 'durationMs', { min: 0 }),
     };
   }

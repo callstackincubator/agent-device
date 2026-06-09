@@ -50,7 +50,8 @@ export type LongPressCommandResult = ResolvedInteractionTarget & {
 } & BackendResultEnvelope;
 
 export type GestureDirection = ScrollDirection;
-export type ScrollInputDirection = GestureDirection | 'top' | 'bottom';
+export const SCROLL_INPUT_DIRECTIONS = ['up', 'down', 'left', 'right', 'top', 'bottom'] as const;
+export type ScrollInputDirection = (typeof SCROLL_INPUT_DIRECTIONS)[number];
 
 export type ScrollTarget =
   | InteractionTarget

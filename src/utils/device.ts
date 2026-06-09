@@ -4,7 +4,8 @@ export type ApplePlatform = 'ios' | 'macos';
 export type Platform = ApplePlatform | 'android' | 'linux';
 export type PlatformSelector = Platform | 'apple';
 export type DeviceKind = 'simulator' | 'emulator' | 'device';
-export type DeviceTarget = 'mobile' | 'tv' | 'desktop';
+export const DEVICE_TARGETS = ['mobile', 'tv', 'desktop'] as const;
+export type DeviceTarget = (typeof DEVICE_TARGETS)[number];
 
 export type DeviceInfo = {
   platform: Platform;
