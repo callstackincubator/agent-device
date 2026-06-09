@@ -5,10 +5,10 @@ import { resolveTargetDevice } from '../../core/dispatch.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { hasExplicitDeviceSelector } from '../device-selector-intent.ts';
 import { listSessionSelectorConflicts } from '../session-selector.ts';
-import { isAndroidEmulator, isIosSimulator } from '../device-targets.ts';
+import { isIosSimulator } from '../device-targets.ts';
 import { errorResponse } from './response.ts';
 
-export { isAndroidEmulator, isIosSimulator };
+export { isIosSimulator };
 
 export const IOS_SIMULATOR_POST_CLOSE_SETTLE_MS = 300;
 

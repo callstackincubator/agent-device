@@ -1,7 +1,7 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { asAppError } from '../../utils/errors.ts';
 import { isApplePlatform, normalizePlatformSelector, type DeviceInfo } from '../../utils/device.ts';
-import type { DaemonRequest, DaemonResponse } from '../types.ts';
+import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
 import { shutdownDeviceTarget } from '../target-shutdown.ts';
@@ -260,18 +260,9 @@ export async function handleSessionStateCommands(params: {
     const guard = requireSessionOrExplicitSelector(req.command, session, flags);
     if (guard) return guard;
 
-    const device = await resolveCommandDevice({
-      session,
-      flags,
-      ensureReady: false,
-    });
-
-    if (!isCommandSupportedOnDevice('shutdown', device)) {
-      return errorResponse(
-        'UNSUPPORTED_OPERATION',
-        'shutdown is supported only for Apple simulators and Android emulators.',
-      );
-    }
+    const resolved = await resolveShutdownDevice(session, flags);
+    if ('response' in resolved) return resolved.response;
+    const { device } = resolved;
 
     if (session && session.device.platform === device.platform && session.device.id === device.id) {
       return errorResponse(
@@ -334,4 +325,26 @@ function shutdownFailureMessage(
 ): string {
   const message = shutdown.error?.message ?? shutdown.stderr.trim();
   return message.length > 0 ? message : 'Shutdown failed';
+}
+
+async function resolveShutdownDevice(
+  session: SessionState | undefined,
+  flags: DaemonRequest['flags'],
+): Promise<{ device: DeviceInfo } | { response: DaemonResponse }> {
+  const device = await resolveCommandDevice({
+    session,
+    flags,
+    ensureReady: false,
+  });
+
+  if (!isCommandSupportedOnDevice('shutdown', device)) {
+    return {
+      response: errorResponse(
+        'UNSUPPORTED_OPERATION',
+        'shutdown is supported only for Apple simulators and Android emulators.',
+      ),
+    };
+  }
+
+  return { device };
 }
