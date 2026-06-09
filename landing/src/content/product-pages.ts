@@ -6,8 +6,19 @@ export type ProductPageContent = {
   description: string;
   primaryAction: string;
   secondaryAction: string;
+  heroMedia: {
+    alt?: string;
+    cta?: string;
+    src?: string;
+    type: "image" | "video-placeholder";
+  };
   problemTitle: string;
   problemBody: string;
+  stats: {
+    value: string;
+    label: string;
+    body: string;
+  }[];
   shiftTitle: string;
   shiftBody: string;
   pillars: IconCard[];
@@ -24,20 +35,61 @@ export type ProductPageContent = {
     cards?: IconCard[];
     previewOnly?: boolean;
   }[];
+  pricing?: {
+    title: string;
+    body: string;
+    plans: {
+      name: string;
+      price: string;
+      detail: string;
+      highlighted?: boolean;
+    }[];
+  };
+  stack: {
+    title: string;
+    body: string;
+    items: IconCard[];
+  };
+  faq: {
+    title: string;
+    body: string;
+    items: { question: string; answer: string }[];
+  };
   ctaTitle: string;
   ctaBody: string;
 };
 
 export const agenticQaPage: ProductPageContent = {
   eyebrow: "Agentic mobile QA",
-  title: "Manual QA done by AI Agents, on your terms.",
+  title: "Manual mobile QA, run by AI agents.",
   description:
     "Stop spending engineering hours tapping through builds. Agents drive your iOS and Android apps, capture proof, and hand evidence back to the PR.",
   primaryAction: "Use free template",
   secondaryAction: "Build QA Agent",
+  heroMedia: {
+    cta: "Watch the QA loop",
+    type: "video-placeholder",
+  },
   problemTitle: "Agents create more code than ever. Manual QA can't keep up.",
   problemBody:
     "Every new feature multiplies the regression matrix. Every new platform doubles it. The fix has always been more people, more scripts, more Mac fleets. None of that scales.",
+  stats: [
+    {
+      value: "7.2%",
+      label: "Drop in delivery stability as AI adoption rises",
+      body: "Google Cloud CTO report",
+    },
+    {
+      value: "66%",
+      label: "Developers say AI outputs are almost right",
+      body: "Stack Overflow Developer Survey",
+    },
+    {
+      value: "48%",
+      label: "Always verify AI-assisted code before committing",
+      body: "Stack Overflow / Codecademy",
+    },
+  ],
   shiftTitle: "The QA loop, automated by the agents you already use.",
   shiftBody:
     "Agentic QA is mobile testing driven by coding agents: Claude Code, Codex, Cursor. Not a separate QA platform. Not a no-code recorder. Same agent, same protocol, real devices.",
@@ -102,27 +154,62 @@ export const agenticQaPage: ProductPageContent = {
       cards: [
         {
           icon: "terminal",
-          title: "agent-device",
-          body: "Agent-native, semantic targeting, real devices, evidence bundles, CI from Linux, no vendor lock-in.",
+          title: "Agent-native",
+          body: "Semantic targeting, mobile semantic refs, evidence bundles, and CI from Linux.",
         },
         {
           icon: "braces",
-          title: "Detox and Maestro",
-          body: "Great test frameworks. Agent Device gives coding agents a way to drive and collect evidence around them.",
+          title: "Works with your stack",
+          body: "Runs alongside your test frameworks, CI providers, and mobile build systems.",
         },
         {
-          icon: "phone",
-          title: "Device infrastructure",
-          body: "Useful infrastructure. Agent Device adds the agent protocol and evidence shape.",
+          icon: "shuffle",
+          title: "Train-efficient context",
+          body: "Gives agents enough mobile state to act without dumping raw screenshots every step.",
         },
         {
-          icon: "hand",
-          title: "Manual QA",
-          body: "Still useful for judgment. Agents take repetitive proof-heavy loops off the queue.",
+          icon: "cloud",
+          title: "Works with your stack",
+          body: "Use it locally, in CI, or with remote mobile infrastructure when your workflow needs it.",
         },
       ],
     },
   ],
+  stack: {
+    title: "Make it work in your stack.",
+    body: "Agent Device works out of the box. Callstack can help you connect it to CI, hosted agents, React Native tooling, device infrastructure, and release processes.",
+    items: [
+      {
+        icon: "terminal",
+        title: "Agent workflows",
+        body: "Codex, Claude Code, Cursor, CI, and human handoffs.",
+      },
+      {
+        icon: "braces",
+        title: "React Native debugging",
+        body: "Metro, native builds, profiling, release logs, and active component reports.",
+      },
+      {
+        icon: "cloud",
+        title: "Cloud or self-hosted",
+        body: "Managed environments, private infrastructure, internal networks, and custom access policies.",
+      },
+    ],
+  },
+  faq: {
+    title: "Common questions about Agentic QA",
+    body: "Still figuring out where agents fit in your QA process? Start with the workflows your team repeats most.",
+    items: [
+      {
+        question: "Does agentic QA replace our current test stack?",
+        answer: "No. It gives agents a way to run the mobile QA loop your team already expects: launch, inspect, act, capture proof, and report back.",
+      },
+      {
+        question: "What QA work should agents handle first?",
+        answer: "Start with repetitive PR checks, smoke paths, regression flows, and evidence gathering across iOS and Android.",
+      },
+    ],
+  },
   ctaTitle: "Mobile QA that runs itself.",
   ctaBody:
     "Install the CLI, hand the docs to your agent, and let it walk a flow on your local simulator or device.",
@@ -132,12 +219,34 @@ export const agenticDevelopmentPage: ProductPageContent = {
   eyebrow: "Agentic mobile development",
   title: "Your coding agent, with real mobile reach.",
   description:
-    "Codex, Claude Code, and Cursor work great until they hit mobile. agent-device gives them iOS and Android they can actually drive: install builds, run dev servers, debug crashes, capture proof.",
+    "Codex, Claude Code, and Cursor work great until they hit mobile. agent-device gives them iOS and Android they can actually drive. Install builds, run dev servers, debug crashes, capture proof.",
   primaryAction: "Get Started",
   secondaryAction: "Get a Demo",
+  heroMedia: {
+    alt: "Mostly automated app development workflow diagram",
+    src: "/figma/agentic-development-hero.webp",
+    type: "image",
+  },
   problemTitle: "Coding agents stop at the simulator.",
   problemBody:
     "Your agent reads code, writes code, and ships PRs from anywhere. Mobile work still requires the machine with Xcode, the USB-attached phone, and the dev environment a human set up. The agent waits for the human.",
+  stats: [
+    {
+      value: "64%",
+      label: "Developers lose time resolving context switching",
+      body: "Stack Overflow Labs",
+    },
+    {
+      value: "97%",
+      label: "Developers report losing focus due to interruption",
+      body: "Qatalog / Cornell University report",
+    },
+    {
+      value: "50K+",
+      label: "Developer teams now evaluated using AI tools",
+      body: "Google Research",
+    },
+  ],
   shiftTitle: "Mobile development the agent can drive end to end.",
   shiftBody:
     "Not a code-completion plugin. Not a chatbot wrapper. agent-device is the execution layer that lets agents install builds, run Metro, drive the UI, debug crashes, and profile performance.",
@@ -189,11 +298,58 @@ export const agenticDevelopmentPage: ProductPageContent = {
   ],
   supportSections: [
     {
-      eyebrow: "Agentic mobile QA",
-      title: "Manual QA done by AI Agents, on your terms.",
-      body: "Agents drive your iOS and Android apps, capture proof, and hand evidence back to the PR.",
+      eyebrow: "Cloud or local",
+      title: "Mobile execution wherever your agents live.",
+      body: "Agent Device runs from your machine, CI, or cloud workspaces. Use hosted devices when agents need mobile reach without local hardware.",
+      cards: [
+        {
+          icon: "terminal",
+          title: "Local control",
+          body: "Drive local simulators, emulators, and attached devices from the agent shell.",
+        },
+        {
+          icon: "cloud",
+          title: "Cloud sessions",
+          body: "Move the same workflow to remote mobile infrastructure when your agent runs elsewhere.",
+        },
+      ],
     },
   ],
+  stack: {
+    title: "Make it work in your stack.",
+    body: "Agent Device works out of the box. Callstack can help you connect it to hosted agents, React Native tooling, device infrastructure, and release processes.",
+    items: [
+      {
+        icon: "terminal",
+        title: "Agent workflows",
+        body: "Codex, Claude Code, Cursor, CI, and human handoffs.",
+      },
+      {
+        icon: "braces",
+        title: "React Native debugging",
+        body: "Metro, native builds, profiling, release logs, and active component reports.",
+      },
+      {
+        icon: "cloud",
+        title: "Cloud or self-hosted",
+        body: "Managed environments, private infrastructure, internal networks, and custom access policies.",
+      },
+    ],
+  },
+  faq: {
+    title: "Common questions about Agentic development",
+    body: "Still figuring out how agents fit into mobile engineering? Start with the parts of the loop that still need a remote control.",
+    items: [
+      {
+        question: "Does agentic development replace our current development stack?",
+        answer: "No. It gives your coding agents a mobile execution layer so they can run, inspect, debug, and verify apps inside your current workflow.",
+      },
+      {
+        question: "What should agents handle first?",
+        answer: "Start with build install checks, smoke paths, crash reproduction, screenshots, recordings, logs, and PR evidence.",
+      },
+    ],
+  },
   ctaTitle: "Your coding agent, with real mobile reach.",
   ctaBody:
     "Request a demo or start locally with the same CLI. Bring mobile verification into the same agent loop that writes the code.",

@@ -35,7 +35,7 @@ export const pageRegistry = {
     label: "Agentic QA",
     description:
       "Manual mobile QA done by AI agents. Agents drive iOS and Android apps, capture proof, and hand evidence back to the PR.",
-    ogTitle: "Manual QA done by AI Agents, on your terms.",
+    ogTitle: "Manual mobile QA, run by AI agents.",
     status: "public",
     showInNavigation: true,
     llmsSummary:

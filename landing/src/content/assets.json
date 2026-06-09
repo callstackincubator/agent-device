@@ -16,6 +16,14 @@
     "usedBy": "Home video poster"
   },
   {
+    "path": "/figma/agentic-development-hero.webp",
+    "logicalWidth": 1071,
+    "logicalHeight": 612,
+    "density": 2,
+    "maxBytes": 180000,
+    "usedBy": "Agentic Development hero workflow diagram"
+  },
+  {
     "path": "/figma/callstack-card-bg.webp",
     "logicalWidth": 672,
     "logicalHeight": 360,
