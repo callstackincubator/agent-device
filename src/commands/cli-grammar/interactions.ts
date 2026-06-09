@@ -8,6 +8,7 @@ import type {
 } from '../../client-types.ts';
 import { splitSelectorFromArgs } from '../../daemon/selectors.ts';
 import { AppError } from '../../utils/errors.ts';
+import type { ScrollInputDirection } from '../interaction-gestures.ts';
 import {
   commonInputFromFlags,
   direct,
@@ -192,7 +193,7 @@ function swipePositionals(input: CommandInput): string[] {
 
 function readScrollDirection(
   value: string | undefined,
-): 'up' | 'down' | 'left' | 'right' | 'top' | 'bottom' {
+): ScrollInputDirection {
   if (
     value === 'up' ||
     value === 'down' ||

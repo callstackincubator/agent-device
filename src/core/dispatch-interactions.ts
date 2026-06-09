@@ -8,6 +8,7 @@ import {
   parseScrollDirection,
   parseSwipePreset,
   type ScrollDirection,
+  type SwipePattern,
   type SwipePreset,
 } from './scroll-gesture.ts';
 import {
@@ -934,7 +935,7 @@ function formatPressMessage(params: { x: number; y: number; button?: ClickButton
   return `Tapped (${params.x}, ${params.y})`;
 }
 
-function formatSwipeMessage(count: number, pattern: 'one-way' | 'ping-pong'): string {
+function formatSwipeMessage(count: number, pattern: SwipePattern): string {
   if (count <= 1) return 'Swiped';
   return pattern === 'ping-pong' ? `Swiped ${count} times (ping-pong)` : `Swiped ${count} times`;
 }

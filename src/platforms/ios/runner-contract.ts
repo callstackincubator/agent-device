@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { AppError } from '../../utils/errors.ts';
 import type { ClickButton } from '../../core/click-button.ts';
 import type { DeviceRotation } from '../../core/device-rotation.ts';
-import type { ScrollDirection } from '../../core/scroll-gesture.ts';
+import type { ScrollDirection, SwipePattern } from '../../core/scroll-gesture.ts';
 import { createRequestCanceledError, isRequestCanceled } from '../../daemon/request-cancel.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
 import type { RunnerSession } from './runner-session-types.ts';
@@ -62,7 +62,7 @@ export type RunnerCommand = {
   intervalMs?: number;
   doubleTap?: boolean;
   pauseMs?: number;
-  pattern?: 'one-way' | 'ping-pong';
+  pattern?: SwipePattern;
   x2?: number;
   y2?: number;
   dx?: number;

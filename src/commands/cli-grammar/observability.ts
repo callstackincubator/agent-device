@@ -6,6 +6,7 @@ import type {
   RecordOptions,
 } from '../../client-types.ts';
 import { AppError } from '../../utils/errors.ts';
+import type { NetworkIncludeMode } from '../../contracts.ts';
 import {
   isPerfAction,
   isPerfArea,
@@ -144,7 +145,7 @@ function readNetworkAction(value: string | undefined): 'dump' | 'log' | undefine
 
 function readNetworkInclude(
   value: string | undefined,
-): 'summary' | 'headers' | 'body' | 'all' | undefined {
+): NetworkIncludeMode | undefined {
   if (value === undefined) return undefined;
   if (value === 'summary' || value === 'headers' || value === 'body' || value === 'all')
     return value;

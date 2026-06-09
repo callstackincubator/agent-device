@@ -8,6 +8,7 @@ import type {
   SnapshotOptions,
   SnapshotState,
 } from './utils/snapshot.ts';
+import type { NetworkIncludeMode } from './contracts.ts';
 import type { DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
 import type { BackMode } from './core/back-mode.ts';
 import type { ClickButton } from './core/click-button.ts';
@@ -342,7 +343,7 @@ export type BackendReadLogsResult = {
   notes?: readonly string[];
 };
 
-export type BackendNetworkIncludeMode = 'summary' | 'headers' | 'body' | 'all';
+export type BackendNetworkIncludeMode = NetworkIncludeMode;
 
 export type BackendNetworkEntry = {
   timestamp?: string;

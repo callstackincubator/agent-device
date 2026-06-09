@@ -3,6 +3,7 @@ import {
   buildMetroRuntimeHints,
   prepareMetroRuntime,
   reloadMetro,
+  type MetroPrepareKind,
   type ReloadMetroOptions,
   type ReloadMetroResult,
 } from './client-metro.ts';
@@ -110,7 +111,7 @@ export type MetroTunnelMessage = MetroTunnelRequestMessage | MetroTunnelResponse
 
 export type PrepareRemoteMetroOptions = {
   projectRoot: string;
-  kind: 'auto' | 'react-native' | 'expo';
+  kind: MetroPrepareKind;
   publicBaseUrl?: string;
   proxyBaseUrl?: string;
   proxyBearerToken?: string;

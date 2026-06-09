@@ -67,7 +67,7 @@ export type OpenAppOptions = {
 type DaemonInfo = {
   port?: number;
   httpPort?: number;
-  transport?: 'socket' | 'http' | 'dual';
+  transport?: DaemonServerMode;
   token: string;
   pid: number;
   version?: string;

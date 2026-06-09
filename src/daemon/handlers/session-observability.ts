@@ -20,16 +20,21 @@ import {
 } from '../app-log.ts';
 import { buildPerfFramesResponseData, buildPerfResponseData } from './session-perf.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
+import type { NetworkIncludeMode } from '../../contracts.ts';
 
 const LOG_ACTIONS = ['path', 'start', 'stop', 'doctor', 'mark', 'clear'] as const;
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
 const NETWORK_ACTIONS = ['dump', 'log'] as const;
 const NETWORK_ACTIONS_MESSAGE = `network requires ${NETWORK_ACTIONS.join(' or ')}`;
-const NETWORK_INCLUDE_MODES = ['summary', 'headers', 'body', 'all'] as const;
+const NETWORK_INCLUDE_MODES = [
+  'summary',
+  'headers',
+  'body',
+  'all',
+] as const satisfies readonly NetworkIncludeMode[];
 const NETWORK_INCLUDE_MESSAGE = `network include mode must be one of: ${NETWORK_INCLUDE_MODES.join(', ')}`;
 
 type LogsAction = (typeof LOG_ACTIONS)[number];
-type NetworkIncludeMode = (typeof NETWORK_INCLUDE_MODES)[number];
 
 type ObservabilityParams = {
   req: DaemonRequest;

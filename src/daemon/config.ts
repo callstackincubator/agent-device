@@ -1,9 +1,12 @@
 import path from 'node:path';
 import { expandUserHomePath, resolveUserPath } from '../utils/path-resolution.ts';
 
-export type DaemonServerMode = 'socket' | 'http' | 'dual';
-export type DaemonTransportPreference = 'auto' | 'socket' | 'http';
-export type SessionIsolationMode = 'none' | 'tenant';
+import type {
+  DaemonServerMode,
+  DaemonTransportPreference,
+  SessionIsolationMode,
+} from '../contracts.ts';
+export type { DaemonServerMode, DaemonTransportPreference, SessionIsolationMode };
 
 export type DaemonPaths = {
   baseDir: string;

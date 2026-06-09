@@ -39,6 +39,10 @@ export type DaemonInstallSource =
 
 export type DaemonLockPolicy = 'reject' | 'strip';
 export type LeaseBackend = 'ios-simulator' | 'ios-instance' | 'android-instance';
+export type DaemonServerMode = 'socket' | 'http' | 'dual';
+export type DaemonTransportPreference = 'auto' | 'socket' | 'http';
+export type SessionIsolationMode = 'none' | 'tenant';
+export type NetworkIncludeMode = 'summary' | 'headers' | 'body' | 'all';
 
 export type DaemonRequestMeta = {
   requestId?: string;
@@ -50,7 +54,7 @@ export type DaemonRequestMeta = {
   leaseId?: string;
   leaseTtlMs?: number;
   leaseBackend?: LeaseBackend;
-  sessionIsolation?: 'none' | 'tenant';
+  sessionIsolation?: SessionIsolationMode;
   uploadedArtifactId?: string;
   clientArtifactPaths?: Record<string, string>;
   installSource?: DaemonInstallSource;

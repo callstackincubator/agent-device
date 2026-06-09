@@ -27,7 +27,8 @@ import {
 } from './command-input.ts';
 import { defineFieldCommandMetadata } from './field-command-contract.ts';
 import type { ClickButton } from '../core/click-button.ts';
-import type { ScrollDirection, SwipePreset } from '../core/scroll-gesture.ts';
+import type { ScrollDirection, SwipePattern, SwipePreset } from '../core/scroll-gesture.ts';
+import type { ScrollInputDirection } from './interaction-gestures.ts';
 
 const CLICK_BUTTON_VALUES = ['primary', 'secondary', 'middle'] as const satisfies readonly ClickButton[];
 const GESTURE_KIND_VALUES = ['pan', 'fling', 'swipe', 'pinch', 'rotate', 'transform'] as const;
@@ -44,8 +45,8 @@ const FIND_ACTION_VALUES = [
   'type',
 ] as const;
 const FIND_LOCATOR_VALUES = ['any', 'text', 'label', 'value', 'role', 'id'] as const;
-const SCROLL_DIRECTION_VALUES = ['up', 'down', 'left', 'right', 'top', 'bottom'] as const;
-const SWIPE_PATTERN_VALUES = ['one-way', 'ping-pong'] as const;
+const SCROLL_DIRECTION_VALUES = ['up', 'down', 'left', 'right', 'top', 'bottom'] as const satisfies readonly ScrollInputDirection[];
+const SWIPE_PATTERN_VALUES = ['one-way', 'ping-pong'] as const satisfies readonly SwipePattern[];
 
 const clickFields = {
   target: requiredField(interactionTargetField()),
@@ -164,7 +165,7 @@ export type FlingInput = CommonCommandInput & {
 
 export type SwipeGestureInput = CommonCommandInput & {
   kind: 'swipe';
-  preset: 'left' | 'right' | 'left-edge' | 'right-edge';
+  preset: SwipePreset;
   durationMs?: number;
 };
 

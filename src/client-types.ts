@@ -4,14 +4,19 @@ import type {
   DaemonLockPolicy,
   DaemonRequest,
   DaemonResponse,
+  DaemonServerMode,
+  DaemonTransportPreference,
   LeaseBackend,
+  NetworkIncludeMode,
+  SessionIsolationMode,
   SessionRuntimeHints,
 } from './contracts.ts';
 import type { DeviceKind, DeviceTarget, Platform, PlatformSelector } from './utils/device.ts';
 import type { BackMode } from './core/back-mode.ts';
 import type { ClickButton } from './core/click-button.ts';
 import type { DeviceRotation } from './core/device-rotation.ts';
-import type { ScrollDirection } from './core/scroll-gesture.ts';
+import type { ScrollDirection, SwipePattern, SwipePreset } from './core/scroll-gesture.ts';
+import type { ScrollInputDirection } from './commands/interaction-gestures.ts';
 import type { SessionSurface } from './core/session-surface.ts';
 import type { FindLocator } from './utils/finders.ts';
 import type { AndroidSnapshotBackendMetadata } from './platforms/android/snapshot-types.ts';
@@ -38,10 +43,6 @@ export type { CompanionTunnelScope, MetroBridgeScope } from './client-companion-
 export type { AppsFilter } from './commands/app-inventory-contract.ts';
 export type { AlertAction, AlertInfo, AlertPlatform, AlertSource } from './alert-contract.ts';
 
-type DaemonTransportMode = 'auto' | 'socket' | 'http';
-type DaemonServerMode = 'socket' | 'http' | 'dual';
-type SessionIsolationMode = 'none' | 'tenant';
-
 export type AgentDeviceDaemonTransport = (
   req: Omit<DaemonRequest, 'token'>,
 ) => Promise<DaemonResponse>;
@@ -54,7 +55,7 @@ export type AgentDeviceClientConfig = {
   stateDir?: string;
   daemonBaseUrl?: string;
   daemonAuthToken?: string;
-  daemonTransport?: DaemonTransportMode;
+  daemonTransport?: DaemonTransportPreference;
   daemonServerMode?: DaemonServerMode;
   tenant?: string;
   sessionIsolation?: SessionIsolationMode;
@@ -594,7 +595,7 @@ export type SwipeOptions = ClientCommandBaseOptions & {
   durationMs?: number;
   count?: number;
   pauseMs?: number;
-  pattern?: 'one-way' | 'ping-pong';
+  pattern?: SwipePattern;
 };
 
 export type PanOptions = ClientCommandBaseOptions & {
@@ -614,7 +615,7 @@ export type FlingOptions = ClientCommandBaseOptions & {
 };
 
 export type SwipeGestureOptions = ClientCommandBaseOptions & {
-  preset: 'left' | 'right' | 'left-edge' | 'right-edge';
+  preset: SwipePreset;
   durationMs?: number;
 };
 
@@ -636,7 +637,7 @@ export type FillOptions = ClientCommandBaseOptions &
   };
 
 export type ScrollOptions = ClientCommandBaseOptions & {
-  direction: 'up' | 'down' | 'left' | 'right' | 'top' | 'bottom';
+  direction: ScrollInputDirection;
   amount?: number;
   pixels?: number;
 };
@@ -755,7 +756,7 @@ export type LogsOptions = AgentDeviceRequestOverrides & {
 export type NetworkOptions = AgentDeviceRequestOverrides & {
   action?: 'dump' | 'log';
   limit?: number;
-  include?: 'summary' | 'headers' | 'body' | 'all';
+  include?: NetworkIncludeMode;
 };
 
 type RecordingQuality = 5 | 6 | 7 | 8 | 9 | 10;
@@ -851,7 +852,7 @@ type CommandExecutionOptions = Partial<ScreenshotRequestFlags> & {
   doubleTap?: boolean;
   clickButton?: ClickButton;
   pauseMs?: number;
-  pattern?: 'one-way' | 'ping-pong';
+  pattern?: SwipePattern;
   headless?: boolean;
   restart?: boolean;
   replayUpdate?: boolean;
@@ -868,7 +869,7 @@ type CommandExecutionOptions = Partial<ScreenshotRequestFlags> & {
   shardSplit?: number;
   findFirst?: boolean;
   findLast?: boolean;
-  networkInclude?: 'summary' | 'headers' | 'body' | 'all';
+  networkInclude?: NetworkIncludeMode;
   batchOnError?: 'stop';
   batchMaxSteps?: number;
   batchSteps?: DaemonBatchStep[];

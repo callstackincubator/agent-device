@@ -3,6 +3,7 @@ import type { ScreenshotDispatchFlags } from '../commands/capture-screenshot-opt
 import type { DaemonBatchStep } from './batch.ts';
 import type { BackMode } from './back-mode.ts';
 import type { ClickButton } from './click-button.ts';
+import type { SwipePattern } from './scroll-gesture.ts';
 import type { SessionSurface } from './session-surface.ts';
 
 export type MaestroRuntimeFlags = {
@@ -52,7 +53,7 @@ export type DispatchContext = ScreenshotDispatchFlags & {
   clickButton?: ClickButton;
   backMode?: BackMode;
   pauseMs?: number;
-  pattern?: 'one-way' | 'ping-pong';
+  pattern?: SwipePattern;
   surface?: SessionSurface;
   directElementSelector?: {
     key: 'id' | 'label' | 'text' | 'value';

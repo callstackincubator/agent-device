@@ -3,6 +3,7 @@ import type { Rect, SnapshotNode } from '../utils/snapshot.ts';
 
 export type ScrollDirection = 'up' | 'down' | 'left' | 'right';
 export type SwipePreset = 'left' | 'right' | 'left-edge' | 'right-edge';
+export type SwipePattern = 'one-way' | 'ping-pong';
 
 export type GestureReferenceFrame = {
   referenceWidth: number;
