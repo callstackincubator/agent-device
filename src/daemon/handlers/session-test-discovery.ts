@@ -25,6 +25,8 @@ export type ReplayTestDiscoveryEntry =
       message: string;
     };
 
+export type ReplayTestRunEntry = Extract<ReplayTestDiscoveryEntry, { kind: 'run' }>;
+
 export function discoverReplayTestEntries(params: {
   inputs: string[];
   cwd?: string;
