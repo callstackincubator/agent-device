@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import http from 'node:http';
+import http, { type IncomingHttpHeaders } from 'node:http';
 import https from 'node:https';
 import path from 'node:path';
 import os from 'node:os';
@@ -14,6 +14,7 @@ const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const UPLOAD_PREFLIGHT_TIMEOUT_MS = 30 * 1000;
 const ARTIFACT_HASH_ALGORITHM = 'sha256';
 const DEFAULT_CONTENT_TYPE = 'application/octet-stream';
+const MAX_UPLOAD_REDIRECTS = 5;
 
 type UploadArtifactOptions = {
   localPath: string;
@@ -320,9 +321,32 @@ async function streamFileToHttpRequest(options: {
   errorMessage: string;
   errorHint?: string;
 }): Promise<{ statusCode: number; statusMessage?: string; body: string }> {
+  return await streamFileToHttpRequestAttempt({
+    ...options,
+    url: options.url,
+    redirectCount: 0,
+    startOffset: 0,
+  });
+}
+
+async function streamFileToHttpRequestAttempt(options: {
+  url: URL;
+  method: 'POST' | 'PUT';
+  headers: Record<string, string>;
+  payloadPath: string;
+  timeoutMessage: string;
+  timeoutHint?: string;
+  errorMessage: string;
+  errorHint?: string;
+  redirectCount: number;
+  startOffset: number;
+}): Promise<{ statusCode: number; statusMessage?: string; body: string }> {
   const transport = options.url.protocol === 'https:' ? https : http;
+  const payloadSize = fs.statSync(options.payloadPath).size;
+  const headers = buildUploadRequestHeaders(options.headers, options.startOffset, payloadSize);
 
   return await new Promise((resolve, reject) => {
+    let responseReceived = false;
     const req = transport.request(
       {
         protocol: options.url.protocol,
@@ -330,14 +354,57 @@ async function streamFileToHttpRequest(options: {
         port: options.url.port,
         method: options.method,
         path: options.url.pathname + options.url.search,
-        headers: options.headers,
+        headers,
       },
       (res) => {
+        responseReceived = true;
         void readNodeHttpResponseBody(res)
           .then((body) => {
             clearTimeout(timeout);
+            const statusCode = res.statusCode ?? 500;
+            const location = res.headers.location;
+            if (location && isUploadRedirectStatus(statusCode)) {
+              if (options.redirectCount >= MAX_UPLOAD_REDIRECTS) {
+                reject(
+                  new AppError('COMMAND_FAILED', 'Artifact upload exceeded redirect limit', {
+                    maxRedirects: MAX_UPLOAD_REDIRECTS,
+                    url: options.url.toString(),
+                  }),
+                );
+                return;
+              }
+              const redirectedUrl = new URL(location, options.url);
+              void streamFileToHttpRequestAttempt({
+                ...options,
+                url: redirectedUrl,
+                redirectCount: options.redirectCount + 1,
+              }).then(resolve, reject);
+              return;
+            }
+
+            const resumeOffset = isUploadResumeStatus(statusCode)
+              ? parseUploadResumeOffset(res.headers, payloadSize)
+              : undefined;
+            if (resumeOffset !== undefined) {
+              if (resumeOffset <= options.startOffset) {
+                reject(
+                  new AppError('COMMAND_FAILED', 'Artifact upload resume did not advance', {
+                    offset: resumeOffset,
+                    previousOffset: options.startOffset,
+                    url: options.url.toString(),
+                  }),
+                );
+                return;
+              }
+              void streamFileToHttpRequestAttempt({
+                ...options,
+                startOffset: resumeOffset,
+              }).then(resolve, reject);
+              return;
+            }
+
             resolve({
-              statusCode: res.statusCode ?? 500,
+              statusCode,
               statusMessage: res.statusMessage,
               body,
             });
@@ -357,6 +424,7 @@ async function streamFileToHttpRequest(options: {
     }, UPLOAD_TIMEOUT_MS);
 
     req.on('error', (err) => {
+      if (responseReceived) return;
       clearTimeout(timeout);
       reject(
         new AppError(
@@ -369,12 +437,67 @@ async function streamFileToHttpRequest(options: {
     });
     req.on('close', () => clearTimeout(timeout));
 
-    void pipeline(fs.createReadStream(options.payloadPath), req).catch((err: unknown) => {
+    void pipeline(
+      fs.createReadStream(options.payloadPath, { start: options.startOffset }),
+      req,
+    ).catch((err: unknown) => {
+      if (responseReceived) return;
       req.destroy();
       const error = err instanceof Error ? err : new Error(String(err));
       reject(new AppError('COMMAND_FAILED', 'Failed to read local artifact', {}, error));
     });
   });
+}
+
+function buildUploadRequestHeaders(
+  headers: Record<string, string>,
+  startOffset: number,
+  payloadSize: number,
+): Record<string, string | number> {
+  if (startOffset <= 0) return headers;
+  return {
+    ...headers,
+    'content-length': Math.max(payloadSize - startOffset, 0),
+    'content-range': `bytes ${startOffset}-${payloadSize - 1}/${payloadSize}`,
+  };
+}
+
+function isUploadRedirectStatus(statusCode: number): boolean {
+  return [301, 302, 303, 307, 308].includes(statusCode);
+}
+
+function isUploadResumeStatus(statusCode: number): boolean {
+  return statusCode === 308;
+}
+
+function parseUploadResumeOffset(
+  headers: IncomingHttpHeaders,
+  payloadSize: number,
+): number | undefined {
+  const explicitOffset = parseNonNegativeIntegerHeader(
+    headers['x-upload-offset'] ?? headers['upload-offset'],
+  );
+  if (explicitOffset !== undefined) {
+    return Math.min(explicitOffset, payloadSize);
+  }
+
+  const range = firstHeaderValue(headers.range);
+  const match = range?.match(/^bytes=0-(\d+)$/);
+  if (!match) return undefined;
+  const endOffset = Number(match[1]);
+  if (!Number.isSafeInteger(endOffset) || endOffset < 0) return undefined;
+  return Math.min(endOffset + 1, payloadSize);
+}
+
+function parseNonNegativeIntegerHeader(value: string | string[] | undefined): number | undefined {
+  const raw = firstHeaderValue(value);
+  if (raw === undefined) return undefined;
+  const parsed = Number(raw);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+function firstHeaderValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 async function finalizeDirectUpload(options: {

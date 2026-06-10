@@ -188,6 +188,122 @@ test('uploadArtifact falls back to upload when preflight fails', async () => {
   }
 });
 
+test('uploadArtifact follows up to five upload redirects', async () => {
+  const content = 'redirected-upload-payload';
+  const artifactPath = createTempFile('app.apk', content);
+  const requests: string[] = [];
+
+  const server = await startServer(async (req, res) => {
+    requests.push(`${req.method} ${req.url}`);
+    if (req.method === 'POST' && req.url === '/upload/preflight') {
+      await readRequestBody(req);
+      res.statusCode = 404;
+      res.end('not found');
+      return;
+    }
+    if (req.method === 'POST' && req.url === '/upload') {
+      await readRequestBody(req);
+      res.statusCode = 307;
+      res.setHeader('location', '/upload-redirect-1');
+      res.end();
+      return;
+    }
+    const redirectMatch = req.url?.match(/^\/upload-redirect-(\d+)$/);
+    if (req.method === 'POST' && redirectMatch) {
+      const redirectIndex = Number(redirectMatch[1]);
+      const body = (await readRequestBody(req)).toString('utf8');
+      assert.equal(body, content);
+      if (redirectIndex < 5) {
+        res.statusCode = 307;
+        res.setHeader('location', `/upload-redirect-${redirectIndex + 1}`);
+        res.end();
+        return;
+      }
+      sendJson(res, { ok: true, uploadId: 'upload-after-redirects' });
+      return;
+    }
+    res.statusCode = 404;
+    res.end('not found');
+  });
+
+  try {
+    const uploadId = await uploadArtifact({
+      localPath: artifactPath,
+      baseUrl: server.baseUrl,
+      token: TEST_TOKEN,
+    });
+    assert.equal(uploadId, 'upload-after-redirects');
+    assert.deepEqual(requests, [
+      'POST /upload/preflight',
+      'POST /upload',
+      'POST /upload-redirect-1',
+      'POST /upload-redirect-2',
+      'POST /upload-redirect-3',
+      'POST /upload-redirect-4',
+      'POST /upload-redirect-5',
+    ]);
+  } finally {
+    await server.close();
+  }
+});
+
+test('uploadArtifact fails cleanly on the sixth upload redirect', async () => {
+  const content = 'too-many-redirects-upload-payload';
+  const artifactPath = createTempFile('app.apk', content);
+  const requests: string[] = [];
+
+  const server = await startServer(async (req, res) => {
+    requests.push(`${req.method} ${req.url}`);
+    if (req.method === 'POST' && req.url === '/upload/preflight') {
+      await readRequestBody(req);
+      res.statusCode = 404;
+      res.end('not found');
+      return;
+    }
+    if (req.method === 'POST' && req.url === '/upload') {
+      await readRequestBody(req);
+      res.statusCode = 307;
+      res.setHeader('location', '/upload-redirect-1');
+      res.end();
+      return;
+    }
+    const redirectMatch = req.url?.match(/^\/upload-redirect-(\d+)$/);
+    if (req.method === 'POST' && redirectMatch) {
+      const redirectIndex = Number(redirectMatch[1]);
+      await readRequestBody(req);
+      res.statusCode = 307;
+      res.setHeader('location', `/upload-redirect-${redirectIndex + 1}`);
+      res.end();
+      return;
+    }
+    res.statusCode = 404;
+    res.end('not found');
+  });
+
+  try {
+    await assert.rejects(
+      async () =>
+        await uploadArtifact({
+          localPath: artifactPath,
+          baseUrl: server.baseUrl,
+          token: TEST_TOKEN,
+        }),
+      /redirect limit/i,
+    );
+    assert.deepEqual(requests, [
+      'POST /upload/preflight',
+      'POST /upload',
+      'POST /upload-redirect-1',
+      'POST /upload-redirect-2',
+      'POST /upload-redirect-3',
+      'POST /upload-redirect-4',
+      'POST /upload-redirect-5',
+    ]);
+  } finally {
+    await server.close();
+  }
+});
+
 test('uploadArtifact uses direct upload ticket and finalize flow', async () => {
   const content = 'direct-upload-apk';
   const artifactPath = createTempFile('app.apk', content);
@@ -256,6 +372,88 @@ test('uploadArtifact uses direct upload ticket and finalize flow', async () => {
     assert.deepEqual(requests, [
       'POST /upload/preflight',
       'PUT /signed-upload',
+      'POST /upload/finalize',
+    ]);
+  } finally {
+    await server.close();
+  }
+});
+
+test('uploadArtifact resumes a direct upload from the server-reported offset', async () => {
+  const content = 'direct-upload-resume-payload';
+  const artifactPath = createTempFile('app.apk', content);
+  const resumeOffset = 7;
+  const requests: string[] = [];
+  let uploadAttempts = 0;
+  let firstUploadBody = '';
+  let resumedUploadBody = '';
+
+  const server = await startServer(async (req, res) => {
+    requests.push(`${req.method} ${req.url}`);
+    if (req.method === 'POST' && req.url === '/upload/preflight') {
+      await readRequestBody(req);
+      sendJson(res, {
+        ok: true,
+        cacheHit: false,
+        uploadId: 'resume-ticket',
+        upload: {
+          url: `${server.baseUrl}/resumable-upload`,
+          headers: {
+            'x-signed-ticket': 'resume-ticket-header',
+          },
+        },
+      });
+      return;
+    }
+    if (req.method === 'PUT' && req.url === '/resumable-upload') {
+      uploadAttempts += 1;
+      if (uploadAttempts === 1) {
+        assert.equal(req.headers['content-range'], undefined);
+        firstUploadBody = (await readRequestBody(req)).toString('utf8');
+        res.statusCode = 308;
+        res.setHeader('range', `bytes=0-${resumeOffset - 1}`);
+        res.end();
+        return;
+      }
+
+      assert.equal(
+        req.headers['content-range'],
+        `bytes ${resumeOffset}-${Buffer.byteLength(content) - 1}/${Buffer.byteLength(content)}`,
+      );
+      assert.equal(
+        req.headers['content-length'],
+        String(Buffer.byteLength(content) - resumeOffset),
+      );
+      resumedUploadBody = (await readRequestBody(req)).toString('utf8');
+      res.statusCode = 200;
+      res.end('ok');
+      return;
+    }
+    if (req.method === 'POST' && req.url === '/upload/finalize') {
+      const body = JSON.parse((await readRequestBody(req)).toString('utf8')) as {
+        uploadId: string;
+      };
+      assert.equal(body.uploadId, 'resume-ticket');
+      sendJson(res, { ok: true, uploadId: 'upload-resumed' });
+      return;
+    }
+    res.statusCode = 404;
+    res.end('not found');
+  });
+
+  try {
+    const uploadId = await uploadArtifact({
+      localPath: artifactPath,
+      baseUrl: server.baseUrl,
+      token: TEST_TOKEN,
+    });
+    assert.equal(uploadId, 'upload-resumed');
+    assert.equal(firstUploadBody, content);
+    assert.equal(resumedUploadBody, content.slice(resumeOffset));
+    assert.deepEqual(requests, [
+      'POST /upload/preflight',
+      'PUT /resumable-upload',
+      'PUT /resumable-upload',
       'POST /upload/finalize',
     ]);
   } finally {

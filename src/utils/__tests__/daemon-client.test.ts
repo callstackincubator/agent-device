@@ -1225,10 +1225,14 @@ test('downloadRemoteArtifact times out stalled artifact responses and removes pa
   }
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-remote-artifact-timeout-'));
   const destinationPath = path.join(tempRoot, 'artifacts', 'screen.png');
-  const server = http.createServer((req, _res) => {
+  const server = http.createServer((req, res) => {
     if (req.url?.includes('/artifacts/')) {
+      res.statusCode = 200;
+      res.write('partial-png');
       return;
     }
+    res.statusCode = 404;
+    res.end('not found');
   });
   const port = await listenOnLoopback(server);
 
@@ -1246,6 +1250,50 @@ test('downloadRemoteArtifact times out stalled artifact responses and removes pa
       (error: unknown) => {
         assert.equal(error instanceof Error, true);
         assert.match(String((error as Error).message), /timed out/i);
+        return true;
+      },
+    );
+    assert.equal(fs.existsSync(destinationPath), false);
+  } finally {
+    await closeLoopbackServer(server);
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test('downloadRemoteArtifact removes partial files after mid-stream aborts', async (t) => {
+  if (!(await supportsLoopbackBind())) {
+    t.skip('loopback listeners are not permitted in this environment');
+    return;
+  }
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-remote-artifact-abort-'));
+  const destinationPath = path.join(tempRoot, 'artifacts', 'screen.png');
+  const server = http.createServer((req, res) => {
+    if (req.url?.includes('/artifacts/')) {
+      res.statusCode = 200;
+      res.flushHeaders();
+      res.write('partial-png');
+      setImmediate(() => res.destroy(new Error('server aborted artifact stream')));
+      return;
+    }
+    res.statusCode = 404;
+    res.end('not found');
+  });
+  const port = await listenOnLoopback(server);
+
+  try {
+    await assert.rejects(
+      async () =>
+        await downloadRemoteArtifact({
+          baseUrl: `http://127.0.0.1:${port}/agent-device`,
+          token: 'remote-secret',
+          artifactId: 'artifact-abort',
+          destinationPath,
+          requestId: 'req-remote-artifact-abort',
+          timeoutMs: 1_000,
+        }),
+      (error: unknown) => {
+        assert.equal(error instanceof Error, true);
+        assert.match(String((error as Error).message), /aborted|interrupted|premature|socket/i);
         return true;
       },
     );
