@@ -51,6 +51,7 @@ import { buildSimctlArgsForDevice } from './simctl.ts';
 import { runAppleToolCommand, runXcrun } from './tool-provider.ts';
 import { prepareIosInstallArtifact } from './install-artifact.ts';
 import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
+import { prepareIosSimulatorCameraVideo, stopIosSimulatorCameraVideo } from './simulator-camera.ts';
 import {
   closeMacOsApp,
   listMacApps,
@@ -174,12 +175,25 @@ function parseUrlScheme(url: string): string | undefined {
 export async function openIosApp(
   device: DeviceInfo,
   app: string,
-  options?: { appBundleId?: string; launchConsole?: string; launchArgs?: string[]; url?: string },
+  options?: {
+    appBundleId?: string;
+    launchConsole?: string;
+    launchArgs?: string[];
+    cameraVideo?: string;
+    url?: string;
+  },
 ): Promise<void> {
   const launchConsole = options?.launchConsole?.trim();
   const launchArgs = options?.launchArgs;
+  const cameraVideo = options?.cameraVideo?.trim();
   if (launchConsole && (device.platform !== 'ios' || device.kind !== 'simulator')) {
     throw new AppError('UNSUPPORTED_OPERATION', LAUNCH_CONSOLE_IOS_SIMULATOR_ONLY_MESSAGE);
+  }
+  if (cameraVideo && (device.platform !== 'ios' || device.kind !== 'simulator')) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      '--camera-video is supported only for iOS simulators.',
+    );
   }
   if (device.platform === 'macos') {
     if (launchArgs && launchArgs.length > 0) {
@@ -203,6 +217,7 @@ export async function openIosApp(
       const bundleId = options?.appBundleId ?? (await resolveIosApp(device, app));
       await launchIosSimulatorApp(device, bundleId, {
         ...(launchArgs ? { launchArgs } : {}),
+        ...(cameraVideo ? { cameraVideo } : {}),
       });
       await openIosSimulatorUrl(device, explicitUrl, undefined);
       return;
@@ -224,6 +239,9 @@ export async function openIosApp(
     if (launchConsole) {
       throw new AppError('INVALID_ARGS', LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE);
     }
+    if (cameraVideo) {
+      throw new AppError('INVALID_ARGS', '--camera-video requires an app target.');
+    }
     if (device.kind === 'simulator') {
       await openIosSimulatorUrl(device, deepLinkTarget, launchArgs);
       return;
@@ -244,6 +262,7 @@ export async function openIosApp(
     await launchIosSimulatorApp(device, bundleId, {
       ...(launchConsole ? { launchConsole } : {}),
       ...(launchArgs ? { launchArgs } : {}),
+      ...(cameraVideo ? { cameraVideo } : {}),
     });
     return;
   }
@@ -283,20 +302,24 @@ export async function closeIosApp(device: DeviceInfo, app: string): Promise<void
   if (device.kind === 'simulator') {
     await ensureBootedSimulator(device);
     const terminateArgs = simctlArgs(device, ['terminate', device.id, bundleId]);
-    const result = await runXcrun(terminateArgs, {
-      allowFailure: true,
-      timeoutMs: IOS_SIMULATOR_TERMINATE_TIMEOUT_MS,
-    });
-    if (result.exitCode !== 0) {
-      const stderr = result.stderr.toLowerCase();
-      if (stderr.includes('found nothing to terminate')) return;
-      throw new AppError('COMMAND_FAILED', `xcrun exited with code ${result.exitCode}`, {
-        cmd: 'xcrun',
-        args: terminateArgs,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        exitCode: result.exitCode,
+    try {
+      const result = await runXcrun(terminateArgs, {
+        allowFailure: true,
+        timeoutMs: IOS_SIMULATOR_TERMINATE_TIMEOUT_MS,
       });
+      if (result.exitCode !== 0) {
+        const stderr = result.stderr.toLowerCase();
+        if (stderr.includes('found nothing to terminate')) return;
+        throw new AppError('COMMAND_FAILED', `xcrun exited with code ${result.exitCode}`, {
+          cmd: 'xcrun',
+          args: terminateArgs,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          exitCode: result.exitCode,
+        });
+      }
+    } finally {
+      await stopIosSimulatorCameraVideo(device, bundleId);
     }
     return;
   }
@@ -1089,9 +1112,16 @@ function isIosBiometricCapabilityMissing(stdout: string, stderr: string): boolea
 async function launchIosSimulatorApp(
   device: DeviceInfo,
   bundleId: string,
-  options?: { launchConsole?: string; launchArgs?: string[] },
+  options?: { launchConsole?: string; launchArgs?: string[]; cameraVideo?: string },
 ): Promise<void> {
   await ensureBootedSimulator(device);
+  const cameraLaunch = options?.cameraVideo
+    ? await prepareIosSimulatorCameraVideo({
+        device,
+        bundleId,
+        videoPath: options.cameraVideo,
+      })
+    : undefined;
 
   let consecutiveFBSFailures = 0;
   const MAX_CONSECUTIVE_FBS_FAILURES = 3;
@@ -1111,9 +1141,10 @@ async function launchIosSimulatorApp(
           buildIosSimulatorLaunchArgs(device.id, bundleId, options),
         );
         const result = options?.launchConsole
-          ? await runIosSimulatorConsoleLaunch(launchArgs, options.launchConsole)
+          ? await runIosSimulatorConsoleLaunch(launchArgs, options.launchConsole, cameraLaunch?.env)
           : await runXcrun(launchArgs, {
               allowFailure: true,
+              ...(cameraLaunch?.env ? { env: { ...process.env, ...cameraLaunch.env } } : {}),
             });
         if (result.exitCode === 0) return;
 
@@ -1139,6 +1170,9 @@ async function launchIosSimulatorApp(
       { deadline: launchDeadline },
     );
   } catch (error) {
+    if (cameraLaunch) {
+      await stopIosSimulatorCameraVideo(device, bundleId).catch(() => {});
+    }
     if (isSimulatorLaunchFBSError(error)) {
       const appError = error as AppError;
       const probe = await probeSimulatorLaunchContext(device, bundleId);
@@ -1152,10 +1186,11 @@ async function launchIosSimulatorApp(
 function buildIosSimulatorLaunchArgs(
   deviceId: string,
   bundleId: string,
-  options?: { launchConsole?: string; launchArgs?: string[] },
+  options?: { launchConsole?: string; launchArgs?: string[]; cameraVideo?: string },
 ): string[] {
   const args = ['launch'];
   if (options?.launchConsole) args.push('--console-pty');
+  if (options?.cameraVideo) args.push('--terminate-running-process');
   args.push(deviceId, bundleId);
   if (options?.launchArgs && options.launchArgs.length > 0) {
     args.push(...options.launchArgs);
@@ -1166,12 +1201,14 @@ function buildIosSimulatorLaunchArgs(
 async function runIosSimulatorConsoleLaunch(
   launchArgs: string[],
   logPath: string,
+  env?: NodeJS.ProcessEnv,
 ): Promise<Awaited<ReturnType<typeof runXcrun>>> {
   await fs.mkdir(path.dirname(logPath), { recursive: true });
   try {
     const result = await runXcrun(launchArgs, {
       allowFailure: true,
       timeoutMs: IOS_SIMULATOR_CONSOLE_CAPTURE_MS,
+      ...(env ? { env: { ...process.env, ...env } } : {}),
     });
     await writeIosSimulatorConsoleLog(logPath, result.stdout, result.stderr);
     return result;

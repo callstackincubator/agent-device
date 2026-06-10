@@ -57,6 +57,7 @@ export type Interactor = {
     options?: {
       activity?: string;
       appBundleId?: string;
+      cameraVideo?: string;
       launchConsole?: string;
       launchArgs?: string[];
       url?: string;

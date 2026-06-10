@@ -120,6 +120,9 @@ await client.sessions.close();
 For direct iOS simulator app launches, `client.apps.open({ app, platform: 'ios', launchConsole: './artifacts/app.console.log' })` captures launch-time
 stdout/stderr. The option mirrors `open --launch-console` and is not valid for URL opens or non-simulator targets.
 
+For iOS simulator camera tests, `client.apps.open({ app, platform: 'ios', cameraVideo: './fixtures/camera-feed.mp4' })` injects the video file as the
+target app's camera stream for that launch. It relaunches the app process and is not valid for URL-only opens, physical devices, Android, macOS, or Linux.
+
 ## Android snapshot helper providers
 
 Remote Android providers should import `agent-device/android-snapshot-helper` and inject their own

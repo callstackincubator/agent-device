@@ -175,6 +175,7 @@ async function handleOpenCommand(
 ): Promise<Record<string, unknown>> {
   const app = positionals[0];
   const url = positionals[1];
+  const cameraVideo = context?.cameraVideo;
   const launchConsole = context?.launchConsole;
   const launchArgs = context?.launchArgs;
   if (positionals.length > 2) {
@@ -187,8 +188,17 @@ async function handleOpenCommand(
     if (launchArgs && launchArgs.length > 0) {
       throw new AppError('INVALID_ARGS', '--launch-args requires an app target');
     }
+    if (cameraVideo) {
+      throw new AppError('INVALID_ARGS', '--camera-video requires an app target');
+    }
     await interactor.openDevice();
     return { app: null, ...successText('Opened device') };
+  }
+  if (cameraVideo && (device.platform !== 'ios' || device.kind !== 'simulator')) {
+    throw new AppError(
+      'UNSUPPORTED_OPERATION',
+      '--camera-video is supported only for iOS simulators.',
+    );
   }
   if (launchConsole && (device.platform !== 'ios' || device.kind !== 'simulator')) {
     throw new AppError('UNSUPPORTED_OPERATION', LAUNCH_CONSOLE_IOS_SIMULATOR_ONLY_MESSAGE);
@@ -212,6 +222,7 @@ async function handleOpenCommand(
     await interactor.open(app, {
       activity: context?.activity,
       appBundleId: context?.appBundleId,
+      cameraVideo,
       launchArgs,
       url,
     });
@@ -219,6 +230,9 @@ async function handleOpenCommand(
   }
   if (launchConsole && isDeepLinkTarget(app)) {
     throw new AppError('INVALID_ARGS', LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE);
+  }
+  if (cameraVideo && isDeepLinkTarget(app)) {
+    throw new AppError('INVALID_ARGS', '--camera-video requires an app target');
   }
   if (context?.clearAppState) {
     if (isDeepLinkTarget(app)) {
@@ -232,6 +246,7 @@ async function handleOpenCommand(
   await interactor.open(app, {
     activity: context?.activity,
     appBundleId: context?.appBundleId,
+    cameraVideo,
     launchConsole,
     launchArgs,
   });

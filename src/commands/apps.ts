@@ -25,6 +25,7 @@ const MAX_APP_PUSH_PAYLOAD_BYTES = 8 * 1024;
 
 export type OpenAppCommandOptions = CommandContext &
   BackendOpenTarget & {
+    cameraVideo?: string;
     launchArgs?: string[];
     relaunch?: boolean;
   };
@@ -105,6 +106,7 @@ export const openAppCommand: RuntimeCommand<OpenAppCommandOptions, OpenAppComman
     toAppBackendContext(runtime, options),
     target,
     {
+      ...(options.cameraVideo !== undefined ? { cameraVideo: options.cameraVideo } : {}),
       launchArgs: options.launchArgs,
       relaunch: options.relaunch,
     },

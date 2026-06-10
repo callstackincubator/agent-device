@@ -54,6 +54,7 @@ export type OpenAppOptions = {
   udid?: NonNullable<DaemonRequest['flags']>['udid'];
   serial?: NonNullable<DaemonRequest['flags']>['serial'];
   activity?: NonNullable<DaemonRequest['flags']>['activity'];
+  cameraVideo?: NonNullable<DaemonRequest['flags']>['cameraVideo'];
   launchConsole?: NonNullable<DaemonRequest['flags']>['launchConsole'];
   launchArgs?: NonNullable<DaemonRequest['flags']>['launchArgs'];
   out?: NonNullable<DaemonRequest['flags']>['out'];
@@ -226,6 +227,7 @@ export async function openApp(options: OpenAppOptions = {}): Promise<DaemonRespo
     udid,
     serial,
     activity,
+    cameraVideo,
     launchConsole,
     launchArgs,
     out,
@@ -248,6 +250,7 @@ export async function openApp(options: OpenAppOptions = {}): Promise<DaemonRespo
       ...(udid !== undefined ? { udid } : {}),
       ...(serial !== undefined ? { serial } : {}),
       ...(activity !== undefined ? { activity } : {}),
+      ...(cameraVideo !== undefined ? { cameraVideo } : {}),
       ...(launchConsole !== undefined ? { launchConsole } : {}),
       ...(launchArgs !== undefined ? { launchArgs } : {}),
       ...(out !== undefined ? { out } : {}),

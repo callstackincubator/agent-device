@@ -189,6 +189,7 @@ export type AppOpenOptions = AgentDeviceRequestOverrides &
     url?: string;
     surface?: SessionSurface;
     activity?: string;
+    cameraVideo?: string;
     launchConsole?: string;
     launchArgs?: string[];
     relaunch?: boolean;
@@ -555,6 +556,7 @@ type RepeatedPressOptions = {
 
 export type DeviceBootOptions = DeviceCommandBaseOptions & {
   headless?: boolean;
+  cameraVideo?: string;
   cameraFront?: string;
   cameraBack?: string;
 };
@@ -882,6 +884,7 @@ export type InternalRequestOptions = AgentDeviceClientConfig &
     overlayRefs?: boolean;
     surface?: SessionSurface;
     activity?: string;
+    cameraVideo?: string;
     launchConsole?: string;
     launchArgs?: string[];
     relaunch?: boolean;

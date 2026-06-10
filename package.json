@@ -159,6 +159,7 @@
     "!android-snapshot-helper/dist/*.idsig",
     "android-multitouch-helper/dist",
     "!android-multitouch-helper/dist/*.idsig",
+    "third_party/serve-sim-camera",
     "src/platforms/linux/atspi-dump.py",
     "skills",
     "server.json",

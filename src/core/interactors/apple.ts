@@ -29,6 +29,7 @@ export function createAppleInteractor(
     open: (app, options) =>
       openIosApp(device, app, {
         appBundleId: options?.appBundleId,
+        cameraVideo: options?.cameraVideo,
         launchConsole: options?.launchConsole,
         launchArgs: options?.launchArgs,
         url: options?.url,

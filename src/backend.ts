@@ -194,6 +194,7 @@ export type BackendOpenTarget = {
 };
 
 export type BackendOpenOptions = {
+  cameraVideo?: string;
   launchArgs?: string[];
   relaunch?: boolean;
 };

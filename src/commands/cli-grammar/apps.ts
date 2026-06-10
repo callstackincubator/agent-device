@@ -43,6 +43,7 @@ export const appCliReaders = {
     url: positionals[1],
     surface: flags.surface,
     activity: flags.activity,
+    cameraVideo: flags.cameraVideo,
     launchConsole: flags.launchConsole,
     launchArgs: flags.launchArgs,
     relaunch: flags.relaunch,

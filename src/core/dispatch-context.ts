@@ -33,6 +33,7 @@ export type DispatchContext = ScreenshotDispatchFlags & {
   requestId?: string;
   appBundleId?: string;
   activity?: string;
+  cameraVideo?: string;
   launchConsole?: string;
   launchArgs?: string[];
   clearAppState?: boolean;

@@ -23,6 +23,24 @@ test('parseArgs recognizes command-specific flag combinations', async () => {
       },
     },
     {
+      label: 'open --camera-video',
+      argv: [
+        'open',
+        'com.example.app',
+        '--platform',
+        'ios',
+        '--camera-video',
+        './fixtures/back.mp4',
+      ],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'open');
+        assert.deepEqual(parsed.positionals, ['com.example.app']);
+        assert.equal(parsed.flags.platform, 'ios');
+        assert.equal(parsed.flags.cameraVideo, './fixtures/back.mp4');
+      },
+    },
+    {
       label: 'open --platform ios --target tv',
       argv: ['open', 'Settings', '--platform', 'ios', '--target', 'tv'],
       strictFlags: true,

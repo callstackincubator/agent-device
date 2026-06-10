@@ -20,6 +20,12 @@ test('contextFromFlags forwards generic app-state clearing', () => {
   assert.equal(context.clearAppState, true);
 });
 
+test('contextFromFlags forwards iOS simulator camera video path', () => {
+  const flags: CommandFlags = { cameraVideo: './fixtures/camera-feed.mp4' };
+  const context = contextFromFlags('/tmp/agent-device.log', flags);
+  assert.equal(context.cameraVideo, './fixtures/camera-feed.mp4');
+});
+
 test('contextFromFlags forwards screenshot flags from CLI flags', () => {
   const flags: CommandFlags = {
     screenshotFullscreen: true,

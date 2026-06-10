@@ -101,8 +101,23 @@ function contextForRuntimeLaunchUrl(
   traceLogPath?: string,
 ): ReturnType<typeof contextFromFlags> {
   const context = contextFromFlags(logPath, flags, appBundleId, traceLogPath);
+  delete context.cameraVideo;
   delete context.launchConsole;
   delete context.launchArgs;
+  return context;
+}
+
+function contextForOpenDispatch(
+  logPath: string,
+  flags: DaemonRequest['flags'],
+  appBundleId: string | undefined,
+  traceLogPath: string | undefined,
+  cwd: string | undefined,
+): ReturnType<typeof contextFromFlags> {
+  const context = contextFromFlags(logPath, flags, appBundleId, traceLogPath);
+  if (context.cameraVideo) {
+    context.cameraVideo = SessionStore.expandHome(context.cameraVideo, cwd);
+  }
   return context;
 }
 
@@ -218,7 +233,7 @@ async function completeOpenCommand(params: {
   }
   const openDispatchSession = provisionalSession.session ?? existingSession;
   await dispatchCommand(device, 'open', openPositionals, req.flags?.out, {
-    ...contextFromFlags(logPath, req.flags, sessionAppBundleId),
+    ...contextForOpenDispatch(logPath, req.flags, sessionAppBundleId, traceLogPath, req.meta?.cwd),
   });
   timing.openDispatchDurationMs = Math.max(0, Date.now() - openStartedAtMs);
   const launchUrlStartedAtMs = Date.now();

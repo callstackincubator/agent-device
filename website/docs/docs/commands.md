@@ -42,6 +42,7 @@ agent-device boot --platform android --device Pixel_9_Pro_XL --camera-back ./bac
 agent-device shutdown --platform ios
 agent-device shutdown --platform android --device Pixel_9_Pro_XL
 agent-device open [app|url] [url]
+agent-device open com.example.CameraApp --platform ios --camera-video ./camera-feed.mp4
 agent-device open --platform macos --surface frontmost-app
 agent-device open --platform macos --surface desktop
 agent-device close [app]
@@ -69,6 +70,7 @@ agent-device app-switcher
 - `open [app|url] [url]` already boots/activates the selected target when needed.
 - `open <url>` deep links are supported on Android and iOS.
 - `open <app> <url>` opens a deep link on iOS.
+- `open <app> --camera-video <videoPath>` injects a sample video file as the iOS simulator camera stream for that app launch. It relaunches the target app process and is not valid for URL-only opens, physical devices, Android, macOS, or Linux.
 - `open <app> --launch-console <path>` captures launch-time stdout/stderr for direct iOS simulator app launches. It is not valid for URL opens or
   non-simulator targets.
 - `open --platform macos --surface app|frontmost-app|desktop|menubar` selects the macOS session surface explicitly. `app` is the default when an app argument is provided.

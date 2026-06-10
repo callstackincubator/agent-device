@@ -77,6 +77,52 @@ test('dispatch open rejects launch arguments without an app target', async () =>
   );
 });
 
+test('dispatch open rejects camera video without an app target', async () => {
+  await assert.rejects(
+    () => dispatchCommand(IOS_SIMULATOR, 'open', [], undefined, { cameraVideo: './back.mp4' }),
+    (error: unknown) => {
+      assert.equal(error instanceof AppError, true);
+      assert.equal((error as AppError).code, 'INVALID_ARGS');
+      assert.match((error as AppError).message, /requires an app target/i);
+      return true;
+    },
+  );
+});
+
+test('dispatch open forwards iOS simulator camera video to openIosApp', async () => {
+  await dispatchCommand(IOS_SIMULATOR, 'open', ['com.example.app'], undefined, {
+    cameraVideo: '/tmp/back.mp4',
+  });
+
+  assert.equal(mockOpenIosApp.mock.calls.length, 1);
+  assert.equal(mockOpenIosApp.mock.calls[0]?.[0], IOS_SIMULATOR);
+  assert.equal(mockOpenIosApp.mock.calls[0]?.[1], 'com.example.app');
+  assert.equal(mockOpenIosApp.mock.calls[0]?.[2]?.cameraVideo, '/tmp/back.mp4');
+});
+
+test('dispatch open rejects camera video outside iOS simulator', async () => {
+  const device: DeviceInfo = {
+    platform: 'android',
+    id: 'emulator-5554',
+    name: 'Pixel',
+    kind: 'emulator',
+    booted: true,
+  };
+
+  await assert.rejects(
+    () =>
+      dispatchCommand(device, 'open', ['com.example.app'], undefined, {
+        cameraVideo: './back.mp4',
+      }),
+    (error: unknown) => {
+      assert.equal(error instanceof AppError, true);
+      assert.equal((error as AppError).code, 'UNSUPPORTED_OPERATION');
+      assert.match((error as AppError).message, /iOS simulators/i);
+      return true;
+    },
+  );
+});
+
 test('dispatch open forwards Android launch arguments to openAndroidApp', async () => {
   const device: DeviceInfo = {
     platform: 'android',

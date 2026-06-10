@@ -23,6 +23,7 @@ export function contextFromFlags(
     requestId: effectiveRequestId,
     appBundleId,
     activity: flags?.activity,
+    cameraVideo: flags?.cameraVideo,
     launchConsole: flags?.launchConsole,
     launchArgs: flags?.launchArgs,
     clearAppState: flags?.clearAppState,

@@ -80,6 +80,7 @@ export type CliFlags = RemoteConfigMetroOptions &
     pauseMs?: number;
     pattern?: SwipePattern;
     activity?: string;
+    cameraVideo?: string;
     launchConsole?: string;
     launchArgs?: string[];
     header?: string[];
@@ -531,6 +532,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--launch-console <path>',
     usageDescription: 'open: capture the initial iOS simulator launch console window to a file',
+  },
+  {
+    key: 'cameraVideo',
+    names: ['--camera-video'],
+    type: 'string',
+    usageLabel: '--camera-video <videoPath>',
+    usageDescription: 'open: iOS simulator video file injected as the app camera stream',
   },
   {
     key: 'launchArgs',

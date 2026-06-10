@@ -56,6 +56,7 @@ export const clientCommandMetadata = [
     url: stringField('Optional URL passed with an app shell.'),
     surface: enumField(SESSION_SURFACES),
     activity: stringField('Android activity name.'),
+    cameraVideo: stringField('iOS simulator video file path injected as the app camera stream.'),
     launchConsole: stringField('Launch console mode.'),
     launchArgs: stringArrayField(
       'Launch arguments forwarded verbatim to the platform launch command.',

@@ -82,7 +82,15 @@ const CLI_COMMAND_OVERRIDES = {
       'Boot device/simulator; optionally launch app or deep link URL (macOS also supports --surface app|frontmost-app|desktop|menubar)',
     summary: 'Open an app, deep link or URL, save replays',
     positionalArgs: ['appOrUrl?', 'url?'],
-    allowedFlags: ['activity', 'launchConsole', 'launchArgs', 'saveScript', 'relaunch', 'surface'],
+    allowedFlags: [
+      'activity',
+      'cameraVideo',
+      'launchConsole',
+      'launchArgs',
+      'saveScript',
+      'relaunch',
+      'surface',
+    ],
   },
   close: {
     positionalArgs: ['app?'],
