@@ -99,6 +99,11 @@ Use `pnpm test-app:maestro:android` for Android, passing the same extra
 - Add/adjust integration tests when introducing new commands.
 - Prefer built-in Node APIs over new packages.
 
+## Issue Labels
+
+Issue labels describe workflow state, not who will do the work. See
+`docs/agents/triage-labels.md` for the label meanings and state flow.
+
 ## Reporting issues
 
 Please include:
