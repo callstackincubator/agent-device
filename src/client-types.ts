@@ -555,6 +555,8 @@ type RepeatedPressOptions = {
 
 export type DeviceBootOptions = DeviceCommandBaseOptions & {
   headless?: boolean;
+  cameraFront?: string;
+  cameraBack?: string;
 };
 
 export type DeviceShutdownOptions = DeviceCommandBaseOptions;
@@ -850,6 +852,8 @@ type CommandExecutionOptions = Partial<ScreenshotRequestFlags> & {
   pauseMs?: number;
   pattern?: SwipePattern;
   headless?: boolean;
+  cameraFront?: string;
+  cameraBack?: string;
   restart?: boolean;
   replayUpdate?: boolean;
   replayBackend?: string;

@@ -63,7 +63,7 @@ const SCHEMA_ONLY_CLI_COMMAND_SCHEMAS = {
 const CLI_COMMAND_OVERRIDES = {
   boot: {
     summary: 'Boot target device/simulator',
-    allowedFlags: ['headless'],
+    allowedFlags: ['headless', 'cameraFront', 'cameraBack'],
   },
   shutdown: {
     summary: 'Shutdown target simulator/emulator',

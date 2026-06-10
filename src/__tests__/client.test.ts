@@ -80,6 +80,35 @@ test('apps.open resolves session device identifiers from open response', async (
   assert.equal(result.device?.ios?.simulatorSetPath, '/tmp/sim-set');
 });
 
+test('devices.boot forwards Android emulator camera options', async () => {
+  const setup = createTransport(async () => ({
+    ok: true,
+    data: {
+      platform: 'android',
+      target: 'mobile',
+      device: 'Pixel_9_Pro_XL',
+      id: 'emulator-5554',
+      kind: 'emulator',
+      booted: true,
+    },
+  }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await client.devices.boot({
+    platform: 'android',
+    device: 'Pixel_9_Pro_XL',
+    cameraFront: '/tmp/front.mp4',
+    cameraBack: 'virtualscene',
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'boot');
+  assert.equal(setup.calls[0]?.flags?.platform, 'android');
+  assert.equal(setup.calls[0]?.flags?.device, 'Pixel_9_Pro_XL');
+  assert.equal(setup.calls[0]?.flags?.cameraFront, '/tmp/front.mp4');
+  assert.equal(setup.calls[0]?.flags?.cameraBack, 'virtualscene');
+});
+
 test('apps.open forwards explicit runtime hints through the daemon request', async () => {
   const setup = createTransport(async () => ({
     ok: true,

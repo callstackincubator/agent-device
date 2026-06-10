@@ -90,6 +90,8 @@ export type CliFlags = RemoteConfigMetroOptions &
     relaunch?: boolean;
     surface?: SessionSurface;
     headless?: boolean;
+    cameraFront?: string;
+    cameraBack?: string;
     restart?: boolean;
     noRecord?: boolean;
     retainPaths?: boolean;
@@ -358,6 +360,22 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '--headless',
     usageDescription: 'Boot: launch Android emulator without a GUI window',
+  },
+  {
+    key: 'cameraFront',
+    names: ['--camera-front'],
+    type: 'string',
+    usageLabel: '--camera-front <mode|videoPath>',
+    usageDescription:
+      'Boot: Android emulator front camera mode or video file path (for example emulated, none, webcam0, or ./front.mp4)',
+  },
+  {
+    key: 'cameraBack',
+    names: ['--camera-back'],
+    type: 'string',
+    usageLabel: '--camera-back <mode|videoPath>',
+    usageDescription:
+      'Boot: Android emulator back camera mode or video file path (for example virtualscene, emulated, none, webcam0, or ./back.mp4)',
   },
   {
     key: 'metroHost',
