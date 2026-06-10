@@ -14,6 +14,7 @@ const IOS_TAB_FRAME = { referenceWidth: 402, referenceHeight: 874 } as const;
 
 type SnapshotNodeFixture = Omit<SnapshotNode, 'ref'> & { ref?: string };
 type ResolveMaestroOptions = NonNullable<Parameters<typeof resolveMaestroNodeFromSnapshot>[5]>;
+type MaestroTapOptions = Parameters<typeof resolveMaestroNodeFromSnapshot>[2];
 
 function makeSnapshot(nodes: SnapshotNodeFixture[]): SnapshotState {
   return {
@@ -39,6 +40,14 @@ function resolveIosTabTarget(
     IOS_TAB_FRAME,
     options,
   );
+}
+
+function resolveIosNode(
+  snapshot: SnapshotState,
+  selector: string,
+  options: MaestroTapOptions = {},
+) {
+  return resolveMaestroNodeFromSnapshot(snapshot, selector, options, 'ios', IOS_TAB_FRAME);
 }
 
 test('resolveVisibleMaestroNodeFromSnapshot treats app content behind React Native overlays as hidden', () => {
@@ -1306,10 +1315,17 @@ test('resolveMaestroNodeFromSnapshot infers leading breadcrumb slot when selecte
   });
 });
 
-test('readMaestroSelectorPlatform defaults to iOS unless flags request Android', () => {
+test('readMaestroSelectorPlatform defaults to iOS unless flags request exactly "android"', () => {
+  const flagsWithPlatform = (platform: string) =>
+    ({ platform }) as Parameters<typeof readMaestroSelectorPlatform>[0];
+
   expect(readMaestroSelectorPlatform({ platform: 'android' })).toBe('android');
   expect(readMaestroSelectorPlatform({ platform: 'ios' })).toBe('ios');
   expect(readMaestroSelectorPlatform(undefined)).toBe('ios');
+  // The comparison is case-sensitive and exact: anything but lowercase
+  // 'android' falls back to iOS.
+  expect(readMaestroSelectorPlatform(flagsWithPlatform('Android'))).toBe('ios');
+  expect(readMaestroSelectorPlatform(flagsWithPlatform('tvos'))).toBe('ios');
 });
 
 test('extractMaestroVisibleTextQuery extracts the shared text from text selector chains', () => {
@@ -1367,16 +1383,17 @@ test('resolveMaestroFuzzyTextNodeFromSnapshot reports unmatched and blank fuzzy 
     },
   ]);
 
+  const blankQuery = ' '.repeat(3);
   const missing = resolveMaestroFuzzyTextNodeFromSnapshot(
     snapshot,
     'Checkout',
     'ios',
     IOS_TAB_FRAME,
   );
-  const blank = resolveMaestroFuzzyTextNodeFromSnapshot(snapshot, '   ', 'ios', IOS_TAB_FRAME);
+  const blank = resolveMaestroFuzzyTextNodeFromSnapshot(snapshot, blankQuery, 'ios', IOS_TAB_FRAME);
 
   expect(missing).toEqual({ ok: false, message: 'Maestro fuzzy text did not match: Checkout' });
-  expect(blank).toEqual({ ok: false, message: 'Maestro fuzzy text did not match:    ' });
+  expect(blank).toEqual({ ok: false, message: `Maestro fuzzy text did not match: ${blankQuery}` });
 });
 
 test('resolveMaestroNodeFromSnapshot index option selects matches in snapshot order', () => {
@@ -1397,20 +1414,8 @@ test('resolveMaestroNodeFromSnapshot index option selects matches in snapshot or
     },
   ]);
 
-  const first = resolveMaestroNodeFromSnapshot(
-    snapshot,
-    'label="Delete"',
-    { index: 0 },
-    'ios',
-    IOS_TAB_FRAME,
-  );
-  const second = resolveMaestroNodeFromSnapshot(
-    snapshot,
-    'label="Delete"',
-    { index: 1 },
-    'ios',
-    IOS_TAB_FRAME,
-  );
+  const first = resolveIosNode(snapshot, 'label="Delete"', { index: 0 });
+  const second = resolveIosNode(snapshot, 'label="Delete"', { index: 1 });
 
   expect(first).toMatchObject({
     ok: true,
@@ -1435,13 +1440,7 @@ test('resolveMaestroNodeFromSnapshot reports the requested index when out of ran
     },
   ]);
 
-  const target = resolveMaestroNodeFromSnapshot(
-    snapshot,
-    'label="Delete"',
-    { index: 5 },
-    'ios',
-    IOS_TAB_FRAME,
-  );
+  const target = resolveIosNode(snapshot, 'label="Delete"', { index: 5 });
 
   expect(target).toEqual({
     ok: false,
@@ -1461,13 +1460,7 @@ test('resolveMaestroNodeFromSnapshot reports missing childOf parents', () => {
     },
   ]);
 
-  const target = resolveMaestroNodeFromSnapshot(
-    snapshot,
-    'id="action"',
-    { childOf: 'id="missing-parent"' },
-    'ios',
-    IOS_TAB_FRAME,
-  );
+  const target = resolveIosNode(snapshot, 'id="action"', { childOf: 'id="missing-parent"' });
 
   expect(target).toEqual({
     ok: false,
@@ -1481,13 +1474,7 @@ test('resolveMaestroNodeFromSnapshot inherits the nearest ancestor rect for rect
     { index: 2, type: 'Button', label: 'Submit', hittable: true, depth: 2, parentIndex: 1 },
   ]);
 
-  const target = resolveMaestroNodeFromSnapshot(
-    snapshot,
-    'label="Submit"',
-    {},
-    'ios',
-    IOS_TAB_FRAME,
-  );
+  const target = resolveIosNode(snapshot, 'label="Submit"');
 
   expect(target).toMatchObject({
     ok: true,
@@ -1507,13 +1494,7 @@ test('resolveMaestroNodeFromSnapshot reports matches hidden by zero-size rects',
     },
   ]);
 
-  const target = resolveMaestroNodeFromSnapshot(
-    snapshot,
-    'label="Ghost"',
-    {},
-    'ios',
-    IOS_TAB_FRAME,
-  );
+  const target = resolveIosNode(snapshot, 'label="Ghost"');
 
   expect(target).toEqual({
     ok: false,
@@ -1532,20 +1513,8 @@ test('resolveMaestroNodeFromSnapshot treats regex-looking text terms as regular 
     },
   ]);
 
-  const regex = resolveMaestroNodeFromSnapshot(
-    snapshot,
-    'label="^Subtotal.*"',
-    {},
-    'ios',
-    IOS_TAB_FRAME,
-  );
-  const invalidRegex = resolveMaestroNodeFromSnapshot(
-    snapshot,
-    'label="^[unclosed"',
-    {},
-    'ios',
-    IOS_TAB_FRAME,
-  );
+  const regex = resolveIosNode(snapshot, 'label="^Subtotal.*"');
+  const invalidRegex = resolveIosNode(snapshot, 'label="^[unclosed"');
 
   expect(regex).toMatchObject({
     ok: true,
@@ -1558,7 +1527,7 @@ test('resolveMaestroNodeFromSnapshot treats regex-looking text terms as regular 
   });
 });
 
-test('resolveMaestroNodeFromSnapshot rejects malformed selector expressions with INVALID_ARGS', () => {
+test('resolveMaestroNodeFromSnapshot propagates selector parser errors uncaught', () => {
   const snapshot = makeSnapshot([
     {
       index: 1,
@@ -1568,29 +1537,16 @@ test('resolveMaestroNodeFromSnapshot rejects malformed selector expressions with
       depth: 3,
     },
   ]);
-  const resolve = (selector: string) => () =>
-    resolveMaestroNodeFromSnapshot(snapshot, selector, {}, 'ios', IOS_TAB_FRAME);
 
+  // Exact parser wording is owned by src/daemon/selectors-parse.ts and pinned
+  // in src/daemon/__tests__/selectors.test.ts; here we only assert that the
+  // parser error reaches the caller unchanged.
   assert.throws(
-    resolve(''),
+    () => resolveIosNode(snapshot, 'bogus="Save"'),
     (error) =>
       error instanceof AppError &&
       error.code === 'INVALID_ARGS' &&
-      error.message === 'Selector expression cannot be empty',
-  );
-  assert.throws(
-    resolve('bogus="Save"'),
-    (error) =>
-      error instanceof AppError &&
-      error.code === 'INVALID_ARGS' &&
-      error.message === 'Unknown selector key: bogus',
-  );
-  assert.throws(
-    resolve('label="Save'),
-    (error) =>
-      error instanceof AppError &&
-      error.code === 'INVALID_ARGS' &&
-      error.message === 'Unclosed quote in selector: label="Save',
+      /Unknown selector key/i.test(error.message),
   );
 });
 

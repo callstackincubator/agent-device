@@ -14,7 +14,7 @@ test('parseMaestroPoint parses percentage coordinates including decimals', () =>
 });
 
 test('parseMaestroPoint rejects mixed or malformed coordinate expressions', () => {
-  for (const value of ['50%,75', '100;200', '-10,20', '']) {
+  for (const value of ['50%,75', '50,75%', '100;200', '-10,20', '100.5,200', '']) {
     assert.throws(
       () => parseMaestroPoint(value),
       (error) =>
