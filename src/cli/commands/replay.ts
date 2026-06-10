@@ -6,36 +6,34 @@ import { resolveUserPath } from '../../utils/path-resolution.ts';
 import { writeCommandOutput } from './shared.ts';
 import type { ClientCommandHandler } from './router-types.ts';
 
-export const replayCommand: ClientCommandHandler = async ({ positionals, flags }) => {
+type ReplayCommandParams = Parameters<ClientCommandHandler>[0];
+
+export const replayCommand: ClientCommandHandler = async (params) => {
+  const { positionals } = params;
   if (positionals[0] !== 'export') {
-    if (flags.replayExportFormat !== undefined || flags.out !== undefined) {
-      throw new AppError(
-        'INVALID_ARGS',
-        'replay --format/--out are only supported with replay export.',
-      );
-    }
-    return false;
+    return handleReplayRunCommand(params);
   }
-  if (positionals.length > 2) {
+  return await handleReplayExportCommand(params);
+};
+
+function handleReplayRunCommand({ positionals, flags }: ReplayCommandParams): false {
+  if (positionals.length > 1) {
+    throw new AppError('INVALID_ARGS', 'replay accepts exactly one input path: replay <path>');
+  }
+  if (flags.replayExportFormat !== undefined || flags.out !== undefined) {
     throw new AppError(
       'INVALID_ARGS',
-      'replay export accepts exactly one input path: replay export <file.ad>',
+      'replay --format/--out are only supported with replay export.',
     );
   }
-  if (flags.replayUpdate) {
-    throw new AppError('INVALID_ARGS', 'replay export does not support --update.');
-  }
-  if (flags.replayMaestro) {
-    throw new AppError('INVALID_ARGS', 'replay export reads .ad files; omit --maestro.');
-  }
-  if (flags.replayEnv?.length) {
-    throw new AppError('INVALID_ARGS', 'replay export does not evaluate --env substitutions.');
-  }
-  const format = flags.replayExportFormat ?? 'maestro';
-  if (format !== 'maestro') {
-    throw new AppError('INVALID_ARGS', `Unsupported replay export format: ${format}`);
-  }
+  return false;
+}
 
+async function handleReplayExportCommand({
+  positionals,
+  flags,
+}: ReplayCommandParams): Promise<true> {
+  validateReplayExportOptions(positionals, flags);
   const inputPath = positionals[1];
   if (!inputPath) {
     throw new AppError('INVALID_ARGS', 'replay export requires an input path.');
@@ -56,7 +54,7 @@ export const replayCommand: ClientCommandHandler = async ({ positionals, flags }
   writeCommandOutput(
     flags,
     {
-      format,
+      format: flags.replayExportFormat ?? 'maestro',
       sourcePath,
       ...(outputPath ? { path: outputPath } : { yaml: result.yaml }),
       warnings: result.warnings,
@@ -64,4 +62,29 @@ export const replayCommand: ClientCommandHandler = async ({ positionals, flags }
     () => outputPath ?? result.yaml,
   );
   return true;
-};
+}
+
+function validateReplayExportOptions(
+  positionals: ReplayCommandParams['positionals'],
+  flags: ReplayCommandParams['flags'],
+): void {
+  if (positionals.length > 2) {
+    throw new AppError(
+      'INVALID_ARGS',
+      'replay export accepts exactly one input path: replay export <file.ad>',
+    );
+  }
+  if (flags.replayUpdate) {
+    throw new AppError('INVALID_ARGS', 'replay export does not support --update.');
+  }
+  if (flags.replayMaestro) {
+    throw new AppError('INVALID_ARGS', 'replay export reads .ad files; omit --maestro.');
+  }
+  if (flags.replayEnv?.length) {
+    throw new AppError('INVALID_ARGS', 'replay export does not evaluate --env substitutions.');
+  }
+  const format = flags.replayExportFormat ?? 'maestro';
+  if (format !== 'maestro') {
+    throw new AppError('INVALID_ARGS', `Unsupported replay export format: ${format}`);
+  }
+}

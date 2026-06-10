@@ -103,6 +103,46 @@ press text="Retry" --hold-ms 1500
     ]);
   });
 
+  test('warns when double-tap and hold exports ignore repeated tap options', () => {
+    const result = exportReplayScriptToMaestro(`open com.example.app
+click id="retry" --double-tap --count 2 --interval-ms 200
+press text="Hold" --hold-ms 1000 --count 3 --interval-ms 150
+`);
+
+    expect(parseYamlDocs(result.yaml)).toEqual([
+      { appId: 'com.example.app' },
+      ['launchApp', { doubleTapOn: { id: 'retry' } }, { longPressOn: { text: 'Hold' } }],
+    ]);
+    expect(result.warnings).toEqual([
+      {
+        line: 2,
+        action: 'click id="retry"',
+        message: 'tap --count 2 is not represented by Maestro doubleTapOn',
+      },
+      {
+        line: 2,
+        action: 'click id="retry"',
+        message: 'tap --interval-ms 200 is not represented by Maestro doubleTapOn',
+      },
+      {
+        line: 3,
+        action: 'press text="Hold"',
+        message:
+          'long-press duration exports as Maestro longPressOn; Maestro uses its default long-press duration instead of 1000ms',
+      },
+      {
+        line: 3,
+        action: 'press text="Hold"',
+        message: 'tap --count 3 is not represented by Maestro longPressOn',
+      },
+      {
+        line: 3,
+        action: 'press text="Hold"',
+        message: 'tap --interval-ms 150 is not represented by Maestro longPressOn',
+      },
+    ]);
+  });
+
   test('rejects native-only replay actions', () => {
     expect(() =>
       exportReplayScriptToMaestro(`open com.example.app

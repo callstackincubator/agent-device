@@ -663,6 +663,33 @@ click text="Continue"
   assert.match(yaml, /text: Continue/);
 });
 
+test('replay rejects extra plain replay paths before daemon dispatch', async () => {
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+  });
+
+  await assert.rejects(
+    async () =>
+      await tryRunClientBackedCommand({
+        command: 'replay',
+        positionals: ['one.ad', 'two.ad'],
+        flags: {
+          json: false,
+          help: false,
+          version: false,
+        },
+        client,
+      }),
+    (error) => {
+      assert.equal(error instanceof AppError, true);
+      assert.match((error as AppError).message, /replay accepts exactly one input path/);
+      return true;
+    },
+  );
+});
+
 test('wait keeps CLI bare text behavior through the typed client command API', async () => {
   let observed: Parameters<AgentDeviceClient['command']['wait']>[0] | undefined;
   const client = createStubClient({

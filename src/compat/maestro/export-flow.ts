@@ -181,13 +181,20 @@ function convertClickAction(action: SessionAction): ConvertedAction {
   if (!tapOptions.ok) return { kind: 'unsupported', message: tapOptions.message };
 
   if (action.flags?.doubleTap === true) {
-    return { kind: 'commands', commands: [{ doubleTapOn: tapTarget }] };
+    return {
+      kind: 'commands',
+      commands: [{ doubleTapOn: tapTarget }],
+      warnings: readIgnoredRepeatedTapOptionWarnings(action, 'doubleTapOn'),
+    };
   }
   if (typeof action.flags?.holdMs === 'number') {
     return {
       kind: 'commands',
       commands: [{ longPressOn: tapTarget }],
-      warnings: [formatLongPressDurationWarning(action.flags.holdMs)],
+      warnings: [
+        formatLongPressDurationWarning(action.flags.holdMs),
+        ...readIgnoredRepeatedTapOptionWarnings(action, 'longPressOn'),
+      ],
     };
   }
 
@@ -215,6 +222,24 @@ function readLongPressDuration(action: SessionAction): number[] {
 
 function formatLongPressDurationWarning(durationMs: number): string {
   return `${LONG_PRESS_DURATION_WARNING} instead of ${durationMs}ms`;
+}
+
+function readIgnoredRepeatedTapOptionWarnings(
+  action: SessionAction,
+  maestroCommand: 'doubleTapOn' | 'longPressOn',
+): string[] {
+  const warnings: string[] = [];
+  if (typeof action.flags?.count === 'number' && action.flags.count > 1) {
+    warnings.push(
+      `tap --count ${action.flags.count} is not represented by Maestro ${maestroCommand}`,
+    );
+  }
+  if (typeof action.flags?.intervalMs === 'number' && action.flags.intervalMs > 0) {
+    warnings.push(
+      `tap --interval-ms ${action.flags.intervalMs} is not represented by Maestro ${maestroCommand}`,
+    );
+  }
+  return warnings;
 }
 
 function convertFillAction(action: SessionAction): ConvertedAction {
