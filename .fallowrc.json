@@ -16,6 +16,7 @@
     "src/bin.ts",
     "src/companion-tunnel.ts",
     "src/daemon.ts",
+    "src/utils/png-worker.ts",
     "scripts/patch-xcuitest-runner-icon.ts",
     "src/utils/update-check-entry.ts",
     "test/scripts/metro-prepare-packaged-smoke.mjs",

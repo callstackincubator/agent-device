@@ -37,23 +37,27 @@ function runJob(request: PngWorkerRequest): PngWorkerJobResult {
 }
 
 /**
- * Transfers result buffers instead of structured-cloning them, but only when a
- * view fully owns its ArrayBuffer: transferring the backing store of a pooled
- * small Buffer would detach Node's shared buffer pool for unrelated Buffers.
+ * True when the view fully owns a real ArrayBuffer. Views over a slice of a
+ * larger buffer (e.g. Node's shared pool for small Buffers) do not qualify:
+ * transferring their backing store would detach unrelated Buffers.
  */
-function resultTransferList(result: PngWorkerJobResult): ArrayBuffer[] {
-  const transfers: ArrayBuffer[] = [];
-  for (const view of resultBufferViews(result)) {
-    const owner = view.buffer;
-    if (
-      owner instanceof ArrayBuffer &&
-      view.byteOffset === 0 &&
-      view.byteLength === owner.byteLength
-    ) {
-      transfers.push(owner);
-    }
-  }
-  return transfers;
+function ownsEntireArrayBuffer(view: Uint8Array): view is Uint8Array<ArrayBuffer> {
+  return (
+    view.buffer instanceof ArrayBuffer &&
+    view.byteOffset === 0 &&
+    view.byteLength === view.buffer.byteLength
+  );
+}
+
+/**
+ * Transfers result buffers instead of structured-cloning them, but only when a
+ * view fully owns its ArrayBuffer. Exported for direct unit coverage; the
+ * worker itself is the only runtime caller.
+ */
+export function resultTransferList(result: PngWorkerJobResult): ArrayBuffer[] {
+  return resultBufferViews(result)
+    .filter(ownsEntireArrayBuffer)
+    .map((view) => view.buffer);
 }
 
 function resultBufferViews(result: PngWorkerJobResult): Uint8Array[] {
