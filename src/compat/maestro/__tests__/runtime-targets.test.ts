@@ -1,6 +1,11 @@
+import assert from 'node:assert/strict';
 import { test, expect } from 'vitest';
 import type { SnapshotNode, SnapshotState } from '../../../utils/snapshot.ts';
+import { AppError } from '../../../utils/errors.ts';
 import {
+  extractMaestroVisibleTextQuery,
+  readMaestroSelectorPlatform,
+  resolveMaestroFuzzyTextNodeFromSnapshot,
   resolveMaestroNodeFromSnapshot,
   resolveVisibleMaestroNodeFromSnapshot,
 } from '../runtime-targets.ts';
@@ -1298,6 +1303,327 @@ test('resolveMaestroNodeFromSnapshot infers leading breadcrumb slot when selecte
     ok: true,
     node: expect.objectContaining({ index: 1 }),
     rect: { x: 0, y: 58.33333333333333, width: 168, height: 58.33333333333333 },
+  });
+});
+
+test('readMaestroSelectorPlatform defaults to iOS unless flags request Android', () => {
+  expect(readMaestroSelectorPlatform({ platform: 'android' })).toBe('android');
+  expect(readMaestroSelectorPlatform({ platform: 'ios' })).toBe('ios');
+  expect(readMaestroSelectorPlatform(undefined)).toBe('ios');
+});
+
+test('extractMaestroVisibleTextQuery extracts the shared text from text selector chains', () => {
+  expect(extractMaestroVisibleTextQuery('label="Save" || text="Save" || id="Save"')).toBe('Save');
+  expect(extractMaestroVisibleTextQuery('label="Save"')).toBe('Save');
+});
+
+test('extractMaestroVisibleTextQuery keeps exact selector paths for mixed selectors', () => {
+  expect(extractMaestroVisibleTextQuery('id="row-1"')).toBeNull();
+  expect(extractMaestroVisibleTextQuery('label="Save" || text="Cancel"')).toBeNull();
+  expect(extractMaestroVisibleTextQuery('role="button" label="Save"')).toBeNull();
+});
+
+test('resolveMaestroFuzzyTextNodeFromSnapshot prefers exact normalized text over partial matches', () => {
+  const snapshot = makeSnapshot([
+    {
+      index: 1,
+      type: 'StaticText',
+      label: 'Sign In Now',
+      rect: { x: 24, y: 100, width: 200, height: 44 },
+      depth: 3,
+    },
+    {
+      index: 2,
+      type: 'StaticText',
+      label: 'sign  in',
+      rect: { x: 24, y: 200, width: 200, height: 44 },
+      depth: 3,
+    },
+  ]);
+
+  const exact = resolveMaestroFuzzyTextNodeFromSnapshot(snapshot, 'Sign In', 'ios', IOS_TAB_FRAME);
+  const partial = resolveMaestroFuzzyTextNodeFromSnapshot(snapshot, 'In Now', 'ios', IOS_TAB_FRAME);
+
+  expect(exact).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 2 }),
+    rect: { x: 24, y: 200, width: 200, height: 44 },
+  });
+  expect(partial).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 1 }),
+    rect: { x: 24, y: 100, width: 200, height: 44 },
+  });
+});
+
+test('resolveMaestroFuzzyTextNodeFromSnapshot reports unmatched and blank fuzzy queries', () => {
+  const snapshot = makeSnapshot([
+    {
+      index: 1,
+      type: 'StaticText',
+      label: 'Welcome',
+      rect: { x: 24, y: 100, width: 200, height: 44 },
+      depth: 3,
+    },
+  ]);
+
+  const missing = resolveMaestroFuzzyTextNodeFromSnapshot(
+    snapshot,
+    'Checkout',
+    'ios',
+    IOS_TAB_FRAME,
+  );
+  const blank = resolveMaestroFuzzyTextNodeFromSnapshot(snapshot, '   ', 'ios', IOS_TAB_FRAME);
+
+  expect(missing).toEqual({ ok: false, message: 'Maestro fuzzy text did not match: Checkout' });
+  expect(blank).toEqual({ ok: false, message: 'Maestro fuzzy text did not match:    ' });
+});
+
+test('resolveMaestroNodeFromSnapshot index option selects matches in snapshot order', () => {
+  const snapshot = makeSnapshot([
+    {
+      index: 1,
+      type: 'Button',
+      label: 'Delete',
+      rect: { x: 24, y: 100, width: 120, height: 44 },
+      depth: 3,
+    },
+    {
+      index: 2,
+      type: 'Button',
+      label: 'Delete',
+      rect: { x: 24, y: 300, width: 120, height: 44 },
+      depth: 3,
+    },
+  ]);
+
+  const first = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Delete"',
+    { index: 0 },
+    'ios',
+    IOS_TAB_FRAME,
+  );
+  const second = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Delete"',
+    { index: 1 },
+    'ios',
+    IOS_TAB_FRAME,
+  );
+
+  expect(first).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 1 }),
+    rect: { x: 24, y: 100, width: 120, height: 44 },
+  });
+  expect(second).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 2 }),
+    rect: { x: 24, y: 300, width: 120, height: 44 },
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot reports the requested index when out of range', () => {
+  const snapshot = makeSnapshot([
+    {
+      index: 1,
+      type: 'Button',
+      label: 'Delete',
+      rect: { x: 24, y: 100, width: 120, height: 44 },
+      depth: 3,
+    },
+  ]);
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Delete"',
+    { index: 5 },
+    'ios',
+    IOS_TAB_FRAME,
+  );
+
+  expect(target).toEqual({
+    ok: false,
+    message: 'Maestro selector did not match index 5: label="Delete"',
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot reports missing childOf parents', () => {
+  const snapshot = makeSnapshot([
+    { index: 1, identifier: 'row', rect: { x: 0, y: 0, width: 320, height: 80 }, depth: 2 },
+    {
+      index: 2,
+      parentIndex: 1,
+      identifier: 'action',
+      rect: { x: 240, y: 16, width: 64, height: 48 },
+      depth: 3,
+    },
+  ]);
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'id="action"',
+    { childOf: 'id="missing-parent"' },
+    'ios',
+    IOS_TAB_FRAME,
+  );
+
+  expect(target).toEqual({
+    ok: false,
+    message: 'Maestro childOf parent did not match: id="missing-parent"',
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot inherits the nearest ancestor rect for rectless matches', () => {
+  const snapshot = makeSnapshot([
+    { index: 1, type: 'Other', rect: { x: 10, y: 20, width: 300, height: 50 }, depth: 1 },
+    { index: 2, type: 'Button', label: 'Submit', hittable: true, depth: 2, parentIndex: 1 },
+  ]);
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Submit"',
+    {},
+    'ios',
+    IOS_TAB_FRAME,
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 2 }),
+    rect: { x: 10, y: 20, width: 300, height: 50 },
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot reports matches hidden by zero-size rects', () => {
+  const snapshot = makeSnapshot([
+    {
+      index: 1,
+      type: 'StaticText',
+      label: 'Ghost',
+      rect: { x: 0, y: 0, width: 0, height: 0 },
+      depth: 2,
+    },
+  ]);
+
+  const target = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="Ghost"',
+    {},
+    'ios',
+    IOS_TAB_FRAME,
+  );
+
+  expect(target).toEqual({
+    ok: false,
+    message: 'Maestro selector matched 1 element(s), but none were visible: label="Ghost"',
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot treats regex-looking text terms as regular expressions', () => {
+  const snapshot = makeSnapshot([
+    {
+      index: 1,
+      type: 'StaticText',
+      label: 'Subtotal: $42.10',
+      rect: { x: 24, y: 100, width: 240, height: 44 },
+      depth: 3,
+    },
+  ]);
+
+  const regex = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="^Subtotal.*"',
+    {},
+    'ios',
+    IOS_TAB_FRAME,
+  );
+  const invalidRegex = resolveMaestroNodeFromSnapshot(
+    snapshot,
+    'label="^[unclosed"',
+    {},
+    'ios',
+    IOS_TAB_FRAME,
+  );
+
+  expect(regex).toMatchObject({
+    ok: true,
+    node: expect.objectContaining({ index: 1 }),
+    rect: { x: 24, y: 100, width: 240, height: 44 },
+  });
+  expect(invalidRegex).toEqual({
+    ok: false,
+    message: 'Maestro selector did not match index 0: label="^[unclosed"',
+  });
+});
+
+test('resolveMaestroNodeFromSnapshot rejects malformed selector expressions with INVALID_ARGS', () => {
+  const snapshot = makeSnapshot([
+    {
+      index: 1,
+      type: 'Button',
+      label: 'Save',
+      rect: { x: 24, y: 100, width: 120, height: 44 },
+      depth: 3,
+    },
+  ]);
+  const resolve = (selector: string) => () =>
+    resolveMaestroNodeFromSnapshot(snapshot, selector, {}, 'ios', IOS_TAB_FRAME);
+
+  assert.throws(
+    resolve(''),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message === 'Selector expression cannot be empty',
+  );
+  assert.throws(
+    resolve('bogus="Save"'),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message === 'Unknown selector key: bogus',
+  );
+  assert.throws(
+    resolve('label="Save'),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message === 'Unclosed quote in selector: label="Save',
+  );
+});
+
+test('resolveVisibleMaestroNodeFromSnapshot reports the visible match count and prefers tap targets', () => {
+  const snapshot = makeSnapshot([
+    {
+      index: 1,
+      type: 'StaticText',
+      label: 'Save',
+      rect: { x: 24, y: 100, width: 120, height: 44 },
+      depth: 3,
+    },
+    {
+      index: 2,
+      type: 'Button',
+      label: 'Save',
+      rect: { x: 24, y: 300, width: 120, height: 44 },
+      depth: 3,
+    },
+  ]);
+
+  const target = resolveVisibleMaestroNodeFromSnapshot(
+    snapshot,
+    maestroTextSelector('Save'),
+    'ios',
+    IOS_TAB_FRAME,
+  );
+
+  expect(target).toMatchObject({
+    ok: true,
+    matches: 2,
+    node: expect.objectContaining({ index: 2 }),
+    rect: { x: 24, y: 300, width: 120, height: 44 },
   });
 });
 
