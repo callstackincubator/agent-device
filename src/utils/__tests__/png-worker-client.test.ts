@@ -1,5 +1,6 @@
 import { afterAll, test } from 'vitest';
 import assert from 'node:assert/strict';
+import { AppError } from '../errors.ts';
 import { PNG } from '../png-codec.ts';
 import {
   computeScreenshotDiffPixelsAsync,
@@ -71,9 +72,16 @@ test('computeScreenshotDiffPixelsAsync matches the synchronous diff', async () =
   assert.deepEqual(fromWorker.diffData, fromSync.diffData);
 });
 
-test('decodePngAsync rejects invalid PNG data with a decode error', async () => {
+test('decodePngAsync rejects invalid PNG data with the canonical decode AppError', async () => {
   await assert.rejects(
     () => decodePngAsync(Buffer.from('not a png'), 'fixture'),
-    /Failed to decode fixture as PNG/,
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'COMMAND_FAILED');
+      assert.match(error.message, /Failed to decode fixture as PNG/);
+      assert.equal(error.details?.label, 'fixture');
+      assert.match(String(error.details?.reason), /Invalid PNG signature/);
+      return true;
+    },
   );
 });

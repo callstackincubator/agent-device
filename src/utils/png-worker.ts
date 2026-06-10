@@ -1,10 +1,13 @@
 import { parentPort } from 'node:worker_threads';
+import { normalizeError } from './errors.ts';
 import { PNG } from './png-codec.ts';
+import { decodePng } from './png.ts';
 import { computeScreenshotDiffPixels } from './screenshot-diff-pixels.ts';
-import type {
-  PngWorkerJobResult,
-  PngWorkerRequest,
-  PngWorkerResponse,
+import {
+  toBuffer,
+  type PngWorkerJobResult,
+  type PngWorkerRequest,
+  type PngWorkerResponse,
 } from './png-worker-contract.ts';
 
 /**
@@ -13,14 +16,10 @@ import type {
  * `png-worker-client.ts`; published as the `internal/png-worker` build entry.
  */
 
-function toBuffer(view: Uint8Array): Buffer {
-  return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
-}
-
 function runJob(request: PngWorkerRequest): PngWorkerJobResult {
   switch (request.kind) {
     case 'decode': {
-      const png = PNG.sync.read(toBuffer(request.png));
+      const png = decodePng(toBuffer(request.png), request.label);
       return { kind: 'decode', width: png.width, height: png.height, data: png.data };
     }
     case 'encode': {
@@ -32,20 +31,39 @@ function runJob(request: PngWorkerRequest): PngWorkerJobResult {
       return { kind: 'encode', png: PNG.sync.write(png) };
     }
     case 'diff-pixels': {
-      const result = computeScreenshotDiffPixels({
-        width: request.width,
-        height: request.height,
-        baselineData: request.baselineData,
-        currentData: request.currentData,
-        maxColorDistance: request.maxColorDistance,
-      });
-      return {
-        kind: 'diff-pixels',
-        diffData: result.diffData,
-        diffMask: result.diffMask,
-        differentPixels: result.differentPixels,
-      };
+      return { kind: 'diff-pixels', ...computeScreenshotDiffPixels(request) };
     }
+  }
+}
+
+/**
+ * Transfers result buffers instead of structured-cloning them, but only when a
+ * view fully owns its ArrayBuffer: transferring the backing store of a pooled
+ * small Buffer would detach Node's shared buffer pool for unrelated Buffers.
+ */
+function resultTransferList(result: PngWorkerJobResult): ArrayBuffer[] {
+  const transfers: ArrayBuffer[] = [];
+  for (const view of resultBufferViews(result)) {
+    const owner = view.buffer;
+    if (
+      owner instanceof ArrayBuffer &&
+      view.byteOffset === 0 &&
+      view.byteLength === owner.byteLength
+    ) {
+      transfers.push(owner);
+    }
+  }
+  return transfers;
+}
+
+function resultBufferViews(result: PngWorkerJobResult): Uint8Array[] {
+  switch (result.kind) {
+    case 'decode':
+      return [result.data];
+    case 'encode':
+      return [result.png];
+    case 'diff-pixels':
+      return [result.diffData, result.diffMask];
   }
 }
 
@@ -56,12 +74,8 @@ if (port) {
     try {
       response = { id: request.id, ok: true, result: runJob(request) };
     } catch (error) {
-      response = {
-        id: request.id,
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      response = { id: request.id, ok: false, error: normalizeError(error) };
     }
-    port.postMessage(response);
+    port.postMessage(response, response.ok ? resultTransferList(response.result) : []);
   });
 }

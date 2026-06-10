@@ -1,6 +1,6 @@
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
-import { resizePngFileToMaxSize } from '../utils/png.ts';
+import { resizePngFileToMaxSize } from '../utils/png-resize.ts';
 import type { ArtifactDescriptor } from '../io.ts';
 import type { RuntimeCommand, ScreenshotCommandOptions } from './runtime-types.ts';
 import { reserveCommandOutput } from './io-policy.ts';

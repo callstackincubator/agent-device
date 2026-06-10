@@ -31,9 +31,11 @@ import {
   listenNetServer,
   type DaemonServer,
 } from './daemon/transport.ts';
+import { prewarmPngWorker, terminatePngWorker } from './utils/png-worker-client.ts';
 import { sleep } from './utils/timeouts.ts';
 
 const DAEMON_SESSION_TEARDOWN_TIMEOUT_MS = 5_000;
+const DAEMON_PNG_WORKER_TERMINATE_TIMEOUT_MS = 1_000;
 
 type WritableOutput = {
   write: (chunk: string) => unknown;
@@ -202,6 +204,11 @@ export async function startDaemonRuntime(
     return null;
   }
 
+  // Spawn the PNG worker ahead of the first screenshot request so its
+  // cold-start cost is not paid on a user-visible call. Best effort: when it
+  // cannot start, PNG processing falls back to the in-process sync path.
+  prewarmPngWorker();
+
   let shuttingDown = false;
   const shutdown = async (shutdownOptions: { exitCode?: number; cause?: unknown } = {}) => {
     if (shuttingDown) return;
@@ -213,6 +220,11 @@ export async function startDaemonRuntime(
     await teardownDaemonSessions();
     const { stopAllIosRunnerSessions } = await import('./platforms/ios/runner-client.ts');
     await stopAllIosRunnerSessions();
+    // Best effort: stop the PNG worker so an in-flight job cannot delay exit.
+    await Promise.race([
+      terminatePngWorker().catch(() => {}),
+      sleep(DAEMON_PNG_WORKER_TERMINATE_TIMEOUT_MS),
+    ]);
     removeInfo(infoPath);
     releaseDaemonLock(lockPath);
     exit(shutdownOptions.exitCode ?? 0);

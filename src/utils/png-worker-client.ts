@@ -1,8 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { Worker } from 'node:worker_threads';
-import { AppError } from './errors.ts';
+import { emitDiagnostic } from './diagnostics.ts';
+import { AppError, toAppErrorCode } from './errors.ts';
+import { resolveInternalEntryModulePath } from './internal-entry.ts';
 import { PNG } from './png-codec.ts';
 import { decodePng } from './png.ts';
 import {
@@ -10,7 +9,14 @@ import {
   type ScreenshotDiffPixelsJob,
   type ScreenshotDiffPixelsResult,
 } from './screenshot-diff-pixels.ts';
-import type { PngWorkerJob, PngWorkerJobResult, PngWorkerResponse } from './png-worker-contract.ts';
+import {
+  toBuffer,
+  type PngWorkerJobFor,
+  type PngWorkerJobKind,
+  type PngWorkerJobResult,
+  type PngWorkerJobResultFor,
+  type PngWorkerResponse,
+} from './png-worker-contract.ts';
 
 /**
  * Async wrappers that offload CPU-heavy PNG decode/encode and screenshot
@@ -22,10 +28,8 @@ import type { PngWorkerJob, PngWorkerJobResult, PngWorkerResponse } from './png-
 
 const PNG_WORKER_ENTRYPOINT = 'png-worker';
 
-/** Worker-infrastructure failure: callers fall back to the sync path. */
+/** Worker-infrastructure failure: the generic runner falls back to the sync path. */
 class PngWorkerUnavailableError extends Error {}
-/** Job-level failure inside the worker (e.g. corrupt PNG): rethrown to callers. */
-class PngWorkerJobError extends Error {}
 
 type PendingJob = {
   resolve: (result: PngWorkerJobResult) => void;
@@ -34,17 +38,21 @@ type PendingJob = {
 
 let worker: Worker | null = null;
 let workerUnavailable = false;
+let warnedWorkerUnavailable = false;
 let nextJobId = 0;
 const pendingJobs = new Map<number, PendingJob>();
 
-function resolvePngWorkerModulePath(): string | null {
-  const currentModulePath = fileURLToPath(import.meta.url);
-  const extension = path.extname(currentModulePath) || '.js';
-  const candidates = [
-    path.join(path.dirname(currentModulePath), `${PNG_WORKER_ENTRYPOINT}${extension}`),
-    path.join(path.dirname(currentModulePath), 'internal', `${PNG_WORKER_ENTRYPOINT}${extension}`),
-  ];
-  return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
+/** Permanently degrades to the sync path and reports the reason once. */
+function markWorkerUnavailable(reason: string): void {
+  workerUnavailable = true;
+  if (warnedWorkerUnavailable) return;
+  warnedWorkerUnavailable = true;
+  // Worker failures can surface outside a diagnostics scope (e.g. daemon
+  // startup pre-warm), so pair the scoped diagnostic with a process warning.
+  emitDiagnostic({ level: 'warn', phase: 'png_worker_unavailable', data: { reason } });
+  process.emitWarning(
+    `PNG worker unavailable, falling back to in-process PNG processing: ${reason}`,
+  );
 }
 
 function handleWorkerMessage(message: PngWorkerResponse): void {
@@ -55,7 +63,13 @@ function handleWorkerMessage(message: PngWorkerResponse): void {
   if (message.ok) {
     pending.resolve(message.result);
   } else {
-    pending.reject(new PngWorkerJobError(message.error));
+    pending.reject(
+      new AppError(
+        toAppErrorCode(message.error.code),
+        message.error.message,
+        message.error.details,
+      ),
+    );
   }
 }
 
@@ -63,7 +77,7 @@ function handleWorkerFailure(failed: Worker, error: Error): void {
   if (worker !== failed) return;
   // Keep the failure handling conservative: after any worker-level error the
   // daemon permanently falls back to the in-process synchronous path.
-  workerUnavailable = true;
+  markWorkerUnavailable(error.message);
   worker = null;
   void failed.terminate().catch(() => {});
   rejectPendingJobs(new PngWorkerUnavailableError(`PNG worker failed: ${error.message}`));
@@ -89,13 +103,15 @@ function updateWorkerRef(): void {
 function obtainWorker(): Worker | null {
   if (workerUnavailable) return null;
   if (worker) return worker;
-  const modulePath = resolvePngWorkerModulePath();
+  const modulePath = resolveInternalEntryModulePath(import.meta.url, PNG_WORKER_ENTRYPOINT);
   if (!modulePath) {
-    workerUnavailable = true;
+    markWorkerUnavailable('worker entry module not found next to the current module');
     return null;
   }
   try {
-    const created = new Worker(modulePath, { execArgv: [] });
+    const created = new Worker(modulePath, {
+      execArgv: modulePath.endsWith('.ts') ? ['--experimental-strip-types'] : [],
+    });
     created.on('message', handleWorkerMessage);
     created.on('error', (error) => {
       handleWorkerFailure(created, error);
@@ -106,31 +122,67 @@ function obtainWorker(): Worker | null {
     created.unref();
     worker = created;
     return created;
-  } catch {
-    workerUnavailable = true;
+  } catch (error) {
+    markWorkerUnavailable(
+      `failed to spawn worker: ${error instanceof Error ? error.message : String(error)}`,
+    );
     return null;
   }
 }
 
-/** Returns null when the worker is unavailable so callers run the sync path. */
-function runWorkerJob(job: PngWorkerJob): Promise<PngWorkerJobResult> | null {
+/**
+ * Sends one job to the worker. Rejects with `PngWorkerUnavailableError` for
+ * worker-infrastructure failures (the single unavailability channel) and with
+ * the reconstructed job `AppError` for job-level failures (e.g. corrupt PNG).
+ */
+function runWorkerJob<Kind extends PngWorkerJobKind>(
+  job: PngWorkerJobFor<Kind>,
+): Promise<PngWorkerJobResultFor<Kind>> {
   const activeWorker = obtainWorker();
-  if (!activeWorker) return null;
+  if (!activeWorker) {
+    return Promise.reject(new PngWorkerUnavailableError('PNG worker is unavailable'));
+  }
   nextJobId += 1;
   const id = nextJobId;
-  return new Promise<PngWorkerJobResult>((resolve, reject) => {
-    pendingJobs.set(id, { resolve, reject });
+  return new Promise<PngWorkerJobResultFor<Kind>>((resolve, reject) => {
+    pendingJobs.set(id, {
+      // The worker answers each request id with the result of the same kind.
+      resolve: resolve as (result: PngWorkerJobResult) => void,
+      reject,
+    });
     updateWorkerRef();
-    activeWorker.postMessage({ ...job, id });
+    try {
+      activeWorker.postMessage({ ...job, id });
+    } catch (error) {
+      // Job-specific send failure (e.g. DataCloneError): fall back to the sync
+      // path for this call without permanently disabling the worker.
+      pendingJobs.delete(id);
+      updateWorkerRef();
+      reject(
+        new PngWorkerUnavailableError(
+          `failed to post job to PNG worker: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
+    }
   });
 }
 
-function isWorkerUnavailableError(error: unknown): error is PngWorkerUnavailableError {
-  return error instanceof PngWorkerUnavailableError;
+/** Runs a job on the worker, falling back to `runSync` when it is unavailable. */
+async function runPngJob<Kind extends PngWorkerJobKind>(
+  job: PngWorkerJobFor<Kind>,
+  runSync: () => PngWorkerJobResultFor<Kind>,
+): Promise<PngWorkerJobResultFor<Kind>> {
+  try {
+    return await runWorkerJob(job);
+  } catch (error) {
+    if (error instanceof PngWorkerUnavailableError) return runSync();
+    throw error;
+  }
 }
 
-function toBuffer(view: Uint8Array): Buffer {
-  return Buffer.from(view.buffer, view.byteOffset, view.byteLength);
+/** Daemon startup hook: spawns the worker before the first screenshot job. */
+export function prewarmPngWorker(): void {
+  obtainWorker();
 }
 
 /** Stops the worker thread (used by tests and shutdown); later calls respawn it. */
@@ -144,70 +196,27 @@ export async function terminatePngWorker(): Promise<void> {
 }
 
 export async function decodePngAsync(buffer: Buffer, label: string): Promise<PNG> {
-  const pendingResult = runWorkerJob({ kind: 'decode', png: buffer });
-  if (!pendingResult) return decodePng(buffer, label);
-  let result: PngWorkerJobResult;
-  try {
-    result = await pendingResult;
-  } catch (error) {
-    if (isWorkerUnavailableError(error)) return decodePng(buffer, label);
-    throw new AppError('COMMAND_FAILED', `Failed to decode ${label} as PNG`, {
-      label,
-      reason: error instanceof Error ? error.message : String(error),
-    });
-  }
-  if (result.kind !== 'decode') {
-    throw new AppError('COMMAND_FAILED', 'PNG worker returned a mismatched decode result');
-  }
+  const result = await runPngJob({ kind: 'decode', png: buffer, label }, () => {
+    const png = decodePng(buffer, label);
+    return { kind: 'decode', width: png.width, height: png.height, data: png.data };
+  });
   return new PNG({ width: result.width, height: result.height, data: toBuffer(result.data) });
 }
 
 export async function encodePngAsync(png: PNG): Promise<Buffer> {
-  const pendingResult = runWorkerJob({
-    kind: 'encode',
-    width: png.width,
-    height: png.height,
-    data: png.data,
-  });
-  if (!pendingResult) return PNG.sync.write(png);
-  let result: PngWorkerJobResult;
-  try {
-    result = await pendingResult;
-  } catch (error) {
-    if (isWorkerUnavailableError(error)) return PNG.sync.write(png);
-    throw error;
-  }
-  if (result.kind !== 'encode') {
-    throw new AppError('COMMAND_FAILED', 'PNG worker returned a mismatched encode result');
-  }
+  const result = await runPngJob(
+    { kind: 'encode', width: png.width, height: png.height, data: png.data },
+    () => ({ kind: 'encode', png: PNG.sync.write(png) }),
+  );
   return toBuffer(result.png);
 }
 
 export async function computeScreenshotDiffPixelsAsync(
   job: ScreenshotDiffPixelsJob,
 ): Promise<ScreenshotDiffPixelsResult> {
-  const pendingResult = runWorkerJob({
-    kind: 'diff-pixels',
-    width: job.width,
-    height: job.height,
-    baselineData: job.baselineData,
-    currentData: job.currentData,
-    maxColorDistance: job.maxColorDistance,
-  });
-  if (!pendingResult) return computeScreenshotDiffPixels(job);
-  let result: PngWorkerJobResult;
-  try {
-    result = await pendingResult;
-  } catch (error) {
-    if (isWorkerUnavailableError(error)) return computeScreenshotDiffPixels(job);
-    throw error;
-  }
-  if (result.kind !== 'diff-pixels') {
-    throw new AppError('COMMAND_FAILED', 'PNG worker returned a mismatched diff result');
-  }
-  return {
-    diffData: toBuffer(result.diffData),
-    diffMask: result.diffMask,
-    differentPixels: result.differentPixels,
-  };
+  const { kind: _kind, ...result } = await runPngJob({ kind: 'diff-pixels', ...job }, () => ({
+    kind: 'diff-pixels' as const,
+    ...computeScreenshotDiffPixels(job),
+  }));
+  return { ...result, diffData: toBuffer(result.diffData) };
 }

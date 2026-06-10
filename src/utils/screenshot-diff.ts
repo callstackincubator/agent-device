@@ -64,8 +64,10 @@ export async function compareScreenshots(
     fs.readFile(currentPath),
   ]);
 
-  const baseline = await decodePngAsync(baselineBuffer, 'baseline screenshot');
-  const current = await decodePngAsync(currentBuffer, 'current screenshot');
+  const [baseline, current] = await Promise.all([
+    decodePngAsync(baselineBuffer, 'baseline screenshot'),
+    decodePngAsync(currentBuffer, 'current screenshot'),
+  ]);
   validateMaxPixels(baseline.width, baseline.height, 'baseline screenshot', options.maxPixels);
   validateMaxPixels(current.width, current.height, 'current screenshot', options.maxPixels);
 
