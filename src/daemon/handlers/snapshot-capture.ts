@@ -39,7 +39,11 @@ import {
   retryPendingInteractionOutcome,
 } from '../interaction-outcome-policy.ts';
 import { capturePostGestureStabilizedResult } from '../post-gesture-stabilization.ts';
-import { findNodeByLabel, pruneGroupNodes, resolveRefLabel } from '../snapshot-processing.ts';
+import {
+  findNodeByLabel,
+  pruneGroupNodes,
+  resolveRefLabel,
+} from '../../utils/snapshot-processing.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
 import { presentIosInteractiveSnapshot } from '../snapshot-presentation/ios/index.ts';
 

@@ -17,4 +17,4 @@ export {
   formatSelectorFailure,
 } from './selectors-resolve.ts';
 
-export { buildSelectorChainForNode } from './selectors-build.ts';
+export { buildSelectorChainForNode } from '../utils/selector-build.ts';

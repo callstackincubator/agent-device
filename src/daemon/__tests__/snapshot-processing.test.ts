@@ -5,7 +5,7 @@ import {
   extractNodeReadText,
   findNearestHittableAncestor,
   pruneGroupNodes,
-} from '../snapshot-processing.ts';
+} from '../../utils/snapshot-processing.ts';
 
 test('pruneGroupNodes drops unlabeled group wrappers and rebalances depth', () => {
   const raw = [

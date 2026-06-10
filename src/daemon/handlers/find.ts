@@ -6,7 +6,7 @@ import type { DaemonInvokeFn, DaemonRequest, DaemonResponse } from '../types.ts'
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
-import { extractNodeText } from '../snapshot-processing.ts';
+import { extractNodeText } from '../../utils/snapshot-processing.ts';
 import {
   resolveActionableTouchNode,
   resolveActionableTouchResolution,

@@ -1,5 +1,5 @@
 import type { RawSnapshotNode } from '../../../utils/snapshot.ts';
-import { normalizeType } from '../../snapshot-processing.ts';
+import { normalizeType } from '../../../utils/snapshot-processing.ts';
 import {
   findLargestViewportRect,
   findNearestAncestor,

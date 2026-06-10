@@ -10,7 +10,7 @@ import { emitDiagnostic } from '../utils/diagnostics.ts';
 import { AppError } from '../utils/errors.ts';
 import { centerOfRect, attachRefs, type SnapshotNode } from '../utils/snapshot.ts';
 import { sleep } from '../utils/timeouts.ts';
-import { pruneGroupNodes } from './snapshot-processing.ts';
+import { pruneGroupNodes } from '../utils/snapshot-processing.ts';
 import type { SessionState } from './types.ts';
 
 const ANDROID_BLOCKING_MODAL_PATTERN = /\bis(?:n(?:'|&apos;|&#39;)?t| not)\s+responding\b/i;

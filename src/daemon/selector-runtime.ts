@@ -23,12 +23,16 @@ import { ensureDeviceReady } from './device-ready.ts';
 import { captureSnapshot } from './handlers/snapshot-capture.ts';
 import { readTextForNode } from './handlers/interaction-read.ts';
 import { errorResponse } from './handlers/response.ts';
-import { findNodeByLabel } from './snapshot-processing.ts';
+import { findNodeByLabel } from '../utils/snapshot-processing.ts';
 import { resolveSessionDevice, withSessionlessRunnerCleanup } from './handlers/snapshot-session.ts';
 import { parseFindArgs, type FindAction } from '../utils/finders.ts';
 import { splitIsSelectorArgs } from './selectors.ts';
 import { refSnapshotFlagGuardResponse } from './handlers/interaction-flags.ts';
-import { evaluateIsPredicate, isSupportedPredicate, type IsPredicate } from './is-predicates.ts';
+import {
+  evaluateIsPredicate,
+  isSupportedPredicate,
+  type IsPredicate,
+} from '../utils/selector-is-predicates.ts';
 import type { ContextFromFlags } from './handlers/interaction-common.ts';
 import { setSessionSnapshot } from './session-snapshot.ts';
 import { getActiveAndroidSnapshotFreshness } from './android-snapshot-freshness.ts';
