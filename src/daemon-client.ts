@@ -932,10 +932,17 @@ async function canConnect(
   preference: DaemonTransportPreference,
 ): Promise<boolean> {
   const transport = chooseTransport(info, preference);
-  if (transport === 'http') {
-    return await canConnectHttp(info);
-  }
-  return await canConnectSocket(info.port);
+  if (await canConnectWithTransport(info, transport)) return true;
+
+  const fallback = chooseAutoFallbackTransport(info, preference, transport);
+  return fallback ? await canConnectWithTransport(info, fallback) : false;
+}
+
+async function canConnectWithTransport(
+  info: DaemonInfo,
+  transport: ResolvedDaemonTransport,
+): Promise<boolean> {
+  return transport === 'http' ? await canConnectHttp(info) : await canConnectSocket(info.port);
 }
 
 export function canConnectSocket(port: number | undefined): Promise<boolean> {
@@ -1057,10 +1064,24 @@ async function sendRequest(
   timeoutMs: number | undefined,
 ): Promise<DaemonResponse> {
   const transport = chooseTransport(info, preference);
-  if (transport === 'http') {
-    return await sendHttpRequest(info, req, timeoutMs);
+  try {
+    return await sendRequestWithTransport(info, req, timeoutMs, transport);
+  } catch (error) {
+    const fallback = chooseAutoFallbackTransport(info, preference, transport);
+    if (!fallback || !isSafeAutoTransportFallbackError(error, transport)) throw error;
+    return await sendRequestWithTransport(info, req, timeoutMs, fallback);
   }
-  return await sendSocketRequest(info, req, timeoutMs);
+}
+
+async function sendRequestWithTransport(
+  info: DaemonInfo,
+  req: DaemonRequest,
+  timeoutMs: number | undefined,
+  transport: ResolvedDaemonTransport,
+): Promise<DaemonResponse> {
+  return transport === 'http'
+    ? await sendHttpRequest(info, req, timeoutMs)
+    : await sendSocketRequest(info, req, timeoutMs);
 }
 
 function chooseTransport(
@@ -1090,6 +1111,29 @@ function chooseTransport(
 
 function hasDaemonTransport(info: DaemonInfo, transport: ResolvedDaemonTransport): boolean {
   return transport === 'http' ? Boolean(info.httpPort) : Boolean(info.port);
+}
+
+function chooseAutoFallbackTransport(
+  info: DaemonInfo,
+  preference: DaemonTransportPreference,
+  attempted: ResolvedDaemonTransport,
+): ResolvedDaemonTransport | null {
+  if (preference !== 'auto' || info.baseUrl) return null;
+  const fallback = attempted === 'socket' ? 'http' : 'socket';
+  return hasDaemonTransport(info, fallback) ? fallback : null;
+}
+
+function isSafeAutoTransportFallbackError(
+  error: unknown,
+  attempted: ResolvedDaemonTransport,
+): boolean {
+  return (
+    attempted === 'socket' &&
+    error instanceof AppError &&
+    error.code === 'COMMAND_FAILED' &&
+    error.message === 'Failed to communicate with daemon' &&
+    error.details?.daemonSocketRequestWritten === false
+  );
 }
 
 function requireDaemonTransport(
@@ -1170,6 +1214,7 @@ function handleTransportError(
   err: unknown,
   requestId: string | undefined,
   remote: boolean,
+  details: Record<string, unknown> = {},
 ): AppError {
   emitDiagnostic({
     level: 'error',
@@ -1183,6 +1228,7 @@ function handleTransportError(
     'COMMAND_FAILED',
     'Failed to communicate with daemon',
     {
+      ...details,
       requestId,
       hint: remote
         ? 'Retry command. If this persists, verify the remote daemon URL, auth token, and remote host reachability.'
@@ -1200,7 +1246,9 @@ async function sendSocketRequest(
   const port = info.port;
   if (!port) throw new AppError('COMMAND_FAILED', 'Daemon socket endpoint is unavailable');
   return new Promise((resolve, reject) => {
+    let requestWritten = false;
     const socket = net.createConnection({ host: '127.0.0.1', port }, () => {
+      requestWritten = true;
       socket.write(`${JSON.stringify(req)}\n`);
     });
     const statePaths = resolveDaemonPaths(
@@ -1267,7 +1315,11 @@ async function sendSocketRequest(
       if (settled) return;
       settled = true;
       if (timeoutHandle) clearTimeout(timeoutHandle);
-      reject(handleTransportError(err, req.meta?.requestId, false));
+      reject(
+        handleTransportError(err, req.meta?.requestId, false, {
+          daemonSocketRequestWritten: requestWritten,
+        }),
+      );
     });
   });
 }
