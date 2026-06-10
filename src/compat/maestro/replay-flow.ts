@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseAllDocuments } from 'yaml';
 import type { SessionAction } from '../../daemon/types.ts';
 import { AppError } from '../../utils/errors.ts';
 import { convertMaestroCommandWithLine } from './command-mapper.ts';
+import { parseMaestroYamlDocuments } from './flow-yaml.ts';
 import { MAESTRO_RUNTIME_COMMAND } from './runtime-commands.ts';
 import { isPlainRecord, normalizeCommandList, normalizePlatform, readEnvMap } from './support.ts';
 import type {
@@ -22,7 +22,7 @@ export function parseMaestroReplayFlow(
 }
 
 export function readMaestroFlowName(script: string): string | undefined {
-  const values = parseYamlDocuments(script);
+  const values = parseMaestroYamlDocuments(script);
   const { config } = splitMaestroDocuments(values);
   return config.name;
 }
@@ -31,7 +31,7 @@ function parseMaestroReplayFlowInternal(
   script: string,
   context: MaestroParseContext,
 ): MaestroReplayFlow {
-  const values = parseYamlDocuments(script);
+  const values = parseMaestroYamlDocuments(script);
   const { config, commands } = splitMaestroDocuments(values);
   const nextContext = {
     ...context,
@@ -199,19 +199,6 @@ function isLikelyTextEntrySelector(selector: string): boolean {
   return /\b(input|textfield|textarea|field|email|password|username|search|query)\b/i.test(
     selector.replace(/([a-z])([A-Z])/g, '$1 $2'),
   );
-}
-
-function parseYamlDocuments(script: string): unknown[] {
-  const documents = parseAllDocuments(script);
-  for (const document of documents) {
-    if (document.errors.length > 0) {
-      const message = document.errors[0]?.message ?? 'Invalid Maestro YAML flow.';
-      throw new AppError('INVALID_ARGS', `Invalid Maestro YAML flow: ${message}`);
-    }
-  }
-  return documents
-    .map((document) => document.toJSON() as unknown)
-    .filter((value) => value !== null);
 }
 
 function createParseContext(options: MaestroParseOptions): MaestroParseContext {

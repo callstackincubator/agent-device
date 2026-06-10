@@ -218,8 +218,10 @@ const CLI_COMMAND_OVERRIDES = {
     allowedFlags: [...REPEATED_TOUCH_FLAGS, 'clickButton', ...SELECTOR_SNAPSHOT_FLAGS],
   },
   replay: {
+    usageOverride: 'replay <path> | replay export <file.ad> [--format maestro] [--out <path>]',
     positionalArgs: ['path'],
-    allowedFlags: ['replayMaestro', ...REPLAY_FLAGS, 'timeoutMs'],
+    allowsExtraPositionals: true,
+    allowedFlags: ['replayMaestro', 'replayExportFormat', ...REPLAY_FLAGS, 'timeoutMs', 'out'],
   },
   test: {
     usageOverride: 'test <path-or-glob>...',

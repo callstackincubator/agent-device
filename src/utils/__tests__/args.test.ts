@@ -153,6 +153,17 @@ test('parseArgs recognizes command-specific flag combinations', async () => {
       },
     },
     {
+      label: 'export replay to maestro yaml',
+      argv: ['replay', 'export', './flow.ad', '--format', 'maestro', '--out', './flow.yaml'],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'replay');
+        assert.deepEqual(parsed.positionals, ['export', './flow.ad']);
+        assert.equal(parsed.flags.replayExportFormat, 'maestro');
+        assert.equal(parsed.flags.out, './flow.yaml');
+      },
+    },
+    {
       label: 'test maestro suite',
       argv: [
         'test',
@@ -1027,6 +1038,9 @@ test('usage includes agent workflows, config, environment, and examples footers'
 test('usageForCommand includes Maestro replay flag', () => {
   const help = usageForCommand('replay');
   if (help === null) throw new Error('Expected replay help text');
+  assert.match(help, /replay <path> \| replay export <file\.ad>/);
+  assert.match(help, /--format maestro/);
+  assert.match(help, /--out <path>/);
   assert.match(help, /--maestro/);
   assert.match(help, /doubleTapOn/);
   assert.match(help, /pasteText/);

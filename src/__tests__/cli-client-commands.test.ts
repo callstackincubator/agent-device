@@ -625,6 +625,44 @@ test('screenshot reports annotated ref count in non-json mode', async () => {
   assert.equal(stdout, 'Annotated 2 refs onto /tmp/screenshot.png\n');
 });
 
+test('replay export writes Maestro YAML without contacting the daemon', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-export-'));
+  const sourcePath = path.join(dir, 'flow.ad');
+  const outPath = path.join(dir, 'flow.yaml');
+  fs.writeFileSync(
+    sourcePath,
+    `open com.example.app --relaunch
+click text="Continue"
+`,
+  );
+  const client = createStubClient({
+    installFromSource: async () => {
+      throw new Error('unexpected install call');
+    },
+  });
+
+  const stdout = await captureStdout(async () => {
+    const handled = await tryRunClientBackedCommand({
+      command: 'replay',
+      positionals: ['export', sourcePath],
+      flags: {
+        json: false,
+        help: false,
+        version: false,
+        replayExportFormat: 'maestro',
+        out: outPath,
+      },
+      client,
+    });
+    assert.equal(handled, true);
+  });
+
+  const yaml = fs.readFileSync(outPath, 'utf8');
+  assert.equal(stdout, `${outPath}\n`);
+  assert.match(yaml, /appId: com\.example\.app/);
+  assert.match(yaml, /text: Continue/);
+});
+
 test('wait keeps CLI bare text behavior through the typed client command API', async () => {
   let observed: Parameters<AgentDeviceClient['command']['wait']>[0] | undefined;
   const client = createStubClient({

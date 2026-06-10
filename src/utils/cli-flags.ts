@@ -96,6 +96,7 @@ export type CliFlags = RemoteConfigMetroOptions &
     retentionMs?: number;
     replayUpdate?: boolean;
     replayMaestro?: boolean;
+    replayExportFormat?: 'maestro';
     replayEnv?: string[];
     replayShellEnv?: Record<string, string>;
     failFast?: boolean;
@@ -792,6 +793,14 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription:
       `Replay: treat input as a Maestro YAML compatibility flow. ${formatMaestroSupportedSubsetForCli()} ` +
       `Unsupported syntax fails loudly with a link to ${MAESTRO_COMPAT_TRACKER_URL}`,
+  },
+  {
+    key: 'replayExportFormat',
+    names: ['--format'],
+    type: 'enum',
+    enumValues: ['maestro'],
+    usageLabel: '--format maestro',
+    usageDescription: 'Replay export: output format',
   },
   {
     key: 'replayEnv',
