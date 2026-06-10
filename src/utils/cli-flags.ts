@@ -15,7 +15,7 @@ import type { RemoteConfigMetroOptions } from '../remote-config-schema.ts';
 import {
   SCREENSHOT_SPECIFIC_FLAG_DEFINITIONS,
   type ScreenshotRequestFlags,
-} from '../commands/capture-screenshot-options.ts';
+} from '../contracts/screenshot.ts';
 import {
   MAESTRO_COMPAT_TRACKER_URL,
   formatMaestroSupportedSubsetForCli,

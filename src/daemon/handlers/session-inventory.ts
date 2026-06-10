@@ -1,6 +1,6 @@
 import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import { listDeviceInventory } from '../../core/dispatch-resolve.ts';
-import { assertResolvedAppsFilter } from '../../commands/app-inventory-contract.ts';
+import { assertResolvedAppsFilter } from '../../contracts/app-inventory.ts';
 import { asAppError } from '../../utils/errors.ts';
 import {
   isApplePlatform,

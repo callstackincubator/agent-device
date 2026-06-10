@@ -1,6 +1,6 @@
 import type { AndroidSnapshotBackendMetadata } from './platforms/android/snapshot-types.ts';
 import type { AlertAction, AlertInfo } from './alert-contract.ts';
-import type { AppsFilter } from './commands/app-inventory-contract.ts';
+import type { AppsFilter } from './contracts/app-inventory.ts';
 import type {
   Point,
   ScreenshotOverlayRef,

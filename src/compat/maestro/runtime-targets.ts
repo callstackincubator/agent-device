@@ -18,7 +18,7 @@ import type { Selector, SelectorTerm } from '../../daemon/selectors-parse.ts';
 import {
   detectReactNativeOverlay,
   readReactNativeOverlayActionNodes,
-} from '../../commands/react-native/overlay.ts';
+} from '../../core/react-native-overlay.ts';
 
 const MAESTRO_TAP_TARGET_TYPE_RANK = new Map([
   ['button', 0],

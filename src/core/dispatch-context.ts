@@ -1,5 +1,5 @@
 import type { CliFlags, DaemonExcludedCliFlag } from '../utils/cli-flags.ts';
-import type { ScreenshotDispatchFlags } from '../commands/capture-screenshot-options.ts';
+import type { ScreenshotDispatchFlags } from '../contracts/screenshot.ts';
 import type { DaemonBatchStep } from './batch.ts';
 import type { BackMode } from './back-mode.ts';
 import type { ClickButton } from './click-button.ts';

@@ -3,7 +3,7 @@ import { resolveClickButton } from '../core/click-button.ts';
 import {
   screenshotFlagsFromOptions,
   type ScreenshotRuntimeFlags,
-} from '../commands/capture-screenshot-options.ts';
+} from '../contracts/screenshot.ts';
 import { getDiagnosticsMeta } from '../utils/diagnostics.ts';
 
 export type DaemonCommandContext = DispatchContext & ScreenshotRuntimeFlags;

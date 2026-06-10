@@ -8,7 +8,7 @@ import {
 } from '../utils/snapshot.ts';
 import type { PNG } from '../utils/png.ts';
 import { decodePngAsync, encodePngAsync } from '../utils/png-worker-client.ts';
-import { analyzeReactNativeOverlay } from '../commands/react-native/overlay.ts';
+import { analyzeReactNativeOverlay } from '../core/react-native-overlay.ts';
 import { findNearestAncestor, normalizeType } from './snapshot-processing.ts';
 import { resolveAndroidOverlaySourceRect } from './screenshot-overlay-android.ts';
 import { hasPositiveRect, rectArea, rectContains } from './screenshot-overlay-rects.ts';

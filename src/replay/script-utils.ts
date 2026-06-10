@@ -1,5 +1,5 @@
 import type { SessionAction } from '../daemon/types.ts';
-import { appendScreenshotScriptFlags } from '../commands/capture-screenshot-options.ts';
+import { appendScreenshotScriptFlags } from '../contracts/screenshot.ts';
 
 const NUMERIC_ARG_RE = /^-?\d+(\.\d+)?$/;
 const BARE_SCRIPT_TOKEN_RE = /^[^\s"\\]+$/;

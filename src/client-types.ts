@@ -22,7 +22,7 @@ import type {
   TransformGestureParams,
 } from './core/scroll-gesture.ts';
 import type { ScrollInputDirection } from './commands/interaction-gestures.ts';
-import type { LogAction } from './commands/log-command-contract.ts';
+import type { LogAction } from './contracts/logs.ts';
 import type { SessionSurface } from './core/session-surface.ts';
 import type { FindLocator } from './utils/finders.ts';
 import type { AndroidSnapshotBackendMetadata } from './platforms/android/snapshot-types.ts';
@@ -38,15 +38,15 @@ import type {
   ReloadMetroResult,
 } from './client-metro.ts';
 import type { MetroBridgeScope } from './client-companion-tunnel-contract.ts';
-import type { AppsFilter } from './commands/app-inventory-contract.ts';
-import type { ScreenshotRequestFlags } from './commands/capture-screenshot-options.ts';
-import type { PerfAction, PerfArea } from './commands/perf-command-contract.ts';
+import type { AppsFilter } from './contracts/app-inventory.ts';
+import type { ScreenshotRequestFlags } from './contracts/screenshot.ts';
+import type { PerfAction, PerfArea } from './contracts/perf.ts';
 import type { DaemonBatchStep } from './core/batch.ts';
 import type { AlertAction, AlertInfo } from './alert-contract.ts';
 
 export type { FindLocator } from './utils/finders.ts';
 export type { CompanionTunnelScope, MetroBridgeScope } from './client-companion-tunnel-contract.ts';
-export type { AppsFilter } from './commands/app-inventory-contract.ts';
+export type { AppsFilter } from './contracts/app-inventory.ts';
 export type { AlertAction, AlertInfo, AlertPlatform, AlertSource } from './alert-contract.ts';
 
 export type AgentDeviceDaemonTransport = (

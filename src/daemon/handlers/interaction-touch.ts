@@ -10,7 +10,7 @@ import type {
   InteractionTarget,
   LongPressCommandResult,
   PressCommandResult,
-} from '../../commands/index.ts';
+} from '../../contracts/interaction.ts';
 import { asAppError, normalizeError } from '../../utils/errors.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
 import {

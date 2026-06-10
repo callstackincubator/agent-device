@@ -6,7 +6,10 @@ import type {
   LongPressOptions,
   TypeTextOptions,
 } from '../../client-types.ts';
-import { splitSelectorFromArgs } from '../../daemon/selectors.ts';
+import {
+  readFillTargetFromPositionals,
+  readInteractionTargetFromPositionals,
+} from '../../core/interaction-positionals.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { ScrollInputDirection } from '../interaction-gestures.ts';
 import {
@@ -17,7 +20,6 @@ import {
   isFiniteNumberString,
   optionalCliNumber,
   optionalNumber,
-  optionalTrimmedText,
   readElementTargetFromPositionals,
   readGetFormat,
   request,
@@ -26,7 +28,7 @@ import {
   selectorSnapshotInputFromFlags,
   targetInputFromClientTarget,
 } from './common.ts';
-import type { CliReader, DaemonWriter, DecodedFillTarget, CommandInput } from './types.ts';
+import type { CliReader, DaemonWriter, CommandInput } from './types.ts';
 
 export const interactionCliReaders = {
   click: (positionals, flags) => ({
@@ -120,16 +122,6 @@ export const interactionDaemonWriters = {
   ]),
 } satisfies Record<string, DaemonWriter>;
 
-export function readInteractionTargetFromPositionals(positionals: string[]): InteractionTarget {
-  if (positionals[0]?.startsWith('@')) {
-    const label = optionalTrimmedText(positionals.slice(1));
-    return { ref: positionals[0], ...(label === undefined ? {} : { label }) };
-  }
-  const selectorArgs = splitSelectorFromArgs(positionals);
-  if (selectorArgs) return { selector: selectorArgs.selectorExpression };
-  return { x: Number(positionals[0]), y: Number(positionals[1]) };
-}
-
 function readLongPressTargetFromPositionals(positionals: string[]): LongPressOptions {
   const targetPositionals = readLongPressTargetPositionals(positionals);
   return {
@@ -137,35 +129,6 @@ function readLongPressTargetFromPositionals(positionals: string[]): LongPressOpt
     ...(targetPositionals.durationMs !== undefined
       ? { durationMs: targetPositionals.durationMs }
       : {}),
-  };
-}
-
-export function readFillTargetFromPositionals(positionals: string[]): DecodedFillTarget {
-  const firstPositional = positionals[0];
-  if (firstPositional?.startsWith('@')) {
-    const text =
-      positionals.length >= 3 ? positionals.slice(2).join(' ') : positionals.slice(1).join(' ');
-    return {
-      kind: 'ref',
-      target: {
-        ref: firstPositional,
-        label: positionals.length >= 3 ? optionalTrimmedText(positionals.slice(1, 2)) : undefined,
-      },
-      text,
-    };
-  }
-  const selectorArgs = splitSelectorFromArgs(positionals, { preferTrailingValue: true });
-  if (selectorArgs) {
-    return {
-      kind: 'selector',
-      target: { selector: selectorArgs.selectorExpression },
-      text: selectorArgs.rest.join(' '),
-    };
-  }
-  return {
-    kind: 'point',
-    target: { x: Number(positionals[0]), y: Number(positionals[1]) },
-    text: positionals.slice(2).join(' '),
   };
 }
 

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
-import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
+import type { AppsFilter } from '../../contracts/app-inventory.ts';
 import {
   LAUNCH_CONSOLE_DIRECT_APP_ONLY_MESSAGE,
   LAUNCH_CONSOLE_IOS_SIMULATOR_ONLY_MESSAGE,

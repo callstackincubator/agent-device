@@ -1,18 +1,16 @@
-export type {
-  Selector,
-  SelectorChain,
-  SelectorDiagnostics,
-  SelectorResolution,
-} from './daemon/selectors.ts';
+export type { Selector, SelectorChain } from './utils/selectors-parse.ts';
+export type { SelectorDiagnostics, SelectorResolution } from './daemon/selectors.ts';
 export type { SnapshotNode } from './utils/snapshot.ts';
 
+export {
+  isSelectorToken,
+  parseSelectorChain,
+  tryParseSelectorChain,
+} from './utils/selectors-parse.ts';
 export {
   findSelectorChainMatch,
   formatSelectorFailure,
   isNodeEditable,
   isNodeVisible,
-  isSelectorToken,
-  parseSelectorChain,
   resolveSelectorChain,
-  tryParseSelectorChain,
 } from './daemon/selectors.ts';

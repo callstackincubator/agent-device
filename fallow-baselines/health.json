@@ -363,7 +363,7 @@
         "count": 1
       }
     },
-    "src/daemon/selectors-parse.ts": {
+    "src/utils/selectors-parse.ts": {
       "complexity_moderate": {
         "count": 1
       },
@@ -671,7 +671,7 @@
     "src/client-shared.ts:high impact",
     "src/replay/script.ts:complexity",
     "src/commands/selector-read-utils.ts:high impact",
-    "src/commands/interaction-targeting.ts:high impact",
+    "src/core/interaction-targeting.ts:high impact",
     "src/daemon/android-snapshot-freshness.ts:high impact",
     "src/compat/maestro/support.ts:high impact",
     "src/daemon/handlers/session-replay-heal.ts:complexity",

@@ -1,5 +1,5 @@
 import { AppError } from '../../utils/errors.ts';
-import { resolveAppsFilter, type AppsFilter } from '../../commands/app-inventory-contract.ts';
+import { resolveAppsFilter, type AppsFilter } from '../../contracts/app-inventory.ts';
 import type { AndroidAdbExecutor } from './adb-executor.ts';
 import {
   parseAndroidForegroundApp,

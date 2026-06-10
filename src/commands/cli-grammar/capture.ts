@@ -5,12 +5,12 @@ import type {
   SettingsUpdateOptions,
   WaitCommandOptions,
 } from '../../client-types.ts';
-import { parseTimeout } from '../../daemon/handlers/parse-utils.ts';
 import type { AlertAction } from '../../alert-contract.ts';
-import { splitSelectorFromArgs, tryParseSelectorChain } from '../../daemon/selectors.ts';
+import { parseWaitPositionals } from '../../core/wait-positionals.ts';
 import type { CliFlags } from '../../utils/cli-flags.ts';
 import { AppError } from '../../utils/errors.ts';
 import { readLocationCoordinate } from '../../utils/location-coordinates.ts';
+import { tryParseSelectorChain } from '../../utils/selectors-parse.ts';
 import {
   screenshotFlagsFromOptions,
   screenshotOptionsFromFlags,
@@ -29,7 +29,7 @@ import {
   selectorSnapshotOptionsFromFlags,
   setOf,
 } from './common.ts';
-import type { CliReader, DaemonWriter, WaitParsed } from './types.ts';
+import type { CliReader, DaemonWriter } from './types.ts';
 
 export const captureCliReaders = {
   snapshot: (_positionals, flags) => ({
@@ -117,25 +117,7 @@ function readWaitOptionsFromPositionals(
   };
 }
 
-export function parseWaitPositionals(args: string[]): WaitParsed | null {
-  const firstArg = args[0];
-  if (firstArg === undefined) return null;
-  const sleepMs = parseTimeout(firstArg);
-  if (sleepMs !== null) return { kind: 'sleep', durationMs: sleepMs };
-  const timeoutMs = parseTimeout(args[args.length - 1]);
-  if (firstArg === 'text') {
-    const text = timeoutMs !== null ? args.slice(1, -1).join(' ') : args.slice(1).join(' ');
-    return { kind: 'text', text: text.trim(), timeoutMs };
-  }
-  if (firstArg.startsWith('@')) return { kind: 'ref', rawRef: firstArg, timeoutMs };
-  const argsWithoutTimeout = timeoutMs !== null ? args.slice(0, -1) : args.slice();
-  const split = splitSelectorFromArgs(argsWithoutTimeout);
-  if (split && split.rest.length === 0 && tryParseSelectorChain(split.selectorExpression)) {
-    return { kind: 'selector', selectorExpression: split.selectorExpression, timeoutMs };
-  }
-  const text = timeoutMs !== null ? args.slice(0, -1).join(' ') : args.join(' ');
-  return { kind: 'text', text: text.trim(), timeoutMs };
-}
+export { parseWaitPositionals };
 
 // fallow-ignore-next-line complexity
 function waitPositionals(options: WaitCommandOptions): string[] {

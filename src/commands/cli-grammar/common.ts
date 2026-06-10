@@ -3,7 +3,7 @@ import type {
   InteractionTarget,
   InternalRequestOptions,
 } from '../../client-types.ts';
-import { splitSelectorFromArgs } from '../../daemon/selectors.ts';
+import { splitSelectorFromArgs } from '../../utils/selectors-parse.ts';
 import type { CliFlags } from '../../utils/cli-flags.ts';
 import { AppError } from '../../utils/errors.ts';
 import { compactRecord, type SelectorSnapshotInput } from '../command-input.ts';
@@ -184,7 +184,7 @@ export function readJsonObject(value: string, label: string): Record<string, unk
   throw new AppError('INVALID_ARGS', `${label} must be a JSON object`);
 }
 
-export function optionalTrimmedText(values: string[]): string | undefined {
+function optionalTrimmedText(values: string[]): string | undefined {
   const text = values.join(' ').trim();
   return text || undefined;
 }

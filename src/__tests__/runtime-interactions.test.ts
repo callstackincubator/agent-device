@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import type { AgentDeviceBackend, BackendSnapshotOptions } from '../backend.ts';
 import { commands, ref, selector } from '../commands/index.ts';
-import { resolveActionableTouchResolution } from '../commands/interaction-targeting.ts';
+import { resolveActionableTouchResolution } from '../core/interaction-targeting.ts';
 import { createLocalArtifactAdapter } from '../io.ts';
 import { createAgentDevice, createMemorySessionStore, localCommandPolicy } from '../runtime.ts';
 import { AppError } from '../utils/errors.ts';
