@@ -44,6 +44,8 @@ type SwipeGeometry = {
 
 const TEXT_SELECTOR_KEYS = new Set(['id', 'text', 'label']);
 const STATE_SELECTOR_KEYS = new Set(['enabled', 'selected']);
+const LONG_PRESS_DURATION_WARNING =
+  'long-press duration exports as Maestro longPressOn; Maestro uses its default long-press duration';
 
 export function exportReplayScriptToMaestro(script: string): MaestroExportResult {
   const parsed = parseReplayScriptDetailed(script);
@@ -182,7 +184,11 @@ function convertClickAction(action: SessionAction): ConvertedAction {
     return { kind: 'commands', commands: [{ doubleTapOn: tapTarget }] };
   }
   if (typeof action.flags?.holdMs === 'number') {
-    return { kind: 'commands', commands: [{ longPressOn: tapTarget }] };
+    return {
+      kind: 'commands',
+      commands: [{ longPressOn: tapTarget }],
+      warnings: [formatLongPressDurationWarning(action.flags.holdMs)],
+    };
   }
 
   return { kind: 'commands', commands: [withTapOptions(tapTarget, tapOptions.options)] };
@@ -194,7 +200,21 @@ function convertLongPressAction(action: SessionAction): ConvertedAction {
   const target = readTapTarget(first, second);
   if (!target)
     return { kind: 'unsupported', message: 'longpress target is not Maestro-compatible' };
-  return { kind: 'commands', commands: [{ longPressOn: target }] };
+  return {
+    kind: 'commands',
+    commands: [{ longPressOn: target }],
+    warnings: readLongPressDuration(action).map(formatLongPressDurationWarning),
+  };
+}
+
+function readLongPressDuration(action: SessionAction): number[] {
+  const [first, second, third] = action.positionals;
+  const duration = isNumber(first) && isNumber(second) ? third : second;
+  return duration && isNumber(duration) ? [Number(duration)] : [];
+}
+
+function formatLongPressDurationWarning(durationMs: number): string {
+  return `${LONG_PRESS_DURATION_WARNING} instead of ${durationMs}ms`;
 }
 
 function convertFillAction(action: SessionAction): ConvertedAction {

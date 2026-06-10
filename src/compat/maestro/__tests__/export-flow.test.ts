@@ -65,6 +65,44 @@ wait 500
     ]);
   });
 
+  test('warns when explicit long-press durations export to Maestro defaults', () => {
+    const result = exportReplayScriptToMaestro(`open com.example.app
+longpress "label=\\"Last message\\"" 800
+click id="hold-button" --hold-ms 1200
+press text="Retry" --hold-ms 1500
+`);
+
+    expect(parseYamlDocs(result.yaml)).toEqual([
+      { appId: 'com.example.app' },
+      [
+        'launchApp',
+        { longPressOn: { label: 'Last message' } },
+        { longPressOn: { id: 'hold-button' } },
+        { longPressOn: { text: 'Retry' } },
+      ],
+    ]);
+    expect(result.warnings).toEqual([
+      {
+        line: 2,
+        action: 'longpress label="Last message" 800',
+        message:
+          'long-press duration exports as Maestro longPressOn; Maestro uses its default long-press duration instead of 800ms',
+      },
+      {
+        line: 3,
+        action: 'click id="hold-button"',
+        message:
+          'long-press duration exports as Maestro longPressOn; Maestro uses its default long-press duration instead of 1200ms',
+      },
+      {
+        line: 4,
+        action: 'press text="Retry"',
+        message:
+          'long-press duration exports as Maestro longPressOn; Maestro uses its default long-press duration instead of 1500ms',
+      },
+    ]);
+  });
+
   test('rejects native-only replay actions', () => {
     expect(() =>
       exportReplayScriptToMaestro(`open com.example.app
