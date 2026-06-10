@@ -242,6 +242,7 @@ Supported command methods:
 Additional CLI-backed methods are exposed on their domain groups with typed option objects so Node consumers do not need to build raw daemon requests:
 
 - `client.devices.boot()`
+- `client.devices.shutdown()`
 - `client.apps.push()`
 - `client.apps.triggerEvent()`
 - `client.capture.diff()`

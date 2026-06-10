@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-733/static/js/lib-react.e84adf13b9.js"></script>
 <script defer src="/agent-device/pr-preview/pr-733/static/js/lib-router.853fe4366e.js"></script>
 <script defer src="/agent-device/pr-preview/pr-733/static/js/56.538ceb78eb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-733/static/js/index.0363414873.js"></script>
+<script defer src="/agent-device/pr-preview/pr-733/static/js/index.15170af000.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.12">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -33,7 +33,7 @@
 <p>CLI commands run through a per-user background daemon:</p>
 <ul>
 <li>The daemon binds to <code>127.0.0.1</code> only, on ephemeral ports, for both its socket and HTTP transports. It is never reachable from the network unless you deliberately front it with your own proxy.</li>
-<li>Every request must present a token generated fresh on each daemon boot (24 random bytes). The token is stored in <code>~/.agent-device/daemon.json</code> with <code>0600</code> permissions; whoever can read that file already has your user account.</li>
+<li>Every request must present a token generated fresh on each daemon boot (24 random bytes). The token is stored in <code>daemon.json</code> inside the daemon state directory (<code>~/.agent-device</code> for packaged installs; source checkouts use a worktree-scoped directory under <code>~/.agent-device/dev/</code>) with <code>0600</code> permissions; whoever can read that file already has your user account.</li>
 <li>A client only reuses a running daemon when the daemon&#x27;s version and binary code signature match its own; otherwise the daemon is restarted. This prevents a stale or tampered daemon from silently serving new clients.</li>
 <li>Artifact uploads are size-capped, filenames are sanitized, and archive extraction rejects path-traversal entries. Artifact downloads resolve through server-side IDs, never client-supplied paths.</li>
 </ul>

@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-733/static/js/lib-react.e84adf13b9.js"></script>
 <script defer src="/agent-device/pr-preview/pr-733/static/js/lib-router.853fe4366e.js"></script>
 <script defer src="/agent-device/pr-preview/pr-733/static/js/56.538ceb78eb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-733/static/js/index.0363414873.js"></script>
+<script defer src="/agent-device/pr-preview/pr-733/static/js/index.15170af000.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.12">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -42,6 +42,8 @@
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> boot</span><span style="color:var(--shiki-token-string)"> --platform</span><span style="color:var(--shiki-token-string)"> ios</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> boot</span><span style="color:var(--shiki-token-string)"> --platform</span><span style="color:var(--shiki-token-string)"> android</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> boot</span><span style="color:var(--shiki-token-string)"> --platform</span><span style="color:var(--shiki-token-string)"> android</span><span style="color:var(--shiki-token-string)"> --device</span><span style="color:var(--shiki-token-string)"> Pixel_9_Pro_XL</span><span style="color:var(--shiki-token-string)"> --headless</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> shutdown</span><span style="color:var(--shiki-token-string)"> --platform</span><span style="color:var(--shiki-token-string)"> ios</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> shutdown</span><span style="color:var(--shiki-token-string)"> --platform</span><span style="color:var(--shiki-token-string)"> android</span><span style="color:var(--shiki-token-string)"> --device</span><span style="color:var(--shiki-token-string)"> Pixel_9_Pro_XL</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> open</span><span style="color:var(--shiki-foreground)"> [app</span><span style="color:var(--shiki-token-keyword)">|</span><span style="color:var(--shiki-token-function)">url]</span><span style="color:var(--shiki-foreground)"> [url]</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> open</span><span style="color:var(--shiki-token-string)"> --platform</span><span style="color:var(--shiki-token-string)"> macos</span><span style="color:var(--shiki-token-string)"> --surface</span><span style="color:var(--shiki-token-string)"> frontmost-app</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> open</span><span style="color:var(--shiki-token-string)"> --platform</span><span style="color:var(--shiki-token-string)"> macos</span><span style="color:var(--shiki-token-string)"> --surface</span><span style="color:var(--shiki-token-string)"> desktop</span></span>
@@ -56,11 +58,14 @@
 <ul>
 <li><code>boot</code> ensures the selected target is ready without launching an app.</li>
 <li><code>boot</code> requires either an active session or an explicit device selector.</li>
+<li><code>shutdown</code> turns off the selected Apple simulator or Android emulator.</li>
+<li><code>shutdown</code> must not target an active session device; use <code>close --shutdown</code> to end the session and turn it off.</li>
 <li><code>--platform apple</code> is an alias for the Apple automation backend (<code>ios</code>, <code>tvOS</code>, <code>macOS</code> selection).</li>
 <li>Use <code>--target mobile|tv|desktop</code> with <code>--platform</code> (required) to select phone/tablet vs TV-class vs desktop-class targets.</li>
 <li><code>boot</code> is mainly needed when starting a new session and <code>open</code> fails because no booted simulator/emulator is available.</li>
 <li>Android: <code>boot --platform android --device &lt;avd-name&gt;</code> launches that emulator in GUI mode when needed.</li>
 <li>Android: add <code>--headless</code> to launch without opening a GUI window.</li>
+<li>Android: <code>shutdown --platform android --device &lt;avd-name&gt;</code> stops a running emulator.</li>
 <li><code>open [app|url] [url]</code> already boots/activates the selected target when needed.</li>
 <li><code>open &lt;url&gt;</code> deep links are supported on Android and iOS.</li>
 <li><code>open &lt;app&gt; &lt;url&gt;</code> opens a deep link on iOS.</li>
@@ -162,7 +167,7 @@ non-simulator targets.</li>
 <li>In macOS app sessions, <code>screenshot</code> captures the target app window bounds rather than the full desktop.</li>
 <li>Prefer selector or <code>@ref</code>-driven interactions on macOS. Window position can shift between runs, so raw x/y point commands are less stable than snapshot-derived targets.</li>
 <li>Use <code>click --button secondary</code> for context menus on macOS, then run <code>snapshot -i</code> again.</li>
-<li>Mobile-only helpers remain unsupported on macOS: <code>boot</code>, <code>home</code>, <code>rotate</code>, <code>app-switcher</code>, <code>install</code>, <code>reinstall</code>, <code>install-from-source</code>, and <code>push</code>.</li>
+<li>Mobile-only helpers remain unsupported on macOS: <code>boot</code>, <code>shutdown</code>, <code>home</code>, <code>rotate</code>, <code>app-switcher</code>, <code>install</code>, <code>reinstall</code>, <code>install-from-source</code>, and <code>push</code>.</li>
 </ul>
 <p>Recommended loops:</p>
 <div class="rp-codeblock language-bash"><div class="rp-codeblock__content"><div class="rp-codeblock__content__scroll-container rp-scrollbar rp-scrollbar--always"><pre class="shiki css-variables" style="background-color:var(--shiki-background);color:var(--shiki-foreground)" tabindex="0" data-lang="bash"><code><span class="line"><span style="color:var(--shiki-token-comment)"># One app, full interaction</span></span>
