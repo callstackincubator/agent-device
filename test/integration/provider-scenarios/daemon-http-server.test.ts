@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'vitest';
 import { AppError } from '../../../src/utils/errors.ts';
 import { trackDownloadableArtifact } from '../../../src/daemon/artifact-tracking.ts';
 import { createDaemonHttpServer } from '../../../src/daemon/http-server.ts';
-import { isRequestCanceled } from '../../../src/daemon/request-cancel.ts';
+import { emitRequestProgress } from '../../../src/daemon/request-progress.ts';
+import { getRequestSignal, isRequestCanceled } from '../../../src/daemon/request-cancel.ts';
 import type { DaemonRequest, DaemonResponse } from '../../../src/daemon/types.ts';
 import {
   closeLoopbackServer,
@@ -26,6 +28,22 @@ type RpcResponse = {
     };
   };
 };
+
+type JsonRpcResponseEnvelope = {
+  type: 'response';
+  response: {
+    jsonrpc: '2.0';
+    id: string | number | null;
+    result?: DaemonResponse;
+    error?: {
+      code: number;
+      message: string;
+      data?: Record<string, unknown>;
+    };
+  };
+};
+
+const RPC_BODY_CAP_BYTES = 1024 * 1024;
 
 test('Provider-backed integration daemon HTTP server maps RPC methods, auth, and request cancellation through the real transport', async (t) => {
   if (await skipWhenLoopbackUnavailable(t, 'daemon HTTP integration coverage')) {
@@ -207,6 +225,237 @@ test('Provider-backed integration daemon HTTP server maps RPC methods, auth, and
   }
 });
 
+test('Provider-backed integration daemon HTTP server cancels progress streams when the client disconnects', async (t) => {
+  if (await skipWhenLoopbackUnavailable(t, 'daemon HTTP integration coverage')) {
+    return;
+  }
+
+  const requestId = 'req-http-progress-cancel';
+  let observedCanceledDuringAbort: boolean | undefined;
+  let handlerError: unknown;
+  let resolveHandlerDone: () => void = () => {};
+  const handlerDone = new Promise<void>((resolve) => {
+    resolveHandlerDone = resolve;
+  });
+  const server = await createDaemonHttpServer({
+    token: 'provider-scenario-token',
+    handleRequest: async (req): Promise<DaemonResponse> => {
+      try {
+        assert.equal(req.meta?.requestId, requestId);
+        emitRequestProgress({
+          type: 'replay-test',
+          file: 'cancel.ad',
+          status: 'pass',
+          index: 1,
+          total: 1,
+        });
+
+        const signal = getRequestSignal(requestId);
+        assert.ok(signal, 'request abort signal should be registered during streaming');
+        await waitForAbort(signal);
+        observedCanceledDuringAbort = isRequestCanceled(requestId);
+        return { ok: true, data: { canceled: observedCanceledDuringAbort } };
+      } catch (error) {
+        handlerError = error;
+        throw error;
+      } finally {
+        resolveHandlerDone();
+      }
+    },
+  });
+
+  try {
+    const port = await listenOnLoopback(server);
+    await withTimeout(
+      Promise.all([
+        abortStreamingRpcAfterFirstChunk(port, {
+          jsonrpc: '2.0',
+          id: 'rpc-cancel-progress',
+          method: 'agent_device.command',
+          params: {
+            command: 'session_list',
+            meta: { requestId, requestProgress: 'replay-test' },
+          },
+        }),
+        handlerDone,
+      ]),
+      'streaming request cancellation',
+    );
+    if (handlerError) throw handlerError;
+
+    assert.equal(observedCanceledDuringAbort, true);
+    assert.equal(isRequestCanceled(requestId), false);
+    assert.equal(getRequestSignal(requestId), undefined);
+  } finally {
+    await closeLoopbackServer(server);
+  }
+});
+
+test('Provider-backed integration daemon HTTP server destroys oversized RPC request bodies', async (t) => {
+  if (await skipWhenLoopbackUnavailable(t, 'daemon HTTP integration coverage')) {
+    return;
+  }
+
+  let handled = false;
+  const server = await createDaemonHttpServer({
+    token: 'provider-scenario-token',
+    handleRequest: async (): Promise<DaemonResponse> => {
+      handled = true;
+      return { ok: true, data: {} };
+    },
+  });
+
+  try {
+    const port = await listenOnLoopback(server);
+    const oversizedBody = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'rpc-body-cap',
+      method: 'agent_device.command',
+      params: {
+        command: 'session_list',
+        padding: 'x'.repeat(RPC_BODY_CAP_BYTES),
+      },
+    });
+    assert.ok(oversizedBody.length > RPC_BODY_CAP_BYTES);
+
+    const outcome = await sendRawRpcBody(port, oversizedBody);
+    assert.equal(handled, false);
+    if (outcome.kind === 'response') {
+      assert.equal(outcome.status, 400);
+      assert.equal(JSON.parse(outcome.body).error.code, -32700);
+    } else {
+      assert.match(outcome.message, /aborted|reset|socket hang up|request too large/i);
+    }
+
+    const health = await fetch(`http://127.0.0.1:${port}/health`);
+    assert.equal(health.status, 200);
+  } finally {
+    await closeLoopbackServer(server);
+  }
+});
+
+test('Provider-backed integration daemon HTTP server validates malformed JSON-RPC envelopes', async (t) => {
+  if (await skipWhenLoopbackUnavailable(t, 'daemon HTTP integration coverage')) {
+    return;
+  }
+
+  let handled = false;
+  const server = await createDaemonHttpServer({
+    token: 'provider-scenario-token',
+    handleRequest: async (): Promise<DaemonResponse> => {
+      handled = true;
+      return { ok: true, data: {} };
+    },
+  });
+
+  try {
+    const port = await listenOnLoopback(server);
+    const cases = [
+      {
+        name: 'invalid JSON',
+        body: '{"jsonrpc":"2.0"',
+        status: 400,
+        code: -32700,
+      },
+      {
+        name: 'missing jsonrpc',
+        body: JSON.stringify({
+          id: 'rpc-missing-jsonrpc',
+          method: 'agent_device.command',
+          params: { command: 'session_list' },
+        }),
+        status: 400,
+        code: -32600,
+      },
+      {
+        name: 'unknown method',
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'rpc-unknown-method',
+          method: 'agent_device.nope',
+          params: {},
+        }),
+        status: 404,
+        code: -32601,
+      },
+      {
+        name: 'non-object params',
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'rpc-non-object-params',
+          method: 'agent_device.command',
+          params: 'session_list',
+        }),
+        status: 400,
+        code: -32602,
+      },
+    ];
+
+    for (const testCase of cases) {
+      const response = await callRawRpc(port, testCase.body);
+      assert.equal(response.status, testCase.status, testCase.name);
+      assert.equal(response.body.error?.code, testCase.code, testCase.name);
+    }
+    assert.equal(handled, false);
+  } finally {
+    await closeLoopbackServer(server);
+  }
+});
+
+test('Provider-backed integration daemon HTTP server writes error envelopes after streaming headers are sent', async (t) => {
+  if (await skipWhenLoopbackUnavailable(t, 'daemon HTTP integration coverage')) {
+    return;
+  }
+
+  const server = await createDaemonHttpServer({
+    token: 'provider-scenario-token',
+    handleRequest: async (): Promise<DaemonResponse> => {
+      emitRequestProgress({
+        type: 'replay-test',
+        file: 'headers-sent.ad',
+        status: 'fail',
+        index: 1,
+        total: 1,
+        message: 'progress before failure',
+      });
+      throw new AppError('COMMAND_FAILED', 'stream failed after headers');
+    },
+  });
+
+  try {
+    const port = await listenOnLoopback(server);
+    const response = await fetch(`http://127.0.0.1:${port}/rpc`, {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer provider-scenario-token',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'rpc-stream-error',
+        method: 'agent_device.command',
+        params: {
+          command: 'test',
+          meta: { requestId: 'req-stream-error', requestProgress: 'replay-test' },
+        },
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), 'application/x-ndjson');
+    const envelopes = parseNdjson(await response.text());
+    assert.equal(envelopes.length, 2);
+    assert.equal(envelopes[0]?.type, 'progress');
+    const terminal = envelopes[1] as JsonRpcResponseEnvelope;
+    assert.equal(terminal.type, 'response');
+    assert.equal(terminal.response.error?.code, -32000);
+    assert.equal(terminal.response.error?.data?.code, 'COMMAND_FAILED');
+    assert.equal(terminal.response.error?.message, 'stream failed after headers');
+  } finally {
+    await closeLoopbackServer(server);
+  }
+});
+
 test('Provider-backed integration daemon HTTP server accepts uploads and streams downloadable artifacts', async (t) => {
   if (await skipWhenLoopbackUnavailable(t, 'daemon HTTP integration coverage')) {
     return;
@@ -350,4 +599,140 @@ async function callRpc(
     status: response.status,
     body: (await response.json()) as RpcResponse['body'],
   };
+}
+
+async function callRawRpc(port: number, body: string): Promise<RpcResponse> {
+  const response = await fetch(`http://127.0.0.1:${port}/rpc`, {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer provider-scenario-token',
+      'content-type': 'application/json',
+    },
+    body,
+  });
+  return {
+    status: response.status,
+    body: (await response.json()) as RpcResponse['body'],
+  };
+}
+
+function abortStreamingRpcAfterFirstChunk(
+  port: number,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let sawChunk = false;
+    let settled = false;
+    const settle = (error?: unknown) => {
+      if (settled) return;
+      settled = true;
+      if (error) reject(error);
+      else resolve();
+    };
+    const body = JSON.stringify(payload);
+    const req = http.request(
+      {
+        host: '127.0.0.1',
+        port,
+        path: '/rpc',
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer provider-scenario-token',
+          'content-type': 'application/json',
+          'content-length': Buffer.byteLength(body),
+        },
+      },
+      (res) => {
+        res.setEncoding('utf8');
+        res.once('data', () => {
+          sawChunk = true;
+          res.destroy();
+          req.destroy();
+        });
+        res.on('close', () => {
+          if (sawChunk) settle();
+        });
+        res.on('error', (error) => {
+          if (sawChunk) settle();
+          else settle(error);
+        });
+      },
+    );
+    req.on('error', (error) => {
+      if (sawChunk) settle();
+      else settle(error);
+    });
+    req.end(body);
+  });
+}
+
+function sendRawRpcBody(
+  port: number,
+  body: string,
+): Promise<
+  { kind: 'response'; status: number; body: string } | { kind: 'error'; message: string }
+> {
+  return new Promise((resolve) => {
+    const req = http.request(
+      {
+        host: '127.0.0.1',
+        port,
+        path: '/rpc',
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer provider-scenario-token',
+          'content-type': 'application/json',
+          'content-length': Buffer.byteLength(body),
+        },
+      },
+      (res) => {
+        res.setEncoding('utf8');
+        let responseBody = '';
+        res.on('data', (chunk) => {
+          responseBody += chunk;
+        });
+        res.on('end', () => {
+          resolve({ kind: 'response', status: res.statusCode ?? 0, body: responseBody });
+        });
+        res.on('error', (error) => {
+          resolve({ kind: 'error', message: error.message });
+        });
+      },
+    );
+    req.on('error', (error) => {
+      resolve({ kind: 'error', message: error.message });
+    });
+    req.end(body);
+  });
+}
+
+function parseNdjson(body: string): Array<Record<string, unknown>> {
+  return body
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
+async function waitForAbort(signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return;
+  await new Promise<void>((resolve) => {
+    signal.addEventListener('abort', () => resolve(), { once: true });
+  });
+}
+
+async function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  let timeout: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          reject(new Error(`Timed out waiting for ${label}`));
+        }, 1_000);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
