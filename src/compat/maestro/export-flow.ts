@@ -35,6 +35,13 @@ type ConvertedAction =
   | { kind: 'config'; appId: string; commands: MaestroCommand[]; warnings?: string[] }
   | { kind: 'unsupported'; message: string };
 
+type ActionConverter = (action: SessionAction) => ConvertedAction;
+type SwipeGeometry = {
+  start: string;
+  end: string;
+  duration?: number;
+};
+
 const TEXT_SELECTOR_KEYS = new Set(['id', 'text', 'label']);
 const STATE_SELECTOR_KEYS = new Set(['enabled', 'selected']);
 
@@ -46,7 +53,7 @@ export function exportReplayScriptToMaestro(script: string): MaestroExportResult
   });
 }
 
-export function exportReplayActionsToMaestro(
+function exportReplayActionsToMaestro(
   actions: SessionAction[],
   options: {
     actionLines?: number[];
@@ -103,36 +110,29 @@ function buildInitialConfig(metadata: ReplayScriptMetadata | undefined): Maestro
   return metadata?.env && Object.keys(metadata.env).length > 0 ? { env: metadata.env } : {};
 }
 
+const ACTION_CONVERTERS: Record<string, ActionConverter> = {
+  open: convertOpenAction,
+  click: convertClickAction,
+  press: convertClickAction,
+  longpress: convertLongPressAction,
+  fill: convertFillAction,
+  type: convertTypeAction,
+  keyboard: convertKeyboardAction,
+  back: () => ({ kind: 'commands', commands: ['back'] }),
+  wait: convertWaitAction,
+  find: convertFindAction,
+  screenshot: convertScreenshotAction,
+  scroll: convertScrollAction,
+  swipe: convertSwipeAction,
+};
+
 function convertAction(action: SessionAction): ConvertedAction {
-  switch (action.command) {
-    case 'open':
-      return convertOpenAction(action);
-    case 'click':
-    case 'press':
-      return convertClickAction(action);
-    case 'longpress':
-      return convertLongPressAction(action);
-    case 'fill':
-      return convertFillAction(action);
-    case 'type':
-      return convertTypeAction(action);
-    case 'keyboard':
-      return convertKeyboardAction(action);
-    case 'back':
-      return { kind: 'commands', commands: ['back'] };
-    case 'wait':
-      return convertWaitAction(action);
-    case 'find':
-      return convertFindAction(action);
-    case 'screenshot':
-      return convertScreenshotAction(action);
-    case 'scroll':
-      return convertScrollAction(action);
-    case 'swipe':
-      return convertSwipeAction(action);
-    default:
-      return { kind: 'unsupported', message: `${action.command} has no Maestro equivalent` };
-  }
+  return (
+    ACTION_CONVERTERS[action.command]?.(action) ?? {
+      kind: 'unsupported',
+      message: `${action.command} has no Maestro equivalent`,
+    }
+  );
 }
 
 function convertOpenAction(action: SessionAction): ConvertedAction {
@@ -154,22 +154,19 @@ function convertOpenAction(action: SessionAction): ConvertedAction {
 }
 
 function buildLaunchAppCommand(action: SessionAction, appId: string): MaestroCommand {
+  const options = buildLaunchAppOptions(action);
+  return options ? { launchApp: { appId, ...options } } : 'launchApp';
+}
+
+function buildLaunchAppOptions(action: SessionAction): Record<string, unknown> | undefined {
   const launchArgs = action.flags?.launchArgs;
-  const hasOptions =
-    action.flags?.relaunch === true ||
-    action.flags?.clearAppState === true ||
-    (Array.isArray(launchArgs) && launchArgs.length > 0);
-  if (!hasOptions) return 'launchApp';
-  return {
-    launchApp: {
-      appId,
-      ...(action.flags?.relaunch === true ? { stopApp: true } : {}),
-      ...(action.flags?.clearAppState === true ? { clearState: true } : {}),
-      ...(Array.isArray(launchArgs) && launchArgs.length > 0
-        ? { launchArguments: launchArgs }
-        : {}),
-    },
-  };
+  const options: Record<string, unknown> = {};
+  if (action.flags?.relaunch === true) options.stopApp = true;
+  if (action.flags?.clearAppState === true) options.clearState = true;
+  if (Array.isArray(launchArgs) && launchArgs.length > 0) {
+    options.launchArguments = launchArgs;
+  }
+  return Object.keys(options).length > 0 ? options : undefined;
 }
 
 function convertClickAction(action: SessionAction): ConvertedAction {
@@ -287,28 +284,40 @@ function convertScrollAction(action: SessionAction): ConvertedAction {
 }
 
 function convertSwipeAction(action: SessionAction): ConvertedAction {
-  const [x1, y1, x2, y2, duration] = action.positionals;
-  if (!isNumber(x1) || !isNumber(y1) || !isNumber(x2) || !isNumber(y2)) {
-    return { kind: 'unsupported', message: 'only coordinate swipe exports to Maestro' };
-  }
-  const swipe = {
-    start: formatMaestroPoint(x1, y1),
-    end: formatMaestroPoint(x2, y2),
-    ...(duration && isNumber(duration) ? { duration: Number(duration) } : {}),
-  };
-  const count = action.flags?.count ?? 1;
-  if (!Number.isInteger(count) || count < 1) {
+  const swipe = readSwipeGeometry(action);
+  if (!swipe) return { kind: 'unsupported', message: 'only coordinate swipe exports to Maestro' };
+  const count = readSwipeCount(action);
+  if (count === null)
     return { kind: 'unsupported', message: 'swipe count must be a positive integer' };
-  }
-  if (action.flags?.pauseMs !== undefined)
-    return { kind: 'unsupported', message: 'swipe --pause-ms has no Maestro equivalent' };
-  if (action.flags?.pattern && action.flags.pattern !== 'one-way') {
-    return { kind: 'unsupported', message: 'swipe ping-pong pattern has no Maestro equivalent' };
-  }
+  const unsupportedFlag = readUnsupportedSwipeFlag(action);
+  if (unsupportedFlag) return { kind: 'unsupported', message: unsupportedFlag };
   return {
     kind: 'commands',
     commands: Array.from({ length: count }, () => ({ swipe })),
   };
+}
+
+function readSwipeGeometry(action: SessionAction): SwipeGeometry | undefined {
+  const [x1, y1, x2, y2, duration] = action.positionals;
+  if (!isNumber(x1) || !isNumber(y1) || !isNumber(x2) || !isNumber(y2)) return undefined;
+  return {
+    start: formatMaestroPoint(x1, y1),
+    end: formatMaestroPoint(x2, y2),
+    ...(duration && isNumber(duration) ? { duration: Number(duration) } : {}),
+  };
+}
+
+function readSwipeCount(action: SessionAction): number | null {
+  const count = action.flags?.count ?? 1;
+  return Number.isInteger(count) && count >= 1 ? count : null;
+}
+
+function readUnsupportedSwipeFlag(action: SessionAction): string | undefined {
+  if (action.flags?.pauseMs !== undefined) return 'swipe --pause-ms has no Maestro equivalent';
+  if (action.flags?.pattern && action.flags.pattern !== 'one-way') {
+    return 'swipe ping-pong pattern has no Maestro equivalent';
+  }
+  return undefined;
 }
 
 function readTapTarget(first: string, second?: string): unknown | null {
@@ -368,6 +377,12 @@ function appendSelectorTerm(result: Record<string, unknown>, term: SelectorTerm)
 function readRepeatedTapOptions(
   action: SessionAction,
 ): { ok: true; options: Record<string, unknown> } | { ok: false; message: string } {
+  const unsupported = readUnsupportedRepeatedTapOption(action);
+  if (unsupported) return { ok: false, message: unsupported };
+  return { ok: true, options: buildRepeatedTapOptions(action) };
+}
+
+function buildRepeatedTapOptions(action: SessionAction): Record<string, unknown> {
   const options: Record<string, unknown> = {};
   if (typeof action.flags?.count === 'number' && action.flags.count > 1) {
     options.repeat = action.flags.count;
@@ -375,16 +390,17 @@ function readRepeatedTapOptions(
   if (typeof action.flags?.intervalMs === 'number' && action.flags.intervalMs > 0) {
     options.delay = action.flags.intervalMs;
   }
+  return options;
+}
+
+function readUnsupportedRepeatedTapOption(action: SessionAction): string | undefined {
   if (action.flags?.jitterPx !== undefined) {
-    return { ok: false, message: 'tap --jitter-px has no Maestro equivalent' };
+    return 'tap --jitter-px has no Maestro equivalent';
   }
   if (action.flags?.clickButton && action.flags.clickButton !== 'primary') {
-    return {
-      ok: false,
-      message: `tap --button ${action.flags.clickButton} has no Maestro equivalent`,
-    };
+    return `tap --button ${action.flags.clickButton} has no Maestro equivalent`;
   }
-  return { ok: true, options };
+  return undefined;
 }
 
 function withTapOptions(target: unknown, options: Record<string, unknown>): MaestroCommand {
