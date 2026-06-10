@@ -45,6 +45,7 @@ export const appCliReaders = {
     launchArgs: flags.launchArgs,
     relaunch: flags.relaunch,
     saveScript: flags.saveScript,
+    noDeviceHub: flags.noDeviceHub,
     noRecord: flags.noRecord,
   }),
   close: (positionals, flags) => ({

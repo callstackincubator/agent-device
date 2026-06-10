@@ -20,6 +20,7 @@ type OpenIosSimulatorAppOptions = {
 
 type EnsureBootedSimulatorOptions = {
   focusExisting?: boolean;
+  preferStandalone?: boolean;
 };
 
 export function requireSimulatorDevice(device: DeviceInfo, command: string): void {
@@ -50,7 +51,7 @@ export async function ensureBootedSimulator(
   const state = await getSimulatorState(device);
   if (state === 'Booted') {
     if (options.focusExisting) {
-      await openIosSimulatorApp({ preferStandalone: true });
+      await openIosSimulatorApp({ preferStandalone: options.preferStandalone });
     }
     return;
   }
@@ -176,7 +177,7 @@ export async function ensureBootedSimulator(
     });
   }
 
-  await openIosSimulatorApp();
+  await openIosSimulatorApp({ preferStandalone: options.preferStandalone });
 }
 
 export async function shutdownSimulator(device: DeviceInfo): Promise<{

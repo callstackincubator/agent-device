@@ -54,6 +54,9 @@ export function createRecordingAppleToolProvider(handlers: RecordingAppleToolHan
       whichCommand: async () => true,
       runCommand: async (cmd, args) => {
         calls.push([cmd, ...args]);
+        if (isSimulatorHostOpenCommand(cmd, args)) {
+          return { stdout: '', stderr: '', exitCode: 0 };
+        }
         return await missingHandler([cmd, ...args].join(' '));
       },
       simctl: {
@@ -91,6 +94,13 @@ export function createRecordingAppleToolProvider(handlers: RecordingAppleToolHan
         : undefined,
     },
   };
+}
+
+function isSimulatorHostOpenCommand(cmd: string, args: string[]): boolean {
+  if (cmd !== 'open') return false;
+  return (
+    args.length === 2 && args[0] === '-a' && (args[1] === 'Device Hub' || args[1] === 'Simulator')
+  );
 }
 
 function createRecordingMacOsHostProvider(

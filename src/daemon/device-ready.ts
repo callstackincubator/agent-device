@@ -14,11 +14,19 @@ export const DEVICE_READY_CACHE_TTL_MS = 5_000;
 
 const readyCache = new Map<string, number>();
 
-export async function ensureDeviceReady(device: DeviceInfo): Promise<void> {
+export type DeviceReadyOptions = {
+  focusExisting?: boolean;
+  noDeviceHub?: boolean;
+};
+
+export async function ensureDeviceReady(
+  device: DeviceInfo,
+  options: DeviceReadyOptions = {},
+): Promise<void> {
   const cacheKey = deviceReadyCacheKey(device);
   const cachedUntil = readyCache.get(cacheKey);
   if (cachedUntil !== undefined) {
-    if (cachedUntil > Date.now()) {
+    if (cachedUntil > Date.now() && !options.focusExisting) {
       return;
     }
     readyCache.delete(cacheKey);
@@ -27,7 +35,10 @@ export async function ensureDeviceReady(device: DeviceInfo): Promise<void> {
   if (device.platform === 'ios') {
     if (device.kind === 'simulator') {
       const { ensureBootedSimulator } = await import('../platforms/ios/simulator.ts');
-      await ensureBootedSimulator(device, { focusExisting: true });
+      await ensureBootedSimulator(device, {
+        focusExisting: options.focusExisting,
+        preferStandalone: options.noDeviceHub,
+      });
       markDeviceReady(cacheKey);
       return;
     }

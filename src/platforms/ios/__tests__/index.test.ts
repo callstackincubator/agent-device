@@ -470,7 +470,42 @@ test('openIosSimulatorApp falls back to Simulator when Device Hub is unavailable
   );
 });
 
-test('ensureBootedSimulator opens Simulator app when already booted', async () => {
+test('ensureBootedSimulator opens Device Hub when already booted and available', async () => {
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
+      return {
+        exitCode: 0,
+        stdout: JSON.stringify({
+          devices: {
+            'com.apple.CoreSimulator.SimRuntime.iOS-18-6': [{ udid: 'sim-1', state: 'Booted' }],
+          },
+        }),
+        stderr: '',
+      };
+    }
+    if (cmd === 'open' && args.join(' ') === '-a Device Hub') {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    throw new Error(`Unexpected command: ${cmd} ${args.join(' ')}`);
+  });
+
+  await ensureBootedSimulator(IOS_TEST_SIMULATOR, { focusExisting: true });
+
+  assert.equal(
+    mockRunCmd.mock.calls.some(
+      ([cmd, args]) => cmd === 'open' && args.join(' ') === '-a Device Hub',
+    ),
+    true,
+  );
+  assert.equal(
+    mockRunCmd.mock.calls.some(
+      ([cmd, args]) => cmd === 'open' && args.join(' ') === '-a Simulator',
+    ),
+    false,
+  );
+});
+
+test('ensureBootedSimulator honors standalone Simulator preference when already booted', async () => {
   mockRunCmd.mockImplementation(async (cmd, args) => {
     if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
       return {
@@ -489,19 +524,17 @@ test('ensureBootedSimulator opens Simulator app when already booted', async () =
     throw new Error(`Unexpected command: ${cmd} ${args.join(' ')}`);
   });
 
-  await ensureBootedSimulator(IOS_TEST_SIMULATOR, { focusExisting: true });
+  await ensureBootedSimulator(IOS_TEST_SIMULATOR, {
+    focusExisting: true,
+    preferStandalone: true,
+  });
 
-  assert.equal(
-    mockRunCmd.mock.calls.some(
-      ([cmd, args]) => cmd === 'open' && args.join(' ') === '-a Simulator',
-    ),
-    true,
-  );
-  assert.equal(
-    mockRunCmd.mock.calls.some(
-      ([cmd, args]) => cmd === 'open' && args.join(' ') === '-a Device Hub',
-    ),
-    false,
+  assert.deepEqual(
+    mockRunCmd.mock.calls.map(([cmd, args]) => [cmd, args.join(' ')]),
+    [
+      ['xcrun', 'simctl list devices -j'],
+      ['open', '-a Simulator'],
+    ],
   );
 });
 

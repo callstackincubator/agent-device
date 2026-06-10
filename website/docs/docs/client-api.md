@@ -120,6 +120,9 @@ await client.sessions.close();
 For direct iOS simulator app launches, `client.apps.open({ app, platform: 'ios', launchConsole: './artifacts/app.console.log' })` captures launch-time
 stdout/stderr. The option mirrors `open --launch-console` and is not valid for URL opens or non-simulator targets.
 
+When surfacing Apple simulators, `client.apps.open({ noDeviceHub: true })` mirrors `open --no-device-hub` and forces the standalone Simulator app
+instead of Xcode Device Hub.
+
 ## Android snapshot helper providers
 
 Remote Android providers should import `agent-device/android-snapshot-helper` and inject their own
