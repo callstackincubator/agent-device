@@ -1,3 +1,4 @@
+import { CloudOpenSection } from "@/components/home/cloud-open-section";
 import { CtaSection } from "@/components/home/cta-section";
 import { Footer } from "@/components/home/footer";
 import { Hero } from "@/components/home/hero";
@@ -15,6 +16,7 @@ export function HomePage() {
       <Solutions />
       <ToolkitLanes />
       <UseCases />
+      <CloudOpenSection />
       <WhyCallstack />
       <StackSupportSection />
       <CtaSection />

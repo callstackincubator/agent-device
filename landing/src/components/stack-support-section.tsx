@@ -7,7 +7,7 @@ import { stackSupportItems } from "@/content/stack";
 export function StackSupportSection() {
   return (
     <SectionShell id="demo" spacing="none">
-      <section className="mx-auto grid min-h-[475px] max-w-[1312px] items-center gap-14 rounded-[4px] border border-black/10 px-6 py-16 sm:px-12 lg:grid-cols-[minmax(0,448px)_minmax(0,520px)] lg:justify-between lg:px-28 lg:py-24">
+      <section className="mx-auto grid min-h-[520px] max-w-[1312px] items-center gap-14 rounded-[4px] border border-black/10 px-6 py-16 sm:px-12 lg:min-h-[656px] lg:grid-cols-[minmax(0,448px)_minmax(0,520px)] lg:justify-between lg:px-28 lg:py-24">
         <div>
           <Eyebrow>Implementation support</Eyebrow>
           <DisplayHeading className="mt-3">Make it work in your stack.</DisplayHeading>

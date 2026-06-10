@@ -45,7 +45,7 @@ export function UseCases() {
   }
 
   return (
-    <SectionShell className="lg:py-24" id="use-cases">
+    <SectionShell className="lg:min-h-[1394px] lg:py-[120px]" id="use-cases">
       <SectionHeading eyebrow="Use cases" title="Where mobile teams ship faster." />
       <div className="mx-auto mt-16 max-w-[1312px]">
         <div

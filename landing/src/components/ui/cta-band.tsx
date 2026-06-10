@@ -24,7 +24,7 @@ type CtaBandProps = {
 const sizeClasses = {
   compact: "min-h-[420px]",
   default: "min-h-[520px]",
-  tall: "min-h-[620px]",
+  tall: "min-h-[702px]",
 } as const;
 
 export function CtaBand({
