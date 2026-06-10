@@ -438,27 +438,9 @@ export async function ensureAndroidEmulatorBooted(params: {
     resolvedAvdName,
     params.serial,
   );
-  if (existing && (params.cameraFront || params.cameraBack)) {
-    throw new AppError(
-      'INVALID_STATE',
-      'Android emulator camera inputs can only be applied when starting an emulator.',
-      {
-        avdName: resolvedAvdName,
-        serial: existing.id,
-        hint: 'Shut down the emulator first, then run boot again with --camera-front or --camera-back.',
-      },
-    );
-  }
+  assertCameraInputsCanApplyToEmulator(existing, resolvedAvdName, params);
   if (!existing) {
-    const launchArgs = ['-avd', resolvedAvdName];
-    if (params.headless) {
-      launchArgs.push('-no-window', '-no-audio');
-    }
-    const cameraFront = resolveAndroidEmulatorCameraMode(params.cameraFront, 'front');
-    if (cameraFront) launchArgs.push('-camera-front', cameraFront);
-    const cameraBack = resolveAndroidEmulatorCameraMode(params.cameraBack, 'back');
-    if (cameraBack) launchArgs.push('-camera-back', cameraBack);
-    runCmdDetached('emulator', launchArgs);
+    runCmdDetached('emulator', buildEmulatorLaunchArgs(resolvedAvdName, params));
   }
 
   const discovered =
@@ -485,6 +467,45 @@ export async function ensureAndroidEmulatorBooted(params: {
     name: resolvedAvdName,
     booted: true,
   };
+}
+
+function assertCameraInputsCanApplyToEmulator(
+  existing: DeviceInfo | undefined,
+  resolvedAvdName: string,
+  params: {
+    cameraFront?: string;
+    cameraBack?: string;
+  },
+): void {
+  if (!existing || (!params.cameraFront && !params.cameraBack)) return;
+  throw new AppError(
+    'INVALID_STATE',
+    'Android emulator camera inputs can only be applied when starting an emulator.',
+    {
+      avdName: resolvedAvdName,
+      serial: existing.id,
+      hint: 'Shut down the emulator first, then run boot again with --camera-front or --camera-back.',
+    },
+  );
+}
+
+function buildEmulatorLaunchArgs(
+  resolvedAvdName: string,
+  params: {
+    headless?: boolean;
+    cameraFront?: string;
+    cameraBack?: string;
+  },
+): string[] {
+  const launchArgs = ['-avd', resolvedAvdName];
+  if (params.headless) {
+    launchArgs.push('-no-window', '-no-audio');
+  }
+  const cameraFront = resolveAndroidEmulatorCameraMode(params.cameraFront, 'front');
+  if (cameraFront) launchArgs.push('-camera-front', cameraFront);
+  const cameraBack = resolveAndroidEmulatorCameraMode(params.cameraBack, 'back');
+  if (cameraBack) launchArgs.push('-camera-back', cameraBack);
+  return launchArgs;
 }
 
 function resolveAndroidEmulatorCameraMode(

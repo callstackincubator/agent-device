@@ -38,6 +38,7 @@ agent-device boot
 agent-device boot --platform ios
 agent-device boot --platform android
 agent-device boot --platform android --device Pixel_9_Pro_XL --headless
+agent-device boot --platform android --device Pixel_9_Pro_XL --camera-back ./back.mp4 --camera-front none
 agent-device shutdown --platform ios
 agent-device shutdown --platform android --device Pixel_9_Pro_XL
 agent-device open [app|url] [url]
@@ -62,6 +63,8 @@ agent-device app-switcher
 - `boot` is mainly needed when starting a new session and `open` fails because no booted simulator/emulator is available.
 - Android: `boot --platform android --device <avd-name>` launches that emulator in GUI mode when needed.
 - Android: add `--headless` to launch without opening a GUI window.
+- Android: add `--camera-front <mode|videoPath>` and/or `--camera-back <mode|videoPath>` when launching an emulator with camera inputs. Supported modes are `emulated`, `none`, `webcam<N>`, and `virtualscene` for the back camera only. File paths are converted to `videofile:<absolute-path>` for the emulator.
+- Android camera inputs apply only when starting an emulator. Shut down an already-running emulator first, then run `boot` again with the camera flags.
 - Android: `shutdown --platform android --device <avd-name>` stops a running emulator.
 - `open [app|url] [url]` already boots/activates the selected target when needed.
 - `open <url>` deep links are supported on Android and iOS.

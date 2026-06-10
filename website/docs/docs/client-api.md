@@ -257,6 +257,19 @@ Additional CLI-backed methods are exposed on their domain groups with typed opti
 - `client.recording.record()` and `client.recording.trace()`
 - `client.settings.update()`
 
+`client.devices.boot({ platform: 'android', device: 'Pixel_9_Pro_XL', headless: true })` starts an Android emulator without a GUI when it is not already running. To launch with emulator camera inputs, pass `cameraFront` and/or `cameraBack` with `emulated`, `none`, `webcam<N>`, `virtualscene` for the back camera, or a video file path:
+
+```ts
+await client.devices.boot({
+  platform: 'android',
+  device: 'Pixel_9_Pro_XL',
+  cameraFront: './front.mp4',
+  cameraBack: 'virtualscene',
+});
+```
+
+Camera inputs are Android-emulator-only and apply only when starting the emulator; shut down a running emulator before changing them.
+
 `client.observability.perf()` returns daemon-shaped JSON so local and remote transports expose the same metrics payload. Pass `{ area: 'metrics' }` for the broad startup/CPU/memory/frame first pass, or `{ area: 'frames' }` for a focused frame/jank-health payload. On Android and supported Apple targets, `data.metrics.fps.droppedFramePercent` is the primary frame-smoothness value. Android derives it from the current `adb shell dumpsys gfxinfo <package> framestats` window; connected iOS devices derive it from `xcrun xctrace` Animation Hitches for the active app process. Frame samples include `windowStartedAt`, `windowEndedAt`, and `worstWindows` so agents can correlate dropped-frame clusters with logs, network entries, and their own session actions. A successful Android read resets Android frame stats; `open <app>` resets the Android frame window too, so agents can call `perf({ area: 'frames' })`, perform a transition or gesture, then call it again to inspect that focused window. iOS simulator and macOS app sessions report frame health as unavailable rather than inventing FPS or dropped-frame values.
 
 `client.recording.record({ action: 'start', path, quality: 5 })` starts a smaller 50% resolution video; omit `quality` to keep native/current resolution.
