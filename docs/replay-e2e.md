@@ -64,6 +64,18 @@ Maestro `env` values use the same replay precedence as `.ad` files: flow `env` i
 
 Unsupported Maestro features such as `repeat.while`, full expression predicates beyond boolean literals and `maestro.platform` comparisons, `evalScript`, device utility commands, Android app launch arguments, and Android app state reset are tracked separately because they require neutral Agent Device runtime or device capabilities before they can be mapped safely.
 
+## Export `.ad` scripts to Maestro YAML
+
+Replay scripts can be exported to a Maestro YAML subset when you need to hand a recorded Agent Device flow to a Maestro runner:
+
+```bash
+agent-device replay export ./workflows/checkout.ad --format maestro --out ./maestro/checkout.yaml
+```
+
+`replay export` is a local file transform. It does not start the daemon or contact a device. If `--out` is omitted, the YAML is printed to stdout.
+
+The exporter is intentionally strict. It writes Maestro YAML for compatible flow actions such as app launch, taps, long press, text input, keyboard dismiss/enter, back, text visibility assertions, coordinate swipes, basic scroll, screenshots, and `.ad` `env` directives. Agent-only inspection or maintenance actions such as `snapshot`, `get`, `record`, `trace`, `settings`, and unsupported selector shapes fail with the source line and action instead of being silently dropped. Known semantic differences are reported as warnings; for example, `.ad` `fill` exports as `tapOn` plus `inputText`, which may append text in Maestro rather than replacing existing field contents.
+
 ## Run a lightweight `.ad` suite
 
 ```bash
