@@ -1,6 +1,7 @@
 import http from 'node:http';
+import type { Socket } from 'node:net';
 import { AppError } from './utils/errors.ts';
-import type { DaemonRequest } from './daemon/types.ts';
+import type { DaemonRequest, DaemonResponse } from './daemon/types.ts';
 import type { RequestProgressEvent } from './daemon/request-progress.ts';
 import { consumeTextLines } from './utils/line-stream.ts';
 import { formatReplayTestProgressEvent } from './cli-test-progress.ts';
@@ -10,7 +11,7 @@ import {
   shouldStreamRequestProgress,
 } from './daemon/request-progress-protocol.ts';
 
-export function writeRequestProgressEvent(event: RequestProgressEvent): void {
+function writeRequestProgressEvent(event: RequestProgressEvent): void {
   const line = formatReplayTestProgressEvent(event);
   if (line) process.stderr.write(`${line}\n`);
 }
@@ -25,6 +26,59 @@ export function shouldReadDaemonProgressStream(
       'application/x-ndjson',
     )
   );
+}
+
+export function readDaemonSocketProgressResponse(
+  socket: Socket,
+  options: {
+    req: DaemonRequest;
+    isSettled: () => boolean;
+    resolve: (response: DaemonResponse) => void;
+    reject: (error: unknown) => void;
+    clearTimeout: () => void;
+  },
+): void {
+  const { req, isSettled, resolve, reject, clearTimeout } = options;
+  let buffer = '';
+
+  const rejectInvalidLine = (line: string, error: unknown) => {
+    clearTimeout();
+    reject(
+      new AppError(
+        'COMMAND_FAILED',
+        'Invalid daemon response',
+        {
+          requestId: req.meta?.requestId,
+          line,
+        },
+        error instanceof Error ? error : undefined,
+      ),
+    );
+  };
+
+  socket.setEncoding('utf8');
+  socket.on('data', (chunk) => {
+    if (isSettled()) return;
+    const parsed = consumeTextLines(buffer, chunk);
+    buffer = parsed.buffer;
+    for (const line of parsed.lines) {
+      try {
+        const message = JSON.parse(line) as unknown;
+        if (isDaemonProgressEnvelope(message)) {
+          writeRequestProgressEvent(message.event);
+          continue;
+        }
+        const response = isDaemonResponseEnvelope(message) ? message.response : message;
+        clearTimeout();
+        resolve(response as DaemonResponse);
+        socket.end();
+        return;
+      } catch (error) {
+        rejectInvalidLine(line, error);
+        return;
+      }
+    }
+  });
 }
 
 export function readDaemonHttpProgressResponse(
