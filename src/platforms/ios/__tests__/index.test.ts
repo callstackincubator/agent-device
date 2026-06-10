@@ -986,7 +986,9 @@ test('screenshotIos retries simulator capture timeouts and eventually succeeds',
       'should retry screenshot command until success',
     );
     assert.equal(
-      logLines.filter((line) => line === '__OPEN__ -a Simulator').length,
+      logLines.filter(
+        (line) => line === '__OPEN__ -a Device Hub' || line === '__OPEN__ -a Simulator',
+      ).length,
       0,
       'should not focus simulator host app while retrying screenshots',
     );
