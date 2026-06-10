@@ -103,6 +103,7 @@
     "perf:android": "node --experimental-strip-types scripts/perf/run.ts --platform android",
     "lint": "oxlint . --deny-warnings",
     "format": "oxfmt --write src test skills package.json tsconfig.json tsconfig.lib.json rslib.config.ts vitest.config.ts .github/actions/setup-node-pnpm/action.yml .oxlintrc.json .oxfmtrc.json '!test/skillgym/.skillgym-results/**'",
+    "format:check": "oxfmt --check src test skills package.json tsconfig.json tsconfig.lib.json rslib.config.ts vitest.config.ts .github/actions/setup-node-pnpm/action.yml .oxlintrc.json .oxfmtrc.json '!test/skillgym/.skillgym-results/**'",
     "fallow": "fallow --summary",
     "fallow:baseline": "(fallow dead-code --save-baseline fallow-baselines/dead-code.json --summary || true) && (fallow health --save-baseline fallow-baselines/health.json --summary || true)",
     "check:fallow": "fallow audit",
