@@ -85,4 +85,6 @@ One-off `npx` usage is fine for humans and scripts that intentionally fetch from
   - `<state-dir>/daemon.json`
   - `<state-dir>/daemon.lock`
   - default state dir is `~/.agent-device` for packaged installs; source checkouts default to a worktree-scoped dir under `~/.agent-device/dev/` unless `AGENT_DEVICE_STATE_DIR` or `--state-dir` is set
+  - `agent-device session state-dir` prints the resolved state dir without starting the daemon
   - after pulling the worktree-scoped daemon change in a source checkout, stop any legacy default daemon once with `AGENT_DEVICE_STATE_DIR=~/.agent-device pnpm clean:daemon`
+  - worktree-scoped state dirs outlive deleted worktrees; `pnpm clean:daemon --prune-dev` removes dirs under `~/.agent-device/dev/` with no live daemon and no activity for 14 days (one line printed per removed dir)

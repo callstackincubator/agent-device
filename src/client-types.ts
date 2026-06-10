@@ -912,6 +912,9 @@ export type AgentDeviceClient = {
   };
   sessions: {
     list: (options?: AgentDeviceRequestOverrides) => Promise<AgentDeviceSession[]>;
+    stateDir: (
+      options?: AgentDeviceRequestOverrides & Pick<AgentDeviceClientConfig, 'stateDir'>,
+    ) => Promise<string>;
     close: (
       options?: AgentDeviceRequestOverrides & { shutdown?: boolean },
     ) => Promise<SessionCloseResult>;

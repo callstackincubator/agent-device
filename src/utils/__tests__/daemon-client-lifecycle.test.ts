@@ -359,9 +359,18 @@ test('sendToDaemon does not reuse reachable daemon metadata with mismatched vers
     name: string;
     version?: string;
     codeSignature?: string;
+    expectedReason: (clientVersion: string) => string;
   }> = [
-    { name: 'version', version: '0.0.0-mismatch' },
-    { name: 'code-signature', codeSignature: 'mismatched-signature' },
+    {
+      name: 'version',
+      version: '0.0.0-mismatch',
+      expectedReason: (clientVersion) => `version mismatch (client v${clientVersion})`,
+    },
+    {
+      name: 'code-signature',
+      codeSignature: 'mismatched-signature',
+      expectedReason: () => 'code-signature mismatch',
+    },
   ];
 
   for (const fixture of cases) {
@@ -379,6 +388,7 @@ test('sendToDaemon does not reuse reachable daemon metadata with mismatched vers
       ...(fixture.version ? { version: fixture.version } : {}),
       ...(fixture.codeSignature ? { codeSignature: fixture.codeSignature } : {}),
     });
+    const stderrCapture = captureStderr();
 
     try {
       const response = await sendToDaemon({
@@ -393,7 +403,14 @@ test('sendToDaemon does not reuse reachable daemon metadata with mismatched vers
       assert.equal(mockRunCmdDetached.mock.calls.length, 1);
       assert.deepEqual(staleDaemon.seenPaths, ['GET /health']);
       assert.deepEqual(freshDaemon.seenPaths, ['GET /health', 'POST /rpc']);
+      const staleVersion = fixture.version ?? readVersion();
+      assert.equal(
+        stderrCapture.read(),
+        `Replacing daemon (pid 999999, v${staleVersion}) in ${paths.baseDir}: ` +
+          `${fixture.expectedReason(readVersion())}\n`,
+      );
     } finally {
+      stderrCapture.restore();
       await closeLoopbackServer(staleDaemon.server);
       await closeLoopbackServer(freshDaemon.server);
       fs.rmSync(stateDir, { recursive: true, force: true });
@@ -401,6 +418,63 @@ test('sendToDaemon does not reuse reachable daemon metadata with mismatched vers
     }
   }
 });
+
+test('sendToDaemon prints a takeover notice before replacing an unreachable daemon', async (t) => {
+  if (!(await supportsLoopbackBind())) {
+    t.skip('loopback listeners are not permitted in this environment');
+    return;
+  }
+
+  const stateDir = makeTempStateDir('agent-device-daemon-unreachable-takeover-');
+  const paths = resolveDaemonPaths(stateDir);
+  // Grab a loopback port with no listener so the recorded daemon is unreachable.
+  const unreachable = await startHttpDaemonFixture({ via: 'unused' });
+  await closeLoopbackServer(unreachable.server);
+  const freshDaemon = await startHttpDaemonFixture({ via: 'fresh-daemon' });
+  vi.stubEnv('AGENT_DEVICE_STATE_DIR', stateDir);
+  installSpawnedHttpDaemon(paths, freshDaemon.port);
+  writeDaemonInfo(paths, {
+    httpPort: unreachable.port,
+    transport: 'http',
+    pid: 999_999,
+  });
+  const stderrCapture = captureStderr();
+
+  try {
+    const response = await sendToDaemon({
+      session: 'default',
+      command: 'unreachable-takeover-smoke',
+      positionals: [],
+      flags: { stateDir, daemonTransport: 'http' },
+      meta: { requestId: 'req-unreachable-takeover' },
+    });
+
+    assert.deepEqual(response, { ok: true, data: { via: 'fresh-daemon' } });
+    assert.equal(
+      stderrCapture.read(),
+      `Replacing daemon (pid 999999, v${readVersion()}) in ${paths.baseDir}: unreachable\n`,
+    );
+  } finally {
+    stderrCapture.restore();
+    await closeLoopbackServer(freshDaemon.server);
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+function captureStderr(): { read: () => string; restore: () => void } {
+  const originalWrite = process.stderr.write.bind(process.stderr);
+  let captured = '';
+  (process.stderr as { write: typeof process.stderr.write }).write = ((chunk: unknown) => {
+    captured += String(chunk);
+    return true;
+  }) as typeof process.stderr.write;
+  return {
+    read: () => captured,
+    restore: () => {
+      process.stderr.write = originalWrite;
+    },
+  };
+}
 
 test('sendToDaemon falls back from failed socket transport to HTTP using daemon metadata ports', async (t) => {
   if (!(await supportsLoopbackBind())) {

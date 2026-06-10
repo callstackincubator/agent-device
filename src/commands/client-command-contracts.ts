@@ -23,9 +23,11 @@ export const clientCommandDefinitions = [
   defineExecutableCommand(metadata('boot'), (client, input) => client.devices.boot(input)),
   defineExecutableCommand(metadata('shutdown'), (client, input) => client.devices.shutdown(input)),
   defineExecutableCommand(metadata('apps'), (client, input) => client.apps.list(input)),
-  defineExecutableCommand(metadata('session'), async (client, { action: _action, ...input }) => ({
-    sessions: await client.sessions.list(input),
-  })),
+  defineExecutableCommand(metadata('session'), async (client, { action, ...input }) =>
+    action === 'state-dir'
+      ? { stateDir: await client.sessions.stateDir(input) }
+      : { sessions: await client.sessions.list(input) },
+  ),
   defineExecutableCommand(metadata('open'), (client, input) => client.apps.open(input)),
   defineExecutableCommand(metadata('close'), (client, input) =>
     input.app ? client.apps.close(input) : client.sessions.close(withoutApp(input)),

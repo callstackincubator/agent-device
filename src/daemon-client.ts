@@ -364,6 +364,7 @@ async function readReusableLocalDaemon(settings: DaemonClientSettings): Promise<
   const existingReachable = await canConnect(existing, settings.transportPreference);
   if (isReusableDaemonInfo(existing, existingReachable)) return existing;
 
+  emitDaemonTakeoverNotice(existing, existingReachable, settings.paths.baseDir);
   await stopDaemonProcessForTakeover(existing);
   removeDaemonInfo(settings.paths.infoPath);
   return null;
@@ -375,6 +376,23 @@ function isReusableDaemonInfo(info: DaemonInfo, reachable: boolean): boolean {
     info.codeSignature === resolveLocalDaemonCodeSignature() &&
     reachable
   );
+}
+
+function emitDaemonTakeoverNotice(info: DaemonInfo, reachable: boolean, stateDir: string): void {
+  try {
+    const identity = info.version ? `pid ${info.pid}, v${info.version}` : `pid ${info.pid}`;
+    const reason = resolveDaemonTakeoverReason(info, reachable);
+    process.stderr.write(`Replacing daemon (${identity}) in ${stateDir}: ${reason}\n`);
+  } catch {
+    // The takeover notice is best effort; never fail the command on stderr issues.
+  }
+}
+
+function resolveDaemonTakeoverReason(info: DaemonInfo, reachable: boolean): string {
+  if (info.version !== readVersion()) return `version mismatch (client v${readVersion()})`;
+  if (info.codeSignature !== resolveLocalDaemonCodeSignature()) return 'code-signature mismatch';
+  if (!reachable) return 'unreachable';
+  return 'not reusable';
 }
 
 async function startLocalDaemon(settings: DaemonClientSettings): Promise<EnsuredDaemon> {

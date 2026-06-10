@@ -96,3 +96,22 @@ test('MCP tool schemas add MCP client config fields at the MCP boundary', () => 
     ['optimized', 'json'],
   );
 });
+
+test('MCP session tool exposes state-dir resolution without a daemon round-trip', async () => {
+  const sessionTool = listCommandTools().find((tool) => tool.name === 'session');
+  assert.ok(sessionTool);
+  assert.deepEqual(
+    (sessionTool.inputSchema.properties?.action as { enum?: unknown[] } | undefined)?.enum,
+    ['list', 'state-dir'],
+  );
+
+  const executor = createCommandToolExecutor({
+    createClient: () =>
+      ({
+        sessions: { stateDir: async () => '/tmp/agent-device-dev-state' },
+      }) as unknown as AgentDeviceClient,
+  });
+  const result = await executor.execute('session', { action: 'state-dir' });
+
+  assert.deepEqual(result.structuredContent, { stateDir: '/tmp/agent-device-dev-state' });
+});

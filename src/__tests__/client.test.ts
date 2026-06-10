@@ -603,3 +603,22 @@ test('client capture.snapshot forwards force-full as snapshotForceFull flag', as
   assert.equal(setup.calls[0]?.command, 'snapshot');
   assert.equal(setup.calls[0]?.flags?.snapshotForceFull, true);
 });
+
+test('sessions.stateDir resolves locally without contacting the daemon', async () => {
+  const setup = createTransport(async () => {
+    throw new Error('unexpected daemon call');
+  });
+  const client = createAgentDeviceClient(
+    { ...setup.config, stateDir: '/tmp/agent-device-client-state' },
+    { transport: setup.transport },
+  );
+
+  const fromConfig = await client.sessions.stateDir();
+  const fromOverride = await client.sessions.stateDir({
+    stateDir: '/tmp/agent-device-override-state',
+  });
+
+  assert.equal(fromConfig, '/tmp/agent-device-client-state');
+  assert.equal(fromOverride, '/tmp/agent-device-override-state');
+  assert.equal(setup.calls.length, 0);
+});

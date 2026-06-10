@@ -1063,6 +1063,7 @@ function createStubClient(params: {
     },
     sessions: {
       list: async () => [],
+      stateDir: async () => '/tmp/agent-device-state',
       close: async () => ({ session: 'default', identifiers: { session: 'default' } }),
     },
     apps: {

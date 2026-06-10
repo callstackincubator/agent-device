@@ -47,7 +47,10 @@ export const clientCommandMetadata = [
     appsFilter: enumField(['user-installed', 'all']),
   }),
   defineClientCommandMetadata('session', {
-    action: enumField(['list']),
+    action: enumField(
+      ['list', 'state-dir'],
+      'list shows active sessions; state-dir prints the resolved daemon state directory without contacting the daemon.',
+    ),
   }),
   defineClientCommandMetadata('open', {
     app: stringField('App name, bundle id, package, or URL.'),

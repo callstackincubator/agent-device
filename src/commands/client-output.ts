@@ -50,7 +50,12 @@ export function appsCliOutput(params: {
   };
 }
 
-export function sessionCliOutput(result: { sessions: AgentDeviceSession[] }): CliOutput {
+export function sessionCliOutput(
+  result: { sessions: AgentDeviceSession[] } | { stateDir: string },
+): CliOutput {
+  if ('stateDir' in result) {
+    return { data: result, text: result.stateDir };
+  }
   const data = { sessions: result.sessions.map(serializeSessionListEntry) };
   return { data, text: JSON.stringify(data, null, 2) };
 }

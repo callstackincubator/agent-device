@@ -1,5 +1,6 @@
 import { sendToDaemon } from './daemon-client.ts';
 import { prepareMetroRuntime, reloadMetro } from './client-metro.ts';
+import { resolveDaemonPaths } from './daemon/config.ts';
 import { INTERNAL_COMMANDS } from './command-catalog.ts';
 import {
   prepareDaemonCommandRequest,
@@ -109,6 +110,11 @@ export function createAgentDeviceClient(
     },
     sessions: {
       list: async (options = {}) => await listSessions(options),
+      // Pure local resolution; mirrors how the daemon client picks its state dir.
+      stateDir: async (options = {}) => {
+        const merged = mergeClientOptions(config, options);
+        return resolveDaemonPaths(merged.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR).baseDir;
+      },
       close: async (options = {}) => {
         const session = resolveRequestSession(options);
         const data = await executeCommand<Record<string, unknown>>('close', options);
