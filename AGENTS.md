@@ -56,6 +56,13 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
   - long guidance/data tables should live behind focused modules instead of sharing a file with parser/runtime logic.
   - prefer deep modules over mechanical splits: extract when it improves locality for a concept callers already need, not just to reduce line count.
 
+## Tightening Pass
+- Before finalizing a code change, do one scoped cleanup pass over touched and directly adjacent areas.
+- Drop dead or obsolete code, redundant tests, stale helpers/fixtures, and needless duplication made unnecessary by the change.
+- Prefer an existing helper over a new one; add a helper only when it reduces real repetition or clarifies domain behavior.
+- Simplify control flow and types when the change makes defensive branches or compatibility shims unnecessary.
+- Do not expand into unrelated refactors. If cleanup is valuable but broader than the task, note it as a follow-up.
+
 ## Context Management
 - Optimize for one-pass agent reads. A module that requires reading many siblings to understand one change is usually too shallow; a module that hides one concept behind a small interface is usually worth keeping.
 - Start with the owning module, then one shared helper, then one downstream caller or adapter. Broaden only when the contract crosses that edge.
