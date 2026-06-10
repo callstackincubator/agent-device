@@ -3,6 +3,7 @@ scripts/perf/.results/
 .pnpm-store/
 .fallow/
 dist/
+coverage/
 .tmp/
 .DS_Store
 __pycache__/
