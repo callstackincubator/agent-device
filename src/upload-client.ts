@@ -386,6 +386,14 @@ async function streamFileToHttpRequestAttempt(options: {
               ? parseUploadResumeOffset(res.headers, payloadSize)
               : undefined;
             if (resumeOffset !== undefined) {
+              if (resumeOffset >= payloadSize) {
+                resolve({
+                  statusCode: 200,
+                  statusMessage: 'Upload already complete',
+                  body: '',
+                });
+                return;
+              }
               if (resumeOffset <= options.startOffset) {
                 reject(
                   new AppError('COMMAND_FAILED', 'Artifact upload resume did not advance', {

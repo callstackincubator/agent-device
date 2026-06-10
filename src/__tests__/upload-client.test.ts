@@ -304,6 +304,73 @@ test('uploadArtifact fails cleanly on the sixth upload redirect', async () => {
   }
 });
 
+test('uploadArtifact falls back to legacy upload when direct upload exceeds redirect limit', async () => {
+  const content = 'direct-upload-redirect-limit-fallback';
+  const artifactPath = createTempFile('app.apk', content);
+  const requests: string[] = [];
+
+  const server = await startServer(async (req, res) => {
+    requests.push(`${req.method} ${req.url}`);
+    if (req.method === 'POST' && req.url === '/upload/preflight') {
+      await readRequestBody(req);
+      sendJson(res, {
+        ok: true,
+        cacheHit: false,
+        uploadId: 'direct-redirect-ticket',
+        upload: {
+          url: `${server.baseUrl}/direct-redirect-1`,
+          headers: {
+            'x-signed-ticket': 'redirect-ticket-header',
+          },
+        },
+      });
+      return;
+    }
+    const redirectMatch = req.url?.match(/^\/direct-redirect-(\d+)$/);
+    if (req.method === 'PUT' && redirectMatch) {
+      const redirectIndex = Number(redirectMatch[1]);
+      await readRequestBody(req);
+      res.statusCode = 307;
+      res.setHeader('location', `/direct-redirect-${redirectIndex + 1}`);
+      res.end();
+      return;
+    }
+    if (req.method === 'POST' && req.url === '/upload') {
+      assert.equal((await readRequestBody(req)).toString('utf8'), content);
+      sendJson(res, { ok: true, uploadId: 'legacy-after-direct-redirect-limit' });
+      return;
+    }
+    if (req.method === 'POST' && req.url === '/upload/finalize') {
+      res.statusCode = 500;
+      res.end('direct upload should not finalize after redirect-limit fallback');
+      return;
+    }
+    res.statusCode = 404;
+    res.end('not found');
+  });
+
+  try {
+    const uploadId = await uploadArtifact({
+      localPath: artifactPath,
+      baseUrl: server.baseUrl,
+      token: TEST_TOKEN,
+    });
+    assert.equal(uploadId, 'legacy-after-direct-redirect-limit');
+    assert.deepEqual(requests, [
+      'POST /upload/preflight',
+      'PUT /direct-redirect-1',
+      'PUT /direct-redirect-2',
+      'PUT /direct-redirect-3',
+      'PUT /direct-redirect-4',
+      'PUT /direct-redirect-5',
+      'PUT /direct-redirect-6',
+      'POST /upload',
+    ]);
+  } finally {
+    await server.close();
+  }
+});
+
 test('uploadArtifact uses direct upload ticket and finalize flow', async () => {
   const content = 'direct-upload-apk';
   const artifactPath = createTempFile('app.apk', content);
@@ -378,6 +445,85 @@ test('uploadArtifact uses direct upload ticket and finalize flow', async () => {
     await server.close();
   }
 });
+
+test.each([
+  {
+    name: 'x-upload-offset',
+    writeResumeHeaders: (res: ServerResponse, payloadSize: number) => {
+      res.setHeader('x-upload-offset', String(payloadSize));
+    },
+  },
+  {
+    name: 'range',
+    writeResumeHeaders: (res: ServerResponse, payloadSize: number) => {
+      res.setHeader('range', `bytes=0-${payloadSize - 1}`);
+    },
+  },
+])(
+  'uploadArtifact finalizes when direct upload reports the full payload size with $name',
+  async ({ writeResumeHeaders }) => {
+    const content = 'direct-upload-already-complete';
+    const artifactPath = createTempFile('app.apk', content);
+    const payloadSize = Buffer.byteLength(content);
+    const requests: string[] = [];
+    let uploadAttempts = 0;
+
+    const server = await startServer(async (req, res) => {
+      requests.push(`${req.method} ${req.url}`);
+      if (req.method === 'POST' && req.url === '/upload/preflight') {
+        await readRequestBody(req);
+        sendJson(res, {
+          ok: true,
+          cacheHit: false,
+          uploadId: 'complete-resume-ticket',
+          upload: {
+            url: `${server.baseUrl}/already-complete-upload`,
+            headers: {
+              'x-signed-ticket': 'complete-ticket-header',
+            },
+          },
+        });
+        return;
+      }
+      if (req.method === 'PUT' && req.url === '/already-complete-upload') {
+        uploadAttempts += 1;
+        assert.equal(req.headers['content-range'], undefined);
+        assert.equal((await readRequestBody(req)).toString('utf8'), content);
+        res.statusCode = 308;
+        writeResumeHeaders(res, payloadSize);
+        res.end();
+        return;
+      }
+      if (req.method === 'POST' && req.url === '/upload/finalize') {
+        const body = JSON.parse((await readRequestBody(req)).toString('utf8')) as {
+          uploadId: string;
+        };
+        assert.equal(body.uploadId, 'complete-resume-ticket');
+        sendJson(res, { ok: true, uploadId: 'upload-already-complete' });
+        return;
+      }
+      res.statusCode = 404;
+      res.end('not found');
+    });
+
+    try {
+      const uploadId = await uploadArtifact({
+        localPath: artifactPath,
+        baseUrl: server.baseUrl,
+        token: TEST_TOKEN,
+      });
+      assert.equal(uploadId, 'upload-already-complete');
+      assert.equal(uploadAttempts, 1);
+      assert.deepEqual(requests, [
+        'POST /upload/preflight',
+        'PUT /already-complete-upload',
+        'POST /upload/finalize',
+      ]);
+    } finally {
+      await server.close();
+    }
+  },
+);
 
 test('uploadArtifact resumes a direct upload from the server-reported offset', async () => {
   const content = 'direct-upload-resume-payload';
