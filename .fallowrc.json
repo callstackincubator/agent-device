@@ -29,14 +29,6 @@
     "ios-runner/AgentDeviceRunner/AgentDeviceRunnerUITests.xctestplan",
     "scripts/write-xcuitest-cache-metadata.mjs"
   ],
-  "health": {
-    "maxCyclomatic": 58,
-    "maxCognitive": 77,
-    "maxCrap": 591
-  },
-  "duplicates": {
-    "minTokens": 66
-  },
   "ignoreDependencies": ["@microsoft/api-extractor", "@theme"],
   "ignoreExports": [
     {
