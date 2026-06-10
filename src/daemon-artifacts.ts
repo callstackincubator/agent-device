@@ -7,6 +7,7 @@ import { AppError } from './utils/errors.ts';
 import type { DaemonArtifact, DaemonRequest, DaemonResponse } from './daemon/types.ts';
 import { uploadArtifact } from './upload-client.ts';
 
+// Mirrors the current daemon RPC timeout, but artifact download timeouts may diverge.
 const REMOTE_ARTIFACT_DOWNLOAD_TIMEOUT_MS = 90_000;
 
 export type DaemonArtifactEndpoint = {
