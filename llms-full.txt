@@ -1795,7 +1795,7 @@ For CLI-discoverable setup guidance, run `agent-device help physical-device`.
 - First-run XCTest setup/build can take longer than normal commands; keep the device connected and use `--debug` to inspect signing/build diagnostics if setup times out.
 - If you override the iOS runner derived-data path and also force cleanup, keep `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH` under the project `.tmp/` directory. Other cleanup override paths are rejected with a recovery hint.
 - For daemon startup troubleshooting:
-  - follow stale metadata hints for `<state-dir>/daemon.json` and `<state-dir>/daemon.lock` (`state-dir` defaults to `~/.agent-device`)
+  - follow stale metadata hints for `<state-dir>/daemon.json` and `<state-dir>/daemon.lock` (`state-dir` defaults to `~/.agent-device` for packaged installs, or a worktree-scoped dir under `~/.agent-device/dev/` from source)
 
 
 
@@ -2129,7 +2129,8 @@ One-off `npx` usage is fine for humans and scripts that intentionally fetch from
 - If daemon startup reports stale metadata, remove stale files and retry:
   - `<state-dir>/daemon.json`
   - `<state-dir>/daemon.lock`
-  - default state dir is `~/.agent-device` unless `AGENT_DEVICE_STATE_DIR` or `--state-dir` is set
+  - default state dir is `~/.agent-device` for packaged installs; source checkouts default to a worktree-scoped dir under `~/.agent-device/dev/` unless `AGENT_DEVICE_STATE_DIR` or `--state-dir` is set
+  - after pulling the worktree-scoped daemon change in a source checkout, stop any legacy default daemon once with `AGENT_DEVICE_STATE_DIR=~/.agent-device pnpm clean:daemon`
 
 
 
