@@ -40,6 +40,9 @@ agent-device boot --platform ios # or android
 agent-device boot --platform android --device Pixel_9_Pro_XL
 # Android headless emulator boot (AVD name):
 agent-device boot --platform android --device Pixel_9_Pro_XL --headless
+# Turn off a simulator/emulator when finished:
+agent-device shutdown --platform ios
+agent-device shutdown --platform android --device Pixel_9_Pro_XL
 ```
 
 ## Common commands
@@ -58,6 +61,7 @@ agent-device screenshot page.png         # Save to specific path
 agent-device install com.example.app ./build/app.apk     # Install app binary in-place
 agent-device install-from-source https://example.com/builds/app.apk --platform android
 agent-device reinstall com.example.app ./build/app.apk   # Fresh-state uninstall + install
+agent-device shutdown --platform android --device Pixel_9_Pro_XL
 agent-device close
 ```
 
