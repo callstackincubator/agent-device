@@ -105,7 +105,7 @@ export async function handleFindCommands(params: {
     if (lastNodes && now - lastSnapshotAt < 750 && !getActiveAndroidSnapshotFreshness(session)) {
       return { nodes: lastNodes };
     }
-    const { snapshot } = await captureSnapshot({
+    let { snapshot } = await captureSnapshot({
       device,
       session,
       flags: {
@@ -117,6 +117,38 @@ export async function handleFindCommands(params: {
       logPath,
       snapshotScope: scope,
     });
+    if (interactiveOnly && isSparseIosInteractiveSnapshot(snapshot)) {
+      try {
+        const fullCapture = await captureSnapshot({
+          device,
+          session,
+          flags: {
+            ...req.flags,
+            snapshotInteractiveOnly: false,
+            snapshotCompact: false,
+          },
+          outPath: req.flags?.out,
+          logPath,
+          snapshotScope: scope,
+        });
+        snapshot = fullCapture.snapshot;
+      } catch (error) {
+        if (!shouldScopeFind(locator)) throw error;
+        const scopedFullCapture = await captureSnapshot({
+          device,
+          session,
+          flags: {
+            ...req.flags,
+            snapshotInteractiveOnly: false,
+            snapshotCompact: false,
+          },
+          outPath: req.flags?.out,
+          logPath,
+          snapshotScope: query,
+        });
+        snapshot = scopedFullCapture.snapshot;
+      }
+    }
     const nodes = snapshot.nodes;
     lastSnapshotAt = now;
     lastNodes = nodes;
@@ -174,6 +206,11 @@ export async function handleFindCommands(params: {
   return handler ? handler() : null;
 }
 
+function isSparseIosInteractiveSnapshot(snapshot: SnapshotState): boolean {
+  if (snapshot.backend !== 'xctest' || snapshot.nodes.length !== 1) return false;
+  return snapshot.nodes[0]?.type === 'Application';
+}
+
 // --- Per-action handlers ---
 
 function isReadOnlyFindAction(action: string): boolean {
@@ -194,7 +231,10 @@ function resolveFindMatch(params: {
   flags: DaemonRequest['flags'];
 }): FindMatchResult {
   const { nodes, locator, query, requiresRect, flags } = params;
-  const bestMatches = findBestMatchesByLocator(nodes, locator, query, {
+  const searchableNodes = requiresRect
+    ? nodes.filter((node) => !isRootInteractionContainer(node, nodes[0]))
+    : nodes;
+  const bestMatches = findBestMatchesByLocator(searchableNodes, locator, query, {
     requireRect: requiresRect,
   });
   if (requiresRect) {
@@ -281,7 +321,9 @@ function resolveInteractiveMatchNode(
   nodes: SnapshotState['nodes'],
   node: SnapshotState['nodes'][number],
 ): SnapshotState['nodes'][number] {
-  return resolveActionableTouchNode(nodes, node);
+  const resolved = resolveActionableTouchNode(nodes, node);
+  if (isRootInteractionContainer(resolved, nodes[0]) && node.rect) return node;
+  return resolved;
 }
 
 function isRootInteractionContainer(

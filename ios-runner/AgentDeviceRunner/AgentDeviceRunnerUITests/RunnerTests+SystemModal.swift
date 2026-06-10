@@ -29,12 +29,27 @@ extension RunnerTests {
     }
     var nodes: [SnapshotNode] = [modalNode]
 
+    for content in informativeElements(in: modal, excluding: actions) {
+      guard let contentNode = safeMakeSnapshotNode(
+        element: content,
+        index: nodes.count,
+        type: elementTypeName(content.elementType),
+        depth: 1,
+        parentIndex: 0,
+        hittableOverride: false
+      ) else {
+        continue
+      }
+      nodes.append(contentNode)
+    }
+
     for action in actions {
       guard let actionNode = safeMakeSnapshotNode(
         element: action,
         index: nodes.count,
         type: elementTypeName(action.elementType),
         depth: 1,
+        parentIndex: 0,
         hittableOverride: true
       ) else {
         continue
@@ -101,9 +116,7 @@ extension RunnerTests {
   func actionableElements(in element: XCUIElement) -> [XCUIElement] {
     var seen = Set<String>()
     var actions: [XCUIElement] = []
-    let descendants = safeElementsQuery {
-      element.descendants(matching: .any).allElementsBoundByIndex
-    }
+    let descendants = actionableTypes.flatMap { modalDescendants(in: element, matching: $0) }
     for candidate in descendants {
       if !safeIsActionableCandidate(candidate, seen: &seen) { continue }
       actions.append(candidate)
@@ -122,6 +135,61 @@ extension RunnerTests {
       seen.insert(key)
       return true
     }
+  }
+
+  private func informativeElements(in element: XCUIElement, excluding actions: [XCUIElement]) -> [XCUIElement] {
+    let actionKeys = Set(actions.map(systemModalElementKey))
+    var seen = Set<String>()
+    var contents: [XCUIElement] = []
+    let descendants = readableSystemModalTypes.flatMap {
+      modalDescendants(in: element, matching: $0, limit: 2)
+    }
+    for candidate in descendants {
+      guard let key = safeInformativeElementKey(candidate, actionKeys: actionKeys) else {
+        continue
+      }
+      if seen.contains(key) { continue }
+      seen.insert(key)
+      contents.append(candidate)
+    }
+    return contents
+  }
+
+  private var readableSystemModalTypes: [XCUIElement.ElementType] {
+    [.staticText, .textView]
+  }
+
+  private func modalDescendants(
+    in element: XCUIElement,
+    matching type: XCUIElement.ElementType,
+    limit: Int? = nil
+  ) -> [XCUIElement] {
+    let elements = safeElementsQuery {
+      element.descendants(matching: type).allElementsBoundByIndex
+    }
+    guard let limit else {
+      return elements
+    }
+    return Array(elements.prefix(limit))
+  }
+
+  private func safeInformativeElementKey(_ candidate: XCUIElement, actionKeys: Set<String>) -> String? {
+    safely("MODAL_CONTENT") { () -> String? in
+      let key = systemModalElementKey(candidate)
+      if actionKeys.contains(key) { return nil }
+      if actionableTypes.contains(candidate.elementType) { return nil }
+      if !candidate.exists { return nil }
+      let frame = candidate.frame
+      if frame.isNull || frame.isEmpty { return nil }
+      let label = candidate.label.trimmingCharacters(in: .whitespacesAndNewlines)
+      if label.isEmpty { return nil }
+      return key
+    }
+  }
+
+  private func systemModalElementKey(_ element: XCUIElement) -> String {
+    let frame = element.frame
+    return "\(element.elementType.rawValue)-\(frame.origin.x)-\(frame.origin.y)-\(frame.size.width)-\(frame.size.height)-\(element.label)-\(element.identifier)"
   }
 
   private func preferredSystemModalTitle(_ element: XCUIElement) -> String {
@@ -143,6 +211,7 @@ extension RunnerTests {
     labelOverride: String? = nil,
     identifierOverride: String? = nil,
     depth: Int,
+    parentIndex: Int? = nil,
     hittableOverride: Bool? = nil
   ) -> SnapshotNode {
     let label = (labelOverride ?? element.label).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -155,11 +224,11 @@ extension RunnerTests {
       value: nil,
       rect: snapshotRect(from: element.frame),
       enabled: element.isEnabled,
-      focused: elementHasFocus(element) ? true : nil,
-      selected: element.isSelected ? true : nil,
+      focused: nil,
+      selected: nil,
       hittable: hittableOverride ?? element.isHittable,
       depth: depth,
-      parentIndex: nil,
+      parentIndex: parentIndex,
       hiddenContentAbove: nil,
       hiddenContentBelow: nil
     )
@@ -172,6 +241,7 @@ extension RunnerTests {
     labelOverride: String? = nil,
     identifierOverride: String? = nil,
     depth: Int,
+    parentIndex: Int? = nil,
     hittableOverride: Bool? = nil
   ) -> SnapshotNode? {
     safely("MODAL_NODE") {
@@ -182,6 +252,7 @@ extension RunnerTests {
         labelOverride: labelOverride,
         identifierOverride: identifierOverride,
         depth: depth,
+        parentIndex: parentIndex,
         hittableOverride: hittableOverride
       )
     }

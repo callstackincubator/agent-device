@@ -18,7 +18,7 @@ extension RunnerTests {
     .other,
     .staticText
   ]
-  private static let scrollContainerTypes: Set<XCUIElement.ElementType> = [
+  static let scrollContainerTypes: Set<XCUIElement.ElementType> = [
     .collectionView,
     .scrollView,
     .table
@@ -99,11 +99,17 @@ extension RunnerTests {
   }
 
   func snapshotFast(app: XCUIApplication, options: SnapshotOptions) throws -> DataPayload {
-    if options.interactiveOnly && options.compact {
-      return snapshotFlatInteractive(app: app, options: options)
-    }
     if let blocking = blockingSystemAlertSnapshot() {
       return blocking
+    }
+    if options.interactiveOnly && options.compact {
+      let payload = snapshotFlatInteractive(app: app, options: options)
+      return snapshotWithPrivateAXFallbackIfSparse(
+        payload,
+        app: app,
+        options: options,
+        reason: "compact interactive XCTest snapshot was sparse"
+      )
     }
 
     let capture = try captureSnapshotTraversalContext(
@@ -243,10 +249,41 @@ extension RunnerTests {
 
     }
 
-    return DataPayload(
+    let payload = DataPayload(
       nodes: applyHiddenContentHints(hiddenContentHintsByNodeIndex, to: nodes),
       truncated: false
     )
+    return snapshotWithPrivateAXFallbackIfSparse(
+      payload,
+      app: app,
+      options: options,
+      reason: "XCTest snapshot returned a sparse application/window tree"
+    )
+  }
+
+  private func snapshotWithPrivateAXFallbackIfSparse(
+    _ payload: DataPayload,
+    app: XCUIApplication,
+    options: SnapshotOptions,
+    reason: String
+  ) -> DataPayload {
+    guard let nodes = payload.nodes, Self.isSparseApplicationWindowTree(nodes),
+      let fallback = privateAXSnapshotFallback(
+        app: app,
+        options: options,
+        reason: reason
+      )
+    else {
+      return payload
+    }
+    return fallback
+  }
+
+  private static func isSparseApplicationWindowTree(_ nodes: [SnapshotNode]) -> Bool {
+    guard !nodes.isEmpty, nodes.count <= 2 else { return false }
+    return nodes.allSatisfy { node in
+      node.type == "Application" || node.type == "Window"
+    }
   }
 
   func snapshotRaw(app: XCUIApplication, options: SnapshotOptions) throws -> DataPayload {
@@ -307,7 +344,12 @@ extension RunnerTests {
     }
 
     try walk(context.rootSnapshot, depth: 0, parentIndex: nil)
-    return DataPayload(nodes: nodes, truncated: false)
+    return snapshotWithPrivateAXFallbackIfSparse(
+      DataPayload(nodes: nodes, truncated: false),
+      app: app,
+      options: options,
+      reason: "XCTest raw snapshot returned a sparse application/window tree"
+    )
   }
 
   private func snapshotFlatInteractive(app: XCUIApplication, options: SnapshotOptions) -> DataPayload {
@@ -401,6 +443,15 @@ extension RunnerTests {
       }
       return .context(context)
     } catch let failure as SnapshotCaptureFailure {
+      if Self.isAxSnapshotFailure(failure),
+        let fallback = privateAXSnapshotFallback(
+          app: app,
+          options: options,
+          reason: failure.message
+        )
+      {
+        return .fallback(fallback)
+      }
       if let fallback = snapshotDepthLimitedAccessibilityFallback(
         app: app,
         options: options,
@@ -511,6 +562,47 @@ extension RunnerTests {
 
     XCTAssertTrue(message.contains(Self.axSnapshotFailureMessage))
     XCTAssertTrue(message.contains(Self.axSnapshotHint))
+  }
+
+  func testSparseApplicationWindowTreeDetectionIsConservative() {
+    let root = compactInteractiveRootNode(rect: .zero)
+    let window = SnapshotNode(
+      index: 1,
+      type: "Window",
+      label: nil,
+      identifier: nil,
+      value: nil,
+      rect: snapshotRect(from: .zero),
+      enabled: true,
+      focused: nil,
+      selected: nil,
+      hittable: false,
+      depth: 1,
+      parentIndex: 0,
+      hiddenContentAbove: nil,
+      hiddenContentBelow: nil
+    )
+    let button = SnapshotNode(
+      index: 1,
+      type: "Button",
+      label: "Sign in",
+      identifier: nil,
+      value: nil,
+      rect: snapshotRect(from: .zero),
+      enabled: true,
+      focused: nil,
+      selected: nil,
+      hittable: true,
+      depth: 1,
+      parentIndex: 0,
+      hiddenContentAbove: nil,
+      hiddenContentBelow: nil
+    )
+
+    XCTAssertTrue(Self.isSparseApplicationWindowTree([root]))
+    XCTAssertTrue(Self.isSparseApplicationWindowTree([root, window]))
+    XCTAssertFalse(Self.isSparseApplicationWindowTree([root, button]))
+    XCTAssertFalse(Self.isSparseApplicationWindowTree([root, window, button]))
   }
 
   func testRawSnapshotTooLargeFailureIsStructured() {
@@ -692,7 +784,7 @@ extension RunnerTests {
     return nil
   }
 
-  private func safeSnapshotViewport(app: XCUIApplication) -> CGRect {
+  func safeSnapshotViewport(app: XCUIApplication) -> CGRect {
     safely("SNAPSHOT_VIEWPORT", CGRect.infinite) { snapshotViewport(app: app) }
   }
 
@@ -723,6 +815,10 @@ extension RunnerTests {
     let normalized = message.lowercased()
     return normalized.contains("kaxerrorillegalargument")
       || (normalized.contains("illegal argument") && normalized.contains("snapshot"))
+  }
+
+  private static func isAxSnapshotFailure(_ failure: SnapshotCaptureFailure) -> Bool {
+    failure.code == Self.axSnapshotErrorCode || isAxIllegalArgument(failure.message)
   }
 
   private func evaluateSnapshot(
@@ -855,7 +951,7 @@ extension RunnerTests {
     return nil
   }
 
-  private func isVisibleInViewport(_ rect: CGRect, _ viewport: CGRect) -> Bool {
+  func isVisibleInViewport(_ rect: CGRect, _ viewport: CGRect) -> Bool {
     if rect.isNull || rect.isEmpty { return false }
     return rect.intersects(viewport)
   }

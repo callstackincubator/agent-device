@@ -160,6 +160,117 @@ test('handleFindCommands click prefers on-screen duplicate text matches', async 
   expect(invokeCalls[0]!.positionals?.[0]).toBe('@e3');
 });
 
+test('handleFindCommands click retries full snapshot when iOS compact snapshot is sparse', async () => {
+  const snapshotResponses = [
+    {
+      backend: 'xctest',
+      nodes: [
+        {
+          index: 0,
+          type: 'Application',
+          rect: { x: 0, y: 0, width: 0, height: 0 },
+        },
+      ],
+    },
+    {
+      backend: 'xctest',
+      nodes: [
+        {
+          index: 0,
+          type: 'Application',
+          hittable: false,
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          index: 1,
+          type: 'Button',
+          label: 'Search',
+          hittable: true,
+          rect: { x: 80, y: 792, width: 78, height: 48 },
+          parentIndex: 0,
+        },
+      ],
+    },
+  ];
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command === 'snapshot') return snapshotResponses.shift() ?? { nodes: [] };
+    return {};
+  });
+
+  const { response, invokeCalls } = await runFindClickScenario({
+    positionals: ['Search', 'click'],
+  });
+
+  expect(response.ok).toBe(true);
+  expect(invokeCalls[0]!.positionals?.[0]).toBe('@e2');
+  const snapshotCalls = mockDispatch.mock.calls.filter((call) => call[1] === 'snapshot');
+  expect(snapshotCalls).toHaveLength(2);
+  expect(snapshotCalls[0]![4]).toMatchObject({
+    snapshotInteractiveOnly: true,
+    snapshotCompact: true,
+  });
+  expect(snapshotCalls[1]![4]).toMatchObject({
+    snapshotInteractiveOnly: false,
+    snapshotCompact: false,
+  });
+});
+
+test('handleFindCommands click scopes full retry when unscoped iOS fallback fails', async () => {
+  const snapshotResponses = [
+    {
+      backend: 'xctest',
+      nodes: [
+        {
+          index: 0,
+          type: 'Application',
+          rect: { x: 0, y: 0, width: 0, height: 0 },
+        },
+      ],
+    },
+    new Error('unscoped snapshot failed'),
+    {
+      backend: 'xctest',
+      nodes: [
+        {
+          index: 0,
+          type: 'Application',
+          hittable: false,
+          rect: { x: 0, y: 0, width: 390, height: 844 },
+        },
+        {
+          index: 1,
+          type: 'Button',
+          label: 'Search',
+          hittable: true,
+          rect: { x: 80, y: 792, width: 78, height: 48 },
+          parentIndex: 0,
+        },
+      ],
+    },
+  ];
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command !== 'snapshot') return {};
+    const response = snapshotResponses.shift();
+    if (response instanceof Error) throw response;
+    return response ?? { nodes: [] };
+  });
+
+  const { response, invokeCalls } = await runFindClickScenario({
+    positionals: ['Search', 'click'],
+  });
+
+  expect(response.ok).toBe(true);
+  expect(invokeCalls[0]!.positionals?.[0]).toBe('@e1');
+  expect(response.ok ? response.data : undefined).toMatchObject({ x: 119, y: 816 });
+  const snapshotCalls = mockDispatch.mock.calls.filter((call) => call[1] === 'snapshot');
+  expect(snapshotCalls).toHaveLength(3);
+  expect(snapshotCalls[2]![4]).toMatchObject({
+    snapshotInteractiveOnly: false,
+    snapshotCompact: false,
+    snapshotScope: 'Search',
+  });
+});
+
 test('handleFindCommands click prefers semantic controls over matching containers', async () => {
   const { response, invokeCalls } = await runFindClickScenario({
     positionals: ['Later', 'click'],
