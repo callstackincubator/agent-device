@@ -3,6 +3,7 @@ import {
   withTargetDeviceResolutionScope,
 } from '../core/dispatch-resolve.ts';
 import { AppError, normalizeError } from '../utils/errors.ts';
+import { timingSafeStringEqual } from '../utils/timing-safe-equal.ts';
 import type { DaemonRequest, DaemonResponse } from './types.ts';
 import { SessionStore } from './session-store.ts';
 import {
@@ -83,7 +84,7 @@ export function createRequestHandler(
         logPath,
       },
       async () => {
-        if (req.token !== token) {
+        if (!timingSafeStringEqual(req.token, token)) {
           return unauthorizedResponse();
         }
 
@@ -178,7 +179,7 @@ export function createRequestHandler(
   ): (req: DaemonRequest) => Promise<DaemonResponse> {
     return async (req) => {
       if (!canRunReplayActionInCurrentScope(req, parentScope)) return await handleRequest(req);
-      if (req.token !== token) {
+      if (!timingSafeStringEqual(req.token, token)) {
         return unauthorizedResponse();
       }
 
