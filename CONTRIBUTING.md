@@ -42,6 +42,14 @@ pnpm check:unit
 pnpm exec vitest run src/compat/maestro/__tests__/replay-flow.test.ts src/compat/__tests__/replay-input.test.ts
 ```
 
+Code quality (fallow): run `pnpm fallow` locally for a whole-project summary of dead
+code, duplication, and complexity — it is expected to exit 0 on a clean tree, so any
+finding it reports was introduced by your changes. CI gates on `pnpm check:fallow`
+(`fallow audit`), which is diff-based: it only audits files changed relative to the
+base branch and compares against the baselines in `fallow-baselines/`. Thresholds and
+ignore rules live in `.fallowrc.json`; if you intentionally need to regenerate the
+baselines, run `pnpm fallow:baseline`.
+
 Optional device selectors for tests:
 
 - `ANDROID_DEVICE=Pixel_9_Pro_XL` or `ANDROID_SERIAL=emulator-5554`
