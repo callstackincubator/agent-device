@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { promises as fsPromises } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, test, vi } from 'vitest';
+import type { AndroidAdbExecutor } from '../../../platforms/android/adb-executor.ts';
 import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
 import { makeAndroidSession, makeIosSession } from '../../../__tests__/test-utils/index.ts';
 import { AppError } from '../../../utils/errors.ts';
@@ -25,7 +27,6 @@ vi.mock('../../../platforms/ios/perf-xctrace.ts', async (importOriginal) => {
 });
 
 import { handleSessionObservabilityCommands } from '../session-observability.ts';
-import type { AndroidAdbExecutor } from '../../../platforms/android/adb-executor.ts';
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -681,3 +682,125 @@ test('perf memory snapshot returns artifact-shaped unsupported payload on unsupp
   const support = response.data?.support as Record<string, unknown>;
   assert.equal(support.memgraph, false);
 });
+
+test('perf cpu profile start and stop route through Android simpleperf and preserve compact artifact state', async () => {
+  const tmpDir = await fsPromises.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-daemon-simpleperf-'),
+  );
+  const outPath = path.join(tmpDir, 'cpu.perf.data');
+  const sessionStore = makeSessionStore('agent-device-session-observability-');
+  sessionStore.set('android', makeAndroidSession('android', { appBundleId: 'com.example.app' }));
+  const adb = makeNativePerfAdbExecutor(outPath);
+
+  try {
+    const startResponse = await handleSessionObservabilityCommands({
+      req: {
+        token: 't',
+        session: 'android',
+        command: 'perf',
+        positionals: ['cpu', 'profile', 'start', 'simpleperf'],
+        flags: { out: outPath },
+      },
+      sessionName: 'android',
+      sessionStore,
+      androidAdbExecutor: adb,
+    });
+
+    assert.equal(startResponse?.ok, true);
+    if (!startResponse?.ok) throw new Error('Expected start response to succeed');
+    assert.equal(startResponse.data?.kind, 'simpleperf');
+    assert.equal(startResponse.data?.type, 'cpu-profile');
+    assert.equal(startResponse.data?.state, 'running');
+    assert.equal(startResponse.data?.outPath, outPath);
+    assert.equal(sessionStore.get('android')?.nativePerf?.android?.state, 'running');
+
+    const stopResponse = await handleSessionObservabilityCommands({
+      req: {
+        token: 't',
+        session: 'android',
+        command: 'perf',
+        positionals: ['cpu', 'profile', 'stop', 'simpleperf'],
+        flags: { out: outPath },
+      },
+      sessionName: 'android',
+      sessionStore,
+      androidAdbExecutor: adb,
+    });
+
+    assert.equal(stopResponse?.ok, true);
+    if (!stopResponse?.ok) throw new Error('Expected stop response to succeed');
+    assert.equal(stopResponse.data?.state, 'stopped');
+    assert.equal(stopResponse.data?.sizeBytes, 7);
+    assert.equal(sessionStore.get('android')?.nativePerf?.android?.state, 'stopped');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('perf trace rejects non-Android sessions explicitly', async () => {
+  const sessionStore = makeSessionStore('agent-device-session-observability-');
+  sessionStore.set('ios', makeIosSession('ios', { appBundleId: 'com.example.app' }));
+
+  const response = await handleSessionObservabilityCommands({
+    req: {
+      token: 't',
+      session: 'ios',
+      command: 'perf',
+      positionals: ['trace', 'start', 'perfetto'],
+      flags: {},
+    },
+    sessionName: 'ios',
+    sessionStore,
+  });
+
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
+    assert.match(response.error.message, /Android native perf collectors/);
+  }
+});
+
+test('perf cpu profile reports a missing package with an actionable hint', async () => {
+  const sessionStore = makeSessionStore('agent-device-session-observability-');
+  sessionStore.set('android', makeAndroidSession('android'));
+
+  const response = await handleSessionObservabilityCommands({
+    req: {
+      token: 't',
+      session: 'android',
+      command: 'perf',
+      positionals: ['cpu', 'profile', 'start', 'simpleperf'],
+      flags: {},
+    },
+    sessionName: 'android',
+    sessionStore,
+  });
+
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'COMMAND_FAILED');
+    assert.match(JSON.stringify(response.error), /Run open <app> first/);
+  }
+});
+
+function makeNativePerfAdbExecutor(outPath: string): AndroidAdbExecutor {
+  return async (args) => {
+    if (args.join('\0') === ['shell', 'pidof', 'com.example.app'].join('\0')) {
+      return { exitCode: 0, stdout: '1234\n', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1]?.includes('command -v simpleperf')) {
+      return { exitCode: 0, stdout: '/system/bin/simpleperf\n', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1]?.includes('simpleperf')) {
+      return { exitCode: 0, stdout: '5678\n', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1]?.includes('kill -INT')) {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    if (args[0] === 'pull') {
+      await fsPromises.writeFile(outPath, 'profile');
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    throw new Error(`Unexpected adb call: ${args.join(' ')}`);
+  };
+}

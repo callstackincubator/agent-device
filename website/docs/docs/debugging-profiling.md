@@ -104,6 +104,11 @@ agent-device perf memory snapshot --kind memgraph --out app.memgraph
 agent-device perf cpu profile start --kind xctrace --template "Time Profiler" --out app.trace
 agent-device perf cpu profile stop --kind xctrace --out app.trace
 agent-device perf cpu profile report --kind xctrace --out app-profile.json
+agent-device perf cpu profile start --kind simpleperf --out cpu.perf.data
+agent-device perf cpu profile stop --kind simpleperf --out cpu.perf.data
+agent-device perf cpu profile report --kind simpleperf --out cpu-report.json
+agent-device perf trace start --kind perfetto --out app.perfetto-trace
+agent-device perf trace stop --kind perfetto --out app.perfetto-trace
 ```
 
 - `perf metrics` returns session-scoped startup and, where supported, CPU, memory, and frame-health samples. Bare `perf` and `metrics` remain aliases.
@@ -113,6 +118,8 @@ agent-device perf cpu profile report --kind xctrace --out app-profile.json
 - `perf memory snapshot` escalates to file artifacts. Android supports Java HPROF capture for active app processes when the build/device allows heap dumping. iOS simulator and macOS app sessions support memgraph capture through host-visible process tooling; physical iOS device memgraph capture reports unavailable with a hint instead of pretending support.
 - Heap and memgraph artifacts are returned as paths plus compact metadata. Example default output: `Memory artifact (android-hprof): /tmp/app.hprof (42MB)`. They are not printed or embedded in JSON by default. heapprofd/native allocation tracing is deferred until Perfetto plumbing is available.
 - `perf cpu profile ... --kind xctrace` and `perf trace ... --kind xctrace` collect Apple native `.trace` artifacts for iOS/macOS app sessions and return only artifact paths plus compact metadata.
+- Android native profiling uses `perf cpu profile ... --kind simpleperf`; Android native trace capture uses `perf trace ... --kind perfetto`. These commands require an active Android app session and return artifact paths/summaries instead of dumping profile or trace contents.
+- Example native trace output: `Perf stop: perfetto trace state=stopped` plus `/tmp/app.perfetto-trace (5.1MB)`. The raw trace is the artifact, not agent context.
 - Startup is measured around the `open` command; it is not first-frame instrumentation.
 - CPU, memory, and Android frame-health availability depend on platform and whether the active session is bound to an app/package.
 - On Android and supported Apple targets, use `metrics.fps.droppedFramePercent` for the health check and `metrics.fps.worstWindows` to line up jank clusters with logs, network activity, or recent actions.

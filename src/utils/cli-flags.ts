@@ -395,7 +395,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     enumValues: ['auto', 'react-native', 'expo', ...PERF_KIND_VALUES],
     usageLabel: '--kind <kind>',
     usageDescription:
-      'Kind selector for commands that support it, such as metro prepare or perf memory snapshot',
+      'Kind selector for commands that support it, such as metro prepare or perf artifact collectors',
   },
   {
     key: 'perfTemplate',

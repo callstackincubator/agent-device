@@ -18,6 +18,7 @@ import type { DeviceInfo, Platform, PlatformSelector } from '../utils/device.ts'
 import type { ExecBackgroundResult, ExecResult } from '../utils/exec.ts';
 import type { SnapshotState } from '../utils/snapshot.ts';
 import type { AppLogState } from './app-log-process.ts';
+import type { AndroidNativePerfSession } from '../platforms/android/perf.ts';
 import type {
   AppleXctracePerfCapture,
   AppleXctracePerfMode,
@@ -240,6 +241,9 @@ export type SessionState = {
     lastProfileTemplate?: string;
     lastTracePath?: string;
     lastMode?: AppleXctracePerfMode;
+  };
+  nativePerf?: {
+    android?: AndroidNativePerfSession;
   };
   /** Session was created by record start and should be released when recording stops. */
   recordOnlySession?: boolean;

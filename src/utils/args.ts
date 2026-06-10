@@ -5,7 +5,6 @@ import {
   getCommandSchema,
   getFlagDefinition,
   type CliFlags,
-  type FlagDefinition,
   type FlagKey,
 } from './command-schema.ts';
 import { buildCommandUsageText, buildUsageText } from './cli-help.ts';
