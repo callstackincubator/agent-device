@@ -28,6 +28,8 @@ export const appCliReaders = {
   boot: (_positionals, flags) => ({
     ...commonInputFromFlags(flags),
     headless: flags.headless,
+    cameraFront: flags.cameraFront,
+    cameraBack: flags.cameraBack,
   }),
   shutdown: (_positionals, flags) => commonInputFromFlags(flags),
   prepare: (positionals, flags) => ({

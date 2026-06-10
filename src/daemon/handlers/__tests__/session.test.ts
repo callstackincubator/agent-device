@@ -937,6 +937,61 @@ test('boot launches Android emulator with GUI when no running device matches', a
   }
 });
 
+test('boot launches Android emulator with camera video files', async () => {
+  const sessionStore = makeSessionStore();
+  mockResolveTargetDevice.mockRejectedValue(new AppError('DEVICE_NOT_FOUND', 'No device found'));
+  const launchCalls: Array<{
+    avdName: string;
+    serial?: string;
+    headless?: boolean;
+    cameraFront?: string;
+    cameraBack?: string;
+  }> = [];
+  mockEnsureAndroidEmulatorBooted.mockImplementation(
+    async ({ avdName, serial, headless, cameraFront, cameraBack }) => {
+      launchCalls.push({ avdName, serial, headless, cameraFront, cameraBack });
+      return {
+        platform: 'android',
+        id: 'emulator-5554',
+        name: 'Pixel_9_Pro_XL',
+        kind: 'emulator',
+        target: 'mobile',
+        booted: true,
+      };
+    },
+  );
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'boot',
+      positionals: [],
+      flags: {
+        platform: 'android',
+        device: 'Pixel_9_Pro_XL',
+        cameraFront: '/tmp/front.mp4',
+        cameraBack: '/tmp/back.mp4',
+      },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response).toBeTruthy();
+  expect(response?.ok).toBe(true);
+  expect(launchCalls).toEqual([
+    {
+      avdName: 'Pixel_9_Pro_XL',
+      serial: undefined,
+      headless: false,
+      cameraFront: '/tmp/front.mp4',
+      cameraBack: '/tmp/back.mp4',
+    },
+  ]);
+});
+
 test('boot --headless requires avd selector when device cannot be resolved', async () => {
   const sessionStore = makeSessionStore();
   mockResolveTargetDevice.mockRejectedValue(new AppError('DEVICE_NOT_FOUND', 'No device found'));

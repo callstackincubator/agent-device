@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { runCmd, runCmdDetached, whichCmd } from '../../utils/exec.ts';
 import type { ExecResult } from '../../utils/exec.ts';
 import { sleep } from '../../utils/timeouts.ts';
@@ -403,6 +405,8 @@ export async function ensureAndroidEmulatorBooted(params: {
   serial?: string;
   timeoutMs?: number;
   headless?: boolean;
+  cameraFront?: string;
+  cameraBack?: string;
 }): Promise<DeviceInfo> {
   await ensureAndroidSdkPathConfigured();
   const requestedAvdName = params.avdName.trim();
@@ -434,11 +438,26 @@ export async function ensureAndroidEmulatorBooted(params: {
     resolvedAvdName,
     params.serial,
   );
+  if (existing && (params.cameraFront || params.cameraBack)) {
+    throw new AppError(
+      'INVALID_STATE',
+      'Android emulator camera inputs can only be applied when starting an emulator.',
+      {
+        avdName: resolvedAvdName,
+        serial: existing.id,
+        hint: 'Shut down the emulator first, then run boot again with --camera-front or --camera-back.',
+      },
+    );
+  }
   if (!existing) {
     const launchArgs = ['-avd', resolvedAvdName];
     if (params.headless) {
       launchArgs.push('-no-window', '-no-audio');
     }
+    const cameraFront = resolveAndroidEmulatorCameraMode(params.cameraFront, 'front');
+    if (cameraFront) launchArgs.push('-camera-front', cameraFront);
+    const cameraBack = resolveAndroidEmulatorCameraMode(params.cameraBack, 'back');
+    if (cameraBack) launchArgs.push('-camera-back', cameraBack);
     runCmdDetached('emulator', launchArgs);
   }
 
@@ -466,6 +485,38 @@ export async function ensureAndroidEmulatorBooted(params: {
     name: resolvedAvdName,
     booted: true,
   };
+}
+
+function resolveAndroidEmulatorCameraMode(
+  value: string | undefined,
+  camera: 'front' | 'back',
+): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith('videofile:')) {
+    const videoPath = trimmed.slice('videofile:'.length);
+    const resolvedPath = path.resolve(videoPath);
+    if (videoPath && existsSync(resolvedPath)) return `videofile:${resolvedPath}`;
+  }
+  if (isAndroidEmulatorCameraMode(trimmed, camera)) return trimmed;
+  const resolvedPath = path.resolve(trimmed);
+  if (existsSync(resolvedPath)) return `videofile:${resolvedPath}`;
+  throw new AppError(
+    'INVALID_ARGS',
+    `Android emulator ${camera} camera input is not valid: ${trimmed}`,
+    {
+      hint:
+        camera === 'back'
+          ? 'Use a video file path, videofile:<path>, emulated, virtualscene, webcam<N>, or none.'
+          : 'Use a video file path, videofile:<path>, emulated, webcam<N>, or none.',
+    },
+  );
+}
+
+function isAndroidEmulatorCameraMode(value: string, camera: 'front' | 'back'): boolean {
+  if (value === 'emulated' || value === 'none') return true;
+  if (/^webcam\d+$/.test(value)) return true;
+  return camera === 'back' && value === 'virtualscene';
 }
 
 export async function waitForAndroidBoot(serial: string, timeoutMs = 60000): Promise<void> {

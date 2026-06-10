@@ -355,6 +355,47 @@ test('ensureAndroidEmulatorBooted launches emulator with GUI by default', async 
   });
 }, 10_000);
 
+test('ensureAndroidEmulatorBooted launches emulator with camera video files', async () => {
+  await withMockedAndroidTools(async ({ emulatorLogPath }) => {
+    const frontVideo = path.join(os.tmpdir(), 'front-camera.mp4');
+    const backVideo = path.join(os.tmpdir(), 'back-camera.mp4');
+    await fs.writeFile(frontVideo, 'front', 'utf8');
+    await fs.writeFile(backVideo, 'back', 'utf8');
+
+    const device = await ensureAndroidEmulatorBooted({
+      avdName: 'Pixel_9_Pro_XL',
+      timeoutMs: 5_000,
+      cameraFront: frontVideo,
+      cameraBack: backVideo,
+    });
+    assert.equal(device.id, 'emulator-5554');
+    const log = await fs.readFile(emulatorLogPath, 'utf8');
+    assert.match(
+      log,
+      new RegExp(`-camera-front videofile:${escapeRegExp(path.resolve(frontVideo))}`),
+    );
+    assert.match(
+      log,
+      new RegExp(`-camera-back videofile:${escapeRegExp(path.resolve(backVideo))}`),
+    );
+  });
+}, 10_000);
+
+test('ensureAndroidEmulatorBooted rejects camera inputs for a running emulator', async () => {
+  await withMockedAndroidTools(async ({ emulatorBootedPath }) => {
+    await fs.writeFile(emulatorBootedPath, 'ready', 'utf8');
+    await assert.rejects(
+      async () =>
+        await ensureAndroidEmulatorBooted({
+          avdName: 'Pixel_9_Pro_XL',
+          timeoutMs: 5_000,
+          cameraBack: '/tmp/back-camera.mp4',
+        }),
+      /camera inputs can only be applied when starting an emulator/,
+    );
+  });
+}, 10_000);
+
 test('ensureAndroidEmulatorBooted falls back to ANDROID_SDK_ROOT when PATH is incomplete', async () => {
   await withMockedAndroidSdkRoot(async ({ emulatorLogPath, sdkRoot }) => {
     const device = await ensureAndroidEmulatorBooted({
@@ -370,3 +411,7 @@ test('ensureAndroidEmulatorBooted falls back to ANDROID_SDK_ROOT when PATH is in
     assert.equal(process.env.ANDROID_HOME, sdkRoot);
   });
 }, 10_000);
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

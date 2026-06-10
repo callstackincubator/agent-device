@@ -34,13 +34,26 @@ test('parseArgs recognizes command-specific flag combinations', async () => {
     },
     {
       label: 'boot --headless on android',
-      argv: ['boot', '--platform', 'android', '--device', 'Pixel_9_Pro_XL', '--headless'],
+      argv: [
+        'boot',
+        '--platform',
+        'android',
+        '--device',
+        'Pixel_9_Pro_XL',
+        '--headless',
+        '--camera-front',
+        '/tmp/front.mp4',
+        '--camera-back',
+        '/tmp/back.mp4',
+      ],
       strictFlags: true,
       assertParsed: (parsed) => {
         assert.equal(parsed.command, 'boot');
         assert.equal(parsed.flags.platform, 'android');
         assert.equal(parsed.flags.device, 'Pixel_9_Pro_XL');
         assert.equal(parsed.flags.headless, true);
+        assert.equal(parsed.flags.cameraFront, '/tmp/front.mp4');
+        assert.equal(parsed.flags.cameraBack, '/tmp/back.mp4');
       },
     },
     {

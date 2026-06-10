@@ -37,6 +37,8 @@ export const clientCommandMetadata = [
   defineClientCommandMetadata('devices', {}),
   defineClientCommandMetadata('boot', {
     headless: booleanField('Boot without showing simulator UI when supported.'),
+    cameraFront: stringField('Android emulator front camera mode or video file path used at boot.'),
+    cameraBack: stringField('Android emulator back camera mode or video file path used at boot.'),
   }),
   defineClientCommandMetadata('shutdown', {}),
   defineClientCommandMetadata('prepare', {

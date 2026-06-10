@@ -18,6 +18,8 @@ async function ensureAndroidEmulatorBoot(params: {
   avdName: string;
   serial?: string;
   headless?: boolean;
+  cameraFront?: string;
+  cameraBack?: string;
 }): Promise<DeviceInfo> {
   const { ensureAndroidEmulatorBooted } = await import('../../platforms/android/devices.ts');
   return await ensureAndroidEmulatorBooted(params);
@@ -148,10 +150,17 @@ export async function handleSessionStateCommands(params: {
       normalizePlatformSelector(flags.platform) ?? session?.device.platform;
     const targetsAndroid = normalizedPlatform === 'android';
     const wantsAndroidHeadless = flags.headless === true;
+    const wantsAndroidCamera = Boolean(flags.cameraFront || flags.cameraBack);
     if (wantsAndroidHeadless && !targetsAndroid) {
       return errorResponse(
         'INVALID_ARGS',
         'boot --headless is supported only for Android emulators.',
+      );
+    }
+    if (wantsAndroidCamera && !targetsAndroid) {
+      return errorResponse(
+        'INVALID_ARGS',
+        'boot --camera-front/--camera-back is supported only for Android emulators.',
       );
     }
 
@@ -173,13 +182,13 @@ export async function handleSessionStateCommands(params: {
       const appErr = asAppError(error);
       if (
         targetsAndroid &&
-        wantsAndroidHeadless &&
+        (wantsAndroidHeadless || wantsAndroidCamera) &&
         !fallbackAvdName &&
         appErr.code === 'DEVICE_NOT_FOUND'
       ) {
         return errorResponse(
           'INVALID_ARGS',
-          'boot --headless requires --device <avd-name> (or an Android emulator session target).',
+          androidBootOptionsRequireDeviceMessage(wantsAndroidCamera),
         );
       }
       if (
@@ -193,6 +202,8 @@ export async function handleSessionStateCommands(params: {
         avdName: fallbackAvdName,
         serial: flags.serial,
         headless: wantsAndroidHeadless,
+        cameraFront: typeof flags.cameraFront === 'string' ? flags.cameraFront : undefined,
+        cameraBack: typeof flags.cameraBack === 'string' ? flags.cameraBack : undefined,
       });
       launchedAndroidEmulator = true;
     }
@@ -204,11 +215,13 @@ export async function handleSessionStateCommands(params: {
       );
     }
 
-    if (targetsAndroid && wantsAndroidHeadless) {
+    if (targetsAndroid && (wantsAndroidHeadless || wantsAndroidCamera)) {
       if (device.platform !== 'android' || device.kind !== 'emulator') {
         return errorResponse(
           'INVALID_ARGS',
-          'boot --headless is supported only for Android emulators.',
+          wantsAndroidCamera
+            ? 'boot --camera-front/--camera-back is supported only for Android emulators.'
+            : 'boot --headless is supported only for Android emulators.',
         );
       }
       if (!launchedAndroidEmulator) {
@@ -220,13 +233,15 @@ export async function handleSessionStateCommands(params: {
         if (!avdName) {
           return errorResponse(
             'INVALID_ARGS',
-            'boot --headless requires --device <avd-name> (or an Android emulator session target).',
+            androidBootOptionsRequireDeviceMessage(wantsAndroidCamera),
           );
         }
         device = await ensureAndroidEmulatorBoot({
           avdName,
           serial: flags.serial,
-          headless: true,
+          headless: wantsAndroidHeadless,
+          cameraFront: typeof flags.cameraFront === 'string' ? flags.cameraFront : undefined,
+          cameraBack: typeof flags.cameraBack === 'string' ? flags.cameraBack : undefined,
         });
       }
       await ensureDeviceReady(device);
@@ -330,6 +345,12 @@ export async function handleSessionStateCommands(params: {
   }
 
   return null;
+}
+
+function androidBootOptionsRequireDeviceMessage(wantsAndroidCamera: boolean): string {
+  return wantsAndroidCamera
+    ? 'boot --camera-front/--camera-back requires --device <avd-name> (or an Android emulator session target).'
+    : 'boot --headless requires --device <avd-name> (or an Android emulator session target).';
 }
 
 function shutdownFailureMessage(
