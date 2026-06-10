@@ -1,5 +1,6 @@
 import type { AgentDeviceClient, AgentDeviceClientConfig } from '../client-types.ts';
 import type { JsonSchema } from '../commands/command-contract.ts';
+import { formatCliOutput } from '../commands/cli-output.ts';
 import {
   isCommandName,
   listMcpCommandMetadata,
@@ -23,6 +24,13 @@ type CommandToolExecutor = {
   execute: (name: string, input: unknown) => Promise<ToolResult>;
 };
 
+type McpOutputFormat = 'optimized' | 'json';
+
+type McpToolConfig = {
+  client: AgentDeviceClientConfig;
+  outputFormat: McpOutputFormat;
+};
+
 export function listCommandTools(): Array<{
   name: string;
   description: string;
@@ -41,16 +49,24 @@ export function createCommandToolExecutor(deps: CommandToolExecutorDeps = {}): C
       if (!isCommandName(name)) {
         throw new Error(`Unknown command tool: ${name}`);
       }
-      const client = await createClient(deps, readClientConfig(input));
-      const result = await (deps.runCommand ?? runCommand)(
-        client,
-        name,
-        stripClientConfigFields(input),
-      );
+      const config = readMcpToolConfig(input);
+      const commandInput = stripMcpConfigFields(input);
+      const client = await createClient(deps, config.client);
+      const result = await (deps.runCommand ?? runCommand)(client, name, commandInput);
       return {
         isError: false,
         structuredContent: result,
-        content: [{ type: 'text', text: renderToolText(result) }],
+        content: [
+          {
+            type: 'text',
+            text: renderToolText({
+              name,
+              input: commandInput,
+              result,
+              outputFormat: config.outputFormat,
+            }),
+          },
+        ],
       };
     },
   };
@@ -76,19 +92,42 @@ async function runCommand(
   return await commandSurface.runCommand(client, name, input);
 }
 
-function readClientConfig(input: unknown): AgentDeviceClientConfig {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
-  const stateDir = (input as Record<string, unknown>).stateDir;
-  if (stateDir === undefined) return {};
-  if (typeof stateDir !== 'string' || stateDir.length === 0) {
-    throw new Error('Expected stateDir to be a non-empty string.');
+function readMcpToolConfig(input: unknown): McpToolConfig {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return { client: {}, outputFormat: 'optimized' };
   }
-  return { stateDir };
+  const record = input as Record<string, unknown>;
+  return {
+    client: readClientConfig(record),
+    outputFormat: readMcpOutputFormat(record.mcpOutputFormat),
+  };
 }
 
-function stripClientConfigFields(input: unknown): unknown {
+function readClientConfig(record: Record<string, unknown>): AgentDeviceClientConfig {
+  const stateDir = record.stateDir;
+  const client: AgentDeviceClientConfig = {};
+  if (stateDir !== undefined && (typeof stateDir !== 'string' || stateDir.length === 0)) {
+    throw new Error('Expected stateDir to be a non-empty string.');
+  }
+  if (typeof stateDir === 'string') client.stateDir = stateDir;
+  return client;
+}
+
+function readMcpOutputFormat(outputFormat: unknown): McpOutputFormat {
+  if (outputFormat === undefined) return 'optimized';
+  if (outputFormat !== 'optimized' && outputFormat !== 'json') {
+    throw new Error('Expected mcpOutputFormat to be "optimized" or "json".');
+  }
+  return outputFormat;
+}
+
+function stripMcpConfigFields(input: unknown): unknown {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return input;
-  const { stateDir: _stateDir, ...commandInput } = input as Record<string, unknown>;
+  const {
+    stateDir: _stateDir,
+    mcpOutputFormat: _mcpOutputFormat,
+    ...commandInput
+  } = input as Record<string, unknown>;
   return commandInput;
 }
 
@@ -98,10 +137,32 @@ function withMcpConfigSchema(schema: JsonSchema): JsonSchema {
     properties: {
       ...schema.properties,
       stateDir: { type: 'string', description: 'Agent-device state directory.' },
+      mcpOutputFormat: {
+        type: 'string',
+        enum: ['optimized', 'json'],
+        description:
+          'MCP text content format. Defaults to optimized agent-friendly text; use json for JSON text. Structured content is always returned separately.',
+      },
     },
   };
 }
 
-function renderToolText(value: unknown): string {
+function renderToolText(params: {
+  name: CommandName;
+  input: unknown;
+  result: unknown;
+  outputFormat: McpOutputFormat;
+}): string {
+  if (params.outputFormat === 'json') return renderJsonText(params.result);
+  const cliOutput = formatCliOutput({
+    name: params.name,
+    input: params.input,
+    result: params.result,
+  });
+  if (typeof cliOutput?.text === 'string') return cliOutput.text;
+  return renderJsonText(cliOutput?.data ?? params.result);
+}
+
+function renderJsonText(value: unknown): string {
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 }

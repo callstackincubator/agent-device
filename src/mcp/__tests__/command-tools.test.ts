@@ -14,22 +14,76 @@ test('MCP command tool executor hides client creation behind an execution adapte
     },
     runCommand: async (actualClient, name, input) => {
       calls.push({ client: actualClient, name, input });
-      return { name, ok: true };
+      return { message: `Ran ${name}`, ok: true };
     },
   });
 
-  const result = await executor.execute('devices', { stateDir: '/tmp/agent-device-mcp' });
+  const result = await executor.execute('wait', {
+    stateDir: '/tmp/agent-device-mcp',
+    mcpOutputFormat: 'optimized',
+  });
 
   assert.deepEqual(createdConfigs, [{ stateDir: '/tmp/agent-device-mcp' }]);
   assert.deepEqual(calls, [
     {
       client,
-      name: 'devices',
+      name: 'wait',
       input: {},
     },
   ]);
-  assert.deepEqual(result.structuredContent, { name: 'devices', ok: true });
-  assert.match(result.content[0]?.text ?? '', /"name": "devices"/);
+  assert.deepEqual(result.structuredContent, { message: 'Ran wait', ok: true });
+  assert.equal(result.content[0]?.text, 'Ran wait');
+});
+
+test('MCP command tool executor renders optimized snapshot text by default', async () => {
+  const executor = createCommandToolExecutor({
+    createClient: () => ({}) as AgentDeviceClient,
+    runCommand: async () => ({
+      nodes: [
+        {
+          ref: 'e1',
+          index: 0,
+          depth: 0,
+          type: 'Button',
+          label: 'Continue',
+          enabled: true,
+        },
+      ],
+      truncated: false,
+    }),
+  });
+
+  const result = await executor.execute('snapshot', {});
+
+  assert.match(result.content[0]?.text ?? '', /@e1 \[button\] "Continue"/);
+  assert.doesNotMatch(result.content[0]?.text ?? '', /^\{/);
+});
+
+test('MCP command tool executor renders JSON text when requested', async () => {
+  const executor = createCommandToolExecutor({
+    createClient: () => ({}) as AgentDeviceClient,
+    runCommand: async (_client, _name, input) => {
+      assert.deepEqual(input, {});
+      return {
+        nodes: [
+          {
+            ref: 'e1',
+            index: 0,
+            depth: 0,
+            type: 'Button',
+            label: 'Continue',
+            enabled: true,
+          },
+        ],
+        truncated: false,
+      };
+    },
+  });
+
+  const result = await executor.execute('snapshot', { mcpOutputFormat: 'json' });
+
+  assert.match(result.content[0]?.text ?? '', /^\{\n  "nodes": \[/);
+  assert.match(result.content[0]?.text ?? '', /"label": "Continue"/);
 });
 
 test('MCP tool schemas add MCP client config fields at the MCP boundary', () => {
@@ -37,4 +91,8 @@ test('MCP tool schemas add MCP client config fields at the MCP boundary', () => 
 
   assert.ok(devicesTool);
   assert.ok('stateDir' in (devicesTool.inputSchema.properties ?? {}));
+  assert.deepEqual(
+    (devicesTool.inputSchema.properties?.mcpOutputFormat as { enum?: unknown[] } | undefined)?.enum,
+    ['optimized', 'json'],
+  );
 });
