@@ -6,7 +6,11 @@ import path from 'node:path';
 
 vi.mock('../../../utils/exec.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../utils/exec.ts')>();
-  return { ...actual, runCmd: vi.fn(actual.runCmd) };
+  return {
+    ...actual,
+    runCmd: vi.fn(actual.runCmd),
+    runCmdBackground: vi.fn(actual.runCmdBackground),
+  };
 });
 
 import {
@@ -15,12 +19,19 @@ import {
   sampleAppleFramePerf,
   sampleApplePerfMetrics,
 } from '../perf.ts';
+import {
+  startAppleXctracePerfCapture,
+  stopAppleXctracePerfCapture,
+  writeAppleXctracePerfReport,
+  type AppleXctracePerfCapture,
+} from '../perf-xctrace.ts';
 import { parseAppleFramePerfSample } from '../perf-frame.ts';
-import { runCmd } from '../../../utils/exec.ts';
+import { runCmd, runCmdBackground } from '../../../utils/exec.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 import { AppError } from '../../../utils/errors.ts';
 
 const mockRunCmd = vi.mocked(runCmd);
+const mockRunCmdBackground = vi.mocked(runCmdBackground);
 type MockRunCmdResult = Awaited<ReturnType<typeof runCmd>>;
 type XcrunMockHandler = (args: string[]) => Promise<MockRunCmdResult | null>;
 
@@ -51,6 +62,7 @@ const IOS_DEVICE: DeviceInfo = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mockRunCmdBackground.mockImplementation(() => mockBackgroundXctrace());
   vi.useRealTimers();
 });
 
@@ -489,6 +501,54 @@ test('captureAppleMemorySnapshot reports iOS simulator without process tools as 
   }
 });
 
+test('sampleApplePerfMetrics falls back to host ps when simulator ps is unavailable', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-sim-perf-'));
+  const appPath = path.join(tmpDir, 'Example.app');
+  await fs.mkdir(appPath, { recursive: true });
+  await fs.writeFile(
+    path.join(appPath, 'Info.plist'),
+    [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<plist version="1.0"><dict>',
+      '<key>CFBundleExecutable</key><string>Example Sim Exec</string>',
+      '</dict></plist>',
+    ].join(''),
+    'utf8',
+  );
+
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'xcrun' && args.includes('get_app_container')) {
+      return { stdout: `${appPath}\n`, stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'plutil') {
+      return { stdout: '', stderr: 'mock fallback', exitCode: 1 };
+    }
+    if (cmd === 'xcrun' && args.includes('spawn') && args.includes('ps')) {
+      return { stdout: '', stderr: 'No such file or directory', exitCode: 2 };
+    }
+    if (cmd === 'ps') {
+      return {
+        stdout: [
+          `111 12.0 8192 ${path.join(appPath, 'Example Sim Exec')}`,
+          '222 4.0 1024 SpringBoard',
+        ].join('\n'),
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
+  });
+
+  try {
+    const metrics = await sampleApplePerfMetrics(IOS_SIMULATOR, 'com.example.sim');
+    assert.equal(metrics.cpu.usagePercent, 12);
+    assert.equal(metrics.memory.residentMemoryKb, 8192);
+    assert.deepEqual(metrics.cpu.matchedProcesses, ['Example Sim Exec']);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test('sampleApplePerfMetrics uses xctrace Activity Monitor for iOS devices', async () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-04-01T10:00:00.000Z'));
@@ -557,6 +617,253 @@ test('sampleAppleFramePerf retries transient kperf lock failures', async () => {
   assert.equal(sample.droppedFramePercent, 50);
   assert.ok(sample.sampleWindowMs < 1000);
 }, 10_000);
+
+test('startAppleXctracePerfCapture attaches to an active iOS simulator app process', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctrace-sim-'));
+  const appPath = path.join(tmpDir, 'Example.app');
+  const tracePath = path.join(tmpDir, 'app.trace');
+  await fs.mkdir(appPath, { recursive: true });
+  await fs.writeFile(
+    path.join(appPath, 'Info.plist'),
+    [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<plist version="1.0"><dict>',
+      '<key>CFBundleExecutable</key><string>Example Sim Exec</string>',
+      '</dict></plist>',
+    ].join(''),
+    'utf8',
+  );
+
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'xcrun' && args.includes('get_app_container')) {
+      return { stdout: `${appPath}\n`, stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'plutil') {
+      return { stdout: '', stderr: 'mock fallback', exitCode: 1 };
+    }
+    if (cmd === 'xcrun' && args.includes('spawn') && args.includes('ps')) {
+      return {
+        stdout: [
+          `111 12.0 8192 ${path.join(appPath, 'Example Sim Exec')}`,
+          '222 4.0 1024 SpringBoard',
+        ].join('\n'),
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
+  });
+
+  try {
+    const capture = await startAppleXctracePerfCapture({
+      device: IOS_SIMULATOR,
+      appBundleId: 'com.example.sim',
+      mode: 'cpu-profile',
+      template: 'Time Profiler',
+      outPath: tracePath,
+    });
+
+    assert.equal(capture.outPath, tracePath);
+    assert.deepEqual(capture.targetPids, [111]);
+    assert.deepEqual(capture.targetProcesses, ['Example Sim Exec']);
+    assert.deepEqual(mockRunCmdBackground.mock.calls[0]?.[1], [
+      'xctrace',
+      'record',
+      '--template',
+      'Time Profiler',
+      '--device',
+      'sim-1',
+      '--attach',
+      '111',
+      '--output',
+      tracePath,
+      '--quiet',
+      '--no-prompt',
+    ]);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('startAppleXctracePerfCapture retries transient kperf lock failures', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctrace-retry-'));
+  const tracePath = path.join(tmpDir, 'app.trace');
+  mockXcrunCommands([mockIosDeviceApps, mockIosDeviceProcesses]);
+  mockRunCmdBackground
+    .mockImplementationOnce(() =>
+      mockBackgroundXctrace({
+        stdout: '',
+        stderr: '_lockKPerf: could not lock kperf. Likely another session just started.',
+        exitCode: 2,
+      }),
+    )
+    .mockImplementationOnce(() => mockBackgroundXctrace());
+
+  try {
+    const capture = await startAppleXctracePerfCapture({
+      device: IOS_DEVICE,
+      appBundleId: 'com.example.device',
+      mode: 'trace',
+      template: 'Animation Hitches',
+      outPath: tracePath,
+    });
+
+    assert.equal(capture.mode, 'trace');
+    assert.equal(mockRunCmdBackground.mock.calls.length, 2);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+}, 10_000);
+
+test('stopAppleXctracePerfCapture returns compact artifact metadata', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctrace-stop-'));
+  const tracePath = path.join(tmpDir, 'app.trace');
+  const child = { kill: vi.fn((_signal?: NodeJS.Signals) => true), pid: 1234 };
+  await fs.writeFile(tracePath, 'trace', 'utf8');
+  const capture: AppleXctracePerfCapture = {
+    kind: 'xctrace',
+    mode: 'cpu-profile',
+    template: 'Time Profiler',
+    outPath: tracePath,
+    appBundleId: 'com.example.app',
+    deviceId: 'sim-1',
+    platform: 'ios',
+    targetPids: [111],
+    targetProcesses: ['Example'],
+    startedAt: '2026-04-01T10:00:00.000Z',
+    child: child as unknown as AppleXctracePerfCapture['child'],
+    wait: Promise.resolve(emptyRunResult()),
+  };
+
+  try {
+    const result = await stopAppleXctracePerfCapture(capture);
+    assert.equal(child.kill.mock.calls[0]?.[0], 'SIGINT');
+    assert.equal(result.outPath, tracePath);
+    assert.deepEqual(result.targetPids, [111]);
+    assert.equal(result.template, 'Time Profiler');
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('stopAppleXctracePerfCapture force-kills xctrace when graceful stop times out', async () => {
+  vi.useFakeTimers();
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctrace-stop-timeout-'));
+  const tracePath = path.join(tmpDir, 'app.trace');
+  const child = { kill: vi.fn((_signal?: NodeJS.Signals) => true), pid: 1234 };
+  const capture: AppleXctracePerfCapture = {
+    kind: 'xctrace',
+    mode: 'cpu-profile',
+    template: 'Time Profiler',
+    outPath: tracePath,
+    appBundleId: 'com.example.app',
+    deviceId: 'sim-1',
+    platform: 'ios',
+    targetPids: [111],
+    targetProcesses: ['Example'],
+    startedAt: '2026-04-01T10:00:00.000Z',
+    child: child as unknown as AppleXctracePerfCapture['child'],
+    wait: new Promise(() => {}),
+  };
+
+  try {
+    const stopPromise = stopAppleXctracePerfCapture(capture).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    await vi.advanceTimersByTimeAsync(45_000);
+    assert.deepEqual(
+      child.kill.mock.calls.map((call) => call[0]),
+      ['SIGINT', 'SIGKILL'],
+    );
+    await vi.advanceTimersByTimeAsync(5_000);
+    const error = await stopPromise;
+    assert.match((error as Error).message, /after SIGKILL/);
+  } finally {
+    vi.useRealTimers();
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('stopAppleXctracePerfCapture reports confirmed cleanup after forced kill exits', async () => {
+  vi.useFakeTimers();
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctrace-force-exit-'));
+  const tracePath = path.join(tmpDir, 'app.trace');
+  let resolveWait!: (result: MockRunCmdResult) => void;
+  const wait = new Promise<MockRunCmdResult>((resolve) => {
+    resolveWait = resolve;
+  });
+  const child = {
+    kill: vi.fn((signal?: NodeJS.Signals) => {
+      if (signal === 'SIGKILL') {
+        resolveWait({ stdout: '', stderr: 'killed', exitCode: 1 });
+      }
+      return true;
+    }),
+    pid: 1234,
+  };
+  const capture: AppleXctracePerfCapture = {
+    kind: 'xctrace',
+    mode: 'trace',
+    template: 'Animation Hitches',
+    outPath: tracePath,
+    appBundleId: 'com.example.app',
+    deviceId: 'sim-1',
+    platform: 'ios',
+    targetPids: [111],
+    targetProcesses: ['Example'],
+    startedAt: '2026-04-01T10:00:00.000Z',
+    child: child as unknown as AppleXctracePerfCapture['child'],
+    wait,
+  };
+
+  try {
+    const stopPromise = stopAppleXctracePerfCapture(capture).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    await vi.advanceTimersByTimeAsync(45_000);
+    const error = (await stopPromise) as { details?: Record<string, unknown> };
+    assert.equal(error.details?.captureCleanedUp, true);
+    assert.equal(error.details?.forcedKill, true);
+  } finally {
+    vi.useRealTimers();
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('writeAppleXctracePerfReport writes compact trace metadata JSON', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-xctrace-report-'));
+  const tracePath = path.join(tmpDir, 'app.trace');
+  const reportPath = path.join(tmpDir, 'app-profile.json');
+  await fs.writeFile(tracePath, 'trace', 'utf8');
+  mockXcrunCommands([
+    async (args) => {
+      if (args[0] !== 'xctrace' || args[1] !== 'export') return null;
+      assert.equal(args[args.indexOf('--input') + 1], tracePath);
+      assert.equal(args[args.indexOf('--xpath') + 1], '/trace-toc');
+      await fs.writeFile(readOutputPath(args), makeTraceTocXml(), 'utf8');
+      return emptyRunResult();
+    },
+  ]);
+
+  try {
+    const report = await writeAppleXctracePerfReport({
+      tracePath,
+      outPath: reportPath,
+      mode: 'cpu-profile',
+      template: 'Time Profiler',
+      appBundleId: 'com.example.app',
+    });
+    assert.equal(report.reportPath, reportPath);
+    assert.deepEqual(report.summary.tableSchemas, ['cpu-profile', 'time-profile']);
+    const written = JSON.parse(await fs.readFile(reportPath, 'utf8')) as typeof report;
+    assert.equal(written.tracePath, tracePath);
+    assert.deepEqual(written.summary.tableSchemas, ['cpu-profile', 'time-profile']);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
 
 function mockXcrunCommands(handlers: XcrunMockHandler[]): void {
   mockRunCmd.mockImplementation(async (cmd, args) => {
@@ -708,6 +1015,32 @@ async function fileExists(filePath: string): Promise<boolean> {
     .stat(filePath)
     .then((stat) => stat.isFile())
     .catch(() => false);
+}
+
+function mockBackgroundXctrace(result?: MockRunCmdResult): ReturnType<typeof runCmdBackground> {
+  const child = {
+    kill: vi.fn((_signal?: NodeJS.Signals) => true),
+    pid: 1234,
+  };
+  return {
+    child: child as unknown as ReturnType<typeof runCmdBackground>['child'],
+    wait: result ? Promise.resolve(result) : new Promise<MockRunCmdResult>(() => {}),
+  };
+}
+
+function makeTraceTocXml(): string {
+  return [
+    '<?xml version="1.0"?>',
+    '<trace-toc>',
+    '<run>',
+    '<data>',
+    '<table schema="time-profile"/>',
+    '<table schema="cpu-profile"/>',
+    '<table/>',
+    '</data>',
+    '</run>',
+    '</trace-toc>',
+  ].join('');
 }
 
 function makeActivityMonitorCaptureXmls(): string[] {

@@ -13,12 +13,15 @@ import {
   isPerfAction,
   isPerfArea,
   isPerfKind,
+  isPerfSubject,
   PERF_ACTION_ERROR_MESSAGE,
   PERF_AREA_ERROR_MESSAGE,
   PERF_KIND_ERROR_MESSAGE,
+  PERF_SUBJECT_ERROR_MESSAGE,
   type PerfAction,
   type PerfArea,
   type PerfKind,
+  type PerfSubject,
 } from '../perf-command-contract.ts';
 import {
   commonInputFromFlags,
@@ -33,9 +36,11 @@ import type { CliReader, DaemonWriter } from './types.ts';
 export const observabilityCliReaders = {
   perf: (positionals, flags) => ({
     ...commonInputFromFlags(flags),
-    ...readPerfPositionals(positionals),
-    kind: readPerfKind(flags.kind),
-    out: flags.out,
+    ...readPerfPositionals(positionals, {
+      kind: readPerfKindFlag(flags.kind),
+      template: flags.perfTemplate,
+      out: flags.out,
+    }),
   }),
   logs: (positionals, flags) => ({
     ...commonInputFromFlags(flags),
@@ -78,24 +83,74 @@ export const observabilityDaemonWriters = {
 
 function perfPositionals(input: PerfOptions): string[] {
   const area = input.area ?? (input.action ? 'metrics' : undefined);
+  if (area === 'cpu') {
+    return nativePerfPositionals(
+      [
+        ...optionalString(area),
+        ...optionalString(input.subject),
+        ...optionalString(input.action),
+        ...optionalString(input.kind),
+      ],
+      input,
+    );
+  }
+  if (area === 'trace') {
+    return nativePerfPositionals(
+      [...optionalString(area), ...optionalString(input.action), ...optionalString(input.kind)],
+      input,
+    );
+  }
   return [...optionalString(area), ...optionalString(input.action)];
 }
 
-function readPerfPositionals(positionals: string[]): Pick<PerfOptions, 'area' | 'action'> {
-  if (positionals[0] !== undefined && positionals[1] === undefined) {
-    const action = readPerfAction(positionals[0], { allowUndefined: true });
-    if (action) return { action };
+function nativePerfPositionals(base: string[], input: PerfOptions): string[] {
+  const positionals = [...base];
+  if (input.template || input.out || input.tracePath) {
+    positionals.push(input.template ?? '');
   }
-  return {
-    area: readPerfArea(positionals[0]),
-    action: readPerfAction(positionals[1]),
-  };
+  if (input.out || input.tracePath) {
+    positionals.push(input.out ?? '');
+  }
+  if (input.tracePath) {
+    positionals.push(input.tracePath);
+  }
+  return positionals;
 }
 
-function readPerfKind(value: string | undefined): PerfKind | undefined {
-  if (value === undefined) return undefined;
-  if (isPerfKind(value)) return value;
-  throw new AppError('INVALID_ARGS', PERF_KIND_ERROR_MESSAGE);
+function readPerfPositionals(
+  positionals: string[],
+  flags: Pick<PerfOptions, 'kind' | 'template' | 'out'> = {},
+): Pick<PerfOptions, 'area' | 'subject' | 'action' | 'kind' | 'template' | 'out'> {
+  if (positionals[0] !== undefined && positionals[1] === undefined) {
+    const action = readPerfAction(positionals[0], { allowUndefined: true });
+    if (action) return { action, kind: readPerfKind(flags.kind), out: flags.out };
+  }
+  const area = readPerfArea(positionals[0]);
+  if (area === 'cpu') {
+    return {
+      area,
+      subject: readPerfSubject(positionals[1]),
+      action: readPerfAction(positionals[2]),
+      kind: readPerfKind(flags.kind),
+      template: flags.template,
+      out: flags.out,
+    };
+  }
+  if (area === 'trace') {
+    return {
+      area,
+      action: readPerfAction(positionals[1]),
+      kind: readPerfKind(flags.kind),
+      template: flags.template,
+      out: flags.out,
+    };
+  }
+  return {
+    area,
+    action: readPerfAction(positionals[1]),
+    kind: readPerfKind(flags.kind),
+    out: flags.out,
+  };
 }
 
 function logsPositionals(input: { action?: string; message?: string }): string[] {
@@ -131,6 +186,23 @@ function readPerfAction(
   if (isPerfAction(normalized)) return normalized;
   if (options.allowUndefined) return undefined;
   throw new AppError('INVALID_ARGS', PERF_ACTION_ERROR_MESSAGE);
+}
+
+function readPerfSubject(value: string | undefined): PerfSubject {
+  const normalized = value?.toLowerCase();
+  if (normalized !== undefined && isPerfSubject(normalized)) return normalized;
+  throw new AppError('INVALID_ARGS', PERF_SUBJECT_ERROR_MESSAGE);
+}
+
+function readPerfKind(value: string | undefined): PerfKind | undefined {
+  if (value === undefined) return undefined;
+  const normalized = value.toLowerCase();
+  if (isPerfKind(normalized)) return normalized;
+  throw new AppError('INVALID_ARGS', PERF_KIND_ERROR_MESSAGE);
+}
+
+function readPerfKindFlag(value: unknown): PerfKind | undefined {
+  return typeof value === 'string' ? readPerfKind(value) : undefined;
 }
 
 function readLogsAction(value: string | undefined): LogAction | undefined {

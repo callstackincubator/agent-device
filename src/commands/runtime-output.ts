@@ -147,6 +147,8 @@ function joinDefinedLines(lines: Array<string | undefined>): string | undefined 
 }
 
 function formatPerfCliOutput(data: Record<string, unknown>): string {
+  const nativeOutput = formatNativePerfOutput(data);
+  if (nativeOutput) return nativeOutput;
   const artifact = readRecord(data.artifact);
   if (artifact) {
     return formatMemoryArtifactSummary(artifact);
@@ -188,6 +190,30 @@ function formatMemoryArtifactSummary(artifact: Record<string, unknown>): string 
   return artifactPath
     ? `Memory artifact (${kind}): ${artifactPath}${sizeText}`
     : `Memory artifact (${kind}): captured${sizeText}`;
+}
+
+function formatNativePerfOutput(data: Record<string, unknown>): string | undefined {
+  const state = typeof data.perf === 'string' ? data.perf : undefined;
+  const outPath = readNativePerfArtifactPath(data);
+  if (!state || !outPath || data.kind !== 'xctrace') return undefined;
+  const mode = typeof data.mode === 'string' ? data.mode : 'capture';
+  return formatNativePerfLines(outPath, mode, state, data.template);
+}
+
+function readNativePerfArtifactPath(data: Record<string, unknown>): string | undefined {
+  if (typeof data.outPath === 'string') return data.outPath;
+  return typeof data.reportPath === 'string' ? data.reportPath : undefined;
+}
+
+function formatNativePerfLines(
+  outPath: string,
+  mode: string,
+  state: string,
+  template: unknown,
+): string {
+  const lines = [outPath, `Perf ${mode}: ${state}`];
+  if (typeof template === 'string') lines.push(`Template: ${template}`);
+  return lines.join('\n');
 }
 
 function formatPerfUnavailable(resourceSummary: string | undefined, reason: string): string {

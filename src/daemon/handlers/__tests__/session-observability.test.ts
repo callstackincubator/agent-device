@@ -2,10 +2,34 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { test } from 'vitest';
+import { beforeEach, test, vi } from 'vitest';
 import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts';
+import { makeAndroidSession, makeIosSession } from '../../../__tests__/test-utils/index.ts';
+import { AppError } from '../../../utils/errors.ts';
+import type { AppleXctracePerfCapture } from '../../../platforms/ios/perf-xctrace.ts';
+
+const applePerfMocks = vi.hoisted(() => ({
+  startAppleXctracePerfCapture: vi.fn(),
+  stopAppleXctracePerfCapture: vi.fn(),
+  writeAppleXctracePerfReport: vi.fn(),
+}));
+
+vi.mock('../../../platforms/ios/perf-xctrace.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/ios/perf-xctrace.ts')>();
+  return {
+    ...actual,
+    startAppleXctracePerfCapture: applePerfMocks.startAppleXctracePerfCapture,
+    stopAppleXctracePerfCapture: applePerfMocks.stopAppleXctracePerfCapture,
+    writeAppleXctracePerfReport: applePerfMocks.writeAppleXctracePerfReport,
+  };
+});
+
 import { handleSessionObservabilityCommands } from '../session-observability.ts';
 import type { AndroidAdbExecutor } from '../../../platforms/android/adb-executor.ts';
+
+beforeEach(() => {
+  vi.resetAllMocks();
+});
 
 test('network dump validates include mode directly', async () => {
   const sessionStore = makeSessionStore('agent-device-session-observability-');
@@ -41,6 +65,299 @@ test('network dump validates include mode directly', async () => {
     assert.equal(response.error.code, 'INVALID_ARGS');
     assert.match(response.error.message, /network include mode must be one of/i);
   }
+});
+
+test('perf cpu profile xctrace start and stop manage compact artifact lifecycle', async () => {
+  const sessionStore = makeSessionStore('agent-device-session-observability-perf-');
+  sessionStore.set(
+    'ios',
+    makeIosSession('ios', {
+      appBundleId: 'com.example.app',
+    }),
+  );
+  const activeCapture = {
+    kind: 'xctrace',
+    mode: 'cpu-profile',
+    template: 'Time Profiler',
+    outPath: '/tmp/app.trace',
+    appBundleId: 'com.example.app',
+    deviceId: 'ios-sim',
+    platform: 'ios',
+    targetPids: [111],
+    targetProcesses: ['Example'],
+    startedAt: '2026-04-01T10:00:00.000Z',
+    child: { kill: vi.fn(() => true), pid: 1234 },
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  };
+  applePerfMocks.startAppleXctracePerfCapture.mockResolvedValue(activeCapture);
+  applePerfMocks.stopAppleXctracePerfCapture.mockResolvedValue({
+    ...activeCapture,
+    endedAt: '2026-04-01T10:00:05.000Z',
+  });
+
+  const startResponse = await handleSessionObservabilityCommands({
+    req: {
+      token: 't',
+      session: 'ios',
+      command: 'perf',
+      positionals: ['cpu', 'profile', 'start', 'xctrace', 'Time Profiler', '/tmp/app.trace'],
+      flags: {},
+    },
+    sessionName: 'ios',
+    sessionStore,
+  });
+
+  assert.equal(startResponse?.ok, true);
+  assert.equal(startResponse?.data?.perf, 'started');
+  assert.equal(startResponse?.data?.outPath, '/tmp/app.trace');
+  assert.equal(sessionStore.get('ios')?.applePerf?.active?.outPath, '/tmp/app.trace');
+  assert.equal(
+    applePerfMocks.startAppleXctracePerfCapture.mock.calls[0]?.[0].template,
+    'Time Profiler',
+  );
+
+  const stopResponse = await handleSessionObservabilityCommands({
+    req: {
+      token: 't',
+      session: 'ios',
+      command: 'perf',
+      positionals: ['cpu', 'profile', 'stop', 'xctrace', '', '/tmp/app.trace'],
+      flags: {},
+    },
+    sessionName: 'ios',
+    sessionStore,
+  });
+
+  assert.equal(stopResponse?.ok, true);
+  assert.equal(stopResponse?.data?.perf, 'stopped');
+  assert.equal(sessionStore.get('ios')?.applePerf?.active, undefined);
+  assert.equal(sessionStore.get('ios')?.applePerf?.lastProfileTracePath, '/tmp/app.trace');
+});
+
+test('perf xctrace stop clears active capture when xctrace cleanup is confirmed', async () => {
+  const sessionStore = makeSessionStore('agent-device-session-observability-perf-');
+  const activeCapture = {
+    kind: 'xctrace',
+    mode: 'trace',
+    template: 'Animation Hitches',
+    outPath: '/tmp/hitches.trace',
+    appBundleId: 'com.example.app',
+    deviceId: 'ios-sim',
+    platform: 'ios',
+    targetPids: [111],
+    targetProcesses: ['Example'],
+    startedAt: '2026-04-01T10:00:00.000Z',
+    child: { kill: vi.fn(() => true), pid: 1234 },
+    wait: Promise.resolve({
+      stdout: '',
+      stderr: 'Hitches is not supported on this platform.',
+      exitCode: 2,
+    }),
+  };
+  sessionStore.set(
+    'ios',
+    makeIosSession('ios', {
+      appBundleId: 'com.example.app',
+      applePerf: {
+        active: activeCapture as unknown as AppleXctracePerfCapture,
+      },
+    }),
+  );
+  applePerfMocks.stopAppleXctracePerfCapture.mockRejectedValue(
+    new AppError('COMMAND_FAILED', 'Hitches is not supported on this platform.', {
+      captureCleanedUp: true,
+    }),
+  );
+
+  const response = await handleSessionObservabilityCommands({
+    req: {
+      token: 't',
+      session: 'ios',
+      command: 'perf',
+      positionals: ['trace', 'stop', 'xctrace', '', '/tmp/hitches.trace'],
+      flags: {},
+    },
+    sessionName: 'ios',
+    sessionStore,
+  });
+
+  assert.equal(response?.ok, false);
+  assert.equal(sessionStore.get('ios')?.applePerf?.active, undefined);
+});
+
+test('perf xctrace stop keeps active capture when cleanup is not confirmed', async () => {
+  const sessionStore = makeSessionStore('agent-device-session-observability-perf-');
+  const activeCapture = {
+    kind: 'xctrace',
+    mode: 'trace',
+    template: 'Animation Hitches',
+    outPath: '/tmp/hitches.trace',
+    appBundleId: 'com.example.app',
+    deviceId: 'ios-sim',
+    platform: 'ios',
+    targetPids: [111],
+    targetProcesses: ['Example'],
+    startedAt: '2026-04-01T10:00:00.000Z',
+    child: { kill: vi.fn(() => true), pid: 1234 },
+    wait: new Promise(() => {}),
+  };
+  sessionStore.set(
+    'ios',
+    makeIosSession('ios', {
+      appBundleId: 'com.example.app',
+      applePerf: {
+        active: activeCapture as unknown as AppleXctracePerfCapture,
+      },
+    }),
+  );
+  applePerfMocks.stopAppleXctracePerfCapture.mockRejectedValue(
+    new AppError('COMMAND_FAILED', 'Timed out waiting for Apple xctrace capture to stop', {
+      captureCleanedUp: false,
+    }),
+  );
+
+  const response = await handleSessionObservabilityCommands({
+    req: {
+      token: 't',
+      session: 'ios',
+      command: 'perf',
+      positionals: ['trace', 'stop', 'xctrace', '', '/tmp/hitches.trace'],
+      flags: {},
+    },
+    sessionName: 'ios',
+    sessionStore,
+  });
+
+  assert.equal(response?.ok, false);
+  assert.equal(sessionStore.get('ios')?.applePerf?.active?.outPath, '/tmp/hitches.trace');
+});
+
+test('perf cpu profile report rejects active xctrace captures', async () => {
+  const sessionStore = makeSessionStore('agent-device-session-observability-perf-');
+  const activeCapture = {
+    kind: 'xctrace',
+    mode: 'cpu-profile',
+    template: 'Time Profiler',
+    outPath: '/tmp/app.trace',
+    appBundleId: 'com.example.app',
+    deviceId: 'ios-sim',
+    platform: 'ios',
+    targetPids: [111],
+    targetProcesses: ['Example'],
+    startedAt: '2026-04-01T10:00:00.000Z',
+    child: { kill: vi.fn(() => true), pid: 1234 },
+    wait: new Promise(() => {}),
+  };
+  sessionStore.set(
+    'ios',
+    makeIosSession('ios', {
+      appBundleId: 'com.example.app',
+      applePerf: {
+        active: activeCapture as unknown as AppleXctracePerfCapture,
+        lastProfileTracePath: '/tmp/previous.trace',
+      },
+    }),
+  );
+
+  const response = await handleSessionObservabilityCommands({
+    req: {
+      token: 't',
+      session: 'ios',
+      command: 'perf',
+      positionals: ['cpu', 'profile', 'report', 'xctrace', '', '/tmp/app-profile.json'],
+      flags: {},
+    },
+    sessionName: 'ios',
+    sessionStore,
+  });
+
+  assert.equal(response?.ok, false);
+  assert.equal(applePerfMocks.writeAppleXctracePerfReport.mock.calls.length, 0);
+  if (response && !response.ok) {
+    assert.match(response.error.message, /stop the active capture first/i);
+  }
+});
+
+test('perf cpu profile report uses last profile trace and writes compact JSON report', async () => {
+  const sessionStore = makeSessionStore('agent-device-session-observability-perf-');
+  sessionStore.set(
+    'ios',
+    makeIosSession('ios', {
+      appBundleId: 'com.example.app',
+      applePerf: {
+        lastProfileTracePath: '/tmp/app.trace',
+        lastProfileTemplate: 'Time Profiler',
+      },
+    }),
+  );
+  applePerfMocks.writeAppleXctracePerfReport.mockResolvedValue({
+    kind: 'xctrace',
+    mode: 'cpu-profile',
+    template: 'Time Profiler',
+    tracePath: '/tmp/app.trace',
+    reportPath: '/tmp/app-profile.json',
+    appBundleId: 'com.example.app',
+    generatedAt: '2026-04-01T10:00:05.000Z',
+    summary: {
+      runCount: 1,
+      tableSchemas: ['time-profile'],
+    },
+  });
+
+  const response = await handleSessionObservabilityCommands({
+    req: {
+      token: 't',
+      session: 'ios',
+      command: 'perf',
+      positionals: ['cpu', 'profile', 'report', 'xctrace', '', '/tmp/app-profile.json'],
+      flags: {},
+    },
+    sessionName: 'ios',
+    sessionStore,
+  });
+
+  assert.equal(response?.ok, true);
+  assert.equal(response?.data?.perf, 'reported');
+  assert.deepEqual(response?.data?.summary, {
+    runCount: 1,
+    tableSchemas: ['time-profile'],
+  });
+  assert.equal(
+    applePerfMocks.writeAppleXctracePerfReport.mock.calls[0]?.[0].tracePath,
+    '/tmp/app.trace',
+  );
+});
+
+test('perf native xctrace reports Android support as out of scope', async () => {
+  const sessionStore = makeSessionStore('agent-device-session-observability-perf-');
+  sessionStore.set(
+    'android',
+    makeAndroidSession('android', {
+      appBundleId: 'com.example.app',
+    }),
+  );
+
+  const response = await handleSessionObservabilityCommands({
+    req: {
+      token: 't',
+      session: 'android',
+      command: 'perf',
+      positionals: ['cpu', 'profile', 'start', 'xctrace', 'Time Profiler', '/tmp/app.trace'],
+      flags: {},
+    },
+    sessionName: 'android',
+    sessionStore,
+  });
+
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
+    assert.match(
+      response.error.message,
+      /Android native profiling belongs to the Android perf rollout/i,
+    );
+  }
+  assert.equal(applePerfMocks.startAppleXctracePerfCapture.mock.calls.length, 0);
 });
 
 test('network dump accepts explicit include flag and rejects conflicting values', async () => {

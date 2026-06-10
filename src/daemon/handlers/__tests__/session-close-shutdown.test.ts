@@ -18,6 +18,10 @@ vi.mock('../../../platforms/ios/runner-client.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/runner-client.ts')>();
   return { ...actual, stopIosRunnerSession: vi.fn(async () => {}) };
 });
+vi.mock('../../../platforms/ios/perf-xctrace.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/ios/perf-xctrace.ts')>();
+  return { ...actual, cleanupAppleXctracePerfCapture: vi.fn(async () => ({})) };
+});
 vi.mock('../../../platforms/ios/macos-helper.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/macos-helper.ts')>();
   return { ...actual, runMacOsAlertAction: vi.fn(async () => {}) };
@@ -36,11 +40,14 @@ vi.mock('../session-device-utils.ts', async (importOriginal) => {
 });
 
 import { handleSessionCommands } from '../session.ts';
+import { teardownSessionResources } from '../session-close.ts';
 import { shutdownSimulator } from '../../../platforms/ios/simulator.ts';
 import { runCmd } from '../../../utils/exec.ts';
+import { cleanupAppleXctracePerfCapture } from '../../../platforms/ios/perf-xctrace.ts';
 
 const mockShutdownSimulator = vi.mocked(shutdownSimulator);
 const mockRunCmd = vi.mocked(runCmd);
+const mockCleanupAppleXctracePerfCapture = vi.mocked(cleanupAppleXctracePerfCapture);
 
 const noopInvoke = async (_req: DaemonRequest): Promise<DaemonResponse> => ({ ok: true, data: {} });
 
@@ -196,6 +203,92 @@ test('close --shutdown is ignored for non-simulator iOS devices', async () => {
     expect(response.data?.session).toBe(sessionName);
     expect(response.data?.shutdown).toBeUndefined();
   }
+});
+
+test('close stops active Apple xctrace perf capture before deleting session', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-active-xctrace-session';
+  const activeCapture = {
+    kind: 'xctrace',
+    mode: 'cpu-profile',
+    template: 'Time Profiler',
+    outPath: '/tmp/app.trace',
+    appBundleId: 'com.example.app',
+    deviceId: 'sim-udid-4',
+    platform: 'ios',
+    targetPids: [111],
+    targetProcesses: ['Example'],
+    startedAt: '2026-04-01T10:00:00.000Z',
+    child: { kill: vi.fn(() => true), pid: 1234 },
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  };
+  sessionStore.set(sessionName, {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-udid-4',
+      name: 'iPhone 15',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    applePerf: {
+      active: activeCapture,
+    },
+  } as unknown as SessionState);
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockCleanupAppleXctracePerfCapture).toHaveBeenCalledWith(activeCapture);
+  expect(sessionStore.get(sessionName)).toBeUndefined();
+});
+
+test('daemon session teardown stops active Apple xctrace perf capture', async () => {
+  const sessionName = 'ios-active-xctrace-teardown-session';
+  const activeCapture = {
+    kind: 'xctrace',
+    mode: 'cpu-profile',
+    template: 'Time Profiler',
+    outPath: '/tmp/app.trace',
+    appBundleId: 'com.example.app',
+    deviceId: 'sim-udid-5',
+    platform: 'ios',
+    targetPids: [111],
+    targetProcesses: ['Example'],
+    startedAt: '2026-04-01T10:00:00.000Z',
+    child: { kill: vi.fn(() => true), pid: 1234 },
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  };
+  const session = {
+    ...makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-udid-5',
+      name: 'iPhone 15',
+      kind: 'simulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    applePerf: {
+      active: activeCapture,
+    },
+  } as unknown as SessionState;
+
+  await teardownSessionResources(session, sessionName);
+
+  expect(mockCleanupAppleXctracePerfCapture).toHaveBeenCalledWith(activeCapture);
+  expect(session.applePerf?.active).toBeUndefined();
 });
 
 test('close --shutdown is ignored for Android devices', async () => {

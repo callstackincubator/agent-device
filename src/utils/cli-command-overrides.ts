@@ -151,13 +151,14 @@ const CLI_COMMAND_OVERRIDES = {
   },
   perf: {
     usageOverride:
-      'perf [metrics|frames|memory] [sample|snapshot]\n  agent-device perf memory sample --json\n  agent-device perf memory snapshot [--kind android-hprof|memgraph] [--out <path>]',
-    listUsageOverride: 'perf [metrics|frames|memory]',
+      'perf [metrics|frames|memory] [sample|snapshot]\n  agent-device perf memory sample --json\n  agent-device perf memory snapshot [--kind android-hprof|memgraph] [--out <path>]\n  agent-device perf cpu profile start|stop|report --kind xctrace [--template <name>] --out <path>\n  agent-device perf trace start|stop --kind xctrace [--template <name>] --out <path>',
+    listUsageOverride:
+      'perf [metrics|frames|memory] | perf cpu profile start|stop|report | perf trace start|stop',
     helpDescription:
-      'Show session performance metrics, focused frame/jank health, or memory diagnostics artifacts. Bare perf and metrics are aliases for perf metrics.',
-    summary: 'Show session performance, frame health, and memory diagnostics',
-    positionalArgs: ['area?', 'action?'],
-    allowedFlags: ['kind', 'out'],
+      'Show session performance metrics, focused frame/jank health, memory diagnostics artifacts, or Apple xctrace artifacts. Bare perf and metrics are aliases for perf metrics.',
+    summary: 'Show performance metrics or collect native perf artifacts',
+    positionalArgs: ['area?', 'subjectOrAction?', 'action?'],
+    allowedFlags: ['kind', 'perfTemplate', 'out'],
   },
   metro: {
     usageOverride:

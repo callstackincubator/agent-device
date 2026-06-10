@@ -17,6 +17,15 @@ test('parseArgs accepts perf area subcommands', () => {
   assert.equal(memory.command, 'perf');
   assert.deepEqual(memory.positionals, ['memory', 'snapshot']);
   assert.equal(memory.flags.kind, 'memgraph');
+
+  const profile = parseArgs(
+    ['perf', 'cpu', 'profile', 'start', '--kind', 'xctrace', '--out', 'app.trace'],
+    { strictFlags: true },
+  );
+  assert.equal(profile.command, 'perf');
+  assert.deepEqual(profile.positionals, ['cpu', 'profile', 'start']);
+  assert.equal(profile.flags.kind, 'xctrace');
+  assert.equal(profile.flags.out, 'app.trace');
 });
 
 test('usageForCommand advertises perf area subcommands for metrics alias', () => {
@@ -24,4 +33,5 @@ test('usageForCommand advertises perf area subcommands for metrics alias', () =>
   assert.equal(help === null, false);
   assert.match(help ?? '', /agent-device perf \[metrics\|frames\|memory\]/);
   assert.match(help ?? '', /perf memory snapshot/);
+  assert.match(help ?? '', /perf cpu profile start\|stop\|report/);
 });

@@ -67,7 +67,7 @@ export function parseRawArgs(argv: string[]): RawParsedArgs {
     }
 
     const [token, inlineValue] = isLongFlag ? splitLongFlag(arg) : [arg, undefined];
-    const definition = getFlagDefinition(token);
+    const definition = resolveFlagDefinition(token);
     if (shouldPassThroughReactDevtoolsFlag(command, definition)) {
       positionals.push(arg);
       continue;
@@ -107,6 +107,10 @@ function shouldPassThroughReactDevtoolsFlag(
   if (command !== 'react-devtools') return false;
   if (!definition) return true;
   return !isFlagSupportedForCommand(definition.key, command);
+}
+
+function resolveFlagDefinition(token: string): FlagDefinition | undefined {
+  return getFlagDefinition(token);
 }
 
 export function finalizeParsedArgs(

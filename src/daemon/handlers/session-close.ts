@@ -7,6 +7,7 @@ import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { stopAppLog } from '../app-log.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
+import { cleanupAppleXctracePerfCapture } from '../../platforms/ios/perf-xctrace.ts';
 import { clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
 import { cleanupRetainedMaterializedPathsForSession } from '../materialized-path-registry.ts';
 import {
@@ -65,6 +66,12 @@ function shouldStopAppleRunnerBeforeTargetedClose(session: SessionState): boolea
   return isApplePlatform(session.device.platform) && !isIosSimulator(session.device);
 }
 
+async function stopSessionApplePerfCapture(session: SessionState): Promise<void> {
+  if (!session.applePerf?.active) return;
+  await cleanupAppleXctracePerfCapture(session.applePerf.active);
+  session.applePerf = { ...(session.applePerf ?? {}), active: undefined };
+}
+
 export async function teardownSessionResources(
   session: SessionState,
   sessionName: string,
@@ -72,6 +79,7 @@ export async function teardownSessionResources(
   if (session.appLog) {
     await stopAppLog(session.appLog);
   }
+  await stopSessionApplePerfCapture(session);
   if (isApplePlatform(session.device.platform)) {
     await stopAppleRunnerForClose(session);
   }
@@ -92,6 +100,7 @@ export async function handleCloseCommand(params: {
   if (session.appLog) {
     await stopAppLog(session.appLog);
   }
+  await stopSessionApplePerfCapture(session);
   if (req.positionals && req.positionals.length > 0) {
     if (shouldStopAppleRunnerBeforeTargetedClose(session)) {
       await stopAppleRunnerForClose(session);

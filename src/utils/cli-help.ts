@@ -296,6 +296,14 @@ Diagnostics and traces:
     agent-device press 'id="load-diagnostics"'
     agent-device trace stop ./traces/diagnostics.trace
   The trace path is positional. Do not use --path for trace start or trace stop.
+  Use perf xctrace only for Apple native CPU/profile or Animation Hitches artifacts:
+    agent-device perf cpu profile start --kind xctrace --template "Time Profiler" --out ./artifacts/app.trace
+    agent-device perf cpu profile stop --kind xctrace --out ./artifacts/app.trace
+    agent-device perf cpu profile report --kind xctrace --out ./artifacts/app-profile.json
+    agent-device perf trace start --kind xctrace --template "Animation Hitches" --out ./artifacts/hitches.trace
+    agent-device perf trace stop --kind xctrace --out ./artifacts/hitches.trace
+  perf xctrace returns artifact paths and compact metadata only. Do not dump .trace contents into context.
+  Android native profiling is out of scope for Apple xctrace perf; use the Android perf rollout when available.
 
 Memory diagnostics:
   Use perf memory when the symptom is leak/growth/OOM suspicion and you need agent-readable evidence.

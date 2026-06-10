@@ -86,7 +86,7 @@ export type AppleMemorySnapshotResult =
       support: ReturnType<typeof buildAppleMemorySnapshotSupport>;
     };
 
-type AppleProcessSample = {
+export type AppleProcessSample = {
   pid: number;
   cpuPercent: number;
   rssKb: number;
@@ -374,7 +374,7 @@ export function buildAppleSamplingMetadata(device: DeviceInfo): Record<string, u
   const source =
     device.platform === 'macos'
       ? 'host ps for the running macOS app executable resolved from the bundle ID.'
-      : 'xcrun simctl spawn ps for the running iOS simulator app executable resolved from the bundle ID.';
+      : 'xcrun simctl spawn ps, with host ps fallback, for the running iOS simulator app executable resolved from the bundle ID.';
   return {
     fps,
     memory: {
@@ -546,10 +546,7 @@ async function runIosDeviceTraceRecord(
 ): Promise<IosDeviceTraceRecordAttempt> {
   let lastAttempt: IosDeviceTraceRecordAttempt | undefined;
   for (let attempt = 1; attempt <= IOS_DEVICE_TRACE_RECORD_MAX_ATTEMPTS; attempt += 1) {
-    if (attempt > 1) {
-      await fs.rm(tracePath, { recursive: true, force: true }).catch(() => {});
-      await new Promise((resolve) => setTimeout(resolve, IOS_DEVICE_TRACE_RECORD_RETRY_DELAY_MS));
-    }
+    await prepareAppleTraceRecordRetry(tracePath, attempt, IOS_DEVICE_TRACE_RECORD_RETRY_DELAY_MS);
     const startedAt = new Date().toISOString();
     const result = await runXcrun(recordArgs, {
       allowFailure: true,
@@ -568,7 +565,7 @@ async function runIosDeviceTraceRecord(
   return lastAttempt as IosDeviceTraceRecordAttempt;
 }
 
-function isRetryableIosDeviceTraceRecordFailure(result: {
+export function isRetryableIosDeviceTraceRecordFailure(result: {
   stdout: string;
   stderr: string;
 }): boolean {
@@ -578,6 +575,16 @@ function isRetryableIosDeviceTraceRecordFailure(result: {
     text.includes('could not lock kperf') ||
     text.includes('likely another session just started')
   );
+}
+
+export async function prepareAppleTraceRecordRetry(
+  tracePath: string,
+  attempt: number,
+  retryDelayMs: number,
+): Promise<void> {
+  if (attempt <= 1) return;
+  await fs.rm(tracePath, { recursive: true, force: true }).catch(() => {});
+  await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
 }
 
 async function assertUsableTraceOutput(
@@ -744,7 +751,7 @@ async function parseIosDevicePerfTable(xml: string): Promise<IosDevicePerfProces
   return samples;
 }
 
-async function resolveAppleExecutable(
+export async function resolveAppleExecutable(
   device: DeviceInfo,
   appBundleId: string,
 ): Promise<{ executableName: string; executablePath?: string }> {
@@ -829,7 +836,7 @@ async function sampleIosDevicePerfMetrics(
   });
 }
 
-async function resolveIosDevicePerfTarget(
+export async function resolveIosDevicePerfTarget(
   device: DeviceInfo,
   appBundleId: string,
 ): Promise<IosDeviceProcessInfo[]> {
@@ -1026,7 +1033,7 @@ async function resolveIosSimulatorAppContainer(
   return appPath;
 }
 
-async function readAppleProcessSamples(
+export async function readAppleProcessSamples(
   device: DeviceInfo,
   executable: { executableName: string; executablePath?: string },
 ): Promise<AppleProcessSample[]> {
@@ -1043,7 +1050,7 @@ async function readAppleProcessSamples(
   const result =
     device.platform === 'macos'
       ? await runAppleToolCommand('ps', args, { timeoutMs: APPLE_PERF_TIMEOUT_MS })
-      : await runXcrun(args, { timeoutMs: APPLE_PERF_TIMEOUT_MS });
+      : await runAppleSimulatorProcessCommand(args);
   return parseApplePsOutput(result.stdout).filter((process) =>
     matchesAppleExecutableProcess(process.command, executable),
   );
@@ -1123,20 +1130,44 @@ function resolveAppleMemorySnapshotHint(
   return 'Keep the app process running and retry perf memory snapshot with --debug if the failure persists.';
 }
 
+async function runAppleSimulatorProcessCommand(args: string[]): Promise<ExecResult> {
+  const result = await runXcrun(args, {
+    allowFailure: true,
+    timeoutMs: APPLE_PERF_TIMEOUT_MS,
+  });
+  if (result.exitCode === 0) return result;
+  return await runAppleToolCommand('ps', ['-axo', 'pid=,%cpu=,rss=,command='], {
+    timeoutMs: APPLE_PERF_TIMEOUT_MS,
+  });
+}
+
 function matchesAppleExecutableProcess(
   command: string,
   executable: { executableName: string; executablePath?: string },
 ): boolean {
   const token = readProcessCommandToken(command);
-  if (
-    executable.executablePath &&
-    (command === executable.executablePath ||
-      token === executable.executablePath ||
-      command.startsWith(`${executable.executablePath} `))
-  ) {
-    return true;
+  if (executable.executablePath) {
+    for (const executablePath of buildAppleExecutablePathAliases(executable.executablePath)) {
+      if (
+        command === executablePath ||
+        token === executablePath ||
+        command.startsWith(`${executablePath} `)
+      ) {
+        return true;
+      }
+    }
   }
   return path.basename(token) === executable.executableName;
+}
+
+function buildAppleExecutablePathAliases(executablePath: string): string[] {
+  const aliases = [executablePath];
+  if (executablePath.startsWith('/private/var/')) {
+    aliases.push(executablePath.replace('/private/var/', '/var/'));
+  } else if (executablePath.startsWith('/var/')) {
+    aliases.push(executablePath.replace('/var/', '/private/var/'));
+  }
+  return aliases;
 }
 
 function readProcessCommandToken(command: string): string {
@@ -1185,7 +1216,7 @@ function resolveProcessName(
   return readDirectProcessNameFromXml(element);
 }
 
-function resolveIosDevicePerfHint(stdout: string, stderr: string): string {
+export function resolveIosDevicePerfHint(stdout: string, stderr: string): string {
   const devicectlHint = resolveIosDevicectlHint(stdout, stderr);
   if (devicectlHint) return devicectlHint;
   const text = `${stdout}\n${stderr}`.toLowerCase();

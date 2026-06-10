@@ -170,6 +170,122 @@ test('perf forwards shared perf kind values through CLI parsing', async () => {
   assert.equal(payload.error.code, 'INVALID_ARGS');
 });
 
+test('perf cpu profile start forwards xctrace options to daemon positionals', async () => {
+  const result = await runCliCapture(
+    [
+      'perf',
+      'cpu',
+      'profile',
+      'start',
+      '--kind',
+      'xctrace',
+      '--template',
+      'Time Profiler',
+      '--out',
+      'app.trace',
+      '--json',
+    ],
+    async () => ({
+      ok: true,
+      data: {
+        perf: 'started',
+        kind: 'xctrace',
+        mode: 'cpu-profile',
+        outPath: '/tmp/app.trace',
+      },
+    }),
+  );
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.command, 'perf');
+  assert.deepEqual(result.calls[0]?.positionals, [
+    'cpu',
+    'profile',
+    'start',
+    'xctrace',
+    'Time Profiler',
+    'app.trace',
+  ]);
+});
+
+test('perf trace stop forwards xctrace trace artifact path', async () => {
+  const result = await runCliCapture(
+    ['perf', 'trace', 'stop', '--kind', 'xctrace', '--out', 'hitches.trace', '--json'],
+    async () => ({
+      ok: true,
+      data: {
+        perf: 'stopped',
+        kind: 'xctrace',
+        mode: 'trace',
+        outPath: '/tmp/hitches.trace',
+      },
+    }),
+  );
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.command, 'perf');
+  assert.deepEqual(result.calls[0]?.positionals, ['trace', 'stop', 'xctrace', '', 'hitches.trace']);
+});
+
+test('perf cpu profile report preserves the report out path when template is omitted', async () => {
+  const result = await runCliCapture(
+    [
+      'perf',
+      'cpu',
+      'profile',
+      'report',
+      '--kind',
+      'xctrace',
+      '--out',
+      'app-profile.json',
+      '--json',
+    ],
+    async () => ({
+      ok: true,
+      data: {
+        perf: 'reported',
+        kind: 'xctrace',
+        mode: 'cpu-profile',
+        reportPath: '/tmp/app-profile.json',
+      },
+    }),
+  );
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.command, 'perf');
+  assert.deepEqual(result.calls[0]?.positionals, [
+    'cpu',
+    'profile',
+    'report',
+    'xctrace',
+    '',
+    'app-profile.json',
+  ]);
+});
+
+test('perf xctrace output prints only compact artifact metadata by default', async () => {
+  const result = await runCliCapture(
+    ['perf', 'cpu', 'profile', 'report', '--kind', 'xctrace', '--out', 'app-profile.json'],
+    async () => ({
+      ok: true,
+      data: {
+        perf: 'reported',
+        kind: 'xctrace',
+        mode: 'cpu-profile',
+        reportPath: '/tmp/app-profile.json',
+        tracePath: '/tmp/app.trace',
+        summary: {
+          tableSchemas: ['time-profile'],
+        },
+      },
+    }),
+  );
+
+  assert.equal(result.code, null);
+  assert.equal(result.stdout, '/tmp/app-profile.json\nPerf cpu-profile: reported\n');
+  assert.doesNotMatch(result.stdout, /time-profile|app\.trace/);
+});
+
 test('perf sample defaults to metrics sample', async () => {
   const result = await runCliCapture(['perf', 'sample', '--json'], async () => ({
     ok: true,
@@ -206,7 +322,7 @@ test('perf area and action positionals are case-insensitive', async () => {
   assert.deepEqual(result.calls[0]?.positionals, ['frames', 'sample']);
 });
 
-test('perf rejects unknown CLI area before daemon dispatch', async () => {
+test('perf rejects incomplete native CLI area before daemon dispatch', async () => {
   const result = await runCliCapture(['perf', 'cpu', '--json'], async () => ({
     ok: true,
     data: {},
@@ -216,7 +332,7 @@ test('perf rejects unknown CLI area before daemon dispatch', async () => {
   assert.equal(result.calls.length, 0);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.error.code, 'INVALID_ARGS');
-  assert.match(payload.error.message, /perf area must be metrics, frames, or memory/i);
+  assert.match(payload.error.message, /perf cpu requires profile/i);
 });
 
 test('perf prints unavailable frame health reason by default', async () => {

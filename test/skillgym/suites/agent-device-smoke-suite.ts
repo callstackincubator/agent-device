@@ -1365,6 +1365,27 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     ],
   }),
   makeCase({
+    id: 'perf-apple-xctrace-profile',
+    contract: [
+      'App name: Agent Device Tester',
+      'Platform: iOS simulator',
+      'The app is already open',
+      'Need Apple native CPU profiling evidence as a .trace artifact and compact JSON report',
+      'Do not use debug or React DevTools for this native profile',
+    ],
+    task: 'Plan commands to record an Apple xctrace Time Profiler CPU profile under perf, stop it, then generate the compact report.',
+    outputs: [
+      plannedCommand('perf cpu profile start'),
+      /--kind\s+xctrace/i,
+      /--template\s+"?Time Profiler"?/i,
+      /--out\s+\S+\.trace/i,
+      plannedCommand('perf cpu profile stop'),
+      plannedCommand('perf cpu profile report'),
+      /--out\s+\S+\.json/i,
+    ],
+    forbiddenOutputs: [plannedCommand('debug'), plannedCommand('react-devtools')],
+  }),
+  makeCase({
     id: 'react-devtools-profile-search',
     contract: [
       'App name: Agent Device Tester',

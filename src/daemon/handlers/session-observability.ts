@@ -32,6 +32,7 @@ import {
   buildPerfResponseData,
 } from './session-perf.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
+import { handleNativePerfCommand } from './session-perf-xctrace.ts';
 import { NETWORK_INCLUDE_MODES, type NetworkIncludeMode } from '../../contracts.ts';
 import type { LogBackend } from '../network-log.ts';
 import {
@@ -107,6 +108,9 @@ async function handlePerfCommand(params: ObservabilityParams): Promise<DaemonRes
 
   const request = resolvePerfCommandRequest(req);
   if (!request.ok) return request;
+  if (request.native) {
+    return await handleNativePerfCommand(params, session);
+  }
 
   try {
     return {
@@ -118,18 +122,27 @@ async function handlePerfCommand(params: ObservabilityParams): Promise<DaemonRes
   }
 }
 
-type PerfCommandRequest = {
-  ok: true;
-  area: PerfArea;
-  action: PerfAction;
-  kind?: PerfKind;
-  out?: string;
-};
+type PerfCommandRequest =
+  | {
+      ok: true;
+      native: true;
+    }
+  | {
+      ok: true;
+      native: false;
+      area: 'metrics' | 'frames' | 'memory';
+      action: 'sample' | 'snapshot';
+      kind?: PerfKind;
+      out?: string;
+    };
 
 function resolvePerfCommandRequest(req: DaemonRequest): PerfCommandRequest | DaemonFailureResponse {
   const area = readPerfArea(req.positionals?.[0]);
   if (!area) {
     return errorResponse('INVALID_ARGS', PERF_AREA_ERROR_MESSAGE);
+  }
+  if (area === 'cpu' || area === 'trace') {
+    return { ok: true, native: true };
   }
 
   const action = readPerfAction(req.positionals?.[1]);
@@ -141,16 +154,16 @@ function resolvePerfCommandRequest(req: DaemonRequest): PerfCommandRequest | Dae
   if (kindResult instanceof AppError) {
     return { ok: false, error: normalizeError(kindResult) };
   }
-  const kind = kindResult;
   const validationError =
-    validatePerfAreaAction(area, action) ?? validatePerfFlags(req, area, action, kind);
+    validatePerfAreaAction(area, action) ?? validatePerfFlags(req, area, action, kindResult);
   if (validationError) return validationError;
 
   return {
     ok: true,
+    native: false,
     area,
-    action,
-    kind,
+    action: action as 'sample' | 'snapshot',
+    kind: kindResult,
     out: readOptionalStringFlag(req.flags?.out),
   };
 }
@@ -158,7 +171,7 @@ function resolvePerfCommandRequest(req: DaemonRequest): PerfCommandRequest | Dae
 async function buildPerfCommandData(
   params: ObservabilityParams,
   session: SessionState,
-  request: PerfCommandRequest,
+  request: Extract<PerfCommandRequest, { native: false }>,
 ): Promise<DaemonResponseData> {
   const { sessionName, sessionStore, androidAdbExecutor } = params;
   if (request.area === 'memory') {
@@ -197,30 +210,42 @@ function readPerfKind(value: unknown): PerfKind | undefined | AppError {
 }
 
 function validatePerfAreaAction(
-  area: PerfArea,
+  area: Exclude<PerfArea, 'cpu' | 'trace'>,
   action: PerfAction,
 ): DaemonFailureResponse | undefined {
-  if (action !== 'snapshot' || area === 'memory') return undefined;
-  return errorResponse('INVALID_ARGS', 'perf snapshot is only supported under perf memory');
+  if (action === 'sample') return undefined;
+  if (area === 'memory' && action === 'snapshot') return undefined;
+  return errorResponse(
+    'INVALID_ARGS',
+    area === 'memory'
+      ? 'perf memory only supports snapshot'
+      : 'perf metrics and perf frames only support sample',
+  );
 }
 
 function validatePerfFlags(
   req: DaemonRequest,
-  area: PerfArea,
+  area: Exclude<PerfArea, 'cpu' | 'trace'>,
   action: PerfAction,
   kind: PerfKind | undefined,
 ): DaemonFailureResponse | undefined {
-  return validatePerfOutFlag(req.flags?.out, action) ?? validatePerfKindFlag(kind, area, action);
+  return (
+    validatePerfOutFlag(req.flags?.out, area, action) ?? validatePerfKindFlag(kind, area, action)
+  );
 }
 
-function validatePerfOutFlag(out: unknown, action: PerfAction): DaemonFailureResponse | undefined {
-  if (action !== 'sample' || !out) return undefined;
+function validatePerfOutFlag(
+  out: unknown,
+  area: Exclude<PerfArea, 'cpu' | 'trace'>,
+  action: PerfAction,
+): DaemonFailureResponse | undefined {
+  if (!out || (area === 'memory' && action === 'snapshot')) return undefined;
   return errorResponse('INVALID_ARGS', '--out is only supported with perf memory snapshot');
 }
 
 function validatePerfKindFlag(
   kind: PerfKind | undefined,
-  area: PerfArea,
+  area: Exclude<PerfArea, 'cpu' | 'trace'>,
   action: PerfAction,
 ): DaemonFailureResponse | undefined {
   if (!kind) return undefined;

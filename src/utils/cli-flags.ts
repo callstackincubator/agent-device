@@ -40,6 +40,7 @@ export type CliFlags = RemoteConfigMetroOptions &
     force?: boolean;
     noLogin?: boolean;
     kind?: string;
+    perfTemplate?: string;
     sessionLock?: 'reject' | 'strip';
     sessionLocked?: boolean;
     sessionLockConflicts?: 'reject' | 'strip';
@@ -395,6 +396,13 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageLabel: '--kind <kind>',
     usageDescription:
       'Kind selector for commands that support it, such as metro prepare or perf memory snapshot',
+  },
+  {
+    key: 'perfTemplate',
+    names: ['--template'],
+    type: 'string',
+    usageLabel: '--template <name>',
+    usageDescription: 'Perf xctrace template name, for example Time Profiler',
   },
   {
     key: 'metroKind',
