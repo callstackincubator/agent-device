@@ -52,6 +52,43 @@ jobs:
             exit 1
           fi
 
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-node-pnpm
+
+      - name: Run oxlint
+        run: pnpm lint
+
+      - name: Check formatting
+        run: pnpm format:check
+
+  layering-guard:
+    name: Layering Guard (warn-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Warn on commands/ imports below the CLI surface layer
+        run: |
+          # daemon/ and platforms/ should not depend on the CLI commands layer.
+          # Warn-only until the shared contracts move out of src/commands/;
+          # flip to a hard failure once existing imports are migrated.
+          matches=$(rg -n "from '.*commands/" src/daemon src/platforms --glob '!**/__tests__/**' --glob '!*.test.ts' || true)
+          if [ -n "$matches" ]; then
+            echo "$matches"
+            count=$(printf '%s\n' "$matches" | wc -l)
+            echo "::warning title=Layering drift::$count import(s) of src/commands/* from src/daemon or src/platforms. New code should depend on shared contracts instead."
+          fi
+
   fallow:
     name: Fallow Code Quality
     runs-on: ubuntu-latest
