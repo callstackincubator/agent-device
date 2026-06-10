@@ -54,6 +54,7 @@ test('ensureDeviceReady caches successful simulator readiness checks', async () 
   await ensureDeviceReady({ ...device });
 
   expect(mockEnsureBootedSimulator).toHaveBeenCalledTimes(1);
+  expect(mockEnsureBootedSimulator).toHaveBeenCalledWith(device, { focusExisting: true });
 });
 
 test('ensureDeviceReady caches successful iOS physical device readiness checks', async () => {

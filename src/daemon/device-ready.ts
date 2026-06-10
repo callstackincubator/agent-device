@@ -27,7 +27,7 @@ export async function ensureDeviceReady(device: DeviceInfo): Promise<void> {
   if (device.platform === 'ios') {
     if (device.kind === 'simulator') {
       const { ensureBootedSimulator } = await import('../platforms/ios/simulator.ts');
-      await ensureBootedSimulator(device);
+      await ensureBootedSimulator(device, { focusExisting: true });
       markDeviceReady(cacheKey);
       return;
     }

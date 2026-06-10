@@ -11,24 +11,49 @@ import {
 import { buildSimctlArgs, buildSimctlArgsForDevice } from './simctl.ts';
 import { runAppleToolCommand, runXcrun } from './tool-provider.ts';
 
+const IOS_SIMULATOR_HOST_APPS = ['Device Hub', 'Simulator'] as const;
+const IOS_SIMULATOR_STANDALONE_HOST_APPS = ['Simulator'] as const;
+
+type OpenIosSimulatorAppOptions = {
+  preferStandalone?: boolean;
+};
+
+type EnsureBootedSimulatorOptions = {
+  focusExisting?: boolean;
+};
+
 export function requireSimulatorDevice(device: DeviceInfo, command: string): void {
   if (device.kind !== 'simulator') {
     throw new AppError('UNSUPPORTED_OPERATION', `${command} is only supported on iOS simulators`);
   }
 }
 
-export async function openIosSimulatorApp(): Promise<void> {
-  await runAppleToolCommand('open', ['-a', 'Simulator'], {
-    allowFailure: true,
-    timeoutMs: IOS_SIMULATOR_FOCUS_TIMEOUT_MS,
-  });
+export async function openIosSimulatorApp(options: OpenIosSimulatorAppOptions = {}): Promise<void> {
+  const appNames = options.preferStandalone
+    ? IOS_SIMULATOR_STANDALONE_HOST_APPS
+    : IOS_SIMULATOR_HOST_APPS;
+  for (const appName of appNames) {
+    const result = await runAppleToolCommand('open', ['-a', appName], {
+      allowFailure: true,
+      timeoutMs: IOS_SIMULATOR_FOCUS_TIMEOUT_MS,
+    });
+    if (result.exitCode === 0) return;
+  }
 }
 
-export async function ensureBootedSimulator(device: DeviceInfo): Promise<void> {
+export async function ensureBootedSimulator(
+  device: DeviceInfo,
+  options: EnsureBootedSimulatorOptions = {},
+): Promise<void> {
   if (device.kind !== 'simulator') return;
 
   const state = await getSimulatorState(device);
-  if (state === 'Booted') return;
+  if (state === 'Booted') {
+    if (options.focusExisting) {
+      await openIosSimulatorApp({ preferStandalone: true });
+    }
+    return;
+  }
 
   const deadline = Deadline.fromTimeoutMs(IOS_BOOT_TIMEOUT_MS);
   let bootResult:

@@ -410,7 +410,7 @@ test('openIosApp custom scheme deep links on iOS devices require app bundle cont
   );
 });
 
-test('ensureBootedSimulator opens Simulator app after cold boot', async () => {
+test('ensureBootedSimulator opens Device Hub after cold boot when available', async () => {
   let listCallCount = 0;
   mockRunCmd.mockImplementation(async (cmd, args) => {
     if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
@@ -432,23 +432,45 @@ test('ensureBootedSimulator opens Simulator app after cold boot', async () => {
     if (cmd === 'xcrun' && args.join(' ') === 'simctl bootstatus sim-1 -b') {
       return { exitCode: 0, stdout: '', stderr: '' };
     }
+    if (cmd === 'open' && args.join(' ') === '-a Device Hub') {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    throw new Error(`Unexpected command: ${cmd} ${args.join(' ')}`);
+  });
+
+  await ensureBootedSimulator(IOS_TEST_SIMULATOR, { focusExisting: true });
+
+  assert.equal(
+    mockRunCmd.mock.calls.some(
+      ([cmd, args]) => cmd === 'open' && args.join(' ') === '-a Device Hub',
+    ),
+    true,
+  );
+});
+
+test('openIosSimulatorApp falls back to Simulator when Device Hub is unavailable', async () => {
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'open' && args.join(' ') === '-a Device Hub') {
+      return { exitCode: 1, stdout: '', stderr: 'Unable to find application named Device Hub' };
+    }
     if (cmd === 'open' && args.join(' ') === '-a Simulator') {
       return { exitCode: 0, stdout: '', stderr: '' };
     }
     throw new Error(`Unexpected command: ${cmd} ${args.join(' ')}`);
   });
 
-  await ensureBootedSimulator(IOS_TEST_SIMULATOR);
+  await openIosSimulatorApp();
 
-  assert.equal(
-    mockRunCmd.mock.calls.some(
-      ([cmd, args]) => cmd === 'open' && args.join(' ') === '-a Simulator',
-    ),
-    true,
+  assert.deepEqual(
+    mockRunCmd.mock.calls.map(([cmd, args]) => [cmd, args.join(' ')]),
+    [
+      ['open', '-a Device Hub'],
+      ['open', '-a Simulator'],
+    ],
   );
 });
 
-test('ensureBootedSimulator skips opening Simulator app when already booted', async () => {
+test('ensureBootedSimulator opens Simulator app when already booted', async () => {
   mockRunCmd.mockImplementation(async (cmd, args) => {
     if (cmd === 'xcrun' && args.join(' ') === 'simctl list devices -j') {
       return {
@@ -461,14 +483,23 @@ test('ensureBootedSimulator skips opening Simulator app when already booted', as
         stderr: '',
       };
     }
+    if (cmd === 'open' && args.join(' ') === '-a Simulator') {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
     throw new Error(`Unexpected command: ${cmd} ${args.join(' ')}`);
   });
 
-  await ensureBootedSimulator(IOS_TEST_SIMULATOR);
+  await ensureBootedSimulator(IOS_TEST_SIMULATOR, { focusExisting: true });
 
   assert.equal(
     mockRunCmd.mock.calls.some(
       ([cmd, args]) => cmd === 'open' && args.join(' ') === '-a Simulator',
+    ),
+    true,
+  );
+  assert.equal(
+    mockRunCmd.mock.calls.some(
+      ([cmd, args]) => cmd === 'open' && args.join(' ') === '-a Device Hub',
     ),
     false,
   );
@@ -924,7 +955,7 @@ test('screenshotIos retries simulator capture timeouts and eventually succeeds',
     assert.equal(
       logLines.filter((line) => line === '__OPEN__ -a Simulator').length,
       0,
-      'should not focus Simulator while retrying screenshots',
+      'should not focus simulator host app while retrying screenshots',
     );
   } finally {
     process.env.PATH = previousPath;
