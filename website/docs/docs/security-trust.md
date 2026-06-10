@@ -18,7 +18,7 @@ description: Security and trust guidance for agent-device local app automation, 
 CLI commands run through a per-user background daemon:
 
 - The daemon binds to `127.0.0.1` only, on ephemeral ports, for both its socket and HTTP transports. It is never reachable from the network unless you deliberately front it with your own proxy.
-- Every request must present a token generated fresh on each daemon boot (24 random bytes). The token is stored in `daemon.json` inside the daemon state directory (`~/.agent-device` for packaged installs; source checkouts use a worktree-scoped directory under `~/.agent-device/dev/`) with `0600` permissions; whoever can read that file already has your user account.
+- Command (RPC), upload, and artifact-download requests must present a token generated fresh on each daemon boot (24 random bytes). The only unauthenticated endpoint is `GET /health`, which intentionally returns a bare liveness response and nothing else; like the rest of the server it is reachable only via loopback. The token is stored in `daemon.json` inside the daemon state directory (`~/.agent-device` for packaged installs; source checkouts use a worktree-scoped directory under `~/.agent-device/dev/`) with `0600` permissions; whoever can read that file already has your user account.
 - A client only reuses a running daemon when the daemon's version and binary code signature match its own; otherwise the daemon is restarted. This prevents a stale or tampered daemon from silently serving new clients.
 - Artifact uploads are size-capped, filenames are sanitized, and archive extraction rejects path-traversal entries. Artifact downloads resolve through server-side IDs, never client-supplied paths.
 
