@@ -9,7 +9,7 @@
 <script defer src="/agent-device/static/js/lib-react.e84adf13b9.js"></script>
 <script defer src="/agent-device/static/js/lib-router.853fe4366e.js"></script>
 <script defer src="/agent-device/static/js/56.538ceb78eb.js"></script>
-<script defer src="/agent-device/static/js/index.027618195d.js"></script>
+<script defer src="/agent-device/static/js/index.5577b845ab.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.12">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -71,6 +71,7 @@
 <li><code>open &lt;app&gt; &lt;url&gt;</code> opens a deep link on iOS.</li>
 <li><code>open &lt;app&gt; --launch-console &lt;path&gt;</code> captures launch-time stdout/stderr for direct iOS simulator app launches. It is not valid for URL opens or
 non-simulator targets.</li>
+<li><code>open --no-device-hub</code> skips Xcode Device Hub and uses the standalone Simulator app when surfacing Apple simulators.</li>
 <li><code>open --platform macos --surface app|frontmost-app|desktop|menubar</code> selects the macOS session surface explicitly. <code>app</code> is the default when an app argument is provided.</li>
 <li><code>back</code> now defaults to app-owned back navigation. On Apple targets that means visible in-app back UI only. On Android this currently maps to the same back keyevent because Android routes in-app back through that platform event.</li>
 <li><code>back --in-app</code> is an explicit alias for the default app-owned behavior.</li>

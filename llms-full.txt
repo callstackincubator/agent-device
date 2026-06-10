@@ -641,6 +641,9 @@ await client.sessions.close();
 For direct iOS simulator app launches, `client.apps.open({ app, platform: 'ios', launchConsole: './artifacts/app.console.log' })` captures launch-time
 stdout/stderr. The option mirrors `open --launch-console` and is not valid for URL opens or non-simulator targets.
 
+When surfacing Apple simulators, `client.apps.open({ noDeviceHub: true })` mirrors `open --no-device-hub` and forces the standalone Simulator app
+instead of Xcode Device Hub.
+
 ## Android snapshot helper providers
 
 Remote Android providers should import `agent-device/android-snapshot-helper` and inject their own
@@ -1001,6 +1004,7 @@ agent-device app-switcher
 - `open <app> <url>` opens a deep link on iOS.
 - `open <app> --launch-console <path>` captures launch-time stdout/stderr for direct iOS simulator app launches. It is not valid for URL opens or
   non-simulator targets.
+- `open --no-device-hub` skips Xcode Device Hub and uses the standalone Simulator app when surfacing Apple simulators.
 - `open --platform macos --surface app|frontmost-app|desktop|menubar` selects the macOS session surface explicitly. `app` is the default when an app argument is provided.
 - `back` now defaults to app-owned back navigation. On Apple targets that means visible in-app back UI only. On Android this currently maps to the same back keyevent because Android routes in-app back through that platform event.
 - `back --in-app` is an explicit alias for the default app-owned behavior.
