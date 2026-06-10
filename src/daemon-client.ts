@@ -6,7 +6,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { sleep } from './utils/timeouts.ts';
 import { AppError, toAppErrorCode } from './utils/errors.ts';
-import { consumeTextLines } from './utils/line-stream.ts';
 import { readNodeHttpResponseBody } from './utils/node-http.ts';
 import type {
   DaemonRequest as SharedDaemonRequest,
@@ -29,13 +28,9 @@ import { PUBLIC_COMMANDS } from './command-catalog.ts';
 import { shellQuote } from './utils/shell-quote.ts';
 import {
   readDaemonHttpProgressResponse,
+  readDaemonSocketProgressResponse,
   shouldReadDaemonProgressStream,
-  writeRequestProgressEvent,
 } from './daemon-client-progress.ts';
-import {
-  isDaemonProgressEnvelope,
-  isDaemonResponseEnvelope,
-} from './daemon/request-progress-protocol.ts';
 import { materializeRemoteArtifacts, prepareRemoteRequestArtifacts } from './daemon-artifacts.ts';
 export { computeDaemonCodeSignature } from './daemon/code-signature.ts';
 export { downloadRemoteArtifact } from './daemon-artifacts.ts';
@@ -1046,42 +1041,20 @@ async function sendSocketRequest(
           }, timeoutMs)
         : undefined;
 
-    let buffer = '';
-    socket.setEncoding('utf8');
-    socket.on('data', (chunk) => {
-      if (settled) return;
-      const parsed = consumeTextLines(buffer, chunk);
-      buffer = parsed.buffer;
-      for (const line of parsed.lines) {
-        try {
-          const message = JSON.parse(line) as unknown;
-          if (isDaemonProgressEnvelope(message)) {
-            writeRequestProgressEvent(message.event);
-            continue;
-          }
-          const response = isDaemonResponseEnvelope(message) ? message.response : message;
-          settled = true;
-          socket.end();
-          if (timeoutHandle) clearTimeout(timeoutHandle);
-          resolve(response as DaemonResponse);
-          return;
-        } catch (err) {
-          settled = true;
-          if (timeoutHandle) clearTimeout(timeoutHandle);
-          reject(
-            new AppError(
-              'COMMAND_FAILED',
-              'Invalid daemon response',
-              {
-                requestId: req.meta?.requestId,
-                line,
-              },
-              err instanceof Error ? err : undefined,
-            ),
-          );
-          return;
-        }
-      }
+    readDaemonSocketProgressResponse(socket, {
+      req,
+      isSettled: () => settled,
+      clearTimeout: () => {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+      },
+      resolve: (response) => {
+        settled = true;
+        resolve(response);
+      },
+      reject: (error) => {
+        settled = true;
+        reject(error);
+      },
     });
 
     socket.on('error', (err) => {
