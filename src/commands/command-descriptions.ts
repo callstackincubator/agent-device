@@ -1,6 +1,7 @@
 const COMMAND_DESCRIPTIONS = {
   devices: 'List available devices.',
   boot: 'Boot or prepare a selected device without using CLI positional arguments.',
+  shutdown: 'Shutdown a selected simulator or emulator.',
   apps: 'List installed apps.',
   session: 'List active sessions.',
   open: 'Open an app, deep link, URL, or platform surface.',

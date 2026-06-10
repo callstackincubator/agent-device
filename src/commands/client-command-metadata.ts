@@ -39,6 +39,7 @@ export const clientCommandMetadata = [
   defineClientCommandMetadata('boot', {
     headless: booleanField('Boot without showing simulator UI when supported.'),
   }),
+  defineClientCommandMetadata('shutdown', {}),
   defineClientCommandMetadata('prepare', {
     action: requiredField(enumField(PREPARE_ACTION_VALUES)),
     timeoutMs: integerField('Maximum wall-clock time for the prepare command.'),

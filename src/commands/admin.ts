@@ -36,6 +36,17 @@ export type AdminBootCommandResult = {
   target?: BackendDeviceTarget;
 } & BackendResultEnvelope;
 
+export type AdminShutdownCommandOptions = CommandContext & {
+  target?: BackendDeviceTarget;
+};
+
+export type AdminShutdownCommandResult = {
+  kind: 'deviceShutdown';
+  target?: BackendDeviceTarget;
+  backendResult?: Record<string, unknown>;
+  message?: string;
+};
+
 export type AdminInstallCommandOptions = CommandContext & {
   app: string;
   source: BackendInstallSource;
@@ -92,6 +103,27 @@ export const bootCommand: RuntimeCommand<
     ...(target ? { target } : {}),
     ...(formattedBackendResult ? { backendResult: formattedBackendResult } : {}),
     ...successText('Booted device'),
+  };
+};
+
+export const shutdownCommand: RuntimeCommand<
+  AdminShutdownCommandOptions | undefined,
+  AdminShutdownCommandResult
+> = async (runtime, options = {}): Promise<AdminShutdownCommandResult> => {
+  if (!runtime.backend.shutdownDevice) {
+    throw new AppError('UNSUPPORTED_OPERATION', 'admin.shutdown is not supported by this backend');
+  }
+  const target = normalizeDeviceTarget(options.target);
+  const backendResult = await runtime.backend.shutdownDevice(
+    toBackendContext(runtime, options),
+    target,
+  );
+  const formattedBackendResult = toBackendResult(backendResult);
+  return {
+    kind: 'deviceShutdown',
+    ...(target ? { target } : {}),
+    ...(formattedBackendResult ? { backendResult: formattedBackendResult } : {}),
+    ...successText('Shutdown device'),
   };
 };
 

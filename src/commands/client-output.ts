@@ -146,6 +146,19 @@ export function bootCliOutput(result: CommandRequestResult): CliOutput {
   return { data, text: `Boot ready: ${device} (${platform})` };
 }
 
+export function shutdownCliOutput(result: CommandRequestResult): CliOutput {
+  const data = result as Record<string, unknown>;
+  const platform = data.platform ?? 'unknown';
+  const device = data.device ?? data.id ?? 'unknown';
+  const shutdown = data.shutdown;
+  const success =
+    shutdown && typeof shutdown === 'object' && 'success' in shutdown
+      ? (shutdown as { success?: unknown }).success === true
+      : false;
+  const status = success ? 'Shutdown' : 'Shutdown failed';
+  return { data, text: `${status}: ${device} (${platform})` };
+}
+
 export function getCliOutput(params: { result: CommandRequestResult; format?: string }): CliOutput {
   const data = params.result as Record<string, unknown>;
   if (params.format === 'text') {

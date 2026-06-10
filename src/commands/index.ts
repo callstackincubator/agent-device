@@ -125,6 +125,7 @@ import {
   installCommand,
   installFromSourceCommand,
   reinstallCommand,
+  shutdownCommand,
   type AdminBootCommandOptions,
   type AdminBootCommandResult,
   type AdminDevicesCommandOptions,
@@ -133,6 +134,8 @@ import {
   type AdminInstallCommandResult,
   type AdminInstallFromSourceCommandOptions,
   type AdminReinstallCommandOptions,
+  type AdminShutdownCommandOptions,
+  type AdminShutdownCommandResult,
 } from './admin.ts';
 import {
   recordCommand,
@@ -251,6 +254,8 @@ export type {
   AdminInstallCommandResult,
   AdminInstallFromSourceCommandOptions,
   AdminReinstallCommandOptions,
+  AdminShutdownCommandOptions,
+  AdminShutdownCommandResult,
 } from './admin.ts';
 export type {
   RecordingRecordCommandOptions,
@@ -333,6 +338,7 @@ export type AgentDeviceCommands = {
   admin: {
     devices: RuntimeCommand<AdminDevicesCommandOptions | undefined, AdminDevicesCommandResult>;
     boot: RuntimeCommand<AdminBootCommandOptions | undefined, AdminBootCommandResult>;
+    shutdown: RuntimeCommand<AdminShutdownCommandOptions | undefined, AdminShutdownCommandResult>;
     install: RuntimeCommand<AdminInstallCommandOptions, AdminInstallCommandResult>;
     reinstall: RuntimeCommand<AdminReinstallCommandOptions, AdminInstallCommandResult>;
     installFromSource: RuntimeCommand<
@@ -440,6 +446,7 @@ export type BoundAgentDeviceCommands = {
   admin: {
     devices: (options?: AdminDevicesCommandOptions) => Promise<AdminDevicesCommandResult>;
     boot: (options?: AdminBootCommandOptions) => Promise<AdminBootCommandResult>;
+    shutdown: (options?: AdminShutdownCommandOptions) => Promise<AdminShutdownCommandResult>;
     install: BoundRuntimeCommand<AdminInstallCommandOptions, AdminInstallCommandResult>;
     reinstall: BoundRuntimeCommand<AdminReinstallCommandOptions, AdminInstallCommandResult>;
     installFromSource: BoundRuntimeCommand<
@@ -510,6 +517,7 @@ export const commands: AgentDeviceCommands = {
   admin: {
     devices: devicesCommand,
     boot: bootCommand,
+    shutdown: shutdownCommand,
     install: installCommand,
     reinstall: reinstallCommand,
     installFromSource: installFromSourceCommand,
@@ -588,6 +596,7 @@ export function bindCommands(runtime: AgentDeviceRuntime): BoundAgentDeviceComma
     admin: {
       devices: (options) => commands.admin.devices(runtime, options),
       boot: (options) => commands.admin.boot(runtime, options),
+      shutdown: (options) => commands.admin.shutdown(runtime, options),
       install: (options) => commands.admin.install(runtime, options),
       reinstall: (options) => commands.admin.reinstall(runtime, options),
       installFromSource: (options) => commands.admin.installFromSource(runtime, options),

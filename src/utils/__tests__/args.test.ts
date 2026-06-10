@@ -44,6 +44,16 @@ test('parseArgs recognizes command-specific flag combinations', async () => {
       },
     },
     {
+      label: 'shutdown android emulator',
+      argv: ['shutdown', '--platform', 'android', '--device', 'Pixel_9_Pro_XL'],
+      strictFlags: true,
+      assertParsed: (parsed) => {
+        assert.equal(parsed.command, 'shutdown');
+        assert.equal(parsed.flags.platform, 'android');
+        assert.equal(parsed.flags.device, 'Pixel_9_Pro_XL');
+      },
+    },
+    {
       label: 'prepare ios-runner',
       argv: ['prepare', 'ios-runner', '--platform', 'ios', '--timeout', '240000'],
       strictFlags: true,
@@ -1481,6 +1491,7 @@ test('usage includes swipe and press series options', () => {
 test('usage renders concise commands inline with descriptions', () => {
   const help = usage();
   assert.match(help, /Commands:[\s\S]*\n  boot\s{2,}Boot target device\/simulator/);
+  assert.match(help, /Commands:[\s\S]*\n  shutdown\s{2,}Shutdown target simulator\/emulator/);
   assert.match(help, /  prepare ios-runner --platform ios\|macos\s{2,}Prepare platform helpers/);
   assert.match(
     help,

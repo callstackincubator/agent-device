@@ -531,6 +531,10 @@ export type AgentDeviceBackend = {
     context: BackendCommandContext,
     target?: BackendDeviceTarget,
   ): Promise<BackendActionResult>;
+  shutdownDevice?(
+    context: BackendCommandContext,
+    target?: BackendDeviceTarget,
+  ): Promise<BackendActionResult>;
   resolveInstallSource?(
     context: BackendCommandContext,
     source: BackendInstallSource,

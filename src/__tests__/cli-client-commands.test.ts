@@ -994,6 +994,7 @@ function createStubClient(params: {
     devices: {
       list: async () => [],
       boot: unexpectedCommandCall,
+      shutdown: unexpectedCommandCall,
     },
     sessions: {
       list: async () => [],

@@ -5,7 +5,10 @@ import { resolveTargetDevice } from '../../core/dispatch.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { hasExplicitDeviceSelector } from '../device-selector-intent.ts';
 import { listSessionSelectorConflicts } from '../session-selector.ts';
+import { isIosSimulator } from '../device-targets.ts';
 import { errorResponse } from './response.ts';
+
+export { isIosSimulator };
 
 export const IOS_SIMULATOR_POST_CLOSE_SETTLE_MS = 300;
 
@@ -27,14 +30,6 @@ export function requireSessionOrExplicitSelector(
 
 export function hasExplicitSessionFlag(flags: DaemonRequest['flags'] | undefined): boolean {
   return typeof flags?.session === 'string' && flags.session.trim().length > 0;
-}
-
-export function isIosSimulator(device: DeviceInfo): boolean {
-  return device.platform === 'ios' && device.kind === 'simulator';
-}
-
-export function isAndroidEmulator(device: DeviceInfo): boolean {
-  return device.platform === 'android' && device.kind === 'emulator';
 }
 
 export async function settleIosSimulator(device: DeviceInfo, delayMs: number): Promise<void> {

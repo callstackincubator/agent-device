@@ -66,6 +66,7 @@ export type {
   ClipboardCommandResult,
   CommandRequestResult,
   DeviceBootOptions,
+  DeviceShutdownOptions,
   ElementTarget,
   FillOptions,
   FindLocator,

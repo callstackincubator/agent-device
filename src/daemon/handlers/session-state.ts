@@ -4,6 +4,7 @@ import { isApplePlatform, normalizePlatformSelector, type DeviceInfo } from '../
 import type { DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
+import { shutdownDeviceTarget } from '../target-shutdown.ts';
 import {
   hasExplicitSessionFlag,
   requireSessionOrExplicitSelector,
@@ -253,6 +254,73 @@ export async function handleSessionStateCommands(params: {
     };
   }
 
+  if (req.command === 'shutdown') {
+    const activeSession = sessionStore.get(sessionName);
+    const flags = req.flags ?? {};
+    const guard = requireSessionOrExplicitSelector(req.command, activeSession, flags);
+    if (guard) return guard;
+
+    const device = await resolveCommandDevice({
+      ensureReady: false,
+      flags,
+      session: activeSession,
+    });
+    if (!isCommandSupportedOnDevice('shutdown', device)) {
+      return errorResponse(
+        'UNSUPPORTED_OPERATION',
+        'shutdown is supported only for Apple simulators and Android emulators.',
+      );
+    }
+
+    if (
+      activeSession &&
+      activeSession.device.platform === device.platform &&
+      activeSession.device.id === device.id
+    ) {
+      return errorResponse(
+        'DEVICE_IN_USE',
+        'Cannot shut down an active session device directly. Use close --shutdown to end the session and turn off the simulator/emulator.',
+        {
+          hint: `Run agent-device close --shutdown --session ${sessionName}`,
+          session: sessionName,
+          platform: device.platform,
+          target: device.target ?? 'mobile',
+          device: device.name,
+          id: device.id,
+          kind: device.kind,
+        },
+      );
+    }
+
+    const shutdown = await shutdownDeviceTarget(device);
+    if (!shutdown.success) {
+      return errorResponse(
+        shutdown.error?.code ?? 'COMMAND_FAILED',
+        shutdownFailureMessage(shutdown),
+        {
+          platform: device.platform,
+          target: device.target ?? 'mobile',
+          device: device.name,
+          id: device.id,
+          kind: device.kind,
+          shutdown,
+        },
+      );
+    }
+
+    return {
+      ok: true,
+      data: {
+        platform: device.platform,
+        target: device.target ?? 'mobile',
+        device: device.name,
+        id: device.id,
+        kind: device.kind,
+        shutdown,
+      },
+    };
+  }
+
   if (req.command === 'appstate') {
     return await handleAppStateCommand({
       req,
@@ -262,4 +330,11 @@ export async function handleSessionStateCommands(params: {
   }
 
   return null;
+}
+
+function shutdownFailureMessage(
+  shutdown: Awaited<ReturnType<typeof shutdownDeviceTarget>>,
+): string {
+  const message = shutdown.error?.message ?? shutdown.stderr.trim();
+  return message.length > 0 ? message : 'Shutdown failed';
 }

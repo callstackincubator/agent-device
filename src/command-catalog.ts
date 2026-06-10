@@ -37,6 +37,7 @@ export const PUBLIC_COMMANDS = {
   scroll: 'scroll',
   screenshot: 'screenshot',
   settings: 'settings',
+  shutdown: 'shutdown',
   snapshot: 'snapshot',
   swipe: 'swipe',
   test: 'test',
@@ -82,6 +83,7 @@ export type ClientBackedCliCommandName =
 export const BATCH_COMMAND_NAMES = [
   PUBLIC_COMMANDS.devices,
   PUBLIC_COMMANDS.boot,
+  PUBLIC_COMMANDS.shutdown,
   PUBLIC_COMMANDS.apps,
   PUBLIC_COMMANDS.open,
   PUBLIC_COMMANDS.close,
