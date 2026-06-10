@@ -49,6 +49,8 @@ export function writeInfo(
       mode: 0o600,
     },
   );
+  // writeFileSync only applies mode on creation; tighten pre-existing files too.
+  fs.chmodSync(infoPath, 0o600);
 }
 
 export function removeInfo(infoPath: string): void {

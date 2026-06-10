@@ -1,6 +1,7 @@
 import http, { type IncomingHttpHeaders } from 'node:http';
 import fs from 'node:fs';
 import { AppError, normalizeError, toAppErrorCode } from '../utils/errors.ts';
+import { timingSafeStringEqual } from '../utils/timing-safe-equal.ts';
 import type { JsonRpcId, JsonRpcRequestEnvelope, LeaseBackend } from '../contracts.ts';
 import type { DaemonInstallSource, DaemonRequest, DaemonResponse } from './types.ts';
 import { normalizeTenantId } from './config.ts';
@@ -818,6 +819,6 @@ function enforceDaemonToken(
   expectedToken: string | undefined,
 ): ReturnType<typeof normalizeError> | null {
   if (!expectedToken) return null;
-  if (requestToken === expectedToken) return null;
+  if (timingSafeStringEqual(requestToken, expectedToken)) return null;
   return normalizeError(new AppError('UNAUTHORIZED', 'Invalid token'));
 }
