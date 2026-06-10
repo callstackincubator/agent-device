@@ -1,7 +1,4 @@
-import { whichCmd } from '../../utils/exec.ts';
-import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { ensureAndroidSdkPathConfigured } from './sdk.ts';
 import {
   resolveAndroidAdbExecutor,
   type AndroidAdbExecutorOptions,
@@ -26,12 +23,6 @@ export function androidDeviceForSerial(deviceId: string): DeviceInfo {
     kind: deviceId.startsWith('emulator-') ? 'emulator' : 'device',
     booted: true,
   };
-}
-
-export async function ensureAdb(): Promise<void> {
-  await ensureAndroidSdkPathConfigured();
-  const adbAvailable = await whichCmd('adb');
-  if (!adbAvailable) throw new AppError('TOOL_MISSING', 'adb not found in PATH');
 }
 
 export function isClipboardShellUnsupported(stdout: string, stderr: string): boolean {
