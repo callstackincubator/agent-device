@@ -6,7 +6,7 @@ Date: 2026-06-10 · Version audited: 0.17.1 (commit `1de7e73`) · Scope: full re
 
 ## 1. Executive Summary
 
-**Overall health: A−.** This is a production-grade, actively maintained OSS product with engineering hygiene well above the OSS norm: zero `any` in ~97k LOC of production TypeScript, exactly one runtime dependency (`yaml`), a clean dead-code baseline, per-PR real-emulator smoke CI plus nightly device replay suites, and a deliberately hardened security posture (loopback-only daemon, random per-boot token stored 0600, tar-traversal and upload-size defenses). No Critical findings; nothing in the codebase looks negligent. The grade is A− rather than A because complexity is concentrating in a few load-bearing monoliths — above all `src/daemon-client.ts` (1,801 LOC, four functions grandfathered as complexity-critical) — and because the layering between `commands/`, `daemon/`, and `platforms/` is drifting (the daemon imports from the CLI commands layer in 10+ files). **Top 3 risks:** (1) daemon-client lifecycle/transport code is the hardest-to-test, most failure-prone path and keeps absorbing complexity; (2) the largest platform modules (iOS app resolution, Android app lifecycle, Maestro compat) have no direct unit tests, so refactoring them is risky; (3) lint/format are configured but not enforced in CI, so the quality gate is weaker than it appears. **Top 3 opportunities:** (1) a one-hour CI lint/format gate closes the cheapest gap; (2) extracting shared contracts out of `src/commands/` restores a clean dependency direction and unblocks future daemon/cloud separation; (3) splitting `daemon-client.ts` along its four obvious seams converts the riskiest file into four testable modules.
+**Overall health: A−.** This is a production-grade, actively maintained OSS product with engineering hygiene well above the OSS norm: zero `any` in ~97k LOC of production TypeScript, exactly one runtime dependency (`yaml`), a clean dead-code baseline, per-PR real-emulator smoke CI plus nightly device replay suites, and a deliberately hardened security posture (loopback-only daemon, random per-boot token stored 0600, tar-traversal and upload-size defenses). No Critical findings in the product code itself; the repo's single Critical Dependabot alert (CVE-2026-9277, `shell-quote@1.8.3`) sits in the example app's lockfile, not the published package, and is a one-line override to fix. Nothing in the codebase looks negligent. The grade is A− rather than A because complexity is concentrating in a few load-bearing monoliths — above all `src/daemon-client.ts` (1,801 LOC, four functions grandfathered as complexity-critical) — and because the layering between `commands/`, `daemon/`, and `platforms/` is drifting (the daemon imports from the CLI commands layer in 10+ files). **Top 3 risks:** (1) daemon-client lifecycle/transport code is the hardest-to-test, most failure-prone path and keeps absorbing complexity; (2) the largest platform modules (iOS app resolution, Android app lifecycle, Maestro compat) have no direct unit tests, so refactoring them is risky; (3) lint/format are configured but not enforced in CI, so the quality gate is weaker than it appears. **Top 3 opportunities:** (1) a one-hour CI lint/format gate closes the cheapest gap; (2) extracting shared contracts out of `src/commands/` restores a clean dependency direction and unblocks future daemon/cloud separation; (3) splitting `daemon-client.ts` along its four obvious seams converts the riskiest file into four testable modules.
 
 ---
 
@@ -124,7 +124,11 @@ Findings:
 [fact] `AGENT_DEVICE_HTTP_AUTH_HOOK` loads and executes an arbitrary module path from the environment (`src/daemon/http-server.ts:460-482`).
 [judgment] Reasonable extension point (whoever sets the daemon's env already owns the process); worth one paragraph of threat-model documentation so cloud deployers don't point it at writable locations.
 
-Dependencies: one runtime dep (`yaml@^2.9.0`), 11 devDeps, all current-generation (TypeScript 6, vitest 4, oxlint 1.57), pnpm lockfile present and versions pinned or caret-pinned. No known-CVE exposure surface worth listing. **Healthy.**
+**S4 — Known-critical CVE in the example app's lockfile (the repo's one open Dependabot Critical). Medium for the repo, not the product.**
+[fact] `pnpm audit` in `examples/test-app/` flags CVE-2026-9277 / GHSA-w7jw-789q-3m8p (critical, CVSS 8.1): `shell-quote@1.8.3` via `react-native > react-devtools-core`, fixed in 1.8.4. This matches the single critical Dependabot alert on the default branch. The root workspace (446 deps, the tree that ships in the npm package) audits clean, and the product's own `src/utils/shell-quote.ts` is an unrelated in-house helper.
+[judgment] Exploitability through the Expo fixture app is negligible (dev-only, requires object-token `quote()` usage), but an open Critical alert on a security-conscious repo erodes signal — and the fix is a one-line `pnpm.overrides` entry (`"shell-quote": ">=1.8.4"`) in `examples/test-app/package.json` plus a lockfile refresh.
+
+Dependencies otherwise: one runtime dep (`yaml@^2.9.0`), 11 devDeps, all current-generation (TypeScript 6, vitest 4, oxlint 1.57), pnpm lockfiles present at root and in `examples/test-app`. **Healthy.**
 
 ### 3.4 Testing
 
@@ -217,6 +221,7 @@ Target state: CI fails on lint/format; token compares are timing-safe; daemon st
 | QW-3 | `chmod 0600` after `daemon.json` write | S | Low |
 | QW-4 | CI guard against `commands/` imports in `daemon/`+`platforms/` (warn-only until M2-2 lands) | S | Low |
 | QW-5 | Document auth-hook threat model + daemon version/code-signature reuse rule (one docs page) | S | None |
+| QW-6 | Clear CVE-2026-9277: add `pnpm.overrides` `"shell-quote": ">=1.8.4"` to `examples/test-app/package.json`, refresh its lockfile | S | Low |
 
 ### Milestone 0 — Safety net (before refactoring)
 
