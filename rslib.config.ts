@@ -31,6 +31,7 @@ export default defineConfig({
           'internal/bin': 'src/bin.ts',
           'internal/companion-tunnel': 'src/companion-tunnel.ts',
           'internal/daemon': 'src/daemon.ts',
+          'internal/png-worker': 'src/utils/png-worker.ts',
           'internal/update-check-entry': 'src/utils/update-check-entry.ts',
         },
         tsconfigPath: 'tsconfig.lib.json',

@@ -1,7 +1,12 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { AppError } from '../utils/errors.ts';
-import { decodePng, PNG } from './png.ts';
+import { PNG } from './png.ts';
+import {
+  computeScreenshotDiffPixelsAsync,
+  decodePngAsync,
+  encodePngAsync,
+} from './png-worker-client.ts';
 import { annotateDiffRegions } from './screenshot-diff-region-overlay.ts';
 import {
   summarizeNonTextDiffDeltas,
@@ -43,9 +48,6 @@ export type ScreenshotDiffOptions = {
 // We use this as the denominator so threshold 0–1 maps linearly to the full
 // color distance range: 0 = exact match only, 1 = everything matches.
 const COLOR_DISTANCE_SCALE = 255 * Math.sqrt(3);
-const DIFF_CONTEXT_LIGHTEN_RATIO = 0.72;
-const DIFF_CHANGE_TINT_RATIO = 0.78;
-const DIFF_CHANGE_COLOR = { r: 220, g: 0, b: 0 } as const;
 
 export async function compareScreenshots(
   baselinePath: string,
@@ -62,8 +64,8 @@ export async function compareScreenshots(
     fs.readFile(currentPath),
   ]);
 
-  const baseline = decodePng(baselineBuffer, 'baseline screenshot');
-  const current = decodePng(currentBuffer, 'current screenshot');
+  const baseline = await decodePngAsync(baselineBuffer, 'baseline screenshot');
+  const current = await decodePngAsync(currentBuffer, 'current screenshot');
   validateMaxPixels(baseline.width, baseline.height, 'baseline screenshot', options.maxPixels);
   validateMaxPixels(current.width, current.height, 'current screenshot', options.maxPixels);
 
@@ -87,36 +89,15 @@ export async function compareScreenshots(
 
   const totalPixels = baseline.width * baseline.height;
   const maxColorDistance = threshold * COLOR_DISTANCE_SCALE;
-  const diff = new PNG({ width: baseline.width, height: baseline.height });
-  const diffMask = new Uint8Array(totalPixels);
-  let differentPixels = 0;
-
-  // PNG data is a flat RGBA buffer: [R, G, B, A, R, G, B, A, ...].
-  // We step by 4 to visit each pixel and compute its Euclidean distance
-  // in RGB space between the baseline and current image.
-  for (let index = 0, pixelIndex = 0; index < baseline.data.length; index += 4, pixelIndex += 1) {
-    const redDelta = baseline.data[index]! - current.data[index]!;
-    const greenDelta = baseline.data[index + 1]! - current.data[index + 1]!;
-    const blueDelta = baseline.data[index + 2]! - current.data[index + 2]!;
-    const colorDistance = Math.sqrt(redDelta ** 2 + greenDelta ** 2 + blueDelta ** 2);
-
-    if (colorDistance > maxColorDistance) {
-      differentPixels += 1;
-      diffMask[pixelIndex] = 1;
-      const context = renderDiffContextChannel(current, index);
-      diff.data[index] = tintChannel(context, DIFF_CHANGE_COLOR.r, DIFF_CHANGE_TINT_RATIO);
-      diff.data[index + 1] = tintChannel(context, DIFF_CHANGE_COLOR.g, DIFF_CHANGE_TINT_RATIO);
-      diff.data[index + 2] = tintChannel(context, DIFF_CHANGE_COLOR.b, DIFF_CHANGE_TINT_RATIO);
-      diff.data[index + 3] = 255;
-      continue;
-    }
-
-    const context = renderDiffContextChannel(current, index);
-    diff.data[index] = context;
-    diff.data[index + 1] = context;
-    diff.data[index + 2] = context;
-    diff.data[index + 3] = 255;
-  }
+  // Per-pixel comparison is CPU-heavy for full-resolution screenshots, so it
+  // runs on the PNG worker thread (with an in-process synchronous fallback).
+  const { diffData, diffMask, differentPixels } = await computeScreenshotDiffPixelsAsync({
+    width: baseline.width,
+    height: baseline.height,
+    baselineData: baseline.data,
+    currentData: current.data,
+    maxColorDistance,
+  });
 
   const regions =
     differentPixels > 0
@@ -131,9 +112,10 @@ export async function compareScreenshots(
       : [];
 
   if (differentPixels > 0 && diffOutputPath) {
+    const diff = new PNG({ width: baseline.width, height: baseline.height, data: diffData });
     annotateDiffRegions(diff, regions);
     await fs.mkdir(path.dirname(diffOutputPath), { recursive: true });
-    await fs.writeFile(diffOutputPath, PNG.sync.write(diff));
+    await fs.writeFile(diffOutputPath, await encodePngAsync(diff));
   } else {
     await removeStaleDiffOutput(options.outputPath);
   }
@@ -221,15 +203,4 @@ async function removeStaleDiffOutput(outputPath: string | undefined): Promise<vo
 
 function isFsError(error: unknown, code: string): error is NodeJS.ErrnoException {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === code;
-}
-
-function renderDiffContextChannel(source: PNG, index: number): number {
-  const gray = Math.round(
-    source.data[index]! * 0.299 + source.data[index + 1]! * 0.587 + source.data[index + 2]! * 0.114,
-  );
-  return tintChannel(gray, 255, DIFF_CONTEXT_LIGHTEN_RATIO);
-}
-
-function tintChannel(base: number, tint: number, ratio: number): number {
-  return Math.round(base * (1 - ratio) + tint * ratio);
 }

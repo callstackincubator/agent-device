@@ -6,7 +6,8 @@ import {
   type SnapshotNode,
   type SnapshotState,
 } from '../utils/snapshot.ts';
-import { decodePng, PNG } from '../utils/png.ts';
+import type { PNG } from '../utils/png.ts';
+import { decodePngAsync, encodePngAsync } from '../utils/png-worker-client.ts';
 import { analyzeReactNativeOverlay } from '../commands/react-native/overlay.ts';
 import { findNearestAncestor, normalizeType } from './snapshot-processing.ts';
 import { resolveAndroidOverlaySourceRect } from './screenshot-overlay-android.ts';
@@ -69,7 +70,9 @@ export async function annotateScreenshotWithRefs(params: {
   maxRefs?: number;
 }): Promise<ScreenshotOverlayRef[]> {
   const screenshotBuffer = await fs.readFile(params.screenshotPath);
-  const png = decodePng(screenshotBuffer, 'screenshot');
+  // Decode/encode run on the PNG worker thread so multi-MB screenshots do not
+  // block the daemon event loop; overlay drawing itself is cheap.
+  const png = await decodePngAsync(screenshotBuffer, 'screenshot');
   const overlayRefs = buildScreenshotOverlayRefs(params.snapshot, png.width, png.height, {
     maxRefs: params.maxRefs,
   });
@@ -78,7 +81,7 @@ export async function annotateScreenshotWithRefs(params: {
     drawOverlayRef(png, overlayRef);
   }
 
-  await fs.writeFile(params.screenshotPath, PNG.sync.write(png));
+  await fs.writeFile(params.screenshotPath, await encodePngAsync(png));
   return overlayRefs;
 }
 
