@@ -1167,6 +1167,7 @@ function createStubClient(params: {
     replay: createThrowingMethodGroup<AgentDeviceClient['replay']>(),
     batch: createThrowingMethodGroup<AgentDeviceClient['batch']>(),
     observability: createThrowingMethodGroup<AgentDeviceClient['observability']>(),
+    debug: createThrowingMethodGroup<AgentDeviceClient['debug']>(),
     recording: createThrowingMethodGroup<AgentDeviceClient['recording']>(),
     settings: {
       update: params.updateSettings ?? unexpectedCommandCall,

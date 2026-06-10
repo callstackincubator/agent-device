@@ -111,6 +111,7 @@ function createTestClient(
     replay: createThrowingMethodGroup<AgentDeviceClient['replay']>(),
     batch: createThrowingMethodGroup<AgentDeviceClient['batch']>(),
     observability: createThrowingMethodGroup<AgentDeviceClient['observability']>(),
+    debug: createThrowingMethodGroup<AgentDeviceClient['debug']>(),
     recording: createThrowingMethodGroup<AgentDeviceClient['recording']>(),
     settings: createThrowingMethodGroup<AgentDeviceClient['settings']>(),
   };

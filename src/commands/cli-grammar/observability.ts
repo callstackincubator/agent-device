@@ -28,6 +28,14 @@ import {
 import type { CliReader, DaemonWriter } from './types.ts';
 
 export const observabilityCliReaders = {
+  debug: (positionals, flags) => ({
+    ...commonInputFromFlags(flags),
+    action: readDebugAction(positionals[0]),
+    artifact: flags.artifact,
+    dsym: flags.dsym,
+    searchPath: flags.searchPath,
+    out: flags.out,
+  }),
   perf: (positionals, flags) => ({
     ...commonInputFromFlags(flags),
     ...readPerfPositionals(positionals),
@@ -102,6 +110,14 @@ function recordingPositionals(input: RecordOptions): string[] {
 function readStartStop(value: string | undefined, command: string): 'start' | 'stop' {
   if (value === 'start' || value === 'stop') return value;
   throw new AppError('INVALID_ARGS', `${command} requires start|stop`);
+}
+
+function readDebugAction(value: string | undefined): 'symbols' {
+  if (value === 'symbols') return value;
+  throw new AppError(
+    'INVALID_ARGS',
+    'debug supports only symbols; use logs, network, perf, record, trace, or react-devtools for other diagnostics.',
+  );
 }
 
 function readPerfArea(value: string | undefined): PerfArea | undefined {

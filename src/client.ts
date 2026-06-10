@@ -1,6 +1,7 @@
 import { sendToDaemon } from './daemon-client.ts';
 import { prepareMetroRuntime, reloadMetro } from './client-metro.ts';
 import { resolveDaemonPaths } from './daemon/config.ts';
+import { symbolicateCrashArtifact } from './debug-symbols.ts';
 import { INTERNAL_COMMANDS } from './command-catalog.ts';
 import {
   prepareDaemonCommandRequest,
@@ -302,6 +303,10 @@ export function createAgentDeviceClient(
       perf: async (options = {}) => await executeCommand('perf', options),
       logs: async (options = {}) => await executeCommand('logs', options),
       network: async (options = {}) => await executeCommand('network', options),
+    },
+    debug: {
+      symbols: async (options) =>
+        await symbolicateCrashArtifact({ cwd: options.cwd ?? config.cwd, ...options }),
     },
     recording: {
       record: async (options) => await executeCommand('record', options),

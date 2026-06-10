@@ -61,6 +61,7 @@ const LOCAL_CLI_COMMANDS = {
   auth: 'auth',
   connect: 'connect',
   connection: 'connection',
+  debug: 'debug',
   disconnect: 'disconnect',
   mcp: 'mcp',
   metro: 'metro',
@@ -77,6 +78,7 @@ export type LocalCliCommandName = (typeof LOCAL_CLI_COMMANDS)[keyof typeof LOCAL
 export type CliCommandName = PublicCommandName | LocalCliCommandName;
 export type ClientBackedCliCommandName =
   | PublicCommandName
+  | typeof LOCAL_CLI_COMMANDS.debug
   | typeof LOCAL_CLI_COMMANDS.metro
   | typeof LOCAL_CLI_COMMANDS.session;
 
@@ -140,6 +142,7 @@ const CAPABILITY_EXEMPT_CLI_COMMANDS = commandSet(
   LOCAL_CLI_COMMANDS.auth,
   LOCAL_CLI_COMMANDS.connect,
   LOCAL_CLI_COMMANDS.connection,
+  LOCAL_CLI_COMMANDS.debug,
   LOCAL_CLI_COMMANDS.disconnect,
   LOCAL_CLI_COMMANDS.mcp,
   LOCAL_CLI_COMMANDS.metro,
@@ -168,6 +171,7 @@ export function isClientBackedCliCommandName(
 ): command is ClientBackedCliCommandName {
   return (
     Object.values(PUBLIC_COMMANDS).includes(command as PublicCommandName) ||
+    command === LOCAL_CLI_COMMANDS.debug ||
     command === LOCAL_CLI_COMMANDS.metro ||
     command === LOCAL_CLI_COMMANDS.session
   );

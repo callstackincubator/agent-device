@@ -275,6 +275,18 @@ Network:
   Use this instead of logs path when the question is request/response metadata.
   network log is a supported alias, but network dump --include headers is the clearest plan form. Do not write network log headers.
 
+Crash symbolication:
+  Crash routing:
+    Use logs when you need the lead-up timeline before a failure.
+    Use debug symbols when you have crash.ips/crash.log plus a matching dSYM/build directory and need the failing frame.
+    Use Xcode/LLDB when you need live state, breakpoints, variables, memory, or stepping.
+  Use debug symbols when you already have an Apple crash artifact and local dSYMs and need the failing code path, not a full log dump:
+    agent-device debug symbols --artifact crash.log --dsym MyApp.dSYM --out crash-symbolicated.log
+    agent-device debug symbols --artifact crash.ips --search-path ./build --out crash-symbolicated.ips
+  debug is intentionally narrow. Do not use it for logs, network evidence, performance samples, recordings, traces, or React Native internals.
+  Apple support matches crash Binary Images / IPS usedImages UUIDs against dwarfdump --uuid output from .dSYM bundles, then writes a symbolicated artifact path and compact crash report: app/thread, exception or termination, top symbolicated frames, and first-frame finding. This is better than pasting crash logs because it keeps agent context small while preserving the artifact on disk for inspection.
+  Android Java/R8 mapping.txt and native ndk-stack/addr2line symbolication are not in this first debug symbols workflow; capture crash evidence with logs and use the Android toolchain externally for now.
+
 Alerts:
   Native and platform dialogs:
     agent-device alert wait 3000

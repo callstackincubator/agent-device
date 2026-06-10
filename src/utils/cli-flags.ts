@@ -62,6 +62,9 @@ export type CliFlags = RemoteConfigMetroOptions &
     snapshotScope?: string;
     snapshotRaw?: boolean;
     snapshotForceFull?: boolean;
+    artifact?: string;
+    dsym?: string;
+    searchPath?: string;
     networkInclude?: NetworkIncludeMode;
     baseline?: string;
     threshold?: string;
@@ -119,6 +122,7 @@ export type CliFlags = RemoteConfigMetroOptions &
       input: Record<string, unknown>;
       runtime?: unknown;
     }>;
+    out?: string;
     help: boolean;
     version: boolean;
   };
@@ -987,6 +991,27 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'string',
     usageLabel: '--out <path>',
     usageDescription: 'Output path',
+  },
+  {
+    key: 'artifact',
+    names: ['--artifact'],
+    type: 'string',
+    usageLabel: '--artifact <path>',
+    usageDescription: 'Debug symbols: Apple crash artifact path (.ips, .crash, or .log)',
+  },
+  {
+    key: 'dsym',
+    names: ['--dsym'],
+    type: 'string',
+    usageLabel: '--dsym <path>',
+    usageDescription: 'Debug symbols: matching .dSYM bundle path',
+  },
+  {
+    key: 'searchPath',
+    names: ['--search-path'],
+    type: 'string',
+    usageLabel: '--search-path <dir>',
+    usageDescription: 'Debug symbols: directory to scan for matching .dSYM bundles',
   },
   {
     key: 'overlayRefs',

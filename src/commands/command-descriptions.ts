@@ -1,5 +1,6 @@
 const COMMAND_DESCRIPTIONS = {
   devices: 'List available devices.',
+  debug: 'Symbolicate crash artifacts with matching debug symbols.',
   boot: 'Boot or prepare a selected device without using CLI positional arguments.',
   shutdown: 'Shutdown a selected simulator or emulator.',
   apps: 'List installed apps.',

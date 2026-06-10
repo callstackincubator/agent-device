@@ -1180,6 +1180,11 @@ test('usageForCommand resolves debugging help topic', () => {
   const help = usageForCommand('debugging');
   if (help === null) throw new Error('Expected debugging help text');
   assert.match(help, /agent-device help debugging/);
+  assert.match(help, /Use logs when you need the lead-up timeline/);
+  assert.match(help, /Use debug symbols when you have crash\.ips\/crash\.log/);
+  assert.match(help, /Use Xcode\/LLDB when you need live state/);
+  assert.match(help, /debug symbols --artifact crash\.ips --search-path \.\/build/);
+  assert.match(help, /Android Java\/R8 mapping\.txt and native ndk-stack\/addr2line/);
   assert.match(help, /agent-device alert wait 3000/);
   assert.match(help, /iOS support is runner-derived/);
   assert.match(help, /resolved app executable/);
@@ -1188,6 +1193,45 @@ test('usageForCommand resolves debugging help topic', () => {
   assert.match(help, /requests\/<request-id>\.ndjson holds daemon request diagnostics/);
   assert.match(help, /daemon\.log is global daemon lifecycle evidence/);
   assert.match(help, /Do not use settings permission to answer a dialog already on screen/);
+});
+
+test('parseArgs recognizes debug symbols command shape', () => {
+  const parsed = parseArgs([
+    'debug',
+    'symbols',
+    '--artifact',
+    'crash.ips',
+    '--search-path',
+    './build',
+    '--out',
+    'crash-symbolicated.ips',
+  ]);
+
+  assert.equal(parsed.command, 'debug');
+  assert.deepEqual(parsed.positionals, ['symbols']);
+  assert.equal(parsed.flags.artifact, 'crash.ips');
+  assert.equal(parsed.flags.searchPath, './build');
+  assert.equal(parsed.flags.out, 'crash-symbolicated.ips');
+});
+
+test('debug command help stays scoped to symbolication', () => {
+  const help = usageForCommand('debug');
+  if (help === null) throw new Error('Expected debug help text');
+  assert.match(help, /debug symbols --artifact/);
+  assert.match(help, /intentionally narrow/);
+  assert.match(help, /use logs for app logs, network for HTTP evidence, perf for performance/);
+  assert.doesNotMatch(help, /agent-device debug perf/);
+  assert.doesNotMatch(help, /agent-device debug logs/);
+});
+
+test('debug rejects unrelated diagnostics flags', () => {
+  assert.throws(
+    () => parseArgs(['debug', 'symbols', '--include', 'headers']),
+    (error) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      error.message.includes('not supported for command debug'),
+  );
 });
 
 test('usageForCommand resolves remote help topic', () => {

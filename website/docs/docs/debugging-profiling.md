@@ -11,6 +11,7 @@ Use `agent-device` when the task moves past UI automation and you need runtime e
 - Session app logs for targeted debugging windows
 - Network inspection from recent HTTP(s) entries in app logs via `network dump`
 - Performance snapshots with `perf metrics` / `perf frames`
+- Apple crash symbolication with `debug symbols`
 - Screenshots, recordings, and replayable repro flows
 
 ## React Native component internals
@@ -61,6 +62,27 @@ agent-device open MyApp --platform ios --relaunch --launch-console ./artifacts/a
 ```
 
 `--launch-console` is only for direct iOS simulator app launches, not URL opens.
+
+## Crash symbolication
+
+Crash routing:
+
+| Need | Use |
+| --- | --- |
+| Lead-up timeline before a failure | `logs` |
+| Failing frame from `crash.ips`/`crash.log` plus matching dSYM/build directory | `debug symbols` |
+| Live state, breakpoints, variables, memory, or stepping | Xcode/LLDB |
+
+Use `debug symbols` when you already have an Apple crash artifact and local dSYMs and need the failing code path, not a full log dump:
+
+```bash
+agent-device debug symbols --artifact crash.log --dsym MyApp.dSYM --out crash-symbolicated.log
+agent-device debug symbols --artifact crash.ips --search-path ./build --out crash-symbolicated.ips
+```
+
+The command supports Apple `.ips`, `.crash`, and log-style crash artifacts that contain Binary Images or IPS `usedImages`. It matches UUIDs from the crash artifact against `dwarfdump --uuid` output from `.dSYM` bundles, runs `atos`, writes a symbolicated artifact, and prints only the output path plus a compact crash report: app/thread, exception or termination, top symbolicated frames, and the first actionable frame finding. This is better than pasting raw crash logs because it keeps agent context small while preserving the full symbolicated artifact on disk.
+
+`debug` is intentionally narrow. Use `logs` for app logs, `network` for HTTP evidence, `perf` for performance samples, `record`/`trace` for media and traces, and `react-devtools` for React Native internals. Android Java/R8 `mapping.txt` and native `ndk-stack`/`addr2line` symbolication are deferred; capture Android crash evidence with `logs` and symbolicate externally for now.
 
 ## Core commands
 

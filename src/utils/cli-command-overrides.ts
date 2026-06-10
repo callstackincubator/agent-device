@@ -77,6 +77,16 @@ const CLI_COMMAND_OVERRIDES = {
     positionalArgs: ['ios-runner'],
     allowedFlags: ['timeoutMs'],
   },
+  debug: {
+    usageOverride:
+      'debug symbols --artifact <crash.ips|crash.log> (--dsym <App.dSYM> | --search-path <dir>) [--out <symbolicated>]',
+    listUsageOverride: 'debug symbols --artifact <path> --dsym <App.dSYM>',
+    helpDescription:
+      'Symbolicate Apple crash artifacts with matching dSYM UUIDs. This debug namespace is intentionally narrow: use logs for app logs, network for HTTP evidence, perf for performance samples, record/trace for media and traces, and react-devtools for React Native profiles.',
+    summary: 'Symbolicate Apple crash artifacts',
+    positionalArgs: ['symbols'],
+    allowedFlags: ['artifact', 'dsym', 'searchPath', 'out'],
+  },
   open: {
     helpDescription:
       'Boot device/simulator; optionally launch app or deep link URL (macOS also supports --surface app|frontmost-app|desktop|menubar)',

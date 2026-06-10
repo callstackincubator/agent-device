@@ -1236,6 +1236,29 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     forbiddenOutputs: [/logs path/i, /cat .*log/i],
   }),
   makeCase({
+    id: 'debug-symbols-apple-crash',
+    contract: [
+      'Artifact: artifacts/crash.ips',
+      'Build products directory: ./build',
+      'Need a symbolicated crash artifact at artifacts/crash-symbolicated.ips',
+      'Do not inspect or paste the full crash into context',
+    ],
+    task: 'Plan the command to symbolicate this Apple crash report with local debug symbols.',
+    outputs: [
+      plannedCommand('debug'),
+      /symbols/i,
+      /--artifact\s+artifacts\/crash\.ips/i,
+      /--search-path\s+\.\/build/i,
+      /--out\s+artifacts\/crash-symbolicated\.ips/i,
+    ],
+    forbiddenOutputs: [
+      plannedCommand('perf'),
+      plannedCommand('logs'),
+      /cat\s+artifacts\/crash\.ips/i,
+      /react-devtools/i,
+    ],
+  }),
+  makeCase({
     id: 'android-open-verify-ui',
     contract: [
       'App name: Agent Device Tester',

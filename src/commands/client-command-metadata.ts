@@ -29,6 +29,7 @@ import { WAIT_KIND_VALUES } from './wait-command-contract.ts';
 const CLIPBOARD_ACTION_VALUES = ['read', 'write'] as const;
 const NETWORK_ACTION_VALUES = ['dump', 'log'] as const;
 const START_STOP_VALUES = ['start', 'stop'] as const;
+const DEBUG_ACTION_VALUES = ['symbols'] as const;
 const REACT_NATIVE_ACTION_VALUES = ['dismiss-overlay'] as const;
 const METRO_ACTION_VALUES = ['prepare', 'reload'] as const;
 const PREPARE_ACTION_VALUES = ['ios-runner'] as const;
@@ -42,6 +43,13 @@ export const clientCommandMetadata = [
   defineClientCommandMetadata('prepare', {
     action: requiredField(enumField(PREPARE_ACTION_VALUES)),
     timeoutMs: integerField('Maximum wall-clock time for the prepare command.'),
+  }),
+  defineClientCommandMetadata('debug', {
+    action: requiredField(enumField(DEBUG_ACTION_VALUES)),
+    artifact: requiredField(stringField('Apple crash artifact path (.ips, .crash, or .log).')),
+    dsym: stringField('Path to a matching .dSYM bundle.'),
+    searchPath: stringField('Directory to scan for matching .dSYM bundles.'),
+    out: stringField('Output path for the symbolicated artifact.'),
   }),
   defineClientCommandMetadata('apps', {
     appsFilter: enumField(['user-installed', 'all']),
