@@ -4,6 +4,7 @@ import { runCmd } from '../utils/exec.ts';
 import { AppError } from '../utils/errors.ts';
 import type { CliFlags } from '../utils/cli-flags.ts';
 import type { EnvMap } from '../utils/env-map.ts';
+import { readCloudJsonResponse } from './cloud-response.ts';
 
 const DEFAULT_CLOUD_BASE_URL = 'https://cloud.agent-device.dev';
 const DEVICE_AUTH_START_PATH = '/api/control-plane/device-auth/start';
@@ -454,27 +455,10 @@ async function postJson<T>(options: {
     body: JSON.stringify(options.body),
     signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
   });
-  const text = await response.text();
-  let parsed: unknown = {};
-  if (text.trim().length > 0) {
-    try {
-      parsed = JSON.parse(text);
-    } catch (error) {
-      throw new AppError(
-        'COMMAND_FAILED',
-        `Cloud auth endpoint returned invalid JSON (${response.status}).`,
-        { status: response.status },
-        error instanceof Error ? error : undefined,
-      );
-    }
-  }
-  if (!response.ok) {
-    throw new AppError('UNAUTHORIZED', `Cloud auth endpoint rejected the request.`, {
-      status: response.status,
-      response: parsed,
-    });
-  }
-  return parsed as T;
+  return await readCloudJsonResponse<T>(response, {
+    invalidJsonMessage: `Cloud auth endpoint returned invalid JSON (${response.status}).`,
+    rejectedMessage: 'Cloud auth endpoint rejected the request.',
+  });
 }
 
 function assertDeviceAuthStart(response: DeviceAuthStartResponse): void {

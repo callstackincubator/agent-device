@@ -19,10 +19,6 @@ export function normalizedRect(rect: Rect): NormalizedRect {
   return rect as NormalizedRect;
 }
 
-export function normalizedPoint(point: Point): NormalizedPoint {
-  return point as NormalizedPoint;
-}
-
 export function unionRects(rects: Rect[]): Rect {
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;

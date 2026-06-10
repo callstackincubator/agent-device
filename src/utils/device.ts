@@ -1,11 +1,11 @@
 import { AppError } from './errors.ts';
 
 export type ApplePlatform = 'ios' | 'macos';
-export const PLATFORMS = ['ios', 'macos', 'android', 'linux'] as const;
+const PLATFORMS = ['ios', 'macos', 'android', 'linux'] as const;
 export type Platform = (typeof PLATFORMS)[number];
 export const PLATFORM_SELECTORS = [...PLATFORMS, 'apple'] as const;
 export type PlatformSelector = (typeof PLATFORM_SELECTORS)[number];
-export const DEVICE_KINDS = ['simulator', 'emulator', 'device'] as const;
+const DEVICE_KINDS = ['simulator', 'emulator', 'device'] as const;
 export type DeviceKind = (typeof DEVICE_KINDS)[number];
 export const DEVICE_TARGETS = ['mobile', 'tv', 'desktop'] as const;
 export type DeviceTarget = (typeof DEVICE_TARGETS)[number];

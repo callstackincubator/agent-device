@@ -8,6 +8,7 @@ import { AppError, asAppError } from '../utils/errors.ts';
 import type { CliFlags } from '../utils/cli-flags.ts';
 import type { EnvMap } from '../utils/env-map.ts';
 import { resolveCloudAccessForConnect } from './auth-session.ts';
+import { readCloudJsonResponse } from './cloud-response.ts';
 
 const CONNECTION_PROFILE_PATH = '/api/control-plane/connection-profile';
 const HTTP_TIMEOUT_MS = 15_000;
@@ -70,26 +71,10 @@ async function fetchConnectionProfile(options: {
     headers: { authorization: `Bearer ${options.accessToken}` },
     signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
   });
-  const text = await response.text();
-  let parsed: unknown = {};
-  if (text.trim()) {
-    try {
-      parsed = JSON.parse(text);
-    } catch (error) {
-      throw new AppError(
-        'COMMAND_FAILED',
-        `Cloud connection profile endpoint returned invalid JSON (${response.status}).`,
-        { status: response.status },
-        error instanceof Error ? error : undefined,
-      );
-    }
-  }
-  if (!response.ok) {
-    throw new AppError('UNAUTHORIZED', 'Cloud connection profile endpoint rejected the request.', {
-      status: response.status,
-      response: parsed,
-    });
-  }
+  const parsed = await readCloudJsonResponse<unknown>(response, {
+    invalidJsonMessage: `Cloud connection profile endpoint returned invalid JSON (${response.status}).`,
+    rejectedMessage: 'Cloud connection profile endpoint rejected the request.',
+  });
   return parseConnectionProfile(parsed);
 }
 
