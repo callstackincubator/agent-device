@@ -2,7 +2,7 @@ import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { findBestMatchesByLocator, parseFindArgs, type FindLocator } from '../../utils/finders.ts';
 import { centerOfRect, type SnapshotState } from '../../utils/snapshot.ts';
-import type { DaemonRequest, DaemonResponse } from '../types.ts';
+import type { DaemonInvokeFn, DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
@@ -27,7 +27,7 @@ type FindContext = {
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invoke: DaemonInvokeFn;
   session: ReturnType<SessionStore['get']>;
   device: NonNullable<ReturnType<SessionStore['get']>>['device'];
   command: string;
@@ -53,7 +53,7 @@ export async function handleFindCommands(params: {
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invoke: DaemonInvokeFn;
 }): Promise<DaemonResponse | null> {
   const { req, sessionName, logPath, sessionStore, invoke } = params;
   const command = req.command;

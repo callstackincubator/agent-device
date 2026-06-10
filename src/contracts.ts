@@ -1,6 +1,7 @@
 export type { AppErrorCode } from './utils/errors.ts';
 export { defaultHintForCode, normalizeError } from './utils/errors.ts';
 import type { PlatformSelector } from './utils/device.ts';
+import { PLATFORM_SELECTORS } from './utils/device.ts';
 
 export type SessionRuntimeHints = {
   platform?: 'ios' | 'android';
@@ -37,12 +38,18 @@ export type DaemonInstallSource =
         }
     ));
 
-export type DaemonLockPolicy = 'reject' | 'strip';
-export type LeaseBackend = 'ios-simulator' | 'ios-instance' | 'android-instance';
-export type DaemonServerMode = 'socket' | 'http' | 'dual';
-export type DaemonTransportPreference = 'auto' | 'socket' | 'http';
-export type SessionIsolationMode = 'none' | 'tenant';
-export type NetworkIncludeMode = 'summary' | 'headers' | 'body' | 'all';
+export const DAEMON_LOCK_POLICIES = ['reject', 'strip'] as const;
+export type DaemonLockPolicy = (typeof DAEMON_LOCK_POLICIES)[number];
+export const LEASE_BACKENDS = ['ios-simulator', 'ios-instance', 'android-instance'] as const;
+export type LeaseBackend = (typeof LEASE_BACKENDS)[number];
+export const DAEMON_SERVER_MODES = ['socket', 'http', 'dual'] as const;
+export type DaemonServerMode = (typeof DAEMON_SERVER_MODES)[number];
+export const DAEMON_TRANSPORT_PREFERENCES = ['auto', 'socket', 'http'] as const;
+export type DaemonTransportPreference = (typeof DAEMON_TRANSPORT_PREFERENCES)[number];
+export const SESSION_ISOLATION_MODES = ['none', 'tenant'] as const;
+export type SessionIsolationMode = (typeof SESSION_ISOLATION_MODES)[number];
+export const NETWORK_INCLUDE_MODES = ['summary', 'headers', 'body', 'all'] as const;
+export type NetworkIncludeMode = (typeof NETWORK_INCLUDE_MODES)[number];
 
 export type DaemonRequestMeta = {
   requestId?: string;
@@ -359,20 +366,11 @@ export const daemonCommandRequestSchema = schema<DaemonRequest>((input, path) =>
             runId: optionalString(meta, 'runId', `${path}.meta`),
             leaseId: optionalString(meta, 'leaseId', `${path}.meta`),
             leaseTtlMs: optionalInteger(meta, 'leaseTtlMs', `${path}.meta`),
-            leaseBackend: optionalEnum(
-              meta,
-              'leaseBackend',
-              [
-                'ios-simulator',
-                'ios-instance',
-                'android-instance',
-              ] as const satisfies readonly LeaseBackend[],
-              `${path}.meta`,
-            ),
+            leaseBackend: optionalEnum(meta, 'leaseBackend', LEASE_BACKENDS, `${path}.meta`),
             sessionIsolation: optionalEnum(
               meta,
               'sessionIsolation',
-              ['none', 'tenant'] as const,
+              SESSION_ISOLATION_MODES,
               `${path}.meta`,
             ),
             uploadedArtifactId: optionalString(meta, 'uploadedArtifactId', `${path}.meta`),
@@ -395,24 +393,8 @@ export const daemonCommandRequestSchema = schema<DaemonRequest>((input, path) =>
               `${path}.meta`,
             ),
             materializationId: optionalString(meta, 'materializationId', `${path}.meta`),
-            lockPolicy: optionalEnum(
-              meta,
-              'lockPolicy',
-              ['reject', 'strip'] as const,
-              `${path}.meta`,
-            ),
-            lockPlatform: optionalEnum(
-              meta,
-              'lockPlatform',
-              [
-                'ios',
-                'macos',
-                'android',
-                'linux',
-                'apple',
-              ] as const satisfies readonly PlatformSelector[],
-              `${path}.meta`,
-            ),
+            lockPolicy: optionalEnum(meta, 'lockPolicy', DAEMON_LOCK_POLICIES, `${path}.meta`),
+            lockPlatform: optionalEnum(meta, 'lockPlatform', PLATFORM_SELECTORS, `${path}.meta`),
           },
   };
 });
@@ -457,12 +439,7 @@ export const leaseAllocateSchema = schema<LeaseAllocatePayload>((input, path) =>
   return {
     ...parseLeaseScope(record, path),
     ttlMs: optionalInteger(record, 'ttlMs', path),
-    backend: optionalEnum(
-      record,
-      'backend',
-      ['ios-simulator', 'ios-instance', 'android-instance'] as const,
-      path,
-    ),
+    backend: optionalEnum(record, 'backend', LEASE_BACKENDS, path),
   };
 });
 

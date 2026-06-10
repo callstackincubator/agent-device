@@ -14,6 +14,7 @@ import { isKeyboardAction } from '../utils/keyboard-actions.ts';
 import {
   toBackendResult,
   type BackendResultEnvelope,
+  type BackendResultVariant,
   type RuntimeCommand,
 } from './runtime-types.ts';
 import { toBackendContext } from './selector-read-utils.ts';
@@ -48,26 +49,21 @@ export type SystemKeyboardCommandOptions = CommandContext & {
 };
 
 export type SystemKeyboardCommandResult =
-  | {
+  | BackendResultVariant<{
       kind: 'keyboardState';
       action: 'status' | 'get';
       state: BackendKeyboardResult;
-      backendResult?: Record<string, unknown>;
-    }
-  | {
+    }>
+  | BackendResultVariant<{
       kind: 'keyboardDismissed';
       action: 'dismiss';
       state: BackendKeyboardResult;
-      backendResult?: Record<string, unknown>;
-      message?: string;
-    }
-  | {
+    }>
+  | BackendResultVariant<{
       kind: 'keyboardEnterPressed';
       action: 'enter';
       state: BackendKeyboardResult;
-      backendResult?: Record<string, unknown>;
-      message?: string;
-    };
+    }>;
 
 export type SystemClipboardCommandOptions =
   | (CommandContext & {
@@ -84,13 +80,11 @@ export type SystemClipboardCommandResult =
       action: 'read';
       text: string;
     }
-  | {
+  | BackendResultVariant<{
       kind: 'clipboardUpdated';
       action: 'write';
       textLength: number;
-      backendResult?: Record<string, unknown>;
-      message?: string;
-    };
+    }>;
 
 export type SystemSettingsCommandOptions = CommandContext & {
   target?: string;
@@ -112,22 +106,20 @@ export type SystemAlertCommandResult =
       action: 'get';
       alert: BackendAlertInfo | null;
     }
-  | {
+  | BackendResultVariant<{
       kind: 'alertHandled';
       action: 'accept' | 'dismiss';
       handled: boolean;
       alert?: BackendAlertInfo;
       button?: string;
-      message?: string;
-    }
-  | {
+    }>
+  | BackendResultVariant<{
       kind: 'alertWait';
       action: 'wait';
       alert: BackendAlertInfo | null;
       waitedMs?: number;
       timedOut?: boolean;
-      message?: string;
-    };
+    }>;
 
 export type SystemAppSwitcherCommandOptions = CommandContext;
 

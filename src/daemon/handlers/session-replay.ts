@@ -1,5 +1,5 @@
 import type { CommandFlags } from '../../core/dispatch.ts';
-import type { DaemonRequest, DaemonResponse } from '../types.ts';
+import type { DaemonInvokeFn, DaemonRequest, DaemonResponse } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { runReplayTestSuite } from './session-test.ts';
 import { handleCloseCommand } from './session-close.ts';
@@ -52,7 +52,7 @@ export async function handleSessionReplayCommands(params: {
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invoke: DaemonInvokeFn;
 }): Promise<DaemonResponse | null> {
   const { req, sessionName, logPath, sessionStore, invoke } = params;
 

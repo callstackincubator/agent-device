@@ -12,8 +12,7 @@ import type {
 import { defineExecutableCommand } from './command-contract.ts';
 import { optionalEnum } from './command-input.ts';
 import { clientCommandMetadata } from './client-command-metadata.ts';
-
-const WAIT_KIND_VALUES = ['duration', 'text', 'ref', 'selector'] as const;
+import { WAIT_KIND_VALUES } from './wait-command-contract.ts';
 
 type ClientCommandMetadata = (typeof clientCommandMetadata)[number];
 type ClientCommandName = ClientCommandMetadata['name'];

@@ -113,6 +113,7 @@ export type ReplaySuiteResult = {
 };
 
 export type DaemonResponse = PublicDaemonResponse;
+export type DaemonInvokeFn = (req: DaemonRequest) => Promise<DaemonResponse>;
 
 type RecordingTelemetryBase = {
   tMs: number;

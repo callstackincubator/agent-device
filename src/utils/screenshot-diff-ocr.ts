@@ -3,6 +3,7 @@ import { runCmd, whichCmd } from './exec.ts';
 
 export type MovementRange = { min: number; max: number };
 import {
+  normalizedRect,
   rectCenter,
   squaredDistance,
   unionRects,
@@ -201,12 +202,12 @@ function toOcrBlock(
     text: sortedWords.map((word) => word.text).join(' '),
     confidence,
     rect,
-    normalizedRect: {
+    normalizedRect: normalizedRect({
       x: roundPercentage(rect.x / imageWidth),
       y: roundPercentage(rect.y / imageHeight),
       width: roundPercentage(rect.width / imageWidth),
       height: roundPercentage(rect.height / imageHeight),
-    },
+    }),
   };
 }
 

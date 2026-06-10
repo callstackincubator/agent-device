@@ -1,6 +1,6 @@
 import { asAppError } from '../../utils/errors.ts';
 import type { ReplayVarScope } from '../../replay/vars.ts';
-import type { DaemonRequest, DaemonResponse } from '../../daemon/types.ts';
+import type { DaemonInvokeFn, DaemonResponse } from '../../daemon/types.ts';
 import { executeRunScriptFile } from './run-script.ts';
 import { MAESTRO_RUNTIME_COMMAND } from './runtime-commands.ts';
 import {
@@ -29,7 +29,7 @@ export async function invokeMaestroRuntimeCommand(params: {
   scope: ReplayVarScope;
   line: number;
   step: number;
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invoke: DaemonInvokeFn;
   invokeReplayAction: MaestroReplayInvoker;
 }): Promise<DaemonResponse | undefined> {
   switch (params.command) {

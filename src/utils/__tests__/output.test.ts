@@ -4,6 +4,7 @@ import path from 'node:path';
 import { stripVTControlCharacters } from 'node:util';
 import { formatScreenshotDiffText, formatSnapshotDiffText, formatSnapshotText } from '../output.ts';
 import { formatRole, formatSnapshotLine } from '../snapshot-lines.ts';
+import { normalizedRect } from '../screenshot-geometry.ts';
 
 const DIFF_DATA = {
   mode: 'snapshot',
@@ -1462,7 +1463,7 @@ test('formatScreenshotDiffText renders mismatch with pixel counts without color'
         {
           index: 1,
           rect: { x: 10, y: 20, width: 100, height: 40 },
-          normalizedRect: { x: 10, y: 20, width: 100, height: 40 },
+          normalizedRect: normalizedRect({ x: 10, y: 20, width: 100, height: 40 }),
           differentPixels: 350,
           shareOfDiffPercentage: 70,
           densityPercentage: 8.75,

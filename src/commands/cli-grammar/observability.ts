@@ -6,8 +6,9 @@ import type {
   RecordOptions,
 } from '../../client-types.ts';
 import { AppError } from '../../utils/errors.ts';
-import type { NetworkIncludeMode } from '../../contracts.ts';
-import type { LogAction } from '../log-command-contract.ts';
+import { NETWORK_INCLUDE_MODES, type NetworkIncludeMode } from '../../contracts.ts';
+import { parseStringMember } from '../../utils/string-enum.ts';
+import { LOG_ACTION_VALUES, type LogAction } from '../log-command-contract.ts';
 import {
   isPerfAction,
   isPerfArea,
@@ -123,17 +124,9 @@ function readPerfAction(
 
 function readLogsAction(value: string | undefined): LogAction | undefined {
   if (value === undefined) return undefined;
-  if (
-    value === 'path' ||
-    value === 'start' ||
-    value === 'stop' ||
-    value === 'doctor' ||
-    value === 'mark' ||
-    value === 'clear'
-  ) {
-    return value;
-  }
-  throw new AppError('INVALID_ARGS', 'logs requires path, start, stop, doctor, mark, or clear');
+  return parseStringMember(LOG_ACTION_VALUES, value, {
+    message: 'logs requires path, start, stop, doctor, mark, or clear',
+  });
 }
 
 function readNetworkAction(value: string | undefined): 'dump' | 'log' | undefined {
@@ -144,7 +137,7 @@ function readNetworkAction(value: string | undefined): 'dump' | 'log' | undefine
 
 function readNetworkInclude(value: string | undefined): NetworkIncludeMode | undefined {
   if (value === undefined) return undefined;
-  if (value === 'summary' || value === 'headers' || value === 'body' || value === 'all')
-    return value;
-  throw new AppError('INVALID_ARGS', 'network include mode must be summary, headers, body, or all');
+  return parseStringMember(NETWORK_INCLUDE_MODES, value, {
+    message: 'network include mode must be summary, headers, body, or all',
+  });
 }

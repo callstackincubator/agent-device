@@ -5,7 +5,7 @@ import { getDaemonCommandRoute } from './daemon-command-registry.ts';
 import type { DaemonCommandContext } from './context.ts';
 import type { LeaseRegistry } from './lease-registry.ts';
 import type { SessionStore } from './session-store.ts';
-import type { DaemonRequest, DaemonResponse } from './types.ts';
+import type { DaemonInvokeFn, DaemonRequest, DaemonResponse } from './types.ts';
 
 const loadLeaseHandlerModule = lazyImport(() => import('./handlers/lease.ts'));
 const loadSessionHandlerModule = lazyImport(() => import('./handlers/session.ts'));
@@ -21,8 +21,8 @@ type RequestHandlerChainParams = {
   logPath: string;
   sessionStore: SessionStore;
   leaseRegistry: LeaseRegistry;
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
-  invokeReplayAction?: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invoke: DaemonInvokeFn;
+  invokeReplayAction?: DaemonInvokeFn;
   androidAdbExecutor?: AndroidAdbExecutor;
   contextFromFlags: (
     flags: CommandFlags | undefined,

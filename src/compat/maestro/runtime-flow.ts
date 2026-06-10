@@ -1,4 +1,4 @@
-import type { DaemonRequest, DaemonResponse, SessionReplayControl } from '../../daemon/types.ts';
+import type { DaemonInvokeFn, DaemonResponse, SessionReplayControl } from '../../daemon/types.ts';
 import { getSnapshotReferenceFrame } from '../../daemon/touch-reference-frame.ts';
 import { invokeReplayActionBlock } from '../../replay/control-flow-runtime.ts';
 import {
@@ -26,7 +26,7 @@ export async function invokeMaestroRunFlowWhenControl(params: {
   control: MaestroRunFlowWhenControl;
   line: number;
   step: number;
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invoke: DaemonInvokeFn;
   invokeReplayAction: MaestroReplayInvoker;
 }): Promise<DaemonResponse> {
   const conditionResult = await evaluateMaestroRunFlowWhenCondition(params, params.control);
@@ -43,7 +43,7 @@ export async function invokeMaestroRunFlowWhenControl(params: {
 async function evaluateMaestroRunFlowWhenCondition(
   params: {
     baseReq: ReplayBaseRequest;
-    invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+    invoke: DaemonInvokeFn;
   },
   condition: MaestroRunFlowWhenControl,
 ): Promise<{ ok: true; matched: boolean } | { ok: false; response: DaemonResponse }> {
@@ -64,7 +64,7 @@ async function evaluateMaestroRunFlowWhenCondition(
 async function waitForMaestroRunFlowVisibleCondition(
   params: {
     baseReq: ReplayBaseRequest;
-    invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+    invoke: DaemonInvokeFn;
   },
   condition: MaestroRunFlowWhenControl,
 ): Promise<{ ok: true; matched: boolean } | { ok: false; response: DaemonResponse }> {
@@ -86,7 +86,7 @@ async function waitForMaestroRunFlowVisibleCondition(
 async function readMaestroRunFlowVisibleCondition(
   params: {
     baseReq: ReplayBaseRequest;
-    invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+    invoke: DaemonInvokeFn;
   },
   selector: string,
 ): Promise<{ ok: true; matched: boolean } | { ok: false; response: DaemonResponse }> {

@@ -9,6 +9,7 @@ import { readProcessStartTime } from '../../utils/process-identity.ts';
 import { acquireProcessLock, type ProcessLockOwner } from '../../utils/process-lock.ts';
 import { isEnvTruthy } from '../../utils/retry.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
+import type { DefinedEnvMap as EnvMap } from '../../utils/env-map.ts';
 import { withKeyedLock } from '../../utils/keyed-lock.ts';
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { findProjectRoot, readVersion } from '../../utils/version.ts';
@@ -57,7 +58,6 @@ const badRunnerArtifactsForRun = new Set<string>();
 const appleToolFingerprintCache = new Map<string, string>();
 export const runnerPrepProcesses = new Set<ExecBackgroundResult['child']>();
 
-type EnvMap = Record<string, string>;
 type XctestrunTarget = {
   TestBundlePath?: unknown;
   EnvironmentVariables?: EnvMap;

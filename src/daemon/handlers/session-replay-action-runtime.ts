@@ -5,7 +5,7 @@ import {
   resolveReplayAction,
   type ReplayVarScope,
 } from '../../replay/vars.ts';
-import type { DaemonRequest, DaemonResponse, SessionAction } from '../types.ts';
+import type { DaemonInvokeFn, DaemonRequest, DaemonResponse, SessionAction } from '../types.ts';
 import { mergeParentFlags } from './handler-utils.ts';
 import { invokeMaestroRuntimeCommand } from '../../compat/maestro/runtime.ts';
 import { invokeMaestroRunFlowWhenControl } from '../../compat/maestro/runtime-flow.ts';
@@ -27,7 +27,7 @@ export async function invokeReplayAction(params: {
   line: number;
   step: number;
   tracePath?: string;
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invoke: DaemonInvokeFn;
 }): Promise<DaemonResponse> {
   const { req, sessionName, action, scope, filePath, line, step, tracePath, invoke } = params;
   const resolved = resolveReplayAction(action, scope, { file: filePath, line });
@@ -88,7 +88,7 @@ async function invokeResolvedReplayAction(params: {
   scope: ReplayVarScope;
   line: number;
   step: number;
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invoke: DaemonInvokeFn;
   invokeReplayAction: ReplayActionInvoker;
 }): Promise<DaemonResponse> {
   const { req, sessionName, resolved, scope, line, step, invoke, invokeReplayAction } = params;
@@ -137,7 +137,7 @@ async function invokeReplayControl(params: {
   baseReq: ReplayBaseRequest;
   line: number;
   step: number;
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invoke: DaemonInvokeFn;
   invokeReplayAction: ReplayActionInvoker;
 }): Promise<DaemonResponse | undefined> {
   const { control, baseReq, line, step, invoke, invokeReplayAction } = params;

@@ -9,6 +9,7 @@ import {
   summarizeScreenshotOcr,
   summarizeOcrMovementClusters,
 } from '../screenshot-diff-ocr.ts';
+import { normalizedRect } from '../screenshot-geometry.ts';
 
 test('parseTesseractTsv groups word rows into text line blocks', () => {
   const blocks = parseTesseractTsv(
@@ -29,19 +30,19 @@ test('parseTesseractTsv groups word rows into text line blocks', () => {
     text: 'Airplane Mode',
     confidence: 95,
     rect: { x: 100, y: 200, width: 80, height: 20 },
-    normalizedRect: { x: 25, y: 25, width: 20, height: 2.5 },
+    normalizedRect: normalizedRect({ x: 25, y: 25, width: 20, height: 2.5 }),
   });
   assert.deepEqual(blocks[1], {
     text: 'Disconnected',
     confidence: 92,
     rect: { x: 300, y: 200, width: 90, height: 20 },
-    normalizedRect: { x: 75, y: 25, width: 22.5, height: 2.5 },
+    normalizedRect: normalizedRect({ x: 75, y: 25, width: 22.5, height: 2.5 }),
   });
   assert.deepEqual(blocks[2], {
     text: 'Wi-Fi',
     confidence: 90,
     rect: { x: 100, y: 240, width: 50, height: 20 },
-    normalizedRect: { x: 25, y: 30, width: 12.5, height: 2.5 },
+    normalizedRect: normalizedRect({ x: 25, y: 30, width: 12.5, height: 2.5 }),
   });
 });
 
@@ -52,7 +53,7 @@ test('matchOcrBlocks reports movement and OCR bbox size change', () => {
         text: 'Wi-Fi',
         confidence: 96,
         rect: { x: 100, y: 200, width: 50, height: 20 },
-        normalizedRect: { x: 25, y: 25, width: 12.5, height: 2.5 },
+        normalizedRect: normalizedRect({ x: 25, y: 25, width: 12.5, height: 2.5 }),
       },
     ],
     [
@@ -60,7 +61,7 @@ test('matchOcrBlocks reports movement and OCR bbox size change', () => {
         text: 'Wi-Fi',
         confidence: 94,
         rect: { x: 112, y: 192, width: 60, height: 20 },
-        normalizedRect: { x: 28, y: 24, width: 15, height: 2.5 },
+        normalizedRect: normalizedRect({ x: 28, y: 24, width: 15, height: 2.5 }),
       },
     ],
   );

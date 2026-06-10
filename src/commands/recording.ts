@@ -9,7 +9,11 @@ import type { CommandContext } from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import { successText } from '../utils/success-text.ts';
 import { requireIntInRange } from '../utils/validation.ts';
-import type { BackendResultEnvelope, RuntimeCommand } from './runtime-types.ts';
+import type {
+  BackendResultEnvelope,
+  BackendResultVariant,
+  RuntimeCommand,
+} from './runtime-types.ts';
 import { reserveCommandOutput } from './io-policy.ts';
 import { toBackendContext } from './selector-read-utils.ts';
 
@@ -26,16 +30,14 @@ export type RecordingTraceCommandOptions = CommandContext & {
   out?: FileOutputRef;
 };
 
-export type RecordingRecordCommandResult = {
+export type RecordingRecordCommandResult = BackendResultVariant<{
   kind: 'recordingStarted' | 'recordingStopped';
   action: 'start' | 'stop';
   path?: string;
   telemetryPath?: string;
   artifact?: ArtifactDescriptor;
-  backendResult?: Record<string, unknown>;
   warning?: string;
-  message?: string;
-};
+}>;
 
 export type RecordingTraceCommandResult = {
   kind: 'traceStarted' | 'traceStopped';
@@ -180,13 +182,12 @@ function formatLifecycleResult<
     startMessage: string;
     stopMessage: string;
   },
-): {
+): BackendResultVariant<{
   kind: TKind;
   action: 'start' | 'stop';
   artifact?: ArtifactDescriptor;
   backendResult: Record<string, unknown>;
-  message?: string;
-} {
+}> {
   return {
     kind: action === 'start' ? options.startKind : options.stopKind,
     action,

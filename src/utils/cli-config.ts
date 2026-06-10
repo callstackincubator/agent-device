@@ -10,8 +10,7 @@ import {
   parseOptionValueFromSource,
 } from './cli-option-schema.ts';
 import { parseInstallSourceConfig } from './install-source-config.ts';
-
-type EnvMap = Record<string, string | undefined>;
+import type { EnvMap } from './env-map.ts';
 
 export function resolveConfigBackedFlagDefaults(options: {
   command: string | null;

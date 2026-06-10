@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { AppError, normalizeError, toAppErrorCode } from '../utils/errors.ts';
 import { timingSafeStringEqual } from '../utils/timing-safe-equal.ts';
 import type { JsonRpcId, JsonRpcRequestEnvelope, LeaseBackend } from '../contracts.ts';
-import type { DaemonInstallSource, DaemonRequest, DaemonResponse } from './types.ts';
+import type { DaemonInstallSource, DaemonInvokeFn, DaemonRequest } from './types.ts';
 import { normalizeTenantId } from './config.ts';
 import {
   clearRequestCanceled,
@@ -483,7 +483,7 @@ async function loadHttpAuthHook(): Promise<HttpAuthHook | null> {
 }
 
 export async function createDaemonHttpServer(options: {
-  handleRequest: (req: DaemonRequest) => Promise<DaemonResponse>;
+  handleRequest: DaemonInvokeFn;
   token?: string;
 }): Promise<http.Server> {
   const authHook = await loadHttpAuthHook();

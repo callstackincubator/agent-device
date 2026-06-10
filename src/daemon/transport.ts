@@ -1,7 +1,7 @@
 import net from 'node:net';
 import type { Server as HttpServer } from 'node:http';
 import { AppError, normalizeError } from '../utils/errors.ts';
-import type { DaemonRequest, DaemonResponse } from './types.ts';
+import type { DaemonInvokeFn, DaemonRequest, DaemonResponse } from './types.ts';
 import {
   clearRequestCanceled,
   createRequestCanceledError,
@@ -27,9 +27,7 @@ export type DaemonServer = (net.Server | HttpServer) & {
   destroyConnections?: () => void;
 };
 
-export function createSocketServer(
-  handleRequest: (req: DaemonRequest) => Promise<DaemonResponse>,
-): DaemonServer {
+export function createSocketServer(handleRequest: DaemonInvokeFn): DaemonServer {
   const sockets = new Set<net.Socket>();
   const server: DaemonServer = net.createServer((socket) => {
     sockets.add(socket);

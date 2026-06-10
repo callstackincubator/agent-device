@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { AppError } from '../../../utils/errors.ts';
 import { runCmdBackground, type ExecBackgroundResult } from '../../../utils/exec.ts';
-import type { DaemonRequest, DaemonResponse, SessionAction } from '../../types.ts';
+import type { DaemonInvokeFn, DaemonRequest, DaemonResponse, SessionAction } from '../../types.ts';
 import type { CommandFlags } from '../../../core/dispatch.ts';
 import { SessionStore } from '../../session-store.ts';
 import {
@@ -35,7 +35,7 @@ async function runReplayFixture(params: {
   script: string;
   files?: Record<string, string>;
   flags?: CommandFlags;
-  invoke?: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invoke?: DaemonInvokeFn;
 }): Promise<{
   response: DaemonResponse;
   calls: CapturedInvocation[];

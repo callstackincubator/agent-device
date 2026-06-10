@@ -22,14 +22,36 @@ export function isStringMember<const T extends readonly string[]>(
 export function parseStringMember<const T extends readonly string[]>(
   values: T,
   value: string | undefined,
-  options: { normalize?: (raw: string) => string; message?: string } = {},
+  options: {
+    normalize?: (raw: string) => string;
+    message?: string | ((raw: string | undefined) => string);
+  } = {},
 ): T[number] {
   const normalized = value === undefined ? undefined : (options.normalize?.(value) ?? value);
   if (normalized !== undefined && isStringMember(values, normalized)) {
     return normalized;
   }
+  const message = typeof options.message === 'function' ? options.message(value) : options.message;
   throw new AppError(
     'INVALID_ARGS',
-    options.message ?? `Invalid value: ${value}. Use ${values.join('|')}.`,
+    message ?? `Invalid value: ${value}. Use ${values.join('|')}.`,
   );
+}
+
+export function defineStringEnum<const T extends readonly string[]>(
+  values: T,
+  options: {
+    normalize?: (raw: string) => string;
+    message?: string | ((raw: string | undefined) => string);
+  } = {},
+): {
+  readonly values: T;
+  is(value: string): value is T[number];
+  parse(value: string | undefined): T[number];
+} {
+  return {
+    values,
+    is: (value): value is T[number] => isStringMember(values, value),
+    parse: (value): T[number] => parseStringMember(values, value, options),
+  };
 }

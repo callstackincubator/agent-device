@@ -1,5 +1,5 @@
 import { AppError } from '../utils/errors.ts';
-import { parseStringMember } from '../utils/string-enum.ts';
+import { defineStringEnum } from '../utils/string-enum.ts';
 import type { Rect, SnapshotNode } from '../utils/snapshot.ts';
 
 export const SCROLL_DIRECTIONS = ['up', 'down', 'left', 'right'] as const;
@@ -8,6 +8,12 @@ export const SWIPE_PRESETS = ['left', 'right', 'left-edge', 'right-edge'] as con
 export type SwipePreset = (typeof SWIPE_PRESETS)[number];
 export const SWIPE_PATTERNS = ['one-way', 'ping-pong'] as const;
 export type SwipePattern = (typeof SWIPE_PATTERNS)[number];
+const SWIPE_PRESET_ENUM = defineStringEnum(SWIPE_PRESETS, {
+  message: 'gesture swipe requires left, right, left-edge, or right-edge',
+});
+const SCROLL_DIRECTION_ENUM = defineStringEnum(SCROLL_DIRECTIONS, {
+  message: (direction) => `Unknown direction: ${direction}`,
+});
 
 export type TransformGestureParams = {
   x: number;
@@ -150,9 +156,7 @@ export function buildSwipePresetGesturePlan(
 }
 
 export function parseSwipePreset(input: string | undefined): SwipePreset {
-  return parseStringMember(SWIPE_PRESETS, input, {
-    message: 'gesture swipe requires left, right, left-edge, or right-edge',
-  });
+  return SWIPE_PRESET_ENUM.parse(input);
 }
 
 export function inferGestureReferenceFrame(
@@ -192,9 +196,7 @@ export function clampGesturePoint(
 }
 
 export function parseScrollDirection(direction: string): ScrollDirection {
-  return parseStringMember(SCROLL_DIRECTIONS, direction, {
-    message: `Unknown direction: ${direction}`,
-  });
+  return SCROLL_DIRECTION_ENUM.parse(direction);
 }
 
 function scrollDirectionForFingerSwipe(direction: ScrollDirection): ScrollDirection {

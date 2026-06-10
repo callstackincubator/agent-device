@@ -9,7 +9,7 @@ import {
 } from '../../platforms/ios/runner-client.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { isApplePlatform, normalizePlatformSelector } from '../../utils/device.ts';
-import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
+import type { DaemonInvokeFn, DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import {
@@ -244,8 +244,8 @@ export async function handleSessionCommands(params: {
   sessionName: string;
   logPath: string;
   sessionStore: SessionStore;
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
-  invokeReplayAction?: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invoke: DaemonInvokeFn;
+  invokeReplayAction?: DaemonInvokeFn;
   androidAdbExecutor?: AndroidAdbExecutor;
 }): Promise<DaemonResponse | null> {
   const {

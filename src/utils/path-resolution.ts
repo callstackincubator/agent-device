@@ -1,7 +1,6 @@
 import os from 'node:os';
 import path from 'node:path';
-
-type EnvMap = Record<string, string | undefined>;
+import type { EnvMap } from './env-map.ts';
 
 type PathResolutionOptions = {
   cwd?: string;

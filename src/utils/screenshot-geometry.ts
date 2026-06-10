@@ -2,17 +2,26 @@ import type { Point, Rect } from './snapshot.ts';
 
 export type ImageDimensions = { width: number; height: number };
 
+declare const normalizedRectBrand: unique symbol;
+declare const normalizedPointBrand: unique symbol;
+
 /**
  * A rect whose coordinates are normalized percentages [0..100] of the screenshot
  * image's dimensions (as produced by the screenshot-diff regions/OCR code), NOT
- * absolute pixels. Documentary alias of {@link Rect} — it conveys coordinate
- * space to readers but is not enforced by the type system (still structurally a
- * Rect).
+ * absolute pixels.
  */
-export type NormalizedRect = Rect;
+export type NormalizedRect = Rect & { readonly [normalizedRectBrand]: 'normalized-rect' };
 
-/** A point in normalized [0..100] screenshot-image space. Documentary alias of {@link Point}. */
-export type NormalizedPoint = Point;
+/** A point in normalized [0..100] screenshot-image space. */
+export type NormalizedPoint = Point & { readonly [normalizedPointBrand]: 'normalized-point' };
+
+export function normalizedRect(rect: Rect): NormalizedRect {
+  return rect as NormalizedRect;
+}
+
+export function normalizedPoint(point: Point): NormalizedPoint {
+  return point as NormalizedPoint;
+}
 
 export function unionRects(rects: Rect[]): Rect {
   let minX = Number.POSITIVE_INFINITY;
@@ -46,7 +55,9 @@ export function intersectArea(left: Rect, right: Rect): number {
   return (maxX - minX) * (maxY - minY);
 }
 
-export function rectCenter(rect: Rect): { x: number; y: number } {
+export function rectCenter(rect: NormalizedRect): NormalizedPoint;
+export function rectCenter(rect: Rect): Point;
+export function rectCenter(rect: Rect): Point {
   return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
 }
 

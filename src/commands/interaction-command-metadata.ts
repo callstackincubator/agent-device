@@ -36,6 +36,7 @@ import {
   type SwipePreset,
 } from '../core/scroll-gesture.ts';
 import { SCROLL_INPUT_DIRECTIONS } from './interaction-gestures.ts';
+import { FIND_LOCATORS } from '../utils/finders.ts';
 
 const FIND_ACTION_VALUES = [
   'click',
@@ -47,7 +48,6 @@ const FIND_ACTION_VALUES = [
   'fill',
   'type',
 ] as const;
-const FIND_LOCATOR_VALUES = ['any', 'text', 'label', 'value', 'role', 'id'] as const;
 
 const clickFields = {
   target: requiredField(interactionTargetField()),
@@ -116,7 +116,7 @@ const isFields = {
 };
 
 const findFields = {
-  locator: enumField(FIND_LOCATOR_VALUES),
+  locator: enumField(FIND_LOCATORS),
   query: requiredField(stringField()),
   action: enumField(FIND_ACTION_VALUES),
   value: stringField(),

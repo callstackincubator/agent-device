@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { expandUserHomePath, resolveUserPath } from '../utils/path-resolution.ts';
 import { findProjectRoot } from '../utils/version.ts';
+import type { EnvMap } from '../utils/env-map.ts';
 
 import type {
   DaemonServerMode,
@@ -18,8 +19,6 @@ export type DaemonPaths = {
   logPath: string;
   sessionsDir: string;
 };
-
-type EnvMap = Record<string, string | undefined>;
 
 type ResolveDaemonPathsOptions = {
   env?: EnvMap;

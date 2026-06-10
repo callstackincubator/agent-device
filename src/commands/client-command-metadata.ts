@@ -1,5 +1,5 @@
 import type { MetroPrepareOptions, RecordOptions } from '../client-types.ts';
-import type { DaemonInstallSource } from '../contracts.ts';
+import { NETWORK_INCLUDE_MODES, type DaemonInstallSource } from '../contracts.ts';
 import { ALERT_ACTIONS } from '../alert-contract.ts';
 import { BACK_MODES } from '../core/back-mode.ts';
 import { DEVICE_ROTATIONS } from '../core/device-rotation.ts';
@@ -24,11 +24,10 @@ import {
 } from './command-input.ts';
 import { defineFieldCommandMetadata } from './field-command-contract.ts';
 import { PERF_ACTION_VALUES, PERF_AREA_VALUES } from './perf-command-contract.ts';
+import { WAIT_KIND_VALUES } from './wait-command-contract.ts';
 
-const WAIT_KIND_VALUES = ['duration', 'text', 'ref', 'selector'] as const;
 const CLIPBOARD_ACTION_VALUES = ['read', 'write'] as const;
 const NETWORK_ACTION_VALUES = ['dump', 'log'] as const;
-const NETWORK_INCLUDE_VALUES = ['summary', 'headers', 'body', 'all'] as const;
 const START_STOP_VALUES = ['start', 'stop'] as const;
 const REACT_NATIVE_ACTION_VALUES = ['dismiss-overlay'] as const;
 const METRO_ACTION_VALUES = ['prepare', 'reload'] as const;
@@ -189,7 +188,7 @@ export const clientCommandMetadata = [
   defineClientCommandMetadata('network', {
     action: enumField(NETWORK_ACTION_VALUES),
     limit: integerField(),
-    include: enumField(NETWORK_INCLUDE_VALUES),
+    include: enumField(NETWORK_INCLUDE_MODES),
   }),
   defineClientCommandMetadata('record', {
     action: requiredField(enumField(START_STOP_VALUES)),

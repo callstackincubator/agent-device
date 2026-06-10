@@ -4,16 +4,14 @@ import type {
   ElementTarget,
   InteractionTarget,
 } from '../client-types.ts';
-import { DEVICE_TARGETS, type DeviceTarget, type PlatformSelector } from '../utils/device.ts';
+import {
+  DEVICE_TARGETS,
+  PLATFORM_SELECTORS,
+  type DeviceTarget,
+  type PlatformSelector,
+} from '../utils/device.ts';
 import type { JsonSchema } from './command-contract.ts';
 
-const PLATFORM_VALUES = [
-  'ios',
-  'android',
-  'macos',
-  'linux',
-  'apple',
-] as const satisfies readonly PlatformSelector[];
 const INTERACTION_TARGET_KINDS = ['ref', 'selector', 'point'] as const;
 
 export type CommonCommandInput = Pick<
@@ -279,7 +277,7 @@ export function readCommonInput(
 ): CommonCommandInput {
   return {
     session: optionalString(record, 'session'),
-    platform: optionalEnum(record, 'platform', PLATFORM_VALUES),
+    platform: optionalEnum(record, 'platform', PLATFORM_SELECTORS),
     deviceTarget: readDeviceTarget(record, options),
     device: optionalString(record, 'device'),
     udid: optionalString(record, 'udid'),
@@ -564,7 +562,7 @@ function commonProperties(): Record<string, JsonSchema> {
     session: { type: 'string', description: 'Agent-device session name.' },
     platform: {
       type: 'string',
-      enum: PLATFORM_VALUES,
+      enum: PLATFORM_SELECTORS,
       description: 'Platform selector used to resolve a device.',
     },
     deviceTarget: {

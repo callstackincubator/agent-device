@@ -6,6 +6,7 @@ import type { RemoteConfigProfile, ResolvedRemoteConfigProfile } from '../remote
 import { profileToCliFlags } from '../utils/remote-config.ts';
 import { AppError, asAppError } from '../utils/errors.ts';
 import type { CliFlags } from '../utils/cli-flags.ts';
+import type { EnvMap } from '../utils/env-map.ts';
 import { resolveCloudAccessForConnect } from './auth-session.ts';
 
 const CONNECTION_PROFILE_PATH = '/api/control-plane/connection-profile';
@@ -16,8 +17,6 @@ type CloudConnectionProfileResponse = {
     remoteConfigProfile?: unknown;
   };
 };
-
-type EnvMap = Record<string, string | undefined>;
 
 export async function resolveCloudConnectProfile(options: {
   flags: CliFlags;

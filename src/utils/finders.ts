@@ -1,7 +1,15 @@
 import type { SnapshotNode } from './snapshot.ts';
 import { AppError } from './errors.ts';
 
-export type FindLocator = 'any' | 'text' | 'label' | 'value' | 'role' | 'id';
+export const FIND_LOCATORS = ['any', 'text', 'label', 'value', 'role', 'id'] as const;
+export type FindLocator = (typeof FIND_LOCATORS)[number];
+const FIND_LOCATOR_TOKENS = [
+  'text',
+  'label',
+  'value',
+  'role',
+  'id',
+] as const satisfies readonly FindLocator[];
 
 export type FindAction =
   | { kind: 'click' }
@@ -115,10 +123,9 @@ export function parseFindArgs(args: string[]): {
   value?: string;
   timeoutMs?: number;
 } {
-  const locatorTokens: FindLocator[] = ['text', 'label', 'value', 'role', 'id'];
   let locator: FindLocator = 'any';
   let queryIndex = 0;
-  if (locatorTokens.includes(args[0] as FindLocator)) {
+  if (FIND_LOCATOR_TOKENS.includes(args[0] as (typeof FIND_LOCATOR_TOKENS)[number])) {
     locator = args[0] as FindLocator;
     queryIndex = 1;
   }

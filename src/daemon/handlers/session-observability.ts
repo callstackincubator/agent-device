@@ -21,7 +21,7 @@ import {
 } from '../app-log.ts';
 import { buildPerfFramesResponseData, buildPerfResponseData } from './session-perf.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
-import type { NetworkIncludeMode } from '../../contracts.ts';
+import { NETWORK_INCLUDE_MODES, type NetworkIncludeMode } from '../../contracts.ts';
 import type { LogBackend } from '../network-log.ts';
 import {
   LOG_ACTION_VALUES as LOG_ACTIONS,
@@ -31,12 +31,6 @@ import {
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
 const NETWORK_ACTIONS = ['dump', 'log'] as const;
 const NETWORK_ACTIONS_MESSAGE = `network requires ${NETWORK_ACTIONS.join(' or ')}`;
-const NETWORK_INCLUDE_MODES = [
-  'summary',
-  'headers',
-  'body',
-  'all',
-] as const satisfies readonly NetworkIncludeMode[];
 const NETWORK_INCLUDE_MESSAGE = `network include mode must be one of: ${NETWORK_INCLUDE_MODES.join(', ')}`;
 
 type ObservabilityParams = {

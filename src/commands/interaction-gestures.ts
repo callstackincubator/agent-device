@@ -23,6 +23,7 @@ import {
 import {
   toBackendResult,
   type BackendResultEnvelope,
+  type BackendResultVariant,
   type RuntimeCommand,
 } from './runtime-types.ts';
 import {
@@ -67,25 +68,23 @@ export type ScrollCommandOptions = CommandContext & {
 };
 
 export type ScrollCommandResult =
-  | {
+  | BackendResultVariant<{
       kind: 'viewport';
       direction: GestureDirection;
       edge?: 'top' | 'bottom';
       passes?: number;
       amount?: number;
       pixels?: number;
-      backendResult?: Record<string, unknown>;
-      message?: string;
-    }
-  | (ResolvedInteractionTarget & {
-      direction: GestureDirection;
-      edge?: 'top' | 'bottom';
-      passes?: number;
-      amount?: number;
-      pixels?: number;
-      backendResult?: Record<string, unknown>;
-      message?: string;
-    });
+    }>
+  | BackendResultVariant<
+      ResolvedInteractionTarget & {
+        direction: GestureDirection;
+        edge?: 'top' | 'bottom';
+        passes?: number;
+        amount?: number;
+        pixels?: number;
+      }
+    >;
 
 type ResolvedScrollTarget = { kind: 'viewport' } | ResolvedInteractionTarget;
 

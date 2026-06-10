@@ -1,6 +1,6 @@
 import type { PNG } from './png.ts';
 import type { Rect } from './snapshot.ts';
-import type { NormalizedRect } from './screenshot-geometry.ts';
+import { normalizedRect, type NormalizedRect } from './screenshot-geometry.ts';
 import { findConnectedMaskComponents } from './screenshot-diff-components.ts';
 import { splitLargeDiffRegions } from './screenshot-diff-region-split.ts';
 import type { MutableDiffRegion } from './screenshot-diff-region-types.ts';
@@ -222,12 +222,12 @@ function toScreenshotDiffRegion(
   return {
     index,
     rect,
-    normalizedRect: {
+    normalizedRect: normalizedRect({
       x: roundPercentage(rect.x / image.width),
       y: roundPercentage(rect.y / image.height),
       width: roundPercentage(rect.width / image.width),
       height: roundPercentage(rect.height / image.height),
-    },
+    }),
     differentPixels: region.differentPixels,
     shareOfDiffPercentage: roundPercentage(region.differentPixels / image.differentPixels),
     densityPercentage,

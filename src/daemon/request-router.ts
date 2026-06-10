@@ -4,7 +4,7 @@ import {
 } from '../core/dispatch-resolve.ts';
 import { AppError, normalizeError } from '../utils/errors.ts';
 import { timingSafeStringEqual } from '../utils/timing-safe-equal.ts';
-import type { DaemonRequest, DaemonResponse } from './types.ts';
+import type { DaemonInvokeFn, DaemonRequest, DaemonResponse } from './types.ts';
 import { SessionStore } from './session-store.ts';
 import {
   type AndroidAdbProviderResolver,
@@ -56,9 +56,7 @@ export type RequestRouterDeps = {
   }) => string;
 };
 
-export function createRequestHandler(
-  deps: RequestRouterDeps,
-): (req: DaemonRequest) => Promise<DaemonResponse> {
+export function createRequestHandler(deps: RequestRouterDeps): DaemonInvokeFn {
   const {
     logPath,
     token,
@@ -176,7 +174,7 @@ export function createRequestHandler(
   function createReplayScopedActionInvoker(
     parentScope: LockedRequestScope,
     providerScope: RequestPlatformProviderScope,
-  ): (req: DaemonRequest) => Promise<DaemonResponse> {
+  ): DaemonInvokeFn {
     return async (req) => {
       if (!canRunReplayActionInCurrentScope(req, parentScope)) return await handleRequest(req);
       if (!timingSafeStringEqual(req.token, token)) {

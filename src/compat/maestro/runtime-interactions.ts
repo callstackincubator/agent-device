@@ -1,5 +1,5 @@
 import { getSnapshotReferenceFrame } from '../../daemon/touch-reference-frame.ts';
-import type { DaemonRequest, DaemonResponse } from '../../daemon/types.ts';
+import type { DaemonInvokeFn, DaemonResponse } from '../../daemon/types.ts';
 import {
   buildSwipeGesturePlan,
   clampGesturePoint,
@@ -108,7 +108,7 @@ export async function invokeMaestroScrollUntilVisible(
 export async function invokeMaestroTapPointPercent(params: {
   baseReq: ReplayBaseRequest;
   positionals: string[];
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invoke: DaemonInvokeFn;
 }): Promise<DaemonResponse> {
   const [xValue, yValue] = params.positionals;
   const xPercent = Number(xValue);

@@ -12,6 +12,7 @@ import { successText } from '../utils/success-text.ts';
 import {
   toBackendResult,
   type BackendResultEnvelope,
+  type BackendResultVariant,
   type RuntimeCommand,
 } from './runtime-types.ts';
 import { resolveCommandInput } from './io-policy.ts';
@@ -40,12 +41,10 @@ export type AdminShutdownCommandOptions = CommandContext & {
   target?: BackendDeviceTarget;
 };
 
-export type AdminShutdownCommandResult = {
+export type AdminShutdownCommandResult = BackendResultVariant<{
   kind: 'deviceShutdown';
   target?: BackendDeviceTarget;
-  backendResult?: Record<string, unknown>;
-  message?: string;
-};
+}>;
 
 export type AdminInstallCommandOptions = CommandContext & {
   app: string;

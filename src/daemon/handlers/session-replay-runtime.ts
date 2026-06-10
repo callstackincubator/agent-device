@@ -3,7 +3,7 @@ import path from 'node:path';
 import { type CommandFlags } from '../../core/dispatch.ts';
 import { parseReplayInput } from '../../compat/replay-input.ts';
 import { asAppError } from '../../utils/errors.ts';
-import type { DaemonRequest, DaemonResponse, SessionAction } from '../types.ts';
+import type { DaemonInvokeFn, DaemonRequest, DaemonResponse, SessionAction } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { type ReplayScriptMetadata, writeReplayScript } from '../../replay/script.ts';
 import { healReplayAction } from './session-replay-heal.ts';
@@ -25,7 +25,7 @@ export async function runReplayScriptFile(params: {
   logPath: string;
   sessionStore: SessionStore;
   tracePath?: string;
-  invoke: (req: DaemonRequest) => Promise<DaemonResponse>;
+  invoke: DaemonInvokeFn;
 }): Promise<DaemonResponse> {
   const { req, sessionName, logPath, sessionStore, tracePath, invoke } = params;
   const filePath = req.positionals?.[0];

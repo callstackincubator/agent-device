@@ -10,6 +10,7 @@ import { toBackendContext } from './selector-read-utils.ts';
 import {
   toBackendResult,
   type BackendResultEnvelope,
+  type BackendResultVariant,
   type RuntimeCommand,
 } from './runtime-types.ts';
 import type { RepeatedInput } from './command-input.ts';
@@ -55,9 +56,7 @@ export type PressCommandOptions = CommandContext &
 
 export type ClickCommandOptions = PressCommandOptions;
 
-export type PressCommandResult = ResolvedInteractionTarget & {
-  backendResult?: Record<string, unknown>;
-};
+export type PressCommandResult = BackendResultVariant<ResolvedInteractionTarget>;
 
 export type FillCommandOptions = CommandContext & {
   target: InteractionTarget;
@@ -65,11 +64,12 @@ export type FillCommandOptions = CommandContext & {
   delayMs?: number;
 };
 
-export type FillCommandResult = ResolvedInteractionTarget & {
-  text: string;
-  warning?: string;
-  backendResult?: Record<string, unknown>;
-};
+export type FillCommandResult = BackendResultVariant<
+  ResolvedInteractionTarget & {
+    text: string;
+    warning?: string;
+  }
+>;
 
 export type TypeTextCommandOptions = CommandContext & {
   text: string;

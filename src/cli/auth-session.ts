@@ -3,6 +3,7 @@ import path from 'node:path';
 import { runCmd } from '../utils/exec.ts';
 import { AppError } from '../utils/errors.ts';
 import type { CliFlags } from '../utils/cli-flags.ts';
+import type { EnvMap } from '../utils/env-map.ts';
 
 const DEFAULT_CLOUD_BASE_URL = 'https://cloud.agent-device.dev';
 const DEVICE_AUTH_START_PATH = '/api/control-plane/device-auth/start';
@@ -30,8 +31,6 @@ export type RemoteAuthResolution = {
   flags: CliFlags;
   source: 'flag' | 'env' | 'cli-session' | 'login' | 'none';
 };
-
-type EnvMap = Record<string, string | undefined>;
 
 type DeviceAuthStartResponse = {
   deviceCode: string;

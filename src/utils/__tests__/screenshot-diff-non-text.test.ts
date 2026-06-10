@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { summarizeNonTextDiffDeltas } from '../screenshot-diff-non-text.ts';
+import { normalizedRect } from '../screenshot-geometry.ts';
 
 function paintMaskRect(
   mask: Uint8Array,
@@ -29,7 +30,7 @@ test('summarizeNonTextDiffDeltas masks OCR text and reports leading icon residua
       {
         index: 1,
         rect: { x: 0, y: 20, width: 180, height: 50 },
-        normalizedRect: { x: 0, y: 16.67, width: 81.82, height: 41.67 },
+        normalizedRect: normalizedRect({ x: 0, y: 16.67, width: 81.82, height: 41.67 }),
         differentPixels: 976,
         shareOfDiffPercentage: 100,
         densityPercentage: 10.84,
@@ -53,7 +54,7 @@ test('summarizeNonTextDiffDeltas masks OCR text and reports leading icon residua
           text: 'Wi-Fi',
           confidence: 90,
           rect: { x: 68, y: 28, width: 60, height: 24 },
-          normalizedRect: { x: 30.91, y: 23.33, width: 27.27, height: 20 },
+          normalizedRect: normalizedRect({ x: 30.91, y: 23.33, width: 27.27, height: 20 }),
         },
       ],
       matches: [],
@@ -88,7 +89,7 @@ test('summarizeNonTextDiffDeltas uses overlapping baseline text when current OCR
           text: 'Wi-Fi',
           confidence: 90,
           rect: { x: 68, y: 28, width: 60, height: 24 },
-          normalizedRect: { x: 30.91, y: 23.33, width: 27.27, height: 20 },
+          normalizedRect: normalizedRect({ x: 30.91, y: 23.33, width: 27.27, height: 20 }),
         },
       ],
       currentBlocksRaw: [],
@@ -116,7 +117,7 @@ test('summarizeNonTextDiffDeltas omits broad background residuals', () => {
       {
         index: 1,
         rect: { x: 10, y: 30, width: 180, height: 40 },
-        normalizedRect: { x: 4.55, y: 25, width: 81.82, height: 33.33 },
+        normalizedRect: normalizedRect({ x: 4.55, y: 25, width: 81.82, height: 33.33 }),
         differentPixels: 7200,
         shareOfDiffPercentage: 100,
         densityPercentage: 100,
