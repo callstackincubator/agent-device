@@ -858,4 +858,4 @@ For CLI-discoverable setup guidance, run `agent-device help physical-device`.
 - First-run XCTest setup/build can take longer than normal commands; keep the device connected and use `--debug` to inspect signing/build diagnostics if setup times out.
 - If you override the iOS runner derived-data path and also force cleanup, keep `AGENT_DEVICE_IOS_RUNNER_DERIVED_PATH` under the project `.tmp/` directory. Other cleanup override paths are rejected with a recovery hint.
 - For daemon startup troubleshooting:
-  - follow stale metadata hints for `<state-dir>/daemon.json` and `<state-dir>/daemon.lock` (`state-dir` defaults to `~/.agent-device`)
+  - follow stale metadata hints for `<state-dir>/daemon.json` and `<state-dir>/daemon.lock` (`state-dir` defaults to `~/.agent-device` for packaged installs, or a worktree-scoped dir under `~/.agent-device/dev/` from source)
