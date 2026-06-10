@@ -1,6 +1,6 @@
 # Issue Tracker: GitHub
 
-Issues and PRDs for this repo live as GitHub issues in `callstackincubator/agent-device`. Use the `gh` CLI for issue operations.
+Issues and PRDs for this repo live as GitHub issues in `callstack/agent-device`. Use the `gh` CLI for issue operations.
 
 ## Conventions
 
@@ -10,5 +10,7 @@ Issues and PRDs for this repo live as GitHub issues in `callstackincubator/agent
 - Comment with `gh issue comment <number> --body "..."`.
 - Apply or remove labels with `gh issue edit <number> --add-label "..."` or `--remove-label "..."`.
 - Close with `gh issue close <number> --comment "..."`.
+
+For label meanings and state flow, see `docs/agents/triage-labels.md`.
 
 When a skill says "publish to the issue tracker", create a GitHub issue.
