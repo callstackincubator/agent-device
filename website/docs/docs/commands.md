@@ -586,10 +586,15 @@ agent-device perf --json
 agent-device metrics --json
 agent-device perf metrics --json
 agent-device perf frames --json
+agent-device perf memory sample --json
+agent-device perf memory snapshot --kind android-hprof --out app.hprof
+agent-device perf memory snapshot --kind memgraph --out app.memgraph
 ```
 
 - `perf metrics` returns a session-scoped metrics JSON blob. Bare `perf` and `metrics` remain aliases for `perf metrics`.
 - `perf frames` returns a focused frame/jank-health JSON blob from the same frame sampling source used by `perf metrics`.
+- `perf memory sample` returns a compact memory-only JSON blob for agents investigating growth/leaks without collecting a large artifact.
+- `perf memory snapshot` writes a heap/memgraph artifact to disk and returns path, size, kind, method, and support metadata. Large artifacts are never dumped into CLI/MCP/default JSON output.
 - Without `--json`, `perf` prints a compact summary: frame health when reliable frame data is available, otherwise CPU/memory when those samples are available.
 - `startup` is sampled from `open-command-roundtrip`: elapsed wall-clock time around each `open` command dispatch for the active session app target.
 - Android app sessions with an active package also sample:
@@ -604,6 +609,9 @@ agent-device perf frames --json
   - `startup`: iOS simulator, iOS physical device, Android emulator/device
   - `memory` and `cpu`: Android emulator/device, macOS app sessions, iOS simulators with an active app session (`open <app>` first), and iOS physical devices with an active app session
   - `fps`: Android emulator/device app sessions and connected iOS device app sessions. iOS simulator and macOS frame health is reported unavailable because Apple tooling does not expose trustworthy app hitch data there.
+  - `perf memory snapshot --kind android-hprof`: Android emulator/device app sessions with a running debuggable/profileable process and permitted heap dumping
+  - `perf memory snapshot --kind memgraph`: iOS simulator and macOS app sessions with a running app process. Physical iOS devices report memgraph unavailable with a recovery hint.
+  - `perf memory trace --kind heapprofd`: deferred until Android Perfetto/heapprofd plumbing is available.
 - If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf metrics`.
 - Android URL/deep-link opens infer the foreground package after launch when possible, including Expo Go/dev-client shells. If the session still has no app package/bundle ID, package-bound metrics remain unavailable until you `open <app>`.
 - Android frame health is reset after each successful `perf metrics` or `perf frames` read and after `open <app>`, so run `perf frames`, perform the interaction, then run `perf frames` again for a focused window.

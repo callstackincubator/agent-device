@@ -83,6 +83,8 @@ export async function createAndroidSettingsWorld(options?: {
       updateAndroidProviderShellState(args, shellState);
       const stateResult = updateAndroidProviderAppState(args, appState);
       if (stateResult) return stateResult;
+      const heapResult = androidHeapDumpAdbResult(args);
+      if (heapResult) return heapResult;
       return androidAdbResult(args, shellState.searchText, shellState.clipboardText, {
         snapshotXml: options?.snapshotXml,
         dumpsysWindow:
@@ -175,6 +177,18 @@ export async function createAndroidSettingsWorld(options?: {
       await daemon.close();
     },
   };
+}
+
+function androidHeapDumpAdbResult(args: string[]): AndroidAdbResult | undefined {
+  if (args.slice(0, 4).join(' ') === 'shell am dumpheap com.example.demo') {
+    return { stdout: 'Dumping Java heap\n', stderr: '', exitCode: 0 };
+  }
+  if (args[0] === 'pull' && args[1]?.endsWith('.hprof') && args[2]) {
+    fs.mkdirSync(path.dirname(args[2]), { recursive: true });
+    fs.writeFileSync(args[2], 'provider-hprof-bytes');
+    return { stdout: `${args[1]}: 1 file pulled\n`, stderr: '', exitCode: 0 };
+  }
+  return undefined;
 }
 
 async function createAndroidManifestApk(

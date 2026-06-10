@@ -38,6 +38,7 @@ export type CliFlags = RemoteConfigMetroOptions &
     leaseBackend?: LeaseBackend;
     force?: boolean;
     noLogin?: boolean;
+    kind?: string;
     sessionLock?: 'reject' | 'strip';
     sessionLocked?: boolean;
     sessionLockConflicts?: 'reject' | 'strip';
@@ -157,6 +158,7 @@ export const SELECTOR_SNAPSHOT_FLAGS = flagKeys('snapshotDepth', 'snapshotScope'
 
 export const METRO_PREPARE_FLAGS = flagKeys(
   'metroProjectRoot',
+  'kind',
   'metroKind',
   'metroPublicBaseUrl',
   'metroProxyBaseUrl',
@@ -385,11 +387,20 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'metro prepare: React Native project root (default: cwd)',
   },
   {
-    key: 'metroKind',
+    key: 'kind',
     names: ['--kind'],
     type: 'enum',
+    enumValues: ['auto', 'react-native', 'expo', 'android-hprof', 'memgraph'],
+    usageLabel: '--kind <kind>',
+    usageDescription:
+      'Kind selector for commands that support it, such as metro prepare or perf memory snapshot',
+  },
+  {
+    key: 'metroKind',
+    names: ['--metro-kind'],
+    type: 'enum',
     enumValues: ['auto', 'react-native', 'expo'],
-    usageLabel: '--kind auto|react-native|expo',
+    usageLabel: '--metro-kind auto|react-native|expo',
     usageDescription: 'metro prepare: detect or force the Metro launcher kind',
   },
   {

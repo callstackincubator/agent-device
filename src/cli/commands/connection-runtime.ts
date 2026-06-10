@@ -16,6 +16,7 @@ import { AppError } from '../../utils/errors.ts';
 import type { LeaseBackend, SessionRuntimeHints } from '../../contracts.ts';
 import type { CliFlags } from '../../utils/cli-flags.ts';
 import type { AgentDeviceClient, Lease } from '../../client.ts';
+import type { MetroPrepareKind } from '../../client-metro.ts';
 
 const leaseDeferredCommands = new Set([
   'connect',
@@ -195,7 +196,7 @@ async function prepareConnectedMetro(
   }
   const prepared = await client.metro.prepare({
     projectRoot: flags.metroProjectRoot,
-    kind: flags.metroKind,
+    kind: readDeferredMetroKind(flags.kind ?? flags.metroKind),
     publicBaseUrl: flags.metroPublicBaseUrl,
     proxyBaseUrl: flags.metroProxyBaseUrl,
     bearerToken: flags.metroBearerToken,
@@ -304,11 +305,9 @@ function shouldPrepareRuntimeForCommand(command: string, batchSteps?: BatchStep[
 }
 
 export function hasDeferredMetroConfig(flags: CliFlags): boolean {
+  const metroKind = flags.kind ?? flags.metroKind;
   return Boolean(
-    flags.metroPublicBaseUrl ||
-    flags.metroProxyBaseUrl ||
-    flags.metroProjectRoot ||
-    flags.metroKind,
+    flags.metroPublicBaseUrl || flags.metroProxyBaseUrl || flags.metroProjectRoot || metroKind,
   );
 }
 
@@ -320,6 +319,12 @@ function isRuntimeCompatibleWithPlatform(
     return true;
   }
   return runtime.platform === platform;
+}
+
+function readDeferredMetroKind(value: string | undefined): MetroPrepareKind | undefined {
+  if (value === undefined) return undefined;
+  if (value === 'auto' || value === 'react-native' || value === 'expo') return value;
+  throw new AppError('INVALID_ARGS', 'metro prepare --kind must be auto, react-native, or expo');
 }
 
 function isSameMetroCleanup(

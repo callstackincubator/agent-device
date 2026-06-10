@@ -147,6 +147,10 @@ function joinDefinedLines(lines: Array<string | undefined>): string | undefined 
 }
 
 function formatPerfCliOutput(data: Record<string, unknown>): string {
+  const artifact = readRecord(data.artifact);
+  if (artifact) {
+    return formatMemoryArtifactSummary(artifact);
+  }
   const metrics = readRecord(data.metrics);
   const fps = readRecord(metrics?.fps);
   const resourceSummary = buildResourcePerfSummary(metrics);
@@ -167,6 +171,23 @@ function formatPerfCliOutput(data: Record<string, unknown>): string {
     lines.push('Worst windows:', ...worstWindows);
   }
   return lines.join('\n');
+}
+
+function formatMemoryArtifactSummary(artifact: Record<string, unknown>): string {
+  const kind = typeof artifact.kind === 'string' ? artifact.kind : 'memory';
+  if (artifact.available === false) {
+    const reason =
+      typeof artifact.reason === 'string' && artifact.reason.length > 0
+        ? artifact.reason
+        : 'not available';
+    return `Memory artifact (${kind}): unavailable - ${reason}`;
+  }
+  const artifactPath = typeof artifact.path === 'string' ? artifact.path : undefined;
+  const sizeBytes = readFiniteNumber(artifact.sizeBytes);
+  const sizeText = sizeBytes === undefined ? '' : ` (${formatBytes(sizeBytes)})`;
+  return artifactPath
+    ? `Memory artifact (${kind}): ${artifactPath}${sizeText}`
+    : `Memory artifact (${kind}): captured${sizeText}`;
 }
 
 function formatPerfUnavailable(resourceSummary: string | undefined, reason: string): string {
@@ -283,4 +304,11 @@ function formatDurationMs(value: number): string {
 function formatMemoryKb(value: number): string {
   const megabytes = value / 1024;
   return `${megabytes >= 10 ? Math.round(megabytes) : megabytes.toFixed(1)}MB`;
+}
+
+function formatBytes(value: number): string {
+  const megabytes = value / 1024 / 1024;
+  if (megabytes >= 10) return `${Math.round(megabytes)}MB`;
+  if (megabytes >= 1) return `${megabytes.toFixed(1)}MB`;
+  return `${Math.max(1, Math.round(value / 1024))}KB`;
 }

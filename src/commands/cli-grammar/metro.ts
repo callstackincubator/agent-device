@@ -1,4 +1,5 @@
 import { AppError } from '../../utils/errors.ts';
+import type { MetroPrepareKind } from '../../client-metro.ts';
 import type { CliReader } from './types.ts';
 
 export const metroCliReaders = {
@@ -29,7 +30,7 @@ function metroInputFromCli(positionals: string[], flags: Parameters<CliReader>[1
   return {
     action,
     projectRoot: flags.metroProjectRoot,
-    kind: flags.metroKind,
+    kind: readMetroPrepareKind(flags.kind ?? flags.metroKind),
     port: flags.metroPreparePort,
     listenHost: flags.metroListenHost,
     statusHost: flags.metroStatusHost,
@@ -50,4 +51,10 @@ function metroInputFromCli(positionals: string[], flags: Parameters<CliReader>[1
     installDependenciesIfNeeded: flags.metroNoInstallDeps ? false : undefined,
     runtimeFilePath: flags.metroRuntimeFile,
   };
+}
+
+function readMetroPrepareKind(value: string | undefined): MetroPrepareKind | undefined {
+  if (value === undefined) return undefined;
+  if (value === 'auto' || value === 'react-native' || value === 'expo') return value;
+  throw new AppError('INVALID_ARGS', 'metro prepare --kind must be auto, react-native, or expo');
 }

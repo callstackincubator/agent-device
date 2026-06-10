@@ -297,6 +297,7 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     snapshotForceFull: options.forceFull,
     ...screenshotFlagsFromOptions(options),
     appsFilter: options.appsFilter,
+    kind: options.kind,
     out: options.out,
     count: options.count,
     fps: options.fps,

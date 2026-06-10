@@ -106,6 +106,50 @@ test('perf frames sample forwards explicit sample action to daemon', async () =>
   assert.deepEqual(result.calls[0]?.positionals, ['frames', 'sample']);
 });
 
+test('perf memory sample forwards memory area and prints compact memory summary', async () => {
+  const result = await runCliCapture(['perf', 'memory', 'sample'], async () => ({
+    ok: true,
+    data: {
+      metrics: {
+        memory: {
+          available: true,
+          totalPssKb: 216524,
+          topConsumers: [{ name: 'Dalvik Heap', pssKb: 120000 }],
+        },
+      },
+    },
+  }));
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.command, 'perf');
+  assert.deepEqual(result.calls[0]?.positionals, ['memory', 'sample']);
+  assert.equal(result.stdout, 'Performance: memory 211MB\n');
+});
+
+test('perf memory snapshot forwards kind and output path and prints artifact summary', async () => {
+  const result = await runCliCapture(
+    ['perf', 'memory', 'snapshot', '--kind', 'android-hprof', '--out', 'heap.hprof'],
+    async () => ({
+      ok: true,
+      data: {
+        artifact: {
+          available: true,
+          kind: 'android-hprof',
+          path: '/tmp/heap.hprof',
+          sizeBytes: 2_500_000,
+        },
+      },
+    }),
+  );
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.command, 'perf');
+  assert.deepEqual(result.calls[0]?.positionals, ['memory', 'snapshot']);
+  assert.equal(result.calls[0]?.flags?.kind, 'android-hprof');
+  assert.equal(result.calls[0]?.flags?.out, 'heap.hprof');
+  assert.equal(result.stdout, 'Memory artifact (android-hprof): /tmp/heap.hprof (2.4MB)\n');
+});
+
 test('perf sample defaults to metrics sample', async () => {
   const result = await runCliCapture(['perf', 'sample', '--json'], async () => ({
     ok: true,
@@ -152,7 +196,7 @@ test('perf rejects unknown CLI area before daemon dispatch', async () => {
   assert.equal(result.calls.length, 0);
   const payload = JSON.parse(result.stdout);
   assert.equal(payload.error.code, 'INVALID_ARGS');
-  assert.match(payload.error.message, /perf area must be metrics or frames/i);
+  assert.match(payload.error.message, /perf area must be metrics, frames, or memory/i);
 });
 
 test('perf prints unavailable frame health reason by default', async () => {

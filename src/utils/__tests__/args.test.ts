@@ -415,7 +415,7 @@ test('parseArgs accepts metro prepare arguments', () => {
   assert.equal(parsed.flags.metroProxyBaseUrl, 'https://proxy.example.test');
   assert.equal(parsed.flags.metroBearerToken, 'secret');
   assert.equal(parsed.flags.metroPreparePort, 9090);
-  assert.equal(parsed.flags.metroKind, 'expo');
+  assert.equal(parsed.flags.kind, 'expo');
   assert.equal(parsed.flags.metroRuntimeFile, './.agent-device/metro-runtime.json');
   assert.equal(parsed.flags.metroNoReuseExisting, true);
   assert.equal(parsed.flags.metroNoInstallDeps, true);

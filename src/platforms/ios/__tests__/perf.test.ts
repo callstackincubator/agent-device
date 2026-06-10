@@ -9,10 +9,16 @@ vi.mock('../../../utils/exec.ts', async (importOriginal) => {
   return { ...actual, runCmd: vi.fn(actual.runCmd) };
 });
 
-import { parseApplePsOutput, sampleAppleFramePerf, sampleApplePerfMetrics } from '../perf.ts';
+import {
+  captureAppleMemorySnapshot,
+  parseApplePsOutput,
+  sampleAppleFramePerf,
+  sampleApplePerfMetrics,
+} from '../perf.ts';
 import { parseAppleFramePerfSample } from '../perf-frame.ts';
 import { runCmd } from '../../../utils/exec.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
+import { AppError } from '../../../utils/errors.ts';
 
 const mockRunCmd = vi.mocked(runCmd);
 type MockRunCmdResult = Awaited<ReturnType<typeof runCmd>>;
@@ -189,6 +195,185 @@ test('sampleApplePerfMetrics uses simctl spawn ps for iOS simulators', async () 
     assert.equal(metrics.cpu.usagePercent, 12);
     assert.equal(metrics.memory.residentMemoryKb, 8192);
     assert.deepEqual(metrics.cpu.matchedProcesses, ['Example Sim Exec']);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('captureAppleMemorySnapshot records memgraph for iOS simulator processes', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-sim-memgraph-'));
+  const appPath = path.join(tmpDir, 'Example.app');
+  const outPath = path.join(tmpDir, 'app.memgraph');
+  await fs.mkdir(appPath, { recursive: true });
+  await fs.writeFile(
+    path.join(appPath, 'Info.plist'),
+    [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<plist version="1.0"><dict>',
+      '<key>CFBundleExecutable</key><string>ExampleSimExec</string>',
+      '</dict></plist>',
+    ].join(''),
+    'utf8',
+  );
+
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'xcrun' && args.includes('get_app_container')) {
+      return { stdout: `${appPath}\n`, stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'plutil') {
+      return { stdout: '', stderr: 'mock fallback', exitCode: 1 };
+    }
+    if (cmd === 'xcrun' && args.includes('ps')) {
+      return {
+        stdout: [
+          `111 1.0 8192 ${path.join(appPath, 'ExampleSimExec')}`,
+          `222 1.0 16384 ${path.join(appPath, 'ExampleSimExec')} --helper`,
+        ].join('\n'),
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    if (cmd === 'xcrun' && args.includes('leaks')) {
+      assert.deepEqual(args, [
+        'simctl',
+        'spawn',
+        'sim-1',
+        'leaks',
+        `--outputGraph=${outPath}`,
+        '222',
+      ]);
+      await fs.writeFile(outPath, 'memgraph-bytes', 'utf8');
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
+  });
+
+  try {
+    const snapshot = await captureAppleMemorySnapshot(IOS_SIMULATOR, 'com.example.sim', outPath);
+    assert.equal(snapshot.available, true);
+    if (snapshot.available !== true) assert.fail(JSON.stringify(snapshot));
+    assert.equal(snapshot.kind, 'memgraph');
+    assert.equal(snapshot.path, outPath);
+    assert.equal(snapshot.pid, 222);
+    assert.equal(snapshot.sizeBytes, 'memgraph-bytes'.length);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('captureAppleMemorySnapshot records memgraph for macOS app processes', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-macos-memgraph-'));
+  const bundlePath = path.join(tmpDir, 'Example.app');
+  const outPath = path.join(tmpDir, 'app.memgraph');
+  await fs.mkdir(path.join(bundlePath, 'Contents'), { recursive: true });
+  await fs.writeFile(
+    path.join(bundlePath, 'Contents', 'Info.plist'),
+    [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<plist version="1.0"><dict>',
+      '<key>CFBundleExecutable</key><string>ExampleExec</string>',
+      '</dict></plist>',
+    ].join(''),
+    'utf8',
+  );
+
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'mdfind') {
+      return { stdout: `${bundlePath}\n`, stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'plutil') {
+      return { stdout: '', stderr: 'mock fallback', exitCode: 1 };
+    }
+    if (cmd === 'ps') {
+      return {
+        stdout: `111 1.0 12000 ${path.join(bundlePath, 'Contents', 'MacOS', 'ExampleExec')}`,
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    if (cmd === 'leaks') {
+      assert.deepEqual(args, [`--outputGraph=${outPath}`, '111']);
+      await fs.writeFile(outPath, 'mac-memgraph-bytes', 'utf8');
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
+  });
+
+  try {
+    const snapshot = await captureAppleMemorySnapshot(MACOS_DEVICE, 'com.example.app', outPath);
+    assert.equal(snapshot.available, true);
+    if (snapshot.available !== true) assert.fail(JSON.stringify(snapshot));
+    assert.equal(snapshot.path, outPath);
+    assert.equal(snapshot.pid, 111);
+    assert.equal(snapshot.sizeBytes, 'mac-memgraph-bytes'.length);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('captureAppleMemorySnapshot reports physical iOS as unavailable', async () => {
+  const snapshot = await captureAppleMemorySnapshot(
+    IOS_DEVICE,
+    'com.example.device',
+    '/tmp/app.memgraph',
+  );
+
+  assert.equal(snapshot.available, false);
+  if (snapshot.available !== false) assert.fail(JSON.stringify(snapshot));
+  assert.equal(snapshot.kind, 'memgraph');
+  assert.match(snapshot.reason, /Physical iOS device memgraph capture/i);
+  assert.equal(mockRunCmd.mock.calls.length, 0);
+});
+
+test('captureAppleMemorySnapshot reports iOS simulator without process tools as unavailable', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-sim-no-ps-'));
+  const appPath = path.join(tmpDir, 'Example.app');
+  await fs.mkdir(appPath, { recursive: true });
+  await fs.writeFile(
+    path.join(appPath, 'Info.plist'),
+    [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<plist version="1.0"><dict>',
+      '<key>CFBundleExecutable</key><string>ExampleSimExec</string>',
+      '</dict></plist>',
+    ].join(''),
+    'utf8',
+  );
+
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'xcrun' && args.includes('get_app_container')) {
+      return { stdout: `${appPath}\n`, stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'plutil') {
+      return { stdout: '', stderr: 'mock fallback', exitCode: 1 };
+    }
+    if (cmd === 'xcrun' && args.includes('ps')) {
+      throw new AppError(
+        'COMMAND_FAILED',
+        'The operation couldn’t be completed. No such file or directory',
+        {
+          cmd,
+          args,
+          stdout: '',
+          stderr: 'An error was encountered processing the command: No such file or directory',
+          exitCode: 2,
+          processExitError: true,
+        },
+      );
+    }
+    throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
+  });
+
+  try {
+    const snapshot = await captureAppleMemorySnapshot(
+      IOS_SIMULATOR,
+      'com.example.sim',
+      path.join(tmpDir, 'app.memgraph'),
+    );
+    assert.equal(snapshot.available, false);
+    if (snapshot.available !== false) assert.fail(JSON.stringify(snapshot));
+    assert.match(snapshot.reason, /did not provide ps/i);
+    assert.equal(snapshot.support.memgraph, false);
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }

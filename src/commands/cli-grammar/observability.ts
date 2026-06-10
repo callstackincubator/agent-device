@@ -12,10 +12,13 @@ import { LOG_ACTION_VALUES, type LogAction } from '../log-command-contract.ts';
 import {
   isPerfAction,
   isPerfArea,
+  isPerfMemoryKind,
   PERF_ACTION_ERROR_MESSAGE,
   PERF_AREA_ERROR_MESSAGE,
+  PERF_MEMORY_KIND_ERROR_MESSAGE,
   type PerfAction,
   type PerfArea,
+  type PerfMemoryKind,
 } from '../perf-command-contract.ts';
 import {
   commonInputFromFlags,
@@ -31,6 +34,8 @@ export const observabilityCliReaders = {
   perf: (positionals, flags) => ({
     ...commonInputFromFlags(flags),
     ...readPerfPositionals(positionals),
+    kind: readPerfMemoryKind(flags.kind),
+    out: flags.out,
   }),
   logs: (positionals, flags) => ({
     ...commonInputFromFlags(flags),
@@ -85,6 +90,12 @@ function readPerfPositionals(positionals: string[]): Pick<PerfOptions, 'area' | 
     area: readPerfArea(positionals[0]),
     action: readPerfAction(positionals[1]),
   };
+}
+
+function readPerfMemoryKind(value: string | undefined): PerfMemoryKind | undefined {
+  if (value === undefined) return undefined;
+  if (isPerfMemoryKind(value)) return value;
+  throw new AppError('INVALID_ARGS', PERF_MEMORY_KIND_ERROR_MESSAGE);
 }
 
 function logsPositionals(input: { action?: string; message?: string }): string[] {

@@ -1,23 +1,34 @@
+import path from 'node:path';
 import type { SessionAction, SessionState } from '../types.ts';
 import { normalizeError } from '../../utils/errors.ts';
+import { AppError } from '../../utils/errors.ts';
 import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
 import {
+  ANDROID_HPROF_SNAPSHOT_DESCRIPTION,
+  ANDROID_HPROF_SNAPSHOT_METHOD,
   ANDROID_CPU_SAMPLE_DESCRIPTION,
   ANDROID_CPU_SAMPLE_METHOD,
   ANDROID_FRAME_SAMPLE_DESCRIPTION,
   ANDROID_FRAME_SAMPLE_METHOD,
   ANDROID_MEMORY_SAMPLE_DESCRIPTION,
   ANDROID_MEMORY_SAMPLE_METHOD,
+  captureAndroidHeapSnapshot,
   sampleAndroidCpuPerf,
   sampleAndroidFramePerf,
   sampleAndroidMemoryPerf,
 } from '../../platforms/android/perf.ts';
 import {
+  APPLE_MEMGRAPH_SNAPSHOT_DESCRIPTION,
+  APPLE_MEMGRAPH_SNAPSHOT_METHOD,
+  buildAppleMemorySnapshotSupport,
   buildAppleFrameSamplingMetadata,
   buildAppleSamplingMetadata,
+  captureAppleMemorySnapshot,
   sampleAppleFramePerf,
   sampleApplePerfMetrics,
 } from '../../platforms/ios/perf.ts';
+import type { PerfMemoryKind } from '../../contracts/perf.ts';
+import { SessionStore } from '../session-store.ts';
 import {
   PERF_STARTUP_SAMPLE_LIMIT,
   PERF_UNAVAILABLE_REASON,
@@ -29,7 +40,7 @@ import {
 type SettledMetricResult = PromiseSettledResult<Record<string, unknown>>;
 type MetricResult =
   | ({ available: true } & Record<string, unknown>)
-  | { available: false; reason: string; error: ReturnType<typeof normalizeError> };
+  | { available: false; reason: string; error?: ReturnType<typeof normalizeError> };
 type PerfResponseData = {
   session: string;
   platform: string;
@@ -42,8 +53,22 @@ type PerfFramesResponseData = Omit<PerfResponseData, 'metrics' | 'sampling'> & {
   metrics: { fps: unknown };
   sampling: { fps: unknown };
 };
+type PerfMemoryResponseData = Omit<PerfResponseData, 'metrics' | 'sampling'> & {
+  metrics?: { memory: unknown };
+  artifact?: Record<string, unknown>;
+  sampling: { memory?: unknown; snapshot?: unknown };
+  support?: Record<string, unknown>;
+};
 type BuildPerfResponseOptions = {
   androidAdb?: AndroidAdbExecutor;
+};
+type BuildPerfMemoryResponseOptions = BuildPerfResponseOptions & {
+  action: 'sample' | 'snapshot';
+  kind?: PerfMemoryKind;
+  out?: string;
+  cwd?: string;
+  sessionName: string;
+  sessionStore: SessionStore;
 };
 
 const RELATED_PERF_ACTION_LIMIT = 12;
@@ -124,6 +149,30 @@ export async function buildPerfFramesResponseData(
   return response;
 }
 
+export async function buildPerfMemoryResponseData(
+  session: SessionState,
+  options: BuildPerfMemoryResponseOptions,
+): Promise<PerfMemoryResponseData> {
+  const response = buildBasePerfMemoryResponse(session);
+
+  if (!supportsPlatformPerfMetrics(session)) {
+    response.metrics = { memory: { available: false, reason: PERF_UNAVAILABLE_REASON } };
+    return response;
+  }
+
+  if (options.action === 'sample') {
+    response.metrics = {
+      memory: await buildMemorySampleMetric(session, options),
+    };
+    return response;
+  }
+
+  response.artifact = await buildMemorySnapshotArtifact(session, options);
+  response.support =
+    readSupportRecord(response.artifact.support) ?? buildMemorySnapshotSupport(session);
+  return response;
+}
+
 function buildBasePerfResponse(session: SessionState): PerfResponseData {
   const startupSamples = readStartupPerfSamples(session.actions);
   const latestStartupSample = startupSamples.at(-1);
@@ -188,6 +237,19 @@ function buildBasePerfFramesResponse(session: SessionState): PerfFramesResponseD
     },
     sampling: {
       fps: buildFrameSamplingMetadata(session),
+    },
+  };
+}
+
+function buildBasePerfMemoryResponse(session: SessionState): PerfMemoryResponseData {
+  return {
+    session: session.name,
+    platform: session.device.platform,
+    device: session.device.name,
+    deviceId: session.device.id,
+    sampling: {
+      memory: buildMemorySamplingMetadata(session),
+      snapshot: buildMemorySnapshotSamplingMetadata(session),
     },
   };
 }
@@ -294,6 +356,35 @@ function buildPlatformSamplingMetadata(session: SessionState): Record<string, un
   return buildAppleSamplingMetadata(session.device);
 }
 
+function buildMemorySamplingMetadata(session: SessionState): Record<string, unknown> {
+  if (session.device.platform === 'android') {
+    return {
+      method: ANDROID_MEMORY_SAMPLE_METHOD,
+      description: ANDROID_MEMORY_SAMPLE_DESCRIPTION,
+      unit: 'kB',
+      topConsumerLimit: 5,
+    };
+  }
+  return buildAppleSamplingMetadata(session.device).memory as Record<string, unknown>;
+}
+
+function buildMemorySnapshotSamplingMetadata(session: SessionState): Record<string, unknown> {
+  if (session.device.platform === 'android') {
+    return {
+      method: ANDROID_HPROF_SNAPSHOT_METHOD,
+      description: ANDROID_HPROF_SNAPSHOT_DESCRIPTION,
+      defaultKind: 'android-hprof',
+      artifactOnly: true,
+    };
+  }
+  return {
+    method: APPLE_MEMGRAPH_SNAPSHOT_METHOD,
+    description: APPLE_MEMGRAPH_SNAPSHOT_DESCRIPTION,
+    defaultKind: 'memgraph',
+    artifactOnly: true,
+  };
+}
+
 function buildFrameSamplingMetadata(session: SessionState): Record<string, unknown> {
   if (session.device.platform === 'android') {
     return {
@@ -353,6 +444,119 @@ async function sampleApplePerfResultsForSession(
     cpu: { status: 'rejected', reason: processSample.reason },
     fps,
   };
+}
+
+async function buildMemorySampleMetric(
+  session: SessionState,
+  options: BuildPerfResponseOptions,
+): Promise<MetricResult> {
+  if (!session.appBundleId) {
+    return { available: false, reason: buildMissingAppPerfReason(session) };
+  }
+
+  const result =
+    session.device.platform === 'android'
+      ? await settleMetric(
+          sampleAndroidMemoryPerf(session.device, session.appBundleId, {
+            adb: options.androidAdb,
+          }),
+        )
+      : await settleMetric(sampleAppleMemoryPerf(session));
+  return buildMetricResult(result);
+}
+
+async function sampleAppleMemoryPerf(session: SessionState): Promise<Record<string, unknown>> {
+  if (!session.appBundleId) {
+    throw new AppError('INVALID_ARGS', buildMissingAppPerfReason(session));
+  }
+  const processSample = await sampleApplePerfMetrics(session.device, session.appBundleId);
+  return processSample.memory;
+}
+
+async function buildMemorySnapshotArtifact(
+  session: SessionState,
+  options: BuildPerfMemoryResponseOptions,
+): Promise<Record<string, unknown>> {
+  if (!session.appBundleId) {
+    throw new AppError('INVALID_ARGS', buildMissingAppPerfReason(session), {
+      hint: 'Run open <app> first so perf memory snapshot can resolve the app process.',
+    });
+  }
+
+  const kind = resolveMemorySnapshotKind(session, options.kind);
+  const outPath = resolveMemorySnapshotOutPath(options, kind);
+  if (session.device.platform === 'android') {
+    if (kind !== 'android-hprof') return unsupportedMemorySnapshotArtifact(session, kind);
+    return await captureAndroidHeapSnapshot(session.device, session.appBundleId, outPath, {
+      adb: options.androidAdb,
+    });
+  }
+  if (kind !== 'memgraph') return unsupportedMemorySnapshotArtifact(session, kind);
+  return await captureAppleMemorySnapshot(session.device, session.appBundleId, outPath);
+}
+
+function resolveMemorySnapshotKind(
+  session: SessionState,
+  requestedKind: PerfMemoryKind | undefined,
+): PerfMemoryKind {
+  if (requestedKind) return requestedKind;
+  return session.device.platform === 'android' ? 'android-hprof' : 'memgraph';
+}
+
+function resolveMemorySnapshotOutPath(
+  options: BuildPerfMemoryResponseOptions,
+  kind: PerfMemoryKind,
+): string {
+  if (options.out) return SessionStore.expandHome(options.out, options.cwd);
+  const extension = kind === 'android-hprof' ? 'hprof' : 'memgraph';
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const sessionDir = options.sessionStore.ensureSessionDir(options.sessionName);
+  return path.join(sessionDir, 'artifacts', `memory-${kind}-${timestamp}.${extension}`);
+}
+
+function unsupportedMemorySnapshotArtifact(
+  session: SessionState,
+  kind: PerfMemoryKind,
+): Record<string, unknown> {
+  return {
+    available: false,
+    kind,
+    reason:
+      session.device.platform === 'android'
+        ? `Android perf memory snapshot supports android-hprof, not ${kind}.`
+        : `Apple perf memory snapshot supports memgraph, not ${kind}.`,
+    hint:
+      session.device.platform === 'android'
+        ? 'Use perf memory snapshot --kind android-hprof for Android Java heap artifacts.'
+        : 'Use perf memory snapshot --kind memgraph for supported Apple app sessions.',
+  };
+}
+
+function buildMemorySnapshotSupport(session: SessionState): Record<string, unknown> {
+  if (session.device.platform === 'android') {
+    return {
+      platform: session.device.platform,
+      defaultKind: 'android-hprof',
+      androidHprof: true,
+      memgraph: false,
+      heapprofd: false,
+      heapprofdDecision:
+        'Deferred until Android Perfetto/heapprofd plumbing is available in the perf trace slice.',
+    };
+  }
+  return {
+    ...buildAppleMemorySnapshotSupport(session.device),
+    androidHprof: false,
+    heapprofd: false,
+    heapprofdDecision:
+      'Deferred because heapprofd is Android/Perfetto-specific and outside this memory artifact slice.',
+  };
+}
+
+function readSupportRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
 }
 
 async function settleMetric<T extends object>(promise: Promise<T>): Promise<SettledMetricResult> {

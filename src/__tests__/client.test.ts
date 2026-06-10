@@ -147,6 +147,38 @@ test('observability.perf projects structured frame area to daemon positionals', 
   assert.deepEqual(setup.calls[0]?.positionals, ['frames', 'sample']);
 });
 
+test('observability.perf projects memory snapshot options to daemon flags', async () => {
+  const setup = createTransport(async (req) => {
+    if (req.command === 'perf') {
+      return {
+        ok: true,
+        data: {
+          artifact: {
+            available: true,
+            kind: 'memgraph',
+            path: '/tmp/app.memgraph',
+          },
+        },
+      };
+    }
+    throw new Error(`Unexpected command: ${req.command}`);
+  });
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await client.observability.perf({
+    area: 'memory',
+    action: 'snapshot',
+    kind: 'memgraph',
+    out: 'app.memgraph',
+  });
+
+  assert.equal(setup.calls.length, 1);
+  assert.equal(setup.calls[0]?.command, 'perf');
+  assert.deepEqual(setup.calls[0]?.positionals, ['memory', 'snapshot']);
+  assert.equal(setup.calls[0]?.flags?.kind, 'memgraph');
+  assert.equal(setup.calls[0]?.flags?.out, 'app.memgraph');
+});
+
 test('structured command input accepts target as deviceTarget alias when no UI target exists', async () => {
   const setup = createTransport(async (req) => {
     if (req.command === 'open') {

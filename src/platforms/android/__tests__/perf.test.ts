@@ -1,6 +1,23 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { parseAndroidFramePerfSample, parseAndroidMemInfoSample } from '../perf.ts';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {
+  captureAndroidHeapSnapshot,
+  parseAndroidFramePerfSample,
+  parseAndroidMemInfoSample,
+} from '../perf.ts';
+import type { AndroidAdbExecutor } from '../adb-executor.ts';
+import type { DeviceInfo } from '../../../utils/device.ts';
+
+const ANDROID_DEVICE: DeviceInfo = {
+  platform: 'android',
+  id: 'emulator-5554',
+  name: 'Pixel API',
+  kind: 'emulator',
+  booted: true,
+};
 
 test('parseAndroidMemInfoSample supports legacy total row layout', () => {
   const sample = parseAndroidMemInfoSample(
@@ -19,6 +36,86 @@ test('parseAndroidMemInfoSample supports legacy total row layout', () => {
 
   assert.equal(sample.totalPssKb, 24358);
   assert.equal(sample.totalRssKb, undefined);
+});
+
+test('parseAndroidMemInfoSample returns bounded top memory consumers', () => {
+  const sample = parseAndroidMemInfoSample(
+    [
+      '** MEMINFO in pid 9953 [com.example.app] **',
+      '                   Pss  Private  Private  Swapped     Heap     Heap     Heap',
+      '                 Total    Dirty    Clean    Dirty     Size    Alloc     Free',
+      '                ------   ------   ------   ------   ------   ------   ------',
+      '      Native Heap  12000    10000        0        0    20000    14000     6000',
+      '      Dalvik Heap  32000    20000        0        0    50000    40000    10000',
+      '       Other mmap   8000     1000     7000        0',
+      '          TOTAL   52000   31000     7000        0    70000    54000    16000',
+      'App Summary',
+      '  TOTAL PSS:    52,000            TOTAL RSS:   100,112       TOTAL SWAP PSS:        0',
+    ].join('\n'),
+    'com.example.app',
+    '2026-04-01T10:00:00.000Z',
+  );
+
+  assert.equal(sample.totalPssKb, 52000);
+  assert.deepEqual(sample.topConsumers, [
+    { name: 'Dalvik Heap', pssKb: 32000 },
+    { name: 'Native Heap', pssKb: 12000 },
+    { name: 'Other mmap', pssKb: 8000 },
+  ]);
+});
+
+test('captureAndroidHeapSnapshot resolves pid, dumps heap, pulls artifact, and cleans remote path', async () => {
+  const calls: string[][] = [];
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-android-hprof-test-'));
+  const outPath = path.join(tmpDir, 'app.hprof');
+  const adb: AndroidAdbExecutor = async (args) => {
+    calls.push([...args]);
+    if (args.join(' ') === 'shell pidof com.example.app') {
+      return { stdout: '4242\n', stderr: '', exitCode: 0 };
+    }
+    if (args.slice(0, 4).join(' ') === 'shell am dumpheap com.example.app') {
+      assert.match(
+        args[4] ?? '',
+        /^\/data\/local\/tmp\/agent-device-com\.example\.app-\d+\.hprof$/,
+      );
+      return { stdout: 'Dumping Java heap to ', stderr: '', exitCode: 0 };
+    }
+    if (args[0] === 'pull') {
+      assert.equal(args[2], outPath);
+      fs.writeFileSync(outPath, 'hprof-bytes');
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    if (args.slice(0, 3).join(' ') === 'shell rm -f') {
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    throw new Error(`unexpected adb call: ${args.join(' ')}`);
+  };
+
+  try {
+    const snapshot = await captureAndroidHeapSnapshot(ANDROID_DEVICE, 'com.example.app', outPath, {
+      adb,
+    });
+
+    assert.equal(snapshot.kind, 'android-hprof');
+    assert.equal(snapshot.path, outPath);
+    assert.equal(snapshot.sizeBytes, 'hprof-bytes'.length);
+    assert.equal(snapshot.pid, 4242);
+    assert.equal(calls[0]?.join(' '), 'shell pidof com.example.app');
+    assert.equal(calls[1]?.slice(0, 4).join(' '), 'shell am dumpheap com.example.app');
+    assert.equal(calls[2]?.[0], 'pull');
+    assert.equal(calls.at(-1)?.slice(0, 3).join(' '), 'shell rm -f');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('captureAndroidHeapSnapshot explains missing process failures', async () => {
+  const adb: AndroidAdbExecutor = async () => ({ stdout: '', stderr: '', exitCode: 1 });
+  await assert.rejects(
+    () =>
+      captureAndroidHeapSnapshot(ANDROID_DEVICE, 'com.example.missing', '/tmp/app.hprof', { adb }),
+    /No running Android process found/,
+  );
 });
 
 test('parseAndroidFramePerfSample summarizes dropped frame percentage from framestats rows', () => {

@@ -37,6 +37,9 @@ const APPLE_CPU_SAMPLE_METHOD = 'ps-process-snapshot';
 const APPLE_MEMORY_SAMPLE_METHOD = 'ps-process-snapshot';
 const IOS_DEVICE_CPU_SAMPLE_METHOD = 'xctrace-activity-monitor';
 const IOS_DEVICE_MEMORY_SAMPLE_METHOD = 'xctrace-activity-monitor';
+export const APPLE_MEMGRAPH_SNAPSHOT_METHOD = 'leaks-output-graph';
+export const APPLE_MEMGRAPH_SNAPSHOT_DESCRIPTION =
+  'Memory graph captured with leaks --outputGraph for host-visible Apple app processes.';
 
 const APPLE_PERF_TIMEOUT_MS = 15_000;
 // Physical device tracing can take materially longer to initialize than the 1s sample window.
@@ -60,6 +63,27 @@ export type AppleMemoryPerfSample = {
   method: typeof APPLE_MEMORY_SAMPLE_METHOD | typeof IOS_DEVICE_MEMORY_SAMPLE_METHOD;
   matchedProcesses: string[];
 };
+
+export type AppleMemorySnapshotResult =
+  | {
+      available: true;
+      kind: 'memgraph';
+      path: string;
+      sizeBytes: number;
+      measuredAt: string;
+      method: typeof APPLE_MEMGRAPH_SNAPSHOT_METHOD;
+      appBundleId: string;
+      pid: number;
+      processName: string;
+      support: ReturnType<typeof buildAppleMemorySnapshotSupport>;
+    }
+  | {
+      available: false;
+      kind: 'memgraph';
+      reason: string;
+      hint: string;
+      support: ReturnType<typeof buildAppleMemorySnapshotSupport>;
+    };
 
 type AppleProcessSample = {
   pid: number;
@@ -124,6 +148,81 @@ export async function sampleApplePerfMetrics(
     cpuMethod: APPLE_CPU_SAMPLE_METHOD,
     memoryMethod: APPLE_MEMORY_SAMPLE_METHOD,
   });
+}
+
+export async function captureAppleMemorySnapshot(
+  device: DeviceInfo,
+  appBundleId: string,
+  outPath: string,
+): Promise<AppleMemorySnapshotResult> {
+  const support = buildAppleMemorySnapshotSupport(device);
+  if (!support.memgraph) {
+    return {
+      available: false,
+      kind: 'memgraph',
+      reason: support.reason,
+      hint: support.hint,
+      support,
+    };
+  }
+
+  const target = await resolveAppleMemorySnapshotTarget(device, appBundleId, support);
+  if (target.available === false) return target;
+  const { process } = target;
+  await fs.mkdir(path.dirname(outPath), { recursive: true });
+  const result =
+    device.platform === 'macos'
+      ? await runAppleToolCommand('leaks', [`--outputGraph=${outPath}`, String(process.pid)], {
+          allowFailure: true,
+          timeoutMs: APPLE_PERF_TIMEOUT_MS,
+        })
+      : await runXcrun(
+          buildSimctlArgsForDevice(device, [
+            'spawn',
+            device.id,
+            'leaks',
+            `--outputGraph=${outPath}`,
+            String(process.pid),
+          ]),
+          { allowFailure: true, timeoutMs: APPLE_PERF_TIMEOUT_MS },
+        );
+  if (result.exitCode !== 0) {
+    throw new AppError('COMMAND_FAILED', `Failed to capture Apple memgraph for ${appBundleId}`, {
+      kind: 'memgraph',
+      appBundleId,
+      pid: process.pid,
+      processName: path.basename(readProcessCommandToken(process.command)),
+      path: outPath,
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      hint: resolveAppleMemorySnapshotHint(device, result.stdout, result.stderr),
+    });
+  }
+
+  const stat = await fs.stat(outPath).catch(() => null);
+  if (!stat?.isFile() || stat.size <= 0) {
+    throw new AppError('COMMAND_FAILED', 'Apple memgraph artifact is missing or empty', {
+      kind: 'memgraph',
+      appBundleId,
+      pid: process.pid,
+      path: outPath,
+      hint: 'Retry with a writable --out path. If the file is still empty, run with --debug and inspect leaks output.',
+    });
+  }
+
+  return {
+    available: true,
+    kind: 'memgraph',
+    path: outPath,
+    sizeBytes: stat.size,
+    measuredAt: new Date().toISOString(),
+    method: APPLE_MEMGRAPH_SNAPSHOT_METHOD,
+    appBundleId,
+    pid: process.pid,
+    processName: path.basename(readProcessCommandToken(process.command)),
+    support,
+  };
 }
 
 export async function sampleAppleFramePerf(
@@ -213,6 +312,55 @@ export function buildAppleSamplingMetadata(device: DeviceInfo): Record<string, u
       description: `Recent CPU usage snapshot from ${source}`,
       unit: 'percent',
     },
+  };
+}
+
+export function buildAppleMemorySnapshotSupport(device: DeviceInfo): {
+  platform: DeviceInfo['platform'];
+  deviceKind: DeviceInfo['kind'];
+  memgraph: boolean;
+  method: typeof APPLE_MEMGRAPH_SNAPSHOT_METHOD;
+  reason: string;
+  hint: string;
+} {
+  if (device.platform === 'ios' && device.kind === 'device') {
+    return {
+      platform: device.platform,
+      deviceKind: device.kind,
+      memgraph: false,
+      method: APPLE_MEMGRAPH_SNAPSHOT_METHOD,
+      reason:
+        'Physical iOS device memgraph capture is not exposed through reliable local agent-device tooling.',
+      hint: 'Use perf memory sample for a compact resident-memory reading, or reproduce on an iOS simulator/macOS target for memgraph capture.',
+    };
+  }
+  if (device.platform === 'ios' && device.kind === 'simulator') {
+    return {
+      platform: device.platform,
+      deviceKind: device.kind,
+      memgraph: true,
+      method: APPLE_MEMGRAPH_SNAPSHOT_METHOD,
+      reason: 'iOS simulator processes are host-visible through simctl spawn leaks.',
+      hint: 'Keep the simulator app running in the foreground while the memgraph is captured.',
+    };
+  }
+  if (device.platform === 'macos') {
+    return {
+      platform: device.platform,
+      deviceKind: device.kind,
+      memgraph: true,
+      method: APPLE_MEMGRAPH_SNAPSHOT_METHOD,
+      reason: 'macOS app processes are host-visible to leaks --outputGraph.',
+      hint: 'Grant Terminal/agent process permissions if macOS denies process inspection.',
+    };
+  }
+  return {
+    platform: device.platform,
+    deviceKind: device.kind,
+    memgraph: false,
+    method: APPLE_MEMGRAPH_SNAPSHOT_METHOD,
+    reason: 'Apple memgraph capture is available only for iOS simulator and macOS app sessions.',
+    hint: 'Use perf memory sample on supported app sessions, or rerun against iOS simulator/macOS for memgraph capture.',
   };
 }
 
@@ -824,6 +972,77 @@ async function readAppleProcessSamples(
   return parseApplePsOutput(result.stdout).filter((process) =>
     matchesAppleExecutableProcess(process.command, executable),
   );
+}
+
+async function resolveAppleMemorySnapshotProcess(
+  device: DeviceInfo,
+  appBundleId: string,
+  executable: { executableName: string; executablePath?: string },
+): Promise<AppleProcessSample> {
+  const processes = await readAppleProcessSamples(device, executable);
+  const process = processes.sort((left, right) => right.rssKb - left.rssKb)[0];
+  if (process) return process;
+  throw new AppError('COMMAND_FAILED', `No running process found for ${appBundleId}`, {
+    kind: 'memgraph',
+    appBundleId,
+    hint: 'Run open <app> for this session again to ensure the Apple app is active, then retry perf memory snapshot.',
+  });
+}
+
+async function resolveAppleMemorySnapshotTarget(
+  device: DeviceInfo,
+  appBundleId: string,
+  support: ReturnType<typeof buildAppleMemorySnapshotSupport>,
+): Promise<
+  | { available: true; process: AppleProcessSample }
+  | Extract<AppleMemorySnapshotResult, { available: false }>
+> {
+  try {
+    const executable = await resolveAppleExecutable(device, appBundleId);
+    return {
+      available: true,
+      process: await resolveAppleMemorySnapshotProcess(device, appBundleId, executable),
+    };
+  } catch (error) {
+    if (isMissingIosSimulatorProcessToolError(device, error)) {
+      return {
+        available: false,
+        kind: 'memgraph',
+        reason:
+          'iOS simulator memgraph capture needs process tools inside simctl spawn, but this simulator runtime did not provide ps.',
+        hint: 'Use perf memory sample when available, or retry memgraph on a simulator runtime that includes process tools such as ps and leaks.',
+        support: { ...support, memgraph: false },
+      };
+    }
+    throw error;
+  }
+}
+
+function isMissingIosSimulatorProcessToolError(device: DeviceInfo, error: unknown): boolean {
+  if (device.platform !== 'ios' || device.kind !== 'simulator') return false;
+  if (!(error instanceof AppError)) return false;
+  const details = error.details ?? {};
+  const args = Array.isArray(details.args) ? details.args.join(' ') : '';
+  const stderr = typeof details.stderr === 'string' ? details.stderr : '';
+  const message = `${error.message}\n${stderr}`.toLowerCase();
+  return args.includes('simctl spawn') && args.includes(' ps ') && message.includes('no such file');
+}
+
+function resolveAppleMemorySnapshotHint(
+  device: DeviceInfo,
+  stdout: string,
+  stderr: string,
+): string {
+  const text = `${stdout}\n${stderr}`.toLowerCase();
+  if (text.includes('not found') || text.includes('no such file')) {
+    return 'Install Xcode command line tools and ensure leaks is available, then retry.';
+  }
+  if (text.includes('permission') || text.includes('denied') || text.includes('not authorized')) {
+    return device.platform === 'macos'
+      ? 'Grant the agent terminal process permission to inspect this macOS app, then retry.'
+      : 'Keep the simulator booted and app running; if inspection is denied, retry with a debug simulator build.';
+  }
+  return 'Keep the app process running and retry perf memory snapshot with --debug if the failure persists.';
 }
 
 function matchesAppleExecutableProcess(

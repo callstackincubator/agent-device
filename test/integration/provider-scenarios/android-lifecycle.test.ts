@@ -829,6 +829,50 @@ async function runAndroidAppControlAndObservabilityWorkflow(
     'startup',
   ]);
 
+  const memorySample = await client.observability.perf({
+    area: 'memory',
+    action: 'sample',
+    ...selection,
+  });
+  const memoryMetrics = memorySample.metrics as Record<string, any>;
+  assert.deepEqual(Object.keys(memoryMetrics), ['memory']);
+  assert.equal(memoryMetrics.memory?.available, true, JSON.stringify(memorySample));
+  assert.equal(memoryMetrics.memory?.totalPssKb, 216524);
+  assert.deepEqual(Object.keys(memorySample.sampling as Record<string, unknown>).sort(), [
+    'memory',
+    'snapshot',
+  ]);
+
+  const heapPath = path.join(world.tempRoot, 'demo.hprof');
+  const memorySnapshot = await client.observability.perf({
+    area: 'memory',
+    action: 'snapshot',
+    kind: 'android-hprof',
+    out: heapPath,
+    ...selection,
+  });
+  const heapArtifact = memorySnapshot.artifact as Record<string, any>;
+  assert.equal(heapArtifact.available, true, JSON.stringify(memorySnapshot));
+  assert.equal(heapArtifact.kind, 'android-hprof');
+  assert.equal(heapArtifact.path, heapPath);
+  assert.equal(heapArtifact.sizeBytes, 'provider-hprof-bytes'.length);
+  assert.equal(fs.existsSync(heapPath), true);
+  assertCommandCall(world.adbCalls, ['shell', 'pidof', 'com.example.demo']);
+  assert.ok(
+    world.adbCalls.some(
+      (call) => call.slice(0, 4).join(' ') === 'shell am dumpheap com.example.demo',
+    ),
+    JSON.stringify(world.adbCalls),
+  );
+  assert.ok(
+    world.adbCalls.some((call) => call[0] === 'pull' && call[2] === heapPath),
+    JSON.stringify(world.adbCalls),
+  );
+  assert.ok(
+    world.adbCalls.some((call) => call.slice(0, 3).join(' ') === 'shell rm -f'),
+    JSON.stringify(world.adbCalls),
+  );
+
   const frameCallStart = world.adbCalls.length;
   const frames = await client.observability.perf({
     area: 'frames',

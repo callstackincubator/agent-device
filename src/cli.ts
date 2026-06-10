@@ -41,6 +41,7 @@ const DEFAULT_CLI_DEPS: CliDeps = {
 
 const METRO_RUNTIME_OVERRIDE_FLAG_KEYS = new Set<FlagKey>([
   'launchUrl',
+  'kind',
   'metroBearerToken',
   'metroKind',
   'metroListenHost',

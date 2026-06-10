@@ -150,12 +150,14 @@ const CLI_COMMAND_OVERRIDES = {
     helpDescription: 'Show foreground app/activity',
   },
   perf: {
-    usageOverride: 'perf [metrics|frames] [sample]',
-    listUsageOverride: 'perf [metrics|frames]',
+    usageOverride:
+      'perf [metrics|frames|memory] [sample|snapshot]\n  agent-device perf memory sample --json\n  agent-device perf memory snapshot [--kind android-hprof|memgraph] [--out <path>]',
+    listUsageOverride: 'perf [metrics|frames|memory]',
     helpDescription:
-      'Show session performance metrics or focused frame/jank health. Bare perf and metrics are aliases for perf metrics.',
-    summary: 'Show session performance and frame health',
+      'Show session performance metrics, focused frame/jank health, or memory diagnostics artifacts. Bare perf and metrics are aliases for perf metrics.',
+    summary: 'Show session performance, frame health, and memory diagnostics',
     positionalArgs: ['area?', 'action?'],
+    allowedFlags: ['kind', 'out'],
   },
   metro: {
     usageOverride:

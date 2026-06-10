@@ -2,10 +2,12 @@ import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import {
   isPerfAction,
   isPerfArea,
+  isPerfMemoryKind,
   PERF_ACTION_ERROR_MESSAGE,
   PERF_AREA_ERROR_MESSAGE,
+  PERF_MEMORY_KIND_ERROR_MESSAGE,
 } from '../../contracts/perf.ts';
-import { normalizeError } from '../../utils/errors.ts';
+import { AppError, normalizeError } from '../../utils/errors.ts';
 import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
@@ -19,7 +21,11 @@ import {
   startAppLog,
   stopAppLog,
 } from '../app-log.ts';
-import { buildPerfFramesResponseData, buildPerfResponseData } from './session-perf.ts';
+import {
+  buildPerfFramesResponseData,
+  buildPerfMemoryResponseData,
+  buildPerfResponseData,
+} from './session-perf.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
 import { NETWORK_INCLUDE_MODES, type NetworkIncludeMode } from '../../contracts.ts';
 import type { LogBackend } from '../network-log.ts';
@@ -27,6 +33,7 @@ import {
   LOG_ACTION_VALUES as LOG_ACTIONS,
   type LogAction as LogsAction,
 } from '../../contracts/logs.ts';
+import type { PerfMemoryKind } from '../../contracts/perf.ts';
 
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
 const NETWORK_ACTIONS = ['dump', 'log'] as const;
@@ -102,18 +109,57 @@ async function handlePerfCommand(params: ObservabilityParams): Promise<DaemonRes
   if (!isPerfAction(action)) {
     return errorResponse('INVALID_ARGS', PERF_ACTION_ERROR_MESSAGE);
   }
+  if (action === 'snapshot' && area !== 'memory') {
+    return errorResponse('INVALID_ARGS', 'perf snapshot is only supported under perf memory');
+  }
+  if (action === 'sample' && req.flags?.out) {
+    return errorResponse('INVALID_ARGS', '--out is only supported with perf memory snapshot');
+  }
+  const kindResult = readPerfMemoryKind(req.flags?.kind);
+  if (kindResult instanceof AppError) {
+    return { ok: false, error: normalizeError(kindResult) };
+  }
+  const kind = kindResult;
+  if (kind && area !== 'memory') {
+    return errorResponse('INVALID_ARGS', '--kind is only supported with perf memory snapshot');
+  }
+  if (kind && action !== 'snapshot') {
+    return errorResponse('INVALID_ARGS', '--kind is only supported with perf memory snapshot');
+  }
 
   try {
     return {
       ok: true,
       data:
-        area === 'frames'
-          ? await buildPerfFramesResponseData(session, { androidAdb: androidAdbExecutor })
-          : await buildPerfResponseData(session, { androidAdb: androidAdbExecutor }),
+        area === 'memory'
+          ? await buildPerfMemoryResponseData(session, {
+              action: action as 'sample' | 'snapshot',
+              kind,
+              out: readOptionalStringFlag(req.flags?.out),
+              cwd: req.meta?.cwd,
+              sessionName,
+              sessionStore,
+              androidAdb: androidAdbExecutor,
+            })
+          : area === 'frames'
+            ? await buildPerfFramesResponseData(session, { androidAdb: androidAdbExecutor })
+            : await buildPerfResponseData(session, { androidAdb: androidAdbExecutor }),
     };
   } catch (error) {
     return { ok: false, error: normalizeError(error) };
   }
+}
+
+function readPerfMemoryKind(value: unknown): PerfMemoryKind | undefined | AppError {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string' || !isPerfMemoryKind(value)) {
+    return new AppError('INVALID_ARGS', PERF_MEMORY_KIND_ERROR_MESSAGE);
+  }
+  return value;
+}
+
+function readOptionalStringFlag(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
 // ---------------------------------------------------------------------------

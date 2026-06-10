@@ -1330,6 +1330,29 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     forbiddenOutputs: [plannedCommand('react-devtools'), plannedCommand('network')],
   }),
   makeCase({
+    id: 'perf-memory-diagnostics',
+    contract: [
+      'App name: Agent Device Tester',
+      'Platform: Android emulator',
+      'The app is already open',
+      'Symptom: memory grows after repeatedly opening the Settings diagnostics screen',
+      'Need a compact first-pass memory sample, then a Java heap artifact only if the sample suggests escalation',
+    ],
+    task: 'Plan the commands for memory diagnostics without using React DevTools or debug symbols.',
+    outputs: [
+      plannedCommand('perf memory sample'),
+      /--json/i,
+      plannedCommand('perf memory snapshot'),
+      /--kind\s+android-hprof/i,
+      /--out\s+\S+\.hprof/i,
+    ],
+    forbiddenOutputs: [
+      plannedCommand('react-devtools'),
+      plannedCommand('debug'),
+      plannedCommand('perf frames'),
+    ],
+  }),
+  makeCase({
     id: 'react-devtools-profile-search',
     contract: [
       'App name: Agent Device Tester',
