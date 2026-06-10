@@ -112,7 +112,7 @@ The security posture is deliberately engineered and, for a localhost developer d
 
 Findings:
 
-**S1 — Token comparisons are not timing-safe. Low.**
+**S1 — Token comparisons are not timing-safe. Low. — FIXED on this branch (QW-2).**
 [fact] `req.token !== token` at `src/daemon/request-router.ts:86` and `requestToken === expectedToken` at `src/daemon/http-server.ts:821`.
 [judgment] Practically unexploitable while the daemon is loopback-only with a 0600 token file — but the codebase also ships tenant isolation, lease backends, and an `AGENT_DEVICE_HTTP_AUTH_HOOK` (`src/daemon/http-server.ts:460-482`) that clearly anticipate network-fronted deployments. `crypto.timingSafeEqual` is a 5-line fix that removes the caveat.
 
@@ -148,7 +148,7 @@ The overall test architecture is unusually good: behavior-asserting unit tests; 
 
 ### 3.5 Performance
 
-**P1 — Synchronous zlib in the daemon event loop. Medium.**
+**P1 — Synchronous zlib in the daemon event loop. Medium — re-rated HIGH per maintainer answer #1 (cloud near).**
 [fact] The custom PNG codec uses `inflateSync`/`deflateSync` (`src/utils/png-codec.ts:1`) and is invoked from daemon request paths: `src/daemon/screenshot-overlay.ts:9` and `src/utils/screenshot-diff.ts:4`. The daemon is a single Node process potentially serving multiple sessions (and, in remote mode, multiple tenants).
 [judgment] Decoding/diffing full-device screenshots (several MB) blocks the event loop for tens-to-hundreds of ms per operation, stalling *all* concurrent sessions' requests, heartbeats, and progress streams. Fine for single-agent local use; a real bottleneck for the multi-session/cloud direction. Move decode+diff to a `worker_threads` pool (or at minimum async zlib).
 
@@ -272,10 +272,26 @@ Approach: add a `lint` job to `.github/workflows/ci.yml` mirroring the `typechec
 
 ---
 
-## 6. Open Questions (for the maintainers)
+## 6. Open Questions — answered by maintainers (2026-06-10)
 
-1. **Cloud/remote roadmap:** How real is multi-tenant, network-fronted daemon deployment (lease backends, tenant isolation, auth hooks all exist)? If it's near-term, S1/S3 and P1 move up a severity class and Theme 2 becomes urgent; if loopback-only is the contract, they stay Low/Medium.
-2. **Maestro compat:** Is `src/compat/maestro/` (1,000+ untested LOC) a strategic surface or a migration bridge? That decides whether M3-1 is worth doing well or the layer should be frozen and minimally maintained.
-3. **Performance targets:** Is there a target for snapshot/diff latency under concurrent sessions? Needed to size M2-3 (worker pool vs. simple async zlib) and to make the perf-nightly acceptance criterion concrete.
-4. **Fallow baseline intent:** Is the 180-item health baseline meant to trend to zero, or is it an accepted floor for the daemon/dispatch hot paths? Determines whether M2-4's ratchet should also schedule paydown.
-5. **`daemon-client.ts` ownership:** Is there appetite for the 4-PR split (M2-1), or is the file considered stable enough that only the safety-net tests (M0) are wanted? Both are defensible; doing M0 without M2-1 still cuts most of the regression risk.
+1. **Cloud/remote daemon deployment: "very near."** Consequence: S1/S3 and P1 are re-rated one class up. S1 (timing-safe tokens) and S3 (auth-hook threat model docs) are now **done** (see §7). P1 (sync zlib in the daemon event loop) is now **High** and M2-3 moves to the front of Milestone 2, alongside M2-2 (contracts extraction), which is confirmed urgent.
+2. **Maestro compat: keeping it** (experiment that proved useful). M3-1 (fixture tests for `runtime-targets.ts`) is confirmed worth doing properly and promotes to Milestone 2 scope.
+3. **Performance: no formal target, "faster is better."** M2-3 sized pragmatically: `worker_threads` offload without an elaborate pool; perf-nightly scenario asserts the daemon stays responsive rather than hitting a numeric SLA.
+4. **Fallow: mixed feelings — wants config tuned so overrides aren't needed so often.** M2-4 reframed from "ratchet" to "fit fallow to this repo": raise complexity thresholds to match the accepted hot-path complexity profile (176 functions currently sit above threshold while the team clearly tolerates them), declare or ignore `examples/test-app` to silence the workspace warning, resolve the one real unused export (`src/platforms/android/adb.ts:31` `ensureAdb`), and keep `fallow audit` (diff-based) as the only blocking gate so the local `pnpm fallow` summary stops crying wolf.
+5. **daemon-client split: approved** where it improves maintainability/readability. M0-1/M0-2 then M2-1 proceed as planned, one seam per PR.
+
+## 7. Execution status (quick wins — same branch)
+
+| # | Task | Status |
+|---|---|---|
+| QW-1 | CI lint+format job (`lint` job in `ci.yml`; new `format:check` script) | **Done** — both pass on current tree |
+| QW-2 | Timing-safe token comparison (`src/utils/timing-safe-equal.ts`; 3 call sites in `request-router.ts` and `http-server.ts`) | **Done** — full unit suite green (2159 tests) |
+| QW-3 | `chmodSync(infoPath, 0o600)` after `daemon.json` write (`server-lifecycle.ts`) | **Done** |
+| QW-4 | Layering guard CI job (warn-only, `rg` for `commands/` imports in `daemon/`+`platforms/`) | **Done** — flips to hard failure after M2-2 |
+| QW-5 | Daemon trust model + auth-hook threat model documented (`website/docs/docs/security-trust.md`) | **Done** |
+| QW-6 | CVE-2026-9277 cleared: `shell-quote: '>=1.8.4'` added to `examples/test-app/pnpm-workspace.yaml` (NOT `package.json` — overrides there are silently ignored, see the comment in that file / PR #649); lockfile diff is surgical (1.8.3 → 1.8.4 only); `pnpm audit` now reports zero vulnerabilities | **Done** |
+
+## 8. Remaining open questions
+
+1. **Tenant-scoped admission control:** with cloud "very near", do per-tenant request quotas/rate limits belong in the daemon beyond the existing lease TTL/max-lease knobs? Not flagged as a gap by this audit, but it deserves an explicit decision before exposure.
+2. **Should the warn-only layering guard (QW-4) block *new* imports immediately** rather than waiting for M2-2? Stricter, but keeps the migration target from growing while the contracts extraction is in flight.
