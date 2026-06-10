@@ -9,7 +9,7 @@ import {
   normalizeType,
 } from './snapshot-processing.ts';
 
-type IsPredicate = 'visible' | 'hidden' | 'exists' | 'editable' | 'selected' | 'text';
+export type IsPredicate = 'visible' | 'hidden' | 'exists' | 'editable' | 'selected' | 'text';
 
 export function isSupportedPredicate(input: string): input is IsPredicate {
   return ['visible', 'hidden', 'exists', 'editable', 'selected', 'text'].includes(input);

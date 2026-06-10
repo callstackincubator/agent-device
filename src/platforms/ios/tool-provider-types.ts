@@ -1,4 +1,4 @@
-import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
+import type { AppsFilter } from '../../contracts/app-inventory.ts';
 import type { ExecOptions, ExecResult } from '../../utils/exec.ts';
 import type { IosAppInfo } from './app-info.ts';
 

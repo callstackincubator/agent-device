@@ -3,11 +3,8 @@ import type {
   InteractionTarget,
   LongPressCommandResult,
   PressCommandResult,
-} from '../../commands/index.ts';
-import {
-  readFillTargetFromPositionals,
-  readInteractionTargetFromPositionals,
-} from '../../commands/cli-grammar/interactions.ts';
+} from '../../contracts/interaction.ts';
+import { readFillTargetFromPositionals } from '../../core/interaction-positionals.ts';
 import type { DaemonResponse } from '../types.ts';
 import { parseCoordinateTarget } from './interaction-targeting.ts';
 import { errorResponse } from './response.ts';
@@ -23,13 +20,12 @@ export function parseTouchTarget(positionals: string[], commandLabel: string): P
   }
   const first = positionals[0] ?? '';
   if (first.startsWith('@')) {
-    const parsed = readInteractionTargetFromPositionals(positionals);
     return {
       ok: true,
       target: {
         kind: 'ref',
         ref: first,
-        fallbackLabel: parsed.label ?? '',
+        fallbackLabel: positionals.slice(1).join(' ').trim(),
       },
     };
   }

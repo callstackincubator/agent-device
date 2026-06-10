@@ -4,7 +4,7 @@ import path from 'node:path';
 import { resolveFileOverridePath, runCmd, whichCmd } from '../../utils/exec.ts';
 import { AppError } from '../../utils/errors.ts';
 import { sleep } from '../../utils/timeouts.ts';
-import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
+import type { AppsFilter } from '../../contracts/app-inventory.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
 import { createAppResolutionCache, type AppResolutionCacheScope } from '../app-resolution-cache.ts';

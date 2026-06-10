@@ -13,7 +13,7 @@ import {
 import { emitDiagnostic, withDiagnosticTimer } from '../utils/diagnostics.ts';
 import { readLocationCoordinate } from '../utils/location-coordinates.ts';
 import { successText, withSuccessText } from '../utils/success-text.ts';
-import { screenshotOptionsFromFlags } from '../commands/capture-screenshot-options.ts';
+import { screenshotOptionsFromFlags } from '../contracts/screenshot.ts';
 import { isKeyboardAction, type KeyboardAction } from '../utils/keyboard-actions.ts';
 import type { DispatchContext } from './dispatch-context.ts';
 import {

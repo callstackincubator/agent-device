@@ -26,6 +26,7 @@ import {
   type BackendResultVariant,
   type RuntimeCommand,
 } from './runtime-types.ts';
+import type { LongPressCommandResult } from '../contracts/interaction.ts';
 import {
   assertSupportedInteractionSurface,
   captureInteractionSnapshot,
@@ -46,9 +47,7 @@ export type LongPressCommandOptions = CommandContext & {
   durationMs?: number;
 };
 
-export type LongPressCommandResult = ResolvedInteractionTarget & {
-  durationMs?: number;
-} & BackendResultEnvelope;
+export type { LongPressCommandResult };
 
 export type GestureDirection = ScrollDirection;
 export const SCROLL_INPUT_DIRECTIONS = ['up', 'down', 'left', 'right', 'top', 'bottom'] as const;

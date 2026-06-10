@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
+import type { AppsFilter } from '../../contracts/app-inventory.ts';
 import { AppError } from '../../utils/errors.ts';
 import { filterAppleAppsByBundlePrefix } from './app-filter.ts';
 import type { IosAppInfo } from './app-info.ts';

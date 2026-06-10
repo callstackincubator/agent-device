@@ -11,39 +11,15 @@ import {
   resolveEffectiveViewportRect,
 } from '../utils/mobile-snapshot-semantics.ts';
 import { isSnapshotNodeInteractionBlocked } from '../utils/snapshot-occlusion.ts';
+import type {
+  InteractionTarget,
+  PointTarget,
+  ResolvedInteractionTarget,
+} from '../contracts/interaction.ts';
 import { resolveActionableTouchResolution } from './interaction-targeting.ts';
-import type { ElementTarget, ResolvedTarget } from './selector-read.ts';
 import { now, toBackendContext } from './selector-read-utils.ts';
 
-export type PointTarget = {
-  kind: 'point';
-  x: number;
-  y: number;
-};
-
-export type InteractionTarget = ElementTarget | PointTarget;
-
-export type ResolvedInteractionTarget =
-  | {
-      kind: 'point';
-      point: Point;
-    }
-  | {
-      kind: 'ref';
-      point: Point;
-      target: Extract<ResolvedTarget, { kind: 'ref' }>;
-      node: SnapshotNode;
-      selectorChain: string[];
-      refLabel?: string;
-    }
-  | {
-      kind: 'selector';
-      point: Point;
-      target: Extract<ResolvedTarget, { kind: 'selector' }>;
-      node: SnapshotNode;
-      selectorChain: string[];
-      refLabel?: string;
-    };
+export type { InteractionTarget, PointTarget, ResolvedInteractionTarget };
 
 export type InteractionAction =
   | 'click'

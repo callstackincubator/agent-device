@@ -1,6 +1,8 @@
 import type { InteractionTarget, InternalRequestOptions } from '../../client-types.ts';
 import type { CliFlags } from '../../utils/cli-flags.ts';
 import type { ClickButton } from '../../core/click-button.ts';
+import type { DecodedFillTarget } from '../../core/interaction-positionals.ts';
+import type { WaitParsed } from '../../core/wait-positionals.ts';
 
 export type DaemonCommandRequest = {
   command: string;
@@ -78,15 +80,4 @@ export type CliInput = Record<string, unknown>;
 export type CliReader = (positionals: string[], flags: CliFlags) => CliInput;
 export type DaemonWriter = (input: CommandInput) => DaemonCommandRequest;
 
-export type DecodedFillTarget =
-  | { kind: 'ref'; target: { ref: string; label?: string }; text: string }
-  | { kind: 'selector'; target: { selector: string }; text: string }
-  | { kind: 'point'; target: { x: number; y: number }; text: string };
-
-export type WaitParsed =
-  | { kind: 'sleep'; durationMs: number }
-  | { kind: 'ref'; rawRef: string; timeoutMs: number | null }
-  | { kind: 'selector'; selectorExpression: string; timeoutMs: number | null }
-  | { kind: 'text'; text: string; timeoutMs: number | null };
-
-export type { InteractionTarget };
+export type { DecodedFillTarget, InteractionTarget, WaitParsed };

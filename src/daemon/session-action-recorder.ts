@@ -1,5 +1,5 @@
 import type { CommandFlags } from '../core/dispatch.ts';
-import { SCREENSHOT_ACTION_FLAG_KEYS } from '../commands/capture-screenshot-options.ts';
+import { SCREENSHOT_ACTION_FLAG_KEYS } from '../contracts/screenshot.ts';
 import { emitDiagnostic } from '../utils/diagnostics.ts';
 import type { SessionAction, SessionRuntimeHints, SessionState } from './types.ts';
 import { expandSessionPath } from './session-paths.ts';

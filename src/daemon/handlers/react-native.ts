@@ -4,7 +4,7 @@ import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
 import {
   analyzeReactNativeOverlay,
   type ReactNativeOverlayDismissTarget,
-} from '../../commands/react-native/overlay.ts';
+} from '../../core/react-native-overlay.ts';
 import { normalizeError } from '../../utils/errors.ts';
 import { stripUndefined } from '../../utils/parsing.ts';
 import { successText } from '../../utils/success-text.ts';

@@ -2,7 +2,7 @@ import type { RawSnapshotNode } from '../../../utils/snapshot.ts';
 import {
   isReactNativeCollapsedWarningWrapperCandidate,
   isReactNativeCollapsedWarningWrapperWithVisibleBanner,
-} from '../../../commands/react-native/overlay.ts';
+} from '../../../core/react-native-overlay.ts';
 import { normalizeType } from '../../snapshot-processing.ts';
 import { collectIosScrollIndicatorPresentation } from './scroll.ts';
 import {

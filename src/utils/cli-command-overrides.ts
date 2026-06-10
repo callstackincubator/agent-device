@@ -1,7 +1,7 @@
 import { SETTINGS_USAGE_OVERRIDE } from '../core/settings-contract.ts';
 import type { CommandName } from '../commands/command-metadata.ts';
-import { DEFAULT_APPS_FILTER } from '../commands/app-inventory-contract.ts';
-import { SCREENSHOT_COMMAND_FLAG_KEYS } from '../commands/capture-screenshot-options.ts';
+import { DEFAULT_APPS_FILTER } from '../contracts/app-inventory.ts';
+import { SCREENSHOT_COMMAND_FLAG_KEYS } from '../contracts/screenshot.ts';
 import type { LocalCliCommandName } from '../command-catalog.ts';
 import type { CommandSchema, CommandSchemaOverride } from './cli-command-schema-types.ts';
 import {

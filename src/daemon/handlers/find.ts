@@ -10,7 +10,7 @@ import { extractNodeText } from '../snapshot-processing.ts';
 import {
   resolveActionableTouchNode,
   resolveActionableTouchResolution,
-} from '../../commands/interaction-targeting.ts';
+} from '../../core/interaction-targeting.ts';
 import { isSnapshotNodeInteractionBlocked } from '../../utils/snapshot-occlusion.ts';
 import { readTextForNode } from './interaction-read.ts';
 import { captureSnapshot } from './snapshot-capture.ts';

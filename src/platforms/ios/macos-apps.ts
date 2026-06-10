@@ -1,4 +1,4 @@
-import type { AppsFilter } from '../../commands/app-inventory-contract.ts';
+import type { AppsFilter } from '../../contracts/app-inventory.ts';
 import { isDeepLinkTarget } from '../../core/open-target.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';

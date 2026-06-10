@@ -4,8 +4,8 @@ import type {
   BackendSnapshotResult,
 } from '../backend.ts';
 import { createAgentDevice } from '../runtime.ts';
-import { parseWaitPositionals } from '../commands/cli-grammar/capture.ts';
-import type { WaitParsed } from '../commands/cli-grammar/types.ts';
+import { parseWaitPositionals } from '../core/wait-positionals.ts';
+import type { WaitParsed } from '../core/wait-positionals.ts';
 import { isCommandSupportedOnDevice } from '../core/capabilities.ts';
 import { resolveTargetDevice, type CommandFlags } from '../core/dispatch.ts';
 import { isApplePlatform } from '../utils/device.ts';
@@ -28,8 +28,7 @@ import { resolveSessionDevice, withSessionlessRunnerCleanup } from './handlers/s
 import { parseFindArgs, type FindAction } from '../utils/finders.ts';
 import { splitIsSelectorArgs } from './selectors.ts';
 import { refSnapshotFlagGuardResponse } from './handlers/interaction-flags.ts';
-import type { IsCommandOptions } from '../commands/selector-read.ts';
-import { evaluateIsPredicate, isSupportedPredicate } from './is-predicates.ts';
+import { evaluateIsPredicate, isSupportedPredicate, type IsPredicate } from './is-predicates.ts';
 import type { ContextFromFlags } from './handlers/interaction-common.ts';
 import { setSessionSnapshot } from './session-snapshot.ts';
 import { getActiveAndroidSnapshotFreshness } from './android-snapshot-freshness.ts';
@@ -202,7 +201,7 @@ export async function dispatchIsViaRuntime(
   }
   const directResponse = await dispatchDirectIosSelectorIs(
     params,
-    predicate as IsCommandOptions['predicate'],
+    predicate as IsPredicate,
     split.selectorExpression,
     expectedText,
   );
@@ -218,7 +217,7 @@ export async function dispatchIsViaRuntime(
     const result = await resolvedRuntime.runtime.selectors.is({
       session: params.sessionName,
       requestId: req.meta?.requestId,
-      predicate: predicate as IsCommandOptions['predicate'],
+      predicate: predicate as IsPredicate,
       selector: split.selectorExpression,
       expectedText,
     });
@@ -303,7 +302,7 @@ async function dispatchDirectIosSelectorGet(
 
 async function dispatchDirectIosSelectorIs(
   params: SelectorRuntimeParams,
-  predicate: IsCommandOptions['predicate'],
+  predicate: IsPredicate,
   selectorExpression: string,
   expectedText: string,
 ): Promise<DaemonResponse | null> {
@@ -442,7 +441,7 @@ function buildDirectIosGetResult(
 }
 
 function buildDirectIosIsResult(
-  predicate: Exclude<IsCommandOptions['predicate'], 'exists' | 'hidden'>,
+  predicate: Exclude<IsPredicate, 'exists' | 'hidden'>,
   expectedText: string,
   selector: string,
   session: SessionState,

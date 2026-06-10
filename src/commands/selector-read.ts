@@ -12,6 +12,12 @@ import {
 } from '../selectors.ts';
 import { buildSelectorChainForNode } from '../utils/selector-build.ts';
 import { evaluateIsPredicate, isSupportedPredicate } from '../utils/selector-is-predicates.ts';
+import type {
+  ElementTarget,
+  RefTarget,
+  ResolvedTarget,
+  SelectorTarget,
+} from '../contracts/interaction.ts';
 import type { RuntimeCommand } from './runtime-types.ts';
 import {
   type CapturedSnapshot,
@@ -31,6 +37,7 @@ import {
 } from './selector-read-utils.ts';
 
 export type { SelectorSnapshotOptions } from './selector-read-shared.ts';
+export type { ElementTarget, RefTarget, ResolvedTarget, SelectorTarget };
 
 export type FindReadCommandOptions = CommandContext & {
   locator?: FindLocator;
@@ -43,29 +50,6 @@ export type FindReadCommandResult =
   | { kind: 'found'; found: true; waitedMs?: number }
   | { kind: 'text'; ref: string; text: string; node: SnapshotNode }
   | { kind: 'attrs'; ref: string; node: SnapshotNode };
-
-export type SelectorTarget = {
-  kind: 'selector';
-  selector: string;
-};
-
-export type RefTarget = {
-  kind: 'ref';
-  ref: string;
-  fallbackLabel?: string;
-};
-
-export type ElementTarget = SelectorTarget | RefTarget;
-
-export type ResolvedTarget =
-  | {
-      kind: 'selector';
-      selector: string;
-    }
-  | {
-      kind: 'ref';
-      ref: string;
-    };
 
 export type GetCommandOptions = CommandContext &
   SelectorSnapshotOptions & {

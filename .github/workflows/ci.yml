@@ -70,23 +70,30 @@ jobs:
         run: pnpm format:check
 
   layering-guard:
-    name: Layering Guard (warn-only)
+    name: Layering Guard
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Warn on commands/ imports below the CLI surface layer
+      - name: Reject commands/ imports below the CLI surface layer
         run: |
-          # daemon/ and platforms/ should not depend on the CLI commands layer.
-          # Warn-only until the shared contracts move out of src/commands/;
-          # flip to a hard failure once existing imports are migrated.
-          matches=$(rg -n "from '.*commands/" src/daemon src/platforms --glob '!**/__tests__/**' --glob '!*.test.ts' || true)
+          # daemon/ and platforms/ should not directly depend on the CLI commands layer.
+          # This grep is a direct-import guard; deeper type-only transitive imports are handled
+          # by keeping shared daemon/client contracts outside src/commands.
+          set +e
+          matches=$(git grep -n -E "from '.*commands/" -- src/daemon src/platforms ':!src/**/__tests__/**' ':!*.test.ts')
+          grep_status=$?
+          set -e
+          if [ "$grep_status" -gt 1 ]; then
+            exit "$grep_status"
+          fi
           if [ -n "$matches" ]; then
             echo "$matches"
             count=$(printf '%s\n' "$matches" | wc -l)
-            echo "::warning title=Layering drift::$count import(s) of src/commands/* from src/daemon or src/platforms. New code should depend on shared contracts instead."
+            echo "::error title=Layering drift::$count import(s) of src/commands/* from src/daemon or src/platforms. Depend on shared contracts instead."
+            exit 1
           fi
 
   fallow:

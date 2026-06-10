@@ -4,7 +4,7 @@ import {
   isPerfArea,
   PERF_ACTION_ERROR_MESSAGE,
   PERF_AREA_ERROR_MESSAGE,
-} from '../../commands/perf-command-contract.ts';
+} from '../../contracts/perf.ts';
 import { normalizeError } from '../../utils/errors.ts';
 import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
 import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
@@ -26,7 +26,7 @@ import type { LogBackend } from '../network-log.ts';
 import {
   LOG_ACTION_VALUES as LOG_ACTIONS,
   type LogAction as LogsAction,
-} from '../../commands/log-command-contract.ts';
+} from '../../contracts/logs.ts';
 
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
 const NETWORK_ACTIONS = ['dump', 'log'] as const;

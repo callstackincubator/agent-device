@@ -5,20 +5,19 @@ import { isFillableType } from '../utils/snapshot-processing.ts';
 import { requireIntInRange } from '../utils/validation.ts';
 import { successText } from '../utils/success-text.ts';
 import { findMistargetedTypeRefToken } from '../utils/type-target-warning.ts';
-import type { ResolvedTarget } from './selector-read.ts';
+import type {
+  FillCommandResult,
+  PressCommandResult,
+  ResolvedTarget,
+} from '../contracts/interaction.ts';
 import { toBackendContext } from './selector-read-utils.ts';
 import {
   toBackendResult,
   type BackendResultEnvelope,
-  type BackendResultVariant,
   type RuntimeCommand,
 } from './runtime-types.ts';
 import type { RepeatedInput } from './command-input.ts';
-import {
-  type InteractionTarget,
-  type ResolvedInteractionTarget,
-  resolveInteractionTarget,
-} from './interaction-resolution.ts';
+import { type InteractionTarget, resolveInteractionTarget } from './interaction-resolution.ts';
 
 export {
   focusCommand,
@@ -56,20 +55,13 @@ export type PressCommandOptions = CommandContext &
 
 export type ClickCommandOptions = PressCommandOptions;
 
-export type PressCommandResult = BackendResultVariant<ResolvedInteractionTarget>;
+export type { FillCommandResult, PressCommandResult };
 
 export type FillCommandOptions = CommandContext & {
   target: InteractionTarget;
   text: string;
   delayMs?: number;
 };
-
-export type FillCommandResult = BackendResultVariant<
-  ResolvedInteractionTarget & {
-    text: string;
-    warning?: string;
-  }
->;
 
 export type TypeTextCommandOptions = CommandContext & {
   text: string;

@@ -5,10 +5,7 @@ import type { AgentDeviceBackend, BackendScreenshotResult } from '../backend.ts'
 import type { ArtifactAdapter } from '../io.ts';
 import { createAgentDevice, localCommandPolicy } from '../runtime.ts';
 import { dispatchCommand } from '../core/dispatch.ts';
-import {
-  screenshotFlagsFromOptions,
-  screenshotOptionsFromFlags,
-} from '../commands/capture-screenshot-options.ts';
+import { screenshotFlagsFromOptions, screenshotOptionsFromFlags } from '../contracts/screenshot.ts';
 import { AppError } from '../utils/errors.ts';
 import type { DaemonCommandContext } from './context.ts';
 import type { SessionState } from './types.ts';

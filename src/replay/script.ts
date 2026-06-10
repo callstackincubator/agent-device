@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { AppError } from '../utils/errors.ts';
-import { readScreenshotScriptFlag } from '../commands/capture-screenshot-options.ts';
+import { readScreenshotScriptFlag } from '../contracts/screenshot.ts';
 import type { DeviceTarget, PlatformSelector } from '../utils/device.ts';
 import { parseReplayOpenFlags } from './open-script.ts';
 import { formatPortableActionLine } from './script-formatting.ts';
