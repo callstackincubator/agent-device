@@ -151,12 +151,17 @@
         "count": 1
       }
     },
+    "src/daemon-artifacts.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
     "src/daemon-client.ts": {
       "complexity_moderate": {
         "count": 5
       },
       "crap_moderate": {
-        "count": 9
+        "count": 5
       }
     },
     "src/daemon/__tests__/network-log.test.ts": {
