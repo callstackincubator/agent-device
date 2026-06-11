@@ -283,6 +283,7 @@ function compactNativePerfResponse(result: AndroidNativePerfSession & Record<str
     sizeBytes: result.sizeBytes,
     remotePath: result.remotePath,
     method: result.method,
+    summary: result.summary,
     message: result.message,
   };
 }

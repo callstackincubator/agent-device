@@ -328,7 +328,7 @@ test('perf cpu profile report uses last profile trace and writes compact JSON re
   );
 });
 
-test('perf native xctrace reports Android support as out of scope', async () => {
+test('perf cpu profile rejects xctrace on Android sessions', async () => {
   const sessionStore = makeSessionStore('agent-device-session-observability-perf-');
   sessionStore.set(
     'android',
@@ -351,11 +351,8 @@ test('perf native xctrace reports Android support as out of scope', async () => 
 
   assert.equal(response?.ok, false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
-    assert.match(
-      response.error.message,
-      /Android native profiling belongs to the Android perf rollout/i,
-    );
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /perf cpu profile requires --kind simpleperf/i);
   }
   assert.equal(applePerfMocks.startAppleXctracePerfCapture.mock.calls.length, 0);
 });
@@ -827,13 +824,33 @@ test('perf trace start and stop route through Android perfetto and preserve comp
     assert.equal(stopData.state, 'stopped');
     assert.equal(stopData.outPath, outPath);
     assert.equal(stopData.sizeBytes, 7);
+    assert.deepEqual(stopData.summary, {
+      capture: {
+        durationMs: stopData.durationMs,
+        packageName: 'com.example.app',
+        appPid: '1234',
+        artifactPath: outPath,
+        sizeBytes: 7,
+      },
+      frameHealth: {
+        available: true,
+        droppedFramePercent: 20,
+        droppedFrameCount: 2,
+        totalFrameCount: 10,
+        method: 'adb-shell-dumpsys-gfxinfo-framestats',
+        worstWindows: undefined,
+      },
+      notes: [
+        'Frame health is sampled from Android gfxinfo around the trace window; open the Perfetto artifact for timeline root cause.',
+      ],
+    });
     assert.equal(readAndroidNativePerfState(sessionStore, 'android'), 'stopped');
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
 
-test('perf trace rejects non-Android sessions explicitly', async () => {
+test('perf trace rejects perfetto on Apple sessions', async () => {
   const sessionStore = makeSessionStore('agent-device-session-observability-');
   sessionStore.set('ios', makeIosSession('ios', { appBundleId: 'com.example.app' }));
 
@@ -851,8 +868,8 @@ test('perf trace rejects non-Android sessions explicitly', async () => {
 
   assert.equal(response?.ok, false);
   if (response && !response.ok) {
-    assert.equal(response.error.code, 'UNSUPPORTED_OPERATION');
-    assert.match(response.error.message, /Android native perf collectors/);
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /supports --kind xctrace/);
   }
 });
 
@@ -884,12 +901,25 @@ function makeNativePerfAdbExecutor(outPath: string): AndroidAdbExecutor {
     staticAdbResponse(exactAdbArgs('shell', 'pidof', 'com.example.app'), '1234\n'),
     staticAdbResponse(containsAdbArg('command -v simpleperf'), '/system/bin/simpleperf\n'),
     staticAdbResponse(containsAdbArg('command -v perfetto'), '/system/bin/perfetto\n'),
+    staticAdbResponse(exactAdbArgs('shell', 'dumpsys', 'gfxinfo', 'com.example.app', 'reset')),
     staticAdbResponse(shellCommandContains('simpleperf'), '5678\n'),
     staticAdbResponse(adbArgsPrefix('shell', 'perfetto'), '5678\n'),
     staticAdbResponse(containsAdbArg('kill -INT')),
     staticAdbResponse(containsAdbArg('stat -c %s'), '7\n'),
     staticAdbResponse(containsAdbArg('rm -f')),
     pullAdbResponse(outPath, 'profile'),
+    staticAdbResponse(
+      exactAdbArgs('shell', 'dumpsys', 'gfxinfo', 'com.example.app', 'framestats'),
+      [
+        'Applications Graphics Acceleration Info:',
+        'Uptime: 11000 Realtime: 11000',
+        '** Graphics info for pid 1234 [com.example.app] **',
+        'Stats since: 10000000000ns',
+        'Total frames rendered: 10',
+        'Janky frames: 2 (20.00%)',
+        'Number Frame deadline missed: 2',
+      ].join('\n'),
+    ),
   ];
   return async (args) => dispatchAdbResponse(args, responders);
 }

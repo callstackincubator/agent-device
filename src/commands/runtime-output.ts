@@ -224,7 +224,9 @@ function formatNativePerfLines(
 function formatAndroidNativePerfOutput(data: Record<string, unknown>): string | undefined {
   const summary = readNativePerfSummary(data);
   if (!summary) return undefined;
-  return `Perf ${summary.action}: ${summary.kind} ${summary.type}${formatNativePerfState(data)}${formatNativePerfArtifact(data)}${formatNativePerfFrameHealth(data)}`;
+  return `Perf ${summary.action}: ${summary.kind} ${summary.type}${formatNativePerfState(
+    data,
+  )}${formatNativePerfArtifact(data)}${formatNativePerfFrameHealth(data)}`;
 }
 
 function readNativePerfSummary(

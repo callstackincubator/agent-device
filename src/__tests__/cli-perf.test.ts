@@ -366,7 +366,14 @@ test('perf cpu profile start forwards simpleperf kind and out path', async () =>
   const call = result.calls[0];
   assert.ok(call);
   assert.equal(call.command, 'perf');
-  assert.deepEqual(call.positionals, ['cpu', 'profile', 'start', 'simpleperf', '', 'cpu.perf.data']);
+  assert.deepEqual(call.positionals, [
+    'cpu',
+    'profile',
+    'start',
+    'simpleperf',
+    '',
+    'cpu.perf.data',
+  ]);
   assert.ok(call.flags);
   assert.equal(call.flags.out, 'cpu.perf.data');
 });
@@ -383,6 +390,14 @@ test('perf trace stop forwards perfetto kind and prints compact artifact summary
         state: 'stopped',
         outPath: '/tmp/app.perfetto-trace',
         sizeBytes: 2048,
+        summary: {
+          frameHealth: {
+            available: true,
+            droppedFramePercent: 12.5,
+            droppedFrameCount: 3,
+            totalFrameCount: 24,
+          },
+        },
       },
     }),
   );
@@ -398,7 +413,7 @@ test('perf trace stop forwards perfetto kind and prints compact artifact summary
   ]);
   assert.equal(
     result.stdout,
-    'Perf stop: perfetto trace state=stopped\n/tmp/app.perfetto-trace (2.0KB)\n',
+    'Perf stop: perfetto trace state=stopped\n/tmp/app.perfetto-trace (2.0KB)\nTrace frame health: dropped 12.5% (3/24 frames)\n',
   );
 });
 

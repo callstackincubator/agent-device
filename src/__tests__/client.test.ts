@@ -198,7 +198,7 @@ test('observability.perf projects structured Android native profile input to dae
 
   await client.observability.perf({
     area: 'cpu',
-    mode: 'profile',
+    subject: 'profile',
     action: 'start',
     kind: 'simpleperf',
     out: 'cpu.perf.data',
@@ -208,7 +208,14 @@ test('observability.perf projects structured Android native profile input to dae
   const call = setup.calls[0];
   assert.ok(call);
   assert.equal(call.command, 'perf');
-  assert.deepEqual(call.positionals, ['cpu', 'profile', 'start', 'simpleperf']);
+  assert.deepEqual(call.positionals, [
+    'cpu',
+    'profile',
+    'start',
+    'simpleperf',
+    '',
+    'cpu.perf.data',
+  ]);
   assert.ok(call.flags);
   assert.equal(call.flags.out, 'cpu.perf.data');
 });

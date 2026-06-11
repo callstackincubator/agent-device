@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { resolveAndroidAdbExecutor, type AndroidAdbExecutor } from './adb-executor.ts';
+import { resetAndroidFramePerfStats, sampleAndroidFramePerf } from './perf-frame.ts';
 import { parseSimpleperfReportEntries } from './perf-native-report.ts';
 
 const ANDROID_SIMPLEPERF_METHOD = 'adb-shell-simpleperf';
@@ -55,8 +56,40 @@ export type AndroidNativePerfStopResult = AndroidNativePerfSession & {
     path: string;
     sizeBytes: number;
   };
+  summary: AndroidNativePerfStopSummary;
   message: string;
 };
+
+export type AndroidNativePerfStopSummary = {
+  capture: {
+    durationMs: number;
+    packageName: string;
+    appPid: string;
+    artifactPath: string;
+    sizeBytes: number;
+  };
+  frameHealth?: AndroidNativePerfFrameHealthSummary;
+  notes: string[];
+};
+
+export type AndroidNativePerfFrameHealthSummary =
+  | {
+      available: true;
+      droppedFramePercent: number;
+      droppedFrameCount: number;
+      totalFrameCount: number;
+      method: string;
+      worstWindows?: Array<{
+        startOffsetMs?: number;
+        endOffsetMs?: number;
+        missedDeadlineFrameCount: number;
+        worstFrameMs?: number;
+      }>;
+    }
+  | {
+      available: false;
+      reason: string;
+    };
 
 export type AndroidSimpleperfReportResult = {
   action: 'report';
@@ -181,6 +214,7 @@ export async function startAndroidPerfettoTrace(
   );
   let profilerPid: string;
   try {
+    await resetAndroidFramePerfStats(device, packageName, { adb });
     profilerPid = await startAndroidPerfettoBackgroundTool(adb, remotePath, packageName);
   } catch (error) {
     await cleanupAndroidRemotePath(adb, remotePath);
@@ -227,21 +261,81 @@ async function stopAndroidNativePerfSession(
   const sizeBytes = await readFileSize(session.outPath);
   await cleanupAndroidRemotePath(adb, session.remotePath);
   const stoppedAt = Date.now();
+  const durationMs = Math.max(0, stoppedAt - session.startedAt);
+  const summary = await buildAndroidNativePerfStopSummary(device, session, sizeBytes, durationMs, {
+    adb,
+  });
   return {
     ...session,
     action: 'stop',
     platform: 'android',
     state: 'stopped',
     stoppedAt,
-    durationMs: Math.max(0, stoppedAt - session.startedAt),
+    durationMs,
     sizeBytes,
     method: session.kind === 'simpleperf' ? ANDROID_SIMPLEPERF_METHOD : ANDROID_PERFETTO_METHOD,
     artifact: {
       path: session.outPath,
       sizeBytes,
     },
+    summary,
     message: `Stopped Android ${session.kind} ${session.type} for ${session.packageName}`,
   };
+}
+
+async function buildAndroidNativePerfStopSummary(
+  device: DeviceInfo,
+  session: AndroidNativePerfSession,
+  sizeBytes: number,
+  durationMs: number,
+  options: AndroidNativePerfOptions,
+): Promise<AndroidNativePerfStopSummary> {
+  return {
+    capture: {
+      durationMs,
+      packageName: session.packageName,
+      appPid: session.appPid,
+      artifactPath: session.outPath,
+      sizeBytes,
+    },
+    frameHealth:
+      session.kind === 'perfetto'
+        ? await sampleAndroidNativePerfFrameHealth(device, session.packageName, options)
+        : undefined,
+    notes: [
+      session.kind === 'perfetto'
+        ? 'Frame health is sampled from Android gfxinfo around the trace window; open the Perfetto artifact for timeline root cause.'
+        : 'Open the Simpleperf report artifact for symbol-level CPU attribution.',
+    ],
+  };
+}
+
+async function sampleAndroidNativePerfFrameHealth(
+  device: DeviceInfo,
+  packageName: string,
+  options: AndroidNativePerfOptions,
+): Promise<AndroidNativePerfFrameHealthSummary> {
+  try {
+    const sample = await sampleAndroidFramePerf(device, packageName, options);
+    return {
+      available: true,
+      droppedFramePercent: sample.droppedFramePercent,
+      droppedFrameCount: sample.droppedFrameCount,
+      totalFrameCount: sample.totalFrameCount,
+      method: sample.method,
+      worstWindows: sample.worstWindows?.slice(0, 3).map((window) => ({
+        startOffsetMs: window.startOffsetMs,
+        endOffsetMs: window.endOffsetMs,
+        missedDeadlineFrameCount: window.missedDeadlineFrameCount,
+        worstFrameMs: window.worstFrameMs,
+      })),
+    };
+  } catch (error) {
+    return {
+      available: false,
+      reason: error instanceof Error ? error.message : 'Android frame health was not available',
+    };
+  }
 }
 
 async function resolveAndroidAppPid(adb: AndroidAdbExecutor, packageName: string): Promise<string> {

@@ -459,6 +459,18 @@ test('start and stop Android Perfetto trace use perfetto trace storage and clean
   assert.match(started.remotePath, /^\/data\/misc\/perfetto-traces\//);
   assert.equal(stopped.artifact.path, outPath);
   assert.equal(stopped.artifact.sizeBytes, 5);
+  assert.deepEqual(stopped.summary.frameHealth, {
+    available: true,
+    droppedFramePercent: 20,
+    droppedFrameCount: 2,
+    totalFrameCount: 10,
+    method: 'adb-shell-dumpsys-gfxinfo-framestats',
+    worstWindows: undefined,
+  });
+  assert.ok(
+    findExactCallIndex(calls, 'shell', 'dumpsys', 'gfxinfo', 'com.example.app', 'reset') <
+      findCallPrefixIndex(calls, 'shell', 'perfetto'),
+  );
   assert.ok(findCallIndex(calls, 'stat -c %s') < findCallIndex(calls, 'pull'));
   assert.ok(findCallIndex(calls, 'rm -f') > findCallIndex(calls, 'pull'));
 });
@@ -525,14 +537,35 @@ function findCallIndex(calls: string[][], pattern: string): number {
   return calls.findIndex((args) => args.some((arg) => arg.includes(pattern)));
 }
 
+function findExactCallIndex(calls: string[][], ...expected: string[]): number {
+  return calls.findIndex((args) => args.join('\0') === expected.join('\0'));
+}
+
+function findCallPrefixIndex(calls: string[][], ...expected: string[]): number {
+  return calls.findIndex((args) => expected.every((value, index) => args[index] === value));
+}
+
 function makePerfettoTraceAdbExecutor(outPath: string, calls: string[][]): AndroidAdbExecutor {
   const responders = [
     staticAdbResponse(exactAdbArgs('shell', 'pidof', 'com.example.app'), '1234\n'),
     staticAdbResponse(containsAdbArg('command -v perfetto'), '/system/bin/perfetto\n'),
+    staticAdbResponse(exactAdbArgs('shell', 'dumpsys', 'gfxinfo', 'com.example.app', 'reset')),
     staticAdbResponse(adbArgsPrefix('shell', 'perfetto'), '8765\n'),
     staticAdbResponse(containsAdbArg('kill -INT')),
     staticAdbResponse(containsAdbArg('stat -c %s'), '5\n'),
     pullAdbResponse(outPath, 'trace'),
+    staticAdbResponse(
+      exactAdbArgs('shell', 'dumpsys', 'gfxinfo', 'com.example.app', 'framestats'),
+      [
+        'Applications Graphics Acceleration Info:',
+        'Uptime: 11000 Realtime: 11000',
+        '** Graphics info for pid 1234 [com.example.app] **',
+        'Stats since: 10000000000ns',
+        'Total frames rendered: 10',
+        'Janky frames: 2 (20.00%)',
+        'Number Frame deadline missed: 2',
+      ].join('\n'),
+    ),
     staticAdbResponse(containsAdbArg('rm -f')),
   ];
   return async (args) => dispatchAdbResponse(args, calls, responders);
