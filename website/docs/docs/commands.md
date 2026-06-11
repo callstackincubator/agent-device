@@ -614,6 +614,7 @@ agent-device perf trace stop --kind perfetto --out app.perfetto-trace
 - `perf trace ... --kind perfetto` starts/stops Android Perfetto trace capture for the active session package.
 - Native profile/trace outputs are compact agent evidence: state, artifact path, size, and method. Raw `.perf.data` and `.perfetto-trace` contents stay on disk.
 - Without `--json`, `perf` prints a compact summary: frame health when reliable frame data is available, otherwise CPU/memory when those samples are available.
+- Use native perf stop/report results as compact agent evidence, not raw profiler output. A successful Perfetto stop can return `state: "stopped"`, `outPath: "/tmp/app.perfetto-trace"`, `sizeBytes: 5392410`, and `method: "adb-shell-perfetto"` while the 5.3 MB raw trace stays on disk as the artifact.
 - `startup` is sampled from `open-command-roundtrip`: elapsed wall-clock time around each `open` command dispatch for the active session app target.
 - Android app sessions with an active package also sample:
   - `fps` frame health from `adb shell dumpsys gfxinfo <package> framestats`, with `droppedFramePercent` as the primary value and `worstWindows` for dropped-frame clusters
