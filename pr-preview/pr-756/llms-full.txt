@@ -644,6 +644,9 @@ stdout/stderr. The option mirrors `open --launch-console` and is not valid for U
 When surfacing Apple simulators, `client.apps.open({ noDeviceHub: true })` mirrors `open --no-device-hub` and forces the standalone Simulator app
 instead of Xcode Device Hub.
 
+`client.sessions.stateDir()` mirrors `session state-dir` and returns the resolved daemon state directory as a pure local resolution — it never starts
+or contacts the daemon. Pass `{ stateDir }` to resolve an explicit override the same way the CLI resolves `--state-dir`.
+
 ## Android snapshot helper providers
 
 Remote Android providers should import `agent-device/android-snapshot-helper` and inject their own
@@ -2159,7 +2162,9 @@ One-off `npx` usage is fine for humans and scripts that intentionally fetch from
   - `<state-dir>/daemon.json`
   - `<state-dir>/daemon.lock`
   - default state dir is `~/.agent-device` for packaged installs; source checkouts default to a worktree-scoped dir under `~/.agent-device/dev/` unless `AGENT_DEVICE_STATE_DIR` or `--state-dir` is set
+  - `agent-device session state-dir` prints the resolved state dir without starting the daemon
   - after pulling the worktree-scoped daemon change in a source checkout, stop any legacy default daemon once with `AGENT_DEVICE_STATE_DIR=~/.agent-device pnpm clean:daemon`
+  - worktree-scoped state dirs outlive deleted worktrees; `pnpm clean:daemon --prune-dev` removes dirs under `~/.agent-device/dev/` with no live daemon and no activity for 14 days (one line printed per removed dir)
 
 
 
