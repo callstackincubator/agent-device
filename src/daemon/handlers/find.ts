@@ -2,7 +2,7 @@ import { dispatchCommand, resolveTargetDevice } from '../../core/dispatch.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { findBestMatchesByLocator, parseFindArgs, type FindLocator } from '../../utils/finders.ts';
 import { centerOfRect, type SnapshotState } from '../../utils/snapshot.ts';
-import type { DaemonInvokeFn, DaemonRequest, DaemonResponse } from '../types.ts';
+import type { DaemonInvokeFn, DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import { contextFromFlags } from '../context.ts';
 import { ensureDeviceReady } from '../device-ready.ts';
@@ -90,74 +90,18 @@ export async function handleFindCommands(params: {
   // Interaction targets need the full compact tree so duplicate labels can be
   // resolved against viewport visibility before an off-screen subtree wins.
   const scope = shouldScopeFind(locator) && !requiresRect ? query : undefined;
-  const interactiveOnly = requiresRect;
-  let lastSnapshotAt = 0;
-  let lastNodes: SnapshotState['nodes'] | null = null;
-  const fetchNodes = async (): Promise<{
-    nodes: SnapshotState['nodes'];
-    truncated?: boolean;
-    backend?: SnapshotState['backend'];
-  }> => {
-    const now = Date.now();
-    // Re-use a snapshot captured within the last 750 ms to avoid redundant dumps during
-    // rapid find iterations.  Skipped when Android freshness tracking is active, because
-    // the cached tree may already be stale from a recent navigation action.
-    if (lastNodes && now - lastSnapshotAt < 750 && !getActiveAndroidSnapshotFreshness(session)) {
-      return { nodes: lastNodes };
-    }
-    let { snapshot } = await captureSnapshot({
-      device,
-      session,
-      flags: {
-        ...req.flags,
-        snapshotInteractiveOnly: interactiveOnly,
-        snapshotCompact: interactiveOnly,
-      },
-      outPath: req.flags?.out,
-      logPath,
-      snapshotScope: scope,
-    });
-    if (interactiveOnly && isSparseIosInteractiveSnapshot(snapshot)) {
-      try {
-        const fullCapture = await captureSnapshot({
-          device,
-          session,
-          flags: {
-            ...req.flags,
-            snapshotInteractiveOnly: false,
-            snapshotCompact: false,
-          },
-          outPath: req.flags?.out,
-          logPath,
-          snapshotScope: scope,
-        });
-        snapshot = fullCapture.snapshot;
-      } catch (error) {
-        if (!shouldScopeFind(locator)) throw error;
-        const scopedFullCapture = await captureSnapshot({
-          device,
-          session,
-          flags: {
-            ...req.flags,
-            snapshotInteractiveOnly: false,
-            snapshotCompact: false,
-          },
-          outPath: req.flags?.out,
-          logPath,
-          snapshotScope: query,
-        });
-        snapshot = scopedFullCapture.snapshot;
-      }
-    }
-    const nodes = snapshot.nodes;
-    lastSnapshotAt = now;
-    lastNodes = nodes;
-    if (session) {
-      setSessionSnapshot(session, snapshot);
-      sessionStore.set(sessionName, session);
-    }
-    return { nodes, truncated: snapshot.truncated, backend: snapshot.backend };
-  };
+  const fetchNodes = createFindNodeFetcher({
+    device,
+    session,
+    req,
+    logPath,
+    locator,
+    query,
+    scope,
+    interactiveOnly: requiresRect,
+    sessionStore,
+    sessionName,
+  });
 
   const ctx: FindContext = {
     req,
@@ -223,6 +167,86 @@ function findActionRequiresRect(action: string): boolean {
   return action === 'click' || action === 'focus' || action === 'fill' || action === 'type';
 }
 
+type FindNodeFetcher = () => Promise<{
+  nodes: SnapshotState['nodes'];
+  truncated?: boolean;
+  backend?: SnapshotState['backend'];
+}>;
+
+function createFindNodeFetcher(params: {
+  device: SessionState['device'];
+  session: SessionState | undefined;
+  req: DaemonRequest;
+  logPath: string;
+  locator: FindLocator;
+  query: string;
+  scope: string | undefined;
+  interactiveOnly: boolean;
+  sessionStore: SessionStore;
+  sessionName: string;
+}): FindNodeFetcher {
+  const { device, session, req, logPath, locator, query, scope, interactiveOnly } = params;
+  const { sessionStore, sessionName } = params;
+  let lastSnapshotAt = 0;
+  let lastNodes: SnapshotState['nodes'] | null = null;
+  const capture = async (snapshotScope: string | undefined, interactive: boolean) => {
+    const { snapshot } = await captureSnapshot({
+      device,
+      session,
+      flags: {
+        ...req.flags,
+        snapshotInteractiveOnly: interactive,
+        snapshotCompact: interactive,
+      },
+      outPath: req.flags?.out,
+      logPath,
+      snapshotScope,
+    });
+    return snapshot;
+  };
+  return async () => {
+    const now = Date.now();
+    // Re-use a snapshot captured within the last 750 ms to avoid redundant dumps during
+    // rapid find iterations.  Skipped when Android freshness tracking is active, because
+    // the cached tree may already be stale from a recent navigation action.
+    if (lastNodes && now - lastSnapshotAt < 750 && !getActiveAndroidSnapshotFreshness(session)) {
+      return { nodes: lastNodes };
+    }
+    let snapshot = await capture(scope, interactiveOnly);
+    if (interactiveOnly && isSparseIosInteractiveSnapshot(snapshot)) {
+      snapshot = await recoverSparseInteractiveSnapshot({ capture, locator, query, scope });
+    }
+    const nodes = snapshot.nodes;
+    lastSnapshotAt = now;
+    lastNodes = nodes;
+    if (session) {
+      setSessionSnapshot(session, snapshot);
+      sessionStore.set(sessionName, session);
+    }
+    return { nodes, truncated: snapshot.truncated, backend: snapshot.backend };
+  };
+}
+
+/**
+ * A sparse compact-interactive iOS snapshot usually means the runner could not enumerate the
+ * tree, not that the screen is empty: retry with a full snapshot, and when even unscoped AX
+ * serialization fails on unrelated content, with a query-scoped full snapshot.
+ */
+async function recoverSparseInteractiveSnapshot(params: {
+  capture: (scope: string | undefined, interactive: boolean) => Promise<SnapshotState>;
+  locator: FindLocator;
+  query: string;
+  scope: string | undefined;
+}): Promise<SnapshotState> {
+  const { capture, locator, query, scope } = params;
+  try {
+    return await capture(scope, false);
+  } catch (error) {
+    if (!shouldScopeFind(locator)) throw error;
+    return await capture(query, false);
+  }
+}
+
 function resolveFindMatch(params: {
   nodes: SnapshotState['nodes'];
   locator: FindLocator;
@@ -242,13 +266,11 @@ function resolveFindMatch(params: {
   }
 
   if (requiresRect && bestMatches.matches.length > 1) {
-    if (flags?.findFirst) {
-      bestMatches.matches = [bestMatches.matches[0]!];
-    } else if (flags?.findLast) {
-      bestMatches.matches = [bestMatches.matches[bestMatches.matches.length - 1]!];
-    } else {
+    const narrowed = narrowMultipleMatches(bestMatches.matches, flags);
+    if (!narrowed) {
       return { ok: false, response: buildAmbiguousMatchError(bestMatches.matches, locator, query) };
     }
+    bestMatches.matches = narrowed;
   }
 
   const node = bestMatches.matches[0] ?? null;
@@ -259,6 +281,15 @@ function resolveFindMatch(params: {
     };
   }
   return { ok: true, node };
+}
+
+function narrowMultipleMatches(
+  matches: SnapshotState['nodes'],
+  flags: DaemonRequest['flags'],
+): SnapshotState['nodes'] | null {
+  if (flags?.findFirst) return [matches[0]!];
+  if (flags?.findLast) return [matches[matches.length - 1]!];
+  return null;
 }
 
 function preferOnscreenMatches(
@@ -300,17 +331,27 @@ function interactiveMatchScore(
 ): number {
   const resolution = resolveActionableTouchResolution(nodes, node);
   if (resolution.reason === 'covered') return 0;
-  if (resolution.reason === 'semantic-target' && resolution.node.rect) return 4;
-  if (resolution.reason === 'same-rect-descendant' && resolution.node.rect) return 4;
+  const resolved = resolvedTouchScore(resolution, nodes[0]);
+  if (resolved > 0) return resolved;
+  if (node.hittable && node.rect && !isRootInteractionContainer(node, nodes[0])) return 3;
+  return node.rect ? 1 : 0;
+}
+
+function resolvedTouchScore(
+  resolution: ReturnType<typeof resolveActionableTouchResolution>,
+  root: SnapshotState['nodes'][number] | undefined,
+): number {
+  if (!resolution.node.rect) return 0;
+  if (resolution.reason === 'semantic-target' || resolution.reason === 'same-rect-descendant') {
+    return 4;
+  }
   if (
     resolution.reason === 'hittable-ancestor' &&
-    resolution.node.rect &&
-    !isRootInteractionContainer(resolution.node, nodes[0])
+    !isRootInteractionContainer(resolution.node, root)
   ) {
     return 2;
   }
-  if (node.hittable && node.rect && !isRootInteractionContainer(node, nodes[0])) return 3;
-  return node.rect ? 1 : 0;
+  return 0;
 }
 
 function rectArea(node: SnapshotState['nodes'][number]): number {
@@ -333,11 +374,18 @@ function isRootInteractionContainer(
   if (!root?.rect || !node.rect) return false;
   const type = node.type?.toLowerCase() ?? '';
   if (!type.includes('application') && !type.includes('window')) return false;
+  return rectsMatch(node.rect, root.rect);
+}
+
+function rectsMatch(
+  left: NonNullable<SnapshotState['nodes'][number]['rect']>,
+  right: NonNullable<SnapshotState['nodes'][number]['rect']>,
+): boolean {
   return (
-    node.rect.x === root.rect.x &&
-    node.rect.y === root.rect.y &&
-    node.rect.width === root.rect.width &&
-    node.rect.height === root.rect.height
+    left.x === right.x &&
+    left.y === right.y &&
+    left.width === right.width &&
+    left.height === right.height
   );
 }
 

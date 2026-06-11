@@ -90,6 +90,8 @@ function isRunnerSourceFile(fileName, filePath) {
     '.json',
     '.png',
     '.swift',
+    '.m',
+    '.h',
     '.plist',
     '.entitlements',
     '.xctestplan',
