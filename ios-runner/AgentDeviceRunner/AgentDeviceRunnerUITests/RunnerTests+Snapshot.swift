@@ -13,8 +13,6 @@ extension RunnerTests {
     "Raw iOS snapshot exceeded the runner payload guard. Use regular snapshot for visible UI, or scope/depth-limit raw snapshot when inspecting a large accessibility tree."
   private static let degenerateTreeRecoveryMessage =
     "Recovered the snapshot through accessibility element queries: XCTest's snapshot tree was sparse (only structural containers) while the screen has rendered content. This is common on React Native apps, where XCUIElementQuery still resolves controls the public snapshot omits. Nodes below are a flattened, query-resolved view of the on-screen controls."
-  // Structural container types carry no actionable content on their own; a tree made up of only
-  // these (plus the application/window roots) is the signature of a sparse snapshot.
   private static let structuralOnlyNodeTypes: Set<String> = [
     "Application",
     "Window",
@@ -392,11 +390,9 @@ extension RunnerTests {
     return DataPayload(nodes: nodes, truncated: truncated)
   }
 
-  /// Detects the "sparse snapshot" signature: the public `XCUIElement.snapshot()` traversal
-  /// produced only structural container nodes (application/window/other/scrollView) with no
-  /// label, identifier, value, or hittable control — even though the app is foregrounded and
-  /// rendering content. React Native apps hit this regularly: the public snapshot API collapses
-  /// the host view's subtree, while `XCUIElementQuery` still resolves the underlying controls.
+  // A tree of only structural containers with no content or hittable control is the signature of
+  // a sparse snapshot: the public XCUIElement.snapshot() API collapses the subtree (common on
+  // React Native) while XCUIElementQuery still resolves the underlying controls.
   private func snapshotNodesAreDegenerate(_ nodes: [SnapshotNode]) -> Bool {
     guard !nodes.isEmpty else { return false }
     for node in nodes {
@@ -404,16 +400,13 @@ extension RunnerTests {
         || (node.identifier?.isEmpty == false)
         || (node.value?.isEmpty == false)
       if hasContent || node.hittable { return false }
-      // A concretely typed control (Button, StaticText, TextField, …) means the tree is not
-      // degenerate, even when it happens to carry no resolved content this frame.
       if !Self.structuralOnlyNodeTypes.contains(node.type) { return false }
     }
     return true
   }
 
-  /// Recovers a usable tree for a sparse snapshot by reusing the query-based flat traversal
-  /// (the same `XCUIElementQuery` path the collapsed-tab fallback already trusts). Returns `nil`
-  /// when queries see nothing more than the sparse tree, so the caller keeps the original result.
+  // Recovers a sparse snapshot via the query-based flat traversal (the same XCUIElementQuery path
+  // collapsedTabFallbackNodes uses). Returns nil when queries see nothing more than the sparse tree.
   private func snapshotQueryRecovery(
     app: XCUIApplication,
     options: SnapshotOptions
@@ -428,7 +421,6 @@ extension RunnerTests {
         raw: false
       )
     )
-    // nodes[0] is always the synthetic Application root; require at least one real control beyond it.
     guard let nodes = recovery.nodes, nodes.count > 1 else { return nil }
     NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_DEGENERATE_TREE_RECOVERED=%d", nodes.count)
     return DataPayload(
