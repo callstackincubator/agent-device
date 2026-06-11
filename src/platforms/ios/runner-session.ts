@@ -56,15 +56,37 @@ const runnerSessions = new Map<string, RunnerSession>();
 const runnerSessionLocks = new Map<string, Promise<unknown>>();
 const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 1_000;
 const RUNNER_STALE_BUNDLE_UNINSTALL_TIMEOUT_MS = 10_000;
+const RUNNER_PREFLIGHT_SKIP_FRESHNESS_MS = 5_000;
+// Today's scroll verb is covered via 'drag'. The fused 'scroll' runner command
+// (PR #760) must be added here when it lands, or hot scroll loops lose the skip.
+const PREFLIGHT_SKIP_ELIGIBLE_RUNNER_COMMANDS = new Set<RunnerCommand['command']>([
+  'tap',
+  'tapSeries',
+  'longPress',
+  'drag',
+  'dragSeries',
+  'swipe',
+]);
 
 type RunnerReadinessPreflightDecision =
   | {
       action: 'run';
-      reason: 'startup' | 'ready_session';
+      reason:
+        | 'startup'
+        | 'conservative_command'
+        | 'no_recent_healthy_mutation'
+        | 'app_activation_uncertain'
+        | 'healthy_mutation_stale';
+      lastHealthyMutationAgeMs?: number;
     }
   | {
       action: 'skip';
       reason: 'read_only_startup_command' | 'readiness_probe_command';
+    }
+  | {
+      action: 'skip';
+      reason: 'recent_healthy_mutation';
+      lastHealthyMutationAgeMs: number;
     };
 
 function withRunnerSessionLock<T>(deviceId: string, task: () => Promise<T>): Promise<T> {
@@ -463,30 +485,76 @@ export async function executeRunnerCommandWithSession(
     emitRunnerReadinessPreflightSkipped(runnerCommand, session, preflightDecision);
   }
 
-  const response = await sendRunnerCommandAfterPreflight({
-    device,
-    session,
-    runnerCommand,
-    logPath,
-    deadline,
-    timeoutMs,
-    signal,
-    readOnlyCommand,
-  });
+  let response: Response;
+  try {
+    response = await sendRunnerCommandAfterPreflight({
+      device,
+      session,
+      runnerCommand,
+      logPath,
+      deadline,
+      timeoutMs,
+      signal,
+      readOnlyCommand,
+    });
+  } catch (error) {
+    // A transport failure right after a skipped preflight means the recency
+    // bet was wrong; clear it so a flaky transport cannot loop on stale skips,
+    // and mark the error with the skip context for status recovery. The marker
+    // key is disjoint from runnerReadinessPreflightFailed, so this never routes
+    // into the restart-and-replay path.
+    throw markSkippedPreflightTransportError(error, session, preflightDecision);
+  }
   try {
     const data = await parseRunnerResponse(response, session, logPath);
     const runnerFatalReason = resolveRunnerFatalReason(data);
     if (runnerFatalReason) {
+      session.lastHealthyMutation = undefined;
       await invalidateRunnerSession(session, runnerFatalReason);
+    } else if (PREFLIGHT_SKIP_ELIGIBLE_RUNNER_COMMANDS.has(runnerCommand.command)) {
+      session.lastHealthyMutation = {
+        atMs: Date.now(),
+        appBundleId: runnerCommand.appBundleId,
+      };
     }
     return data;
   } catch (error) {
     const runnerFatalReason = resolveRunnerFatalErrorReason(error);
     if (runnerFatalReason) {
+      session.lastHealthyMutation = undefined;
       await invalidateRunnerSession(session, runnerFatalReason);
+      throw error;
     }
-    throw error;
+    // A body-read or malformed-payload failure is transport-shaped too (the
+    // runner died mid-response); structured runner failures carry a `runner`
+    // detail and keep their recency — the runner proved it is alive by
+    // answering at all.
+    if (isStructuredRunnerFailure(error)) throw error;
+    throw markSkippedPreflightTransportError(error, session, preflightDecision);
   }
+}
+
+function isStructuredRunnerFailure(error: unknown): boolean {
+  return error instanceof AppError && error.details?.runner !== undefined;
+}
+
+function markSkippedPreflightTransportError(
+  error: unknown,
+  session: RunnerSession,
+  preflightDecision: RunnerReadinessPreflightDecision,
+): unknown {
+  if (
+    preflightDecision.action !== 'skip' ||
+    preflightDecision.reason !== 'recent_healthy_mutation'
+  ) {
+    return error;
+  }
+  session.lastHealthyMutation = undefined;
+  return markRunnerPreflightError(error, {
+    runnerReadinessPreflightSkipped: true,
+    runnerReadinessPreflightSkipReason: preflightDecision.reason,
+    runnerReadinessPreflightSkippedAgeMs: preflightDecision.lastHealthyMutationAgeMs,
+  });
 }
 
 async function sendRunnerCommandAfterPreflight(params: {
@@ -565,6 +633,7 @@ async function runRunnerReadinessPreflight(params: {
         command: runnerCommand.command,
         commandId: runnerCommand.commandId,
         reason: decision.reason,
+        lastHealthyMutationAgeMs: decision.lastHealthyMutationAgeMs,
         sessionReady: session.ready,
         timeoutMs: readinessTimeoutMs,
       },
@@ -587,6 +656,10 @@ function emitRunnerReadinessPreflightSkipped(
       command: runnerCommand.command,
       commandId: runnerCommand.commandId,
       reason: decision.reason,
+      lastHealthyMutationAgeMs:
+        decision.reason === 'recent_healthy_mutation'
+          ? decision.lastHealthyMutationAgeMs
+          : undefined,
       sessionReady: session.ready,
     },
   });
@@ -691,9 +764,37 @@ function resolveRunnerReadinessPreflightDecision(
       reason: 'readiness_probe_command',
     };
   }
+  if (!PREFLIGHT_SKIP_ELIGIBLE_RUNNER_COMMANDS.has(command.command)) {
+    return {
+      action: 'run',
+      reason: 'conservative_command',
+    };
+  }
+  const record = session.lastHealthyMutation;
+  if (!record) {
+    return {
+      action: 'run',
+      reason: 'no_recent_healthy_mutation',
+    };
+  }
+  if (command.appBundleId !== record.appBundleId) {
+    return {
+      action: 'run',
+      reason: 'app_activation_uncertain',
+    };
+  }
+  const lastHealthyMutationAgeMs = Date.now() - record.atMs;
+  if (lastHealthyMutationAgeMs > RUNNER_PREFLIGHT_SKIP_FRESHNESS_MS) {
+    return {
+      action: 'run',
+      reason: 'healthy_mutation_stale',
+      lastHealthyMutationAgeMs,
+    };
+  }
   return {
-    action: 'run',
-    reason: 'ready_session',
+    action: 'skip',
+    reason: 'recent_healthy_mutation',
+    lastHealthyMutationAgeMs,
   };
 }
 

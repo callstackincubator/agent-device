@@ -332,7 +332,7 @@ test('runner session emits explicit diagnostics when ready sessions are probed',
   });
 
   assert.match(diagnostics, /ios_runner_readiness_preflight/);
-  assert.match(diagnostics, /"reason":"ready_session"/);
+  assert.match(diagnostics, /"reason":"no_recent_healthy_mutation"/);
   assert.doesNotMatch(diagnostics, /ios_runner_readiness_preflight_skipped/);
 });
 
@@ -859,6 +859,338 @@ test('runner session validates supported Apple runner devices', () => {
     () => validateRunnerDevice({ ...IOS_SIMULATOR, kind: 'emulator' }),
     /Unsupported iOS device kind/,
   );
+});
+
+const ALLOWLISTED_MUTATIONS: { name: string; command: Record<string, unknown> }[] = [
+  { name: 'tap', command: { command: 'tap', x: 120, y: 240 } },
+  {
+    name: 'selector tap',
+    command: { command: 'tap', selectorKey: 'label', selectorValue: 'Open article' },
+  },
+  { name: 'tapSeries', command: { command: 'tapSeries', x: 1, y: 2, count: 2, intervalMs: 80 } },
+  { name: 'longPress', command: { command: 'longPress', x: 1, y: 2 } },
+  { name: 'drag', command: { command: 'drag', x: 1, y: 2, x2: 3, y2: 4 } },
+  {
+    name: 'dragSeries',
+    command: { command: 'dragSeries', x: 1, y: 2, x2: 3, y2: 4, count: 2 },
+  },
+  { name: 'swipe', command: { command: 'swipe', x: 1, y: 2, x2: 3, y2: 4 } },
+];
+
+for (const { name, command } of ALLOWLISTED_MUTATIONS) {
+  test(`runner session skips readiness preflight for ${name} after a fresh same-bundle healthy mutation`, async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-11T00:00:00Z'));
+    try {
+      const session = makeRunnerSession({
+        ready: true,
+        lastHealthyMutation: { atMs: Date.now() - 1_500, appBundleId: 'com.example.demo' },
+      });
+      mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ acted: true }));
+
+      const diagnostics = await captureDiagnostics(async () => {
+        await executeRunnerCommandWithSession(
+          IOS_SIMULATOR,
+          session,
+          { ...command, appBundleId: 'com.example.demo' } as Parameters<
+            typeof executeRunnerCommandWithSession
+          >[2],
+          '/tmp/runner.log',
+          30_000,
+        );
+      });
+
+      assert.equal(mockWaitForRunner.mock.calls.length, 0);
+      assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
+      assert.match(diagnostics, /ios_runner_readiness_preflight_skipped/);
+      assert.match(diagnostics, /"reason":"recent_healthy_mutation"/);
+      assert.match(diagnostics, /"lastHealthyMutationAgeMs":1500/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+}
+
+test('runner session records recency only from allowlisted healthy mutations', async () => {
+  const session = makeRunnerSession({ ready: true });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+
+  await executeRunnerCommandWithSession(
+    IOS_SIMULATOR,
+    session,
+    { command: 'tap', x: 120, y: 240, appBundleId: 'com.example.demo' },
+    '/tmp/runner.log',
+    30_000,
+  );
+
+  assert.equal(session.lastHealthyMutation?.appBundleId, 'com.example.demo');
+  assert.equal(typeof session.lastHealthyMutation?.atMs, 'number');
+
+  // Second allowlisted command now skips preflight.
+  mockWaitForRunner.mockClear();
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+  await executeRunnerCommandWithSession(
+    IOS_SIMULATOR,
+    session,
+    { command: 'tap', x: 1, y: 2, appBundleId: 'com.example.demo' },
+    '/tmp/runner.log',
+    30_000,
+  );
+  assert.equal(mockWaitForRunner.mock.calls.length, 0);
+});
+
+test('runner session does not record recency from successful read-only responses', async () => {
+  const session = makeRunnerSession({ ready: true });
+  mockWaitForRunner
+    .mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }))
+    .mockResolvedValueOnce(runnerResponse({ nodes: [], truncated: false }));
+
+  await executeRunnerCommandWithSession(
+    IOS_SIMULATOR,
+    session,
+    { command: 'snapshot', appBundleId: 'com.example.demo' },
+    '/tmp/runner.log',
+    30_000,
+  );
+
+  assert.equal(session.lastHealthyMutation, undefined);
+
+  // The next tap must still preflight because no healthy mutation was recorded.
+  mockWaitForRunner.mockClear();
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+  await executeRunnerCommandWithSession(
+    IOS_SIMULATOR,
+    session,
+    { command: 'tap', x: 1, y: 2, appBundleId: 'com.example.demo' },
+    '/tmp/runner.log',
+    30_000,
+  );
+  assert.equal(mockWaitForRunner.mock.calls.length, 1);
+  assertRunnerCommand(mockWaitForRunner.mock.calls[0]?.[2], { command: 'uptime' });
+});
+
+test('runner session does not record recency from runnerFatal ok payloads', async () => {
+  const session = makeRunnerSession({ ready: true });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(
+    runnerResponse({
+      acted: false,
+      runnerFatal: true,
+      runnerFatalReason: 'ax_snapshot_unavailable',
+    }),
+  );
+
+  await executeRunnerCommandWithSession(
+    IOS_SIMULATOR,
+    session,
+    { command: 'tap', x: 1, y: 2, appBundleId: 'com.example.demo' },
+    '/tmp/runner.log',
+    30_000,
+  );
+
+  assert.equal(session.lastHealthyMutation, undefined);
+});
+
+test('runner session preflights with conservative_command for non-allowlisted mutations', async () => {
+  const session = makeRunnerSession({
+    ready: true,
+    lastHealthyMutation: { atMs: Date.now(), appBundleId: 'com.example.demo' },
+  });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ typed: true }));
+
+  const diagnostics = await captureDiagnostics(async () => {
+    await executeRunnerCommandWithSession(
+      IOS_SIMULATOR,
+      session,
+      { command: 'type', text: 'hi', appBundleId: 'com.example.demo' },
+      '/tmp/runner.log',
+      30_000,
+    );
+  });
+
+  assert.equal(mockWaitForRunner.mock.calls.length, 1);
+  assert.match(diagnostics, /"reason":"conservative_command"/);
+});
+
+test('runner session preflights with no_recent_healthy_mutation when ready without a record', async () => {
+  const session = makeRunnerSession({ ready: true });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+
+  const diagnostics = await captureDiagnostics(async () => {
+    await executeRunnerCommandWithSession(
+      IOS_SIMULATOR,
+      session,
+      { command: 'tap', x: 1, y: 2, appBundleId: 'com.example.demo' },
+      '/tmp/runner.log',
+      30_000,
+    );
+  });
+
+  assert.equal(mockWaitForRunner.mock.calls.length, 1);
+  assert.match(diagnostics, /"reason":"no_recent_healthy_mutation"/);
+});
+
+test('runner session preflights with healthy_mutation_stale when the record is older than 5s', async () => {
+  const session = makeRunnerSession({
+    ready: true,
+    lastHealthyMutation: { atMs: Date.now() - 6_000, appBundleId: 'com.example.demo' },
+  });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+
+  const diagnostics = await captureDiagnostics(async () => {
+    await executeRunnerCommandWithSession(
+      IOS_SIMULATOR,
+      session,
+      { command: 'tap', x: 1, y: 2, appBundleId: 'com.example.demo' },
+      '/tmp/runner.log',
+      30_000,
+    );
+  });
+
+  assert.equal(mockWaitForRunner.mock.calls.length, 1);
+  assert.match(diagnostics, /"reason":"healthy_mutation_stale"/);
+});
+
+test('runner session preflights with app_activation_uncertain on a differing bundle', async () => {
+  const session = makeRunnerSession({
+    ready: true,
+    lastHealthyMutation: { atMs: Date.now(), appBundleId: 'com.example.demo' },
+  });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+
+  const diagnostics = await captureDiagnostics(async () => {
+    await executeRunnerCommandWithSession(
+      IOS_SIMULATOR,
+      session,
+      { command: 'tap', x: 1, y: 2, appBundleId: 'com.example.other' },
+      '/tmp/runner.log',
+      30_000,
+    );
+  });
+
+  assert.equal(mockWaitForRunner.mock.calls.length, 1);
+  assert.match(diagnostics, /"reason":"app_activation_uncertain"/);
+});
+
+test('runner session preflights with startup reason for the first command on a fresh session', async () => {
+  const session = makeRunnerSession({
+    ready: false,
+    lastHealthyMutation: { atMs: Date.now(), appBundleId: 'com.example.demo' },
+  });
+  mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
+
+  const diagnostics = await captureDiagnostics(async () => {
+    await executeRunnerCommandWithSession(
+      IOS_SIMULATOR,
+      session,
+      { command: 'tap', x: 1, y: 2, appBundleId: 'com.example.demo' },
+      '/tmp/runner.log',
+      30_000,
+    );
+  });
+
+  assert.equal(mockWaitForRunner.mock.calls.length, 1);
+  assert.match(diagnostics, /"reason":"startup"/);
+});
+
+test('runner session clears recency and marks the error when a skipped-preflight send fails', async () => {
+  const session = makeRunnerSession({
+    ready: true,
+    lastHealthyMutation: { atMs: Date.now() - 1_000, appBundleId: 'com.example.demo' },
+  });
+  mockSendRunnerCommandOnce.mockRejectedValueOnce(new Error('fetch failed'));
+
+  await assert.rejects(
+    () =>
+      executeRunnerCommandWithSession(
+        IOS_SIMULATOR,
+        session,
+        { command: 'tap', x: 1, y: 2, appBundleId: 'com.example.demo' },
+        '/tmp/runner.log',
+        30_000,
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.details?.runnerReadinessPreflightSkipped, true);
+      assert.equal(error.details?.runnerReadinessPreflightSkipReason, 'recent_healthy_mutation');
+      assert.equal(typeof error.details?.runnerReadinessPreflightSkippedAgeMs, 'number');
+      assert.notEqual(error.details?.runnerReadinessPreflightFailed, true);
+      return true;
+    },
+  );
+
+  assert.equal(mockWaitForRunner.mock.calls.length, 0);
+  assert.equal(session.lastHealthyMutation, undefined);
+});
+
+test('runner session does not mark structured runner failures after a skip as skipped-preflight', async () => {
+  const session = makeRunnerSession({
+    ready: true,
+    lastHealthyMutation: { atMs: Date.now() - 1_000, appBundleId: 'com.example.demo' },
+  });
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(
+    runnerError({
+      code: 'COMMAND_FAILED',
+      message: 'Runner failed after receiving command',
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      executeRunnerCommandWithSession(
+        IOS_SIMULATOR,
+        session,
+        { command: 'tap', x: 1, y: 2, appBundleId: 'com.example.demo' },
+        '/tmp/runner.log',
+        30_000,
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.message, 'Runner failed after receiving command');
+      assert.notEqual(error.details?.runnerReadinessPreflightSkipped, true);
+      return true;
+    },
+  );
+});
+
+test('runner session clears recency when an allowlisted command returns XCTest recorded failure', async () => {
+  const device = { ...IOS_SIMULATOR, id: 'runner-session-skip-xctest-failure-sim' };
+  const session = await ensureRunnerSession(device, {});
+  session.ready = true;
+  session.lastHealthyMutation = { atMs: Date.now() - 1_000, appBundleId: 'com.example.demo' };
+  mockWaitForRunner.mockClear();
+  mockSendRunnerCommandOnce.mockResolvedValueOnce(
+    runnerError({
+      code: 'XCTEST_RECORDED_FAILURE',
+      message: 'XCTest recorded a failure while executing tap.',
+    }),
+  );
+
+  await assert.rejects(
+    () =>
+      executeRunnerCommandWithSession(
+        device,
+        session,
+        { command: 'tap', x: 1, y: 2, appBundleId: 'com.example.demo' },
+        '/tmp/runner.log',
+        30_000,
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'XCTEST_RECORDED_FAILURE');
+      return true;
+    },
+  );
+
+  assert.equal(session.lastHealthyMutation, undefined);
+  assert.equal(getRunnerSessionSnapshot(device.id), null);
 });
 
 function makeRunnerSession(overrides: Partial<RunnerSession> = {}): RunnerSession {

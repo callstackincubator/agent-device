@@ -30,10 +30,24 @@ uses selectors or text queries to find the semantic `XCUIElement`, but when the 
 activation taps the resolved center point instead of calling `XCUIElement.tap()`. tvOS remains
 focus/remote-driven because tvOS does not support normal coordinate input.
 
-Ready runner sessions are probed with a short `uptime` preflight before command send. The daemon
-does not keep or consult a "recent success" health cache. Read-only startup commands still skip that
-preflight because the first successful command is the readiness proof for a newly launched runner.
-Readiness probe commands skip preflight to avoid recursion.
+Ready runner sessions are probed with a short `uptime` preflight before command send. Read-only
+startup commands still skip that preflight because the first successful command is the readiness
+proof for a newly launched runner. Readiness probe commands skip preflight to avoid recursion.
+
+The daemon may additionally skip the ready-session `uptime` preflight for an explicit allowlist of
+mutating interactions (`tap`, `tapSeries`, `longPress`, `drag`, `dragSeries`, `swipe`) when the same
+session produced a healthy mutating response — parsed ok and not carrying `runnerFatal` — for the
+same `appBundleId` within 5 seconds. This recency lives only on the `RunnerSession` object as
+`lastHealthyMutation`, so it dies with every invalidation/restart, and it is recorded only after the
+`runnerFatal` check, so sparse AX-fallback snapshots and `runnerFatal` payloads never refresh it.
+Snapshots and other read-only responses never count as a health signal. This narrow skip is
+permitted now because the future-work precondition below is met: coordinate-first activation removed
+the command-induced teardown trigger, and the lifecycle status journal plus the status-before-
+invalidate recovery is the teardown-surviving status surface that resolves any ambiguous post-send
+failure before invalidation. A transport failure after a skip clears the recency record and is marked
+with the skip context; connection-shaped failures (refused, reset, hung up) run status recovery
+instead of a blind replay, while timeout-shaped failures propagate with the skip context (the same
+classification preflighted sends use).
 
 `uptime` is a direct runner listener probe. It is answered before command journaling, the serial
 command execution queue, app activation, and main-thread XCTest dispatch. It should measure only
@@ -63,9 +77,13 @@ If xcodebuild still exits for another reason, the next command detects the stale
 process/liveness checks and avoids the old 15-second graceful-shutdown wait. The remaining latency is
 fresh xcodebuild runner startup, not a stale transport stall.
 
-The daemon no longer models recent success as a runner-health signal. That adds one cheap `uptime`
-request before ready-session commands, but it removes a false health signal that was observed to be
-unsafe.
+The daemon no longer models a generic "recent success" cache as a runner-health signal. A proven
+healthy mutating response for the same app — recorded only after the `runnerFatal` check and only
+for allowlisted interactions — is now a real end-to-end liveness proof (HTTP listener through to the
+app target), so a hot loop of allowlisted interactions skips the per-command `uptime` request while
+still re-earning each skip from another healthy mutation. The earlier unconditional `uptime` before
+every ready-session command remains the default for non-allowlisted commands and after any
+invalidation, stale record, app-bundle change, or absent record.
 
 Apps with broken accessibility trees may still be impossible for XCTest to inspect deeply, but one
 failed snapshot no longer teaches the runner to keep using a suspect cached app target or to amplify
