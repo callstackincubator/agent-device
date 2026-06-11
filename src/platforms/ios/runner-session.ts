@@ -65,6 +65,7 @@ const PREFLIGHT_SKIP_ELIGIBLE_RUNNER_COMMANDS = new Set<RunnerCommand['command']
   'dragSeries',
   'swipe',
   'scroll',
+  'sequence',
 ]);
 
 type RunnerReadinessPreflightDecision =

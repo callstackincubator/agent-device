@@ -876,6 +876,10 @@ const ALLOWLISTED_MUTATIONS: { name: string; command: Record<string, unknown> }[
   },
   { name: 'swipe', command: { command: 'swipe', x: 1, y: 2, x2: 3, y2: 4 } },
   { name: 'scroll', command: { command: 'scroll', direction: 'down' } },
+  {
+    name: 'sequence',
+    command: { command: 'sequence', steps: [{ kind: 'tap', x: 120, y: 240 }] },
+  },
 ];
 
 for (const { name, command } of ALLOWLISTED_MUTATIONS) {

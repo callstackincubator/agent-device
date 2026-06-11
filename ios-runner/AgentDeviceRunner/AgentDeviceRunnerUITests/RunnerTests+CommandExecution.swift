@@ -17,7 +17,7 @@ extension RunnerTests {
     min(max((durationMs / 5.0) / 1000.0, 0.016), 0.120)
   }
 
-  private func coordinateDragHoldDuration() -> TimeInterval {
+  func coordinateDragHoldDuration() -> TimeInterval {
     0.050
   }
 
@@ -84,7 +84,7 @@ extension RunnerTests {
   ///
   /// NOTE: a new SYNTHESIS gesture must pass `idleTimeout: false` — the default `true` would wrap
   /// it in the scroll idle-timeout/quiescence-skip path and change its runtime behavior.
-  private func performGesture(
+  func performGesture(
     _ app: XCUIApplication,
     idleTimeout: Bool = true,
     _ action: () -> RunnerInteractionOutcome
@@ -969,6 +969,8 @@ extension RunnerTests {
         return response
       }
       return gestureResponse(message: "pinched", timing: timing)
+    case .sequence:
+      return executeSequence(command: command, activeApp: activeApp)
     case .rotateGesture:
       guard let degrees = command.degrees, degrees.isFinite else {
         return Response(ok: false, error: ErrorPayload(message: "rotateGesture requires degrees"))

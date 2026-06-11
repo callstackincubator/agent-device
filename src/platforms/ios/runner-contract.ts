@@ -46,6 +46,7 @@ export type RunnerCommand = {
     | 'keyboardReturn'
     | 'alert'
     | 'pinch'
+    | 'sequence'
     | 'recordStart'
     | 'recordStop'
     | 'status'
@@ -92,10 +93,31 @@ export type RunnerCommand = {
   raw?: boolean;
   fullscreen?: boolean;
   synthesized?: boolean;
+  steps?: RunnerSequenceStep[];
   /**
    * @deprecated Use textEntryMode: 'replace'. Kept for compatibility with older local runner clients.
    */
   clearFirst?: boolean;
+};
+
+/**
+ * One allowlisted coordinate gesture step inside a fused `sequence` runner command.
+ * The kind set is intentionally narrow (tap/longPress/drag) and validated on both the
+ * daemon and runner sides — see runner-sequence.ts (the single interpretation point).
+ */
+export type RunnerSequenceStep = {
+  kind: 'tap' | 'longPress' | 'drag';
+  x: number;
+  y: number;
+  x2?: number;
+  y2?: number;
+  durationMs?: number;
+  pauseMs?: number;
+  /**
+   * For `tap` steps on iOS non-tv: use the synthesized HID tap (synthesizedTapAt) fast path
+   * instead of the drag-based XCUICoordinate tapAt, matching the individual `tap` command.
+   */
+  synthesized?: boolean;
 };
 
 export function isRetryableRunnerError(err: unknown): boolean {

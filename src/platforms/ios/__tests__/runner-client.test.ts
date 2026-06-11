@@ -148,6 +148,14 @@ const runnerProtocolCommandFixtures: Record<RunnerCommand['command'], RunnerComm
   keyboardReturn: { command: 'keyboardReturn' },
   alert: { command: 'alert', action: 'accept' },
   pinch: { command: 'pinch', scale: 0.5 },
+  sequence: {
+    command: 'sequence',
+    steps: [
+      { kind: 'tap', x: 120, y: 240 },
+      { kind: 'longPress', x: 120, y: 240, durationMs: 300 },
+      { kind: 'drag', x: 10, y: 600, x2: 10, y2: 200, durationMs: 250, pauseMs: 50 },
+    ],
+  },
   rotateGesture: { command: 'rotateGesture', degrees: 35, x: 200, y: 420, velocity: 1 },
   transformGesture: {
     command: 'transformGesture',
@@ -380,6 +388,7 @@ test('runner protocol fixtures cover every runner command with JSON-safe samples
     'rotateGesture',
     'screenshot',
     'scroll',
+    'sequence',
     'shutdown',
     'snapshot',
     'status',

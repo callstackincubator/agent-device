@@ -27,6 +27,7 @@ enum CommandType: String, Codable {
   case keyboardReturn
   case alert
   case pinch
+  case sequence
   case rotateGesture
   case transformGesture
   case recordStart
@@ -75,7 +76,7 @@ extension CommandType {
     // .scroll is the fused frame-resolve + drag scroll; same classification as .drag.
     case .tap, .tapSeries, .longPress, .drag, .dragSeries, .remotePress, .type, .swipe, .scroll,
          .back, .backInApp, .backSystem, .rotate, .appSwitcher,
-         .keyboardDismiss, .keyboardReturn, .pinch, .rotateGesture, .transformGesture:
+         .keyboardDismiss, .keyboardReturn, .pinch, .sequence, .rotateGesture, .transformGesture:
       return CommandTraits(isInteraction: true, readOnly: .never, isLifecycle: false)
 
     // Read-only reads: eligible for the session-invalidating retry.
@@ -152,6 +153,34 @@ struct Command: Codable {
   let raw: Bool?
   let fullscreen: Bool?
   let synthesized: Bool?
+  let steps: [SequenceStep]?
+}
+
+/// One allowlisted coordinate gesture step inside a fused `sequence` command.
+/// `kind` is decoded as a raw String (not an enum) so the runner can return a clear
+/// INVALID_ARGS for an unknown kind instead of a generic decode failure.
+struct SequenceStep: Codable {
+  let kind: String
+  let x: Double?
+  let y: Double?
+  let x2: Double?
+  let y2: Double?
+  let durationMs: Double?
+  let pauseMs: Double?
+  /// For `tap` steps on iOS non-tv: use the synthesized HID tap fast path (synthesizedTapAt)
+  /// instead of the drag-based XCUICoordinate tapAt, matching the individual `tap` command.
+  let synthesized: Bool?
+}
+
+/// Per-step result for a `sequence` response. `ok:false` carries the failing step's
+/// errorCode/errorMessage; execution stops at the first failed step.
+struct SequenceStepResult: Codable {
+  let ok: Bool
+  let kind: String
+  let errorCode: String?
+  let errorMessage: String?
+  let gestureStartUptimeMs: Double?
+  let gestureEndUptimeMs: Double?
 }
 
 struct Response: Codable {
@@ -199,6 +228,9 @@ struct DataPayload: Codable {
   let gestureFallbackHint: String?
   let runnerFatal: Bool?
   let runnerFatalReason: String?
+  let completedSteps: Int?
+  let failedStepIndex: Int?
+  let sequenceResults: [SequenceStepResult]?
 
   init(
     message: String? = nil,
@@ -232,7 +264,10 @@ struct DataPayload: Codable {
     gestureFallbackMessage: String? = nil,
     gestureFallbackHint: String? = nil,
     runnerFatal: Bool? = nil,
-    runnerFatalReason: String? = nil
+    runnerFatalReason: String? = nil,
+    completedSteps: Int? = nil,
+    failedStepIndex: Int? = nil,
+    sequenceResults: [SequenceStepResult]? = nil
   ) {
     self.message = message
     self.text = text
@@ -266,6 +301,9 @@ struct DataPayload: Codable {
     self.gestureFallbackHint = gestureFallbackHint
     self.runnerFatal = runnerFatal
     self.runnerFatalReason = runnerFatalReason
+    self.completedSteps = completedSteps
+    self.failedStepIndex = failedStepIndex
+    self.sequenceResults = sequenceResults
   }
 }
 

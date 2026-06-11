@@ -12,12 +12,15 @@ vi.mock('../../platforms/ios/runner-client.ts', async (importOriginal) => {
 
 import {
   handlePanCommand,
+  handlePressCommand,
   handleRotateGestureCommand,
   handleSwipeCommand,
   handleSwipePresetCommand,
   handleTransformGestureCommand,
 } from '../dispatch-interactions.ts';
 import type { Interactor } from '../interactor-types.ts';
+import type { RunnerCommand } from '../../platforms/ios/runner-contract.ts';
+import { AppError } from '../../utils/errors.ts';
 import { ANDROID_EMULATOR, IOS_SIMULATOR } from '../../__tests__/test-utils/device-fixtures.ts';
 
 vi.mock('../../platforms/ios/macos-helper.ts', async (importOriginal) => {
@@ -245,6 +248,246 @@ test('handleRotateGestureCommand routes Android through the interactor', async (
     backend: 'android-multitouch-helper',
     message: 'Rotated gesture 145 degrees',
   });
+});
+
+test('handlePressCommand fuses an iOS jitter series into one sequence runner request', async () => {
+  mockRunIosRunnerCommand.mockResolvedValueOnce({
+    completedSteps: 3,
+    sequenceResults: [
+      { ok: true, kind: 'tap' },
+      { ok: true, kind: 'tap' },
+      { ok: true, kind: 'tap' },
+    ],
+    gestureStartUptimeMs: 100,
+    gestureEndUptimeMs: 260,
+  });
+  const interactor = makeUnusedInteractor();
+
+  const result = await handlePressCommand(IOS_SIMULATOR, interactor, ['100', '200'], {
+    count: 3,
+    jitterPx: 2,
+    intervalMs: 40,
+    appBundleId: 'com.example.App',
+  });
+
+  assert.equal(mockRunIosRunnerCommand.mock.calls.length, 1);
+  const sent = mockRunIosRunnerCommand.mock.calls[0]?.[1] as RunnerCommand;
+  assert.equal(sent.command, 'sequence');
+  assert.equal(sent.appBundleId, 'com.example.App');
+  assert.deepEqual(sent.steps, [
+    { kind: 'tap', x: 100, y: 200, synthesized: true, pauseMs: 40 },
+    { kind: 'tap', x: 102, y: 200, synthesized: true, pauseMs: 40 },
+    { kind: 'tap', x: 100, y: 202, synthesized: true },
+  ]);
+  assert.equal(result.timingMode, 'runner-sequence');
+  assert.equal(result.message, 'Tapped (100, 200)');
+});
+
+test('handlePressCommand fuses an iOS hold series into longPress sequence steps', async () => {
+  mockRunIosRunnerCommand.mockResolvedValueOnce({
+    completedSteps: 3,
+    sequenceResults: [
+      { ok: true, kind: 'longPress' },
+      { ok: true, kind: 'longPress' },
+      { ok: true, kind: 'longPress' },
+    ],
+  });
+  const interactor = makeUnusedInteractor();
+
+  await handlePressCommand(IOS_SIMULATOR, interactor, ['100', '200'], {
+    count: 3,
+    holdMs: 300,
+  });
+
+  assert.equal(mockRunIosRunnerCommand.mock.calls.length, 1);
+  const sent = mockRunIosRunnerCommand.mock.calls[0]?.[1] as RunnerCommand;
+  assert.equal(sent.command, 'sequence');
+  assert.deepEqual(sent.steps, [
+    { kind: 'longPress', x: 100, y: 200, durationMs: 300 },
+    { kind: 'longPress', x: 100, y: 200, durationMs: 300 },
+    { kind: 'longPress', x: 100, y: 200, durationMs: 300 },
+  ]);
+});
+
+test('handlePressCommand maps a failed sequence step to an AppError', async () => {
+  mockRunIosRunnerCommand.mockResolvedValueOnce({
+    completedSteps: 1,
+    failedStepIndex: 1,
+    sequenceResults: [
+      { ok: true, kind: 'tap' },
+      { ok: false, kind: 'tap', errorCode: 'UNSUPPORTED_OPERATION', errorMessage: 'tap blocked' },
+    ],
+  });
+
+  await assert.rejects(
+    () =>
+      handlePressCommand(IOS_SIMULATOR, makeUnusedInteractor(), ['100', '200'], {
+        count: 2,
+        jitterPx: 2,
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'UNSUPPORTED_OPERATION');
+      assert.equal(error.details?.failedStepIndex, 1);
+      return true;
+    },
+  );
+});
+
+test('handlePressCommand rebases a chunk-2 failure to global step/completed indices', async () => {
+  // 25 jittered taps -> 2 chunks of 20/5. Chunk 2 fails at its LOCAL step index 2 (global 22),
+  // having completed 2 of its steps locally (global 22). No chunk 3 must be sent.
+  mockRunIosRunnerCommand
+    .mockResolvedValueOnce({
+      completedSteps: 20,
+      sequenceResults: Array.from({ length: 20 }, () => ({ ok: true, kind: 'tap' })),
+    })
+    .mockResolvedValueOnce({
+      completedSteps: 2,
+      failedStepIndex: 2,
+      sequenceResults: [
+        { ok: true, kind: 'tap' },
+        { ok: true, kind: 'tap' },
+        {
+          ok: false,
+          kind: 'tap',
+          errorCode: 'UNSUPPORTED_OPERATION',
+          errorMessage: 'tap blocked',
+        },
+      ],
+    });
+
+  await assert.rejects(
+    () =>
+      handlePressCommand(IOS_SIMULATOR, makeUnusedInteractor(), ['100', '200'], {
+        count: 25,
+        jitterPx: 2,
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'UNSUPPORTED_OPERATION');
+      assert.equal(error.details?.failedStepIndex, 22);
+      assert.equal(error.details?.completedSteps, 22);
+      assert.equal(error.details?.chunkStepIndex, 2);
+      return true;
+    },
+  );
+
+  // Both chunk requests were sent; the failure stopped chunk 3 from ever being issued.
+  assert.equal(mockRunIosRunnerCommand.mock.calls.length, 2);
+  const chunk1 = mockRunIosRunnerCommand.mock.calls[0]?.[1] as RunnerCommand;
+  const chunk2 = mockRunIosRunnerCommand.mock.calls[1]?.[1] as RunnerCommand;
+  assert.equal(chunk1.command, 'sequence');
+  assert.equal(chunk1.steps?.length, 20);
+  assert.equal(chunk2.command, 'sequence');
+  assert.equal(chunk2.steps?.length, 5);
+});
+
+test('handlePressCommand aggregates completedSteps and gestureEnd across sequence chunks', async () => {
+  // 45 jittered taps -> 3 chunks of 20/20/5. The aggregated result must report all 45 steps
+  // and the LAST chunk's gestureEndUptimeMs, not just the first chunk's.
+  mockRunIosRunnerCommand
+    .mockResolvedValueOnce({
+      completedSteps: 20,
+      sequenceResults: Array.from({ length: 20 }, () => ({ ok: true, kind: 'tap' })),
+      gestureStartUptimeMs: 100,
+      gestureEndUptimeMs: 300,
+      x: 0.5,
+      y: 0.5,
+    })
+    .mockResolvedValueOnce({
+      completedSteps: 20,
+      sequenceResults: Array.from({ length: 20 }, () => ({ ok: true, kind: 'tap' })),
+      gestureStartUptimeMs: 400,
+      gestureEndUptimeMs: 600,
+    })
+    .mockResolvedValueOnce({
+      completedSteps: 5,
+      sequenceResults: Array.from({ length: 5 }, () => ({ ok: true, kind: 'tap' })),
+      gestureStartUptimeMs: 700,
+      gestureEndUptimeMs: 900,
+    });
+
+  const result = await handlePressCommand(IOS_SIMULATOR, makeUnusedInteractor(), ['100', '200'], {
+    count: 45,
+    jitterPx: 2,
+  });
+
+  assert.equal(mockRunIosRunnerCommand.mock.calls.length, 3);
+  assert.equal(result.completedSteps, 45);
+  assert.equal((result.sequenceResults as unknown[]).length, 45);
+  // First chunk frame/start preserved, last chunk end.
+  assert.equal(result.gestureStartUptimeMs, 100);
+  assert.equal(result.gestureEndUptimeMs, 900);
+  assert.equal(result.x, 0.5);
+});
+
+test('handlePressCommand sub-chunks a hold series by estimated duration under the runner watchdog', async () => {
+  // count=20 hold-ms=2000 is ~40s of holds in one chunk -> over the 30s main-thread watchdog.
+  // The duration budget must split it into multiple sub-chunks even though step count <= 20.
+  mockRunIosRunnerCommand.mockResolvedValue({
+    completedSteps: 0,
+    sequenceResults: [],
+  });
+
+  await handlePressCommand(IOS_SIMULATOR, makeUnusedInteractor(), ['100', '200'], {
+    count: 20,
+    holdMs: 2000,
+  });
+
+  assert.ok(
+    mockRunIosRunnerCommand.mock.calls.length > 1,
+    `expected multiple chunks, got ${mockRunIosRunnerCommand.mock.calls.length}`,
+  );
+  // Every chunk's estimated holds + pauses + overhead must stay under the budget.
+  for (const call of mockRunIosRunnerCommand.mock.calls) {
+    const sent = call[1] as RunnerCommand;
+    const steps = sent.steps ?? [];
+    const estimatedMs = steps.reduce(
+      (sum, step) => sum + (step.durationMs ?? 0) + (step.pauseMs ?? 0) + 250,
+      0,
+    );
+    assert.ok(estimatedMs <= 20_000, `chunk estimated ${estimatedMs}ms exceeds budget`);
+  }
+});
+
+test('handlePressCommand count=1 keeps the direct (non-sequence) path on iOS', async () => {
+  const taps: unknown[][] = [];
+  const interactor = {
+    ...makeUnusedInteractor(),
+    tap: async (...args: unknown[]) => {
+      taps.push(args);
+      return undefined;
+    },
+  };
+
+  await handlePressCommand(IOS_SIMULATOR, interactor, ['100', '200'], { count: 1, jitterPx: 2 });
+
+  assert.equal(mockRunIosRunnerCommand.mock.calls.length, 0);
+  assert.deepEqual(taps, [[100, 200]]);
+});
+
+test('handlePressCommand on Android keeps the direct path even with hold', async () => {
+  const longPresses: unknown[][] = [];
+  const interactor = {
+    ...makeUnusedInteractor(),
+    // Returns a non-nullish result: every iteration must still perform its
+    // press even once the kept-first result is set (regression for a `??=`
+    // short-circuit that skipped presses 2..N).
+    longPress: async (...args: unknown[]) => {
+      longPresses.push(args);
+      return { pressed: true };
+    },
+  };
+
+  const result = await handlePressCommand(ANDROID_EMULATOR, interactor, ['100', '200'], {
+    count: 3,
+    holdMs: 200,
+  });
+
+  assert.equal(mockRunIosRunnerCommand.mock.calls.length, 0);
+  assert.equal(longPresses.length, 3);
+  assert.equal(result.pressed, true);
 });
 
 test('handleTransformGestureCommand routes iOS simulator through the interactor', async () => {
