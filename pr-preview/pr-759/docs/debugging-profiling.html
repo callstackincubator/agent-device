@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-759/static/js/lib-react.e84adf13b9.js"></script>
 <script defer src="/agent-device/pr-preview/pr-759/static/js/lib-router.853fe4366e.js"></script>
 <script defer src="/agent-device/pr-preview/pr-759/static/js/56.538ceb78eb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-759/static/js/index.7bcfbc4aa5.js"></script>
+<script defer src="/agent-device/pr-preview/pr-759/static/js/index.aeb02ab6d6.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.12">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -92,9 +92,10 @@
 <ul>
 <li><code>perf metrics</code> returns session-scoped startup and, where supported, CPU, memory, and frame-health samples. Bare <code>perf</code> and <code>metrics</code> remain aliases.</li>
 <li><code>perf frames</code> returns a focused frame/jank-health payload.</li>
-<li><code>perf memory sample</code> returns a compact memory-only payload, preserving the memory metric source used by <code>perf metrics</code>.</li>
+<li><code>perf memory sample</code> returns a compact memory-only payload, preserving the memory metric source used by <code>perf metrics</code>. Prefer it over raw <code>dumpsys</code>/<code>leaks</code> output for first-pass agent diagnosis because it keeps arrays bounded, reports top offenders compactly, and omits unrelated startup/CPU/frame data.</li>
+<li>Example sample shape: <code>{&quot;metrics&quot;:{&quot;memory&quot;:{&quot;available&quot;:true,&quot;totalPssKb&quot;:562958,&quot;totalRssKb&quot;:570304,&quot;topConsumers&quot;:[{&quot;name&quot;:&quot;Dalvik Heap&quot;,&quot;pssKb&quot;:213456}]}}}</code>.</li>
 <li><code>perf memory snapshot</code> escalates to file artifacts. Android supports Java HPROF capture for active app processes when the build/device allows heap dumping. iOS simulator and macOS app sessions support memgraph capture through host-visible process tooling; physical iOS device memgraph capture reports unavailable with a hint instead of pretending support.</li>
-<li>Heap and memgraph artifacts are returned as paths plus compact metadata. They are not printed or embedded in JSON by default. heapprofd/native allocation tracing is deferred until Perfetto plumbing is available.</li>
+<li>Heap and memgraph artifacts are returned as paths plus compact metadata. Example default output: <code>Memory artifact (android-hprof): /tmp/app.hprof (42MB)</code>. They are not printed or embedded in JSON by default. heapprofd/native allocation tracing is deferred until Perfetto plumbing is available.</li>
 <li>Startup is measured around the <code>open</code> command; it is not first-frame instrumentation.</li>
 <li>CPU, memory, and Android frame-health availability depend on platform and whether the active session is bound to an app/package.</li>
 <li>On Android and supported Apple targets, use <code>metrics.fps.droppedFramePercent</code> for the health check and <code>metrics.fps.worstWindows</code> to line up jank clusters with logs, network activity, or recent actions.</li>
