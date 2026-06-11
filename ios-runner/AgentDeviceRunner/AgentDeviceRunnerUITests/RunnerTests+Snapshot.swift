@@ -390,9 +390,6 @@ extension RunnerTests {
     return DataPayload(nodes: nodes, truncated: truncated)
   }
 
-  // A tree of only structural containers with no content or hittable control is the signature of
-  // a sparse snapshot: the public XCUIElement.snapshot() API collapses the subtree (common on
-  // React Native) while XCUIElementQuery still resolves the underlying controls.
   private func snapshotNodesAreDegenerate(_ nodes: [SnapshotNode]) -> Bool {
     guard !nodes.isEmpty else { return false }
     for node in nodes {
@@ -405,8 +402,6 @@ extension RunnerTests {
     return true
   }
 
-  // Recovers a sparse snapshot via the query-based flat traversal (the same XCUIElementQuery path
-  // collapsedTabFallbackNodes uses). Returns nil when queries see nothing more than the sparse tree.
   private func snapshotQueryRecovery(
     app: XCUIApplication,
     options: SnapshotOptions
