@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-755/static/js/lib-react.e84adf13b9.js"></script>
 <script defer src="/agent-device/pr-preview/pr-755/static/js/lib-router.853fe4366e.js"></script>
 <script defer src="/agent-device/pr-preview/pr-755/static/js/56.538ceb78eb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-755/static/js/index.5a3811d8a3.js"></script>
+<script defer src="/agent-device/pr-preview/pr-755/static/js/index.774a850507.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.12">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -165,6 +165,8 @@
 stdout/stderr. The option mirrors <code>open --launch-console</code> and is not valid for URL opens or non-simulator targets.</p>
 <p>When surfacing Apple simulators, <code>client.apps.open({ noDeviceHub: true })</code> mirrors <code>open --no-device-hub</code> and forces the standalone Simulator app
 instead of Xcode Device Hub.</p>
+<p><code>client.sessions.stateDir()</code> mirrors <code>session state-dir</code> and returns the resolved daemon state directory as a pure local resolution — it never starts
+or contacts the daemon. Pass <code>{ stateDir }</code> to resolve an explicit override the same way the CLI resolves <code>--state-dir</code>.</p>
 <h2 class="rp-toc-include" id="android-snapshot-helper-providers"><a href="#android-snapshot-helper-providers" class="rp-header-anchor rp-link" aria-hidden="true">#</a>Android snapshot helper providers</h2>
 <p>Remote Android providers should import <code>agent-device/android-snapshot-helper</code> and inject their own
 ADB-shaped executor. The executor receives arguments after <code>adb</code>, so local callers may wrap

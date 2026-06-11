@@ -119,6 +119,9 @@ stdout/stderr. The option mirrors `open --launch-console` and is not valid for U
 When surfacing Apple simulators, `client.apps.open({ noDeviceHub: true })` mirrors `open --no-device-hub` and forces the standalone Simulator app
 instead of Xcode Device Hub.
 
+`client.sessions.stateDir()` mirrors `session state-dir` and returns the resolved daemon state directory as a pure local resolution — it never starts
+or contacts the daemon. Pass `{ stateDir }` to resolve an explicit override the same way the CLI resolves `--state-dir`.
+
 ## Android snapshot helper providers
 
 Remote Android providers should import `agent-device/android-snapshot-helper` and inject their own
