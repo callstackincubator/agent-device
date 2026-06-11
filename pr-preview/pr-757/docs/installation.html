@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-757/static/js/lib-react.e84adf13b9.js"></script>
 <script defer src="/agent-device/pr-preview/pr-757/static/js/lib-router.853fe4366e.js"></script>
 <script defer src="/agent-device/pr-preview/pr-757/static/js/56.538ceb78eb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-757/static/js/index.75fd551eaa.js"></script>
+<script defer src="/agent-device/pr-preview/pr-757/static/js/index.6646b60a69.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.12">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -76,7 +76,9 @@
 <li><code>&lt;state-dir&gt;/daemon.json</code></li>
 <li><code>&lt;state-dir&gt;/daemon.lock</code></li>
 <li>default state dir is <code>~/.agent-device</code> for packaged installs; source checkouts default to a worktree-scoped dir under <code>~/.agent-device/dev/</code> unless <code>AGENT_DEVICE_STATE_DIR</code> or <code>--state-dir</code> is set</li>
+<li><code>agent-device session state-dir</code> prints the resolved state dir without starting the daemon</li>
 <li>after pulling the worktree-scoped daemon change in a source checkout, stop any legacy default daemon once with <code>AGENT_DEVICE_STATE_DIR=~/.agent-device pnpm clean:daemon</code></li>
+<li>worktree-scoped state dirs outlive deleted worktrees; <code>pnpm clean:daemon --prune-dev</code> removes dirs under <code>~/.agent-device/dev/</code> with no live daemon and no activity for 14 days (one line printed per removed dir)</li>
 </ul>
 </li>
 </ul><!--/$--></div><div class="container-uhcWmO"><img class="logo-IwzwG8" src="/agent-device/pr-preview/pr-757/static/image/abstract-atom.4eca0300ff.avif" alt="Abstract Logo" aria-hidden="true"/><div class="content-uJxcIj"><div class="headlineContainer-NHNT4y"><h1 class="headline-iCUUUl">Need React or React Native
