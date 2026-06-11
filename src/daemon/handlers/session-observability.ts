@@ -6,10 +6,13 @@ import {
   PERF_ACTION_ERROR_MESSAGE,
   PERF_AREA_ERROR_MESSAGE,
   PERF_MEMORY_KIND_ERROR_MESSAGE,
+  type PerfAction,
+  type PerfArea,
+  type PerfMemoryKind,
 } from '../../contracts/perf.ts';
 import { AppError, normalizeError } from '../../utils/errors.ts';
 import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
-import type { DaemonRequest, DaemonResponse, SessionState } from '../types.ts';
+import type { DaemonRequest, DaemonResponse, DaemonResponseData, SessionState } from '../types.ts';
 import { SessionStore } from '../session-store.ts';
 import {
   appendAppLogMarker,
@@ -33,7 +36,6 @@ import {
   LOG_ACTION_VALUES as LOG_ACTIONS,
   type LogAction as LogsAction,
 } from '../../contracts/logs.ts';
-import type { PerfMemoryKind } from '../../contracts/perf.ts';
 
 const LOG_ACTIONS_MESSAGE = `logs requires ${LOG_ACTIONS.slice(0, -1).join(', ')}, or ${LOG_ACTIONS.at(-1)}`;
 const NETWORK_ACTIONS = ['dump', 'log'] as const;
@@ -95,59 +97,93 @@ export async function handleSessionObservabilityCommands(
 // ---------------------------------------------------------------------------
 
 async function handlePerfCommand(params: ObservabilityParams): Promise<DaemonResponse> {
-  const { req, sessionName, sessionStore, androidAdbExecutor } = params;
+  const { req, sessionName, sessionStore } = params;
   const session = sessionStore.get(sessionName);
   if (!session) {
     return errorResponse('SESSION_NOT_FOUND', 'perf requires an active session. Run open first.');
   }
 
-  const area = (req.positionals?.[0] ?? 'metrics').toLowerCase();
-  const action = (req.positionals?.[1] ?? 'sample').toLowerCase();
-  if (!isPerfArea(area)) {
+  const request = resolvePerfCommandRequest(req);
+  if (!request.ok) return request;
+
+  try {
+    return {
+      ok: true,
+      data: await buildPerfCommandData(params, session, request),
+    };
+  } catch (error) {
+    return { ok: false, error: normalizeError(error) };
+  }
+}
+
+type PerfCommandRequest = {
+  ok: true;
+  area: PerfArea;
+  action: PerfAction;
+  kind?: PerfMemoryKind;
+  out?: string;
+};
+
+function resolvePerfCommandRequest(req: DaemonRequest): PerfCommandRequest | DaemonFailureResponse {
+  const area = readPerfArea(req.positionals?.[0]);
+  if (!area) {
     return errorResponse('INVALID_ARGS', PERF_AREA_ERROR_MESSAGE);
   }
-  if (!isPerfAction(action)) {
+
+  const action = readPerfAction(req.positionals?.[1]);
+  if (!action) {
     return errorResponse('INVALID_ARGS', PERF_ACTION_ERROR_MESSAGE);
   }
-  if (action === 'snapshot' && area !== 'memory') {
-    return errorResponse('INVALID_ARGS', 'perf snapshot is only supported under perf memory');
-  }
-  if (action === 'sample' && req.flags?.out) {
-    return errorResponse('INVALID_ARGS', '--out is only supported with perf memory snapshot');
-  }
+
   const kindResult = readPerfMemoryKind(req.flags?.kind);
   if (kindResult instanceof AppError) {
     return { ok: false, error: normalizeError(kindResult) };
   }
   const kind = kindResult;
-  if (kind && area !== 'memory') {
-    return errorResponse('INVALID_ARGS', '--kind is only supported with perf memory snapshot');
-  }
-  if (kind && action !== 'snapshot') {
-    return errorResponse('INVALID_ARGS', '--kind is only supported with perf memory snapshot');
-  }
+  const validationError =
+    validatePerfAreaAction(area, action) ?? validatePerfFlags(req, area, action, kind);
+  if (validationError) return validationError;
 
-  try {
-    return {
-      ok: true,
-      data:
-        area === 'memory'
-          ? await buildPerfMemoryResponseData(session, {
-              action: action as 'sample' | 'snapshot',
-              kind,
-              out: readOptionalStringFlag(req.flags?.out),
-              cwd: req.meta?.cwd,
-              sessionName,
-              sessionStore,
-              androidAdb: androidAdbExecutor,
-            })
-          : area === 'frames'
-            ? await buildPerfFramesResponseData(session, { androidAdb: androidAdbExecutor })
-            : await buildPerfResponseData(session, { androidAdb: androidAdbExecutor }),
-    };
-  } catch (error) {
-    return { ok: false, error: normalizeError(error) };
+  return {
+    ok: true,
+    area,
+    action,
+    kind,
+    out: readOptionalStringFlag(req.flags?.out),
+  };
+}
+
+async function buildPerfCommandData(
+  params: ObservabilityParams,
+  session: SessionState,
+  request: PerfCommandRequest,
+): Promise<DaemonResponseData> {
+  const { sessionName, sessionStore, androidAdbExecutor } = params;
+  if (request.area === 'memory') {
+    return await buildPerfMemoryResponseData(session, {
+      action: request.action,
+      kind: request.kind,
+      out: request.out,
+      cwd: params.req.meta?.cwd,
+      sessionName,
+      sessionStore,
+      androidAdb: androidAdbExecutor,
+    });
   }
+  if (request.area === 'frames') {
+    return await buildPerfFramesResponseData(session, { androidAdb: androidAdbExecutor });
+  }
+  return await buildPerfResponseData(session, { androidAdb: androidAdbExecutor });
+}
+
+function readPerfArea(value: unknown): PerfArea | undefined {
+  const area = (value ?? 'metrics').toString().toLowerCase();
+  return isPerfArea(area) ? area : undefined;
+}
+
+function readPerfAction(value: unknown): PerfAction | undefined {
+  const action = (value ?? 'sample').toString().toLowerCase();
+  return isPerfAction(action) ? action : undefined;
 }
 
 function readPerfMemoryKind(value: unknown): PerfMemoryKind | undefined | AppError {
@@ -156,6 +192,37 @@ function readPerfMemoryKind(value: unknown): PerfMemoryKind | undefined | AppErr
     return new AppError('INVALID_ARGS', PERF_MEMORY_KIND_ERROR_MESSAGE);
   }
   return value;
+}
+
+function validatePerfAreaAction(
+  area: PerfArea,
+  action: PerfAction,
+): DaemonFailureResponse | undefined {
+  if (action !== 'snapshot' || area === 'memory') return undefined;
+  return errorResponse('INVALID_ARGS', 'perf snapshot is only supported under perf memory');
+}
+
+function validatePerfFlags(
+  req: DaemonRequest,
+  area: PerfArea,
+  action: PerfAction,
+  kind: PerfMemoryKind | undefined,
+): DaemonFailureResponse | undefined {
+  return validatePerfOutFlag(req.flags?.out, action) ?? validatePerfKindFlag(kind, area, action);
+}
+
+function validatePerfOutFlag(out: unknown, action: PerfAction): DaemonFailureResponse | undefined {
+  if (action !== 'sample' || !out) return undefined;
+  return errorResponse('INVALID_ARGS', '--out is only supported with perf memory snapshot');
+}
+
+function validatePerfKindFlag(
+  kind: PerfMemoryKind | undefined,
+  area: PerfArea,
+  action: PerfAction,
+): DaemonFailureResponse | undefined {
+  if (!kind || (area === 'memory' && action === 'snapshot')) return undefined;
+  return errorResponse('INVALID_ARGS', '--kind is only supported with perf memory snapshot');
 }
 
 function readOptionalStringFlag(value: unknown): string | undefined {

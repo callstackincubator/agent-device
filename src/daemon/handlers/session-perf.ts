@@ -1,7 +1,6 @@
 import path from 'node:path';
 import type { SessionAction, SessionState } from '../types.ts';
-import { normalizeError } from '../../utils/errors.ts';
-import { AppError } from '../../utils/errors.ts';
+import { AppError, normalizeError } from '../../utils/errors.ts';
 import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
 import {
   ANDROID_HPROF_SNAPSHOT_DESCRIPTION,

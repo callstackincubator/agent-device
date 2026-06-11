@@ -288,28 +288,37 @@ function resolveAndroidHeapDumpHint(stdout: string, stderr: string): string {
 }
 
 function parseAndroidMemInfoTopConsumers(stdout: string): AndroidMemoryConsumer[] | undefined {
-  const consumers: AndroidMemoryConsumer[] = [];
-  for (const rawLine of stdout.split('\n')) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('**') || line.startsWith('-') || line.includes(':')) continue;
-    if (
-      /^(pss|total|native|dalvik|unknown|app summary\b)/i.test(line) &&
-      !/^\S.+\s+\d/.test(line)
-    ) {
-      continue;
-    }
-    const match = line.match(/^(.+?)\s+([0-9][0-9,]*(?:\(\d+\))?)(?:\s|$)/);
-    if (!match) continue;
-    const name = match[1]?.trim();
-    const pssKb = match[2] ? parseNumericToken(match[2]) : null;
-    if (!name || name === 'TOTAL' || pssKb === null || pssKb <= 0) continue;
-    if (/^(pss|private|shared|heap|size|alloc|free)$/i.test(name)) continue;
-    consumers.push({ name, pssKb });
-  }
+  const consumers = stdout.split('\n').flatMap((line) => readAndroidMemInfoConsumer(line) ?? []);
   const topConsumers = consumers
     .sort((left, right) => right.pssKb - left.pssKb)
     .slice(0, ANDROID_MEMORY_TOP_CONSUMER_LIMIT);
   return topConsumers.length > 0 ? topConsumers : undefined;
+}
+
+function readAndroidMemInfoConsumer(rawLine: string): AndroidMemoryConsumer | undefined {
+  const line = rawLine.trim();
+  if (shouldSkipAndroidMemInfoConsumerLine(line)) return undefined;
+  const match = line.match(/^(.+?)\s+([0-9][0-9,]*(?:\(\d+\))?)(?:\s|$)/);
+  if (!match) return undefined;
+  return buildAndroidMemInfoConsumer(match[1], match[2]);
+}
+
+function shouldSkipAndroidMemInfoConsumerLine(line: string): boolean {
+  if (!line || line.startsWith('**') || line.startsWith('-') || line.includes(':')) return true;
+  const looksLikeDataRow = /^\S.+\s+\d/.test(line);
+  const isHeaderRow = /^(pss|total|native|dalvik|unknown|app summary\b)/i.test(line);
+  return isHeaderRow && !looksLikeDataRow;
+}
+
+function buildAndroidMemInfoConsumer(
+  rawName: string | undefined,
+  rawPssKb: string | undefined,
+): AndroidMemoryConsumer | undefined {
+  const name = rawName?.trim();
+  const pssKb = rawPssKb ? parseNumericToken(rawPssKb) : null;
+  if (!name || name === 'TOTAL' || pssKb === null || pssKb <= 0) return undefined;
+  if (/^(pss|private|shared|heap|size|alloc|free)$/i.test(name)) return undefined;
+  return { name, pssKb };
 }
 
 function annotateAndroidPerfSamplingError(
