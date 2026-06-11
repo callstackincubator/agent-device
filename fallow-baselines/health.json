@@ -156,12 +156,27 @@
         "count": 2
       }
     },
-    "src/daemon-client.ts": {
+    "src/daemon-client-lifecycle.ts": {
       "complexity_moderate": {
-        "count": 5
+        "count": 1
       },
       "crap_moderate": {
-        "count": 5
+        "count": 1
+      }
+    },
+    "src/daemon-client-metadata.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/daemon-client-rpc.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/daemon-client.ts": {
+      "complexity_moderate": {
+        "count": 2
       }
     },
     "src/daemon/__tests__/network-log.test.ts": {
