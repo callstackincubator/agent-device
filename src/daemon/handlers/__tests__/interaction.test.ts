@@ -935,6 +935,67 @@ test('press coordinates appends touch-visualization events while recording', asy
   }
 });
 
+test('press coordinates on iOS recording captures a non-compact snapshot for the touch reference frame', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-direct-press-frame';
+  const session = makeSession(sessionName);
+  session.snapshot = undefined;
+  session.recording = {
+    platform: 'ios',
+    outPath: '/tmp/demo.mp4',
+    startedAt: Date.now() - 1_000,
+    showTouches: true,
+    gestureEvents: [],
+    child: { kill: () => {} } as any,
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockResolvedValue({ x: 220, y: 600 });
+  // Regression: a compact snapshot has no Application/Window node, so viewport inference would
+  // return a leaf-element bounding box and the recording overlay would misplace tap markers.
+  mockCaptureSnapshotForSession.mockResolvedValueOnce({
+    nodes: attachRefs([
+      {
+        index: 0,
+        type: 'XCUIElementTypeApplication',
+        rect: { x: 0, y: 0, width: 440, height: 956 },
+      },
+      {
+        index: 1,
+        type: 'XCUIElementTypeCell',
+        rect: { x: 16, y: 156, width: 370, height: 52 },
+        hittable: true,
+      },
+    ]),
+    createdAt: Date.now(),
+    backend: 'xctest',
+  });
+
+  const response = await handleInteractionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'press',
+      positionals: ['220', '600'],
+      flags: {},
+    },
+    sessionName,
+    sessionStore,
+    contextFromFlags,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockCaptureSnapshotForSession.mock.calls[0]?.[4]).toEqual({
+    interactiveOnly: true,
+    compact: false,
+  });
+  const event = sessionStore.get(sessionName)?.recording?.gestureEvents[0];
+  expect(event?.kind).toBe('tap');
+  expect(event?.referenceWidth).toBe(440);
+  expect(event?.referenceHeight).toBe(956);
+});
+
 test('press coordinates on Android recording uses physical screen size when no snapshot exists', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'android-direct-press-frame';
