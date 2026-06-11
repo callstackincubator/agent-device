@@ -1,0 +1,133 @@
+import type { RecordOptions } from '../../client-types.ts';
+import { AppError } from '../../utils/errors.ts';
+import type { CommandSchemaOverride } from '../../utils/cli-command-schema-types.ts';
+import { defineExecutableCommand } from '../command-contract.ts';
+import {
+  booleanField,
+  enumField,
+  integerField,
+  integerSchema,
+  jsonSchemaField,
+  requiredField,
+  stringField,
+} from '../command-input.ts';
+import { defineFieldCommandMetadata } from '../field-command-contract.ts';
+import { commonInputFromFlags, direct, optionalString } from '../cli-grammar/common.ts';
+import type { CliReader, DaemonWriter } from '../cli-grammar/types.ts';
+
+export const RECORD_COMMAND_NAME = 'record';
+export const TRACE_COMMAND_NAME = 'trace';
+export const RECORDING_ACTION_VALUES = ['start', 'stop'] as const;
+
+export const recordCommandDescription = 'Start or stop screen recording.';
+export const traceCommandDescription = 'Start or stop trace capture.';
+
+export const recordingCommandDescriptions = {
+  [RECORD_COMMAND_NAME]: recordCommandDescription,
+  [TRACE_COMMAND_NAME]: traceCommandDescription,
+} as const;
+
+export const recordCommandMetadata = defineFieldCommandMetadata(
+  RECORD_COMMAND_NAME,
+  recordCommandDescription,
+  {
+    action: requiredField(enumField(RECORDING_ACTION_VALUES)),
+    path: stringField(),
+    fps: integerField(),
+    quality: jsonSchemaField<RecordOptions['quality']>(integerSchema()),
+    hideTouches: booleanField(),
+  },
+);
+
+export const traceCommandMetadata = defineFieldCommandMetadata(
+  TRACE_COMMAND_NAME,
+  traceCommandDescription,
+  {
+    action: requiredField(enumField(RECORDING_ACTION_VALUES)),
+    path: stringField(),
+  },
+);
+
+export const recordingCommandMetadata = [recordCommandMetadata, traceCommandMetadata] as const;
+
+export const recordCommandDefinition = defineExecutableCommand(
+  recordCommandMetadata,
+  (client, input) => client.recording.record(input as RecordOptions),
+);
+
+export const traceCommandDefinition = defineExecutableCommand(
+  traceCommandMetadata,
+  (client, input) => client.recording.trace(input),
+);
+
+export const recordingCommandDefinitions = [
+  recordCommandDefinition,
+  traceCommandDefinition,
+] as const;
+
+export const recordCliSchema = {
+  usageOverride:
+    'record start [path] [--fps <n>] [--quality <5-10>] [--hide-touches] | record stop',
+  listUsageOverride: 'record start [path] | record stop',
+  helpDescription:
+    'Start/stop screen recording; Android recordings longer than the 180s adb screenrecord limit are returned as multiple MP4 chunks',
+  summary: 'Start or stop screen recording',
+  positionalArgs: ['start|stop', 'path?'],
+  allowedFlags: ['fps', 'quality', 'hideTouches'],
+} as const satisfies CommandSchemaOverride;
+
+export const traceCliSchema = {
+  usageOverride: 'trace start <path> | trace stop <path>',
+  listUsageOverride: 'trace start <path> | trace stop <path>',
+  helpDescription:
+    'Start/stop trace log capture; when an artifact path is requested, pass the same positional path to start and stop',
+  summary: 'Start or stop trace capture',
+  positionalArgs: ['start|stop', 'path?'],
+} as const satisfies CommandSchemaOverride;
+
+export const recordingCliSchemas = {
+  [RECORD_COMMAND_NAME]: recordCliSchema,
+  [TRACE_COMMAND_NAME]: traceCliSchema,
+} as const satisfies Record<string, CommandSchemaOverride>;
+
+export const recordCliReader: CliReader = (positionals, flags) => ({
+  ...commonInputFromFlags(flags),
+  action: readRecordingAction(positionals[0], RECORD_COMMAND_NAME),
+  path: positionals[1],
+  fps: flags.fps,
+  quality: flags.quality as RecordOptions['quality'],
+  hideTouches: flags.hideTouches,
+});
+
+export const traceCliReader: CliReader = (positionals, flags) => ({
+  ...commonInputFromFlags(flags),
+  action: readRecordingAction(positionals[0], TRACE_COMMAND_NAME),
+  path: positionals[1],
+});
+
+export const recordingCliReaders = {
+  record: recordCliReader,
+  trace: traceCliReader,
+} satisfies Record<string, CliReader>;
+
+export const recordDaemonWriter: DaemonWriter = direct(RECORD_COMMAND_NAME, (input) =>
+  recordingPositionals(input as RecordOptions),
+);
+
+export const traceDaemonWriter: DaemonWriter = direct(TRACE_COMMAND_NAME, (input) =>
+  recordingPositionals(input as RecordOptions),
+);
+
+export const recordingDaemonWriters = {
+  record: recordDaemonWriter,
+  trace: traceDaemonWriter,
+} satisfies Record<string, DaemonWriter>;
+
+function recordingPositionals(input: RecordOptions): string[] {
+  return [input.action, ...optionalString(input.path)];
+}
+
+function readRecordingAction(value: string | undefined, command: string): 'start' | 'stop' {
+  if (value === 'start' || value === 'stop') return value;
+  throw new AppError('INVALID_ARGS', `${command} requires start|stop`);
+}

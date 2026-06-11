@@ -1,24 +1,30 @@
 import type { CliFlags } from '../../utils/cli-flags.ts';
-import { appCliReaders } from './apps.ts';
-import { captureCliReaders } from './capture.ts';
+import { captureCliReaders } from '../capture/index.ts';
 import { commonInputFromFlags } from './common.ts';
-import { gestureCliReaders } from './gesture.ts';
-import { interactionCliReaders } from './interactions.ts';
-import { metroCliReaders } from './metro.ts';
-import { observabilityCliReaders } from './observability.ts';
-import { replayCliReaders } from './replay.ts';
-import { selectorCliReaders } from './selectors.ts';
-import { systemCliReaders } from './system.ts';
 import type { CliReader } from './types.ts';
 import type { CommandName } from '../command-metadata.ts';
+import {
+  gestureCliReaders,
+  interactionCliReaders,
+  selectorCliReaders as interactionSelectorCliReaders,
+} from '../interaction/index.ts';
+import { appCliReaders } from '../management/index.ts';
+import { metroCliReaders } from '../metro/index.ts';
+import { observabilityCliReaders } from '../observability/index.ts';
+import { reactNativeCliReaders } from '../react-native/index.ts';
+import { recordingCliReaders } from '../recording/index.ts';
+import { replayCliReaders } from '../replay/index.ts';
+import { systemCliReaders } from '../system/index.ts';
 
 const cliReaders = {
   ...appCliReaders,
   ...captureCliReaders,
   ...interactionCliReaders,
   ...gestureCliReaders,
-  ...selectorCliReaders,
+  ...interactionSelectorCliReaders,
   ...observabilityCliReaders,
+  ...reactNativeCliReaders,
+  ...recordingCliReaders,
   ...replayCliReaders,
   ...systemCliReaders,
   ...metroCliReaders,

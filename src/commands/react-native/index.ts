@@ -1,0 +1,63 @@
+import { AppError } from '../../utils/errors.ts';
+import type { CommandSchemaOverride } from '../../utils/cli-command-schema-types.ts';
+import { defineExecutableCommand } from '../command-contract.ts';
+import { enumField, requiredField } from '../command-input.ts';
+import { defineFieldCommandMetadata } from '../field-command-contract.ts';
+import { commonInputFromFlags, direct, requiredDaemonString } from '../cli-grammar/common.ts';
+import type { CliReader, DaemonWriter } from '../cli-grammar/types.ts';
+
+export const REACT_NATIVE_COMMAND_NAME = 'react-native';
+export const REACT_NATIVE_ACTION_VALUES = ['dismiss-overlay'] as const;
+
+export const reactNativeCommandDescription = 'Run supported React Native app automation helpers.';
+
+export const reactNativeCommandDescriptions = {
+  [REACT_NATIVE_COMMAND_NAME]: reactNativeCommandDescription,
+} as const;
+
+export const reactNativeCommandMetadata = defineFieldCommandMetadata(
+  REACT_NATIVE_COMMAND_NAME,
+  reactNativeCommandDescription,
+  {
+    action: requiredField(enumField(REACT_NATIVE_ACTION_VALUES)),
+  },
+);
+
+export const reactNativeCommandDefinition = defineExecutableCommand(
+  reactNativeCommandMetadata,
+  (client, input) => client.command.reactNative(input),
+);
+
+export const reactNativeCliSchema = {
+  usageOverride: 'react-native dismiss-overlay',
+  listUsageOverride: 'react-native dismiss-overlay',
+  positionalArgs: ['dismiss-overlay'],
+} as const satisfies CommandSchemaOverride;
+
+export const reactNativeCliSchemas = {
+  [REACT_NATIVE_COMMAND_NAME]: reactNativeCliSchema,
+} as const satisfies Record<string, CommandSchemaOverride>;
+
+export const reactNativeCliReader: CliReader = (positionals, flags) => ({
+  ...commonInputFromFlags(flags),
+  action: readReactNativeAction(positionals[0]),
+});
+
+export const reactNativeCliReaders = {
+  'react-native': reactNativeCliReader,
+} satisfies Record<string, CliReader>;
+
+export const reactNativeDaemonWriter: DaemonWriter = direct(REACT_NATIVE_COMMAND_NAME, (input) => [
+  requiredDaemonString(input.action, 'react-native requires action'),
+]);
+
+export const reactNativeDaemonWriters = {
+  'react-native': reactNativeDaemonWriter,
+} satisfies Record<string, DaemonWriter>;
+
+function readReactNativeAction(value: string | undefined): 'dismiss-overlay' {
+  if (value === 'dismiss-overlay') return value;
+  throw new AppError('INVALID_ARGS', 'react-native supports only: dismiss-overlay');
+}
+
+export * from './overlay.ts';

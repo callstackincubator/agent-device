@@ -2,7 +2,7 @@ import type { AgentDeviceClient } from '../client-types.ts';
 import { createBatchCommand } from './batch-command.ts';
 import { clientCommandDefinitions } from './client-command-contracts.ts';
 import type { JsonSchema } from './command-contract.ts';
-import { interactionCommandDefinitions } from './interaction-command-contracts.ts';
+import { interactionCommandDefinitions } from './interaction/index.ts';
 import { batchCommandNames, type BatchCommandName } from './command-projection.ts';
 import type { CommandName } from './command-metadata.ts';
 

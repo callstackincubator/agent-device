@@ -27,8 +27,8 @@ import {
   repeatedInputFromFlags,
   selectorSnapshotInputFromFlags,
   targetInputFromClientTarget,
-} from './common.ts';
-import type { CliReader, DaemonWriter, CommandInput } from './types.ts';
+} from '../cli-grammar/common.ts';
+import type { CliReader, DaemonWriter, CommandInput } from '../cli-grammar/types.ts';
 
 export const interactionCliReaders = {
   click: (positionals, flags) => ({

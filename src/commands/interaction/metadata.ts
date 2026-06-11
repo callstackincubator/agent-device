@@ -1,6 +1,5 @@
-import { requireCommandDescription } from './command-descriptions.ts';
-import { defineCommandMetadata } from './command-contract.ts';
-import { GESTURE_KINDS } from '../command-catalog.ts';
+import { defineCommandMetadata } from '../command-contract.ts';
+import { GESTURE_KINDS } from '../../command-catalog.ts';
 import {
   booleanField,
   elementTargetField,
@@ -25,18 +24,18 @@ import {
   type CommonCommandInput,
   type InferCommandInput,
   type PointInput,
-} from './command-input.ts';
-import { defineFieldCommandMetadata } from './field-command-contract.ts';
-import { CLICK_BUTTONS } from '../core/click-button.ts';
+} from '../command-input.ts';
+import { defineFieldCommandMetadata } from '../field-command-contract.ts';
+import { CLICK_BUTTONS } from '../../core/click-button.ts';
 import {
   SCROLL_DIRECTIONS,
   SWIPE_PATTERNS,
   SWIPE_PRESETS,
   type ScrollDirection,
   type SwipePreset,
-} from '../core/scroll-gesture.ts';
-import { SCROLL_INPUT_DIRECTIONS } from './interaction-gestures.ts';
-import { FIND_LOCATORS } from '../utils/finders.ts';
+} from '../../core/scroll-gesture.ts';
+import { SCROLL_INPUT_DIRECTIONS } from '../interaction-gestures.ts';
+import { FIND_LOCATORS } from '../../utils/finders.ts';
 
 const FIND_ACTION_VALUES = [
   'click',
@@ -48,6 +47,23 @@ const FIND_ACTION_VALUES = [
   'fill',
   'type',
 ] as const;
+
+export const interactionCommandDescriptions = {
+  click: 'Click or tap a semantic UI target by ref, selector, or point.',
+  press: 'Press a semantic UI target by ref, selector, or point.',
+  fill: 'Fill text into a semantic UI target by ref, selector, or point.',
+  longpress: 'Long press by ref, selector, or point.',
+  swipe: 'Swipe between two points.',
+  focus: 'Focus input at coordinates.',
+  type: 'Type text in the focused field.',
+  scroll: 'Scroll in a direction or to an edge.',
+  get: 'Get element text or attributes.',
+  is: 'Assert UI state.',
+  find: 'Find an element and optionally act on it.',
+  gesture: 'Run a structured gesture.',
+} as const;
+
+type InteractionCommandName = keyof typeof interactionCommandDescriptions;
 
 const clickFields = {
   target: requiredField(interactionTargetField()),
@@ -200,19 +216,19 @@ export type GestureInput =
 export const interactionCommandMetadata = [
   defineCommandMetadata({
     name: 'click',
-    description: requireCommandDescription('click'),
+    description: interactionCommandDescriptions.click,
     inputSchema: fieldsInputSchema(clickFields),
     readInput: (input) => readFieldInput(input, clickFields),
   }),
   defineCommandMetadata({
     name: 'press',
-    description: requireCommandDescription('press'),
+    description: interactionCommandDescriptions.press,
     inputSchema: fieldsInputSchema(pressFields),
     readInput: (input) => readFieldInput(input, pressFields),
   }),
   defineCommandMetadata({
     name: 'fill',
-    description: requireCommandDescription('fill'),
+    description: interactionCommandDescriptions.fill,
     inputSchema: fieldsInputSchema(fillFields),
     readInput: (input) => readFieldInput(input, fillFields),
   }),
@@ -226,7 +242,7 @@ export const interactionCommandMetadata = [
   defineInteractionCommandMetadata('find', findFields),
   defineCommandMetadata({
     name: 'gesture',
-    description: requireCommandDescription('gesture'),
+    description: interactionCommandDescriptions.gesture,
     inputSchema: fieldsInputSchema(gestureFields),
     readInput: readGestureInput,
   }),
@@ -292,10 +308,10 @@ function readGestureInput(input: unknown): GestureInput {
 }
 
 function defineInteractionCommandMetadata<
-  const TName extends string,
+  const TName extends InteractionCommandName,
   const TFields extends CommandFieldMap,
 >(name: TName, fields: TFields) {
-  return defineFieldCommandMetadata(name, requireCommandDescription(name), fields);
+  return defineFieldCommandMetadata(name, interactionCommandDescriptions[name], fields);
 }
 
 function optionalPoint(record: Record<string, unknown>, key: string): PointInput | undefined {

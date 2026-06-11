@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { CliFlags } from '../../utils/cli-flags.ts';
-import type { CommandInput } from './types.ts';
+import type { CommandInput } from '../cli-grammar/types.ts';
 import { gestureCliReaders, gestureDaemonWriters } from './gesture.ts';
 
 const NO_FLAGS = {} as CliFlags;

@@ -2,16 +2,20 @@ import { BATCH_COMMAND_NAMES, PUBLIC_COMMANDS } from '../command-catalog.ts';
 import { buildFlags } from '../client-normalizers.ts';
 import type { DaemonBatchStep } from '../core/batch.ts';
 import { AppError } from '../utils/errors.ts';
-import { appDaemonWriters } from './cli-grammar/apps.ts';
-import { captureDaemonWriters } from './cli-grammar/capture.ts';
+import { captureDaemonWriters } from './capture/index.ts';
 import { commandNameSet, request } from './cli-grammar/common.ts';
-import { gestureDaemonWriters } from './cli-grammar/gesture.ts';
-import { interactionDaemonWriters } from './cli-grammar/interactions.ts';
-import { observabilityDaemonWriters } from './cli-grammar/observability.ts';
-import { replayDaemonWriters } from './cli-grammar/replay.ts';
-import { selectorDaemonWriters } from './cli-grammar/selectors.ts';
-import { systemDaemonWriters } from './cli-grammar/system.ts';
 import type { CommandInput, DaemonCommandRequest, DaemonWriter } from './cli-grammar/types.ts';
+import {
+  gestureDaemonWriters,
+  interactionDaemonWriters,
+  selectorDaemonWriters,
+} from './interaction/index.ts';
+import { appDaemonWriters } from './management/index.ts';
+import { observabilityDaemonWriters } from './observability/index.ts';
+import { reactNativeDaemonWriters } from './react-native/index.ts';
+import { recordingDaemonWriters } from './recording/index.ts';
+import { replayDaemonWriters } from './replay/index.ts';
+import { systemDaemonWriters } from './system/index.ts';
 
 const daemonWriters = {
   ...appDaemonWriters,
@@ -20,6 +24,8 @@ const daemonWriters = {
   ...gestureDaemonWriters,
   ...selectorDaemonWriters,
   ...observabilityDaemonWriters,
+  ...reactNativeDaemonWriters,
+  ...recordingDaemonWriters,
   ...replayDaemonWriters,
   ...systemDaemonWriters,
   batch: (input) =>

@@ -10,8 +10,8 @@ import {
   selectionOptionsFromFlags,
   selectorSnapshotOptionsFromFlags,
   splitRequiredSelector,
-} from './common.ts';
-import type { CliReader, DaemonWriter } from './types.ts';
+} from '../cli-grammar/common.ts';
+import type { CliReader, DaemonWriter } from '../cli-grammar/types.ts';
 
 export const selectorCliReaders = {
   find: (positionals, flags) => readFindOptionsFromPositionals(positionals, flags),

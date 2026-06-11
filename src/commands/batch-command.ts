@@ -4,7 +4,7 @@ import { type DaemonCommandName } from './command-projection.ts';
 import { commonToClientOptions } from './command-input.ts';
 import { createBatchCommandMetadata, type BatchInput } from './batch-command-metadata.ts';
 
-export function createBatchCommand<const TCommand extends DaemonCommandName>(
+export function createBatchCommand<const TCommand extends string & DaemonCommandName>(
   nestedCommands: readonly TCommand[],
 ) {
   return defineExecutableCommand(createBatchCommandMetadata(nestedCommands), (client, input) =>

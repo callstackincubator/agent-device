@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { parseWaitPositionals as parseWaitArgs } from '../../../commands/cli-grammar/capture.ts';
+import { parseWaitPositionals as parseWaitArgs } from '../../../core/wait-positionals.ts';
 import { parseTimeout } from '../parse-utils.ts';
 
 // --- parseTimeout ---

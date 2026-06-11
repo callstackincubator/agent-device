@@ -16,15 +16,17 @@ import type {
   SwipeOptions,
   TransformGestureOptions,
   TypeTextOptions,
-} from '../client-types.ts';
-import { defineExecutableCommand } from './command-contract.ts';
+} from '../../client-types.ts';
+import type { CommandSchemaOverride } from '../../utils/cli-command-schema-types.ts';
+import { REPEATED_TOUCH_FLAGS, SELECTOR_SNAPSHOT_FLAGS } from '../../utils/cli-flags.ts';
+import { defineExecutableCommand } from '../command-contract.ts';
 import {
   commonToClientOptions,
   toClientElementTarget,
   toClientInteractionTarget,
   toRepeatedOptions,
   toSelectorSnapshotOptions,
-} from './command-input.ts';
+} from '../command-input.ts';
 import {
   interactionCommandMetadata,
   type ClickInput,
@@ -38,7 +40,86 @@ import {
   type RotateInput,
   type SwipeGestureInput,
   type TransformInput,
-} from './interaction-command-metadata.ts';
+} from './metadata.ts';
+
+export { gestureCliReaders, gestureDaemonWriters } from './gesture.ts';
+export { interactionCliReaders, interactionDaemonWriters } from './interactions.ts';
+export { interactionCommandDescriptions, interactionCommandMetadata } from './metadata.ts';
+export { selectorCliReaders, selectorDaemonWriters } from './selectors.ts';
+
+export const interactionCliSchemas = {
+  get: {
+    usageOverride: 'get text|attrs <@ref|selector>',
+    positionalArgs: ['subcommand', 'target'],
+    allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
+  },
+  find: {
+    usageOverride: 'find <locator|text> <action> [value] [--first|--last]',
+    helpDescription: 'Find by text/label/value/role/id and run action',
+    summary: 'Find an element and act',
+    positionalArgs: ['query', 'action', 'value?'],
+    allowsExtraPositionals: true,
+    allowedFlags: ['snapshotDepth', 'snapshotRaw', 'findFirst', 'findLast'],
+  },
+  is: {
+    positionalArgs: ['predicate', 'selector', 'value?'],
+    allowsExtraPositionals: true,
+    allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
+  },
+  click: {
+    usageOverride: 'click <x y|@ref|selector>',
+    positionalArgs: ['target'],
+    allowsExtraPositionals: true,
+    allowedFlags: [...REPEATED_TOUCH_FLAGS, 'clickButton', ...SELECTOR_SNAPSHOT_FLAGS],
+  },
+  press: {
+    usageOverride: 'press <x y|@ref|selector>',
+    positionalArgs: ['targetOrX', 'y?'],
+    allowsExtraPositionals: true,
+    allowedFlags: [...REPEATED_TOUCH_FLAGS, ...SELECTOR_SNAPSHOT_FLAGS],
+  },
+  longpress: {
+    usageOverride: 'longpress <x y|@ref|selector> [durationMs]',
+    positionalArgs: ['targetOrX', 'yOrDurationMs?', 'durationMs?'],
+    allowsExtraPositionals: true,
+    allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
+  },
+  swipe: {
+    helpDescription: 'Swipe coordinates with optional repeat pattern',
+    positionalArgs: ['x1', 'y1', 'x2', 'y2', 'durationMs?'],
+    allowedFlags: ['count', 'pauseMs', 'pattern'],
+  },
+  gesture: {
+    usageOverride: 'gesture <pan|fling|swipe|pinch|rotate|transform> ...',
+    listUsageOverride: 'gesture <pan|fling|swipe|pinch|rotate|transform> ...',
+    helpDescription:
+      'Run touch gestures: pan <x> <y> <dx> <dy> [durationMs], fling <up|down|left|right> <x> <y> [distance] [durationMs], swipe <left|right|left-edge|right-edge> [durationMs], pinch <scale> [x] [y], rotate <degrees> [x] [y] [velocity], or transform <x> <y> <dx> <dy> <scale> <degrees> [durationMs]',
+    summary: 'Run pan, fling, swipe, pinch, rotate, or transform gestures',
+    positionalArgs: ['pan|fling|swipe|pinch|rotate|transform', 'args?'],
+    allowsExtraPositionals: true,
+  },
+  focus: {
+    positionalArgs: ['x', 'y'],
+  },
+  type: {
+    positionalArgs: ['text'],
+    allowsExtraPositionals: true,
+    allowedFlags: ['delayMs'],
+  },
+  fill: {
+    usageOverride: 'fill <x> <y> <text> | fill <@ref|selector> <text>',
+    positionalArgs: ['targetOrX', 'yOrText', 'text?'],
+    allowsExtraPositionals: true,
+    allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS, 'delayMs'],
+  },
+  scroll: {
+    usageOverride: 'scroll <direction|top|bottom> [amount] [--pixels <n>]',
+    helpDescription: 'Scroll in direction, or verify hidden content and scroll toward top/bottom',
+    summary: 'Scroll in a direction or to an edge',
+    positionalArgs: ['directionOrEdge', 'amount?'],
+    allowedFlags: ['pixels'],
+  },
+} as const satisfies Record<string, CommandSchemaOverride>;
 
 type InteractionCommandMetadata = (typeof interactionCommandMetadata)[number];
 type InteractionCommandName = InteractionCommandMetadata['name'];
