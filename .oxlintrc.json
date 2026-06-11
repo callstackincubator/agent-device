@@ -21,5 +21,29 @@
     "typescript/no-var-requires": "error",
     "import/no-duplicates": "error"
   },
+  "overrides": [
+    {
+      "files": ["src/**/*.ts"],
+      "rules": {
+        "eslint/no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "node:child_process",
+                "message": "Use process helpers from src/utils/exec.ts instead of importing node:child_process directly."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/utils/exec.ts", "src/**/*.test.ts", "src/**/__tests__/**/*.ts"],
+      "rules": {
+        "eslint/no-restricted-imports": "off"
+      }
+    }
+  ],
   "ignorePatterns": ["dist/**", "node_modules/**"]
 }
