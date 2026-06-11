@@ -471,19 +471,23 @@ test('handlePressCommand on Android keeps the direct path even with hold', async
   const longPresses: unknown[][] = [];
   const interactor = {
     ...makeUnusedInteractor(),
+    // Returns a non-nullish result: every iteration must still perform its
+    // press even once the kept-first result is set (regression for a `??=`
+    // short-circuit that skipped presses 2..N).
     longPress: async (...args: unknown[]) => {
       longPresses.push(args);
-      return undefined;
+      return { pressed: true };
     },
   };
 
-  await handlePressCommand(ANDROID_EMULATOR, interactor, ['100', '200'], {
+  const result = await handlePressCommand(ANDROID_EMULATOR, interactor, ['100', '200'], {
     count: 3,
     holdMs: 200,
   });
 
   assert.equal(mockRunIosRunnerCommand.mock.calls.length, 0);
   assert.equal(longPresses.length, 3);
+  assert.equal(result.pressed, true);
 });
 
 test('handleTransformGestureCommand routes iOS simulator through the interactor', async () => {

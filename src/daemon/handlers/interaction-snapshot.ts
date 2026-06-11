@@ -11,7 +11,7 @@ export type CaptureSnapshotForSession = (
   flags: CommandFlags | undefined,
   sessionStore: SessionStore,
   contextFromFlags: ContextFromFlags,
-  options: { interactiveOnly: boolean; androidFreshnessMode?: 'ref-refresh' },
+  options: { interactiveOnly: boolean; compact?: boolean; androidFreshnessMode?: 'ref-refresh' },
 ) => Promise<SnapshotState>;
 
 export async function captureSnapshotForSession(
@@ -19,12 +19,12 @@ export async function captureSnapshotForSession(
   flags: CommandFlags | undefined,
   sessionStore: SessionStore,
   contextFromFlags: ContextFromFlags,
-  options: { interactiveOnly: boolean; androidFreshnessMode?: 'ref-refresh' },
+  options: { interactiveOnly: boolean; compact?: boolean; androidFreshnessMode?: 'ref-refresh' },
 ): Promise<SnapshotState> {
   const effectiveFlags = {
     ...(flags ?? {}),
     snapshotInteractiveOnly: options.interactiveOnly,
-    snapshotCompact: options.interactiveOnly,
+    snapshotCompact: options.compact ?? options.interactiveOnly,
   };
   const dispatchContext = contextFromFlags(
     effectiveFlags,

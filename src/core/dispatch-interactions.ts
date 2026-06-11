@@ -481,15 +481,19 @@ async function runDirectPressSeries(
     const [dx, dy] = computeDeterministicJitter(index, series.jitterPx);
     const targetX = x + dx;
     const targetY = y + dy;
+    // `??=` must not guard the awaited call itself: that would short-circuit
+    // every press after the first. Only the first result is kept.
     if (series.doubleTap) {
-      interactionResult ??= (await interactor.doubleTap(targetX, targetY)) ?? undefined;
+      const result = await interactor.doubleTap(targetX, targetY);
+      interactionResult ??= result ?? undefined;
       return;
     }
     if (series.holdMs > 0) {
-      interactionResult ??=
-        (await interactor.longPress(targetX, targetY, series.holdMs)) ?? undefined;
+      const result = await interactor.longPress(targetX, targetY, series.holdMs);
+      interactionResult ??= result ?? undefined;
     } else {
-      interactionResult ??= (await interactor.tap(targetX, targetY)) ?? undefined;
+      const result = await interactor.tap(targetX, targetY);
+      interactionResult ??= result ?? undefined;
     }
   });
 
