@@ -11,6 +11,7 @@ enum CommandType: String, Codable {
   case remotePress
   case type
   case swipe
+  case scroll
   case findText
   case querySelector
   case readText
@@ -71,7 +72,8 @@ extension CommandType {
     // tapSeries/dragSeries are the series forms of tap/drag; keyboardReturn is the sibling
     // of keyboardDismiss — all three were missing from the historical switch (drift the
     // table now prevents) and are classified as interactions here.
-    case .tap, .tapSeries, .longPress, .drag, .dragSeries, .remotePress, .type, .swipe,
+    // .scroll is the fused frame-resolve + drag scroll; same classification as .drag.
+    case .tap, .tapSeries, .longPress, .drag, .dragSeries, .remotePress, .type, .swipe, .scroll,
          .back, .backInApp, .backSystem, .rotate, .appSwitcher,
          .keyboardDismiss, .keyboardReturn, .pinch, .rotateGesture, .transformGesture:
       return CommandTraits(isInteraction: true, readOnly: .never, isLifecycle: false)
@@ -134,6 +136,8 @@ struct Command: Codable {
   let dy: Double?
   let durationMs: Double?
   let direction: String?
+  let amount: Double?
+  let pixels: Double?
   let orientation: String?
   let scale: Double?
   let degrees: Double?

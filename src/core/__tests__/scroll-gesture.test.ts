@@ -2,12 +2,16 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { AppError } from '../../utils/errors.ts';
 import {
+  assertScrollGestureInput,
   buildScrollGesturePlan,
   buildSwipeGesturePlan,
   clampGestureCoordinate,
   pointFromPercent,
 } from '../scroll-gesture.ts';
 
+// The buildScrollGesturePlan vectors below are the canonical cross-language parity vectors,
+// mirrored by RunnerTests+ScrollGesture.swift (runnerScrollGesturePlan). If you change the scroll
+// math, update both this suite and the Swift parity test so the two ports cannot drift silently.
 test('buildScrollGesturePlan maps relative amount to viewport travel', () => {
   const plan = buildScrollGesturePlan({
     direction: 'down',
@@ -58,6 +62,36 @@ test('buildScrollGesturePlan rejects invalid amounts', () => {
       error.code === 'INVALID_ARGS' &&
       /amount must be a positive number/i.test(error.message),
   );
+});
+
+test('assertScrollGestureInput accepts valid amount and pixels inputs', () => {
+  assert.doesNotThrow(() => assertScrollGestureInput({}));
+  assert.doesNotThrow(() => assertScrollGestureInput({ amount: 0.5 }));
+  assert.doesNotThrow(() => assertScrollGestureInput({ pixels: 120 }));
+});
+
+test('assertScrollGestureInput rejects non-positive or non-finite amounts', () => {
+  for (const amount of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.throws(
+      () => assertScrollGestureInput({ amount }),
+      (error: unknown) =>
+        error instanceof AppError &&
+        error.code === 'INVALID_ARGS' &&
+        /amount must be a positive number/i.test(error.message),
+    );
+  }
+});
+
+test('assertScrollGestureInput rejects non-positive or non-finite pixels', () => {
+  for (const pixels of [0, -10, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.throws(
+      () => assertScrollGestureInput({ pixels }),
+      (error: unknown) =>
+        error instanceof AppError &&
+        error.code === 'INVALID_ARGS' &&
+        /pixels must be a positive integer/i.test(error.message),
+    );
+  }
 });
 
 test('buildSwipeGesturePlan maps finger direction through the shared scroll planner', () => {

@@ -1,6 +1,9 @@
-import { AppError } from '../../utils/errors.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
-import { buildScrollGesturePlan, type ScrollDirection } from '../../core/scroll-gesture.ts';
+import {
+  assertScrollGestureInput,
+  buildScrollGesturePlan,
+  type ScrollDirection,
+} from '../../core/scroll-gesture.ts';
 import { runIosRunnerCommand } from './runner-client.ts';
 import type { RunnerCommand } from './runner-contract.ts';
 import type {
@@ -14,13 +17,6 @@ export type AppleBackRunnerCommand = 'backInApp' | 'backSystem';
 type AppleRemoteButton = NonNullable<RunnerCommand['remoteButton']>;
 type RunIosRunnerCommand = typeof runIosRunnerCommand;
 type RunnerOpts = RunnerCallOptions;
-
-type InteractionFrame = {
-  originX: number;
-  originY: number;
-  referenceWidth: number;
-  referenceHeight: number;
-};
 
 const IOS_SWIPE_DEFAULT_DURATION_MS = 250;
 const IOS_SWIPE_MIN_DURATION_MS = 16;
@@ -321,7 +317,6 @@ async function runAppleScroll(
   runnerOpts: RunnerOpts,
   direction: ScrollDirection,
   options?: { amount?: number; pixels?: number },
-  interactionFrame?: InteractionFrame,
 ): Promise<Record<string, unknown>> {
   if (device.target === 'tv') {
     const runnerResult = await runRunnerCommand(
@@ -332,61 +327,47 @@ async function runAppleScroll(
     return normalizeIosScrollResult(runnerResult, options);
   }
 
-  const frame =
-    interactionFrame ??
-    (await resolveAppleInteractionFrame(runRunnerCommand, device, ctx, runnerOpts));
-  const plan = buildScrollGesturePlan({
-    direction,
-    amount: options?.amount,
-    pixels: options?.pixels,
-    referenceWidth: frame.referenceWidth,
-    referenceHeight: frame.referenceHeight,
-  });
-  const runnerResult = await runRunnerCommand(
-    device,
-    iosDragCommand(
-      device,
-      ctx,
-      frame.originX + plan.x1,
-      frame.originY + plan.y1,
-      frame.originX + plan.x2,
-      frame.originY + plan.y2,
-      undefined,
-      { defaultDurationMs: IOS_SWIPE_DEFAULT_DURATION_MS },
-    ),
-    runnerOpts,
-  );
-  return normalizeIosScrollResult(runnerResult, {
-    amount: plan.amount,
-    pixels: plan.pixels,
-    preferProvidedPixels: true,
-  });
-}
+  // Validate amount/pixels up front so bad inputs throw INVALID_ARGS before any runner command
+  // is sent (previously validation ran between the frame request and the drag, so a bad amount
+  // could cost one runner request first).
+  assertScrollGestureInput(options ?? {});
 
-async function resolveAppleInteractionFrame(
-  runRunnerCommand: RunIosRunnerCommand,
-  device: DeviceInfo,
-  ctx: RunnerContext,
-  runnerOpts: RunnerOpts,
-): Promise<InteractionFrame> {
+  // Single fused lifecycle command: the runner resolves the interaction frame and runs the drag.
+  // durationMs is intentionally not sent — scroll's drag used 250ms today, but the runner's
+  // non-synthesized drag path ignores it (coordinateDragHoldDuration + XCTest default drag
+  // velocity), and the fused `scroll` handler pins that same non-synthesized path.
   const runnerResult = await runRunnerCommand(
     device,
-    { command: 'interactionFrame', appBundleId: ctx.appBundleId },
+    {
+      command: 'scroll',
+      direction,
+      ...(options?.amount !== undefined ? { amount: options.amount } : {}),
+      ...(options?.pixels !== undefined ? { pixels: options.pixels } : {}),
+      appBundleId: ctx.appBundleId,
+    },
     runnerOpts,
   );
-  const originX = readFiniteNumber(runnerResult.x);
-  const originY = readFiniteNumber(runnerResult.y);
+
   const referenceWidth = readFiniteNumber(runnerResult.referenceWidth);
   const referenceHeight = readFiniteNumber(runnerResult.referenceHeight);
-  if (
-    originX === undefined ||
-    originY === undefined ||
-    referenceWidth === undefined ||
-    referenceHeight === undefined
-  ) {
-    throw new AppError('COMMAND_FAILED', 'interactionFrame did not return a usable frame');
+  if (referenceWidth !== undefined && referenceHeight !== undefined) {
+    // Recompute the plan from the runner's resolved frame so reported pixels match the planned
+    // travel (TS keeps buildScrollGesturePlan for Android and recording anyway).
+    const plan = buildScrollGesturePlan({
+      direction,
+      amount: options?.amount,
+      pixels: options?.pixels,
+      referenceWidth,
+      referenceHeight,
+    });
+    return normalizeIosScrollResult(runnerResult, {
+      amount: options?.amount,
+      pixels: plan.pixels,
+      preferProvidedPixels: true,
+    });
   }
-  return { originX, originY, referenceWidth, referenceHeight };
+  // Missing frame dims: derive pixels from endpoint travel instead of throwing.
+  return normalizeIosScrollResult(runnerResult, { amount: options?.amount });
 }
 
 function readFiniteNumber(value: unknown): number | undefined {

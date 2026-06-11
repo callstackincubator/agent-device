@@ -113,6 +113,19 @@ export function buildScrollGesturePlan(options: ScrollGestureOptions): ScrollGes
   }
 }
 
+/**
+ * Validates pre-frame scroll inputs (amount/pixels) the same way buildScrollGesturePlan would,
+ * so the daemon throws INVALID_ARGS for bad inputs BEFORE sending the fused runner `scroll`
+ * command (previously validation ran between the frame request and the drag). The resolved
+ * values are discarded; only their throw-on-invalid behavior is reused.
+ */
+export function assertScrollGestureInput(options: { amount?: number; pixels?: number }): void {
+  resolveRequestedAmount(options.amount);
+  if (options.pixels !== undefined) {
+    normalizeRequestedPixels(options.pixels);
+  }
+}
+
 export function buildSwipeGesturePlan(options: SwipeGestureOptions): SwipeGesturePlan {
   const scrollPlan = buildScrollGesturePlan({
     ...options,

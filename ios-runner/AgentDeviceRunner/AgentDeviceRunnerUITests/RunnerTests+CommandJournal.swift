@@ -144,10 +144,10 @@ final class RunnerCommandJournal {
     case .snapshot, .screenshot:
       return false
     case .tap, .mouseClick, .tapSeries, .longPress, .interactionFrame, .drag, .dragSeries,
-         .remotePress, .type, .swipe, .findText, .querySelector, .readText, .back, .backInApp,
-         .backSystem, .home, .rotate, .appSwitcher, .keyboardDismiss, .keyboardReturn, .alert,
-         .pinch, .rotateGesture, .transformGesture, .recordStart, .recordStop, .status, .uptime,
-         .shutdown:
+         .remotePress, .type, .swipe, .scroll, .findText, .querySelector, .readText, .back,
+         .backInApp, .backSystem, .home, .rotate, .appSwitcher, .keyboardDismiss, .keyboardReturn,
+         .alert, .pinch, .rotateGesture, .transformGesture, .recordStart, .recordStop, .status,
+         .uptime, .shutdown:
       return true
     }
   }
@@ -218,6 +218,38 @@ extension RunnerTests {
     XCTAssertEqual(screenshotStatus.lifecycleState, RunnerCommandLifecycleState.completed.rawValue)
     XCTAssertEqual(screenshotStatus.lifecycleResponseOk, true)
     XCTAssertNil(screenshotStatus.lifecycleResponseJson)
+
+    let scroll = runnerJournalCommand("scroll", id: "scroll-drag")
+    journal.accept(command: scroll)
+    journal.finish(
+      command: scroll,
+      response: Response(
+        ok: true,
+        data: DataPayload(
+          message: "scrolled",
+          gestureStartUptimeMs: 1,
+          gestureEndUptimeMs: 2,
+          x: 155,
+          y: 420,
+          x2: 155,
+          y2: 301,
+          referenceWidth: 300,
+          referenceHeight: 600
+        )
+      )
+    )
+
+    let scrollStatus = journal.status(commandId: "scroll-drag")
+    XCTAssertEqual(scrollStatus.lifecycleState, RunnerCommandLifecycleState.completed.rawValue)
+    XCTAssertEqual(scrollStatus.lifecycleResponseOk, true)
+    XCTAssertNotNil(scrollStatus.lifecycleResponseJson)
+    let scrollResponse = try decodeRunnerJournalResponse(scrollStatus.lifecycleResponseJson)
+    XCTAssertEqual(scrollResponse.data?.x, 155)
+    XCTAssertEqual(scrollResponse.data?.y, 420)
+    XCTAssertEqual(scrollResponse.data?.x2, 155)
+    XCTAssertEqual(scrollResponse.data?.y2, 301)
+    XCTAssertEqual(scrollResponse.data?.referenceWidth, 300)
+    XCTAssertEqual(scrollResponse.data?.referenceHeight, 600)
 
     let largeRead = runnerJournalCommand("readText", id: "large-read")
     journal.accept(command: largeRead)

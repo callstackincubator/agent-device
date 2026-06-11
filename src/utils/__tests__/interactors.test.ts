@@ -2,6 +2,7 @@ import { beforeEach, test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import type { RunnerCommand } from '../../platforms/ios/runner-client.ts';
 import type { DeviceInfo } from '../device.ts';
+import { AppError } from '../errors.ts';
 
 vi.mock('../../platforms/ios/runner-client.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../platforms/ios/runner-client.ts')>();
@@ -17,6 +18,15 @@ const iosSimulator: DeviceInfo = {
   id: 'sim-1',
   name: 'iPhone Simulator',
   kind: 'simulator',
+  booted: true,
+};
+
+const tvOsSimulator: DeviceInfo = {
+  platform: 'ios',
+  id: 'tv-sim-1',
+  name: 'Apple TV',
+  kind: 'simulator',
+  target: 'tv',
   booted: true,
 };
 
@@ -36,17 +46,12 @@ test('resolveAppleBackRunnerCommand maps explicit back modes to runner commands'
   assert.equal(resolveAppleBackRunnerCommand('system'), 'backSystem');
 });
 
-test('ios scroll reports planned pixels without recomputing from runner coordinates', async () => {
+test('ios scroll sends a single fused scroll command and reports planned pixels', async () => {
+  const commands: RunnerCommand[] = [];
   mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
-    if (command.command === 'interactionFrame') {
-      return {
-        x: 5,
-        y: 10,
-        referenceWidth: 300,
-        referenceHeight: 600,
-      };
-    }
-    if (command.command === 'drag') {
+    commands.push(command);
+    if (command.command === 'scroll') {
+      // x2/y2 endpoint travel is 119 here; planned pixels (120) must be preferred.
       return {
         x: 155,
         y: 420,
@@ -54,7 +59,94 @@ test('ios scroll reports planned pixels without recomputing from runner coordina
         y2: 301,
         referenceWidth: 300,
         referenceHeight: 600,
+        gestureStartUptimeMs: 1,
+        gestureEndUptimeMs: 2,
       };
+    }
+    throw new Error(`Unexpected runner command: ${command.command}`);
+  });
+  const interactor = await getInteractor(iosSimulator, { appBundleId: 'com.example.app' });
+  const result = await interactor.scroll('down', { pixels: 120 });
+
+  // The common iOS scroll path issues exactly one lifecycle command and NO 'interactionFrame'.
+  assert.deepEqual(commands, [
+    { command: 'scroll', direction: 'down', pixels: 120, appBundleId: 'com.example.app' },
+  ]);
+  assert.deepEqual(result, {
+    x1: 155,
+    y1: 420,
+    x2: 155,
+    y2: 301,
+    referenceWidth: 300,
+    referenceHeight: 600,
+    pixels: 120,
+  });
+});
+
+test('ios amount-based scroll recomputes pixels from the runner reference frame', async () => {
+  const commands: RunnerCommand[] = [];
+  mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
+    commands.push(command);
+    if (command.command === 'scroll') {
+      return {
+        x: 150,
+        y: 450,
+        x2: 150,
+        y2: 150,
+        referenceWidth: 300,
+        referenceHeight: 600,
+      };
+    }
+    throw new Error(`Unexpected runner command: ${command.command}`);
+  });
+  const interactor = await getInteractor(iosSimulator, { appBundleId: 'com.example.app' });
+  const result = await interactor.scroll('down', { amount: 0.5 });
+
+  assert.deepEqual(commands, [
+    { command: 'scroll', direction: 'down', amount: 0.5, appBundleId: 'com.example.app' },
+  ]);
+  // amount 0.5 against a 600px vertical axis -> 300 planned pixels.
+  const amount =
+    result && typeof result === 'object' && 'amount' in result ? result.amount : undefined;
+  const pixels =
+    result && typeof result === 'object' && 'pixels' in result ? result.pixels : undefined;
+  assert.equal(amount, 0.5);
+  assert.equal(pixels, 300);
+});
+
+test('tvOS scroll sends only a remotePress command (behavior unchanged)', async () => {
+  const commands: RunnerCommand[] = [];
+  mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
+    commands.push(command);
+    return {};
+  });
+  const interactor = await getInteractor(tvOsSimulator, { appBundleId: 'com.example.app' });
+
+  await interactor.scroll('down');
+
+  assert.deepEqual(commands, [
+    { command: 'remotePress', remoteButton: 'down', appBundleId: 'com.example.app' },
+  ]);
+});
+
+test('ios scroll rejects non-positive amount before sending any runner command', async () => {
+  mockRunIosRunnerCommand.mockImplementation(async () => ({}));
+  const interactor = await getInteractor(iosSimulator, { appBundleId: 'com.example.app' });
+
+  await assert.rejects(
+    () => interactor.scroll('down', { amount: 0 }),
+    (error: unknown) =>
+      error instanceof AppError &&
+      error.code === 'INVALID_ARGS' &&
+      /amount must be a positive number/i.test(error.message),
+  );
+  assert.equal(mockRunIosRunnerCommand.mock.calls.length, 0);
+});
+
+test('ios scroll without reference dims derives pixels from endpoint travel', async () => {
+  mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
+    if (command.command === 'scroll') {
+      return { x: 150, y: 450, x2: 150, y2: 150 };
     }
     throw new Error(`Unexpected runner command: ${command.command}`);
   });
@@ -63,7 +155,8 @@ test('ios scroll reports planned pixels without recomputing from runner coordina
 
   const pixels =
     result && typeof result === 'object' && 'pixels' in result ? result.pixels : undefined;
-  assert.equal(pixels, 120);
+  // No referenceWidth/Height in the response -> pixels fall back to |y2 - y1| = 300.
+  assert.equal(pixels, 300);
 });
 
 test('ios fill sends one verified replacement text-entry command at the target coordinates', async () => {

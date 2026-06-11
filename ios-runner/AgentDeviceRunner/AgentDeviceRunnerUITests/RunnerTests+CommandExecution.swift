@@ -633,53 +633,62 @@ extension RunnerTests {
       guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
         return Response(ok: false, error: ErrorPayload(message: "drag requires x, y, x2, and y2"))
       }
-      let dragPoints = keyboardAvoidingDragPoints(app: activeApp, x: x, y: y, x2: x2, y2: y2)
-      let dragFrame = resolvedDragVisualizationFrame(
-        app: activeApp,
-        x: dragPoints.x,
-        y: dragPoints.y,
-        x2: dragPoints.x2,
-        y2: dragPoints.y2
+      return executeDragGesture(
+        activeApp: activeApp,
+        x: x,
+        y: y,
+        x2: x2,
+        y2: y2,
+        durationMs: command.durationMs,
+        synthesized: command.synthesized == true,
+        message: "dragged"
       )
-      var fallback: GestureFallback?
-      if command.synthesized == true {
-        let durationMs = min(max(command.durationMs ?? 250, 16), 10000)
-        let (timing, outcome) = performGesture(activeApp, idleTimeout: false) {
-          synthesizedDragAt(
-            app: activeApp,
-            x: dragPoints.x,
-            y: dragPoints.y,
-            x2: dragPoints.x2,
-            y2: dragPoints.y2,
-            durationMs: durationMs
+    case .scroll:
+      // Fused frame-resolve + drag scroll for non-tvOS. Resolves the interaction frame exactly
+      // like .interactionFrame, computes drag endpoints with the Swift port of
+      // buildScrollGesturePlan, then runs the same non-synthesized drag path scroll's drag used.
+      guard let direction = command.direction,
+        direction == "up" || direction == "down" || direction == "left" || direction == "right"
+      else {
+        return Response(
+          ok: false,
+          error: ErrorPayload(
+            code: "INVALID_ARGS",
+            message: "scroll requires direction up|down|left|right"
           )
-        }
-        if case .performed = outcome {
-          return gestureResponse(message: "dragged", timing: timing, frame: .drag(dragFrame))
-        }
-        fallback = gestureFallback(strategy: "xctest-coordinate-drag", from: outcome)
-      }
-      let holdDuration = command.synthesized == true
-        ? synthesizedSwipeFallbackHoldDuration(durationMs: command.durationMs ?? 250)
-        : coordinateDragHoldDuration()
-      let (timing, outcome) = performGesture(activeApp) {
-        dragAt(
-          app: activeApp,
-          x: dragPoints.x,
-          y: dragPoints.y,
-          x2: dragPoints.x2,
-          y2: dragPoints.y2,
-          holdDuration: holdDuration
         )
       }
-      if let response = unsupportedResponse(for: outcome) {
-        return response
+      let frame = resolvedTouchReferenceFrame(app: activeApp, appFrame: activeApp.frame)
+      guard frame.width > 0, frame.height > 0 else {
+        return Response(
+          ok: false,
+          error: ErrorPayload(message: "scroll could not resolve a usable interaction frame")
+        )
       }
-      return gestureResponse(
-        message: "dragged",
-        timing: timing,
-        frame: .drag(dragFrame),
-        fallback: fallback
+      guard let plan = runnerScrollGesturePlan(
+        direction: direction,
+        amount: command.amount,
+        pixels: command.pixels,
+        referenceWidth: frame.width,
+        referenceHeight: frame.height
+      ) else {
+        return Response(
+          ok: false,
+          error: ErrorPayload(
+            code: "INVALID_ARGS",
+            message: "scroll could not compute a gesture plan"
+          )
+        )
+      }
+      return executeDragGesture(
+        activeApp: activeApp,
+        x: frame.minX + plan.x1,
+        y: frame.minY + plan.y1,
+        x2: frame.minX + plan.x2,
+        y2: frame.minY + plan.y2,
+        durationMs: nil,
+        synthesized: false,
+        message: "scrolled"
       )
     case .dragSeries:
       guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
@@ -1021,6 +1030,71 @@ extension RunnerTests {
       }
       return gestureResponse(message: "transformedGesture", timing: timing)
     }
+  }
+
+  /// Shared drag execution for `.drag` and the fused `.scroll`. Mirrors the original `.drag` body
+  /// exactly: keyboardAvoidingDragPoints -> resolvedDragVisualizationFrame -> synthesized branch
+  /// (16-10000ms clamp) or non-synthesized dragAt with coordinateDragHoldDuration ->
+  /// gestureResponse(.drag). `.scroll` always passes synthesized: false, pinning the same
+  /// non-synthesized drag path scroll's drag used today.
+  private func executeDragGesture(
+    activeApp: XCUIApplication,
+    x: Double,
+    y: Double,
+    x2: Double,
+    y2: Double,
+    durationMs: Double?,
+    synthesized: Bool,
+    message: String
+  ) -> Response {
+    let dragPoints = keyboardAvoidingDragPoints(app: activeApp, x: x, y: y, x2: x2, y2: y2)
+    let dragFrame = resolvedDragVisualizationFrame(
+      app: activeApp,
+      x: dragPoints.x,
+      y: dragPoints.y,
+      x2: dragPoints.x2,
+      y2: dragPoints.y2
+    )
+    var fallback: GestureFallback?
+    if synthesized {
+      let durationMs = min(max(durationMs ?? 250, 16), 10000)
+      let (timing, outcome) = performGesture(activeApp, idleTimeout: false) {
+        synthesizedDragAt(
+          app: activeApp,
+          x: dragPoints.x,
+          y: dragPoints.y,
+          x2: dragPoints.x2,
+          y2: dragPoints.y2,
+          durationMs: durationMs
+        )
+      }
+      if case .performed = outcome {
+        return gestureResponse(message: message, timing: timing, frame: .drag(dragFrame))
+      }
+      fallback = gestureFallback(strategy: "xctest-coordinate-drag", from: outcome)
+    }
+    let holdDuration = synthesized
+      ? synthesizedSwipeFallbackHoldDuration(durationMs: durationMs ?? 250)
+      : coordinateDragHoldDuration()
+    let (timing, outcome) = performGesture(activeApp) {
+      dragAt(
+        app: activeApp,
+        x: dragPoints.x,
+        y: dragPoints.y,
+        x2: dragPoints.x2,
+        y2: dragPoints.y2,
+        holdDuration: holdDuration
+      )
+    }
+    if let response = unsupportedResponse(for: outcome) {
+      return response
+    }
+    return gestureResponse(
+      message: message,
+      timing: timing,
+      frame: .drag(dragFrame),
+      fallback: fallback
+    )
   }
 
   private func currentXCTestFailureCount() -> Int {

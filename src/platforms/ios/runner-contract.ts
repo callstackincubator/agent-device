@@ -17,12 +17,18 @@ export type RunnerCommand = {
     | 'mouseClick'
     | 'tapSeries'
     | 'longPress'
+    // Runner-supported but no longer sent by this daemon (scroll fuses frame resolution into
+    // the runner-side `scroll` command); kept for wire compatibility with older daemons.
     | 'interactionFrame'
     | 'drag'
     | 'dragSeries'
     | 'remotePress'
     | 'type'
     | 'swipe'
+    // Fused frame-resolve + drag scroll (non-tvOS). Intentionally mutating: omitted from
+    // isReadOnlyRunnerCommand so it routes through single-send, command-id tracking, and
+    // lost-response status recovery like other gestures.
+    | 'scroll'
     | 'findText'
     | 'querySelector'
     | 'readText'
@@ -70,6 +76,8 @@ export type RunnerCommand = {
   dy?: number;
   durationMs?: number;
   direction?: ScrollDirection;
+  amount?: number;
+  pixels?: number;
   orientation?: DeviceRotation;
   scale?: number;
   degrees?: number;

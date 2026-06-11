@@ -33,7 +33,7 @@ import type { DeviceInfo } from '../../../utils/device.ts';
 import { flushDiagnosticsToSessionFile, withDiagnosticsScope } from '../../../utils/diagnostics.ts';
 import { AppError } from '../../../utils/errors.ts';
 import type { RunnerCommand } from '../runner-contract.ts';
-import { withRunnerCommandId } from '../runner-contract.ts';
+import { isReadOnlyRunnerCommand, withRunnerCommandId } from '../runner-contract.ts';
 import {
   assertSafeDerivedCleanup,
   isRetryableRunnerError,
@@ -125,6 +125,7 @@ const runnerProtocolCommandFixtures: Record<RunnerCommand['command'], RunnerComm
   remotePress: { command: 'remotePress', remoteButton: 'down', durationMs: 250 },
   type: { command: 'type', text: 'hello', delayMs: 20, textEntryMode: 'replace' },
   swipe: { command: 'swipe', direction: 'down', durationMs: 250 },
+  scroll: { command: 'scroll', direction: 'down', amount: 0.6, pixels: 240 },
   findText: { command: 'findText', text: 'Settings' },
   querySelector: { command: 'querySelector', selectorKey: 'id', selectorValue: 'submit' },
   readText: { command: 'readText' },
@@ -378,6 +379,7 @@ test('runner protocol fixtures cover every runner command with JSON-safe samples
     'rotate',
     'rotateGesture',
     'screenshot',
+    'scroll',
     'shutdown',
     'snapshot',
     'status',
@@ -412,6 +414,15 @@ test('withRunnerCommandId preserves existing command ids', () => {
   const command = withRunnerCommandId({ command: 'uptime', commandId: 'runner-existing' });
 
   assert.deepEqual(command, { command: 'uptime', commandId: 'runner-existing' });
+});
+
+test('scroll is a mutating, command-id-tracked runner command', () => {
+  // Omission from isReadOnlyRunnerCommand classifies the fused scroll as mutating, routing it
+  // through single-send (no transport retry), command-id tracking, and status recovery.
+  assert.equal(isReadOnlyRunnerCommand('scroll'), false);
+
+  const command = withRunnerCommandId({ command: 'scroll', direction: 'down', pixels: 120 });
+  assert.match(command.commandId ?? '', /^runner-/);
 });
 
 test('withRunnerCommandId does not add command ids to status probes', () => {
