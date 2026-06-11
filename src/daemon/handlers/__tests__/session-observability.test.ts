@@ -881,41 +881,22 @@ test('perf cpu profile reports a missing package with an actionable hint', async
 });
 
 function makeNativePerfAdbExecutor(outPath: string): AndroidAdbExecutor {
-  return async (args) => {
-    if (args.join('\0') === ['shell', 'pidof', 'com.example.app'].join('\0')) {
-      return { exitCode: 0, stdout: '1234\n', stderr: '' };
-    }
-    if (args[0] === 'shell' && args[1]?.includes('command -v simpleperf')) {
-      return { exitCode: 0, stdout: '/system/bin/simpleperf\n', stderr: '' };
-    }
-    if (args[0] === 'shell' && args[1]?.includes('command -v perfetto')) {
-      return { exitCode: 0, stdout: '/system/bin/perfetto\n', stderr: '' };
-    }
-    if (args[0] === 'shell' && args[1]?.includes('simpleperf')) {
-      return { exitCode: 0, stdout: '5678\n', stderr: '' };
-    }
-    if (args[0] === 'shell' && args[1] === 'perfetto') {
-      return { exitCode: 0, stdout: '5678\n', stderr: '' };
-    }
-    if (args[0] === 'shell' && args[1]?.includes('kill -INT')) {
-      return { exitCode: 0, stdout: '', stderr: '' };
-    }
-    if (args[0] === 'shell' && args[1]?.includes('stat -c %s')) {
-      return { exitCode: 0, stdout: '7\n', stderr: '' };
-    }
-    if (args[0] === 'shell' && args[1]?.includes('rm -f')) {
-      return { exitCode: 0, stdout: '', stderr: '' };
-    }
-    if (args[0] === 'pull') {
-      await fsPromises.writeFile(outPath, 'profile');
-      return { exitCode: 0, stdout: '', stderr: '' };
-    }
-    throw new Error(`Unexpected adb call: ${args.join(' ')}`);
-  };
+  const responders = [
+    staticAdbResponse(exactAdbArgs('shell', 'pidof', 'com.example.app'), '1234\n'),
+    staticAdbResponse(containsAdbArg('command -v simpleperf'), '/system/bin/simpleperf\n'),
+    staticAdbResponse(containsAdbArg('command -v perfetto'), '/system/bin/perfetto\n'),
+    staticAdbResponse(shellCommandContains('simpleperf'), '5678\n'),
+    staticAdbResponse(adbArgsPrefix('shell', 'perfetto'), '5678\n'),
+    staticAdbResponse(containsAdbArg('kill -INT')),
+    staticAdbResponse(containsAdbArg('stat -c %s'), '7\n'),
+    staticAdbResponse(containsAdbArg('rm -f')),
+    pullAdbResponse(outPath, 'profile'),
+  ];
+  return async (args) => dispatchAdbResponse(args, responders);
 }
 
 function requireOkData(response: DaemonResponse | null, message: string): Record<string, unknown> {
-  assert.equal(response?.ok, true);
+  assert.equal(response?.ok, true, JSON.stringify(response));
   if (!response?.ok) throw new Error(message);
   return response.data ?? {};
 }
@@ -925,4 +906,53 @@ function readAndroidNativePerfState(
   sessionName: string,
 ): string | undefined {
   return sessionStore.get(sessionName)?.nativePerf?.android?.state;
+}
+
+type MockAdbResult = Awaited<ReturnType<AndroidAdbExecutor>>;
+
+type MockAdbResponder = {
+  matches: (args: string[]) => boolean;
+  run: (args: string[]) => Promise<MockAdbResult>;
+};
+
+async function dispatchAdbResponse(
+  args: string[],
+  responders: MockAdbResponder[],
+): Promise<MockAdbResult> {
+  const responder = responders.find((candidate) => candidate.matches(args));
+  if (!responder) throw new Error(`Unexpected adb call: ${args.join(' ')}`);
+  return await responder.run(args);
+}
+
+function staticAdbResponse(matches: MockAdbResponder['matches'], stdout = ''): MockAdbResponder {
+  return {
+    matches,
+    run: async () => ({ exitCode: 0, stdout, stderr: '' }),
+  };
+}
+
+function pullAdbResponse(outPath: string, contents: string): MockAdbResponder {
+  return {
+    matches: (args) => args[0] === 'pull',
+    run: async (args) => {
+      await fsPromises.writeFile(args[2] ?? outPath, contents);
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  };
+}
+
+function exactAdbArgs(...expected: string[]): MockAdbResponder['matches'] {
+  return (args) => args.join('\0') === expected.join('\0');
+}
+
+function adbArgsPrefix(...expected: string[]): MockAdbResponder['matches'] {
+  return (args) => expected.every((value, index) => args[index] === value);
+}
+
+function containsAdbArg(pattern: string): MockAdbResponder['matches'] {
+  return (args) => args.some((arg) => arg.includes(pattern));
+}
+
+function shellCommandContains(pattern: string): MockAdbResponder['matches'] {
+  return (args) => args[0] === 'shell' && args.slice(1).some((arg) => arg.includes(pattern));
 }

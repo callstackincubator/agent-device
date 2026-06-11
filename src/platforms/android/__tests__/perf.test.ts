@@ -408,7 +408,9 @@ test('stopAndroidSimpleperfProfile pulls the profile artifact and reports compac
 });
 
 test('stopAndroidSimpleperfProfile fails before pull when remote artifact never stabilizes', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-simpleperf-missing-test-'));
+  const tmpDir = await fsPromises.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-simpleperf-missing-test-'),
+  );
   const session: AndroidNativePerfSession = {
     type: 'cpu-profile',
     kind: 'simpleperf',
@@ -443,35 +445,10 @@ test('stopAndroidSimpleperfProfile fails before pull when remote artifact never 
 });
 
 test('start and stop Android Perfetto trace use perfetto trace storage and cleanup remote artifact', async () => {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-perfetto-test-'));
+  const tmpDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'agent-device-perfetto-test-'));
   const outPath = path.join(tmpDir, 'app.perfetto-trace');
   const calls: string[][] = [];
-  const adb: AndroidAdbExecutor = async (args) => {
-    calls.push(args);
-    if (args.join('\0') === ['shell', 'pidof', 'com.example.app'].join('\0')) {
-      return { exitCode: 0, stdout: '1234\n', stderr: '' };
-    }
-    if (args[0] === 'shell' && args[1]?.includes('command -v perfetto')) {
-      return { exitCode: 0, stdout: '/system/bin/perfetto\n', stderr: '' };
-    }
-    if (args[0] === 'shell' && args[1] === 'perfetto') {
-      return { exitCode: 0, stdout: '8765\n', stderr: '' };
-    }
-    if (args[0] === 'shell' && args[1]?.includes('kill -INT')) {
-      return { exitCode: 0, stdout: '', stderr: '' };
-    }
-    if (args[0] === 'shell' && args[1]?.includes('stat -c %s')) {
-      return { exitCode: 0, stdout: '5\n', stderr: '' };
-    }
-    if (args[0] === 'pull') {
-      await fs.writeFile(args[2]!, 'trace');
-      return { exitCode: 0, stdout: '', stderr: '' };
-    }
-    if (args[0] === 'shell' && args[1]?.includes('rm -f')) {
-      return { exitCode: 0, stdout: '', stderr: '' };
-    }
-    throw new Error(`Unexpected adb call: ${args.join(' ')}`);
-  };
+  const adb = makePerfettoTraceAdbExecutor(outPath, calls);
 
   const started = await startAndroidPerfettoTrace(ANDROID_EMULATOR, 'com.example.app', outPath, {
     adb,
@@ -547,4 +524,64 @@ test('startAndroidSimpleperfProfile fails with an actionable missing-process hin
 
 function findCallIndex(calls: string[][], pattern: string): number {
   return calls.findIndex((args) => args.some((arg) => arg.includes(pattern)));
+}
+
+function makePerfettoTraceAdbExecutor(outPath: string, calls: string[][]): AndroidAdbExecutor {
+  const responders = [
+    staticAdbResponse(exactAdbArgs('shell', 'pidof', 'com.example.app'), '1234\n'),
+    staticAdbResponse(containsAdbArg('command -v perfetto'), '/system/bin/perfetto\n'),
+    staticAdbResponse(adbArgsPrefix('shell', 'perfetto'), '8765\n'),
+    staticAdbResponse(containsAdbArg('kill -INT')),
+    staticAdbResponse(containsAdbArg('stat -c %s'), '5\n'),
+    pullAdbResponse(outPath, 'trace'),
+    staticAdbResponse(containsAdbArg('rm -f')),
+  ];
+  return async (args) => dispatchAdbResponse(args, calls, responders);
+}
+
+type MockAdbResult = Awaited<ReturnType<AndroidAdbExecutor>>;
+
+type MockAdbResponder = {
+  matches: (args: string[]) => boolean;
+  run: (args: string[]) => Promise<MockAdbResult>;
+};
+
+async function dispatchAdbResponse(
+  args: string[],
+  calls: string[][],
+  responders: MockAdbResponder[],
+): Promise<MockAdbResult> {
+  calls.push(args);
+  const responder = responders.find((candidate) => candidate.matches(args));
+  if (!responder) throw new Error(`Unexpected adb call: ${args.join(' ')}`);
+  return await responder.run(args);
+}
+
+function staticAdbResponse(matches: MockAdbResponder['matches'], stdout = ''): MockAdbResponder {
+  return {
+    matches,
+    run: async () => ({ exitCode: 0, stdout, stderr: '' }),
+  };
+}
+
+function pullAdbResponse(outPath: string, contents: string): MockAdbResponder {
+  return {
+    matches: (args) => args[0] === 'pull',
+    run: async () => {
+      await fsPromises.writeFile(outPath, contents);
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  };
+}
+
+function exactAdbArgs(...expected: string[]): MockAdbResponder['matches'] {
+  return (args) => args.join('\0') === expected.join('\0');
+}
+
+function adbArgsPrefix(...expected: string[]): MockAdbResponder['matches'] {
+  return (args) => expected.every((value, index) => args[index] === value);
+}
+
+function containsAdbArg(pattern: string): MockAdbResponder['matches'] {
+  return (args) => args.some((arg) => arg.includes(pattern));
 }
