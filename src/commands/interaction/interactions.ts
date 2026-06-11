@@ -11,7 +11,7 @@ import {
   readInteractionTargetFromPositionals,
 } from '../../core/interaction-positionals.ts';
 import { AppError } from '../../utils/errors.ts';
-import type { ScrollInputDirection } from '../interaction-gestures.ts';
+import type { ScrollInputDirection } from './runtime/gestures.ts';
 import {
   commonInputFromFlags,
   direct,

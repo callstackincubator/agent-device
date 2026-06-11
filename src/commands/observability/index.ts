@@ -6,7 +6,7 @@ import type { CommandSchemaOverride } from '../../utils/cli-command-schema-types
 import { booleanField, enumField, integerField, requiredField, stringField } from '../command-input.ts';
 import { defineExecutableCommand } from '../command-contract.ts';
 import { defineFieldCommandMetadata } from '../field-command-contract.ts';
-import { LOG_ACTION_VALUES, type LogAction } from '../log-command-contract.ts';
+import { LOG_ACTION_VALUES, type LogAction } from './log-command-contract.ts';
 import {
   isPerfAction,
   isPerfArea,
@@ -24,7 +24,7 @@ import {
   type PerfArea,
   type PerfKind,
   type PerfSubject,
-} from '../perf-command-contract.ts';
+} from './perf-command-contract.ts';
 import {
   commonInputFromFlags,
   direct,

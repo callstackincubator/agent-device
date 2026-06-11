@@ -13,10 +13,7 @@ import type { CommandSchemaOverride } from '../../utils/cli-command-schema-types
 import { SELECTOR_SNAPSHOT_FLAGS, SNAPSHOT_FLAGS, type CliFlags } from '../../utils/cli-flags.ts';
 import { AppError } from '../../utils/errors.ts';
 import { tryParseSelectorChain } from '../../utils/selectors-parse.ts';
-import {
-  screenshotFlagsFromOptions,
-  screenshotOptionsFromFlags,
-} from '../capture-screenshot-options.ts';
+import { screenshotFlagsFromOptions, screenshotOptionsFromFlags } from './screenshot-options.ts';
 import {
   booleanField,
   compactRecord,
@@ -29,7 +26,7 @@ import {
 } from '../command-input.ts';
 import { defineExecutableCommand } from '../command-contract.ts';
 import { defineFieldCommandMetadata } from '../field-command-contract.ts';
-import { WAIT_KIND_VALUES } from '../wait-command-contract.ts';
+import { WAIT_KIND_VALUES } from './wait-command-contract.ts';
 import {
   commonInputFromFlags,
   direct,

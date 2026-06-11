@@ -1,3 +1,4 @@
+import { batchCommandDescriptions } from './batch/index.ts';
 import { captureCommandDescriptions } from './capture/index.ts';
 import { interactionCommandDescriptions } from './interaction/index.ts';
 import { managementCommandDescriptions } from './management/index.ts';
@@ -18,7 +19,7 @@ const COMMAND_DESCRIPTIONS = {
   ...observabilityCommandDescriptions,
   ...recordingCommandDescriptions,
   ...metroCommandDescriptions,
-  batch: 'Run multiple structured command steps in one daemon request.',
+  ...batchCommandDescriptions,
 } as const;
 
 export type DescribedCommandName = keyof typeof COMMAND_DESCRIPTIONS;

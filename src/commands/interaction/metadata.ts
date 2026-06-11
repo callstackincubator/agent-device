@@ -34,7 +34,7 @@ import {
   type ScrollDirection,
   type SwipePreset,
 } from '../../core/scroll-gesture.ts';
-import { SCROLL_INPUT_DIRECTIONS } from '../interaction-gestures.ts';
+import { SCROLL_INPUT_DIRECTIONS } from './runtime/gestures.ts';
 import { FIND_LOCATORS } from '../../utils/finders.ts';
 
 const FIND_ACTION_VALUES = [

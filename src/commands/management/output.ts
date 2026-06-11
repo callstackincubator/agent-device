@@ -1,0 +1,127 @@
+import {
+  serializeCloseResult,
+  serializeDeployResult,
+  serializeDevice,
+  serializeInstallFromSourceResult,
+  serializeOpenResult,
+  serializeSessionListEntry,
+} from '../../client-shared.ts';
+import type {
+  AgentDeviceDevice,
+  AgentDeviceSession,
+  AppCloseResult,
+  AppDeployResult,
+  AppInstallFromSourceResult,
+  AppOpenResult,
+  CommandRequestResult,
+  SessionCloseResult,
+} from '../../client-types.ts';
+import { readCommandMessage } from '../../utils/success-text.ts';
+import type { CliOutput } from '../command-contract.ts';
+import {
+  messageCliOutput,
+  messageOutput,
+  resultOutput,
+  type CliOutputFormatter,
+} from '../output-common.ts';
+
+export function devicesCliOutput(result: AgentDeviceDevice[]): CliOutput {
+  const data = { devices: result.map(serializeDevice) };
+  return { data, text: result.map(formatDeviceLine).join('\n') };
+}
+
+export function appsCliOutput(params: {
+  result: string[];
+  appsFilter?: 'user-installed' | 'all';
+}): CliOutput {
+  const data = { apps: params.result };
+  return {
+    data,
+    stderr:
+      params.appsFilter === 'all'
+        ? 'Showing all apps, including system apps.\n'
+        : 'Showing user-installed apps. Use --all to include system apps.\n',
+    text:
+      params.result.length > 0
+        ? params.result.join('\n')
+        : params.appsFilter === 'all'
+          ? 'No apps found.'
+          : 'No user-installed apps found.',
+  };
+}
+
+export function sessionCliOutput(
+  result: { sessions: AgentDeviceSession[] } | { stateDir: string },
+): CliOutput {
+  if ('stateDir' in result) {
+    return { data: result, text: result.stateDir };
+  }
+  const data = { sessions: result.sessions.map(serializeSessionListEntry) };
+  return { data, text: JSON.stringify(data, null, 2) };
+}
+
+export function openCliOutput(result: AppOpenResult): CliOutput {
+  const data = serializeOpenResult(result);
+  const lines = [readCommandMessage(data)].filter((line): line is string => Boolean(line));
+  if (typeof data.sessionStateDir === 'string') {
+    lines.push(`Session state: ${data.sessionStateDir}`);
+  }
+  return { data, text: lines.join('\n') || null };
+}
+
+export function closeCliOutput(result: AppCloseResult | SessionCloseResult): CliOutput {
+  return messageCliOutput(serializeCloseResult(result));
+}
+
+export function deployCliOutput(result: AppDeployResult): CliOutput {
+  return messageCliOutput(serializeDeployResult(result));
+}
+
+export function installFromSourceCliOutput(result: AppInstallFromSourceResult): CliOutput {
+  return messageCliOutput(serializeInstallFromSourceResult(result));
+}
+
+export function bootCliOutput(result: CommandRequestResult): CliOutput {
+  const data = result as Record<string, unknown>;
+  const platform = data.platform ?? 'unknown';
+  const device = data.device ?? data.id ?? 'unknown';
+  return { data, text: `Boot ready: ${device} (${platform})` };
+}
+
+export function shutdownCliOutput(result: CommandRequestResult): CliOutput {
+  const data = result as Record<string, unknown>;
+  const platform = data.platform ?? 'unknown';
+  const device = data.device ?? data.id ?? 'unknown';
+  const shutdown = data.shutdown;
+  const success =
+    shutdown && typeof shutdown === 'object' && 'success' in shutdown
+      ? (shutdown as { success?: unknown }).success === true
+      : false;
+  const status = success ? 'Shutdown' : 'Shutdown failed';
+  return { data, text: `${status}: ${device} (${platform})` };
+}
+
+export const managementCliOutputFormatters = {
+  boot: resultOutput(bootCliOutput),
+  shutdown: resultOutput(shutdownCliOutput),
+  devices: resultOutput(devicesCliOutput),
+  apps: ({ input, result }) =>
+    appsCliOutput({
+      result: result as Parameters<typeof appsCliOutput>[0]['result'],
+      appsFilter: input.appsFilter as Parameters<typeof appsCliOutput>[0]['appsFilter'],
+    }),
+  session: resultOutput(sessionCliOutput),
+  open: resultOutput(openCliOutput),
+  close: resultOutput(closeCliOutput),
+  install: resultOutput(deployCliOutput),
+  reinstall: resultOutput(deployCliOutput),
+  'install-from-source': resultOutput(installFromSourceCliOutput),
+  prepare: messageOutput,
+} as const satisfies Record<string, CliOutputFormatter>;
+
+function formatDeviceLine(device: AgentDeviceDevice): string {
+  const kind = device.kind ? ` ${device.kind}` : '';
+  const target = device.target ? ` target=${device.target}` : '';
+  const booted = typeof device.booted === 'boolean' ? ` booted=${device.booted}` : '';
+  return `${device.name} (${device.platform}${kind}${target})${booted}`;
+}

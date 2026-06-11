@@ -1,4 +1,5 @@
 import type { CommandName } from '../commands/command-metadata.ts';
+import { batchCliSchemas } from '../commands/batch/index.ts';
 import { captureCliSchemas } from '../commands/capture/index.ts';
 import { interactionCliSchemas } from '../commands/interaction/index.ts';
 import { managementCliSchemas } from '../commands/management/index.ts';
@@ -67,13 +68,7 @@ const CLI_COMMAND_OVERRIDES = {
   ...observabilityCliSchemas,
   ...metroCliSchemas,
   ...replayCliSchemas,
-  batch: {
-    usageOverride: 'batch [--steps <json> | --steps-file <path>]',
-    listUsageOverride: 'batch --steps <json> | --steps-file <path>',
-    helpDescription: 'Execute multiple commands in one daemon request',
-    summary: 'Run multiple commands',
-    allowedFlags: ['steps', 'stepsFile', 'batchOnError', 'batchMaxSteps', 'out'],
-  },
+  ...batchCliSchemas,
   ...recordingCliSchemas,
   ...reactNativeCliSchemas,
 } as const satisfies Partial<Record<CommandName, CommandSchemaOverride>>;

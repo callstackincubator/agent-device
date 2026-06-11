@@ -1,6 +1,6 @@
 import type { CliFlags } from '../../utils/cli-flags.ts';
+import { batchCliReaders } from '../batch/index.ts';
 import { captureCliReaders } from '../capture/index.ts';
-import { commonInputFromFlags } from './common.ts';
 import type { CliReader } from './types.ts';
 import type { CommandName } from '../command-metadata.ts';
 import {
@@ -28,13 +28,7 @@ const cliReaders = {
   ...replayCliReaders,
   ...systemCliReaders,
   ...metroCliReaders,
-  batch: (_positionals, flags) => ({
-    ...commonInputFromFlags(flags),
-    steps: flags.batchSteps ?? [],
-    onError: flags.batchOnError,
-    maxSteps: flags.batchMaxSteps,
-    out: flags.out,
-  }),
+  ...batchCliReaders,
 } satisfies Record<CommandName, CliReader>;
 
 export function readInputFromCli(

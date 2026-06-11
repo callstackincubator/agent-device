@@ -1,10 +1,8 @@
-import { BATCH_COMMAND_NAMES, listMcpExposedCommandNames } from '../command-catalog.ts';
-import { createBatchCommandMetadata } from './batch-command-metadata.ts';
+import { listMcpExposedCommandNames } from '../command-catalog.ts';
+import { batchCommandMetadata } from './batch/index.ts';
 import { clientCommandMetadata } from './client-command-metadata.ts';
 import type { CommandMetadata } from './command-contract.ts';
 import { interactionCommandMetadata } from './interaction/index.ts';
-
-const batchCommandMetadata = createBatchCommandMetadata(BATCH_COMMAND_NAMES);
 
 const commandMetadata = [
   ...interactionCommandMetadata,

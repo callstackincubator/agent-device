@@ -22,7 +22,7 @@ import type {
   SwipePreset,
   TransformGestureParams,
 } from './core/scroll-gesture.ts';
-import type { ScrollInputDirection } from './commands/interaction-gestures.ts';
+import type { ScrollInputDirection } from './commands/interaction/runtime/gestures.ts';
 import type { LogAction } from './contracts/logs.ts';
 import type { SessionSurface } from './core/session-surface.ts';
 import type { FindLocator } from './utils/finders.ts';

@@ -1,9 +1,9 @@
 import type { AgentDeviceClient } from '../client-types.ts';
-import { createBatchCommand } from './batch-command.ts';
+import { batchCommandDefinition } from './batch/index.ts';
 import { clientCommandDefinitions } from './client-command-contracts.ts';
 import type { JsonSchema } from './command-contract.ts';
 import { interactionCommandDefinitions } from './interaction/index.ts';
-import { batchCommandNames, type BatchCommandName } from './command-projection.ts';
+import type { BatchCommandName } from './command-projection.ts';
 import type { CommandName } from './command-metadata.ts';
 
 type AnyExecutableCommand = {
@@ -12,8 +12,6 @@ type AnyExecutableCommand = {
   inputSchema: JsonSchema;
   invoke: (client: AgentDeviceClient, input: unknown) => Promise<unknown>;
 };
-
-const batchCommandDefinition = createBatchCommand(batchCommandNames);
 
 const commandSurface = [
   ...interactionCommandDefinitions,

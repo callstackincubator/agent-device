@@ -10,7 +10,7 @@ import type { CliFlags } from '../../utils/cli-flags.ts';
 import type { CommandSchemaOverride } from '../../utils/cli-command-schema-types.ts';
 import { AppError } from '../../utils/errors.ts';
 import { parseGitHubActionsArtifactInstallSourceSpec } from '../../utils/install-source-config.ts';
-import { assertResolvedAppsFilter } from '../app-inventory-contract.ts';
+import { assertResolvedAppsFilter } from './app-inventory-contract.ts';
 import { defineExecutableCommand } from '../command-contract.ts';
 import {
   booleanField,
