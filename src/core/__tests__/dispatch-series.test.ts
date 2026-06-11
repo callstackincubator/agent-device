@@ -4,7 +4,6 @@ import {
   requireIntInRange,
   shouldUseIosDragSeries,
   shouldUseIosPressSequence,
-  chunkRunnerSequenceSteps,
   chunkRunnerSequenceStepsByBudget,
 } from '../dispatch-series.ts';
 import { AppError } from '../../utils/errors.ts';
@@ -72,23 +71,6 @@ test('shouldUseIosPressSequence returns false for count <= 1', () => {
 
 test('shouldUseIosPressSequence returns false on non-Apple platforms', () => {
   assert.equal(shouldUseIosPressSequence(androidDevice, 3), false);
-});
-
-// --- chunkRunnerSequenceSteps ---
-
-test('chunkRunnerSequenceSteps splits 45 steps into 20/20/5 preserving order', () => {
-  const steps = Array.from({ length: 45 }, (_, index) => index);
-  const chunks = chunkRunnerSequenceSteps(steps, 20);
-  assert.deepEqual(
-    chunks.map((chunk) => chunk.length),
-    [20, 20, 5],
-  );
-  assert.deepEqual(chunks.flat(), steps);
-});
-
-test('chunkRunnerSequenceSteps keeps a short list in one chunk', () => {
-  const steps = [1, 2, 3];
-  assert.deepEqual(chunkRunnerSequenceSteps(steps, 20), [steps]);
 });
 
 // --- chunkRunnerSequenceStepsByBudget ---

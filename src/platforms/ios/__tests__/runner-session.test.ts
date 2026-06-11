@@ -410,7 +410,7 @@ test('runner session probes readiness for ready selector taps', async () => {
   assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
 });
 
-test('runner session probes readiness for ready tapSeries commands', async () => {
+test('runner session probes readiness for ready sequence commands', async () => {
   const session = makeRunnerSession({ ready: true });
   mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
   mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
@@ -419,11 +419,11 @@ test('runner session probes readiness for ready tapSeries commands', async () =>
     IOS_SIMULATOR,
     session,
     {
-      command: 'tapSeries',
-      x: 120,
-      y: 240,
-      count: 2,
-      intervalMs: 80,
+      command: 'sequence',
+      steps: [
+        { kind: 'tap', x: 120, y: 240, pauseMs: 80 },
+        { kind: 'tap', x: 120, y: 240 },
+      ],
       appBundleId: 'com.example.demo',
     },
     '/tmp/runner.log',

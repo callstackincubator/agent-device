@@ -28,15 +28,6 @@ export function shouldUseIosPressSequence(device: DeviceInfo, count: number): bo
   return isApplePlatform(device.platform) && count > 1;
 }
 
-export function chunkRunnerSequenceSteps<T>(steps: T[], chunkSize: number): T[][] {
-  if (chunkSize <= 0) return [steps];
-  const chunks: T[][] = [];
-  for (let index = 0; index < steps.length; index += chunkSize) {
-    chunks.push(steps.slice(index, index + chunkSize));
-  }
-  return chunks;
-}
-
 /**
  * Wall-clock budget (ms) for one fused `sequence` runner request. The runner executes a whole
  * chunk inside a single DispatchQueue.main block guarded by a 30s main-thread watchdog

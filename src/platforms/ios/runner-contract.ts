@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { AppError } from '../../utils/errors.ts';
 import type { ClickButton } from '../../core/click-button.ts';
 import type { DeviceRotation } from '../../core/device-rotation.ts';
-import type { ScrollDirection, SwipePattern } from '../../core/scroll-gesture.ts';
+import type { ScrollDirection } from '../../core/scroll-gesture.ts';
 import type { ElementSelectorKey } from '../../core/interactor-types.ts';
 import { createRequestCanceledError, isRequestCanceled } from '../../daemon/request-cancel.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
@@ -15,17 +15,13 @@ export type RunnerCommand = {
   command:
     | 'tap'
     | 'mouseClick'
-    // Runner-supported but no longer sent by this daemon (press/double-tap series fuse into
-    // `sequence` steps); kept for wire compatibility with older daemons.
-    | 'tapSeries'
     | 'longPress'
     // Runner-supported but no longer sent by this daemon (scroll fuses frame resolution into
     // the runner-side `scroll` command); kept for wire compatibility with older daemons.
+    // The runner likewise still serves `tapSeries`/`dragSeries` for older daemons, but those
+    // never appear here: this type is the send surface of the current daemon.
     | 'interactionFrame'
     | 'drag'
-    // Runner-supported but no longer sent by this daemon (swipe series fuse into `sequence`
-    // drag steps with daemon-side ping-pong unrolling); kept for wire compatibility.
-    | 'dragSeries'
     | 'remotePress'
     | 'type'
     | 'swipe'
@@ -70,11 +66,6 @@ export type RunnerCommand = {
   y?: number;
   button?: ClickButton;
   remoteButton?: 'select' | 'menu' | 'home' | 'up' | 'down' | 'left' | 'right';
-  count?: number;
-  intervalMs?: number;
-  doubleTap?: boolean;
-  pauseMs?: number;
-  pattern?: SwipePattern;
   x2?: number;
   y2?: number;
   dx?: number;
