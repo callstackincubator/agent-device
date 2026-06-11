@@ -237,6 +237,15 @@ Command-only flags (like `find --first`) that do not flow to the platform layer 
 - Cross-platform behavior change: run `pnpm test:integration`.
 - Any change in: `src/`, `test/`, `skills/`: `pnpm format`.
 
+## PR Readiness Checklist
+- Static gates first: required checks from **Testing Matrix** pass, `pnpm check:fallow --base origin/main` is clean when code quality/dead-code risk is relevant, CI guards are green, and no conflict markers or unmerged paths remain.
+- Command-surface changes preserve CLI, Node.js, daemon, MCP, help, docs, and SkillGym coverage where that surface is affected. Do not duplicate command contracts across layers.
+- Device-facing behavior is not merge-ready until it has real simulator/emulator/device evidence for the changed path. Fixture-backed tests can prove contracts, but they do not replace a live run that creates or observes the artifact/state the feature claims to handle.
+- If live verification is blocked, state the blocker, exact command or device needed, and downgrade the PR to residual risk instead of calling it ready.
+- Runtime output must stay agent-friendly: compact defaults, top offenders first for diagnostics/perf, bounded arrays in JSON, artifact paths for large raw data, and progressive lookup for deeper detail.
+- Before final response or PR handoff, close every manual `agent-device` session opened during verification and report any cleanup that could not be completed.
+- Reviewers should check sibling PR ordering, hidden behavior changes, docs/help impact, and whether the tightening pass removed obsolete code/tests introduced or made unnecessary by the change.
+
 ## Token Guardrails
 - Do not read unrelated files once owning module is identified.
 - Do not run integration tests by default.
