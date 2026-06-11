@@ -35,7 +35,7 @@ startup commands still skip that preflight because the first successful command 
 proof for a newly launched runner. Readiness probe commands skip preflight to avoid recursion.
 
 The daemon may additionally skip the ready-session `uptime` preflight for an explicit allowlist of
-mutating interactions (`tap`, `tapSeries`, `longPress`, `drag`, `dragSeries`, `swipe`, `scroll`, `sequence`) when the same
+mutating interactions (`tap`, `longPress`, `drag`, `swipe`, `scroll`, `sequence`) when the same
 session produced a healthy mutating response — parsed ok and not carrying `runnerFatal` — for the
 same `appBundleId` within 5 seconds. This recency lives only on the `RunnerSession` object as
 `lastHealthyMutation`, so it dies with every invalidation/restart, and it is recorded only after the

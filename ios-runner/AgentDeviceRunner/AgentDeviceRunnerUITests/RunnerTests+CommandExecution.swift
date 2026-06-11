@@ -581,6 +581,8 @@ extension RunnerTests {
         return Response(ok: false, error: ErrorPayload(message: error.localizedDescription))
       }
     case .tapSeries:
+      // No longer sent by current daemons (press/double-tap series fuse into `sequence` steps);
+      // kept for wire compatibility with older daemons.
       guard let x = command.x, let y = command.y else {
         return Response(ok: false, error: ErrorPayload(message: "tapSeries requires x and y"))
       }
@@ -691,6 +693,8 @@ extension RunnerTests {
         message: "scrolled"
       )
     case .dragSeries:
+      // No longer sent by current daemons (swipe series fuse into `sequence` drag steps with
+      // daemon-side ping-pong unrolling); kept for wire compatibility with older daemons.
       guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
         return Response(ok: false, error: ErrorPayload(message: "dragSeries requires x, y, x2, and y2"))
       }

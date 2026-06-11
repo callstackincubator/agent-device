@@ -57,12 +57,12 @@ const runnerSessionLocks = new Map<string, Promise<unknown>>();
 const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 1_000;
 const RUNNER_STALE_BUNDLE_UNINSTALL_TIMEOUT_MS = 10_000;
 const RUNNER_PREFLIGHT_SKIP_FRESHNESS_MS = 5_000;
+// Only commands this daemon actually sends belong here; the retired tapSeries/dragSeries wire
+// commands stay runner-supported for older daemons but never originate from this process.
 const PREFLIGHT_SKIP_ELIGIBLE_RUNNER_COMMANDS = new Set<RunnerCommand['command']>([
   'tap',
-  'tapSeries',
   'longPress',
   'drag',
-  'dragSeries',
   'swipe',
   'scroll',
   'sequence',

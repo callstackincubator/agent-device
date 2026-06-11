@@ -867,13 +867,8 @@ const ALLOWLISTED_MUTATIONS: { name: string; command: Record<string, unknown> }[
     name: 'selector tap',
     command: { command: 'tap', selectorKey: 'label', selectorValue: 'Open article' },
   },
-  { name: 'tapSeries', command: { command: 'tapSeries', x: 1, y: 2, count: 2, intervalMs: 80 } },
   { name: 'longPress', command: { command: 'longPress', x: 1, y: 2 } },
   { name: 'drag', command: { command: 'drag', x: 1, y: 2, x2: 3, y2: 4 } },
-  {
-    name: 'dragSeries',
-    command: { command: 'dragSeries', x: 1, y: 2, x2: 3, y2: 4, count: 2 },
-  },
   { name: 'swipe', command: { command: 'swipe', x: 1, y: 2, x2: 3, y2: 4 } },
   { name: 'scroll', command: { command: 'scroll', direction: 'down' } },
   {

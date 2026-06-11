@@ -15,12 +15,16 @@ export type RunnerCommand = {
   command:
     | 'tap'
     | 'mouseClick'
+    // Runner-supported but no longer sent by this daemon (press/double-tap series fuse into
+    // `sequence` steps); kept for wire compatibility with older daemons.
     | 'tapSeries'
     | 'longPress'
     // Runner-supported but no longer sent by this daemon (scroll fuses frame resolution into
     // the runner-side `scroll` command); kept for wire compatibility with older daemons.
     | 'interactionFrame'
     | 'drag'
+    // Runner-supported but no longer sent by this daemon (swipe series fuse into `sequence`
+    // drag steps with daemon-side ping-pong unrolling); kept for wire compatibility.
     | 'dragSeries'
     | 'remotePress'
     | 'type'
@@ -106,7 +110,7 @@ export type RunnerCommand = {
  * daemon and runner sides — see runner-sequence.ts (the single interpretation point).
  */
 export type RunnerSequenceStep = {
-  kind: 'tap' | 'longPress' | 'drag';
+  kind: 'tap' | 'doubleTap' | 'longPress' | 'drag';
   x: number;
   y: number;
   x2?: number;

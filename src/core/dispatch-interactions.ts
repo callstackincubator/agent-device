@@ -29,7 +29,6 @@ import {
 } from '../utils/scroll-edge-state.ts';
 import {
   requireIntInRange,
-  shouldUseIosTapSeries,
   shouldUseIosDragSeries,
   shouldUseIosPressSequence,
   chunkRunnerSequenceStepsByBudget,
@@ -159,11 +158,7 @@ export async function handlePressCommand(
   const series = readPressSeriesOptions(context);
   validatePressSeriesOptions(series);
 
-  if (shouldUseIosTapSeries(device, series.count, series.holdMs, series.jitterPx)) {
-    return await runIosTapSeries(device, x, y, series, context);
-  }
-
-  if (shouldUseIosPressSequence(device, series.count, series.holdMs, series.jitterPx)) {
+  if (shouldUseIosPressSequence(device, series.count)) {
     return await runIosPressSequence(device, x, y, series, context);
   }
 
@@ -328,57 +323,19 @@ function validatePressSeriesOptions({ doubleTap, holdMs, jitterPx }: PressSeries
   }
 }
 
-async function runIosTapSeries(
+// Runs an ordered step list as budget-chunked `sequence` runner requests and aggregates the
+// chunk responses. Chunks are bounded by BOTH a step-count cap and an estimated wall-clock
+// budget so no single request risks the runner's 30s main-thread watchdog. Stops at the first
+// chunk reporting a failed step (mapped to an AppError with the global step index). The
+// aggregate keeps the first chunk's frame/x/y/gestureStart, the last chunk's gestureEnd, summed
+// completedSteps, and concatenated sequenceResults so recording-gestures and response shaping
+// see the whole series, not just the first chunk.
+async function runIosSequenceChunks(
   device: DeviceInfo,
-  x: number,
-  y: number,
-  series: PressSeriesOptions,
+  steps: RunnerSequenceStep[],
   context: DispatchContext | undefined,
 ): Promise<Record<string, unknown>> {
   const { runIosRunnerCommand } = await import('../platforms/ios/runner-client.ts');
-  const runnerResult = await runIosRunnerCommand(
-    device,
-    {
-      command: 'tapSeries',
-      x,
-      y,
-      count: series.count,
-      intervalMs: series.intervalMs,
-      doubleTap: series.doubleTap,
-      appBundleId: context?.appBundleId,
-    },
-    runnerOptionsFromContext(context),
-  );
-  return {
-    x,
-    y,
-    count: series.count,
-    intervalMs: series.intervalMs,
-    holdMs: series.holdMs,
-    jitterPx: series.jitterPx,
-    doubleTap: series.doubleTap,
-    timingMode: 'runner-series',
-    ...runnerResult,
-    ...successText(formatPressMessage({ x, y })),
-  };
-}
-
-// Fuses an iOS hold/jitter press series into `sequence` runner requests, replacing the N-request
-// runDirectPressSeries fallback. Chunks are bounded by BOTH a step-count cap and an estimated
-// wall-clock budget so no single request risks the runner's 30s main-thread watchdog. Stops at the
-// first chunk reporting a failed step (mapped to an AppError with the global step index). Returns a
-// tapSeries-shaped result aggregated across chunks (first chunk's frame/x/y/gestureStart, last
-// chunk's gestureEnd, summed completedSteps, concatenated sequenceResults) so recording-gestures
-// and response shaping see the whole series, not just the first chunk.
-async function runIosPressSequence(
-  device: DeviceInfo,
-  x: number,
-  y: number,
-  series: PressSeriesOptions,
-  context: DispatchContext | undefined,
-): Promise<Record<string, unknown>> {
-  const { runIosRunnerCommand } = await import('../platforms/ios/runner-client.ts');
-  const steps = buildPressSequenceSteps(device, x, y, series);
   const chunks = chunkRunnerSequenceStepsByBudget(steps, MAX_RUNNER_SEQUENCE_STEPS);
 
   let firstChunkRunnerResult: Record<string, unknown> | undefined;
@@ -406,6 +363,31 @@ async function runIosPressSequence(
   }
 
   return {
+    ...(firstChunkRunnerResult ?? {}),
+    completedSteps,
+    sequenceResults,
+    ...(lastChunkRunnerResult?.gestureEndUptimeMs !== undefined
+      ? { gestureEndUptimeMs: lastChunkRunnerResult.gestureEndUptimeMs }
+      : {}),
+  };
+}
+
+// Fuses an iOS press series — plain, double-tap, hold, and jitter variants — into `sequence`
+// runner requests, replacing both the retired `tapSeries` runner command and the N-request
+// runDirectPressSeries fallback.
+async function runIosPressSequence(
+  device: DeviceInfo,
+  x: number,
+  y: number,
+  series: PressSeriesOptions,
+  context: DispatchContext | undefined,
+): Promise<Record<string, unknown>> {
+  const aggregated = await runIosSequenceChunks(
+    device,
+    buildPressSequenceSteps(device, x, y, series),
+    context,
+  );
+  return {
     x,
     y,
     count: series.count,
@@ -414,12 +396,7 @@ async function runIosPressSequence(
     jitterPx: series.jitterPx,
     doubleTap: series.doubleTap,
     timingMode: 'runner-sequence',
-    ...(firstChunkRunnerResult ?? {}),
-    completedSteps,
-    sequenceResults,
-    ...(lastChunkRunnerResult?.gestureEndUptimeMs !== undefined
-      ? { gestureEndUptimeMs: lastChunkRunnerResult.gestureEndUptimeMs }
-      : {}),
+    ...aggregated,
     ...successText(formatPressMessage({ x, y })),
   };
 }
@@ -430,7 +407,7 @@ function buildPressSequenceSteps(
   y: number,
   series: PressSeriesOptions,
 ): RunnerSequenceStep[] {
-  const kind = series.holdMs > 0 ? 'longPress' : 'tap';
+  const kind = series.doubleTap ? 'doubleTap' : series.holdMs > 0 ? 'longPress' : 'tap';
   // Mirror the individual `tap` command: on iOS non-tv, tap steps use synthesized HID taps
   // (synthesizedTapAt) rather than the drag-based XCUICoordinate tapAt, matching iosTapCommand.
   const synthesized = kind === 'tap' && device.platform === 'ios' && device.target !== 'tv';
@@ -444,6 +421,37 @@ function buildPressSequenceSteps(
       ...(synthesized ? { synthesized: true } : {}),
       ...(series.holdMs > 0 ? { durationMs: series.holdMs } : {}),
       ...(!isLast && series.intervalMs > 0 ? { pauseMs: series.intervalMs } : {}),
+    };
+  });
+}
+
+// Unrolls a swipe series into `sequence` drag steps, replacing the retired `dragSeries` runner
+// command. Ping-pong becomes per-step endpoint swapping (odd indices reversed), matching the
+// runner-side performDragSeries the daemon no longer invokes. durationMs is carried for wire
+// fidelity and budget estimation; the runner's coordinate-drag path ignores it, exactly as the
+// daemon-sent (non-synthesized) dragSeries did.
+function buildSwipeSequenceSteps(params: {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  count: number;
+  pauseMs: number;
+  pattern: string;
+  effectiveDurationMs: number;
+}): RunnerSequenceStep[] {
+  const { x1, y1, x2, y2, count, pauseMs, pattern, effectiveDurationMs } = params;
+  return Array.from({ length: count }, (_, index) => {
+    const reverse = pattern === 'ping-pong' && index % 2 === 1;
+    const isLast = index === count - 1;
+    return {
+      kind: 'drag' as const,
+      x: reverse ? x2 : x1,
+      y: reverse ? y2 : y1,
+      x2: reverse ? x1 : x2,
+      y2: reverse ? y1 : y2,
+      durationMs: effectiveDurationMs,
+      ...(!isLast && pauseMs > 0 ? { pauseMs } : {}),
     };
   });
 }
@@ -598,27 +606,10 @@ async function runSwipeCoordinates(params: {
   }
 
   if (shouldUseIosDragSeries(device, count)) {
-    const { runIosRunnerCommand } = await import('../platforms/ios/runner-client.ts');
-    const runnerResult = await runIosRunnerCommand(
+    const aggregated = await runIosSequenceChunks(
       device,
-      {
-        command: 'dragSeries',
-        x: x1,
-        y: y1,
-        x2,
-        y2,
-        durationMs: effectiveDurationMs,
-        count,
-        pauseMs,
-        pattern,
-        appBundleId: context?.appBundleId,
-      },
-      {
-        verbose: context?.verbose,
-        logPath: context?.logPath,
-        traceLogPath: context?.traceLogPath,
-        requestId: context?.requestId,
-      },
+      buildSwipeSequenceSteps({ x1, y1, x2, y2, count, pauseMs, pattern, effectiveDurationMs }),
+      context,
     );
     return {
       x1,
@@ -628,11 +619,11 @@ async function runSwipeCoordinates(params: {
       ...(preset ? { preset } : {}),
       durationMs,
       effectiveDurationMs,
-      timingMode: 'runner-series',
+      timingMode: 'runner-sequence',
       count,
       pauseMs,
       pattern,
-      ...runnerResult,
+      ...aggregated,
       ...successText(formatSwipeMessage(count, pattern)),
     };
   }

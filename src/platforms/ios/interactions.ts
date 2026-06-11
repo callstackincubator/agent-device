@@ -5,6 +5,7 @@ import {
   type ScrollDirection,
 } from '../../core/scroll-gesture.ts';
 import { runIosRunnerCommand } from './runner-client.ts';
+import { buildRunnerSequenceCommand, parseRunnerSequenceResult } from './runner-sequence.ts';
 import type { RunnerCommand } from './runner-contract.ts';
 import type {
   BackMode,
@@ -85,19 +86,15 @@ export function iosRunnerOverrides(
         );
       },
       doubleTap: async (x, y) => {
-        return await runIosRunnerCommand(
+        // One-step `sequence` replaced the retired `tapSeries` double-tap vehicle; parsing the
+        // result surfaces a failed step as an AppError instead of an ok-shaped payload.
+        const runnerResult = await runIosRunnerCommand(
           device,
-          {
-            command: 'tapSeries',
-            x,
-            y,
-            count: 1,
-            intervalMs: 0,
-            doubleTap: true,
-            appBundleId: ctx.appBundleId,
-          },
+          buildRunnerSequenceCommand([{ kind: 'doubleTap', x, y }], ctx.appBundleId),
           runnerOpts,
         );
+        parseRunnerSequenceResult(runnerResult);
+        return runnerResult;
       },
       swipe: async (x1, y1, x2, y2, durationMs) => {
         return await runIosRunnerCommand(

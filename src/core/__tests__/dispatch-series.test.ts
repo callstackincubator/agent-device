@@ -2,7 +2,6 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   requireIntInRange,
-  shouldUseIosTapSeries,
   shouldUseIosDragSeries,
   shouldUseIosPressSequence,
   chunkRunnerSequenceSteps,
@@ -50,20 +49,6 @@ test('requireIntInRange throws for non-finite values', () => {
   }
 });
 
-// --- shouldUseIosTapSeries ---
-
-test('shouldUseIosTapSeries returns true for iOS with count > 1 and no hold or jitter', () => {
-  assert.equal(shouldUseIosTapSeries(iosDevice, 2, 0, 0), true);
-});
-
-test('shouldUseIosTapSeries returns false when holdMs is non-zero', () => {
-  assert.equal(shouldUseIosTapSeries(iosDevice, 2, 100, 0), false);
-});
-
-test('shouldUseIosTapSeries returns false when jitterPx is non-zero', () => {
-  assert.equal(shouldUseIosTapSeries(iosDevice, 2, 0, 5), false);
-});
-
 // --- shouldUseIosDragSeries ---
 
 test('shouldUseIosDragSeries returns true for iOS with count > 1', () => {
@@ -76,24 +61,17 @@ test('shouldUseIosDragSeries returns false when count is 1', () => {
 
 // --- shouldUseIosPressSequence ---
 
-test('shouldUseIosPressSequence returns true for iOS with count > 1 and hold', () => {
-  assert.equal(shouldUseIosPressSequence(iosDevice, 3, 200, 0), true);
-});
-
-test('shouldUseIosPressSequence returns true for iOS with count > 1 and jitter', () => {
-  assert.equal(shouldUseIosPressSequence(iosDevice, 3, 0, 2), true);
-});
-
-test('shouldUseIosPressSequence returns false without hold or jitter', () => {
-  assert.equal(shouldUseIosPressSequence(iosDevice, 3, 0, 0), false);
+test('shouldUseIosPressSequence returns true for any iOS multi-press variant', () => {
+  assert.equal(shouldUseIosPressSequence(iosDevice, 2), true);
+  assert.equal(shouldUseIosPressSequence(iosDevice, 3), true);
 });
 
 test('shouldUseIosPressSequence returns false for count <= 1', () => {
-  assert.equal(shouldUseIosPressSequence(iosDevice, 1, 200, 2), false);
+  assert.equal(shouldUseIosPressSequence(iosDevice, 1), false);
 });
 
 test('shouldUseIosPressSequence returns false on non-Apple platforms', () => {
-  assert.equal(shouldUseIosPressSequence(androidDevice, 3, 200, 2), false);
+  assert.equal(shouldUseIosPressSequence(androidDevice, 3), false);
 });
 
 // --- chunkRunnerSequenceSteps ---

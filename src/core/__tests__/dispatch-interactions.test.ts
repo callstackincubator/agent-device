@@ -168,10 +168,15 @@ test('handleSwipeCommand preserves iOS swipe duration through dispatch', async (
   });
 });
 
-test('handleSwipeCommand uses XCTest iOS runner drag series for repeated swipes', async () => {
+test('handleSwipeCommand fuses repeated swipes into sequence drag steps with ping-pong unrolled', async () => {
   mockRunIosRunnerCommand.mockResolvedValueOnce({
     gestureStartUptimeMs: 100,
     gestureEndUptimeMs: 720,
+    completedSteps: 2,
+    sequenceResults: [
+      { ok: true, kind: 'drag' },
+      { ok: true, kind: 'drag' },
+    ],
   });
   const interactor = makeUnusedInteractor();
 
@@ -188,18 +193,17 @@ test('handleSwipeCommand uses XCTest iOS runner drag series for repeated swipes'
   );
 
   assert.deepEqual(mockRunIosRunnerCommand.mock.calls[0]?.[1], {
-    command: 'dragSeries',
-    x: 100,
-    y: 650,
-    x2: 100,
-    y2: 450,
-    durationMs: 120,
-    count: 2,
-    pauseMs: 50,
-    pattern: 'ping-pong',
+    command: 'sequence',
+    steps: [
+      // Ping-pong is unrolled daemon-side: odd indices swap endpoints, replacing the
+      // runner-side pattern handling of the retired dragSeries command.
+      { kind: 'drag', x: 100, y: 650, x2: 100, y2: 450, durationMs: 120, pauseMs: 50 },
+      { kind: 'drag', x: 100, y: 450, x2: 100, y2: 650, durationMs: 120 },
+    ],
     appBundleId: 'com.example.App',
   });
-  assert.equal(result.timingMode, 'runner-series');
+  assert.equal(result.timingMode, 'runner-sequence');
+  assert.equal(result.completedSteps, 2);
   assert.equal(result.message, 'Swiped 2 times (ping-pong)');
 });
 
@@ -306,6 +310,54 @@ test('handlePressCommand fuses an iOS hold series into longPress sequence steps'
     { kind: 'longPress', x: 100, y: 200, durationMs: 300 },
     { kind: 'longPress', x: 100, y: 200, durationMs: 300 },
     { kind: 'longPress', x: 100, y: 200, durationMs: 300 },
+  ]);
+});
+
+test('handlePressCommand fuses a plain iOS series into sequence tap steps (retired tapSeries route)', async () => {
+  mockRunIosRunnerCommand.mockResolvedValueOnce({
+    completedSteps: 2,
+    sequenceResults: [
+      { ok: true, kind: 'tap' },
+      { ok: true, kind: 'tap' },
+    ],
+  });
+
+  await handlePressCommand(IOS_SIMULATOR, makeUnusedInteractor(), ['100', '200'], {
+    count: 2,
+    intervalMs: 80,
+  });
+
+  assert.equal(mockRunIosRunnerCommand.mock.calls.length, 1);
+  const sent = mockRunIosRunnerCommand.mock.calls[0]?.[1] as RunnerCommand;
+  assert.equal(sent.command, 'sequence');
+  assert.deepEqual(sent.steps, [
+    { kind: 'tap', x: 100, y: 200, synthesized: true, pauseMs: 80 },
+    { kind: 'tap', x: 100, y: 200, synthesized: true },
+  ]);
+});
+
+test('handlePressCommand fuses an iOS double-tap series into doubleTap sequence steps', async () => {
+  mockRunIosRunnerCommand.mockResolvedValueOnce({
+    completedSteps: 2,
+    sequenceResults: [
+      { ok: true, kind: 'doubleTap' },
+      { ok: true, kind: 'doubleTap' },
+    ],
+  });
+
+  await handlePressCommand(IOS_SIMULATOR, makeUnusedInteractor(), ['100', '200'], {
+    count: 2,
+    doubleTap: true,
+    intervalMs: 50,
+  });
+
+  assert.equal(mockRunIosRunnerCommand.mock.calls.length, 1);
+  const sent = mockRunIosRunnerCommand.mock.calls[0]?.[1] as RunnerCommand;
+  assert.equal(sent.command, 'sequence');
+  // doubleTap steps never set synthesized — the runner's doubleTapAt path handles them.
+  assert.deepEqual(sent.steps, [
+    { kind: 'doubleTap', x: 100, y: 200, pauseMs: 50 },
+    { kind: 'doubleTap', x: 100, y: 200 },
   ]);
 });
 
