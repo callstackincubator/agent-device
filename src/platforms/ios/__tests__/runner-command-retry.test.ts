@@ -628,6 +628,94 @@ test('mutating commands report recovery guidance when completed status has no re
   });
 });
 
+test('mutating commands run status recovery after transport failure when readiness preflight was skipped', async () => {
+  const session = makeRunnerSession({ port: 8100, ready: true });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(session);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(
+      new AppError('COMMAND_FAILED', 'fetch failed', {
+        runnerReadinessPreflightSkipped: true,
+        runnerReadinessPreflightSkipReason: 'recent_healthy_mutation',
+        runnerReadinessPreflightSkippedAgeMs: 1_200,
+      }),
+    )
+    .mockResolvedValueOnce({
+      lifecycleState: 'completed',
+      lifecycleResponseJson: JSON.stringify({ ok: true, data: { message: 'tapped' } }),
+    });
+
+  const result = await runIosRunnerCommand(IOS_SIMULATOR, { command: 'tap', x: 120, y: 240 });
+
+  assert.deepEqual(result, { message: 'tapped' });
+  assert.equal(mockInvalidateRunnerSession.mock.calls.length, 0);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
+  const recoveryDiagnostic = mockEmitDiagnostic.mock.calls.find(
+    ([event]) => event.phase === 'ios_runner_command_status_recovery',
+  )?.[0];
+  assert.ok(recoveryDiagnostic);
+  assert.equal(recoveryDiagnostic.data?.readinessPreflightSkipped, true);
+  assert.equal(recoveryDiagnostic.data?.readinessPreflightSkipReason, 'recent_healthy_mutation');
+  assert.equal(recoveryDiagnostic.data?.readinessPreflightSkippedAgeMs, 1_200);
+});
+
+test('mutating commands include skipped readiness context in lost-response guidance', async () => {
+  const session = makeRunnerSession({ port: 8100, ready: true });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(session);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(
+      new AppError('COMMAND_FAILED', 'fetch failed', {
+        runnerReadinessPreflightSkipped: true,
+        runnerReadinessPreflightSkipReason: 'recent_healthy_mutation',
+        runnerReadinessPreflightSkippedAgeMs: 1_200,
+      }),
+    )
+    .mockResolvedValueOnce({ lifecycleState: 'completed' });
+
+  await assert.rejects(
+    () => runIosRunnerCommand(IOS_SIMULATOR, { command: 'tap', x: 120, y: 240 }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.match(String(error.details?.hint), /^This hot command skipped the uptime preflight/);
+      assert.equal(error.details?.readinessPreflightSkipped, true);
+      assert.equal(error.details?.readinessPreflightSkipReason, 'recent_healthy_mutation');
+      assert.equal(error.details?.readinessPreflightSkippedAgeMs, 1_200);
+      return true;
+    },
+  );
+
+  assert.equal(mockInvalidateRunnerSession.mock.calls.length, 0);
+});
+
+test('mutating commands keep conservative invalidation for skipped-preflight failures with unknown lifecycle', async () => {
+  const session = makeRunnerSession({ port: 8100, ready: true });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(session);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(
+      new AppError('COMMAND_FAILED', 'fetch failed', {
+        runnerReadinessPreflightSkipped: true,
+        runnerReadinessPreflightSkipReason: 'recent_healthy_mutation',
+        runnerReadinessPreflightSkippedAgeMs: 1_200,
+      }),
+    )
+    .mockResolvedValueOnce({ lifecycleState: 'paused' });
+
+  await assert.rejects(() =>
+    runIosRunnerCommand(IOS_SIMULATOR, { command: 'tap', x: 120, y: 240 }),
+  );
+
+  assert.deepEqual(mockInvalidateRunnerSession.mock.calls, [
+    [session, 'transport_error_after_command_send'],
+  ]);
+  assertDiagnosticDecision({
+    decision: 'retained',
+    reason: 'unknown_lifecycle_state',
+    lifecycleState: 'paused',
+  });
+});
+
 test('mutating commands preserve runner failure details from status recovery', async () => {
   const session = makeRunnerSession({ port: 8100, ready: true });
 

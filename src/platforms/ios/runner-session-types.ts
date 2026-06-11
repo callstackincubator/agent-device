@@ -15,6 +15,10 @@ export type RunnerSession = {
   child: ExecBackgroundResult['child'];
   ready: boolean;
   startupTimeoutMs?: number;
+  // Records the last allowlisted mutating interaction that the runner confirmed
+  // healthy (parsed ok, non-runnerFatal) for a given app bundle. Lives only on
+  // the session object so it dies with every invalidation/restart (#702).
+  lastHealthyMutation?: { atMs: number; appBundleId?: string };
   startupTimings?: Record<string, number>;
   startupTimingsReported?: boolean;
   simulatorSetRedirect?: { release: () => Promise<void> };

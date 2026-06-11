@@ -41,21 +41,34 @@ iOS simulator validation:
 
 ### 2. Adaptive `uptime` preflight policy
 
-Status: superseded by ADR 0005 for ready-session command execution.
+Status: implemented with guardrails (see ADR 0005). The earlier blanket "recent success" cache was
+shipped and then reverted in #702 because XCTest could return a successful tap response and then fail
+the runner while re-resolving a navigation-disappeared element, and because sparse AX-fallback
+snapshots were cached as healthy state. #702's coordinate-first activation removed that teardown
+trigger, so the skip is reintroduced as a structurally narrower "healthy mutation recency" signal.
 
-Goal: reduce unnecessary readiness probes only when another health signal proves the runner is still
-serving new requests. A recent successful command response is not sufficient proof: React Navigation
-dogfood showed XCTest can return a successful tap response and then immediately fail the test runner
-while re-resolving a navigation-disappeared element.
+Goal: skip the per-command `uptime` for hot allowlisted interaction loops only when a proven healthy
+mutating response makes the runner's liveness already known, while every uncertain path keeps
+preflighting.
 
-Acceptance criteria:
+Acceptance criteria (as shipped):
 
-- Existing first-command/startup readiness behavior is preserved.
-- Existing failed-preflight stale-session recovery is preserved.
-- Repeated hot interactions do not skip `uptime` based on cached recent-success state.
-- Commands that still need conservative readiness checks remain preflighted until measured.
-- A transport failure after skipping preflight runs status recovery before invalidation.
-- Diagnostics expose whether a command used, skipped, or recovered from a readiness preflight.
+- First-command/startup, no-record, stale-record, app-activation-uncertain, and non-allowlisted
+  (conservative) commands still preflight; readiness probes and read-only startup commands keep
+  their existing skips.
+- Recency is derived only from healthy (parsed ok, non-`runnerFatal`) responses of an explicit
+  mutating allowlist (`tap`, `tapSeries`, `longPress`, `drag`, `dragSeries`, `swipe`) for the same
+  `appBundleId`, within a 5s freshness window, and lives only on the session object so it dies with
+  every invalidation/restart. Snapshots and read-only responses never refresh it.
+- A transport failure after a skipped preflight clears the recency record and marks the error with
+  the skip context (`runnerReadinessPreflightSkipped`, distinct from the restart predicate's
+  `runnerReadinessPreflightFailed`). Connection-shaped failures run status recovery before
+  invalidation — never a replay; timeout-shaped failures propagate with the skip context, matching
+  the existing classification for preflighted sends.
+- Diagnostics expose whether a command used, skipped, or recovered from a readiness preflight,
+  including command type, skip reason, and recency age.
+- Measured threshold: 1 runner request per hot allowlisted command after the first, with no increase
+  in invalidation or failure rate.
 
 iOS simulator validation:
 

@@ -23,6 +23,12 @@ type RunnerTransportRecoveryContext = {
   invalidateSession: (session: RunnerSession, reason: string) => Promise<void>;
 };
 
+type RunnerReadinessPreflightRecoveryDetails = {
+  readinessPreflightSkipped?: boolean;
+  readinessPreflightSkipReason?: string;
+  readinessPreflightSkippedAgeMs?: number;
+};
+
 const RUNNER_STATUS_RECOVERY_TIMEOUT_MS = 3_000;
 
 export async function handleRunnerTransportErrorAfterCommandSend(params: {
@@ -125,6 +131,7 @@ async function tryRecoverRunnerCommandAfterTransportError(
   signal?: AbortSignal,
 ): Promise<RunnerTransportRecovery | undefined> {
   if (command.command === 'status' || !command.commandId?.trim()) return undefined;
+  const readinessPreflight = readReadinessPreflightRecoveryDetails(transportError);
   let status: Record<string, unknown>;
   try {
     status = await executeRunnerCommandWithSession(
@@ -143,6 +150,7 @@ async function tryRecoverRunnerCommandAfterTransportError(
         command: command.command,
         commandId: command.commandId,
         error: error instanceof Error ? error.message : String(error),
+        ...readinessPreflight,
       },
     });
     return { type: 'retainInvalidation', reason: 'status_probe_failed' };
@@ -156,6 +164,7 @@ async function tryRecoverRunnerCommandAfterTransportError(
       command: command.command,
       commandId: command.commandId,
       lifecycleState,
+      ...readinessPreflight,
     },
   });
   return handleRunnerCommandStatusRecovery(
@@ -240,6 +249,7 @@ function handleCompletedRunnerStatus(
       lifecycleState: 'completed',
     };
   }
+  const readinessPreflight = readReadinessPreflightRecoveryDetails(transportError);
   return {
     type: 'skipInvalidation',
     reason: 'completed_without_retained_response',
@@ -252,7 +262,8 @@ function handleCompletedRunnerStatus(
         commandId: command.commandId,
         lifecycleState: 'completed',
         recovery: 'completed_without_retained_response',
-        hint: completedWithoutRetainedResponseHint(command.command),
+        ...readinessPreflight,
+        hint: completedWithoutRetainedResponseHint(command.command, readinessPreflight),
         logPath: options.logPath,
         transportError: transportError.message,
       },
@@ -275,6 +286,7 @@ function runnerStatusFailureError(
       : 'Runner command failed';
   const hint =
     typeof status.lifecycleErrorHint === 'string' ? status.lifecycleErrorHint : undefined;
+  const readinessPreflight = readReadinessPreflightRecoveryDetails(transportError);
   return new AppError(
     toAppErrorCode(errorCode),
     errorMessage,
@@ -283,7 +295,8 @@ function runnerStatusFailureError(
       commandId: command.commandId,
       lifecycleState: 'failed',
       recovery: 'runner_reported_failure',
-      hint: hint ?? runnerReportedFailureHint(command.command),
+      ...readinessPreflight,
+      hint: hint ?? runnerReportedFailureHint(command.command, readinessPreflight),
       logPath: options.logPath,
       transportError: transportError.message,
     },
@@ -300,6 +313,7 @@ function runnerStatusInFlightError(
   if (isReadOnlyRunnerCommand(command.command)) {
     return transportError;
   }
+  const readinessPreflight = readReadinessPreflightRecoveryDetails(transportError);
   return new AppError(
     'COMMAND_FAILED',
     `Runner command "${command.command}" is still ${lifecycleState} after the transport response was lost.`,
@@ -308,7 +322,8 @@ function runnerStatusInFlightError(
       commandId: command.commandId,
       lifecycleState,
       recovery: 'command_still_in_flight',
-      hint: inFlightAfterLostResponseHint(command.command, lifecycleState),
+      ...readinessPreflight,
+      hint: inFlightAfterLostResponseHint(command.command, lifecycleState, readinessPreflight),
       logPath: options.logPath,
       transportError: transportError.message,
     },
@@ -334,16 +349,61 @@ function parseLifecycleResponsePayload(value: string): LifecycleResponsePayload 
   return {};
 }
 
-function completedWithoutRetainedResponseHint(command: string): string {
-  return `The runner is still reachable and reports "${command}" already completed, so agent-device kept the session open and will not replay it. Run snapshot -i to inspect the current UI, then continue from that observed state.`;
+function completedWithoutRetainedResponseHint(
+  command: string,
+  readinessPreflight: RunnerReadinessPreflightRecoveryDetails,
+): string {
+  return `${lostResponseReadinessContext(readinessPreflight)}The runner is still reachable and reports "${command}" already completed, so agent-device kept the session open and will not replay it. Run snapshot -i to inspect the current UI, then continue from that observed state.`;
 }
 
-function runnerReportedFailureHint(command: string): string {
-  return `The runner is still reachable and reports "${command}" failed after the transport response was lost, so agent-device kept the session open and did not replay it. Run snapshot -i to inspect the current UI and retry with a selector visible in that snapshot.`;
+function runnerReportedFailureHint(
+  command: string,
+  readinessPreflight: RunnerReadinessPreflightRecoveryDetails,
+): string {
+  return `${lostResponseReadinessContext(readinessPreflight)}The runner is still reachable and reports "${command}" failed after the transport response was lost, so agent-device kept the session open and did not replay it. Run snapshot -i to inspect the current UI and retry with a selector visible in that snapshot.`;
 }
 
-function inFlightAfterLostResponseHint(command: string, lifecycleState: string): string {
-  return `The runner is still reachable and reports "${command}" is ${lifecycleState}, so agent-device kept the session open and will not replay it. Wait briefly, run snapshot -i to inspect the current UI, then continue from that observed state.`;
+function inFlightAfterLostResponseHint(
+  command: string,
+  lifecycleState: string,
+  readinessPreflight: RunnerReadinessPreflightRecoveryDetails,
+): string {
+  return `${lostResponseReadinessContext(readinessPreflight)}The runner is still reachable and reports "${command}" is ${lifecycleState}, so agent-device kept the session open and will not replay it. Wait briefly, run snapshot -i to inspect the current UI, then continue from that observed state.`;
+}
+
+function lostResponseReadinessContext(
+  readinessPreflight: RunnerReadinessPreflightRecoveryDetails,
+): string {
+  if (readinessPreflight.readinessPreflightSkipped !== true) return '';
+  return 'This hot command skipped the uptime preflight because the runner had just completed a healthy interaction; status recovery confirmed the runner still observed it. ';
+}
+
+function readBooleanDetail(error: AppError, key: string): boolean | undefined {
+  const value = error.details?.[key];
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function readStringDetail(error: AppError, key: string): string | undefined {
+  const value = error.details?.[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function readNumberDetail(error: AppError, key: string): number | undefined {
+  const value = error.details?.[key];
+  return typeof value === 'number' ? value : undefined;
+}
+
+function readReadinessPreflightRecoveryDetails(
+  error: AppError,
+): RunnerReadinessPreflightRecoveryDetails {
+  const details: RunnerReadinessPreflightRecoveryDetails = {};
+  const skipped = readBooleanDetail(error, 'runnerReadinessPreflightSkipped');
+  if (skipped !== undefined) details.readinessPreflightSkipped = skipped;
+  const reason = readStringDetail(error, 'runnerReadinessPreflightSkipReason');
+  if (reason !== undefined) details.readinessPreflightSkipReason = reason;
+  const ageMs = readNumberDetail(error, 'runnerReadinessPreflightSkippedAgeMs');
+  if (ageMs !== undefined) details.readinessPreflightSkippedAgeMs = ageMs;
+  return details;
 }
 
 function unknownLifecycleStateHint(command: string): string {
