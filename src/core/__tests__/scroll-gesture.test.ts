@@ -33,6 +33,71 @@ test('buildScrollGesturePlan maps relative amount to viewport travel', () => {
   });
 });
 
+test('buildScrollGesturePlan maps explicit pixels below the safe band cap', () => {
+  const plan = buildScrollGesturePlan({
+    direction: 'down',
+    pixels: 120,
+    referenceWidth: 300,
+    referenceHeight: 600,
+  });
+
+  assert.deepEqual(plan, {
+    direction: 'down',
+    x1: 150,
+    y1: 360,
+    x2: 150,
+    y2: 240,
+    referenceWidth: 300,
+    referenceHeight: 600,
+    amount: undefined,
+    pixels: 120,
+  });
+});
+
+test('buildScrollGesturePlan clamps amounts above 1 to the safe gesture band', () => {
+  const plan = buildScrollGesturePlan({
+    direction: 'down',
+    amount: 2,
+    referenceWidth: 400,
+    referenceHeight: 800,
+  });
+
+  assert.deepEqual(plan, {
+    direction: 'down',
+    x1: 200,
+    y1: 760,
+    x2: 200,
+    y2: 40,
+    referenceWidth: 400,
+    referenceHeight: 800,
+    amount: 2,
+    pixels: 720,
+  });
+});
+
+test('buildScrollGesturePlan floors padding and travel on tiny frames', () => {
+  // 2x2 engages every max(1, ...) floor and the .5 rounding cases the two ports must agree on
+  // (halfTravel 0.5 -> 1, center 1 from 2/2).
+  const plan = buildScrollGesturePlan({
+    direction: 'down',
+    pixels: 10,
+    referenceWidth: 2,
+    referenceHeight: 2,
+  });
+
+  assert.deepEqual(plan, {
+    direction: 'down',
+    x1: 1,
+    y1: 2,
+    x2: 1,
+    y2: 0,
+    referenceWidth: 2,
+    referenceHeight: 2,
+    amount: undefined,
+    pixels: 1,
+  });
+});
+
 test('buildScrollGesturePlan clamps pixel travel to the safe gesture band', () => {
   const plan = buildScrollGesturePlan({
     direction: 'right',
