@@ -31,9 +31,17 @@ import {
   requireIntInRange,
   shouldUseIosTapSeries,
   shouldUseIosDragSeries,
+  shouldUseIosPressSequence,
+  chunkRunnerSequenceStepsByBudget,
   computeDeterministicJitter,
   runRepeatedSeries,
 } from './dispatch-series.ts';
+import {
+  MAX_RUNNER_SEQUENCE_STEPS,
+  buildRunnerSequenceCommand,
+  parseRunnerSequenceResult,
+} from '../platforms/ios/runner-sequence.ts';
+import type { RunnerSequenceStep } from '../platforms/ios/runner-contract.ts';
 import type { DispatchContext } from './dispatch-context.ts';
 import type { Interactor, RunnerCallOptions } from './interactor-types.ts';
 
@@ -153,6 +161,10 @@ export async function handlePressCommand(
 
   if (shouldUseIosTapSeries(device, series.count, series.holdMs, series.jitterPx)) {
     return await runIosTapSeries(device, x, y, series, context);
+  }
+
+  if (shouldUseIosPressSequence(device, series.count, series.holdMs, series.jitterPx)) {
+    return await runIosPressSequence(device, x, y, series, context);
   }
 
   return await runDirectPressSeries(interactor, x, y, series);
@@ -349,6 +361,113 @@ async function runIosTapSeries(
     ...runnerResult,
     ...successText(formatPressMessage({ x, y })),
   };
+}
+
+// Fuses an iOS hold/jitter press series into `sequence` runner requests, replacing the N-request
+// runDirectPressSeries fallback. Chunks are bounded by BOTH a step-count cap and an estimated
+// wall-clock budget so no single request risks the runner's 30s main-thread watchdog. Stops at the
+// first chunk reporting a failed step (mapped to an AppError with the global step index). Returns a
+// tapSeries-shaped result aggregated across chunks (first chunk's frame/x/y/gestureStart, last
+// chunk's gestureEnd, summed completedSteps, concatenated sequenceResults) so recording-gestures
+// and response shaping see the whole series, not just the first chunk.
+async function runIosPressSequence(
+  device: DeviceInfo,
+  x: number,
+  y: number,
+  series: PressSeriesOptions,
+  context: DispatchContext | undefined,
+): Promise<Record<string, unknown>> {
+  const { runIosRunnerCommand } = await import('../platforms/ios/runner-client.ts');
+  const steps = buildPressSequenceSteps(device, x, y, series);
+  const chunks = chunkRunnerSequenceStepsByBudget(steps, MAX_RUNNER_SEQUENCE_STEPS);
+
+  let firstChunkRunnerResult: Record<string, unknown> | undefined;
+  let lastChunkRunnerResult: Record<string, unknown> | undefined;
+  let completedSteps = 0;
+  const sequenceResults: unknown[] = [];
+  let stepOffset = 0;
+  for (const chunk of chunks) {
+    const runnerResult = await runIosRunnerCommand(
+      device,
+      buildRunnerSequenceCommand(chunk, context?.appBundleId),
+      runnerOptionsFromContext(context),
+    );
+    firstChunkRunnerResult ??= runnerResult;
+    lastChunkRunnerResult = runnerResult;
+    let parsed;
+    try {
+      parsed = parseRunnerSequenceResult(runnerResult);
+    } catch (error) {
+      throw remapSequenceErrorStepIndex(error, stepOffset);
+    }
+    completedSteps += parsed.completedSteps;
+    sequenceResults.push(...parsed.results);
+    stepOffset += chunk.length;
+  }
+
+  return {
+    x,
+    y,
+    count: series.count,
+    intervalMs: series.intervalMs,
+    holdMs: series.holdMs,
+    jitterPx: series.jitterPx,
+    doubleTap: series.doubleTap,
+    timingMode: 'runner-sequence',
+    ...(firstChunkRunnerResult ?? {}),
+    completedSteps,
+    sequenceResults,
+    ...(lastChunkRunnerResult?.gestureEndUptimeMs !== undefined
+      ? { gestureEndUptimeMs: lastChunkRunnerResult.gestureEndUptimeMs }
+      : {}),
+    ...successText(formatPressMessage({ x, y })),
+  };
+}
+
+function buildPressSequenceSteps(
+  device: DeviceInfo,
+  x: number,
+  y: number,
+  series: PressSeriesOptions,
+): RunnerSequenceStep[] {
+  const kind = series.holdMs > 0 ? 'longPress' : 'tap';
+  // Mirror the individual `tap` command: on iOS non-tv, tap steps use synthesized HID taps
+  // (synthesizedTapAt) rather than the drag-based XCUICoordinate tapAt, matching iosTapCommand.
+  const synthesized = kind === 'tap' && device.platform === 'ios' && device.target !== 'tv';
+  return Array.from({ length: series.count }, (_, index) => {
+    const [dx, dy] = computeDeterministicJitter(index, series.jitterPx);
+    const isLast = index === series.count - 1;
+    return {
+      kind,
+      x: x + dx,
+      y: y + dy,
+      ...(synthesized ? { synthesized: true } : {}),
+      ...(series.holdMs > 0 ? { durationMs: series.holdMs } : {}),
+      ...(!isLast && series.intervalMs > 0 ? { pauseMs: series.intervalMs } : {}),
+    };
+  });
+}
+
+// Sequence step errors carry a chunk-local failedStepIndex and completedSteps; rebase both onto the
+// global series so the error names the true step and completed count across chunk boundaries.
+function remapSequenceErrorStepIndex(error: unknown, stepOffset: number): unknown {
+  if (stepOffset === 0 || !(error instanceof AppError) || !error.details) return error;
+  const localIndex = error.details.failedStepIndex;
+  if (typeof localIndex !== 'number') return error;
+  const localCompletedSteps = error.details.completedSteps;
+  return new AppError(
+    error.code,
+    error.message,
+    {
+      ...error.details,
+      failedStepIndex: localIndex + stepOffset,
+      chunkStepIndex: localIndex,
+      ...(typeof localCompletedSteps === 'number'
+        ? { completedSteps: stepOffset + localCompletedSteps }
+        : {}),
+    },
+    error.cause,
+  );
 }
 
 async function runDirectPressSeries(

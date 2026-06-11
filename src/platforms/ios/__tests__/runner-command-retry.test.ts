@@ -838,6 +838,141 @@ test('mutating commands invalidate the retry session without replaying again', a
   });
 });
 
+test('sequence recovers retained per-step results without resending', async () => {
+  const session = makeRunnerSession({ port: 8100, ready: true });
+  const sequenceData = {
+    message: 'sequence',
+    completedSteps: 3,
+    sequenceResults: [
+      { ok: true, kind: 'tap' },
+      { ok: true, kind: 'tap' },
+      { ok: true, kind: 'tap' },
+    ],
+  };
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(session);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'fetch failed'))
+    .mockResolvedValueOnce({
+      lifecycleState: 'completed',
+      lifecycleResponseJson: JSON.stringify({ ok: true, data: sequenceData }),
+    });
+
+  const result = await runIosRunnerCommand(IOS_SIMULATOR, {
+    command: 'sequence',
+    steps: [
+      { kind: 'tap', x: 1, y: 2 },
+      { kind: 'tap', x: 3, y: 4 },
+      { kind: 'tap', x: 5, y: 6 },
+    ],
+  });
+
+  assert.deepEqual(result, sequenceData);
+  assert.equal(mockInvalidateRunnerSession.mock.calls.length, 0);
+  // status probe only — the mutating sequence is never replayed.
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls[1]?.[2].command, 'status');
+  assertDiagnosticDecision({
+    decision: 'skipped',
+    reason: 'completed_with_retained_response',
+    lifecycleState: 'completed',
+  });
+});
+
+test('sequence surfaces a lifecycle failure without replaying', async () => {
+  const session = makeRunnerSession({ port: 8100, ready: true });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(session);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'fetch failed'))
+    .mockResolvedValueOnce({
+      lifecycleState: 'failed',
+      lifecycleErrorCode: 'UNSUPPORTED_OPERATION',
+      lifecycleErrorMessage: 'sequence step 1 (drag) failed',
+    });
+
+  await assert.rejects(
+    () =>
+      runIosRunnerCommand(IOS_SIMULATOR, {
+        command: 'sequence',
+        steps: [
+          { kind: 'tap', x: 1, y: 2 },
+          { kind: 'drag', x: 3, y: 4, x2: 5, y2: 6 },
+        ],
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'UNSUPPORTED_OPERATION');
+      assert.equal(error.message, 'sequence step 1 (drag) failed');
+      return true;
+    },
+  );
+
+  assert.equal(mockInvalidateRunnerSession.mock.calls.length, 0);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
+  assertDiagnosticDecision({
+    decision: 'skipped',
+    reason: 'runner_reported_failure',
+    lifecycleState: 'failed',
+  });
+});
+
+test('sequence in-flight after lost response reports no-replay guidance', async () => {
+  const session = makeRunnerSession({ port: 8100, ready: true });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(session);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'fetch failed'))
+    .mockResolvedValueOnce({ lifecycleState: 'started' });
+
+  await assert.rejects(
+    () =>
+      runIosRunnerCommand(IOS_SIMULATOR, {
+        command: 'sequence',
+        steps: [{ kind: 'tap', x: 1, y: 2 }],
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.match(error.message, /"sequence" is still started/);
+      assert.match(String(error.details?.hint), /snapshot -i/);
+      return true;
+    },
+  );
+
+  assert.equal(mockInvalidateRunnerSession.mock.calls.length, 0);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
+  assertDiagnosticDecision({
+    decision: 'skipped',
+    reason: 'command_still_in_flight',
+    lifecycleState: 'started',
+  });
+});
+
+test('sequence invalidates the session when the status probe fails', async () => {
+  const session = makeRunnerSession({ port: 8100, ready: true });
+
+  mockEnsureRunnerSession.mockResolvedValueOnce(session);
+  mockExecuteRunnerCommandWithSession
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'fetch failed'))
+    .mockRejectedValueOnce(new AppError('COMMAND_FAILED', 'status probe failed'));
+
+  await assert.rejects(() =>
+    runIosRunnerCommand(IOS_SIMULATOR, {
+      command: 'sequence',
+      steps: [{ kind: 'tap', x: 1, y: 2 }],
+    }),
+  );
+
+  assert.deepEqual(mockInvalidateRunnerSession.mock.calls, [
+    [session, 'transport_error_after_command_send'],
+  ]);
+  assert.equal(mockExecuteRunnerCommandWithSession.mock.calls.length, 2);
+  assertDiagnosticDecision({
+    decision: 'retained',
+    reason: 'status_probe_failed',
+  });
+});
+
 function makeBadCacheRecoveryFixtures() {
   const restoredArtifact = makeRunnerArtifact({
     xctestrunPath: '/tmp/restored.xctestrun',
