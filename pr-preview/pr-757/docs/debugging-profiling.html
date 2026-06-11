@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-757/static/js/lib-react.e84adf13b9.js"></script>
 <script defer src="/agent-device/pr-preview/pr-757/static/js/lib-router.853fe4366e.js"></script>
 <script defer src="/agent-device/pr-preview/pr-757/static/js/56.538ceb78eb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-757/static/js/index.6646b60a69.js"></script>
+<script defer src="/agent-device/pr-preview/pr-757/static/js/index.9484b80a6c.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.12">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -95,6 +95,7 @@
 <li><code>perf metrics</code> returns session-scoped startup and, where supported, CPU, memory, and frame-health samples. Bare <code>perf</code> and <code>metrics</code> remain aliases.</li>
 <li><code>perf frames</code> returns a focused frame/jank-health payload.</li>
 <li>Android native profiling uses <code>perf cpu profile ... --kind simpleperf</code>; Android native trace capture uses <code>perf trace ... --kind perfetto</code>. These commands require an active Android app session and return artifact paths/summaries instead of dumping profile or trace contents.</li>
+<li>Use the compact native perf result as agent evidence. For example, a successful Perfetto stop may return <code>state: &quot;stopped&quot;</code>, <code>outPath: &quot;/tmp/app.perfetto-trace&quot;</code>, <code>sizeBytes: 5392410</code>, and <code>method: &quot;adb-shell-perfetto&quot;</code> while the 5.3 MB raw trace remains on disk as the artifact.</li>
 <li>Startup is measured around the <code>open</code> command; it is not first-frame instrumentation.</li>
 <li>CPU, memory, and Android frame-health availability depend on platform and whether the active session is bound to an app/package.</li>
 <li>On Android and supported Apple targets, use <code>metrics.fps.droppedFramePercent</code> for the health check and <code>metrics.fps.worstWindows</code> to line up jank clusters with logs, network activity, or recent actions.</li>
