@@ -89,19 +89,24 @@ async function stopRunnerRecordingBestEffort(params: {
   }
 }
 
+type RunnerGestureClockAnchor = {
+  gestureClockOriginAtMs: number;
+  gestureClockOriginUptimeMs: number;
+};
+
 export async function warmIosSimulatorRunner(params: {
   req: DaemonRequest;
   activeSession: SessionState;
   device: SessionState['device'];
   logPath?: string;
   deps: RecordTraceDeps;
-}): Promise<void> {
+}): Promise<RunnerGestureClockAnchor | undefined> {
   const { req, activeSession, device, logPath, deps } = params;
   const appBundleId = normalizeAppBundleId(activeSession);
-  if (!appBundleId) return;
+  if (!appBundleId) return undefined;
 
   try {
-    await deps.runIosRunnerCommand(
+    const result = await deps.runIosRunnerCommand(
       device,
       {
         command: 'snapshot',
@@ -112,6 +117,27 @@ export async function warmIosSimulatorRunner(params: {
       },
       getIosRunnerOptions(req, logPath, activeSession),
     );
+    // Pair the runner-stamped uptime with daemon receipt time. The runner stamps
+    // currentUptimeMs just before sending the response, so receive time is the closest
+    // wall-clock pair; the request midpoint would be wrong because this warm request can
+    // include cold runner build/launch (10s+).
+    const receivedAtMs = Date.now();
+    if (
+      typeof result.currentUptimeMs === 'number' &&
+      Number.isFinite(result.currentUptimeMs) &&
+      result.currentUptimeMs > 0
+    ) {
+      emitDiagnostic({
+        level: 'debug',
+        phase: 'record_start_gesture_clock_anchor',
+        data: { source: 'warm_snapshot' },
+      });
+      return {
+        gestureClockOriginAtMs: receivedAtMs,
+        gestureClockOriginUptimeMs: result.currentUptimeMs,
+      };
+    }
+    return undefined;
   } catch (error) {
     emitDiagnostic({
       level: 'warn',
@@ -123,6 +149,7 @@ export async function warmIosSimulatorRunner(params: {
         error: formatRecordTraceError(error),
       },
     });
+    return undefined;
   }
 }
 

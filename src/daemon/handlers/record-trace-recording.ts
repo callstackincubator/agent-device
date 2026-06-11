@@ -128,20 +128,23 @@ async function startIosSimulatorRecording(params: {
 }): Promise<DaemonResponse | NonNullable<SessionState['recording']>> {
   const { req, activeSession, device, logPath, deps, recordingBase, resolvedOut } = params;
 
-  if (recordingBase.showTouches) {
-    await warmIosSimulatorRunner({
-      req,
-      activeSession,
-      device,
-      logPath,
-      deps,
-    });
-  }
+  // The warm-up carries the gesture-clock anchor on its snapshot response when the runner
+  // stamps it, letting us skip a standalone uptime command. The anchor is a pure clock pair
+  // (origin uptime + daemon receipt time), so capturing it before the recorder spawn/settle
+  // window is equivalent to capturing it after: recordingStartedAt stays readyAt below.
+  const warmAnchor = recordingBase.showTouches
+    ? await warmIosSimulatorRunner({ req, activeSession, device, logPath, deps })
+    : undefined;
   const { child, wait } = deps.startIosSimulatorRecording({ device, outPath: resolvedOut });
   const readyAt = await waitForLocalRecordingSettleWindow(resolvedOut);
   let gestureClockOriginAtMs: number | undefined;
   let gestureClockOriginUptimeMs: number | undefined;
-  if (recordingBase.showTouches) {
+  if (warmAnchor) {
+    gestureClockOriginAtMs = warmAnchor.gestureClockOriginAtMs;
+    gestureClockOriginUptimeMs = warmAnchor.gestureClockOriginUptimeMs;
+  } else if (recordingBase.showTouches) {
+    // Fallback for older runner builds (or a failed/unavailable warm anchor): issue a
+    // standalone uptime command and pair it at the request midpoint.
     try {
       const uptimeRequestStartedAtMs = Date.now();
       const uptimeResult = await deps.runIosRunnerCommand(

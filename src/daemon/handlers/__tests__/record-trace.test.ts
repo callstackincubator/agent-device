@@ -1144,8 +1144,13 @@ test('record start does not fail when iOS simulator runner warm-up fails', async
       wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
     };
   });
-  mockRunIosRunnerCommand.mockImplementation(async () => {
-    throw new Error('runner warm-up unavailable');
+  const runnerCalls: RunnerCall[] = [];
+  mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
+    runnerCalls.push({ command: command.command });
+    if (command.command === 'snapshot') {
+      throw new Error('runner warm-up unavailable');
+    }
+    return { currentUptimeMs: 30_000 };
   });
 
   const response = await runRecordCommand({
@@ -1156,6 +1161,181 @@ test('record start does not fail when iOS simulator runner warm-up fails', async
 
   expect(response?.ok).toBe(true);
   expect(started).toBe(true);
+  // Warm-up failure falls back to the standalone uptime command for the anchor.
+  expect(runnerCalls.map((call) => call.command)).toEqual(['snapshot', 'uptime']);
+  const recording = sessionStore.get(sessionName)?.recording;
+  expect(recording?.platform).toBe('ios');
+  if (recording?.platform === 'ios') {
+    expect(recording.gestureClockOriginUptimeMs).toBe(30_000);
+  }
+});
+
+test('record start anchors gesture clock from simulator warm-up and skips standalone uptime', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-warm-anchor';
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'Simulator',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.appBundleId = 'com.apple.Preferences';
+  sessionStore.set(sessionName, session);
+
+  mockRunCmdBackground.mockImplementation(() => ({
+    child: { kill: () => {} } as any,
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  }));
+  const runnerCalls: RunnerCall[] = [];
+  mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
+    runnerCalls.push({ command: command.command });
+    if (command.command === 'snapshot') {
+      return { currentUptimeMs: 20_000 };
+    }
+    return {};
+  });
+
+  const beforeMs = Date.now();
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './sim-warm-anchor.mp4'],
+  });
+  const afterMs = Date.now();
+
+  expect(response?.ok).toBe(true);
+  expect(runnerCalls.map((call) => call.command)).toEqual(['snapshot']);
+  const recording = sessionStore.get(sessionName)?.recording;
+  expect(recording?.platform).toBe('ios');
+  if (recording?.platform === 'ios') {
+    expect(recording.gestureClockOriginUptimeMs).toBe(20_000);
+    expect(recording.gestureClockOriginAtMs).toBeGreaterThanOrEqual(beforeMs);
+    expect(recording.gestureClockOriginAtMs).toBeLessThanOrEqual(afterMs);
+  }
+});
+
+test('record start falls back to standalone uptime when warm response lacks currentUptimeMs', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-warm-missing';
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'Simulator',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.appBundleId = 'com.apple.Preferences';
+  sessionStore.set(sessionName, session);
+
+  mockRunCmdBackground.mockImplementation(() => ({
+    child: { kill: () => {} } as any,
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  }));
+  const runnerCalls: RunnerCall[] = [];
+  mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
+    runnerCalls.push({ command: command.command });
+    if (command.command === 'uptime') {
+      return { currentUptimeMs: 30_000 };
+    }
+    return {};
+  });
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './sim-warm-missing.mp4'],
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(runnerCalls.map((call) => call.command)).toEqual(['snapshot', 'uptime']);
+  const recording = sessionStore.get(sessionName)?.recording;
+  expect(recording?.platform).toBe('ios');
+  if (recording?.platform === 'ios') {
+    expect(recording.gestureClockOriginUptimeMs).toBe(30_000);
+  }
+});
+
+test('record start rejects non-finite or non-positive warm anchors', async () => {
+  for (const badValue of [Number.NaN, -1]) {
+    const sessionStore = makeSessionStore();
+    const sessionName = `ios-sim-warm-bad-${badValue}`;
+    const session = makeSession(sessionName, {
+      platform: 'ios',
+      id: 'sim-1',
+      name: 'Simulator',
+      kind: 'simulator',
+      booted: true,
+    });
+    session.appBundleId = 'com.apple.Preferences';
+    sessionStore.set(sessionName, session);
+
+    mockRunCmdBackground.mockImplementation(() => ({
+      child: { kill: () => {} } as any,
+      wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+    }));
+    const runnerCalls: RunnerCall[] = [];
+    mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
+      runnerCalls.push({ command: command.command });
+      if (command.command === 'snapshot') {
+        return { currentUptimeMs: badValue };
+      }
+      return { currentUptimeMs: 30_000 };
+    });
+
+    const response = await runRecordCommand({
+      sessionStore,
+      sessionName,
+      positionals: ['start', `./sim-warm-bad-${badValue}.mp4`],
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(runnerCalls.map((call) => call.command)).toEqual(['snapshot', 'uptime']);
+    const recording = sessionStore.get(sessionName)?.recording;
+    expect(recording?.platform).toBe('ios');
+    if (recording?.platform === 'ios') {
+      expect(recording.gestureClockOriginUptimeMs).toBe(30_000);
+    }
+  }
+});
+
+test('record start degrades to wall-clock when warm anchor missing and uptime fails', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'ios-sim-anchor-degraded';
+  const session = makeSession(sessionName, {
+    platform: 'ios',
+    id: 'sim-1',
+    name: 'Simulator',
+    kind: 'simulator',
+    booted: true,
+  });
+  session.appBundleId = 'com.apple.Preferences';
+  sessionStore.set(sessionName, session);
+
+  mockRunCmdBackground.mockImplementation(() => ({
+    child: { kill: () => {} } as any,
+    wait: Promise.resolve({ stdout: '', stderr: '', exitCode: 0 }),
+  }));
+  mockRunIosRunnerCommand.mockImplementation(async (_device, command) => {
+    if (command.command === 'uptime') {
+      throw new Error('uptime unavailable');
+    }
+    return {};
+  });
+
+  const response = await runRecordCommand({
+    sessionStore,
+    sessionName,
+    positionals: ['start', './sim-anchor-degraded.mp4'],
+  });
+
+  expect(response?.ok).toBe(true);
+  const recording = sessionStore.get(sessionName)?.recording;
+  expect(recording?.platform).toBe('ios');
+  if (recording?.platform === 'ios') {
+    expect(recording.gestureClockOriginAtMs).toBeUndefined();
+    expect(recording.gestureClockOriginUptimeMs).toBeUndefined();
+  }
 });
 
 test('record start skips iOS simulator runner warm-up when touch overlays are hidden', async () => {

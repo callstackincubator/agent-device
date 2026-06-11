@@ -170,8 +170,17 @@ extension RunnerTests {
   // MARK: - Response Encoding
 
   private func jsonResponse(status: Int, response: Response) -> Data {
+    // Stamp the gesture-clock uptime at the END of command handling, just before the HTTP
+    // write, so the warm snapshot and recordStart responses carry the anchor for free. This
+    // runs AFTER commandJournal.finish, so journal-stored lifecycleResponseJson stays
+    // unstamped — recovered/status-replayed results carry no anchor and the daemon falls back
+    // rather than pairing a stale uptime with a much-later receipt time.
+    let stamped =
+      response.ok
+      ? response.stampingCurrentUptimeMs(ProcessInfo.processInfo.systemUptime * 1000)
+      : response
     let encoder = JSONEncoder()
-    let body = (try? encoder.encode(response)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+    let body = (try? encoder.encode(stamped)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
     return httpResponse(status: status, body: body)
   }
 

@@ -244,6 +244,8 @@ extension RunnerTests {
   }
 
   func executeUptime() -> Response {
+    // Placeholder value: the transport layer (jsonResponse) overwrites currentUptimeMs with a
+    // fresher send-time stamp on every ok response; kept so direct callers still get a value.
     Response(
       ok: true,
       data: DataPayload(currentUptimeMs: currentUptimeMs())

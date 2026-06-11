@@ -165,6 +165,46 @@ extension RunnerTests {
     XCTAssertEqual(status.lifecycleState, RunnerCommandLifecycleState.notAccepted.rawValue)
   }
 
+  func testStampingCurrentUptimePreservesPayload() {
+    let stamped = Response(ok: true, data: DataPayload(message: "recording started"))
+      .stampingCurrentUptimeMs(123.5)
+
+    XCTAssertEqual(stamped.ok, true)
+    XCTAssertEqual(stamped.data?.message, "recording started")
+    XCTAssertEqual(stamped.data?.currentUptimeMs, 123.5)
+  }
+
+  func testStampingCurrentUptimeCreatesPayloadWhenNil() {
+    let stamped = Response(ok: true).stampingCurrentUptimeMs(456.0)
+
+    XCTAssertEqual(stamped.ok, true)
+    XCTAssertEqual(stamped.data?.currentUptimeMs, 456.0)
+  }
+
+  func testStampingCurrentUptimeSkipsErrorResponses() {
+    let response = Response(ok: false, error: ErrorPayload(message: "boom"))
+    let stamped = response.stampingCurrentUptimeMs(789.0)
+
+    XCTAssertEqual(stamped.ok, false)
+    XCTAssertNil(stamped.data)
+    XCTAssertEqual(stamped.error?.message, "boom")
+  }
+
+  func testJournalStoredResponseStaysUnstamped() throws {
+    let journal = RunnerCommandJournal()
+    let recordStart = runnerJournalCommand("recordStart", id: "record-start-anchor")
+
+    journal.accept(command: recordStart)
+    journal.finish(
+      command: recordStart,
+      response: Response(ok: true, data: DataPayload(message: "recording started"))
+    )
+
+    let status = journal.status(commandId: "record-start-anchor")
+    let responseJson = try XCTUnwrap(status.lifecycleResponseJson)
+    XCTAssertFalse(responseJson.contains("currentUptimeMs"))
+  }
+
   func testCommandJournalRetentionPolicy() throws {
     let journal = RunnerCommandJournal()
 

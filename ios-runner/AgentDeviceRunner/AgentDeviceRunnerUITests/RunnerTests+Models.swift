@@ -162,6 +162,18 @@ struct Response: Codable {
   }
 }
 
+extension Response {
+  // The daemon pairs this gesture-clock anchor with its own receipt time to map
+  // gesture uptimes onto wall-clock for the recording touch overlay. Error responses
+  // carry no anchor so the daemon falls back instead of pairing a stale value.
+  func stampingCurrentUptimeMs(_ value: Double) -> Response {
+    guard ok else { return self }
+    var payload = data ?? DataPayload()
+    payload.currentUptimeMs = value
+    return Response(ok: ok, data: payload, error: error)
+  }
+}
+
 struct DataPayload: Codable {
   let message: String?
   let text: String?
@@ -177,7 +189,7 @@ struct DataPayload: Codable {
   let y2: Double?
   let referenceWidth: Double?
   let referenceHeight: Double?
-  let currentUptimeMs: Double?
+  var currentUptimeMs: Double?
   let commandId: String?
   let lifecycleState: String?
   let lifecycleCommand: String?
