@@ -63,9 +63,7 @@ export const clientCommandMetadata = [
     ),
     relaunch: booleanField('Force relaunch.'),
     saveScript: jsonSchemaField<boolean | string>({ oneOf: [booleanSchema(), stringSchema()] }),
-    noDeviceHub: booleanField(
-      'Skip Xcode Device Hub and use the standalone Simulator app when surfacing Apple simulators.',
-    ),
+    deviceHub: booleanField('Use Xcode Device Hub when surfacing Apple simulators.'),
     noRecord: booleanField('Do not record this action.'),
   }),
   defineClientCommandMetadata('close', {

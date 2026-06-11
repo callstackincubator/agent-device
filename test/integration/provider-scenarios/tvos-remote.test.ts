@@ -86,7 +86,7 @@ test('Provider-backed integration tvOS remote flow maps navigation commands to r
       runnerTranscript.assertComplete();
       assert.deepEqual(appleTool.calls, [
         ['simctl', 'list', 'devices', '-j'],
-        ['open', '-a', 'Device Hub'],
+        ['open', '-a', 'Simulator'],
         ['simctl', 'list', 'devices', '-j'],
         ['simctl', 'launch', 'tv-sim-1', 'com.example.tv'],
         ['simctl', 'list', 'devices', '-j'],

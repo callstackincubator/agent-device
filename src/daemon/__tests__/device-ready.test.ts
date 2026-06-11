@@ -55,8 +55,8 @@ test('ensureDeviceReady caches successful simulator readiness checks', async () 
 
   expect(mockEnsureBootedSimulator).toHaveBeenCalledTimes(1);
   expect(mockEnsureBootedSimulator).toHaveBeenCalledWith(device, {
+    deviceHub: undefined,
     focusExisting: undefined,
-    preferStandalone: undefined,
   });
 });
 
@@ -64,12 +64,12 @@ test('ensureDeviceReady focuses cached simulator readiness checks when requested
   const device: DeviceInfo = { ...IOS_SIMULATOR, simulatorSetPath: '/tmp/simset-a' };
 
   await ensureDeviceReady(device);
-  await ensureDeviceReady({ ...device }, { focusExisting: true, noDeviceHub: true });
+  await ensureDeviceReady({ ...device }, { deviceHub: true, focusExisting: true });
 
   expect(mockEnsureBootedSimulator).toHaveBeenCalledTimes(2);
   expect(mockEnsureBootedSimulator).toHaveBeenLastCalledWith(
     { ...device },
-    { focusExisting: true, preferStandalone: true },
+    { deviceHub: true, focusExisting: true },
   );
 });
 

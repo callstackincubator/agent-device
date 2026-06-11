@@ -67,13 +67,13 @@ test('apps.open resolves session device identifiers from open response', async (
     app: 'Settings',
     platform: 'ios',
     relaunch: true,
-    noDeviceHub: true,
+    deviceHub: true,
   });
 
   assert.equal(setup.calls.length, 1);
   assert.equal(setup.calls[0]?.command, 'open');
   assert.deepEqual(setup.calls[0]?.positionals, ['Settings']);
-  assert.equal(setup.calls[0]?.flags?.noDeviceHub, true);
+  assert.equal(setup.calls[0]?.flags?.deviceHub, true);
   assert.equal(result.identifiers.session, 'qa');
   assert.equal(result.identifiers.deviceId, 'SIM-001');
   assert.equal(result.identifiers.udid, 'SIM-001');

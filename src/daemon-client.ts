@@ -53,7 +53,7 @@ export type OpenAppOptions = {
   launchArgs?: NonNullable<DaemonRequest['flags']>['launchArgs'];
   out?: NonNullable<DaemonRequest['flags']>['out'];
   saveScript?: NonNullable<DaemonRequest['flags']>['saveScript'];
-  noDeviceHub?: NonNullable<DaemonRequest['flags']>['noDeviceHub'];
+  deviceHub?: NonNullable<DaemonRequest['flags']>['deviceHub'];
   relaunch?: boolean;
   runtime?: DaemonRequest['runtime'];
   meta?: Omit<NonNullable<DaemonRequest['meta']>, 'uploadedArtifactId' | 'clientArtifactPaths'>;
@@ -226,7 +226,7 @@ export async function openApp(options: OpenAppOptions = {}): Promise<DaemonRespo
     launchArgs,
     out,
     saveScript,
-    noDeviceHub,
+    deviceHub,
     relaunch,
     runtime,
     meta,
@@ -249,7 +249,7 @@ export async function openApp(options: OpenAppOptions = {}): Promise<DaemonRespo
       ...(launchArgs !== undefined ? { launchArgs } : {}),
       ...(out !== undefined ? { out } : {}),
       ...(saveScript !== undefined ? { saveScript } : {}),
-      ...(noDeviceHub !== undefined ? { noDeviceHub } : {}),
+      ...(deviceHub !== undefined ? { deviceHub } : {}),
       ...(relaunch ? { relaunch: true } : {}),
     },
     ...(runtime !== undefined ? { runtime } : {}),

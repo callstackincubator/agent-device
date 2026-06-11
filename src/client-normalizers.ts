@@ -282,7 +282,7 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     relaunch: options.relaunch,
     shutdown: options.shutdown,
     saveScript: options.saveScript,
-    noDeviceHub: options.noDeviceHub,
+    deviceHub: options.deviceHub,
     noRecord: options.noRecord,
     backMode: options.backMode,
     metroHost: options.metroHost,

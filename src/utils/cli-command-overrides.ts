@@ -86,7 +86,7 @@ const CLI_COMMAND_OVERRIDES = {
       'activity',
       'launchConsole',
       'launchArgs',
-      'noDeviceHub',
+      'deviceHub',
       'saveScript',
       'relaunch',
       'surface',

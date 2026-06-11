@@ -11,16 +11,17 @@ import {
 import { buildSimctlArgs, buildSimctlArgsForDevice } from './simctl.ts';
 import { runAppleToolCommand, runXcrun } from './tool-provider.ts';
 
-const IOS_SIMULATOR_HOST_APPS = ['Device Hub', 'Simulator'] as const;
-const IOS_SIMULATOR_STANDALONE_HOST_APPS = ['Simulator'] as const;
+const IOS_SIMULATOR_HOST_APPS = ['Simulator'] as const;
+const IOS_DEVICE_HUB_HOST_APPS = ['Device Hub', 'Simulator'] as const;
 
 type OpenIosSimulatorAppOptions = {
-  preferStandalone?: boolean;
+  background?: boolean;
+  deviceHub?: boolean;
 };
 
 type EnsureBootedSimulatorOptions = {
+  deviceHub?: boolean;
   focusExisting?: boolean;
-  preferStandalone?: boolean;
 };
 
 export function requireSimulatorDevice(device: DeviceInfo, command: string): void {
@@ -30,11 +31,10 @@ export function requireSimulatorDevice(device: DeviceInfo, command: string): voi
 }
 
 export async function openIosSimulatorApp(options: OpenIosSimulatorAppOptions = {}): Promise<void> {
-  const appNames = options.preferStandalone
-    ? IOS_SIMULATOR_STANDALONE_HOST_APPS
-    : IOS_SIMULATOR_HOST_APPS;
+  const appNames = options.deviceHub ? IOS_DEVICE_HUB_HOST_APPS : IOS_SIMULATOR_HOST_APPS;
+  const openArgsPrefix = options.background ? ['-g', '-a'] : ['-a'];
   for (const appName of appNames) {
-    const result = await runAppleToolCommand('open', ['-a', appName], {
+    const result = await runAppleToolCommand('open', [...openArgsPrefix, appName], {
       allowFailure: true,
       timeoutMs: IOS_SIMULATOR_FOCUS_TIMEOUT_MS,
     });
@@ -51,7 +51,10 @@ export async function ensureBootedSimulator(
   const state = await getSimulatorState(device);
   if (state === 'Booted') {
     if (options.focusExisting) {
-      await openIosSimulatorApp({ preferStandalone: options.preferStandalone });
+      await openIosSimulatorApp({
+        background: options.deviceHub,
+        deviceHub: options.deviceHub,
+      });
     }
     return;
   }
@@ -177,7 +180,7 @@ export async function ensureBootedSimulator(
     });
   }
 
-  await openIosSimulatorApp({ preferStandalone: options.preferStandalone });
+  await openIosSimulatorApp({ deviceHub: options.deviceHub });
 }
 
 export async function shutdownSimulator(device: DeviceInfo): Promise<{

@@ -47,7 +47,7 @@ export type CliFlags = RemoteConfigMetroOptions &
     udid?: string;
     serial?: string;
     iosSimulatorDeviceSet?: string;
-    noDeviceHub?: boolean;
+    deviceHub?: boolean;
     androidDeviceAllowlist?: string;
     session?: string;
     metroHost?: string;
@@ -496,12 +496,11 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     usageDescription: 'Scope iOS simulator discovery/commands to this simulator device set',
   },
   {
-    key: 'noDeviceHub',
-    names: ['--no-device-hub'],
+    key: 'deviceHub',
+    names: ['--device-hub'],
     type: 'boolean',
-    usageLabel: '--no-device-hub',
-    usageDescription:
-      'open: skip Xcode Device Hub and use the standalone Simulator app when surfacing Apple simulators',
+    usageLabel: '--device-hub',
+    usageDescription: 'open: use Xcode Device Hub when surfacing Apple simulators',
   },
   {
     key: 'androidDeviceAllowlist',

@@ -1218,6 +1218,18 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     forbiddenOutputs: [/simctl\b/i, /--console-pty/i, /\bsleep\s+\d+/i],
   }),
   makeCase({
+    id: 'ios-simulator-open-device-hub',
+    contract: [
+      'App name: Agent Device Tester',
+      'Platform: iOS simulator',
+      'User explicitly wants Xcode Device Hub when surfacing the simulator',
+      'After launch, verify the app UI loaded with an interactive snapshot',
+    ],
+    task: 'Plan commands for launching the iOS simulator app through Xcode Device Hub, then verify the UI loaded.',
+    outputs: [/open\b[^\n]*Agent Device Tester[^\n]*--device-hub/i, /snapshot -i/i],
+    forbiddenOutputs: [/--no-device-hub/i, /simctl\b/i, /\bsleep\s+\d+/i],
+  }),
+  makeCase({
     id: 'debug-network-session-dump',
     contract: [
       'App name: Agent Device Tester',

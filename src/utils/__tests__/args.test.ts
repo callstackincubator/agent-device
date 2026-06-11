@@ -586,13 +586,13 @@ test('parseArgs recognizes explicit config file flag', () => {
   assert.equal(parsed.flags.config, './agent-device.json');
 });
 
-test('parseArgs recognizes open Device Hub opt-out flag', () => {
-  const parsed = parseArgs(['open', 'settings', '--platform', 'ios', '--no-device-hub'], {
+test('parseArgs recognizes open Device Hub opt-in flag', () => {
+  const parsed = parseArgs(['open', 'settings', '--platform', 'ios', '--device-hub'], {
     strictFlags: true,
   });
   assert.equal(parsed.command, 'open');
   assert.equal(parsed.flags.platform, 'ios');
-  assert.equal(parsed.flags.noDeviceHub, true);
+  assert.equal(parsed.flags.deviceHub, true);
 });
 
 test('parseArgs recognizes session lock policy flag', () => {
@@ -1599,8 +1599,8 @@ test('open command usage documents surface and console log flags', () => {
   assert.match(help, /macOS also supports --surface/);
   assert.match(help, /--launch-console <path>/);
   assert.match(help, /iOS simulator launch console/);
-  assert.match(help, /--no-device-hub/);
-  assert.match(help, /skip Xcode Device Hub/);
+  assert.match(help, /--device-hub/);
+  assert.match(help, /use Xcode Device Hub/);
 });
 
 test('command usage shows record touch-overlay opt-out flag', () => {

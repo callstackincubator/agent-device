@@ -109,8 +109,8 @@ export async function prepareOpenCommandDetails(params: {
 }): Promise<PreparedOpenCommandDetailsResult> {
   const { req, sessionName, sessionStore, device, surface, openTarget, existingSession } = params;
   await ensureDeviceReady(device, {
+    deviceHub: req.flags?.deviceHub === true,
     focusExisting: true,
-    noDeviceHub: req.flags?.noDeviceHub === true,
   });
   const { appBundleId, appName } = await resolvePreparedOpenIdentity({
     device,

@@ -15,8 +15,8 @@ export const DEVICE_READY_CACHE_TTL_MS = 5_000;
 const readyCache = new Map<string, number>();
 
 export type DeviceReadyOptions = {
+  deviceHub?: boolean;
   focusExisting?: boolean;
-  noDeviceHub?: boolean;
 };
 
 export async function ensureDeviceReady(
@@ -36,8 +36,8 @@ export async function ensureDeviceReady(
     if (device.kind === 'simulator') {
       const { ensureBootedSimulator } = await import('../platforms/ios/simulator.ts');
       await ensureBootedSimulator(device, {
+        deviceHub: options.deviceHub,
         focusExisting: options.focusExisting,
-        preferStandalone: options.noDeviceHub,
       });
       markDeviceReady(cacheKey);
       return;
