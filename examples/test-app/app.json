@@ -6,7 +6,9 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.callstack.agentdevicelab"
@@ -15,6 +17,7 @@
       "package": "com.callstack.agentdevicelab",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
-    }
+    },
+    "scheme": "adlab"
   }
 }
