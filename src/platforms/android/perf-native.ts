@@ -5,8 +5,8 @@ import { AppError } from '../../utils/errors.ts';
 import { resolveAndroidAdbExecutor, type AndroidAdbExecutor } from './adb-executor.ts';
 import { parseSimpleperfReportEntries } from './perf-native-report.ts';
 
-export const ANDROID_SIMPLEPERF_METHOD = 'adb-shell-simpleperf';
-export const ANDROID_PERFETTO_METHOD = 'adb-shell-perfetto';
+const ANDROID_SIMPLEPERF_METHOD = 'adb-shell-simpleperf';
+const ANDROID_PERFETTO_METHOD = 'adb-shell-perfetto';
 
 const ANDROID_PERF_TIMEOUT_MS = 15_000;
 const ANDROID_NATIVE_PROFILE_TIMEOUT_MS = 30_000;
@@ -519,22 +519,33 @@ function classifyAndroidNativePerfHint(
 ): string {
   const stderr = typeof details.stderr === 'string' ? details.stderr : '';
   const text = stderr.toLowerCase();
-  if (tool === 'simpleperf') {
-    if (
-      text.includes('permission denied') ||
-      text.includes('not profileable') ||
-      text.includes('profileable')
-    ) {
-      return 'Use a debuggable/profileable Android app or a device image that permits simpleperf for the target process, then retry perf cpu profile start.';
-    }
-    if (text.includes('not supported') || text.includes('failed to open perf event')) {
-      return 'This device image does not expose the requested simpleperf event for the app process. Try a different emulator/system image or a profileable app.';
-    }
-  }
-  if (tool === 'perfetto' && (text.includes('permission denied') || text.includes('not allowed'))) {
+  if (tool === 'simpleperf') return classifySimpleperfHint(text);
+  if (hasPerfettoPermissionError(text)) {
     return 'Use a device image that permits perfetto trace capture for shell, keep the app running, then retry perf trace start.';
   }
   return buildAndroidNativePerfHint(tool);
+}
+
+function classifySimpleperfHint(text: string): string {
+  if (hasSimpleperfProfileabilityError(text)) {
+    return 'Use a debuggable/profileable Android app or a device image that permits simpleperf for the target process, then retry perf cpu profile start.';
+  }
+  if (text.includes('not supported') || text.includes('failed to open perf event')) {
+    return 'This device image does not expose the requested simpleperf event for the app process. Try a different emulator/system image or a profileable app.';
+  }
+  return buildAndroidNativePerfHint('simpleperf');
+}
+
+function hasSimpleperfProfileabilityError(text: string): boolean {
+  return (
+    text.includes('permission denied') ||
+    text.includes('not profileable') ||
+    text.includes('profileable')
+  );
+}
+
+function hasPerfettoPermissionError(text: string): boolean {
+  return text.includes('permission denied') || text.includes('not allowed');
 }
 
 function shellQuote(value: string): string {

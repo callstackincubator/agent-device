@@ -9,6 +9,7 @@ import { makeSessionStore } from '../../../__tests__/test-utils/store-factory.ts
 import { makeAndroidSession, makeIosSession } from '../../../__tests__/test-utils/index.ts';
 import { AppError } from '../../../utils/errors.ts';
 import type { AppleXctracePerfCapture } from '../../../platforms/ios/perf-xctrace.ts';
+import type { DaemonResponse } from '../../types.ts';
 
 const applePerfMocks = vi.hoisted(() => ({
   startAppleXctracePerfCapture: vi.fn(),
@@ -25,7 +26,6 @@ vi.mock('../../../platforms/ios/perf-xctrace.ts', async (importOriginal) => {
     writeAppleXctracePerfReport: applePerfMocks.writeAppleXctracePerfReport,
   };
 });
-
 import { handleSessionObservabilityCommands } from '../session-observability.ts';
 
 beforeEach(() => {
@@ -706,13 +706,12 @@ test('perf cpu profile start and stop route through Android simpleperf and prese
       androidAdbExecutor: adb,
     });
 
-    assert.equal(startResponse?.ok, true);
-    if (!startResponse?.ok) throw new Error('Expected start response to succeed');
-    assert.equal(startResponse.data?.kind, 'simpleperf');
-    assert.equal(startResponse.data?.type, 'cpu-profile');
-    assert.equal(startResponse.data?.state, 'running');
-    assert.equal(startResponse.data?.outPath, outPath);
-    assert.equal(sessionStore.get('android')?.nativePerf?.android?.state, 'running');
+    const startData = requireOkData(startResponse, 'Expected start response to succeed');
+    assert.equal(startData.kind, 'simpleperf');
+    assert.equal(startData.type, 'cpu-profile');
+    assert.equal(startData.state, 'running');
+    assert.equal(startData.outPath, outPath);
+    assert.equal(readAndroidNativePerfState(sessionStore, 'android'), 'running');
 
     const stopResponse = await handleSessionObservabilityCommands({
       req: {
@@ -727,11 +726,10 @@ test('perf cpu profile start and stop route through Android simpleperf and prese
       androidAdbExecutor: adb,
     });
 
-    assert.equal(stopResponse?.ok, true);
-    if (!stopResponse?.ok) throw new Error('Expected stop response to succeed');
-    assert.equal(stopResponse.data?.state, 'stopped');
-    assert.equal(stopResponse.data?.sizeBytes, 7);
-    assert.equal(sessionStore.get('android')?.nativePerf?.android?.state, 'stopped');
+    const stopData = requireOkData(stopResponse, 'Expected stop response to succeed');
+    assert.equal(stopData.state, 'stopped');
+    assert.equal(stopData.sizeBytes, 7);
+    assert.equal(readAndroidNativePerfState(sessionStore, 'android'), 'stopped');
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -803,4 +801,17 @@ function makeNativePerfAdbExecutor(outPath: string): AndroidAdbExecutor {
     }
     throw new Error(`Unexpected adb call: ${args.join(' ')}`);
   };
+}
+
+function requireOkData(response: DaemonResponse | null, message: string): Record<string, unknown> {
+  assert.equal(response?.ok, true);
+  if (!response?.ok) throw new Error(message);
+  return response.data ?? {};
+}
+
+function readAndroidNativePerfState(
+  sessionStore: ReturnType<typeof makeSessionStore>,
+  sessionName: string,
+): string | undefined {
+  return sessionStore.get(sessionName)?.nativePerf?.android?.state;
 }

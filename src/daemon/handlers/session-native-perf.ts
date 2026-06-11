@@ -1,8 +1,8 @@
 import path from 'node:path';
 import {
   isPerfKind,
-  PERF_KIND_ERROR_MESSAGE,
   isPerfSubject,
+  PERF_KIND_ERROR_MESSAGE,
   PERF_SUBJECT_ERROR_MESSAGE,
 } from '../../contracts/perf.ts';
 import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
@@ -75,38 +75,87 @@ type NativePerfRequest =
       outPath?: string;
     };
 
+type NativePerfHandlerParams = {
+  sessionName: string;
+  sessionStore: SessionStore;
+  req: DaemonRequest;
+  session: SessionState;
+  androidAdbExecutor?: AndroidAdbExecutor;
+};
+
 function resolveNativePerfRequest(
   req: DaemonRequest,
   area: 'cpu' | 'trace',
 ): NativePerfRequest | DaemonFailureResponse {
   const outPath = readNativePerfOutPath(req, area);
-  if (area === 'cpu') {
-    const subject = (req.positionals?.[1] ?? '').toLowerCase();
-    const action = (req.positionals?.[2] ?? '').toLowerCase();
-    const kind = (req.positionals?.[3] ?? '').toLowerCase();
-    if (!isPerfSubject(subject)) return errorResponse('INVALID_ARGS', PERF_SUBJECT_ERROR_MESSAGE);
-    if (action !== 'start' && action !== 'stop' && action !== 'report') {
-      return errorResponse(
-        'INVALID_ARGS',
-        'perf cpu profile action must be start, stop, or report',
-      );
-    }
-    if (kind !== 'simpleperf') {
-      return errorResponse('INVALID_ARGS', 'perf cpu profile requires --kind simpleperf');
-    }
-    return { ok: true, area, subject, action, kind, outPath };
-  }
+  return area === 'cpu'
+    ? resolveCpuProfileRequest(req, outPath)
+    : resolveTraceRequest(req, outPath);
+}
 
-  const action = (req.positionals?.[1] ?? '').toLowerCase();
-  const kind = (req.positionals?.[2] ?? '').toLowerCase();
-  if (action !== 'start' && action !== 'stop') {
+function resolveCpuProfileRequest(
+  req: DaemonRequest,
+  outPath: string | undefined,
+): NativePerfRequest | DaemonFailureResponse {
+  const subject = readPositional(req, 1);
+  const action = readPositional(req, 2);
+  const kind = readPositional(req, 3);
+  if (!isPerfSubject(subject)) return errorResponse('INVALID_ARGS', PERF_SUBJECT_ERROR_MESSAGE);
+  if (!isCpuProfileAction(action)) {
+    return errorResponse('INVALID_ARGS', 'perf cpu profile action must be start, stop, or report');
+  }
+  if (kind !== 'simpleperf') {
+    return errorResponse('INVALID_ARGS', 'perf cpu profile requires --kind simpleperf');
+  }
+  return { ok: true, area: 'cpu', subject, action, kind, outPath };
+}
+
+function resolveTraceRequest(
+  req: DaemonRequest,
+  outPath: string | undefined,
+): NativePerfRequest | DaemonFailureResponse {
+  const action = readPositional(req, 1);
+  const kind = readPositional(req, 2);
+  if (!isTraceAction(action)) {
     return errorResponse('INVALID_ARGS', 'perf trace action must be start or stop');
   }
   if (!isPerfKind(kind)) return errorResponse('INVALID_ARGS', PERF_KIND_ERROR_MESSAGE);
   if (kind !== 'perfetto') {
     return errorResponse('INVALID_ARGS', 'perf trace requires --kind perfetto');
   }
-  return { ok: true, area, action, kind, outPath };
+  return { ok: true, area: 'trace', action, kind, outPath };
+}
+
+function readPositional(req: DaemonRequest, index: number): string {
+  return (req.positionals?.[index] ?? '').toLowerCase();
+}
+
+function isCpuProfileAction(action: string): action is 'start' | 'stop' | 'report' {
+  return action === 'start' || action === 'stop' || action === 'report';
+}
+
+function isTraceAction(action: string): action is 'start' | 'stop' {
+  return action === 'start' || action === 'stop';
+}
+
+function storeNativePerfSession(
+  params: NativePerfHandlerParams,
+  result: AndroidNativePerfSession & Record<string, unknown>,
+): Record<string, unknown> {
+  params.sessionStore.set(params.sessionName, {
+    ...params.session,
+    nativePerf: { android: result },
+  });
+  return compactNativePerfResponse(result);
+}
+
+function resolveNativePerfOutPath(
+  params: { sessionName: string; sessionStore: SessionStore; req: DaemonRequest },
+  requestedPath: string | undefined,
+  fallbackFileName: string,
+): string {
+  if (requestedPath) return SessionStore.expandHome(requestedPath, params.req.meta?.cwd);
+  return pathJoinSessionArtifact(params.sessionStore, params.sessionName, fallbackFileName);
 }
 
 function readNativePerfOutPath(req: DaemonRequest, area: 'cpu' | 'trace'): string | undefined {
@@ -118,13 +167,7 @@ function readNativePerfOutPath(req: DaemonRequest, area: 'cpu' | 'trace'): strin
 }
 
 async function runAndroidCpuProfileCommand(
-  params: {
-    sessionName: string;
-    sessionStore: SessionStore;
-    req: DaemonRequest;
-    session: SessionState;
-    androidAdbExecutor?: AndroidAdbExecutor;
-  },
+  params: NativePerfHandlerParams,
   session: SessionState,
   packageName: string,
   request: Extract<NativePerfRequest, { area: 'cpu' }>,
@@ -134,24 +177,12 @@ async function runAndroidCpuProfileCommand(
     const result = await startAndroidSimpleperfProfile(session.device, packageName, outPath, {
       adb: params.androidAdbExecutor,
     });
-    params.sessionStore.set(params.sessionName, {
-      ...session,
-      nativePerf: { android: result },
-    });
-    return compactNativePerfResponse(result);
+    return storeNativePerfSession(params, result);
   }
 
   const active = requireAndroidNativePerfSession(session, 'cpu-profile', request.kind);
   if (request.action === 'report') {
-    if (active.state === 'running') {
-      throw new AppError(
-        'COMMAND_FAILED',
-        'Stop the Android Simpleperf CPU profile before generating a report.',
-        {
-          hint: 'Run perf cpu profile stop --kind simpleperf, then retry perf cpu profile report --kind simpleperf.',
-        },
-      );
-    }
+    await assertStoppedSimpleperfProfile(active);
     const outPath = resolveNativePerfOutPath(params, request.outPath, 'cpu-report.json');
     return await writeAndroidSimpleperfReport(session.device, active, outPath, {
       adb: params.androidAdbExecutor,
@@ -162,21 +193,11 @@ async function runAndroidCpuProfileCommand(
   const result = await stopAndroidSimpleperfProfile(session.device, active, outPath, {
     adb: params.androidAdbExecutor,
   });
-  params.sessionStore.set(params.sessionName, {
-    ...session,
-    nativePerf: { android: result },
-  });
-  return compactNativePerfResponse(result);
+  return storeNativePerfSession(params, result);
 }
 
 async function runAndroidTraceCommand(
-  params: {
-    sessionName: string;
-    sessionStore: SessionStore;
-    req: DaemonRequest;
-    session: SessionState;
-    androidAdbExecutor?: AndroidAdbExecutor;
-  },
+  params: NativePerfHandlerParams,
   session: SessionState,
   packageName: string,
   request: Extract<NativePerfRequest, { area: 'trace' }>,
@@ -186,11 +207,7 @@ async function runAndroidTraceCommand(
     const result = await startAndroidPerfettoTrace(session.device, packageName, outPath, {
       adb: params.androidAdbExecutor,
     });
-    params.sessionStore.set(params.sessionName, {
-      ...session,
-      nativePerf: { android: result },
-    });
-    return compactNativePerfResponse(result);
+    return storeNativePerfSession(params, result);
   }
 
   const active = requireAndroidNativePerfSession(session, 'trace', request.kind);
@@ -198,35 +215,18 @@ async function runAndroidTraceCommand(
   const result = await stopAndroidPerfettoTrace(session.device, active, outPath, {
     adb: params.androidAdbExecutor,
   });
-  params.sessionStore.set(params.sessionName, {
-    ...session,
-    nativePerf: { android: result },
-  });
-  return compactNativePerfResponse(result);
+  return storeNativePerfSession(params, result);
 }
 
-function requireAndroidNativePerfSession(
-  session: SessionState,
-  type: AndroidNativePerfSession['type'],
-  kind: AndroidNativePerfKind,
-): AndroidNativePerfSession {
-  const active = session.nativePerf?.android;
-  if (active?.type === type && active.kind === kind) return active;
-  throw new AppError('COMMAND_FAILED', `No Android ${kind} ${type} is active for this session.`, {
-    hint:
-      type === 'cpu-profile'
-        ? 'Run perf cpu profile start --kind simpleperf first, then stop or report in the same session.'
-        : 'Run perf trace start --kind perfetto first, then stop in the same session.',
-  });
-}
-
-function resolveNativePerfOutPath(
-  params: { sessionName: string; sessionStore: SessionStore; req: DaemonRequest },
-  requestedPath: string | undefined,
-  fallbackFileName: string,
-): string {
-  if (requestedPath) return SessionStore.expandHome(requestedPath, params.req.meta?.cwd);
-  return pathJoinSessionArtifact(params.sessionStore, params.sessionName, fallbackFileName);
+function assertStoppedSimpleperfProfile(active: AndroidNativePerfSession): void {
+  if (active.state !== 'running') return;
+  throw new AppError(
+    'COMMAND_FAILED',
+    'Stop the Android Simpleperf CPU profile before generating a report.',
+    {
+      hint: 'Run perf cpu profile stop --kind simpleperf, then retry perf cpu profile report --kind simpleperf.',
+    },
+  );
 }
 
 function pathJoinSessionArtifact(
@@ -258,4 +258,19 @@ function compactNativePerfResponse(result: AndroidNativePerfSession & Record<str
     method: result.method,
     message: result.message,
   };
+}
+
+function requireAndroidNativePerfSession(
+  session: SessionState,
+  type: AndroidNativePerfSession['type'],
+  kind: AndroidNativePerfKind,
+): AndroidNativePerfSession {
+  const active = session.nativePerf?.android;
+  if (active?.type === type && active.kind === kind) return active;
+  throw new AppError('COMMAND_FAILED', `No Android ${kind} ${type} is active for this session.`, {
+    hint:
+      type === 'cpu-profile'
+        ? 'Run perf cpu profile start --kind simpleperf first, then stop or report in the same session.'
+        : 'Run perf trace start --kind perfetto first, then stop in the same session.',
+  });
 }
