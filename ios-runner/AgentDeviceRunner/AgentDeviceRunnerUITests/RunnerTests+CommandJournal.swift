@@ -146,8 +146,8 @@ final class RunnerCommandJournal {
     case .tap, .mouseClick, .tapSeries, .longPress, .interactionFrame, .drag, .dragSeries,
          .remotePress, .type, .swipe, .findText, .querySelector, .readText, .back, .backInApp,
          .backSystem, .home, .rotate, .appSwitcher, .keyboardDismiss, .keyboardReturn, .alert,
-         .pinch, .rotateGesture, .transformGesture, .recordStart, .recordStop, .status, .uptime,
-         .shutdown:
+         .pinch, .sequence, .rotateGesture, .transformGesture, .recordStart, .recordStop,
+         .status, .uptime, .shutdown:
       return true
     }
   }
@@ -260,6 +260,82 @@ extension RunnerTests {
       "iOS XCTest snapshot failed while serializing the accessibility tree."
     )
     XCTAssertEqual(status.lifecycleErrorHint, hint)
+  }
+
+  func testCommandJournalRetainsCompletedSequenceResults() throws {
+    let journal = RunnerCommandJournal()
+    let sequence = runnerJournalCommand("sequence", id: "sequence-completed")
+    let results = (0..<20).map { _ in
+      SequenceStepResult(
+        ok: true,
+        kind: "tap",
+        errorCode: nil,
+        errorMessage: nil,
+        gestureStartUptimeMs: 100,
+        gestureEndUptimeMs: 120
+      )
+    }
+
+    journal.accept(command: sequence)
+    journal.finish(
+      command: sequence,
+      response: Response(
+        ok: true,
+        data: DataPayload(
+          message: "sequence",
+          completedSteps: 20,
+          failedStepIndex: nil,
+          sequenceResults: results
+        )
+      )
+    )
+
+    let status = journal.status(commandId: "sequence-completed")
+    XCTAssertEqual(status.lifecycleState, RunnerCommandLifecycleState.completed.rawValue)
+    XCTAssertEqual(status.lifecycleResponseOk, true)
+    let json = try XCTUnwrap(status.lifecycleResponseJson)
+    // Worst-case 20-step response must stay under the 16KB journal retention cap.
+    XCTAssertLessThan(json.utf8.count, 16 * 1024)
+    let decoded = try decodeRunnerJournalResponse(status.lifecycleResponseJson)
+    XCTAssertEqual(decoded.data?.completedSteps, 20)
+    XCTAssertEqual(decoded.data?.sequenceResults?.count, 20)
+  }
+
+  func testCommandJournalRetainsFailedSequenceResults() throws {
+    let journal = RunnerCommandJournal()
+    let sequence = runnerJournalCommand("sequence", id: "sequence-failed")
+    let longError = String(repeating: "z", count: 200)
+    let results: [SequenceStepResult] = [
+      SequenceStepResult(ok: true, kind: "tap", errorCode: nil, errorMessage: nil,
+                         gestureStartUptimeMs: 100, gestureEndUptimeMs: 120),
+      SequenceStepResult(ok: true, kind: "tap", errorCode: nil, errorMessage: nil,
+                         gestureStartUptimeMs: 130, gestureEndUptimeMs: 150),
+      SequenceStepResult(ok: false, kind: "drag", errorCode: "UNSUPPORTED_OPERATION",
+                         errorMessage: longError, gestureStartUptimeMs: 160, gestureEndUptimeMs: 180),
+    ]
+
+    journal.accept(command: sequence)
+    journal.finish(
+      command: sequence,
+      response: Response(
+        ok: true,
+        data: DataPayload(
+          message: "sequence",
+          completedSteps: 2,
+          failedStepIndex: 2,
+          sequenceResults: results
+        )
+      )
+    )
+
+    let status = journal.status(commandId: "sequence-failed")
+    XCTAssertEqual(status.lifecycleState, RunnerCommandLifecycleState.completed.rawValue)
+    let decoded = try decodeRunnerJournalResponse(status.lifecycleResponseJson)
+    XCTAssertEqual(decoded.data?.completedSteps, 2)
+    XCTAssertEqual(decoded.data?.failedStepIndex, 2)
+    XCTAssertEqual(decoded.data?.sequenceResults?.count, 3)
+    XCTAssertEqual(decoded.data?.sequenceResults?[2].ok, false)
+    XCTAssertEqual(decoded.data?.sequenceResults?[2].errorCode, "UNSUPPORTED_OPERATION")
   }
 
   private func runnerJournalCommand(_ command: String, id: String) -> Command {
