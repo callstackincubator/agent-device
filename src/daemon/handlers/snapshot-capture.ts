@@ -63,6 +63,7 @@ type SnapshotData = {
   backend?: SnapshotBackend;
   analysis?: AndroidSnapshotAnalysis;
   androidSnapshot?: AndroidSnapshotBackendMetadata;
+  warnings?: string[];
 };
 
 type SnapshotAttempt = {
@@ -76,6 +77,7 @@ type CaptureSnapshotResult = {
   analysis?: AndroidSnapshotAnalysis;
   androidSnapshot?: AndroidSnapshotBackendMetadata;
   freshness?: AndroidFreshnessCaptureMeta;
+  warnings?: string[];
 };
 
 type AndroidFreshnessReason = 'empty-interactive' | 'sharp-drop' | 'stuck-route';
@@ -94,6 +96,7 @@ export async function captureSnapshot(
     snapshot: buildSnapshotState(data, resolveSnapshotStateFlags(params)),
     analysis: data.analysis,
     androidSnapshot: data.androidSnapshot,
+    warnings: data.warnings,
   };
 }
 
@@ -245,6 +248,7 @@ async function captureAndroidFreshnessAwareSnapshot(
     analysis: latest.data.analysis,
     androidSnapshot: latest.data.androidSnapshot,
     freshness: latest.freshness,
+    warnings: latest.data.warnings,
   };
 }
 
@@ -298,6 +302,7 @@ async function capturePostGestureAwareSnapshot(
     analysis: latest.data.analysis,
     androidSnapshot: latest.data.androidSnapshot,
     freshness: latest.freshness,
+    warnings: latest.data.warnings,
   };
 }
 

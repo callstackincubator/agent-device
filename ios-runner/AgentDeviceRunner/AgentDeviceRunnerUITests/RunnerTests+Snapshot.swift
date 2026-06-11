@@ -337,11 +337,15 @@ extension RunnerTests {
   private static func isSparseApplicationWindowTree(_ nodes: [SnapshotNode]) -> Bool {
     guard !nodes.isEmpty else { return false }
     return nodes.allSatisfy { node in
-      let hasContent = node.label?.isEmpty == false
+      // Application/Window labels are just the app/window name, and full-screen roots
+      // compute as hittable; neither says anything about tree health, so neither counts
+      // as content for these types (a labeled app+window pair is still a sparse tree).
+      let isRootContainer = node.type == "Application" || node.type == "Window"
+      let hasContent = (!isRootContainer && node.label?.isEmpty == false)
         || node.identifier?.isEmpty == false
         || node.value?.isEmpty == false
       return !hasContent
-        && !node.hittable
+        && (isRootContainer || !node.hittable)
         && Self.structuralOnlyNodeTypes.contains(node.type)
     }
   }
@@ -706,6 +710,17 @@ extension RunnerTests {
     XCTAssertFalse(Self.isSparseApplicationWindowTree([root, button]))
     XCTAssertFalse(Self.isSparseApplicationWindowTree([root, window, button]))
     XCTAssertFalse(Self.isSparseApplicationWindowTree([]))
+    // App/window name labels and full-screen-root hittability are not content: a labeled,
+    // hittable Application root over a bare Window is still a sparse tree (a shape seen on
+    // production React Native login screens behind full-screen modal overlays).
+    let labeledHittableRoot = node(
+      index: 0, type: "Application", label: "Example App", hittable: true)
+    XCTAssertTrue(Self.isSparseApplicationWindowTree([labeledHittableRoot, window]))
+    XCTAssertFalse(
+      Self.isSparseApplicationWindowTree([
+        labeledHittableRoot, node(index: 1, type: "Application", identifier: "custom-id"),
+      ])
+    )
   }
 
   func testSnapshotPayloadNeedsRecoveryOnDeadlineTruncatedNearEmptySweep() {
