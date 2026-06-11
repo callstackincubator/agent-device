@@ -12,7 +12,7 @@ extension RunnerTests {
   private static let rawSnapshotTooLargeHint =
     "Raw iOS snapshot exceeded the runner payload guard. Use regular snapshot for visible UI, or scope/depth-limit raw snapshot when inspecting a large accessibility tree."
   private static let publicQueryRecoveryMessage =
-    "Recovered iOS snapshot through XCTest accessibility element queries after the public snapshot tree was sparse. The recovered nodes are a flattened view of on-screen controls."
+    "Recovered iOS snapshot through XCTest accessibility element queries after the public snapshot tree was sparse. This usually means the app publishes an unhealthy accessibility tree - fixing the app accessibility is the real cure. The recovered nodes are a flattened view of on-screen controls; treat screenshot as visual truth when this warning appears."
   private static let structuralOnlyNodeTypes: Set<String> = [
     "Application",
     "Window",

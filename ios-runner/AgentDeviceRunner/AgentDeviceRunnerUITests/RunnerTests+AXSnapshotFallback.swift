@@ -76,10 +76,10 @@ extension RunnerTests {
       let depthLimited = effectiveDepth < requestedDepth
       let truncated = (response["truncated"] as? Bool) == true || depthLimited
       var message =
-        "Recovered iOS snapshot with private AX fallback after \(reason). This backend is simulator-only, experimental, and may expose a partial tree."
+        "Recovered this snapshot with the fallback accessibility backend after \(reason). This usually means the app publishes an unhealthy accessibility tree (too large or deep to serialize, or containers that hide their children) — fixing the app's accessibility is the real cure. The fallback is simulator-only and may expose a partial tree; treat screenshot as visual truth when this warning appears."
       if depthLimited {
         message +=
-          " The AX server rejected deeper requests; this tree is capped at depth \(effectiveDepth) — re-run with --depth \(effectiveDepth) --scope <container> to inspect deeper content."
+          " The accessibility server rejected deeper requests; this tree is capped at depth \(effectiveDepth) — re-run with --depth \(effectiveDepth) --scope <container> to inspect deeper content."
       }
       NSLog(
         "AGENT_DEVICE_RUNNER_PRIVATE_AX_SNAPSHOT_USED reason=%@ nodes=%ld depth=%ld truncated=%@",

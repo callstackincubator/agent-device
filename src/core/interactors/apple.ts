@@ -18,7 +18,7 @@ import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { RawSnapshotNode } from '../../utils/snapshot.ts';
-import type { Interactor, RunnerContext, SnapshotResult } from '../interactor-types.ts';
+import type { Interactor, RunnerContext } from '../interactor-types.ts';
 
 export function createAppleInteractor(
   device: DeviceInfo,
@@ -70,7 +70,12 @@ export function createAppleInteractor(
       if (nodes.length === 0 && device.kind === 'simulator') {
         throw new AppError('COMMAND_FAILED', 'XCTest snapshot returned 0 nodes on iOS simulator.');
       }
-      return { nodes, truncated: result.truncated ?? false, backend: 'xctest' };
+      return {
+        nodes,
+        truncated: result.truncated ?? false,
+        backend: 'xctest',
+        ...(result.message ? { warnings: [result.message] } : {}),
+      };
     },
     back: async (mode) => {
       if (device.target === 'tv') {
@@ -127,11 +132,19 @@ export function createAppleInteractor(
   };
 }
 
-function readAppleSnapshotResult(
-  result: Record<string, unknown>,
-): Pick<SnapshotResult, 'nodes' | 'truncated'> {
+function readAppleSnapshotResult(result: Record<string, unknown>): {
+  nodes?: RawSnapshotNode[];
+  truncated?: boolean;
+  message?: string;
+} {
   return {
     nodes: Array.isArray(result.nodes) ? (result.nodes as RawSnapshotNode[]) : undefined,
     truncated: typeof result.truncated === 'boolean' ? result.truncated : undefined,
+    // Runner-attached context (e.g. "recovered with the fallback accessibility backend")
+    // surfaces as a snapshot warning so fallbacks are never silent.
+    message:
+      typeof result.message === 'string' && result.message.trim().length > 0
+        ? result.message
+        : undefined,
   };
 }

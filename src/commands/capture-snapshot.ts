@@ -225,6 +225,8 @@ function buildSnapshotWarnings(params: {
   const reactNativeOverlayWarning = formatReactNativeOverlayWarning(params.snapshot.nodes);
   if (reactNativeOverlayWarning) warnings.push(reactNativeOverlayWarning);
 
+  warnings.push(...buildMergedAccessibilityLeafWarnings(params.snapshot.nodes));
+
   const recentDropWarning = formatRecentSnapshotDropWarning(params);
   if (recentDropWarning) warnings.push(recentDropWarning);
 
@@ -251,6 +253,34 @@ function buildSparseIosInteractiveWarnings(params: {
   return [
     'iOS compact interactive snapshot exposed only the application root. XCTest typed accessibility queries can fail to enumerate some simulator UI trees even when screenshots and direct gestures still work. Use screenshot as visual truth, try a scoped/full snapshot for diagnostics, and prefer direct selectors when known.',
   ];
+}
+
+const MERGED_LEAF_MIN_SEGMENTS = 10;
+
+/**
+ * A leaf whose label joins many short segments is the signature of a container marked as an
+ * accessibility element: the platform folds every descendant into one merged node, so the
+ * children exist on screen but cannot be addressed by assistive tech or automation. This is
+ * an app-side accessibility bug, not a snapshot failure — the same merged element is all
+ * VoiceOver users get.
+ */
+function buildMergedAccessibilityLeafWarnings(nodes: SnapshotState['nodes']): string[] {
+  const parents = new Set(
+    nodes.map((node) => node.parentIndex).filter((index) => index !== undefined),
+  );
+  return nodes
+    .filter((node) => {
+      if (parents.has(node.index)) return false;
+      const type = node.type?.toLowerCase() ?? '';
+      if (type.includes('text')) return false;
+      const label = node.label ?? '';
+      return label.split(', ').length > MERGED_LEAF_MIN_SEGMENTS;
+    })
+    .map((node) => {
+      const segments = (node.label ?? '').split(', ').length;
+      const name = node.identifier ? ` (${node.identifier})` : '';
+      return `@${node.ref} [${node.type ?? 'element'}]${name} merges ~${segments} labels into a single accessibility element. The app likely marks a container as accessible, which hides every descendant from assistive tech and automation — the children cannot be addressed individually. Fix the app's accessibility (mark the rows, not the container); until then use screenshot as visual truth and coordinate taps.`;
+    });
 }
 
 function buildEmptyAndroidInteractiveWarnings(params: {

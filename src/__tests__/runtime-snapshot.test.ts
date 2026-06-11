@@ -144,6 +144,53 @@ test('runtime snapshot warns when iOS compact interactive output is root-only', 
   ]);
 });
 
+test('runtime snapshot flags a merged accessibility leaf and surfaces backend warnings', async () => {
+  const mergedLabel = Array.from({ length: 30 }, (_, i) => `Row ${i}, Tap`).join(', ');
+  const device = createSnapshotOnlyDevice({
+    nodes: [
+      { ref: 'e1', index: 0, depth: 0, type: 'Application', label: 'App' },
+      { ref: 'e2', index: 1, depth: 1, parentIndex: 0, type: 'Other', label: mergedLabel },
+      { ref: 'e3', index: 2, depth: 1, parentIndex: 0, type: 'Button', label: 'Ok' },
+    ],
+    truncated: false,
+    backend: 'xctest',
+    warnings: [
+      'Recovered this snapshot with the fallback accessibility backend after sparse tree.',
+    ],
+  });
+
+  const result = await device.capture.snapshot({ session: 'default' });
+
+  assert.equal(result.warnings?.length, 2);
+  assert.equal(
+    result.warnings?.[0],
+    'Recovered this snapshot with the fallback accessibility backend after sparse tree.',
+  );
+  assert.match(String(result.warnings?.[1]), /e2 \[Other\] merges ~60 labels/);
+  assert.match(String(result.warnings?.[1]), /marks a container as accessible/);
+  assert.match(String(result.warnings?.[1]), /screenshot as visual truth/);
+});
+
+test('runtime snapshot does not flag prose text or labeled containers with children', async () => {
+  const prose = Array.from({ length: 30 }, (_, i) => `clause ${i}`).join(', ');
+  const device = createSnapshotOnlyDevice({
+    nodes: [
+      { ref: 'e1', index: 0, depth: 0, type: 'Application', label: 'App' },
+      // Long comma-joined prose on a text node: content, not a collapsed container.
+      { ref: 'e2', index: 1, depth: 1, parentIndex: 0, type: 'StaticText', label: prose },
+      // Same label shape on a container WITH children: not a merged leaf.
+      { ref: 'e3', index: 2, depth: 1, parentIndex: 0, type: 'Other', label: prose },
+      { ref: 'e4', index: 3, depth: 2, parentIndex: 2, type: 'Button', label: 'Ok' },
+    ],
+    truncated: false,
+    backend: 'xctest',
+  });
+
+  const result = await device.capture.snapshot({ session: 'default' });
+
+  assert.deepEqual(result.warnings ?? [], []);
+});
+
 test('runtime snapshot does not warn for a normal iOS compact interactive output', async () => {
   const device = createSnapshotOnlyDevice({
     nodes: [
