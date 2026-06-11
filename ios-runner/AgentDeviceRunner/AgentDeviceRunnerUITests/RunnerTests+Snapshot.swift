@@ -11,6 +11,14 @@ extension RunnerTests {
   private static let rawSnapshotMaxNodes = 5_000
   private static let rawSnapshotTooLargeHint =
     "Raw iOS snapshot exceeded the runner payload guard. Use regular snapshot for visible UI, or scope/depth-limit raw snapshot when inspecting a large accessibility tree."
+  private static let publicQueryRecoveryMessage =
+    "Recovered iOS snapshot through XCTest accessibility element queries after the public snapshot tree was sparse. The recovered nodes are a flattened view of on-screen controls."
+  private static let structuralOnlyNodeTypes: Set<String> = [
+    "Application",
+    "Window",
+    "Other",
+    "ScrollView"
+  ]
   private static let collapsedTabCandidateTypes: Set<XCUIElement.ElementType> = [
     .button,
     .link,
@@ -253,12 +261,31 @@ extension RunnerTests {
       nodes: applyHiddenContentHints(hiddenContentHintsByNodeIndex, to: nodes),
       truncated: false
     )
-    return snapshotWithPrivateAXFallbackIfSparse(
+    return snapshotWithFallbackIfSparse(
       payload,
       app: app,
       options: options,
       reason: "XCTest snapshot returned a sparse application/window tree"
     )
+  }
+
+  private func snapshotWithFallbackIfSparse(
+    _ payload: DataPayload,
+    app: XCUIApplication,
+    options: SnapshotOptions,
+    reason: String
+  ) -> DataPayload {
+    guard let nodes = payload.nodes, Self.isSparseApplicationWindowTree(nodes) else {
+      return payload
+    }
+    if let fallback = publicQuerySnapshotFallback(
+      app: app,
+      options: options,
+      reason: reason
+    ) {
+      return fallback
+    }
+    return privateAXSnapshotFallback(app: app, options: options, reason: reason) ?? payload
   }
 
   private func snapshotWithPrivateAXFallbackIfSparse(
@@ -280,10 +307,46 @@ extension RunnerTests {
   }
 
   private static func isSparseApplicationWindowTree(_ nodes: [SnapshotNode]) -> Bool {
-    guard !nodes.isEmpty, nodes.count <= 2 else { return false }
+    guard !nodes.isEmpty else { return false }
     return nodes.allSatisfy { node in
-      node.type == "Application" || node.type == "Window"
+      let hasContent = node.label?.isEmpty == false
+        || node.identifier?.isEmpty == false
+        || node.value?.isEmpty == false
+      return !hasContent
+        && !node.hittable
+        && Self.structuralOnlyNodeTypes.contains(node.type)
     }
+  }
+
+  private func publicQuerySnapshotFallback(
+    app: XCUIApplication,
+    options: SnapshotOptions,
+    reason: String
+  ) -> DataPayload? {
+    let fallback = snapshotFlatInteractive(
+      app: app,
+      options: SnapshotOptions(
+        interactiveOnly: false,
+        compact: options.compact,
+        depth: options.depth,
+        scope: options.scope,
+        raw: false
+      )
+    )
+    guard let nodes = fallback.nodes, !Self.isSparseApplicationWindowTree(nodes) else {
+      return nil
+    }
+    NSLog(
+      "AGENT_DEVICE_RUNNER_PUBLIC_QUERY_SNAPSHOT_USED reason=%@ nodes=%ld truncated=%@",
+      reason,
+      nodes.count,
+      fallback.truncated == true ? "true" : "false"
+    )
+    return DataPayload(
+      message: Self.publicQueryRecoveryMessage,
+      nodes: nodes,
+      truncated: true
+    )
   }
 
   func snapshotRaw(app: XCUIApplication, options: SnapshotOptions) throws -> DataPayload {
@@ -566,43 +629,60 @@ extension RunnerTests {
 
   func testSparseApplicationWindowTreeDetectionIsConservative() {
     let root = compactInteractiveRootNode(rect: .zero)
-    let window = SnapshotNode(
-      index: 1,
-      type: "Window",
-      label: nil,
-      identifier: nil,
-      value: nil,
-      rect: snapshotRect(from: .zero),
-      enabled: true,
-      focused: nil,
-      selected: nil,
-      hittable: false,
-      depth: 1,
-      parentIndex: 0,
-      hiddenContentAbove: nil,
-      hiddenContentBelow: nil
-    )
-    let button = SnapshotNode(
-      index: 1,
+    func node(
+      index: Int,
+      type: String,
+      label: String? = nil,
+      identifier: String? = nil,
+      value: String? = nil,
+      hittable: Bool = false
+    ) -> SnapshotNode {
+      SnapshotNode(
+        index: index,
+        type: type,
+        label: label,
+        identifier: identifier,
+        value: value,
+        rect: snapshotRect(from: .zero),
+        enabled: true,
+        focused: nil,
+        selected: nil,
+        hittable: hittable,
+        depth: 1,
+        parentIndex: 0,
+        hiddenContentAbove: nil,
+        hiddenContentBelow: nil
+      )
+    }
+    let window = node(index: 1, type: "Window")
+    let structuralOther = node(index: 2, type: "Other")
+    let structuralScroll = node(index: 3, type: "ScrollView")
+    let labeledOther = node(index: 4, type: "Other", label: "Visible content")
+    let identifiedOther = node(index: 5, type: "Other", identifier: "test-id")
+    let valuedOther = node(index: 6, type: "Other", value: "Selected")
+    let hittableOther = node(index: 7, type: "Other", hittable: true)
+    let button = node(
+      index: 8,
       type: "Button",
       label: "Sign in",
-      identifier: nil,
-      value: nil,
-      rect: snapshotRect(from: .zero),
-      enabled: true,
-      focused: nil,
-      selected: nil,
-      hittable: true,
-      depth: 1,
-      parentIndex: 0,
-      hiddenContentAbove: nil,
-      hiddenContentBelow: nil
+      hittable: true
     )
 
     XCTAssertTrue(Self.isSparseApplicationWindowTree([root]))
     XCTAssertTrue(Self.isSparseApplicationWindowTree([root, window]))
+    XCTAssertTrue(Self.isSparseApplicationWindowTree([root, window, structuralOther, structuralScroll]))
+    XCTAssertFalse(Self.isSparseApplicationWindowTree([root, labeledOther]))
+    XCTAssertFalse(Self.isSparseApplicationWindowTree([root, identifiedOther]))
+    XCTAssertFalse(Self.isSparseApplicationWindowTree([root, valuedOther]))
+    XCTAssertFalse(Self.isSparseApplicationWindowTree([root, hittableOther]))
     XCTAssertFalse(Self.isSparseApplicationWindowTree([root, button]))
     XCTAssertFalse(Self.isSparseApplicationWindowTree([root, window, button]))
+    XCTAssertFalse(Self.isSparseApplicationWindowTree([]))
+  }
+
+  func testPublicQueryRecoveryMessageExplainsFlattenedFallback() {
+    XCTAssertTrue(Self.publicQueryRecoveryMessage.contains("XCTest accessibility element queries"))
+    XCTAssertTrue(Self.publicQueryRecoveryMessage.contains("flattened"))
   }
 
   func testRawSnapshotTooLargeFailureIsStructured() {
