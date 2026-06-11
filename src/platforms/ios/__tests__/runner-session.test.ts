@@ -410,7 +410,7 @@ test('runner session probes readiness for ready selector taps', async () => {
   assert.equal(mockSendRunnerCommandOnce.mock.calls.length, 1);
 });
 
-test('runner session probes readiness for ready tapSeries commands', async () => {
+test('runner session probes readiness for ready sequence commands', async () => {
   const session = makeRunnerSession({ ready: true });
   mockWaitForRunner.mockResolvedValueOnce(runnerResponse({ uptimeMs: 42 }));
   mockSendRunnerCommandOnce.mockResolvedValueOnce(runnerResponse({ tapped: true }));
@@ -419,11 +419,11 @@ test('runner session probes readiness for ready tapSeries commands', async () =>
     IOS_SIMULATOR,
     session,
     {
-      command: 'tapSeries',
-      x: 120,
-      y: 240,
-      count: 2,
-      intervalMs: 80,
+      command: 'sequence',
+      steps: [
+        { kind: 'tap', x: 120, y: 240, pauseMs: 80 },
+        { kind: 'tap', x: 120, y: 240 },
+      ],
       appBundleId: 'com.example.demo',
     },
     '/tmp/runner.log',
@@ -867,13 +867,8 @@ const ALLOWLISTED_MUTATIONS: { name: string; command: Record<string, unknown> }[
     name: 'selector tap',
     command: { command: 'tap', selectorKey: 'label', selectorValue: 'Open article' },
   },
-  { name: 'tapSeries', command: { command: 'tapSeries', x: 1, y: 2, count: 2, intervalMs: 80 } },
   { name: 'longPress', command: { command: 'longPress', x: 1, y: 2 } },
   { name: 'drag', command: { command: 'drag', x: 1, y: 2, x2: 3, y2: 4 } },
-  {
-    name: 'dragSeries',
-    command: { command: 'dragSeries', x: 1, y: 2, x2: 3, y2: 4, count: 2 },
-  },
   { name: 'swipe', command: { command: 'swipe', x: 1, y: 2, x2: 3, y2: 4 } },
   { name: 'scroll', command: { command: 'scroll', direction: 'down' } },
   {

@@ -14,41 +14,18 @@ const DETERMINISTIC_JITTER_PATTERN: ReadonlyArray<readonly [number, number]> = [
   [-1, -1],
 ];
 
-export function shouldUseIosTapSeries(
-  device: DeviceInfo,
-  count: number,
-  holdMs: number,
-  jitterPx: number,
-): boolean {
-  return isApplePlatform(device.platform) && count > 1 && holdMs === 0 && jitterPx === 0;
-}
-
 export function shouldUseIosDragSeries(device: DeviceInfo, count: number): boolean {
   return isApplePlatform(device.platform) && count > 1;
 }
 
 /**
- * Whether a press series should fuse into one or more `sequence` runner requests.
- * Fires only when the hold/jitter variant disqualifies it from the plain `tapSeries`
- * fast path but it still loops more than once on an Apple platform — the hot loop
- * that otherwise issues N separate runner requests.
+ * Whether a press series should fuse into one or more `sequence` runner requests. Every Apple
+ * multi-press variant fuses — plain, double-tap, hold, and jitter series — so the budget chunker
+ * bounds per-request wall-clock (the retired `tapSeries` runner command executed all pauses in a
+ * single main-thread block, risking the 30s watchdog for large count x interval).
  */
-export function shouldUseIosPressSequence(
-  device: DeviceInfo,
-  count: number,
-  holdMs: number,
-  jitterPx: number,
-): boolean {
-  return isApplePlatform(device.platform) && count > 1 && (holdMs > 0 || jitterPx > 0);
-}
-
-export function chunkRunnerSequenceSteps<T>(steps: T[], chunkSize: number): T[][] {
-  if (chunkSize <= 0) return [steps];
-  const chunks: T[][] = [];
-  for (let index = 0; index < steps.length; index += chunkSize) {
-    chunks.push(steps.slice(index, index + chunkSize));
-  }
-  return chunks;
+export function shouldUseIosPressSequence(device: DeviceInfo, count: number): boolean {
+  return isApplePlatform(device.platform) && count > 1;
 }
 
 /**

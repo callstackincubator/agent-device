@@ -85,19 +85,19 @@ export function buildSettingsTour(p: ResolvedProfile, ctx: StepContext): Scenari
         }),
       ];
 
-  // These iOS-only repeated gesture forms route to dedicated XCTest runner commands:
-  // press --count > 1 -> tapSeries; swipe --count > 1 -> dragSeries.
+  // These iOS-only repeated gesture forms fuse into `sequence` runner requests:
+  // press --count > 1 and swipe --count > 1 both batch their steps into one command.
   const iosRunnerSeries: ScenarioStep[] =
     p.platform === 'ios'
       ? [
           bat(
-            'press series (tapSeries)',
+            'press series (sequence)',
             'press',
             { command: 'press', positionals: ['200', '95'], flags: { count: 2, intervalMs: 50 } },
             { freshRoot: true },
           ),
           bat(
-            'swipe series (dragSeries)',
+            'swipe series (sequence)',
             'swipe',
             {
               command: 'swipe',

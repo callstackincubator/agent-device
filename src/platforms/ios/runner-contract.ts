@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { AppError } from '../../utils/errors.ts';
 import type { ClickButton } from '../../core/click-button.ts';
 import type { DeviceRotation } from '../../core/device-rotation.ts';
-import type { ScrollDirection, SwipePattern } from '../../core/scroll-gesture.ts';
+import type { ScrollDirection } from '../../core/scroll-gesture.ts';
 import type { ElementSelectorKey } from '../../core/interactor-types.ts';
 import { createRequestCanceledError, isRequestCanceled } from '../../daemon/request-cancel.ts';
 import { bootFailureHint, classifyBootFailure } from '../boot-diagnostics.ts';
@@ -15,13 +15,8 @@ export type RunnerCommand = {
   command:
     | 'tap'
     | 'mouseClick'
-    | 'tapSeries'
     | 'longPress'
-    // Runner-supported but no longer sent by this daemon (scroll fuses frame resolution into
-    // the runner-side `scroll` command); kept for wire compatibility with older daemons.
-    | 'interactionFrame'
     | 'drag'
-    | 'dragSeries'
     | 'remotePress'
     | 'type'
     | 'swipe'
@@ -66,11 +61,6 @@ export type RunnerCommand = {
   y?: number;
   button?: ClickButton;
   remoteButton?: 'select' | 'menu' | 'home' | 'up' | 'down' | 'left' | 'right';
-  count?: number;
-  intervalMs?: number;
-  doubleTap?: boolean;
-  pauseMs?: number;
-  pattern?: SwipePattern;
   x2?: number;
   y2?: number;
   dx?: number;
@@ -106,7 +96,7 @@ export type RunnerCommand = {
  * daemon and runner sides — see runner-sequence.ts (the single interpretation point).
  */
 export type RunnerSequenceStep = {
-  kind: 'tap' | 'longPress' | 'drag';
+  kind: 'tap' | 'doubleTap' | 'longPress' | 'drag';
   x: number;
   y: number;
   x2?: number;
@@ -229,7 +219,6 @@ export function resolveRunnerBuildFailureHint(error: AppError): string {
 
 export function isReadOnlyRunnerCommand(command: RunnerCommand['command']): boolean {
   return (
-    command === 'interactionFrame' ||
     command === 'snapshot' ||
     command === 'screenshot' ||
     command === 'findText' ||

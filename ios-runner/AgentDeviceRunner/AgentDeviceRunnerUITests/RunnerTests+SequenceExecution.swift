@@ -9,7 +9,7 @@ extension RunnerTests {
 
   /// Allowlisted step kinds. Validated on both sides so an unsupported kind is rejected with a
   /// clear INVALID_ARGS naming the step index, executing nothing.
-  private var sequenceableStepKinds: Set<String> { ["tap", "longPress", "drag"] }
+  private var sequenceableStepKinds: Set<String> { ["tap", "doubleTap", "longPress", "drag"] }
 
   /// Per-step outcome carried by `assembleSequenceExecution`. The timing is captured by the
   /// executor closure (via performGesture) so ordering/stop-on-failure stay device-free testable.
@@ -34,7 +34,7 @@ extension RunnerTests {
       }
     }
 
-    // First-step touch frame mirrors tapSeries so recording-gestures works unchanged.
+    // Touch frame resolves from the first step's coords so recording-gestures works unchanged.
     let firstStep = steps[0]
     let firstFrame = (firstStep.x != nil && firstStep.y != nil)
       ? resolvedTouchVisualizationFrame(app: activeApp, x: firstStep.x!, y: firstStep.y!)
@@ -125,7 +125,7 @@ extension RunnerTests {
   private func validateSequenceStep(_ step: SequenceStep, index: Int) -> Response? {
     guard sequenceableStepKinds.contains(step.kind) else {
       return sequenceInvalidArgs(
-        "sequence step \(index) has unsupported kind \"\(step.kind)\"; allowed: tap, longPress, drag"
+        "sequence step \(index) has unsupported kind \"\(step.kind)\"; allowed: tap, doubleTap, longPress, drag"
       )
     }
     guard let x = step.x, let y = step.y, x.isFinite, y.isFinite else {
@@ -166,6 +166,9 @@ extension RunnerTests {
     }
     let (timing, outcome) = performGesture(activeApp) {
       switch step.kind {
+      case "doubleTap":
+        // doubleTapAt per step, matching the behavior of the retired tapSeries doubleTap path.
+        return doubleTapAt(app: activeApp, x: x, y: y)
       case "longPress":
         let duration = min(max(step.durationMs ?? 800, 16), 10000) / 1000.0
         return longPressAt(app: activeApp, x: x, y: y, duration: duration)
@@ -233,16 +236,30 @@ extension RunnerTests {
     let json = """
     {"command":"sequence","commandId":"seq-1","steps":[
       {"kind":"tap","x":100,"y":200},
+      {"kind":"doubleTap","x":101,"y":200},
       {"kind":"longPress","x":102,"y":200,"durationMs":300},
       {"kind":"drag","x":10,"y":600,"x2":10,"y2":200,"durationMs":250,"pauseMs":50}
     ]}
     """
     let command = try JSONDecoder().decode(Command.self, from: Data(json.utf8))
     XCTAssertEqual(command.command, .sequence)
-    XCTAssertEqual(command.steps?.count, 3)
+    XCTAssertEqual(command.steps?.count, 4)
     XCTAssertEqual(command.steps?[0].kind, "tap")
-    XCTAssertEqual(command.steps?[2].x2, 10)
-    XCTAssertEqual(command.steps?[2].pauseMs, 50)
+    XCTAssertEqual(command.steps?[1].kind, "doubleTap")
+    XCTAssertEqual(command.steps?[3].x2, 10)
+    XCTAssertEqual(command.steps?[3].pauseMs, 50)
+  }
+
+  func testSequenceAcceptsDoubleTapKind() {
+    // A doubleTap step missing coords must fail on the coords check, not the kind allowlist —
+    // proving "doubleTap" passes validateSequenceStep without needing a device to execute on.
+    let response = executeSequenceForTest(steps: [
+      sequenceStep(kind: "doubleTap", x: nil)
+    ])
+    XCTAssertEqual(response.ok, false)
+    XCTAssertEqual(response.error?.code, "INVALID_ARGS")
+    XCTAssertTrue(response.error?.message.contains("requires finite x and y") ?? false)
+    XCTAssertFalse(response.error?.message.contains("unsupported kind") ?? true)
   }
 
   func testSequenceRejectsUnknownKind() throws {

@@ -15,7 +15,13 @@ function tap(x: number, y: number): RunnerSequenceStep {
 }
 
 test('SEQUENCEABLE_RUNNER_STEP_KINDS is the documented allowlist', () => {
-  assert.deepEqual([...SEQUENCEABLE_RUNNER_STEP_KINDS], ['tap', 'longPress', 'drag']);
+  assert.deepEqual([...SEQUENCEABLE_RUNNER_STEP_KINDS], ['tap', 'doubleTap', 'longPress', 'drag']);
+});
+
+test('validateRunnerSequenceSteps accepts doubleTap steps with finite coords', () => {
+  assert.doesNotThrow(() =>
+    validateRunnerSequenceSteps([{ kind: 'doubleTap', x: 10, y: 20, pauseMs: 50 }]),
+  );
 });
 
 test('validateRunnerSequenceSteps rejects an unsupported kind naming the step index', () => {

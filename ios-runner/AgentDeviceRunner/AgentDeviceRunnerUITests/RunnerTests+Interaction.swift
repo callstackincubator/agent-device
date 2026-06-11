@@ -841,16 +841,6 @@ extension RunnerTests {
 #endif
   }
 
-  func runSeries(count: Int, pauseMs: Double, operation: (Int) -> Void) {
-    let total = max(count, 1)
-    let pause = max(pauseMs, 0)
-    for idx in 0..<total {
-      operation(idx)
-      if idx < total - 1 && pause > 0 {
-        sleepFor(pause / 1000.0)
-      }
-    }
-  }
 
   func swipe(app: XCUIApplication, direction: String) -> DragVisualizationFrame? {
     if performTvRemoteSwipeIfAvailable(direction: direction) {
