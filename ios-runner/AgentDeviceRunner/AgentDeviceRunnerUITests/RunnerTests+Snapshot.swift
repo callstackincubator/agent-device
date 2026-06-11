@@ -275,7 +275,7 @@ extension RunnerTests {
     options: SnapshotOptions,
     reason: String
   ) -> DataPayload {
-    guard let nodes = payload.nodes, Self.isSparseApplicationWindowTree(nodes) else {
+    guard Self.snapshotPayloadNeedsRecovery(payload) else {
       return payload
     }
     if let fallback = publicQuerySnapshotFallback(
@@ -285,7 +285,10 @@ extension RunnerTests {
     ) {
       return fallback
     }
-    return privateAXSnapshotFallback(app: app, options: options, reason: reason) ?? payload
+    return betterSnapshotPayload(
+      payload,
+      recovered: privateAXSnapshotFallback(app: app, options: options, reason: reason)
+    )
   }
 
   private func snapshotWithPrivateAXFallbackIfSparse(
@@ -294,16 +297,41 @@ extension RunnerTests {
     options: SnapshotOptions,
     reason: String
   ) -> DataPayload {
-    guard let nodes = payload.nodes, Self.isSparseApplicationWindowTree(nodes),
-      let fallback = privateAXSnapshotFallback(
-        app: app,
-        options: options,
-        reason: reason
-      )
+    guard Self.snapshotPayloadNeedsRecovery(payload) else {
+      return payload
+    }
+    return betterSnapshotPayload(
+      payload,
+      recovered: privateAXSnapshotFallback(app: app, options: options, reason: reason)
+    )
+  }
+
+  /// A payload needs recovery when the tree is structural-only, OR when the capture was cut
+  /// off by a budget/deadline with almost nothing collected. The second condition matters on
+  /// large React Native trees: the typed-query sweep can resolve one or two stray controls
+  /// before its deadline, which defeats an all-structural check while the payload is still
+  /// useless in practice. A legitimately minimal screen finishes the sweep without truncation,
+  /// so it never pays for recovery.
+  static let sparseRecoveryTruncatedNodeThreshold = 8
+
+  static func snapshotPayloadNeedsRecovery(_ payload: DataPayload) -> Bool {
+    guard let nodes = payload.nodes, !nodes.isEmpty else { return false }
+    if isSparseApplicationWindowTree(nodes) { return true }
+    return payload.truncated == true && nodes.count <= sparseRecoveryTruncatedNodeThreshold
+  }
+
+  /// Keeps the original payload unless the recovered tree actually carries more nodes —
+  /// recovery must never replace a partial-but-real capture with something thinner.
+  private func betterSnapshotPayload(
+    _ payload: DataPayload,
+    recovered: DataPayload?
+  ) -> DataPayload {
+    guard let recovered, let recoveredNodes = recovered.nodes,
+      recoveredNodes.count > (payload.nodes?.count ?? 0)
     else {
       return payload
     }
-    return fallback
+    return recovered
   }
 
   private static func isSparseApplicationWindowTree(_ nodes: [SnapshotNode]) -> Bool {
@@ -678,6 +706,51 @@ extension RunnerTests {
     XCTAssertFalse(Self.isSparseApplicationWindowTree([root, button]))
     XCTAssertFalse(Self.isSparseApplicationWindowTree([root, window, button]))
     XCTAssertFalse(Self.isSparseApplicationWindowTree([]))
+  }
+
+  func testSnapshotPayloadNeedsRecoveryOnDeadlineTruncatedNearEmptySweep() {
+    let root = compactInteractiveRootNode(rect: .zero)
+    func node(index: Int, label: String) -> SnapshotNode {
+      SnapshotNode(
+        index: index,
+        type: "Button",
+        label: label,
+        identifier: nil,
+        value: nil,
+        rect: snapshotRect(from: .zero),
+        enabled: true,
+        focused: nil,
+        selected: nil,
+        hittable: true,
+        depth: 1,
+        parentIndex: 0,
+        hiddenContentAbove: nil,
+        hiddenContentBelow: nil
+      )
+    }
+    let button = node(index: 1, label: "Home")
+
+    // Deadline-truncated sweep with a stray control: still needs recovery.
+    XCTAssertTrue(
+      Self.snapshotPayloadNeedsRecovery(DataPayload(nodes: [root, button], truncated: true))
+    )
+    // Structural-only tree needs recovery regardless of truncation.
+    XCTAssertTrue(
+      Self.snapshotPayloadNeedsRecovery(DataPayload(nodes: [root], truncated: false))
+    )
+    // A completed sweep on a legitimately minimal screen does not.
+    XCTAssertFalse(
+      Self.snapshotPayloadNeedsRecovery(DataPayload(nodes: [root, button], truncated: false))
+    )
+    // A truncated but reasonably populated sweep does not.
+    var populated: [SnapshotNode] = [root]
+    for index in 1...Self.sparseRecoveryTruncatedNodeThreshold {
+      populated.append(node(index: index, label: "b\(index)"))
+    }
+    XCTAssertFalse(
+      Self.snapshotPayloadNeedsRecovery(DataPayload(nodes: populated, truncated: true))
+    )
+    XCTAssertFalse(Self.snapshotPayloadNeedsRecovery(DataPayload(nodes: [], truncated: true)))
   }
 
   func testPublicQueryRecoveryMessageExplainsFlattenedFallback() {
