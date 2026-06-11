@@ -875,6 +875,7 @@ const ALLOWLISTED_MUTATIONS: { name: string; command: Record<string, unknown> }[
     command: { command: 'dragSeries', x: 1, y: 2, x2: 3, y2: 4, count: 2 },
   },
   { name: 'swipe', command: { command: 'swipe', x: 1, y: 2, x2: 3, y2: 4 } },
+  { name: 'scroll', command: { command: 'scroll', direction: 'down' } },
 ];
 
 for (const { name, command } of ALLOWLISTED_MUTATIONS) {

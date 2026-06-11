@@ -57,8 +57,6 @@ const runnerSessionLocks = new Map<string, Promise<unknown>>();
 const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 1_000;
 const RUNNER_STALE_BUNDLE_UNINSTALL_TIMEOUT_MS = 10_000;
 const RUNNER_PREFLIGHT_SKIP_FRESHNESS_MS = 5_000;
-// Today's scroll verb is covered via 'drag'. The fused 'scroll' runner command
-// (PR #760) must be added here when it lands, or hot scroll loops lose the skip.
 const PREFLIGHT_SKIP_ELIGIBLE_RUNNER_COMMANDS = new Set<RunnerCommand['command']>([
   'tap',
   'tapSeries',
@@ -66,6 +64,7 @@ const PREFLIGHT_SKIP_ELIGIBLE_RUNNER_COMMANDS = new Set<RunnerCommand['command']
   'drag',
   'dragSeries',
   'swipe',
+  'scroll',
 ]);
 
 type RunnerReadinessPreflightDecision =

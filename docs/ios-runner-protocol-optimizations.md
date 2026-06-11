@@ -57,7 +57,7 @@ Acceptance criteria (as shipped):
   (conservative) commands still preflight; readiness probes and read-only startup commands keep
   their existing skips.
 - Recency is derived only from healthy (parsed ok, non-`runnerFatal`) responses of an explicit
-  mutating allowlist (`tap`, `tapSeries`, `longPress`, `drag`, `dragSeries`, `swipe`) for the same
+  mutating allowlist (`tap`, `tapSeries`, `longPress`, `drag`, `dragSeries`, `swipe`, `scroll`) for the same
   `appBundleId`, within a 5s freshness window, and lives only on the session object so it dies with
   every invalidation/restart. Snapshots and read-only responses never refresh it.
 - A transport failure after a skipped preflight clears the recency record and marks the error with
