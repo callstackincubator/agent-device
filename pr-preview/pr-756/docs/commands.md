@@ -64,7 +64,7 @@ agent-device app-switcher
 - `open <app> <url>` opens a deep link on iOS.
 - `open <app> --launch-console <path>` captures launch-time stdout/stderr for direct iOS simulator app launches. It is not valid for URL opens or
   non-simulator targets.
-- `open --no-device-hub` skips Xcode Device Hub and uses the standalone Simulator app when surfacing Apple simulators.
+- `open --device-hub` uses Xcode Device Hub when surfacing Apple simulators.
 - `open --platform macos --surface app|frontmost-app|desktop|menubar` selects the macOS session surface explicitly. `app` is the default when an app argument is provided.
 - `back` now defaults to app-owned back navigation. On Apple targets that means visible in-app back UI only. On Android this currently maps to the same back keyevent because Android routes in-app back through that platform event.
 - `back --in-app` is an explicit alias for the default app-owned behavior.
@@ -716,7 +716,7 @@ agent-device network dump 25 --include all # Include parsed headers/body when av
 - Retention knobs: set `AGENT_DEVICE_APP_LOG_MAX_BYTES` and `AGENT_DEVICE_APP_LOG_MAX_FILES` to override rotation limits.
 - Optional write-time redaction patterns: set `AGENT_DEVICE_APP_LOG_REDACT_PATTERNS` to a comma-separated regex list.
 
-**Crash symbols (bounded local symbolication):** Use `debug symbols` for Apple crash artifacts and dSYMs. The command matches crash Binary Images / IPS `usedImages` UUIDs to `dwarfdump --uuid` output, runs `atos`, writes a symbolicated artifact, and prints only the output path plus compact summary.
+**Crash symbols (bounded local symbolication):** Use `debug symbols` when you already have an Apple crash artifact and local dSYMs and need the failing code path. The command matches crash Binary Images / IPS `usedImages` UUIDs to `dwarfdump --uuid` output, runs `atos`, writes a symbolicated artifact, and prints only the output path plus a compact crash report with app/thread, exception or termination, top symbolicated frames, and the first actionable frame finding. This is better than pasting raw crash logs because the agent sees the diagnosis and artifact path without ingesting the full crash body.
 
 ```bash
 agent-device debug symbols --artifact crash.log --dsym MyApp.dSYM --out crash-symbolicated.log
@@ -725,7 +725,7 @@ agent-device debug symbols --artifact crash.ips --search-path ./build --out cras
 
 - `debug` is intentionally narrow: do not use it for app logs, network evidence, performance samples, recordings, traces, or React Native internals.
 - Android Java/R8 `mapping.txt` and native `ndk-stack`/`addr2line` symbolication are deferred; capture Android crash evidence with `logs` and symbolicate externally for now.
-- The crash artifact body is written to `--out`; it is not dumped into agent context.
+- The crash artifact body is written to `--out`; it is not dumped into agent context or default JSON.
 
 **Grepping app logs:** Use `logs path` to get the file path, then run `grep` (or `grep -E`) on that path so only matching lines enter context—keeping token use low.
 
