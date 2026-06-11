@@ -58,7 +58,7 @@ export function chunkRunnerSequenceSteps<T>(steps: T[], chunkSize: number): T[][
  * timeout while the remaining steps keep mutating the UI. We sub-chunk well under 30s so the
  * estimated holds + pauses + per-step overhead of any single chunk stays safely inside it.
  */
-export const RUNNER_SEQUENCE_CHUNK_BUDGET_MS = 20_000;
+const RUNNER_SEQUENCE_CHUNK_BUDGET_MS = 20_000;
 
 /**
  * Rough fixed per-step cost (ms) the runner spends on each gesture beyond its hold/pause
