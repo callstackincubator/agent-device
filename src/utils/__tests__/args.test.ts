@@ -1009,7 +1009,7 @@ test('usage includes agent workflows, config, environment, and examples footers'
   assert.match(usageText, /Exploratory QA: agent-device help dogfood/);
   assert.match(usageText, /Agent Workflows:/);
   assert.match(usageText, /help workflow\s+Normal bootstrap, exploration, and validation loop/);
-  assert.match(usageText, /help debugging\s+Logs, network, alerts, diagnostics, and traces/);
+  assert.match(usageText, /help debugging\s+Logs, network, perf memory, and traces/);
   assert.match(
     usageText,
     /help react-devtools\s+React Native performance, profiling, component tree, and renders/,
@@ -1187,6 +1187,10 @@ test('usageForCommand resolves debugging help topic', () => {
   assert.match(help, /runnerLogPath and requestLogPath/);
   assert.match(help, /requests\/<request-id>\.ndjson holds daemon request diagnostics/);
   assert.match(help, /daemon\.log is global daemon lifecycle evidence/);
+  assert.match(help, /agent-device perf memory sample --json/);
+  assert.match(help, /Memory artifact \(android-hprof\): \/tmp\/app\.hprof \(42MB\)/);
+  assert.match(help, /Prefer perf memory sample over raw dumpsys\/leaks output/);
+  assert.match(help, /Unsupported platforms return artifact\.available=false with reason\/hint/);
   assert.match(help, /Do not use settings permission to answer a dialog already on screen/);
 });
 

@@ -11,7 +11,7 @@ import {
 
 const AGENT_WORKFLOWS = [
   { label: 'help workflow', description: 'Normal bootstrap, exploration, and validation loop' },
-  { label: 'help debugging', description: 'Logs, network, alerts, diagnostics, and traces' },
+  { label: 'help debugging', description: 'Logs, network, perf memory, and traces' },
   {
     label: 'help react-native',
     description: 'React Native app automation hazards, overlays, Metro, and routing',
@@ -209,7 +209,7 @@ Validation and evidence:
   If task says snapshot, use snapshot. If it asks visual evidence, use screenshot.
   Icon/tappable visual proof: screenshot --overlay-refs. Flag is --overlay-refs.
   If snapshot returns a sparse/AX-unavailable state, refs are not reliable. Use plain screenshot, not screenshot --overlay-refs, navigate with coordinates if needed, then retry snapshot -i after reaching another screen; the AX failure may be screen-specific.
-  Startup/CPU/memory/frame first pass: perf metrics --json (bare perf and metrics are aliases). Focused frame/jank health: perf frames --json. Memory-only sample: perf memory sample --json. Heap/memgraph artifact escalation: perf memory snapshot --out heap.artifact; use --kind android-hprof on Android or --kind memgraph on supported Apple simulator/macOS app sessions. Large memory artifacts stay on disk and responses return paths/compact metadata only. heapprofd is deferred until Perfetto plumbing is available. Replay maintenance: replay -u ./flow.ad.
+  Startup/CPU/memory/frame first pass: perf metrics --json (bare perf and metrics are aliases). Focused frame/jank health: perf frames --json. Memory-only sample: perf memory sample --json returns compact JSON with bounded top offenders. Heap/memgraph artifact escalation: perf memory snapshot --out heap.artifact; use --kind android-hprof on Android or --kind memgraph on supported Apple simulator/macOS app sessions. Large memory artifacts stay on disk and responses return paths/compact metadata only. This is better than raw memory dumps for agents because it is stable, bounded, and keeps large artifacts out of context. heapprofd is deferred until Perfetto plumbing is available. Replay maintenance: replay -u ./flow.ad.
   Recording: record start/stop. By default, stop burns touch overlays into the video; use record start --hide-touches for the fastest raw recording. Android adb screenrecord has a 180s platform limit, so longer Android recordings are returned as multiple MP4 chunks. For gesture-heavy iOS simulator proof videos, prefer --hide-touches because overlay timing depends on a stable runner session while gestures are executing. Tracing: trace start ./trace.log, trace stop ./trace.log. Paths are positional.
   Stable known flow: batch ./steps.json, not workflow batch.
   Inline batch JSON example:
@@ -296,6 +296,19 @@ Diagnostics and traces:
     agent-device press 'id="load-diagnostics"'
     agent-device trace stop ./traces/diagnostics.trace
   The trace path is positional. Do not use --path for trace start or trace stop.
+
+Memory diagnostics:
+  Use perf memory when the symptom is leak/growth/OOM suspicion and you need agent-readable evidence.
+    agent-device perf memory sample --json
+    agent-device perf memory snapshot --kind android-hprof --out ./artifacts/app.hprof
+    agent-device perf memory snapshot --kind memgraph --out ./artifacts/app.memgraph
+  Example sample shape:
+    {"metrics":{"memory":{"available":true,"totalPssKb":562958,"totalRssKb":570304,"topConsumers":[{"name":"Dalvik Heap","pssKb":213456}]}}}
+  Example default snapshot output:
+    Memory artifact (android-hprof): /tmp/app.hprof (42MB)
+  Prefer perf memory sample over raw dumpsys/leaks output for first-pass agent diagnosis: it keeps arrays bounded, preserves the same memory source as perf metrics, and returns only memory data instead of startup/CPU/frame noise.
+  Prefer perf memory snapshot over printing heap/memgraph data: snapshots return path, size, kind, method, and support metadata while the large artifact stays on disk for external inspection.
+  Unsupported platforms return artifact.available=false with reason/hint; do not pretend a heap or memgraph was captured.
 
 Stabilizers:
   Android animation-sensitive flows:

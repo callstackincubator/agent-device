@@ -593,8 +593,10 @@ agent-device perf memory snapshot --kind memgraph --out app.memgraph
 
 - `perf metrics` returns a session-scoped metrics JSON blob. Bare `perf` and `metrics` remain aliases for `perf metrics`.
 - `perf frames` returns a focused frame/jank-health JSON blob from the same frame sampling source used by `perf metrics`.
-- `perf memory sample` returns a compact memory-only JSON blob for agents investigating growth/leaks without collecting a large artifact.
+- `perf memory sample` returns a compact memory-only JSON blob for agents investigating growth/leaks without collecting a large artifact. It is better than raw memory command output for first-pass diagnosis because arrays are bounded, top offenders are compact, and the payload omits unrelated startup/CPU/frame data.
+- Example sample shape: `{"metrics":{"memory":{"available":true,"totalPssKb":562958,"totalRssKb":570304,"topConsumers":[{"name":"Dalvik Heap","pssKb":213456}]}}}`.
 - `perf memory snapshot` writes a heap/memgraph artifact to disk and returns path, size, kind, method, and support metadata. Large artifacts are never dumped into CLI/MCP/default JSON output.
+- Example default snapshot output: `Memory artifact (android-hprof): /tmp/app.hprof (42MB)`.
 - Without `--json`, `perf` prints a compact summary: frame health when reliable frame data is available, otherwise CPU/memory when those samples are available.
 - `startup` is sampled from `open-command-roundtrip`: elapsed wall-clock time around each `open` command dispatch for the active session app target.
 - Android app sessions with an active package also sample:

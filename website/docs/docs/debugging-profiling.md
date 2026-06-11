@@ -105,9 +105,10 @@ agent-device perf memory snapshot --kind memgraph --out app.memgraph
 
 - `perf metrics` returns session-scoped startup and, where supported, CPU, memory, and frame-health samples. Bare `perf` and `metrics` remain aliases.
 - `perf frames` returns a focused frame/jank-health payload.
-- `perf memory sample` returns a compact memory-only payload, preserving the memory metric source used by `perf metrics`.
+- `perf memory sample` returns a compact memory-only payload, preserving the memory metric source used by `perf metrics`. Prefer it over raw `dumpsys`/`leaks` output for first-pass agent diagnosis because it keeps arrays bounded, reports top offenders compactly, and omits unrelated startup/CPU/frame data.
+- Example sample shape: `{"metrics":{"memory":{"available":true,"totalPssKb":562958,"totalRssKb":570304,"topConsumers":[{"name":"Dalvik Heap","pssKb":213456}]}}}`.
 - `perf memory snapshot` escalates to file artifacts. Android supports Java HPROF capture for active app processes when the build/device allows heap dumping. iOS simulator and macOS app sessions support memgraph capture through host-visible process tooling; physical iOS device memgraph capture reports unavailable with a hint instead of pretending support.
-- Heap and memgraph artifacts are returned as paths plus compact metadata. They are not printed or embedded in JSON by default. heapprofd/native allocation tracing is deferred until Perfetto plumbing is available.
+- Heap and memgraph artifacts are returned as paths plus compact metadata. Example default output: `Memory artifact (android-hprof): /tmp/app.hprof (42MB)`. They are not printed or embedded in JSON by default. heapprofd/native allocation tracing is deferred until Perfetto plumbing is available.
 - Startup is measured around the `open` command; it is not first-frame instrumentation.
 - CPU, memory, and Android frame-health availability depend on platform and whether the active session is bound to an app/package.
 - On Android and supported Apple targets, use `metrics.fps.droppedFramePercent` for the health check and `metrics.fps.worstWindows` to line up jank clusters with logs, network activity, or recent actions.
