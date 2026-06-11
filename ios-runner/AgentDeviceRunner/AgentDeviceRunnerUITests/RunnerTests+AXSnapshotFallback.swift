@@ -65,7 +65,8 @@ extension RunnerTests {
         options: options,
         viewport: viewport,
         depth: 0,
-        parentIndex: nil
+        parentIndex: nil,
+        insideMatchedScope: false
       )
       if nodes.count <= 1 {
         NSLog("AGENT_DEVICE_RUNNER_PRIVATE_AX_SNAPSHOT_SPARSE=%ld", nodes.count)
@@ -93,7 +94,8 @@ extension RunnerTests {
     options: SnapshotOptions,
     viewport: CGRect,
     depth: Int,
-    parentIndex: Int?
+    parentIndex: Int?,
+    insideMatchedScope: Bool
   ) {
     if let limit = options.depth, depth > limit { return }
 
@@ -108,14 +110,26 @@ extension RunnerTests {
     let hasContent = !label.isEmpty || !identifier.isEmpty || !value.isEmpty
     let isRoot = parentIndex == nil
 
+    // Scope selects a subtree, matching regular snapshot semantics: once a node matches,
+    // every descendant is inside scope and only the normal option filters apply to it.
+    let scope = options.scope?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let scopeActive = (scope?.isEmpty == false)
+    let matchesScope: Bool
+    if scopeActive, let scope {
+      let haystack = [label, identifier, value].joined(separator: "\n")
+      matchesScope = haystack.localizedCaseInsensitiveContains(scope)
+    } else {
+      matchesScope = false
+    }
+    let nowInsideScope = insideMatchedScope || matchesScope
+
     let include: Bool
     if isRoot {
       include = true
+    } else if scopeActive && !nowInsideScope {
+      include = false
     } else if options.interactiveOnly && !visible {
       include = false
-    } else if let scope = options.scope?.trimmingCharacters(in: .whitespacesAndNewlines), !scope.isEmpty {
-      let haystack = [label, identifier, value].joined(separator: "\n")
-      include = haystack.localizedCaseInsensitiveContains(scope)
     } else if options.compact {
       include = hasContent || privateAXLikelyInteractive(rawElementType: rawType)
     } else {
@@ -157,7 +171,8 @@ extension RunnerTests {
         options: options,
         viewport: viewport,
         depth: depth + 1,
-        parentIndex: currentIndex
+        parentIndex: currentIndex,
+        insideMatchedScope: nowInsideScope
       )
     }
   }
@@ -216,5 +231,41 @@ extension RunnerTests {
     if let value = value as? Double { return value }
     if let value = value as? NSNumber { return value.doubleValue }
     return nil
+  }
+}
+
+// MARK: - In-bundle unit tests
+
+extension RunnerTests {
+  func testPrivateAXScopeSelectsSubtreeNotMatchingLabels() {
+    let tree: [String: Any] = [
+      "type": 1, "label": "App",
+      "children": [
+        [
+          "type": 9, "identifier": "homeScreen",
+          "children": [
+            ["type": 48, "label": "Post body without the scope text", "children": []]
+          ],
+        ],
+        ["type": 9, "label": "unrelated sibling", "children": []],
+      ],
+    ]
+    var nodes: [SnapshotNode] = []
+    appendPrivateAXNode(
+      tree,
+      to: &nodes,
+      options: SnapshotOptions(
+        interactiveOnly: false, compact: false, depth: nil, scope: "homeScreen", raw: false),
+      viewport: .infinite,
+      depth: 0,
+      parentIndex: nil,
+      insideMatchedScope: false
+    )
+
+    let labels = nodes.compactMap { $0.label ?? $0.identifier }
+    XCTAssertTrue(labels.contains("homeScreen"))
+    // Descendants of the matched scope are included even when they do not contain the text.
+    XCTAssertTrue(labels.contains("Post body without the scope text"))
+    XCTAssertFalse(labels.contains("unrelated sibling"))
   }
 }

@@ -351,7 +351,13 @@ extension RunnerTests {
       return left.type < right.type
     }
 
-    nodes[0] = compactInteractiveRootNode(rect: compactInteractiveRootFrame(for: candidates))
+    // The synthetic root doubles as the daemon's viewport (find.ts prefers on-screen matches
+    // inside nodes[0].rect): use the real screen viewport when capture produced a finite one,
+    // so off-screen candidates can never inflate the root and masquerade as on-screen.
+    let rootRect = viewport.isInfinite || viewport.isNull || viewport.isEmpty
+      ? compactInteractiveRootFrame(for: candidates)
+      : viewport
+    nodes[0] = compactInteractiveRootNode(rect: rootRect)
     for candidate in candidates {
       nodes.append(
         SnapshotNode(
