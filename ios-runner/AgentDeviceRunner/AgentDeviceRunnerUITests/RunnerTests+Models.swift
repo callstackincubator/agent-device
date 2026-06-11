@@ -3,11 +3,8 @@
 enum CommandType: String, Codable {
   case tap
   case mouseClick
-  case tapSeries
   case longPress
-  case interactionFrame
   case drag
-  case dragSeries
   case remotePress
   case type
   case swipe
@@ -70,17 +67,16 @@ extension CommandType {
   var traits: CommandTraits {
     switch self {
     // Interaction commands: require the foreground-guard + stabilization preflight.
-    // tapSeries/dragSeries are the series forms of tap/drag; keyboardReturn is the sibling
-    // of keyboardDismiss — all three were missing from the historical switch (drift the
-    // table now prevents) and are classified as interactions here.
-    // .scroll is the fused frame-resolve + drag scroll; same classification as .drag.
-    case .tap, .tapSeries, .longPress, .drag, .dragSeries, .remotePress, .type, .swipe, .scroll,
+    // keyboardReturn is the sibling of keyboardDismiss (missing from the historical switch —
+    // drift the table now prevents). .scroll is the fused frame-resolve + drag scroll; same
+    // classification as .drag. .sequence is the fused multi-step gesture batch.
+    case .tap, .longPress, .drag, .remotePress, .type, .swipe, .scroll,
          .back, .backInApp, .backSystem, .rotate, .appSwitcher,
          .keyboardDismiss, .keyboardReturn, .pinch, .sequence, .rotateGesture, .transformGesture:
       return CommandTraits(isInteraction: true, readOnly: .never, isLifecycle: false)
 
     // Read-only reads: eligible for the session-invalidating retry.
-    case .interactionFrame, .findText, .readText, .snapshot:
+    case .findText, .readText, .snapshot:
       return CommandTraits(isInteraction: false, readOnly: .always, isLifecycle: false)
 
     // Screenshot is both a read and a runner-lifecycle command (skips app-activation preflight).
@@ -126,11 +122,6 @@ struct Command: Codable {
   let y: Double?
   let button: String?
   let remoteButton: String?
-  let count: Double?
-  let intervalMs: Double?
-  let doubleTap: Bool?
-  let pauseMs: Double?
-  let pattern: String?
   let x2: Double?
   let y2: Double?
   let dx: Double?

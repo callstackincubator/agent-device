@@ -55,27 +55,6 @@ extension RunnerTests {
     }
   }
 
-  private func performDragSeries(
-    count: Int,
-    pauseMs: Double,
-    pattern: String,
-    points: DragPoints,
-    _ drag: (_ x: Double, _ y: Double, _ x2: Double, _ y2: Double) -> RunnerInteractionOutcome
-  ) -> RunnerInteractionOutcome {
-    var outcome = RunnerInteractionOutcome.performed
-    runSeries(count: count, pauseMs: pauseMs) { idx in
-      guard case .performed = outcome else {
-        return
-      }
-      let reverse = pattern == "ping-pong" && (idx % 2 == 1)
-      let startX = reverse ? points.x2 : points.x
-      let startY = reverse ? points.y2 : points.y
-      let endX = reverse ? points.x : points.x2
-      let endY = reverse ? points.y : points.y2
-      outcome = drag(startX, startY, endX, endY)
-    }
-    return outcome
-  }
 
   /// Runs a gesture action with uniform timing capture. Touch gestures pass `idleTimeout: true`
   /// (the default) to run inside the scroll idle-timeout + quiescence-skip wrapper; synthesis
@@ -580,44 +559,6 @@ extension RunnerTests {
       } catch {
         return Response(ok: false, error: ErrorPayload(message: error.localizedDescription))
       }
-    case .tapSeries:
-      // No longer sent by current daemons (press/double-tap series fuse into `sequence` steps);
-      // kept for wire compatibility with older daemons.
-      guard let x = command.x, let y = command.y else {
-        return Response(ok: false, error: ErrorPayload(message: "tapSeries requires x and y"))
-      }
-      let count = max(Int(command.count ?? 1), 1)
-      let intervalMs = max(command.intervalMs ?? 0, 0)
-      let doubleTap = command.doubleTap ?? false
-      let touchFrame = resolvedTouchVisualizationFrame(app: activeApp, x: x, y: y)
-      if doubleTap {
-        let (timing, outcome) = performGesture(activeApp) {
-          var outcome = RunnerInteractionOutcome.performed
-          runSeries(count: count, pauseMs: intervalMs) { _ in
-            if case .performed = outcome {
-              outcome = doubleTapAt(app: activeApp, x: x, y: y)
-            }
-          }
-          return outcome
-        }
-        if let response = unsupportedResponse(for: outcome) {
-          return response
-        }
-        return gestureResponse(message: "tap series", timing: timing, frame: .touch(touchFrame))
-      }
-      let (timing, outcome) = performGesture(activeApp) {
-        var outcome = RunnerInteractionOutcome.performed
-        runSeries(count: count, pauseMs: intervalMs) { _ in
-          if case .performed = outcome {
-            outcome = tapAt(app: activeApp, x: x, y: y)
-          }
-        }
-        return outcome
-      }
-      if let response = unsupportedResponse(for: outcome) {
-        return response
-      }
-      return gestureResponse(message: "tap series", timing: timing, frame: .touch(touchFrame))
     case .longPress:
       guard let x = command.x, let y = command.y else {
         return Response(ok: false, error: ErrorPayload(message: "longPress requires x and y"))
@@ -646,8 +587,8 @@ extension RunnerTests {
         message: "dragged"
       )
     case .scroll:
-      // Fused frame-resolve + drag scroll for non-tvOS. Resolves the interaction frame exactly
-      // like .interactionFrame, computes drag endpoints with the Swift port of
+      // Fused frame-resolve + drag scroll for non-tvOS. Resolves the interaction frame via
+      // resolvedTouchReferenceFrame, computes drag endpoints with the Swift port of
       // buildScrollGesturePlan, then runs the same non-synthesized drag path scroll's drag used.
       guard let direction = command.direction,
         direction == "up" || direction == "down" || direction == "left" || direction == "right"
@@ -692,68 +633,6 @@ extension RunnerTests {
         synthesized: false,
         message: "scrolled"
       )
-    case .dragSeries:
-      // No longer sent by current daemons (swipe series fuse into `sequence` drag steps with
-      // daemon-side ping-pong unrolling); kept for wire compatibility with older daemons.
-      guard let x = command.x, let y = command.y, let x2 = command.x2, let y2 = command.y2 else {
-        return Response(ok: false, error: ErrorPayload(message: "dragSeries requires x, y, x2, and y2"))
-      }
-      let count = max(Int(command.count ?? 1), 1)
-      let pauseMs = max(command.pauseMs ?? 0, 0)
-      let pattern = command.pattern ?? "one-way"
-      if pattern != "one-way" && pattern != "ping-pong" {
-        return Response(ok: false, error: ErrorPayload(message: "dragSeries pattern must be one-way or ping-pong"))
-      }
-      let dragPoints = keyboardAvoidingDragPoints(app: activeApp, x: x, y: y, x2: x2, y2: y2)
-      var fallback: GestureFallback?
-      if command.synthesized == true {
-        let durationMs = min(max(command.durationMs ?? 250, 16), 10000)
-        let (timing, outcome) = performGesture(activeApp, idleTimeout: false) {
-          performDragSeries(
-            count: count,
-            pauseMs: pauseMs,
-            pattern: pattern,
-            points: dragPoints
-          ) { startX, startY, endX, endY in
-            synthesizedDragAt(
-              app: activeApp,
-              x: startX,
-              y: startY,
-              x2: endX,
-              y2: endY,
-              durationMs: durationMs
-            )
-          }
-        }
-        if case .performed = outcome {
-          return gestureResponse(message: "drag series", timing: timing)
-        }
-        fallback = gestureFallback(strategy: "xctest-coordinate-drag-series", from: outcome)
-      }
-      let holdDuration = command.synthesized == true
-        ? synthesizedSwipeFallbackHoldDuration(durationMs: command.durationMs ?? 250)
-        : coordinateDragHoldDuration()
-      let (timing, outcome) = performGesture(activeApp) {
-        performDragSeries(
-          count: count,
-          pauseMs: pauseMs,
-          pattern: pattern,
-          points: dragPoints
-        ) { startX, startY, endX, endY in
-          dragAt(
-            app: activeApp,
-            x: startX,
-            y: startY,
-            x2: endX,
-            y2: endY,
-            holdDuration: holdDuration
-          )
-        }
-      }
-      if let response = unsupportedResponse(for: outcome) {
-        return response
-      }
-      return gestureResponse(message: "drag series", timing: timing, fallback: fallback)
     case .remotePress:
       guard let button = tvRemoteButton(from: command.remoteButton) else {
         return Response(ok: false, error: ErrorPayload(message: "remotePress requires remoteButton"))
@@ -772,17 +651,6 @@ extension RunnerTests {
         response = executeTypeCommand(activeApp: activeApp, command: command)
       }
       return response ?? Response(ok: false, error: ErrorPayload(message: "type produced no response"))
-    case .interactionFrame:
-      let frame = resolvedTouchReferenceFrame(app: activeApp, appFrame: activeApp.frame)
-      return Response(
-        ok: true,
-        data: DataPayload(
-          x: frame.minX,
-          y: frame.minY,
-          referenceWidth: frame.width,
-          referenceHeight: frame.height
-        )
-      )
     case .swipe:
       guard let direction = command.direction else {
         return Response(ok: false, error: ErrorPayload(message: "swipe requires direction"))

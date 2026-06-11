@@ -143,7 +143,7 @@ final class RunnerCommandJournal {
     switch command.command {
     case .snapshot, .screenshot:
       return false
-    case .tap, .mouseClick, .tapSeries, .longPress, .interactionFrame, .drag, .dragSeries,
+    case .tap, .mouseClick, .longPress, .drag,
          .remotePress, .type, .swipe, .scroll, .findText, .querySelector, .readText, .back,
          .backInApp, .backSystem, .home, .rotate, .appSwitcher, .keyboardDismiss, .keyboardReturn,
          .alert, .pinch, .sequence, .rotateGesture, .transformGesture, .recordStart, .recordStop,

@@ -34,7 +34,7 @@ extension RunnerTests {
       }
     }
 
-    // First-step touch frame mirrors tapSeries so recording-gestures works unchanged.
+    // Touch frame resolves from the first step's coords so recording-gestures works unchanged.
     let firstStep = steps[0]
     let firstFrame = (firstStep.x != nil && firstStep.y != nil)
       ? resolvedTouchVisualizationFrame(app: activeApp, x: firstStep.x!, y: firstStep.y!)
@@ -167,7 +167,7 @@ extension RunnerTests {
     let (timing, outcome) = performGesture(activeApp) {
       switch step.kind {
       case "doubleTap":
-        // Mirrors the retired tapSeries doubleTap branch (doubleTapAt per repetition).
+        // doubleTapAt per step, matching the behavior of the retired tapSeries doubleTap path.
         return doubleTapAt(app: activeApp, x: x, y: y)
       case "longPress":
         let duration = min(max(step.durationMs ?? 800, 16), 10000) / 1000.0

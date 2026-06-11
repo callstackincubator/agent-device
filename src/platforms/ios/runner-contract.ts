@@ -16,11 +16,6 @@ export type RunnerCommand = {
     | 'tap'
     | 'mouseClick'
     | 'longPress'
-    // Runner-supported but no longer sent by this daemon (scroll fuses frame resolution into
-    // the runner-side `scroll` command); kept for wire compatibility with older daemons.
-    // The runner likewise still serves `tapSeries`/`dragSeries` for older daemons, but those
-    // never appear here: this type is the send surface of the current daemon.
-    | 'interactionFrame'
     | 'drag'
     | 'remotePress'
     | 'type'
@@ -224,7 +219,6 @@ export function resolveRunnerBuildFailureHint(error: AppError): string {
 
 export function isReadOnlyRunnerCommand(command: RunnerCommand['command']): boolean {
   return (
-    command === 'interactionFrame' ||
     command === 'snapshot' ||
     command === 'screenshot' ||
     command === 'findText' ||

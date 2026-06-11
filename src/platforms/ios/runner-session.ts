@@ -57,8 +57,9 @@ const runnerSessionLocks = new Map<string, Promise<unknown>>();
 const RUNNER_READY_PREFLIGHT_TIMEOUT_MS = 1_000;
 const RUNNER_STALE_BUNDLE_UNINSTALL_TIMEOUT_MS = 10_000;
 const RUNNER_PREFLIGHT_SKIP_FRESHNESS_MS = 5_000;
-// Only commands this daemon actually sends belong here; the retired tapSeries/dragSeries wire
-// commands stay runner-supported for older daemons but never originate from this process.
+// Only commands this daemon actually sends belong here. The retired tapSeries/dragSeries/
+// interactionFrame wire commands were removed from both daemon and runner; an old daemon
+// paired with a new runner gets a decode rejection and rebuilds via the source fingerprint.
 const PREFLIGHT_SKIP_ELIGIBLE_RUNNER_COMMANDS = new Set<RunnerCommand['command']>([
   'tap',
   'longPress',
