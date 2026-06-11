@@ -42,6 +42,7 @@ export const APPLE_MEMGRAPH_SNAPSHOT_DESCRIPTION =
   'Memory graph captured with leaks --outputGraph for host-visible Apple app processes.';
 
 const APPLE_PERF_TIMEOUT_MS = 15_000;
+const APPLE_MEMORY_SNAPSHOT_TIMEOUT_MS = 120_000;
 // Physical device tracing can take materially longer to initialize than the 1s sample window.
 const IOS_DEVICE_PERF_RECORD_TIMEOUT_MS = 60_000;
 const IOS_DEVICE_PERF_EXPORT_TIMEOUT_MS = 15_000;
@@ -170,23 +171,16 @@ export async function captureAppleMemorySnapshot(
   if (target.available === false) return target;
   const { process } = target;
   await fs.mkdir(path.dirname(outPath), { recursive: true });
-  const result =
-    device.platform === 'macos'
-      ? await runAppleToolCommand('leaks', [`--outputGraph=${outPath}`, String(process.pid)], {
-          allowFailure: true,
-          timeoutMs: APPLE_PERF_TIMEOUT_MS,
-        })
-      : await runXcrun(
-          buildSimctlArgsForDevice(device, [
-            'spawn',
-            device.id,
-            'leaks',
-            `--outputGraph=${outPath}`,
-            String(process.pid),
-          ]),
-          { allowFailure: true, timeoutMs: APPLE_PERF_TIMEOUT_MS },
-        );
+  const hadLocalArtifact = await fileExists(outPath);
+  let result: ExecResult;
+  try {
+    result = await runAppleMemorySnapshotTool(device, outPath, process.pid);
+  } catch (error) {
+    await cleanupLocalArtifact(outPath, hadLocalArtifact);
+    throw annotateAppleMemorySnapshotToolError(device, appBundleId, process, outPath, error);
+  }
   if (result.exitCode !== 0) {
+    await cleanupLocalArtifact(outPath, hadLocalArtifact);
     throw new AppError('COMMAND_FAILED', `Failed to capture Apple memgraph for ${appBundleId}`, {
       kind: 'memgraph',
       appBundleId,
@@ -202,6 +196,7 @@ export async function captureAppleMemorySnapshot(
 
   const stat = await fs.stat(outPath).catch(() => null);
   if (!stat?.isFile() || stat.size <= 0) {
+    await cleanupLocalArtifact(outPath, hadLocalArtifact);
     throw new AppError('COMMAND_FAILED', 'Apple memgraph artifact is missing or empty', {
       kind: 'memgraph',
       appBundleId,
@@ -223,6 +218,86 @@ export async function captureAppleMemorySnapshot(
     processName: path.basename(readProcessCommandToken(process.command)),
     support,
   };
+}
+
+async function runAppleMemorySnapshotTool(
+  device: DeviceInfo,
+  outPath: string,
+  pid: number,
+): Promise<ExecResult> {
+  if (device.platform === 'macos') {
+    return await runAppleToolCommand('leaks', [`--outputGraph=${outPath}`, String(pid)], {
+      allowFailure: true,
+      timeoutMs: APPLE_MEMORY_SNAPSHOT_TIMEOUT_MS,
+    });
+  }
+  return await runXcrun(
+    buildSimctlArgsForDevice(device, [
+      'spawn',
+      device.id,
+      'leaks',
+      `--outputGraph=${outPath}`,
+      String(pid),
+    ]),
+    { allowFailure: true, timeoutMs: APPLE_MEMORY_SNAPSHOT_TIMEOUT_MS },
+  );
+}
+
+function annotateAppleMemorySnapshotToolError(
+  device: DeviceInfo,
+  appBundleId: string,
+  process: AppleProcessSample,
+  outPath: string,
+  error: unknown,
+): AppError {
+  if (error instanceof AppError) {
+    const details = error.details ?? {};
+    return new AppError(
+      error.code,
+      `Failed to capture Apple memgraph for ${appBundleId}`,
+      {
+        ...details,
+        kind: 'memgraph',
+        appBundleId,
+        pid: process.pid,
+        processName: path.basename(readProcessCommandToken(process.command)),
+        path: outPath,
+        hint: resolveAppleMemorySnapshotHint(
+          device,
+          typeof details.stdout === 'string' ? details.stdout : '',
+          typeof details.stderr === 'string' && details.stderr.length > 0
+            ? details.stderr
+            : error.message,
+        ),
+      },
+      error,
+    );
+  }
+  return new AppError(
+    'COMMAND_FAILED',
+    `Failed to capture Apple memgraph for ${appBundleId}`,
+    {
+      kind: 'memgraph',
+      appBundleId,
+      pid: process.pid,
+      processName: path.basename(readProcessCommandToken(process.command)),
+      path: outPath,
+      hint: 'Retry perf memory snapshot. If it still fails, run with --debug and inspect leaks output.',
+    },
+    error,
+  );
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  return await fs
+    .stat(filePath)
+    .then((stat) => stat.isFile())
+    .catch(() => false);
+}
+
+async function cleanupLocalArtifact(filePath: string, existedBefore: boolean): Promise<void> {
+  if (existedBefore) return;
+  await fs.rm(filePath, { force: true }).catch(() => {});
 }
 
 export async function sampleAppleFramePerf(
@@ -1034,6 +1109,9 @@ function resolveAppleMemorySnapshotHint(
   stderr: string,
 ): string {
   const text = `${stdout}\n${stderr}`.toLowerCase();
+  if (text.includes('timed out') || text.includes('timeout')) {
+    return 'Apple memgraph capture can take longer than metric sampling. Keep the app running and retry; if it times out again, collect a smaller reproduction before capturing leaks --outputGraph.';
+  }
   if (text.includes('not found') || text.includes('no such file')) {
     return 'Install Xcode command line tools and ensure leaks is available, then retry.';
   }

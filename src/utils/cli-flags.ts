@@ -16,6 +16,7 @@ import {
   SCREENSHOT_SPECIFIC_FLAG_DEFINITIONS,
   type ScreenshotRequestFlags,
 } from '../contracts/screenshot.ts';
+import { PERF_KIND_VALUES } from '../contracts/perf.ts';
 import {
   MAESTRO_COMPAT_TRACKER_URL,
   formatMaestroSupportedSubsetForCli,
@@ -390,7 +391,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     key: 'kind',
     names: ['--kind'],
     type: 'enum',
-    enumValues: ['auto', 'react-native', 'expo', 'android-hprof', 'memgraph'],
+    enumValues: ['auto', 'react-native', 'expo', ...PERF_KIND_VALUES],
     usageLabel: '--kind <kind>',
     usageDescription:
       'Kind selector for commands that support it, such as metro prepare or perf memory snapshot',

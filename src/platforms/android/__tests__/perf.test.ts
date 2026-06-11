@@ -118,6 +118,67 @@ test('captureAndroidHeapSnapshot explains missing process failures', async () =>
   );
 });
 
+test('captureAndroidHeapSnapshot cleans remote path when dumpheap fails', async () => {
+  const calls: string[][] = [];
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-android-hprof-dump-fail-'));
+  const outPath = path.join(tmpDir, 'app.hprof');
+  const adb: AndroidAdbExecutor = async (args) => {
+    calls.push([...args]);
+    if (args.join(' ') === 'shell pidof com.example.app') {
+      return { stdout: '4242\n', stderr: '', exitCode: 0 };
+    }
+    if (args.slice(0, 4).join(' ') === 'shell am dumpheap com.example.app') {
+      return { stdout: '', stderr: 'Process not debuggable', exitCode: 1 };
+    }
+    if (args.slice(0, 3).join(' ') === 'shell rm -f') {
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    throw new Error(`unexpected adb call: ${args.join(' ')}`);
+  };
+
+  try {
+    await assert.rejects(
+      () => captureAndroidHeapSnapshot(ANDROID_DEVICE, 'com.example.app', outPath, { adb }),
+      /Failed to capture Android heap dump/,
+    );
+    assert.equal(calls.at(-1)?.slice(0, 3).join(' '), 'shell rm -f');
+    assert.equal(fs.existsSync(outPath), false);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('captureAndroidHeapSnapshot removes partial local artifact when pull fails', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-android-hprof-pull-fail-'));
+  const outPath = path.join(tmpDir, 'app.hprof');
+  const adb: AndroidAdbExecutor = async (args) => {
+    if (args.join(' ') === 'shell pidof com.example.app') {
+      return { stdout: '4242\n', stderr: '', exitCode: 0 };
+    }
+    if (args.slice(0, 4).join(' ') === 'shell am dumpheap com.example.app') {
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    if (args[0] === 'pull') {
+      fs.writeFileSync(outPath, 'partial-hprof');
+      return { stdout: '', stderr: 'pull failed', exitCode: 1 };
+    }
+    if (args.slice(0, 3).join(' ') === 'shell rm -f') {
+      return { stdout: '', stderr: '', exitCode: 0 };
+    }
+    throw new Error(`unexpected adb call: ${args.join(' ')}`);
+  };
+
+  try {
+    await assert.rejects(
+      () => captureAndroidHeapSnapshot(ANDROID_DEVICE, 'com.example.app', outPath, { adb }),
+      /Failed to pull Android heap dump/,
+    );
+    assert.equal(fs.existsSync(outPath), false);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test('parseAndroidFramePerfSample summarizes dropped frame percentage from framestats rows', () => {
   const sample = parseAndroidFramePerfSample(
     [

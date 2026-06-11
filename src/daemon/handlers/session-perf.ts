@@ -26,7 +26,7 @@ import {
   sampleAppleFramePerf,
   sampleApplePerfMetrics,
 } from '../../platforms/ios/perf.ts';
-import type { PerfMemoryKind } from '../../contracts/perf.ts';
+import type { PerfKind } from '../../contracts/perf.ts';
 import { SessionStore } from '../session-store.ts';
 import {
   PERF_STARTUP_SAMPLE_LIMIT,
@@ -63,7 +63,7 @@ type BuildPerfResponseOptions = {
 };
 type BuildPerfMemoryResponseOptions = BuildPerfResponseOptions & {
   action: 'sample' | 'snapshot';
-  kind?: PerfMemoryKind;
+  kind?: PerfKind;
   out?: string;
   cwd?: string;
   sessionName: string;
@@ -155,6 +155,13 @@ export async function buildPerfMemoryResponseData(
   const response = buildBasePerfMemoryResponse(session);
 
   if (!supportsPlatformPerfMetrics(session)) {
+    if (options.action === 'snapshot') {
+      const kind = resolveMemorySnapshotKind(session, options.kind);
+      response.artifact = unsupportedMemorySnapshotArtifact(session, kind);
+      response.support =
+        readSupportRecord(response.artifact.support) ?? buildMemorySnapshotSupport(session);
+      return response;
+    }
     response.metrics = { memory: { available: false, reason: PERF_UNAVAILABLE_REASON } };
     return response;
   }
@@ -496,18 +503,19 @@ async function buildMemorySnapshotArtifact(
 
 function resolveMemorySnapshotKind(
   session: SessionState,
-  requestedKind: PerfMemoryKind | undefined,
-): PerfMemoryKind {
+  requestedKind: PerfKind | undefined,
+): PerfKind {
   if (requestedKind) return requestedKind;
   return session.device.platform === 'android' ? 'android-hprof' : 'memgraph';
 }
 
 function resolveMemorySnapshotOutPath(
   options: BuildPerfMemoryResponseOptions,
-  kind: PerfMemoryKind,
+  kind: PerfKind,
 ): string {
   if (options.out) return SessionStore.expandHome(options.out, options.cwd);
-  const extension = kind === 'android-hprof' ? 'hprof' : 'memgraph';
+  const extension =
+    kind === 'android-hprof' ? 'hprof' : kind === 'memgraph' ? 'memgraph' : 'artifact';
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const sessionDir = options.sessionStore.ensureSessionDir(options.sessionName);
   return path.join(sessionDir, 'artifacts', `memory-${kind}-${timestamp}.${extension}`);
@@ -515,19 +523,38 @@ function resolveMemorySnapshotOutPath(
 
 function unsupportedMemorySnapshotArtifact(
   session: SessionState,
-  kind: PerfMemoryKind,
+  kind: PerfKind,
 ): Record<string, unknown> {
+  const support = buildMemorySnapshotSupport(session);
+  const guidance = buildUnsupportedMemorySnapshotGuidance(session, kind);
   return {
     available: false,
     kind,
-    reason:
-      session.device.platform === 'android'
-        ? `Android perf memory snapshot supports android-hprof, not ${kind}.`
-        : `Apple perf memory snapshot supports memgraph, not ${kind}.`,
-    hint:
-      session.device.platform === 'android'
-        ? 'Use perf memory snapshot --kind android-hprof for Android Java heap artifacts.'
-        : 'Use perf memory snapshot --kind memgraph for supported Apple app sessions.',
+    reason: guidance.reason,
+    hint: guidance.hint,
+    support,
+  };
+}
+
+function buildUnsupportedMemorySnapshotGuidance(
+  session: SessionState,
+  kind: PerfKind,
+): { reason: string; hint: string } {
+  if (session.device.platform === 'android') {
+    return {
+      reason: `Android perf memory snapshot supports android-hprof, not ${kind}.`,
+      hint: 'Use perf memory snapshot --kind android-hprof for Android Java heap artifacts.',
+    };
+  }
+  if (session.device.platform === 'ios' || session.device.platform === 'macos') {
+    return {
+      reason: `Apple perf memory snapshot supports memgraph, not ${kind}.`,
+      hint: 'Use perf memory snapshot --kind memgraph for supported Apple app sessions.',
+    };
+  }
+  return {
+    reason: `Memory snapshot artifacts are not supported on ${session.device.platform}.`,
+    hint: 'Use perf memory sample where supported, or run the snapshot against Android, iOS simulator, or macOS.',
   };
 }
 
@@ -541,6 +568,19 @@ function buildMemorySnapshotSupport(session: SessionState): Record<string, unkno
       heapprofd: false,
       heapprofdDecision:
         'Deferred until Android Perfetto/heapprofd plumbing is available in the perf trace slice.',
+    };
+  }
+  if (session.device.platform !== 'ios' && session.device.platform !== 'macos') {
+    return {
+      platform: session.device.platform,
+      defaultKind: 'memgraph',
+      androidHprof: false,
+      memgraph: false,
+      heapprofd: false,
+      reason: 'Memory snapshot artifacts are available only on Android, iOS simulator, and macOS.',
+      hint: 'Use perf memory sample where supported, or switch to a platform with memory artifact support.',
+      heapprofdDecision:
+        'Deferred because heapprofd is Android/Perfetto-specific and outside this memory artifact slice.',
     };
   }
   return {

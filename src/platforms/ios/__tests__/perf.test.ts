@@ -216,7 +216,7 @@ test('captureAppleMemorySnapshot records memgraph for iOS simulator processes', 
     'utf8',
   );
 
-  mockRunCmd.mockImplementation(async (cmd, args) => {
+  mockRunCmd.mockImplementation(async (cmd, args, options) => {
     if (cmd === 'xcrun' && args.includes('get_app_container')) {
       return { stdout: `${appPath}\n`, stderr: '', exitCode: 0 };
     }
@@ -234,6 +234,7 @@ test('captureAppleMemorySnapshot records memgraph for iOS simulator processes', 
       };
     }
     if (cmd === 'xcrun' && args.includes('leaks')) {
+      assert.equal(options?.timeoutMs, 120_000);
       assert.deepEqual(args, [
         'simctl',
         'spawn',
@@ -306,6 +307,115 @@ test('captureAppleMemorySnapshot records memgraph for macOS app processes', asyn
     assert.equal(snapshot.path, outPath);
     assert.equal(snapshot.pid, 111);
     assert.equal(snapshot.sizeBytes, 'mac-memgraph-bytes'.length);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('captureAppleMemorySnapshot removes partial memgraph when leaks exits nonzero', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-memgraph-fail-'));
+  const appPath = path.join(tmpDir, 'Example.app');
+  const outPath = path.join(tmpDir, 'app.memgraph');
+  await fs.mkdir(appPath, { recursive: true });
+  await fs.writeFile(
+    path.join(appPath, 'Info.plist'),
+    [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<plist version="1.0"><dict>',
+      '<key>CFBundleExecutable</key><string>ExampleSimExec</string>',
+      '</dict></plist>',
+    ].join(''),
+    'utf8',
+  );
+
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'xcrun' && args.includes('get_app_container')) {
+      return { stdout: `${appPath}\n`, stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'plutil') {
+      return { stdout: '', stderr: 'mock fallback', exitCode: 1 };
+    }
+    if (cmd === 'xcrun' && args.includes('ps')) {
+      return {
+        stdout: `111 1.0 8192 ${path.join(appPath, 'ExampleSimExec')}`,
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    if (cmd === 'xcrun' && args.includes('leaks')) {
+      await fs.writeFile(outPath, 'partial-memgraph', 'utf8');
+      return { stdout: '', stderr: 'permission denied', exitCode: 1 };
+    }
+    throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
+  });
+
+  try {
+    await assert.rejects(
+      () => captureAppleMemorySnapshot(IOS_SIMULATOR, 'com.example.sim', outPath),
+      /Failed to capture Apple memgraph/,
+    );
+    assert.equal(await fileExists(outPath), false);
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('captureAppleMemorySnapshot removes partial memgraph and hints when leaks times out', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-ios-memgraph-timeout-'));
+  const appPath = path.join(tmpDir, 'Example.app');
+  const outPath = path.join(tmpDir, 'app.memgraph');
+  await fs.mkdir(appPath, { recursive: true });
+  await fs.writeFile(
+    path.join(appPath, 'Info.plist'),
+    [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<plist version="1.0"><dict>',
+      '<key>CFBundleExecutable</key><string>ExampleSimExec</string>',
+      '</dict></plist>',
+    ].join(''),
+    'utf8',
+  );
+
+  mockRunCmd.mockImplementation(async (cmd, args) => {
+    if (cmd === 'xcrun' && args.includes('get_app_container')) {
+      return { stdout: `${appPath}\n`, stderr: '', exitCode: 0 };
+    }
+    if (cmd === 'plutil') {
+      return { stdout: '', stderr: 'mock fallback', exitCode: 1 };
+    }
+    if (cmd === 'xcrun' && args.includes('ps')) {
+      return {
+        stdout: `111 1.0 8192 ${path.join(appPath, 'ExampleSimExec')}`,
+        stderr: '',
+        exitCode: 0,
+      };
+    }
+    if (cmd === 'xcrun' && args.includes('leaks')) {
+      await fs.writeFile(outPath, 'partial-memgraph', 'utf8');
+      throw new AppError('COMMAND_FAILED', 'xcrun timed out after 120000ms', {
+        cmd,
+        args,
+        stdout: '',
+        stderr: '',
+        exitCode: -1,
+        timeoutMs: 120_000,
+      });
+    }
+    throw new Error(`unexpected command: ${cmd} ${args.join(' ')}`);
+  });
+
+  try {
+    await assert.rejects(
+      async () => {
+        await captureAppleMemorySnapshot(IOS_SIMULATOR, 'com.example.sim', outPath);
+      },
+      (error) => {
+        assert.ok(error instanceof AppError);
+        assert.match(String(error.details?.hint), /timed out|longer than metric sampling/i);
+        return true;
+      },
+    );
+    assert.equal(await fileExists(outPath), false);
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
@@ -591,6 +701,13 @@ function readOutputPath(args: string[], flag = '--output'): string {
 
 function emptyRunResult(): MockRunCmdResult {
   return { stdout: '', stderr: '', exitCode: 0 };
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  return await fs
+    .stat(filePath)
+    .then((stat) => stat.isFile())
+    .catch(() => false);
 }
 
 function makeActivityMonitorCaptureXmls(): string[] {

@@ -196,7 +196,7 @@ async function prepareConnectedMetro(
   }
   const prepared = await client.metro.prepare({
     projectRoot: flags.metroProjectRoot,
-    kind: readDeferredMetroKind(flags.kind ?? flags.metroKind),
+    kind: readDeferredMetroKind(flags.metroKind),
     publicBaseUrl: flags.metroPublicBaseUrl,
     proxyBaseUrl: flags.metroProxyBaseUrl,
     bearerToken: flags.metroBearerToken,
@@ -305,7 +305,7 @@ function shouldPrepareRuntimeForCommand(command: string, batchSteps?: BatchStep[
 }
 
 export function hasDeferredMetroConfig(flags: CliFlags): boolean {
-  const metroKind = flags.kind ?? flags.metroKind;
+  const metroKind = flags.metroKind;
   return Boolean(
     flags.metroPublicBaseUrl || flags.metroProxyBaseUrl || flags.metroProjectRoot || metroKind,
   );

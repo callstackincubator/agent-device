@@ -40,7 +40,7 @@ import type {
 import type { MetroBridgeScope } from './client-companion-tunnel-contract.ts';
 import type { AppsFilter } from './contracts/app-inventory.ts';
 import type { ScreenshotRequestFlags } from './contracts/screenshot.ts';
-import type { PerfAction, PerfArea, PerfMemoryKind } from './contracts/perf.ts';
+import type { PerfAction, PerfArea, PerfKind } from './contracts/perf.ts';
 import type { DaemonBatchStep } from './core/batch.ts';
 import type { AlertAction, AlertInfo } from './alert-contract.ts';
 
@@ -742,7 +742,7 @@ export type BatchRunOptions = AgentDeviceRequestOverrides & {
 export type PerfOptions = DeviceCommandBaseOptions & {
   area?: PerfArea;
   action?: PerfAction;
-  kind?: PerfMemoryKind;
+  kind?: PerfKind;
   out?: string;
 };
 

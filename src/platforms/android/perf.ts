@@ -109,6 +109,7 @@ export async function captureAndroidHeapSnapshot(
   const pid = await resolveAndroidAppPid(adb, packageName);
   const remotePath = buildAndroidRemoteHeapPath(packageName);
   await fs.mkdir(path.dirname(outPath), { recursive: true });
+  const hadLocalArtifact = await fileExists(outPath);
   try {
     const dumpResult = await adb(['shell', 'am', 'dumpheap', packageName, remotePath], {
       allowFailure: true,
@@ -136,6 +137,7 @@ export async function captureAndroidHeapSnapshot(
       timeoutMs: ANDROID_HEAP_DUMP_TIMEOUT_MS,
     });
     if (pullResult.exitCode !== 0) {
+      await cleanupLocalArtifact(outPath, hadLocalArtifact);
       throw new AppError('COMMAND_FAILED', `Failed to pull Android heap dump for ${packageName}`, {
         kind: 'android-hprof',
         package: packageName,
@@ -151,6 +153,7 @@ export async function captureAndroidHeapSnapshot(
 
     const stat = await fs.stat(outPath).catch(() => null);
     if (!stat?.isFile() || stat.size <= 0) {
+      await cleanupLocalArtifact(outPath, hadLocalArtifact);
       throw new AppError('COMMAND_FAILED', `Android heap dump artifact is missing or empty`, {
         kind: 'android-hprof',
         package: packageName,
@@ -178,6 +181,18 @@ export async function captureAndroidHeapSnapshot(
       timeoutMs: ANDROID_PERF_TIMEOUT_MS,
     }).catch(() => {});
   }
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  return await fs
+    .stat(filePath)
+    .then((stat) => stat.isFile())
+    .catch(() => false);
+}
+
+async function cleanupLocalArtifact(filePath: string, existedBefore: boolean): Promise<void> {
+  if (existedBefore) return;
+  await fs.rm(filePath, { force: true }).catch(() => {});
 }
 
 function parseAndroidCpuInfoSample(

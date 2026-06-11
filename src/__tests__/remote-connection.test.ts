@@ -17,7 +17,10 @@ import {
   connectionCommand,
   disconnectCommand,
 } from '../cli/commands/connection.ts';
-import { materializeRemoteConnectionForCommand } from '../cli/commands/connection-runtime.ts';
+import {
+  hasDeferredMetroConfig,
+  materializeRemoteConnectionForCommand,
+} from '../cli/commands/connection-runtime.ts';
 import { stopMetroCompanion } from '../client-metro-companion.ts';
 import { AppError } from '../utils/errors.ts';
 import {
@@ -36,6 +39,27 @@ afterEach(() => {
 const unexpectedCommandCall = async (): Promise<never> => {
   throw new Error('unexpected call');
 };
+
+test('deferred Metro config ignores perf-style kind values', () => {
+  assert.equal(
+    hasDeferredMetroConfig({
+      json: true,
+      help: false,
+      version: false,
+      kind: 'memgraph',
+    }),
+    false,
+  );
+  assert.equal(
+    hasDeferredMetroConfig({
+      json: true,
+      help: false,
+      version: false,
+      metroKind: 'expo',
+    }),
+    true,
+  );
+});
 
 function createThrowingMethodGroup<T extends object>(methods: Partial<T> = {}): T {
   return new Proxy(methods, {

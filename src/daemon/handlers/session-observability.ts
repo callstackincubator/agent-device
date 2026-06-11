@@ -2,13 +2,15 @@ import { isCommandSupportedOnDevice } from '../../core/capabilities.ts';
 import {
   isPerfAction,
   isPerfArea,
+  isPerfKind,
   isPerfMemoryKind,
   PERF_ACTION_ERROR_MESSAGE,
   PERF_AREA_ERROR_MESSAGE,
+  PERF_KIND_ERROR_MESSAGE,
   PERF_MEMORY_KIND_ERROR_MESSAGE,
   type PerfAction,
   type PerfArea,
-  type PerfMemoryKind,
+  type PerfKind,
 } from '../../contracts/perf.ts';
 import { AppError, normalizeError } from '../../utils/errors.ts';
 import type { AndroidAdbExecutor } from '../../platforms/android/adb-executor.ts';
@@ -120,7 +122,7 @@ type PerfCommandRequest = {
   ok: true;
   area: PerfArea;
   action: PerfAction;
-  kind?: PerfMemoryKind;
+  kind?: PerfKind;
   out?: string;
 };
 
@@ -135,7 +137,7 @@ function resolvePerfCommandRequest(req: DaemonRequest): PerfCommandRequest | Dae
     return errorResponse('INVALID_ARGS', PERF_ACTION_ERROR_MESSAGE);
   }
 
-  const kindResult = readPerfMemoryKind(req.flags?.kind);
+  const kindResult = readPerfKind(req.flags?.kind);
   if (kindResult instanceof AppError) {
     return { ok: false, error: normalizeError(kindResult) };
   }
@@ -186,10 +188,10 @@ function readPerfAction(value: unknown): PerfAction | undefined {
   return isPerfAction(action) ? action : undefined;
 }
 
-function readPerfMemoryKind(value: unknown): PerfMemoryKind | undefined | AppError {
+function readPerfKind(value: unknown): PerfKind | undefined | AppError {
   if (value === undefined) return undefined;
-  if (typeof value !== 'string' || !isPerfMemoryKind(value)) {
-    return new AppError('INVALID_ARGS', PERF_MEMORY_KIND_ERROR_MESSAGE);
+  if (typeof value !== 'string' || !isPerfKind(value)) {
+    return new AppError('INVALID_ARGS', PERF_KIND_ERROR_MESSAGE);
   }
   return value;
 }
@@ -206,7 +208,7 @@ function validatePerfFlags(
   req: DaemonRequest,
   area: PerfArea,
   action: PerfAction,
-  kind: PerfMemoryKind | undefined,
+  kind: PerfKind | undefined,
 ): DaemonFailureResponse | undefined {
   return validatePerfOutFlag(req.flags?.out, action) ?? validatePerfKindFlag(kind, area, action);
 }
@@ -217,12 +219,16 @@ function validatePerfOutFlag(out: unknown, action: PerfAction): DaemonFailureRes
 }
 
 function validatePerfKindFlag(
-  kind: PerfMemoryKind | undefined,
+  kind: PerfKind | undefined,
   area: PerfArea,
   action: PerfAction,
 ): DaemonFailureResponse | undefined {
-  if (!kind || (area === 'memory' && action === 'snapshot')) return undefined;
-  return errorResponse('INVALID_ARGS', '--kind is only supported with perf memory snapshot');
+  if (!kind) return undefined;
+  if (area !== 'memory' || action !== 'snapshot') {
+    return errorResponse('INVALID_ARGS', '--kind is only supported with perf memory snapshot');
+  }
+  if (isPerfMemoryKind(kind)) return undefined;
+  return errorResponse('INVALID_ARGS', PERF_MEMORY_KIND_ERROR_MESSAGE);
 }
 
 function readOptionalStringFlag(value: unknown): string | undefined {

@@ -23,11 +23,7 @@ import {
   type CommandFieldMap,
 } from './command-input.ts';
 import { defineFieldCommandMetadata } from './field-command-contract.ts';
-import {
-  PERF_ACTION_VALUES,
-  PERF_AREA_VALUES,
-  PERF_MEMORY_KIND_VALUES,
-} from './perf-command-contract.ts';
+import { PERF_ACTION_VALUES, PERF_AREA_VALUES, PERF_KIND_VALUES } from './perf-command-contract.ts';
 import { WAIT_KIND_VALUES } from './wait-command-contract.ts';
 
 const CLIPBOARD_ACTION_VALUES = ['read', 'write'] as const;
@@ -189,7 +185,7 @@ export const clientCommandMetadata = [
   defineClientCommandMetadata('perf', {
     area: enumField(PERF_AREA_VALUES),
     action: enumField(PERF_ACTION_VALUES),
-    kind: enumField(PERF_MEMORY_KIND_VALUES),
+    kind: enumField(PERF_KIND_VALUES),
     out: stringField(),
   }),
   defineClientCommandMetadata('logs', {

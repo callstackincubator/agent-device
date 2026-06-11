@@ -250,3 +250,117 @@ test('perf memory snapshot reports physical iOS memgraph as unavailable', async 
   const support = response.data?.support as Record<string, unknown>;
   assert.equal(support.memgraph, false);
 });
+
+test('perf rejects kind outside memory snapshot at daemon layer', async () => {
+  const sessionStore = makeSessionStore('agent-device-session-observability-');
+  sessionStore.set('android', {
+    name: 'android',
+    createdAt: Date.now(),
+    actions: [],
+    appBundleId: 'com.example.app',
+    device: {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    },
+  });
+
+  const response = await handleSessionObservabilityCommands({
+    req: {
+      token: 't',
+      session: 'android',
+      command: 'perf',
+      positionals: ['frames', 'sample'],
+      flags: { kind: 'xctrace' },
+    },
+    sessionName: 'android',
+    sessionStore,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(response.error.message, /--kind is only supported with perf memory snapshot/i);
+  }
+});
+
+test('perf memory snapshot rejects non-memory perf kind at daemon layer', async () => {
+  const sessionStore = makeSessionStore('agent-device-session-observability-');
+  sessionStore.set('android', {
+    name: 'android',
+    createdAt: Date.now(),
+    actions: [],
+    appBundleId: 'com.example.app',
+    device: {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    },
+  });
+
+  const response = await handleSessionObservabilityCommands({
+    req: {
+      token: 't',
+      session: 'android',
+      command: 'perf',
+      positionals: ['memory', 'snapshot'],
+      flags: { kind: 'perfetto' },
+    },
+    sessionName: 'android',
+    sessionStore,
+  });
+
+  assert.ok(response);
+  assert.equal(response?.ok, false);
+  if (response && !response.ok) {
+    assert.equal(response.error.code, 'INVALID_ARGS');
+    assert.match(
+      response.error.message,
+      /perf memory snapshot --kind must be android-hprof or memgraph/i,
+    );
+  }
+});
+
+test('perf memory snapshot returns artifact-shaped unsupported payload on unsupported platforms', async () => {
+  const sessionStore = makeSessionStore('agent-device-session-observability-');
+  sessionStore.set('linux', {
+    name: 'linux',
+    createdAt: Date.now(),
+    actions: [],
+    appBundleId: 'com.example.app',
+    device: {
+      platform: 'linux',
+      id: 'linux-host',
+      name: 'Linux',
+      kind: 'device',
+      booted: true,
+    },
+  });
+
+  const response = await handleSessionObservabilityCommands({
+    req: {
+      token: 't',
+      session: 'linux',
+      command: 'perf',
+      positionals: ['memory', 'snapshot'],
+      flags: {},
+    },
+    sessionName: 'linux',
+    sessionStore,
+  });
+
+  assert.ok(response?.ok);
+  if (!response?.ok) assert.fail(JSON.stringify(response));
+  assert.equal(response.data?.metrics, undefined);
+  const artifact = response.data?.artifact as Record<string, unknown>;
+  assert.equal(artifact.available, false);
+  assert.equal(artifact.kind, 'memgraph');
+  assert.match(String(artifact.reason), /not supported on linux/i);
+  const support = response.data?.support as Record<string, unknown>;
+  assert.equal(support.memgraph, false);
+});

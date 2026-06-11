@@ -150,6 +150,26 @@ test('perf memory snapshot forwards kind and output path and prints artifact sum
   assert.equal(result.stdout, 'Memory artifact (android-hprof): /tmp/heap.hprof (2.4MB)\n');
 });
 
+test('perf forwards shared perf kind values through CLI parsing', async () => {
+  const result = await runCliCapture(
+    ['perf', 'memory', 'snapshot', '--kind', 'perfetto', '--json'],
+    async () => ({
+      ok: false,
+      error: {
+        code: 'INVALID_ARGS',
+        message: 'perf memory snapshot --kind must be android-hprof or memgraph',
+      },
+    }),
+  );
+
+  assert.equal(result.code, 1);
+  assert.equal(result.calls[0]?.command, 'perf');
+  assert.deepEqual(result.calls[0]?.positionals, ['memory', 'snapshot']);
+  assert.equal(result.calls[0]?.flags?.kind, 'perfetto');
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.error.code, 'INVALID_ARGS');
+});
+
 test('perf sample defaults to metrics sample', async () => {
   const result = await runCliCapture(['perf', 'sample', '--json'], async () => ({
     ok: true,
