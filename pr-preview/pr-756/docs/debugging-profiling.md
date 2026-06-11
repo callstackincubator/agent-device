@@ -61,6 +61,14 @@ agent-device open MyApp --platform ios --relaunch --launch-console ./artifacts/a
 
 ## Crash symbolication
 
+Crash routing:
+
+| Need                                                                          | Use             |
+| ----------------------------------------------------------------------------- | --------------- |
+| Lead-up timeline before a failure                                             | `logs`          |
+| Failing frame from `crash.ips`/`crash.log` plus matching dSYM/build directory | `debug symbols` |
+| Live state, breakpoints, variables, memory, or stepping                       | Xcode/LLDB      |
+
 Use `debug symbols` when you already have an Apple crash artifact and local dSYMs and need the failing code path, not a full log dump:
 
 ```bash

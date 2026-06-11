@@ -718,6 +718,8 @@ agent-device network dump 25 --include all # Include parsed headers/body when av
 
 **Crash symbols (bounded local symbolication):** Use `debug symbols` when you already have an Apple crash artifact and local dSYMs and need the failing code path. The command matches crash Binary Images / IPS `usedImages` UUIDs to `dwarfdump --uuid` output, runs `atos`, writes a symbolicated artifact, and prints only the output path plus a compact crash report with app/thread, exception or termination, top symbolicated frames, and the first actionable frame finding. This is better than pasting raw crash logs because the agent sees the diagnosis and artifact path without ingesting the full crash body.
 
+Crash routing: use `logs` for the lead-up timeline, `debug symbols` for a failing frame from `crash.ips`/`crash.log` plus matching dSYMs, and Xcode/LLDB for live state, breakpoints, variables, memory, or stepping.
+
 ```bash
 agent-device debug symbols --artifact crash.log --dsym MyApp.dSYM --out crash-symbolicated.log
 agent-device debug symbols --artifact crash.ips --search-path ./build --out crash-symbolicated.ips
