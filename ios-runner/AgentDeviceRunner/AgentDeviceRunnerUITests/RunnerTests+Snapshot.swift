@@ -11,6 +11,16 @@ extension RunnerTests {
   private static let rawSnapshotMaxNodes = 5_000
   private static let rawSnapshotTooLargeHint =
     "Raw iOS snapshot exceeded the runner payload guard. Use regular snapshot for visible UI, or scope/depth-limit raw snapshot when inspecting a large accessibility tree."
+  private static let degenerateTreeRecoveryMessage =
+    "Recovered the snapshot through accessibility element queries: XCTest's snapshot tree was sparse (only structural containers) while the screen has rendered content. This is common on React Native apps, where XCUIElementQuery still resolves controls the public snapshot omits. Nodes below are a flattened, query-resolved view of the on-screen controls."
+  // Structural container types carry no actionable content on their own; a tree made up of only
+  // these (plus the application/window roots) is the signature of a sparse snapshot.
+  private static let structuralOnlyNodeTypes: Set<String> = [
+    "Application",
+    "Window",
+    "Other",
+    "ScrollView"
+  ]
   private static let collapsedTabCandidateTypes: Set<XCUIElement.ElementType> = [
     .button,
     .link,
@@ -243,10 +253,12 @@ extension RunnerTests {
 
     }
 
-    return DataPayload(
-      nodes: applyHiddenContentHints(hiddenContentHintsByNodeIndex, to: nodes),
-      truncated: false
-    )
+    let resolvedNodes = applyHiddenContentHints(hiddenContentHintsByNodeIndex, to: nodes)
+    if snapshotNodesAreDegenerate(resolvedNodes),
+      let recovered = snapshotQueryRecovery(app: app, options: options) {
+      return recovered
+    }
+    return DataPayload(nodes: resolvedNodes, truncated: false)
   }
 
   func snapshotRaw(app: XCUIApplication, options: SnapshotOptions) throws -> DataPayload {
@@ -378,6 +390,52 @@ extension RunnerTests {
       )
     }
     return DataPayload(nodes: nodes, truncated: truncated)
+  }
+
+  /// Detects the "sparse snapshot" signature: the public `XCUIElement.snapshot()` traversal
+  /// produced only structural container nodes (application/window/other/scrollView) with no
+  /// label, identifier, value, or hittable control — even though the app is foregrounded and
+  /// rendering content. React Native apps hit this regularly: the public snapshot API collapses
+  /// the host view's subtree, while `XCUIElementQuery` still resolves the underlying controls.
+  private func snapshotNodesAreDegenerate(_ nodes: [SnapshotNode]) -> Bool {
+    guard !nodes.isEmpty else { return false }
+    for node in nodes {
+      let hasContent = (node.label?.isEmpty == false)
+        || (node.identifier?.isEmpty == false)
+        || (node.value?.isEmpty == false)
+      if hasContent || node.hittable { return false }
+      // A concretely typed control (Button, StaticText, TextField, …) means the tree is not
+      // degenerate, even when it happens to carry no resolved content this frame.
+      if !Self.structuralOnlyNodeTypes.contains(node.type) { return false }
+    }
+    return true
+  }
+
+  /// Recovers a usable tree for a sparse snapshot by reusing the query-based flat traversal
+  /// (the same `XCUIElementQuery` path the collapsed-tab fallback already trusts). Returns `nil`
+  /// when queries see nothing more than the sparse tree, so the caller keeps the original result.
+  private func snapshotQueryRecovery(
+    app: XCUIApplication,
+    options: SnapshotOptions
+  ) -> DataPayload? {
+    let recovery = snapshotFlatInteractive(
+      app: app,
+      options: SnapshotOptions(
+        interactiveOnly: false,
+        compact: options.compact,
+        depth: options.depth ?? Int.max,
+        scope: options.scope,
+        raw: false
+      )
+    )
+    // nodes[0] is always the synthetic Application root; require at least one real control beyond it.
+    guard let nodes = recovery.nodes, nodes.count > 1 else { return nil }
+    NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_DEGENERATE_TREE_RECOVERED=%d", nodes.count)
+    return DataPayload(
+      message: Self.degenerateTreeRecoveryMessage,
+      nodes: nodes,
+      truncated: true
+    )
   }
 
   private func snapshotAccessibilityUnavailable(failure: SnapshotCaptureFailure) -> DataPayload {
@@ -552,6 +610,73 @@ extension RunnerTests {
     XCTAssertNil(payload?.runnerFatalReason)
     XCTAssertNotNil(currentApp)
     XCTAssertEqual(currentBundleId, "com.example.app")
+  }
+
+  private func makeTestSnapshotNode(
+    index: Int,
+    type: String,
+    label: String? = nil,
+    identifier: String? = nil,
+    value: String? = nil,
+    hittable: Bool = false
+  ) -> SnapshotNode {
+    SnapshotNode(
+      index: index,
+      type: type,
+      label: label,
+      identifier: identifier,
+      value: value,
+      rect: SnapshotRect(x: 0, y: 0, width: 402, height: 874),
+      enabled: true,
+      focused: nil,
+      selected: nil,
+      hittable: hittable,
+      depth: 0,
+      parentIndex: nil,
+      hiddenContentAbove: nil,
+      hiddenContentBelow: nil
+    )
+  }
+
+  func testSnapshotNodesAreDegenerateDetectsStructuralOnlyTree() {
+    let nodes = [
+      makeTestSnapshotNode(index: 0, type: "Application"),
+      makeTestSnapshotNode(index: 1, type: "Window"),
+      makeTestSnapshotNode(index: 2, type: "Other")
+    ]
+
+    XCTAssertTrue(snapshotNodesAreDegenerate(nodes))
+  }
+
+  func testSnapshotNodesAreNotDegenerateWhenContentPresent() {
+    let nodes = [
+      makeTestSnapshotNode(index: 0, type: "Application"),
+      makeTestSnapshotNode(index: 1, type: "StaticText", label: "Welcome back!")
+    ]
+
+    XCTAssertFalse(snapshotNodesAreDegenerate(nodes))
+  }
+
+  func testSnapshotNodesAreNotDegenerateWhenHittableControlPresent() {
+    let nodes = [
+      makeTestSnapshotNode(index: 0, type: "Application"),
+      makeTestSnapshotNode(index: 1, type: "Other", hittable: true)
+    ]
+
+    XCTAssertFalse(snapshotNodesAreDegenerate(nodes))
+  }
+
+  func testSnapshotNodesAreNotDegenerateWhenTypedControlPresent() {
+    let nodes = [
+      makeTestSnapshotNode(index: 0, type: "Application"),
+      makeTestSnapshotNode(index: 1, type: "Button")
+    ]
+
+    XCTAssertFalse(snapshotNodesAreDegenerate(nodes))
+  }
+
+  func testSnapshotNodesAreNotDegenerateWhenEmpty() {
+    XCTAssertFalse(snapshotNodesAreDegenerate([]))
   }
 
   private func compactInteractiveRootNode(rect: CGRect) -> SnapshotNode {

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- iOS: `snapshot` now recovers from a sparse accessibility tree. When the public `XCUIElement.snapshot()` traversal collapses to only structural containers (application/window/other) while the screen is rendering content — common on React Native apps — the runner falls back to a query-based (`XCUIElementQuery`) flat traversal so `testID`s and on-screen controls remain visible instead of returning a 2–3 node tree. The recovered payload is marked `truncated` and carries an explanatory `message`.
+
 ## 0.15.0
 
 - Breaking: `apps` discovery and public app-list helpers now default to user-installed apps. Use `--all` or `filter: 'all'` to include system/OEM apps.
