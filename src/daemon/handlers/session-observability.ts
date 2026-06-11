@@ -196,7 +196,7 @@ async function buildPerfCommandData(
   const { sessionName, sessionStore, androidAdbExecutor } = params;
   if (request.area === 'memory') {
     return await buildPerfMemoryResponseData(session, {
-      action: request.action,
+      action: toPerfMemoryAction(request.action),
       kind: request.kind,
       out: request.out,
       cwd: params.req.meta?.cwd,
@@ -233,14 +233,22 @@ function validatePerfAreaAction(
   area: Exclude<PerfArea, 'cpu' | 'trace'>,
   action: PerfAction,
 ): DaemonFailureResponse | undefined {
+  if (area === 'memory') {
+    return isPerfMemoryAction(action)
+      ? undefined
+      : errorResponse('INVALID_ARGS', 'perf memory requires sample or snapshot');
+  }
   if (action === 'sample') return undefined;
-  if (area === 'memory' && action === 'snapshot') return undefined;
-  return errorResponse(
-    'INVALID_ARGS',
-    area === 'memory'
-      ? 'perf memory only supports snapshot'
-      : 'perf metrics and perf frames only support sample',
-  );
+  return errorResponse('INVALID_ARGS', 'perf metrics and perf frames only support sample');
+}
+
+function isPerfMemoryAction(action: PerfAction): action is 'sample' | 'snapshot' {
+  return action === 'sample' || action === 'snapshot';
+}
+
+function toPerfMemoryAction(action: PerfAction): 'sample' | 'snapshot' {
+  if (isPerfMemoryAction(action)) return action;
+  throw new AppError('INVALID_ARGS', 'perf memory requires sample or snapshot');
 }
 
 function validatePerfFlags(
