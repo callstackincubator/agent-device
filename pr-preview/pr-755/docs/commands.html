@@ -9,7 +9,7 @@
 <script defer src="/agent-device/pr-preview/pr-755/static/js/lib-react.e84adf13b9.js"></script>
 <script defer src="/agent-device/pr-preview/pr-755/static/js/lib-router.853fe4366e.js"></script>
 <script defer src="/agent-device/pr-preview/pr-755/static/js/56.538ceb78eb.js"></script>
-<script defer src="/agent-device/pr-preview/pr-755/static/js/index.774a850507.js"></script>
+<script defer src="/agent-device/pr-preview/pr-755/static/js/index.bd4229a7e3.js"></script>
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="Rspress v2.0.12">
 <meta property="og:url" content="https://oss.callstack.com/agent-device">
@@ -71,7 +71,7 @@
 <li><code>open &lt;app&gt; &lt;url&gt;</code> opens a deep link on iOS.</li>
 <li><code>open &lt;app&gt; --launch-console &lt;path&gt;</code> captures launch-time stdout/stderr for direct iOS simulator app launches. It is not valid for URL opens or
 non-simulator targets.</li>
-<li><code>open --no-device-hub</code> skips Xcode Device Hub and uses the standalone Simulator app when surfacing Apple simulators.</li>
+<li><code>open --device-hub</code> uses Xcode Device Hub when surfacing Apple simulators.</li>
 <li><code>open --platform macos --surface app|frontmost-app|desktop|menubar</code> selects the macOS session surface explicitly. <code>app</code> is the default when an app argument is provided.</li>
 <li><code>back</code> now defaults to app-owned back navigation. On Apple targets that means visible in-app back UI only. On Android this currently maps to the same back keyevent because Android routes in-app back through that platform event.</li>
 <li><code>back --in-app</code> is an explicit alias for the default app-owned behavior.</li>
@@ -511,6 +511,9 @@ On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> metrics</span><span style="color:var(--shiki-token-string)"> --json</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> perf</span><span style="color:var(--shiki-token-string)"> metrics</span><span style="color:var(--shiki-token-string)"> --json</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> perf</span><span style="color:var(--shiki-token-string)"> frames</span><span style="color:var(--shiki-token-string)"> --json</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> perf</span><span style="color:var(--shiki-token-string)"> memory</span><span style="color:var(--shiki-token-string)"> sample</span><span style="color:var(--shiki-token-string)"> --json</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> perf</span><span style="color:var(--shiki-token-string)"> memory</span><span style="color:var(--shiki-token-string)"> snapshot</span><span style="color:var(--shiki-token-string)"> --kind</span><span style="color:var(--shiki-token-string)"> android-hprof</span><span style="color:var(--shiki-token-string)"> --out</span><span style="color:var(--shiki-token-string)"> app.hprof</span></span>
+<span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> perf</span><span style="color:var(--shiki-token-string)"> memory</span><span style="color:var(--shiki-token-string)"> snapshot</span><span style="color:var(--shiki-token-string)"> --kind</span><span style="color:var(--shiki-token-string)"> memgraph</span><span style="color:var(--shiki-token-string)"> --out</span><span style="color:var(--shiki-token-string)"> app.memgraph</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> perf</span><span style="color:var(--shiki-token-string)"> cpu</span><span style="color:var(--shiki-token-string)"> profile</span><span style="color:var(--shiki-token-string)"> start</span><span style="color:var(--shiki-token-string)"> --kind</span><span style="color:var(--shiki-token-string)"> xctrace</span><span style="color:var(--shiki-token-string)"> --template</span><span style="color:var(--shiki-token-string-expression)"> &quot;Time Profiler&quot;</span><span style="color:var(--shiki-token-string)"> --out</span><span style="color:var(--shiki-token-string)"> app.trace</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> perf</span><span style="color:var(--shiki-token-string)"> cpu</span><span style="color:var(--shiki-token-string)"> profile</span><span style="color:var(--shiki-token-string)"> stop</span><span style="color:var(--shiki-token-string)"> --kind</span><span style="color:var(--shiki-token-string)"> xctrace</span><span style="color:var(--shiki-token-string)"> --out</span><span style="color:var(--shiki-token-string)"> app.trace</span></span>
 <span class="line"><span style="color:var(--shiki-token-function)">agent-device</span><span style="color:var(--shiki-token-string)"> perf</span><span style="color:var(--shiki-token-string)"> cpu</span><span style="color:var(--shiki-token-string)"> profile</span><span style="color:var(--shiki-token-string)"> report</span><span style="color:var(--shiki-token-string)"> --kind</span><span style="color:var(--shiki-token-string)"> xctrace</span><span style="color:var(--shiki-token-string)"> --out</span><span style="color:var(--shiki-token-string)"> app-profile.json</span></span>
@@ -519,6 +522,10 @@ On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li
 <ul>
 <li><code>perf metrics</code> returns a session-scoped metrics JSON blob. Bare <code>perf</code> and <code>metrics</code> remain aliases for <code>perf metrics</code>.</li>
 <li><code>perf frames</code> returns a focused frame/jank-health JSON blob from the same frame sampling source used by <code>perf metrics</code>.</li>
+<li><code>perf memory sample</code> returns a compact memory-only JSON blob for agents investigating growth/leaks without collecting a large artifact. It is better than raw memory command output for first-pass diagnosis because arrays are bounded, top offenders are compact, and the payload omits unrelated startup/CPU/frame data.</li>
+<li>Example sample shape: <code>{&quot;metrics&quot;:{&quot;memory&quot;:{&quot;available&quot;:true,&quot;totalPssKb&quot;:562958,&quot;totalRssKb&quot;:570304,&quot;topConsumers&quot;:[{&quot;name&quot;:&quot;Dalvik Heap&quot;,&quot;pssKb&quot;:213456}]}}}</code>.</li>
+<li><code>perf memory snapshot</code> writes a heap/memgraph artifact to disk and returns path, size, kind, method, and support metadata. Large artifacts are never dumped into CLI/MCP/default JSON output.</li>
+<li>Example default snapshot output: <code>Memory artifact (android-hprof): /tmp/app.hprof (42MB)</code>.</li>
 <li><code>perf cpu profile ... --kind xctrace</code> records an Apple <code>.trace</code> with the requested xctrace template and writes a compact JSON report from the most recent CPU profile trace.</li>
 <li><code>perf trace ... --kind xctrace</code> records an Apple <code>.trace</code> such as Animation Hitches for native diagnosis.</li>
 <li>xctrace perf commands return artifact paths and compact metadata only; inspect <code>.trace</code> files in Instruments/Xcode instead of dumping trace contents into agent context.</li>
@@ -543,6 +550,9 @@ On physical Android devices, only <code>cmd fingerprint</code> is attempted.</li
 <li><code>startup</code>: iOS simulator, iOS physical device, Android emulator/device</li>
 <li><code>memory</code> and <code>cpu</code>: Android emulator/device, macOS app sessions, iOS simulators with an active app session (<code>open &lt;app&gt;</code> first), and iOS physical devices with an active app session</li>
 <li><code>fps</code>: Android emulator/device app sessions and connected iOS device app sessions. iOS simulator and macOS frame health is reported unavailable because Apple tooling does not expose trustworthy app hitch data there.</li>
+<li><code>perf memory snapshot --kind android-hprof</code>: Android emulator/device app sessions with a running debuggable/profileable process and permitted heap dumping</li>
+<li><code>perf memory snapshot --kind memgraph</code>: iOS simulator and macOS app sessions with a running app process. Physical iOS devices report memgraph unavailable with a recovery hint.</li>
+<li><code>perf memory trace --kind heapprofd</code>: deferred until Android Perfetto/heapprofd plumbing is available.</li>
 <li><code>perf cpu profile --kind xctrace</code>: iOS simulator app sessions, connected iOS device app sessions where xctrace can attach to the active process, and macOS app sessions when the app process can be resolved from the bundle ID.</li>
 <li><code>perf trace --kind xctrace</code>: iOS simulator app sessions, connected iOS device app sessions where xctrace can attach to the active process, and macOS app sessions when the selected xctrace template supports the target.</li>
 <li>Android native profiling is not implemented under Apple xctrace perf; Android profiling is tracked separately.</li>
