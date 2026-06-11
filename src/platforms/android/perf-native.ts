@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import { resolveAndroidAdbExecutor, type AndroidAdbExecutor } from './adb-executor.ts';
@@ -13,6 +14,8 @@ const ANDROID_NATIVE_PROFILE_TIMEOUT_MS = 30_000;
 const ANDROID_NATIVE_REMOTE_DIR = '/data/local/tmp';
 const ANDROID_PERFETTO_REMOTE_DIR = '/data/misc/perfetto-traces';
 const ANDROID_NATIVE_MAX_SECONDS = 60 * 60;
+const ANDROID_NATIVE_ARTIFACT_POLL_INTERVAL_MS = 250;
+const ANDROID_NATIVE_ARTIFACT_POLL_ATTEMPTS = 12;
 
 export type AndroidNativePerfOptions = {
   adb?: AndroidAdbExecutor;
@@ -81,12 +84,18 @@ export async function startAndroidSimpleperfProfile(
   const appPid = await resolveAndroidAppPid(adb, packageName);
   await assertAndroidToolAvailable(adb, 'simpleperf', packageName);
   const remotePath = buildAndroidNativeRemotePath(packageName, 'cpu.perf.data');
-  const profilerPid = await startAndroidBackgroundTool(
-    adb,
-    buildSimpleperfStartCommand(appPid, remotePath),
-    'simpleperf',
-    packageName,
-  );
+  let profilerPid: string;
+  try {
+    profilerPid = await startAndroidBackgroundTool(
+      adb,
+      buildSimpleperfStartCommand(appPid, remotePath),
+      'simpleperf',
+      packageName,
+    );
+  } catch (error) {
+    await cleanupAndroidRemotePath(adb, remotePath);
+    throw error;
+  }
   const session = {
     type: 'cpu-profile',
     kind: 'simpleperf',
@@ -170,7 +179,13 @@ export async function startAndroidPerfettoTrace(
     'app.perfetto-trace',
     ANDROID_PERFETTO_REMOTE_DIR,
   );
-  const profilerPid = await startAndroidPerfettoBackgroundTool(adb, remotePath, packageName);
+  let profilerPid: string;
+  try {
+    profilerPid = await startAndroidPerfettoBackgroundTool(adb, remotePath, packageName);
+  } catch (error) {
+    await cleanupAndroidRemotePath(adb, remotePath);
+    throw error;
+  }
   const session = {
     type: 'trace',
     kind: 'perfetto',
@@ -207,8 +222,10 @@ async function stopAndroidNativePerfSession(
 ): Promise<AndroidNativePerfStopResult> {
   const adb = resolveAndroidAdbExecutor(device, options.adb);
   await stopAndroidBackgroundTool(adb, session);
+  await waitForAndroidNativeArtifact(adb, session);
   await pullAndroidNativeArtifact(adb, session);
   const sizeBytes = await readFileSize(session.outPath);
+  await cleanupAndroidRemotePath(adb, session.remotePath);
   const stoppedAt = Date.now();
   return {
     ...session,
@@ -298,7 +315,7 @@ function buildBackgroundShellCommand(argv: string[], label: string): string {
     `err=${shellQuote(stderrPath)}`,
     `(${command}) >/dev/null 2>"$err" & pid=$!`,
     'sleep 1',
-    'if kill -0 "$pid" 2>/dev/null; then echo "$pid"; exit 0; fi',
+    'if kill -0 "$pid" 2>/dev/null; then rm -f "$err"; echo "$pid"; exit 0; fi',
     'cat "$err" >&2',
     'rm -f "$err"',
     'exit 1',
@@ -375,7 +392,6 @@ async function stopAndroidBackgroundTool(
 ): Promise<void> {
   try {
     await adb(['shell', buildStopProfilerCommand(session.profilerPid)], {
-      allowFailure: true,
       timeoutMs: ANDROID_NATIVE_PROFILE_TIMEOUT_MS,
     });
   } catch (error) {
@@ -389,6 +405,9 @@ function buildStopProfilerCommand(pid: string): string {
     'kill -INT "$pid" 2>/dev/null || true',
     'for i in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || exit 0; sleep 0.2; done',
     'kill -TERM "$pid" 2>/dev/null || true',
+    'for i in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || exit 0; sleep 0.2; done',
+    'echo "profiler process did not stop after SIGTERM" >&2',
+    'exit 1',
   ].join('; ');
 }
 
@@ -421,6 +440,65 @@ async function pullAndroidNativeArtifact(
       },
       error,
     );
+  }
+}
+
+async function waitForAndroidNativeArtifact(
+  adb: AndroidAdbExecutor,
+  session: AndroidNativePerfSession,
+): Promise<void> {
+  let previousSize: number | undefined;
+  let stableSamples = 0;
+  for (let attempt = 0; attempt < ANDROID_NATIVE_ARTIFACT_POLL_ATTEMPTS; attempt += 1) {
+    const size = await readAndroidRemoteFileSize(adb, session.remotePath);
+    if (size !== undefined && size > 0 && size === previousSize) {
+      stableSamples += 1;
+      if (stableSamples >= 1) return;
+    } else {
+      stableSamples = 0;
+    }
+    previousSize = size;
+    await delay(ANDROID_NATIVE_ARTIFACT_POLL_INTERVAL_MS);
+  }
+  throw new AppError('COMMAND_FAILED', `Android ${session.kind} artifact is not ready to pull`, {
+    package: session.packageName,
+    tool: session.kind,
+    remotePath: session.remotePath,
+    hint: 'The profiler stopped, but the remote artifact was missing, empty, or still changing. Retry stop with the same session or inspect the device-side artifact.',
+  });
+}
+
+async function readAndroidRemoteFileSize(
+  adb: AndroidAdbExecutor,
+  remotePath: string,
+): Promise<number | undefined> {
+  const quotedPath = shellQuote(remotePath);
+  const result = await adb(
+    [
+      'shell',
+      `if [ -f ${quotedPath} ]; then stat -c %s ${quotedPath} 2>/dev/null || wc -c < ${quotedPath}; fi`,
+    ],
+    {
+      allowFailure: true,
+      timeoutMs: ANDROID_PERF_TIMEOUT_MS,
+    },
+  );
+  if (result.exitCode !== 0) return undefined;
+  const value = Number(result.stdout.trim().split(/\s+/)[0]);
+  return Number.isFinite(value) ? value : undefined;
+}
+
+async function cleanupAndroidRemotePath(
+  adb: AndroidAdbExecutor,
+  remotePath: string,
+): Promise<void> {
+  try {
+    await adb(['shell', `rm -f ${shellQuote(remotePath)}`], {
+      allowFailure: true,
+      timeoutMs: ANDROID_PERF_TIMEOUT_MS,
+    });
+  } catch {
+    // Best-effort cleanup must not hide the primary profiling result.
   }
 }
 

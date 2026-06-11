@@ -719,7 +719,7 @@ test('perf cpu profile start and stop route through Android simpleperf and prese
         session: 'android',
         command: 'perf',
         positionals: ['cpu', 'profile', 'stop', 'simpleperf'],
-        flags: { out: outPath },
+        flags: {},
       },
       sessionName: 'android',
       sessionStore,
@@ -728,6 +728,105 @@ test('perf cpu profile start and stop route through Android simpleperf and prese
 
     const stopData = requireOkData(stopResponse, 'Expected stop response to succeed');
     assert.equal(stopData.state, 'stopped');
+    assert.equal(stopData.outPath, outPath);
+    assert.equal(stopData.sizeBytes, 7);
+    assert.equal(readAndroidNativePerfState(sessionStore, 'android'), 'stopped');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('perf rejects starting a second Android native capture while one is active', async () => {
+  const tmpDir = await fsPromises.mkdtemp(
+    path.join(os.tmpdir(), 'agent-device-daemon-double-start-'),
+  );
+  const outPath = path.join(tmpDir, 'cpu.perf.data');
+  const sessionStore = makeSessionStore('agent-device-session-observability-');
+  sessionStore.set('android', makeAndroidSession('android', { appBundleId: 'com.example.app' }));
+  const adb = makeNativePerfAdbExecutor(outPath);
+
+  try {
+    const startResponse = await handleSessionObservabilityCommands({
+      req: {
+        token: 't',
+        session: 'android',
+        command: 'perf',
+        positionals: ['cpu', 'profile', 'start', 'simpleperf'],
+        flags: { out: outPath },
+      },
+      sessionName: 'android',
+      sessionStore,
+      androidAdbExecutor: adb,
+    });
+    requireOkData(startResponse, 'Expected first start response to succeed');
+
+    const secondStartResponse = await handleSessionObservabilityCommands({
+      req: {
+        token: 't',
+        session: 'android',
+        command: 'perf',
+        positionals: ['trace', 'start', 'perfetto'],
+        flags: { out: path.join(tmpDir, 'app.perfetto-trace') },
+      },
+      sessionName: 'android',
+      sessionStore,
+      androidAdbExecutor: adb,
+    });
+
+    assert.equal(secondStartResponse?.ok, false);
+    if (secondStartResponse && !secondStartResponse.ok) {
+      assert.equal(secondStartResponse.error.code, 'COMMAND_FAILED');
+      assert.match(secondStartResponse.error.message, /already running/);
+      assert.match(JSON.stringify(secondStartResponse.error), /Run perf cpu profile stop/);
+    }
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('perf trace start and stop route through Android perfetto and preserve compact artifact state', async () => {
+  const tmpDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'agent-device-daemon-perfetto-'));
+  const outPath = path.join(tmpDir, 'app.perfetto-trace');
+  const sessionStore = makeSessionStore('agent-device-session-observability-');
+  sessionStore.set('android', makeAndroidSession('android', { appBundleId: 'com.example.app' }));
+  const adb = makeNativePerfAdbExecutor(outPath);
+
+  try {
+    const startResponse = await handleSessionObservabilityCommands({
+      req: {
+        token: 't',
+        session: 'android',
+        command: 'perf',
+        positionals: ['trace', 'start', 'perfetto'],
+        flags: { out: outPath },
+      },
+      sessionName: 'android',
+      sessionStore,
+      androidAdbExecutor: adb,
+    });
+
+    const startData = requireOkData(startResponse, 'Expected perfetto start response to succeed');
+    assert.equal(startData.kind, 'perfetto');
+    assert.equal(startData.type, 'trace');
+    assert.equal(startData.state, 'running');
+    assert.equal(readAndroidNativePerfState(sessionStore, 'android'), 'running');
+
+    const stopResponse = await handleSessionObservabilityCommands({
+      req: {
+        token: 't',
+        session: 'android',
+        command: 'perf',
+        positionals: ['trace', 'stop', 'perfetto'],
+        flags: {},
+      },
+      sessionName: 'android',
+      sessionStore,
+      androidAdbExecutor: adb,
+    });
+
+    const stopData = requireOkData(stopResponse, 'Expected perfetto stop response to succeed');
+    assert.equal(stopData.state, 'stopped');
+    assert.equal(stopData.outPath, outPath);
     assert.equal(stopData.sizeBytes, 7);
     assert.equal(readAndroidNativePerfState(sessionStore, 'android'), 'stopped');
   } finally {
@@ -789,10 +888,22 @@ function makeNativePerfAdbExecutor(outPath: string): AndroidAdbExecutor {
     if (args[0] === 'shell' && args[1]?.includes('command -v simpleperf')) {
       return { exitCode: 0, stdout: '/system/bin/simpleperf\n', stderr: '' };
     }
+    if (args[0] === 'shell' && args[1]?.includes('command -v perfetto')) {
+      return { exitCode: 0, stdout: '/system/bin/perfetto\n', stderr: '' };
+    }
     if (args[0] === 'shell' && args[1]?.includes('simpleperf')) {
       return { exitCode: 0, stdout: '5678\n', stderr: '' };
     }
+    if (args[0] === 'shell' && args[1] === 'perfetto') {
+      return { exitCode: 0, stdout: '5678\n', stderr: '' };
+    }
     if (args[0] === 'shell' && args[1]?.includes('kill -INT')) {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1]?.includes('stat -c %s')) {
+      return { exitCode: 0, stdout: '7\n', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1]?.includes('rm -f')) {
       return { exitCode: 0, stdout: '', stderr: '' };
     }
     if (args[0] === 'pull') {

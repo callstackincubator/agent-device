@@ -173,6 +173,7 @@ async function runAndroidCpuProfileCommand(
   request: Extract<NativePerfRequest, { area: 'cpu' }>,
 ): Promise<Record<string, unknown>> {
   if (request.action === 'start') {
+    assertNoActiveAndroidNativePerfSession(session);
     const outPath = resolveNativePerfOutPath(params, request.outPath, 'cpu.perf.data');
     const result = await startAndroidSimpleperfProfile(session.device, packageName, outPath, {
       adb: params.androidAdbExecutor,
@@ -189,7 +190,7 @@ async function runAndroidCpuProfileCommand(
     });
   }
 
-  const outPath = resolveNativePerfOutPath(params, request.outPath, active.outPath);
+  const outPath = resolveNativePerfStopOutPath(params, request.outPath, active);
   const result = await stopAndroidSimpleperfProfile(session.device, active, outPath, {
     adb: params.androidAdbExecutor,
   });
@@ -203,6 +204,7 @@ async function runAndroidTraceCommand(
   request: Extract<NativePerfRequest, { area: 'trace' }>,
 ): Promise<Record<string, unknown>> {
   if (request.action === 'start') {
+    assertNoActiveAndroidNativePerfSession(session);
     const outPath = resolveNativePerfOutPath(params, request.outPath, 'app.perfetto-trace');
     const result = await startAndroidPerfettoTrace(session.device, packageName, outPath, {
       adb: params.androidAdbExecutor,
@@ -211,7 +213,7 @@ async function runAndroidTraceCommand(
   }
 
   const active = requireAndroidNativePerfSession(session, 'trace', request.kind);
-  const outPath = resolveNativePerfOutPath(params, request.outPath, active.outPath);
+  const outPath = resolveNativePerfStopOutPath(params, request.outPath, active);
   const result = await stopAndroidPerfettoTrace(session.device, active, outPath, {
     adb: params.androidAdbExecutor,
   });
@@ -227,6 +229,31 @@ function assertStoppedSimpleperfProfile(active: AndroidNativePerfSession): void 
       hint: 'Run perf cpu profile stop --kind simpleperf, then retry perf cpu profile report --kind simpleperf.',
     },
   );
+}
+
+function assertNoActiveAndroidNativePerfSession(session: SessionState): void {
+  const active = session.nativePerf?.android;
+  if (active?.state !== 'running') return;
+  throw new AppError(
+    'COMMAND_FAILED',
+    `Android ${active.kind} ${active.type} is already running for this session.`,
+    {
+      hint:
+        active.type === 'cpu-profile'
+          ? 'Run perf cpu profile stop --kind simpleperf before starting another Android native perf capture.'
+          : 'Run perf trace stop --kind perfetto before starting another Android native perf capture.',
+    },
+  );
+}
+
+function resolveNativePerfStopOutPath(
+  params: { sessionName: string; sessionStore: SessionStore; req: DaemonRequest },
+  requestedPath: string | undefined,
+  active: AndroidNativePerfSession,
+): string {
+  return requestedPath
+    ? resolveNativePerfOutPath(params, requestedPath, active.outPath)
+    : active.outPath;
 }
 
 function pathJoinSessionArtifact(

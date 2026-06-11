@@ -9,7 +9,9 @@ import {
   captureAndroidHeapSnapshot,
   parseAndroidFramePerfSample,
   parseAndroidMemInfoSample,
+  startAndroidPerfettoTrace,
   startAndroidSimpleperfProfile,
+  stopAndroidPerfettoTrace,
   stopAndroidSimpleperfProfile,
   writeAndroidSimpleperfReport,
   type AndroidNativePerfSession,
@@ -366,6 +368,7 @@ test('startAndroidSimpleperfProfile resolves pid and starts a bounded simpleperf
 test('stopAndroidSimpleperfProfile pulls the profile artifact and reports compact metadata', async () => {
   const tmpDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'agent-device-simpleperf-test-'));
   const outPath = path.join(tmpDir, 'cpu.perf.data');
+  const calls: string[][] = [];
   const session: AndroidNativePerfSession = {
     type: 'cpu-profile',
     kind: 'simpleperf',
@@ -378,11 +381,18 @@ test('stopAndroidSimpleperfProfile pulls the profile artifact and reports compac
     state: 'running',
   };
   const adb: AndroidAdbExecutor = async (args) => {
+    calls.push(args);
     if (args[0] === 'shell' && args[1]?.includes('kill -INT')) {
       return { exitCode: 0, stdout: '', stderr: '' };
     }
+    if (args[0] === 'shell' && args[1]?.includes('stat -c %s')) {
+      return { exitCode: 0, stdout: '7\n', stderr: '' };
+    }
     if (args[0] === 'pull') {
       await fsPromises.writeFile(args[2]!, 'profile');
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1]?.includes('rm -f')) {
       return { exitCode: 0, stdout: '', stderr: '' };
     }
     throw new Error(`Unexpected adb call: ${args.join(' ')}`);
@@ -393,6 +403,88 @@ test('stopAndroidSimpleperfProfile pulls the profile artifact and reports compac
   assert.equal(result.state, 'stopped');
   assert.equal(result.artifact.path, outPath);
   assert.equal(result.artifact.sizeBytes, 7);
+  assert.ok(findCallIndex(calls, 'stat -c %s') < findCallIndex(calls, 'pull'));
+  assert.ok(findCallIndex(calls, 'rm -f') > findCallIndex(calls, 'pull'));
+});
+
+test('stopAndroidSimpleperfProfile fails before pull when remote artifact never stabilizes', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-simpleperf-missing-test-'));
+  const session: AndroidNativePerfSession = {
+    type: 'cpu-profile',
+    kind: 'simpleperf',
+    packageName: 'com.example.app',
+    appPid: '1234',
+    profilerPid: '5678',
+    remotePath: '/data/local/tmp/cpu.perf.data',
+    outPath: path.join(tmpDir, 'cpu.perf.data'),
+    startedAt: Date.now() - 2000,
+    state: 'running',
+  };
+  const calls: string[][] = [];
+  const adb: AndroidAdbExecutor = async (args) => {
+    calls.push(args);
+    if (args[0] === 'shell' && args[1]?.includes('kill -INT')) {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1]?.includes('stat -c %s')) {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    throw new Error(`Unexpected adb call: ${args.join(' ')}`);
+  };
+
+  await assert.rejects(
+    stopAndroidSimpleperfProfile(ANDROID_EMULATOR, session, session.outPath, { adb }),
+    /artifact is not ready/,
+  );
+  assert.equal(
+    calls.some((args) => args[0] === 'pull'),
+    false,
+  );
+});
+
+test('start and stop Android Perfetto trace use perfetto trace storage and cleanup remote artifact', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-device-perfetto-test-'));
+  const outPath = path.join(tmpDir, 'app.perfetto-trace');
+  const calls: string[][] = [];
+  const adb: AndroidAdbExecutor = async (args) => {
+    calls.push(args);
+    if (args.join('\0') === ['shell', 'pidof', 'com.example.app'].join('\0')) {
+      return { exitCode: 0, stdout: '1234\n', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1]?.includes('command -v perfetto')) {
+      return { exitCode: 0, stdout: '/system/bin/perfetto\n', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1] === 'perfetto') {
+      return { exitCode: 0, stdout: '8765\n', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1]?.includes('kill -INT')) {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1]?.includes('stat -c %s')) {
+      return { exitCode: 0, stdout: '5\n', stderr: '' };
+    }
+    if (args[0] === 'pull') {
+      await fs.writeFile(args[2]!, 'trace');
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1]?.includes('rm -f')) {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    throw new Error(`Unexpected adb call: ${args.join(' ')}`);
+  };
+
+  const started = await startAndroidPerfettoTrace(ANDROID_EMULATOR, 'com.example.app', outPath, {
+    adb,
+  });
+  const stopped = await stopAndroidPerfettoTrace(ANDROID_EMULATOR, started, outPath, { adb });
+
+  assert.equal(started.kind, 'perfetto');
+  assert.equal(started.type, 'trace');
+  assert.match(started.remotePath, /^\/data\/misc\/perfetto-traces\//);
+  assert.equal(stopped.artifact.path, outPath);
+  assert.equal(stopped.artifact.sizeBytes, 5);
+  assert.ok(findCallIndex(calls, 'stat -c %s') < findCallIndex(calls, 'pull'));
+  assert.ok(findCallIndex(calls, 'rm -f') > findCallIndex(calls, 'pull'));
 });
 
 test('writeAndroidSimpleperfReport writes JSON report artifact without returning report contents', async () => {
@@ -452,3 +544,7 @@ test('startAndroidSimpleperfProfile fails with an actionable missing-process hin
     /No active Android app process/,
   );
 });
+
+function findCallIndex(calls: string[][], pattern: string): number {
+  return calls.findIndex((args) => args.some((arg) => arg.includes(pattern)));
+}
