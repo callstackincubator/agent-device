@@ -64,6 +64,7 @@ type SnapshotData = {
   analysis?: AndroidSnapshotAnalysis;
   androidSnapshot?: AndroidSnapshotBackendMetadata;
   warnings?: string[];
+  quality?: unknown;
 };
 
 type SnapshotAttempt = {
@@ -78,6 +79,7 @@ type CaptureSnapshotResult = {
   androidSnapshot?: AndroidSnapshotBackendMetadata;
   freshness?: AndroidFreshnessCaptureMeta;
   warnings?: string[];
+  quality?: unknown;
 };
 
 type AndroidFreshnessReason = 'empty-interactive' | 'sharp-drop' | 'stuck-route';
@@ -97,6 +99,7 @@ export async function captureSnapshot(
     analysis: data.analysis,
     androidSnapshot: data.androidSnapshot,
     warnings: data.warnings,
+    quality: data.quality,
   };
 }
 
@@ -184,6 +187,8 @@ async function captureInteractionOutcomeAwareSnapshot(
     analysis: latest.data.analysis,
     androidSnapshot: latest.data.androidSnapshot,
     freshness: latest.freshness,
+    warnings: latest.data.warnings,
+    quality: latest.data.quality,
   };
 }
 
@@ -249,6 +254,7 @@ async function captureAndroidFreshnessAwareSnapshot(
     androidSnapshot: latest.data.androidSnapshot,
     freshness: latest.freshness,
     warnings: latest.data.warnings,
+    quality: latest.data.quality,
   };
 }
 
@@ -303,6 +309,7 @@ async function capturePostGestureAwareSnapshot(
     androidSnapshot: latest.data.androidSnapshot,
     freshness: latest.freshness,
     warnings: latest.data.warnings,
+    quality: latest.data.quality,
   };
 }
 

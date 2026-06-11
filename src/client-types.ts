@@ -1,3 +1,4 @@
+import type { SnapshotQualityVerdict } from './utils/snapshot-quality.ts';
 import type {
   DaemonResponseData,
   DaemonInstallSource,
@@ -338,6 +339,7 @@ export type CaptureSnapshotResult = {
   warnings?: string[];
   unchanged?: SnapshotUnchanged;
   identifiers: AgentDeviceIdentifiers;
+  snapshotQuality?: SnapshotQualityVerdict;
 };
 
 export type CaptureScreenshotOptions = AgentDeviceRequestOverrides & {

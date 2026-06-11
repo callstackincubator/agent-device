@@ -191,6 +191,35 @@ test('runtime snapshot does not flag prose text or labeled containers with child
   assert.deepEqual(result.warnings ?? [], []);
 });
 
+test('runtime snapshot renders the structured quality verdict and skips legacy detectors', async () => {
+  const mergedLabel = Array.from({ length: 30 }, (_, i) => `Row ${i}, Tap`).join(', ');
+  const device = createSnapshotOnlyDevice({
+    nodes: [
+      { ref: 'e1', index: 0, depth: 0, type: 'Application', label: 'App' },
+      { ref: 'e2', index: 1, depth: 1, parentIndex: 0, type: 'Other', label: mergedLabel },
+    ],
+    truncated: true,
+    backend: 'xctest',
+    quality: {
+      state: 'recovered',
+      backend: 'queries',
+      reason: 'snapshot returned only structural application/window nodes',
+      collapsedLeafIndexes: [1],
+    },
+  });
+
+  const result = await device.capture.snapshot({ session: 'default' });
+
+  assert.equal(result.warnings?.length, 2);
+  assert.match(
+    String(result.warnings?.[0]),
+    /Recovered this snapshot with the queries accessibility backend/,
+  );
+  assert.match(String(result.warnings?.[0]), /fixing the app's accessibility is the real cure/);
+  assert.match(String(result.warnings?.[1]), /@e2 \[Other\] merges many labels/);
+  assert.deepEqual(result.snapshotQuality?.state, 'recovered');
+});
+
 test('runtime snapshot does not warn for a normal iOS compact interactive output', async () => {
   const device = createSnapshotOnlyDevice({
     nodes: [

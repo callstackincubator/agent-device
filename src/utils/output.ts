@@ -611,8 +611,11 @@ function buildSnapshotNotices(
   helperPresentation: AndroidHelperPresentationInput = { nodes, filteredCount: 0 },
 ): string[] {
   const notices = readSnapshotWarnings(data);
-  const sparseSnapshotHint = formatSparseSnapshotHint(nodes, options);
-  if (sparseSnapshotHint) notices.push(sparseSnapshotHint);
+  // The structured snapshot quality verdict already carries a sharper version of this hint.
+  if (!data.snapshotQuality) {
+    const sparseSnapshotHint = formatSparseSnapshotHint(nodes, options);
+    if (sparseSnapshotHint) notices.push(sparseSnapshotHint);
+  }
   if (!options.raw && helperPresentation.filteredCount > 0) {
     notices.push(
       `Collapsed ${helperPresentation.filteredCount} Android helper node${helperPresentation.filteredCount === 1 ? '' : 's'} from the agent-facing text snapshot; use --raw or --json for the full hierarchy.`,

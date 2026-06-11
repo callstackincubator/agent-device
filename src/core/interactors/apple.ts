@@ -19,6 +19,10 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import { AppError } from '../../utils/errors.ts';
 import type { RawSnapshotNode } from '../../utils/snapshot.ts';
 import type { Interactor, RunnerContext } from '../interactor-types.ts';
+import {
+  readSnapshotQualityVerdict,
+  type SnapshotQualityVerdict,
+} from '../../utils/snapshot-quality.ts';
 
 export function createAppleInteractor(
   device: DeviceInfo,
@@ -74,7 +78,9 @@ export function createAppleInteractor(
         nodes,
         truncated: result.truncated ?? false,
         backend: 'xctest',
-        ...(result.message ? { warnings: [result.message] } : {}),
+        ...(result.quality ? { quality: result.quality } : {}),
+        // Legacy runners without a quality verdict still surface their message text.
+        ...(!result.quality && result.message ? { warnings: [result.message] } : {}),
       };
     },
     back: async (mode) => {
@@ -136,12 +142,13 @@ function readAppleSnapshotResult(result: Record<string, unknown>): {
   nodes?: RawSnapshotNode[];
   truncated?: boolean;
   message?: string;
+  quality?: SnapshotQualityVerdict;
 } {
   return {
     nodes: Array.isArray(result.nodes) ? (result.nodes as RawSnapshotNode[]) : undefined,
     truncated: typeof result.truncated === 'boolean' ? result.truncated : undefined,
-    // Runner-attached context (e.g. "recovered with the fallback accessibility backend")
-    // surfaces as a snapshot warning so fallbacks are never silent.
+    quality: readSnapshotQualityVerdict(result.snapshotQuality),
+    // Legacy runner context for builds that predate the structured verdict.
     message:
       typeof result.message === 'string' && result.message.trim().length > 0
         ? result.message

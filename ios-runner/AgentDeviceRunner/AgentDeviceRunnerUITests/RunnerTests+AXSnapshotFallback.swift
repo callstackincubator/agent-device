@@ -10,11 +10,10 @@ extension RunnerTests {
   /// apps where the AX surface is genuinely unavailable.
   static let privateAXSnapshotDepthLadder = [56, 40, 24, 12]
 
-  func privateAXSnapshotFallback(
+  func privateAXSnapshotCapture(
     app: XCUIApplication,
-    options: SnapshotOptions,
-    reason: String
-  ) -> DataPayload? {
+    options: SnapshotOptions
+  ) -> SnapshotBackendCapture? {
     #if os(iOS) && targetEnvironment(simulator)
       let requestedDepth = options.depth ?? 64
       var attemptDepths = [requestedDepth]
@@ -74,21 +73,15 @@ extension RunnerTests {
       }
 
       let depthLimited = effectiveDepth < requestedDepth
-      let truncated = (response["truncated"] as? Bool) == true || depthLimited
-      var message =
-        "Recovered this snapshot with the fallback accessibility backend after \(reason). This usually means the app publishes an unhealthy accessibility tree (too large or deep to serialize, or containers that hide their children) — fixing the app's accessibility is the real cure. The fallback is simulator-only and may expose a partial tree; treat screenshot as visual truth when this warning appears."
-      if depthLimited {
-        message +=
-          " The accessibility server rejected deeper requests; this tree is capped at depth \(effectiveDepth) — re-run with --depth \(effectiveDepth) --scope <container> to inspect deeper content."
-      }
       NSLog(
-        "AGENT_DEVICE_RUNNER_PRIVATE_AX_SNAPSHOT_USED reason=%@ nodes=%ld depth=%ld truncated=%@",
-        reason,
+        "AGENT_DEVICE_RUNNER_PRIVATE_AX_SNAPSHOT_USED nodes=%ld depth=%ld",
         nodes.count,
-        effectiveDepth,
-        truncated ? "true" : "false"
+        effectiveDepth
       )
-      return DataPayload(message: message, nodes: nodes, truncated: truncated)
+      return SnapshotBackendCapture(
+        payload: DataPayload(nodes: nodes, truncated: (response["truncated"] as? Bool) == true),
+        effectiveDepth: depthLimited ? effectiveDepth : nil
+      )
     #else
       return nil
     #endif

@@ -173,6 +173,7 @@ export function serializeSnapshotResult(result: CaptureSnapshotResult): Record<s
     ...(result.appBundleId ? { appBundleId: result.appBundleId } : {}),
     ...(result.visibility ? { visibility: result.visibility } : {}),
     ...(result.androidSnapshot ? { androidSnapshot: result.androidSnapshot } : {}),
+    ...(result.snapshotQuality ? { snapshotQuality: result.snapshotQuality } : {}),
     ...(result.warnings && result.warnings.length > 0 ? { warnings: result.warnings } : {}),
     ...(result.unchanged ? { unchanged: result.unchanged } : {}),
   };

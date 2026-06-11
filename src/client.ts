@@ -1,3 +1,4 @@
+import { readSnapshotQualityVerdict } from './utils/snapshot-quality.ts';
 import { sendToDaemon } from './daemon-client.ts';
 import { prepareMetroRuntime, reloadMetro } from './client-metro.ts';
 import { resolveDaemonPaths } from './daemon/config.ts';
@@ -335,7 +336,10 @@ function normalizeSnapshotResult(
 function optionalSnapshotResponseFields(
   data: Record<string, unknown>,
 ): Partial<
-  Pick<CaptureSnapshotResult, 'androidSnapshot' | 'unchanged' | 'visibility' | 'warnings'>
+  Pick<
+    CaptureSnapshotResult,
+    'androidSnapshot' | 'unchanged' | 'visibility' | 'warnings' | 'snapshotQuality'
+  >
 > {
   const visibility = readObject(data.visibility);
   const androidSnapshot = readObject(data.androidSnapshot);
@@ -343,8 +347,10 @@ function optionalSnapshotResponseFields(
   const warnings = Array.isArray(data.warnings)
     ? data.warnings.filter((entry): entry is string => typeof entry === 'string')
     : undefined;
+  const snapshotQuality = readSnapshotQualityVerdict(data.snapshotQuality);
   return {
     ...(visibility ? { visibility: visibility as CaptureSnapshotResult['visibility'] } : {}),
+    ...(snapshotQuality ? { snapshotQuality } : {}),
     ...(androidSnapshot
       ? { androidSnapshot: androidSnapshot as CaptureSnapshotResult['androidSnapshot'] }
       : {}),

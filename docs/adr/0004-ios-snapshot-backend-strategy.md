@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted — implemented by the snapshot capture plan runner (RunnerTests+SnapshotCapturePlan.swift):
+each strategy declares its backend chain, and a structured snapshot quality verdict makes
+degraded or recovered output observable end to end.
 
 ## Context
 

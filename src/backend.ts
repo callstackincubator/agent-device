@@ -1,3 +1,4 @@
+import type { SnapshotQualityVerdict } from './utils/snapshot-quality.ts';
 import type { AndroidSnapshotBackendMetadata } from './platforms/android/snapshot-types.ts';
 import type { AlertAction, AlertInfo } from './alert-contract.ts';
 import type { AppsFilter } from './contracts/app-inventory.ts';
@@ -47,6 +48,7 @@ export type BackendSnapshotResult = {
   androidSnapshot?: AndroidSnapshotBackendMetadata;
   freshness?: BackendSnapshotFreshness;
   warnings?: string[];
+  quality?: SnapshotQualityVerdict;
   appName?: string;
   appBundleId?: string;
 };

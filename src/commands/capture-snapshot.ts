@@ -1,6 +1,10 @@
 import type { BackendSnapshotResult } from '../backend.ts';
 import type { AndroidSnapshotBackendMetadata } from '../platforms/android/snapshot-types.ts';
 import type { AgentDeviceRuntime, CommandSessionRecord } from '../runtime-contract.ts';
+import {
+  renderSnapshotQualityWarnings,
+  type SnapshotQualityVerdict,
+} from '../utils/snapshot-quality.ts';
 import { AppError } from '../utils/errors.ts';
 import { buildSnapshotDiff, countSnapshotComparableLines } from '../utils/snapshot-diff.ts';
 import type { SnapshotDiffLine, SnapshotDiffSummary } from '../utils/snapshot-diff.ts';
@@ -34,6 +38,7 @@ export type SnapshotCommandResult = {
   androidSnapshot?: AndroidSnapshotBackendMetadata;
   warnings?: string[];
   unchanged?: SnapshotUnchanged;
+  snapshotQuality?: SnapshotQualityVerdict;
 };
 
 export type DiffSnapshotCommandResult = {
@@ -75,6 +80,7 @@ export const snapshotCommand: RuntimeCommand<
       snapshotRaw: options.raw,
     }),
     ...(capture.result.androidSnapshot ? { androidSnapshot: capture.result.androidSnapshot } : {}),
+    ...(capture.result.quality ? { snapshotQuality: capture.result.quality } : {}),
     ...(capture.warnings.length > 0 ? { warnings: capture.warnings } : {}),
     ...(unchanged ? { unchanged } : {}),
     ...snapshotAppFields(capture),
@@ -216,16 +222,21 @@ function buildSnapshotWarnings(params: {
   runtimeNow: number;
 }): string[] {
   const warnings = [...(params.result.warnings ?? [])];
+  if (params.result.quality) {
+    warnings.push(...renderSnapshotQualityWarnings(params.result.quality, params.snapshot.nodes));
+  }
   warnings.push(...buildEmptyAndroidInteractiveWarnings(params));
-  warnings.push(...buildSparseIosInteractiveWarnings(params));
+  if (!params.result.quality) {
+    // Legacy runners without a structured verdict keep the old daemon-side heuristics.
+    warnings.push(...buildSparseIosInteractiveWarnings(params));
+    warnings.push(...buildMergedAccessibilityLeafWarnings(params.snapshot.nodes));
+  }
 
   const helperFallbackWarning = formatAndroidHelperFallbackWarning(params.result.androidSnapshot);
   if (helperFallbackWarning) warnings.push(helperFallbackWarning);
 
   const reactNativeOverlayWarning = formatReactNativeOverlayWarning(params.snapshot.nodes);
   if (reactNativeOverlayWarning) warnings.push(reactNativeOverlayWarning);
-
-  warnings.push(...buildMergedAccessibilityLeafWarnings(params.snapshot.nodes));
 
   const recentDropWarning = formatRecentSnapshotDropWarning(params);
   if (recentDropWarning) warnings.push(recentDropWarning);
