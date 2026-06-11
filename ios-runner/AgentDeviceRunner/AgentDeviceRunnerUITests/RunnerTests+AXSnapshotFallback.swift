@@ -2,6 +2,13 @@ import XCTest
 
 extension RunnerTests {
   private static let privateAXSnapshotMaxNodes = 5_000
+  /// Deep React Native trees make the AX server reject bulk snapshot requests outright with
+  /// kAXErrorIllegalArgument once the requested depth crosses a tree-size-dependent limit
+  /// (observed between depth 56 and 64 on the Bluesky Home feed; the limit moves with live
+  /// content). Retrying the same request at a shallower depth succeeds, so on failure we walk
+  /// this ladder instead of giving up. Capped at 4 attempts to bound worst-case latency on
+  /// apps where the AX surface is genuinely unavailable.
+  static let privateAXSnapshotDepthLadder = [56, 40, 24, 12]
 
   func privateAXSnapshotFallback(
     app: XCUIApplication,
@@ -9,15 +16,33 @@ extension RunnerTests {
     reason: String
   ) -> DataPayload? {
     #if os(iOS) && targetEnvironment(simulator)
-      let maxDepth = options.depth ?? 64
-      let response = RunnerAXSnapshotBridge.snapshotTree(
-        for: app,
-        maxDepth: maxDepth,
-        maxNodes: Self.privateAXSnapshotMaxNodes
+      let requestedDepth = options.depth ?? 64
+      var attemptDepths = [requestedDepth]
+      attemptDepths.append(
+        contentsOf: Self.privateAXSnapshotDepthLadder.filter { $0 < requestedDepth }
       )
+      var response: [String: Any] = [:]
+      var effectiveDepth = requestedDepth
+      var lastError = "unknown private AX snapshot failure"
+      for depth in attemptDepths {
+        response = RunnerAXSnapshotBridge.snapshotTree(
+          for: app,
+          maxDepth: depth,
+          maxNodes: Self.privateAXSnapshotMaxNodes
+        )
+        if response["ok"] as? Bool == true {
+          effectiveDepth = depth
+          break
+        }
+        lastError = response["error"] as? String ?? lastError
+        NSLog(
+          "AGENT_DEVICE_RUNNER_PRIVATE_AX_SNAPSHOT_DEPTH_RETRY depth=%ld error=%@",
+          depth,
+          lastError
+        )
+      }
       guard response["ok"] as? Bool == true else {
-        let error = response["error"] as? String ?? "unknown private AX snapshot failure"
-        NSLog("AGENT_DEVICE_RUNNER_PRIVATE_AX_SNAPSHOT_FAILED=%@", error)
+        NSLog("AGENT_DEVICE_RUNNER_PRIVATE_AX_SNAPSHOT_FAILED=%@", lastError)
         return nil
       }
       guard let root = response["root"] as? [String: Any] else {
@@ -25,7 +50,15 @@ extension RunnerTests {
         return nil
       }
 
-      let viewport = safeSnapshotViewport(app: app)
+      // The public windows query backing safeSnapshotViewport can fail on the same apps that
+      // need this fallback, degrading to an infinite viewport that marks off-screen content
+      // (e.g. closed drawer menus at negative x) as visible and tappable. The private root's
+      // own frame is the reliable screen rect here.
+      var viewport = safeSnapshotViewport(app: app)
+      let rootFrame = privateAXRect(root["frame"])
+      if viewport.isInfinite || viewport.isNull || viewport.isEmpty, !rootFrame.isEmpty {
+        viewport = rootFrame
+      }
       var nodes: [SnapshotNode] = []
       appendPrivateAXNode(
         root,
@@ -40,13 +73,19 @@ extension RunnerTests {
         return nil
       }
 
-      let truncated = (response["truncated"] as? Bool) == true
-      let message =
+      let depthLimited = effectiveDepth < requestedDepth
+      let truncated = (response["truncated"] as? Bool) == true || depthLimited
+      var message =
         "Recovered iOS snapshot with private AX fallback after \(reason). This backend is simulator-only, experimental, and may expose a partial tree."
+      if depthLimited {
+        message +=
+          " The AX server rejected deeper requests; this tree is capped at depth \(effectiveDepth) — re-run with --depth \(effectiveDepth) --scope <container> to inspect deeper content."
+      }
       NSLog(
-        "AGENT_DEVICE_RUNNER_PRIVATE_AX_SNAPSHOT_USED reason=%@ nodes=%ld truncated=%@",
+        "AGENT_DEVICE_RUNNER_PRIVATE_AX_SNAPSHOT_USED reason=%@ nodes=%ld depth=%ld truncated=%@",
         reason,
         nodes.count,
+        effectiveDepth,
         truncated ? "true" : "false"
       )
       return DataPayload(message: message, nodes: nodes, truncated: truncated)
@@ -131,14 +170,18 @@ extension RunnerTests {
   }
 
   private func elementTypeName(rawElementType: Int) -> String {
-    if let type = XCUIElement.ElementType(rawValue: UInt(rawElementType)) {
+    if let raw = UInt(exactly: rawElementType),
+      let type = XCUIElement.ElementType(rawValue: raw)
+    {
       return elementTypeName(type)
     }
     return "Element(\(rawElementType))"
   }
 
   private func privateAXLikelyInteractive(rawElementType: Int) -> Bool {
-    guard let type = XCUIElement.ElementType(rawValue: UInt(rawElementType)) else {
+    guard let raw = UInt(exactly: rawElementType),
+      let type = XCUIElement.ElementType(rawValue: raw)
+    else {
       return false
     }
     return interactiveTypes.contains(type) || Self.scrollContainerTypes.contains(type)

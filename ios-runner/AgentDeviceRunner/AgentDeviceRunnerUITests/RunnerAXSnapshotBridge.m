@@ -45,7 +45,7 @@ typedef id (*RunnerAXSnapshotMsgSend)(id, SEL, id, id, id, NSError **);
     }
 
     NSError *error = nil;
-    NSArray<NSString *> *attributes = @[
+    NSArray<NSString *> *keyPaths = @[
       @"elementType",
       @"identifier",
       @"label",
@@ -56,6 +56,38 @@ typedef id (*RunnerAXSnapshotMsgSend)(id, SEL, id, id, id, NSError **);
       @"hasFocus",
       @"children",
     ];
+    // The AX server expects real accessibility attribute identifiers, not snapshot keypath
+    // strings; passing raw keypaths silently drops attributes it does not recognize (frame
+    // came back zeroed). XCElementSnapshot owns the keypath -> AX attribute mapping.
+    NSArray *attributes = keyPaths;
+    Class snapshotClass = NSClassFromString(@"XCElementSnapshot");
+    SEL mapSelector = NSSelectorFromString(@"axAttributesForElementSnapshotKeyPaths:isMacOS:");
+    if ([snapshotClass respondsToSelector:mapSelector]) {
+      typedef id (*RunnerAXMapMsgSend)(id, SEL, id, BOOL);
+      RunnerAXMapMsgSend mapSend = (RunnerAXMapMsgSend)objc_msgSend;
+      id mapped = mapSend(snapshotClass, mapSelector, keyPaths, NO);
+      if ([mapped isKindOfClass:NSSet.class]) {
+        mapped = [(NSSet *)mapped allObjects];
+      }
+      if ([mapped isKindOfClass:NSArray.class] && [(NSArray *)mapped count] > 0) {
+        // The mapper expands keypaths with extra attributes (automation type, window display
+        // id, base type) that are disproportionately expensive for the AX server to compute
+        // on large React Native trees. Keep only the attributes we actually consume.
+        NSArray *needed = @[ @"ElementType", @"Identifier", @"Label", @"Value", @"Frame",
+                             @"Enabled", @"Selected", @"Focus" ];
+        NSMutableArray *filtered = [NSMutableArray array];
+        for (id attribute in (NSArray *)mapped) {
+          NSString *name = [attribute description];
+          for (NSString *suffix in needed) {
+            if ([name hasSuffix:suffix]) {
+              [filtered addObject:attribute];
+              break;
+            }
+          }
+        }
+        attributes = filtered.count > 0 ? filtered : mapped;
+      }
+    }
     RunnerAXSnapshotMsgSend send = (RunnerAXSnapshotMsgSend)objc_msgSend;
     id result = send(axClient, requestSelector, target, attributes, parameters.copy, &error);
     if (nil == result) {
@@ -117,6 +149,16 @@ typedef id (*RunnerAXSnapshotMsgSend)(id, SEL, id, id, id, NSError **);
   SEL selector = NSSelectorFromString(selectorName);
   if (![target respondsToSelector:selector]) {
     return 0;
+  }
+  // processID/processIdentifier return pid_t (int32); reading them through an
+  // NSInteger-returning cast is not upper-32-bit safe on arm64. Use the method
+  // signature to pick the correctly sized call.
+  NSMethodSignature *signature = [target methodSignatureForSelector:selector];
+  const char *returnType = signature.methodReturnType;
+  if (returnType != NULL && strcmp(returnType, @encode(int)) == 0) {
+    typedef int (*RunnerAXIntMsgSend)(id, SEL);
+    RunnerAXIntMsgSend send = (RunnerAXIntMsgSend)objc_msgSend;
+    return (NSInteger)send(target, selector);
   }
   RunnerAXIntegerMsgSend send = (RunnerAXIntegerMsgSend)objc_msgSend;
   return send(target, selector);
@@ -234,7 +276,8 @@ typedef id (*RunnerAXSnapshotMsgSend)(id, SEL, id, id, id, NSError **);
   CGRect frame = CGRectZero;
   @try {
     id value = [snapshot valueForKey:@"frame"];
-    if ([value isKindOfClass:NSValue.class]) {
+    if ([value isKindOfClass:NSValue.class]
+        && strcmp([(NSValue *)value objCType], @encode(CGRect)) == 0) {
       [(NSValue *)value getValue:&frame];
     }
   } @catch (NSException *exception) {

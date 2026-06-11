@@ -1044,6 +1044,8 @@ function isRunnerSourceFile(fileName: string, filePath: string): boolean {
     '.json',
     '.png',
     '.swift',
+    '.m',
+    '.h',
     '.plist',
     '.entitlements',
     '.xctestplan',
