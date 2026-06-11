@@ -11,14 +11,15 @@ import {
   type CliOutputFormatter,
 } from '../output-common.ts';
 
-export function appStateCliOutput(result: AppStateCommandResult): CliOutput {
+function appStateCliOutput(result: AppStateCommandResult): CliOutput {
   return {
     data: result,
     text: formatAppState(result),
   };
 }
 
-export function keyboardCliOutput(result: KeyboardCommandResult): CliOutput {
+// fallow-ignore-next-line complexity
+function keyboardCliOutput(result: KeyboardCommandResult): CliOutput {
   if (result.platform === 'android' && result.action === 'status') {
     const lines = [
       `Keyboard visible: ${result.visible === true ? 'yes' : 'no'}`,
@@ -34,7 +35,7 @@ export function keyboardCliOutput(result: KeyboardCommandResult): CliOutput {
   return messageCliOutput(result);
 }
 
-export function clipboardCliOutput(result: ClipboardCommandResult): CliOutput {
+function clipboardCliOutput(result: ClipboardCommandResult): CliOutput {
   if (result.action === 'read') return { data: result, text: result.text };
   return messageCliOutput(result);
 }

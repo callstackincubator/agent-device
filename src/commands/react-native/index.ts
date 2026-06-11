@@ -6,10 +6,10 @@ import { defineFieldCommandMetadata } from '../field-command-contract.ts';
 import { commonInputFromFlags, direct, requiredDaemonString } from '../cli-grammar/common.ts';
 import type { CliReader, DaemonWriter } from '../cli-grammar/types.ts';
 
-export const REACT_NATIVE_COMMAND_NAME = 'react-native';
-export const REACT_NATIVE_ACTION_VALUES = ['dismiss-overlay'] as const;
+const REACT_NATIVE_COMMAND_NAME = 'react-native';
+const REACT_NATIVE_ACTION_VALUES = ['dismiss-overlay'] as const;
 
-export const reactNativeCommandDescription = 'Run supported React Native app automation helpers.';
+const reactNativeCommandDescription = 'Run supported React Native app automation helpers.';
 
 export const reactNativeCommandDescriptions = {
   [REACT_NATIVE_COMMAND_NAME]: reactNativeCommandDescription,
@@ -28,7 +28,7 @@ export const reactNativeCommandDefinition = defineExecutableCommand(
   (client, input) => client.command.reactNative(input),
 );
 
-export const reactNativeCliSchema = {
+const reactNativeCliSchema = {
   usageOverride: 'react-native dismiss-overlay',
   listUsageOverride: 'react-native dismiss-overlay',
   positionalArgs: ['dismiss-overlay'],

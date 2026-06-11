@@ -16,24 +16,24 @@ import {
 } from '../cli-grammar/common.ts';
 import type { CliReader, DaemonWriter } from '../cli-grammar/types.ts';
 
-export const APPSTATE_COMMAND_NAME = 'appstate';
-export const BACK_COMMAND_NAME = 'back';
-export const HOME_COMMAND_NAME = 'home';
-export const ROTATE_COMMAND_NAME = 'rotate';
-export const APP_SWITCHER_COMMAND_NAME = 'app-switcher';
-export const KEYBOARD_COMMAND_NAME = 'keyboard';
-export const CLIPBOARD_COMMAND_NAME = 'clipboard';
+const APPSTATE_COMMAND_NAME = 'appstate';
+const BACK_COMMAND_NAME = 'back';
+const HOME_COMMAND_NAME = 'home';
+const ROTATE_COMMAND_NAME = 'rotate';
+const APP_SWITCHER_COMMAND_NAME = 'app-switcher';
+const KEYBOARD_COMMAND_NAME = 'keyboard';
+const CLIPBOARD_COMMAND_NAME = 'clipboard';
 
 const CLIPBOARD_ACTION_VALUES = ['read', 'write'] as const;
 const KEYBOARD_METADATA_ACTION_VALUES = ['status', 'dismiss'] as const;
 
-export const appStateCommandDescription = 'Show foreground app or activity.';
-export const backCommandDescription = 'Navigate back.';
-export const homeCommandDescription = 'Go to the home screen.';
-export const rotateCommandDescription = 'Rotate device orientation.';
-export const appSwitcherCommandDescription = 'Open the app switcher.';
-export const keyboardCommandDescription = 'Inspect or dismiss the keyboard.';
-export const clipboardCommandDescription = 'Read or write clipboard text.';
+const appStateCommandDescription = 'Show foreground app or activity.';
+const backCommandDescription = 'Navigate back.';
+const homeCommandDescription = 'Go to the home screen.';
+const rotateCommandDescription = 'Rotate device orientation.';
+const appSwitcherCommandDescription = 'Open the app switcher.';
+const keyboardCommandDescription = 'Inspect or dismiss the keyboard.';
+const clipboardCommandDescription = 'Read or write clipboard text.';
 
 export const systemCommandDescriptions = {
   [APPSTATE_COMMAND_NAME]: appStateCommandDescription,
@@ -45,27 +45,23 @@ export const systemCommandDescriptions = {
   [CLIPBOARD_COMMAND_NAME]: clipboardCommandDescription,
 } as const;
 
-export const appStateCommandMetadata = defineFieldCommandMetadata(
+const appStateCommandMetadata = defineFieldCommandMetadata(
   APPSTATE_COMMAND_NAME,
   appStateCommandDescription,
   {},
 );
 
-export const backCommandMetadata = defineFieldCommandMetadata(
-  BACK_COMMAND_NAME,
-  backCommandDescription,
-  {
-    mode: enumField(BACK_MODES),
-  },
-);
+const backCommandMetadata = defineFieldCommandMetadata(BACK_COMMAND_NAME, backCommandDescription, {
+  mode: enumField(BACK_MODES),
+});
 
-export const homeCommandMetadata = defineFieldCommandMetadata(
+const homeCommandMetadata = defineFieldCommandMetadata(
   HOME_COMMAND_NAME,
   homeCommandDescription,
   {},
 );
 
-export const rotateCommandMetadata = defineFieldCommandMetadata(
+const rotateCommandMetadata = defineFieldCommandMetadata(
   ROTATE_COMMAND_NAME,
   rotateCommandDescription,
   {
@@ -73,13 +69,13 @@ export const rotateCommandMetadata = defineFieldCommandMetadata(
   },
 );
 
-export const appSwitcherCommandMetadata = defineFieldCommandMetadata(
+const appSwitcherCommandMetadata = defineFieldCommandMetadata(
   APP_SWITCHER_COMMAND_NAME,
   appSwitcherCommandDescription,
   {},
 );
 
-export const keyboardCommandMetadata = defineFieldCommandMetadata(
+const keyboardCommandMetadata = defineFieldCommandMetadata(
   KEYBOARD_COMMAND_NAME,
   keyboardCommandDescription,
   {
@@ -87,7 +83,7 @@ export const keyboardCommandMetadata = defineFieldCommandMetadata(
   },
 );
 
-export const clipboardCommandMetadata = defineFieldCommandMetadata(
+const clipboardCommandMetadata = defineFieldCommandMetadata(
   CLIPBOARD_COMMAND_NAME,
   clipboardCommandDescription,
   {
@@ -106,35 +102,34 @@ export const systemCommandMetadata = [
   clipboardCommandMetadata,
 ] as const;
 
-export const appStateCommandDefinition = defineExecutableCommand(
+const appStateCommandDefinition = defineExecutableCommand(
   appStateCommandMetadata,
   (client, input) => client.command.appState(input),
 );
 
-export const backCommandDefinition = defineExecutableCommand(backCommandMetadata, (client, input) =>
+const backCommandDefinition = defineExecutableCommand(backCommandMetadata, (client, input) =>
   client.command.back(input),
 );
 
-export const homeCommandDefinition = defineExecutableCommand(homeCommandMetadata, (client, input) =>
+const homeCommandDefinition = defineExecutableCommand(homeCommandMetadata, (client, input) =>
   client.command.home(input),
 );
 
-export const rotateCommandDefinition = defineExecutableCommand(
-  rotateCommandMetadata,
-  (client, input) => client.command.rotate(input),
+const rotateCommandDefinition = defineExecutableCommand(rotateCommandMetadata, (client, input) =>
+  client.command.rotate(input),
 );
 
-export const appSwitcherCommandDefinition = defineExecutableCommand(
+const appSwitcherCommandDefinition = defineExecutableCommand(
   appSwitcherCommandMetadata,
   (client, input) => client.command.appSwitcher(input),
 );
 
-export const keyboardCommandDefinition = defineExecutableCommand(
+const keyboardCommandDefinition = defineExecutableCommand(
   keyboardCommandMetadata,
   (client, input) => client.command.keyboard(input),
 );
 
-export const clipboardCommandDefinition = defineExecutableCommand(
+const clipboardCommandDefinition = defineExecutableCommand(
   clipboardCommandMetadata,
   (client, input) => client.command.clipboard(input as ClipboardCommandOptions),
 );
@@ -149,29 +144,29 @@ export const systemCommandDefinitions = [
   clipboardCommandDefinition,
 ] as const;
 
-export const appStateCliSchema = {
+const appStateCliSchema = {
   helpDescription: 'Show foreground app/activity',
 } as const satisfies CommandSchemaOverride;
 
-export const backCliSchema = {
+const backCliSchema = {
   usageOverride: 'back [--in-app|--system]',
   allowedFlags: ['backMode'],
 } as const satisfies CommandSchemaOverride;
 
-export const rotateCliSchema = {
+const rotateCliSchema = {
   usageOverride: 'rotate <portrait|portrait-upside-down|landscape-left|landscape-right>',
   helpDescription: 'Rotate device orientation on iOS and Android',
   positionalArgs: ['orientation'],
 } as const satisfies CommandSchemaOverride;
 
-export const keyboardCliSchema = {
+const keyboardCliSchema = {
   usageOverride: 'keyboard [status|get|dismiss|enter|return]',
   helpDescription: 'Inspect Android keyboard visibility/type or press/dismiss the device keyboard',
   summary: 'Inspect, press, or dismiss the device keyboard',
   positionalArgs: ['action?'],
 } as const satisfies CommandSchemaOverride;
 
-export const clipboardCliSchema = {
+const clipboardCliSchema = {
   usageOverride: 'clipboard read | clipboard write <text>',
   listUsageOverride: 'clipboard read | clipboard write <text>',
   helpDescription: 'Read or write device clipboard text',

@@ -49,17 +49,17 @@ import {
   settingsDaemonWriter as settingsDaemonWriterImpl,
 } from './settings.ts';
 
-export const SNAPSHOT_COMMAND_NAME = 'snapshot';
-export const SCREENSHOT_COMMAND_NAME = 'screenshot';
-export const DIFF_COMMAND_NAME = 'diff';
-export const WAIT_COMMAND_NAME = 'wait';
-export const ALERT_COMMAND_NAME = 'alert';
+const SNAPSHOT_COMMAND_NAME = 'snapshot';
+const SCREENSHOT_COMMAND_NAME = 'screenshot';
+const DIFF_COMMAND_NAME = 'diff';
+const WAIT_COMMAND_NAME = 'wait';
+const ALERT_COMMAND_NAME = 'alert';
 
-export const snapshotCommandDescription = 'Capture an accessibility snapshot.';
-export const screenshotCommandDescription = 'Capture a screenshot.';
-export const diffCommandDescription = 'Diff accessibility snapshots.';
-export const waitCommandDescription = 'Wait for duration, text, ref, or selector.';
-export const alertCommandDescription = 'Inspect or handle platform alerts.';
+const snapshotCommandDescription = 'Capture an accessibility snapshot.';
+const screenshotCommandDescription = 'Capture a screenshot.';
+const diffCommandDescription = 'Diff accessibility snapshots.';
+const waitCommandDescription = 'Wait for duration, text, ref, or selector.';
+const alertCommandDescription = 'Inspect or handle platform alerts.';
 
 export const captureCommandDescriptions = {
   [SNAPSHOT_COMMAND_NAME]: snapshotCommandDescription,
@@ -70,7 +70,7 @@ export const captureCommandDescriptions = {
   [SETTINGS_COMMAND_NAME]: settingsCommandDescription,
 } as const;
 
-export const snapshotCommandMetadata = defineFieldCommandMetadata(
+const snapshotCommandMetadata = defineFieldCommandMetadata(
   SNAPSHOT_COMMAND_NAME,
   snapshotCommandDescription,
   {
@@ -84,7 +84,7 @@ export const snapshotCommandMetadata = defineFieldCommandMetadata(
   },
 );
 
-export const screenshotCommandMetadata = defineFieldCommandMetadata(
+const screenshotCommandMetadata = defineFieldCommandMetadata(
   SCREENSHOT_COMMAND_NAME,
   screenshotCommandDescription,
   {
@@ -97,37 +97,29 @@ export const screenshotCommandMetadata = defineFieldCommandMetadata(
   },
 );
 
-export const diffCommandMetadata = defineFieldCommandMetadata(
-  DIFF_COMMAND_NAME,
-  diffCommandDescription,
-  {
-    kind: requiredField(jsonSchemaField<'snapshot'>({ type: 'string', const: 'snapshot' })),
-    out: stringField(),
-    interactiveOnly: booleanField(),
-    compact: booleanField(),
-    depth: integerField(),
-    scope: stringField(),
-    raw: booleanField(),
-  },
-);
+const diffCommandMetadata = defineFieldCommandMetadata(DIFF_COMMAND_NAME, diffCommandDescription, {
+  kind: requiredField(jsonSchemaField<'snapshot'>({ type: 'string', const: 'snapshot' })),
+  out: stringField(),
+  interactiveOnly: booleanField(),
+  compact: booleanField(),
+  depth: integerField(),
+  scope: stringField(),
+  raw: booleanField(),
+});
 
-export const waitCommandMetadata = defineFieldCommandMetadata(
-  WAIT_COMMAND_NAME,
-  waitCommandDescription,
-  {
-    kind: enumField(WAIT_KIND_VALUES),
-    durationMs: integerField(),
-    text: stringField(),
-    ref: stringField(),
-    selector: stringField(),
-    timeoutMs: integerField(),
-    depth: integerField(),
-    scope: stringField(),
-    raw: booleanField(),
-  },
-);
+const waitCommandMetadata = defineFieldCommandMetadata(WAIT_COMMAND_NAME, waitCommandDescription, {
+  kind: enumField(WAIT_KIND_VALUES),
+  durationMs: integerField(),
+  text: stringField(),
+  ref: stringField(),
+  selector: stringField(),
+  timeoutMs: integerField(),
+  depth: integerField(),
+  scope: stringField(),
+  raw: booleanField(),
+});
 
-export const alertCommandMetadata = defineFieldCommandMetadata(
+const alertCommandMetadata = defineFieldCommandMetadata(
   ALERT_COMMAND_NAME,
   alertCommandDescription,
   {
@@ -145,27 +137,26 @@ export const captureCommandMetadata = [
   settingsCommandMetadata,
 ] as const;
 
-export const snapshotCommandDefinition = defineExecutableCommand(
+const snapshotCommandDefinition = defineExecutableCommand(
   snapshotCommandMetadata,
   (client, input) => client.capture.snapshot(input),
 );
 
-export const screenshotCommandDefinition = defineExecutableCommand(
+const screenshotCommandDefinition = defineExecutableCommand(
   screenshotCommandMetadata,
   (client, input) => client.capture.screenshot(input),
 );
 
-export const diffCommandDefinition = defineExecutableCommand(diffCommandMetadata, (client, input) =>
+const diffCommandDefinition = defineExecutableCommand(diffCommandMetadata, (client, input) =>
   client.capture.diff(input),
 );
 
-export const waitCommandDefinition = defineExecutableCommand(waitCommandMetadata, (client, input) =>
+const waitCommandDefinition = defineExecutableCommand(waitCommandMetadata, (client, input) =>
   client.command.wait(waitInputToOptions(input)),
 );
 
-export const alertCommandDefinition = defineExecutableCommand(
-  alertCommandMetadata,
-  (client, input) => client.command.alert(input),
+const alertCommandDefinition = defineExecutableCommand(alertCommandMetadata, (client, input) =>
+  client.command.alert(input),
 );
 
 export const captureCommandDefinitions = [
@@ -177,14 +168,14 @@ export const captureCommandDefinitions = [
   settingsCommandDefinition,
 ] as const;
 
-export const snapshotCliSchema = {
+const snapshotCliSchema = {
   usageOverride:
     'snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw] [--force-full] [--timeout <ms>]',
   helpDescription: 'Capture accessibility tree or diff against the previous session baseline',
   allowedFlags: ['snapshotDiff', ...SNAPSHOT_FLAGS, 'snapshotForceFull', 'timeoutMs'],
 } as const satisfies CommandSchemaOverride;
 
-export const diffCliSchema = {
+const diffCliSchema = {
   usageOverride:
     'diff snapshot | diff screenshot --baseline <path> [current.png] [--out <diff.png>] [--threshold <0-1>] [--overlay-refs]',
   helpDescription: 'Diff accessibility snapshot or compare screenshots pixel-by-pixel',
@@ -193,21 +184,21 @@ export const diffCliSchema = {
   allowedFlags: [...SNAPSHOT_FLAGS, 'baseline', 'threshold', 'out', 'overlayRefs'],
 } as const satisfies CommandSchemaOverride;
 
-export const screenshotCliSchema = {
+const screenshotCliSchema = {
   helpDescription:
     'Capture screenshot (macOS app sessions default to the app window; use --fullscreen for full desktop, --max-size to downscale, --overlay-refs to annotate current refs, or --no-stabilize for low-latency Android capture loops)',
   positionalArgs: ['path?'],
   allowedFlags: SCREENSHOT_COMMAND_FLAG_KEYS,
 } as const satisfies CommandSchemaOverride;
 
-export const waitCliSchema = {
+const waitCliSchema = {
   usageOverride: 'wait <ms>|text <text>|@ref|<selector> [timeoutMs]',
   positionalArgs: ['durationOrSelector', 'timeoutMs?'],
   allowsExtraPositionals: true,
   allowedFlags: [...SELECTOR_SNAPSHOT_FLAGS],
 } as const satisfies CommandSchemaOverride;
 
-export const alertCliSchema = {
+const alertCliSchema = {
   usageOverride: 'alert [get|accept|dismiss|wait] [timeout]',
   positionalArgs: ['action?', 'timeout?'],
 } as const satisfies CommandSchemaOverride;
@@ -289,9 +280,7 @@ export const captureDaemonWriters = {
   settings: settingsDaemonWriterImpl,
 } satisfies Record<string, DaemonWriter>;
 
-export const snapshotDaemonWriter = captureDaemonWriters.snapshot;
 export const screenshotDaemonWriter = captureDaemonWriters.screenshot;
-export const diffDaemonWriter = captureDaemonWriters.diff;
 export const waitDaemonWriter = captureDaemonWriters.wait;
 export const alertDaemonWriter = captureDaemonWriters.alert;
 export const settingsDaemonWriter = captureDaemonWriters.settings;
@@ -325,8 +314,6 @@ function readWaitOptionsFromPositionals(
     ...readTimeoutOption(parsed.timeoutMs),
   };
 }
-
-export { parseWaitPositionals };
 
 // fallow-ignore-next-line complexity
 function waitPositionals(options: WaitCommandOptions): string[] {

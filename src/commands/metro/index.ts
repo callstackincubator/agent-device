@@ -21,10 +21,10 @@ import { defineFieldCommandMetadata } from '../field-command-contract.ts';
 import type { CliReader } from '../cli-grammar/types.ts';
 import { METRO_PREPARE_FLAGS, METRO_RELOAD_FLAGS } from '../../utils/cli-flags.ts';
 
-export const METRO_COMMAND_NAME = 'metro';
+const METRO_COMMAND_NAME = 'metro';
 const METRO_ACTION_VALUES = ['prepare', 'reload'] as const;
 
-export const metroCommandDescription = 'Prepare Metro runtime or reload React Native apps.';
+const metroCommandDescription = 'Prepare Metro runtime or reload React Native apps.';
 
 export const metroCommandDescriptions = {
   [METRO_COMMAND_NAME]: metroCommandDescription,
@@ -71,7 +71,7 @@ export const metroCommandDefinition = defineExecutableCommand(
       : await client.metro.reload(toMetroReloadOptions(input)),
 );
 
-export const metroCliSchema = {
+const metroCliSchema = {
   usageOverride:
     'metro prepare (--public-base-url <url> | --proxy-base-url <url>) [--project-root <path>] [--port <port>] [--kind auto|react-native|expo]\n  agent-device metro reload [--metro-host <host>] [--metro-port <port>] [--bundle-url <url>]',
   listUsageOverride: 'metro prepare --public-base-url <url> | --proxy-base-url <url>; metro reload',

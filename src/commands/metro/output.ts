@@ -1,7 +1,7 @@
 import type { CliOutput } from '../command-contract.ts';
 import type { CliOutputFormatter } from '../output-common.ts';
 
-export function metroCliOutput(params: { result: unknown; action?: string }): CliOutput {
+function metroCliOutput(params: { result: unknown; action?: string }): CliOutput {
   return {
     data: params.result,
     text:

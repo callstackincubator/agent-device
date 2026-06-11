@@ -22,6 +22,7 @@ const artifacts = {
   }),
 } satisfies ArtifactAdapter;
 
+// fallow-ignore-next-line complexity
 test('diagnostics runtime commands call typed backend primitives and redact sensitive data', async () => {
   const contexts: BackendCommandContext[] = [];
   const device = createAgentDevice({

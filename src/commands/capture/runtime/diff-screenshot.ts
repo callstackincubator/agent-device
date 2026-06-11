@@ -139,6 +139,7 @@ async function captureLiveCurrentScreenshot(
   return temp;
 }
 
+// fallow-ignore-next-line complexity
 async function maybeAttachCurrentOverlay(
   runtime: AgentDeviceRuntime,
   options: DiffScreenshotCommandOptions,

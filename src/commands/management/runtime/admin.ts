@@ -265,6 +265,7 @@ function normalizeDeviceTarget(
   return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
+// fallow-ignore-next-line complexity
 function formatInstallResult(
   mode: 'install' | 'reinstall' | 'installFromSource',
   app: string | undefined,

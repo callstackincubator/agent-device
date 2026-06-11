@@ -3,7 +3,7 @@ import { readCommandMessage } from '../../utils/success-text.ts';
 import type { CliOutput } from '../command-contract.ts';
 import { resultOutput, type CliOutputFormatter } from '../output-common.ts';
 
-export function batchCliOutput(result: CommandRequestResult): CliOutput {
+function batchCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   const total = typeof data.total === 'number' ? data.total : 0;
   const executed = typeof data.executed === 'number' ? data.executed : 0;

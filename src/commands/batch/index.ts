@@ -7,8 +7,7 @@ import { commonToClientOptions } from '../command-input.ts';
 import { createBatchCommandMetadata, type BatchInput } from './metadata.ts';
 import { createBatchDaemonWriter } from './projection.ts';
 
-export const batchCommandDescription =
-  'Run multiple structured command steps in one daemon request.';
+const batchCommandDescription = 'Run multiple structured command steps in one daemon request.';
 
 export const batchCommandDescriptions = {
   batch: batchCommandDescription,

@@ -2,7 +2,7 @@ import type { CommandRequestResult, DebugSymbolsResult } from '../../../client-t
 import type { CliOutput } from '../../command-contract.ts';
 import { resultOutput, type CliOutputFormatter } from '../../output-common.ts';
 
-export function logsCliOutput(result: CommandRequestResult): CliOutput {
+function logsCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   const pathOut = typeof data.path === 'string' ? data.path : '';
   return {
@@ -17,7 +17,7 @@ export function logsCliOutput(result: CommandRequestResult): CliOutput {
   };
 }
 
-export function networkCliOutput(result: CommandRequestResult): CliOutput {
+function networkCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   const lines: string[] = [];
   const pathOut = typeof data.path === 'string' ? data.path : '';
@@ -47,7 +47,7 @@ export function networkCliOutput(result: CommandRequestResult): CliOutput {
   };
 }
 
-export function perfCliOutput(result: CommandRequestResult): CliOutput {
+function perfCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   return { data, text: formatPerfCliOutput(data) };
 }

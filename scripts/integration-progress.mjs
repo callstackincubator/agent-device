@@ -9,10 +9,7 @@ const HANDLER_TEST_DIR = path.join(ROOT, 'src/daemon/handlers/__tests__');
 const PROVIDER_SCENARIO_DIR = path.join(ROOT, 'test/integration/provider-scenarios');
 const COVERAGE_SUMMARY = path.join(ROOT, 'coverage/coverage-summary.json');
 const COMMAND_CATALOG = path.join(ROOT, 'src/command-catalog.ts');
-const COMMAND_CONTRACT_FILES = [
-  path.join(ROOT, 'src/commands/client-command-contracts.ts'),
-  path.join(ROOT, 'src/commands/interaction-command-contracts.ts'),
-];
+const COMMAND_CONTRACT_FILES = listFiles(path.join(ROOT, 'src/commands'), (file) => file.endsWith(`${path.sep}index.ts`));
 const COMMAND_CATALOG_SOURCE = fs.readFileSync(COMMAND_CATALOG, 'utf8');
 const clientCommandMethods = readClientCommandMethods();
 
@@ -284,6 +281,7 @@ function summarizeProviderScenarioFlagExclusions() {
       name: 'Metro and React Native runtime preparation',
       owner: 'Metro companion integration and parser tests',
       keys: [
+        'kind',
         'metroHost',
         'metroPort',
         'metroProjectRoot',
@@ -304,6 +302,11 @@ function summarizeProviderScenarioFlagExclusions() {
       ],
     },
     {
+      name: 'Apple launch and perf artifact options',
+      owner: 'iOS platform, observability command, and parser tests',
+      keys: ['deviceHub', 'launchArgs', 'perfTemplate'],
+    },
+    {
       name: 'parser/client-only command flags',
       owner: 'args, CLI, screenshot-diff, and batch tests',
       keys: [
@@ -314,6 +317,10 @@ function summarizeProviderScenarioFlagExclusions() {
         'threshold',
         'reportJunit',
         'replayMaestro',
+        'replayExportFormat',
+        'recordVideo',
+        'shardAll',
+        'shardSplit',
         'stepsFile',
       ],
     },
@@ -326,10 +333,7 @@ function summarizeProviderScenarioFlagExclusions() {
 }
 
 function readPublicCliFlagKeys() {
-  const sources = [
-    path.join(ROOT, 'src/utils/command-schema.ts'),
-    path.join(ROOT, 'src/commands/capture-screenshot-options.ts'),
-  ];
+  const sources = [path.join(ROOT, 'src/utils/cli-flags.ts')];
   const keys = new Set();
   for (const source of sources) {
     const text = fs.readFileSync(source, 'utf8');
@@ -513,8 +517,26 @@ function readClientCommandMethods() {
 }
 
 function readCommandContractBlocks(text) {
+  const constants = new Map();
+  for (const match of text.matchAll(/\bconst\s+([A-Z0-9_]+)\s*=\s*['"]([^'"]+)['"]/g)) {
+    constants.set(match[1], match[2]);
+  }
+
+  const metadataNames = new Map();
+  for (const match of text.matchAll(
+    /\bconst\s+([A-Za-z0-9_]+CommandMetadata)\s*=\s*defineFieldCommandMetadata\(\s*([^,\s)]+)/g,
+  )) {
+    metadataNames.set(match[1], readMetadataName(match[2], constants));
+  }
+
   const starts = [
     ...text.matchAll(/defineExecutableCommand\(\s*metadata\(\s*['"]([^'"]+)['"]\s*\)/g),
+    ...[...text.matchAll(/defineExecutableCommand\(\s*([A-Za-z0-9_]+CommandMetadata)\b/g)].flatMap(
+      (match) => {
+        const name = metadataNames.get(match[1]);
+        return name ? [{ ...match, 1: name }] : [];
+      },
+    ),
     ...text.matchAll(/defineFieldCommand\(\s*['"]([^'"]+)['"]/g),
     ...text.matchAll(/defineCommand\(\s*\{[\s\S]*?\bname:\s*['"]([^'"]+)['"]/g),
   ]
@@ -531,6 +553,12 @@ function readCommandContractBlocks(text) {
       source: text.slice(start.index, end),
     };
   });
+}
+
+function readMetadataName(token, constants) {
+  const literal = token.match(/^['"]([^'"]+)['"]$/);
+  if (literal) return literal[1];
+  return constants.get(token);
 }
 
 function extractProviderScenarioCommandReferences(text) {

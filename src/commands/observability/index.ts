@@ -35,18 +35,17 @@ import {
 } from '../cli-grammar/common.ts';
 import type { CliReader, DaemonWriter } from '../cli-grammar/types.ts';
 
-export const PERF_COMMAND_NAME = 'perf';
-export const LOGS_COMMAND_NAME = 'logs';
-export const NETWORK_COMMAND_NAME = 'network';
-export const DEBUG_COMMAND_NAME = 'debug';
+const PERF_COMMAND_NAME = 'perf';
+const LOGS_COMMAND_NAME = 'logs';
+const NETWORK_COMMAND_NAME = 'network';
+const DEBUG_COMMAND_NAME = 'debug';
 const NETWORK_ACTION_VALUES = ['dump', 'log'] as const;
 const DEBUG_ACTION_VALUES = ['symbols'] as const;
 
-export const perfCommandDescription =
-  'Show session performance, frame health, and memory diagnostics.';
-export const logsCommandDescription = 'Manage session app logs.';
-export const networkCommandDescription = 'Show recent HTTP traffic.';
-export const debugCommandDescription = 'Symbolicate crash artifacts with matching debug symbols.';
+const perfCommandDescription = 'Show session performance, frame health, and memory diagnostics.';
+const logsCommandDescription = 'Manage session app logs.';
+const networkCommandDescription = 'Show recent HTTP traffic.';
+const debugCommandDescription = 'Symbolicate crash artifacts with matching debug symbols.';
 
 export const observabilityCommandDescriptions = {
   [PERF_COMMAND_NAME]: perfCommandDescription,
@@ -132,7 +131,7 @@ export const observabilityCommandDefinitions = [
   debugCommandDefinition,
 ] as const;
 
-export const perfCliSchema = {
+const perfCliSchema = {
   usageOverride:
     'perf [metrics|frames|memory] [sample|snapshot]\n  agent-device perf memory sample --json\n  agent-device perf memory snapshot [--kind android-hprof|memgraph] [--out <path>]\n  agent-device perf cpu profile start|stop|report --kind xctrace [--template <name>] --out <path>\n  agent-device perf trace start|stop --kind xctrace [--template <name>] --out <path>\n  agent-device perf cpu profile start|stop|report --kind simpleperf [--out <path>]\n  agent-device perf trace start|stop --kind perfetto [--out <path>]',
   listUsageOverride:
@@ -144,7 +143,7 @@ export const perfCliSchema = {
   allowedFlags: ['kind', 'perfTemplate', 'out'],
 } as const satisfies CommandSchemaOverride;
 
-export const logsCliSchema = {
+const logsCliSchema = {
   usageOverride:
     'logs path | logs start | logs stop | logs clear [--restart] | logs doctor | logs mark [message...]',
   helpDescription: 'Session app log info, start/stop streaming, diagnostics, and markers',
@@ -154,7 +153,7 @@ export const logsCliSchema = {
   allowedFlags: ['restart'],
 } as const satisfies CommandSchemaOverride;
 
-export const networkCliSchema = {
+const networkCliSchema = {
   usageOverride:
     'network dump [limit] [summary|headers|body|all] [--include summary|headers|body|all] | network log [limit] [summary|headers|body|all] [--include summary|headers|body|all]',
   helpDescription: 'Dump recent HTTP(s) traffic parsed from the session app log',
@@ -163,7 +162,7 @@ export const networkCliSchema = {
   allowedFlags: ['networkInclude'],
 } as const satisfies CommandSchemaOverride;
 
-export const debugCliSchema = {
+const debugCliSchema = {
   usageOverride:
     'debug symbols --artifact <crash.ips|crash.log> (--dsym <App.dSYM> | --search-path <dir>) [--out <symbolicated>]',
   listUsageOverride: 'debug symbols --artifact <path> --dsym <App.dSYM>',

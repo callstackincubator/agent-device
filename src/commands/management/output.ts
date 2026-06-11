@@ -25,12 +25,12 @@ import {
   type CliOutputFormatter,
 } from '../output-common.ts';
 
-export function devicesCliOutput(result: AgentDeviceDevice[]): CliOutput {
+function devicesCliOutput(result: AgentDeviceDevice[]): CliOutput {
   const data = { devices: result.map(serializeDevice) };
   return { data, text: result.map(formatDeviceLine).join('\n') };
 }
 
-export function appsCliOutput(params: {
+function appsCliOutput(params: {
   result: string[];
   appsFilter?: 'user-installed' | 'all';
 }): CliOutput {
@@ -50,7 +50,7 @@ export function appsCliOutput(params: {
   };
 }
 
-export function sessionCliOutput(
+function sessionCliOutput(
   result: { sessions: AgentDeviceSession[] } | { stateDir: string },
 ): CliOutput {
   if ('stateDir' in result) {
@@ -69,26 +69,26 @@ export function openCliOutput(result: AppOpenResult): CliOutput {
   return { data, text: lines.join('\n') || null };
 }
 
-export function closeCliOutput(result: AppCloseResult | SessionCloseResult): CliOutput {
+function closeCliOutput(result: AppCloseResult | SessionCloseResult): CliOutput {
   return messageCliOutput(serializeCloseResult(result));
 }
 
-export function deployCliOutput(result: AppDeployResult): CliOutput {
+function deployCliOutput(result: AppDeployResult): CliOutput {
   return messageCliOutput(serializeDeployResult(result));
 }
 
-export function installFromSourceCliOutput(result: AppInstallFromSourceResult): CliOutput {
+function installFromSourceCliOutput(result: AppInstallFromSourceResult): CliOutput {
   return messageCliOutput(serializeInstallFromSourceResult(result));
 }
 
-export function bootCliOutput(result: CommandRequestResult): CliOutput {
+function bootCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   const platform = data.platform ?? 'unknown';
   const device = data.device ?? data.id ?? 'unknown';
   return { data, text: `Boot ready: ${device} (${platform})` };
 }
 
-export function shutdownCliOutput(result: CommandRequestResult): CliOutput {
+function shutdownCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   const platform = data.platform ?? 'unknown';
   const device = data.device ?? data.id ?? 'unknown';

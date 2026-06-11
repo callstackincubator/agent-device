@@ -48,6 +48,7 @@ export function formatNetworkResult(
   include: BackendNetworkIncludeMode,
 ): DiagnosticsNetworkCommandResult {
   let redacted = result.redacted === true;
+  // fallow-ignore-next-line complexity
   const entries = result.entries.map((entry) => {
     const url = entry.url ? redactUrl(entry.url) : undefined;
     const requestHeaders =

@@ -99,6 +99,7 @@ async function resolveRefInteractionTarget(
   };
 }
 
+// fallow-ignore-next-line complexity
 async function resolveSelectorInteractionTarget(
   runtime: AgentDeviceRuntime,
   options: CommandContext,

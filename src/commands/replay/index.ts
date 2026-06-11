@@ -17,13 +17,13 @@ import {
 import type { CliReader, CommandInput, DaemonWriter } from '../cli-grammar/types.ts';
 import { REPLAY_FLAGS } from '../../utils/cli-flags.ts';
 
-export const REPLAY_COMMAND_NAME = 'replay';
-export const TEST_COMMAND_NAME = 'test';
+const REPLAY_COMMAND_NAME = 'replay';
+const TEST_COMMAND_NAME = 'test';
 
 const REPLAY_SHELL_ENV_PREFIX = 'AD_VAR_';
 
-export const replayCommandDescription = 'Replay a recorded session.';
-export const testCommandDescription = 'Run one or more replay scripts.';
+const replayCommandDescription = 'Replay a recorded session.';
+const testCommandDescription = 'Run one or more replay scripts.';
 
 export const replayCommandDescriptions = {
   [REPLAY_COMMAND_NAME]: replayCommandDescription,
@@ -75,14 +75,14 @@ export const testCommandDefinition = defineExecutableCommand(testCommandMetadata
 
 export const replayCommandDefinitions = [replayCommandDefinition, testCommandDefinition] as const;
 
-export const replayCliSchema = {
+const replayCliSchema = {
   usageOverride: 'replay <path> | replay export <file.ad> [--format maestro] [--out <path>]',
   positionalArgs: ['path'],
   allowsExtraPositionals: true,
   allowedFlags: ['replayMaestro', 'replayExportFormat', ...REPLAY_FLAGS, 'timeoutMs', 'out'],
 } as const satisfies CommandSchemaOverride;
 
-export const testCliSchema = {
+const testCliSchema = {
   usageOverride: 'test <path-or-glob>...',
   listUsageOverride: 'test <path-or-glob>...',
   helpDescription: 'Run one or more replay scripts as a serial test suite',

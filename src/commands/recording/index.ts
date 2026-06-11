@@ -15,12 +15,12 @@ import { defineFieldCommandMetadata } from '../field-command-contract.ts';
 import { commonInputFromFlags, direct, optionalString } from '../cli-grammar/common.ts';
 import type { CliReader, DaemonWriter } from '../cli-grammar/types.ts';
 
-export const RECORD_COMMAND_NAME = 'record';
-export const TRACE_COMMAND_NAME = 'trace';
-export const RECORDING_ACTION_VALUES = ['start', 'stop'] as const;
+const RECORD_COMMAND_NAME = 'record';
+const TRACE_COMMAND_NAME = 'trace';
+const RECORDING_ACTION_VALUES = ['start', 'stop'] as const;
 
-export const recordCommandDescription = 'Start or stop screen recording.';
-export const traceCommandDescription = 'Start or stop trace capture.';
+const recordCommandDescription = 'Start or stop screen recording.';
+const traceCommandDescription = 'Start or stop trace capture.';
 
 export const recordingCommandDescriptions = {
   [RECORD_COMMAND_NAME]: recordCommandDescription,
@@ -65,7 +65,7 @@ export const recordingCommandDefinitions = [
   traceCommandDefinition,
 ] as const;
 
-export const recordCliSchema = {
+const recordCliSchema = {
   usageOverride:
     'record start [path] [--fps <n>] [--quality <5-10>] [--hide-touches] | record stop',
   listUsageOverride: 'record start [path] | record stop',
@@ -76,7 +76,7 @@ export const recordCliSchema = {
   allowedFlags: ['fps', 'quality', 'hideTouches'],
 } as const satisfies CommandSchemaOverride;
 
-export const traceCliSchema = {
+const traceCliSchema = {
   usageOverride: 'trace start <path> | trace stop <path>',
   listUsageOverride: 'trace start <path> | trace stop <path>',
   helpDescription:

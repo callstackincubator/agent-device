@@ -303,6 +303,7 @@ function buildMergedAccessibilityLeafWarnings(nodes: SnapshotState['nodes']): st
     });
 }
 
+// fallow-ignore-next-line complexity
 function buildEmptyAndroidInteractiveWarnings(params: {
   annotations: SnapshotCaptureAnnotations;
   snapshot: SnapshotState;

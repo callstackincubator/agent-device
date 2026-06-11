@@ -114,6 +114,7 @@ export const perfCommand: RuntimeCommand<
   return formatPerfResult(result);
 };
 
+// fallow-ignore-next-line complexity
 async function toDiagnosticsBackendContext(
   runtime: AgentDeviceRuntime,
   options: CommandContext & { appId?: string; appBundleId?: string },

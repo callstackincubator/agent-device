@@ -10,7 +10,7 @@ export const PERF_KIND_VALUES = [
   'android-hprof',
   'memgraph',
 ] as const;
-export const PERF_MEMORY_KIND_VALUES = ['android-hprof', 'memgraph'] as const;
+const PERF_MEMORY_KIND_VALUES = ['android-hprof', 'memgraph'] as const;
 const PERF_AREAS = defineStringEnum(PERF_AREA_VALUES);
 const PERF_ACTIONS = defineStringEnum(PERF_ACTION_VALUES);
 const PERF_SUBJECTS = defineStringEnum(PERF_SUBJECT_VALUES);

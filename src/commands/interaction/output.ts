@@ -2,7 +2,7 @@ import type { CommandRequestResult } from '../../client-types.ts';
 import type { CliOutput } from '../command-contract.ts';
 import { messageCliOutput, resultOutput, type CliOutputFormatter } from '../output-common.ts';
 
-export function getCliOutput(params: { result: CommandRequestResult; format?: string }): CliOutput {
+function getCliOutput(params: { result: CommandRequestResult; format?: string }): CliOutput {
   const data = params.result as Record<string, unknown>;
   if (params.format === 'text') {
     return { data, text: typeof data.text === 'string' ? data.text : '' };
@@ -13,7 +13,7 @@ export function getCliOutput(params: { result: CommandRequestResult; format?: st
   return defaultCommandCliOutput(data);
 }
 
-export function findCliOutput(result: CommandRequestResult): CliOutput {
+function findCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   if (typeof data.text === 'string') return { data, text: data.text };
   if (typeof data.found === 'boolean') return { data, text: `Found: ${data.found}` };
@@ -21,12 +21,12 @@ export function findCliOutput(result: CommandRequestResult): CliOutput {
   return defaultCommandCliOutput(data);
 }
 
-export function isCliOutput(result: CommandRequestResult): CliOutput {
+function isCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   return { data, text: `Passed: is ${data.predicate ?? 'assertion'}` };
 }
 
-export function tapCliOutput(result: CommandRequestResult): CliOutput {
+function tapCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
   const ref = data.ref ?? '';
   const x = data.x;
