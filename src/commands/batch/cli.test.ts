@@ -78,6 +78,18 @@ test('batch structured interaction target is projected to positionals, not devic
   assert.equal(step?.flags?.count, 2);
 });
 
+test('batch rejects structured replay steps before daemon dispatch', async () => {
+  const result = await runCliCapture([
+    'batch',
+    '--steps',
+    '[{"command":"replay","input":{"path":"flow.ad"}}]',
+  ]);
+
+  assert.equal(result.code, 1);
+  assert.equal(result.calls.length, 0);
+  assert.match(result.stderr, /not available through command batch/);
+});
+
 test('batch accepts legacy positionals/flags steps with deprecation warning', async () => {
   const result = await runCliCapture([
     'batch',

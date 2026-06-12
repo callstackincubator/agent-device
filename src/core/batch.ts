@@ -1,19 +1,18 @@
 import type { DaemonRequest, DaemonResponse } from '../contracts.ts';
 import { AppError, asAppError } from '../utils/errors.ts';
 import { DEFAULT_BATCH_MAX_STEPS } from '../batch-contract.ts';
+import {
+  BATCH_BLOCKED_COMMANDS,
+  BATCH_DAEMON_STEP_KEYS,
+  INHERITED_PARENT_FLAG_KEYS,
+  assertBatchRuntimeCommandAllowed,
+  normalizeBatchCommandName,
+} from '../batch-policy.ts';
 
 export { DEFAULT_BATCH_MAX_STEPS };
-export const BATCH_BLOCKED_COMMANDS: ReadonlySet<string> = new Set(['batch', 'replay']);
-const BATCH_ALLOWED_STEP_KEYS = new Set(['command', 'positionals', 'flags', 'runtime']);
-export const INHERITED_PARENT_FLAG_KEYS = [
-  'platform',
-  'target',
-  'device',
-  'udid',
-  'serial',
-  'verbose',
-  'out',
-] as const;
+export { BATCH_BLOCKED_COMMANDS, INHERITED_PARENT_FLAG_KEYS };
+
+const batchAllowedStepKeys = new Set<string>(BATCH_DAEMON_STEP_KEYS);
 
 export type DaemonBatchStep = {
   command: string;
@@ -130,7 +129,7 @@ export function validateAndNormalizeBatchSteps(
     if (!step || typeof step !== 'object') {
       throw new AppError('INVALID_ARGS', `Invalid batch step at index ${index}.`);
     }
-    const unknownKeys = Object.keys(step).filter((key) => !BATCH_ALLOWED_STEP_KEYS.has(key));
+    const unknownKeys = Object.keys(step).filter((key) => !batchAllowedStepKeys.has(key));
     if (unknownKeys.length > 0) {
       const fields = unknownKeys.map((key) => `"${key}"`).join(', ');
       throw new AppError(
@@ -138,13 +137,11 @@ export function validateAndNormalizeBatchSteps(
         `Batch step ${index + 1} has unknown field(s): ${fields}. Allowed fields: command, positionals, flags, runtime.`,
       );
     }
-    const command = typeof step.command === 'string' ? step.command.trim().toLowerCase() : '';
+    const command = normalizeBatchCommandName(step.command);
     if (!command) {
       throw new AppError('INVALID_ARGS', `Batch step ${index + 1} requires command.`);
     }
-    if (BATCH_BLOCKED_COMMANDS.has(command)) {
-      throw new AppError('INVALID_ARGS', `Batch step ${index + 1} cannot run ${command}.`);
-    }
+    assertBatchRuntimeCommandAllowed(command, index + 1);
     if (step.positionals !== undefined && !Array.isArray(step.positionals)) {
       throw new AppError('INVALID_ARGS', `Batch step ${index + 1} positionals must be an array.`);
     }

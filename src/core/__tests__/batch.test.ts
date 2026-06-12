@@ -18,3 +18,10 @@ test('validateAndNormalizeBatchSteps rejects unknown top-level step fields', () 
     /unknown field\(s\): "args"/i,
   );
 });
+
+test('validateAndNormalizeBatchSteps blocks replay daemon steps', () => {
+  assert.throws(
+    () => validateAndNormalizeBatchSteps([{ command: 'replay' }], 10),
+    /cannot run replay/i,
+  );
+});

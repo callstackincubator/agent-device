@@ -1,5 +1,8 @@
-import { BATCH_COMMAND_NAMES } from '../../command-catalog.ts';
 import { DEFAULT_BATCH_MAX_STEPS } from '../../batch-contract.ts';
+import {
+  STRUCTURED_BATCH_COMMAND_NAMES,
+  readStructuredBatchCommandName,
+} from '../../batch-policy.ts';
 import {
   defineCommandMetadata,
   type CommandMetadata,
@@ -12,7 +15,6 @@ import {
   fieldsInputSchema,
   integerField,
   readFieldInput,
-  requiredEnum,
   requiredField,
   stringField,
   type CommandFieldMap,
@@ -33,7 +35,7 @@ export type BatchInput = InferCommandInput<CommandFieldMap> & {
 };
 
 export function createBatchCommandMetadata(
-  nestedCommands: readonly string[] = BATCH_COMMAND_NAMES,
+  nestedCommands: readonly string[] = STRUCTURED_BATCH_COMMAND_NAMES,
 ): CommandMetadata<'batch', BatchInput> {
   const fields = batchFields(nestedCommands);
   return defineCommandMetadata({
@@ -121,10 +123,25 @@ function readBatchStep(
   const record = readBatchStepRecord(step, stepNumber);
   assertAllowedKeys(record, ['command', 'input', 'runtime'], `Batch step ${stepNumber}`);
   return {
-    command: requiredEnum(record, 'command', nestedCommands),
+    command: readBatchStepCommand(record, stepNumber, nestedCommands),
     input: readBatchStepInput(record, stepNumber),
     ...readBatchStepRuntimeProperty(record, stepNumber),
   };
+}
+
+function readBatchStepCommand(
+  record: Record<string, unknown>,
+  stepNumber: number,
+  nestedCommands: readonly string[],
+): string {
+  if (nestedCommands === STRUCTURED_BATCH_COMMAND_NAMES) {
+    return readStructuredBatchCommandName(record.command, stepNumber);
+  }
+  const command = record.command;
+  if (typeof command !== 'string' || !nestedCommands.includes(command)) {
+    throw new Error(`Expected command to be one of: ${nestedCommands.join(', ')}.`);
+  }
+  return command;
 }
 
 function readBatchStepRecord(step: unknown, stepNumber: number): Record<string, unknown> {

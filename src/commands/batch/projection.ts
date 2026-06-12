@@ -1,18 +1,20 @@
-import { BATCH_COMMAND_NAMES, PUBLIC_COMMANDS } from '../../command-catalog.ts';
+import { PUBLIC_COMMANDS } from '../../command-catalog.ts';
+import {
+  STRUCTURED_BATCH_COMMAND_NAMES,
+  readStructuredBatchCommandName,
+} from '../../batch-policy.ts';
 import { buildFlags } from '../../client-normalizers.ts';
 import type { DaemonBatchStep } from '../../core/batch.ts';
 import { AppError } from '../../utils/errors.ts';
-import { commandNameSet, request } from '../cli-grammar/common.ts';
+import { request } from '../cli-grammar/common.ts';
 import type { CommandInput, DaemonCommandRequest, DaemonWriter } from '../cli-grammar/types.ts';
 import type { DaemonCommandName } from '../command-projection.ts';
 
-const batchCommandNames = BATCH_COMMAND_NAMES satisfies readonly DaemonCommandName[];
+const batchCommandNames = STRUCTURED_BATCH_COMMAND_NAMES satisfies readonly DaemonCommandName[];
 
 export type BatchCommandName = (typeof batchCommandNames)[number];
 
 type PrepareDaemonCommandRequest = (command: string, input: CommandInput) => DaemonCommandRequest;
-
-const batchNames = commandNameSet(batchCommandNames);
 
 export function createBatchDaemonWriter(
   prepareDaemonCommandRequest: PrepareDaemonCommandRequest,
@@ -79,16 +81,7 @@ function readBatchStepCommand(
   record: Record<string, unknown>,
   stepNumber: number,
 ): BatchCommandName {
-  const command = typeof record.command === 'string' ? record.command.trim().toLowerCase() : '';
-  if (isBatchCommandName(command)) return command;
-  throw new AppError(
-    'INVALID_ARGS',
-    `Batch step ${stepNumber} command is not available through command batch: ${String(record.command)}`,
-  );
-}
-
-function isBatchCommandName(name: string): name is BatchCommandName {
-  return batchNames.has(name);
+  return readStructuredBatchCommandName(record.command, stepNumber);
 }
 
 function readBatchStepInput(record: Record<string, unknown>, stepNumber: number): CommandInput {
