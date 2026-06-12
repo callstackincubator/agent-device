@@ -4,7 +4,7 @@ import { formatSnapshotText } from '../../utils/output.ts';
 import type { CliOutput } from '../command-contract.ts';
 import { messageOutput, type CliOutputFormatter } from '../output-common.ts';
 
-function snapshotCliOutput(params: {
+export function snapshotCliOutput(params: {
   result: CaptureSnapshotResult;
   raw?: boolean;
   interactiveOnly?: boolean;
