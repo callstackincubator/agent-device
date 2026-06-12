@@ -16,7 +16,12 @@ export function StackSupportSection() {
             to CI, hosted agents, React Native tooling, device infrastructure,
             and release process.
           </LeadText>
-          <ButtonLink href="#demo" size="compact" variant="dark" className="mt-8">
+          <ButtonLink
+            href="https://www.callstack.com/contact?message=%22I%20want%20to%20chat%20about%20agent-device%22"
+            size="compact"
+            variant="dark"
+            className="mt-8"
+          >
             Book consultation
           </ButtonLink>
         </div>

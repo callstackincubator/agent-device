@@ -9,8 +9,8 @@ export const alt = seo.pages.agenticDevelopment.ogTitle;
 export const contentType = ogImageContentType;
 export const size = ogImageSize;
 
-export default function Image() {
-  return createOgImage({
+export default async function Image() {
+  return await createOgImage({
     eyebrow: "Agentic Development",
     title: seo.pages.agenticDevelopment.ogTitle,
     description: seo.pages.agenticDevelopment.description,

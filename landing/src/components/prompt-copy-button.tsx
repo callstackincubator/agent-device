@@ -11,6 +11,15 @@ type PromptCopyButtonProps = {
 };
 
 async function copyText(text: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Fall back to the legacy selection path below.
+    }
+  }
+
   const textarea = document.createElement("textarea");
   textarea.value = text;
   textarea.setAttribute("readonly", "");
@@ -18,19 +27,14 @@ async function copyText(text: string) {
   textarea.style.opacity = "0";
   document.body.appendChild(textarea);
   textarea.select();
-  let copied = false;
 
   try {
-    copied = document.execCommand("copy");
+    document.execCommand("copy");
   } catch {
-    copied = false;
+    // The visual confirmation is optimistic; copy failures are non-fatal here.
   }
 
   document.body.removeChild(textarea);
-
-  if (!copied && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text).catch(() => undefined);
-  }
 }
 
 export function PromptCopyButton({ prompt, className }: PromptCopyButtonProps) {

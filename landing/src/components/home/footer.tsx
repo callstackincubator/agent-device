@@ -12,7 +12,7 @@ const footerGroups = [
   {
     title: "Documentation",
     links: [
-      { href: "https://github.com/callstackincubator/agent-device", label: "Documentation" },
+      { href: "https://oss.callstack.com/agent-device/", label: "Documentation" },
       { href: "https://github.com/callstackincubator/agent-device", label: "GitHub" },
     ],
   },

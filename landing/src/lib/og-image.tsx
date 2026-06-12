@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
 import { ImageResponse } from "next/og";
 
 type OgImageOptions = {
@@ -13,7 +16,31 @@ export const ogImageSize = {
 
 export const ogImageContentType = "image/png";
 
-export function createOgImage({ eyebrow, title, description }: OgImageOptions) {
+const fontsDirectory = join(process.cwd(), "src", "app", "fonts");
+
+async function getOgFonts() {
+  const [regular, semiBold] = await Promise.all([
+    readFile(join(fontsDirectory, "AllianceNo2-Regular.ttf")),
+    readFile(join(fontsDirectory, "AllianceNo2-SemiBold.ttf")),
+  ]);
+
+  return [
+    {
+      data: regular,
+      name: "Alliance No.2",
+      style: "normal" as const,
+      weight: 400 as const,
+    },
+    {
+      data: semiBold,
+      name: "Alliance No.2",
+      style: "normal" as const,
+      weight: 600 as const,
+    },
+  ];
+}
+
+export async function createOgImage({ eyebrow, title, description }: OgImageOptions) {
   return new ImageResponse(
     (
       <div
@@ -62,7 +89,7 @@ export function createOgImage({ eyebrow, title, description }: OgImageOptions) {
           <div
             style={{
               color: "rgba(255,255,255,0.52)",
-              fontFamily: "monospace",
+              fontFamily: "Alliance No.2",
               fontSize: 24,
               fontWeight: 700,
               letterSpacing: 0,
@@ -74,6 +101,7 @@ export function createOgImage({ eyebrow, title, description }: OgImageOptions) {
           <div
             style={{
               fontSize: 84,
+              fontFamily: "Alliance No.2",
               fontWeight: 600,
               letterSpacing: 0,
               lineHeight: 0.98,
@@ -86,6 +114,7 @@ export function createOgImage({ eyebrow, title, description }: OgImageOptions) {
           <div
             style={{
               color: "rgba(255,255,255,0.72)",
+              fontFamily: "Alliance No.2",
               fontSize: 30,
               lineHeight: 1.35,
               marginTop: 36,
@@ -107,6 +136,7 @@ export function createOgImage({ eyebrow, title, description }: OgImageOptions) {
                 background: "#ffffff",
                 borderRadius: 4,
                 color: "#000000",
+                fontFamily: "Alliance No.2",
                 fontSize: 24,
                 fontWeight: 700,
                 padding: "18px 28px",
@@ -119,6 +149,7 @@ export function createOgImage({ eyebrow, title, description }: OgImageOptions) {
                 border: "1px solid rgba(255,255,255,0.28)",
                 borderRadius: 4,
                 color: "rgba(255,255,255,0.84)",
+                fontFamily: "Alliance No.2",
                 fontSize: 24,
                 fontWeight: 600,
                 padding: "18px 28px",
@@ -130,6 +161,9 @@ export function createOgImage({ eyebrow, title, description }: OgImageOptions) {
         </div>
       </div>
     ),
-    ogImageSize,
+    {
+      ...ogImageSize,
+      fonts: await getOgFonts(),
+    },
   );
 }
