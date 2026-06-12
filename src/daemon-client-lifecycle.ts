@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { AppError } from './utils/errors.ts';
 import type { DaemonRequest } from './daemon/types.ts';
-import { runCmdDetached } from './utils/exec.ts';
+import { runCmdDetachedMonitored, type ExecDetachedExit } from './utils/exec.ts';
 import { findProjectRoot, readVersion } from './utils/version.ts';
 import { emitDiagnostic } from './utils/diagnostics.ts';
 import {
@@ -48,8 +48,19 @@ export type EnsuredDaemon = {
   startedByClient: boolean;
 };
 
+type DaemonStartupLaunch = {
+  pid: number;
+  exited: Promise<ExecDetachedExit>;
+};
+
+type DaemonStartupWaitResult =
+  | { kind: 'ready'; info: DaemonInfo }
+  | { kind: 'early_exit'; exit: ExecDetachedExit }
+  | { kind: 'timeout' };
+
 const DAEMON_STARTUP_TIMEOUT_MS = 15_000;
 const DAEMON_STARTUP_ATTEMPTS = 2;
+const DAEMON_STARTUP_LOG_TAIL_BYTES = 64_000;
 const LOOPBACK_BLOCK_LIST = new net.BlockList();
 LOOPBACK_BLOCK_LIST.addSubnet('127.0.0.0', 8, 'ipv4');
 LOOPBACK_BLOCK_LIST.addAddress('::1', 'ipv6');
@@ -193,9 +204,12 @@ async function startLocalDaemon(settings: DaemonClientSettings): Promise<Ensured
   let lockRecoveryCount = 0;
   const cleanupResults: DaemonStartupCleanupResult[] = [];
   let startError: string | undefined;
+  let daemonProcess: ExecDetachedExit | { pid: number } | undefined;
   for (let attempt = 1; attempt <= DAEMON_STARTUP_ATTEMPTS; attempt += 1) {
+    let launch: DaemonStartupLaunch;
     try {
-      await startDaemon(settings);
+      launch = startDaemon(settings);
+      daemonProcess = { pid: launch.pid };
     } catch (error) {
       startError = error instanceof Error ? error.message : String(error);
       cleanupResults.push(await cleanupFailedDaemonStartupMetadata(settings.paths, 'start_error'));
@@ -206,8 +220,18 @@ async function startLocalDaemon(settings: DaemonClientSettings): Promise<Ensured
       break;
     }
 
-    const started = await waitForDaemonInfo(DAEMON_STARTUP_TIMEOUT_MS, settings);
-    if (started) return { info: started, startedByClient: true };
+    const startup = await waitForDaemonStartup(DAEMON_STARTUP_TIMEOUT_MS, settings, launch);
+    if (startup.kind === 'ready') return { info: startup.info, startedByClient: true };
+    if (startup.kind === 'early_exit') {
+      daemonProcess = startup.exit;
+      startError = describeDaemonEarlyExit(startup.exit);
+      cleanupResults.push(await cleanupFailedDaemonStartupMetadata(settings.paths, 'start_error'));
+      if (attempt < DAEMON_STARTUP_ATTEMPTS) {
+        await sleep(150);
+        continue;
+      }
+      break;
+    }
 
     if (await recoverDaemonLockHolder(settings.paths)) {
       lockRecoveryCount += 1;
@@ -221,8 +245,12 @@ async function startLocalDaemon(settings: DaemonClientSettings): Promise<Ensured
     });
     cleanupResults.push(cleanup);
     if (cleanup.retainedInfoProcess || cleanup.retainedLockProcess) {
-      const extended = await waitForDaemonInfo(DAEMON_STARTUP_TIMEOUT_MS, settings);
-      if (extended) return { info: extended, startedByClient: true };
+      const extended = await waitForDaemonStartup(DAEMON_STARTUP_TIMEOUT_MS, settings, launch);
+      if (extended.kind === 'ready') return { info: extended.info, startedByClient: true };
+      if (extended.kind === 'early_exit') {
+        daemonProcess = extended.exit;
+        startError = describeDaemonEarlyExit(extended.exit);
+      }
       break;
     }
     if (!hasAnotherAttempt) break;
@@ -232,15 +260,20 @@ async function startLocalDaemon(settings: DaemonClientSettings): Promise<Ensured
   }
 
   const state = getDaemonMetadataState(settings.paths);
+  const daemonLogTail = readRecentLogTail(settings.paths.logPath);
   throw new AppError('COMMAND_FAILED', 'Failed to start daemon', {
     kind: 'daemon_startup_failed',
+    stateDir: settings.paths.baseDir,
     infoPath: settings.paths.infoPath,
     lockPath: settings.paths.lockPath,
+    logPath: settings.paths.logPath,
     startupTimeoutMs: DAEMON_STARTUP_TIMEOUT_MS,
     startupAttempts: DAEMON_STARTUP_ATTEMPTS,
     lockRecoveryCount,
     cleanupResults,
     startError,
+    daemonProcess,
+    ...(daemonLogTail ? { daemonLogTail } : {}),
     metadataState: state,
     hint: resolveDaemonStartupHint(state, settings.paths),
   });
@@ -297,20 +330,30 @@ function isOneShotReplayCommand(command: string | undefined): boolean {
   return command === PUBLIC_COMMANDS.replay || command === PUBLIC_COMMANDS.test;
 }
 
-async function waitForDaemonInfo(
+async function waitForDaemonStartup(
   timeoutMs: number,
   settings: DaemonClientSettings,
-): Promise<DaemonInfo | null> {
+  launch: DaemonStartupLaunch,
+): Promise<DaemonStartupWaitResult> {
   const start = Date.now();
+  let earlyExit: ExecDetachedExit | undefined;
+  void launch.exited.then((exit) => {
+    earlyExit = exit;
+  });
+
   while (Date.now() - start < timeoutMs) {
+    if (earlyExit) return { kind: 'early_exit', exit: earlyExit };
     const info = readDaemonInfo(settings.paths.infoPath);
-    if (info && (await canConnect(info, settings.transportPreference))) return info;
+    if (info && (await canConnect(info, settings.transportPreference))) {
+      return { kind: 'ready', info };
+    }
+    if (earlyExit) return { kind: 'early_exit', exit: earlyExit };
     await sleep(100);
   }
-  return null;
+  return { kind: 'timeout' };
 }
 
-async function startDaemon(settings: DaemonClientSettings): Promise<void> {
+function startDaemon(settings: DaemonClientSettings): DaemonStartupLaunch {
   const launchSpec = resolveDaemonLaunchSpec();
   const args = launchSpec.useSrc
     ? ['--experimental-strip-types', launchSpec.srcPath]
@@ -321,7 +364,18 @@ async function startDaemon(settings: DaemonClientSettings): Promise<void> {
     AGENT_DEVICE_DAEMON_SERVER_MODE: settings.serverMode,
   };
 
-  runCmdDetached(process.execPath, args, { env });
+  fs.mkdirSync(settings.paths.baseDir, { recursive: true });
+  const stdoutFd = fs.openSync(settings.paths.logPath, 'a');
+  const stderrFd = fs.openSync(settings.paths.logPath, 'a');
+  try {
+    return runCmdDetachedMonitored(process.execPath, args, {
+      env,
+      stdio: ['ignore', stdoutFd, stderrFd],
+    });
+  } finally {
+    fs.closeSync(stdoutFd);
+    fs.closeSync(stderrFd);
+  }
 }
 
 type DaemonLaunchSpec = {
@@ -359,6 +413,33 @@ function resolveLocalDaemonCodeSignature(): string {
   const launchSpec = resolveDaemonLaunchSpec();
   const entryPath = launchSpec.useSrc ? launchSpec.srcPath : launchSpec.distPath;
   return computeDaemonCodeSignature(entryPath, launchSpec.root);
+}
+
+function describeDaemonEarlyExit(exit: ExecDetachedExit): string {
+  if (exit.error) return `daemon process ${exit.pid} failed to start: ${exit.error}`;
+  if (exit.signal)
+    return `daemon process ${exit.pid} exited before readiness with signal ${exit.signal}`;
+  return `daemon process ${exit.pid} exited before readiness with code ${exit.exitCode ?? 0}`;
+}
+
+function readRecentLogTail(logPath: string): string | undefined {
+  try {
+    if (!fs.existsSync(logPath)) return undefined;
+    const stats = fs.statSync(logPath);
+    if (stats.size <= 0) return undefined;
+    const length = Math.min(stats.size, DAEMON_STARTUP_LOG_TAIL_BYTES);
+    const fd = fs.openSync(logPath, 'r');
+    try {
+      const buffer = Buffer.alloc(length);
+      fs.readSync(fd, buffer, 0, length, stats.size - length);
+      const text = buffer.toString('utf8').trim();
+      return text.length > 0 ? text : undefined;
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return undefined;
+  }
 }
 
 function resolveRemoteDaemonBaseUrl(raw: string | undefined): string | undefined {

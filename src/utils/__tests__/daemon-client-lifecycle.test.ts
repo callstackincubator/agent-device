@@ -12,6 +12,7 @@ vi.mock('../exec.ts', async (importOriginal) => {
   return {
     ...actual,
     runCmdDetached: vi.fn(),
+    runCmdDetachedMonitored: vi.fn(),
     runCmdSync: vi.fn(() => ({ exitCode: 1, stdout: '', stderr: '' })),
   };
 });
@@ -34,7 +35,7 @@ import {
   supportsLoopbackBind,
 } from '../../__tests__/test-utils/index.ts';
 import { AppError } from '../errors.ts';
-import { runCmdDetached, runCmdSync } from '../exec.ts';
+import { runCmdDetachedMonitored, runCmdSync } from '../exec.ts';
 import { readProcessStartTime } from '../process-identity.ts';
 import { sleep } from '../timeouts.ts';
 import { findProjectRoot, readVersion } from '../version.ts';
@@ -57,7 +58,7 @@ type HttpDaemonFixture = {
   rpcRequests: Record<string, any>[];
 };
 
-const mockRunCmdDetached = vi.mocked(runCmdDetached);
+const mockRunCmdDetached = vi.mocked(runCmdDetachedMonitored);
 const mockRunCmdSync = vi.mocked(runCmdSync);
 const mockSleep = vi.mocked(sleep);
 
@@ -197,7 +198,7 @@ function installSpawnedHttpDaemon(paths: DaemonPaths, httpPort: number): void {
       pid: process.pid,
       processStartTime: readProcessStartTime(process.pid) ?? undefined,
     });
-    return process.pid;
+    return { pid: process.pid, exited: new Promise(() => {}) };
   });
 }
 
@@ -346,6 +347,51 @@ test('sendToDaemon retries daemon spawn failures and cleans partial metadata on 
     assert.equal(mockSleep.mock.calls[0]?.[0], 150);
     assert.equal(fs.existsSync(paths.infoPath), false);
     assert.equal(fs.existsSync(paths.lockPath), false);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('sendToDaemon reports early daemon exit with log tail and startup paths', async () => {
+  const stateDir = makeTempStateDir('agent-device-daemon-early-exit-');
+  const paths = resolveDaemonPaths(stateDir);
+  vi.stubEnv('AGENT_DEVICE_STATE_DIR', stateDir);
+  let attempts = 0;
+
+  mockRunCmdDetached.mockImplementation((_command, _args, options) => {
+    attempts += 1;
+    const stderrFd = options?.stdio?.[2];
+    if (typeof stderrFd === 'number') {
+      fs.writeSync(stderrFd, `early daemon failure ${attempts}\n`);
+    }
+    return {
+      pid: 43_200 + attempts,
+      exited: Promise.resolve({ pid: 43_200 + attempts, exitCode: 1 }),
+    };
+  });
+
+  try {
+    let thrown: unknown;
+    try {
+      await sendToDaemon({
+        session: 'default',
+        command: 'early-exit-smoke',
+        positionals: [],
+        flags: { stateDir },
+        meta: { requestId: 'req-early-exit' },
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    assert.ok(thrown instanceof AppError);
+    assert.equal(thrown.message, 'Failed to start daemon');
+    assert.equal(thrown.details?.stateDir, paths.baseDir);
+    assert.equal(thrown.details?.logPath, paths.logPath);
+    assert.match(String(thrown.details?.startError), /daemon process 43202 exited/);
+    assert.deepEqual(thrown.details?.daemonProcess, { pid: 43_202, exitCode: 1 });
+    assert.match(String(thrown.details?.daemonLogTail), /early daemon failure 2/);
+    assert.equal(attempts, 2);
   } finally {
     fs.rmSync(stateDir, { recursive: true, force: true });
   }

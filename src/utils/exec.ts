@@ -42,6 +42,18 @@ type ExecDetachedOptions = ExecOptions & {
   stdio?: StdioOptions;
 };
 
+export type ExecDetachedExit = {
+  pid: number;
+  exitCode?: number;
+  signal?: NodeJS.Signals;
+  error?: string;
+};
+
+export type ExecDetachedProcess = {
+  pid: number;
+  exited: Promise<ExecDetachedExit>;
+};
+
 export type ExecBackgroundOptions = ExecOptions & {
   /**
    * Capture stdout/stderr into the wait result when the child has piped stdio.
@@ -304,6 +316,14 @@ export function runCmdDetached(
   args: string[],
   options: ExecDetachedOptions = {},
 ): number {
+  return runCmdDetachedMonitored(cmd, args, options).pid;
+}
+
+export function runCmdDetachedMonitored(
+  cmd: string,
+  args: string[],
+  options: ExecDetachedOptions = {},
+): ExecDetachedProcess {
   const executable = normalizeExecutableCommand(cmd);
   const child = spawn(executable, args, {
     cwd: options.cwd,
@@ -313,8 +333,21 @@ export function runCmdDetached(
     windowsHide: true,
     shell: false,
   });
+  const pid = child.pid ?? 0;
+  const exited = new Promise<ExecDetachedExit>((resolve) => {
+    child.once('error', (err) => {
+      resolve({ pid, error: err.message });
+    });
+    child.once('exit', (code, signal) => {
+      resolve({
+        pid,
+        ...(typeof code === 'number' ? { exitCode: code } : {}),
+        ...(signal ? { signal } : {}),
+      });
+    });
+  });
   child.unref();
-  return child.pid ?? 0;
+  return { pid, exited };
 }
 
 export function runCmdBackground(
