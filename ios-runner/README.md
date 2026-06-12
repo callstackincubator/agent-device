@@ -35,14 +35,14 @@ Protocol and maintenance references:
 
 ## Snapshot Strategy
 
-iOS snapshots have two explicit capture modes:
+iOS snapshots have two explicit public capture modes:
 
 - full/raw snapshots use recursive XCTest snapshots for rich hierarchy and diagnostics;
-- compact interactive snapshots use a bounded flat XCTest query path for fast agent-facing refs.
+- interactive snapshots filter the same visible tree down to agent-facing refs.
 
 Some simulator apps expose accessibility trees that lower-level AX services can inspect but XCTest
-cannot serialize reliably. In those cases compact interactive snapshots may return a sparse root
-quickly, while full snapshots preserve the XCTest error. See
+cannot serialize reliably. In those cases interactive snapshots may return a sparse root quickly,
+while full snapshots preserve the XCTest error. See
 [`../docs/adr/0004-ios-snapshot-backend-strategy.md`](../docs/adr/0004-ios-snapshot-backend-strategy.md)
 for the backend boundary and the rationale for a future simulator AX-service backend.
 

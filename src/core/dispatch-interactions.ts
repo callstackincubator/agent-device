@@ -49,7 +49,7 @@ export async function handleLongPressCommand(
   positionals: string[],
 ): Promise<Record<string, unknown>> {
   const { x, y } = readPoint(positionals, 'longpress requires x y [durationMs]', {
-    hint: 'Direct platform longpress requires coordinates. In an open daemon session, use agent-device longpress @ref|selector [durationMs]; otherwise run snapshot -i -c, use the target rect center as x y, then retry longpress x y durationMs.',
+    hint: 'Direct platform longpress requires coordinates. In an open daemon session, use agent-device longpress @ref|selector [durationMs]; otherwise run snapshot -i, use the target rect center as x y, then retry longpress x y durationMs.',
   });
   const durationMs = positionals[2] ? Number(positionals[2]) : undefined;
   await interactor.longPress(x, y, durationMs);

@@ -124,7 +124,7 @@ export function findNodeByRef(nodes: SnapshotNode[], ref: string): SnapshotNode 
 export function buildSnapshotPresentationKey(flags: SnapshotOptions | undefined): string {
   return JSON.stringify({
     interactiveOnly: flags?.interactiveOnly === true,
-    compact: flags?.compact === true,
+    compact: false,
     depth: typeof flags?.depth === 'number' ? flags.depth : null,
     scope: flags?.scope?.trim() || null,
     raw: flags?.raw === true,
@@ -136,7 +136,6 @@ export function snapshotPresentationOptionsFromFlags(
 ): SnapshotOptions | undefined {
   if (!flags) return undefined;
   return {
-    compact: flags.snapshotCompact,
     depth: flags.snapshotDepth,
     interactiveOnly: flags.snapshotInteractiveOnly,
     raw: flags.snapshotRaw,

@@ -146,7 +146,6 @@ export function appendRecordActionScriptArgs(parts: string[], action: SessionAct
 
 export function appendSnapshotActionScriptArgs(parts: string[], action: SessionAction): void {
   if (action.flags?.snapshotInteractiveOnly) parts.push('-i');
-  if (action.flags?.snapshotCompact) parts.push('-c');
   if (typeof action.flags?.snapshotDepth === 'number') {
     parts.push('-d', String(action.flags.snapshotDepth));
   }

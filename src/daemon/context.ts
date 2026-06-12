@@ -30,7 +30,6 @@ export function contextFromFlags(
     logPath,
     traceLogPath,
     snapshotInteractiveOnly: flags?.snapshotInteractiveOnly,
-    snapshotCompact: flags?.snapshotCompact,
     snapshotDepth: flags?.snapshotDepth,
     snapshotScope: flags?.snapshotScope,
     snapshotRaw: flags?.snapshotRaw,

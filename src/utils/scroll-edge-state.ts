@@ -138,7 +138,7 @@ function buildScrollEdgeVerificationError(
       `Failed to verify scroll ${edge} state for scoped container`,
       {
         scope,
-        hint: `scroll ${edge} could not verify the scoped scroll container. Run snapshot -i -c for the current screen and retry with a visible scroll target.`,
+        hint: `scroll ${edge} could not verify the scoped scroll container. Run snapshot -i for the current screen and retry with a visible scroll target.`,
       },
       cause,
     );

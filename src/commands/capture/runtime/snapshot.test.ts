@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import type { AgentDeviceBackend, BackendSnapshotResult } from '../../../backend.ts';
+import type {
+  AgentDeviceBackend,
+  BackendSnapshotOptions,
+  BackendSnapshotResult,
+} from '../../../backend.ts';
 import { createLocalArtifactAdapter } from '../../../io.ts';
 import {
   createAgentDevice,
@@ -36,6 +40,34 @@ test('runtime snapshot captures nodes and updates the session baseline', async (
   assert.equal(result.appName, 'Demo');
   assert.equal(result.appBundleId, 'com.example.demo');
   assert.equal(stored?.snapshot?.nodes[0]?.label, 'Home');
+});
+
+test('runtime snapshot treats compact option as a no-op', async () => {
+  let observedOptions: BackendSnapshotOptions | undefined;
+  const device = createAgentDevice({
+    backend: {
+      platform: 'ios',
+      captureSnapshot: async (_context, options) => {
+        observedOptions = options;
+        return {
+          snapshot: makeSnapshotState([{ index: 0, depth: 0, type: 'Window', label: 'Home' }], {
+            backend: 'xctest',
+          }),
+        };
+      },
+    },
+    artifacts: createLocalArtifactAdapter(),
+    sessions: {
+      get: () => undefined,
+      set: () => {},
+    },
+    policy: localCommandPolicy(),
+  });
+
+  await device.capture.snapshot({ session: 'default', interactiveOnly: true, compact: true });
+
+  assert.equal(observedOptions?.interactiveOnly, true);
+  assert.equal('compact' in (observedOptions ?? {}), false);
 });
 
 test('runtime diff snapshot initializes and then compares against session baseline', async () => {
@@ -130,7 +162,7 @@ test('runtime snapshot warns when Android helper falls back to stock UIAutomator
   ]);
 });
 
-test('runtime snapshot warns when iOS compact interactive output is root-only', async () => {
+test('runtime snapshot warns when iOS interactive output is root-only', async () => {
   const device = createSnapshotOnlyDevice({
     nodes: [{ ref: 'e1', index: 0, depth: 0, type: 'Application' }],
     truncated: false,
@@ -140,11 +172,10 @@ test('runtime snapshot warns when iOS compact interactive output is root-only', 
   const result = await device.capture.snapshot({
     session: 'default',
     interactiveOnly: true,
-    compact: true,
   });
 
   assert.deepEqual(result.warnings, [
-    'iOS compact interactive snapshot exposed only the application root. XCTest typed accessibility queries can fail to enumerate some simulator UI trees even when screenshots and direct gestures still work. Use screenshot as visual truth, try a scoped/full snapshot for diagnostics, and prefer direct selectors when known.',
+    'iOS interactive snapshot exposed only the application root. XCTest accessibility queries can fail to enumerate some simulator UI trees even when screenshots and direct gestures still work. Use screenshot as visual truth, try a scoped/full snapshot for diagnostics, and prefer direct selectors when known.',
   ]);
 });
 
@@ -224,7 +255,7 @@ test('runtime snapshot renders the structured quality verdict and skips legacy d
   assert.deepEqual(result.snapshotQuality?.state, 'recovered');
 });
 
-test('runtime snapshot does not warn for a normal iOS compact interactive output', async () => {
+test('runtime snapshot does not warn for a normal iOS interactive output', async () => {
   const device = createSnapshotOnlyDevice({
     nodes: [
       { ref: 'e1', index: 0, depth: 0, type: 'Application' },
@@ -237,7 +268,6 @@ test('runtime snapshot does not warn for a normal iOS compact interactive output
   const result = await device.capture.snapshot({
     session: 'default',
     interactiveOnly: true,
-    compact: true,
   });
 
   assert.equal(result.warnings, undefined);
@@ -538,11 +568,13 @@ test('runtime snapshot stale-drop warning falls back to runtime clock on backend
 });
 
 function createSnapshotBackend(
-  captureSnapshot: () => BackendSnapshotResult | Promise<BackendSnapshotResult>,
+  captureSnapshot: (
+    options: BackendSnapshotOptions | undefined,
+  ) => BackendSnapshotResult | Promise<BackendSnapshotResult>,
 ): AgentDeviceBackend {
   return {
     platform: 'ios',
-    captureSnapshot: async () => await captureSnapshot(),
+    captureSnapshot: async (_context, options) => await captureSnapshot(options),
   };
 }
 

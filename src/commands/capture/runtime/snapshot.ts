@@ -149,7 +149,6 @@ async function captureRuntimeSnapshot(
     },
     {
       interactiveOnly: options.interactiveOnly,
-      compact: options.compact,
       depth: options.depth,
       scope: options.scope,
       raw: options.raw,
@@ -261,7 +260,6 @@ function buildSparseIosInteractiveWarnings(params: {
   if (
     params.snapshot.backend !== 'xctest' ||
     params.options.interactiveOnly !== true ||
-    params.options.compact !== true ||
     params.snapshot.nodes.length !== 1
   ) {
     return [];
@@ -271,7 +269,7 @@ function buildSparseIosInteractiveWarnings(params: {
   if (root?.type !== 'Application') return [];
 
   return [
-    'iOS compact interactive snapshot exposed only the application root. XCTest typed accessibility queries can fail to enumerate some simulator UI trees even when screenshots and direct gestures still work. Use screenshot as visual truth, try a scoped/full snapshot for diagnostics, and prefer direct selectors when known.',
+    'iOS interactive snapshot exposed only the application root. XCTest accessibility queries can fail to enumerate some simulator UI trees even when screenshots and direct gestures still work. Use screenshot as visual truth, try a scoped/full snapshot for diagnostics, and prefer direct selectors when known.',
   ];
 }
 

@@ -281,7 +281,7 @@ function isLocalCliHelpCommand(command: string) {
 const RAW_COORDINATE_TARGET =
   /(?:^|\n)(?:agent-device\s+)?(?:click|fill|press)\s+-?\d+(?:\.\d+)?\s+-?\d+(?:\.\d+)?/i;
 const PSEUDO_ASSERTION_COMMAND = /(?:^|\n)\s*(?:assert|assertVisible|waitFor|waitForText)\b/i;
-const COMPACT_RECT_SNAPSHOT = /snapshot\b(?=[^\n]*(?:-c\b|--compact\b))(?=[^\n]*(?:--json|--raw))/i;
+const RAW_RECT_SNAPSHOT = /snapshot\b(?=[^\n]*-i\b)(?=[^\n]*(?:--json|--raw))/i;
 const BOUNDED_PROFILE_SLOW = /react-devtools\s+profile\s+slow\b[^\n]*--limit\s+(?:5|10)\b/i;
 const BOUNDED_PROFILE_RERENDERS =
   /react-devtools\s+profile\s+rerenders\b[^\n]*--limit\s+(?:5|10)\b/i;
@@ -699,11 +699,11 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'Current screen: Orders list',
       'Fresh interactive snapshot shows @e12 [disabled] hittable:false label "Order #1042"',
       'press @e12 already returned success, but diff snapshot showed no navigation',
-      'Compact raw JSON rect center for @e12 is x=196 y=318',
+      'Raw JSON rect center for @e12 is x=196 y=318',
     ],
-    task: 'Plan the fallback commands to inspect raw compact snapshot rects, press the row center, then verify the nearby change.',
+    task: 'Plan the fallback commands to inspect raw snapshot rects, press the row center, then verify the nearby change.',
     outputs: [
-      COMPACT_RECT_SNAPSHOT,
+      RAW_RECT_SNAPSHOT,
       /(?:^|\n)(?:agent-device\s+)?(?:press|click)\s+196\s+318\b/i,
       /(?:diff snapshot|snapshot\b.*--diff)/i,
     ],
@@ -856,11 +856,11 @@ const SKILL_GUIDANCE_CASES: Case[] = [
       'Current screen: Catalog filters',
       'Horizontal filter tabs are collapsed into one [seekbar] in snapshot -i',
       'The individual Bakery tab has no @ref or selector on iOS',
-      'Compact raw JSON plus visual inspection gives Bakery center x=84 y=220',
+      'Raw JSON plus visual inspection gives Bakery center x=84 y=220',
     ],
-    task: 'Plan commands to handle the missing child refs by inspecting raw compact rects, tapping the Bakery center, and verifying the selected filter changed.',
+    task: 'Plan commands to handle the missing child refs by inspecting raw rects, tapping the Bakery center, and verifying the selected filter changed.',
     outputs: [
-      /(?:snapshot\b(?=[^\n]*(?:-c\b|--compact\b))(?=[^\n]*(?:--json|--raw))|snapshot\b.*-i)/i,
+      RAW_RECT_SNAPSHOT,
       /(?:^|\n)(?:agent-device\s+(?:--platform\s+ios\s+)?)?(?:press|click)\s+84\s+220\b/i,
       /(?:diff snapshot -i|snapshot\b.*(?:-i\b.*--diff|--diff\b.*-i\b)|snapshot\b.*-i|Berry Tart|Bakery)/i,
     ],

@@ -32,7 +32,6 @@ export async function dispatchSnapshotViaRuntime(params: {
       const result = await runtime.capture.snapshot({
         session: sessionName,
         interactiveOnly: req.flags?.snapshotInteractiveOnly,
-        compact: req.flags?.snapshotCompact,
         depth: req.flags?.snapshotDepth,
         scope: snapshotScope,
         raw: req.flags?.snapshotRaw,
@@ -64,7 +63,6 @@ export async function dispatchSnapshotDiffViaRuntime(params: {
       const result = await runtime.capture.diffSnapshot({
         session: sessionName,
         interactiveOnly: req.flags?.snapshotInteractiveOnly,
-        compact: req.flags?.snapshotCompact,
         depth: req.flags?.snapshotDepth,
         scope: snapshotScope,
         raw: req.flags?.snapshotRaw,

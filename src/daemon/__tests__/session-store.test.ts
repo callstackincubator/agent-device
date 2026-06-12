@@ -303,7 +303,7 @@ test('writeSessionLog optimizes selector chains and scopes fallback snapshots', 
   assertScriptMatches(script, [
     /click "text=\\"Continue\\" \|\| role=button" --count 2/,
     /longpress "label=\\"Last message\\" \|\| role=\\"statictext\\"" 800/,
-    /snapshot -i -c -s "Email"/,
+    /snapshot -i -s "Email"/,
     /fill @e2 "Email" "hello world" --delay-ms 5/,
   ]);
 });

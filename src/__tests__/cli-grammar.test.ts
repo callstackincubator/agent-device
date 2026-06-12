@@ -15,6 +15,19 @@ test('wait grammar preserves CLI bare text forms', () => {
   assert.equal(options.timeoutMs, 1500);
 });
 
+test('snapshot grammar accepts compact flag as a no-op', () => {
+  const options = readInputFromCli('snapshot', [], {
+    ...BASE_FLAGS,
+    snapshotInteractiveOnly: true,
+    snapshotCompact: true,
+    snapshotDepth: 3,
+  });
+
+  assert.equal(options.interactiveOnly, true);
+  assert.equal(options.depth, 3);
+  assert.equal('compact' in options, false);
+});
+
 test('interaction and fill grammar share ref, selector, and point parsing', () => {
   assert.deepEqual(readInputFromCli('press', ['@e3', 'Email'], BASE_FLAGS).target, {
     kind: 'ref',

@@ -73,7 +73,7 @@ test('runtime press resolves selector targets to the actionable node center', as
   assert.deepEqual(result.backendResult, { ok: true });
 });
 
-test('runtime selector interactions fall back to a full snapshot when compact interactive misses', async () => {
+test('runtime selector interactions fall back to a full snapshot when interactive refresh misses', async () => {
   const calls: Point[] = [];
   const captureOptions: Array<BackendSnapshotOptions | undefined> = [];
   const device = createInteractionDevice(selectorSnapshot(), {

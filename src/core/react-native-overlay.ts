@@ -66,7 +66,7 @@ export function formatReactNativeOverlayWarning(nodes: SnapshotNode[]): string |
   return [
     'Hint: React Native warning/error overlay detected. It overlays part of the app and should be handled before interacting.',
     'Run: agent-device react-native dismiss-overlay',
-    'The command verifies the overlay is gone. Run agent-device snapshot -i -c afterward only when you need fresh refs for the next action.',
+    'The command verifies the overlay is gone. Run agent-device snapshot -i afterward only when you need fresh refs for the next action.',
   ].join('\n');
 }
 

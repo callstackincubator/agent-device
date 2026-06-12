@@ -107,6 +107,30 @@ test('snapshot replay script parses full refresh flags', () => {
   assert.equal(parsed[0]?.flags.snapshotScope, '@e1');
 });
 
+test('snapshot replay script drops compact flag when writing new scripts', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-script-snapshot-'));
+  const replayPath = path.join(root, 'flow.ad');
+  const actions: SessionAction[] = [
+    {
+      ts: Date.now(),
+      command: 'snapshot',
+      positionals: [],
+      flags: {
+        snapshotInteractiveOnly: true,
+        snapshotCompact: true,
+        snapshotDepth: 2,
+        snapshotScope: '@e1',
+      },
+    },
+  ];
+
+  writeReplayScript(replayPath, actions, makeSession());
+  const script = fs.readFileSync(replayPath, 'utf8');
+
+  assert.match(script, /snapshot -i -d 2 -s @e1/);
+  assert.doesNotMatch(script, /(?:^|\s)-c(?:\s|$)/);
+});
+
 test('gesture replay script parses pan, fling, swipe, pinch, and rotate gesture commands', () => {
   const parsed = parseReplayScript(
     [

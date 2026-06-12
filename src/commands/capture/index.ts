@@ -68,7 +68,6 @@ const snapshotCommandMetadata = defineFieldCommandMetadata(
   snapshotCommandDescription,
   {
     interactiveOnly: booleanField(),
-    compact: booleanField(),
     depth: integerField(),
     scope: stringField(),
     raw: booleanField(),
@@ -216,7 +215,6 @@ export const captureCliReaders = {
   snapshot: (_positionals, flags) => ({
     ...commonInputFromFlags(flags),
     interactiveOnly: flags.snapshotInteractiveOnly,
-    compact: flags.snapshotCompact,
     depth: flags.snapshotDepth,
     scope: flags.snapshotScope,
     raw: flags.snapshotRaw,
@@ -237,7 +235,6 @@ export const captureCliReaders = {
       kind: 'snapshot',
       out: flags.out,
       interactiveOnly: flags.snapshotInteractiveOnly,
-      compact: flags.snapshotCompact,
       depth: flags.snapshotDepth,
       scope: flags.snapshotScope,
       raw: flags.snapshotRaw,

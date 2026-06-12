@@ -146,7 +146,6 @@ function buildScopedSnapshotAction(
     flags: {
       platform: session.device.platform,
       snapshotInteractiveOnly: true,
-      snapshotCompact: true,
       snapshotScope: scope,
     },
     result: { scope },

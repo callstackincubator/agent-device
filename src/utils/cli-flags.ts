@@ -959,7 +959,7 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     names: ['-c'],
     type: 'boolean',
     usageLabel: '-c',
-    usageDescription: 'Snapshot: compact output (drop empty structure)',
+    usageDescription: 'Snapshot: accepted for compatibility; no effect',
   },
   {
     key: 'snapshotDepth',

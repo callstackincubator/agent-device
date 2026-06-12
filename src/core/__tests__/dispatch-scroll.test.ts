@@ -46,7 +46,7 @@ test('dispatch longpress explains direct platform coordinate requirement', async
       error.code === 'INVALID_ARGS' &&
       /longpress requires x y/i.test(error.message) &&
       /open daemon session/i.test(String(error.details?.hint)) &&
-      /snapshot -i -c/i.test(String(error.details?.hint)),
+      /snapshot -i/i.test(String(error.details?.hint)),
   );
 });
 

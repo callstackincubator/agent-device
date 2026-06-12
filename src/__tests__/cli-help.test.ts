@@ -81,7 +81,7 @@ test('help workflow preserves known device workaround guidance', async () => {
   assert.equal(result.code, 0);
   assert.equal(result.calls.length, 0);
   assert.match(result.stdout, /disabled\/hittable:false/);
-  assert.match(result.stdout, /snapshot -i -c --json/);
+  assert.match(result.stdout, /snapshot -i --json/);
   assert.match(result.stdout, /@Label_Name/);
   assert.match(result.stdout, /press @e12/);
   assert.match(result.stdout, /Snapshot legend:/);
