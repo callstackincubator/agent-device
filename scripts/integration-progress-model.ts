@@ -247,8 +247,10 @@ function summarizeProviderScenarioFlagExclusions() {
     },
     {
       name: 'parser/client-only command flags',
-      owner: 'args, CLI, screenshot-diff, and batch tests',
+      owner: 'args, CLI, debug-symbols, screenshot-diff, and batch tests',
       keys: [
+        'artifact',
+        'dsym',
         'githubActionsArtifact',
         'snapshotDiff',
         'snapshotForceFull',
@@ -260,6 +262,7 @@ function summarizeProviderScenarioFlagExclusions() {
         'recordVideo',
         'shardAll',
         'shardSplit',
+        'searchPath',
         'stepsFile',
       ],
     },

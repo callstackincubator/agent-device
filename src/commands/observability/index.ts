@@ -3,7 +3,13 @@ import { NETWORK_INCLUDE_MODES, type NetworkIncludeMode } from '../../contracts.
 import { AppError } from '../../utils/errors.ts';
 import { parseStringMember } from '../../utils/string-enum.ts';
 import type { CommandSchemaOverride } from '../../utils/cli-command-schema-types.ts';
-import { booleanField, enumField, integerField, requiredField, stringField } from '../command-input.ts';
+import {
+  booleanField,
+  enumField,
+  integerField,
+  requiredField,
+  stringField,
+} from '../command-input.ts';
 import { defineExecutableCommand } from '../command-contract.ts';
 import { defineFieldCommandMetadata } from '../field-command-contract.ts';
 import { LOG_ACTION_VALUES, type LogAction } from './log-command-contract.ts';
@@ -81,7 +87,7 @@ export const networkCommandMetadata = defineFieldCommandMetadata(
   },
 );
 
-export const debugCommandMetadata = defineFieldCommandMetadata(
+const debugCommandMetadata = defineFieldCommandMetadata(
   DEBUG_COMMAND_NAME,
   debugCommandDescription,
   {
@@ -113,7 +119,7 @@ export const networkCommandDefinition = defineExecutableCommand(
   (client, input) => client.observability.network(input),
 );
 
-export const debugCommandDefinition = defineExecutableCommand(debugCommandMetadata, (client, input) =>
+const debugCommandDefinition = defineExecutableCommand(debugCommandMetadata, (client, input) =>
   client.debug.symbols(input),
 );
 
@@ -196,7 +202,7 @@ export const networkCliReader: CliReader = (positionals, flags) => ({
   include: flags.networkInclude ?? readNetworkInclude(positionals[2]),
 });
 
-export const debugCliReader: CliReader = (positionals, flags) => ({
+const debugCliReader: CliReader = (positionals, flags) => ({
   ...commonInputFromFlags(flags),
   action: readDebugAction(positionals[0]),
   artifact: flags.artifact,
@@ -369,5 +375,8 @@ function readNetworkInclude(value: string | undefined): NetworkIncludeMode | und
 
 function readDebugAction(value: string | undefined): 'symbols' {
   if (value === 'symbols') return value;
-  throw new AppError('INVALID_ARGS', 'debug requires symbols');
+  throw new AppError(
+    'INVALID_ARGS',
+    'debug supports only symbols; use logs, network, perf, record, trace, or react-devtools for other diagnostics',
+  );
 }

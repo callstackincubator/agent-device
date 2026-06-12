@@ -57,7 +57,7 @@ function perfCliOutput(result: CommandRequestResult): CliOutput {
   return { data, text: formatPerfCliOutput(data) };
 }
 
-export function debugSymbolsCliOutput(result: DebugSymbolsResult): CliOutput {
+function debugSymbolsCliOutput(result: DebugSymbolsResult): CliOutput {
   const lines = [result.outPath, result.message];
   lines.push(...formatDebugCrashSummary(result));
   for (const image of result.matchedImages) {
