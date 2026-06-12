@@ -99,7 +99,7 @@ extension RunnerTests {
     .table
   ]
 
-  private static let flatInteractiveFallbackBudget: TimeInterval = 1.0
+  private static let flatInteractiveFallbackBudget: TimeInterval = 3.0
 
   func snapshotFast(app: XCUIApplication, options: SnapshotOptions) throws -> DataPayload {
     if let blocking = blockingSystemAlertSnapshot() {
