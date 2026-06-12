@@ -36,7 +36,8 @@ export async function tryRunClientBackedCommand(params: {
   const dedicatedHandler =
     dedicatedCliCommandHandlers[params.command as keyof typeof dedicatedCliCommandHandlers];
   if (dedicatedHandler) {
-    return await dedicatedHandler({ ...params, flags });
+    const handled = await dedicatedHandler({ ...params, flags });
+    if (handled) return true;
   }
   if (isClientBackedCliCommandName(params.command)) {
     return await runGenericClientBackedCommand({ ...params, command: params.command, flags });

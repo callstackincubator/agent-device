@@ -5,6 +5,7 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { PNG } from '../utils/png.ts';
 import { tryRunClientBackedCommand } from '../cli/commands/router.ts';
+import { runCliCapture } from './cli-capture.ts';
 import type {
   AgentDeviceClient,
   AppInstallFromSourceOptions,
@@ -661,6 +662,35 @@ click text="Continue"
   assert.equal(stdout, `${outPath}\n`);
   assert.match(yaml, /appId: com\.example\.app/);
   assert.match(yaml, /text: Continue/);
+});
+
+test('replay without a path reaches replay validation instead of unknown command', async () => {
+  const result = await runCliCapture(['replay']);
+
+  assert.equal(result.code, 1);
+  assert.equal(result.calls.length, 0);
+  assert.match(result.stderr, /replay requires path/);
+  assert.doesNotMatch(result.stderr, /Unknown command: replay/);
+});
+
+test('replay path falls through to the generic client command route', async () => {
+  const missingPath = '/tmp/does-not-exist.ad';
+  const result = await runCliCapture(['replay', missingPath], async (request) => {
+    assert.equal(request.command, 'replay');
+    assert.deepEqual(request.positionals, [missingPath]);
+    return {
+      ok: false,
+      error: {
+        code: 'UNKNOWN',
+        message: `ENOENT: no such file or directory, open '${missingPath}'`,
+      },
+    };
+  });
+
+  assert.equal(result.code, 1);
+  assert.equal(result.calls.length, 1);
+  assert.match(result.stderr, /ENOENT/);
+  assert.doesNotMatch(result.stderr, /Unknown command: replay/);
 });
 
 test('replay rejects extra plain replay paths before daemon dispatch', async () => {
