@@ -14,6 +14,29 @@ test('buildSnapshotState handles completely empty data object', () => {
   expect(state.truncated).toBeUndefined();
 });
 
+test('buildSnapshotState carries structured snapshot quality verdicts', () => {
+  const state = buildSnapshotState(
+    {
+      nodes: [{ index: 0, type: 'Application' }],
+      backend: 'xctest',
+      quality: {
+        state: 'sparse',
+        backend: 'private-ax',
+        reason: 'sparse tree',
+        reasonCode: 'sparse-tree',
+      },
+    },
+    { snapshotInteractiveOnly: true },
+  );
+
+  expect(state.snapshotQuality).toMatchObject({
+    state: 'sparse',
+    backend: 'private-ax',
+    reason: 'sparse tree',
+    reasonCode: 'sparse-tree',
+  });
+});
+
 test('buildSnapshotState handles nodes with missing fields', () => {
   const state = buildSnapshotState(
     {

@@ -160,7 +160,50 @@ test('handleFindCommands click prefers on-screen duplicate text matches', async 
   expect(invokeCalls[0]!.positionals?.[0]).toBe('@e3');
 });
 
-test('handleFindCommands click retries full snapshot when iOS compact snapshot is sparse', async () => {
+test('handleFindCommands click fails without daemon retry when quality verdict is sparse', async () => {
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command !== 'snapshot') return {};
+    return {
+      backend: 'xctest',
+      quality: {
+        state: 'sparse',
+        backend: 'private-ax',
+        reason: 'sparse tree',
+        reasonCode: 'sparse-tree',
+      },
+      nodes: [
+        {
+          index: 0,
+          type: 'Application',
+          rect: { x: 0, y: 0, width: 0, height: 0 },
+        },
+      ],
+    };
+  });
+
+  const { response, invokeCalls } = await runFindClickScenario({
+    positionals: ['Search', 'click'],
+  });
+
+  expect(response.ok).toBe(false);
+  expect(invokeCalls).toHaveLength(0);
+  expect(!response.ok && response.error).toMatchObject({
+    code: 'COMMAND_FAILED',
+    message: 'find could not read the current accessibility tree',
+    details: {
+      reason: 'sparse tree',
+      hint: expect.stringContaining('snapshot quality verdict is sparse'),
+    },
+  });
+  const snapshotCalls = mockDispatch.mock.calls.filter((call) => call[1] === 'snapshot');
+  expect(snapshotCalls).toHaveLength(1);
+  expect(snapshotCalls[0]![4]).toMatchObject({
+    snapshotInteractiveOnly: true,
+    snapshotCompact: true,
+  });
+});
+
+test('handleFindCommands click retries full snapshot for legacy iOS sparse shape without verdict', async () => {
   const snapshotResponses = [
     {
       backend: 'xctest',
@@ -215,7 +258,7 @@ test('handleFindCommands click retries full snapshot when iOS compact snapshot i
   });
 });
 
-test('handleFindCommands click scopes full retry when unscoped iOS fallback fails', async () => {
+test('handleFindCommands click scopes full retry for legacy sparse shape when unscoped fallback fails', async () => {
   const snapshotResponses = [
     {
       backend: 'xctest',

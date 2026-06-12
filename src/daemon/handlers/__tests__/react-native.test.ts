@@ -638,6 +638,124 @@ test('react-native dismiss-overlay reports verified success after a clean post-d
   expect(response.data.nextCommand).toBeUndefined();
 });
 
+test('react-native dismiss-overlay reports sparse verdict instead of no overlay detected', async () => {
+  const sessionName = 'rn-sparse-session';
+  const sessionStore = makeSessionStore();
+  sessionStore.set(sessionName, makeSession(sessionName));
+  mockCaptureSnapshot.mockResolvedValue({
+    snapshot: {
+      nodes: [
+        {
+          index: 0,
+          ref: 'e1',
+          type: 'Application',
+        },
+      ],
+      createdAt: Date.now(),
+      snapshotQuality: {
+        state: 'sparse',
+        backend: 'private-ax',
+        reason: 'sparse tree',
+        reasonCode: 'sparse-tree',
+      },
+    },
+  });
+
+  const response = await handleReactNativeCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'react-native',
+      positionals: ['dismiss-overlay'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+    contextFromFlags: () => ({}),
+  });
+
+  expect(response?.ok).toBe(false);
+  expect(mockDispatchCommand).not.toHaveBeenCalled();
+  expect(!response?.ok && response?.error).toMatchObject({
+    code: 'COMMAND_FAILED',
+    message:
+      'React Native overlay state could not be determined because the accessibility tree is unreadable',
+    details: {
+      reason: 'sparse tree',
+      hint: expect.stringContaining('snapshot quality verdict is sparse'),
+    },
+  });
+});
+
+test('react-native dismiss-overlay reports unverified dismiss when post-dismiss snapshot is sparse', async () => {
+  const sessionName = 'rn-verify-sparse-session';
+  const sessionStore = makeSessionStore();
+  sessionStore.set(sessionName, makeSession(sessionName));
+  mockDispatchCommand.mockResolvedValue({ x: 105, y: 714 });
+  mockCaptureSnapshot
+    .mockResolvedValueOnce({
+      snapshot: {
+        nodes: [
+          {
+            index: 0,
+            ref: 'e1',
+            label: 'LogBox',
+            rect: { x: 0, y: 640, width: 390, height: 120 },
+          },
+          {
+            index: 1,
+            ref: 'e2',
+            label: 'Close',
+            rect: { x: 84, y: 692, width: 42, height: 44 },
+          },
+        ],
+        createdAt: Date.now(),
+      },
+    })
+    .mockResolvedValueOnce({
+      snapshot: {
+        nodes: [
+          {
+            index: 0,
+            ref: 'e1',
+            type: 'Application',
+          },
+        ],
+        createdAt: Date.now(),
+        snapshotQuality: {
+          state: 'sparse',
+          backend: 'private-ax',
+          reason: 'sparse tree',
+          reasonCode: 'sparse-tree',
+        },
+      },
+    });
+
+  const response = await handleReactNativeCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'react-native',
+      positionals: ['dismiss-overlay'],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+    contextFromFlags: () => ({}),
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(response?.ok && response.data).toMatchObject({
+    action: 'dismiss-overlay',
+    verified: false,
+    verificationRequired: true,
+    verificationWarning: expect.stringContaining('accessibility tree is unreadable'),
+    nextCommand: 'agent-device screenshot',
+  });
+});
+
 test('react-native dismiss-overlay reports still-visible overlays with recovery guidance', async () => {
   const sessionName = 'rn-verify-still-visible-session';
   const sessionStore = makeSessionStore();

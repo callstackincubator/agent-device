@@ -376,6 +376,7 @@ export function buildSnapshotState(
     nodes?: RawSnapshotNode[];
     truncated?: boolean;
     backend?: SnapshotBackend;
+    quality?: unknown;
   },
   flags:
     | (Pick<
@@ -398,11 +399,13 @@ export function buildSnapshotState(
   const nodes = attachRefs(
     snapshotRaw ? presentableNodes : annotateCoveredSnapshotNodes(presentableNodes),
   );
+  const snapshotQuality = snapshotCaptureAnnotationsFrom(data).quality;
   return {
     nodes,
     truncated: data?.truncated,
     createdAt: Date.now(),
     backend: data?.backend,
+    ...(snapshotQuality ? { snapshotQuality } : {}),
     presentationKey: buildSnapshotPresentationKey(snapshotPresentationOptionsFromFlags(flags)),
     // Only broad Android snapshots become freshness baselines. If the user asked for a scoped
     // or filtered view, preserve that output contract but avoid pretending it is safe for

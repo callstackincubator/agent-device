@@ -19,6 +19,10 @@ import { errorResponse } from './response.ts';
 import { getActiveAndroidSnapshotFreshness } from '../android-snapshot-freshness.ts';
 import { stripInternalInteractionFlags } from '../interaction-outcome-policy.ts';
 import { dispatchFindReadOnlyViaRuntime } from '../selector-runtime.ts';
+import {
+  isSparseSnapshotQualityVerdict,
+  type SnapshotQualityVerdict,
+} from '../../utils/snapshot-quality.ts';
 
 export { parseFindArgs } from '../../utils/finders.ts';
 
@@ -121,7 +125,11 @@ export async function handleFindCommands(params: {
     return handleFindWait(ctx, fetchNodes, locator, query, timeoutMs);
   }
 
-  const { nodes } = await fetchNodes();
+  const snapshotResult = await fetchNodes();
+  if (isSparseSnapshotQualityVerdict(snapshotResult.snapshotQuality)) {
+    return sparseFindSnapshotResponse(snapshotResult.snapshotQuality);
+  }
+  const { nodes } = snapshotResult;
   const matchResult = resolveFindMatch({
     nodes,
     locator,
@@ -150,7 +158,8 @@ export async function handleFindCommands(params: {
   return handler ? handler() : null;
 }
 
-function isSparseIosInteractiveSnapshot(snapshot: SnapshotState): boolean {
+function isLegacySparseIosInteractiveSnapshot(snapshot: SnapshotState): boolean {
+  if (snapshot.snapshotQuality) return false;
   if (snapshot.backend !== 'xctest' || snapshot.nodes.length !== 1) return false;
   return snapshot.nodes[0]?.type === 'Application';
 }
@@ -171,6 +180,7 @@ type FindNodeFetcher = () => Promise<{
   nodes: SnapshotState['nodes'];
   truncated?: boolean;
   backend?: SnapshotState['backend'];
+  snapshotQuality?: SnapshotQualityVerdict;
 }>;
 
 function createFindNodeFetcher(params: {
@@ -213,7 +223,7 @@ function createFindNodeFetcher(params: {
       return { nodes: lastNodes };
     }
     let snapshot = await capture(scope, interactiveOnly);
-    if (interactiveOnly && isSparseIosInteractiveSnapshot(snapshot)) {
+    if (interactiveOnly && isLegacySparseIosInteractiveSnapshot(snapshot)) {
       snapshot = await recoverSparseInteractiveSnapshot({ capture, locator, query, scope });
     }
     const nodes = snapshot.nodes;
@@ -223,14 +233,19 @@ function createFindNodeFetcher(params: {
       setSessionSnapshot(session, snapshot);
       sessionStore.set(sessionName, session);
     }
-    return { nodes, truncated: snapshot.truncated, backend: snapshot.backend };
+    return {
+      nodes,
+      truncated: snapshot.truncated,
+      backend: snapshot.backend,
+      snapshotQuality: snapshot.snapshotQuality,
+    };
   };
 }
 
 /**
- * A sparse compact-interactive iOS snapshot usually means the runner could not enumerate the
- * tree, not that the screen is empty: retry with a full snapshot, and when even unscoped AX
- * serialization fails on unrelated content, with a query-scoped full snapshot.
+ * Legacy iOS runners did not report a structured quality verdict. For those mixed-version
+ * sessions, the one-node application shape still means the runner could not enumerate the tree:
+ * retry with a full snapshot, then a query-scoped full snapshot if broad serialization fails.
  */
 async function recoverSparseInteractiveSnapshot(params: {
   capture: (scope: string | undefined, interactive: boolean) => Promise<SnapshotState>;
@@ -245,6 +260,13 @@ async function recoverSparseInteractiveSnapshot(params: {
     if (!shouldScopeFind(locator)) throw error;
     return await capture(query, false);
   }
+}
+
+function sparseFindSnapshotResponse(verdict: SnapshotQualityVerdict): DaemonResponse {
+  return errorResponse('COMMAND_FAILED', 'find could not read the current accessibility tree', {
+    reason: verdict.reason,
+    hint: 'The snapshot quality verdict is sparse. Use screenshot as visual truth, navigate with coordinates if needed, then retry find after reaching a readable screen.',
+  });
 }
 
 function resolveFindMatch(params: {
@@ -391,7 +413,7 @@ function rectsMatch(
 
 async function handleFindWait(
   ctx: FindContext,
-  fetchNodes: () => Promise<{ nodes: SnapshotState['nodes'] }>,
+  fetchNodes: FindNodeFetcher,
   locator: FindLocator,
   query: string,
   timeoutMs: number | undefined,
@@ -399,8 +421,14 @@ async function handleFindWait(
   const { req, sessionStore, session, command, publicFlags } = ctx;
   const timeout = timeoutMs ?? 10000;
   const start = Date.now();
+  let sparseVerdict: SnapshotQualityVerdict | undefined;
   while (Date.now() - start < timeout) {
-    const { nodes } = await fetchNodes();
+    const { nodes, snapshotQuality } = await fetchNodes();
+    if (isSparseSnapshotQualityVerdict(snapshotQuality)) {
+      sparseVerdict = snapshotQuality;
+      await sleep(300);
+      continue;
+    }
     const match = findBestMatchesByLocator(nodes, locator, query, { requireRect: false })
       .matches[0];
     if (match) {
@@ -416,6 +444,7 @@ async function handleFindWait(
     }
     await sleep(300);
   }
+  if (sparseVerdict) return sparseFindSnapshotResponse(sparseVerdict);
   return errorResponse('COMMAND_FAILED', 'find wait timed out');
 }
 

@@ -9,6 +9,10 @@ import { normalizeError } from '../../utils/errors.ts';
 import { stripUndefined } from '../../utils/parsing.ts';
 import { successText } from '../../utils/success-text.ts';
 import type { SnapshotState } from '../../utils/snapshot.ts';
+import {
+  isSparseSnapshotQualityVerdict,
+  type SnapshotQualityVerdict,
+} from '../../utils/snapshot-quality.ts';
 import type { DaemonResponse, SessionState } from '../types.ts';
 import { errorResponse } from './response.ts';
 import { captureSnapshotForSession } from './interaction-snapshot.ts';
@@ -40,6 +44,9 @@ export async function handleReactNativeCommands(
       params.contextFromFlags,
       { interactiveOnly: true },
     );
+    if (isSparseSnapshotQualityVerdict(snapshot.snapshotQuality)) {
+      return responseForSparseReactNativeOverlaySnapshot(snapshot.snapshotQuality);
+    }
     const overlay = analyzeReactNativeOverlay(snapshot.nodes);
     const target = overlay.primaryAction;
     if (!target) {
@@ -80,6 +87,19 @@ function responseForMissingReactNativeOverlayTarget(overlayDetected: boolean): D
     'React Native overlay detected, but no safe dismiss target was found',
     {
       hint: 'Use screenshot --overlay-refs for visual evidence and report the overlay instead of pressing the warning body.',
+    },
+  );
+}
+
+function responseForSparseReactNativeOverlaySnapshot(
+  verdict: SnapshotQualityVerdict,
+): DaemonResponse {
+  return errorResponse(
+    'COMMAND_FAILED',
+    'React Native overlay state could not be determined because the accessibility tree is unreadable',
+    {
+      reason: verdict.reason,
+      hint: 'The snapshot quality verdict is sparse. Use screenshot as visual truth; if an overlay is visible, report it or navigate with coordinates, then retry snapshot or dismiss-overlay on a readable screen.',
     },
   );
 }
@@ -149,6 +169,14 @@ async function verifyReactNativeOverlayDismissal(
     { interactiveOnly: true },
   );
   const overlay = analyzeReactNativeOverlay(verificationSnapshot.nodes);
+  if (isSparseSnapshotQualityVerdict(verificationSnapshot.snapshotQuality)) {
+    return {
+      verified: false,
+      verificationWarning:
+        'React Native overlay dismissal could not be verified because the post-dismiss accessibility tree is unreadable. Use screenshot as visual truth.',
+      nextCommand: 'agent-device screenshot',
+    };
+  }
   if (!overlay.detected) {
     return {
       verified: true,

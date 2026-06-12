@@ -1,3 +1,5 @@
+import type { SnapshotQualityVerdict } from './snapshot-quality.ts';
+
 export type Rect = {
   x: number;
   y: number;
@@ -69,6 +71,7 @@ export type SnapshotState = {
   createdAt: number;
   truncated?: boolean;
   backend?: SnapshotBackend;
+  snapshotQuality?: SnapshotQualityVerdict;
   comparisonSafe?: boolean;
   presentationKey?: string;
 };

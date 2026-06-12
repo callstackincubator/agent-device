@@ -69,6 +69,12 @@ export function readSnapshotQualityVerdict(value: unknown): SnapshotQualityVerdi
   };
 }
 
+export function isSparseSnapshotQualityVerdict(
+  verdict: SnapshotQualityVerdict | undefined,
+): verdict is SnapshotQualityVerdict {
+  return verdict?.state === 'sparse';
+}
+
 /** Canonical warning lines for a verdict; the single place degradation is worded. */
 export function renderSnapshotQualityWarnings(
   verdict: SnapshotQualityVerdict,
