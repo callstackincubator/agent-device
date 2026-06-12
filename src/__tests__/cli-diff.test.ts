@@ -120,6 +120,14 @@ describe('cli diff commands', () => {
     assert.equal(result.stderr, '');
   });
 
+  test('diff decline path falls through to generic diff validation', async () => {
+    const result = await runCliCapture(['diff', 'unknown']);
+    assert.equal(result.code, 1);
+    assert.equal(result.calls.length, 0);
+    assert.match(result.stderr, /Only diff snapshot is available through this parser/);
+    assert.doesNotMatch(result.stderr, /Unknown command: diff/);
+  });
+
   test('snapshot --diff renders human-readable unified diff text', async () => {
     const result = await runCliCapture(['snapshot', '--diff']);
     assert.equal(result.code, null);
