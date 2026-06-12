@@ -117,9 +117,3 @@ async function resolveAppleTool(name: 'dwarfdump' | 'atos'): Promise<string> {
     hint: 'Install Xcode Command Line Tools and verify xcrun --find dwarfdump and xcrun --find atos succeed.',
   });
 }
-
-export function parseAtosSymbol(value: string): { symbol: string; location?: number } {
-  const match = value.match(/^(.*) \+ (\d+)$/);
-  if (!match) return { symbol: value };
-  return { symbol: match[1]!, location: Number(match[2]) };
-}

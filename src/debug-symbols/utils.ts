@@ -40,6 +40,15 @@ export function readRecord(value: unknown): Record<string, unknown> | undefined 
   return isRecord(value) ? value : undefined;
 }
 
+export function readJsonRecord(text: string): Record<string, unknown> | null {
+  try {
+    const value = JSON.parse(text);
+    return isRecord(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export function readNumber(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isSafeInteger(value)) return value;
   if (typeof value === 'string') {
@@ -91,4 +100,10 @@ export function single<T>(values: T[]): T | undefined {
 
 export function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
+}
+
+export function parseAtosSymbol(value: string): { symbol: string; location?: number } {
+  const match = value.match(/^(.*) \+ (\d+)$/);
+  if (!match) return { symbol: value };
+  return { symbol: match[1]!, location: Number(match[2]) };
 }

@@ -11,12 +11,13 @@ import {
   addressKey,
   isRecord,
   normalizeUuid,
+  parseAtosSymbol,
+  readJsonRecord,
   readBigIntField,
   readIntegerNumberField,
   readString,
   single,
 } from './utils.ts';
-import { parseAtosSymbol } from './symbolication.ts';
 
 const TEXT_IMAGE_ARCH_RE = /^(?:arm64e?|arm64_32|x86_64|armv7[sk]?|i386)$/;
 
@@ -52,15 +53,6 @@ function readIpsDocument(text: string): IpsDocument | null {
   const header = text.slice(0, newlineIndex);
   const payload = readJsonRecord(text.slice(newlineIndex + 1));
   return payload ? { header, payload } : null;
-}
-
-export function readJsonRecord(text: string): Record<string, unknown> | null {
-  try {
-    const value = JSON.parse(text);
-    return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
 }
 
 function readIpsFrameMatches(rawThreads: unknown[], images: AppleImage[]): IpsFrameMatch[] {

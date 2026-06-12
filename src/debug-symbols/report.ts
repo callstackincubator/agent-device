@@ -13,10 +13,10 @@ import {
   firstString,
   hex,
   readNumber,
+  readJsonRecord,
   readRecord,
   readString,
 } from './utils.ts';
-import { readJsonRecord } from './crash-artifact.ts';
 
 const MAX_CRASH_SUMMARY_FRAMES = 5;
 const MAX_CRASH_FINDINGS = 3;
