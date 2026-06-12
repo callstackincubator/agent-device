@@ -6,9 +6,7 @@ import {
   type PublicSnapshotCaptureAnnotations,
   type SnapshotCaptureAnnotations,
 } from '../snapshot-capture-annotations.ts';
-import {
-  renderSnapshotQualityWarnings,
-} from '../utils/snapshot-quality.ts';
+import { renderSnapshotQualityWarnings } from '../utils/snapshot-quality.ts';
 import { AppError } from '../utils/errors.ts';
 import { buildSnapshotDiff, countSnapshotComparableLines } from '../utils/snapshot-diff.ts';
 import type { SnapshotDiffLine, SnapshotDiffSummary } from '../utils/snapshot-diff.ts';
@@ -230,7 +228,9 @@ function buildSnapshotWarnings(params: {
 }): string[] {
   const warnings = [...(params.annotations.warnings ?? [])];
   if (params.annotations.quality) {
-    warnings.push(...renderSnapshotQualityWarnings(params.annotations.quality, params.snapshot.nodes));
+    warnings.push(
+      ...renderSnapshotQualityWarnings(params.annotations.quality, params.snapshot.nodes),
+    );
   }
   warnings.push(...buildEmptyAndroidInteractiveWarnings(params));
   if (!params.annotations.quality) {

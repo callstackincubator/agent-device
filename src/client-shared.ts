@@ -10,7 +10,10 @@ import type {
   CaptureSnapshotResult,
   SessionCloseResult,
 } from './client-types.ts';
-import { publicSnapshotCaptureAnnotations } from './snapshot-capture-annotations.ts';
+import {
+  publicSnapshotCaptureAnnotations,
+  type SnapshotCaptureAnnotations,
+} from './snapshot-capture-annotations.ts';
 import type { Platform } from './utils/device.ts';
 import { successText, withSuccessText } from './utils/success-text.ts';
 
@@ -173,10 +176,17 @@ export function serializeSnapshotResult(result: CaptureSnapshotResult): Record<s
     ...(result.appName ? { appName: result.appName } : {}),
     ...(result.appBundleId ? { appBundleId: result.appBundleId } : {}),
     ...(result.visibility ? { visibility: result.visibility } : {}),
-    ...publicSnapshotCaptureAnnotations({
-      ...result,
-      quality: result.snapshotQuality,
-    }),
+    ...publicSnapshotCaptureAnnotations(snapshotResultAnnotations(result)),
     ...(result.unchanged ? { unchanged: result.unchanged } : {}),
+  };
+}
+
+function snapshotResultAnnotations(
+  result: CaptureSnapshotResult,
+): Partial<SnapshotCaptureAnnotations> {
+  const annotations = result as CaptureSnapshotResult & Partial<SnapshotCaptureAnnotations>;
+  return {
+    ...annotations,
+    ...(result.snapshotQuality ? { quality: result.snapshotQuality } : {}),
   };
 }
