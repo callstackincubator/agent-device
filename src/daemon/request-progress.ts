@@ -1,10 +1,21 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
+export type ReplayTestSuiteProgressEvent = {
+  type: 'replay-test-suite';
+  status: 'start';
+  total: number;
+  runnable: number;
+  skipped: number;
+  artifactsDir: string;
+  shardMode?: 'all' | 'split';
+  shardCount?: number;
+};
+
 export type ReplayTestProgressEvent = {
   type: 'replay-test';
   file: string;
   title?: string;
-  status: 'pass' | 'fail' | 'skip';
+  status: 'start' | 'pass' | 'fail' | 'skip';
   index: number;
   total: number;
   attempt?: number;
@@ -12,10 +23,14 @@ export type ReplayTestProgressEvent = {
   durationMs?: number;
   retrying?: boolean;
   message?: string;
+  session?: string;
   artifactsDir?: string;
+  shardIndex?: number;
+  shardCount?: number;
+  deviceId?: string;
 };
 
-export type RequestProgressEvent = ReplayTestProgressEvent;
+export type RequestProgressEvent = ReplayTestSuiteProgressEvent | ReplayTestProgressEvent;
 export type RequestProgressSink = (event: RequestProgressEvent) => void;
 
 const requestProgress = new AsyncLocalStorage<RequestProgressSink | undefined>();

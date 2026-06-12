@@ -5,6 +5,7 @@ import { emitDiagnostic } from '../../utils/diagnostics.ts';
 import { normalizeError } from '../../utils/errors.ts';
 import {
   clearRequestCanceled,
+  getRequestSignal,
   markRequestCanceled,
   registerRequestAbort,
 } from '../request-cancel.ts';
@@ -25,6 +26,7 @@ export async function runReplayTestAttempt(
     filePath: string;
     sessionName: string;
     requestId: string;
+    parentRequestId?: string;
     timeoutMs?: number;
     platform?: ReplayScriptMetadata['platform'];
     target?: ReplayScriptMetadata['target'];
@@ -36,6 +38,7 @@ export async function runReplayTestAttempt(
     filePath,
     sessionName,
     requestId,
+    parentRequestId,
     timeoutMs,
     platform,
     target,
@@ -46,6 +49,7 @@ export async function runReplayTestAttempt(
     finalizeAttempt,
   } = params;
   registerRequestAbort(requestId);
+  const clearParentAbortRelay = relayReplayTestAbortFromParent(requestId, parentRequestId);
   const artifactPaths = new Set<string>();
   let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
   let timedOut = false;
@@ -80,6 +84,7 @@ export async function runReplayTestAttempt(
       } satisfies DaemonResponse;
     })
     .finally(() => {
+      clearParentAbortRelay();
       clearRequestCanceled(requestId);
     });
 
@@ -186,6 +191,27 @@ export async function runReplayTestAttempt(
       },
     }
   );
+}
+
+function relayReplayTestAbortFromParent(
+  requestId: string,
+  parentRequestId: string | undefined,
+): () => void {
+  if (!parentRequestId || parentRequestId === requestId) return () => {};
+  const parentSignal = getRequestSignal(parentRequestId);
+  if (!parentSignal) return () => {};
+
+  const cancelRequest = () => {
+    markRequestCanceled(requestId);
+  };
+  if (parentSignal.aborted) {
+    cancelRequest();
+    return () => {};
+  }
+  parentSignal.addEventListener('abort', cancelRequest, { once: true });
+  return () => {
+    parentSignal.removeEventListener('abort', cancelRequest);
+  };
 }
 
 async function waitForReplayAfterTimeout(replayPromise: Promise<DaemonResponse>): Promise<boolean> {

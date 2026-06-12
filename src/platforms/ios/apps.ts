@@ -13,7 +13,11 @@ import {
 import { requireLocationCoordinates } from '../../utils/location-coordinates.ts';
 import { resolveIosSimulatorDeviceSetPath } from '../../utils/device-isolation.ts';
 import { Deadline, retryWithPolicy } from '../../utils/retry.ts';
-import { isDeepLinkTarget, resolveIosDeviceDeepLinkBundleId } from '../../core/open-target.ts';
+import {
+  isDeepLinkTarget,
+  isWebUrl,
+  resolveIosDeviceDeepLinkBundleId,
+} from '../../core/open-target.ts';
 import { getUnsupportedMacOsSettingMessage } from '../../core/settings-contract.ts';
 import {
   parsePermissionAction,
@@ -200,10 +204,12 @@ export async function openIosApp(
       throw new AppError('INVALID_ARGS', 'open <app> <url> requires a valid URL target');
     }
     if (device.kind === 'simulator') {
-      const bundleId = options?.appBundleId ?? (await resolveIosApp(device, app));
-      await launchIosSimulatorApp(device, bundleId, {
-        ...(launchArgs ? { launchArgs } : {}),
-      });
+      if (launchArgs || isWebUrl(explicitUrl)) {
+        const bundleId = options?.appBundleId ?? (await resolveIosApp(device, app));
+        await launchIosSimulatorApp(device, bundleId, {
+          ...(launchArgs ? { launchArgs } : {}),
+        });
+      }
       await openIosSimulatorUrl(device, explicitUrl, undefined);
       return;
     }

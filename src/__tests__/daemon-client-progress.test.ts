@@ -99,7 +99,7 @@ test('readDaemonSocketProgressResponse parses split progress lines before respon
     assert.deepEqual(await responsePromise, { ok: true, data: { via: 'socket-progress' } });
     assert.equal(socket.encoding, 'utf8');
     assert.equal(socket.ended, true);
-    assert.match(stderr, /FAIL "Login flow" attempt 1\/2 retrying \(1\.23s\)/);
+    assert.match(stderr, /\[1\/2] RETRY "Login flow" in 01-login\.ad attempt 1\/2 \(1\.23s\)/);
     assert.match(stderr, /  first attempt failed/);
   } finally {
     process.stderr.write = originalStderrWrite;

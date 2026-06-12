@@ -1,6 +1,7 @@
 import http, { type IncomingHttpHeaders } from 'node:http';
 import fs from 'node:fs';
 import { AppError, normalizeError, toAppErrorCode } from '../utils/errors.ts';
+import { emitDiagnostic } from '../utils/diagnostics.ts';
 import { timingSafeStringEqual } from '../utils/timing-safe-equal.ts';
 import type { JsonRpcId, JsonRpcRequestEnvelope, LeaseBackend } from '../contracts.ts';
 import type { DaemonInstallSource, DaemonInvokeFn, DaemonRequest } from './types.ts';
@@ -13,6 +14,7 @@ import {
 } from './request-cancel.ts';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { sleep } from '../utils/timeouts.ts';
 import {
   cleanupDownloadableArtifact,
   prepareDownloadableArtifact,
@@ -65,6 +67,8 @@ type HttpAuthDecision =
   | { ok: false; statusCode: number; response: JsonRpcResponse };
 
 const MAX_HTTP_RPC_BODY_BYTES = 1024 * 1024;
+const CLIENT_DISCONNECT_ABORT_POLL_INTERVAL_MS = 200;
+const CLIENT_DISCONNECT_ABORT_MAX_WINDOW_MS = 15_000;
 const COMMAND_RPC_METHODS = new Set(['agent_device.command', 'agent-device.command']);
 const INSTALL_FROM_SOURCE_RPC_METHODS = new Set([
   'agent_device.install_from_source',
@@ -578,10 +582,19 @@ export async function createDaemonHttpServer(options: {
           requestId: requestIdForCleanup,
         };
         registerRequestAbort(requestIdForCleanup);
+        let canceledInFlight = false;
         const markCanceledIfResponseIncomplete = () => {
-          if (!res.writableFinished) {
-            markRequestCanceled(requestIdForCleanup);
-          }
+          if (res.writableFinished || canceledInFlight) return;
+          canceledInFlight = true;
+          markRequestCanceled(requestIdForCleanup);
+          emitDiagnostic({
+            level: 'warn',
+            phase: 'request_client_disconnected',
+            data: {
+              requestId: requestIdForCleanup,
+            },
+          });
+          void abortInFlightIosRunnerSessionsWhileDisconnected(res);
         };
         req.on('aborted', markCanceledIfResponseIncomplete);
         res.on('close', markCanceledIfResponseIncomplete);
@@ -754,6 +767,28 @@ async function handleArtifactDownload(
   } catch (error) {
     const normalized = normalizeError(error);
     sendRestJsonError(res, normalized);
+  }
+}
+
+async function abortInFlightIosRunnerSessionsWhileDisconnected(
+  res: http.ServerResponse<http.IncomingMessage>,
+): Promise<void> {
+  try {
+    const deadline = Date.now() + CLIENT_DISCONNECT_ABORT_MAX_WINDOW_MS;
+    while (!res.writableFinished && Date.now() < deadline) {
+      const { abortAllIosRunnerSessions } = await import('../platforms/ios/runner-client.ts');
+      await abortAllIosRunnerSessions();
+      if (res.writableFinished) break;
+      await sleep(CLIENT_DISCONNECT_ABORT_POLL_INTERVAL_MS);
+    }
+  } catch (error) {
+    emitDiagnostic({
+      level: 'error',
+      phase: 'request_client_disconnect_abort_failed',
+      data: {
+        message: error instanceof Error ? error.message : String(error),
+      },
+    });
   }
 }
 

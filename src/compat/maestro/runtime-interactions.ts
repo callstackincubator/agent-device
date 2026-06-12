@@ -341,12 +341,26 @@ function resolvePercentScreenSwipe(
   }
   const [x1, y1, x2, y2] = values as [number, number, number, number];
   const lane = maestroHorizontalContentSwipeLanePercent(platform, x1, y1, x2, y2);
+  const marginPx = maestroPercentSwipeMarginPx(platform, frame, x1, y1, x2, y2);
   return {
     ok: true,
-    start: pointFromPercent(frame, x1, lane.startY, { marginPx: 1 }),
-    end: pointFromPercent(frame, x2, lane.endY, { marginPx: 1 }),
+    start: pointFromPercent(frame, x1, lane.startY, { marginPx }),
+    end: pointFromPercent(frame, x2, lane.endY, { marginPx }),
     durationMs,
   };
+}
+
+function maestroPercentSwipeMarginPx(
+  platform: string,
+  frame: GestureReferenceFrame,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): number {
+  if (platform !== 'ios') return 1;
+  if (y1 !== y2 || Math.abs(x2 - x1) < 30) return 1;
+  return Math.max(1, Math.round(frame.referenceWidth * 0.15));
 }
 
 function maestroHorizontalContentSwipeLanePercent(

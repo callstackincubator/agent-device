@@ -6,6 +6,12 @@ import { handleSessionCommands } from '../session.ts';
 import { SessionStore } from '../../session-store.ts';
 import type { DaemonRequest, DaemonResponse, DaemonResponseData } from '../../types.ts';
 import { type RequestProgressEvent, withRequestProgressSink } from '../../request-progress.ts';
+import {
+  clearRequestCanceled,
+  getRequestSignal,
+  markRequestCanceled,
+  registerRequestAbort,
+} from '../../request-cancel.ts';
 import { withDeviceInventoryProvider } from '../../../core/dispatch-resolve.ts';
 import type { DeviceInfo } from '../../../utils/device.ts';
 
@@ -156,8 +162,16 @@ test('test emits progress when attempts retry and pass', async () => {
       durationMs: expect.any(Number),
     },
   ]);
-  expect(events.map((event) => event.status)).toEqual(['fail', 'pass']);
   expect(events[0]).toMatchObject({
+    type: 'replay-test-suite',
+    status: 'start',
+    total: 1,
+    runnable: 1,
+    skipped: 0,
+  });
+  const testEvents = events.filter((event) => event.type === 'replay-test');
+  expect(testEvents.map((event) => event.status)).toEqual(['start', 'fail', 'pass']);
+  expect(testEvents[1]).toMatchObject({
     type: 'replay-test',
     title: undefined,
     status: 'fail',
@@ -169,7 +183,7 @@ test('test emits progress when attempts retry and pass', async () => {
     retrying: true,
     message: 'Replay failed at step 1 (open "Demo"): first attempt failed',
   });
-  expect(events[1]).toMatchObject({
+  expect(testEvents[2]).toMatchObject({
     type: 'replay-test',
     title: undefined,
     status: 'pass',
@@ -208,15 +222,81 @@ test('test emits skip progress without synthetic duration', async () => {
 
   const data = expectOkData(response);
   expect(data.skipped).toBe(1);
-  expect(events.map((event) => event.status)).toEqual(['skip', 'pass']);
   expect(events[0]).toMatchObject({
+    type: 'replay-test-suite',
+    status: 'start',
+    total: 2,
+    runnable: 1,
+    skipped: 1,
+  });
+  const testEvents = events.filter((event) => event.type === 'replay-test');
+  expect(testEvents.map((event) => event.status)).toEqual(['skip', 'start', 'pass']);
+  expect(testEvents[0]).toMatchObject({
     type: 'replay-test',
     status: 'skip',
     index: 1,
     total: 2,
     message: 'missing platform metadata for --platform android',
   });
-  expect(events[0]?.durationMs).toBeUndefined();
+  expect(testEvents[0]?.durationMs).toBeUndefined();
+});
+
+test('test stops the suite when the parent request is canceled during an active replay attempt', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-parent-cancel-'));
+  fs.writeFileSync(path.join(root, '01-first.ad'), 'context platform=ios\nopen "Demo"\n');
+  fs.writeFileSync(path.join(root, '02-second.ad'), 'context platform=ios\nopen "Demo"\n');
+
+  const parentRequestId = 'suite-parent-cancel';
+  const invokedRequestIds: string[] = [];
+  registerRequestAbort(parentRequestId);
+
+  try {
+    const response = await handleSessionCommands({
+      req: {
+        token: 't',
+        session: 'default',
+        command: 'test',
+        positionals: [root],
+        meta: { cwd: root, requestId: parentRequestId },
+      },
+      sessionName: 'default',
+      logPath: path.join(os.tmpdir(), 'daemon.log'),
+      sessionStore,
+      invoke: async (req) => {
+        const nestedRequestId = req.meta?.requestId;
+        expect(nestedRequestId).toBeTypeOf('string');
+        invokedRequestIds.push(String(nestedRequestId));
+        const signal = getRequestSignal(nestedRequestId);
+        expect(signal).toBeDefined();
+        queueMicrotask(() => {
+          markRequestCanceled(parentRequestId);
+        });
+        await new Promise<void>((resolve) => {
+          if (signal?.aborted) {
+            resolve();
+            return;
+          }
+          signal?.addEventListener('abort', () => resolve(), { once: true });
+        });
+        return {
+          ok: false,
+          error: {
+            code: 'COMMAND_FAILED',
+            message: 'request canceled',
+            details: { reason: 'request_canceled' },
+          },
+        };
+      },
+    });
+
+    const data = expectOkData(response);
+    expect(invokedRequestIds).toHaveLength(1);
+    expect(data.failed).toBe(1);
+    expect(data.notRun).toBe(1);
+  } finally {
+    clearRequestCanceled(parentRequestId);
+  }
 });
 
 test('test --shard-all runs each runnable entry on each selected device', async () => {

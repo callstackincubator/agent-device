@@ -367,6 +367,31 @@ test('invokeMaestroSwipeScreen preserves vertical percentage endpoints', async (
   expect(swipeFlags[0]?.postGestureStabilization).toBeUndefined();
 });
 
+test('invokeMaestroSwipeScreen keeps iOS horizontal percentage swipes away from screen edges', async () => {
+  const swipes: string[][] = [];
+  const response = await invokeMaestroSwipeScreen({
+    baseReq: {
+      token: 'test',
+      session: 'ios-pager',
+      flags: { platform: 'ios' },
+    },
+    positionals: ['percent', '10', '50', '90', '50', '300'],
+    invoke: async (req: DaemonRequest): Promise<DaemonResponse> => {
+      if (req.command === 'snapshot') {
+        return { ok: true, data: fullScreenSnapshot(400, 800) };
+      }
+      if (req.command === 'swipe') {
+        swipes.push(req.positionals ?? []);
+        return { ok: true, data: {} };
+      }
+      return { ok: false, error: { code: 'UNEXPECTED_COMMAND', message: req.command } };
+    },
+  });
+
+  expect(response.ok).toBe(true);
+  expect(swipes).toEqual([['60', '400', '340', '400', '300']]);
+});
+
 test('invokeMaestroSwipeScreen keeps Android horizontal percentage swipes on the content lane', async () => {
   const swipes: string[][] = [];
   const response = await invokeMaestroSwipeScreen({

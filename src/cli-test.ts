@@ -11,9 +11,7 @@ type FailedReplayTestResult = Extract<ReplaySuiteTestResult, { status: 'failed' 
 type ReplayTestError = FailedReplayTestResult['error'];
 
 export function announceReplayTestRun(options: { json?: boolean }): void {
-  if (!options.json) {
-    process.stderr.write('Running replay suite...\n');
-  }
+  void options;
 }
 
 export function renderReplayTestResponse(options: {

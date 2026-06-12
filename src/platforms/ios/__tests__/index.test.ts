@@ -1294,7 +1294,24 @@ test('openIosApp appends launchArgs alongside --payload-url for iOS device deep 
   }
 });
 
-test('openIosApp launches iOS simulator app before opening URL', async () => {
+test('openIosApp opens custom-scheme iOS simulator URLs directly when launch args are absent', async () => {
+  mockEnsureBootedSimulator.mockResolvedValue();
+  mockRunCmd.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 });
+
+  await openIosApp(IOS_TEST_SIMULATOR, 'MyApp', {
+    appBundleId: 'com.example.app',
+    url: 'myapp://item/42',
+  });
+
+  assert.equal(mockRunCmd.mock.calls.length, 1);
+  assert.deepEqual(mockRunCmd.mock.calls[0], [
+    'xcrun',
+    ['simctl', 'openurl', 'sim-1', 'myapp://item/42'],
+    undefined,
+  ]);
+});
+
+test('openIosApp launches iOS simulator app before opening custom-scheme URL with launchArgs', async () => {
   mockEnsureBootedSimulator.mockResolvedValue();
   mockRunCmd.mockResolvedValue({ stdout: '', stderr: '', exitCode: 0 });
 

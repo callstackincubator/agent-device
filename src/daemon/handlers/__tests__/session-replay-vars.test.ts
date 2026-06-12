@@ -1560,7 +1560,7 @@ test('runReplayScriptFile resolves Maestro screen swipes from the snapshot frame
     [
       ['gesture', ['swipe', 'left', '300']],
       ['snapshot', []],
-      ['swipe', ['360', '400', '40', '400', '300']],
+      ['swipe', ['340', '400', '60', '400', '300']],
     ],
   );
 });

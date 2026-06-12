@@ -105,7 +105,7 @@ test('test command prints suite summary and exits non-zero on failures', async (
   assert.equal(result.code, 1);
   assert.equal(result.calls.length, 1);
   assert.equal(result.calls[0]?.meta?.requestProgress, 'replay-test');
-  assert.match(result.stderr, /Running replay suite\.\.\./);
+  assert.doesNotMatch(result.stderr, /Running replay suite\.\.\./);
   assert.match(result.stdout, /PASS 01-pass\.ad \(0\.01s\)/);
   assert.match(
     result.stdout,
@@ -124,7 +124,7 @@ test('test command --verbose prints all test statuses', async () => {
 
   assert.equal(result.code, 1);
   assert.equal(result.calls[0]?.meta?.debug, false);
-  assert.match(result.stderr, /Running replay suite\.\.\./);
+  assert.doesNotMatch(result.stderr, /Running replay suite\.\.\./);
   assert.match(result.stdout, /PASS 01-pass\.ad \(0\.01s\)/);
   assert.match(result.stdout, /SKIP 03-skip\.ad/);
 });
@@ -352,7 +352,7 @@ test('test command reports flaky passed-on-retry cases in the default summary', 
   }));
 
   assert.equal(result.code, null);
-  assert.match(result.stderr, /Running replay suite\.\.\./);
+  assert.doesNotMatch(result.stderr, /Running replay suite\.\.\./);
   assert.doesNotMatch(result.stdout, /FLAKY/);
   assert.match(
     result.stdout,
@@ -489,7 +489,7 @@ test('test --maestro forwards Maestro backend and platform for directory suites'
     assert.equal(result.calls[0]?.flags?.replayBackend, 'maestro');
     assert.equal(result.calls[0]?.flags?.platform, 'android');
     assert.equal(result.calls[0]?.meta?.requestProgress, 'replay-test');
-    assert.match(result.stderr, /Running replay suite\.\.\./);
+    assert.doesNotMatch(result.stderr, /Running replay suite\.\.\./);
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true });
   }
