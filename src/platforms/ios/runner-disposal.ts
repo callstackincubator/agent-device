@@ -1,4 +1,5 @@
 import { emitDiagnostic } from '../../utils/diagnostics.ts';
+import type { DeviceInfo } from '../../utils/device.ts';
 import { isProcessAlive, isProcessGroupAlive } from '../../utils/process-identity.ts';
 import { cleanupTempFile, waitForRunner } from './runner-transport.ts';
 import { withRunnerCommandId, type RunnerCommand } from './runner-contract.ts';
@@ -7,8 +8,9 @@ import {
   releaseRunnerLease,
   type RunnerLeaseCleanupAdapter,
 } from './runner-lease.ts';
-import { runnerPrepProcesses } from './runner-xctestrun.ts';
-import { runAppleToolCommand } from './tool-provider.ts';
+import { IOS_RUNNER_CONTAINER_BUNDLE_IDS, runnerPrepProcesses } from './runner-xctestrun.ts';
+import { buildSimctlArgsForDevice } from './simctl.ts';
+import { runAppleToolCommand, runXcrun } from './tool-provider.ts';
 import type { RunnerSession } from './runner-session-types.ts';
 
 export const RUNNER_INVALIDATE_WAIT_TIMEOUT_MS = 1_000;
@@ -16,6 +18,7 @@ export const RUNNER_INVALIDATE_WAIT_TIMEOUT_MS = 1_000;
 const RUNNER_STOP_WAIT_TIMEOUT_MS = 10_000;
 const RUNNER_SHUTDOWN_TIMEOUT_MS = 15_000;
 const RUNNER_STALE_XCODEBUILD_KILL_TIMEOUT_MS = 2_000;
+const RUNNER_SIMULATOR_TERMINATE_TIMEOUT_MS = 2_000;
 
 export const runnerLeaseCleanupAdapter: RunnerLeaseCleanupAdapter = {
   cleanupRunnerProcessTree: killRunnerProcessTree,
@@ -104,6 +107,7 @@ async function waitForRunnerProcessExit(
 }
 
 async function cleanupRunnerSessionResources(session: RunnerSession): Promise<void> {
+  await terminateRunnerSimulatorApps(session.device);
   cleanupTempFile(session.xctestrunPath);
   cleanupTempFile(session.jsonPath);
   try {
@@ -111,6 +115,32 @@ async function cleanupRunnerSessionResources(session: RunnerSession): Promise<vo
   } finally {
     releaseRunnerLease(session.lease);
   }
+}
+
+async function terminateRunnerSimulatorApps(device: DeviceInfo): Promise<void> {
+  if (device.kind !== 'simulator') return;
+
+  await Promise.allSettled(
+    IOS_RUNNER_CONTAINER_BUNDLE_IDS.map(async (bundleId) => {
+      try {
+        await runXcrun(buildSimctlArgsForDevice(device, ['terminate', device.id, bundleId]), {
+          allowFailure: true,
+          timeoutMs: RUNNER_SIMULATOR_TERMINATE_TIMEOUT_MS,
+        });
+      } catch (error) {
+        emitDiagnostic({
+          level: 'warn',
+          phase: 'ios_runner_simulator_app_terminate_failed',
+          data: {
+            deviceId: device.id,
+            bundleId,
+            timeoutMs: RUNNER_SIMULATOR_TERMINATE_TIMEOUT_MS,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+    }),
+  );
 }
 
 function isRunnerProcessTreeAlive(pid: number | undefined): boolean {

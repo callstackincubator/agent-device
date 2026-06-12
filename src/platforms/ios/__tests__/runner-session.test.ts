@@ -774,6 +774,17 @@ test('runner session stop sends shutdown, cleans temporary runner files, and rel
     ['/tmp/session-runner.xctestrun'],
     ['/tmp/session-runner.json'],
   ]);
+  const terminateCalls = mockRunXcrun.mock.calls.filter(isSimctlTerminateCall);
+  assert.equal(
+    terminateCalls.some((call) =>
+      call[0]?.includes('com.callstack.agentdevice.runner.uitests.xctrunner'),
+    ),
+    true,
+  );
+  assert.equal(
+    terminateCalls.every((call) => call[1]?.timeoutMs === 2_000),
+    true,
+  );
   assert.equal(mockRedirectRelease.mock.calls.length, 1);
   assert.equal(getRunnerSessionSnapshot(device.id), null);
 });
@@ -820,6 +831,11 @@ test('runner session abort removes owned lease for in-memory sessions', async ()
 function isXcodebuildPkillCall(call: unknown[]): boolean {
   const args = call[1];
   return call[0] === 'pkill' && Array.isArray(args) && args.includes('-f');
+}
+
+function isSimctlTerminateCall(call: unknown[]): boolean {
+  const args = call[0];
+  return Array.isArray(args) && args.includes('simctl') && args.includes('terminate');
 }
 
 test('runner session invalidation skips graceful shutdown and removes stale session', async () => {
