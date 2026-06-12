@@ -151,3 +151,31 @@ test('serializeSnapshotResult maps capture quality annotation to public snapshot
     snapshotQuality,
   });
 });
+
+test('serializeSnapshotResult includes snapshot diagnostics', () => {
+  const snapshotDiagnostics = {
+    stats: {
+      count: 3,
+      p50Ms: 450,
+      p95Ms: 1_800,
+      maxMs: 1_800,
+      slowThresholdMs: 1_500,
+      platform: 'android',
+    },
+    warning: 'Warning: android snapshots are slow in this run: p95 1800ms over 3 captures.',
+  } as const;
+  const data = serializeSnapshotResult({
+    nodes: [],
+    truncated: false,
+    snapshotDiagnostics,
+    identifiers: {
+      session: 'qa',
+    },
+  });
+
+  assert.deepEqual(data, {
+    nodes: [],
+    truncated: false,
+    snapshotDiagnostics,
+  });
+});

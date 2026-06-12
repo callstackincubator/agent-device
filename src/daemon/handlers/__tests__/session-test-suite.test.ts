@@ -241,6 +241,72 @@ test('test emits skip progress without synthetic duration', async () => {
   expect(testEvents[0]?.durationMs).toBeUndefined();
 });
 
+test('test aggregates snapshot diagnostics from replay results', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-snapshots-'));
+  fs.writeFileSync(path.join(root, '01-first.ad'), 'context platform=android\nopen "Demo"\n');
+  fs.writeFileSync(path.join(root, '02-second.ad'), 'context platform=android\nopen "Demo"\n');
+  const responses = [
+    snapshotDiagnosticsReplayResponse({ count: 1, p50Ms: 400, p95Ms: 400, maxMs: 400 }),
+    snapshotDiagnosticsReplayResponse({ count: 2, p50Ms: 600, p95Ms: 1_900, maxMs: 1_900 }),
+  ];
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      meta: { cwd: root, requestId: 'suite-snapshot-diagnostics' },
+      flags: { platform: 'android' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async () => responses.shift() ?? { ok: true, data: {} },
+  });
+
+  const data = expectOkData(response);
+  expect(data.snapshotDiagnostics).toMatchObject({
+    stats: {
+      count: 3,
+      p50Ms: 600,
+      p95Ms: 1_900,
+      maxMs: 1_900,
+      platform: 'android',
+    },
+    warning: expect.stringContaining('p95 1900ms over 3 captures'),
+  });
+  expect((data.tests as Array<Record<string, unknown>>)[1]?.snapshotDiagnostics).toMatchObject({
+    stats: {
+      count: 2,
+      p95Ms: 1_900,
+    },
+  });
+});
+
+function snapshotDiagnosticsReplayResponse(stats: {
+  count: number;
+  p50Ms: number;
+  p95Ms: number;
+  maxMs: number;
+}): DaemonResponse {
+  return {
+    ok: true,
+    data: {
+      replayed: 1,
+      healed: 0,
+      snapshotDiagnostics: {
+        stats: {
+          ...stats,
+          slowThresholdMs: 1_500,
+          platform: 'android',
+        },
+      },
+    },
+  };
+}
+
 test('test stops the suite when the parent request is canceled during an active replay attempt', async () => {
   const sessionStore = makeSessionStore();
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-parent-cancel-'));

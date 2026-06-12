@@ -17,6 +17,11 @@ import {
   readReplayCliEnvEntries,
   readReplayShellEnvSource,
 } from '../../replay/vars.ts';
+import {
+  mergeSnapshotDiagnostics,
+  readSnapshotDiagnosticsSummary,
+  type SnapshotDiagnosticsSummary,
+} from '../../snapshot-diagnostics.ts';
 
 // fallow-ignore-next-line complexity
 export async function runReplayScriptFile(params: {
@@ -82,6 +87,7 @@ export async function runReplayScriptFile(params: {
     });
     const shouldUpdate = req.flags?.replayUpdate === true;
     const actionTracePath = tracePath ?? sessionStore.get(sessionName)?.trace?.outPath;
+    const snapshotDiagnostics: Array<SnapshotDiagnosticsSummary | undefined> = [];
     let healed = 0;
     for (let index = 0; index < actions.length; index += 1) {
       const action = actions[index];
@@ -98,6 +104,7 @@ export async function runReplayScriptFile(params: {
         tracePath: actionTracePath,
         invoke,
       });
+      snapshotDiagnostics.push(readReplayActionSnapshotDiagnostics(response));
       if (response.ok) {
         collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
         continue;
@@ -129,6 +136,7 @@ export async function runReplayScriptFile(params: {
         tracePath: actionTracePath,
         invoke,
       });
+      snapshotDiagnostics.push(readReplayActionSnapshotDiagnostics(response));
       if (!response.ok) {
         collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
         return withReplayFailureContext(response, nextAction, index, resolved, [...artifactPaths]);
@@ -140,6 +148,7 @@ export async function runReplayScriptFile(params: {
     if (shouldUpdate && healed > 0) {
       writeReplayScript(resolved, actions, sessionStore.get(sessionName));
     }
+    const snapshotDiagnosticsSummary = mergeSnapshotDiagnostics(snapshotDiagnostics);
     return {
       ok: true,
       data: {
@@ -147,6 +156,7 @@ export async function runReplayScriptFile(params: {
         healed,
         session: sessionName,
         artifactPaths: [...artifactPaths],
+        ...(snapshotDiagnosticsSummary ? { snapshotDiagnostics: snapshotDiagnosticsSummary } : {}),
       },
     };
   } catch (err) {
@@ -272,6 +282,14 @@ export function collectReplayActionArtifactPaths(response: DaemonResponse): stri
     }
   }
   return [...new Set(candidates.filter((candidate) => isReplayArtifactPath(candidate)))];
+}
+
+function readReplayActionSnapshotDiagnostics(
+  response: DaemonResponse,
+): SnapshotDiagnosticsSummary | undefined {
+  return response.ok
+    ? readSnapshotDiagnosticsSummary(response.data?.snapshotDiagnostics)
+    : undefined;
 }
 
 function isReplayArtifactPath(candidate: string): boolean {

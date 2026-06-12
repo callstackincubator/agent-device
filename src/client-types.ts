@@ -1,4 +1,5 @@
 import type { PublicSnapshotCaptureAnnotations } from './snapshot-capture-annotations.ts';
+import type { SnapshotDiagnosticsSummary } from './snapshot-diagnostics.ts';
 import type {
   DaemonResponseData,
   DaemonInstallSource,
@@ -336,6 +337,7 @@ export type CaptureSnapshotResult = {
   appBundleId?: string;
   visibility?: SnapshotVisibility;
   unchanged?: SnapshotUnchanged;
+  snapshotDiagnostics?: SnapshotDiagnosticsSummary;
   identifiers: AgentDeviceIdentifiers;
 } & PublicSnapshotCaptureAnnotations;
 

@@ -47,6 +47,7 @@ import {
   snapshotCaptureAnnotationsFrom,
   type SnapshotCaptureAnnotations,
 } from '../../snapshot-capture-annotations.ts';
+import { recordSnapshotTiming } from '../../snapshot-diagnostics.ts';
 
 type CaptureSnapshotParams = {
   device: SessionState['device'];
@@ -306,11 +307,21 @@ async function capturePostActionSnapshotAttempt(
 }
 
 async function captureSnapshotAttempt(params: CaptureSnapshotParams): Promise<SnapshotAttempt> {
+  const startedAt = Date.now();
   const data = await captureSnapshotData(params);
+  const timingSummary = recordSnapshotTiming(params.session, {
+    durationMs: Date.now() - startedAt,
+    backend: data.backend,
+    platform: params.device.platform,
+  });
+  const timingWarnings = timingSummary?.warning ? [timingSummary.warning] : [];
   return {
     data,
     snapshot: buildSnapshotState(data, resolveSnapshotStateFlags(params)),
-    annotations: snapshotCaptureAnnotationsFrom(data),
+    annotations: snapshotCaptureAnnotationsFrom({
+      ...data,
+      warnings: [...(data.warnings ?? []), ...timingWarnings],
+    }),
   };
 }
 
