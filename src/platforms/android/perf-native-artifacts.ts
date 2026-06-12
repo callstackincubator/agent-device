@@ -174,14 +174,10 @@ async function waitForAndroidNativeArtifact(
   session: AndroidNativePerfSession,
 ): Promise<void> {
   let previousSize: number | undefined;
-  let stableSamples = 0;
   for (let attempt = 0; attempt < ANDROID_NATIVE_ARTIFACT_POLL_ATTEMPTS; attempt += 1) {
     const size = await readAndroidRemoteFileSize(adb, session.remotePath);
     if (size !== undefined && size > 0 && size === previousSize) {
-      stableSamples += 1;
-      if (stableSamples >= 1) return;
-    } else {
-      stableSamples = 0;
+      return;
     }
     previousSize = size;
     await delay(ANDROID_NATIVE_ARTIFACT_POLL_INTERVAL_MS);
