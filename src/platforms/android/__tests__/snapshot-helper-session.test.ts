@@ -115,6 +115,7 @@ test('starts and reuses a persistent Android snapshot helper session', async () 
 
 test('allows a persistent session snapshot to use the helper command budget', async () => {
   const calls: string[][] = [];
+  // The delay must stay above the previous 3s session cap to guard the regression.
   const provider = createSessionProvider({ calls, responseDelayMs: 3_200 });
 
   const output = await captureAndroidSnapshotWithHelperSession({
@@ -128,6 +129,30 @@ test('allows a persistent session snapshot to use the helper command budget', as
   assert.match(output?.xml ?? '', /snapshot 1/);
   assert.equal(output?.metadata.transport, 'persistent-session');
   assert.equal(output?.metadata.sessionReused, false);
+});
+
+test('caps a persistent session snapshot at the helper command budget', async () => {
+  const calls: string[][] = [];
+  const provider = createSessionProvider({ calls, responseDelayMs: 50 });
+
+  await assert.rejects(
+    () =>
+      captureAndroidSnapshotWithHelperSession({
+        adb: provider.exec,
+        adbProvider: provider,
+        deviceKey: 'android:emulator-5554',
+        timeoutMs: 10,
+        commandTimeoutMs: 20,
+      }),
+    (error) => {
+      assert.equal((error as Error).message, 'Android snapshot helper session request timed out');
+      const details = (error as { details?: Record<string, unknown> }).details;
+      assert.equal(details?.timeoutMs, 20);
+      assert.match(String(details?.command), /^snapshot snapshot-/);
+      assert.equal(typeof details?.port, 'number');
+      return true;
+    },
+  );
 });
 
 test('restarts the helper session when capture options change', async () => {

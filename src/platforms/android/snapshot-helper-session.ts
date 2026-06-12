@@ -249,6 +249,8 @@ async function requestSessionSnapshot(
   resolved: AndroidSnapshotHelperResolvedCaptureOptions,
 ): Promise<AndroidSnapshotHelperOutput> {
   const requestId = `snapshot-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  // Keep the session request generous enough for slow UIAutomator captures, but never
+  // beyond the command budget the caller already assigned to this snapshot.
   const timeoutMs = Math.min(
     resolved.commandTimeoutMs,
     Math.max(resolved.timeoutMs + SESSION_REQUEST_OVERHEAD_MS, 3_000),
