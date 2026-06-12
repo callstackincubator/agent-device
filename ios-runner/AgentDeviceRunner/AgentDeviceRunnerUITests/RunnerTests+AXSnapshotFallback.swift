@@ -107,34 +107,21 @@ extension RunnerTests {
     let typeName = elementTypeName(rawElementType: rawType)
     let enabled = privateAXBool(rawNode["enabled"]) ?? true
     let visible = isVisibleInViewport(rect, viewport)
-    let hasContent = !label.isEmpty || !identifier.isEmpty || !value.isEmpty
-    let isRoot = parentIndex == nil
-
-    // Scope selects a subtree, matching regular snapshot semantics: once a node matches,
-    // every descendant is inside scope and only the normal option filters apply to it.
-    let scope = options.scope?.trimmingCharacters(in: .whitespacesAndNewlines)
-    let scopeActive = (scope?.isEmpty == false)
-    let matchesScope: Bool
-    if scopeActive, let scope {
-      let haystack = [label, identifier, value].joined(separator: "\n")
-      matchesScope = haystack.localizedCaseInsensitiveContains(scope)
-    } else {
-      matchesScope = false
-    }
-    let nowInsideScope = insideMatchedScope || matchesScope
-
-    let include: Bool
-    if isRoot {
-      include = true
-    } else if scopeActive && !nowInsideScope {
-      include = false
-    } else if options.interactiveOnly && !visible {
-      include = false
-    } else if options.compact {
-      include = hasContent || privateAXLikelyInteractive(rawElementType: rawType)
-    } else {
-      include = true
-    }
+    let compactCandidate = privateAXFlatCompactCandidate(rawElementType: rawType)
+    let filterDecision = flatSnapshotFilterDecision(
+      FlatSnapshotFilterNode(
+        isRoot: parentIndex == nil,
+        label: label,
+        identifier: identifier,
+        valueText: value.isEmpty ? nil : value,
+        visible: visible,
+        compactCandidate: compactCandidate
+      ),
+      options: options,
+      insideMatchedScope: insideMatchedScope
+    )
+    let include = filterDecision.include
+    let nowInsideScope = filterDecision.insideMatchedScope
 
     let currentIndex: Int?
     if include {
@@ -150,7 +137,7 @@ extension RunnerTests {
           enabled: enabled,
           focused: privateAXBool(rawNode["focused"]) == true ? true : nil,
           selected: privateAXBool(rawNode["selected"]) == true ? true : nil,
-          hittable: visible && enabled && privateAXLikelyInteractive(rawElementType: rawType),
+          hittable: visible && enabled && compactCandidate,
           depth: depth,
           parentIndex: parentIndex,
           hiddenContentAbove: nil,
@@ -178,21 +165,10 @@ extension RunnerTests {
   }
 
   private func elementTypeName(rawElementType: Int) -> String {
-    if let raw = UInt(exactly: rawElementType),
-      let type = XCUIElement.ElementType(rawValue: raw)
-    {
+    if let type = flatSnapshotElementType(rawElementType: rawElementType) {
       return elementTypeName(type)
     }
     return "Element(\(rawElementType))"
-  }
-
-  private func privateAXLikelyInteractive(rawElementType: Int) -> Bool {
-    guard let raw = UInt(exactly: rawElementType),
-      let type = XCUIElement.ElementType(rawValue: raw)
-    else {
-      return false
-    }
-    return interactiveTypes.contains(type) || Self.scrollContainerTypes.contains(type)
   }
 
   private func privateAXString(_ value: Any?) -> String {
@@ -267,5 +243,89 @@ extension RunnerTests {
     // Descendants of the matched scope are included even when they do not contain the text.
     XCTAssertTrue(labels.contains("Post body without the scope text"))
     XCTAssertFalse(labels.contains("unrelated sibling"))
+  }
+
+  func testPrivateAXCompactInteractiveFiltersLoginLikeHiddenDrawer() {
+    let tree: [String: Any] = [
+      "type": Int(XCUIElement.ElementType.application.rawValue),
+      "label": "Blue Sky",
+      "frame": ["x": 0, "y": 0, "width": 390, "height": 844],
+      "children": [
+        [
+          "type": Int(XCUIElement.ElementType.scrollView.rawValue),
+          "frame": ["x": 0, "y": 0, "width": 390, "height": 844],
+          "children": [
+            [
+              "type": Int(XCUIElement.ElementType.image.rawValue),
+              "label": "Callstack",
+              "frame": ["x": 145, "y": 104, "width": 100, "height": 100],
+              "children": [],
+            ],
+            [
+              "type": Int(XCUIElement.ElementType.staticText.rawValue),
+              "label": "Welcome back",
+              "frame": ["x": 32, "y": 260, "width": 326, "height": 32],
+              "children": [],
+            ],
+            [
+              "type": Int(XCUIElement.ElementType.textField.rawValue),
+              "label": "Email",
+              "identifier": "login.email",
+              "frame": ["x": 32, "y": 348, "width": 326, "height": 48],
+              "children": [],
+            ],
+            [
+              "type": Int(XCUIElement.ElementType.secureTextField.rawValue),
+              "label": "Password",
+              "identifier": "login.password",
+              "frame": ["x": 32, "y": 412, "width": 326, "height": 48],
+              "children": [],
+            ],
+            [
+              "type": Int(XCUIElement.ElementType.button.rawValue),
+              "label": "Sign in",
+              "identifier": "login.submit",
+              "frame": ["x": 32, "y": 492, "width": 326, "height": 52],
+              "children": [],
+            ],
+            [
+              "type": Int(XCUIElement.ElementType.link.rawValue),
+              "label": "Forgot password?",
+              "frame": ["x": 128, "y": 568, "width": 134, "height": 32],
+              "children": [],
+            ],
+            [
+              "type": Int(XCUIElement.ElementType.button.rawValue),
+              "label": "Admin settings",
+              "frame": ["x": -260, "y": 184, "width": 220, "height": 44],
+              "children": [],
+            ],
+            [
+              "type": Int(XCUIElement.ElementType.other.rawValue),
+              "frame": ["x": 16, "y": 184, "width": 220, "height": 44],
+              "children": [],
+            ],
+          ],
+        ]
+      ],
+    ]
+    var nodes: [SnapshotNode] = []
+    appendPrivateAXNode(
+      tree,
+      to: &nodes,
+      options: SnapshotOptions(
+        interactiveOnly: true, compact: true, depth: nil, scope: nil, raw: false),
+      viewport: CGRect(x: 0, y: 0, width: 390, height: 844),
+      depth: 0,
+      parentIndex: nil,
+      insideMatchedScope: false
+    )
+
+    let labels = nodes.compactMap { $0.label }
+    XCTAssertEqual(
+      labels,
+      ["Blue Sky", "Callstack", "Welcome back", "Email", "Password", "Sign in", "Forgot password?"]
+    )
+    XCTAssertFalse(labels.contains("Admin settings"))
   }
 }

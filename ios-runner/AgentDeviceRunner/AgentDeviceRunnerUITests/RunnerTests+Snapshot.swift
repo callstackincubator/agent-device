@@ -1113,18 +1113,19 @@ extension RunnerTests {
       let label = element.label.trimmingCharacters(in: .whitespacesAndNewlines)
       let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
       let valueText = snapshotValueText(element)
-      let hasContent = !label.isEmpty || !identifier.isEmpty || valueText != nil
       let elementType = element.elementType
       let enabled = element.isEnabled
       let hittable = visible && enabled && element.isHittable
-      if options.compact && !hasContent && !hittable && !interactiveTypes.contains(elementType) {
+      let filterNode = FlatSnapshotFilterNode(
+        isRoot: false,
+        label: label,
+        identifier: identifier,
+        valueText: valueText,
+        visible: visible,
+        compactCandidate: querySweepFlatCompactCandidate(elementType: elementType, hittable: hittable)
+      )
+      if !flatSnapshotFilterDecision(filterNode, options: options, insideMatchedScope: false).include {
         return
-      }
-      if let scope = options.scope?.trimmingCharacters(in: .whitespacesAndNewlines), !scope.isEmpty {
-        let haystack = [label, identifier, valueText ?? ""].joined(separator: "\n")
-        if !haystack.localizedCaseInsensitiveContains(scope) {
-          return
-        }
       }
 
       node = SnapshotNode(
