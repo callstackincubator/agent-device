@@ -739,15 +739,6 @@ extension RunnerTests {
   }
 
   private func snapshotViewport(app: XCUIApplication) -> CGRect {
-    let windows = app.windows.allElementsBoundByIndex
-    let windowFrames = windows
-      .filter { $0.exists && !$0.frame.isNull && !$0.frame.isEmpty }
-      .map(\.frame)
-    if let largestWindowFrame = windowFrames.max(by: { left, right in
-      left.width * left.height < right.width * right.height
-    }) {
-      return largestWindowFrame
-    }
     let appFrame = app.frame
     if !appFrame.isNull && !appFrame.isEmpty {
       return appFrame

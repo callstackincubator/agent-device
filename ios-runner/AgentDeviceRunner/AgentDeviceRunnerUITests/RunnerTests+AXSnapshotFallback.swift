@@ -49,10 +49,9 @@ extension RunnerTests {
         return nil
       }
 
-      // The public windows query backing safeSnapshotViewport can fail on the same apps that
-      // need this fallback, degrading to an infinite viewport that marks off-screen content
-      // (e.g. closed drawer menus at negative x) as visible and tappable. The private root's
-      // own frame is the reliable screen rect here.
+      // If the app frame is unavailable, the private root's own frame is the reliable screen
+      // rect here. Avoid public window queries: stale transient windows can record XCTest
+      // failures after the runner already returned a successful command response.
       var viewport = safeSnapshotViewport(app: app)
       let rootFrame = privateAXRect(root["frame"])
       if viewport.isInfinite || viewport.isNull || viewport.isEmpty, !rootFrame.isEmpty {
