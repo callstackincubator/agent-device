@@ -2134,6 +2134,7 @@ test('open custom URL on existing iOS simulator session preserves app bundle id 
 
   expect(response).toBeTruthy();
   expect(response?.ok).toBe(true);
+  expect(mockEnsureDeviceReady.mock.calls[0]?.[1]).toEqual({ deviceHub: false });
   const updated = sessionStore.get(sessionName);
   expect(updated?.appBundleId).toBe('com.example.app');
   expect(updated?.appName).toBe('myapp://item/42');
