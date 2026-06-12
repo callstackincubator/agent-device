@@ -6,7 +6,7 @@ import type { DeviceInfo } from '../../utils/device.ts';
 import type { AppleRunnerLifecycleOptions } from './runner-provider.ts';
 import { emitDiagnostic, withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import { buildSimctlArgsForDevice } from './simctl.ts';
-import { runXcrun } from './tool-provider.ts';
+import { runAppleToolCommand, runXcrun } from './tool-provider.ts';
 import {
   waitForRunner,
   sendRunnerCommandOnce,
@@ -122,6 +122,9 @@ async function startRunnerSessionWithLease(
   });
   await measureRunnerStartupStep(startupTimings, 'ensure_booted', async () => {
     await ensureBootedIfNeeded(device);
+  });
+  await measureRunnerStartupStep(startupTimings, 'verify_developer_mode', async () => {
+    await verifyDeveloperModeForIosRunner(device);
   });
   if (options.cleanStaleBundles) {
     await measureRunnerStartupStep(startupTimings, 'cleanup_stale_bundles', async () => {
@@ -441,6 +444,20 @@ function ensureBootedIfNeeded(device: DeviceInfo): Promise<void> {
 async function ensureBooted(device: DeviceInfo): Promise<void> {
   await runXcrun(buildSimctlArgsForDevice(device, ['bootstatus', device.id, '-b']), {
     timeoutMs: RUNNER_STARTUP_TIMEOUT_MS,
+  });
+}
+
+async function verifyDeveloperModeForIosRunner(device: DeviceInfo): Promise<void> {
+  if (device.platform !== 'ios') return;
+  const result = await runAppleToolCommand('DevToolsSecurity', ['-status'], {
+    allowFailure: true,
+    timeoutMs: 2_000,
+  });
+  const output = `${result.stdout}\n${result.stderr}`;
+  if (!/developer mode is currently disabled/i.test(output)) return;
+  throw new AppError('COMMAND_FAILED', 'Developer mode is disabled for Apple development tools', {
+    hint: 'Run `sudo DevToolsSecurity -enable`, then retry the iOS runner. UI test runners start suspended until Xcode/testmanagerd can attach.',
+    devToolsSecurityStatus: output.trim(),
   });
 }
 

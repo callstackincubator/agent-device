@@ -609,6 +609,34 @@ test('runner session starts xcodebuild through provider seams and reuses an aliv
   await stopRunnerSession(session);
 });
 
+test('runner session fails early when Apple developer mode is disabled', async () => {
+  const device = { ...IOS_SIMULATOR, id: 'runner-session-devtools-disabled-sim' };
+  mockRunAppleToolCommand.mockImplementation(async (cmd, args) => {
+    if (cmd === 'DevToolsSecurity' && args[0] === '-status') {
+      return {
+        exitCode: 0,
+        stdout: 'Developer mode is currently disabled.\n',
+        stderr: '',
+      };
+    }
+    return { exitCode: 0, stdout: '', stderr: '' };
+  });
+
+  await assert.rejects(
+    () => ensureRunnerSession(device, {}),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'COMMAND_FAILED');
+      assert.match(error.message, /Developer mode is disabled/);
+      assert.match(String(error.details?.hint ?? ''), /DevToolsSecurity -enable/);
+      return true;
+    },
+  );
+
+  assert.equal(mockEnsureXctestrunArtifact.mock.calls.length, 0);
+  assert.equal(mockRunCmdBackground.mock.calls.length, 0);
+});
+
 test('runner session startup kills legacy ownerless xcodebuild before launching a new runner', async () => {
   const device = { ...IOS_SIMULATOR, id: 'runner-session-startup-stale-sim' };
 
