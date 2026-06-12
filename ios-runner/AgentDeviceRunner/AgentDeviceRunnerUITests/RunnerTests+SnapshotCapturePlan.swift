@@ -129,12 +129,20 @@ extension RunnerTests {
     }
 
     if let axFailure {
-      switch terminal {
-      case .throwOnAXFailure:
+      switch Self.resolveSnapshotPlanTerminal(
+        terminal: terminal,
+        interactiveOnly: options.interactiveOnly
+      ) {
+      case .throwAxFailure:
         throw axFailure
-      case .sparseWithFatalOnAXFailure where options.interactiveOnly && best == nil:
+      case .failClosed:
+        // Fail closed on any interactive AX serialization failure that no backend recovered:
+        // invalidate the cached target so the next command reacquires it (AX-unavailable target
+        // invalidation, CONTEXT.md). A sparse `best` from a later tier (e.g. the query sweep's
+        // synthetic root) must NOT suppress this — reaching the terminal already means no backend
+        // produced a usable tree.
         return snapshotAccessibilityUnavailable(failure: axFailure)
-      default:
+      case .sparseBest:
         break
       }
     }
@@ -188,6 +196,27 @@ extension RunnerTests {
       return ("snapshot was cut off by its budget with almost nothing collected", "budget")
     }
     return nil
+  }
+
+  /// Terminal action when a capture plan exhausted every backend with an AX serialization
+  /// failure still pending. Pure so the fail-closed-vs-sparse policy is unit-testable without
+  /// a live app (the ordering gap the architecture review flagged).
+  enum SnapshotPlanTerminalAction: Equatable {
+    case throwAxFailure
+    case failClosed
+    case sparseBest
+  }
+
+  static func resolveSnapshotPlanTerminal(
+    terminal: SnapshotCaptureTerminalPolicy,
+    interactiveOnly: Bool
+  ) -> SnapshotPlanTerminalAction {
+    switch terminal {
+    case .throwOnAXFailure:
+      return .throwAxFailure
+    case .sparseWithFatalOnAXFailure:
+      return interactiveOnly ? .failClosed : .sparseBest
+    }
   }
 
   static func isSparseApplicationWindowTree(_ nodes: [SnapshotNode]) -> Bool {
@@ -358,5 +387,40 @@ extension RunnerTests {
           collapsedLeafIndexes: nil)
       )
     )
+  }
+  func testTerminalFailsClosedOnInteractiveAxFailureRegardlessOfSparseBest() {
+    // Interactive AX failure must invalidate + fail closed; a later tier's sparse synthetic-root
+    // "best" must never downgrade this to a returned-sparse payload (regression: best == nil guard).
+    XCTAssertEqual(
+      Self.resolveSnapshotPlanTerminal(terminal: .sparseWithFatalOnAXFailure, interactiveOnly: true),
+      .failClosed
+    )
+    XCTAssertEqual(
+      Self.resolveSnapshotPlanTerminal(terminal: .sparseWithFatalOnAXFailure, interactiveOnly: false),
+      .sparseBest
+    )
+    XCTAssertEqual(
+      Self.resolveSnapshotPlanTerminal(terminal: .throwOnAXFailure, interactiveOnly: true),
+      .throwAxFailure
+    )
+  }
+
+  func testSnapshotAccessibilityUnavailableCarriesSparseVerdict() {
+    currentApp = app
+    currentBundleId = "com.example.app"
+    defer {
+      currentApp = nil
+      currentBundleId = nil
+    }
+    let payload = snapshotAccessibilityUnavailable(
+      failure: SnapshotCaptureFailure(
+        code: "IOS_AX_SNAPSHOT_FAILED",
+        message: "kAXErrorIllegalArgument",
+        hint: "use screenshot"
+      )
+    )
+    XCTAssertEqual(payload.runnerFatal, true)
+    XCTAssertEqual(payload.snapshotQuality?.state, "sparse")
+    XCTAssertEqual(payload.snapshotQuality?.reasonCode, "ax-rejected")
   }
 }

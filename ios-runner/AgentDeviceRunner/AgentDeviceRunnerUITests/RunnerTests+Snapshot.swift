@@ -384,8 +384,18 @@ extension RunnerTests {
   func snapshotAccessibilityUnavailable(failure: SnapshotCaptureFailure) -> DataPayload {
     NSLog("AGENT_DEVICE_RUNNER_SNAPSHOT_AX_UNAVAILABLE=%@", failure.message)
     invalidateCachedTarget(reason: Self.axSnapshotUnavailableReason)
+    // This is a planned terminal result, so it carries the structured verdict like every other
+    // planned snapshot — downstream sparse handling keys off the verdict, not node shapes.
     return sparseTruncatedSnapshotPayload(
       message: recoveredSnapshotMessage(failure),
+      snapshotQuality: SnapshotQuality(
+        state: "sparse",
+        backend: SnapshotBackendKind.recursiveTree.rawValue,
+        reason: failure.message,
+        reasonCode: "ax-rejected",
+        effectiveDepth: nil,
+        collapsedLeafIndexes: nil
+      ),
       runnerFatal: true,
       runnerFatalReason: Self.axSnapshotUnavailableReason
     )
@@ -405,6 +415,7 @@ extension RunnerTests {
 
   func sparseTruncatedSnapshotPayload(
     message: String? = nil,
+    snapshotQuality: SnapshotQuality? = nil,
     runnerFatal: Bool? = nil,
     runnerFatalReason: String? = nil
   ) -> DataPayload {
@@ -412,6 +423,7 @@ extension RunnerTests {
       message: message,
       nodes: [compactInteractiveRootNode(rect: .zero)],
       truncated: true,
+      snapshotQuality: snapshotQuality,
       runnerFatal: runnerFatal,
       runnerFatalReason: runnerFatalReason
     )
