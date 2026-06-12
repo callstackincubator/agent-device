@@ -1,5 +1,12 @@
 export type { AppErrorCode } from './utils/errors.ts';
 export { defaultHintForCode, normalizeError } from './utils/errors.ts';
+export type {
+  DebugSymbolsCrashFrame,
+  DebugSymbolsCrashSummary,
+  DebugSymbolsImage,
+  DebugSymbolsOptions,
+  DebugSymbolsResult,
+} from './contracts/debug-symbols.ts';
 import type { PlatformSelector } from './utils/device.ts';
 import { PLATFORM_SELECTORS } from './utils/device.ts';
 

@@ -4,8 +4,8 @@ import { readAppleCrashArtifact } from './debug-symbols/crash-artifact.ts';
 import { matchImagesToDsyms, readDsymPaths, readDsymSlices } from './debug-symbols/dsym.ts';
 import { summarizeCrashArtifact } from './debug-symbols/report.ts';
 import { resolveAppleTools, symbolicateAddresses } from './debug-symbols/symbolication.ts';
-import type { DebugSymbolsOptions, DebugSymbolsResult } from './debug-symbols/types.ts';
-import { AppError } from '../../../utils/errors.ts';
+import type { DebugSymbolsOptions, DebugSymbolsResult } from '../../contracts/debug-symbols.ts';
+import { AppError } from '../../utils/errors.ts';
 
 export type {
   DebugSymbolsCrashFrame,
