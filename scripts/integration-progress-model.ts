@@ -149,7 +149,6 @@ function summarizeProviderScenarioFlagCoverage(files) {
     ['pauseMs', 'swipe repeat pause'],
     ['pattern', 'swipe repeat pattern'],
     ['snapshotInteractiveOnly', 'interactive snapshot/ref refresh', ['interactiveOnly']],
-    ['snapshotCompact', 'compact snapshot output', ['compact']],
     ['snapshotDepth', 'scoped snapshot depth', ['depth']],
     ['snapshotScope', 'scoped snapshot capture', ['scope']],
     ['snapshotRaw', 'raw snapshot node output', ['raw']],
