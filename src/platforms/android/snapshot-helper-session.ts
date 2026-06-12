@@ -21,6 +21,7 @@ import {
 const SESSION_READY_TIMEOUT_MS = 10_000;
 const SESSION_STOP_TIMEOUT_MS = 1_000;
 const SESSION_PROCESS_EXIT_TIMEOUT_MS = 2_000;
+const SESSION_REQUEST_OVERHEAD_MS = 10_000;
 const FORWARD_TIMEOUT_MS = 5_000;
 
 type AndroidSnapshotHelperSession = {
@@ -248,7 +249,10 @@ async function requestSessionSnapshot(
   resolved: AndroidSnapshotHelperResolvedCaptureOptions,
 ): Promise<AndroidSnapshotHelperOutput> {
   const requestId = `snapshot-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const timeoutMs = Math.max(resolved.timeoutMs + 2_000, 3_000);
+  const timeoutMs = Math.min(
+    resolved.commandTimeoutMs,
+    Math.max(resolved.timeoutMs + SESSION_REQUEST_OVERHEAD_MS, 3_000),
+  );
   const response = await sendSessionCommand(session, `snapshot ${requestId}`, timeoutMs);
   return parseSessionSnapshotResponse(response, requestId);
 }
