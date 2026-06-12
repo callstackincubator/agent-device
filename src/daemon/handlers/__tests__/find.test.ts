@@ -16,6 +16,10 @@ vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   };
 });
 
+vi.mock('../../selector-runtime.ts', () => ({
+  dispatchFindReadOnlyViaRuntime: vi.fn(async () => null),
+}));
+
 import { dispatchCommand } from '../../../core/dispatch.ts';
 
 const mockDispatch = vi.mocked(dispatchCommand);
@@ -161,6 +165,26 @@ test('handleFindCommands click prefers on-screen duplicate text matches', async 
 });
 
 test('handleFindCommands click fails without daemon retry when quality verdict is sparse', async () => {
+  const session = makeSession('default');
+  session.snapshot = {
+    nodes: [
+      {
+        index: 0,
+        ref: 'e1',
+        type: 'Application',
+        rect: { x: 0, y: 0, width: 390, height: 844 },
+      },
+      {
+        index: 1,
+        ref: 'e2',
+        type: 'Button',
+        label: 'Previous Search',
+        rect: { x: 80, y: 792, width: 78, height: 48 },
+      },
+    ],
+    createdAt: Date.now(),
+    backend: 'xctest',
+  };
   mockDispatch.mockImplementation(async (_device, command) => {
     if (command !== 'snapshot') return {};
     return {
@@ -181,11 +205,14 @@ test('handleFindCommands click fails without daemon retry when quality verdict i
     };
   });
 
+  const previousSnapshot = session.snapshot;
   const { response, invokeCalls } = await runFindClickScenario({
     positionals: ['Search', 'click'],
+    session,
   });
 
   expect(response.ok).toBe(false);
+  expect(session.snapshot).toBe(previousSnapshot);
   expect(invokeCalls).toHaveLength(0);
   expect(!response.ok && response.error).toMatchObject({
     code: 'COMMAND_FAILED',
@@ -201,6 +228,43 @@ test('handleFindCommands click fails without daemon retry when quality verdict i
     snapshotInteractiveOnly: true,
     snapshotCompact: true,
   });
+});
+
+test('handleFindCommands wait preserves sparse verdict through snapshot cache hits', async () => {
+  mockDispatch.mockImplementation(async (_device, command) => {
+    if (command !== 'snapshot') return {};
+    return {
+      backend: 'xctest',
+      quality: {
+        state: 'sparse',
+        backend: 'private-ax',
+        reason: 'sparse tree',
+        reasonCode: 'sparse-tree',
+      },
+      nodes: [
+        {
+          index: 0,
+          type: 'Application',
+          rect: { x: 0, y: 0, width: 0, height: 0 },
+        },
+      ],
+    };
+  });
+
+  const { response } = await runFindClickScenario({
+    positionals: ['text', 'Never appears', 'wait', '350'],
+  });
+
+  expect(response.ok).toBe(false);
+  expect(!response.ok && response.error).toMatchObject({
+    code: 'COMMAND_FAILED',
+    message: 'find could not read the current accessibility tree',
+    details: {
+      reason: 'sparse tree',
+      hint: expect.stringContaining('snapshot quality verdict is sparse'),
+    },
+  });
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
 });
 
 test('handleFindCommands click retries full snapshot for legacy iOS sparse shape without verdict', async () => {
@@ -550,7 +614,7 @@ test('handleFindCommands wait bypasses snapshot cache while Android freshness re
   expect(mockDispatch).toHaveBeenCalledTimes(2);
 });
 
-test('handleFindCommands wait captures fresh snapshots while polling', async () => {
+test('handleFindCommands wait reuses the snapshot cache while polling', async () => {
   const { response } = await runFindClickScenario({
     positionals: ['text', 'Never appears', 'wait', '350'],
     nodes: [{ index: 0, depth: 0, type: 'StaticText', label: 'Other text' }],
@@ -560,5 +624,5 @@ test('handleFindCommands wait captures fresh snapshots while polling', async () 
   if (!response.ok) {
     expect(response.error.message).toContain('find wait timed out');
   }
-  expect(mockDispatch).toHaveBeenCalledTimes(2);
+  expect(mockDispatch).toHaveBeenCalledTimes(1);
 });

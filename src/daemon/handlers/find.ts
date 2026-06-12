@@ -176,12 +176,14 @@ function findActionRequiresRect(action: string): boolean {
   return action === 'click' || action === 'focus' || action === 'fill' || action === 'type';
 }
 
-type FindNodeFetcher = () => Promise<{
+type FindSnapshotResult = {
   nodes: SnapshotState['nodes'];
   truncated?: boolean;
   backend?: SnapshotState['backend'];
   snapshotQuality?: SnapshotQualityVerdict;
-}>;
+};
+
+type FindNodeFetcher = () => Promise<FindSnapshotResult>;
 
 function createFindNodeFetcher(params: {
   device: SessionState['device'];
@@ -198,7 +200,7 @@ function createFindNodeFetcher(params: {
   const { device, session, req, logPath, locator, query, scope, interactiveOnly } = params;
   const { sessionStore, sessionName } = params;
   let lastSnapshotAt = 0;
-  let lastNodes: SnapshotState['nodes'] | null = null;
+  let lastSnapshotResult: FindSnapshotResult | null = null;
   const capture = async (snapshotScope: string | undefined, interactive: boolean) => {
     const { snapshot } = await captureSnapshot({
       device,
@@ -219,26 +221,30 @@ function createFindNodeFetcher(params: {
     // Re-use a snapshot captured within the last 750 ms to avoid redundant dumps during
     // rapid find iterations.  Skipped when Android freshness tracking is active, because
     // the cached tree may already be stale from a recent navigation action.
-    if (lastNodes && now - lastSnapshotAt < 750 && !getActiveAndroidSnapshotFreshness(session)) {
-      return { nodes: lastNodes };
+    if (
+      lastSnapshotResult &&
+      now - lastSnapshotAt < 750 &&
+      !getActiveAndroidSnapshotFreshness(session)
+    ) {
+      return lastSnapshotResult;
     }
     let snapshot = await capture(scope, interactiveOnly);
     if (interactiveOnly && isLegacySparseIosInteractiveSnapshot(snapshot)) {
       snapshot = await recoverSparseInteractiveSnapshot({ capture, locator, query, scope });
     }
-    const nodes = snapshot.nodes;
-    lastSnapshotAt = now;
-    lastNodes = nodes;
-    if (session) {
-      setSessionSnapshot(session, snapshot);
-      sessionStore.set(sessionName, session);
-    }
-    return {
-      nodes,
+    const snapshotResult = {
+      nodes: snapshot.nodes,
       truncated: snapshot.truncated,
       backend: snapshot.backend,
       snapshotQuality: snapshot.snapshotQuality,
     };
+    lastSnapshotAt = now;
+    lastSnapshotResult = snapshotResult;
+    if (session && !isSparseSnapshotQualityVerdict(snapshot.snapshotQuality)) {
+      setSessionSnapshot(session, snapshot);
+      sessionStore.set(sessionName, session);
+    }
+    return snapshotResult;
   };
 }
 
