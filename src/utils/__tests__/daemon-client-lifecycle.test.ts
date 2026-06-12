@@ -9,7 +9,11 @@ import { afterEach, test, vi } from 'vitest';
 
 vi.mock('../exec.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../exec.ts')>();
-  return { ...actual, runCmdDetached: vi.fn() };
+  return {
+    ...actual,
+    runCmdDetached: vi.fn(),
+    runCmdSync: vi.fn(() => ({ exitCode: 1, stdout: '', stderr: '' })),
+  };
 });
 
 vi.mock('../timeouts.ts', async (importOriginal) => {
@@ -18,14 +22,19 @@ vi.mock('../timeouts.ts', async (importOriginal) => {
 });
 
 import { resolveDaemonPaths, type DaemonPaths } from '../../daemon/config.ts';
-import { computeDaemonCodeSignature, sendToDaemon } from '../../daemon-client.ts';
+import {
+  computeDaemonCodeSignature,
+  sendToDaemon,
+  type DaemonRequest,
+} from '../../daemon-client.ts';
+import { sendRequest } from '../../daemon-client-transport.ts';
 import {
   closeLoopbackServer,
   listenOnLoopback,
   supportsLoopbackBind,
 } from '../../__tests__/test-utils/index.ts';
 import { AppError } from '../errors.ts';
-import { runCmdDetached } from '../exec.ts';
+import { runCmdDetached, runCmdSync } from '../exec.ts';
 import { readProcessStartTime } from '../process-identity.ts';
 import { sleep } from '../timeouts.ts';
 import { findProjectRoot, readVersion } from '../version.ts';
@@ -49,10 +58,12 @@ type HttpDaemonFixture = {
 };
 
 const mockRunCmdDetached = vi.mocked(runCmdDetached);
+const mockRunCmdSync = vi.mocked(runCmdSync);
 const mockSleep = vi.mocked(sleep);
 
 afterEach(() => {
   mockRunCmdDetached.mockReset();
+  mockRunCmdSync.mockClear();
   mockSleep.mockClear();
   vi.unstubAllEnvs();
 });
@@ -136,6 +147,37 @@ async function startHttpDaemonFixture(
             result: { ok: true, data: responseData },
           }),
         );
+      });
+      return;
+    }
+
+    res.writeHead(404);
+    res.end('not found');
+  });
+  const port = await listenOnLoopback(server);
+  return { server, port, seenPaths, rpcRequests };
+}
+
+async function startHangingHttpDaemonFixture(): Promise<HttpDaemonFixture> {
+  const seenPaths: string[] = [];
+  const rpcRequests: Record<string, any>[] = [];
+  const server = http.createServer((req, res) => {
+    const url = new URL(req.url || '/', 'http://127.0.0.1');
+    seenPaths.push(`${req.method ?? 'GET'} ${url.pathname}`);
+
+    if (req.method === 'GET' && url.pathname === '/health') {
+      res.writeHead(200);
+      res.end('ok');
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/rpc') {
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk) => {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      });
+      req.on('end', () => {
+        rpcRequests.push(JSON.parse(Buffer.concat(chunks).toString('utf8')) as Record<string, any>);
       });
       return;
     }
@@ -475,6 +517,72 @@ function captureStderr(): { read: () => string; restore: () => void } {
     },
   };
 }
+
+test('sendRequest timeout cleanup uses resolved daemon paths instead of request flags', async (t) => {
+  if (!(await supportsLoopbackBind())) {
+    t.skip('loopback listeners are not permitted in this environment');
+    return;
+  }
+
+  const daemonStateDir = makeTempStateDir('agent-device-daemon-timeout-active-');
+  const requestFlagStateDir = makeTempStateDir('agent-device-daemon-timeout-request-');
+  const daemonPaths = resolveDaemonPaths(daemonStateDir);
+  const requestFlagPaths = resolveDaemonPaths(requestFlagStateDir);
+  const daemon = await startHangingHttpDaemonFixture();
+  writeDaemonInfo(daemonPaths, {
+    httpPort: daemon.port,
+    transport: 'http',
+    pid: 999_999,
+  });
+  writeDaemonLock(daemonPaths, { pid: 999_999 });
+  writeDaemonInfo(requestFlagPaths, {
+    httpPort: daemon.port,
+    transport: 'http',
+    pid: 999_998,
+  });
+  writeDaemonLock(requestFlagPaths, { pid: 999_998 });
+
+  const request: DaemonRequest = {
+    session: 'default',
+    command: 'replay',
+    positionals: [],
+    flags: { stateDir: requestFlagStateDir, daemonTransport: 'http' },
+    token: 'local-secret',
+    meta: { requestId: 'req-timeout-paths' },
+  };
+
+  try {
+    let thrown: unknown;
+    try {
+      await sendRequest(
+        {
+          token: 'local-secret',
+          pid: 999_999,
+          httpPort: daemon.port,
+          transport: 'http',
+        },
+        request,
+        'http',
+        daemonPaths,
+        50,
+      );
+    } catch (error) {
+      thrown = error;
+    }
+
+    assert.ok(thrown instanceof AppError);
+    assert.equal(thrown.message, 'Daemon request timed out');
+    assert.deepEqual(daemon.seenPaths, ['POST /rpc']);
+    assert.equal(fs.existsSync(daemonPaths.infoPath), false);
+    assert.equal(fs.existsSync(daemonPaths.lockPath), false);
+    assert.equal(fs.existsSync(requestFlagPaths.infoPath), true);
+    assert.equal(fs.existsSync(requestFlagPaths.lockPath), true);
+  } finally {
+    await closeLoopbackServer(daemon.server);
+    fs.rmSync(daemonStateDir, { recursive: true, force: true });
+    fs.rmSync(requestFlagStateDir, { recursive: true, force: true });
+  }
+});
 
 test('sendToDaemon falls back from failed socket transport to HTTP using daemon metadata ports', async (t) => {
   if (!(await supportsLoopbackBind())) {

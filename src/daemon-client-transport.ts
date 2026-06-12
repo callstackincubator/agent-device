@@ -5,7 +5,7 @@ import { AppError } from './utils/errors.ts';
 import { readNodeHttpResponseBody } from './utils/node-http.ts';
 import type { DaemonRequest, DaemonResponse } from './daemon/types.ts';
 import { emitDiagnostic } from './utils/diagnostics.ts';
-import { resolveDaemonPaths, type DaemonTransportPreference } from './daemon/config.ts';
+import type { DaemonPaths, DaemonTransportPreference } from './daemon/config.ts';
 import {
   readDaemonHttpProgressResponse,
   readDaemonSocketProgressResponse,
@@ -103,27 +103,29 @@ export async function sendRequest(
   info: DaemonInfo,
   req: DaemonRequest,
   preference: DaemonTransportPreference,
+  statePaths: DaemonPaths,
   timeoutMs: number | undefined,
 ): Promise<DaemonResponse> {
   const transport = chooseTransport(info, preference);
   try {
-    return await sendRequestWithTransport(info, req, timeoutMs, transport);
+    return await sendRequestWithTransport(info, req, statePaths, timeoutMs, transport);
   } catch (error) {
     const fallback = chooseAutoFallbackTransport(info, preference, transport);
     if (!fallback || !isSafeAutoTransportFallbackError(error, transport)) throw error;
-    return await sendRequestWithTransport(info, req, timeoutMs, fallback);
+    return await sendRequestWithTransport(info, req, statePaths, timeoutMs, fallback);
   }
 }
 
 async function sendRequestWithTransport(
   info: DaemonInfo,
   req: DaemonRequest,
+  statePaths: DaemonPaths,
   timeoutMs: number | undefined,
   transport: ResolvedDaemonTransport,
 ): Promise<DaemonResponse> {
   return transport === 'http'
-    ? await sendHttpRequest(info, req, timeoutMs)
-    : await sendSocketRequest(info, req, timeoutMs);
+    ? await sendHttpRequest(info, req, statePaths, timeoutMs)
+    : await sendSocketRequest(info, req, statePaths, timeoutMs);
 }
 
 function chooseTransport(
@@ -222,6 +224,7 @@ function handleTransportError(
 async function sendSocketRequest(
   info: DaemonInfo,
   req: DaemonRequest,
+  statePaths: DaemonPaths,
   timeoutMs: number | undefined,
 ): Promise<DaemonResponse> {
   const port = info.port;
@@ -232,9 +235,6 @@ async function sendSocketRequest(
       requestWritten = true;
       socket.write(`${JSON.stringify(req)}\n`);
     });
-    const statePaths = resolveDaemonPaths(
-      req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR,
-    );
     let settled = false;
     const timeoutHandle =
       typeof timeoutMs === 'number'
@@ -286,6 +286,7 @@ async function sendSocketRequest(
 async function sendHttpRequest(
   info: DaemonInfo,
   req: DaemonRequest,
+  statePaths: DaemonPaths,
   timeoutMs: number | undefined,
 ): Promise<DaemonResponse> {
   const rpcUrl = info.baseUrl
@@ -305,9 +306,6 @@ async function sendHttpRequest(
   }
 
   return await new Promise((resolve, reject) => {
-    const statePaths = resolveDaemonPaths(
-      req.flags?.stateDir ?? process.env.AGENT_DEVICE_STATE_DIR,
-    );
     const transport = rpcUrl.protocol === 'https:' ? https : http;
     const request = transport.request(
       {

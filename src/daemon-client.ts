@@ -101,7 +101,14 @@ export async function sendToDaemon(req: Omit<DaemonRequest, 'token'>): Promise<D
   try {
     return await withDiagnosticTimer(
       'daemon_request',
-      async () => await sendRequest(info, request, settings.transportPreference, requestTimeoutMs),
+      async () =>
+        await sendRequest(
+          info,
+          request,
+          settings.transportPreference,
+          settings.paths,
+          requestTimeoutMs,
+        ),
       { requestId, command: req.command },
     );
   } finally {
