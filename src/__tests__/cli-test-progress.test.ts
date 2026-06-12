@@ -50,6 +50,15 @@ test('formatReplayTestProgressEvent renders replay test start context with shard
   );
 });
 
+test('formatReplayTestProgressEvent ignores unknown progress event types', () => {
+  const line = formatReplayTestProgressEvent({
+    type: 'future-progress-event',
+    status: 'start',
+  } as unknown as RequestProgressEvent);
+
+  assert.equal(line, undefined);
+});
+
 test('formatReplayTestProgressEvent renders pass, retry, fail, and skip cases', () => {
   const cases: Array<{ event: RequestProgressEvent; expected: RegExp }> = [
     {

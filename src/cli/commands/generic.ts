@@ -1,5 +1,5 @@
 import type { CommandRequestResult } from '../../client.ts';
-import { announceReplayTestRun, renderReplayTestResponse } from '../../cli-test.ts';
+import { renderReplayTestResponse } from '../../cli-test.ts';
 import { runCliCommandWithOutput } from '../../commands/cli-runner.ts';
 import type { CommandName } from '../../commands/command-metadata.ts';
 import type { CliOutput } from '../../commands/command-contract.ts';
@@ -16,9 +16,6 @@ export async function runGenericClientBackedCommand({
   flags,
   client,
 }: ClientCommandParams & { command: ClientBackedCliCommandName }): Promise<boolean> {
-  if (command === 'test') {
-    announceReplayTestRun({ json: flags.json });
-  }
   const { result, cliOutput } = await runCliCommandWithOutput({
     client,
     command: command as CommandName,

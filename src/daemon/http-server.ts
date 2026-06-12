@@ -8,6 +8,7 @@ import type { DaemonInstallSource, DaemonInvokeFn, DaemonRequest } from './types
 import { normalizeTenantId } from './config.ts';
 import {
   clearRequestCanceled,
+  isRequestCanceled,
   markRequestCanceled,
   registerRequestAbort,
   resolveRequestTrackingId,
@@ -69,6 +70,7 @@ type HttpAuthDecision =
 const MAX_HTTP_RPC_BODY_BYTES = 1024 * 1024;
 const CLIENT_DISCONNECT_ABORT_POLL_INTERVAL_MS = 200;
 const CLIENT_DISCONNECT_ABORT_MAX_WINDOW_MS = 15_000;
+const IOS_RUNNER_ABORT_REPLAY_COMMANDS = new Set(['replay', 'test']);
 const COMMAND_RPC_METHODS = new Set(['agent_device.command', 'agent-device.command']);
 const INSTALL_FROM_SOURCE_RPC_METHODS = new Set([
   'agent_device.install_from_source',
@@ -558,6 +560,7 @@ export async function createDaemonHttpServer(options: {
       }
 
       let requestIdForCleanup: string | undefined;
+      let handlerCompleted = false;
       try {
         const params = rpcRequest.params as Record<string, unknown>;
         const daemonRequest = methodToDaemonRequest(rpcRequest.method, params, req.headers);
@@ -582,22 +585,6 @@ export async function createDaemonHttpServer(options: {
           requestId: requestIdForCleanup,
         };
         registerRequestAbort(requestIdForCleanup);
-        let canceledInFlight = false;
-        const markCanceledIfResponseIncomplete = () => {
-          if (res.writableFinished || canceledInFlight) return;
-          canceledInFlight = true;
-          markRequestCanceled(requestIdForCleanup);
-          emitDiagnostic({
-            level: 'warn',
-            phase: 'request_client_disconnected',
-            data: {
-              requestId: requestIdForCleanup,
-            },
-          });
-          void abortInFlightIosRunnerSessionsWhileDisconnected(res);
-        };
-        req.on('aborted', markCanceledIfResponseIncomplete);
-        res.on('close', markCanceledIfResponseIncomplete);
 
         const authResult = await runHttpAuthHook(authHook, {
           headers: req.headers,
@@ -619,6 +606,32 @@ export async function createDaemonHttpServer(options: {
           };
         }
 
+        const abortIosRunnerOnDisconnect = shouldAbortIosRunnerSessionsOnDisconnect(daemonRequest);
+        let canceledInFlight = false;
+        const markCanceledIfResponseIncomplete = () => {
+          if (handlerCompleted || res.writableFinished || canceledInFlight) return;
+          canceledInFlight = true;
+          markRequestCanceled(requestIdForCleanup);
+          emitDiagnostic({
+            level: 'warn',
+            phase: 'request_client_disconnected',
+            data: {
+              requestId: requestIdForCleanup,
+              abortIosRunnerSessions: abortIosRunnerOnDisconnect,
+            },
+          });
+          if (abortIosRunnerOnDisconnect) {
+            void abortInFlightIosRunnerSessionsWhileDisconnected(requestIdForCleanup);
+          }
+        };
+        req.on('aborted', markCanceledIfResponseIncomplete);
+        res.on('close', () => {
+          if (res.headersSent) markCanceledIfResponseIncomplete();
+        });
+        if (req.aborted || (res.destroyed && res.headersSent)) {
+          markCanceledIfResponseIncomplete();
+        }
+
         const streamProgress = shouldStreamRequestProgress(daemonRequest);
         if (streamProgress) {
           res.statusCode = 200;
@@ -627,6 +640,7 @@ export async function createDaemonHttpServer(options: {
             (event) => writeProgressEnvelope(res, event),
             async () => await handleRequest(daemonRequest),
           );
+          handlerCompleted = true;
           const rpcResponse = daemonResponse.ok
             ? ({
                 jsonrpc: '2.0',
@@ -644,6 +658,7 @@ export async function createDaemonHttpServer(options: {
         }
 
         const daemonResponse = await handleRequest(daemonRequest);
+        handlerCompleted = true;
         if (daemonResponse.ok) {
           sendJson(res, { jsonrpc: '2.0', id: rpcRequest.id ?? null, result: daemonResponse });
           return;
@@ -659,6 +674,7 @@ export async function createDaemonHttpServer(options: {
           statusCodeForNormalizedError(daemonResponse.error.code),
         );
       } catch (error) {
+        handlerCompleted = true;
         const normalized = normalizeError(error);
         if (res.headersSent) {
           writeRpcResponseEnvelope(
@@ -771,14 +787,14 @@ async function handleArtifactDownload(
 }
 
 async function abortInFlightIosRunnerSessionsWhileDisconnected(
-  res: http.ServerResponse<http.IncomingMessage>,
+  requestId: string | undefined,
 ): Promise<void> {
   try {
     const deadline = Date.now() + CLIENT_DISCONNECT_ABORT_MAX_WINDOW_MS;
-    while (!res.writableFinished && Date.now() < deadline) {
+    while (isRequestCanceled(requestId) && Date.now() < deadline) {
       const { abortAllIosRunnerSessions } = await import('../platforms/ios/runner-client.ts');
       await abortAllIosRunnerSessions();
-      if (res.writableFinished) break;
+      if (!isRequestCanceled(requestId)) break;
       await sleep(CLIENT_DISCONNECT_ABORT_POLL_INTERVAL_MS);
     }
   } catch (error) {
@@ -790,6 +806,12 @@ async function abortInFlightIosRunnerSessionsWhileDisconnected(
       },
     });
   }
+}
+
+function shouldAbortIosRunnerSessionsOnDisconnect(req: DaemonRequest): boolean {
+  if (req.flags?.platform === 'android') return false;
+  if (req.flags?.platform === 'ios') return true;
+  return IOS_RUNNER_ABORT_REPLAY_COMMANDS.has(req.command);
 }
 
 async function authorizeAuxiliaryHttpRequest(params: {

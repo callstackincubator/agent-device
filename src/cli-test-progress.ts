@@ -2,9 +2,23 @@ import path from 'node:path';
 import type { RequestProgressEvent } from './daemon/request-progress.ts';
 import { formatDurationSeconds } from './utils/duration-format.ts';
 
+type ReplayTestCaseProgressEvent = Extract<RequestProgressEvent, { type: 'replay-test' }>;
+type ReplayTestCaseStatus = ReplayTestCaseProgressEvent['status'];
+
+const REPLAY_TEST_STATUS_LABELS: Record<ReplayTestCaseStatus, string> = {
+  start: 'START',
+  pass: 'PASS',
+  fail: 'FAIL',
+  skip: 'SKIP',
+};
+
 export function formatReplayTestProgressEvent(event: RequestProgressEvent): string | undefined {
   if (event.type === 'replay-test-suite') {
     return formatReplayTestSuiteProgressEvent(event);
+  }
+  const eventType = (event as { type?: string }).type;
+  if (eventType !== 'replay-test') {
+    return undefined;
   }
   return formatReplayTestCaseProgressEvent(event);
 }
@@ -20,64 +34,56 @@ function formatReplayTestSuiteProgressEvent(
   return lines.join('\n');
 }
 
-function formatReplayTestCaseProgressEvent(
-  event: Extract<RequestProgressEvent, { type: 'replay-test' }>,
-): string {
-  const name = formatReplayTestProgressName(event);
-  const indexPrefix = `[${event.index}/${event.total}]`;
-  const statusLabel = formatReplayTestProgressStatusLabel(event);
-  const shardSuffix = formatReplayTestProgressShardSuffix(event);
-  const durationSuffix =
-    event.durationMs !== undefined ? ` (${formatReplayProgressDuration(event)})` : '';
-  const attemptSuffix = formatReplayProgressAttemptSuffix(event);
-  const message = event.message?.replace(/\s+/g, ' ').trim();
-  const lines = [
-    `${indexPrefix} ${statusLabel} ${name}${shardSuffix}${attemptSuffix}${durationSuffix}`,
-  ];
+function formatReplayTestCaseProgressEvent(event: ReplayTestCaseProgressEvent): string {
+  const lines = [formatReplayTestCaseSummaryLine(event)];
+  addReplayTestCaseDetailLines(lines, event);
+  return lines.join('\n');
+}
 
+function addReplayTestCaseDetailLines(lines: string[], event: ReplayTestCaseProgressEvent): void {
   if (event.status === 'start') {
     if (event.session) lines.push(`  session: ${event.session}`);
     if (event.artifactsDir) lines.push(`  artifacts: ${event.artifactsDir}`);
-    return lines.join('\n');
+    return;
   }
 
+  const message = event.message?.replace(/\s+/g, ' ').trim();
   if (message) lines.push(`  ${message}`);
   if (event.status === 'fail' && !event.retrying) {
     if (event.session) lines.push(`  session: ${event.session}`);
     if (event.artifactsDir) lines.push(`  artifacts: ${event.artifactsDir}`);
   }
-  return lines.join('\n');
 }
 
-function formatReplayTestProgressName(
-  event: Extract<RequestProgressEvent, { type: 'replay-test' }>,
-): string {
+function formatReplayTestCaseSummaryLine(event: ReplayTestCaseProgressEvent): string {
+  const indexPrefix = `[${event.index}/${event.total}]`;
+  const statusLabel = formatReplayTestProgressStatusLabel(event);
+  const name = formatReplayTestProgressName(event);
+  const shardSuffix = formatReplayTestProgressShardSuffix(event);
+  const attemptSuffix = formatReplayProgressAttemptSuffix(event);
+  const durationSuffix =
+    event.durationMs !== undefined ? ` (${formatReplayProgressDuration(event)})` : '';
+  return `${indexPrefix} ${statusLabel} ${name}${shardSuffix}${attemptSuffix}${durationSuffix}`;
+}
+
+function formatReplayTestProgressName(event: ReplayTestCaseProgressEvent): string {
   const title = event.title?.trim();
   const file = path.basename(event.file);
   return title ? `${JSON.stringify(title)} in ${file}` : file;
 }
 
-function formatReplayTestProgressStatusLabel(
-  event: Extract<RequestProgressEvent, { type: 'replay-test' }>,
-): string {
-  if (event.status === 'start') return 'START';
-  if (event.status === 'pass') return 'PASS';
-  if (event.status === 'skip') return 'SKIP';
-  return event.retrying ? 'RETRY' : 'FAIL';
+function formatReplayTestProgressStatusLabel(event: ReplayTestCaseProgressEvent): string {
+  return event.retrying ? 'RETRY' : REPLAY_TEST_STATUS_LABELS[event.status];
 }
 
-function formatReplayTestProgressShardSuffix(
-  event: Extract<RequestProgressEvent, { type: 'replay-test' }>,
-): string {
+function formatReplayTestProgressShardSuffix(event: ReplayTestCaseProgressEvent): string {
   if (typeof event.shardIndex !== 'number') return '';
   const shardCount = typeof event.shardCount === 'number' ? event.shardCount : '?';
   const device = typeof event.deviceId === 'string' ? ` ${event.deviceId}` : '';
   return ` [shard ${event.shardIndex + 1}/${shardCount}${device}]`;
 }
 
-function formatReplayProgressAttemptSuffix(
-  event: Extract<RequestProgressEvent, { type: 'replay-test' }>,
-): string {
+function formatReplayProgressAttemptSuffix(event: ReplayTestCaseProgressEvent): string {
   if (event.attempt === undefined) return '';
   if (event.status === 'start') return '';
   if (event.status === 'fail' && event.retrying && event.maxAttempts !== undefined) {
@@ -87,9 +93,7 @@ function formatReplayProgressAttemptSuffix(
   return '';
 }
 
-function formatReplayProgressDuration(
-  event: Extract<RequestProgressEvent, { type: 'replay-test' }>,
-): string {
+function formatReplayProgressDuration(event: ReplayTestCaseProgressEvent): string {
   const duration = formatDurationSeconds(event.durationMs ?? 0);
   return event.attempt && event.attempt > 1 && !event.retrying ? `total ${duration}` : duration;
 }

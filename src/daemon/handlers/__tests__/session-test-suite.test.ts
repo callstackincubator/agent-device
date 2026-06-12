@@ -249,49 +249,59 @@ test('test stops the suite when the parent request is canceled during an active 
 
   const parentRequestId = 'suite-parent-cancel';
   const invokedRequestIds: string[] = [];
+  const events: RequestProgressEvent[] = [];
   registerRequestAbort(parentRequestId);
 
   try {
-    const response = await handleSessionCommands({
-      req: {
-        token: 't',
-        session: 'default',
-        command: 'test',
-        positionals: [root],
-        meta: { cwd: root, requestId: parentRequestId },
-      },
-      sessionName: 'default',
-      logPath: path.join(os.tmpdir(), 'daemon.log'),
-      sessionStore,
-      invoke: async (req) => {
-        const nestedRequestId = req.meta?.requestId;
-        expect(nestedRequestId).toBeTypeOf('string');
-        invokedRequestIds.push(String(nestedRequestId));
-        const signal = getRequestSignal(nestedRequestId);
-        expect(signal).toBeDefined();
-        queueMicrotask(() => {
-          markRequestCanceled(parentRequestId);
-        });
-        await new Promise<void>((resolve) => {
-          if (signal?.aborted) {
-            resolve();
-            return;
-          }
-          signal?.addEventListener('abort', () => resolve(), { once: true });
-        });
-        return {
-          ok: false,
-          error: {
-            code: 'COMMAND_FAILED',
-            message: 'request canceled',
-            details: { reason: 'request_canceled' },
+    const response = await withRequestProgressSink(
+      (event) => events.push(event),
+      async () =>
+        await handleSessionCommands({
+          req: {
+            token: 't',
+            session: 'default',
+            command: 'test',
+            positionals: [root],
+            meta: { cwd: root, requestId: parentRequestId },
           },
-        };
-      },
-    });
+          sessionName: 'default',
+          logPath: path.join(os.tmpdir(), 'daemon.log'),
+          sessionStore,
+          invoke: async (req) => {
+            const nestedRequestId = req.meta?.requestId;
+            expect(nestedRequestId).toBeTypeOf('string');
+            invokedRequestIds.push(String(nestedRequestId));
+            const signal = getRequestSignal(nestedRequestId);
+            expect(signal).toBeDefined();
+            queueMicrotask(() => {
+              markRequestCanceled(parentRequestId);
+            });
+            await new Promise<void>((resolve) => {
+              if (signal?.aborted) {
+                resolve();
+                return;
+              }
+              signal?.addEventListener('abort', () => resolve(), { once: true });
+            });
+            return {
+              ok: false,
+              error: {
+                code: 'COMMAND_FAILED',
+                message: 'request canceled',
+                details: { reason: 'request_canceled' },
+              },
+            };
+          },
+        }),
+    );
 
     const data = expectOkData(response);
     expect(invokedRequestIds).toHaveLength(1);
+    expect(
+      events.some(
+        (event) => event.type === 'replay-test' && event.status === 'fail' && event.retrying,
+      ),
+    ).toBe(false);
     expect(data.failed).toBe(1);
     expect(data.notRun).toBe(1);
   } finally {

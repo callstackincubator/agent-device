@@ -15,6 +15,7 @@ import { isReplayInfrastructureFailure } from './session-test-infrastructure.ts'
 import { runReplayTestAttempt } from './session-test-runtime.ts';
 import type { ReplayTestRuntimeDependencies } from './session-test-types.ts';
 import type { ReplayTestShardContext } from './session-test-sharding.ts';
+import { isRequestCanceled } from '../request-cancel.ts';
 
 type ReplayTestCaseResult = Extract<ReplaySuiteTestResult, { status: 'passed' | 'failed' }>;
 type ReplayTestAttemptFailure = NonNullable<
@@ -91,9 +92,10 @@ async function runReplayTestCaseAttempts(
   };
 
   for (let attemptIndex = 0; attemptIndex <= params.retries; attemptIndex += 1) {
+    if (isRequestCanceled(params.requestId)) break;
     const attempt = await runSingleReplayTestAttempt(params, context, attemptIndex);
     updateReplayTestCaseOutcome(outcome, attempt);
-    if (shouldStopReplayTestAttempts(attempt.response, attemptIndex, params.retries)) break;
+    if (shouldStopReplayTestAttempts(params, attempt.response, attemptIndex)) break;
     emitReplayTestRetryProgress(params, context, attempt);
   }
 
@@ -189,11 +191,16 @@ function updateReplayTestCaseOutcome(
 }
 
 function shouldStopReplayTestAttempts(
+  params: ReplayTestCaseParams,
   response: DaemonResponse,
   attemptIndex: number,
-  retries: number,
 ): boolean {
-  return response.ok || isReplayInfrastructureFailure(response) || attemptIndex >= retries;
+  return (
+    response.ok ||
+    isRequestCanceled(params.requestId) ||
+    isReplayInfrastructureFailure(response) ||
+    attemptIndex >= params.retries
+  );
 }
 
 function emitReplayTestRetryProgress(

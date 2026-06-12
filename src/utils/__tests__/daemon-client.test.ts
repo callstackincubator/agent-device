@@ -506,7 +506,7 @@ test('sendToDaemon prints replay test progress before the socket response', asyn
   }
 });
 
-test('sendToDaemon ignores terminal replay test progress before the HTTP NDJSON response', async () => {
+test('sendToDaemon prints replay test progress before the HTTP NDJSON response', async () => {
   let stderr = '';
   const seenPaths: string[] = [];
   const originalStderrWrite = process.stderr.write.bind(process.stderr);
