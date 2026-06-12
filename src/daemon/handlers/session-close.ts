@@ -8,6 +8,7 @@ import { SessionStore } from '../session-store.ts';
 import { stopAppLog } from '../app-log.ts';
 import { stopIosRunnerSession } from '../../platforms/ios/runner-client.ts';
 import { cleanupAppleXctracePerfCapture } from '../../platforms/ios/perf-xctrace.ts';
+import { cleanupAndroidNativePerfSession } from '../../platforms/android/perf.ts';
 import { clearRuntimeHintsFromApp, hasRuntimeTransportHints } from '../runtime-hints.ts';
 import { cleanupRetainedMaterializedPathsForSession } from '../materialized-path-registry.ts';
 import {
@@ -72,6 +73,13 @@ async function stopSessionApplePerfCapture(session: SessionState): Promise<void>
   session.applePerf = { ...(session.applePerf ?? {}), active: undefined };
 }
 
+async function stopSessionAndroidNativePerfCapture(session: SessionState): Promise<void> {
+  const active = session.nativePerf?.android;
+  if (!active) return;
+  await cleanupAndroidNativePerfSession(session.device, active);
+  session.nativePerf = { ...(session.nativePerf ?? {}), android: undefined };
+}
+
 export async function teardownSessionResources(
   session: SessionState,
   sessionName: string,
@@ -80,6 +88,7 @@ export async function teardownSessionResources(
     await stopAppLog(session.appLog);
   }
   await stopSessionApplePerfCapture(session);
+  await stopSessionAndroidNativePerfCapture(session);
   if (isApplePlatform(session.device.platform)) {
     await stopAppleRunnerForClose(session);
   }
@@ -101,6 +110,7 @@ export async function handleCloseCommand(params: {
     await stopAppLog(session.appLog);
   }
   await stopSessionApplePerfCapture(session);
+  await stopSessionAndroidNativePerfCapture(session);
   if (req.positionals && req.positionals.length > 0) {
     if (shouldStopAppleRunnerBeforeTargetedClose(session)) {
       await stopAppleRunnerForClose(session);

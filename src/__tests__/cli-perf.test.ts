@@ -335,6 +335,88 @@ test('perf rejects incomplete native CLI area before daemon dispatch', async () 
   assert.match(payload.error.message, /perf cpu requires profile/i);
 });
 
+test('perf rejects unknown CLI area before daemon dispatch', async () => {
+  const result = await runCliCapture(['perf', 'gpu', '--json'], async () => ({
+    ok: true,
+    data: {},
+  }));
+
+  assert.equal(result.code, 1);
+  assert.equal(result.calls.length, 0);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.error.code, 'INVALID_ARGS');
+  assert.match(payload.error.message, /perf area must be metrics, frames, memory, cpu, or trace/i);
+});
+
+test('perf cpu profile start forwards simpleperf kind and out path', async () => {
+  const result = await runCliCapture(
+    ['perf', 'cpu', 'profile', 'start', '--kind', 'simpleperf', '--out', 'cpu.perf.data', '--json'],
+    async () => ({
+      ok: true,
+      data: {
+        action: 'start',
+        type: 'cpu-profile',
+        kind: 'simpleperf',
+        state: 'running',
+      },
+    }),
+  );
+
+  assert.equal(result.code, null);
+  const call = result.calls[0];
+  assert.ok(call);
+  assert.equal(call.command, 'perf');
+  assert.deepEqual(call.positionals, [
+    'cpu',
+    'profile',
+    'start',
+    'simpleperf',
+    '',
+    'cpu.perf.data',
+  ]);
+  assert.ok(call.flags);
+  assert.equal(call.flags.out, 'cpu.perf.data');
+});
+
+test('perf trace stop forwards perfetto kind and prints compact artifact summary', async () => {
+  const result = await runCliCapture(
+    ['perf', 'trace', 'stop', '--kind', 'perfetto', '--out', 'app.perfetto-trace'],
+    async () => ({
+      ok: true,
+      data: {
+        action: 'stop',
+        type: 'trace',
+        kind: 'perfetto',
+        state: 'stopped',
+        outPath: '/tmp/app.perfetto-trace',
+        sizeBytes: 2048,
+        summary: {
+          frameHealth: {
+            available: true,
+            droppedFramePercent: 12.5,
+            droppedFrameCount: 3,
+            totalFrameCount: 24,
+          },
+        },
+      },
+    }),
+  );
+
+  assert.equal(result.code, null);
+  assert.equal(result.calls[0]?.command, 'perf');
+  assert.deepEqual(result.calls[0]?.positionals, [
+    'trace',
+    'stop',
+    'perfetto',
+    '',
+    'app.perfetto-trace',
+  ]);
+  assert.equal(
+    result.stdout,
+    'Perf stop: perfetto trace state=stopped\n/tmp/app.perfetto-trace (2.0KB)\nTrace frame health: dropped 12.5% (3/24 frames)\n',
+  );
+});
+
 test('perf prints unavailable frame health reason by default', async () => {
   const result = await runCliCapture(['perf'], async () => ({
     ok: true,

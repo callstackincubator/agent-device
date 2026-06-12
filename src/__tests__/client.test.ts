@@ -179,6 +179,47 @@ test('observability.perf projects memory snapshot options to daemon flags', asyn
   assert.equal(setup.calls[0]?.flags?.out, 'app.memgraph');
 });
 
+test('observability.perf projects structured Android native profile input to daemon positionals', async () => {
+  const setup = createTransport(async (req) => {
+    if (req.command === 'perf') {
+      return {
+        ok: true,
+        data: {
+          action: 'start',
+          type: 'cpu-profile',
+          kind: 'simpleperf',
+          state: 'running',
+        },
+      };
+    }
+    throw new Error(`Unexpected command: ${req.command}`);
+  });
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  await client.observability.perf({
+    area: 'cpu',
+    subject: 'profile',
+    action: 'start',
+    kind: 'simpleperf',
+    out: 'cpu.perf.data',
+  });
+
+  assert.equal(setup.calls.length, 1);
+  const call = setup.calls[0];
+  assert.ok(call);
+  assert.equal(call.command, 'perf');
+  assert.deepEqual(call.positionals, [
+    'cpu',
+    'profile',
+    'start',
+    'simpleperf',
+    '',
+    'cpu.perf.data',
+  ]);
+  assert.ok(call.flags);
+  assert.equal(call.flags.out, 'cpu.perf.data');
+});
+
 test('structured command input accepts target as deviceTarget alias when no UI target exists', async () => {
   const setup = createTransport(async (req) => {
     if (req.command === 'open') {

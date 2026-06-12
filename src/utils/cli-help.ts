@@ -209,7 +209,7 @@ Validation and evidence:
   If task says snapshot, use snapshot. If it asks visual evidence, use screenshot.
   Icon/tappable visual proof: screenshot --overlay-refs. Flag is --overlay-refs.
   If snapshot returns a sparse/AX-unavailable state, refs are not reliable. Use plain screenshot, not screenshot --overlay-refs, navigate with coordinates if needed, then retry snapshot -i after reaching another screen; the AX failure may be screen-specific.
-  Startup/CPU/memory/frame first pass: perf metrics --json (bare perf and metrics are aliases). Focused frame/jank health: perf frames --json. Memory-only sample: perf memory sample --json returns compact JSON with bounded top offenders. Heap/memgraph artifact escalation: perf memory snapshot --out heap.artifact; use --kind android-hprof on Android or --kind memgraph on supported Apple simulator/macOS app sessions. Large memory artifacts stay on disk and responses return paths/compact metadata only. This is better than raw memory dumps for agents because it is stable, bounded, and keeps large artifacts out of context. heapprofd is deferred until Perfetto plumbing is available. Replay maintenance: replay -u ./flow.ad.
+  Startup/CPU/memory/frame first pass: perf metrics --json (bare perf and metrics are aliases). Focused frame/jank health: perf frames --json. Memory-only sample: perf memory sample --json returns compact JSON with bounded top offenders. Heap/memgraph artifact escalation: perf memory snapshot --out heap.artifact; use --kind android-hprof on Android or --kind memgraph on supported Apple simulator/macOS app sessions. Android native profiling: perf cpu profile start|stop|report --kind simpleperf --out <path>; Android native traces: perf trace start|stop --kind perfetto --out <path>. Artifact collectors return compact state/path/size metadata only; raw heap/profile/trace files stay on disk. Treat native perf output as the agent evidence: for example, a Perfetto stop can return state=stopped, outPath=/tmp/app.perfetto-trace, sizeBytes=5392410, and method=adb-shell-perfetto while the 5.3 MB raw trace stays in the artifact. This is better than raw dumps for agents because it is stable, bounded, and keeps large artifacts out of context. heapprofd is deferred until Perfetto plumbing is available. Replay maintenance: replay -u ./flow.ad.
   Recording: record start/stop. By default, stop burns touch overlays into the video; use record start --hide-touches for the fastest raw recording. Android adb screenrecord has a 180s platform limit, so longer Android recordings are returned as multiple MP4 chunks. For gesture-heavy iOS simulator proof videos, prefer --hide-touches because overlay timing depends on a stable runner session while gestures are executing. Tracing: trace start ./trace.log, trace stop ./trace.log. Paths are positional.
   Stable known flow: batch ./steps.json, not workflow batch.
   Inline batch JSON example:
@@ -303,7 +303,13 @@ Diagnostics and traces:
     agent-device perf trace start --kind xctrace --template "Animation Hitches" --out ./artifacts/hitches.trace
     agent-device perf trace stop --kind xctrace --out ./artifacts/hitches.trace
   perf xctrace returns artifact paths and compact metadata only. Do not dump .trace contents into context.
-  Android native profiling is out of scope for Apple xctrace perf; use the Android perf rollout when available.
+  For Android native CPU/trace evidence, use perf artifacts instead of raw adb/simpleperf/perfetto output:
+    agent-device perf cpu profile start --kind simpleperf --out /tmp/cpu.perf.data
+    agent-device perf cpu profile stop --kind simpleperf
+    agent-device perf cpu profile report --kind simpleperf --out /tmp/cpu-report.json
+    agent-device perf trace start --kind perfetto --out /tmp/app.perfetto-trace
+    agent-device perf trace stop --kind perfetto
+  Treat native perf output as the agent evidence: for example, state=stopped, outPath=/tmp/app.perfetto-trace, sizeBytes=5392410, method=adb-shell-perfetto. The 5.3 MB raw trace stays in the artifact.
 
 Memory diagnostics:
   Use perf memory when the symptom is leak/growth/OOM suspicion and you need agent-readable evidence.

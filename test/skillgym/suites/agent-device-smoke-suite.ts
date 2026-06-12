@@ -1386,6 +1386,31 @@ const SKILL_GUIDANCE_CASES: Case[] = [
     forbiddenOutputs: [plannedCommand('debug'), plannedCommand('react-devtools')],
   }),
   makeCase({
+    id: 'perf-android-native-profiling',
+    contract: [
+      'App package: com.example.app',
+      'Platform: Android emulator',
+      'Need native CPU profile and system trace artifacts for PR evidence',
+      'Collect lightweight perf metrics and focused frame health first',
+      'Do not claim iOS native Simpleperf or Perfetto support',
+    ],
+    task: 'Plan commands to open the Android app, collect perf metrics and frames, then capture Android native Simpleperf CPU and Perfetto trace artifacts.',
+    outputs: [
+      plannedCommand('open'),
+      plannedCommand('perf metrics'),
+      plannedCommand('perf frames'),
+      plannedCommand('perf cpu profile start'),
+      /--kind\s+simpleperf/i,
+      plannedCommand('perf cpu profile stop'),
+      plannedCommand('perf cpu profile report'),
+      plannedCommand('perf trace start'),
+      /--kind\s+perfetto/i,
+      plannedCommand('perf trace stop'),
+      /--out/i,
+    ],
+    forbiddenOutputs: [/ios/i, plannedCommand('debug'), plannedCommand('react-devtools')],
+  }),
+  makeCase({
     id: 'react-devtools-profile-search',
     contract: [
       'App name: Agent Device Tester',

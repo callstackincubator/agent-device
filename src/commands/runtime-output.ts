@@ -193,6 +193,11 @@ function formatMemoryArtifactSummary(artifact: Record<string, unknown>): string 
 }
 
 function formatNativePerfOutput(data: Record<string, unknown>): string | undefined {
+  if (data.kind === 'xctrace') return formatAppleNativePerfOutput(data);
+  return formatAndroidNativePerfOutput(data);
+}
+
+function formatAppleNativePerfOutput(data: Record<string, unknown>): string | undefined {
   const state = typeof data.perf === 'string' ? data.perf : undefined;
   const outPath = readNativePerfArtifactPath(data);
   if (!state || !outPath || data.kind !== 'xctrace') return undefined;
@@ -214,6 +219,58 @@ function formatNativePerfLines(
   const lines = [outPath, `Perf ${mode}: ${state}`];
   if (typeof template === 'string') lines.push(`Template: ${template}`);
   return lines.join('\n');
+}
+
+function formatAndroidNativePerfOutput(data: Record<string, unknown>): string | undefined {
+  const summary = readNativePerfSummary(data);
+  if (!summary) return undefined;
+  return `Perf ${summary.action}: ${summary.kind} ${summary.type}${formatNativePerfState(
+    data,
+  )}${formatNativePerfArtifact(data)}${formatNativePerfFrameHealth(data)}`;
+}
+
+function readNativePerfSummary(
+  data: Record<string, unknown>,
+): { action: string; kind: string; type: string } | undefined {
+  const action = readString(data.action);
+  const kind = readString(data.kind);
+  const type = readString(data.type);
+  return action && kind && type ? { action, kind, type } : undefined;
+}
+
+function formatNativePerfState(data: Record<string, unknown>): string {
+  const state = readString(data.state);
+  return state ? ` state=${state}` : '';
+}
+
+function formatNativePerfArtifact(data: Record<string, unknown>): string {
+  const outPath = readString(data.outPath);
+  if (!outPath) return '';
+  const sizeBytes = readFiniteNumber(data.sizeBytes);
+  return `\n${outPath}${sizeBytes !== undefined ? ` (${formatBytes(sizeBytes)})` : ''}`;
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function formatNativePerfFrameHealth(data: Record<string, unknown>): string {
+  const summary = readRecord(data.summary);
+  const frameHealth = readRecord(summary?.frameHealth);
+  if (!frameHealth || frameHealth.available !== true) return '';
+  const droppedFramePercent = readFiniteNumber(frameHealth.droppedFramePercent);
+  const droppedFrameCount = readFiniteNumber(frameHealth.droppedFrameCount);
+  const totalFrameCount = readFiniteNumber(frameHealth.totalFrameCount);
+  if (
+    droppedFramePercent === undefined ||
+    droppedFrameCount === undefined ||
+    totalFrameCount === undefined
+  ) {
+    return '';
+  }
+  return `\nTrace frame health: dropped ${formatPercent(droppedFramePercent)} (${Math.round(
+    droppedFrameCount,
+  )}/${Math.round(totalFrameCount)} frames)`;
 }
 
 function formatPerfUnavailable(resourceSummary: string | undefined, reason: string): string {
@@ -333,8 +390,9 @@ function formatMemoryKb(value: number): string {
 }
 
 function formatBytes(value: number): string {
-  const megabytes = value / 1024 / 1024;
-  if (megabytes >= 10) return `${Math.round(megabytes)}MB`;
-  if (megabytes >= 1) return `${megabytes.toFixed(1)}MB`;
-  return `${Math.max(1, Math.round(value / 1024))}KB`;
+  if (value < 1024) return `${Math.round(value)}B`;
+  const kib = value / 1024;
+  if (kib < 1024) return `${kib >= 10 ? Math.round(kib) : kib.toFixed(1)}KB`;
+  const mib = kib / 1024;
+  return `${mib >= 10 ? Math.round(mib) : mib.toFixed(1)}MB`;
 }

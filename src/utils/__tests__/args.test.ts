@@ -909,6 +909,8 @@ test('usageForCommand supports metrics alias', () => {
   const help = usageForCommand('metrics');
   assert.equal(help === null, false);
   assert.match(help ?? '', /agent-device perf/);
+  assert.match(help ?? '', /Native perf output is agent evidence/);
+  assert.match(help ?? '', /raw profiles\/traces stay on disk/);
 });
 
 test('parseArgs rejects invalid swipe pattern', () => {
@@ -1194,6 +1196,9 @@ test('usageForCommand resolves debugging help topic', () => {
   assert.match(help, /Prefer perf memory sample over raw dumpsys\/leaks output/);
   assert.match(help, /Unsupported platforms return artifact\.available=false with reason\/hint/);
   assert.match(help, /Do not use settings permission to answer a dialog already on screen/);
+  assert.match(help, /Treat native perf output as the agent evidence/);
+  assert.match(help, /sizeBytes=5392410/);
+  assert.match(help, /5\.3 MB raw trace stays in the artifact/);
 });
 
 test('usageForCommand resolves remote help topic', () => {

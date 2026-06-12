@@ -151,11 +151,11 @@ const CLI_COMMAND_OVERRIDES = {
   },
   perf: {
     usageOverride:
-      'perf [metrics|frames|memory] [sample|snapshot]\n  agent-device perf memory sample --json\n  agent-device perf memory snapshot [--kind android-hprof|memgraph] [--out <path>]\n  agent-device perf cpu profile start|stop|report --kind xctrace [--template <name>] --out <path>\n  agent-device perf trace start|stop --kind xctrace [--template <name>] --out <path>',
+      'perf [metrics|frames|memory] [sample|snapshot]\n  agent-device perf memory sample --json\n  agent-device perf memory snapshot [--kind android-hprof|memgraph] [--out <path>]\n  agent-device perf cpu profile start|stop|report --kind xctrace [--template <name>] --out <path>\n  agent-device perf trace start|stop --kind xctrace [--template <name>] --out <path>\n  agent-device perf cpu profile start|stop|report --kind simpleperf [--out <path>]\n  agent-device perf trace start|stop --kind perfetto [--out <path>]',
     listUsageOverride:
       'perf [metrics|frames|memory] | perf cpu profile start|stop|report | perf trace start|stop',
     helpDescription:
-      'Show session performance metrics, focused frame/jank health, memory diagnostics artifacts, or Apple xctrace artifacts. Bare perf and metrics are aliases for perf metrics.',
+      'Show session performance metrics, focused frame/jank health, memory diagnostics artifacts, Apple xctrace artifacts, or Android native Simpleperf/Perfetto artifacts. Bare perf and metrics are aliases for perf metrics. Native perf output is agent evidence: compact state, artifact path, and size only; raw profiles/traces stay on disk.',
     summary: 'Show performance metrics or collect native perf artifacts',
     positionalArgs: ['area?', 'subjectOrAction?', 'action?'],
     allowedFlags: ['kind', 'perfTemplate', 'out'],

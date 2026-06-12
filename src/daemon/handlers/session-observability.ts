@@ -31,8 +31,9 @@ import {
   buildPerfMemoryResponseData,
   buildPerfResponseData,
 } from './session-perf.ts';
+import { handleNativePerfCommand as handleAndroidNativePerfCommand } from './session-native-perf.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
-import { handleNativePerfCommand } from './session-perf-xctrace.ts';
+import { handleNativePerfCommand as handleAppleNativePerfCommand } from './session-perf-xctrace.ts';
 import { NETWORK_INCLUDE_MODES, type NetworkIncludeMode } from '../../contracts.ts';
 import type { LogBackend } from '../network-log.ts';
 import {
@@ -100,16 +101,31 @@ export async function handleSessionObservabilityCommands(
 // ---------------------------------------------------------------------------
 
 async function handlePerfCommand(params: ObservabilityParams): Promise<DaemonResponse> {
-  const { req, sessionName, sessionStore } = params;
+  const { req, sessionName, sessionStore, androidAdbExecutor } = params;
   const session = sessionStore.get(sessionName);
   if (!session) {
     return errorResponse('SESSION_NOT_FOUND', 'perf requires an active session. Run open first.');
   }
 
+  const area = (req.positionals?.[0] ?? 'metrics').toLowerCase();
+  if (isNativePerfArea(area)) {
+    if (session.device.platform === 'android') {
+      return await handleAndroidNativePerfCommand({
+        req,
+        sessionName,
+        sessionStore,
+        session,
+        androidAdbExecutor,
+        area,
+      });
+    }
+    return await handleAppleNativePerfCommand(params, session);
+  }
+
   const request = resolvePerfCommandRequest(req);
   if (!request.ok) return request;
   if (request.native) {
-    return await handleNativePerfCommand(params, session);
+    return await handleAppleNativePerfCommand(params, session);
   }
 
   try {
@@ -120,6 +136,10 @@ async function handlePerfCommand(params: ObservabilityParams): Promise<DaemonRes
   } catch (error) {
     return { ok: false, error: normalizeError(error) };
   }
+}
+
+function isNativePerfArea(area: string): area is 'cpu' | 'trace' {
+  return area === 'cpu' || area === 'trace';
 }
 
 type PerfCommandRequest =
@@ -176,7 +196,7 @@ async function buildPerfCommandData(
   const { sessionName, sessionStore, androidAdbExecutor } = params;
   if (request.area === 'memory') {
     return await buildPerfMemoryResponseData(session, {
-      action: request.action,
+      action: toPerfMemoryAction(request.action),
       kind: request.kind,
       out: request.out,
       cwd: params.req.meta?.cwd,
@@ -213,14 +233,22 @@ function validatePerfAreaAction(
   area: Exclude<PerfArea, 'cpu' | 'trace'>,
   action: PerfAction,
 ): DaemonFailureResponse | undefined {
+  if (area === 'memory') {
+    return isPerfMemoryAction(action)
+      ? undefined
+      : errorResponse('INVALID_ARGS', 'perf memory requires sample or snapshot');
+  }
   if (action === 'sample') return undefined;
-  if (area === 'memory' && action === 'snapshot') return undefined;
-  return errorResponse(
-    'INVALID_ARGS',
-    area === 'memory'
-      ? 'perf memory only supports snapshot'
-      : 'perf metrics and perf frames only support sample',
-  );
+  return errorResponse('INVALID_ARGS', 'perf metrics and perf frames only support sample');
+}
+
+function isPerfMemoryAction(action: PerfAction): action is 'sample' | 'snapshot' {
+  return action === 'sample' || action === 'snapshot';
+}
+
+function toPerfMemoryAction(action: PerfAction): 'sample' | 'snapshot' {
+  if (isPerfMemoryAction(action)) return action;
+  throw new AppError('INVALID_ARGS', 'perf memory requires sample or snapshot');
 }
 
 function validatePerfFlags(
