@@ -7,7 +7,7 @@
 ## Features
 
 - **One CLI, many app surfaces**: Control iOS, Android, tvOS, Android TV, macOS, and Linux desktop targets with consistent snapshot and interaction commands.
-- **Accessibility-first snapshots**: Accessibility trees give agents compact UI context without forcing screenshot-only reasoning.
+- **Accessibility-first snapshots**: Accessibility trees give agents structured UI context without forcing screenshot-only reasoning.
 - **Agent-native interactions**: Tap, pan, fling, pinch, rotate, scroll, focus, type, assert, and find visible UI through refs, selectors, and semantic finders.
 - **Built-in debugging and profiling**: Collect session logs, inspect recent HTTP traffic, capture screenshots and recordings, and sample CPU, memory, startup, and frame-health metrics.
 - **Session and replay**: Open apps, keep stateful context, and replay recorded `.ad` actions to reproduce flows without AI at runtime.
