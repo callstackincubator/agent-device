@@ -784,7 +784,7 @@ Additional CLI-backed methods are exposed on their domain groups with typed opti
 - `client.recording.record()` and `client.recording.trace()`
 - `client.settings.update()`
 
-`client.observability.perf()` returns daemon-shaped JSON so local and remote transports expose the same metrics payload. Pass `{ area: 'metrics' }` for the broad startup/CPU/memory/frame first pass, `{ area: 'frames' }` for a focused frame/jank-health payload, or `{ area: 'memory', action: 'sample' }` for a compact memory-only sample. Use `{ area: 'memory', action: 'snapshot', kind: 'android-hprof', out: 'app.hprof' }` on Android or `{ area: 'memory', action: 'snapshot', kind: 'memgraph', out: 'app.memgraph' }` on supported Apple simulator/macOS app sessions to write large memory artifacts to disk; responses return artifact paths and compact metadata, not artifact bytes. Physical iOS device memgraph capture reports unavailable with a reason/hint. heapprofd allocation tracing is deferred until Perfetto plumbing is available. On Android and supported Apple targets, `data.metrics.fps.droppedFramePercent` is the primary frame-smoothness value. Android derives it from the current `adb shell dumpsys gfxinfo <package> framestats` window; connected iOS devices derive it from `xcrun xctrace` Animation Hitches for the active app process. Frame samples include `windowStartedAt`, `windowEndedAt`, and `worstWindows` so agents can correlate dropped-frame clusters with logs, network entries, and their own session actions. A successful Android read resets Android frame stats; `open <app>` resets the Android frame window too, so agents can call `perf({ area: 'frames' })`, perform a transition or gesture, then call it again to inspect that focused window. iOS simulator and macOS app sessions report frame health as unavailable rather than inventing FPS or dropped-frame values.
+`client.observability.perf()` returns daemon-shaped JSON so local and remote transports expose the same metrics payload. Pass `{ area: 'metrics' }` for the broad startup/CPU/memory/frame first pass, `{ area: 'frames' }` for a focused frame/jank-health payload, or `{ area: 'memory', action: 'sample' }` for a compact memory-only sample. Use `{ area: 'memory', action: 'snapshot', kind: 'android-hprof', out: 'app.hprof' }` on Android or `{ area: 'memory', action: 'snapshot', kind: 'memgraph', out: 'app.memgraph' }` on supported Apple simulator/macOS app sessions to write large memory artifacts to disk. Android native artifacts use `{ area: 'cpu', subject: 'profile', action: 'start' | 'stop' | 'report', kind: 'simpleperf', out }` and `{ area: 'trace', action: 'start' | 'stop', kind: 'perfetto', out }`; these Android-only commands return artifact paths and compact summaries, not trace/profile contents. Physical iOS device memgraph capture reports unavailable with a reason/hint. heapprofd allocation tracing is deferred until Perfetto plumbing is available. On Android and supported Apple targets, `data.metrics.fps.droppedFramePercent` is the primary frame-smoothness value. Android derives it from the current `adb shell dumpsys gfxinfo <package> framestats` window; connected iOS devices derive it from `xcrun xctrace` Animation Hitches for the active app process. Frame samples include `windowStartedAt`, `windowEndedAt`, and `worstWindows` so agents can correlate dropped-frame clusters with logs, network entries, and their own session actions. A successful Android read resets Android frame stats; `open <app>` resets the Android frame window too, so agents can call `perf({ area: 'frames' })`, perform a transition or gesture, then call it again to inspect that focused window. iOS simulator and macOS app sessions report frame health as unavailable rather than inventing FPS or dropped-frame values.
 
 For Apple native profiling, call `perf({ area: 'cpu', subject: 'profile', action: 'start', kind: 'xctrace', template: 'Time Profiler', out: 'app.trace' })`, then stop with the same trace path and write a compact report with `action: 'report'`. `area: 'trace'` supports xctrace templates such as `Animation Hitches`. Responses include artifact paths and compact metadata only.
 
@@ -1535,6 +1535,11 @@ agent-device perf cpu profile stop --kind xctrace --out app.trace
 agent-device perf cpu profile report --kind xctrace --out app-profile.json
 agent-device perf trace start --kind xctrace --template "Animation Hitches" --out hitches.trace
 agent-device perf trace stop --kind xctrace --out hitches.trace
+agent-device perf cpu profile start --kind simpleperf --out cpu.perf.data
+agent-device perf cpu profile stop --kind simpleperf --out cpu.perf.data
+agent-device perf cpu profile report --kind simpleperf --out cpu-report.json
+agent-device perf trace start --kind perfetto --out app.perfetto-trace
+agent-device perf trace stop --kind perfetto --out app.perfetto-trace
 ```
 
 - `perf metrics` returns a session-scoped metrics JSON blob. Bare `perf` and `metrics` remain aliases for `perf metrics`.
@@ -1546,7 +1551,11 @@ agent-device perf trace stop --kind xctrace --out hitches.trace
 - `perf cpu profile ... --kind xctrace` records an Apple `.trace` with the requested xctrace template and writes a compact JSON report from the most recent CPU profile trace.
 - `perf trace ... --kind xctrace` records an Apple `.trace` such as Animation Hitches for native diagnosis.
 - xctrace perf commands return artifact paths and compact metadata only; inspect `.trace` files in Instruments/Xcode instead of dumping trace contents into agent context.
+- `perf cpu profile ... --kind simpleperf` starts/stops Android native CPU profiling for the active session package and can generate a compact JSON report artifact from the captured profile.
+- `perf trace ... --kind perfetto` starts/stops Android Perfetto trace capture for the active session package.
+- Native profile/trace outputs are compact agent evidence: state, artifact path, size, and method. Raw `.perf.data` and `.perfetto-trace` contents stay on disk.
 - Without `--json`, `perf` prints a compact summary: frame health when reliable frame data is available, otherwise CPU/memory when those samples are available.
+- Use native perf stop/report results as compact agent evidence, not raw profiler output. A successful Perfetto stop can return `state: "stopped"`, `outPath: "/tmp/app.perfetto-trace"`, `sizeBytes: 5392410`, and `method: "adb-shell-perfetto"` while the 5.3 MB raw trace stays on disk as the artifact.
 - `startup` is sampled from `open-command-roundtrip`: elapsed wall-clock time around each `open` command dispatch for the active session app target.
 - Android app sessions with an active package also sample:
   - `fps` frame health from `adb shell dumpsys gfxinfo <package> framestats`, with `droppedFramePercent` as the primary value and `worstWindows` for dropped-frame clusters
@@ -1569,6 +1578,7 @@ agent-device perf trace stop --kind xctrace --out hitches.trace
 - If no startup sample exists yet for the session, run `open <app|url>` first and retry `perf metrics`.
 - Android URL/deep-link opens infer the foreground package after launch when possible, including Expo Go/dev-client shells. If the session still has no app package/bundle ID, package-bound metrics remain unavailable until you `open <app>`.
 - Android frame health is reset after each successful `perf metrics` or `perf frames` read and after `open <app>`, so run `perf frames`, perform the interaction, then run `perf frames` again for a focused window.
+- Android Simpleperf and Perfetto collectors require an active Android app session with a running package process. They return artifact paths, sizes, and compact state summaries; they do not print profile or trace contents into the agent context. iOS native Simpleperf/Perfetto support is not provided by these commands.
 - On physical iOS devices, `perf metrics` and `perf frames` record short `xcrun xctrace` samples. Keep the device unlocked, connected, and the app active in the foreground while sampling.
 - Interpretation note: this startup metric is command round-trip timing and does not represent true first frame / first interactive app instrumentation.
 - CPU data is a lightweight process snapshot, so an idle app may legitimately read as `0`.
@@ -1681,6 +1691,19 @@ agent-device network dump 25 --include all # Include parsed headers/body when av
 - On iOS, `network dump` can return zero HTTP entries for real app activity when the app does not emit request metadata into Unified Logging. The response notes now distinguish between an empty repro window and a non-network app log window.
 - Retention knobs: set `AGENT_DEVICE_APP_LOG_MAX_BYTES` and `AGENT_DEVICE_APP_LOG_MAX_FILES` to override rotation limits.
 - Optional write-time redaction patterns: set `AGENT_DEVICE_APP_LOG_REDACT_PATTERNS` to a comma-separated regex list.
+
+**Crash symbols (bounded local symbolication):** Use `debug symbols` when you already have an Apple crash artifact and local dSYMs and need the failing code path. The command matches crash Binary Images / IPS `usedImages` UUIDs to `dwarfdump --uuid` output, runs `atos`, writes a symbolicated artifact, and prints only the output path plus a compact crash report with app/thread, exception or termination, top symbolicated frames, and the first actionable frame finding. This is better than pasting raw crash logs because the agent sees the diagnosis and artifact path without ingesting the full crash body.
+
+Crash routing: use `logs` for the lead-up timeline, `debug symbols` for a failing frame from `crash.ips`/`crash.log` plus matching dSYMs, and Xcode/LLDB for live state, breakpoints, variables, memory, or stepping.
+
+```bash
+agent-device debug symbols --artifact crash.log --dsym MyApp.dSYM --out crash-symbolicated.log
+agent-device debug symbols --artifact crash.ips --search-path ./build --out crash-symbolicated.ips
+```
+
+- `debug` is intentionally narrow: do not use it for app logs, network evidence, performance samples, recordings, traces, or React Native internals.
+- Android Java/R8 `mapping.txt` and native `ndk-stack`/`addr2line` symbolication are deferred; capture Android crash evidence with `logs` and symbolicate externally for now.
+- The crash artifact body is written to `--out`; it is not dumped into agent context or default JSON.
 
 **Grepping app logs:** Use `logs path` to get the file path, then run `grep` (or `grep -E`) on that path so only matching lines enter context—keeping token use low.
 
@@ -1971,6 +1994,7 @@ Use `agent-device` when the task moves past UI automation and you need runtime e
 - Session app logs for targeted debugging windows
 - Network inspection from recent HTTP(s) entries in app logs via `network dump`
 - Performance snapshots with `perf metrics` / `perf frames`
+- Apple crash symbolication with `debug symbols`
 - Screenshots, recordings, and replayable repro flows
 
 ## React Native component internals
@@ -2022,6 +2046,27 @@ agent-device open MyApp --platform ios --relaunch --launch-console ./artifacts/a
 
 `--launch-console` is only for direct iOS simulator app launches, not URL opens.
 
+## Crash symbolication
+
+Crash routing:
+
+| Need                                                                          | Use             |
+| ----------------------------------------------------------------------------- | --------------- |
+| Lead-up timeline before a failure                                             | `logs`          |
+| Failing frame from `crash.ips`/`crash.log` plus matching dSYM/build directory | `debug symbols` |
+| Live state, breakpoints, variables, memory, or stepping                       | Xcode/LLDB      |
+
+Use `debug symbols` when you already have an Apple crash artifact and local dSYMs and need the failing code path, not a full log dump:
+
+```bash
+agent-device debug symbols --artifact crash.log --dsym MyApp.dSYM --out crash-symbolicated.log
+agent-device debug symbols --artifact crash.ips --search-path ./build --out crash-symbolicated.ips
+```
+
+The command supports Apple `.ips`, `.crash`, and log-style crash artifacts that contain Binary Images or IPS `usedImages`. It matches UUIDs from the crash artifact against `dwarfdump --uuid` output from `.dSYM` bundles, runs `atos`, writes a symbolicated artifact, and prints only the output path plus a compact crash report: app/thread, exception or termination, top symbolicated frames, and the first actionable frame finding. This is better than pasting raw crash logs because it keeps agent context small while preserving the full symbolicated artifact on disk.
+
+`debug` is intentionally narrow. Use `logs` for app logs, `network` for HTTP evidence, `perf` for performance samples, `record`/`trace` for media and traces, and `react-devtools` for React Native internals. Android Java/R8 `mapping.txt` and native `ndk-stack`/`addr2line` symbolication are deferred; capture Android crash evidence with `logs` and symbolicate externally for now.
+
 ## Core commands
 
 ### Logs
@@ -2064,6 +2109,11 @@ agent-device perf memory snapshot --kind memgraph --out app.memgraph
 agent-device perf cpu profile start --kind xctrace --template "Time Profiler" --out app.trace
 agent-device perf cpu profile stop --kind xctrace --out app.trace
 agent-device perf cpu profile report --kind xctrace --out app-profile.json
+agent-device perf cpu profile start --kind simpleperf --out cpu.perf.data
+agent-device perf cpu profile stop --kind simpleperf --out cpu.perf.data
+agent-device perf cpu profile report --kind simpleperf --out cpu-report.json
+agent-device perf trace start --kind perfetto --out app.perfetto-trace
+agent-device perf trace stop --kind perfetto --out app.perfetto-trace
 ```
 
 - `perf metrics` returns session-scoped startup and, where supported, CPU, memory, and frame-health samples. Bare `perf` and `metrics` remain aliases.
@@ -2073,6 +2123,8 @@ agent-device perf cpu profile report --kind xctrace --out app-profile.json
 - `perf memory snapshot` escalates to file artifacts. Android supports Java HPROF capture for active app processes when the build/device allows heap dumping. iOS simulator and macOS app sessions support memgraph capture through host-visible process tooling; physical iOS device memgraph capture reports unavailable with a hint instead of pretending support.
 - Heap and memgraph artifacts are returned as paths plus compact metadata. Example default output: `Memory artifact (android-hprof): /tmp/app.hprof (42MB)`. They are not printed or embedded in JSON by default. heapprofd/native allocation tracing is deferred until Perfetto plumbing is available.
 - `perf cpu profile ... --kind xctrace` and `perf trace ... --kind xctrace` collect Apple native `.trace` artifacts for iOS/macOS app sessions and return only artifact paths plus compact metadata.
+- Android native profiling uses `perf cpu profile ... --kind simpleperf`; Android native trace capture uses `perf trace ... --kind perfetto`. These commands require an active Android app session and return artifact paths/summaries instead of dumping profile or trace contents.
+- Use the compact native perf result as agent evidence. For example, a successful Perfetto stop may return `state: "stopped"`, `outPath: "/tmp/app.perfetto-trace"`, `sizeBytes: 5392410`, and `method: "adb-shell-perfetto"` while the 5.3 MB raw trace remains on disk as the artifact.
 - Startup is measured around the `open` command; it is not first-frame instrumentation.
 - CPU, memory, and Android frame-health availability depend on platform and whether the active session is bound to an app/package.
 - On Android and supported Apple targets, use `metrics.fps.droppedFramePercent` for the health check and `metrics.fps.worstWindows` to line up jank clusters with logs, network activity, or recent actions.
