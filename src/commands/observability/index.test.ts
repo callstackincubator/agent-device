@@ -9,10 +9,6 @@ import {
   networkCommandDefinition,
   networkCommandMetadata,
   networkDaemonWriter,
-  perfCliReader,
-  perfCommandDefinition,
-  perfCommandMetadata,
-  perfDaemonWriter,
 } from './index.ts';
 
 const NO_FLAGS = {} as CliFlags;
@@ -27,39 +23,11 @@ function expectInvalidArgs(fn: () => unknown, messageFragment: string) {
 }
 
 describe('observability command interface', () => {
-  test('owns perf, logs, and network public metadata', () => {
-    expect(perfCommandMetadata.name).toBe('perf');
-    expect(perfCommandDefinition.name).toBe('perf');
+  test('owns logs and network public metadata', () => {
     expect(logsCommandMetadata.name).toBe('logs');
     expect(logsCommandDefinition.name).toBe('logs');
     expect(networkCommandMetadata.name).toBe('network');
     expect(networkCommandDefinition.name).toBe('network');
-  });
-
-  test('reads perf area, action, kind, and out flags', () => {
-    expect(
-      perfCliReader(['memory', 'snapshot'], {
-        kind: 'android-hprof',
-        out: './heap.hprof',
-      } as CliFlags),
-    ).toEqual({
-      area: 'memory',
-      action: 'snapshot',
-      kind: 'android-hprof',
-      out: './heap.hprof',
-    });
-  });
-
-  test('treats a single perf action as metrics action', () => {
-    expect(perfCliReader(['sample'], NO_FLAGS)).toEqual({
-      action: 'sample',
-      kind: undefined,
-      out: undefined,
-    });
-    expect(perfDaemonWriter({ action: 'sample' })).toMatchObject({
-      command: 'perf',
-      positionals: ['metrics', 'sample'],
-    });
   });
 
   test('reads logs action and message', () => {
@@ -96,7 +64,6 @@ describe('observability command interface', () => {
   });
 
   test('rejects invalid observability positionals', () => {
-    expectInvalidArgs(() => perfCliReader(['memory', 'explode'], NO_FLAGS), 'perf action');
     expectInvalidArgs(() => logsCliReader(['explode'], NO_FLAGS), 'logs requires');
     expectInvalidArgs(() => networkCliReader(['explode'], NO_FLAGS), 'network requires');
     expectInvalidArgs(

@@ -1,4 +1,4 @@
-import { AppError } from '../utils/errors.ts';
+import { AppError } from '../../../../utils/errors.ts';
 
 const UUID_RE = /^[0-9a-fA-F-]{32,36}$/;
 

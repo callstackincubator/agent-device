@@ -1,6 +1,7 @@
 import type { CliFlags } from '../../utils/cli-flags.ts';
 import { batchCliReaders } from '../batch/index.ts';
 import { captureCliReaders } from '../capture/index.ts';
+import { debuggingCliReaders } from '../debugging/index.ts';
 import type { CliReader } from './types.ts';
 import type { CommandName } from '../command-metadata.ts';
 import {
@@ -11,6 +12,7 @@ import {
 import { appCliReaders } from '../management/index.ts';
 import { metroCliReaders } from '../metro/index.ts';
 import { observabilityCliReaders } from '../observability/index.ts';
+import { perfCliReaders } from '../perf/index.ts';
 import { reactNativeCliReaders } from '../react-native/index.ts';
 import { recordingCliReaders } from '../recording/index.ts';
 import { replayCliReaders } from '../replay/index.ts';
@@ -23,6 +25,8 @@ const cliReaders = {
   ...gestureCliReaders,
   ...interactionSelectorCliReaders,
   ...observabilityCliReaders,
+  ...perfCliReaders,
+  ...debuggingCliReaders,
   ...reactNativeCliReaders,
   ...recordingCliReaders,
   ...replayCliReaders,

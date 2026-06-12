@@ -2,8 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { AppleImage, DsymMatch, DsymSlice } from './types.ts';
 import { normalizeUuid, unique } from './utils.ts';
-import { runCmd } from '../utils/exec.ts';
-import { AppError } from '../utils/errors.ts';
+import { runCmd } from '../../../../utils/exec.ts';
+import { AppError } from '../../../../utils/errors.ts';
 
 const MAX_SEARCH_ENTRIES = 10_000;
 const MAX_DSYM_CANDIDATES = 200;

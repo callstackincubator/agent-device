@@ -1,10 +1,12 @@
 import type { CommandName } from '../commands/command-metadata.ts';
 import { batchCliSchemas } from '../commands/batch/index.ts';
 import { captureCliSchemas } from '../commands/capture/index.ts';
+import { debuggingCliSchemas } from '../commands/debugging/index.ts';
 import { interactionCliSchemas } from '../commands/interaction/index.ts';
 import { managementCliSchemas } from '../commands/management/index.ts';
 import { metroCliSchemas } from '../commands/metro/index.ts';
 import { observabilityCliSchemas } from '../commands/observability/index.ts';
+import { perfCliSchemas } from '../commands/perf/index.ts';
 import { reactNativeCliSchemas } from '../commands/react-native/index.ts';
 import { recordingCliSchemas } from '../commands/recording/index.ts';
 import { replayCliSchemas } from '../commands/replay/index.ts';
@@ -66,6 +68,8 @@ const CLI_COMMAND_OVERRIDES = {
   ...systemCliSchemas,
   ...interactionCliSchemas,
   ...observabilityCliSchemas,
+  ...perfCliSchemas,
+  ...debuggingCliSchemas,
   ...metroCliSchemas,
   ...replayCliSchemas,
   ...batchCliSchemas,

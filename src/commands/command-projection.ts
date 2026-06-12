@@ -8,6 +8,7 @@ import {
 } from './interaction/index.ts';
 import { appDaemonWriters } from './management/index.ts';
 import { observabilityDaemonWriters } from './observability/index.ts';
+import { perfDaemonWriters } from './perf/index.ts';
 import { reactNativeDaemonWriters } from './react-native/index.ts';
 import { recordingDaemonWriters } from './recording/index.ts';
 import { replayDaemonWriters } from './replay/index.ts';
@@ -20,6 +21,7 @@ const daemonWriters = {
   ...gestureDaemonWriters,
   ...selectorDaemonWriters,
   ...observabilityDaemonWriters,
+  ...perfDaemonWriters,
   ...reactNativeDaemonWriters,
   ...recordingDaemonWriters,
   ...replayDaemonWriters,
