@@ -118,7 +118,7 @@ Appium, Detox, and Maestro are traditional mobile automation frameworks. `agent-
 
 ## Used By
 
-Used by teams and developers at Callstack, Expensify, Shopify, Kindred, Total Wine & More, LegendList, HerLyfe, App & Flow, and more.
+Used by teams and developers at Callstack, JPMorgan Chase, Expensify, Shopify, Kindred, Total Wine & More, LegendList, HerLyfe, App & Flow, and more.
 
 ## Documentation
 
