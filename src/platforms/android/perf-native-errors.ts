@@ -38,7 +38,7 @@ export function annotateAndroidNativePerfError(
   );
 }
 
-export function buildAndroidNativePerfHint(tool: AndroidNativePerfKind): string {
+function buildAndroidNativePerfHint(tool: AndroidNativePerfKind): string {
   return tool === 'simpleperf'
     ? 'Verify simpleperf is available, the app process is running, and the app/device permits native CPU profiling.'
     : 'Verify perfetto is available, the app process is running, and the device permits trace capture.';
