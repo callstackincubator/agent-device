@@ -31,6 +31,7 @@ import { screenshotAndroid } from '../../platforms/android/screenshot.ts';
 import { withDiagnosticTimer } from '../../utils/diagnostics.ts';
 import type { DeviceInfo } from '../../utils/device.ts';
 import type { Interactor } from '../interactor-types.ts';
+import { snapshotCaptureAnnotationsFrom } from '../../snapshot-capture-annotations.ts';
 
 export function createAndroidInteractor(device: DeviceInfo): Interactor {
   return {
@@ -78,8 +79,7 @@ export function createAndroidInteractor(device: DeviceInfo): Interactor {
         nodes: result.nodes ?? [],
         truncated: result.truncated ?? false,
         backend: 'android',
-        analysis: result.analysis,
-        androidSnapshot: result.androidSnapshot,
+        ...snapshotCaptureAnnotationsFrom(result),
       };
     },
     back: (_mode) => backAndroid(device),

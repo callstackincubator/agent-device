@@ -8,7 +8,7 @@ import type { DaemonRequest, DaemonResponse, DaemonResponseData, SessionState } 
 import { SessionStore } from './session-store.ts';
 import { errorResponse } from './handlers/response.ts';
 import { captureSnapshot, resolveSnapshotScope } from './handlers/snapshot-capture.ts';
-import { readSnapshotQualityVerdict } from '../utils/snapshot-quality.ts';
+import { snapshotCaptureAnnotationsFrom } from '../snapshot-capture-annotations.ts';
 import {
   buildSnapshotSession,
   resolveSessionDevice,
@@ -288,11 +288,7 @@ function createDaemonSnapshotBackend(params: {
       });
       return {
         snapshot: capture.snapshot,
-        analysis: capture.analysis,
-        androidSnapshot: capture.androidSnapshot,
-        freshness: capture.freshness,
-        warnings: capture.warnings,
-        quality: readSnapshotQualityVerdict(capture.quality),
+        ...snapshotCaptureAnnotationsFrom(capture),
         appName: session?.appBundleId ? (session.appName ?? session.appBundleId) : undefined,
         appBundleId: session?.appBundleId,
       };

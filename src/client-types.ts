@@ -1,4 +1,4 @@
-import type { SnapshotQualityVerdict } from './utils/snapshot-quality.ts';
+import type { PublicSnapshotCaptureAnnotations } from './snapshot-capture-annotations.ts';
 import type {
   DaemonResponseData,
   DaemonInstallSource,
@@ -26,7 +26,6 @@ import type { ScrollInputDirection } from './commands/interaction-gestures.ts';
 import type { LogAction } from './contracts/logs.ts';
 import type { SessionSurface } from './core/session-surface.ts';
 import type { FindLocator } from './utils/finders.ts';
-import type { AndroidSnapshotBackendMetadata } from './platforms/android/snapshot-types.ts';
 import type {
   ScreenshotOverlayRef,
   SnapshotNode,
@@ -335,12 +334,9 @@ export type CaptureSnapshotResult = {
   appName?: string;
   appBundleId?: string;
   visibility?: SnapshotVisibility;
-  androidSnapshot?: AndroidSnapshotBackendMetadata;
-  warnings?: string[];
   unchanged?: SnapshotUnchanged;
   identifiers: AgentDeviceIdentifiers;
-  snapshotQuality?: SnapshotQualityVerdict;
-};
+} & PublicSnapshotCaptureAnnotations;
 
 export type CaptureScreenshotOptions = AgentDeviceRequestOverrides & {
   path?: string;

@@ -1,4 +1,3 @@
-import { readSnapshotQualityVerdict } from './utils/snapshot-quality.ts';
 import { sendToDaemon } from './daemon-client.ts';
 import { prepareMetroRuntime, reloadMetro } from './client-metro.ts';
 import { resolveDaemonPaths } from './daemon/config.ts';
@@ -42,6 +41,7 @@ import type {
   MaterializationReleaseOptions,
   MetroPrepareOptions,
 } from './client-types.ts';
+import { readSerializedSnapshotCaptureAnnotations } from './snapshot-capture-annotations.ts';
 
 export function createAgentDeviceClient(
   config: AgentDeviceClientConfig = {},
@@ -342,20 +342,11 @@ function optionalSnapshotResponseFields(
   >
 > {
   const visibility = readObject(data.visibility);
-  const androidSnapshot = readObject(data.androidSnapshot);
   const unchanged = readObject(data.unchanged);
-  const warnings = Array.isArray(data.warnings)
-    ? data.warnings.filter((entry): entry is string => typeof entry === 'string')
-    : undefined;
-  const snapshotQuality = readSnapshotQualityVerdict(data.snapshotQuality);
   return {
     ...(visibility ? { visibility: visibility as CaptureSnapshotResult['visibility'] } : {}),
-    ...(snapshotQuality ? { snapshotQuality } : {}),
-    ...(androidSnapshot
-      ? { androidSnapshot: androidSnapshot as CaptureSnapshotResult['androidSnapshot'] }
-      : {}),
+    ...readSerializedSnapshotCaptureAnnotations(data),
     ...(unchanged ? { unchanged: unchanged as CaptureSnapshotResult['unchanged'] } : {}),
-    ...(warnings ? { warnings } : {}),
   };
 }
 

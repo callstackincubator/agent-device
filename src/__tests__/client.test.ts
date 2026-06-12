@@ -623,6 +623,30 @@ test('client capture.snapshot preserves visibility metadata from daemon response
   });
 });
 
+test('client capture.snapshot preserves snapshot quality annotation from daemon responses', async () => {
+  const snapshotQuality = {
+    state: 'recovered',
+    backend: 'queries',
+    reason: 'tree was sparse',
+    reasonCode: 'sparse-tree',
+    effectiveDepth: 2,
+    collapsedLeafIndexes: [7],
+  } as const;
+  const setup = createTransport(async () => ({
+    ok: true,
+    data: {
+      nodes: [],
+      truncated: false,
+      snapshotQuality,
+    },
+  }));
+  const client = createAgentDeviceClient(setup.config, { transport: setup.transport });
+
+  const result = await client.capture.snapshot();
+
+  assert.deepEqual(result.snapshotQuality, snapshotQuality);
+});
+
 test('client capture.snapshot forwards force-full as snapshotForceFull flag', async () => {
   const setup = createTransport(async () => ({
     ok: true,

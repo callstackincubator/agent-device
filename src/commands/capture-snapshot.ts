@@ -1,9 +1,13 @@
 import type { BackendSnapshotResult } from '../backend.ts';
-import type { AndroidSnapshotBackendMetadata } from '../platforms/android/snapshot-types.ts';
 import type { AgentDeviceRuntime, CommandSessionRecord } from '../runtime-contract.ts';
 import {
+  publicSnapshotCaptureAnnotations,
+  snapshotCaptureAnnotationsFrom,
+  type PublicSnapshotCaptureAnnotations,
+  type SnapshotCaptureAnnotations,
+} from '../snapshot-capture-annotations.ts';
+import {
   renderSnapshotQualityWarnings,
-  type SnapshotQualityVerdict,
 } from '../utils/snapshot-quality.ts';
 import { AppError } from '../utils/errors.ts';
 import { buildSnapshotDiff, countSnapshotComparableLines } from '../utils/snapshot-diff.ts';
@@ -35,11 +39,8 @@ export type SnapshotCommandResult = {
   appName?: string;
   appBundleId?: string;
   visibility?: SnapshotVisibility;
-  androidSnapshot?: AndroidSnapshotBackendMetadata;
-  warnings?: string[];
   unchanged?: SnapshotUnchanged;
-  snapshotQuality?: SnapshotQualityVerdict;
-};
+} & PublicSnapshotCaptureAnnotations;
 
 export type DiffSnapshotCommandResult = {
   mode: 'snapshot';
@@ -53,6 +54,7 @@ type SnapshotCapture = {
   snapshot: SnapshotState;
   result: BackendSnapshotResult;
   session: CommandSessionRecord | undefined;
+  annotations: SnapshotCaptureAnnotations;
   warnings: string[];
 };
 
@@ -79,9 +81,10 @@ export const snapshotCommand: RuntimeCommand<
       backend: capture.snapshot.backend,
       snapshotRaw: options.raw,
     }),
-    ...(capture.result.androidSnapshot ? { androidSnapshot: capture.result.androidSnapshot } : {}),
-    ...(capture.result.quality ? { snapshotQuality: capture.result.quality } : {}),
-    ...(capture.warnings.length > 0 ? { warnings: capture.warnings } : {}),
+    ...publicSnapshotCaptureAnnotations({
+      ...capture.annotations,
+      warnings: capture.warnings,
+    }),
     ...(unchanged ? { unchanged } : {}),
     ...snapshotAppFields(capture),
   };
@@ -158,13 +161,16 @@ async function captureRuntimeSnapshot(
     normalizeBackendSnapshot(result, runtime),
     options,
   );
+  const annotations = snapshotCaptureAnnotationsFrom(result);
   const warningTime = now(runtime);
   return {
     snapshot,
     result,
     session,
+    annotations,
     warnings: buildSnapshotWarnings({
       result,
+      annotations,
       snapshot,
       options,
       session,
@@ -215,24 +221,27 @@ function snapshotAppFields(capture: SnapshotCapture): {
 
 function buildSnapshotWarnings(params: {
   result: BackendSnapshotResult;
+  annotations: SnapshotCaptureAnnotations;
   snapshot: SnapshotState;
   options: SnapshotCommandOptions;
   session: CommandSessionRecord | undefined;
   capturedAt: number;
   runtimeNow: number;
 }): string[] {
-  const warnings = [...(params.result.warnings ?? [])];
-  if (params.result.quality) {
-    warnings.push(...renderSnapshotQualityWarnings(params.result.quality, params.snapshot.nodes));
+  const warnings = [...(params.annotations.warnings ?? [])];
+  if (params.annotations.quality) {
+    warnings.push(...renderSnapshotQualityWarnings(params.annotations.quality, params.snapshot.nodes));
   }
   warnings.push(...buildEmptyAndroidInteractiveWarnings(params));
-  if (!params.result.quality) {
+  if (!params.annotations.quality) {
     // Legacy runners without a structured verdict keep the old daemon-side heuristics.
     warnings.push(...buildSparseIosInteractiveWarnings(params));
     warnings.push(...buildMergedAccessibilityLeafWarnings(params.snapshot.nodes));
   }
 
-  const helperFallbackWarning = formatAndroidHelperFallbackWarning(params.result.androidSnapshot);
+  const helperFallbackWarning = formatAndroidHelperFallbackWarning(
+    params.annotations.androidSnapshot,
+  );
   if (helperFallbackWarning) warnings.push(helperFallbackWarning);
 
   const reactNativeOverlayWarning = formatReactNativeOverlayWarning(params.snapshot.nodes);
@@ -241,7 +250,7 @@ function buildSnapshotWarnings(params: {
   const recentDropWarning = formatRecentSnapshotDropWarning(params);
   if (recentDropWarning) warnings.push(recentDropWarning);
 
-  warnings.push(...formatFreshnessWarnings(params.result.freshness, params.snapshot.backend));
+  warnings.push(...formatFreshnessWarnings(params.annotations.freshness, params.snapshot.backend));
   return Array.from(new Set(warnings));
 }
 
@@ -295,11 +304,11 @@ function buildMergedAccessibilityLeafWarnings(nodes: SnapshotState['nodes']): st
 }
 
 function buildEmptyAndroidInteractiveWarnings(params: {
-  result: BackendSnapshotResult;
+  annotations: SnapshotCaptureAnnotations;
   snapshot: SnapshotState;
   options: SnapshotCommandOptions;
 }): string[] {
-  const analysis = params.result.analysis;
+  const analysis = params.annotations.analysis;
   if (
     params.snapshot.backend !== 'android' ||
     params.options.interactiveOnly !== true ||
@@ -326,7 +335,7 @@ function buildEmptyAndroidInteractiveWarnings(params: {
 }
 
 function formatAndroidHelperFallbackWarning(
-  androidSnapshot: AndroidSnapshotBackendMetadata | undefined,
+  androidSnapshot: SnapshotCaptureAnnotations['androidSnapshot'],
 ): string | undefined {
   if (androidSnapshot?.backend !== 'uiautomator-dump') return undefined;
   const reason = androidSnapshot.fallbackReason ? ` Reason: ${androidSnapshot.fallbackReason}` : '';
@@ -334,7 +343,7 @@ function formatAndroidHelperFallbackWarning(
 }
 
 function formatRecentSnapshotDropWarning(params: {
-  result: BackendSnapshotResult;
+  annotations: SnapshotCaptureAnnotations;
   snapshot: SnapshotState;
   session: CommandSessionRecord | undefined;
   capturedAt: number;
@@ -342,7 +351,7 @@ function formatRecentSnapshotDropWarning(params: {
 }): string | undefined {
   const previousSnapshot = params.session?.snapshot;
   if (
-    !params.result.freshness &&
+    !params.annotations.freshness &&
     previousSnapshot &&
     hasSameSnapshotPresentation(previousSnapshot, params.snapshot) &&
     isRecentSnapshot(previousSnapshot, params.capturedAt, params.runtimeNow) &&

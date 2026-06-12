@@ -2,8 +2,6 @@ import { dispatchCommand, type CommandFlags } from '../../core/dispatch.ts';
 import { sleep } from '../../utils/timeouts.ts';
 import { runMacOsSnapshotAction } from '../../platforms/ios/macos-helper.ts';
 import { snapshotLinux } from '../../platforms/linux/snapshot.ts';
-import type { AndroidSnapshotBackendMetadata } from '../../platforms/android/snapshot-types.ts';
-import type { AndroidSnapshotAnalysis } from '../../platforms/android/ui-hierarchy.ts';
 import {
   attachRefs,
   buildSnapshotPresentationKey,
@@ -26,7 +24,6 @@ import {
   isLikelySnapshotStuckOnPreviousRoute,
   isLikelyStaleSnapshotDrop,
   isNavigationSensitiveAction,
-  type AndroidFreshnessCaptureMeta,
 } from '../android-snapshot-freshness.ts';
 import { contextFromFlags } from '../context.ts';
 import {
@@ -46,6 +43,10 @@ import {
 } from '../../utils/snapshot-processing.ts';
 import { errorResponse, type DaemonFailureResponse } from './response.ts';
 import { presentIosInteractiveSnapshot } from '../snapshot-presentation/ios/index.ts';
+import {
+  snapshotCaptureAnnotationsFrom,
+  type SnapshotCaptureAnnotations,
+} from '../../snapshot-capture-annotations.ts';
 
 type CaptureSnapshotParams = {
   device: SessionState['device'];
@@ -61,26 +62,18 @@ type SnapshotData = {
   nodes?: RawSnapshotNode[];
   truncated?: boolean;
   backend?: SnapshotBackend;
-  analysis?: AndroidSnapshotAnalysis;
-  androidSnapshot?: AndroidSnapshotBackendMetadata;
-  warnings?: string[];
   quality?: unknown;
-};
+} & Omit<SnapshotCaptureAnnotations, 'quality'>;
 
 type SnapshotAttempt = {
   data: SnapshotData;
   snapshot: SnapshotState;
-  freshness?: AndroidFreshnessCaptureMeta;
+  annotations: SnapshotCaptureAnnotations;
 };
 
 type CaptureSnapshotResult = {
   snapshot: SnapshotState;
-  analysis?: AndroidSnapshotAnalysis;
-  androidSnapshot?: AndroidSnapshotBackendMetadata;
-  freshness?: AndroidFreshnessCaptureMeta;
-  warnings?: string[];
-  quality?: unknown;
-};
+} & SnapshotCaptureAnnotations;
 
 type AndroidFreshnessReason = 'empty-interactive' | 'sharp-drop' | 'stuck-route';
 type AndroidFreshnessMode = 'default' | 'ref-refresh';
@@ -92,14 +85,11 @@ export async function captureSnapshot(
   const postActionResult = await capturePostActionAwareSnapshot(params);
   if (postActionResult) return postActionResult;
 
-  const data = await captureSnapshotData(params);
+  const latest = await captureSnapshotAttempt(params);
   clearAndroidSnapshotFreshness(params.session);
   return {
-    snapshot: buildSnapshotState(data, resolveSnapshotStateFlags(params)),
-    analysis: data.analysis,
-    androidSnapshot: data.androidSnapshot,
-    warnings: data.warnings,
-    quality: data.quality,
+    snapshot: latest.snapshot,
+    ...latest.annotations,
   };
 }
 
@@ -168,7 +158,7 @@ async function captureInteractionOutcomeAwareSnapshot(
     capture: async () => await capturePostActionSnapshotAttempt(params),
     readSnapshot: (attempt) => attempt.snapshot,
   });
-  if (outcome.change !== 'ambiguous' && latest.freshness?.staleAfterRetries !== true) {
+  if (outcome.change !== 'ambiguous' && latest.annotations.freshness?.staleAfterRetries !== true) {
     clearAndroidSnapshotFreshness(session);
   }
   if (outcome.change === 'unchanged') {
@@ -184,11 +174,7 @@ async function captureInteractionOutcomeAwareSnapshot(
 
   return {
     snapshot: latest.snapshot,
-    analysis: latest.data.analysis,
-    androidSnapshot: latest.data.androidSnapshot,
-    freshness: latest.freshness,
-    warnings: latest.data.warnings,
-    quality: latest.data.quality,
+    ...latest.annotations,
   };
 }
 
@@ -250,11 +236,7 @@ async function captureAndroidFreshnessAwareSnapshot(
   const latest = await captureAndroidFreshnessAwareAttempt(params, freshness);
   return {
     snapshot: latest.snapshot,
-    analysis: latest.data.analysis,
-    androidSnapshot: latest.data.androidSnapshot,
-    freshness: latest.freshness,
-    warnings: latest.data.warnings,
-    quality: latest.data.quality,
+    ...latest.annotations,
   };
 }
 
@@ -281,17 +263,21 @@ async function captureAndroidFreshnessAwareAttempt(
     clearAndroidSnapshotFreshness(params.session);
   }
 
+  const freshnessAnnotation =
+    retryCount > 0 || Boolean(suspiciousReason)
+      ? {
+          action: freshness.action,
+          retryCount,
+          staleAfterRetries: Boolean(suspiciousReason),
+          reason: suspiciousReason ?? undefined,
+        }
+      : undefined;
   return {
     ...latest,
-    freshness:
-      retryCount > 0 || Boolean(suspiciousReason)
-        ? {
-            action: freshness.action,
-            retryCount,
-            staleAfterRetries: Boolean(suspiciousReason),
-            reason: suspiciousReason ?? undefined,
-          }
-        : undefined,
+    annotations: {
+      ...latest.annotations,
+      ...snapshotCaptureAnnotationsFrom({ freshness: freshnessAnnotation }),
+    },
   };
 }
 
@@ -305,11 +291,7 @@ async function capturePostGestureAwareSnapshot(
   });
   return {
     snapshot: latest.snapshot,
-    analysis: latest.data.analysis,
-    androidSnapshot: latest.data.androidSnapshot,
-    freshness: latest.freshness,
-    warnings: latest.data.warnings,
-    quality: latest.data.quality,
+    ...latest.annotations,
   };
 }
 
@@ -328,6 +310,7 @@ async function captureSnapshotAttempt(params: CaptureSnapshotParams): Promise<Sn
   return {
     data,
     snapshot: buildSnapshotState(data, resolveSnapshotStateFlags(params)),
+    annotations: snapshotCaptureAnnotationsFrom(data),
   };
 }
 
@@ -344,12 +327,12 @@ function resolveSnapshotStateFlags(
 }
 
 function getAndroidFreshnessReason(
-  attempt: { data: SnapshotData; snapshot: SnapshotState },
+  attempt: SnapshotAttempt,
   freshness: NonNullable<SessionState['androidSnapshotFreshness']>,
   params: Pick<CaptureSnapshotParams, 'flags' | 'androidFreshnessMode'>,
 ): AndroidFreshnessReason | null {
   const interactiveOnly = params.flags?.snapshotInteractiveOnly === true;
-  const analysis = attempt.data.analysis;
+  const analysis = attempt.annotations.analysis;
 
   // When interactive-only filtering produces zero visible nodes from ≥12 raw nodes,
   // the dump likely captured a transitional frame.  The 12-node floor avoids

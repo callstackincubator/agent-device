@@ -10,6 +10,7 @@ import type {
   CaptureSnapshotResult,
   SessionCloseResult,
 } from './client-types.ts';
+import { publicSnapshotCaptureAnnotations } from './snapshot-capture-annotations.ts';
 import type { Platform } from './utils/device.ts';
 import { successText, withSuccessText } from './utils/success-text.ts';
 
@@ -172,9 +173,10 @@ export function serializeSnapshotResult(result: CaptureSnapshotResult): Record<s
     ...(result.appName ? { appName: result.appName } : {}),
     ...(result.appBundleId ? { appBundleId: result.appBundleId } : {}),
     ...(result.visibility ? { visibility: result.visibility } : {}),
-    ...(result.androidSnapshot ? { androidSnapshot: result.androidSnapshot } : {}),
-    ...(result.snapshotQuality ? { snapshotQuality: result.snapshotQuality } : {}),
-    ...(result.warnings && result.warnings.length > 0 ? { warnings: result.warnings } : {}),
+    ...publicSnapshotCaptureAnnotations({
+      ...result,
+      quality: result.snapshotQuality,
+    }),
     ...(result.unchanged ? { unchanged: result.unchanged } : {}),
   };
 }

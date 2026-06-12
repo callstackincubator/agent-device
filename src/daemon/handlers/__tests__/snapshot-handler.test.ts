@@ -12,6 +12,8 @@ import { AppError } from '../../../utils/errors.ts';
 import { buildSnapshotSignatures } from '../../android-snapshot-freshness.ts';
 import { buildInteractionSurfaceSignature } from '../../interaction-outcome-policy.ts';
 import { buildSnapshotPresentationKey } from '../../../utils/snapshot.ts';
+import { snapshotCliOutput } from '../../../commands/client-output.ts';
+import type { CaptureSnapshotResult } from '../../../client-types.ts';
 
 vi.mock('../../../core/dispatch.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../core/dispatch.ts')>();
@@ -427,6 +429,83 @@ test('snapshot surfaces filtered-to-zero Android guidance for interactive snapsh
       'Interactive output is empty at depth 3; retry without -d.',
     ]);
   }
+});
+
+test('snapshot annotations survive pending interaction capture into CLI JSON', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-interaction-annotation-bundle';
+  const session = makeSession(sessionName, androidDevice);
+  const baselineNodes = [
+    {
+      ref: 'e1',
+      index: 0,
+      depth: 0,
+      type: 'android.widget.Button',
+      label: 'Open albums',
+      hittable: true,
+      rect: { x: 20, y: 120, width: 160, height: 48 },
+    },
+  ];
+  const changedNodes = [
+    {
+      index: 0,
+      depth: 0,
+      type: 'android.widget.TextView',
+      label: 'Albums',
+      rect: { x: 32, y: 240, width: 180, height: 52 },
+    },
+  ];
+  const snapshotQuality = { state: 'healthy', backend: 'tree' };
+  session.pendingInteractionOutcome = {
+    action: 'click',
+    command: 'press',
+    positionals: ['100', '144'],
+    flags: { platform: 'android' },
+    markedAt: Date.now(),
+    attemptsRemaining: 2,
+    preSignature: buildInteractionSurfaceSignature(baselineNodes),
+  };
+  sessionStore.set(sessionName, session);
+
+  mockDispatch.mockResolvedValue({
+    nodes: changedNodes,
+    truncated: false,
+    backend: 'android',
+    analysis: { rawNodeCount: 1, maxDepth: 0 },
+    quality: snapshotQuality,
+    warnings: ['backend warning from interaction capture'],
+  });
+
+  const response = await handleSnapshotCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'snapshot',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: '/tmp/daemon.log',
+    sessionStore,
+  });
+
+  expect(response?.ok).toBe(true);
+  if (!response?.ok) return;
+
+  expect(response.data?.snapshotQuality).toEqual(snapshotQuality);
+  expect(response.data?.warnings).toEqual(['backend warning from interaction capture']);
+
+  const cliOutput = snapshotCliOutput({
+    result: response.data as unknown as CaptureSnapshotResult,
+  });
+  expect(cliOutput.jsonData).toMatchObject({
+    nodes: [expect.objectContaining({ label: 'Albums' })],
+    truncated: false,
+    snapshotQuality,
+    warnings: ['backend warning from interaction capture'],
+  });
+  expect(cliOutput.jsonData).not.toHaveProperty('analysis');
+  expect(cliOutput.jsonData).not.toHaveProperty('freshness');
 });
 
 test('snapshot timeout captures Android screenshot evidence with overlay refs', async () => {

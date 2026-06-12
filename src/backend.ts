@@ -1,5 +1,3 @@
-import type { SnapshotQualityVerdict } from './utils/snapshot-quality.ts';
-import type { AndroidSnapshotBackendMetadata } from './platforms/android/snapshot-types.ts';
 import type { AlertAction, AlertInfo } from './alert-contract.ts';
 import type { AppsFilter } from './contracts/app-inventory.ts';
 import type {
@@ -17,6 +15,11 @@ import type { ClickButton } from './core/click-button.ts';
 import type { DeviceRotation } from './core/device-rotation.ts';
 import type { ScrollDirection } from './core/scroll-gesture.ts';
 import type { SessionSurface } from './core/session-surface.ts';
+import type {
+  SnapshotCaptureAnalysis,
+  SnapshotCaptureAnnotations,
+  SnapshotCaptureFreshness,
+} from './snapshot-capture-annotations.ts';
 
 export type AgentDeviceBackendPlatform = Platform;
 
@@ -44,30 +47,17 @@ export type BackendSnapshotResult = {
   truncated?: boolean;
   backend?: string;
   snapshot?: SnapshotState;
-  analysis?: BackendSnapshotAnalysis;
-  androidSnapshot?: AndroidSnapshotBackendMetadata;
-  freshness?: BackendSnapshotFreshness;
-  warnings?: string[];
-  quality?: SnapshotQualityVerdict;
   appName?: string;
   appBundleId?: string;
-};
+} & SnapshotCaptureAnnotations;
 
 export type BackendSnapshotOptions = SnapshotOptions & {
   outPath?: string;
 };
 
-export type BackendSnapshotAnalysis = {
-  rawNodeCount?: number;
-  maxDepth?: number;
-};
+export type BackendSnapshotAnalysis = SnapshotCaptureAnalysis;
 
-export type BackendSnapshotFreshness = {
-  action: string;
-  retryCount: number;
-  staleAfterRetries: boolean;
-  reason?: 'empty-interactive' | 'sharp-drop' | 'stuck-route';
-};
+export type BackendSnapshotFreshness = SnapshotCaptureFreshness;
 
 export type BackendReadTextResult = {
   text: string;

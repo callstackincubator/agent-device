@@ -130,3 +130,24 @@ test('serializeSnapshotResult includes Android backend metadata', () => {
     },
   });
 });
+
+test('serializeSnapshotResult maps capture quality annotation to public snapshotQuality', () => {
+  const snapshotQuality = {
+    state: 'healthy',
+    backend: 'tree',
+  } as const;
+  const data = serializeSnapshotResult({
+    nodes: [],
+    truncated: false,
+    quality: snapshotQuality,
+    identifiers: {
+      session: 'qa',
+    },
+  } as Parameters<typeof serializeSnapshotResult>[0] & { quality: typeof snapshotQuality });
+
+  assert.deepEqual(data, {
+    nodes: [],
+    truncated: false,
+    snapshotQuality,
+  });
+});
