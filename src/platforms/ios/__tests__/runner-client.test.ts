@@ -720,6 +720,64 @@ Thread 0 Crashed::  Dispatch queue: com.apple.main-thread
   );
 });
 
+test('parseRunnerResponse classifies explicit target app crashes from runner log tail', async () => {
+  const logPath = writeRunnerLogTail(`
+AGENT_DEVICE_RUNNER_COMMAND_FAILED command=snapshot
+The application under test terminated unexpectedly.
+`);
+  const response = new Response(
+    JSON.stringify({
+      ok: false,
+      error: {
+        code: 'COMMAND_FAILED',
+        message: 'Runner error',
+      },
+    }),
+  );
+  const session = { ready: true };
+
+  await assert.rejects(
+    () => parseRunnerResponse(response, session, logPath),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'IOS_TARGET_APP_CRASH');
+      assert.equal(error.details?.runnerFailureReason, 'target_app_crash');
+      assert.match(String(error.details?.hint), /target iOS app appears to have crashed/);
+      assert.equal(isRetryableRunnerError(error), false);
+      return true;
+    },
+  );
+});
+
+test('parseRunnerResponse does not classify incidental XCTest crash text as target app crash', async () => {
+  const logPath = writeRunnerLogTail(`
+XCTest runner recovered from a previous test note: the word crashed appeared in debug output.
+AGENT_DEVICE_RUNNER_COMMAND_FAILED command=snapshot error=fetch failed
+`);
+  const response = new Response(
+    JSON.stringify({
+      ok: false,
+      error: {
+        code: 'COMMAND_FAILED',
+        message: 'fetch failed',
+      },
+    }),
+  );
+  const session = { ready: true };
+
+  await assert.rejects(
+    () => parseRunnerResponse(response, session, logPath),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'COMMAND_FAILED');
+      assert.equal(error.details?.runnerFailureReason, undefined);
+      assert.equal(error.details?.hint, undefined);
+      assert.equal(isRetryableRunnerError(error), true);
+      return true;
+    },
+  );
+});
+
 test('parseRunnerResponse keeps ordinary runner failures generic without crash log evidence', async () => {
   const logPath = writeRunnerLogTail(
     'AGENT_DEVICE_RUNNER_COMMAND_FAILED command=type error=main thread execution timed out',

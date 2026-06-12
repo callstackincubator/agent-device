@@ -82,8 +82,7 @@ function isTargetAppCrash(normalized: string): boolean {
     normalized.includes('process crashed') ||
     normalized.includes('the application under test') ||
     normalized.includes('terminated unexpectedly') ||
-    (normalized.includes('exception type:') && normalized.includes('thread 0 crashed')) ||
-    (normalized.includes('crashed') && normalized.includes('xctest'))
+    (normalized.includes('exception type:') && normalized.includes('thread 0 crashed'))
   );
 }
 
