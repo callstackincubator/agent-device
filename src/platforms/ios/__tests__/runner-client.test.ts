@@ -686,6 +686,67 @@ test('parseRunnerResponse preserves XCTest recorded failure code and hint', asyn
   );
 });
 
+test('parseRunnerResponse classifies target app AXRuntime CoreText font crashes from runner log tail', async () => {
+  const logPath = writeRunnerLogTail(`
+Thread 0 Crashed::  Dispatch queue: com.apple.main-thread
+0   libobjc.A.dylib                        objc_retain + 16
+1   CoreText                               CreateFontWithFontURL(__CFURL const*, __CFString const*, __CFString const*) + 512
+11  AXRuntime                              reconstitutedSmuggledCTFontFromDictionary + 192
+12  AXRuntime                              -[NSDictionary(AXPropertyListCoersion) _axRecursivelyReconstitutedRepresentationFromPropertyListWithError:] + 156
+`);
+  const response = new Response(
+    JSON.stringify({
+      ok: false,
+      error: {
+        code: 'XCTEST_RECORDED_FAILURE',
+        message:
+          'XCTest recorded a failure while executing type; the action may not have been performed.',
+      },
+    }),
+  );
+  const session = { ready: true };
+
+  await assert.rejects(
+    () => parseRunnerResponse(response, session, logPath),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'IOS_TARGET_APP_CRASH');
+      assert.equal(error.details?.runnerFailureReason, 'target_app_axruntime_coretext_crash');
+      assert.match(String(error.details?.hint), /AXRuntime read accessibility attributes/);
+      assert.match(String(error.details?.hint), /latest stable simulator runtime/);
+      assert.match(String(error.details?.hint), /exact command, selector\/ref/);
+      return true;
+    },
+  );
+});
+
+test('parseRunnerResponse keeps ordinary runner failures generic without crash log evidence', async () => {
+  const logPath = writeRunnerLogTail(
+    'AGENT_DEVICE_RUNNER_COMMAND_FAILED command=type error=main thread execution timed out',
+  );
+  const response = new Response(
+    JSON.stringify({
+      ok: false,
+      error: {
+        code: 'COMMAND_FAILED',
+        message: 'main thread execution timed out',
+      },
+    }),
+  );
+  const session = { ready: true };
+
+  await assert.rejects(
+    () => parseRunnerResponse(response, session, logPath),
+    (error: unknown) => {
+      assert.ok(error instanceof AppError);
+      assert.equal(error.code, 'COMMAND_FAILED');
+      assert.equal(error.details?.runnerFailureReason, undefined);
+      assert.equal(error.details?.hint, undefined);
+      return true;
+    },
+  );
+});
+
 test('parseRunnerResponse emits diagnostics for runner gesture fallbacks', async () => {
   const response = new Response(
     JSON.stringify({
@@ -709,6 +770,14 @@ test('parseRunnerResponse emits diagnostics for runner gesture fallbacks', async
   assert.match(diagnostics, /ios_runner_gesture_fallback/);
   assert.match(diagnostics, /xctest-coordinate-drag/);
 });
+
+function writeRunnerLogTail(contents: string): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-runner-log-'));
+  onTestFinished(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const logPath = path.join(dir, 'runner.log');
+  fs.writeFileSync(logPath, contents);
+  return logPath;
+}
 
 test('isRetryableRunnerError does not retry xcodebuild early-exit errors', () => {
   const err = new AppError(
