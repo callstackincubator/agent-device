@@ -38,7 +38,7 @@ export async function enrichRunnerFailureFromLog(params: {
   );
 }
 
-export async function resolveRunnerFailureDiagnostic(
+async function resolveRunnerFailureDiagnostic(
   logPath: string | undefined,
 ): Promise<RunnerFailureDiagnostic | undefined> {
   if (!logPath) return undefined;
@@ -47,7 +47,7 @@ export async function resolveRunnerFailureDiagnostic(
   return classifyRunnerFailureLog(tail);
 }
 
-export function classifyRunnerFailureLog(logText: string): RunnerFailureDiagnostic | undefined {
+function classifyRunnerFailureLog(logText: string): RunnerFailureDiagnostic | undefined {
   const normalized = logText.toLowerCase();
   if (isAxRuntimeAccessibilityCrash(normalized)) {
     return {
