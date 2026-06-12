@@ -22,6 +22,10 @@ vi.mock('../../../platforms/ios/perf-xctrace.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/perf-xctrace.ts')>();
   return { ...actual, cleanupAppleXctracePerfCapture: vi.fn(async () => ({})) };
 });
+vi.mock('../../../platforms/android/perf.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../platforms/android/perf.ts')>();
+  return { ...actual, cleanupAndroidNativePerfSession: vi.fn(async () => {}) };
+});
 vi.mock('../../../platforms/ios/macos-helper.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../platforms/ios/macos-helper.ts')>();
   return { ...actual, runMacOsAlertAction: vi.fn(async () => {}) };
@@ -44,10 +48,12 @@ import { teardownSessionResources } from '../session-close.ts';
 import { shutdownSimulator } from '../../../platforms/ios/simulator.ts';
 import { runCmd } from '../../../utils/exec.ts';
 import { cleanupAppleXctracePerfCapture } from '../../../platforms/ios/perf-xctrace.ts';
+import { cleanupAndroidNativePerfSession } from '../../../platforms/android/perf.ts';
 
 const mockShutdownSimulator = vi.mocked(shutdownSimulator);
 const mockRunCmd = vi.mocked(runCmd);
 const mockCleanupAppleXctracePerfCapture = vi.mocked(cleanupAppleXctracePerfCapture);
+const mockCleanupAndroidNativePerfSession = vi.mocked(cleanupAndroidNativePerfSession);
 
 const noopInvoke = async (_req: DaemonRequest): Promise<DaemonResponse> => ({ ok: true, data: {} });
 
@@ -289,6 +295,87 @@ test('daemon session teardown stops active Apple xctrace perf capture', async ()
 
   expect(mockCleanupAppleXctracePerfCapture).toHaveBeenCalledWith(activeCapture);
   expect(session.applePerf?.active).toBeUndefined();
+});
+
+test('close stops active Android native perf capture before deleting session', async () => {
+  const sessionStore = makeSessionStore();
+  const sessionName = 'android-active-native-perf-session';
+  const activeCapture = {
+    type: 'trace',
+    kind: 'perfetto',
+    packageName: 'com.example.app',
+    appPid: '1234',
+    profilerPid: '5678',
+    remotePath: '/data/misc/perfetto-traces/app.perfetto-trace',
+    outPath: '/tmp/app.perfetto-trace',
+    startedAt: Date.now(),
+    state: 'running',
+  };
+  const session = {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    nativePerf: {
+      android: activeCapture,
+    },
+  } as unknown as SessionState;
+  sessionStore.set(sessionName, session);
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: sessionName,
+      command: 'close',
+      positionals: [],
+      flags: {},
+    },
+    sessionName,
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: noopInvoke,
+  });
+
+  expect(response?.ok).toBe(true);
+  expect(mockCleanupAndroidNativePerfSession).toHaveBeenCalledWith(session.device, activeCapture);
+  expect(sessionStore.get(sessionName)).toBeUndefined();
+});
+
+test('daemon session teardown stops active Android native perf capture', async () => {
+  const sessionName = 'android-active-native-perf-teardown-session';
+  const activeCapture = {
+    type: 'cpu-profile',
+    kind: 'simpleperf',
+    packageName: 'com.example.app',
+    appPid: '1234',
+    profilerPid: '5678',
+    remotePath: '/data/local/tmp/cpu.perf.data',
+    outPath: '/tmp/cpu.perf.data',
+    startedAt: Date.now(),
+    state: 'running',
+  };
+  const session = {
+    ...makeSession(sessionName, {
+      platform: 'android',
+      id: 'emulator-5554',
+      name: 'Pixel',
+      kind: 'emulator',
+      booted: true,
+    }),
+    appBundleId: 'com.example.app',
+    nativePerf: {
+      android: activeCapture,
+    },
+  } as unknown as SessionState;
+
+  await teardownSessionResources(session, sessionName);
+
+  expect(mockCleanupAndroidNativePerfSession).toHaveBeenCalledWith(session.device, activeCapture);
+  expect(session.nativePerf?.android).toBeUndefined();
 });
 
 test('close --shutdown is ignored for Android devices', async () => {

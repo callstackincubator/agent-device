@@ -16,6 +16,7 @@ export {
   type AndroidFramePerfSample,
 } from './perf-frame.ts';
 export {
+  cleanupAndroidNativePerfSession,
   startAndroidPerfettoTrace,
   startAndroidSimpleperfProfile,
   stopAndroidPerfettoTrace,

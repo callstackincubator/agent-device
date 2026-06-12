@@ -6,6 +6,7 @@ import { test } from 'vitest';
 import type { AndroidAdbExecutor } from '../adb-executor.ts';
 import {
   captureAndroidHeapSnapshot,
+  cleanupAndroidNativePerfSession,
   parseAndroidFramePerfSample,
   parseAndroidMemInfoSample,
   startAndroidPerfettoTrace,
@@ -437,6 +438,46 @@ test('stopAndroidSimpleperfProfile fails before pull when remote artifact never 
     stopAndroidSimpleperfProfile(ANDROID_EMULATOR, session, session.outPath, { adb }),
     /artifact is not ready/,
   );
+  assert.equal(
+    calls.some((args) => args[0] === 'pull'),
+    false,
+  );
+});
+
+test('cleanupAndroidNativePerfSession stops profiler and removes remote artifact without pulling', async () => {
+  const session: AndroidNativePerfSession = {
+    type: 'trace',
+    kind: 'perfetto',
+    packageName: 'com.example.app',
+    appPid: '1234',
+    profilerPid: '8765',
+    remotePath: '/data/misc/perfetto-traces/app.perfetto-trace',
+    outPath: '/tmp/app.perfetto-trace',
+    startedAt: Date.now() - 1000,
+    state: 'running',
+  };
+  const calls: string[][] = [];
+  const adb: AndroidAdbExecutor = async (args) => {
+    calls.push(args);
+    if (args[0] === 'shell' && args[1]?.includes('kill -INT')) {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1]?.includes('stat -c %s')) {
+      return { exitCode: 0, stdout: '5\n', stderr: '' };
+    }
+    if (args[0] === 'shell' && args[1]?.includes('rm -f')) {
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+    if (args[0] === 'pull') {
+      throw new Error('cleanup must not pull artifacts');
+    }
+    throw new Error(`Unexpected adb call: ${args.join(' ')}`);
+  };
+
+  await cleanupAndroidNativePerfSession(ANDROID_EMULATOR, session, { adb });
+
+  assert.ok(findCallIndex(calls, 'kill -INT') < findCallIndex(calls, 'stat -c %s'));
+  assert.ok(findCallIndex(calls, 'rm -f') > findCallIndex(calls, 'stat -c %s'));
   assert.equal(
     calls.some((args) => args[0] === 'pull'),
     false,

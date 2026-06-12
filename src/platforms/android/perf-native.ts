@@ -249,6 +249,22 @@ export async function stopAndroidPerfettoTrace(
   return await stopAndroidNativePerfSession(device, { ...session, outPath }, options);
 }
 
+export async function cleanupAndroidNativePerfSession(
+  device: DeviceInfo,
+  session: AndroidNativePerfSession,
+  options: AndroidNativePerfOptions = {},
+): Promise<void> {
+  const adb = resolveAndroidAdbExecutor(device, options.adb);
+  try {
+    if (session.state === 'running') {
+      await stopAndroidBackgroundTool(adb, session);
+      await waitForAndroidNativeArtifact(adb, session).catch(() => {});
+    }
+  } finally {
+    await cleanupAndroidRemotePath(adb, session.remotePath);
+  }
+}
+
 async function stopAndroidNativePerfSession(
   device: DeviceInfo,
   session: AndroidNativePerfSession,
