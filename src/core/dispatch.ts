@@ -528,7 +528,6 @@ async function handleSnapshotCommand(
   return await interactor.snapshot({
     appBundleId: context?.appBundleId,
     interactiveOnly: context?.snapshotInteractiveOnly,
-    compact: context?.snapshotCompact,
     depth: context?.snapshotDepth,
     scope: context?.snapshotScope,
     raw: context?.snapshotRaw,

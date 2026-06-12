@@ -138,7 +138,6 @@ struct Command: Codable {
   let fps: Int?
   let quality: Int?
   let interactiveOnly: Bool?
-  let compact: Bool?
   let depth: Int?
   let scope: String?
   let raw: Bool?
@@ -351,7 +350,6 @@ struct SnapshotNode: Codable {
 
 struct SnapshotOptions {
   let interactiveOnly: Bool
-  let compact: Bool
   let depth: Int?
   let scope: String?
   let raw: Bool

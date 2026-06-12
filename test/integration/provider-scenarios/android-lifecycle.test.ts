@@ -949,7 +949,6 @@ async function runAndroidCaptureInteractionAndReplayWorkflow(
 
   const snapshot = await client.capture.snapshot({
     interactiveOnly: true,
-    compact: true,
     ...selection,
   });
   const apps = snapshot.nodes.find((node) => node.label === 'Apps');

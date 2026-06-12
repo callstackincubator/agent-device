@@ -217,8 +217,8 @@ agent-device close
 ## Snapshot and inspect
 
 ```bash
-agent-device snapshot [--diff] [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
-agent-device diff snapshot [-i] [-c] [-d <depth>] [-s <scope>] [--raw]
+agent-device snapshot [--diff] [-i] [-d <depth>] [-s <scope>] [--raw]
+agent-device diff snapshot [-i] [-d <depth>] [-s <scope>] [--raw]
 agent-device get text @e1
 agent-device get attrs @e1
 ```

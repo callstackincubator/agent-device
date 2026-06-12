@@ -61,7 +61,6 @@ extension RunnerTests {
   // MARK: Plan definitions
 
   static let regularVisiblePlan: [SnapshotBackendKind] = [.recursiveTree, .querySweep, .privateAX]
-  static let compactInteractivePlan: [SnapshotBackendKind] = [.querySweep, .privateAX]
   static let rawDiagnosticPlan: [SnapshotBackendKind] = [.recursiveTree, .privateAX]
 
   // MARK: Plan runner

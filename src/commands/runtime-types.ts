@@ -37,7 +37,6 @@ export type ScreenshotCommandOptions = CommandContext & {
 
 export type SnapshotCommandOptions = CommandContext & {
   interactiveOnly?: boolean;
-  compact?: boolean;
   depth?: number;
   scope?: string;
   raw?: boolean;

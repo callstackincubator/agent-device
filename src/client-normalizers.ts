@@ -290,7 +290,6 @@ export function buildFlags(options: InternalRequestOptions): CommandFlags {
     bundleUrl: options.bundleUrl,
     launchUrl: options.launchUrl,
     snapshotInteractiveOnly: options.interactiveOnly,
-    snapshotCompact: options.compact,
     snapshotDepth: options.depth,
     snapshotScope: options.scope,
     snapshotRaw: options.raw,

@@ -60,7 +60,6 @@ export function createAppleInteractor(
                 command: 'snapshot',
                 appBundleId: options?.appBundleId,
                 interactiveOnly: options?.interactiveOnly,
-                compact: options?.compact,
                 depth: options?.depth,
                 scope: options?.scope,
                 raw: options?.raw,

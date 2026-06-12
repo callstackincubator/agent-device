@@ -691,7 +691,6 @@ extension RunnerTests {
     case .snapshot:
       let options = SnapshotOptions(
         interactiveOnly: command.interactiveOnly ?? false,
-        compact: command.compact ?? false,
         depth: command.depth,
         scope: command.scope,
         raw: command.raw ?? false

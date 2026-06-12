@@ -6,7 +6,6 @@ struct FlatSnapshotFilterNode {
   let identifier: String
   let valueText: String?
   let visible: Bool
-  let compactCandidate: Bool
 
   var hasContent: Bool {
     return !label.isEmpty || !identifier.isEmpty || valueText != nil
@@ -46,8 +45,6 @@ extension RunnerTests {
       include = false
     } else if options.interactiveOnly && !node.visible {
       include = false
-    } else if options.compact {
-      include = node.hasContent || node.compactCandidate
     } else {
       include = true
     }
@@ -55,14 +52,7 @@ extension RunnerTests {
     return FlatSnapshotFilterDecision(include: include, insideMatchedScope: nowInsideScope)
   }
 
-  func querySweepFlatCompactCandidate(
-    elementType: XCUIElement.ElementType,
-    hittable: Bool
-  ) -> Bool {
-    return hittable || interactiveTypes.contains(elementType)
-  }
-
-  func privateAXFlatCompactCandidate(rawElementType: Int) -> Bool {
+  func privateAXInteractiveCandidate(rawElementType: Int) -> Bool {
     guard let type = flatSnapshotElementType(rawElementType: rawElementType) else {
       return false
     }
@@ -84,55 +74,48 @@ extension RunnerTests {
       label: "Welcome back",
       identifier: "",
       valueText: nil,
-      visible: true,
-      compactCandidate: false
+      visible: true
     )
     let hiddenInteractive = FlatSnapshotFilterNode(
       isRoot: false,
       label: "Hidden menu",
       identifier: "",
       valueText: nil,
-      visible: false,
-      compactCandidate: true
+      visible: false
     )
     let decorative = FlatSnapshotFilterNode(
       isRoot: false,
       label: "",
       identifier: "",
       valueText: nil,
-      visible: true,
-      compactCandidate: false
+      visible: true
     )
 
     XCTAssertTrue(
       flatSnapshotFilterDecision(
         visibleContent,
-        options: SnapshotOptions(
-          interactiveOnly: false, compact: true, depth: nil, scope: nil, raw: false),
+        options: SnapshotOptions(interactiveOnly: false, depth: nil, scope: nil, raw: false),
         insideMatchedScope: false
       ).include
     )
     XCTAssertFalse(
       flatSnapshotFilterDecision(
         hiddenInteractive,
-        options: SnapshotOptions(
-          interactiveOnly: true, compact: true, depth: nil, scope: nil, raw: false),
-        insideMatchedScope: false
-      ).include
-    )
-    XCTAssertFalse(
-      flatSnapshotFilterDecision(
-        decorative,
-        options: SnapshotOptions(
-          interactiveOnly: false, compact: true, depth: nil, scope: nil, raw: false),
+        options: SnapshotOptions(interactiveOnly: true, depth: nil, scope: nil, raw: false),
         insideMatchedScope: false
       ).include
     )
     XCTAssertTrue(
       flatSnapshotFilterDecision(
         decorative,
-        options: SnapshotOptions(
-          interactiveOnly: false, compact: false, depth: nil, scope: nil, raw: false),
+        options: SnapshotOptions(interactiveOnly: false, depth: nil, scope: nil, raw: false),
+        insideMatchedScope: false
+      ).include
+    )
+    XCTAssertTrue(
+      flatSnapshotFilterDecision(
+        decorative,
+        options: SnapshotOptions(interactiveOnly: false, depth: nil, scope: nil, raw: false),
         insideMatchedScope: false
       ).include
     )
@@ -144,19 +127,16 @@ extension RunnerTests {
       label: "",
       identifier: "homeScreen",
       valueText: nil,
-      visible: true,
-      compactCandidate: false
+      visible: true
     )
     let unmatchedDescendant = FlatSnapshotFilterNode(
       isRoot: false,
       label: "Post body without the scope text",
       identifier: "",
       valueText: nil,
-      visible: true,
-      compactCandidate: false
+      visible: true
     )
-    let options = SnapshotOptions(
-      interactiveOnly: false, compact: false, depth: nil, scope: "homeScreen", raw: false)
+    let options = SnapshotOptions(interactiveOnly: false, depth: nil, scope: "homeScreen", raw: false)
 
     let rootDecision = flatSnapshotFilterDecision(
       scopeRoot,
@@ -182,14 +162,10 @@ extension RunnerTests {
     )
   }
 
-  func testFlatSnapshotCompactCandidatesPreserveBackendInputs() {
-    XCTAssertFalse(
-      querySweepFlatCompactCandidate(elementType: .scrollView, hittable: false),
-      "query sweep should not newly admit contentless scroll containers"
-    )
+  func testPrivateAXInteractiveCandidatesPreserveBackendInputs() {
     XCTAssertTrue(
-      privateAXFlatCompactCandidate(rawElementType: Int(XCUIElement.ElementType.scrollView.rawValue)),
-      "private AX keeps its existing scroll-container compact candidate behavior"
+      privateAXInteractiveCandidate(rawElementType: Int(XCUIElement.ElementType.scrollView.rawValue)),
+      "private AX marks scroll containers as interactive candidates"
     )
   }
 }

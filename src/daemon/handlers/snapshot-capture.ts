@@ -379,10 +379,7 @@ export function buildSnapshotState(
     quality?: unknown;
   },
   flags:
-    | (Pick<
-        CommandFlags,
-        'snapshotCompact' | 'snapshotDepth' | 'snapshotInteractiveOnly' | 'snapshotRaw'
-      > &
+    | (Pick<CommandFlags, 'snapshotDepth' | 'snapshotInteractiveOnly' | 'snapshotRaw'> &
         Partial<Pick<CommandFlags, 'snapshotScope'>>)
     | undefined,
 ): SnapshotState {
@@ -417,10 +414,7 @@ export function buildSnapshotState(
 function shouldPresentIosInteractiveSnapshot(
   backend: SnapshotBackend | undefined,
   flags:
-    | (Pick<
-        CommandFlags,
-        'snapshotCompact' | 'snapshotDepth' | 'snapshotInteractiveOnly' | 'snapshotRaw'
-      > &
+    | (Pick<CommandFlags, 'snapshotDepth' | 'snapshotInteractiveOnly' | 'snapshotRaw'> &
         Partial<Pick<CommandFlags, 'snapshotScope'>>)
     | undefined,
 ): boolean {
@@ -432,17 +426,13 @@ function shouldPresentIosInteractiveSnapshot(
 function isAndroidComparisonSafeSnapshot(
   backend: SnapshotBackend | undefined,
   flags:
-    | (Pick<
-        CommandFlags,
-        'snapshotCompact' | 'snapshotDepth' | 'snapshotInteractiveOnly' | 'snapshotRaw'
-      > &
+    | (Pick<CommandFlags, 'snapshotDepth' | 'snapshotInteractiveOnly' | 'snapshotRaw'> &
         Partial<Pick<CommandFlags, 'snapshotScope'>>)
     | undefined,
 ): boolean {
   return (
     backend === 'android' &&
     flags?.snapshotInteractiveOnly !== true &&
-    flags?.snapshotCompact !== true &&
     typeof flags?.snapshotDepth !== 'number' &&
     !flags?.snapshotScope
   );

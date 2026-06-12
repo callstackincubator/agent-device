@@ -14,7 +14,6 @@ export type Point = {
 
 export type SnapshotOptions = {
   interactiveOnly?: boolean;
-  compact?: boolean;
   depth?: number;
   scope?: string;
   raw?: boolean;
@@ -22,7 +21,6 @@ export type SnapshotOptions = {
 
 export type SnapshotPresentationFlagInput = {
   snapshotInteractiveOnly?: boolean;
-  snapshotCompact?: boolean;
   snapshotDepth?: number;
   snapshotScope?: string;
   snapshotRaw?: boolean;
@@ -124,7 +122,6 @@ export function findNodeByRef(nodes: SnapshotNode[], ref: string): SnapshotNode 
 export function buildSnapshotPresentationKey(flags: SnapshotOptions | undefined): string {
   return JSON.stringify({
     interactiveOnly: flags?.interactiveOnly === true,
-    compact: false,
     depth: typeof flags?.depth === 'number' ? flags.depth : null,
     scope: flags?.scope?.trim() || null,
     raw: flags?.raw === true,

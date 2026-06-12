@@ -68,14 +68,7 @@ type SelectorRuntimeParams = {
 };
 
 type SnapshotFlagOverrides = Partial<
-  Pick<
-    CommandFlags,
-    | 'snapshotInteractiveOnly'
-    | 'snapshotCompact'
-    | 'snapshotScope'
-    | 'snapshotDepth'
-    | 'snapshotRaw'
-  >
+  Pick<CommandFlags, 'snapshotInteractiveOnly' | 'snapshotScope' | 'snapshotDepth' | 'snapshotRaw'>
 >;
 
 type DirectIosSelectorQueryResult = {
@@ -623,7 +616,6 @@ function snapshotFlagOverrides(options: BackendSnapshotOptions | undefined): Sna
   const flags: SnapshotFlagOverrides = {};
   if (options?.interactiveOnly !== undefined)
     flags.snapshotInteractiveOnly = options.interactiveOnly;
-  if (options?.compact !== undefined) flags.snapshotCompact = options.compact;
   if (options?.scope !== undefined) flags.snapshotScope = options.scope;
   if (options?.depth !== undefined) flags.snapshotDepth = options.depth;
   if (options?.raw !== undefined) flags.snapshotRaw = options.raw;
@@ -679,7 +671,6 @@ async function captureWaitSnapshot(params: {
     flags: {
       ...params.req.flags,
       snapshotInteractiveOnly: false,
-      snapshotCompact: false,
     },
     outPath: params.req.flags?.out,
     logPath: params.logPath ?? '',

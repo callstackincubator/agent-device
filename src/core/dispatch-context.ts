@@ -41,7 +41,6 @@ export type DispatchContext = ScreenshotDispatchFlags & {
   logPath?: string;
   traceLogPath?: string;
   snapshotInteractiveOnly?: boolean;
-  snapshotCompact?: boolean;
   snapshotDepth?: number;
   snapshotScope?: string;
   snapshotRaw?: boolean;

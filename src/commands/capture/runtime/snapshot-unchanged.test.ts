@@ -115,7 +115,7 @@ test('unchanged metadata requires matching presentation key and identity', () =>
   ).toMatchObject({ ageMs: 2_500, nodeCount: 1, interactiveOnly: true, scope: 'Composer' });
 });
 
-test('unchanged metadata trims scope in compact output metadata', () => {
+test('unchanged metadata trims scope in output metadata', () => {
   expect(
     buildUnchangedSnapshotMetadata({
       previous: snapshot('Create', { createdAt: 1_000 }, { scope: ' Composer ' }),

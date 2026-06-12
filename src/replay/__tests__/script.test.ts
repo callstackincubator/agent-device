@@ -96,18 +96,29 @@ test('screenshot replay script round-trips screenshot flags', () => {
 });
 
 test('snapshot replay script parses full refresh flags', () => {
-  const parsed = parseReplayScript('snapshot -i -c --raw --force-full -d 2 -s "@e1"\n');
+  const ignoredLegacyFlag = '-' + 'c';
+  const parsed = parseReplayScript(
+    ['snapshot', '-i', ignoredLegacyFlag, '--raw', '--force-full', '-d', '2', '-s', '"@e1"'].join(
+      ' ',
+    ) + '\n',
+  );
 
   assert.deepEqual(parsed[0]?.positionals, []);
   assert.equal(parsed[0]?.flags.snapshotInteractiveOnly, true);
-  assert.equal(parsed[0]?.flags.snapshotCompact, true);
+  assert.deepEqual(Object.keys(parsed[0]?.flags ?? {}).sort(), [
+    'snapshotDepth',
+    'snapshotForceFull',
+    'snapshotInteractiveOnly',
+    'snapshotRaw',
+    'snapshotScope',
+  ]);
   assert.equal(parsed[0]?.flags.snapshotRaw, true);
   assert.equal(parsed[0]?.flags.snapshotForceFull, true);
   assert.equal(parsed[0]?.flags.snapshotDepth, 2);
   assert.equal(parsed[0]?.flags.snapshotScope, '@e1');
 });
 
-test('snapshot replay script drops compact flag when writing new scripts', () => {
+test('snapshot replay script writes interactive refresh flags', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-script-snapshot-'));
   const replayPath = path.join(root, 'flow.ad');
   const actions: SessionAction[] = [
@@ -117,7 +128,6 @@ test('snapshot replay script drops compact flag when writing new scripts', () =>
       positionals: [],
       flags: {
         snapshotInteractiveOnly: true,
-        snapshotCompact: true,
         snapshotDepth: 2,
         snapshotScope: '@e1',
       },
@@ -128,7 +138,6 @@ test('snapshot replay script drops compact flag when writing new scripts', () =>
   const script = fs.readFileSync(replayPath, 'utf8');
 
   assert.match(script, /snapshot -i -d 2 -s @e1/);
-  assert.doesNotMatch(script, /(?:^|\s)-c(?:\s|$)/);
 });
 
 test('gesture replay script parses pan, fling, swipe, pinch, and rotate gesture commands', () => {

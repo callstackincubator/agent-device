@@ -12,7 +12,7 @@ Use it when an agent needs to inspect and operate a real app, not just reason ab
 ## Where it shines
 
 - **App verification for agents**: run the app, inspect visible UI, act through refs/selectors, and verify expected state.
-- **Token-efficient UI context**: accessibility snapshots give agents compact structure instead of screenshot-only reasoning.
+- **Token-efficient UI context**: accessibility snapshots give agents structured UI state instead of screenshot-only reasoning.
 - **Runtime evidence**: capture screenshots, recordings, logs, network traffic, traces, CPU/memory/perf snapshots, and crash-related logs when the happy path breaks.
 - **Replayable checks**: turn stable exploratory sessions into `.ad` replay scripts that can run again without AI.
 - **React Native and Expo workflows**: pair device automation with optional React DevTools profiling for component trees, props/state/hooks, slow renders, and rerenders.

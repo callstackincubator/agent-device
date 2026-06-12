@@ -518,7 +518,6 @@ test('screenshot --overlay-refs uses interactive iOS presentation for row-like o
   expect(mockDispatch.mock.calls.map((call) => call[1])).toEqual(['screenshot', 'snapshot']);
   expect(mockDispatch.mock.calls[1]?.[4]).toMatchObject({
     snapshotInteractiveOnly: true,
-    snapshotCompact: true,
   });
   expect(sessionStore.get('default')?.snapshot?.nodes[4]?.type).toBe('Cell');
 });

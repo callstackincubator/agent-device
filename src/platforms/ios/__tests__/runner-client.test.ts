@@ -120,7 +120,6 @@ const runnerProtocolCommandFixtures: Record<RunnerCommand['command'], RunnerComm
   snapshot: {
     command: 'snapshot',
     interactiveOnly: true,
-    compact: true,
     depth: 2,
     scope: 'app',
     raw: false,

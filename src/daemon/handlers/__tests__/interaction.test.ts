@@ -91,7 +91,6 @@ async function emulateCaptureSnapshotForSession(
   const effectiveFlags = {
     ...(flags ?? {}),
     snapshotInteractiveOnly: options.interactiveOnly,
-    snapshotCompact: options.interactiveOnly,
   };
   const snapshotData = (await mockDispatch(
     session.device,
@@ -935,7 +934,7 @@ test('press coordinates appends touch-visualization events while recording', asy
   }
 });
 
-test('press coordinates on iOS recording captures a non-compact snapshot for the touch reference frame', async () => {
+test('press coordinates on iOS recording captures a full snapshot for the touch reference frame', async () => {
   const sessionStore = makeSessionStore();
   const sessionName = 'ios-direct-press-frame';
   const session = makeSession(sessionName);
@@ -952,7 +951,7 @@ test('press coordinates on iOS recording captures a non-compact snapshot for the
   sessionStore.set(sessionName, session);
 
   mockDispatch.mockResolvedValue({ x: 220, y: 600 });
-  // Regression: a compact snapshot has no Application/Window node, so viewport inference would
+  // Regression: a filtered snapshot has no Application/Window node, so viewport inference would
   // return a leaf-element bounding box and the recording overlay would misplace tap markers.
   mockCaptureSnapshotForSession.mockResolvedValueOnce({
     nodes: attachRefs([
@@ -988,7 +987,6 @@ test('press coordinates on iOS recording captures a non-compact snapshot for the
   expect(response?.ok).toBe(true);
   expect(mockCaptureSnapshotForSession.mock.calls[0]?.[4]).toEqual({
     interactiveOnly: true,
-    compact: false,
   });
   const event = sessionStore.get(sessionName)?.recording?.gestureEvents[0];
   expect(event?.kind).toBe('tap');
@@ -2410,7 +2408,6 @@ test('is visible preserves CLI snapshot flags during runtime snapshot capture', 
     snapshotScope: 'Login',
     snapshotRaw: true,
     snapshotInteractiveOnly: false,
-    snapshotCompact: false,
   });
 });
 

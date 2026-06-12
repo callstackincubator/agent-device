@@ -9,20 +9,18 @@ Snapshots provide a structured view of the UI and generate current-screen refs.
 ```bash
 agent-device snapshot                    # Full accessibility tree
 agent-device snapshot -i                 # Interactive elements only (recommended)
-agent-device snapshot -c                 # Compact (remove empty elements)
 agent-device snapshot -d 3               # Limit depth to 3 levels
 agent-device snapshot -s "Contacts"      # Scope to label/identifier
-agent-device snapshot -i -c -d 5         # Combine options
+agent-device snapshot -i -d 5            # Combine options
 agent-device diff snapshot               # Preferred structural diff vs previous session baseline
 agent-device snapshot --diff             # Alias for the same diff operation
 ```
 
-| Option       | Description               |
-| ------------ | ------------------------- |
-| `-i`         | Interactive-only output   |
-| `-c`         | Compact structural noise  |
-| `-d <depth>` | Limit tree depth          |
-| `-s <scope>` | Scope to label/identifier |
+| Option       | Description                  |
+| ------------ | ---------------------------- |
+| `-i`         | Interactive-only output      |
+| `-d <depth>` | Limit tree depth             |
+| `-s <scope>` | Scope to label or identifier |
 
 Note: If XCTest returns 0 nodes (foreground app changed), agent-device fails explicitly.
 It does not automatically switch to AX.
@@ -32,10 +30,10 @@ It does not automatically switch to AX.
 - iOS and Android share the same mobile snapshot contract: visible-first output, actionable-now refs, and hidden list content communicated via discovery hints.
 - Default to `snapshot -i` for agent loops.
 - Default snapshot text is an agent-facing, token-efficient view for planning and targeting actions. It is visible-first and may collapse helper/accessibility noise; use `--raw` or `--json` when you need the full provider tree.
-- Off-screen interactive content is collapsed into compact discovery summaries such as `[off-screen below] 3 interactive items: "Privacy", "Battery", "About"`.
+- Off-screen interactive content is collapsed into discovery summaries such as `[off-screen below] 3 interactive items: "Privacy", "Battery", "About"`.
 - If a target only appears in an off-screen summary, use `scroll <direction>` and re-snapshot until the target becomes visible.
 - When container ownership is known, hidden content is shown inline under the visible scroll/list container, for example `[content above scroll-area hidden]` or `[content below list hidden]`.
-- Those summaries intentionally show only a few labels for token efficiency. Use `snapshot --raw` when you need the full off-screen tree instead of the compact summary.
+- Those summaries intentionally show only a few labels for token efficiency. Use `snapshot --raw` when you need the full off-screen tree instead of the summary.
 - Add `-s "<label>"` (or `-s @ref`) to keep results screen-local.
 - Add `-d <depth>` when you only need upper hierarchy layers.
 - If `snapshot -i -d <n>` says the interactive output is empty at that depth, retry once without `-d` before taking more shallow snapshots.

@@ -49,7 +49,6 @@ async function inspectCurrentSurface(
     flags: {
       ...params.req.flags,
       snapshotInteractiveOnly: true,
-      snapshotCompact: true,
     },
     logPath: params.logPath ?? '',
   });

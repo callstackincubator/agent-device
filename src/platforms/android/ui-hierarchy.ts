@@ -714,9 +714,6 @@ function shouldIncludeAndroidNode(
       ancestorCollection,
     );
   }
-  if (options.compact) {
-    return info.hasMeaningfulText || info.hasMeaningfulId || Boolean(node.hittable);
-  }
   if (info.isStructural || info.isVisual) {
     return shouldIncludeStructuralAndroidNode(node, info, descendantHittable);
   }

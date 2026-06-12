@@ -50,7 +50,6 @@ const SANITIZED_FLAG_KEYS = [
   'bundleUrl',
   'launchUrl',
   'snapshotInteractiveOnly',
-  'snapshotCompact',
   'snapshotDepth',
   'snapshotScope',
   'snapshotRaw',

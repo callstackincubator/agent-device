@@ -1442,15 +1442,15 @@ test('strict mode rejects click-only button flag on press', () => {
 });
 
 test('snapshot command accepts command-specific flags', () => {
+  const ignoredLegacyFlag = '-' + 'c';
   const parsed = parseArgs(
-    ['snapshot', '-i', '-c', '--depth', '3', '-s', 'Login', '--timeout', '120000'],
+    ['snapshot', '-i', ignoredLegacyFlag, '--depth', '3', '-s', 'Login', '--timeout', '120000'],
     {
       strictFlags: true,
     },
   );
   assert.equal(parsed.command, 'snapshot');
   assert.equal(parsed.flags.snapshotInteractiveOnly, true);
-  assert.equal(parsed.flags.snapshotCompact, true);
   assert.equal(parsed.flags.snapshotDepth, 3);
   assert.equal(parsed.flags.snapshotScope, 'Login');
   assert.equal(parsed.flags.timeoutMs, 120000);

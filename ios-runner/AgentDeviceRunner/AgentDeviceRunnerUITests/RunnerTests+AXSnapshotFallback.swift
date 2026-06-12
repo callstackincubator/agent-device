@@ -107,15 +107,14 @@ extension RunnerTests {
     let typeName = elementTypeName(rawElementType: rawType)
     let enabled = privateAXBool(rawNode["enabled"]) ?? true
     let visible = isVisibleInViewport(rect, viewport)
-    let compactCandidate = privateAXFlatCompactCandidate(rawElementType: rawType)
+    let interactiveCandidate = privateAXInteractiveCandidate(rawElementType: rawType)
     let filterDecision = flatSnapshotFilterDecision(
       FlatSnapshotFilterNode(
         isRoot: parentIndex == nil,
         label: label,
         identifier: identifier,
         valueText: value.isEmpty ? nil : value,
-        visible: visible,
-        compactCandidate: compactCandidate
+        visible: visible
       ),
       options: options,
       insideMatchedScope: insideMatchedScope
@@ -137,7 +136,7 @@ extension RunnerTests {
           enabled: enabled,
           focused: privateAXBool(rawNode["focused"]) == true ? true : nil,
           selected: privateAXBool(rawNode["selected"]) == true ? true : nil,
-          hittable: visible && enabled && compactCandidate,
+          hittable: visible && enabled && interactiveCandidate,
           depth: depth,
           parentIndex: parentIndex,
           hiddenContentAbove: nil,
@@ -230,8 +229,7 @@ extension RunnerTests {
     appendPrivateAXNode(
       tree,
       to: &nodes,
-      options: SnapshotOptions(
-        interactiveOnly: false, compact: false, depth: nil, scope: "homeScreen", raw: false),
+      options: SnapshotOptions(interactiveOnly: false, depth: nil, scope: "homeScreen", raw: false),
       viewport: .infinite,
       depth: 0,
       parentIndex: nil,
@@ -245,7 +243,7 @@ extension RunnerTests {
     XCTAssertFalse(labels.contains("unrelated sibling"))
   }
 
-  func testPrivateAXCompactInteractiveFiltersLoginLikeHiddenDrawer() {
+  func testPrivateAXInteractiveFiltersLoginLikeHiddenDrawer() {
     let tree: [String: Any] = [
       "type": Int(XCUIElement.ElementType.application.rawValue),
       "label": "Blue Sky",
@@ -313,8 +311,7 @@ extension RunnerTests {
     appendPrivateAXNode(
       tree,
       to: &nodes,
-      options: SnapshotOptions(
-        interactiveOnly: true, compact: true, depth: nil, scope: nil, raw: false),
+      options: SnapshotOptions(interactiveOnly: true, depth: nil, scope: nil, raw: false),
       viewport: CGRect(x: 0, y: 0, width: 390, height: 844),
       depth: 0,
       parentIndex: nil,

@@ -320,7 +320,6 @@ async function applyScreenshotOverlay(
 ): Promise<void> {
   const overlaySnapshotFlags = {
     snapshotInteractiveOnly: true,
-    snapshotCompact: true,
   } satisfies CommandFlags;
   const overlaySnapshotData = await captureSnapshotData({
     device: session.device,

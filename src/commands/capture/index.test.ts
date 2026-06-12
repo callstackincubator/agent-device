@@ -33,7 +33,6 @@ describe('capture command interface', () => {
         [],
         flags({
           snapshotInteractiveOnly: true,
-          snapshotCompact: true,
           snapshotDepth: 3,
           snapshotScope: 'Login',
           snapshotRaw: true,
@@ -43,7 +42,6 @@ describe('capture command interface', () => {
       ),
     ).toMatchObject({
       interactiveOnly: true,
-      compact: true,
       depth: 3,
       scope: 'Login',
       raw: true,

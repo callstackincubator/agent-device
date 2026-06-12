@@ -112,7 +112,6 @@ export async function warmIosSimulatorRunner(params: {
         command: 'snapshot',
         appBundleId,
         interactiveOnly: true,
-        compact: true,
         depth: 1,
       },
       getIosRunnerOptions(req, logPath, activeSession),

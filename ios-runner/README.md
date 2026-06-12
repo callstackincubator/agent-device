@@ -44,7 +44,7 @@ Some simulator apps expose accessibility trees that lower-level AX services can 
 cannot serialize reliably. In those cases interactive snapshots may return a sparse root quickly,
 while full snapshots preserve the XCTest error. See
 [`../docs/adr/0004-ios-snapshot-backend-strategy.md`](../docs/adr/0004-ios-snapshot-backend-strategy.md)
-for the backend boundary and the rationale for a future simulator AX-service backend.
+for the backend boundary and future simulator AX-service direction.
 
 ## Protocol Notes
 

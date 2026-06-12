@@ -46,7 +46,6 @@ export async function captureSelectorSnapshot(
   const session = await runtime.sessions.get(sessionName);
   const result = await captureSnapshot(toBackendContext(runtime, options), {
     interactiveOnly: false,
-    compact: false,
     depth: options.depth,
     scope: captureOptions.scope ?? options.scope,
     raw: options.raw,

@@ -263,7 +263,6 @@ function formatAndroidBlockingDialogFocus(focus: AndroidBlockingDialogFocus): st
 async function readAndroidSnapshotNodes(session: SessionState): Promise<SnapshotNode[]> {
   const rawSnapshot = await snapshotAndroid(session.device, {
     interactiveOnly: false,
-    compact: false,
   });
   return attachRefs(pruneGroupNodes(rawSnapshot.nodes));
 }

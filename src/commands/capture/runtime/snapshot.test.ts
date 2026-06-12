@@ -42,7 +42,7 @@ test('runtime snapshot captures nodes and updates the session baseline', async (
   assert.equal(stored?.snapshot?.nodes[0]?.label, 'Home');
 });
 
-test('runtime snapshot treats compact option as a no-op', async () => {
+test('runtime snapshot forwards interactive capture options', async () => {
   let observedOptions: BackendSnapshotOptions | undefined;
   const device = createAgentDevice({
     backend: {
@@ -64,10 +64,15 @@ test('runtime snapshot treats compact option as a no-op', async () => {
     policy: localCommandPolicy(),
   });
 
-  await device.capture.snapshot({ session: 'default', interactiveOnly: true, compact: true });
+  await device.capture.snapshot({ session: 'default', interactiveOnly: true });
 
   assert.equal(observedOptions?.interactiveOnly, true);
-  assert.equal('compact' in (observedOptions ?? {}), false);
+  assert.deepEqual(observedOptions, {
+    depth: undefined,
+    interactiveOnly: true,
+    raw: undefined,
+    scope: undefined,
+  });
 });
 
 test('runtime diff snapshot initializes and then compares against session baseline', async () => {

@@ -208,7 +208,6 @@ function parseReplayScriptLine(line: string): SessionAction | null {
         continue;
       }
       if (token === '-c') {
-        action.flags.snapshotCompact = true;
         continue;
       }
       if (token === '--raw') {

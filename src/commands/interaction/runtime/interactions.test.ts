@@ -106,10 +106,7 @@ test('runtime selector interactions fall back to a full snapshot when interactiv
   assert.equal(result.kind, 'selector');
   assert.equal(result.node?.label, 'General');
   assert.deepEqual(calls, [{ x: 160, y: 122 }]);
-  assert.deepEqual(captureOptions, [
-    { interactiveOnly: true, compact: true },
-    { interactiveOnly: false, compact: false },
-  ]);
+  assert.deepEqual(captureOptions, [{ interactiveOnly: true }, { interactiveOnly: false }]);
 });
 
 test('runtime click keeps distinct tab button centers when iOS reports the tab bar as hittable', async () => {

@@ -213,7 +213,6 @@ async function captureSnapshotForReplay(
       {
         ...(action.flags ?? {}),
         snapshotInteractiveOnly: interactiveOnly,
-        snapshotCompact: interactiveOnly,
       },
       session.appBundleId,
       session.trace?.outPath,
@@ -226,7 +225,6 @@ async function captureSnapshotForReplay(
   const snapshot = buildSnapshotState(data, {
     ...(action.flags ?? {}),
     snapshotInteractiveOnly: interactiveOnly,
-    snapshotCompact: interactiveOnly,
   });
   setSessionSnapshot(session, snapshot);
   sessionStore.set(session.name, session);

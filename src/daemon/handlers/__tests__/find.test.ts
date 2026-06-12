@@ -222,11 +222,9 @@ test('handleFindCommands click tries query-scoped full retry before failing spar
   expect(snapshotCalls).toHaveLength(2);
   expect(snapshotCalls[0]![4]).toMatchObject({
     snapshotInteractiveOnly: true,
-    snapshotCompact: true,
   });
   expect(snapshotCalls[1]![4]).toMatchObject({
     snapshotInteractiveOnly: false,
-    snapshotCompact: false,
     snapshotScope: 'Search',
   });
 });
@@ -289,7 +287,6 @@ test('handleFindCommands click uses query-scoped full retry when sparse verdict 
   expect(snapshotCalls).toHaveLength(2);
   expect(snapshotCalls[1]![4]).toMatchObject({
     snapshotInteractiveOnly: false,
-    snapshotCompact: false,
     snapshotScope: 'Search',
   });
 });
@@ -341,11 +338,9 @@ test('handleFindCommands click retries full snapshot for legacy iOS sparse shape
   expect(snapshotCalls).toHaveLength(2);
   expect(snapshotCalls[0]![4]).toMatchObject({
     snapshotInteractiveOnly: true,
-    snapshotCompact: true,
   });
   expect(snapshotCalls[1]![4]).toMatchObject({
     snapshotInteractiveOnly: false,
-    snapshotCompact: false,
   });
 });
 
@@ -400,7 +395,6 @@ test('handleFindCommands click scopes full retry for legacy sparse shape when un
   expect(snapshotCalls).toHaveLength(3);
   expect(snapshotCalls[2]![4]).toMatchObject({
     snapshotInteractiveOnly: false,
-    snapshotCompact: false,
     snapshotScope: 'Search',
   });
 });

@@ -63,9 +63,6 @@ test('buildSnapshotState marks comparisonSafe false for filtered Android snapsho
   );
   expect(interactiveOnly.comparisonSafe).toBe(false);
 
-  const compact = buildSnapshotState({ nodes, backend: 'android' }, { snapshotCompact: true });
-  expect(compact.comparisonSafe).toBe(false);
-
   const withDepth = buildSnapshotState({ nodes, backend: 'android' }, { snapshotDepth: 2 });
   expect(withDepth.comparisonSafe).toBe(false);
 

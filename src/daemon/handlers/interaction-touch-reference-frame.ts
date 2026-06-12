@@ -48,11 +48,8 @@ async function resolveDirectTouchReferenceFrame(params: {
     return undefined;
   }
 
-  // Compact snapshots prune Application/Window containers, leaving viewport inference to fall
-  // back to a bounding box of leaf elements — a garbage reference frame for screen-point touches.
   const snapshot = await captureSnapshotForSession(session, flags, sessionStore, contextFromFlags, {
     interactiveOnly: true,
-    compact: false,
   });
   const referenceFrame = getSnapshotReferenceFrame(snapshot);
   if (referenceFrame && session.recording) {

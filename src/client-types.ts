@@ -322,7 +322,6 @@ export type MetroReloadResult = ReloadMetroResult;
 export type CaptureSnapshotOptions = AgentDeviceRequestOverrides &
   AgentDeviceSelectionOptions & {
     interactiveOnly?: boolean;
-    compact?: boolean;
     depth?: number;
     scope?: string;
     raw?: boolean;
@@ -571,7 +570,7 @@ export type AppTriggerEventOptions = DeviceCommandBaseOptions & {
 };
 
 export type CaptureDiffOptions = DeviceCommandBaseOptions &
-  Pick<CaptureSnapshotOptions, 'interactiveOnly' | 'compact' | 'depth' | 'scope' | 'raw'> & {
+  Pick<CaptureSnapshotOptions, 'interactiveOnly' | 'depth' | 'scope' | 'raw'> & {
     kind: 'snapshot';
     out?: string;
   };
@@ -841,7 +840,6 @@ type CommandExecutionOptions = Partial<ScreenshotRequestFlags> & {
   dsym?: string;
   searchPath?: string;
   interactiveOnly?: boolean;
-  compact?: boolean;
   depth?: number;
   scope?: string;
   raw?: boolean;

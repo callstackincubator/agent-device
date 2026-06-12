@@ -234,11 +234,11 @@ Example 2: stale ref-based action upgraded to selector form
 
 ```sh
 # Before
-snapshot -i -c -s "Continue"
+snapshot -i -s "Continue"
 click @e13 "Continue"
 
 # After `replay -u`
-snapshot -i -c -s "Continue"
+snapshot -i -s "Continue"
 click "id=\"auth_continue\" || label=\"Continue\""
 ```
 

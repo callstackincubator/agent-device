@@ -16,7 +16,7 @@ features:
   - title: One CLI, many app surfaces
     details: Control iOS, Android, tvOS, Android TV, macOS, and Linux desktop targets with consistent snapshot and interaction commands.
   - title: Accessibility-first snapshots
-    details: Accessibility trees give agents compact UI context without forcing screenshot-only reasoning.
+    details: Accessibility trees give agents structured UI context without forcing screenshot-only reasoning.
   - title: Agent-native interactions
     details: Tap, pan, fling, pinch, rotate, scroll, focus, type, assert, and find visible UI through refs, selectors, and semantic finders.
   - title: Built-in debugging and profiling

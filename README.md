@@ -27,7 +27,7 @@ It works with native iOS and Android apps, plus apps built with Expo, Flutter, a
 
 ## Capabilities
 
-- **Inspect** real app UI through compact accessibility snapshots, interactive refs like `@e3`, selectors, and React Native component trees.
+- **Inspect** real app UI through structured accessibility snapshots, interactive refs like `@e3`, selectors, and React Native component trees.
 - **Interact** by opening apps, tapping, typing, scrolling, performing gestures, waiting, asserting state, handling alerts, and closing sessions.
 - **Capture evidence** with screenshots, videos, logs, traces, network traffic, performance samples, crash context, and React profiles.
 - **Replay workflows** by recording `.ad` scripts for local runs, CI, repeatable e2e checks, and strict Maestro YAML export when a flow needs to run in Maestro.

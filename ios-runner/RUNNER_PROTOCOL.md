@@ -25,7 +25,6 @@ Examples:
 {
   "command": "snapshot",
   "interactiveOnly": true,
-  "compact": true,
   "depth": 2,
   "scope": "app",
   "raw": false

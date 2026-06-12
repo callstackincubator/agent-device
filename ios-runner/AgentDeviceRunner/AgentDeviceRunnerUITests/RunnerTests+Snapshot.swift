@@ -105,11 +105,8 @@ extension RunnerTests {
     if let blocking = blockingSystemAlertSnapshot() {
       return blocking
     }
-    let plan = options.interactiveOnly && options.compact
-      ? Self.compactInteractivePlan
-      : Self.regularVisiblePlan
     return try runSnapshotCapturePlan(
-      plan,
+      Self.regularVisiblePlan,
       app: app,
       options: options,
       terminal: .sparseWithFatalOnAXFailure
@@ -307,7 +304,7 @@ extension RunnerTests {
 
   func snapshotFlatInteractive(app: XCUIApplication, options: SnapshotOptions) -> DataPayload {
     var nodes: [SnapshotNode] = [
-      compactInteractiveRootNode(rect: .zero)
+      interactiveRootNode(rect: .zero)
     ]
     if options.depth == 0 {
       return DataPayload(nodes: nodes, truncated: false)
@@ -355,9 +352,9 @@ extension RunnerTests {
     // inside nodes[0].rect): use the real screen viewport when capture produced a finite one,
     // so off-screen candidates can never inflate the root and masquerade as on-screen.
     let rootRect = viewport.isInfinite || viewport.isNull || viewport.isEmpty
-      ? compactInteractiveRootFrame(for: candidates)
+      ? interactiveRootFrame(for: candidates)
       : viewport
-    nodes[0] = compactInteractiveRootNode(rect: rootRect)
+    nodes[0] = interactiveRootNode(rect: rootRect)
     for candidate in candidates {
       nodes.append(
         SnapshotNode(
@@ -421,7 +418,7 @@ extension RunnerTests {
   ) -> DataPayload {
     return DataPayload(
       message: message,
-      nodes: [compactInteractiveRootNode(rect: .zero)],
+      nodes: [interactiveRootNode(rect: .zero)],
       truncated: true,
       snapshotQuality: snapshotQuality,
       runnerFatal: runnerFatal,
@@ -472,7 +469,7 @@ extension RunnerTests {
     XCTAssertEqual(failure.hint, Self.rawSnapshotTooLargeHint)
   }
 
-  private func compactInteractiveRootNode(rect: CGRect) -> SnapshotNode {
+  private func interactiveRootNode(rect: CGRect) -> SnapshotNode {
     SnapshotNode(
       index: 0,
       type: "Application",
@@ -491,7 +488,7 @@ extension RunnerTests {
     )
   }
 
-  private func compactInteractiveRootFrame(for candidates: [SnapshotNode]) -> CGRect {
+  private func interactiveRootFrame(for candidates: [SnapshotNode]) -> CGRect {
     guard !candidates.isEmpty else {
       return .zero
     }
@@ -523,9 +520,6 @@ extension RunnerTests {
   ) -> Bool {
     let type = snapshot.elementType
     let hasContent = !label.isEmpty || !identifier.isEmpty || (valueText != nil)
-    if options.compact && type == .other && !hasContent && !hittable {
-      if snapshot.children.count <= 1 { return false }
-    }
     if options.interactiveOnly {
       if isScrollableContainer(snapshot, visible: visible) { return true }
       #if os(macOS)
@@ -537,9 +531,6 @@ extension RunnerTests {
       if hittable && type != .other { return true }
       if hasContent { return true }
       return false
-    }
-    if options.compact {
-      return hasContent || hittable
     }
     if regularSnapshot {
       if type == .application || type == .window { return true }
@@ -1121,8 +1112,7 @@ extension RunnerTests {
         label: label,
         identifier: identifier,
         valueText: valueText,
-        visible: visible,
-        compactCandidate: querySweepFlatCompactCandidate(elementType: elementType, hittable: hittable)
+        visible: visible
       )
       if !flatSnapshotFilterDecision(filterNode, options: options, insideMatchedScope: false).include {
         return

@@ -60,7 +60,6 @@ export type CliFlags = RemoteConfigMetroOptions &
     verbose?: boolean;
     snapshotInteractiveOnly?: boolean;
     snapshotDiff?: boolean;
-    snapshotCompact?: boolean;
     snapshotDepth?: number;
     snapshotScope?: string;
     snapshotRaw?: boolean;
@@ -154,7 +153,6 @@ function flagKeys<const TKeys extends readonly FlagKey[]>(...keys: TKeys): TKeys
 
 export const SNAPSHOT_FLAGS = flagKeys(
   'snapshotInteractiveOnly',
-  'snapshotCompact',
   'snapshotDepth',
   'snapshotScope',
   'snapshotRaw',
@@ -953,13 +951,6 @@ const FLAG_DEFINITIONS: readonly FlagDefinition[] = [
     type: 'boolean',
     usageLabel: '-i',
     usageDescription: 'Snapshot: interactive elements only',
-  },
-  {
-    key: 'snapshotCompact',
-    names: ['-c'],
-    type: 'boolean',
-    usageLabel: '-c',
-    usageDescription: 'Snapshot: accepted for compatibility; no effect',
   },
   {
     key: 'snapshotDepth',

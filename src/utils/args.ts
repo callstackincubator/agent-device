@@ -67,6 +67,9 @@ export function parseRawArgs(argv: string[]): RawParsedArgs {
     }
 
     const [token, inlineValue] = isLongFlag ? splitLongFlag(arg) : [arg, undefined];
+    if (isLegacyIgnoredSnapshotShortFlag(command, token)) {
+      continue;
+    }
     const definition = resolveFlagDefinition(token);
     if (shouldPassThroughReactDevtoolsFlag(command, definition)) {
       positionals.push(arg);
@@ -98,6 +101,10 @@ export function parseRawArgs(argv: string[]): RawParsedArgs {
   }
 
   return { command, positionals, flags, warnings, providedFlags };
+}
+
+function isLegacyIgnoredSnapshotShortFlag(command: string | null, token: string): boolean {
+  return token === '-c' && (command === 'snapshot' || command === 'diff');
 }
 
 function shouldPassThroughReactDevtoolsFlag(

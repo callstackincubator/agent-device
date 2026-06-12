@@ -564,7 +564,7 @@ export async function handleSwipePresetCommand(
 ): Promise<Record<string, unknown>> {
   const preset = parseSwipePreset(positionals[0]);
   const requestedDurationMs = positionals[1] ? Number(positionals[1]) : 300;
-  const snapshot = await interactor.snapshot({ appBundleId: context?.appBundleId, compact: true });
+  const snapshot = await interactor.snapshot({ appBundleId: context?.appBundleId });
   const frame = inferGestureReferenceFrame(snapshot.nodes ?? []);
   if (!frame) {
     throw new AppError('COMMAND_FAILED', 'Cannot infer viewport for gesture swipe preset');
@@ -786,7 +786,6 @@ async function captureVerifiedScrollEdgeState(
       (
         await snapshot({
           appBundleId: context?.appBundleId,
-          compact: true,
           scope: snapshotScope,
         })
       ).nodes ?? [],

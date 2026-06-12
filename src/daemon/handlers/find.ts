@@ -91,7 +91,7 @@ export async function handleFindCommands(params: {
     await ensureDeviceReady(device);
   }
   const requiresRect = findActionRequiresRect(action);
-  // Interaction targets need the full compact tree so duplicate labels can be
+  // Interaction targets need the full interactive tree so duplicate labels can be
   // resolved against viewport visibility before an off-screen subtree wins.
   const scope = shouldScopeFind(locator) && !requiresRect ? query : undefined;
   const fetchNodes = createFindNodeFetcher({
@@ -208,7 +208,6 @@ function createFindNodeFetcher(params: {
       flags: {
         ...req.flags,
         snapshotInteractiveOnly: interactive,
-        snapshotCompact: interactive,
       },
       outPath: req.flags?.out,
       logPath,

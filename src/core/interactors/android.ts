@@ -68,7 +68,6 @@ export function createAndroidInteractor(device: DeviceInfo): Interactor {
         async () =>
           await snapshotAndroid(device, {
             interactiveOnly: options?.interactiveOnly,
-            compact: options?.compact,
             depth: options?.depth,
             scope: options?.scope,
             raw: options?.raw,

@@ -238,7 +238,6 @@ export async function captureInteractionSnapshot(
   if (!session) throw new AppError('SESSION_NOT_FOUND', 'No active session. Run open first.');
   const result = await runtime.backend.captureSnapshot(toBackendContext(runtime, options), {
     interactiveOnly,
-    compact: interactiveOnly,
   });
   const snapshot =
     result.snapshot ??

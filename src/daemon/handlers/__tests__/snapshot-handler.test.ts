@@ -593,7 +593,7 @@ test('snapshot does not warn on expected node drop across presentation modes', a
     })),
     createdAt: Date.now(),
     backend: 'xctest',
-    presentationKey: buildSnapshotPresentationKey({ interactiveOnly: false, compact: false }),
+    presentationKey: buildSnapshotPresentationKey({ interactiveOnly: false }),
   };
   sessionStore.set(sessionName, session);
 
@@ -615,7 +615,7 @@ test('snapshot does not warn on expected node drop across presentation modes', a
       session: sessionName,
       command: 'snapshot',
       positionals: [],
-      flags: { snapshotInteractiveOnly: true, snapshotCompact: true },
+      flags: { snapshotInteractiveOnly: true },
     },
     sessionName,
     logPath: '/tmp/daemon.log',
@@ -922,7 +922,7 @@ test('Android ref refresh mode does not retry narrow snapshots as sharp drops', 
   const result = await captureSnapshot({
     device: androidDevice,
     session,
-    flags: { snapshotInteractiveOnly: true, snapshotCompact: true },
+    flags: { snapshotInteractiveOnly: true },
     logPath: '/tmp/daemon.log',
     androidFreshnessMode: 'ref-refresh',
   });

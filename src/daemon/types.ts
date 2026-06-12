@@ -311,7 +311,6 @@ export type SessionAction = {
   replayControl?: SessionReplayControl;
   flags: Partial<CommandFlags> & {
     snapshotInteractiveOnly?: boolean;
-    snapshotCompact?: boolean;
     snapshotDepth?: number;
     snapshotScope?: string;
     snapshotRaw?: boolean;

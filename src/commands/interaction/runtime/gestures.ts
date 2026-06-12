@@ -452,7 +452,6 @@ async function captureRuntimeScrollEdgeState(
     scope,
     captureNodes: async (snapshotScope) => {
       const result = await captureSnapshot(toBackendContext(runtime, options), {
-        compact: true,
         scope: snapshotScope,
       });
       return result.snapshot?.nodes ?? result.nodes ?? [];

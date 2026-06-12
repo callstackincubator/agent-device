@@ -142,7 +142,6 @@ test('runtime selectors forward public snapshot options to backend capture', asy
 
   assert.deepEqual(captureOptions, {
     interactiveOnly: false,
-    compact: false,
     depth: 2,
     scope: 'Login',
     raw: true,
