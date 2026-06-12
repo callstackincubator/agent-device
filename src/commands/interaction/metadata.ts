@@ -48,7 +48,7 @@ const FIND_ACTION_VALUES = [
   'type',
 ] as const;
 
-export const interactionCommandDescriptions = {
+const interactionCommandDescriptions = {
   click: 'Click or tap a semantic UI target by ref, selector, or point.',
   press: 'Press a semantic UI target by ref, selector, or point.',
   fill: 'Fill text into a semantic UI target by ref, selector, or point.',

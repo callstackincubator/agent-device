@@ -1,6 +1,6 @@
 import { listMcpExposedCommandNames } from '../command-catalog.ts';
 import { batchCommandMetadata } from './batch/index.ts';
-import { clientCommandMetadata } from './client-command-metadata.ts';
+import { clientCommandMetadata } from './client-command-facets.ts';
 import type { CommandMetadata } from './command-contract.ts';
 import { interactionCommandMetadata } from './interaction/index.ts';
 
@@ -17,6 +17,10 @@ type AnyCommandMetadata = CommandMetadata<CommandName, unknown>;
 const commandMetadataMap: ReadonlyMap<CommandName, AnyCommandMetadata> = new Map(
   commandMetadata.map((definition) => [definition.name, definition as AnyCommandMetadata]),
 );
+
+export function listCommandMetadata(): AnyCommandMetadata[] {
+  return [...commandMetadata];
+}
 
 export function listMcpCommandMetadata(): AnyCommandMetadata[] {
   return listMcpExposedCommandNames().map((name) => {

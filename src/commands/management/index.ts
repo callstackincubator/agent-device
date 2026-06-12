@@ -40,7 +40,7 @@ import { DEFAULT_APPS_FILTER } from '../../contracts/app-inventory.ts';
 
 const PREPARE_ACTION_VALUES = ['ios-runner'] as const;
 
-export const managementCommandDescriptions = {
+const managementCommandDescriptions = {
   devices: 'List available devices.',
   boot: 'Boot or prepare a selected device without using CLI positional arguments.',
   shutdown: 'Shutdown a selected simulator or emulator.',

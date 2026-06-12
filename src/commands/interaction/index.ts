@@ -44,7 +44,7 @@ import {
 
 export { gestureCliReaders, gestureDaemonWriters } from './gesture.ts';
 export { interactionCliReaders, interactionDaemonWriters } from './interactions.ts';
-export { interactionCommandDescriptions, interactionCommandMetadata } from './metadata.ts';
+export { interactionCommandMetadata } from './metadata.ts';
 export { selectorCliReaders, selectorDaemonWriters } from './selectors.ts';
 
 export const interactionCliSchemas = {

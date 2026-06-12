@@ -44,7 +44,6 @@ import {
   settingsCliReader as settingsCliReaderImpl,
   settingsCliSchema,
   settingsCommandDefinition,
-  settingsCommandDescription,
   settingsCommandMetadata,
   settingsDaemonWriter as settingsDaemonWriterImpl,
 } from './settings.ts';
@@ -60,15 +59,6 @@ const screenshotCommandDescription = 'Capture a screenshot.';
 const diffCommandDescription = 'Diff accessibility snapshots.';
 const waitCommandDescription = 'Wait for duration, text, ref, or selector.';
 const alertCommandDescription = 'Inspect or handle platform alerts.';
-
-export const captureCommandDescriptions = {
-  [SNAPSHOT_COMMAND_NAME]: snapshotCommandDescription,
-  [SCREENSHOT_COMMAND_NAME]: screenshotCommandDescription,
-  [DIFF_COMMAND_NAME]: diffCommandDescription,
-  [WAIT_COMMAND_NAME]: waitCommandDescription,
-  [ALERT_COMMAND_NAME]: alertCommandDescription,
-  [SETTINGS_COMMAND_NAME]: settingsCommandDescription,
-} as const;
 
 const snapshotCommandMetadata = defineFieldCommandMetadata(
   SNAPSHOT_COMMAND_NAME,

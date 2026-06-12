@@ -22,11 +22,6 @@ const RECORDING_ACTION_VALUES = ['start', 'stop'] as const;
 const recordCommandDescription = 'Start or stop screen recording.';
 const traceCommandDescription = 'Start or stop trace capture.';
 
-export const recordingCommandDescriptions = {
-  [RECORD_COMMAND_NAME]: recordCommandDescription,
-  [TRACE_COMMAND_NAME]: traceCommandDescription,
-} as const;
-
 export const recordCommandMetadata = defineFieldCommandMetadata(
   RECORD_COMMAND_NAME,
   recordCommandDescription,

@@ -35,16 +35,6 @@ const appSwitcherCommandDescription = 'Open the app switcher.';
 const keyboardCommandDescription = 'Inspect or dismiss the keyboard.';
 const clipboardCommandDescription = 'Read or write clipboard text.';
 
-export const systemCommandDescriptions = {
-  [APPSTATE_COMMAND_NAME]: appStateCommandDescription,
-  [BACK_COMMAND_NAME]: backCommandDescription,
-  [HOME_COMMAND_NAME]: homeCommandDescription,
-  [ROTATE_COMMAND_NAME]: rotateCommandDescription,
-  [APP_SWITCHER_COMMAND_NAME]: appSwitcherCommandDescription,
-  [KEYBOARD_COMMAND_NAME]: keyboardCommandDescription,
-  [CLIPBOARD_COMMAND_NAME]: clipboardCommandDescription,
-} as const;
-
 const appStateCommandMetadata = defineFieldCommandMetadata(
   APPSTATE_COMMAND_NAME,
   appStateCommandDescription,

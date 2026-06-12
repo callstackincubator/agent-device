@@ -11,10 +11,6 @@ const REACT_NATIVE_ACTION_VALUES = ['dismiss-overlay'] as const;
 
 const reactNativeCommandDescription = 'Run supported React Native app automation helpers.';
 
-export const reactNativeCommandDescriptions = {
-  [REACT_NATIVE_COMMAND_NAME]: reactNativeCommandDescription,
-} as const;
-
 export const reactNativeCommandMetadata = defineFieldCommandMetadata(
   REACT_NATIVE_COMMAND_NAME,
   reactNativeCommandDescription,

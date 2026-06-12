@@ -18,7 +18,7 @@ import type { CliReader, DaemonWriter } from '../cli-grammar/types.ts';
 import { defineFieldCommandMetadata } from '../field-command-contract.ts';
 
 export const SETTINGS_COMMAND_NAME = 'settings';
-export const settingsCommandDescription = 'Change OS settings and app permissions.';
+const settingsCommandDescription = 'Change OS settings and app permissions.';
 
 export const settingsCommandMetadata = defineFieldCommandMetadata(
   SETTINGS_COMMAND_NAME,

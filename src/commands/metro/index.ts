@@ -26,10 +26,6 @@ const METRO_ACTION_VALUES = ['prepare', 'reload'] as const;
 
 const metroCommandDescription = 'Prepare Metro runtime or reload React Native apps.';
 
-export const metroCommandDescriptions = {
-  [METRO_COMMAND_NAME]: metroCommandDescription,
-} as const;
-
 export const metroCommandMetadata = defineFieldCommandMetadata(
   METRO_COMMAND_NAME,
   metroCommandDescription,

@@ -47,13 +47,6 @@ const logsCommandDescription = 'Manage session app logs.';
 const networkCommandDescription = 'Show recent HTTP traffic.';
 const debugCommandDescription = 'Symbolicate crash artifacts with matching debug symbols.';
 
-export const observabilityCommandDescriptions = {
-  [PERF_COMMAND_NAME]: perfCommandDescription,
-  [LOGS_COMMAND_NAME]: logsCommandDescription,
-  [NETWORK_COMMAND_NAME]: networkCommandDescription,
-  [DEBUG_COMMAND_NAME]: debugCommandDescription,
-} as const;
-
 export const perfCommandMetadata = defineFieldCommandMetadata(
   PERF_COMMAND_NAME,
   perfCommandDescription,

@@ -25,11 +25,6 @@ const REPLAY_SHELL_ENV_PREFIX = 'AD_VAR_';
 const replayCommandDescription = 'Replay a recorded session.';
 const testCommandDescription = 'Run one or more replay scripts.';
 
-export const replayCommandDescriptions = {
-  [REPLAY_COMMAND_NAME]: replayCommandDescription,
-  [TEST_COMMAND_NAME]: testCommandDescription,
-} as const;
-
 export const replayCommandMetadata = defineFieldCommandMetadata(
   REPLAY_COMMAND_NAME,
   replayCommandDescription,
