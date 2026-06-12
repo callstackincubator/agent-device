@@ -8,12 +8,15 @@ import type { AlertAction } from '../../alert-contract.ts';
 import { ALERT_ACTIONS } from '../../alert-contract.ts';
 import { parseWaitPositionals } from '../../core/wait-positionals.ts';
 import { SESSION_SURFACES } from '../../core/session-surface.ts';
-import { SCREENSHOT_COMMAND_FLAG_KEYS } from '../../contracts/screenshot.ts';
+import {
+  SCREENSHOT_COMMAND_FLAG_KEYS,
+  screenshotFlagsFromOptions,
+  screenshotOptionsFromFlags,
+} from '../../contracts/screenshot.ts';
 import type { CommandSchemaOverride } from '../../utils/cli-command-schema-types.ts';
 import { SELECTOR_SNAPSHOT_FLAGS, SNAPSHOT_FLAGS, type CliFlags } from '../../utils/cli-flags.ts';
 import { AppError } from '../../utils/errors.ts';
 import { tryParseSelectorChain } from '../../utils/selectors-parse.ts';
-import { screenshotFlagsFromOptions, screenshotOptionsFromFlags } from './screenshot-options.ts';
 import {
   booleanField,
   compactRecord,

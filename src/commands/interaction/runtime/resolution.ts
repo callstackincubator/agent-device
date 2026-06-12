@@ -21,7 +21,7 @@ import type {
   ResolvedInteractionTarget,
 } from '../../../contracts/interaction.ts';
 import { now, toBackendContext } from '../../runtime-common.ts';
-import { resolveActionableTouchResolution } from './targeting.ts';
+import { resolveActionableTouchResolution } from '../../../core/interaction-targeting.ts';
 
 export type { InteractionTarget, PointTarget, ResolvedInteractionTarget };
 

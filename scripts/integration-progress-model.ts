@@ -2,23 +2,19 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { PUBLIC_COMMANDS } from '../src/command-catalog.ts';
 import { listCommandMetadata } from '../src/commands/command-metadata.ts';
+import { getFlagDefinitions } from '../src/utils/cli-flags.ts';
 
 const EMPTY_COVERAGE_METRIC = { pct: 0 };
 const EMPTY_STATEMENT_COVERAGE = { covered: 0, pct: 0, total: 0 };
 
-let ROOT = process.cwd();
-let COVERAGE_SUMMARY = path.join(ROOT, 'coverage/coverage-summary.json');
-let clientCommandMethods = new Map();
-
 export function buildIntegrationProgressModel({ root = process.cwd() } = {}) {
-  ROOT = root;
-  COVERAGE_SUMMARY = path.join(ROOT, 'coverage/coverage-summary.json');
-  const handlerTestDir = path.join(ROOT, 'src/daemon/handlers/__tests__');
-  const providerScenarioDir = path.join(ROOT, 'test/integration/provider-scenarios');
-  const commandContractFiles = listFiles(path.join(ROOT, 'src/commands'), (file) =>
+  const coverageSummary = path.join(root, 'coverage/coverage-summary.json');
+  const handlerTestDir = path.join(root, 'src/daemon/handlers/__tests__');
+  const providerScenarioDir = path.join(root, 'test/integration/provider-scenarios');
+  const commandContractFiles = listFiles(path.join(root, 'src/commands'), (file) =>
     file.endsWith(`${path.sep}index.ts`),
   );
-  clientCommandMethods = readClientCommandMethods(commandContractFiles);
+  const clientCommandMethods = readClientCommandMethods(commandContractFiles);
 
   const handlerTests = listFiles(handlerTestDir, (file) => file.endsWith('.test.ts'));
   const providerScenarioTests = listFiles(providerScenarioDir, (file) => file.endsWith('.test.ts'));
@@ -30,9 +26,9 @@ export function buildIntegrationProgressModel({ root = process.cwd() } = {}) {
   const mockHeavyHandlerFiles = handlerTests.filter((file) =>
     fs.readFileSync(file, 'utf8').includes('vi.mock('),
   );
-  const mockHeavyHandlerRows = summarizeMockHeavyHandlerFiles(mockHeavyHandlerFiles);
+  const mockHeavyHandlerRows = summarizeMockHeavyHandlerFiles(root, mockHeavyHandlerFiles);
   const providerPressureRows = summarizeProviderPressure(providerScenarioSources);
-  const publicCommandRows = summarizePublicCommandCoverage(providerScenarioTests);
+  const publicCommandRows = summarizePublicCommandCoverage(providerScenarioTests, clientCommandMethods);
   const missingPublicCommands = publicCommandRows.filter((command) => command.references === 0);
   const flagCoverageRows = summarizeProviderScenarioFlagCoverage(providerScenarioTests);
   const missingFlagRows = flagCoverageRows.filter((flag) => flag.references === 0);
@@ -43,8 +39,8 @@ export function buildIntegrationProgressModel({ root = process.cwd() } = {}) {
     ...excludedFlagRows.flatMap((group) => group.keys),
   ]);
   const unclassifiedFlagKeys = [...publicCliFlagKeys].filter((key) => !classifiedFlagKeys.has(key));
-  const coverage = readCoverageSummary();
-  const lowCoverageFiles = readLowCoverageFiles();
+  const coverage = readCoverageSummary(coverageSummary);
+  const lowCoverageFiles = readLowCoverageFiles(root, coverageSummary);
 
   const summaryRows = [
     ['Handler unit test files', String(handlerStats.files)],
@@ -276,16 +272,11 @@ function summarizeProviderScenarioFlagExclusions() {
 }
 
 function readPublicCliFlagKeys() {
-  const text = fs.readFileSync(path.join(ROOT, 'src/utils/cli-flags.ts'), 'utf8');
   return new Set(
-    [...text.matchAll(/\{\s*key: '([^']+)'[\s\S]*?names:\s*\[([^\]]*)\]/g)]
-      .filter((match) => isPublicCliFlagNames(match[2] ?? ''))
-      .map((match) => match[1]),
+    getFlagDefinitions()
+      .filter((definition) => definition.names.some((name) => name.startsWith('-')))
+      .map((definition) => definition.key),
   );
-}
-
-function isPublicCliFlagNames(names) {
-  return names.includes("'--") || names.includes("'-");
 }
 
 function listFiles(dir, predicate) {
@@ -309,12 +300,12 @@ function summarizeFiles(files) {
   return { files: files.length, lines, tests };
 }
 
-function summarizeMockHeavyHandlerFiles(files) {
+function summarizeMockHeavyHandlerFiles(root, files) {
   return files
     .map((file) => {
       const text = fs.readFileSync(file, 'utf8');
       return {
-        file: path.relative(ROOT, file),
+        file: path.relative(root, file),
         lines: text.split('\n').length,
         tests: countTestDeclarations(text),
       };
@@ -396,11 +387,14 @@ function countPatternReferences(text, pattern) {
   return text.match(pattern)?.length ?? 0;
 }
 
-function summarizePublicCommandCoverage(files) {
+function summarizePublicCommandCoverage(files, clientCommandMethods) {
   const publicCommands = readPublicCommands();
   const commandRefsByFile = files.map((file) => ({
     file,
-    commands: extractProviderScenarioCommandReferences(fs.readFileSync(file, 'utf8')),
+    commands: extractProviderScenarioCommandReferences(
+      fs.readFileSync(file, 'utf8'),
+      clientCommandMethods,
+    ),
   }));
 
   return publicCommands.map((command) => {
@@ -485,8 +479,11 @@ function readMetadataName(token, constants) {
   return constants.get(token);
 }
 
-function extractProviderScenarioCommandReferences(text) {
-  return [...extractLiteralCommandReferences(text), ...extractClientCommandReferences(text)];
+function extractProviderScenarioCommandReferences(text, clientCommandMethods) {
+  return [
+    ...extractLiteralCommandReferences(text),
+    ...extractClientCommandReferences(text, clientCommandMethods),
+  ];
 }
 
 function extractLiteralCommandReferences(text) {
@@ -497,7 +494,7 @@ function extractLiteralCommandReferences(text) {
   return commands;
 }
 
-function extractClientCommandReferences(text) {
+function extractClientCommandReferences(text, clientCommandMethods) {
   const commands = [];
   for (const [method, command] of clientCommandMethods) {
     const escapedMethod = method.replace('.', '\\.');
@@ -511,8 +508,8 @@ function countTestDeclarations(text) {
   return [...text.matchAll(/(?:^|[^\w.])test\(/g)].length;
 }
 
-function readCoverageSummary() {
-  const total = readCoverageSummaryJson()?.total;
+function readCoverageSummary(coverageSummary) {
+  const total = readCoverageSummaryJson(coverageSummary)?.total;
   if (!total) return null;
   return {
     statements: readCoveragePercent(total, 'statements'),
@@ -522,32 +519,32 @@ function readCoverageSummary() {
   };
 }
 
-function readLowCoverageFiles() {
-  const summary = readCoverageSummaryJson();
+function readLowCoverageFiles(root, coverageSummary) {
+  const summary = readCoverageSummaryJson(coverageSummary);
   if (!summary) return [];
   return Object.entries(summary)
     .filter(([file]) => file !== 'total')
-    .map(([file, value]) => readLowCoverageFile(file, value))
+    .map(([file, value]) => readLowCoverageFile(root, file, value))
     .filter((file) => file.statementTotal >= 10 && file.statementPercent < 60)
     .sort((a, b) => b.missingStatements - a.missingStatements)
     .slice(0, 10);
 }
 
-function readCoverageSummaryJson() {
-  if (!fs.existsSync(COVERAGE_SUMMARY)) return null;
-  return JSON.parse(fs.readFileSync(COVERAGE_SUMMARY, 'utf8'));
+function readCoverageSummaryJson(coverageSummary) {
+  if (!fs.existsSync(coverageSummary)) return null;
+  return JSON.parse(fs.readFileSync(coverageSummary, 'utf8'));
 }
 
 function readCoveragePercent(total, key) {
   return Number((total[key] ?? EMPTY_COVERAGE_METRIC).pct);
 }
 
-function readLowCoverageFile(file, value) {
+function readLowCoverageFile(root, file, value) {
   const statements = value.statements ?? EMPTY_STATEMENT_COVERAGE;
   const statementTotal = Number(statements.total);
   const statementCovered = Number(statements.covered);
   return {
-    file: path.relative(ROOT, file),
+    file: path.relative(root, file),
     statementPercent: Number(statements.pct),
     statementTotal,
     missingStatements: statementTotal - statementCovered,

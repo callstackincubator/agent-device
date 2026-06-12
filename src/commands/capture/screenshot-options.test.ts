@@ -8,7 +8,7 @@ import {
   readScreenshotScriptFlag,
   screenshotFlagsFromOptions,
   screenshotOptionsFromFlags,
-} from './screenshot-options.ts';
+} from '../../contracts/screenshot.ts';
 
 test('screenshot flag projection maps CLI flags to runtime options', () => {
   assert.deepEqual(

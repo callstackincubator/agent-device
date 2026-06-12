@@ -1,5 +1,5 @@
-import { listCommandDescriptionMetadata } from '../commands/command-descriptions.ts';
 import type { CliCommandName } from '../command-catalog.ts';
+import { listCommandMetadata } from '../commands/command-metadata.ts';
 import type { CommandSchema, CommandSchemaOverride } from './cli-command-schema-types.ts';
 import { getCliCommandOverride, getSchemaOnlyCliCommandSchema } from './cli-command-overrides.ts';
 import {
@@ -17,9 +17,9 @@ export type { CommandSchema, CommandSchemaOverride };
 export { getFlagDefinition, getFlagDefinitions, GLOBAL_FLAG_KEYS };
 
 const COMMAND_SCHEMA_BASES = new Map<string, CommandSchema>(
-  listCommandDescriptionMetadata().map((definition) => [
-    definition.name,
-    { helpDescription: definition.description },
+  listCommandMetadata().map((metadata) => [
+    metadata.name,
+    { helpDescription: metadata.description },
   ]),
 );
 
