@@ -21,53 +21,30 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
   - Info-only (triage/review/questions/docs guidance): no code edits and no test runs unless explicitly requested.
   - Code change: make minimal scoped edits and run only required checks from **Testing Matrix**.
 - State assumptions explicitly. If uncertain, ask.
-- If the task touches tooling/builds/linting, read `package.json` and `tsconfig*.json` before source files.
-- Prefer repo scripts over reconstructing command bundles by hand:
-  - `pnpm check:quick`: lint + typecheck
-  - `pnpm check:tooling`: lint + typecheck + build
-  - `pnpm check:unit`: unit + smoke
-  - `pnpm check`: full non-integration validation
-- Read at most 3 files first:
-  - owning handler/module
-  - one shared helper used by that handler
-  - one downstream platform file if needed
+- Read required context, not the whole repo:
+  - tooling/build/linting: `package.json` and `tsconfig*.json`
+  - architecture, routing, command contracts, platform boundaries, diagnostics, or review: relevant `docs/adr/`
+  - durable naming/testing vocabulary: `CONTEXT.md`
+- Start with at most 3 files: the owning module, one shared helper, and one downstream caller/adapter if needed. Use `rg` before opening large files.
 - Define verifiable success criteria before editing.
 - Decide docs/skills impact up front.
 
-## Scope
-- Solve issues with the smallest context read.
-- Keep changes scoped to one command family or module group.
+## Scope & Changes
+- Keep changes scoped to one command family or module group unless the task explicitly crosses boundaries. If scope expands, stop and confirm.
 - Preserve daemon session semantics and platform behavior.
-- Expand only when contracts cross module boundaries.
-- Do not read both iOS and Android paths unless explicitly cross-platform.
-- If requested fix expands beyond one command family/module group, stop and confirm before broadening scope.
-
-## Code Changes
-- Minimum code that solves the problem. No speculative features.
-- No abstractions for single-use code.
-- Surgical edits only.
-- Match existing style.
-- Remove imports/variables YOUR changes made unused; do not clean unrelated dead code.
-- Keep tests minimal: if TypeScript can enforce a contract or invalid shape, prefer a type-level check over duplicating that assertion in runtime tests.
+- Do not inspect both iOS and Android paths unless the task is explicitly cross-platform.
+- Ship the minimum code that solves the problem: no speculative features, no single-use abstractions, and no unrelated cleanup.
+- Match existing style. Remove imports/variables your change made unused.
+- Test through public interfaces when possible. Do not add unrelated exports just to make tests easier.
+- Prefer type-level checks when TypeScript can enforce a contract or invalid shape.
 - Keep modules small for agent context safety:
   - target <= 300 LOC per implementation file when practical.
   - if a file grows past 500 LOC, plan/extract focused submodules before adding new behavior.
   - if a file grows past 1,000 LOC, treat it as architecture debt unless it is generated data, a fixture snapshot, or an integration test aggregation.
   - long guidance/data tables should live behind focused modules instead of sharing a file with parser/runtime logic.
   - prefer deep modules over mechanical splits: extract when it improves locality for a concept callers already need, not just to reduce line count.
-
-## Tightening Pass
-- Before finalizing a code change, do one scoped cleanup pass over touched and directly adjacent areas.
-- Drop dead or obsolete code, redundant tests, stale helpers/fixtures, and needless duplication made unnecessary by the change.
-- Prefer an existing helper over a new one; add a helper only when it reduces real repetition or clarifies domain behavior.
-- Simplify control flow and types when the change makes defensive branches or compatibility shims unnecessary.
-- Do not expand into unrelated refactors. If cleanup is valuable but broader than the task, note it as a follow-up.
-
-## Context Management
-- Optimize for one-pass agent reads. A module that requires reading many siblings to understand one change is usually too shallow; a module that hides one concept behind a small interface is usually worth keeping.
-- Start with the owning module, then one shared helper, then one downstream caller or adapter. Broaden only when the contract crosses that edge.
-- Use targeted symbol searches before opening large files. For files over 500 LOC, search for the relevant type/function/section first, then read a bounded range.
-- Do not add unrelated exports just to make tests easier. Test through the public interface when possible; if that is awkward, consider whether the module's interface is too shallow.
+- Before finalizing a code change, do one tightening pass over touched and directly adjacent areas: drop obsolete code, redundant tests, stale helpers/fixtures, and needless duplication made unnecessary by the change.
+- Prefer existing helpers. Add a helper only when it reduces real repetition or clarifies domain behavior.
 - When adding new guidance, examples, schemas, or command metadata, decide whether it belongs in the command surface, CLI grammar, CLI help, MCP projection, or daemon runtime before editing.
 - Prefer updating existing domain vocabulary in `CONTEXT.md` when naming a new durable module concept. Do not coin parallel names in docs, tests, and code.
 
@@ -101,7 +78,7 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
 
 ## Toolchain Snapshot
 - Package manager: `pnpm` only. Do not add or restore `package-lock.json`.
-- Packaged installs use `~/.agent-device` as the implicit daemon state dir. Source checkouts default to a worktree-scoped daemon state dir under `~/.agent-device/dev/<basename-slug>-<hash>` so local branches do not block each other. Use `pnpm daemon:state-dir` to print the effective path for the current worktree; `--state-dir` and `AGENT_DEVICE_STATE_DIR` remain authoritative overrides. Daemons are isolated by worktree, but devices are not; target different devices or simulators when running multiple worktrees concurrently. After pulling the worktree-scoped daemon change for the first time, stop any legacy source-checkout daemon with `AGENT_DEVICE_STATE_DIR=~/.agent-device pnpm clean:daemon`. Worktree-scoped state dirs outlive deleted worktrees; run `pnpm clean:daemon --prune-dev` occasionally (for example after deleting worktrees) to remove dirs under `~/.agent-device/dev/` with no live daemon and no activity for 14 days — it prints one line per removed dir and never touches the global `~/.agent-device` root contents.
+- Daemon state: packaged installs use `~/.agent-device`; source checkouts use worktree-scoped dirs under `~/.agent-device/dev/<basename-slug>-<hash>`. Use `pnpm daemon:state-dir` to inspect it, `--state-dir`/`AGENT_DEVICE_STATE_DIR` to override it, and `pnpm clean:daemon --prune-dev` to prune stale dev dirs. Daemons are isolated by worktree, but devices are not; target different devices/simulators for concurrent worktrees.
 - Runtime baseline is Node >= 22. Prefer built-in Node APIs such as global `fetch`, Web Streams, and `AbortSignal.timeout` over compatibility wrappers unless the surrounding code needs a lower-level transport.
 - Lint/format stack is OXC:
   - config: `.oxlintrc.json`, `.oxfmtrc.json`
@@ -110,12 +87,15 @@ Single-context repo. Read `CONTEXT.md` for domain language and testing/architect
 - `tsconfig.lib.json` needs an explicit `rootDir: "./src"` for declaration layout.
 - Use the aggregate scripts in `package.json` when possible; they encode the expected validation bundles better than ad hoc command lists.
 
-## Cheap Exploration
-- Prefer these first-pass commands over broader reads:
+## Exploration & Token Use
+- Prefer these first-pass commands over broad reads:
   - `rg -n "<symbol|command|flag>" src test`
   - `rg --files src/daemon/handlers src/platforms/ios src/platforms/android`
   - `git diff -- <path>` for active-branch context
   - read `.oxlintrc.json` before treating lint output as source-level bugs
+- For files over 500 LOC, search for the relevant type/function/section first, then read a bounded range.
+- Do not run integration tests by default.
+- Keep long help prose in `src/utils/cli-help.ts`, flag definitions in `src/utils/cli-flags.ts`, and CLI-specific usage/flag metadata in `src/utils/cli-command-overrides.ts`.
 - If build/type errors mention declaration generation, inspect `tsconfig.lib.json` before reading platform code.
 - If lint failures appear after toolchain edits, check whether the rule is from `eslint/*`, `typescript/*`, `import/*`, or `node/*` in `.oxlintrc.json` before assuming source bugs.
 
@@ -246,14 +226,15 @@ Command-only flags (like `find --first`) that do not flow to the platform layer 
 - Before final response or PR handoff, close every manual `agent-device` session opened during verification and report any cleanup that could not be completed.
 - Reviewers should check sibling PR ordering, hidden behavior changes, docs/help impact, and whether the tightening pass removed obsolete code/tests introduced or made unnecessary by the change.
 
-## Token Guardrails
-- Do not read unrelated files once owning module is identified.
-- Do not run integration tests by default.
-- Do not inspect both iOS and Android codepaths unless task requires both.
-- Prefer targeted `git diff -- <paths>` over broad file reads during review.
-- Keep long help prose in `src/utils/cli-help.ts`; keep flag definitions in `src/utils/cli-flags.ts`; keep CLI-specific command usage/flag metadata in `src/utils/cli-command-overrides.ts`.
-- Prefer `snapshot -i`, `find`, and scoped selectors over repeated full snapshot dumps when exploring Apple desktop UIs.
-- Keep PR summaries short and scoped.
+## PR Review Checklist
+- Review against the linked issue, not only the diff. State the issue's motivating behavior and verify the PR fixes that behavior directly.
+- Check relevant ADRs before reviewing architecture, routing, command-surface, platform-boundary, diagnostics, or testing-strategy changes. Treat ADR conflicts as review findings unless the PR updates/supersedes the ADR explicitly.
+- Read issue dependency notes such as `Blocked by: ...`, linked PRs, and sibling branches before judging correctness. If a PR should be stacked on another branch, call out the base/sequence problem before reviewing details.
+- Trace the real production route from command surface through daemon/request routing to the platform backend. Tests that mock away the router or exercise only a helper do not prove the shipped path.
+- For each key regression test, identify what deletion, revert, or old implementation would make it fail. If reverting the implementation still passes, the test is vacuous and must be fixed.
+- Check for hidden behavior changes separately from intended refactors, especially output shape, warning/error propagation, artifact paths, and fallback/retry tiers.
+- Verify that tests cover the issue's motivating failure, not just the new abstraction or shared helper. Prefer before/after evidence when an external reviewer or issue reports a concrete divergence.
+- Treat green CI as necessary but insufficient for device-facing or routing-sensitive work. Require live simulator/emulator/device evidence where the changed path depends on platform behavior.
 
 ## Common Mistakes
 - Adding command logic to `src/daemon.ts` instead of handlers.
@@ -266,20 +247,15 @@ Command-only flags (like `find --first`) that do not flow to the platform layer 
 - Changing `tsconfig.lib.json`/build tooling without running `pnpm check:tooling`; declaration generation is stricter than `tsc --noEmit`.
 
 ## Docs & Skills
-- Versioned CLI help is the agent-facing source of truth. Put workflow guidance and help-topic prose in `src/utils/cli-help.ts`, keep flag definitions in `src/utils/cli-flags.ts`, keep CLI command overrides in `src/utils/cli-command-overrides.ts`, and assert important copy in `src/utils/__tests__/args.test.ts`.
+- Versioned CLI help is the agent-facing source of truth. Put workflow guidance/help topics in `src/utils/cli-help.ts`, flags in `src/utils/cli-flags.ts`, CLI command overrides in `src/utils/cli-command-overrides.ts`, and assertions for important copy in `src/utils/__tests__/args.test.ts`.
 - Keep parser schema and help rendering separate: `src/utils/command-schema.ts` composes contract-derived command schemas with CLI overrides; `src/utils/cli-help.ts` owns help topics and usage rendering.
+- Before planning device automation commands, read `agent-device help workflow`; then read topic help such as `debugging`, `react-native`, `react-devtools`, `physical-device`, `macos`, or `dogfood` when relevant. This is required even when local agent skills are unavailable.
 - Skills are thin routers. Keep `skills/**/SKILL.md` focused on when to use the skill, version gating, which `agent-device help <topic>` page to read, and a short default loop. Do not duplicate full CLI manuals in skills.
-- For behavior/CLI surface changes, update the versioned help instructions in `src/utils/cli-help.ts` or the CLI command metadata in `src/utils/cli-command-overrides.ts`, then assert important help copy in `src/utils/__tests__/args.test.ts`. Also update `README.md` and relevant `website/docs/**` when user-facing docs need it.
-- For behavior/CLI surface changes and command-planning guidance changes, write or update a SkillGym case in `test/skillgym/suites/agent-device-smoke-suite.ts` that captures the expected agent command plan.
+- For behavior/CLI surface changes, update help/metadata, README or `website/docs/**` when user-facing, and a SkillGym case in `test/skillgym/suites/agent-device-smoke-suite.ts` when command-planning guidance changes.
 - Do not update `skills/**/SKILL.md` for command behavior or workflow guidance unless the user explicitly asks; skills must route to versioned CLI help instead of carrying behavior details.
 - Keep SkillGym cases behavioral and command-planning oriented. Prefer prompts that assert the user-visible contract and expected command family over brittle exact output, but forbid known bad patterns.
 - Use `pnpm test:skillgym:case <case-id>` for focused SkillGym validation; it runs the environment guard and builds local CLI help before `skillgym run`.
 - Run SkillGym broad validation with `pnpm test:skillgym`; append v0.8 filters such as `-- --tag fixture-smoke` for focused suite groups.
-- Preserve current high-value workflow guidance:
-  - iOS Expo Go dogfood: prefer `agent-device open "Expo Go" <url> --platform ios` when the shell is known, then `snapshot -i` to confirm the project UI rather than the runner splash.
-  - `keyboard dismiss` is the preferred iOS keyboard-dismissal path before manually pressing visible keyboard controls such as `Done`; it remains best-effort and can report unsupported layouts explicitly.
-  - Empty replacement is not a supported clear-field command; do not document or test `fill <target> ""` as clearing. Prefer visible clear/reset controls or report the tool gap.
-  - Mutating commands against one session must run serially. Parallelize only read-only commands or commands on separate sessions/devices.
 - In final summaries, state whether docs/skills were updated; if not, explain why.
 
 ## When Blocked
@@ -310,7 +286,6 @@ Command-only flags (like `find --first`) that do not flow to the platform layer 
 - Commit messages and PR titles should use conventional prefixes such as `feat:`, `fix:`, `chore:`, `perf:`, `refactor:`, `docs:`, `test:`, `build:`, or `ci:` as appropriate.
 - Do not use bracketed automation prefixes such as `[codex]` or similar bot tags in commit messages or PR titles.
 - Open a ready-for-review PR by default. Use a draft PR only when the user explicitly asks for one or the work is intentionally incomplete.
-- Run required checks for touched scope from **Testing Matrix**.
 - PR body must be short and include:
   - `## Summary`: lead with benefits and reviewer-relevant outcomes. Prefer a compact before/after when it makes the improvement clearer. Include the issue closed by the PR using `Closes #123` when applicable.
   - `## Validation`: answer this prompt in concise prose: "How did you verify the change, and what passed or changed on screen?" Prefer evidence over command dumps; mention the relevant check category or scenario, and include screenshots when visual/UI behavior is relevant.
@@ -318,4 +293,4 @@ Command-only flags (like `find --first`) that do not flow to the platform layer 
 - Include touched-file count and note if scope expanded beyond initial command family.
 
 ## Priority Order
-- When guidance conflicts, apply in this order: **Hard Rules -> Scope -> Testing Matrix -> style/preferences**.
+- When guidance conflicts, apply in this order: **Hard Rules -> Scope & Changes -> Testing Matrix -> style/preferences**.
