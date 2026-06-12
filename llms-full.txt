@@ -1692,6 +1692,19 @@ agent-device network dump 25 --include all # Include parsed headers/body when av
 - Retention knobs: set `AGENT_DEVICE_APP_LOG_MAX_BYTES` and `AGENT_DEVICE_APP_LOG_MAX_FILES` to override rotation limits.
 - Optional write-time redaction patterns: set `AGENT_DEVICE_APP_LOG_REDACT_PATTERNS` to a comma-separated regex list.
 
+**Crash symbols (bounded local symbolication):** Use `debug symbols` when you already have an Apple crash artifact and local dSYMs and need the failing code path. The command matches crash Binary Images / IPS `usedImages` UUIDs to `dwarfdump --uuid` output, runs `atos`, writes a symbolicated artifact, and prints only the output path plus a compact crash report with app/thread, exception or termination, top symbolicated frames, and the first actionable frame finding. This is better than pasting raw crash logs because the agent sees the diagnosis and artifact path without ingesting the full crash body.
+
+Crash routing: use `logs` for the lead-up timeline, `debug symbols` for a failing frame from `crash.ips`/`crash.log` plus matching dSYMs, and Xcode/LLDB for live state, breakpoints, variables, memory, or stepping.
+
+```bash
+agent-device debug symbols --artifact crash.log --dsym MyApp.dSYM --out crash-symbolicated.log
+agent-device debug symbols --artifact crash.ips --search-path ./build --out crash-symbolicated.ips
+```
+
+- `debug` is intentionally narrow: do not use it for app logs, network evidence, performance samples, recordings, traces, or React Native internals.
+- Android Java/R8 `mapping.txt` and native `ndk-stack`/`addr2line` symbolication are deferred; capture Android crash evidence with `logs` and symbolicate externally for now.
+- The crash artifact body is written to `--out`; it is not dumped into agent context or default JSON.
+
 **Grepping app logs:** Use `logs path` to get the file path, then run `grep` (or `grep -E`) on that path so only matching lines enter context—keeping token use low.
 
 ```bash
@@ -1981,6 +1994,7 @@ Use `agent-device` when the task moves past UI automation and you need runtime e
 - Session app logs for targeted debugging windows
 - Network inspection from recent HTTP(s) entries in app logs via `network dump`
 - Performance snapshots with `perf metrics` / `perf frames`
+- Apple crash symbolication with `debug symbols`
 - Screenshots, recordings, and replayable repro flows
 
 ## React Native component internals
@@ -2031,6 +2045,27 @@ agent-device open MyApp --platform ios --relaunch --launch-console ./artifacts/a
 ```
 
 `--launch-console` is only for direct iOS simulator app launches, not URL opens.
+
+## Crash symbolication
+
+Crash routing:
+
+| Need                                                                          | Use             |
+| ----------------------------------------------------------------------------- | --------------- |
+| Lead-up timeline before a failure                                             | `logs`          |
+| Failing frame from `crash.ips`/`crash.log` plus matching dSYM/build directory | `debug symbols` |
+| Live state, breakpoints, variables, memory, or stepping                       | Xcode/LLDB      |
+
+Use `debug symbols` when you already have an Apple crash artifact and local dSYMs and need the failing code path, not a full log dump:
+
+```bash
+agent-device debug symbols --artifact crash.log --dsym MyApp.dSYM --out crash-symbolicated.log
+agent-device debug symbols --artifact crash.ips --search-path ./build --out crash-symbolicated.ips
+```
+
+The command supports Apple `.ips`, `.crash`, and log-style crash artifacts that contain Binary Images or IPS `usedImages`. It matches UUIDs from the crash artifact against `dwarfdump --uuid` output from `.dSYM` bundles, runs `atos`, writes a symbolicated artifact, and prints only the output path plus a compact crash report: app/thread, exception or termination, top symbolicated frames, and the first actionable frame finding. This is better than pasting raw crash logs because it keeps agent context small while preserving the full symbolicated artifact on disk.
+
+`debug` is intentionally narrow. Use `logs` for app logs, `network` for HTTP evidence, `perf` for performance samples, `record`/`trace` for media and traces, and `react-devtools` for React Native internals. Android Java/R8 `mapping.txt` and native `ndk-stack`/`addr2line` symbolication are deferred; capture Android crash evidence with `logs` and symbolicate externally for now.
 
 ## Core commands
 
