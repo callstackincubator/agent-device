@@ -30,8 +30,8 @@ public final class SnapshotInstrumentation extends Instrumentation {
   private static final String OUTPUT_FORMAT = "uiautomator-xml";
   private static final String HELPER_API_VERSION = "1";
   private static final int CHUNK_SIZE = 2 * 1024;
-  // Match the host defaults: long enough to avoid mid-transition RN snapshots, but still bounded
-  // below the stock uiautomator idle wait so busy apps do not stall every capture.
+  // Match the host default: bounded wait for microinteraction reliability without the stock
+  // uiautomator idle tax. Direct callers can pass 0 when immediate capture is preferred.
   private static final long DEFAULT_WAIT_FOR_IDLE_TIMEOUT_MS = 500;
   private static final long DEFAULT_WAIT_FOR_IDLE_QUIET_MS = 100;
   private static final long DEFAULT_TIMEOUT_MS = 8_000;

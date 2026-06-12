@@ -43,6 +43,9 @@ The `-t` install flag is required because the helper is a test-only instrumentat
 Devices or providers that block test-package installs must allow this package before helper capture
 can run.
 
+`waitForIdleTimeoutMs` defaults to `500`, which is a maximum wait, not a fixed sleep. Direct helper
+invocations can pass `0` when immediate capture during ongoing animation is preferred.
+
 ## Output Contract
 
 The APK emits instrumentation status records using
