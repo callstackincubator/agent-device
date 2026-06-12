@@ -46,6 +46,7 @@ import {
   RUNNER_INVALIDATE_WAIT_TIMEOUT_MS,
   stopRunnerPrepProcesses,
 } from './runner-disposal.ts';
+import { enrichRunnerFailureFromLog } from './runner-failure-diagnostics.ts';
 import type { RunnerSession } from './runner-session-types.ts';
 
 export type { RunnerSession } from './runner-session-types.ts';
@@ -693,14 +694,17 @@ export async function parseRunnerResponse(
         : 'COMMAND_FAILED';
     const errorMessage = typeof json.error?.message === 'string' ? json.error.message : undefined;
     const hint = typeof json.error?.hint === 'string' ? json.error.hint : undefined;
-    throw new AppError(errorCode, errorMessage ?? 'Runner error', {
-      runner: json,
-      xcodebuild: {
-        exitCode: 1,
-        stdout: '',
-        stderr: '',
-      },
-      hint,
+    throw await enrichRunnerFailureFromLog({
+      error: new AppError(errorCode, errorMessage ?? 'Runner error', {
+        runner: json,
+        xcodebuild: {
+          exitCode: 1,
+          stdout: '',
+          stderr: '',
+        },
+        hint,
+        logPath,
+      }),
       logPath,
     });
   }
