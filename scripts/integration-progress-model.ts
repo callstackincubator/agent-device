@@ -1,12 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { PUBLIC_COMMANDS } from '../src/command-catalog.ts';
+import { listCommandMetadata } from '../src/commands/command-metadata.ts';
 
 const EMPTY_COVERAGE_METRIC = { pct: 0 };
 const EMPTY_STATEMENT_COVERAGE = { covered: 0, pct: 0, total: 0 };
 
 let ROOT = process.cwd();
 let COVERAGE_SUMMARY = path.join(ROOT, 'coverage/coverage-summary.json');
-let COMMAND_CATALOG_SOURCE = '';
 let clientCommandMethods = new Map();
 
 export function buildIntegrationProgressModel({ root = process.cwd() } = {}) {
@@ -14,11 +15,9 @@ export function buildIntegrationProgressModel({ root = process.cwd() } = {}) {
   COVERAGE_SUMMARY = path.join(ROOT, 'coverage/coverage-summary.json');
   const handlerTestDir = path.join(ROOT, 'src/daemon/handlers/__tests__');
   const providerScenarioDir = path.join(ROOT, 'test/integration/provider-scenarios');
-  const commandCatalog = path.join(ROOT, 'src/command-catalog.ts');
   const commandContractFiles = listFiles(path.join(ROOT, 'src/commands'), (file) =>
     file.endsWith(`${path.sep}index.ts`),
   );
-  COMMAND_CATALOG_SOURCE = fs.readFileSync(commandCatalog, 'utf8');
   clientCommandMethods = readClientCommandMethods(commandContractFiles);
 
   const handlerTests = listFiles(handlerTestDir, (file) => file.endsWith('.test.ts'));
@@ -417,19 +416,15 @@ function summarizePublicCommandCoverage(files) {
 }
 
 function readPublicCommands() {
-  return [...readPublicCommandEntries().values()].sort();
-}
-
-function readPublicCommandEntries() {
-  const match = COMMAND_CATALOG_SOURCE.match(/export const PUBLIC_COMMANDS = \{([\s\S]*?)\} as const;/);
-  if (!match) {
-    throw new Error('Unable to find PUBLIC_COMMANDS in src/command-catalog.ts');
-  }
-  const commands = new Map();
-  for (const command of match[1].matchAll(/\b([A-Za-z0-9_]+):\s*'([^']+)'/g)) {
-    commands.set(command[1], command[2]);
-  }
-  return commands;
+  const metadataNames = new Set(listCommandMetadata().map((metadata) => metadata.name));
+  return Object.values(PUBLIC_COMMANDS)
+    .map((name) => {
+      if (!metadataNames.has(name)) {
+        throw new Error(`Missing command metadata for public command: ${name}`);
+      }
+      return name;
+    })
+    .sort();
 }
 
 function readClientCommandMethods(commandContractFiles) {

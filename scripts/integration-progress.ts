@@ -4,7 +4,7 @@ import {
   buildIntegrationProgressFailures,
   buildIntegrationProgressModel,
   formatPercent,
-} from './integration-progress-model.mjs';
+} from './integration-progress-model.ts';
 
 const CHECK_MODE = process.argv.includes('--check');
 const progress = buildIntegrationProgressModel({ root: process.cwd() });
