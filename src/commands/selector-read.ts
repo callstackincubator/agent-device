@@ -2,6 +2,10 @@ import type { FindAction, FindLocator } from '../utils/finders.ts';
 import { findBestMatchesByLocator } from '../utils/finders.ts';
 import type { SnapshotNode } from '../utils/snapshot.ts';
 import { findNodeByRef, normalizeRef } from '../utils/snapshot.ts';
+import {
+  isSparseSnapshotQualityVerdict,
+  type SnapshotQualityVerdict,
+} from '../utils/snapshot-quality.ts';
 import type { AgentDeviceRuntime, CommandContext } from '../runtime-contract.ts';
 import { AppError } from '../utils/errors.ts';
 import {
@@ -406,10 +410,20 @@ async function findFirstLocatorMatch(
     updateSession: true,
     scope: shouldScopeFind(locator) ? options.query : undefined,
   });
+  if (isSparseSnapshotQualityVerdict(capture.snapshot.snapshotQuality)) {
+    throw sparseSelectorSnapshotError(capture.snapshot.snapshotQuality);
+  }
   const match = findBestMatchesByLocator(capture.snapshot.nodes, locator, options.query, {
     requireRect: false,
   }).matches[0];
   return { capture, match };
+}
+
+function sparseSelectorSnapshotError(verdict: SnapshotQualityVerdict): AppError {
+  return new AppError('COMMAND_FAILED', 'find could not read the current accessibility tree', {
+    reason: verdict.reason,
+    hint: 'The snapshot quality verdict is sparse. Use screenshot as visual truth, navigate with coordinates if needed, then retry find after reaching a readable screen.',
+  });
 }
 
 async function waitForSelector(

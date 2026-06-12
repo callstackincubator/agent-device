@@ -185,6 +185,61 @@ test('runtime find get_text reads the matched node', async () => {
   assert.equal(result.node.label, 'Continue');
 });
 
+test('runtime find wait reports sparse snapshot verdicts on the selector-read route', async () => {
+  const initialSnapshot = selectorSnapshot();
+  const session = { name: 'default', snapshot: initialSnapshot };
+  const sessions = {
+    get: () => session,
+    set: (record) => {
+      session.snapshot = record.snapshot ?? session.snapshot;
+    },
+  } satisfies CommandSessionStore;
+  const sparseSnapshot = makeSnapshotState([
+    {
+      index: 0,
+      type: 'Application',
+    },
+  ]);
+  const device = createAgentDevice({
+    backend: {
+      platform: 'ios',
+      captureSnapshot: async () => ({
+        nodes: sparseSnapshot.nodes,
+        backend: 'xctest',
+        quality: {
+          state: 'sparse',
+          backend: 'private-ax',
+          reason: 'sparse tree',
+          reasonCode: 'sparse-tree',
+        },
+      }),
+    } satisfies AgentDeviceBackend,
+    artifacts: createLocalArtifactAdapter(),
+    sessions,
+    policy: localCommandPolicy(),
+    clock: {
+      now: () => 0,
+      sleep: async () => {},
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      device.selectors.find({
+        session: 'default',
+        locator: 'text',
+        query: 'Never appears',
+        action: 'wait',
+        timeoutMs: 100,
+      }),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.message === 'find could not read the current accessibility tree' &&
+      (error as { details?: { reason?: string } }).details?.reason === 'sparse tree',
+  );
+  assert.equal(session.snapshot, initialSnapshot);
+});
+
 test('runtime wait can use backend text search', async () => {
   const device = createSelectorDevice(selectorSnapshot(), {
     findText: true,

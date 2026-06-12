@@ -641,7 +641,20 @@ test('react-native dismiss-overlay reports verified success after a clean post-d
 test('react-native dismiss-overlay reports sparse verdict instead of no overlay detected', async () => {
   const sessionName = 'rn-sparse-session';
   const sessionStore = makeSessionStore();
-  sessionStore.set(sessionName, makeSession(sessionName));
+  const session = makeSession(sessionName);
+  session.snapshot = {
+    nodes: [
+      {
+        index: 0,
+        ref: 'e1',
+        label: 'Previous screen action',
+        rect: { x: 24, y: 600, width: 180, height: 52 },
+      },
+    ],
+    createdAt: Date.now(),
+  };
+  const previousSnapshot = session.snapshot;
+  sessionStore.set(sessionName, session);
   mockCaptureSnapshot.mockResolvedValue({
     snapshot: {
       nodes: [
@@ -676,6 +689,7 @@ test('react-native dismiss-overlay reports sparse verdict instead of no overlay 
   });
 
   expect(response?.ok).toBe(false);
+  expect(session.snapshot).toBe(previousSnapshot);
   expect(mockDispatchCommand).not.toHaveBeenCalled();
   expect(!response?.ok && response?.error).toMatchObject({
     code: 'COMMAND_FAILED',

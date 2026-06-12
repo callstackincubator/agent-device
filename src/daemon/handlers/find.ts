@@ -231,6 +231,12 @@ function createFindNodeFetcher(params: {
     let snapshot = await capture(scope, interactiveOnly);
     if (interactiveOnly && isLegacySparseIosInteractiveSnapshot(snapshot)) {
       snapshot = await recoverSparseInteractiveSnapshot({ capture, locator, query, scope });
+    } else if (
+      interactiveOnly &&
+      isSparseSnapshotQualityVerdict(snapshot.snapshotQuality) &&
+      shouldScopeFind(locator)
+    ) {
+      snapshot = await recoverSparseVerdictWithQueryScope({ capture, query, snapshot });
     }
     const snapshotResult = {
       nodes: snapshot.nodes,
@@ -246,6 +252,19 @@ function createFindNodeFetcher(params: {
     }
     return snapshotResult;
   };
+}
+
+async function recoverSparseVerdictWithQueryScope(params: {
+  capture: (scope: string | undefined, interactive: boolean) => Promise<SnapshotState>;
+  query: string;
+  snapshot: SnapshotState;
+}): Promise<SnapshotState> {
+  const { capture, query, snapshot } = params;
+  try {
+    return await capture(query, false);
+  } catch {
+    return snapshot;
+  }
 }
 
 /**

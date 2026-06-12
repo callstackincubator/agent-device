@@ -5,6 +5,7 @@ import type { SnapshotState } from '../../utils/snapshot.ts';
 import type { ContextFromFlags } from './interaction-common.ts';
 import { captureSnapshot } from './snapshot-capture.ts';
 import { setSessionSnapshot } from '../session-snapshot.ts';
+import { isSparseSnapshotQualityVerdict } from '../../utils/snapshot-quality.ts';
 
 export type CaptureSnapshotForSession = (
   session: SessionState,
@@ -39,7 +40,9 @@ export async function captureSnapshotForSession(
     logPath: dispatchContext.logPath ?? '',
     androidFreshnessMode: options.androidFreshnessMode,
   });
-  setSessionSnapshot(session, snapshot);
-  sessionStore.set(session.name, session);
+  if (!isSparseSnapshotQualityVerdict(snapshot.snapshotQuality)) {
+    setSessionSnapshot(session, snapshot);
+    sessionStore.set(session.name, session);
+  }
   return snapshot;
 }

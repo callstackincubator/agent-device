@@ -6,6 +6,7 @@ import type {
 import { AppError } from '../utils/errors.ts';
 import type { SnapshotNode, SnapshotState } from '../utils/snapshot.ts';
 import { findNodeByRef, normalizeRef } from '../utils/snapshot.ts';
+import { isSparseSnapshotQualityVerdict } from '../utils/snapshot-quality.ts';
 import { extractReadableText } from '../utils/text-surface.ts';
 import { findNodeByLabel, now, toBackendContext } from './selector-read-utils.ts';
 import type { SelectorSnapshotInput } from './command-input.ts';
@@ -55,9 +56,14 @@ export async function captureSelectorSnapshot(
       nodes: result.nodes ?? [],
       truncated: result.truncated,
       backend: result.backend as SnapshotState['backend'],
+      ...(result.quality ? { snapshotQuality: result.quality } : {}),
       createdAt: now(runtime),
     } satisfies SnapshotState);
-  if (captureOptions.updateSession && session) {
+  if (
+    captureOptions.updateSession &&
+    session &&
+    !isSparseSnapshotQualityVerdict(snapshot.snapshotQuality)
+  ) {
     await runtime.sessions.set({ ...session, snapshot });
   }
   return { sessionName, session, snapshot };

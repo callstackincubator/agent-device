@@ -168,7 +168,6 @@ async function verifyReactNativeOverlayDismissal(
     params.contextFromFlags,
     { interactiveOnly: true },
   );
-  const overlay = analyzeReactNativeOverlay(verificationSnapshot.nodes);
   if (isSparseSnapshotQualityVerdict(verificationSnapshot.snapshotQuality)) {
     return {
       verified: false,
@@ -177,6 +176,7 @@ async function verifyReactNativeOverlayDismissal(
       nextCommand: 'agent-device screenshot',
     };
   }
+  const overlay = analyzeReactNativeOverlay(verificationSnapshot.nodes);
   if (!overlay.detected) {
     return {
       verified: true,

@@ -36,6 +36,7 @@ import {
 import type { ContextFromFlags } from './handlers/interaction-common.ts';
 import { setSessionSnapshot } from './session-snapshot.ts';
 import { getActiveAndroidSnapshotFreshness } from './android-snapshot-freshness.ts';
+import { isSparseSnapshotQualityVerdict } from '../utils/snapshot-quality.ts';
 import {
   describeAndroidEscapeSurface,
   detectAndroidEscapeSurface,
@@ -590,7 +591,7 @@ function createSelectorBackend(params: {
         logPath: logPath ?? '',
         snapshotScope,
       });
-      if (session) {
+      if (session && !isSparseSnapshotQualityVerdict(capture.snapshot.snapshotQuality)) {
         setSessionSnapshot(session, capture.snapshot);
         sessionStore.set(sessionName, session);
       }
@@ -683,7 +684,7 @@ async function captureWaitSnapshot(params: {
     outPath: params.req.flags?.out,
     logPath: params.logPath ?? '',
   });
-  if (params.session) {
+  if (params.session && !isSparseSnapshotQualityVerdict(capture.snapshot.snapshotQuality)) {
     setSessionSnapshot(params.session, capture.snapshot);
     params.sessionStore.set(params.sessionName, params.session);
   }
