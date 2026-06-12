@@ -56,12 +56,6 @@ export function publicSnapshotCaptureAnnotations(
   };
 }
 
-export function serializeSnapshotCaptureAnnotations(
-  annotations: Partial<SnapshotCaptureAnnotations>,
-): Record<string, unknown> {
-  return publicSnapshotCaptureAnnotations(annotations);
-}
-
 export function readSerializedSnapshotCaptureAnnotations(
   data: Record<string, unknown>,
 ): PublicSnapshotCaptureAnnotations {
