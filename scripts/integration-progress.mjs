@@ -281,7 +281,6 @@ function summarizeProviderScenarioFlagExclusions() {
       name: 'Metro and React Native runtime preparation',
       owner: 'Metro companion integration and parser tests',
       keys: [
-        'kind',
         'metroHost',
         'metroPort',
         'metroProjectRoot',
@@ -304,7 +303,7 @@ function summarizeProviderScenarioFlagExclusions() {
     {
       name: 'Apple launch and perf artifact options',
       owner: 'iOS platform, observability command, and parser tests',
-      keys: ['deviceHub', 'launchArgs', 'perfTemplate'],
+      keys: ['deviceHub', 'kind', 'launchArgs', 'perfTemplate'],
     },
     {
       name: 'parser/client-only command flags',

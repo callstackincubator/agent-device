@@ -10,7 +10,7 @@ import type {
   PressCommandResult,
   ResolvedTarget,
 } from '../../../contracts/interaction.ts';
-import { toBackendContext } from './selector-read-utils.ts';
+import { toBackendContext } from '../../runtime-common.ts';
 import {
   toBackendResult,
   type BackendResultEnvelope,

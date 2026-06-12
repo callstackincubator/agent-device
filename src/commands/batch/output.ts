@@ -1,7 +1,7 @@
 import type { CommandRequestResult } from '../../client-types.ts';
 import { readCommandMessage } from '../../utils/success-text.ts';
 import type { CliOutput } from '../command-contract.ts';
-import { resultOutput, type CliOutputFormatter } from '../output-common.ts';
+import { readRecord, resultOutput, type CliOutputFormatter } from '../output-common.ts';
 
 function batchCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
@@ -47,10 +47,4 @@ function readBatchStepDescription(
 
 function readBatchStepFailure(error: Record<string, unknown> | undefined): string | null {
   return typeof error?.message === 'string' && error.message.length > 0 ? error.message : null;
-}
-
-function readRecord(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
 }

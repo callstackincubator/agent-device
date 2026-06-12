@@ -4,7 +4,7 @@ import type { CliOutput } from './command-contract.ts';
 import { interactionCliOutputFormatters } from './interaction/output.ts';
 import { managementCliOutputFormatters } from './management/output.ts';
 import { metroCliOutputFormatters } from './metro/output.ts';
-import { observabilityCliOutputFormatters } from './observability/runtime/output.ts';
+import { observabilityCliOutputFormatters } from './observability/output.ts';
 import type { CliOutputFormatter } from './output-common.ts';
 import { recordingCliOutputFormatters } from './recording/output.ts';
 import { systemCliOutputFormatters } from './system/output.ts';

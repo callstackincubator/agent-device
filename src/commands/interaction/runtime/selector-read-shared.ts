@@ -8,7 +8,8 @@ import type { SnapshotNode, SnapshotState } from '../../../utils/snapshot.ts';
 import { findNodeByRef, normalizeRef } from '../../../utils/snapshot.ts';
 import { isSparseSnapshotQualityVerdict } from '../../../utils/snapshot-quality.ts';
 import { extractReadableText } from '../../../utils/text-surface.ts';
-import { findNodeByLabel, now, toBackendContext } from './selector-read-utils.ts';
+import { now, toBackendContext } from '../../runtime-common.ts';
+import { findNodeByLabel } from './selector-read-utils.ts';
 import type { SelectorSnapshotInput } from '../../command-input.ts';
 
 export type CapturedSnapshot = {

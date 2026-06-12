@@ -20,8 +20,8 @@ import type {
   PointTarget,
   ResolvedInteractionTarget,
 } from '../../../contracts/interaction.ts';
+import { now, toBackendContext } from '../../runtime-common.ts';
 import { resolveActionableTouchResolution } from './targeting.ts';
-import { now, toBackendContext } from './selector-read-utils.ts';
 
 export type { InteractionTarget, PointTarget, ResolvedInteractionTarget };
 

@@ -27,7 +27,7 @@ import type {
   RuntimeCommand,
   SnapshotCommandOptions,
 } from '../../runtime-types.ts';
-import { now } from '../../interaction/runtime/selector-read-utils.ts';
+import { now } from '../../runtime-common.ts';
 
 export type { SnapshotDiffLine, SnapshotDiffSummary } from '../../../utils/snapshot-diff.ts';
 

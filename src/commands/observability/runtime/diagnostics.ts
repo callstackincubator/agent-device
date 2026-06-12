@@ -17,7 +17,7 @@ import type {
   DiagnosticsPerfCommandResult,
 } from './diagnostics-types.ts';
 import type { RuntimeCommand } from '../../runtime-types.ts';
-import { toBackendContext } from '../../interaction/runtime/selector-read-utils.ts';
+import { toBackendContext } from '../../runtime-common.ts';
 import { requireText } from '../../text.ts';
 
 export type DiagnosticsPageOptions = CommandContext & {

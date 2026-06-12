@@ -1,6 +1,11 @@
-import type { CommandRequestResult, DebugSymbolsResult } from '../../../client-types.ts';
-import type { CliOutput } from '../../command-contract.ts';
-import { resultOutput, type CliOutputFormatter } from '../../output-common.ts';
+import type { CommandRequestResult, DebugSymbolsResult } from '../../client-types.ts';
+import type { CliOutput } from '../command-contract.ts';
+import {
+  readRecord,
+  readRecordArray,
+  resultOutput,
+  type CliOutputFormatter,
+} from '../output-common.ts';
 
 function logsCliOutput(result: CommandRequestResult): CliOutput {
   const data = result as Record<string, unknown>;
@@ -343,21 +348,6 @@ function formatMemoryPerfSummary(memory: Record<string, unknown> | undefined): s
     readFiniteNumber(memory.totalPssKb) ??
     readFiniteNumber(memory.totalRssKb);
   return memoryKb !== undefined ? `memory ${formatMemoryKb(memoryKb)}` : undefined;
-}
-
-function readRecord(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
-}
-
-function readRecordArray(value: unknown): Array<Record<string, unknown>> {
-  return Array.isArray(value)
-    ? value.filter(
-        (entry): entry is Record<string, unknown> =>
-          Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry),
-      )
-    : [];
 }
 
 function readFiniteNumber(value: unknown): number | undefined {

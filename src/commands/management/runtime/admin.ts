@@ -16,7 +16,7 @@ import {
   type RuntimeCommand,
 } from '../../runtime-types.ts';
 import { resolveCommandInput } from '../../io-policy.ts';
-import { toBackendContext } from '../../interaction/runtime/selector-read-utils.ts';
+import { toBackendContext } from '../../runtime-common.ts';
 import { normalizeOptionalText, requireText } from '../../text.ts';
 
 export type AdminDevicesCommandOptions = CommandContext & {

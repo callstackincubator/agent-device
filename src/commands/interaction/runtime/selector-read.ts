@@ -34,14 +34,8 @@ import {
   requireSnapshotSession,
   resolveRefNode,
 } from './selector-read-shared.ts';
-import {
-  findNodeByLabel,
-  now,
-  resolveRefLabel,
-  shouldScopeFind,
-  sleep,
-  toBackendContext,
-} from './selector-read-utils.ts';
+import { findNodeByLabel, resolveRefLabel, shouldScopeFind } from './selector-read-utils.ts';
+import { now, sleep, toBackendContext } from '../../runtime-common.ts';
 
 export type { SelectorSnapshotOptions } from './selector-read-shared.ts';
 export type { ElementTarget, RefTarget, ResolvedTarget, SelectorTarget };

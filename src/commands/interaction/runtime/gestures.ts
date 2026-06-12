@@ -20,6 +20,7 @@ import {
   type ScrollEdgeState,
   type ScrollEdgeTarget,
 } from '../../../utils/scroll-edge-state.ts';
+import { toBackendContext } from '../../runtime-common.ts';
 import {
   toBackendResult,
   type BackendResultEnvelope,
@@ -34,7 +35,6 @@ import {
   type ResolvedInteractionTarget,
   resolveInteractionTarget,
 } from './resolution.ts';
-import { toBackendContext } from './selector-read-utils.ts';
 
 export type FocusCommandOptions = CommandContext & {
   target: InteractionTarget;

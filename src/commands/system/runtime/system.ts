@@ -17,7 +17,7 @@ import {
   type BackendResultVariant,
   type RuntimeCommand,
 } from '../../runtime-types.ts';
-import { toBackendContext } from '../../interaction/runtime/selector-read-utils.ts';
+import { toBackendContext } from '../../runtime-common.ts';
 import { normalizeOptionalText } from '../../text.ts';
 
 export type SystemBackCommandOptions = CommandContext & {

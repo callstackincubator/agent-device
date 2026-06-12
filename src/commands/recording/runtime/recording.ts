@@ -15,7 +15,7 @@ import type {
   RuntimeCommand,
 } from '../../runtime-types.ts';
 import { reserveCommandOutput } from '../../io-policy.ts';
-import { toBackendContext } from '../../interaction/runtime/selector-read-utils.ts';
+import { toBackendContext } from '../../runtime-common.ts';
 
 export type RecordingRecordCommandOptions = CommandContext & {
   action: 'start' | 'stop';

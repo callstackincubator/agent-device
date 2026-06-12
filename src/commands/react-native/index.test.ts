@@ -45,4 +45,8 @@ describe('react-native command interface', () => {
       options: { action: 'dismiss-overlay' },
     });
   });
+
+  test('rejects daemon request without action', () => {
+    expectInvalidArgs(() => reactNativeDaemonWriter({}), 'react-native requires action');
+  });
 });

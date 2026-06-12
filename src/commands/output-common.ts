@@ -17,3 +17,17 @@ export const messageOutput = resultOutput(messageCliOutput);
 export function messageCliOutput(result: Record<string, unknown>): CliOutput {
   return { data: result, text: readCommandMessage(result) };
 }
+
+export function readRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+export function readRecordArray(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value) ? value.filter(isRecord) : [];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}

@@ -4,12 +4,15 @@ import type { DaemonBatchStep } from '../../core/batch.ts';
 import { AppError } from '../../utils/errors.ts';
 import { commandNameSet, request } from '../cli-grammar/common.ts';
 import type { CommandInput, DaemonCommandRequest, DaemonWriter } from '../cli-grammar/types.ts';
+import type { DaemonCommandName } from '../command-projection.ts';
 
-export type BatchCommandName = (typeof BATCH_COMMAND_NAMES)[number];
+const batchCommandNames = BATCH_COMMAND_NAMES satisfies readonly DaemonCommandName[];
+
+export type BatchCommandName = (typeof batchCommandNames)[number];
 
 type PrepareDaemonCommandRequest = (command: string, input: CommandInput) => DaemonCommandRequest;
 
-const batchNames = commandNameSet(BATCH_COMMAND_NAMES);
+const batchNames = commandNameSet(batchCommandNames);
 
 export function createBatchDaemonWriter(
   prepareDaemonCommandRequest: PrepareDaemonCommandRequest,
