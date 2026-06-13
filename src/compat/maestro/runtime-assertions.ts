@@ -78,6 +78,7 @@ async function invokeNativeMaestroVisibleWaitWithSnapshotFallback(
   const nativeStartedAt = Date.now();
   const nativeResponse = await runNativeVisibleWait(params, args, nativeWaitQuery);
   if (nativeResponse.ok) {
+    rememberMaestroVisibleContext(params.scope, args.selector);
     return visibleAssertionResponse(
       {
         ok: true,

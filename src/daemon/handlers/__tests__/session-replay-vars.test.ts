@@ -1050,6 +1050,77 @@ test('runReplayScriptFile captures a fresh Maestro snapshot for tapOn after asse
   );
 });
 
+test('runReplayScriptFile scopes duplicate tap targets after native Maestro assertVisible', async () => {
+  const { response, calls } = await runReplayFixture({
+    label: 'maestro-native-assert-context-duplicate-tap',
+    script: ['appId: demo.app', '---', '- assertVisible: Albums', '- tapOn: Push article', ''].join(
+      '\n',
+    ),
+    flags: { replayBackend: 'maestro', platform: 'android' },
+    invoke: async (req) => {
+      if (req.command === 'wait') {
+        return { ok: true, data: { matched: true } };
+      }
+      if (req.command === 'snapshot') {
+        return {
+          ok: true,
+          data: {
+            nodes: [
+              {
+                index: 1,
+                depth: 1,
+                type: 'android.widget.ScrollView',
+                rect: { x: 0, y: 0, width: 390, height: 844 },
+              },
+              {
+                index: 2,
+                depth: 2,
+                parentIndex: 1,
+                type: 'android.widget.TextView',
+                label: 'Albums',
+                rect: { x: 24, y: 120, width: 120, height: 40 },
+              },
+              {
+                index: 3,
+                depth: 2,
+                parentIndex: 1,
+                type: 'android.widget.TextView',
+                label: 'Push article',
+                rect: { x: 32, y: 220, width: 160, height: 44 },
+              },
+              {
+                index: 10,
+                depth: 1,
+                type: 'android.widget.ScrollView',
+                rect: { x: 0, y: 0, width: 390, height: 844 },
+              },
+              {
+                index: 11,
+                depth: 2,
+                parentIndex: 10,
+                type: 'android.widget.TextView',
+                label: 'Push article',
+                rect: { x: 32, y: 520, width: 160, height: 44 },
+              },
+            ],
+          },
+        };
+      }
+      return { ok: true, data: {} };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  assert.deepEqual(
+    calls.map((call) => [call.command, call.positionals]),
+    [
+      ['wait', ['Albums', '17000']],
+      ['snapshot', []],
+      ['click', ['112', '242']],
+    ],
+  );
+});
+
 test('runReplayScriptFile treats absent Maestro assertNotVisible targets as passing', async () => {
   const calls: CapturedInvocation[] = [];
   const { response } = await runReplayFixture({

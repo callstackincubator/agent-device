@@ -62,6 +62,32 @@ test('capturePostGestureStabilizedSnapshot retries until rects stop moving', asy
   assert.equal(session.postGestureStabilization, undefined);
 });
 
+test('capturePostGestureStabilizedSnapshot samples again after a slow first capture', async () => {
+  vi.useFakeTimers();
+  const session = makeSession('android');
+  markPostGestureStabilization(session, 'click', [], { postGestureStabilization: true });
+  let captures = 0;
+
+  const promise = capturePostGestureStabilizedSnapshot({
+    session,
+    capture: async () => {
+      captures += 1;
+      if (captures === 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1_600));
+      }
+      return makeSnapshot(100);
+    },
+  });
+
+  await vi.advanceTimersByTimeAsync(1_600);
+  await vi.advanceTimersByTimeAsync(200);
+  const snapshot = await promise;
+
+  assert.equal(captures, 2);
+  assert.equal(snapshot.nodes[1]?.rect?.y, 100);
+  assert.equal(session.postGestureStabilization, undefined);
+});
+
 function makeSession(platform: 'ios' | 'android' = 'ios'): SessionState {
   return {
     name: platform,

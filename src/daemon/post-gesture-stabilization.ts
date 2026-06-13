@@ -10,6 +10,7 @@ import type { SessionState } from './types.ts';
 
 const STABILIZATION_DEADLINE_MS = 1_500;
 const STABILIZATION_INTERVAL_MS = 200;
+const STABILIZATION_MIN_ATTEMPTS = 2;
 
 export function markPostGestureStabilization(
   session: SessionState,
@@ -58,7 +59,10 @@ export async function capturePostGestureStabilizedResult<T>(params: {
   let previous = params.initial ?? (await capture());
   let previousSignature = buildInteractionSurfaceSignature(params.readSnapshot(previous).nodes);
 
-  while (Date.now() - startedAt < STABILIZATION_DEADLINE_MS) {
+  while (
+    attempts < STABILIZATION_MIN_ATTEMPTS ||
+    Date.now() - startedAt < STABILIZATION_DEADLINE_MS
+  ) {
     await sleep(STABILIZATION_INTERVAL_MS);
     attempts += 1;
     const current = await capture();
