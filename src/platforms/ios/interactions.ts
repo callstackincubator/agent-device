@@ -29,6 +29,12 @@ type NormalizedScrollOptions = {
   preferProvidedPixels?: boolean;
 };
 
+type IosDragCommandOptions = {
+  defaultDurationMs: number;
+  legacyDefaultDurationMs?: number;
+  synthesized?: boolean;
+};
+
 type IosRunnerOverrides = Pick<
   Interactor,
   | 'tap'
@@ -101,6 +107,7 @@ export function iosRunnerOverrides(
           device,
           iosDragCommand(device, ctx, x1, y1, x2, y2, durationMs, {
             defaultDurationMs: IOS_SWIPE_DEFAULT_DURATION_MS,
+            synthesized: device.platform === 'ios' && device.target !== 'tv',
           }),
           runnerOpts,
         );
@@ -265,10 +272,7 @@ function iosDragCommand(
   x2: number,
   y2: number,
   durationMs: number | undefined,
-  options: {
-    defaultDurationMs: number;
-    legacyDefaultDurationMs?: number;
-  },
+  options: IosDragCommandOptions,
 ): RunnerCommand {
   const normalizedDurationMs =
     device.platform === 'ios' && device.target !== 'tv'
@@ -281,6 +285,7 @@ function iosDragCommand(
     x2,
     y2,
     ...(normalizedDurationMs !== undefined ? { durationMs: normalizedDurationMs } : {}),
+    ...(options.synthesized === true ? { synthesized: true } : {}),
     appBundleId: ctx.appBundleId,
   };
 }
