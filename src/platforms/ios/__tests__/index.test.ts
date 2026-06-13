@@ -252,7 +252,7 @@ for (const [name, device] of [
   });
 }
 
-test('iosRunnerOverrides maps swipe to XCTest iOS drag duration', async () => {
+test('iosRunnerOverrides maps iOS swipe duration to synthesized drag', async () => {
   mockRunIosRunnerCommand.mockResolvedValue({});
 
   const { overrides } = iosRunnerOverrides(IOS_TEST_SIMULATOR, {
@@ -270,6 +270,7 @@ test('iosRunnerOverrides maps swipe to XCTest iOS drag duration', async () => {
     x2: 180,
     y2: 200,
     durationMs: 300,
+    synthesized: true,
     appBundleId: 'com.example.App',
   });
   assert.deepEqual(mockRunIosRunnerCommand.mock.calls[1]?.[1], {
@@ -279,6 +280,7 @@ test('iosRunnerOverrides maps swipe to XCTest iOS drag duration', async () => {
     x2: 180,
     y2: 200,
     durationMs: 250,
+    synthesized: true,
     appBundleId: 'com.example.App',
   });
   assert.deepEqual(mockRunIosRunnerCommand.mock.calls[2]?.[1], {
