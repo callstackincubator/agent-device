@@ -188,7 +188,25 @@ extension RunnerTests {
           gestureEndUptimeMs: timing.gestureEndUptimeMs
         )
       }
-      // Synthesis unsupported (e.g. macOS) — fall through to the coordinate drag below.
+      let fallbackHoldDuration = synthesizedSwipeFallbackHoldDuration(durationMs: step.durationMs ?? 250)
+      let (fallbackTiming, fallbackOutcome) = performGesture(activeApp) {
+        dragAt(
+          app: activeApp,
+          x: dragPoints.x,
+          y: dragPoints.y,
+          x2: dragPoints.x2,
+          y2: dragPoints.y2,
+          holdDuration: fallbackHoldDuration
+        )
+      }
+      if case .performed = fallbackOutcome, let pauseMs = step.pauseMs, pauseMs > 0 {
+        sleepFor(min(max(pauseMs, 0), 10000) / 1000.0)
+      }
+      return SequenceStepOutcome(
+        outcome: fallbackOutcome,
+        gestureStartUptimeMs: fallbackTiming.gestureStartUptimeMs,
+        gestureEndUptimeMs: fallbackTiming.gestureEndUptimeMs
+      )
     }
     let (timing, outcome) = performGesture(activeApp) {
       switch step.kind {
@@ -201,7 +219,7 @@ extension RunnerTests {
       case "drag":
         // Route through keyboardAvoidingDragPoints for parity with the individual `.drag` command.
         // The non-synthesized coordinate-drag path ignores durationMs, matching that command's
-        // fallback branch.
+        // non-synthesized branch.
         let dragPoints = keyboardAvoidingDragPoints(
           app: activeApp, x: x, y: y, x2: step.x2 ?? x, y2: step.y2 ?? y)
         return dragAt(

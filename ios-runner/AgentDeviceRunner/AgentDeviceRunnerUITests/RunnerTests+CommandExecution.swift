@@ -13,7 +13,7 @@ extension RunnerTests {
     return (gestureStartUptimeMs, currentUptimeMs())
   }
 
-  private func synthesizedSwipeFallbackHoldDuration(durationMs: Double) -> TimeInterval {
+  func synthesizedSwipeFallbackHoldDuration(durationMs: Double) -> TimeInterval {
     min(max((durationMs / 5.0) / 1000.0, 0.016), 0.120)
   }
 
