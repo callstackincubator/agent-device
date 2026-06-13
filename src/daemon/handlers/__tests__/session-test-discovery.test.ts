@@ -1,4 +1,4 @@
-import { test } from 'vitest';
+import { test, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -83,4 +83,78 @@ test('discoverReplayTestEntries includes Maestro yaml flows for Maestro test sui
   if (entries[0]?.kind === 'run') {
     assert.equal(entries[0].title, 'Bottom Tabs - Dynamic');
   }
+});
+
+test('discoverReplayTestEntries sorts Maestro directory flows by extension group then path', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-discovery-maestro-sort-'));
+  const flowFiles = ['10-legacy.ad', '30-zeta.yaml', '05-compat.ad', '20-beta.yml'];
+  for (const fileName of flowFiles) {
+    const body = fileName.endsWith('.ad') ? 'open "Demo"\n' : 'appId: demo\n---\n- launchApp\n';
+    fs.writeFileSync(path.join(root, fileName), body);
+  }
+
+  const globSync = vi.spyOn(fs, 'globSync').mockImplementation((pattern, options) => {
+    assert.equal((options as { cwd?: string } | undefined)?.cwd, root);
+    if (pattern === '**/*.yaml') return ['30-zeta.yaml'];
+    if (pattern === '**/*.yml') return ['20-beta.yml'];
+    if (pattern === '**/*.ad') return ['10-legacy.ad', '05-compat.ad'];
+    return [];
+  });
+
+  try {
+    const entries = discoverReplayTestEntries({
+      inputs: [root],
+      cwd: root,
+      replayBackend: 'maestro',
+    });
+
+    assert.deepEqual(
+      entries.map((entry) => path.basename(entry.path)),
+      ['20-beta.yml', '30-zeta.yaml', '05-compat.ad', '10-legacy.ad'],
+    );
+  } finally {
+    globSync.mockRestore();
+  }
+});
+
+test('discoverReplayTestEntries preserves explicit Maestro file order', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-discovery-maestro-order-'));
+  const second = path.join(root, '02-second.yaml');
+  const first = path.join(root, '01-first.yaml');
+  fs.writeFileSync(first, 'appId: demo\n---\n- launchApp\n');
+  fs.writeFileSync(second, 'appId: demo\n---\n- launchApp\n');
+
+  const entries = discoverReplayTestEntries({
+    inputs: [second, first],
+    cwd: root,
+    replayBackend: 'maestro',
+  });
+
+  assert.deepEqual(
+    entries.map((entry) => path.basename(entry.path)),
+    ['02-second.yaml', '01-first.yaml'],
+  );
+});
+
+test('discoverReplayTestEntries orders Maestro file inputs before expanded flows', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-discovery-maestro-files-'));
+  const suite = path.join(root, 'suite');
+  const globSuite = path.join(root, 'glob-suite');
+  fs.mkdirSync(suite);
+  fs.mkdirSync(globSuite);
+  const explicit = path.join(root, '99-explicit.yaml');
+  fs.writeFileSync(explicit, 'appId: demo\n---\n- launchApp\n');
+  fs.writeFileSync(path.join(suite, '01-directory.yaml'), 'appId: demo\n---\n- launchApp\n');
+  fs.writeFileSync(path.join(globSuite, '02-glob.yaml'), 'appId: demo\n---\n- launchApp\n');
+
+  const entries = discoverReplayTestEntries({
+    inputs: [suite, path.join(globSuite, '*.yaml'), explicit],
+    cwd: root,
+    replayBackend: 'maestro',
+  });
+
+  assert.deepEqual(
+    entries.map((entry) => path.basename(entry.path)),
+    ['99-explicit.yaml', '01-directory.yaml', '02-glob.yaml'],
+  );
 });
