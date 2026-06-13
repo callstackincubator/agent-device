@@ -309,18 +309,17 @@ async function capturePostActionSnapshotAttempt(
 async function captureSnapshotAttempt(params: CaptureSnapshotParams): Promise<SnapshotAttempt> {
   const startedAt = Date.now();
   const data = await captureSnapshotData(params);
-  const timingSummary = recordSnapshotTiming(params.session, {
+  recordSnapshotTiming(params.session, {
     durationMs: Date.now() - startedAt,
     backend: data.backend,
     platform: params.device.platform,
   });
-  const timingWarnings = timingSummary?.warning ? [timingSummary.warning] : [];
   return {
     data,
     snapshot: buildSnapshotState(data, resolveSnapshotStateFlags(params)),
     annotations: snapshotCaptureAnnotationsFrom({
       ...data,
-      warnings: [...(data.warnings ?? []), ...timingWarnings],
+      warnings: data.warnings,
     }),
   };
 }

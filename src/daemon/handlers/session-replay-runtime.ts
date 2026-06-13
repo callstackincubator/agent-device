@@ -18,9 +18,8 @@ import {
   readReplayShellEnvSource,
 } from '../../replay/vars.ts';
 import {
-  mergeSnapshotDiagnostics,
-  readSnapshotDiagnosticsSummary,
-  type SnapshotDiagnosticsSummary,
+  summarizeSnapshotTimingSamples,
+  type SnapshotTimingSample,
 } from '../../snapshot-diagnostics.ts';
 
 // fallow-ignore-next-line complexity
@@ -87,12 +86,13 @@ export async function runReplayScriptFile(params: {
     });
     const shouldUpdate = req.flags?.replayUpdate === true;
     const actionTracePath = tracePath ?? sessionStore.get(sessionName)?.trace?.outPath;
-    const snapshotDiagnostics: Array<SnapshotDiagnosticsSummary | undefined> = [];
+    const snapshotDiagnosticSamples: SnapshotTimingSample[] = [];
     let healed = 0;
     for (let index = 0; index < actions.length; index += 1) {
       const action = actions[index];
       if (!action || action.command === 'replay') continue;
 
+      const sampleStart = readSessionSnapshotSampleCount(sessionStore, sessionName);
       let response = await invokeReplayAction({
         req: replayReq,
         sessionName,
@@ -104,7 +104,9 @@ export async function runReplayScriptFile(params: {
         tracePath: actionTracePath,
         invoke,
       });
-      snapshotDiagnostics.push(readReplayActionSnapshotDiagnostics(response));
+      snapshotDiagnosticSamples.push(
+        ...readSessionSnapshotSamplesSince(sessionStore, sessionName, sampleStart),
+      );
       if (response.ok) {
         collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
         continue;
@@ -125,6 +127,7 @@ export async function runReplayScriptFile(params: {
       }
 
       actions[index] = nextAction;
+      const healedSampleStart = readSessionSnapshotSampleCount(sessionStore, sessionName);
       response = await invokeReplayAction({
         req: replayReq,
         sessionName,
@@ -136,7 +139,9 @@ export async function runReplayScriptFile(params: {
         tracePath: actionTracePath,
         invoke,
       });
-      snapshotDiagnostics.push(readReplayActionSnapshotDiagnostics(response));
+      snapshotDiagnosticSamples.push(
+        ...readSessionSnapshotSamplesSince(sessionStore, sessionName, healedSampleStart),
+      );
       if (!response.ok) {
         collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
         return withReplayFailureContext(response, nextAction, index, resolved, [...artifactPaths]);
@@ -148,7 +153,7 @@ export async function runReplayScriptFile(params: {
     if (shouldUpdate && healed > 0) {
       writeReplayScript(resolved, actions, sessionStore.get(sessionName));
     }
-    const snapshotDiagnosticsSummary = mergeSnapshotDiagnostics(snapshotDiagnostics);
+    const snapshotDiagnosticsSummary = summarizeSnapshotTimingSamples(snapshotDiagnosticSamples);
     return {
       ok: true,
       data: {
@@ -284,12 +289,16 @@ export function collectReplayActionArtifactPaths(response: DaemonResponse): stri
   return [...new Set(candidates.filter((candidate) => isReplayArtifactPath(candidate)))];
 }
 
-function readReplayActionSnapshotDiagnostics(
-  response: DaemonResponse,
-): SnapshotDiagnosticsSummary | undefined {
-  return response.ok
-    ? readSnapshotDiagnosticsSummary(response.data?.snapshotDiagnostics)
-    : undefined;
+function readSessionSnapshotSampleCount(sessionStore: SessionStore, sessionName: string): number {
+  return sessionStore.get(sessionName)?.snapshotDiagnostics?.samples.length ?? 0;
+}
+
+function readSessionSnapshotSamplesSince(
+  sessionStore: SessionStore,
+  sessionName: string,
+  start: number,
+): SnapshotTimingSample[] {
+  return sessionStore.get(sessionName)?.snapshotDiagnostics?.samples.slice(start) ?? [];
 }
 
 function isReplayArtifactPath(candidate: string): boolean {

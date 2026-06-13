@@ -46,6 +46,13 @@ export function summarizeSnapshotDiagnostics(
 ): SnapshotDiagnosticsSummary | undefined {
   const samples = session?.snapshotDiagnostics?.samples;
   if (!samples || samples.length === 0) return undefined;
+  return summarizeSnapshotTimingSamples(samples);
+}
+
+export function summarizeSnapshotTimingSamples(
+  samples: SnapshotTimingSample[],
+): SnapshotDiagnosticsSummary | undefined {
+  if (samples.length === 0) return undefined;
   const stats = buildSnapshotTimingStats(samples);
   return {
     stats,

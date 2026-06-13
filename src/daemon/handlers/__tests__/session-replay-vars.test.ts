@@ -8,6 +8,7 @@ import { runCmdBackground, type ExecBackgroundResult } from '../../../utils/exec
 import type { DaemonInvokeFn, DaemonRequest, DaemonResponse, SessionAction } from '../../types.ts';
 import type { CommandFlags } from '../../../core/dispatch.ts';
 import { SessionStore } from '../../session-store.ts';
+import { makeIosSession } from '../../../__tests__/test-utils/index.ts';
 import {
   buildReplayVarScope,
   collectReplayShellEnv,
@@ -473,6 +474,64 @@ test('runReplayScriptFile dispatches resolved literals with file env overridden 
       assert.equal(pos.includes('${'), false, `unresolved interpolation leaked: ${pos}`);
     }
   }
+});
+
+test('runReplayScriptFile reports snapshot diagnostics from per-action session samples', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-snapshot-samples-'));
+  const scriptPath = path.join(root, 'flow.ad');
+  fs.writeFileSync(scriptPath, ['snapshot', 'snapshot', ''].join('\n'));
+  const sessionStore = new SessionStore(path.join(root, 'state'));
+  sessionStore.set(
+    's',
+    makeIosSession('s', {
+      snapshotDiagnostics: { samples: [] },
+    }),
+  );
+  let captures = 0;
+
+  const response = await runReplayScriptFile({
+    req: {
+      token: 't',
+      session: 's',
+      command: 'replay',
+      positionals: [scriptPath],
+      meta: { cwd: root },
+    },
+    sessionName: 's',
+    logPath: path.join(root, 'log'),
+    sessionStore,
+    invoke: async (): Promise<DaemonResponse> => {
+      captures += 1;
+      const session = sessionStore.get('s');
+      session?.snapshotDiagnostics?.samples.push({
+        durationMs: captures === 1 ? 400 : 1_900,
+        backend: 'xctest',
+        platform: 'ios',
+      });
+      return {
+        ok: true,
+        data: {
+          snapshotDiagnostics: {
+            stats: {
+              count: captures,
+              p50Ms: captures === 1 ? 400 : 1_900,
+              p95Ms: captures === 1 ? 400 : 1_900,
+              maxMs: captures === 1 ? 400 : 1_900,
+              slowThresholdMs: 1_500,
+              platform: 'ios',
+            },
+          },
+        },
+      };
+    },
+  });
+
+  assert.equal(response.ok, true);
+  const diagnostics = response.data?.snapshotDiagnostics as
+    | { stats?: { count?: number }; warning?: string }
+    | undefined;
+  assert.equal(diagnostics?.stats?.count, 2);
+  assert.match(String(diagnostics?.warning), /p95 1900ms over 2 captures/);
 });
 
 test('runReplayScriptFile applies CLI env overrides before Maestro compat mapping', async () => {
