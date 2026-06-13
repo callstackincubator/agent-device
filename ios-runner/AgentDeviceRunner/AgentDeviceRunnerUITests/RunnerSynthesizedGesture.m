@@ -131,6 +131,14 @@ static double RunnerSmoothStep(double t);
   }
 }
 
++ (NSInteger)interfaceOrientationForApplication:(id)application {
+  SEL selector = NSSelectorFromString(@"interfaceOrientation");
+  if (![application respondsToSelector:selector]) {
+    return 0;  // UIInterfaceOrientationUnknown
+  }
+  return ((RunnerMsgSendInteger)objc_msgSend)(application, selector);
+}
+
 + (NSString * _Nullable)trySynthesizeTransformWithApplication:(id)application
                                                             x:(double)x
                                                             y:(double)y

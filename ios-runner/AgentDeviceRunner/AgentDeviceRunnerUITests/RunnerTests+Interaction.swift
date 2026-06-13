@@ -634,6 +634,31 @@ extension RunnerTests {
     return performCoordinateDrag(app: app, x: x, y: y, x2: x2, y2: y2, holdDuration: holdDuration)
   }
 
+  /// Rotates an interface-oriented point into the device-native (portrait) space the
+  /// synthesized event path consumes — synthesized events skip XCTest's orientation
+  /// handling, so without this a landscape tap lands in the wrong place.
+  func nativeSynthesizedPoint(
+    orientedX x: Double,
+    orientedY y: Double,
+    in frame: CGRect,
+    interfaceOrientation: Int
+  ) -> CGPoint {
+    let localX = x - Double(frame.minX)
+    let localY = y - Double(frame.minY)
+    let width = Double(frame.width)
+    let height = Double(frame.height)
+    switch interfaceOrientation {
+    case 3:  // landscapeRight
+      return CGPoint(x: height - localY, y: localX)
+    case 4:  // landscapeLeft
+      return CGPoint(x: localY, y: width - localX)
+    case 2:  // portraitUpsideDown
+      return CGPoint(x: width - localX, y: height - localY)
+    default:  // 1 portrait, 0 unknown
+      return CGPoint(x: localX, y: localY)
+    }
+  }
+
   func synthesizedDragAt(
     app: XCUIApplication,
     x: Double,
@@ -643,12 +668,16 @@ extension RunnerTests {
     durationMs: Double
   ) -> RunnerInteractionOutcome {
 #if os(iOS)
+    let orientation = Int(RunnerSynthesizedGesture.interfaceOrientation(forApplication: app))
+    let frame = app.frame
+    let start = nativeSynthesizedPoint(orientedX: x, orientedY: y, in: frame, interfaceOrientation: orientation)
+    let end = nativeSynthesizedPoint(orientedX: x2, orientedY: y2, in: frame, interfaceOrientation: orientation)
     if let message = RunnerSynthesizedGesture.synthesizeSwipe(
       withApplication: app,
-      x: x,
-      y: y,
-      x2: x2,
-      y2: y2,
+      x: Double(start.x),
+      y: Double(start.y),
+      x2: Double(end.x),
+      y2: Double(end.y),
       durationMs: durationMs
     ) {
       return .unsupported(
@@ -672,10 +701,12 @@ extension RunnerTests {
 
   func synthesizedTapAt(app: XCUIApplication, x: Double, y: Double) -> RunnerInteractionOutcome {
 #if os(iOS)
+    let orientation = Int(RunnerSynthesizedGesture.interfaceOrientation(forApplication: app))
+    let point = nativeSynthesizedPoint(orientedX: x, orientedY: y, in: app.frame, interfaceOrientation: orientation)
     if let message = RunnerSynthesizedGesture.synthesizeTap(
       withApplication: app,
-      x: x,
-      y: y
+      x: Double(point.x),
+      y: Double(point.y)
     ) {
       return .unsupported(
         message: message,
@@ -1090,5 +1121,26 @@ extension RunnerTests {
     )
     let element = app.descendants(matching: .any).matching(predicate).firstMatch
     return element.exists ? element : nil
+  }
+
+  // Identity in portrait/unknown, 90° per landscape, 180° upside-down.
+  func testNativeSynthesizedPointRotatesByInterfaceOrientation() {
+    let portrait = CGRect(x: 0, y: 0, width: 834, height: 1210)
+    let landscape = CGRect(x: 0, y: 0, width: 1210, height: 834)
+    // (frame, UIInterfaceOrientation, expected native point) for a tap at (170, 268).
+    let cases: [(CGRect, Int, CGPoint)] = [
+      (portrait, 1, CGPoint(x: 170, y: 268)),   // portrait
+      (landscape, 3, CGPoint(x: 566, y: 170)),  // landscapeRight
+      (landscape, 4, CGPoint(x: 268, y: 1040)), // landscapeLeft
+      (portrait, 2, CGPoint(x: 664, y: 942)),   // portraitUpsideDown
+      (portrait, 0, CGPoint(x: 170, y: 268)),   // unknown -> identity
+    ]
+    for (frame, orientation, expected) in cases {
+      XCTAssertEqual(
+        nativeSynthesizedPoint(orientedX: 170, orientedY: 268, in: frame, interfaceOrientation: orientation),
+        expected,
+        "interfaceOrientation \(orientation)"
+      )
+    }
   }
 }

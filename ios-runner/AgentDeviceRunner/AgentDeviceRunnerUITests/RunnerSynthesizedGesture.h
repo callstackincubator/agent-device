@@ -25,6 +25,10 @@ NS_ASSUME_NONNULL_BEGIN
                                                    x:(double)x
                                                    y:(double)y;
 
+// UIInterfaceOrientation of the app (1 portrait, 2 upsideDown, 3 landscapeRight,
+// 4 landscapeLeft), or 0 if unreadable.
++ (NSInteger)interfaceOrientationForApplication:(id)application;
+
 @end
 
 NS_ASSUME_NONNULL_END
