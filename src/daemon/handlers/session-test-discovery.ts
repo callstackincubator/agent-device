@@ -187,6 +187,9 @@ function readMaestroDirectoryReplayTestPaths(
   extensions: Set<string>,
 ): string[] {
   const paths: string[] = [];
+  // Maestro's Java Files.walk follows native directory iteration order. Keep
+  // this unsorted so folder suites, and sharding derived from them, match
+  // Maestro on the same machine even though order can differ across hosts.
   const directory = fs.opendirSync(directoryPath);
   try {
     let entry: fs.Dirent | null;

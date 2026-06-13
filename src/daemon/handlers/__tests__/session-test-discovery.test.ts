@@ -127,6 +127,57 @@ test('discoverReplayTestEntries preserves Maestro directory filesystem order', (
   }
 });
 
+test('discoverReplayTestEntries preserves Maestro nested directory DFS order', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-discovery-maestro-dfs-'));
+  const nested = path.join(root, 'nested');
+  fs.mkdirSync(nested, { recursive: true });
+  fs.writeFileSync(path.join(root, '30-root-a.yaml'), 'appId: demo\n---\n- launchApp\n');
+  fs.writeFileSync(path.join(nested, '10-child.yml'), 'appId: demo\n---\n- launchApp\n');
+  fs.writeFileSync(path.join(root, '20-root-c.ad'), 'open "Demo"\n');
+
+  type MockDirEntry = { name: string; directory: boolean };
+  const opendirSync = vi.spyOn(fs, 'opendirSync').mockImplementation((directory) => {
+    let entries: MockDirEntry[] = [];
+    if (directory === root) {
+      entries = [
+        { name: '30-root-a.yaml', directory: false },
+        { name: 'nested', directory: true },
+        { name: '20-root-c.ad', directory: false },
+      ];
+    } else if (directory === nested) {
+      entries = [{ name: '10-child.yml', directory: false }];
+    }
+    let index = 0;
+    return {
+      readSync: () => {
+        const entry = entries[index++];
+        if (!entry) return null;
+        return {
+          name: entry.name,
+          isDirectory: () => entry.directory,
+          isFile: () => !entry.directory,
+        } as fs.Dirent;
+      },
+      closeSync: () => {},
+    } as fs.Dir;
+  });
+
+  try {
+    const entries = discoverReplayTestEntries({
+      inputs: [root],
+      cwd: root,
+      replayBackend: 'maestro',
+    });
+
+    assert.deepEqual(
+      entries.map((entry) => path.relative(root, entry.path)),
+      ['30-root-a.yaml', path.join('nested', '10-child.yml'), '20-root-c.ad'],
+    );
+  } finally {
+    opendirSync.mockRestore();
+  }
+});
+
 test('discoverReplayTestEntries preserves explicit Maestro file order', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-discovery-maestro-order-'));
   const second = path.join(root, '02-second.yaml');
