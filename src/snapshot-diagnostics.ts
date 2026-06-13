@@ -31,14 +31,13 @@ export type SnapshotDiagnosticsSummary = {
 export function recordSnapshotTiming(
   session: { snapshotDiagnostics?: SnapshotDiagnosticsState } | undefined,
   sample: SnapshotTimingSample,
-): SnapshotDiagnosticsSummary | undefined {
-  if (!session) return undefined;
+): void {
+  if (!session) return;
   const diagnostics = (session.snapshotDiagnostics ??= { samples: [] });
   diagnostics.samples.push({
     ...sample,
     durationMs: Math.max(0, Math.round(sample.durationMs)),
   });
-  return summarizeSnapshotDiagnostics(session);
 }
 
 export function summarizeSnapshotDiagnostics(

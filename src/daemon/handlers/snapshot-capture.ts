@@ -317,10 +317,7 @@ async function captureSnapshotAttempt(params: CaptureSnapshotParams): Promise<Sn
   return {
     data,
     snapshot: buildSnapshotState(data, resolveSnapshotStateFlags(params)),
-    annotations: snapshotCaptureAnnotationsFrom({
-      ...data,
-      warnings: data.warnings,
-    }),
+    annotations: snapshotCaptureAnnotationsFrom(data),
   };
 }
 

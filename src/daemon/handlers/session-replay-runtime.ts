@@ -114,13 +114,13 @@ export async function runReplayScriptFile(params: {
       }
       collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
       if (!shouldUpdate) {
-        return withReplayFailureContext(
+        return withReplayFailureDiagnostics(
           response,
           action,
           index,
           resolved,
           [...artifactPaths],
-          summarizeSnapshotTimingSamples(snapshotDiagnosticSamples),
+          snapshotDiagnosticSamples,
         );
       }
 
@@ -131,13 +131,13 @@ export async function runReplayScriptFile(params: {
         sessionStore,
       });
       if (!nextAction) {
-        return withReplayFailureContext(
+        return withReplayFailureDiagnostics(
           response,
           action,
           index,
           resolved,
           [...artifactPaths],
-          summarizeSnapshotTimingSamples(snapshotDiagnosticSamples),
+          snapshotDiagnosticSamples,
         );
       }
 
@@ -159,13 +159,13 @@ export async function runReplayScriptFile(params: {
       );
       if (!response.ok) {
         collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
-        return withReplayFailureContext(
+        return withReplayFailureDiagnostics(
           response,
           nextAction,
           index,
           resolved,
           [...artifactPaths],
-          summarizeSnapshotTimingSamples(snapshotDiagnosticSamples),
+          snapshotDiagnosticSamples,
         );
       }
       collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
@@ -246,6 +246,24 @@ function buildReplayMetadataFlags(
       ? { target: metadata.target }
       : {}),
   };
+}
+
+function withReplayFailureDiagnostics(
+  response: DaemonResponse,
+  action: SessionAction,
+  index: number,
+  replayPath: string,
+  artifactPaths: string[],
+  snapshotDiagnosticSamples: SnapshotTimingSample[],
+): DaemonResponse {
+  return withReplayFailureContext(
+    response,
+    action,
+    index,
+    replayPath,
+    artifactPaths,
+    summarizeSnapshotTimingSamples(snapshotDiagnosticSamples),
+  );
 }
 
 function withReplayFailureContext(
