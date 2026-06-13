@@ -27,6 +27,8 @@ export type ReplayTestDiscoveryEntry =
 
 export type ReplayTestRunEntry = Extract<ReplayTestDiscoveryEntry, { kind: 'run' }>;
 
+type ReplayTestInputSource = 'directory' | 'file' | 'glob';
+
 export function discoverReplayTestEntries(params: {
   inputs: string[];
   cwd?: string;
@@ -36,11 +38,7 @@ export function discoverReplayTestEntries(params: {
   const { inputs, cwd, platformFilter, replayBackend } = params;
   const extensions = replayTestExtensions(replayBackend);
   const resolvedCwd = cwd ?? process.cwd();
-  const filePaths = [
-    ...new Set(inputs.flatMap((input) => expandReplayTestInput(input, resolvedCwd, extensions))),
-  ]
-    .map((entry) => path.normalize(entry))
-    .sort((left, right) => left.localeCompare(right));
+  const filePaths = discoverReplayTestFilePaths(inputs, resolvedCwd, extensions, replayBackend);
 
   const entries: ReplayTestDiscoveryEntry[] = [];
   for (const filePath of filePaths) {
@@ -136,24 +134,57 @@ export function resolveReplayTestRetries(
   return Math.max(0, Math.min(MAX_REPLAY_TEST_RETRIES, resolved));
 }
 
-function expandReplayTestInput(input: string, cwd: string, extensions: Set<string>): string[] {
+function discoverReplayTestFilePaths(
+  inputs: string[],
+  cwd: string,
+  extensions: Set<string>,
+  replayBackend: string | undefined,
+): string[] {
+  if (!isMaestroReplayBackend(replayBackend)) {
+    return [
+      ...new Set(inputs.flatMap((input) => expandReplayTestInput(input, cwd, extensions).paths)),
+    ]
+      .map((entry) => path.normalize(entry))
+      .sort((left, right) => left.localeCompare(right));
+  }
+
+  const files: string[] = [];
+  const expandedGroups: string[][] = [];
+  for (const input of inputs) {
+    const expanded = expandReplayTestInput(input, cwd, extensions);
+    if (expanded.source === 'file') {
+      files.push(...expanded.paths);
+    } else {
+      expandedGroups.push(sortMaestroExpandedReplayTestPaths(expanded.paths));
+    }
+  }
+
+  return uniqueNormalizedPaths([...files, ...expandedGroups.flat()]);
+}
+
+function expandReplayTestInput(
+  input: string,
+  cwd: string,
+  extensions: Set<string>,
+): { paths: string[]; source: ReplayTestInputSource } {
   const expandedInput = SessionStore.expandHome(input, cwd);
   if (fs.existsSync(expandedInput)) {
     const stat = fs.statSync(expandedInput);
     if (stat.isDirectory()) {
-      return replayTestGlobPatterns(extensions).flatMap((pattern) =>
+      const paths = replayTestGlobPatterns(extensions).flatMap((pattern) =>
         fs
           .globSync(pattern, { cwd: expandedInput })
           .map((match) => path.join(expandedInput, match)),
       );
+      return { paths, source: 'directory' };
     }
     if (stat.isFile()) {
       if (!extensions.has(path.extname(expandedInput))) {
         throw new AppError('INVALID_ARGS', `test does not support this file type: ${input}`);
       }
-      return [expandedInput];
+      return { paths: [expandedInput], source: 'file' };
     }
-    return [];
+    return { paths: [], source: 'file' };
   }
 
   if (!looksLikeGlob(input) && !looksLikeGlob(expandedInput)) {
@@ -165,19 +196,41 @@ function expandReplayTestInput(input: string, cwd: string, extensions: Set<strin
     cwd: path.isAbsolute(expandedInput) ? undefined : cwd,
   });
 
-  return matches
+  const paths = matches
     .map((match) => (path.isAbsolute(match) ? match : path.resolve(cwd, match)))
     .filter((match) => extensions.has(path.extname(match)) && isExistingFile(match));
+  return { paths, source: 'glob' };
 }
 
 function replayTestExtensions(replayBackend: string | undefined): Set<string> {
   return isMaestroReplayBackend(replayBackend)
-    ? new Set(['.ad', '.yaml', '.yml'])
+    ? new Set(['.yaml', '.yml', '.ad'])
     : new Set(['.ad']);
 }
 
 function replayTestGlobPatterns(extensions: Set<string>): string[] {
   return [...extensions].map((extension) => `**/*${extension}`);
+}
+
+function sortMaestroExpandedReplayTestPaths(paths: string[]): string[] {
+  return paths.map((entry) => path.normalize(entry)).sort(compareMaestroReplayTestPath);
+}
+
+function compareMaestroReplayTestPath(left: string, right: string): number {
+  const leftRank = maestroReplayTestExtensionRank(left);
+  const rightRank = maestroReplayTestExtensionRank(right);
+  if (leftRank !== rightRank) {
+    return leftRank - rightRank;
+  }
+  return left.localeCompare(right);
+}
+
+function maestroReplayTestExtensionRank(filePath: string): number {
+  return path.extname(filePath) === '.ad' ? 1 : 0;
+}
+
+function uniqueNormalizedPaths(paths: string[]): string[] {
+  return [...new Set(paths.map((entry) => path.normalize(entry)))];
 }
 
 function isMaestroReplayBackend(replayBackend: string | undefined): boolean {
