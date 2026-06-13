@@ -197,8 +197,25 @@ test('handleSwipeCommand fuses repeated swipes into sequence drag steps with pin
     steps: [
       // Ping-pong is unrolled daemon-side: odd indices swap endpoints, replacing the
       // runner-side pattern handling of the retired dragSeries command.
-      { kind: 'drag', x: 100, y: 650, x2: 100, y2: 450, durationMs: 120, pauseMs: 50 },
-      { kind: 'drag', x: 100, y: 450, x2: 100, y2: 650, durationMs: 120 },
+      {
+        kind: 'drag',
+        x: 100,
+        y: 650,
+        x2: 100,
+        y2: 450,
+        durationMs: 120,
+        synthesized: true,
+        pauseMs: 50,
+      },
+      {
+        kind: 'drag',
+        x: 100,
+        y: 450,
+        x2: 100,
+        y2: 650,
+        durationMs: 120,
+        synthesized: true,
+      },
     ],
     appBundleId: 'com.example.App',
   });

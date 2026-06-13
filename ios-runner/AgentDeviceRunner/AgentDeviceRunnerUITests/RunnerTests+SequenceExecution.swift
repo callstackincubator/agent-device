@@ -164,6 +164,32 @@ extension RunnerTests {
       }
       // Synthesis unsupported (e.g. macOS) — fall through to the drag-based tapAt below.
     }
+    if step.kind == "drag", step.synthesized == true {
+      let dragPoints = keyboardAvoidingDragPoints(
+        app: activeApp, x: x, y: y, x2: step.x2 ?? x, y2: step.y2 ?? y)
+      let durationMs = min(max(step.durationMs ?? 250, 16), 10000)
+      let (timing, outcome) = performGesture(activeApp, idleTimeout: false) {
+        synthesizedDragAt(
+          app: activeApp,
+          x: dragPoints.x,
+          y: dragPoints.y,
+          x2: dragPoints.x2,
+          y2: dragPoints.y2,
+          durationMs: durationMs
+        )
+      }
+      if case .performed = outcome {
+        if let pauseMs = step.pauseMs, pauseMs > 0 {
+          sleepFor(min(max(pauseMs, 0), 10000) / 1000.0)
+        }
+        return SequenceStepOutcome(
+          outcome: outcome,
+          gestureStartUptimeMs: timing.gestureStartUptimeMs,
+          gestureEndUptimeMs: timing.gestureEndUptimeMs
+        )
+      }
+      // Synthesis unsupported (e.g. macOS) — fall through to the coordinate drag below.
+    }
     let (timing, outcome) = performGesture(activeApp) {
       switch step.kind {
       case "doubleTap":
@@ -173,9 +199,9 @@ extension RunnerTests {
         let duration = min(max(step.durationMs ?? 800, 16), 10000) / 1000.0
         return longPressAt(app: activeApp, x: x, y: y, duration: duration)
       case "drag":
-        // Route through keyboardAvoidingDragPoints for parity with the individual `.drag` command
-        // (RunnerTests+CommandExecution.swift). durationMs is intentionally ignored on this
-        // coordinate-drag path, matching that command's non-synthesized branch.
+        // Route through keyboardAvoidingDragPoints for parity with the individual `.drag` command.
+        // The non-synthesized coordinate-drag path ignores durationMs, matching that command's
+        // fallback branch.
         let dragPoints = keyboardAvoidingDragPoints(
           app: activeApp, x: x, y: y, x2: step.x2 ?? x, y2: step.y2 ?? y)
         return dragAt(

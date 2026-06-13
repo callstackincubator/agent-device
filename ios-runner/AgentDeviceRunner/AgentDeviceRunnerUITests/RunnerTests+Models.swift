@@ -157,8 +157,8 @@ struct SequenceStep: Codable {
   let y2: Double?
   let durationMs: Double?
   let pauseMs: Double?
-  /// For `tap` steps on iOS non-tv: use the synthesized HID tap fast path (synthesizedTapAt)
-  /// instead of the drag-based XCUICoordinate tapAt, matching the individual `tap` command.
+  /// For `tap`/`drag` steps on iOS non-tv: use the synthesized HID fast path instead of the
+  /// drag-based XCUICoordinate path, matching the individual command behavior.
   let synthesized: Bool?
 }
 

@@ -107,7 +107,7 @@ export function iosRunnerOverrides(
           device,
           iosDragCommand(device, ctx, x1, y1, x2, y2, durationMs, {
             defaultDurationMs: IOS_SWIPE_DEFAULT_DURATION_MS,
-            synthesized: device.platform === 'ios' && device.target !== 'tv',
+            synthesized: shouldUseSynthesizedIosGesture(device),
           }),
           runnerOpts,
         );
@@ -118,6 +118,7 @@ export function iosRunnerOverrides(
           iosDragCommand(device, ctx, x1, y1, x2, y2, durationMs, {
             defaultDurationMs: 500,
             legacyDefaultDurationMs: 500,
+            synthesized: shouldUseSynthesizedIosGesture(device),
           }),
           runnerOpts,
         );
@@ -125,15 +126,11 @@ export function iosRunnerOverrides(
       fling: async (x1, y1, x2, y2, durationMs) => {
         return await runIosRunnerCommand(
           device,
-          {
-            command: 'drag',
-            x: x1,
-            y: y1,
-            x2,
-            y2,
-            durationMs: durationMs ?? 16,
-            appBundleId: ctx.appBundleId,
-          },
+          iosDragCommand(device, ctx, x1, y1, x2, y2, durationMs, {
+            defaultDurationMs: 16,
+            legacyDefaultDurationMs: 16,
+            synthesized: shouldUseSynthesizedIosGesture(device),
+          }),
           runnerOpts,
         );
       },
@@ -259,9 +256,13 @@ function iosTapCommand(
     command: 'tap',
     x,
     y,
-    ...(device.platform === 'ios' && device.target !== 'tv' ? { synthesized: true } : {}),
+    ...(shouldUseSynthesizedIosGesture(device) ? { synthesized: true } : {}),
     appBundleId: ctx.appBundleId,
   };
+}
+
+function shouldUseSynthesizedIosGesture(device: DeviceInfo): boolean {
+  return device.platform === 'ios' && device.target !== 'tv';
 }
 
 function iosDragCommand(

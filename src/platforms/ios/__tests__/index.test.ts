@@ -184,7 +184,7 @@ test('resolveMacOsHelperPackageRootFrom finds helper package from source and dis
   }
 });
 
-test('iosRunnerOverrides gives fling a short default XCUITest drag hold', async () => {
+test('iosRunnerOverrides maps iOS fling duration to synthesized drag', async () => {
   mockRunIosRunnerCommand.mockResolvedValue({});
 
   const { overrides } = iosRunnerOverrides(IOS_TEST_SIMULATOR, {
@@ -200,6 +200,7 @@ test('iosRunnerOverrides gives fling a short default XCUITest drag hold', async 
     x2: 180,
     y2: 200,
     durationMs: 16,
+    synthesized: true,
     appBundleId: 'com.example.App',
   });
 });
@@ -252,7 +253,7 @@ for (const [name, device] of [
   });
 }
 
-test('iosRunnerOverrides maps iOS swipe duration to synthesized drag', async () => {
+test('iosRunnerOverrides maps iOS swipe and pan durations to synthesized drag', async () => {
   mockRunIosRunnerCommand.mockResolvedValue({});
 
   const { overrides } = iosRunnerOverrides(IOS_TEST_SIMULATOR, {
@@ -290,6 +291,7 @@ test('iosRunnerOverrides maps iOS swipe duration to synthesized drag', async () 
     x2: 180,
     y2: 200,
     durationMs: 300,
+    synthesized: true,
     appBundleId: 'com.example.App',
   });
 });
@@ -298,7 +300,7 @@ for (const [name, device] of [
   ['macOS', MACOS_TEST_DEVICE],
   ['tvOS', TVOS_TEST_SIMULATOR],
 ] as const) {
-  test(`iosRunnerOverrides keeps ${name} swipes on the standard drag path`, async () => {
+  test(`iosRunnerOverrides keeps ${name} drag gestures on the standard path`, async () => {
     mockRunIosRunnerCommand.mockResolvedValue({});
 
     const { overrides } = iosRunnerOverrides(device, {
@@ -306,8 +308,28 @@ for (const [name, device] of [
     });
 
     await overrides.swipe(100, 200, 180, 200, 300);
+    await overrides.pan(100, 200, 180, 200, 300);
+    await overrides.fling(100, 200, 180, 200, 300);
 
     assert.deepEqual(mockRunIosRunnerCommand.mock.calls[0]?.[1], {
+      command: 'drag',
+      x: 100,
+      y: 200,
+      x2: 180,
+      y2: 200,
+      durationMs: 300,
+      appBundleId: 'com.example.App',
+    });
+    assert.deepEqual(mockRunIosRunnerCommand.mock.calls[1]?.[1], {
+      command: 'drag',
+      x: 100,
+      y: 200,
+      x2: 180,
+      y2: 200,
+      durationMs: 300,
+      appBundleId: 'com.example.App',
+    });
+    assert.deepEqual(mockRunIosRunnerCommand.mock.calls[2]?.[1], {
       command: 'drag',
       x: 100,
       y: 200,

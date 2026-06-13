@@ -427,10 +427,10 @@ function buildPressSequenceSteps(
 
 // Unrolls a swipe series into `sequence` drag steps, replacing the retired `dragSeries` runner
 // command. Ping-pong becomes per-step endpoint swapping (odd indices reversed), matching the
-// runner-side performDragSeries the daemon no longer invokes. durationMs is carried for wire
-// fidelity and budget estimation; the runner's coordinate-drag path ignores it, exactly as the
-// daemon-sent (non-synthesized) dragSeries did.
+// runner-side performDragSeries the daemon no longer invokes. iOS touch targets request the same
+// synthesized, duration-aware drag path as one-shot swipe; macOS/tvOS keep coordinate drag.
 function buildSwipeSequenceSteps(params: {
+  device: DeviceInfo;
   x1: number;
   y1: number;
   x2: number;
@@ -440,7 +440,8 @@ function buildSwipeSequenceSteps(params: {
   pattern: string;
   effectiveDurationMs: number;
 }): RunnerSequenceStep[] {
-  const { x1, y1, x2, y2, count, pauseMs, pattern, effectiveDurationMs } = params;
+  const { device, x1, y1, x2, y2, count, pauseMs, pattern, effectiveDurationMs } = params;
+  const synthesized = device.platform === 'ios' && device.target !== 'tv';
   return Array.from({ length: count }, (_, index) => {
     const reverse = pattern === 'ping-pong' && index % 2 === 1;
     const isLast = index === count - 1;
@@ -451,6 +452,7 @@ function buildSwipeSequenceSteps(params: {
       x2: reverse ? x1 : x2,
       y2: reverse ? y1 : y2,
       durationMs: effectiveDurationMs,
+      ...(synthesized ? { synthesized: true } : {}),
       ...(!isLast && pauseMs > 0 ? { pauseMs } : {}),
     };
   });
@@ -608,7 +610,17 @@ async function runSwipeCoordinates(params: {
   if (shouldUseIosDragSeries(device, count)) {
     const aggregated = await runIosSequenceChunks(
       device,
-      buildSwipeSequenceSteps({ x1, y1, x2, y2, count, pauseMs, pattern, effectiveDurationMs }),
+      buildSwipeSequenceSteps({
+        device,
+        x1,
+        y1,
+        x2,
+        y2,
+        count,
+        pauseMs,
+        pattern,
+        effectiveDurationMs,
+      }),
       context,
     );
     return {
