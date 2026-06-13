@@ -534,6 +534,52 @@ test('runReplayScriptFile reports snapshot diagnostics from per-action session s
   assert.match(String(diagnostics?.warning), /p95 1900ms over 2 captures/);
 });
 
+test('runReplayScriptFile reports snapshot diagnostics on replay failure', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-replay-snapshot-failure-'));
+  const scriptPath = path.join(root, 'flow.ad');
+  fs.writeFileSync(scriptPath, ['snapshot', 'click "Missing"', ''].join('\n'));
+  const sessionStore = new SessionStore(path.join(root, 'state'));
+  sessionStore.set(
+    's',
+    makeIosSession('s', {
+      snapshotDiagnostics: { samples: [] },
+    }),
+  );
+  let captures = 0;
+
+  const response = await runReplayScriptFile({
+    req: {
+      token: 't',
+      session: 's',
+      command: 'replay',
+      positionals: [scriptPath],
+      meta: { cwd: root },
+    },
+    sessionName: 's',
+    logPath: path.join(root, 'log'),
+    sessionStore,
+    invoke: async (): Promise<DaemonResponse> => {
+      captures += 1;
+      const session = sessionStore.get('s');
+      session?.snapshotDiagnostics?.samples.push({
+        durationMs: captures === 1 ? 450 : 2_100,
+        backend: 'xctest',
+        platform: 'ios',
+      });
+      if (captures === 1) return { ok: true, data: {} };
+      return { ok: false, error: { code: 'COMMAND_FAILED', message: 'button missing' } };
+    },
+  });
+
+  assert.equal(response.ok, false);
+  const diagnostics = response.error.details?.snapshotDiagnostics as
+    | { stats?: { count?: number; p95Ms?: number }; warning?: string }
+    | undefined;
+  assert.equal(diagnostics?.stats?.count, 2);
+  assert.equal(diagnostics?.stats?.p95Ms, 2_100);
+  assert.match(String(diagnostics?.warning), /p95 2100ms over 2 captures/);
+});
+
 test('runReplayScriptFile applies CLI env overrides before Maestro compat mapping', async () => {
   const { response, calls } = await runReplayFixture({
     label: 'maestro-env',

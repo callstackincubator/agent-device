@@ -19,6 +19,7 @@ import {
 } from '../../replay/vars.ts';
 import {
   summarizeSnapshotTimingSamples,
+  type SnapshotDiagnosticsSummary,
   type SnapshotTimingSample,
 } from '../../snapshot-diagnostics.ts';
 
@@ -113,7 +114,14 @@ export async function runReplayScriptFile(params: {
       }
       collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
       if (!shouldUpdate) {
-        return withReplayFailureContext(response, action, index, resolved, [...artifactPaths]);
+        return withReplayFailureContext(
+          response,
+          action,
+          index,
+          resolved,
+          [...artifactPaths],
+          summarizeSnapshotTimingSamples(snapshotDiagnosticSamples),
+        );
       }
 
       const nextAction = await healReplayAction({
@@ -123,7 +131,14 @@ export async function runReplayScriptFile(params: {
         sessionStore,
       });
       if (!nextAction) {
-        return withReplayFailureContext(response, action, index, resolved, [...artifactPaths]);
+        return withReplayFailureContext(
+          response,
+          action,
+          index,
+          resolved,
+          [...artifactPaths],
+          summarizeSnapshotTimingSamples(snapshotDiagnosticSamples),
+        );
       }
 
       actions[index] = nextAction;
@@ -144,7 +159,14 @@ export async function runReplayScriptFile(params: {
       );
       if (!response.ok) {
         collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
-        return withReplayFailureContext(response, nextAction, index, resolved, [...artifactPaths]);
+        return withReplayFailureContext(
+          response,
+          nextAction,
+          index,
+          resolved,
+          [...artifactPaths],
+          summarizeSnapshotTimingSamples(snapshotDiagnosticSamples),
+        );
       }
       collectReplayActionArtifactPaths(response).forEach((entry) => artifactPaths.add(entry));
       healed += 1;
@@ -232,6 +254,7 @@ function withReplayFailureContext(
   index: number,
   replayPath: string,
   artifactPaths: string[] = [],
+  snapshotDiagnostics?: SnapshotDiagnosticsSummary,
 ): DaemonResponse {
   if (response.ok) return response;
   const step = index + 1;
@@ -250,6 +273,7 @@ function withReplayFailureContext(
         action: action.command,
         positionals: action.positionals ?? [],
         artifactPaths,
+        ...(snapshotDiagnostics ? { snapshotDiagnostics } : {}),
       },
     },
   };

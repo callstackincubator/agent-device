@@ -351,7 +351,9 @@ function replayTestSnapshotDiagnosticsResultMetadata(
 }
 
 function readReplayResponseSnapshotDiagnostics(response: DaemonResponse | undefined): unknown {
-  return response?.ok ? response.data?.snapshotDiagnostics : undefined;
+  return response?.ok
+    ? response.data?.snapshotDiagnostics
+    : response?.error.details?.snapshotDiagnostics;
 }
 
 function replayTestShardResultMetadata(

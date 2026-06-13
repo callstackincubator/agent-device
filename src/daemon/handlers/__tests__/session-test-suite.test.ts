@@ -298,6 +298,64 @@ test('test aggregates snapshot diagnostics from replay session samples', async (
   });
 });
 
+test('test aggregates snapshot diagnostics from failed replay session samples', async () => {
+  const sessionStore = makeSessionStore();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-snapshot-fail-'));
+  fs.writeFileSync(path.join(root, '01-fail.ad'), 'context platform=android\nopen "Demo"\n');
+
+  const response = await handleSessionCommands({
+    req: {
+      token: 't',
+      session: 'default',
+      command: 'test',
+      positionals: [root],
+      meta: { cwd: root, requestId: 'suite-snapshot-diagnostics-fail' },
+      flags: { platform: 'android' },
+    },
+    sessionName: 'default',
+    logPath: path.join(os.tmpdir(), 'daemon.log'),
+    sessionStore,
+    invoke: async (req) => {
+      const session =
+        sessionStore.get(req.session) ??
+        makeAndroidSession(req.session, {
+          snapshotDiagnostics: { samples: [] },
+        });
+      session.snapshotDiagnostics ??= { samples: [] };
+      session.snapshotDiagnostics.samples.push({
+        durationMs: 2_100,
+        backend: 'android',
+        platform: 'android',
+      });
+      sessionStore.set(req.session, session);
+      return {
+        ok: false,
+        error: { code: 'COMMAND_FAILED', message: 'open failed' },
+      };
+    },
+  });
+
+  const data = expectOkData(response);
+  expect(data.failed).toBe(1);
+  expect(data.snapshotDiagnostics).toMatchObject({
+    stats: {
+      count: 1,
+      p95Ms: 2_100,
+      platform: 'android',
+    },
+    warning: expect.stringContaining('p95 2100ms over 1 captures'),
+  });
+  expect((data.tests as Array<Record<string, unknown>>)[0]).toMatchObject({
+    status: 'failed',
+    snapshotDiagnostics: {
+      stats: {
+        count: 1,
+        p95Ms: 2_100,
+      },
+    },
+  });
+});
+
 test('test stops the suite when the parent request is canceled during an active replay attempt', async () => {
   const sessionStore = makeSessionStore();
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-device-test-suite-parent-cancel-'));
