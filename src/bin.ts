@@ -1,5 +1,7 @@
 const argv = process.argv.slice(2);
 
+declare const __AGENT_DEVICE_VERSION__: string;
+
 if (runFastPath(argv)) {
   // Fast path owns process output and exit behavior.
 } else if (argv[0] === 'mcp' && !argv.includes('--help') && !argv.includes('-h')) {
@@ -16,6 +18,10 @@ function runFastPath(argv: string[]): boolean {
 
 function runVersionFastPath(argv: string[]): boolean {
   if (argv.length !== 1 || !isVersionFlag(argv[0])) return false;
+  if (typeof __AGENT_DEVICE_VERSION__ === 'string') {
+    process.stdout.write(`${__AGENT_DEVICE_VERSION__}\n`);
+    return true;
+  }
   import('./utils/version.ts')
     .then(({ readVersion }) => {
       process.stdout.write(`${readVersion()}\n`);
@@ -26,9 +32,9 @@ function runVersionFastPath(argv: string[]): boolean {
 
 function runNoCommandFastPath(argv: string[]): boolean {
   if (argv.length !== 0) return false;
-  import('./utils/args.ts')
-    .then(({ usage }) => {
-      process.stdout.write(`${usage()}\n`);
+  import('./utils/cli-help.ts')
+    .then(({ buildUsageText }) => {
+      process.stdout.write(`${buildUsageText()}\n`);
       process.exit(1);
     })
     .catch(handleStartupError);
@@ -39,13 +45,13 @@ function runHelpFastPath(argv: string[]): boolean {
   const helpTarget = resolveSimpleHelpTarget(argv);
   if (helpTarget === undefined) return false;
 
-  import('./utils/args.ts')
-    .then(({ usage, usageForCommand }) => {
+  import('./utils/cli-help.ts')
+    .then(({ buildCommandUsageText, buildUsageText }) => {
       if (helpTarget === null) {
-        process.stdout.write(`${usage()}\n`);
+        process.stdout.write(`${buildUsageText()}\n`);
         return;
       }
-      const commandHelp = usageForCommand(helpTarget);
+      const commandHelp = buildCommandUsageText(normalizeHelpTarget(helpTarget));
       if (commandHelp) {
         process.stdout.write(commandHelp);
         return;
@@ -86,6 +92,12 @@ function resolveTrailingHelpTarget(
   helpArg: string | undefined,
 ): string | undefined {
   return isHelpFlag(helpArg) ? command : undefined;
+}
+
+function normalizeHelpTarget(command: string): string {
+  if (command === 'long-press') return 'longpress';
+  if (command === 'metrics') return 'perf';
+  return command;
 }
 
 function isHelpCommand(command: string | undefined): boolean {

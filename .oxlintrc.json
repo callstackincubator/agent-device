@@ -11,7 +11,13 @@
   "rules": {
     "eslint/no-unused-vars": [
       "error",
-      { "fix": { "imports": "safe-fix", "variables": "suggestion" } }
+      {
+        "argsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_",
+        "destructuredArrayIgnorePattern": "^_",
+        "fix": { "imports": "safe-fix", "variables": "suggestion" },
+        "varsIgnorePattern": "^_"
+      }
     ],
     "eslint/prefer-const": "error",
     "eslint/no-useless-escape": "error",
